@@ -59,6 +59,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = InitialDynamicState)
 	TObjectPtr<UFractureInitialDynamicStateSettings> StateSettings;
 
+	static void SetSelectedInitialDynamicState(int32 InitialDynamicState); 
 };
 
 UCLASS(config = EditorPerProjectUserSettings)

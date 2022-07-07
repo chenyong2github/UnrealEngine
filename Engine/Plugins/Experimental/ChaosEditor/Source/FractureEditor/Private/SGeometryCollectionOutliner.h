@@ -148,6 +148,7 @@ public:
 		, ItemColor(FSlateColor::UseForeground())
 		, RelativeSize(0)
 		, InitialState(INDEX_NONE)
+		, Anchored(false)
 		, Damage(0)
 		, DamageThreshold(0)
 		, Broken(false)
@@ -165,6 +166,7 @@ public:
 	TSharedRef<SWidget> MakeDamageThresholdColumnWidget() const;
 	TSharedRef<SWidget> MakeBrokenColumnWidget() const;
 	TSharedRef<SWidget> MakeInitialStateColumnWidget() const;
+	TSharedRef<SWidget> MakeAnchoredColumnWidget() const;
 	TSharedRef<SWidget> MakePostBreakTimeColumnWidget() const;
 	TSharedRef<SWidget> MakeRemovalTimeColumnWidget() const;
 	TSharedRef<SWidget> MakeImportedCollisionsColumnWidget() const;
@@ -192,6 +194,7 @@ private:
 	FText ItemText;
 	float RelativeSize;
 	int32 InitialState;
+	bool Anchored;
 	float Damage;
 	float DamageThreshold;
 	bool Broken;
@@ -210,6 +213,7 @@ namespace SGeometryCollectionOutlinerColumnID
 	// State and Size column mode
 	const FName RelativeSize("Relative Size");
 	const FName InitialState("Initial State");
+	const FName Anchored("Anchored");
 	// Damage Column Mode
 	const FName Damage("Damage");
 	const FName DamageThreshold("DamageThreshold");
@@ -273,6 +277,7 @@ public:
 	int32 GetBoneSelectionCount() const;
 
 	void SetInitialDynamicState(int32 InDynamicState);
+	void SetAnchored(bool bAnchored);
 
 	void ExpandAll();
 	void ExpandRecursive(TSharedPtr<FGeometryCollectionTreeItem> TreeItem, bool bInExpansionState) const;

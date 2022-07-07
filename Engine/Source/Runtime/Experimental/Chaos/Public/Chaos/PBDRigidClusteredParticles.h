@@ -88,6 +88,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	, MStrains(MoveTemp(Other.MStrains))
 	, MConnectivityEdges(MoveTemp(Other.MConnectivityEdges))
 	, MExternalStrains(MoveTemp(Other.MExternalStrains))
+	, MAnchored(MoveTemp(Other.MAnchored))
 	{
 		InitHelper();
 	}
@@ -125,6 +126,9 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	const auto& ConnectivityEdges(int32 Idx) const { return MConnectivityEdges[Idx]; }
 	auto& ConnectivityEdges(int32 Idx) { return MConnectivityEdges[Idx]; }
 
+	const bool& Anchored(int32 Idx) const { return MAnchored[Idx]; }
+	bool& Anchored(int32 Idx) { return MAnchored[Idx]; }
+	
 	const auto& ConnectivityEdgesArray() const { return MConnectivityEdges; }
 
 	const auto& ClusterIdsArray() const { return MClusterIds; }
@@ -142,6 +146,10 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	const auto& InternalClusterArray() const { return MInternalCluster; }
 	auto& InternalClusterArray() { return MInternalCluster; }
 
+	const auto& AnchoredArray() const { return MAnchored; }
+	auto& AnchoredArray() { return MAnchored; }
+
+	
 	typedef TPBDRigidClusteredParticleHandle<T, d> THandleType;
 	const THandleType* Handle(int32 Index) const { return static_cast<const THandleType*>(TGeometryParticles<T,d>::Handle(Index)); }
 
@@ -164,6 +172,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 		  TArrayCollection::AddArray(&MStrains);
 		  TArrayCollection::AddArray(&MConnectivityEdges);
 	  	  TArrayCollection::AddArray(&MExternalStrains);
+	  	  TArrayCollection::AddArray(&MAnchored);
 	  }
 
 	  TArrayCollectionArray<ClusterId> MClusterIds;
@@ -179,13 +188,17 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<T> MCollisionImpulses;
 
 	  // external strains ( use by fields )
-	  // @todo(chaos) we should eventually merge MCollisionImpulses into MExternalStrains when CLustering code has been updated to not clear the impulses just before processing them 
+	  // @todo(chaos) we should eventually merge MCollisionImpulses into MExternalStrains when Clustering code has been updated to not clear the impulses just before processing them 
 	  TArrayCollectionArray<T> MExternalStrains; 
 
 	  // User set parameters
 	  TArrayCollectionArray<T> MStrains;
 
 	  TArrayCollectionArray<TArray<TConnectivityEdge<T>>> MConnectivityEdges;
+
+	  // make the particle act as a kinematic anchor,
+	  // this allows the particle to be broken off while still be anchor contributor through the connection graph   
+	  TArrayCollectionArray<bool> MAnchored;
 };
 
 using FPBDRigidClusteredParticles = TPBDRigidClusteredParticles<FReal, 3>;

@@ -3,6 +3,8 @@
 #include "FractureToolProperties.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionEngineRemoval.h"
+#include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 
 
 #define LOCTEXT_NAMESPACE "FractureProperties"
@@ -55,27 +57,30 @@ void UFractureToolSetInitialDynamicState::Execute(TWeakPtr<FFractureEditorModeTo
 {
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
-		{
-			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
-			if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					TManagedArray<int32>& InitialDynamicState = GeometryCollection->ModifyAttribute<int32>("InitialDynamicState", FGeometryCollection::TransformGroup);
+		SetSelectedInitialDynamicState(static_cast<int32>(StateSettings->InitialDynamicState));
+		InToolkit.Pin()->RefreshOutliner();
+	}
+}
 
-					TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
-					for (int32 Index : SelectedBones)
-					{
-						InitialDynamicState[Index] = static_cast<int32>(StateSettings->InitialDynamicState);
-					}
+void UFractureToolSetInitialDynamicState::SetSelectedInitialDynamicState(int32 InitialDynamicState)
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	{
+		FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
+		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+		{
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+			{
+				Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(*GeometryCollection);
+				if (ensure(AnchoringFacade.HasInitialDynamicStateAttribute()))
+				{
+					AnchoringFacade.SetInitialDynamicState(GeometryCollectionComponent->GetSelectedBones(), static_cast<Chaos::EObjectStateType>(InitialDynamicState));
 				}
 			}
 		}
-		InToolkit.Pin()->RefreshOutliner();
 	}
 }
 

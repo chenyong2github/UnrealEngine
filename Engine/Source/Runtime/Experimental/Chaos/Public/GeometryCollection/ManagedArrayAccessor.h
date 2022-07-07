@@ -52,6 +52,12 @@ public:
 		}
 	}
 
+	/** copy from another attribute ( create if necessary ) */
+	void Copy(const TManagedArrayAccessor<T>& FromAttribute )
+	{
+		Collection.CopyAttribute(FromAttribute.Collection, Name, Group);
+	}
+
 private:
 	FManagedArrayCollection& Collection;
 	FName Name;

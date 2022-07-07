@@ -103,6 +103,7 @@ namespace Chaos
 		NewParticle->SetClusterId(ClusterId(nullptr, Children.Num()));
 		NewParticle->SetClusterGroupIndex(ClusterGroupIndex);
 		NewParticle->SetStrains(0.0);
+		NewParticle->SetIsAnchored(false);
 
 		// Update clustering data structures.
 		if (MChildren.Contains(NewParticle))
@@ -207,6 +208,7 @@ namespace Chaos
 		TopLevelClusterParents.Add(NewParticle);
 		NewParticle->SetInternalCluster(true);
 		NewParticle->SetClusterId(ClusterId(nullptr, Children.Num()));
+		NewParticle->SetIsAnchored(false);
 		for (auto& Constituent : Children) MEvolution.DoInternalParticleInitilization(Constituent, NewParticle);
 
 		//

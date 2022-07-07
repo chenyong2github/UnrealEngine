@@ -238,6 +238,7 @@ namespace Chaos
 				Chaos::FPBDRigidParticleHandle* CurrentHandle;
 				while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
 				{
+					bool bIsAnchored = false;
 					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
 					{
 						// @question : Maybe we should just store the leaf node bodies in a
@@ -249,16 +250,25 @@ namespace Chaos
 								Queue.Enqueue(Child);
 							}
 						}
+						
+						bIsAnchored = CurrentClusterHandle->IsAnchored();
 					}
 
-					const EObjectStateType CurrState = CurrentHandle->ObjectState();
-					if (CurrState == EObjectStateType::Kinematic)
+					if (bIsAnchored)
 					{
 						ObjectState = EObjectStateType::Kinematic;
 					}
-					else if (CurrState == EObjectStateType::Static)
+					else
 					{
-						ObjectState = EObjectStateType::Static;
+						const EObjectStateType CurrState = CurrentHandle->ObjectState();
+						if (CurrState == EObjectStateType::Kinematic)
+						{
+							ObjectState = EObjectStateType::Kinematic;
+						}
+						else if (CurrState == EObjectStateType::Static)
+						{
+							ObjectState = EObjectStateType::Static;
+						}
 					}
 				}
 

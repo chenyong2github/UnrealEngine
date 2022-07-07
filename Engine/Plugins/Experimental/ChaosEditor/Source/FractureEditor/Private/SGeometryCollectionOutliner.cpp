@@ -15,13 +15,15 @@
 #include "FractureEditorMode.h"
 #include "ScopedTransaction.h"
 #include "FractureSettings.h"
+#include "FractureToolProperties.h"
 #include "GeometryCollectionOutlinerDragDrop.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
-static FText GettextFromInitialDynamicState(int32 InitialDynamicState)
+static FText GetTextFromInitialDynamicState(int32 InitialDynamicState)
 {
 	switch (InitialDynamicState)
 	{
@@ -32,6 +34,15 @@ static FText GettextFromInitialDynamicState(int32 InitialDynamicState)
 	default:
 		return FText();
 	}
+}
+
+static FText GetTextFromAnchored(bool bAnchored)
+{
+	if (bAnchored)
+	{
+		return LOCTEXT("GCOutliner_Anchored_Yes_Text", "Yes");
+	}
+	return LOCTEXT("GCOutliner_Anchored_No_Text", "-");
 }
 
 void FGeometryCollectionTreeItem::OnDragLeave(const FDragDropEvent& InDragDropEvent)
@@ -52,26 +63,36 @@ void FGeometryCollectionTreeItem::GenerateContextMenu(UToolMenu* Menu, SGeometry
 {
 	auto SharedOutliner = StaticCastSharedRef<SGeometryCollectionOutliner>(Outliner.AsShared());
 
-	auto MakeDynamicStateMenu = [&Outliner](UToolMenu* Menu)
-	{
-		const FName MenuEntryNames[] =
+	FToolMenuSection& StateSection = Menu->AddSection("State");
+	StateSection.AddSubMenu("FractureToolSetInitialDynamicStateMenu", NSLOCTEXT("Fracture", "FractureToolSetInitialDynamicStateMenu", "Initial Dynamic State"), FText(),
+		FNewToolMenuDelegate::CreateLambda([&Outliner](UToolMenu* Menu)
 		{
-			"NoOverride"
-			"Sleeping",
-			"Kinematic",
-			"Static"
-		};
-		const int32 MenuEntryNamesCount = sizeof(MenuEntryNames) / sizeof(FName);
+			const FName MenuEntryNames[] =
+			{
+				"NoOverride"
+				"Sleeping",
+				"Kinematic",
+				"Static"
+			};
+			const int32 MenuEntryNamesCount = sizeof(MenuEntryNames) / sizeof(FName);
 
-		FToolMenuSection& Section = Menu->AddSection("State");
-		for (int32 Index = 0; Index < MenuEntryNamesCount; ++Index)
+			FToolMenuSection& StateSection = Menu->AddSection("State");
+			for (int32 Index = 0; Index < MenuEntryNamesCount; ++Index)
+			{
+				StateSection.AddMenuEntry(MenuEntryNames[Index], GetTextFromInitialDynamicState(Index), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SGeometryCollectionOutliner::SetInitialDynamicState, Index)));
+			}
+		}));
+
+	FToolMenuSection& AnchoredSection = Menu->AddSection("Anchored");
+	StateSection.AddSubMenu("FractureToolSetAnchoredMenu", NSLOCTEXT("Fracture", "FractureToolSetAnchoredMenu", "Anchored"), FText(),
+		FNewToolMenuDelegate::CreateLambda([&Outliner](UToolMenu* Menu)
 		{
-			Section.AddMenuEntry(MenuEntryNames[Index], GettextFromInitialDynamicState(Index), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SGeometryCollectionOutliner::SetInitialDynamicState, Index)));
-		}
-	};
-
-	FToolMenuSection& Section = Menu->AddSection("State");
-	Section.AddSubMenu("FractureToolSetInitialDynamicStateMenu", NSLOCTEXT("Fracture", "FractureToolSetInitialDynamicStateMenu", "Initial Dynamic State"), FText(),FNewToolMenuDelegate::CreateLambda(MakeDynamicStateMenu));
+			FToolMenuSection& AnchoredSection = Menu->AddSection("Anchored");
+			{
+				AnchoredSection.AddMenuEntry("Yes", LOCTEXT("GCOutliner_Anchored_Yes_ContextMenuText", "Yes"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SGeometryCollectionOutliner::SetAnchored, true)));
+				AnchoredSection.AddMenuEntry("No", LOCTEXT("GCOutliner_Anchored_No_ContextMenuText", "No"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SGeometryCollectionOutliner::SetAnchored, false)));
+			}
+		}));
 }
 
 FColor FGeometryCollectionTreeItem::GetColorPerDepth(uint32 Depth)
@@ -185,10 +206,12 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 					NameWidget.ToSharedRef()
 				];
 	}
-	if (ColumnName == SGeometryCollectionOutlinerColumnID::InitialState)
-		return Item->MakeInitialStateColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::RelativeSize)
 		return Item->MakeRelativeSizeColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::InitialState)
+		return Item->MakeInitialStateColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::Anchored)
+		return Item->MakeAnchoredColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::Damage)
 		return Item->MakeDamagesColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::DamageThreshold)
@@ -259,6 +282,13 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::InitialState)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_InitialState", "Initial State"))
 				.DefaultTooltip(LOCTEXT("GCOutliner_Column_InitialState_ToolTip", "Initial state override"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
+		);
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Anchored)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_Anchored", "Anchored"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_Anchored_ToolTip", "Anchored"))
 				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 				.FillWidth(CustomFillWidth)
 		);
@@ -508,27 +538,29 @@ void SGeometryCollectionOutliner::OnSelectionChanged(FGeometryCollectionTreeItem
 
 void SGeometryCollectionOutliner::SetInitialDynamicState(int32 InDynamicState)
 {
-	FGeometryCollectionTreeItemList SelectedItems;
-	TreeView->GetSelectedItems(SelectedItems);
+	UFractureToolSetInitialDynamicState::SetSelectedInitialDynamicState(InDynamicState);
+	RegenerateItems();
+}
 
-	for (auto& SelectedItem : SelectedItems)
+void SGeometryCollectionOutliner::SetAnchored(bool bAnchored)
+{
+	// todo : eventually move this to a more central place ( tools ?)  
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	UFractureToolSetInitialDynamicState::GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 	{
-		if (UGeometryCollectionComponent* Component = SelectedItem->GetComponent())
+		FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
+		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
 		{
-			FGeometryCollectionEdit GeometryCollectionEdit = Component->EditRestCollection();
-			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
-				TSharedPtr<FGeometryCollection,ESPMode::ThreadSafe> GeometryCollection = GeometryCollectionObject->GetGeometryCollection();
-				if (GeometryCollection)
+				Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(*GeometryCollection);
+				if (!AnchoringFacade.HasAnchoredAttribute())
 				{
-					TManagedArray<int32>& InitialDynamicState = GeometryCollection->ModifyAttribute<int32>("InitialDynamicState", FGeometryCollection::TransformGroup);
-					TArray<int32> SelectedBones = Component->GetSelectedBones();
-					int32 BoneIndex = SelectedItem->GetBoneIndex();
-					if (ensure(0 <= BoneIndex && BoneIndex < InitialDynamicState.Num()))
-					{
-						InitialDynamicState[SelectedItem->GetBoneIndex()] = InDynamicState;
-					}
+					AnchoringFacade.AddAnchoredAttribute();
 				}
+				AnchoringFacade.SetAnchored(GeometryCollectionComponent->GetSelectedBones(), bAnchored);
 			}
 		}
 	}
@@ -764,6 +796,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	DamageThreshold = 0;
 	Broken = false;
 	InitialState = INDEX_NONE;
+	Anchored = false;
 	RemoveOnBreakAvailable = false;
 	RemoveOnBreak = FVector4f{-1};
 	ImportedCollisionsAvailable = false;
@@ -792,7 +825,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 
 			using FImplicitGeom = FGeometryDynamicCollection::FSharedImplicit;
 			const TManagedArray<FImplicitGeom>* ExternalCollisions = GeometryCollectionPtr->FindAttribute<FImplicitGeom>("ExternalCollisions", FTransformCollection::TransformGroup);
-		
+
 			if (ensure(ItemBoneIndex >= 0 && ItemBoneIndex < SimulationType.Num()))
 			{
 				const bool bHasLevelAttribute = GeometryCollectionPtr->HasAttribute("Level", FGeometryCollection::TransformGroup);
@@ -830,7 +863,13 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 					}
 				}
 
-				InitialState = GeometryCollectionPtr->InitialDynamicState[ItemBoneIndex];
+				Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(*GeometryCollectionPtr);
+				InitialState = static_cast<int32>(AnchoringFacade.GetInitialDynamicState(ItemBoneIndex));
+				if (AnchoringFacade.HasAnchoredAttribute())
+				{
+					Anchored = AnchoringFacade.IsAnchored(ItemBoneIndex);
+				}
+				
 				if (RelativeSizes)
 				{
 					RelativeSize = (*RelativeSizes)[ItemBoneIndex];
@@ -1038,7 +1077,19 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeInitialStateColumnWidge
 			.Padding(12.f, 0.f)
 			[
 				SNew(STextBlock)
-				.Text(GettextFromInitialDynamicState(InitialState))
+				.Text(GetTextFromInitialDynamicState(InitialState))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeAnchoredColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+	[
+				SNew(STextBlock)
+				.Text(GetTextFromAnchored(Anchored))
 				.ColorAndOpacity(ItemColor)
 			];
 }
