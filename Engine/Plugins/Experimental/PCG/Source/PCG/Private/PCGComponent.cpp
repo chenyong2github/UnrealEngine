@@ -185,8 +185,6 @@ void UPCGComponent::Generate()
 
 void UPCGComponent::Generate_Implementation(bool bForce)
 {
-	// Force component activation so it's easier to control by BP.
-	bActivated = true;
 	GenerateLocal(bForce);
 }
 
@@ -198,6 +196,13 @@ void UPCGComponent::GenerateLocal(bool bForce)
 		return;
 	}
 #endif
+
+	// Force component activation so it's easier to control by BP.
+	if (!bActivated)
+	{
+		Modify();
+		bActivated = true;
+	}
 
 	FPCGTaskId TaskId = GenerateInternal(bForce, {});
 
@@ -1669,13 +1674,11 @@ FBox UPCGComponent::GetGridBounds(AActor* Actor) const
 			}
 		}
 	}
-	// TODO: this might not work in non-editor builds
-#if WITH_EDITOR
+	// TODO: verify this works as expected in non-editor builds
 	else if (ALandscapeProxy* LandscapeActor = Cast<ALandscape>(Actor))
 	{
 		Bounds = PCGHelpers::GetLandscapeBounds(LandscapeActor);
 	}
-#endif
 	else
 	{
 		Bounds = PCGHelpers::GetActorBounds(Actor);

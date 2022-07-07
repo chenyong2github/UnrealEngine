@@ -103,7 +103,6 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 
 	if (ProcessTaskId != InvalidPCGTaskId)
 	{
-#if WITH_EDITOR
 		TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
 
 		return GraphExecutor->ScheduleGeneric([ComponentPtr]() {
@@ -115,9 +114,6 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 
 			return true;
 			}, { ProcessTaskId });
-#else
-		return ProcessTaskId;
-#endif
 	}
 	else
 	{

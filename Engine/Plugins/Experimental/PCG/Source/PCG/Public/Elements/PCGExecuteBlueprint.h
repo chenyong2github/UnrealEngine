@@ -96,6 +96,10 @@ public:
 	/** Needed to be able to call certain blueprint functions */
 	virtual UWorld* GetWorld() const override;
 
+#if !WITH_EDITOR
+	void SetInstanceWorld(UWorld* World) { InstanceWorld = World; }
+#endif
+
 #if WITH_EDITOR
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
 #endif
@@ -139,6 +143,10 @@ protected:
 #if WITH_EDITOR
 	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	TSet<TObjectPtr<UObject>> DataDependencies;
+#endif
+
+#if !WITH_EDITORONLY_DATA
+	UWorld* InstanceWorld = nullptr;
 #endif
 };
 

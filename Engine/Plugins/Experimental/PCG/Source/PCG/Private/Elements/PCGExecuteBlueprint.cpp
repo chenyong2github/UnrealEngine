@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGExecuteBlueprint.h"
+#include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
-#if WITH_EDITOR
 #include "Engine/World.h"
 
+#if WITH_EDITOR
 namespace PCGBlueprintHelper
 {
 	TSet<TObjectPtr<UObject>> GetDataDependencies(UPCGBlueprintElement* InElement)
@@ -29,7 +30,7 @@ UWorld* UPCGBlueprintElement::GetWorld() const
 #if WITH_EDITOR
 	return GWorld;
 #else
-	return nullptr;
+	return InstanceWorld ? InstanceWorld : Super::GetWorld();
 #endif
 }
 
@@ -621,6 +622,9 @@ FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& I
 	if (Settings && Settings->BlueprintElementInstance)
 	{
 		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, GetTransientPackage(), FName()));
+#if !WITH_EDITOR
+		Context->BlueprintElementInstance->SetInstanceWorld(SourceComponent ? SourceComponent->GetOwner()->GetWorld() : nullptr);
+#endif
 	}
 	else
 	{

@@ -23,14 +23,13 @@ public:
 
 private:
 	TArray<FPCGGraphTask> CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId);
+	void CompileTopGraph(UPCGGraph* InGraph);
 
 	FRWLock GraphToTaskMapLock;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> GraphToTaskMap;
+	TMap<UPCGGraph*, TArray<FPCGGraphTask>> TopGraphToTaskMap;
 
 #if WITH_EDITOR
-	void CompileTopGraph(UPCGGraph* InGraph);
-	TMap<UPCGGraph*, TArray<FPCGGraphTask>> TopGraphToTaskMap;	
-
 	void RemoveFromCache(UPCGGraph* InGraph);
 	void RemoveFromCacheRecursive(UPCGGraph* InGraph);
 

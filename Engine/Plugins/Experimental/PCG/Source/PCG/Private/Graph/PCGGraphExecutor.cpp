@@ -83,7 +83,6 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		NextTaskId += ScheduledTask.Tasks.Num();
 		ScheduledId = NextTaskId - 1; // This is true because the last task is from the output node or is the post-execute task
 
-#if WITH_EDITOR
 		// Push task (not data) dependencies on the pre-execute task
 		// Note must be done after the offset ids, otherwise we'll break the dependencies
 		check(ScheduledTask.Tasks.Num() >= 2 && ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Node == nullptr);
@@ -91,7 +90,6 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		{
 			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, nullptr, nullptr);
 		}
-#endif
 
 		ScheduleLock.Unlock();
 	}
@@ -563,7 +561,7 @@ void FPCGGraphExecutor::NotifyGraphChanged(UPCGGraph* InGraph)
 		GraphCompiler->NotifyGraphChanged(InGraph);
 	}
 }
-#endif
+#endif // WITH_EDITOR
 
 bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 {

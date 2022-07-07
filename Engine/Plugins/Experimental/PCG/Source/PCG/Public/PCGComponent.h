@@ -85,8 +85,11 @@ public:
 	void Cleanup();
 
 	/** Starts generation from a local (vs. remote) standpoint. Will not be replicated. */
+	UFUNCTION(BlueprintCallable, Category = PCG)
 	void GenerateLocal(bool bForce);
+
 	/** Cleans up the generation from a local (vs. remote) standpoint. Will not be replicated. */
+	UFUNCTION(BlueprintCallable, Category = PCG)
 	void CleanupLocal(bool bRemoveComponents, bool bSave = false);
 
 	/** Networked generation call that also activates the component as needed */

@@ -221,7 +221,6 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 {
 	TArray<FPCGGraphTask> CompiledTasks;
 
-#if WITH_EDITOR
 	if (bIsTopGraph)
 	{
 		// Always try to compile
@@ -236,7 +235,6 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 		GraphToTaskMapLock.ReadUnlock();
 	}
 	else
-#endif
 	{
 		// Always try to compile
 		Compile(InGraph);
@@ -266,7 +264,6 @@ void FPCGGraphCompiler::OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId O
 	}
 }
 
-#if WITH_EDITOR
 void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 {
 	GraphToTaskMapLock.ReadLock();
@@ -338,6 +335,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	GraphToTaskMapLock.WriteUnlock();
 }
 
+#if WITH_EDITOR
 void FPCGGraphCompiler::NotifyGraphChanged(UPCGGraph* InGraph)
 {
 	if (InGraph)
@@ -356,9 +354,7 @@ void FPCGGraphCompiler::RemoveFromCacheRecursive(UPCGGraph* InGraph)
 {
 	GraphToTaskMapLock.WriteLock();
 	GraphToTaskMap.Remove(InGraph);
-#if WITH_EDITOR
 	TopGraphToTaskMap.Remove(InGraph);
-#endif
 	GraphToTaskMapLock.WriteUnlock();
 
 	GraphDependenciesLock.Lock();
