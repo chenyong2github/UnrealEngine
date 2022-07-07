@@ -277,6 +277,10 @@ protected:
 	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) { return true; }
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) { }
 
+	//~ DMA Functions implemented in child classes, Temporary until AJA and BM middleman are migrated to a module.
+	virtual void LockDMATexture_RenderThread(FTextureRHIRef InTexture) {}
+	virtual void UnlockDMATexture_RenderThread(FTextureRHIRef InTexture) {}
+
 	friend class UE::MediaCaptureData::FCaptureFrame;
 	friend class UE::MediaCaptureData::FMediaCaptureHelper;
 	struct FCaptureBaseData

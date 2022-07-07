@@ -136,6 +136,7 @@ namespace UE::MediaCaptureData
 	public:
 		FCaptureFrame()
 			: bReadbackRequested(false)
+			, bDoingGPUCopy(false)
 		{
 
 		}
@@ -157,8 +158,12 @@ namespace UE::MediaCaptureData
 		/** Returns true if the readback is ready to be used */
 		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) = 0;
 
+		virtual FRHITexture* GetTextureResource() { return nullptr; }
+		virtual FRHIBuffer* GetBufferResource() { return nullptr; }
+
 		UMediaCapture::FCaptureBaseData CaptureBaseData;
 		TAtomic<bool> bReadbackRequested;
+		TAtomic<bool> bDoingGPUCopy;
 		TSharedPtr<FMediaCaptureUserData> UserData;
 	};
 
@@ -219,6 +224,11 @@ namespace UE::MediaCaptureData
 		void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGTextureRef ResourceToReadback)
 		{
 			AddEnqueueCopyPass(RDGBuilder, ReadbackTexture.Get(), ResourceToReadback);
+		}
+
+		virtual FRHITexture* GetTextureResource() override
+		{
+			return GetRHIResource();
 		}
 
 		/** Returns RHI resource of the allocated pooled resource */
@@ -289,6 +299,11 @@ namespace UE::MediaCaptureData
 			AddEnqueueCopyPass(RDGBuilder, ReadbackBuffer.Get(), ResourceToReadback, Buffer->GetRHI()->GetSize());
 		}
 
+		virtual FRHIBuffer* GetBufferResource() override
+		{
+			return GetRHIResource();
+		}
+
 		/** Returns RHI resource of the allocated pooled resource */
 		FRHIBuffer* GetRHIResource()
 		{
@@ -325,19 +340,6 @@ namespace UE::MediaCaptureData
 	class FMediaCaptureHelper
 	{
 	public:
-
-		static void BeforeFrameCapture(const FCaptureFrameArgs& Args, FTextureCaptureFrame* CapturingFrame)
-		{
-			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Before Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRHI()->GetNativeResource()));
-			Args.MediaCapture->BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->RenderTarget->GetRHI());
-			UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("After Locking texture %p"), reinterpret_cast<uintptr_t>(CapturingFrame->RenderTarget->GetRHI()->GetNativeResource()));
-		}
-
-		static void BeforeFrameCapture(const FCaptureFrameArgs& Args, FBufferCaptureFrame* CapturingFrame)
-		{
-			FBufferCaptureFrame* BufferFrame = static_cast<FBufferCaptureFrame*>(CapturingFrame);
-			Args.MediaCapture->BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, BufferFrame->Buffer->GetRHI());
-		}
 
 		static FTexture2DRHIRef GetSourceTextureForInput(const FCaptureFrameArgs& Args)
 		{
@@ -564,8 +566,12 @@ namespace UE::MediaCaptureData
 			}
 
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::BeforeFrameCaptured);
-				BeforeFrameCapture(Args, CapturingFrame);
+				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::LockDMATexture_RenderThread);
+
+				if (CapturingFrame->IsTextureResource())
+				{
+					Args.MediaCapture->LockDMATexture_RenderThread(CapturingFrame->GetTextureResource());
+				}
 			}
 
 			{
@@ -616,15 +622,9 @@ namespace UE::MediaCaptureData
 					++Args.MediaCapture->NumberOfResourcesToReadback;
 				}
 
-				GraphBuilder.Execute();
+				CapturingFrame->bDoingGPUCopy = true;
 
-				if (Args.MediaCapture->bShouldCaptureRHIResource)
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
-					SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CaptureCallback)
-					Args.MediaCapture->OnRHIResourceCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->GetRHIResource());
-					CapturingFrame->bReadbackRequested = false;
-				}
+				GraphBuilder.Execute();
 			}
 
 			return true;
@@ -1417,7 +1417,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 		}
 	}
 
-	if (!InMediaCapture->bShouldCaptureRHIResource && InMediaCapture->GetState() != EMediaCaptureState::Error)
+	if (InMediaCapture->GetState() != EMediaCaptureState::Error)
 	{
 		if (ReadyFrame->bReadbackRequested)
 		{
@@ -1458,6 +1458,23 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			--NumberOfResourcesToReadback;
 
 			ReadyFrame->Unlock();
+		}
+		else if (InMediaCapture->bShouldCaptureRHIResource && ReadyFrame->bDoingGPUCopy)
+		{
+			if (ReadyFrame->IsTextureResource())
+			{
+				FTextureCaptureFrame* TextureFrame = static_cast<FTextureCaptureFrame*>(ReadyFrame);
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::UnlockDMATexture_RenderThread);
+					UnlockDMATexture_RenderThread(TextureFrame->RenderTarget->GetRHI());
+				}
+
+				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
+				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CaptureCallback)
+					InMediaCapture->OnRHIResourceCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, TextureFrame->GetRHIResource());
+
+				ReadyFrame->bDoingGPUCopy = false;
+			}
 		}
 	}
 }

@@ -325,25 +325,6 @@ bool UAjaMediaCapture::ShouldCaptureRHIResource() const
 	return bGPUTextureTransferAvailable && CVarAjaEnableGPUDirect.GetValueOnAnyThread() == 1;
 }
 
-void UAjaMediaCapture::BeforeFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
-{
-	if (ShouldCaptureRHIResource())
-	{
-		if (!TexturesToRelease.Contains(InTexture))
-		{
-			TexturesToRelease.Add(InTexture);
-
-			FRHITexture2D* Texture = InTexture->GetTexture2D();
-			AJA::FRegisterDMATextureArgs Args;
-			Args.RHITexture = Texture->GetNativeResource();
-			//Args.InRHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
-			AJA::RegisterDMATexture(Args);
-		}
-	}
-
-	AJA::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
-}
-
 void UAjaMediaCapture::ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport)
 {
 	if (InSceneViewport.IsValid())
@@ -547,7 +528,7 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 	}
 }
 
-void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData,	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
+void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread);
 	
@@ -555,11 +536,6 @@ void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseD
 	FScopeLock ScopeLock(&RenderThreadCriticalSection);
 	if (OutputChannel)
 	{
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
-			AJA::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
-		}
-
 		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
 		
 		AJA::AJAOutputFrameBufferData FrameBuffer;
@@ -586,6 +562,31 @@ void UAjaMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseD
 	{
 		SetState(EMediaCaptureState::Error);
 	}
+}
+
+void UAjaMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTexture)
+{
+	if (ShouldCaptureRHIResource())
+	{
+		if (!TexturesToRelease.Contains(InTexture))
+		{
+			TexturesToRelease.Add(InTexture);
+
+			FRHITexture2D* Texture = InTexture->GetTexture2D();
+			AJA::FRegisterDMATextureArgs Args;
+			Args.RHITexture = Texture->GetNativeResource();
+			//Args.InRHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
+			AJA::RegisterDMATexture(Args);
+		}
+	}
+
+	AJA::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+}
+
+void UAjaMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
+	AJA::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
 }
 
 void UAjaMediaCapture::WaitForSync_RenderingThread() const
