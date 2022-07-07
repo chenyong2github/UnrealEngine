@@ -5,8 +5,9 @@
 #include "Containers/BitArray.h"
 #include "CoreMinimal.h"
 #include "IMediaOptions.h"
-#include "MediaTextureTracker.h"
+#include "IMediaTextureSample.h"
 #include "ImgMediaSceneViewExtension.h"
+#include "MediaTextureTracker.h"
 #include "Tickable.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -24,10 +25,10 @@ struct FSequenceInfo
 	FName Name;
 	/** Pixel dimensions of this sequence. */
 	FIntPoint Dim;
-	/** Number of tiles in the X, Y directions. */
-	FIntPoint NumTiles;
 	/** Number of mip levels. */
 	int32 NumMipLevels;
+	/** Tiling description. */
+	FMediaTextureTilingDescription TilingDescription;
 	/** 
 	* Check if the sequence has tiles.
 	* 
@@ -35,7 +36,7 @@ struct FSequenceInfo
 	*/
 	FORCEINLINE bool IsTiled() const
 	{
-		return (NumTiles.X > 1) || (NumTiles.Y > 1);
+		return (TilingDescription.TileNum.X > 1) || (TilingDescription.TileNum.Y > 1);
 	}
 };
 
@@ -247,12 +248,12 @@ public:
 	 * Provide information on the texture needed for our image sequence.
 	 *
 	 * @param InSequenceName Name of this sequence.
-	 * @param InNumMipMaps Number of mipmaps in our image sequence.
-	 * @param InNumTiles Number of tiles in our image sequence.
+	 * @param InNumMipMaps Number of mipmaps in our image sequence
 	 * @param InSequenceDim Dimensions of the textures in our image sequence.
+	 * @param InTilingDesc Tiling description of our image sequence.
 	 */
-	void SetTextureInfo(FName InSequenceName, int32 InNumMipMaps, const FIntPoint& InNumTiles,
-		const FIntPoint& InSequenceDim);
+	void SetTextureInfo(FName InSequenceName, int32 InNumMipMaps, const FIntPoint& InSequenceDim,
+		const FMediaTextureTilingDescription& InTilingDesc);
 
 	/**
 	 * Get what mipmap level should be used.
