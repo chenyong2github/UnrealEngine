@@ -11,19 +11,23 @@
 #include "GameplayEffectTypes.h"
 #include "GameplayPrediction.h"
 #include "GameplayAbilitySpec.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "UObject/Package.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#endif
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "GameplayAbilityTypes.generated.h"
 
 class APlayerController;
 class UAbilitySystemComponent;
+class UAnimInstance;
 class UAnimMontage;
-class UGameplayAbility;
-class UMovementComponent;
 class UDataTable;
+class UGameplayAbility;
 class UGameplayTask;
+class UMovementComponent;
+class USkeletalMeshComponent;
 
 GAMEPLAYABILITIES_API DECLARE_LOG_CATEGORY_EXTERN(LogAbilitySystemComponent, Log, All);
 
@@ -172,26 +176,8 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityActorInfo
 	FName AffectedAnimInstanceTag; 
 	
 	/** Accessor to get the affected anim instance from the SkeletalMeshComponent */
-	UAnimInstance* GetAnimInstance() const
-	{ 
-		const USkeletalMeshComponent* SKMC = SkeletalMeshComponent.Get();
-
-		if (SKMC)
-		{
-			if (AffectedAnimInstanceTag != NAME_None)
-			{
-				if(UAnimInstance* Instance = SKMC->GetAnimInstance())
-				{
-					return Instance->GetLinkedAnimGraphInstanceByTag(AffectedAnimInstanceTag);
-				}
-			}
-
-			return SKMC->GetAnimInstance();
-		}
-
-		return nullptr;
-	}
-
+	UAnimInstance* GetAnimInstance() const;
+	
 	/** Returns true if this actor is locally controlled. Only true for players on the client that owns them */
 	bool IsLocallyControlled() const;
 

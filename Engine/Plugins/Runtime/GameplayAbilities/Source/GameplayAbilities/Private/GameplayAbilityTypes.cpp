@@ -2,11 +2,13 @@
 
 #include "Abilities/GameplayAbilityTypes.h"
 
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/MovementComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemComponent.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/MovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "GameplayPrediction.h"
 #include "Misc/NetworkVersion.h"
 
@@ -74,6 +76,26 @@ void FGameplayAbilityActorInfo::ClearActorInfo()
 	PlayerController = nullptr;
 	SkeletalMeshComponent = nullptr;
 	MovementComponent = nullptr;
+}
+
+UAnimInstance* FGameplayAbilityActorInfo::GetAnimInstance() const
+{ 
+	const USkeletalMeshComponent* SKMC = SkeletalMeshComponent.Get();
+
+	if (SKMC)
+	{
+		if (AffectedAnimInstanceTag != NAME_None)
+		{
+			if(UAnimInstance* Instance = SKMC->GetAnimInstance())
+			{
+				return Instance->GetLinkedAnimGraphInstanceByTag(AffectedAnimInstanceTag);
+			}
+		}
+
+		return SKMC->GetAnimInstance();
+	}
+
+	return nullptr;
 }
 
 bool FGameplayAbilityActorInfo::IsLocallyControlled() const

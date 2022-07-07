@@ -10,11 +10,14 @@
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayPrediction.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Components/MeshComponent.h"
+#endif
 #include "GameplayAbilityTargetTypes.generated.h"
 
 class UGameplayAbility;
 class UGameplayEffect;
+class UMeshComponent;
 struct FGameplayEffectSpec;
 
 UENUM(BlueprintType)
@@ -320,35 +323,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetingLocationInfo
 	}
 
 	/** Converts internal format into a literal world space transform */
-	FTransform GetTargetingTransform() const
-	{
-		//Return or calculate based on LocationType.
-		switch (LocationType)
-		{
-		case EGameplayAbilityTargetingLocationType::ActorTransform:
-			if (SourceActor)
-			{
-				return SourceActor->GetTransform();
-			}
-			break;
-		case EGameplayAbilityTargetingLocationType::SocketTransform:
-			if (SourceComponent)
-			{
-				// Bad socket name will just return component transform anyway, so we're safe
-				return SourceComponent->GetSocketTransform(SourceSocketName);
-			}
-			break;
-		case EGameplayAbilityTargetingLocationType::LiteralTransform:
-			return LiteralTransform;
-		default:
-			check(false);
-			break;
-		}
-
-		// It cannot get here
-		return FTransform::Identity;
-	}
-
+	FTransform GetTargetingTransform() const;
 	/** Initializes new target data and fills in with hit results */
 	FGameplayAbilityTargetDataHandle MakeTargetDataHandleFromHitResult(TWeakObjectPtr<UGameplayAbility> Ability, const FHitResult& HitResult) const;
 	FGameplayAbilityTargetDataHandle MakeTargetDataHandleFromHitResults(TWeakObjectPtr<UGameplayAbility> Ability, const TArray<FHitResult>& HitResults) const;

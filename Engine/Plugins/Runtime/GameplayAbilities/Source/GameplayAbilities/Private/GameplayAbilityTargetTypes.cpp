@@ -5,7 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemGlobals.h"
-
+#include "Components/MeshComponent.h"
 
 TArray<FActiveGameplayEffectHandle> FGameplayAbilityTargetData::ApplyGameplayEffect(const UGameplayEffect* GameplayEffect, const FGameplayEffectContextHandle& InEffectContext, float Level, FPredictionKey PredictionKey)
 {
@@ -77,6 +77,35 @@ void FGameplayAbilityTargetData::AddTargetDataToGameplayCueParameters(FGameplayC
 FString FGameplayAbilityTargetData::ToString() const
 {
 	return TEXT("BASE CLASS");
+}
+
+FTransform FGameplayAbilityTargetingLocationInfo::GetTargetingTransform() const
+{
+	//Return or calculate based on LocationType.
+	switch (LocationType)
+	{
+	case EGameplayAbilityTargetingLocationType::ActorTransform:
+		if (SourceActor)
+		{
+			return SourceActor->GetTransform();
+		}
+		break;
+	case EGameplayAbilityTargetingLocationType::SocketTransform:
+		if (SourceComponent)
+		{
+			// Bad socket name will just return component transform anyway, so we're safe
+			return SourceComponent->GetSocketTransform(SourceSocketName);
+		}
+		break;
+	case EGameplayAbilityTargetingLocationType::LiteralTransform:
+		return LiteralTransform;
+	default:
+		check(false);
+		break;
+	}
+
+	// It cannot get here
+	return FTransform::Identity;
 }
 
 FGameplayAbilityTargetDataHandle FGameplayAbilityTargetingLocationInfo::MakeTargetDataHandleFromHitResult(TWeakObjectPtr<UGameplayAbility> Ability, const FHitResult& HitResult) const
