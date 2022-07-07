@@ -11,8 +11,6 @@
 #include "Trace/Trace.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 
-namespace UE { namespace Trace { class FChannel; } }
-
 #if !defined(LOGTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define LOGTRACE_ENABLED 1
@@ -31,6 +29,7 @@ namespace UE { namespace Trace { class FChannel; } }
 UE_TRACE_CHANNEL_EXTERN(LogChannel, CORE_API)
 
 struct FLogCategoryBase;
+namespace UE { namespace Trace { class FChannel; } }
 
 struct FLogTrace
 {
