@@ -4057,7 +4057,6 @@ static void DeleteSceneRenderers(const TArray<FSceneRenderer*>& SceneRenderers, 
 	{
 		delete SceneRenderer;
 	}
-	FRenderResource::CoalesceResourceList();
 }
 
 static void WaitForTasksAndDeleteSceneRenderers(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers)
