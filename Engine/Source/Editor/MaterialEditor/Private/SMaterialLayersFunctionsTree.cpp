@@ -1386,7 +1386,7 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 	{
 		FPropertyRowGeneratorArgs Args;
 		Generator = Module.CreatePropertyRowGenerator(Args);
-		// the sizes of the parameter lists are only based on the master material and not changed out from under the details panel 
+		// the sizes of the parameter lists are only based on the parent material and not changed out from under the details panel 
 		// When a parameter is added open MI editors are refreshed
 		// the tree should also refresh if one of the layer or blend assets is swapped
 
