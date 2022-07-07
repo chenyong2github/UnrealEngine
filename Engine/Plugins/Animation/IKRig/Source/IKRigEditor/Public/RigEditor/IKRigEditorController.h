@@ -19,6 +19,7 @@ class SIKRigSkeleton;
 class UIKRigController;
 class FSolverStackElement;
 class FIKRigTreeElement;
+class UAnimInstance;
 class UDebugSkelMeshComponent;
 
 enum EIKRigSelectionType : int8

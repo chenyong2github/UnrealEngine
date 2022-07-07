@@ -5,6 +5,7 @@
 #include "IContentBrowserSingleton.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
+#include "Components/VerticalBox.h"
 
 void SContextualAnimAssetBrowser::Construct(const FArguments& InArgs)
 {

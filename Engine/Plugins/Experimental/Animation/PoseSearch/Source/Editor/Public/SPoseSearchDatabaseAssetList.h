@@ -7,6 +7,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "EditorUndoClient.h"
 
+class FUICommandList;
 
 namespace UE::PoseSearch
 {

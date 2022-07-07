@@ -3,6 +3,7 @@
 #include "ContextualAnimEditorTypes.h"
 #include "ContextualAnimSceneAsset.h"
 #include "Animation/AnimMontage.h"
+#include "PropertyHandle.h"
 
 // UContextualAnimNewIKTargetParams
 ////////////////////////////////////////////////////////////////////////////////////////////////

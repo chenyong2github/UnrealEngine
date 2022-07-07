@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"
 #include "Animation/AnimMontage.h"
-
+#include "Engine/World.h"
 
 //----------------------------------------------------------------------//
 // UGameplayBehavior_AnimationBased

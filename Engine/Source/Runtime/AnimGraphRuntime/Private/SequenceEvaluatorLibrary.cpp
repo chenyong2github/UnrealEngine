@@ -4,6 +4,7 @@
 
 #include "Animation/AnimNode_Inertialization.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
+#include "AnimationRuntime.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSequenceEvaluatorLibrary, Verbose, All);
 

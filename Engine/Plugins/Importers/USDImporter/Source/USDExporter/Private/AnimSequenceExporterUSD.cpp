@@ -4,6 +4,7 @@
 
 #include "AnimSequenceExporterUSDOptions.h"
 #include "EngineAnalytics.h"
+#include "Engine/SkeletalMesh.h"
 #include "MaterialExporterUSD.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"

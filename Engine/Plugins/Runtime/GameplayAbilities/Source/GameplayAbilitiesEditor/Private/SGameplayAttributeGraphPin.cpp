@@ -6,6 +6,7 @@
 #include "SGameplayAttributeWidget.h"
 #include "ScopedTransaction.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/UObjectIterator.h"
 #include "AbilitySystemComponent.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
