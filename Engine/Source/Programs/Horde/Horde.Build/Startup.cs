@@ -93,6 +93,8 @@ using Horde.Build.Auditing;
 using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
+using EpicGames.Horde.Storage.Bundles;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build
 {
@@ -254,6 +256,23 @@ namespace Horde.Build
 			public override void Write(Utf8JsonWriter writer, TimeSpan timeSpan, JsonSerializerOptions options)
 			{
 				writer.WriteStringValue(timeSpan.ToString("c"));
+			}
+		}
+
+		static IStorageBackend CreateStorageBackend(IServiceProvider sp, StorageBackendOptions options)
+		{
+			switch (options.Type ?? StorageBackendType.FileSystem)
+			{
+				case StorageBackendType.FileSystem:
+					return new FileSystemStorageBackend(options);
+				case StorageBackendType.Aws:
+					return new AwsStorageBackend(sp.GetRequiredService<IConfiguration>(), options, sp.GetRequiredService<ILogger<AwsStorageBackend>>());
+				case StorageBackendType.Transient:
+					return new TransientStorageBackend();
+				case StorageBackendType.Relay:
+					return new RelayStorageBackend(options);
+				default:
+					throw new NotImplementedException();
 			}
 		}
 
@@ -427,33 +446,9 @@ namespace Horde.Build
 				services.AddSingleton<IExternalIssueService, DefaultExternalIssueService>();
 			}
 
-
-			AWSOptions awsOptions = Configuration.GetAWSOptions();
-			if (settings.S3CredentialType == "AssumeRole" && settings.S3AssumeArn != null)
-			{
-				awsOptions.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), settings.S3AssumeArn, "Horde");
-			}
-			else if(settings.S3CredentialType == "AssumeRoleWebIdentity")
-			{
-				awsOptions.Credentials = AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
-			}
-			else if(settings.S3CredentialType == "Fallback")
-			{
-				// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.
-				awsOptions.Credentials = FallbackCredentialsFactory.GetCredentials();
-			}
-			else if(settings.S3CredentialType == "SharedCredentials" && settings.S3AwsProfile != null)
-			{
-				// This SharedCredentials option is primarily for development purposes.
-				(string accessKey, string secretAccessKey, string secretToken) = AwsHelper.ReadAwsCredentials(settings.S3AwsProfile);
-				awsOptions.Credentials = new Amazon.SecurityToken.Model.Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
-			}
-			
-			services.AddSingleton(awsOptions);
-
-			services.AddSingleton(new StorageBackendSettings<PersistentLogStorage> { Type = settings.ExternalStorageProviderType, BaseDir = settings.LocalLogsDir, BucketName = settings.S3LogBucketName });
-			services.AddSingleton(new StorageBackendSettings<ArtifactCollection> { Type = settings.ExternalStorageProviderType, BaseDir = settings.LocalArtifactsDir, BucketName = settings.S3ArtifactBucketName });
-			services.AddSingleton(typeof(IStorageBackend<>), typeof(StorageBackendFactory<>));
+			// Storage providers
+			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
+			services.AddSingleton<IStorageBackend<ArtifactCollection>>(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 
@@ -722,67 +717,6 @@ namespace Horde.Build
 			options.Converters.Add(new JsonTimeSpanConverter());
 		}
 
-		public class StorageBackendSettings<T> : IFileSystemStorageOptions, IAwsStorageOptions
-		{
-			/// <summary>
-			/// The type of storage backend to use
-			/// </summary>
-			public StorageProviderType Type { get; set; }
-
-			/// <inheritdoc/>
-			public string? BaseDir { get; set; }
-
-			/// <inheritdoc/>
-			public string? BucketName { get; set; }
-
-			/// <inheritdoc/>
-			public string? BucketPath { get; set; }
-		}
-
-		public class StorageBackendFactory<T> : IStorageBackend<T>
-		{
-			readonly IStorageBackend _inner;
-
-			public StorageBackendFactory(IServiceProvider serviceProvider, StorageBackendSettings<T> options)
-			{
-				switch (options.Type)
-				{
-					case StorageProviderType.S3:
-						_inner = new AwsStorageBackend(serviceProvider.GetRequiredService<AWSOptions>(), options, serviceProvider.GetRequiredService<ILogger<AwsStorageBackend>>());
-						break;
-					case StorageProviderType.FileSystem:
-						_inner = new FileSystemStorageBackend(options);
-						break;
-					case StorageProviderType.Transient:
-						_inner = new TransientStorageBackend();
-						break;
-					case StorageProviderType.Relay:
-						_inner = new RelayStorageBackend(serviceProvider.GetRequiredService<IOptions<ServerSettings>>());
-						break;
-					default:
-						throw new NotImplementedException();
-				}
-			}
-
-			/// <inheritdoc/>
-			public Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken) => _inner.ReadAsync(path, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<ReadOnlyMemory<byte>?> ReadBytesAsync(string path, CancellationToken cancellationToken) => _inner.ReadBytesAsync(path, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken) => _inner.WriteAsync(path, stream, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task WriteBytesAsync(string path, ReadOnlyMemory<byte> data, CancellationToken cancellationToken) => _inner.WriteBytesAsync(path, data, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task DeleteAsync(string path, CancellationToken cancellationToken) => _inner.DeleteAsync(path, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken) => _inner.ExistsAsync(path, cancellationToken);
-		}
-
 		private static void ConfigureLogStorage(IServiceCollection services)
 		{
 			services.AddSingleton<ILogBuilder>(provider =>
@@ -1013,6 +947,14 @@ namespace Horde.Build
 			IServiceCollection serviceCollection = new ServiceCollection();
 			AddServices(serviceCollection, configuration);
 			return serviceCollection.BuildServiceProvider();
+		}
+
+		public static ServiceProvider CreateServiceProvider(IConfiguration configuration, ILoggerProvider loggerProvider)
+		{
+			IServiceCollection services = new ServiceCollection();
+			services.AddSingleton(loggerProvider);
+			AddServices(services, configuration);
+			return services.BuildServiceProvider();
 		}
 	}
 }

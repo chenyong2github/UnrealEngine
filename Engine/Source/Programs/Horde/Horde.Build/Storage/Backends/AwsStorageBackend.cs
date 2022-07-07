@@ -8,9 +8,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Extensions.NETCore.Setup;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Storage.Backends
@@ -32,19 +34,60 @@ namespace Horde.Build.Storage.Backends
 	}
 
 	/// <summary>
+	/// Credentials to use for AWS
+	/// </summary>
+	public enum AwsCredentialsType
+	{
+		/// <summary>
+		/// Assume a particular role. Should specify ARN in <see cref="IAwsStorageOptions.AwsRole"/>
+		/// </summary>
+		AssumeRole,
+
+		/// <summary>
+		/// Assume a particular role using the current environment variables.
+		/// </summary>
+		AssumeRoleWebIdentity,
+
+		/// <summary>
+		/// Use default credentials from the AWS SDK
+		/// </summary>
+		Fallback,
+
+		/// <summary>
+		/// Read credentials from a profile in the AWS config file
+		/// </summary>
+		SharedCredentials,
+	}
+
+	/// <summary>
 	/// Options for AWS
 	/// </summary>
 	public interface IAwsStorageOptions
 	{
 		/// <summary>
+		/// Type of credentials to use
+		/// </summary>
+		public AwsCredentialsType AwsCredentials { get; }
+
+		/// <summary>
 		/// Name of the bucket to use
 		/// </summary>
-		public string? BucketName { get; }
+		public string? AwsBucketName { get; }
 
 		/// <summary>
 		/// Base path within the bucket 
 		/// </summary>
-		public string? BucketPath { get; }
+		public string? AwsBucketPath { get; }
+
+		/// <summary>
+		/// ARN of a role to assume
+		/// </summary>
+		public string? AwsRole { get; }
+
+		/// <summary>
+		/// The AWS profile to read credentials form
+		/// </summary>
+		public string? AwsProfile { get; }
 	}
 
 	/// <summary>
@@ -75,17 +118,57 @@ namespace Horde.Build.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="awsOptions">AWS options</param>
+		/// <param name="configuration">Global configuration object</param>
 		/// <param name="options">Storage options</param>
 		/// <param name="logger">Logger interface</param>
-		public AwsStorageBackend(AWSOptions awsOptions, IAwsStorageOptions options, ILogger<AwsStorageBackend> logger)
+		public AwsStorageBackend(IConfiguration configuration, IAwsStorageOptions options, ILogger<AwsStorageBackend> logger)
 		{
+			AWSOptions awsOptions = GetAwsOptions(configuration, options);
+
 			_client = awsOptions.CreateServiceClient<IAmazonS3>();
 			_options = options;
 			_semaphore = new SemaphoreSlim(16);
 			_logger = logger;
 
-			logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", options.BucketName, awsOptions.Credentials.GetType(), awsOptions.Credentials.ToString());
+			logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", options.AwsBucketName, awsOptions.Credentials.GetType(), awsOptions.Credentials.ToString());
+		}
+
+		/// <summary>
+		/// Gets the AWS options 
+		/// </summary>
+		/// <param name="configuration">Global configuration object</param>
+		/// <param name="options">AWS storage options</param>
+		/// <returns></returns>
+		static AWSOptions GetAwsOptions(IConfiguration configuration, IAwsStorageOptions options)
+		{
+			AWSOptions awsOptions = configuration.GetAWSOptions();
+			switch (options.AwsCredentials)
+			{
+				case AwsCredentialsType.AssumeRole:
+					if(options.AwsRole == null)
+					{
+						throw new AwsException($"Missing {nameof(IAwsStorageOptions.AwsRole)} setting for configuring {nameof(AwsStorageBackend)}", null);
+					}
+					awsOptions.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), options.AwsRole, "Horde");
+					break;
+				case AwsCredentialsType.AssumeRoleWebIdentity:
+					awsOptions.Credentials = AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
+					break;
+				case AwsCredentialsType.Fallback:
+					// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.
+					awsOptions.Credentials = FallbackCredentialsFactory.GetCredentials();
+					break;
+				case AwsCredentialsType.SharedCredentials:
+					if (options.AwsProfile == null)
+					{
+						throw new AwsException($"Missing {nameof(IAwsStorageOptions.AwsProfile)} setting for configuring {nameof(AwsStorageBackend)}", null);
+					}
+
+					(string accessKey, string secretAccessKey, string secretToken) = AwsHelper.ReadAwsCredentials(options.AwsProfile);
+					awsOptions.Credentials = new Amazon.SecurityToken.Model.Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
+					break;
+			}
+			return awsOptions;
 		}
 
 		/// <inheritdoc/>
@@ -145,13 +228,13 @@ namespace Horde.Build.Storage.Backends
 
 		string GetFullPath(string path)
 		{
-			if (_options.BucketPath == null)
+			if (_options.AwsBucketPath == null)
 			{
 				return path;
 			}
 
 			StringBuilder result = new StringBuilder();
-			result.Append(_options.BucketPath);
+			result.Append(_options.AwsBucketPath);
 			if (result.Length > 0 && result[^1] != '/')
 			{
 				result.Append('/');
@@ -172,7 +255,7 @@ namespace Horde.Build.Storage.Backends
 				semaLock = await _semaphore.UseWaitAsync(cancellationToken);
 
 				GetObjectRequest newGetRequest = new GetObjectRequest();
-				newGetRequest.BucketName = _options.BucketName;
+				newGetRequest.BucketName = _options.AwsBucketName;
 				newGetRequest.Key = fullPath;
 
 				response = await _client.GetObjectAsync(newGetRequest, cancellationToken);
@@ -215,7 +298,7 @@ namespace Horde.Build.Storage.Backends
 					_logger.LogError(ex, "Unable to write data to {Path} ({Attempt}/{AttemptCount})", fullPath, attempt + 1, retryTimes.Length + 1);
 					if (attempt >= retryTimes.Length)
 					{
-						throw new AwsException($"Unable to write to bucket {_options.BucketName} path {fullPath}", ex);
+						throw new AwsException($"Unable to write to bucket {_options.AwsBucketName} path {fullPath}", ex);
 					}
 				}
 
@@ -239,7 +322,7 @@ namespace Horde.Build.Storage.Backends
 				using (MemoryStream inputStream = new MemoryStream(buffer))
 				{
 					PutObjectRequest uploadRequest = new PutObjectRequest();
-					uploadRequest.BucketName = _options.BucketName;
+					uploadRequest.BucketName = _options.AwsBucketName;
 					uploadRequest.Key = fullPath;
 					uploadRequest.InputStream = inputStream;
 					uploadRequest.Metadata.Add("bytes-written", streamLen.ToString(CultureInfo.InvariantCulture));
@@ -250,7 +333,7 @@ namespace Horde.Build.Storage.Backends
 			{
 				// Initiate a multi-part upload
 				InitiateMultipartUploadRequest initiateRequest = new InitiateMultipartUploadRequest();
-				initiateRequest.BucketName = _options.BucketName;
+				initiateRequest.BucketName = _options.AwsBucketName;
 				initiateRequest.Key = fullPath;
 
 				InitiateMultipartUploadResponse initiateResponse = await _client.InitiateMultipartUploadAsync(initiateRequest, cancellationToken);
@@ -272,7 +355,7 @@ namespace Horde.Build.Storage.Backends
 						using (MemoryStream inputStream = new MemoryStream(buffer, 0, bufferLen))
 						{
 							UploadPartRequest partRequest = new UploadPartRequest();
-							partRequest.BucketName = _options.BucketName;
+							partRequest.BucketName = _options.AwsBucketName;
 							partRequest.Key = fullPath;
 							partRequest.UploadId = initiateResponse.UploadId;
 							partRequest.InputStream = inputStream;
@@ -287,7 +370,7 @@ namespace Horde.Build.Storage.Backends
 
 					// Mark the upload as complete
 					CompleteMultipartUploadRequest completeRequest = new CompleteMultipartUploadRequest();
-					completeRequest.BucketName = _options.BucketName;
+					completeRequest.BucketName = _options.AwsBucketName;
 					completeRequest.Key = fullPath;
 					completeRequest.UploadId = initiateResponse.UploadId;
 					completeRequest.PartETags = partTags;
@@ -297,7 +380,7 @@ namespace Horde.Build.Storage.Backends
 				{
 					// Abort the upload
 					AbortMultipartUploadRequest abortRequest = new AbortMultipartUploadRequest();
-					abortRequest.BucketName = _options.BucketName;
+					abortRequest.BucketName = _options.AwsBucketName;
 					abortRequest.Key = fullPath;
 					abortRequest.UploadId = initiateResponse.UploadId;
 					await _client.AbortMultipartUploadAsync(abortRequest, cancellationToken);
@@ -333,7 +416,7 @@ namespace Horde.Build.Storage.Backends
 		public async Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
 			DeleteObjectRequest newDeleteRequest = new DeleteObjectRequest();
-			newDeleteRequest.BucketName = _options.BucketName;
+			newDeleteRequest.BucketName = _options.AwsBucketName;
 			newDeleteRequest.Key = GetFullPath(path);
 			await _client.DeleteObjectAsync(newDeleteRequest, cancellationToken);
 		}
@@ -344,7 +427,7 @@ namespace Horde.Build.Storage.Backends
 			try
 			{
 				GetObjectMetadataRequest request = new GetObjectMetadataRequest();
-				request.BucketName = _options.BucketName;
+				request.BucketName = _options.AwsBucketName;
 				request.Key = GetFullPath(path);
 				await _client.GetObjectMetadataAsync(request, cancellationToken);
 				return true;

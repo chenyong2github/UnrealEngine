@@ -3,26 +3,30 @@
 using System;
 using System.Linq;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Bundles;
+using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Agents.Fleet;
+using Horde.Build.Storage;
+using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
 using TimeZoneConverter;
 
 namespace Horde.Build
 {
 	/// <summary>
-	/// Types of storage to use for log data
+	/// Types of storage backend to use
 	/// </summary>
-	public enum StorageProviderType
+	public enum StorageBackendType
 	{
-		/// <summary>
-		/// AWS S3
-		/// </summary>
-		S3,
-
 		/// <summary>
 		/// Local filesystem
 		/// </summary>
 		FileSystem,
+
+		/// <summary>
+		/// AWS S3
+		/// </summary>
+		Aws,
 
 		/// <summary>
 		/// In-memory only (for testing)
@@ -34,6 +38,50 @@ namespace Horde.Build
 		/// </summary>
 		Relay,
 	};
+
+	/// <summary>
+	/// Common settings for different storage backends
+	/// </summary>
+	public interface IStorageBackendOptions : IFileSystemStorageOptions, IAwsStorageOptions, IRelayStorageOptions
+	{
+		/// <summary>
+		/// The type of storage backend to use
+		/// </summary>
+		StorageBackendType? Type { get; }
+	}
+
+	/// <summary>
+	/// Common settings object for different providers
+	/// </summary>
+	public class StorageBackendOptions : IStorageBackendOptions
+	{
+		/// <inheritdoc/>
+		public StorageBackendType? Type { get; set; }
+
+		/// <inheritdoc/>
+		public string? BaseDir { get; set; }
+
+		/// <inheritdoc/>
+		public string? AwsBucketName { get; set; }
+
+		/// <inheritdoc/>
+		public string? AwsBucketPath { get; set; }
+
+		/// <inheritdoc/>
+		public AwsCredentialsType AwsCredentials { get; set; }
+
+		/// <inheritdoc/>
+		public string? AwsRole { get; set; }
+
+		/// <inheritdoc/>
+		public string? AwsProfile { get; set; }
+
+		/// <inheritdoc/>
+		public string? RelayServer { get; set; }
+
+		/// <inheritdoc/>
+		public string? RelayToken { get; set; }
+	}
 
 	/// <summary>
 	/// Specifies the service to use for controlling the size of the fleet
@@ -289,80 +337,14 @@ namespace Horde.Build
 		public string LogServiceWriteCacheType { get; set; } = "InMemory";
 
 		/// <summary>
-		/// Provider Type
-		/// Currently Supported: "S3" or "FileSystem"
+		/// Settings for artifact storage
 		/// </summary>
-		public StorageProviderType ExternalStorageProviderType { get; set; } = StorageProviderType.FileSystem;
+		public StorageBackendOptions LogStorage { get; set; } = new StorageBackendOptions() { BaseDir = "Logs" };
 
 		/// <summary>
-		/// Local storage directory, if using type filesystem
+		/// Settings for artifact storage
 		/// </summary>
-		public string LocalLogsDir { get; set; } = "Logs";
-
-		/// <summary>
-		/// Local artifact storage directory, if using type filesystem
-		/// </summary>
-		public string LocalArtifactsDir { get; set; } = "Artifacts";
-
-		/// <summary>
-		/// Local artifact storage directory, if using type filesystem
-		/// </summary>
-		public string LocalBlobsDir { get; set; } = "Blobs";
-
-		/// <summary>
-		/// S3 bucket region for logfile storage
-		/// </summary>
-		public string S3BucketRegion { get; set; } = null!;
-		
-		/// <summary>
-		/// AWS profile name. Used when S3CredentialType is set to "SharedCredentials".
-		/// </summary>
-		public string? S3AwsProfile { get; set; }
-
-		/// <summary>
-		/// Arn to assume for s3.  "Basic", "AssumeRole", "AssumeRoleWebIdentity", "SharedCredentials" only
-		/// </summary>
-		public string? S3CredentialType { get; set; }
-
-		/// <summary>
-		/// S3 Client username (used in Basic auth type only)
-		/// </summary>
-		public string S3ClientKeyId { get; set; } = null!;
-
-		/// <summary>
-		/// S3 client password (used in Basic auth type only)
-		/// </summary>
-		public string S3ClientSecret { get; set; } = null!;
-
-		/// <summary>
-		/// Arn to assume for s3
-		/// </summary>
-		public string S3AssumeArn { get; set; } = null!;
-
-		/// <summary>
-		/// S3 log bucket name
-		/// </summary>
-		public string S3LogBucketName { get; set; } = null!;
-
-		/// <summary>
-		/// S3 artifact bucket name
-		/// </summary>
-		public string S3ArtifactBucketName { get; set; } = null!;
-
-		/// <summary>
-		/// S3 blob bucket name
-		/// </summary>
-		public string S3BlobBucketName { get; set; } = null!;
-
-		/// <summary>
-		/// When using a relay storage provider, specifies the remote server to use
-		/// </summary>
-		public string? LogRelayServer { get; set; }
-
-		/// <summary>
-		/// Authentication token for using a relay server
-		/// </summary>
-		public string? LogRelayBearerToken { get; set; }
+		public StorageBackendOptions ArtifactStorage { get; set; } = new StorageBackendOptions() { BaseDir = "Artifacts" };
 
 		/// <summary>
 		/// Whether to log json to stdout
