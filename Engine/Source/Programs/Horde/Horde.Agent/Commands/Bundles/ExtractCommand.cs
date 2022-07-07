@@ -22,9 +22,9 @@ namespace Horde.Agent.Commands.Bundles
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			using ITreeStore<DirectoryNode> store = CreateTreeStore<DirectoryNode>(logger, cache);
+			using ITreeStore store = CreateTreeStore(logger, cache);
 
-			DirectoryNode node = await store.ReadTreeAsync(RefId);
+			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefId);
 			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;
