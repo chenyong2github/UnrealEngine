@@ -292,6 +292,9 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 
 			StaticMesh->CommitMeshDescription(0);
 
+			// Nanite settings
+			StaticMesh->NaniteSettings.bEnabled = LandscapeProxy->IsNaniteEnabled();
+
 			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 		}
 
