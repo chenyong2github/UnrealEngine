@@ -38,6 +38,10 @@ namespace UE
 			{
 				vulkan
 			}
+			public enum Mac
+			{
+				metal
+			}
 		}
 
 		/// <summary>
@@ -122,6 +126,7 @@ namespace UE
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
+		public void GenerateSessionID() { SessionID = Guid.NewGuid().ToString(); }
 
 
 		/// <summary>
@@ -500,6 +505,11 @@ namespace UE
 			LastAutomationEntryTime = DateTime.MinValue;
 			LastAutomationEntryCount = 0;
 			TestPassResults = null;
+
+			if (GetConfiguration() is AutomationTestConfig Config)
+			{
+				Config.GenerateSessionID();
+			}
 
 			return base.RestartTest();
 		}
