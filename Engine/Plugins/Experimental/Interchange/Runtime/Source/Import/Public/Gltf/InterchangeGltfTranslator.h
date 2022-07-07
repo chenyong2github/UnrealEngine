@@ -3,6 +3,7 @@
 
 #include "GLTFAsset.h"
 #include "InterchangeTranslatorBase.h"
+#include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Mesh/InterchangeStaticMeshPayloadInterface.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -19,7 +20,9 @@ class UInterchangeShaderNode;
 
 UCLASS(BlueprintType, Experimental)
 class UInterchangeGltfTranslator : public UInterchangeTranslatorBase,
-	public IInterchangeStaticMeshPayloadInterface, public IInterchangeTexturePayloadInterface
+	public IInterchangeStaticMeshPayloadInterface, 
+	public IInterchangeTexturePayloadInterface,
+	public IInterchangeAnimationPayloadInterface
 {
 	GENERATED_BODY()
 
@@ -43,11 +46,20 @@ public:
 
 	/* IInterchangeTexturePayloadInterface End */
 
+	/* IInterchangeAnimationPayloadInterface Begin */
+	virtual TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> GetAnimationCurvePayloadData(const FString& PayLoadKey) const override;
+	virtual TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const override;
+	virtual TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const override;
+	/* IInterchangeAnimationPayloadInterface End */
+
 protected:
-	void HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex ) const;
+	using FNodeUidMap = TMap<const GLTF::FNode*, FString>;
+
+	void HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, FNodeUidMap& NodeUidMap ) const;
 	void HandleGltfMaterial( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const;
 	void HandleGltfMaterialParameter( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, UInterchangeShaderNode& ShaderNode,
 		const FString& MapName, const TVariant< FLinearColor, float >& MapFactor, const FString& OutputChannel, const bool bInverse = false, const bool bIsNormal = false ) const;
+	void HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, const FNodeUidMap& NodeUidMap, int32 AnimationIndex) const;
 
 	/** Support for KHR_materials_clearcoat */
 	void HandleGltfClearCoat( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const;
