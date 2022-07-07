@@ -3,6 +3,7 @@
 #include "AdditiveAnimationInstance.h"
 #include "AnimationSharingInstances.h"
 #include "AnimationSharingManager.h"
+#include "Animation/AnimSequence.h"
 
 FAdditiveAnimationInstance::FAdditiveAnimationInstance() : SkeletalMeshComponent(nullptr), AdditiveInstance(nullptr), AdditiveAnimationSequence(nullptr), BaseComponent(nullptr), bLoopingState(false)
 {

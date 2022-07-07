@@ -9,6 +9,7 @@
 #include "Conditions/StateTreeCondition_Common.h"
 #include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Subsystems/WorldSubsystem.h"
 
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG(GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG((Condition), GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
