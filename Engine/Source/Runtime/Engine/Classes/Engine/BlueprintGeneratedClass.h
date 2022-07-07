@@ -624,8 +624,30 @@ struct FBPComponentClassOverride
 	}
 };
 
+/**
+ * Interface to query the property name<->GUID relationship using either a UBlueprint or a UBlueprintGeneratedClass.
+ * This allows cooked and uncooked Blueprints to be queried via the same API.
+ */
+class IBlueprintPropertyGuidProvider
+{
+public:
+	virtual ~IBlueprintPropertyGuidProvider() = default;
+
+	/**
+	 * Returns the property name for the given GUID, if any.
+	 * @note Does not recurse into parents.
+	 */
+	virtual FName FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const = 0;
+
+	/**
+	 * Returns the property GUID for the given name, if any.
+	 * @note Does not recurse into parents.
+	 */
+	virtual FGuid FindBlueprintPropertyGuidFromName(const FName PropertyName) const = 0;
+};
+
 UCLASS(NeedsDeferredDependencyLoading)
-class ENGINE_API UBlueprintGeneratedClass : public UClass
+class ENGINE_API UBlueprintGeneratedClass : public UClass, public IBlueprintPropertyGuidProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -736,6 +758,11 @@ public:
 	/** Create Timeline objects for this Actor based on the Timelines array*/
 	static void CreateComponentsForActor(const UClass* ThisClass, AActor* Actor);
 	static void CreateTimelineComponent(AActor* Actor, const UTimelineTemplate* TimelineTemplate);
+
+	// IBlueprintPropertyGuidProvider interface
+	virtual FName FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const override final;
+	virtual FGuid FindBlueprintPropertyGuidFromName(const FName PropertyName) const override final;
+	// End IBlueprintPropertyGuidProvider interface
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;

@@ -1538,6 +1538,44 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 	return bNoErrors;
 }
 
+bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<IBlueprintPropertyGuidProvider*>& OutBlueprintParents)
+{
+	OutBlueprintParents.Reset();
+
+	bool bNoErrors = true;
+
+	UBlueprintGeneratedClass* CurrentClass = Cast<UBlueprintGeneratedClass>(const_cast<UClass*>(InClass));
+	while (CurrentClass)
+	{
+		IBlueprintPropertyGuidProvider* GuidProviderToAdd = CurrentClass;
+
+#if WITH_EDITORONLY_DATA
+		UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentClass);
+
+		if (BP)
+		{
+			GuidProviderToAdd = BP;
+			bNoErrors &= (BP->Status != BS_Error);
+		}
+
+		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
+		if (BP && BP->ParentClass)
+		{
+			CurrentClass = Cast<UBlueprintGeneratedClass>(BP->ParentClass);
+		}
+		else
+#endif // #if WITH_EDITORONLY_DATA
+		{
+			check(CurrentClass);
+			CurrentClass = Cast<UBlueprintGeneratedClass>(CurrentClass->GetSuperClass());
+		}
+
+		OutBlueprintParents.Add(GuidProviderToAdd);
+	}
+
+	return bNoErrors;
+}
+
 #if WITH_EDITOR
 bool UBlueprint::IsBlueprintHierarchyErrorFree(const UClass* InClass)
 {
@@ -1564,6 +1602,36 @@ bool UBlueprint::IsBlueprintHierarchyErrorFree(const UClass* InClass)
 	return true;
 }
 #endif
+
+FName UBlueprint::FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	for (const FBPVariableDescription& BPVarDesc : NewVariables)
+	{
+		if (BPVarDesc.VarGuid == PropertyGuid)
+		{
+			return BPVarDesc.VarName;
+		}
+	}
+#endif
+
+	return NAME_None;
+}
+
+FGuid UBlueprint::FindBlueprintPropertyGuidFromName(const FName PropertyName) const
+{
+#if WITH_EDITORONLY_DATA
+	for (const FBPVariableDescription& BPVarDesc : NewVariables)
+	{
+		if (BPVarDesc.VarName == PropertyName)
+		{
+			return BPVarDesc.VarGuid;
+		}
+	}
+#endif
+
+	return FGuid();
+}
 
 ETimelineSigType UBlueprint::GetTimelineSignatureForFunctionByName(const FName& FunctionName, const FName& ObjectPropertyName)
 {

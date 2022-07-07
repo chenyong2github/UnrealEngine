@@ -453,7 +453,7 @@ ENUM_CLASS_FLAGS(EGetObjectOrWorldBeingDebuggedFlags);
  * within Unreal Editor without ever needing to write a line of code.
  */
 UCLASS(config=Engine)
-class ENGINE_API UBlueprint : public UBlueprintCore
+class ENGINE_API UBlueprint : public UBlueprintCore, public IBlueprintPropertyGuidProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1036,6 +1036,11 @@ public:
 	void ConformNativeComponents();
 #endif	//#if WITH_EDITOR
 
+	//~ Begin IBlueprintPropertyGuidProvider interface
+	virtual FName FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const override final;
+	virtual FGuid FindBlueprintPropertyGuidFromName(const FName PropertyName) const override final;
+	//~ End IBlueprintPropertyGuidProvider interface
+
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
@@ -1075,31 +1080,37 @@ public:
 	 * @return						true if there were no status errors in any of the parent blueprints, otherwise false
 	 */
 	static bool GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UBlueprintGeneratedClass*>& OutBlueprintParents);
-	
+
+private:
+	/**
+	 * Gets an array of all IBlueprintPropertyGuidProviders for this class and its parents.  0th elements is the IBlueprintPropertyGuidProvider for InClass
+	 *
+	 * @param InClass				The class to get the blueprint lineage for
+	 * @param OutBlueprintParents	Array of IBlueprintPropertyGuidProviders for this class and its parents.  0th = this, Nth = least derived BP-based parent
+	 * @return						true if there were no status errors in any of the parent blueprints, otherwise false
+	 */
+	static bool GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<IBlueprintPropertyGuidProvider*>& OutBlueprintParents);
+
+public:
 #if WITH_EDITOR
 	/** returns true if the class hierarchy is error free */
 	static bool IsBlueprintHierarchyErrorFree(const UClass* InClass);
 #endif
 
-#if WITH_EDITOR
 	template<class TFieldType>
 	static FName GetFieldNameFromClassByGuid(const UClass* InClass, const FGuid VarGuid)
 	{
 		FProperty* AssertPropertyType = (TFieldType*)0;
 
-		TArray<UBlueprint*> Blueprints;
-		UBlueprint::GetBlueprintHierarchyFromClass(InClass, Blueprints);
+		TArray<IBlueprintPropertyGuidProvider*> BlueprintPropertyGuidProviders;
+		UBlueprint::GetBlueprintHierarchyFromClass(InClass, BlueprintPropertyGuidProviders);
 
-		for (int32 BPIndex = 0; BPIndex < Blueprints.Num(); ++BPIndex)
+		for (IBlueprintPropertyGuidProvider* BlueprintPropertyGuidProvider : BlueprintPropertyGuidProviders)
 		{
-			UBlueprint* Blueprint = Blueprints[BPIndex];
-			for (int32 VarIndex = 0; VarIndex < Blueprint->NewVariables.Num(); ++VarIndex)
+			const FName FoundPropertyName = BlueprintPropertyGuidProvider->FindBlueprintPropertyNameFromGuid(VarGuid);
+			if (FoundPropertyName != NAME_None)
 			{
-				const FBPVariableDescription& BPVarDesc = Blueprint->NewVariables[VarIndex];
-				if (BPVarDesc.VarGuid == VarGuid)
-				{
-					return BPVarDesc.VarName;
-				}
+				return FoundPropertyName;
 			}
 		}
 
@@ -1111,26 +1122,23 @@ public:
 	{
 		FProperty* AssertPropertyType = (TFieldType*)0;
 
-		TArray<UBlueprint*> Blueprints;
-		UBlueprint::GetBlueprintHierarchyFromClass(InClass, Blueprints);
+		TArray<IBlueprintPropertyGuidProvider*> BlueprintPropertyGuidProviders;
+		UBlueprint::GetBlueprintHierarchyFromClass(InClass, BlueprintPropertyGuidProviders);
 
-		for (int32 BPIndex = 0; BPIndex < Blueprints.Num(); ++BPIndex)
+		for (IBlueprintPropertyGuidProvider* BlueprintPropertyGuidProvider : BlueprintPropertyGuidProviders)
 		{
-			UBlueprint* Blueprint = Blueprints[BPIndex];
-			for (int32 VarIndex = 0; VarIndex < Blueprint->NewVariables.Num(); ++VarIndex)
+			const FGuid FoundPropertyGuid = BlueprintPropertyGuidProvider->FindBlueprintPropertyGuidFromName(VarName);
+			if (FoundPropertyGuid.IsValid())
 			{
-				const FBPVariableDescription& BPVarDesc = Blueprint->NewVariables[VarIndex];
-				if (BPVarDesc.VarName == VarName)
-				{
-					VarGuid = BPVarDesc.VarGuid;
-					return true;
-				}
+				VarGuid = FoundPropertyGuid;
+				return true;
 			}
 		}
 
 		return false;
 	}
 
+#if WITH_EDITOR
 	static FName GetFunctionNameFromClassByGuid(const UClass* InClass, const FGuid FunctionGuid);
 	static bool GetFunctionGuidFromClassByFieldName(const UClass* InClass, const FName FunctionName, FGuid& FunctionGuid);
 
@@ -1276,17 +1284,22 @@ public:
 };
 
 
-#if WITH_EDITOR
 template<>
 inline FName UBlueprint::GetFieldNameFromClassByGuid<UFunction>(const UClass* InClass, const FGuid FunctionGuid)
 {
+#if WITH_EDITOR
 	return GetFunctionNameFromClassByGuid(InClass, FunctionGuid);
+#else	// WITH_EDITOR
+	return NAME_None;
+#endif	// WITH_EDITOR
 }
 
 template<>
 inline bool UBlueprint::GetGuidFromClassByFieldName<UFunction>(const UClass* InClass, const FName FunctionName, FGuid& FunctionGuid)
 {
+#if WITH_EDITOR
 	return GetFunctionGuidFromClassByFieldName(InClass, FunctionName, FunctionGuid);
+#else	// WITH_EDITOR
+	return false;
+#endif	// WITH_EDITOR
 }
-
-#endif // #if WITH_EDITOR

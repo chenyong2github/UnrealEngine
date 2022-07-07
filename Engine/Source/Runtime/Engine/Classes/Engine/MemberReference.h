@@ -132,13 +132,13 @@ public:
 		{
 			MemberParent = ParentAsClass->GetAuthoritativeClass();
 		}
+#endif
 
 		MemberGuid.Invalidate();
 		if (OwnerClass != nullptr)
 		{
 			UBlueprint::GetGuidFromClassByFieldName<TFieldType>(OwnerClass, InField->GetFName(), MemberGuid);
 		}
-#endif
 	}
 
 #if WITH_EDITOR
@@ -407,9 +407,7 @@ public:
 				MemberParent = Cast<UClass>(GetFieldOuter(static_cast<typename TFieldType::BaseFieldClass*>(ReturnField)));
 
 				MemberGuid.Invalidate();
-#if WITH_EDITOR
 				UBlueprint::GetGuidFromClassByFieldName<TFieldType>(TargetScope, MemberName, MemberGuid);
-#endif
 
 				if (UClass* ParentAsClass = GetMemberParentClass())
 				{
@@ -454,25 +452,28 @@ public:
 					}
 				}
 
-#if WITH_EDITOR
 
-				// If the reference variable is valid we need to make sure that our GUID matches
-				if (ReturnField != nullptr)
+#if !WITH_EDITOR
+				if (bAlwaysFollowRedirects)
+#endif
 				{
-					UBlueprint::GetGuidFromClassByFieldName<TFieldType>(TargetScope, MemberName, MemberGuid);
-				}
-				// If we have a GUID find the reference variable and make sure the name is up to date and find the field again
-				// For now only variable references will have valid GUIDs.  Will have to deal with finding other names subsequently
-				else if (MemberGuid.IsValid())
-				{
-					const FName RenamedMemberName = UBlueprint::GetFieldNameFromClassByGuid<TFieldType>(TargetScope, MemberGuid);
-					if (RenamedMemberName != NAME_None)
+					// If the reference variable is valid we need to make sure that our GUID matches
+					if (ReturnField != nullptr)
 					{
-						MemberName = RenamedMemberName;
-						ReturnField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll);
+						UBlueprint::GetGuidFromClassByFieldName<TFieldType>(TargetScope, MemberName, MemberGuid);
+					}
+					// If we have a GUID find the reference variable and make sure the name is up to date and find the field again
+					// For now only variable references will have valid GUIDs.  Will have to deal with finding other names subsequently
+					else if (MemberGuid.IsValid())
+					{
+						const FName RenamedMemberName = UBlueprint::GetFieldNameFromClassByGuid<TFieldType>(TargetScope, MemberGuid);
+						if (RenamedMemberName != NAME_None)
+						{
+							MemberName = RenamedMemberName;
+							ReturnField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll);
+						}
 					}
 				}
-#endif
 			}
 			else if (UPackage* TargetPackage = GetMemberParentPackage())
 			{
