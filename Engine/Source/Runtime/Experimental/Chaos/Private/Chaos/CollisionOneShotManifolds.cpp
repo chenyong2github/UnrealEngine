@@ -81,7 +81,7 @@ namespace Chaos
 
 	// Whether to use the new index-less GJK. 
 	// @todo(chaos): This should be removed once soaked for a bit (enabled 7 June 2022)
-	bool bChaos_Collision_UseGJK2 = true;
+	bool bChaos_Collision_UseGJK2 = false;
 	FAutoConsoleVariableRef CVarChaos_Collision_UseGJK2(TEXT("p.Chaos.Collision.UseGJK2"), bChaos_Collision_UseGJK2, TEXT(""));
 
 	bool bChaos_Collision_OneSidedTriangleMesh = true;
