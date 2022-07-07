@@ -13248,7 +13248,10 @@ void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
 			NetDriver->LowLevelDestroy();
 			NetDriver->MarkAsGarbage();
 
-			Context.World()->ClearNetDriver(NetDriver);
+			if (UWorld* World = Context.World())
+			{
+				World->ClearNetDriver(NetDriver);
+			}
 
 			break;
 		}
