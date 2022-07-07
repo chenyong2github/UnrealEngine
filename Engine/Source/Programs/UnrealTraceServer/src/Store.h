@@ -25,6 +25,7 @@ public:
 	public:
 							FTrace(const FPath& InPath);
 		const FPath&		GetPath() const;
+		FString				GetName() const;
 		uint32				GetId() const;
 		uint64				GetSize() const;
 		uint64				GetTimestamp() const;
@@ -32,7 +33,6 @@ public:
 	private:
 		friend				FStore;
 		FPath				Path;
-		FString				Name;
 		uint64				Timestamp;
 		uint32				Id = 0;
 	};

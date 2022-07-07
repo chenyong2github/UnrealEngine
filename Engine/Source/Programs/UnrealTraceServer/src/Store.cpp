@@ -147,7 +147,7 @@ void FStore::FDirWatcher::async_wait(HandlerType InHandler)
 FStore::FTrace::FTrace(const FPath& InPath)
 : Path(InPath)
 {
-	Name = InPath.filename().string();
+	const FString Name = GetName();
 	Id = QuickStoreHash(*Name);
 
 	std::error_code Ec;
@@ -157,6 +157,12 @@ FStore::FTrace::FTrace(const FPath& InPath)
 	Timestamp = std::chrono::duration_cast<std::chrono::seconds>(LastWriteDuration).count();
 	Timestamp += FsToUnrealEpochBiasSeconds;
 	Timestamp *= 10'000'000;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FString FStore::FTrace::GetName() const
+{
+	return Path.stem().string();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

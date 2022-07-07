@@ -177,13 +177,13 @@ void FStoreCborPeer::OnTraceInfo()
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	auto Utf8String = Trace->GetPath().filename().u8string();
+	auto Name = Trace->GetName();
 
 	TPayloadBuilder<> Builder(EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
 	Builder.AddInteger("timestamp", Trace->GetTimestamp());
-	Builder.AddString("name", (const char*)Utf8String.c_str(), (int32)Utf8String.size());
+	Builder.AddString("name", *Name);
 	SendResponse(Builder.Done());
 }
 
