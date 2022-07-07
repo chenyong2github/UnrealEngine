@@ -224,6 +224,15 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 			return;
 		}
 	}
+
+	// Disable frame-locked evaluation. This has to come before we initialize the level sequence actor because
+	// the Sequence Player caches the value when playback starts, and our usual store/restore function only runs
+	// when shot expansion happens, which is too late.
+	{
+		CachedSequenceHierarchyRoot->EvaluationType = TargetSequence->GetMovieScene()->GetEvaluationType();
+		TargetSequence->GetMovieScene()->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
+	}
+
 	
 	// Initialize all of our master config settings. Shot specific ones will be called for their appropriate shot.
 	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
@@ -351,6 +360,10 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 	{
 		return;
 	}
+
+	// This is done outside of the save/restore hierarchy functions as it needs to be edited/cached
+	// before the hierarchy is originally cached.
+	TargetSequence->GetMovieScene()->SetEvaluationType(CachedSequenceHierarchyRoot->EvaluationType);
 
 	MoviePipeline::RestoreCompleteSequenceHierarchy(TargetSequence, CachedSequenceHierarchyRoot);
 }
