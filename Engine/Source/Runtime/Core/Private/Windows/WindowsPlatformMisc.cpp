@@ -2531,9 +2531,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 			{
 				SYSTEMTIME SystemTime;
 				FileTimeToSystemTime(&FileTime, &SystemTime);
-				GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &SystemTime, NULL, Buffer, UE_ARRAY_COUNT(Buffer));
-				Out.DriverDate = Buffer;
-				ZeroMemory(Buffer, sizeof(Buffer));
+				Out.DriverDate = FString::Printf(TEXT("%d-%d-%d"), SystemTime.wMonth, SystemTime.wDay, SystemTime.wYear);
 			}
 			else
 			{
