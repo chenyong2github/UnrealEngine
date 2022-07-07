@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "IInputDevice.h"
