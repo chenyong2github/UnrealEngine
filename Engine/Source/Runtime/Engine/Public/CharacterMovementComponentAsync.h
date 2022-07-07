@@ -6,7 +6,7 @@
 #include "Engine/OverlapInfo.h"
 #include "CharacterMovementComponentAsync.generated.h"
 
-
+enum EMoveComponentFlags;
 struct FCharacterMovementComponentAsyncOutput;
 struct FCharacterMovementComponentAsyncInput;
 
