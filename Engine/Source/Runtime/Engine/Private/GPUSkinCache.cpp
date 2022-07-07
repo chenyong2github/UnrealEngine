@@ -436,6 +436,7 @@ public:
 		{
 			const FSkelMeshRenderSection& Section = *DispatchData[SectionIndex].Section;
 			MeshSection.PositionBuffer = DispatchData[SectionIndex].PositionBuffer->Buffer.SRV;
+			MeshSection.PreviousPositionBuffer = DispatchData[SectionIndex].PreviousPositionBuffer->Buffer.SRV;
 			MeshSection.UVsBuffer = DispatchData[SectionIndex].UVsBufferSRV;
 			MeshSection.TotalVertexCount = DispatchData[SectionIndex].PositionBuffer->Buffer.NumBytes / (sizeof(float) * 3);
 			MeshSection.NumPrimitives = Section.NumTriangles;

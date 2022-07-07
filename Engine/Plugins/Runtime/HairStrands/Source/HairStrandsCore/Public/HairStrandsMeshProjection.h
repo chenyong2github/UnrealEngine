@@ -24,7 +24,9 @@ struct FHairStrandsProjectionMeshData
 	{
 		FTransform LocalToWorld;
 		FRDGBufferSRVRef RDGPositionBuffer = nullptr;
+		FRDGBufferSRVRef RDGPreviousPositionBuffer = nullptr;
 		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRHIShaderResourceView* PreviousPositionBuffer = nullptr;
 		FRHIShaderResourceView* UVsBuffer = nullptr;
 		FRHIShaderResourceView* IndexBuffer = nullptr;
 		uint32 UVsChannelCount = 0;

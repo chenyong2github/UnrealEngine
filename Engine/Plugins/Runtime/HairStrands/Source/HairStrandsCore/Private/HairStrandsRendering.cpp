@@ -1784,7 +1784,7 @@ void ComputeHairStrandsInterpolation(
 				FRDGImportedBuffer* Strands_DebugAttribute = nullptr;
 
 				// Trach on which view the position has been update, so that we can ensure motion vector are coherent
-				Instance->Strands.DeformedResource->GetUniqueViewID(FHairStrandsDeformedResource::Current) = ViewUniqueID;				
+				Instance->Strands.DeformedResource->GetUniqueViewID(FHairStrandsDeformedResource::Current) = ViewUniqueID;
 
 			#if WITH_EDITOR
 				FRDGImportedBuffer Strands_DebugAttributeReg;
@@ -1947,9 +1947,9 @@ void ComputeHairStrandsInterpolation(
 								Strands_PrevPositionOffsetSRV,
 								bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Previous)) : nullptr,
 								bHasSkinning ? Instance->Strands.RestRootResource : nullptr,
-								bHasSkinning&& bValidGuide ? Instance->Guides.RestRootResource : nullptr,
+								bHasSkinning && bValidGuide ? Instance->Guides.RestRootResource : nullptr,
 								bHasSkinning ? Instance->Strands.DeformedRootResource : nullptr,
-								bHasSkinning&& bValidGuide ? Instance->Guides.DeformedRootResource : nullptr,
+								bHasSkinning && bValidGuide ? Instance->Guides.DeformedRootResource : nullptr,
 								RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer),
 								RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->Attribute0Buffer),
 								bUseSingleGuide,

@@ -515,9 +515,10 @@ private:
 	DECLARE_GLOBAL_SHADER(FHairUpdateMeshTriangleCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdateMeshTriangleCS, FGlobalShader);
 
-	class FUpdateUVs : SHADER_PERMUTATION_INT("PERMUTATION_WITHUV", 2);
-	class FPositionType : SHADER_PERMUTATION_INT("PERMUTATION_POSITION_TYPE", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FUpdateUVs, FPositionType>;
+	class FUpdateUVs : SHADER_PERMUTATION_BOOL("PERMUTATION_WITHUV");
+	class FPositionType : SHADER_PERMUTATION_BOOL("PERMUTATION_POSITION_TYPE");
+	class FPrevious : SHADER_PERMUTATION_BOOL("PERMUTATION_PREVIOUS"); 
+	using FPermutationDomain = TShaderPermutationDomain<FUpdateUVs, FPositionType, FPrevious>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxRootCount)
@@ -537,6 +538,15 @@ private:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPositionBuffer6)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPositionBuffer7)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer0)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer1)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer3)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer4)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer5)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer6)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RDGMeshPreviousPositionBuffer7)
+
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer0)
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer1)
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer2)
@@ -545,6 +555,15 @@ private:
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer5)
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer6)
 		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer7)
+
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer0)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer1)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer2)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer3)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer4)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer5)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer6)
+		SHADER_PARAMETER_SRV(Buffer, MeshPreviousPositionBuffer7)
 
 		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer0)
 		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer1)
@@ -565,9 +584,13 @@ private:
 		SHADER_PARAMETER_SRV(Buffer, MeshUVsBuffer7)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootTriangleIndex)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePosition0)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePosition1)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePosition2)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePrevPosition0)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePrevPosition1)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTrianglePrevPosition2)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTriangleCurrPosition0)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTriangleCurrPosition1)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTriangleCurrPosition2)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -576,7 +599,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MAX_SECTION_COUNT"), SectionArrayCount);
-		OutEnvironment.SetDefine(TEXT("SHADER_MESH_UPDATE"), SectionArrayCount);
+		OutEnvironment.SetDefine(TEXT("SHADER_MESH_UPDATE"), SectionArrayCount);		
 	}
 };
 
@@ -637,25 +660,35 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	const TArray<uint32>& ValidSectionIndices = RestResources->BulkData.GetValidSectionIndices(LODIndex);
 	const uint32 ValidSectionCount = ValidSectionIndices.Num();
 	const uint32 PassCount = FMath::DivideAndRoundUp(ValidSectionCount, FHairUpdateMeshTriangleCS::SectionArrayCount);
+	const bool bComputePreviousDeformedPosition = IsHairStrandContinuousDecimationReorderingEnabled() && Type == HairStrandsTriangleType::DeformedPose;
 
 	FHairUpdateMeshTriangleCS::FParameters CommonParameters;
 
-	FRDGImportedBuffer OutputBuffers[3];
+	FRDGImportedBuffer OutputCurrBuffers[3];
+	FRDGImportedBuffer OutputPrevBuffers[3];
 	const bool bEnableUAVOverlap = true;
 	const ERDGUnorderedAccessViewFlags UAVFlags = bEnableUAVOverlap ? ERDGUnorderedAccessViewFlags::SkipBarrier : ERDGUnorderedAccessViewFlags::None;
 	CommonParameters.RootTriangleIndex = RegisterAsSRV(GraphBuilder, RestLODData.RootTriangleIndexBuffer);
 	if (Type == HairStrandsTriangleType::RestPose)
 	{
-		OutputBuffers[0] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[1] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[2] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[0] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[1] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[2] = Register(GraphBuilder, RestLODData.RestRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
 	}
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
 		FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedResources->LODs[LODIndex];
-		OutputBuffers[0] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[1] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[2] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[0] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[1] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputCurrBuffers[2] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+
+		if (bComputePreviousDeformedPosition)
+		{
+			OutputPrevBuffers[0] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Previous), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+			OutputPrevBuffers[1] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Previous), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+			OutputPrevBuffers[2] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Previous), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		}
+
 		DeformedLODData.Status = FHairStrandsDeformedRootResource::FLOD::EStatus::Completed;
 	}
 	else
@@ -664,9 +697,16 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		return;
 	}
 
-	CommonParameters.OutRootTrianglePosition0 = OutputBuffers[0].UAV;
-	CommonParameters.OutRootTrianglePosition1 = OutputBuffers[1].UAV;
-	CommonParameters.OutRootTrianglePosition2 = OutputBuffers[2].UAV;
+	CommonParameters.OutRootTriangleCurrPosition0 = OutputCurrBuffers[0].UAV;
+	CommonParameters.OutRootTriangleCurrPosition1 = OutputCurrBuffers[1].UAV;
+	CommonParameters.OutRootTriangleCurrPosition2 = OutputCurrBuffers[2].UAV;
+
+	if (bComputePreviousDeformedPosition)
+	{
+		CommonParameters.OutRootTrianglePrevPosition0 = OutputPrevBuffers[0].UAV;
+		CommonParameters.OutRootTrianglePrevPosition1 = OutputPrevBuffers[1].UAV;
+		CommonParameters.OutRootTrianglePrevPosition2 = OutputPrevBuffers[2].UAV;
+	}
 
 	for (uint32 PassIt = 0; PassIt < PassCount; ++PassIt)
 	{
@@ -683,7 +723,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		{
 			uint32 MeshSectionBufferIndex = 0;
 			FRDGBufferSRVRef RDGPositionBuffer = nullptr;
+			FRDGBufferSRVRef RDGPreviousPositionBuffer = nullptr;
 			FRHIShaderResourceView* PositionBuffer = nullptr;
+			FRHIShaderResourceView* PreviousPositionBuffer = nullptr;
 			FRHIShaderResourceView* IndexBuffer = nullptr;
 			FRHIShaderResourceView* UVsBuffer = nullptr;
 		};
@@ -691,76 +733,29 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		TMap<FRDGBufferSRVRef, FMeshSectionBuffers>		UniqueMeshSectionBuffersRDG;
 		uint32 UniqueMeshSectionBufferIndex = 0;
 
+		#define SETPARAMETERS(OutParameters, InMeshSectionData, Index) \
+				OutParameters->RDGMeshPositionBuffer##Index			= InMeshSectionData.RDGPositionBuffer; \
+				OutParameters->RDGMeshPreviousPositionBuffer##Index = InMeshSectionData.RDGPreviousPositionBuffer; \
+				OutParameters->MeshPositionBuffer##Index			= InMeshSectionData.PositionBuffer; \
+				OutParameters->MeshPreviousPositionBuffer##Index	= InMeshSectionData.PreviousPositionBuffer; \
+				OutParameters->MeshIndexBuffer##Index				= InMeshSectionData.IndexBuffer; \
+				OutParameters->MeshUVsBuffer##Index					= InMeshSectionData.UVsBuffer;
+
 		auto SetMeshSectionBuffers = [Parameters](uint32 UniqueIndex, const FHairStrandsProjectionMeshData::Section& MeshSectionData)
 		{
 			switch (UniqueIndex)
 			{
-			case 0:
-			{
-				Parameters->RDGMeshPositionBuffer0 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer0 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer0 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer0 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 1:
-			{
-				Parameters->RDGMeshPositionBuffer1 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer1 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer1 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer1 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 2:
-			{
-				Parameters->RDGMeshPositionBuffer2 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer2 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer2 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer2 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 3:
-			{
-				Parameters->RDGMeshPositionBuffer3 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer3 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer3 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer3 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 4:
-			{
-				Parameters->RDGMeshPositionBuffer4 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer4 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer4 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer4 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 5:
-			{
-				Parameters->RDGMeshPositionBuffer5 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer5 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer5 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer5 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 6:
-			{
-				Parameters->RDGMeshPositionBuffer6 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer6 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer6 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer6 = MeshSectionData.UVsBuffer;
-				break;
-			}
-			case 7:
-			{
-				Parameters->RDGMeshPositionBuffer7 = MeshSectionData.RDGPositionBuffer;
-				Parameters->MeshPositionBuffer7 = MeshSectionData.PositionBuffer;
-				Parameters->MeshIndexBuffer7 = MeshSectionData.IndexBuffer;
-				Parameters->MeshUVsBuffer7 = MeshSectionData.UVsBuffer;
-				break;
-			}
+			case 0: SETPARAMETERS(Parameters, MeshSectionData, 0); break;
+			case 1: SETPARAMETERS(Parameters, MeshSectionData, 1); break;
+			case 2: SETPARAMETERS(Parameters, MeshSectionData, 2); break;
+			case 3: SETPARAMETERS(Parameters, MeshSectionData, 3); break;
+			case 4: SETPARAMETERS(Parameters, MeshSectionData, 4); break;
+			case 5: SETPARAMETERS(Parameters, MeshSectionData, 5); break;
+			case 6: SETPARAMETERS(Parameters, MeshSectionData, 6); break;
+			case 7: SETPARAMETERS(Parameters, MeshSectionData, 7); break;
 			}
 		};
+		#undef SETPARAMETERS
 
 		bool bUseRDGPositionBuffer = false;
 		for (int32 SectionStartIt = Parameters->Pass_SectionStart, SectionItEnd = Parameters->Pass_SectionStart + Parameters->Pass_SectionCount; SectionStartIt < SectionItEnd; ++SectionStartIt)
@@ -800,7 +795,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 			{
 				// Insure that all buffers actually match
 				check(Buffers->RDGPositionBuffer == MeshSectionData.RDGPositionBuffer);
+				check(Buffers->RDGPreviousPositionBuffer == MeshSectionData.RDGPreviousPositionBuffer);
 				check(Buffers->PositionBuffer == MeshSectionData.PositionBuffer);
+				check(Buffers->PreviousPositionBuffer == MeshSectionData.PreviousPositionBuffer);
 				check(Buffers->IndexBuffer == MeshSectionData.IndexBuffer);
 				check(Buffers->UVsBuffer == MeshSectionData.UVsBuffer);
 
@@ -815,7 +812,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 				FMeshSectionBuffers Entry;
 				Entry.MeshSectionBufferIndex = UniqueMeshSectionBufferIndex;
 				Entry.RDGPositionBuffer = MeshSectionData.RDGPositionBuffer;
+				Entry.RDGPreviousPositionBuffer = MeshSectionData.RDGPreviousPositionBuffer;
 				Entry.PositionBuffer = MeshSectionData.PositionBuffer;
+				Entry.PreviousPositionBuffer = MeshSectionData.PreviousPositionBuffer;
 				Entry.IndexBuffer = MeshSectionData.IndexBuffer;
 				Entry.UVsBuffer = MeshSectionData.UVsBuffer;
 
@@ -869,6 +868,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 
 		FHairUpdateMeshTriangleCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FHairUpdateMeshTriangleCS::FUpdateUVs>(1);
+		PermutationVector.Set<FHairUpdateMeshTriangleCS::FPrevious>(bComputePreviousDeformedPosition);
 		PermutationVector.Set<FHairUpdateMeshTriangleCS::FPositionType>(bUseRDGPositionBuffer ? 1 : 0);
 
 		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootCount, 128);
@@ -876,15 +876,23 @@ void AddHairStrandUpdateMeshTrianglesPass(
 		TShaderMapRef<FHairUpdateMeshTriangleCS> ComputeShader(ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsTriangleMeshUpdate"),
+			RDG_EVENT_NAME("HairStrands::TriangleMeshUpdate(%s,%s)", bComputePreviousDeformedPosition ? TEXT("Previous/Current, Current") : TEXT("Current"), bUseRDGPositionBuffer ? TEXT("RDGBuffer") : TEXT("SkinCacheBuffer")),
 			ComputeShader,
 			PassParameters,
 			DispatchGroupCount);
 	}
 
-	GraphBuilder.SetBufferAccessFinal(OutputBuffers[0].Buffer, ERHIAccess::SRVMask);
-	GraphBuilder.SetBufferAccessFinal(OutputBuffers[1].Buffer, ERHIAccess::SRVMask);
-	GraphBuilder.SetBufferAccessFinal(OutputBuffers[2].Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutputCurrBuffers[0].Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutputCurrBuffers[1].Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutputCurrBuffers[2].Buffer, ERHIAccess::SRVMask);
+
+	if (bComputePreviousDeformedPosition)
+	{
+		GraphBuilder.SetBufferAccessFinal(OutputPrevBuffers[0].Buffer, ERHIAccess::SRVMask);
+		GraphBuilder.SetBufferAccessFinal(OutputPrevBuffers[1].Buffer, ERHIAccess::SRVMask);
+		GraphBuilder.SetBufferAccessFinal(OutputPrevBuffers[2].Buffer, ERHIAccess::SRVMask);
+	}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -966,7 +974,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	TShaderMapRef<FHairInterpolateMeshTriangleCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTriangleMeshInterpolate"),
+		RDG_EVENT_NAME("HairStrands::TriangleMeshInterpolate"),
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
@@ -1048,7 +1056,7 @@ void InternalAddHairRBFInterpolationPass(
 	TShaderMapRef<FHairMeshesInterpolateCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairInterpolationRBF(%s)", bCards ? TEXT("Cards") : TEXT("Meshes")),
+		RDG_EVENT_NAME("HairStrands::HairInterpolationRBF(%s)", bCards ? TEXT("Cards") : TEXT("Meshes")),
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
@@ -1236,65 +1244,34 @@ void AddHairStrandInitMeshSamplesPass(
 			{
 				uint32 SectionBufferIndex = 0;
 				FRDGBufferSRVRef RDGPositionBuffer = nullptr;
+				FRDGBufferSRVRef RDGPreviousPositionBuffer = nullptr;
 				FRHIShaderResourceView* PositionBuffer = nullptr;
+				FRHIShaderResourceView* PreviousPositionBuffer = nullptr;
 			};
 			TMap<FRHIShaderResourceView*, FMeshSectionBuffers>	UniqueMeshSectionBuffers;
 			TMap<FRDGBufferSRVRef, FMeshSectionBuffers>		UniqueMeshSectionBuffersRDG;
+
+			#define SETPARAMETERS(OutParameters, InMeshSectionData, Index) \
+				OutParameters.RDGVertexPositionsBuffer##Index = InMeshSectionData.RDGPositionBuffer; \
+				OutParameters.VertexPositionsBuffer##Index = InMeshSectionData.PositionBuffer;
 
 			auto SetMeshSectionBuffers = [&Parameters](uint32 UniqueIndex, const FHairStrandsProjectionMeshData::Section& MeshSectionData)
 			{
 				switch (UniqueIndex)
 				{
-				case 0:
-				{
-					Parameters.RDGVertexPositionsBuffer0 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer0 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 1:
-				{
-					Parameters.RDGVertexPositionsBuffer1 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer1 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 2:
-				{
-					Parameters.RDGVertexPositionsBuffer2 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer2 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 3:
-				{
-					Parameters.RDGVertexPositionsBuffer3 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer3 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 4:
-				{
-					Parameters.RDGVertexPositionsBuffer4 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer4 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 5:
-				{
-					Parameters.RDGVertexPositionsBuffer5 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer5 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 6:
-				{
-					Parameters.RDGVertexPositionsBuffer6 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer6 = MeshSectionData.PositionBuffer;
-					break;
-				}
-				case 7:
-				{
-					Parameters.RDGVertexPositionsBuffer7 = MeshSectionData.RDGPositionBuffer;
-					Parameters.VertexPositionsBuffer7 = MeshSectionData.PositionBuffer;
-					break;
-				}
+				case 0: SETPARAMETERS(Parameters, MeshSectionData, 0); break;
+				case 1: SETPARAMETERS(Parameters, MeshSectionData, 1); break;
+				case 2: SETPARAMETERS(Parameters, MeshSectionData, 2); break;
+				case 3: SETPARAMETERS(Parameters, MeshSectionData, 3); break;
+				case 4: SETPARAMETERS(Parameters, MeshSectionData, 4); break;
+				case 5: SETPARAMETERS(Parameters, MeshSectionData, 5); break;
+				case 6: SETPARAMETERS(Parameters, MeshSectionData, 6); break;
+				case 7: SETPARAMETERS(Parameters, MeshSectionData, 7); break;
 				}
 			};
+
+			#undef SETPARAMETERS
+
 			uint32 UniqueMeshSectionBufferIndex = 0;
 			bool bUseRDGPositionBuffer = false;
 			for (int32 SectionStartIt = PassSectionStart, SectionItEnd = PassSectionStart + PassSectionCount; SectionStartIt < SectionItEnd; ++SectionStartIt)
@@ -1466,7 +1443,7 @@ void AddHairStrandUpdateMeshSamplesPass(
 		TShaderMapRef<FHairUpdateMeshSamplesCS> ComputeShader(ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsUpdateMeshSamples"),
+			RDG_EVENT_NAME("HairStrands::UpdateMeshSamples"),
 			ComputeShader,
 			Parameters,
 			DispatchGroupCount);
@@ -1797,12 +1774,16 @@ private:
 	SHADER_USE_PARAMETER_STRUCT(FHairUpdatePositionOffsetCS, FGlobalShader);
 
 	class FUseGPUOffset : SHADER_PERMUTATION_BOOL("PERMUTATION_USE_GPU_OFFSET");
-	using FPermutationDomain = TShaderPermutationDomain<FUseGPUOffset>;
+	class FPrevious : SHADER_PERMUTATION_BOOL("PERMUTATION_PREVIOUS");
+	using FPermutationDomain = TShaderPermutationDomain<FUseGPUOffset, FPrevious>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector3f, CPUPositionOffset)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootTrianglePosition0Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutOffsetBuffer)
+		SHADER_PARAMETER(FVector3f, CPUCurrPositionOffset)
+		SHADER_PARAMETER(FVector3f, CPUPrevPositionOffset)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootTriangleCurrPosition0Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootTrianglePrevPosition0Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutCurrOffsetBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutPrevOffsetBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1831,29 +1812,42 @@ void AddHairStrandUpdatePositionOffsetPass(
 		return;
 	}
 
-	FRDGImportedBuffer OutPositionOffsetBuffer    = Register(GraphBuilder, DeformedResources->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateUAV);
-	FRDGImportedBuffer RootTrianglePositionBuffer;
+	const bool bComputePreviousDeformedPosition = IsHairStrandContinuousDecimationReorderingEnabled();
+
+	FRDGImportedBuffer OutCurrPositionOffsetBuffer = Register(GraphBuilder, DeformedResources->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutPrevPositionOffsetBuffer = Register(GraphBuilder, DeformedResources->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Previous), ERDGImportedBufferFlags::CreateUAV);
+
+	FRDGImportedBuffer RootTriangleCurrPositionBuffer;
+	FRDGImportedBuffer RootTrianglePrevPositionBuffer;
 	if (DeformedRootResources)
 	{
-		RootTrianglePositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateSRV);
+		RootTriangleCurrPositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateSRV);
+		RootTrianglePrevPositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Previous), ERDGImportedBufferFlags::CreateSRV);
 	}
 
 	const bool bUseGPUOffset = DeformedRootResources != nullptr && GHairStrandsUseGPUPositionOffset > 0;
-	const uint32 OffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
+	const uint32 CurrOffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
+	const uint32 PrevOffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Previous);
+
 	FHairUpdatePositionOffsetCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairUpdatePositionOffsetCS::FParameters>();
-	PassParameters->CPUPositionOffset = (FVector3f)DeformedResources->PositionOffset[OffsetIndex];
-	PassParameters->RootTrianglePosition0Buffer = RootTrianglePositionBuffer.SRV;
-	PassParameters->OutOffsetBuffer = OutPositionOffsetBuffer.UAV;
+	PassParameters->CPUCurrPositionOffset			= (FVector3f)DeformedResources->PositionOffset[CurrOffsetIndex];
+	PassParameters->CPUPrevPositionOffset			= (FVector3f)DeformedResources->PositionOffset[PrevOffsetIndex];
+	PassParameters->RootTriangleCurrPosition0Buffer	= RootTriangleCurrPositionBuffer.SRV;
+	PassParameters->RootTrianglePrevPosition0Buffer = RootTrianglePrevPositionBuffer.SRV;
+	PassParameters->OutCurrOffsetBuffer				= OutCurrPositionOffsetBuffer.UAV;
+	PassParameters->OutPrevOffsetBuffer				= OutPrevPositionOffsetBuffer.UAV;
 
 	FHairUpdatePositionOffsetCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairUpdatePositionOffsetCS::FUseGPUOffset>(bUseGPUOffset);
+	PermutationVector.Set<FHairUpdatePositionOffsetCS::FPrevious>(bComputePreviousDeformedPosition);
 	TShaderMapRef<FHairUpdatePositionOffsetCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsUpdatePositionOffset"),
+		RDG_EVENT_NAME("HairStrands::UpdatePositionOffset(%s,%s)", bUseGPUOffset ? TEXT("GPU") : TEXT("CPU"), bComputePreviousDeformedPosition ? TEXT("Current/Previous") : TEXT("Current")),
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, 1));
 
-	GraphBuilder.SetBufferAccessFinal(OutPositionOffsetBuffer.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutCurrPositionOffsetBuffer.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(OutPrevPositionOffsetBuffer.Buffer, ERHIAccess::SRVMask);
 }
