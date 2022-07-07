@@ -3654,7 +3654,11 @@ void UNiagaraComponent::UpdateInstanceSoloMode()
 	{
 		SystemInstanceController->SetForceSolo(bRequireSoloMode);
 	}
-	SetComponentTickEnabled(bRequireSoloMode);
+
+	if (IsActive())
+	{
+		SetComponentTickEnabled(bRequireSoloMode);
+	}
 }
 
 void UNiagaraComponent::SetGpuComputeDebug(bool bEnableDebug)
