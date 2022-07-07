@@ -56,6 +56,7 @@ using Horde.Build.Agents.Telemetry;
 using Horde.Build.Logs.Storage;
 using Horde.Build.Tasks;
 using Horde.Build.Auditing;
+using Horde.Build.Storage.Backends;
 
 namespace Horde.Build.Tests
 {
@@ -218,10 +219,9 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ConformTaskSource>();
 			services.AddSingleton<ICommitService, CommitService>();
 
-			services.AddSingleton(new Startup.StorageBackendSettings<PersistentLogStorage> { Type = StorageProviderType.Transient });
-			services.AddSingleton(new Startup.StorageBackendSettings<ArtifactCollection> { Type = StorageProviderType.Transient });
-			services.AddSingleton(new Startup.StorageBackendSettings<BasicStorageClient> { Type = StorageProviderType.Transient });
-			services.AddSingleton(typeof(IStorageBackend<>), typeof(Startup.StorageBackendFactory<>));
+			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => new TransientStorageBackend().ForType<PersistentLogStorage>());
+			services.AddSingleton<IStorageBackend<ArtifactCollection>>(sp => new TransientStorageBackend().ForType<ArtifactCollection>());
+			services.AddSingleton<IStorageBackend<BasicStorageClient>>(sp => new TransientStorageBackend().ForType<BasicStorageClient>());
 
 			services.AddSingleton<IStorageClient, BasicStorageClient>();
 
