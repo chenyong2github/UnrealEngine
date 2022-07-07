@@ -1124,7 +1124,7 @@ protected:
 	friend FScopedGPUDefragLock;
 };
 
-//FScopedGPUDefragLock can't cover any scope that will add dcb commands or we might deadlock with a master reserve failure.
+//FScopedGPUDefragLock can't cover any scope that will add dcb commands or we might deadlock.
 class FScopedGPUDefragLock
 {
 public:

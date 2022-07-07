@@ -70,7 +70,7 @@ static TAutoConsoleVariable<int32> CVarRHICmdUseDeferredContexts(
 TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks(
 	TEXT("r.RHICmdFlushRenderThreadTasks"),
 	0,
-	TEXT("If true, then we flush the render thread tasks every pass. For issue diagnosis. This is a master switch for more granular cvars."));
+	TEXT("If true, then we flush the render thread tasks every pass. For issue diagnosis. This is a main switch for more granular cvars."));
 
 static TAutoConsoleVariable<int32> CVarRHICmdFlushOnQueueParallelSubmit(
 	TEXT("r.RHICmdFlushOnQueueParallelSubmit"),
