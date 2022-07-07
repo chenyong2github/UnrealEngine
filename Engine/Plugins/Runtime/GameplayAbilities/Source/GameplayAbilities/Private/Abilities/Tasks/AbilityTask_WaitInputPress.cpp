@@ -2,6 +2,7 @@
 
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "AbilitySystemComponent.h"
+#include "Engine/World.h"
 
 UAbilityTask_WaitInputPress::UAbilityTask_WaitInputPress(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

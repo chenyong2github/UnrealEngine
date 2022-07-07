@@ -7,6 +7,7 @@
 #include "Animation/AnimCompressionTypes.h"
 #include "TickableEditorObject.h"
 #include "Animation/AnimCompressionTypes.h"
+#include "UObject/GCObject.h"
 
 class UAnimSequence;
 class FDerivedDataAnimationCompression;

@@ -3,6 +3,8 @@
 #pragma once
 #include "GameFramework/RootMotionSource.h"
 #include "Chaos/SimCallbackObject.h"
+#include "CollisionQueryParams.h"
+#include "CollisionShape.h"
 #include "Engine/OverlapInfo.h"
 #include "CharacterMovementComponentAsync.generated.h"
 

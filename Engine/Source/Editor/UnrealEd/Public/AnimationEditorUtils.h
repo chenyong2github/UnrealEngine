@@ -16,6 +16,7 @@
 #include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "Engine/SkeletalMesh.h"
 
 class FMenuBuilder;
 class UAnimBlueprint;

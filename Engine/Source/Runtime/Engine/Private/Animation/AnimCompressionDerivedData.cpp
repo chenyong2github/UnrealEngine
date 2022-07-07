@@ -13,6 +13,7 @@
 #include "Animation/AnimCurveCompressionSettings.h"
 #include "AnimationCompression.h"
 #include "UObject/Package.h"
+#include "Misc/CoreDelegates.h"
 
 #if WITH_EDITOR
 

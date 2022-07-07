@@ -4,6 +4,7 @@
 #include "GameFramework/Pawn.h"
 #include "WorldCollision.h"
 #include "Abilities/GameplayAbility.h"
+#include "Engine/World.h"
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //

@@ -3,6 +3,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "TimerManager.h"
 #include "AbilitySystemGlobals.h"
+#include "Engine/World.h"
 
 UAbilityTask_WaitDelay::UAbilityTask_WaitDelay(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

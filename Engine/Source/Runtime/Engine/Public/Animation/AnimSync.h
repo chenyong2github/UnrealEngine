@@ -8,6 +8,7 @@
 
 struct FAnimationBaseContext;
 struct FAnimInstanceProxy;
+class UAnimInstance;
 class UMirrorDataTable; 
 
 namespace UE { namespace Anim {

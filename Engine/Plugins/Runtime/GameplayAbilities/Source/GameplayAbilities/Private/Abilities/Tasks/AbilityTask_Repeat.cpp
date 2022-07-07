@@ -2,6 +2,7 @@
 
 #include "Abilities/Tasks/AbilityTask_Repeat.h"
 #include "TimerManager.h"
+#include "Engine/World.h"
 
 UAbilityTask_Repeat::UAbilityTask_Repeat(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)

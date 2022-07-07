@@ -4,8 +4,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/SpatialAccelerationCollection.h"
+#include "Components/PrimitiveComponent.h"
 #include "PBDRigidsSolver.h"
 #include "Engine/ScopedMovementUpdate.h"
+#include "Engine/World.h"
 
 void FCharacterMovementComponentAsyncInput::Simulate(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
 {

@@ -4,6 +4,7 @@
 #include "GameplayEffectAggregator.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
+#include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectUIData.h"
 #include "GameplayAbilitySpec.h"
