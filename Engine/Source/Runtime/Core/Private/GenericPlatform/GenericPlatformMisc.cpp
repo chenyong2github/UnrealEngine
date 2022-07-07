@@ -1805,6 +1805,7 @@ TArray<FCustomChunk> FGenericPlatformMisc::GetAllLanguageChunks()
 
 TArray<FCustomChunk> FGenericPlatformMisc::GetCustomChunksByType(ECustomChunkType DesiredChunkType)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (DesiredChunkType == ECustomChunkType::OnDemandChunk)
 	{
 		return GetAllOnDemandChunks();
@@ -1813,6 +1814,7 @@ TArray<FCustomChunk> FGenericPlatformMisc::GetCustomChunksByType(ECustomChunkTyp
 	{
 		return GetAllLanguageChunks();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)

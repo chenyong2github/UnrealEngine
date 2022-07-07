@@ -1657,9 +1657,16 @@ public:
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
 
+	UE_DEPRECATED(5.2, "Use named chunks instead")
 	static TArray<FCustomChunk> GetOnDemandChunksForPakchunkIndices(const TArray<int32>& PakchunkIndices);
+
+	UE_DEPRECATED(5.2, "Use IPlatformChunkInstall::GetNamedChunksByType instead")
 	static TArray<FCustomChunk> GetAllOnDemandChunks();
+
+	UE_DEPRECATED(5.2, "Use IPlatformChunkInstall::GetNamedChunksByType instead")
 	static TArray<FCustomChunk> GetAllLanguageChunks();
+
+	UE_DEPRECATED(5.2, "Use IPlatformChunkInstall::GetNamedChunksByType instead")
 	static TArray<FCustomChunk> GetCustomChunksByType(ECustomChunkType DesiredChunkType);
 
 	/**

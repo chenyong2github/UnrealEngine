@@ -87,11 +87,12 @@ enum class ECustomChunkType : uint8
 struct FCustomChunk
 {
 	FString ChunkTag;
+	FString ChunkTag2;
 	uint32	ChunkID;
 	ECustomChunkType ChunkType;
 
-	FCustomChunk(FString InTag, uint32 InID, ECustomChunkType InChunkType) :
-		ChunkTag(InTag), ChunkID(InID), ChunkType(InChunkType)
+	FCustomChunk(FString InTag, uint32 InID, ECustomChunkType InChunkType, FString InTag2 = TEXT("")) :
+		ChunkTag(InTag), ChunkTag2(InTag2), ChunkID(InID), ChunkType(InChunkType)
 	{}
 };
 
@@ -110,6 +111,13 @@ struct FCustomChunkMapping
 	FCustomChunkMapping(FString InPattern, uint32 InChunkID, CustomChunkMappingType InMappingType) :
 		Pattern(InPattern), ChunkID(InChunkID), MappingType(InMappingType)
 	{}
+};
+
+enum class ENamedChunkType : uint8
+{
+	Invalid,
+	OnDemand,
+	Language,
 };
 
 /**
@@ -199,29 +207,97 @@ public:
 	UE_DEPRECATED(4.18, "Call RemoveChunkInstallDelegate instead")
 	virtual void RemoveChunkInstallDelgate( uint32 ChunkID, FDelegateHandle Delegate ) = 0;
 
-	/**
-	* Check whether current platform supports intelligent chunk installation
-	* @return				whether Intelligent Install is supported
-	*/
+
+	UE_DEPRECATED(5.2, "Call SupportsNamedChunkInstall instead")
 	virtual bool SupportsIntelligentInstall() = 0;
 
-	/**
-	* Check whether installation of chunks are pending
-	* @return				whether installation task has been kicked
-	*/
+	UE_DEPRECATED(5.2, "Call IsNamedChunkInProgress instead")
 	virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
-	/**
-	* Install chunks with Intelligent Delivery API
-	* @return				whether installation task has been kicked
-	*/
+	UE_DEPRECATED(5.2, "Call InstallNamedChunks instead")
 	virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
-	/**
-	* Uninstall chunks with Intelligent Delivery API
-	* @return				whether uninstallation task has been kicked
-	*/
+	UE_DEPRECATED(5.2, "Call UninstallNamedChunks instead")
 	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
+
+
+	/**
+	 * Check whether current platform supports chunk installation by name
+	 * @return				whether Intelligent Install is supported
+	 */
+	virtual bool SupportsNamedChunkInstall() const = 0;
+
+	/**
+	 * Check whether the give chunk is being installed
+	 * @param NamedChunk	The name of the chunk
+	 * @return				whether installation task has been kicked
+	 */
+	virtual bool IsNamedChunkInProgress(const FName NamedChunk) = 0;
+
+	/**
+	 * Install the given named chunk
+	 * @param NamedChunk	The name of the chunk
+	 * @return				whether installation task has been kicked
+	 **/
+	virtual bool InstallNamedChunk(const FName NamedChunk) = 0;
+
+	/**
+	 * Uninstall the given named chunk
+	 * @param NamedChunk	The name of the chunk
+	 * @return				whether uninstallation task has been kicked
+	 **/
+	virtual bool UninstallNamedChunk(const FName NamedChunk) = 0;
+
+	/**
+	 * Install the given set of named chunks
+	 * @param NamedChunks	The names of the chunks to install
+	 * @return				whether installation task has been kicked
+	 **/
+	virtual bool InstallNamedChunks(const TArrayView<FName>& NamedChunks) = 0;
+
+	/**
+	 * Uninstall the given set of named chunks
+	 * @param NamedChunk	The names of the chunks to uninstall
+	 * @return				whether uninstallation task has been kicked
+	 **/
+	virtual bool UninstallNamedChunks(const TArrayView<FName>& NamedChunks) = 0;
+
+	/**
+	 * Get the current location of the given named chunk
+	 * @param NamedChunk	The name of the chunk
+	 * @return				Enum specifying whether the chunk is available to use, waiting to install, or does not exist.
+	 **/
+	virtual EChunkLocation::Type GetNamedChunkLocation(const FName NamedChunk) = 0;
+
+	/**
+	 * Get the current install progress of the given named chunk.  Let the user specify report type for platforms that support more than one.
+	 * @param NamedChunk	The name of the chunk
+	 * @param ReportType	The type of progress report you want.
+	 * @return				A value whose meaning is dependent on the ReportType param.
+	 **/
+	virtual float GetNamedChunkProgress(const FName NamedChunk, EChunkProgressReportingType::Type ReportType) = 0;
+
+	/**
+	 * Hint to the installer that we would like to prioritize a specific chunk
+	 * @param NamedChunk	The name of the chunk
+	 * @param Priority		The priority for the chunk.
+	 * @return				false if the operation is not allowed or the chunk doesn't exist, otherwise true.
+	 **/
+	virtual bool PrioritizeNamedChunk(const FName NamedChunk, EChunkPriority::Type Priority) = 0;
+
+	/** 
+	 * Query the type of the given named chunk
+	 * @param NamedChunk	The name of the chunk
+	 * @return				Enum indicating the type of chunk, if any
+	 */
+	virtual ENamedChunkType GetNamedChunkType(const FName NamedChunk) const = 0;
+
+	/**
+	 * Get a list of all the named chunks of the given type
+	 * @param				Enum indicating the type of chunk
+	 * @return				Array containing all named chunks of the given type
+	 */
+	virtual TArray<FName> GetNamedChunksByType(ENamedChunkType NamedChunkType) const = 0;
 
 protected:
 		/**
@@ -343,6 +419,61 @@ public:
 		return false;
 	}
 
+	virtual bool SupportsNamedChunkInstall() const override
+	{
+		return false;
+	}
+
+	virtual bool IsNamedChunkInProgress(const FName NamedChunk) override
+	{
+		return false;
+	}
+
+	virtual bool InstallNamedChunk(const FName NamedChunk) override
+	{
+		return false;
+	}
+
+	virtual bool UninstallNamedChunk(const FName NamedChunk) override
+	{
+		return false;
+	}
+
+	virtual bool InstallNamedChunks(const TArrayView<FName>& NamedChunks) override
+	{
+		return false;
+	}
+
+	virtual bool UninstallNamedChunks(const TArrayView<FName>& NamedChunks) override
+	{
+		return false;
+	}
+
+	virtual EChunkLocation::Type GetNamedChunkLocation(const FName NamedChunk) override
+	{
+		return EChunkLocation::NotAvailable;
+	}
+
+	virtual float GetNamedChunkProgress(const FName NamedChunk, EChunkProgressReportingType::Type ReportType) override
+	{
+		return 0.0f;
+	}
+
+	virtual bool PrioritizeNamedChunk(const FName NamedChunk, EChunkPriority::Type Priority) override
+	{
+		return false;
+	}
+
+	virtual ENamedChunkType GetNamedChunkType(const FName NamedChunk) const override
+	{
+		return ENamedChunkType::Invalid;
+	}
+
+	virtual TArray<FName> GetNamedChunksByType(ENamedChunkType NamedChunkType) const override
+	{
+		return TArray<FName>();
+	}
+
 protected:
 
 	/** Delegate called when installation succeeds or fails */
@@ -352,6 +483,38 @@ protected:
 	{
 		return EChunkLocation::LocalFast;
 	}
+};
+
+// temporary helper base for platform chunk installers to transition from FCustomChunk to named chunks
+class FNamedChunkPlatformChunkInstall : public FGenericPlatformChunkInstall
+{
+public:
+	virtual bool SupportsNamedChunkInstall() const override
+	{
+		return true;
+	}
+
+	virtual bool IsNamedChunkInProgress(const FName NamedChunk) override;
+	virtual bool InstallNamedChunk(const FName NamedChunk) override;
+	virtual bool UninstallNamedChunk(const FName NamedChunk) override;
+	virtual bool InstallNamedChunks(const TArrayView<FName>& NamedChunks) override;
+	virtual bool UninstallNamedChunks(const TArrayView<FName>& NamedChunks) override;
+
+	virtual EChunkLocation::Type GetNamedChunkLocation(const FName NamedChunk) override;
+	virtual float GetNamedChunkProgress(const FName NamedChunk, EChunkProgressReportingType::Type ReportType) override;
+	virtual bool PrioritizeNamedChunk(const FName NamedChunk, EChunkPriority::Type Priority) override;
+
+	virtual ENamedChunkType GetNamedChunkType(const FName NamedChunk) const override;
+	virtual TArray<FName> GetNamedChunksByType(ENamedChunkType NamedChunkType) const override;
+
+protected:
+	virtual float GetCustomChunkProgress(const FCustomChunk& CustomChunk, EChunkProgressReportingType::Type ReportType) = 0; // platform specializations need to implement this as it's missing in the existing api
+	bool TryGetCustomChunkFromNamedChunk(const FName NamedChunk, FCustomChunk& OutCustomChunk) const;
+	TArray<FCustomChunk> GetCustomChunksFromNamedChunk(const FName NamedChunk) const;
+	TArray<FCustomChunk> GetCustomChunksFromNamedChunks(const TArrayView<FName>& NamedChunks) const;
+	TArray<FName> GetNamedChunksFromCustomChunks(const TArray<FCustomChunk>& CustomChunks) const;
+	FName GetNamedChunkByPakChunkIndex(int32 InPakchunkIndex) const;
+	FName GetCustomChunkName(const FCustomChunk& CustomChunk) const;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
