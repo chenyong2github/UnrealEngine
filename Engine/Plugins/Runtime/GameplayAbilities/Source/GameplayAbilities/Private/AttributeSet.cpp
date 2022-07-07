@@ -4,6 +4,7 @@
 #include "Stats/StatsMisc.h"
 #include "EngineDefines.h"
 #include "Engine/ObjectLibrary.h"
+#include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AbilitySystemLog.h"
 #include "GameplayEffectAggregator.h"

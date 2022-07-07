@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Abilities/Tasks/AbilityTask_WaitOverlap.h"
+#include "Components/PrimitiveComponent.h"
 
 UAbilityTask_WaitOverlap::UAbilityTask_WaitOverlap(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
