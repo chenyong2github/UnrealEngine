@@ -617,7 +617,7 @@ void FDMXEditorUtils::AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParent
 
 		AutoAssignedAddresses(FixturePatches);
 	}
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
