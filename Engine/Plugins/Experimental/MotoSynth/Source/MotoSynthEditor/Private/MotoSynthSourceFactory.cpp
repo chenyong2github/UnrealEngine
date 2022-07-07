@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MotoSynthSourceFactory.h"
 #include "MotoSynthSourceAsset.h"
+#include "EngineAnalytics.h"
+#include "MotoSynthEditorModule.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "MotoSynthEditorModule.h"
 #include "Sound/SoundWave.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
@@ -36,6 +37,10 @@ UMotoSynthPresetFactory::UMotoSynthPresetFactory(const FObjectInitializer& Objec
 UObject* UMotoSynthPresetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	UMotoSynthPreset* NewAsset = NewObject<UMotoSynthPreset >(InParent, InName, Flags);
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.MotoSynth.PresetCreated"));
+	}
 	return NewAsset;
 }
 
@@ -74,6 +79,12 @@ UObject* UMotoSynthSourceFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 			NewAsset->SoundWaveSource = SoundWave;
 			NewAsset->UpdateSourceData();
 			NewAsset->PerformGrainTableAnalysis();
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.MotoSynth.SourceCreated"));
+			}
+
 			return NewAsset;
 		}
 

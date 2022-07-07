@@ -3,6 +3,7 @@
 #include "OculusAmbisonicSettingsFactory.h"
 #include "OculusAmbisonicsSettings.h"
 #include "AssetTypeCategories.h"
+#include "EngineAnalytics.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
@@ -51,6 +52,10 @@ UOculusAmbisonicsSettingsFactory::UOculusAmbisonicsSettingsFactory(const FObject
 UObject* UOculusAmbisonicsSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context,
 	FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.OculusAudio.AmbisonicsSettingsCreated"));
+	}
 	return NewObject<UOculusAudioSoundfieldSettings>(InParent, Name, Flags);
 }
 

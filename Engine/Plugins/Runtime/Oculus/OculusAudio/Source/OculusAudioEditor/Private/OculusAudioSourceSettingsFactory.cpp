@@ -3,6 +3,7 @@
 #include "OculusAudioSourceSettingsFactory.h"
 #include "OculusAudioSourceSettings.h"
 #include "AssetTypeCategories.h"
+#include "EngineAnalytics.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
@@ -51,6 +52,10 @@ UOculusAudioSourceSettingsFactory::UOculusAudioSourceSettingsFactory(const FObje
 UObject* UOculusAudioSourceSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context,
     FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.OculusAudio.SourceSettingsCreated"));
+	}
     return NewObject<UOculusAudioSourceSettings>(InParent, Name, Flags);
 }
 

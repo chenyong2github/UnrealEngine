@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MicrosoftSpatialSoundPlugin.h"
+#include "EngineAnalytics.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/PlatformMisc.h"
 
@@ -211,6 +212,11 @@ void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams I
 			bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = false;
 
 			SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioThreadMask());
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.MicrosoftSpatialSound.Initialized"));
+			}
 		}
 		else
 		{

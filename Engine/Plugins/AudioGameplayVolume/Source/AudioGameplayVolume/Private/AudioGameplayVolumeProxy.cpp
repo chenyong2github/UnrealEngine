@@ -5,6 +5,7 @@
 #include "AudioGameplayVolumeSubsystem.h"
 #include "AudioGameplayVolumeLogs.h"
 #include "AudioGameplayVolumeComponent.h"
+#include "EngineAnalytics.h"
 #include "Interfaces/IAudioGameplayCondition.h"
 #include "Components/BrushComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -51,6 +52,12 @@ void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeProx
 			ProxyVolumeMutators.Emplace(NewMutator);
 		}
 	}
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioGameplayVolume.InitializedFromComponent"));
+	}
+
 }
 
 void UAudioGameplayVolumeProxy::FindMutatorPriority(FAudioProxyMutatorPriorities& Priorities) const
