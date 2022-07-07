@@ -451,7 +451,11 @@ public:
 
 	/** Builds collision mesh for the cloud, using current collision settings */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void BuildCollision();
+	void BuildCollision() { BuildCollision(nullptr); }
+	void BuildCollision(TFunction<void(bool)> CompletionCallback);
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (Latent, WorldContext = "WorldContextObject", LatentInfo = "LatentInfo"))
+	void BuildCollisionWithCallback(UObject* WorldContextObject, FLatentActionInfo LatentInfo, bool& bSuccess);
 
 	/** Removes collision mesh from the cloud. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
