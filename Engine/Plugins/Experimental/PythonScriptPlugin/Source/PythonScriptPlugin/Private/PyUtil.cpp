@@ -1426,7 +1426,13 @@ bool FetchPythonError(FString& OutError)
 		PyObject* PyCurrentExceptHook = PySys_GetObject(PyCStrCast("excepthook"));
 		if (PyCurrentExceptHook && PyDefaultExceptHook && PyCurrentExceptHook != PyDefaultExceptHook)
 		{
-			FPyObjectPtr PyExceptHookResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyCurrentExceptHook, PyExceptionType.Get(), PyExceptionValue.Get(), PyExceptionTraceback.Get(), nullptr));
+			FPyObjectPtr PyExceptHookResult = FPyObjectPtr::StealReference(
+				PyObject_CallFunctionObjArgs(
+					PyCurrentExceptHook,
+					PyExceptionType.Get(),
+					PyExceptionValue ? PyExceptionValue.Get() : Py_None,
+					PyExceptionTraceback ? PyExceptionTraceback.Get() : Py_None,
+					nullptr));
 		}
 	}
 
