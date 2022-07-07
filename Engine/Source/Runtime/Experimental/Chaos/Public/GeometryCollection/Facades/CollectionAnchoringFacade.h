@@ -6,8 +6,6 @@
 #include "GeometryCollection/ManagedArrayAccessor.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 
-struct FManagedArrayCollection;
-
 namespace Chaos::Facades
 {
 	/**
