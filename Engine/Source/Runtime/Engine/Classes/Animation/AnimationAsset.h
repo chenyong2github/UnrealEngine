@@ -8,18 +8,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/SkeletalMesh.h"
+#endif
 #include "AnimInterpFilter.h"
 #include "AnimEnums.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "AnimationAsset.generated.h"
 
 class UAnimMetaData;
+class UAnimMontage;
 class UAssetMappingTable;
 class UAssetUserData;
 class USkeleton;
@@ -27,6 +31,7 @@ class UAnimSequenceBase;
 class UBlendSpace;
 class UPoseAsset;
 class UMirrorDataTable;
+class USkeletalMesh;
 struct FAnimationUpdateContext;
 
 namespace UE { namespace Anim {

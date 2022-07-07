@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "Engine/DeveloperSettings.h"
 #include "PerPlatformProperties.h"
+#include "UObject/Class.h"
+#include "AnimationSharingInstances.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "Engine/DeveloperSettings.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
-#include "UObject/Class.h"
-#include "Animation/AnimInstance.h"
-#include "AnimationSharingInstances.h"
+#endif
 #include "AnimationSharingTypes.generated.h"
+
+class UAnimSequence;
+class USkeleton;
+class USkeletonMesh;
 
 USTRUCT()
 struct FAnimationSetup

@@ -12,7 +12,9 @@
 #include "UObject/Object.h"
 #include "Animation/AnimLinkableElement.h"
 #include "Animation/AnimTypes.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Animation/BlendProfile.h"
+#endif
 #include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
 #include "AlphaBlend.h"
@@ -23,7 +25,10 @@
 class UAnimInstance;
 class UAnimMontage;
 class UAnimSequence;
+class UBlendProfile;
 class USkeletalMeshComponent;
+
+enum class EBlendProfileMode : uint8;
 
 
 /**

@@ -2,6 +2,7 @@
 
 #include "Animation/AnimationAsset.h"
 #include "Engine/AssetUserData.h"
+#include "Engine/SkeletalMesh.h"
 #include "Animation/AssetMappingTable.h"
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimSequence.h"
