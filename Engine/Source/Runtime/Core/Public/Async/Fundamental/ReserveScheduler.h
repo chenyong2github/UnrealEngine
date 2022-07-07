@@ -2,7 +2,6 @@
 
 #pragma once 
 #include "Async/Fundamental/TaskDelegate.h"
-#include "CoreMinimal.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/Thread.h"

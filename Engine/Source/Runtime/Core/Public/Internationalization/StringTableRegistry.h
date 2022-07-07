@@ -3,7 +3,6 @@
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "Internationalization/LocKeyFuncs.h"
 #include "Internationalization/StringTableCoreFwd.h"

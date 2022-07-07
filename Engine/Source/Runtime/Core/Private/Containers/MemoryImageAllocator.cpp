@@ -2,7 +2,6 @@
 
 #include "Containers/ResourceArray.h"
 #include "Containers/StringFwd.h"
-#include "CoreMinimal.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryImageWriter.h"

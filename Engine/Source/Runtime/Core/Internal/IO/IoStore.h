@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
 #include "IO/IoContainerId.h"
 #include "IO/IoDispatcher.h"
+#include "Logging/LogMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Misc/SecureHash.h"
+#include "UObject/NameTypes.h"
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoStore, Log, All);
 

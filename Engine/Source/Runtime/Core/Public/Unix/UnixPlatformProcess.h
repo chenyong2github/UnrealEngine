@@ -6,10 +6,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/AssertionMacros.h"
 
 class Error;

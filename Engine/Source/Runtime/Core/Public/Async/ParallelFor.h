@@ -10,7 +10,6 @@
 #include "Async/Fundamental/Task.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/ArrayView.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "HAL/Event.h"

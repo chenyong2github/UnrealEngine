@@ -5,7 +5,6 @@
 #include "Async/Fundamental/TaskDelegate.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "CoreMinimal.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformProcess.h"
