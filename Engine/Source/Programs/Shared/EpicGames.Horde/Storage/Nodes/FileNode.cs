@@ -143,17 +143,6 @@ namespace EpicGames.Horde.Storage.Nodes
 
 				// Increase the height of the tree by pushing the contents of this node into a new child node
 				root = new InteriorFileNode(root.Length, root);
-
-/*
-				FileNode newNode = new InteriorFileNode(root.Length, root);
-				if (_data is InternalNodeData internalData)
-				{
-					foreach (TreeNodeRef<FileNode> childNodeRef in internalData._children)
-					{
-						childNodeRef.Reparent(newNode);
-					}
-				}
-				_data = new InternalNodeData(newNode.Length, new TreeNodeRef<FileNode>(this, newNode));*/
 			}
 			return root;
 		}
@@ -441,6 +430,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		uint _rollingHash;
 		long _length;
 		readonly List<TreeNodeRef<FileNode>> _children = new List<TreeNodeRef<FileNode>>();
+
+		/// <summary>
+		/// Child nodes
+		/// </summary>
+		public IReadOnlyList<TreeNodeRef<FileNode>> Children => _children;
 
 		/// <inheritdoc/>
 		public override long Length => _length;

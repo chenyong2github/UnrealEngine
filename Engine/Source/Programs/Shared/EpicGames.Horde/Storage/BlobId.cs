@@ -35,7 +35,7 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => obj is RefId refId && Equals(refId);
+		public override bool Equals(object? obj) => obj is BlobId blobId && Equals(blobId);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Inner.GetHashCode();

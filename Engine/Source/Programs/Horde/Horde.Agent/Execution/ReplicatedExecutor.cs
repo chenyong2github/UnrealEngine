@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Bundles;
-using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
 using Horde.Agent.Utility;
 using HordeCommon.Rpc;
@@ -37,6 +36,9 @@ namespace Horde.Agent.Execution
 			_workspaceDir = DirectoryReference.Combine(_rootDir, "Replicated");
 			FileUtils.ForceDeleteDirectoryContents(_workspaceDir);
 
+			throw new NotImplementedException("Needs refactoring for new bundle/store logic");
+
+/*
 			using (IMemoryCache cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 1024 * 1024 * 1000 }))
 			{
 				BucketId bucketId = new BucketId(_job.StreamId.ToString());
@@ -45,7 +47,7 @@ namespace Horde.Agent.Execution
 			}
 
 			// Get all the environment variables for jobs
-			_envVars["IsBuildMachine"] = "1";
+			_envVars["IsBuildMachine"] = "1";*/
 		}
 
 		protected override Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)

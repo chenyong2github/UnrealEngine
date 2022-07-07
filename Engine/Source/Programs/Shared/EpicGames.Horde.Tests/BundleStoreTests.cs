@@ -109,7 +109,7 @@ namespace EpicGames.Horde.Tests
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 
 			// Generate a tree
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions(), cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions(), cache))
 			{
 				DirectoryNode root = new DirectoryNode();
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -120,9 +120,9 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions(), cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions(), cache))
 			{
-				DirectoryNode root = await store.ReadTreeAsync(new RefId("test"));
+				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefId("test"));
 				await CheckDirectoryTreeAsync(root);
 			}
 		}
@@ -147,12 +147,13 @@ namespace EpicGames.Horde.Tests
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 
 			// Generate a tree
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions(), cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions(), cache))
 			{
 				DirectoryNode root = new DirectoryNode();
 				DirectoryNode hello = root.AddDirectory("hello");
 
-				FileNode world = await hello.AddFileAsync("world", FileEntryFlags.None, Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), CancellationToken.None);
+				FileEntry world = hello.AddFile("world", FileEntryFlags.None);
+				await world.AppendAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), CancellationToken.None);
 				
 				await store.WriteTreeAsync(new RefId("test"), root, true, CancellationToken.None);
 
@@ -160,9 +161,9 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions(), cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions(), cache))
 			{
-				DirectoryNode root = await store.ReadTreeAsync(new RefId("test"));
+				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefId("test"));
 				await CheckFileTreeAsync(root);
 			}
 		}
@@ -237,7 +238,7 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Generate a tree
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions { MaxInlineBlobSize = 1024, MaxBlobSize = 1024 }, cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions { MaxInlineBlobSize = 1024, MaxBlobSize = 1024 }, cache))
 			{
 				DirectoryNode root = new DirectoryNode();
 
@@ -246,7 +247,8 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.TargetSize = 128;
 				options.LeafOptions.MaxSize = 64 * 1024;
 
-				FileNode file = await root.AddFileAsync("test", FileEntryFlags.None, data, options, CancellationToken.None);
+				FileEntry file = root.AddFile("test", FileEntryFlags.None);
+				await file.AppendAsync(data, options, CancellationToken.None);
 
 				await store.WriteTreeAsync(new RefId("test"), root, true, CancellationToken.None);
 
@@ -254,9 +256,9 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Check we can read it back in
-			using (BundleStore<DirectoryNode> store = new BundleStore<DirectoryNode>(blobStore, new BundleOptions(), cache))
+			using (BundleStore store = new BundleStore(blobStore, new BundleOptions(), cache))
 			{
-				DirectoryNode root = await store.ReadTreeAsync(new RefId("test"));
+				DirectoryNode root = await store.ReadTreeAsync<DirectoryNode>(new RefId("test"));
 				await CheckLargeFileTreeAsync(root, data);
 
 				TreeNodeRef<FileNode> file = root.GetFileEntry("test");
