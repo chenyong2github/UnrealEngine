@@ -9,6 +9,7 @@ UVREditorWidgetComponent::UVREditorWidgetComponent()
 	bHasEverDrawn(false)
 {
 	bSelectable = false;
+	SetCastShadow(false);
 }
 
 bool UVREditorWidgetComponent::ShouldDrawWidget() const
