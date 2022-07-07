@@ -566,7 +566,7 @@ namespace UnrealBuildTool
                 Result += " -Wno-ordered-compare-function-pointers";
             }
 			
-			if (CompilerVersionGreaterOrEqual(14, 0, 0))
+			if (CompilerVersionGreaterOrEqual(14, 0, 2))
 			{
 				Result += " -Wno-bitwise-instead-of-logical";
 			}
