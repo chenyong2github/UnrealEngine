@@ -943,7 +943,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	check(ActiveView.Rows.Num() == 1);
 	check(ContinuingPoseView.Rows.Num() == 1);
 
-	FPoseSearchContext SearchContext;
+	FSearchContext SearchContext;
 	if (const FPoseSearchIndexAsset* CurrentIndexAsset = Database.GetSearchIndex()->FindAssetForPose(State.DbPoseIdx))
 	{
 		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? 

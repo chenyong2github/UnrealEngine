@@ -174,7 +174,7 @@ static void CalcChannelCosts(const UPoseSearchSchema* Schema, TArrayView<const f
 	}
 }
 
-static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelectableIdxSize, const FPoseSearchContext& SearchContext, int32 IdxOffset = 0)
+static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelectableIdxSize, const FSearchContext& SearchContext, int32 IdxOffset = 0)
 {
 	check(SearchContext.CurrentResult.IsValid());
 
@@ -486,9 +486,7 @@ void UPoseSearchSchema::ResolveBoneReferences()
 }
 
 
-bool UPoseSearchSchema::BuildQuery(
-	FPoseSearchContext& SearchContext,
-	FPoseSearchFeatureVectorBuilder& InOutQuery) const
+bool UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
 
@@ -726,7 +724,7 @@ bool UPoseSearchSequenceMetaData::IsValidForSearch() const
 	return IsValidForIndexing() && SearchIndex.IsValid() && !SearchIndex.IsEmpty();
 }
 
-UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(FPoseSearchContext& SearchContext) const
+UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	using namespace UE::PoseSearch;
 
@@ -1689,11 +1687,7 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 #endif // WITH_EDITOR
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(
-	FPoseSearchContext& SearchContext,
-	int32 PoseIdx,
-	int32 GroupIdx,
-	const TArrayView<const float>& QueryValues) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, int32 GroupIdx, const TArrayView<const float>& QueryValues) const
 {
 	using namespace UE::PoseSearch;
 
@@ -1736,11 +1730,7 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(
 	return Result;
 }
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(
-	FPoseSearchContext& SearchContext,
-	int32 PoseIdx,
-	const TArrayView<const float>& QueryValues,
-	UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
 {
 	using namespace Eigen;
 	using namespace UE::PoseSearch;
@@ -1807,11 +1797,7 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(
 	return Result;
 }
 
-void UPoseSearchDatabase::ComputePoseCostAddends(
-	int32 PoseIdx,
-	FPoseSearchContext& SearchContext,
-	float& OutNotifyAddend,
-	float& OutMirrorMismatchAddend) const
+void UPoseSearchDatabase::ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const
 {
 	OutNotifyAddend = 0.0f;
 	OutMirrorMismatchAddend = 0.0f;
@@ -1832,7 +1818,7 @@ void UPoseSearchDatabase::ComputePoseCostAddends(
 	OutNotifyAddend = PoseMetadata.CostAddend;
 }
 
-UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& SearchContext) const
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	using namespace UE::PoseSearch;
 
@@ -1910,7 +1896,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& Se
 	return Result;
 }
 
-UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchContext& SearchContext) const
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCA_KNN);
 	SCOPE_CYCLE_COUNTER(STAT_PoseSearchPCAKNN);
@@ -2051,7 +2037,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchCo
 	return Result;
 }
 
-UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchContext& SearchContext) const
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Brute_Force);
 	SCOPE_CYCLE_COUNTER(STAT_PoseSearchBruteForce);
@@ -2138,15 +2124,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchC
 	return Result;
 }
 
-void UPoseSearchDatabase::BuildQuery(
-	FPoseSearchContext& SearchContext, 
-	FPoseSearchFeatureVectorBuilder& OutQuery) const
+void UPoseSearchDatabase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const
 {
 	Schema->BuildQuery(SearchContext, OutQuery);
 	OutQuery.Normalize(*GetSearchIndex());
 }
 
-UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(FPoseSearchContext& SearchContext) const
+UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	using namespace UE::PoseSearch;
 
@@ -2284,8 +2268,73 @@ void FPoseSearchFeatureVectorBuilder::Normalize(const FPoseSearchIndex& ForSearc
 	ForSearchIndex.Normalize(ValuesNormalized);
 }
 
+namespace UE { namespace PoseSearch
+{
 
-namespace UE { namespace PoseSearch {
+FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error)
+{
+	check(History && Schema);
+
+	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 ? Schema->BoneIndices[SchemaBoneIdx] : RoolBoneIdx;
+
+	// @todo: use an hashmap if we end up having too many entries
+	const CachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::CachedEntry& Entry)
+	{
+		return Entry.SampleTime == SampleTime && Entry.BoneIndexType == BoneIndexType;
+	});
+
+	if (Entry)
+	{
+		Error = false;
+		return Entry->Transform;
+	}
+
+	if (BoneIndexType >= 0)
+	{
+		TArray<FTransform> SampledLocalPose;
+		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))
+		{
+			TArray<FTransform> SampledComponentPose;
+			FAnimationRuntime::FillUpComponentSpaceTransforms(Schema->Skeleton->GetReferenceSkeleton(), SampledLocalPose, SampledComponentPose);
+
+			// adding bunch of entries, without caring about adding eventual duplicates
+			for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
+			{
+				// @todo: maybe add them with a single allocation with CachedEntries.AddDefaulted(Schema->BoneIndicesWithParents.Num())
+				CachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
+				NewEntry.SampleTime = SampleTime;
+				NewEntry.BoneIndexType = NewEntryBoneIndexType;
+				NewEntry.Transform = SampledComponentPose[NewEntryBoneIndexType];
+			}
+
+			Error = false;
+			return SampledComponentPose[BoneIndexType];
+		}
+
+		Error = true;
+		return FTransform::Identity;
+	}
+	
+	FTransform SampledRootTransform;
+	if (History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &SampledRootTransform))
+	{
+		CachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
+		NewEntry.SampleTime = SampleTime;
+		NewEntry.BoneIndexType = BoneIndexType;
+		NewEntry.Transform = SampledRootTransform;
+
+		Error = false;
+		return SampledRootTransform;
+	}
+	
+	Error = true;
+	return FTransform::Identity;
+}
+
+void FSearchContext::ClearCachedEntries()
+{
+	CachedEntries.Reset();
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseHistory
@@ -2316,118 +2365,101 @@ static void CopyCompactToSkeletonPose(const FCompactPose& Pose, TArray<FTransfor
 void FPoseHistory::Init(int32 InNumPoses, float InTimeHorizon)
 {
 	Poses.Reserve(InNumPoses);
-	Knots.Reserve(InNumPoses);
 	TimeHorizon = InTimeHorizon;
 }
 
 void FPoseHistory::Init(const FPoseHistory& History)
 {
 	Poses = History.Poses;
-	Knots = History.Knots;
 	TimeHorizon = History.TimeHorizon;
 }
 
-bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform) const
+bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>* RequiredBones, TArray<FTransform>* LocalPose, FTransform* RootTransform) const
 {
-	int32 NextIdx = LowerBound(Knots.begin(), Knots.end(), SecondsAgo, TGreater<>());
-	if (NextIdx <= 0 || NextIdx >= Knots.Num())
+	const int32 NextIdx = LowerBound(Poses.begin(), Poses.end(), SecondsAgo, [](const FPose& Pose, float Value)
 	{
+		return Value < Pose.Time;
+	});
+	if (NextIdx <= 0 || NextIdx >= Poses.Num())
+	{
+		// We may not have accumulated enough poses yet
 		return false;
 	}
 
-	int32 PrevIdx = NextIdx - 1;
+	const int32 PrevIdx = NextIdx - 1;
 
 	const FPose& PrevPose = Poses[PrevIdx];
 	const FPose& NextPose = Poses[NextIdx];
 
-	// Compute alpha between previous and next knots
-	float Alpha = FMath::GetMappedRangeValueUnclamped(
-		FVector2f(Knots[PrevIdx], Knots[NextIdx]),
-		FVector2f(0.0f, 1.0f),
-		SecondsAgo);
-
-	// We may not have accumulated enough poses yet
-	if (PrevPose.LocalTransforms.Num() != NextPose.LocalTransforms.Num())
+#if DO_CHECK
+	check(PrevPose.LocalTransforms.Num() == NextPose.LocalTransforms.Num());
+	FBoneIndexType MaxBoneIndexType = 0;
+	if (RequiredBones)
 	{
-		return false;
+		for (FBoneIndexType BoneIndexType : *RequiredBones)
+		{
+			if (BoneIndexType > MaxBoneIndexType)
+			{
+				MaxBoneIndexType = BoneIndexType;
+			}
+		}
+		check(MaxBoneIndexType < PrevPose.LocalTransforms.Num());
 	}
-
-	if (RequiredBones.Num() > PrevPose.LocalTransforms.Num())
-	{
-		return false;
-	}
+#endif
+	// Compute alpha between previous and next Poses
+	const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2f(PrevPose.Time, NextPose.Time), FVector2f(0.0f, 1.0f), SecondsAgo);
 
 	// Lerp between poses by alpha to produce output local pose at requested sample time
-	LocalPose = PrevPose.LocalTransforms;
-	FAnimationRuntime::LerpBoneTransforms(
-		LocalPose,
-		NextPose.LocalTransforms,
-		Alpha,
-		RequiredBones);
-
-	RootTransform.Blend(PrevPose.RootTransform, NextPose.RootTransform, Alpha);
-
-	return true;
-}
-
-bool FPoseHistory::TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones)
-{
-	// Compute local space pose at requested time
-	bool bSampled = TrySampleLocalPose(SecondsAgo, RequiredBones, SampledLocalPose, SampledRootTransform);
-
-	// Compute local space pose one sample interval in the past
-	bSampled = bSampled && TrySampleLocalPose(SecondsAgo + GetSampleTimeInterval(), RequiredBones, SampledPrevLocalPose, SampledPrevRootTransform);
-
-	// Convert local to component space
-	if (bSampled)
+	if (LocalPose)
 	{
-		FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, SampledLocalPose, SampledComponentPose);
-		FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, SampledPrevLocalPose, SampledPrevComponentPose);
+		check(RequiredBones);
+		*LocalPose = PrevPose.LocalTransforms;
+		FAnimationRuntime::LerpBoneTransforms(*LocalPose, NextPose.LocalTransforms, Alpha, *RequiredBones);
 	}
 
-	return bSampled;
+	if (RootTransform)
+	{
+		RootTransform->Blend(PrevPose.RootTransform, NextPose.RootTransform, Alpha);
+	}
+	return true;
 }
 
 bool FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext, FTransform ComponentTransform, FText* OutError, ERootUpdateMode UpdateMode)
 {
 	// Age our elapsed times
-	for (float& Knot : Knots)
+	for (FPose& Pose : Poses)
 	{
-		Knot += SecondsElapsed;
+		Pose.Time += SecondsElapsed;
 	}
 
-	if (Knots.Num() != Knots.Max())
+	if (Poses.Num() != Poses.Max())
 	{
 		// Consume every pose until the queue is full
-		Knots.AddUninitialized();
 		Poses.Emplace();
 	}
 	else
 	{
-		// Exercise pose retention policy. We must guarantee there is always one additional knot
+		// Exercise pose retention policy. We must guarantee there is always one additional pose
 		// beyond the time horizon so we can compute derivatives at the time horizon. We also
-		// want to evenly distribute knots across the entire history buffer so we only push additional
+		// want to evenly distribute poses across the entire history buffer so we only push additional
 		// poses when enough time has elapsed.
 
 		const float SampleInterval = GetSampleTimeInterval();
 
-		bool bCanEvictOldest = Knots[1] >= TimeHorizon + SampleInterval;
-		bool bShouldPushNewest = Knots[Knots.Num() - 2] >= SampleInterval;
+		bool bCanEvictOldest = Poses[1].Time >= TimeHorizon + SampleInterval;
+		bool bShouldPushNewest = Poses[Poses.Num() - 2].Time >= SampleInterval;
 
 		if (bCanEvictOldest && bShouldPushNewest)
 		{
 			FPose PoseTemp = MoveTemp(Poses.First());
 			Poses.PopFront();
 			Poses.Emplace(MoveTemp(PoseTemp));
-
-			Knots.PopFront();
-			Knots.AddUninitialized();
 		}
 	}
 
 	// Regardless of the retention policy, we always update the most recent pose
-	Knots.Last() = 0.0f;
 	FPose& CurrentPose = Poses.Last();
+	CurrentPose.Time = 0.f;
 	CopyCompactToSkeletonPose(PoseContext.Pose, CurrentPose.LocalTransforms);
 
 	// Initialize with Previous Root Transform or Identity
@@ -2485,8 +2517,8 @@ bool FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext,
 
 float FPoseHistory::GetSampleTimeInterval() const
 {
-	// Reserve one knot for computing derivatives at the time horizon
-	return TimeHorizon / (Knots.Max() - 1);
+	// Reserve one pose for computing derivatives at the time horizon
+	return TimeHorizon / (Poses.Max() - 1);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -5163,7 +5195,7 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 
 	FPoseHistory& PoseHistory = PoseHistoryProvider->GetPoseHistory();
 
-	FPoseSearchContext SearchContext;
+	FSearchContext SearchContext;
 	SearchContext.OwningComponent = GraphContext.AnimInstanceProxy->GetSkelMeshComponent();
 	SearchContext.BoneContainer = &GraphContext.AnimInstanceProxy->GetRequiredBones();
 	SearchContext.History = &PoseHistoryProvider->GetPoseHistory();

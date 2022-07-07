@@ -38,13 +38,14 @@ class UAnimNotifyState_PoseSearchBase;
 class UPoseSearchSchema;
 class FBlake3;
 
-namespace UE::PoseSearch {
-
+namespace UE::PoseSearch
+{
 class FPoseHistory;
 struct FPoseSearchDatabaseAsyncCacheTask;
 struct FDebugDrawParams;
 struct FSchemaInitializer;
 struct FQueryBuildingContext;
+struct FSearchContext;
 
 } // namespace UE::PoseSearch
 
@@ -342,7 +343,7 @@ public:
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GenerateDDCKey, );
 
 	// Called at runtime to add this channel's data to the query pose vector
-	virtual bool BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
+	virtual bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
@@ -488,7 +489,7 @@ private:
 	void ResolveBoneReferences();
 
 public:
-	bool BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
+	bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const;
 };
 
 
@@ -1014,8 +1015,7 @@ class POSESEARCH_API UPoseSearchSearchableAsset : public UDataAsset
 	GENERATED_BODY()
 public:
 
-	virtual UE::PoseSearch::FSearchResult Search(FPoseSearchContext& SearchContext) const 
-		PURE_VIRTUAL(UPoseSearchSearchableAsset::Search, return UE::PoseSearch::FSearchResult(););
+	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const PURE_VIRTUAL(UPoseSearchSearchableAsset::Search, return UE::PoseSearch::FSearchResult(););
 };
 
 
@@ -1155,31 +1155,17 @@ public:
 	bool IsDerivedDataValid();
 
 public:
-	virtual UE::PoseSearch::FSearchResult Search(FPoseSearchContext& SearchContext) const override;
+	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const override;
 
-	void BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
+	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(
-		FPoseSearchContext& SearchContext,
-		int32 PoseIdx,
-		int32 GroupIdx,
-		const TArrayView<const float>& QueryValues) const;
-
-	FPoseSearchCost ComparePoses(
-		FPoseSearchContext& SearchContext,
-		int32 PoseIdx,
-		const TArrayView<const float>& QueryValues,
-		UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
-
-	void ComputePoseCostAddends(
-		int32 PoseIdx,
-		FPoseSearchContext& SearchContext,
-		float& OutNotifyAddend,
-		float& OutMirrorMismatchAddend) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
+	void ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const;
 
 protected:
-	UE::PoseSearch::FSearchResult SearchPCAKDTree(FPoseSearchContext& SearchContext) const;
-	UE::PoseSearch::FSearchResult SearchBruteForce(FPoseSearchContext& SearchContext) const;
+	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
+	UE::PoseSearch::FSearchResult SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const;
 };
 
 
@@ -1208,7 +1194,7 @@ public:
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
 
-	UE::PoseSearch::FSearchResult Search(FPoseSearchContext& SearchContext) const;
+	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 protected:
 	FPoseSearchCost ComparePoses(int32 PoseIdx, const TArrayView<const float>& QueryValues) const;
@@ -1222,7 +1208,8 @@ public: // UObject
 //////////////////////////////////////////////////////////////////////////
 // Feature vector reader and builder
 
-namespace UE::PoseSearch {
+namespace UE::PoseSearch
+{
 
 /** Helper class for extracting and encoding features into a float buffer */
 class POSESEARCH_API FFeatureVectorHelper
@@ -1260,7 +1247,6 @@ public:
 
 	void Init(int32 InNumPoses, float InTimeHorizon);
 	void Init(const FPoseHistory& History);
-	bool TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
 
 	bool Update(
 		float SecondsElapsed,
@@ -1270,47 +1256,23 @@ public:
 		ERootUpdateMode UpdateMode = ERootUpdateMode::RootMotionDelta);
 
 	float GetSampleTimeInterval() const;
-	TArrayView<const FTransform> GetLocalPoseSample() const { return SampledLocalPose; }
-	TArrayView<const FTransform> GetComponentPoseSample() const { return SampledComponentPose; }
-	TArrayView<const FTransform> GetPrevLocalPoseSample() const { return SampledPrevLocalPose; }
-	TArrayView<const FTransform> GetPrevComponentPoseSample() const { return SampledPrevComponentPose; }
-	const FTransform& GetRootTransformSample() const { return SampledRootTransform; }
-	const FTransform& GetPrevRootTransformSample() const { return SampledPrevRootTransform; }
 	float GetTimeHorizon() const { return TimeHorizon; }
-	FPoseSearchFeatureVectorBuilder& GetQueryBuilder() { return QueryBuilder; }
+	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>* RequiredBones, TArray<FTransform>* LocalPose, FTransform* RootTransform) const;
 
 private:
-	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform) const;
 
 	struct FPose
 	{
 		FTransform RootTransform;
 		TArray<FTransform> LocalTransforms;
+		float Time = 0.0f;
 	};
-
 	TRingBuffer<FPose> Poses;
-	TRingBuffer<float> Knots;
-	TArray<FTransform> SampledLocalPose;
-	TArray<FTransform> SampledComponentPose;
-	TArray<FTransform> SampledPrevLocalPose;
-	TArray<FTransform> SampledPrevComponentPose;
-	FTransform SampledRootTransform;
-	FTransform SampledPrevRootTransform;
-
-	FPoseSearchFeatureVectorBuilder QueryBuilder;
-
 	float TimeHorizon = 0.0f;
 };
 
-} // namespace UE::PoseSearch
-
-
-USTRUCT(BlueprintType)
-struct POSESEARCH_API FPoseSearchContext
+struct POSESEARCH_API FSearchContext
 {
-	GENERATED_BODY()
-
-public:
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
 	const FGameplayTagQuery* DatabaseTagQuery = nullptr;
 	UE::PoseSearch::FDebugDrawParams DebugDrawParams;
@@ -1321,17 +1283,30 @@ public:
 	const FBoneContainer* BoneContainer = nullptr;
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
+
+	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error);
+	void ClearCachedEntries();
+
+	enum { RoolBoneIdx = -1 };
+
+private:
+	struct CachedEntry
+	{
+		float SampleTime = 0.f;
+
+		// associated transform to BoneIndexType in ComponentSpace (except for the root bone stored in global space)
+		FTransform Transform;
+
+		// if -1 it represents the root bone
+		FBoneIndexType BoneIndexType = -1;
+	};
+
+	// @todo: make it a fixed size array (or hash map if we end up having many CachedEntry) to avoid allocations
+	TArray<CachedEntry> CachedEntries;
 };
-
-
-//////////////////////////////////////////////////////////////////////////
-// Pose history
-
-namespace UE::PoseSearch {
 
 //////////////////////////////////////////////////////////////////////////
 // Main PoseSearch API
-
 
 /**
 * Visualize pose search debug information
@@ -1412,5 +1387,5 @@ public:
 	TArray<FPoseSearchDatabaseSetEntry> AssetsToSearch;
 
 public:
-	virtual UE::PoseSearch::FSearchResult Search(FPoseSearchContext& SearchContext) const override;
+	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const override;
 };

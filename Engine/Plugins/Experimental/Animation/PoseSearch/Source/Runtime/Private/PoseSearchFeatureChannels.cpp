@@ -308,7 +308,7 @@ void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexe
 		const float SubsampleTime = OriginSampleTime + SampleTimeOffset;
 
 		bool ClampedPresent;
-		const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : OriginSampleTime, SchemaBoneIdx, ClampedPresent);
+		const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseSampleTimeOffsetRootBone ? SubsampleTime : OriginSampleTime, SchemaBoneIdx, ClampedPresent);
 		int32 DataOffset = ChannelDataOffset;
 		FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, BoneTransformsPresent.GetTranslation());
 	}
@@ -321,35 +321,36 @@ void UPoseSearchFeatureChannel_Position::GenerateDDCKey(FBlake3& InOutKeyHasher)
 	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
 }
 
-bool UPoseSearchFeatureChannel_Position::BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	const bool bSkip = !UseFeaturesFromContinuityPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 
 	if (bSkip)
 	{
-		// todo: instead of skipping because the pose should have been copied already (that's currently happening in
-		// UPoseSearchSchema::BuildIndex()), consider making the copy here, but only copy the right values, not the
-		// whole query
 		return true;
 	}
 
-	// @todo: add a layer of caching to TrySamplePose to improve performance
-	if (!SearchContext.History || !SearchContext.History->TrySamplePose(-SampleTimeOffset, InOutQuery.GetSchema()->Skeleton->GetReferenceSkeleton(), InOutQuery.GetSchema()->BoneIndicesWithParents))
+	if (!SearchContext.History)
 	{
 		return false;
 	}
 
-	const TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
-	const FTransform RootTransform = SearchContext.History->GetRootTransformSample();
-	const FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
-	const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
-	
+	bool AnyError = false;
+	FTransform Transform = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), SchemaBoneIdx, AnyError);
+
+	if (!UseSampleTimeOffsetRootBone)
+	{
+		const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(0.f, InOutQuery.GetSchema(), FSearchContext::RoolBoneIdx, AnyError);
+		const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTimeOffset, InOutQuery.GetSchema(), FSearchContext::RoolBoneIdx, AnyError);
+		Transform = Transform * (RootTransformPrev * RootTransform.Inverse());
+	}
+
 	int32 DataOffset = ChannelDataOffset;
-	FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, ComponentPose[SkeletonBoneIndex].GetTranslation());
+	FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, Transform.GetTranslation());
 	
-	return true;
+	return !AnyError;
 }
 
 void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const
@@ -709,19 +710,13 @@ void UPoseSearchFeatureChannel_Pose::GenerateDDCKey(FBlake3& InOutKeyHasher) con
 	InOutKeyHasher.Update(MakeMemoryView(SampleTimes));
 }
 
-bool UPoseSearchFeatureChannel_Pose::BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip =
-		SearchContext.CurrentResult.IsValid() &&
-		SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-
+	const bool bSkip = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 	if (bSkip)
 	{
-		// todo: instead of skipping because the pose should have been copied already (that's currently happening in
-		// UPoseSearchSchema::BuildIndex()), consider making the copy here, but only copy the right values, not the
-		// whole query
 		return true;
 	}
 
@@ -737,8 +732,9 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(FPoseSearchContext& SearchContex
 		bool Valid = false;
 	};
 	TArray<CachedTransforms> CachedTransforms;
-	CachedTransforms.AddUninitialized(SampleTimes.Num() * SampledBones.Num());
+	CachedTransforms.AddUninitialized(SampleTimes.Num()* SampledBones.Num());
 
+	bool AnyError = false;
 	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 	{
 		// Stop when we've reached future samples
@@ -748,35 +744,35 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(FPoseSearchContext& SearchContex
 			break;
 		}
 
-		float SecondsAgo = -SampleTime;
-		if (!SearchContext.History->TrySamplePose(SecondsAgo, InOutQuery.GetSchema()->Skeleton->GetReferenceSkeleton(), InOutQuery.GetSchema()->BoneIndicesWithParents))
-		{
-			return false;
-		}
-
-		const TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
-		const TArrayView<const FTransform> ComponentPrevPose = SearchContext.History->GetPrevComponentPoseSample();
-		const FTransform RootTransform = SearchContext.History->GetRootTransformSample();
-		const FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
 		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
 		{
-			const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx[SampledBoneIdx]];
 			const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
-			CachedTransforms[CachedTransformsIndex].Current = ComponentPose[SkeletonBoneIndex];
+			CachedTransforms[CachedTransformsIndex].Current = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx], AnyError);
+			const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
 
-			if (UE::PoseSearch::UseCharacterSpaceVelocities)
+			if (SampledBone.bUseVelocity)
 			{
-				// character space velocity
-				CachedTransforms[CachedTransformsIndex].Previous = ComponentPrevPose[SkeletonBoneIndex];
-			}
-			else
-			{
-				// animation space velocity
-				CachedTransforms[CachedTransformsIndex].Previous = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
-			}
+				check(SearchContext.History);
+				const float HistorySameplInterval = SearchContext.History->GetSampleTimeInterval();
 
+				CachedTransforms[CachedTransformsIndex].Previous = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), SchemaBoneIdx[SampledBoneIdx], AnyError);
+
+				if (!UE::PoseSearch::UseCharacterSpaceVelocities)
+				{
+					const FTransform RootTransform = SearchContext.TryGetTransformAndCacheResults(SampleTime, InOutQuery.GetSchema(), FSearchContext::RoolBoneIdx, AnyError);
+					const FTransform RootTransformPrev = SearchContext.TryGetTransformAndCacheResults(SampleTime - HistorySameplInterval, InOutQuery.GetSchema(), FSearchContext::RoolBoneIdx, AnyError);
+
+					// animation space velocity
+					CachedTransforms[CachedTransformsIndex].Previous = CachedTransforms[CachedTransformsIndex].Previous * (RootTransformPrev * RootTransform.Inverse());
+				}
+			}
 			CachedTransforms[CachedTransformsIndex].Valid = true;
 		}
+	}
+
+	if (AnyError)
+	{
+		return false;
 	}
 
 	int32 DataOffset = ChannelDataOffset;
@@ -1190,9 +1186,7 @@ void UPoseSearchFeatureChannel_Trajectory::GenerateDDCKey(FBlake3& InOutKeyHashe
 	InOutKeyHasher.Update(&Weight, sizeof(Weight));
 }
 
-bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(
-	FPoseSearchContext& SearchContext,
-	FPoseSearchFeatureVectorBuilder& InOutQuery) const
+bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 

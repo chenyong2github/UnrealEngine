@@ -251,7 +251,7 @@ void UpdateMotionMatchingState(
 	if (!bCanAdvance || (InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime))
 	{
 		// Build the search context
-		FPoseSearchContext SearchContext;
+		FSearchContext SearchContext;
 		SearchContext.DatabaseTagQuery = DatabaseTagQuery;
 		SearchContext.ActiveTagsContainer = ActiveTagsContainer;
 		SearchContext.Trajectory = &Trajectory;
