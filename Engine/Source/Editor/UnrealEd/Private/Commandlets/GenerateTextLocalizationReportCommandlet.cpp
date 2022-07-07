@@ -178,59 +178,34 @@ bool UGenerateTextLocalizationReportCommandlet::ProcessConflictReport(const FStr
 		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("No conflict report name specified."));
 		return false;
 	}
-	if (ConflictReportName.Contains(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd))
-	{
-		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("Conflict report name has a file extension. Please remove the file extension from the name. EConflictReportFormat is used to determine the file extension."));
-		return false;
-	}
+	
 	EConflictReportFormat ConflictReportFormat = EConflictReportFormat::None;
-	FString ConflictReportFormatString;
-	if (!GConfig->GetString(*SectionName, TEXT("ConflictReportFormat"), ConflictReportFormatString, GatherTextConfigPath))
+	static const FString TxtExtension = TEXT(".txt");
+	static const FString CSVExtension = TEXT(".csv");
+	FString FileExtension = FPaths::GetExtension(ConflictReportName, true);
+	if (FileExtension == TxtExtension)
 	{
-		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report format not specified. Conflict report will default to CSV format."));
+		ConflictReportFormat = EConflictReportFormat::Txt;
+	}
+	else if (FileExtension == CSVExtension)
+	{
 		ConflictReportFormat = EConflictReportFormat::CSV;
 	}
+	// This is an unsupported extension or an empty extension
 	else
 	{
-		ConflictReportFormatString.TrimStartAndEndInline();
-		static const TCHAR* TxtEnumString = TEXT("EConflictReportFormat::Txt");
-		static const TCHAR* CSVEnumString = TEXT("EConflictReportFormat::CSV");
-		if (ConflictReportFormatString.Equals(TxtEnumString))
+		// We default to csv 
+		ConflictReportFormat = EConflictReportFormat::CSV;
+		// We found a file extension somewhere in the specified name. 
+		if (!FileExtension.IsEmpty())
 		{
-			ConflictReportFormat = EConflictReportFormat::Txt;
-		}
-		else if (ConflictReportFormatString.Equals(CSVEnumString))
-		{
-			ConflictReportFormat = EConflictReportFormat::CSV;
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Warning, TEXT("The conflict report filename %s has an unsupported extension. Only .txt and .csv is supported at this time."), *ConflictReportName);
 		}
 		else
 		{
-			// @TODOLocalization: Consider alternatives to defaulting to CSV.
-			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Warning, TEXT("Specified conflict report format %s in \'%s\' not supported. Defaulting to CSV format."), *ConflictReportFormatString, *GatherTextConfigPath);
-			ConflictReportFormat = EConflictReportFormat::CSV;
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Warning, TEXT("The conflict report filename %s has no extension. Defaulting the report to be generated as a .csv file."), *ConflictReportName);
 		}
-	}
-	switch (ConflictReportFormat)
-	{
-		case EConflictReportFormat::CSV:
-		{
-			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report format will be in CSV."));
-			static const TCHAR* CSVExtension = TEXT(".csv");
-			ConflictReportName += CSVExtension;
-			break;
-		}
-		case EConflictReportFormat::Txt:
-		{
-			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report formatwill be in in txt format."));
-			static const TCHAR* TxtExtension = TEXT(".txt");
-			ConflictReportName += TxtExtension;
-			break;
-		}
-		default:
-		{
-			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("Unsupported conflict report format %s detected in %s. Unable to create the appropriate report name and extension."), *ConflictReportFormatString, *GatherTextConfigPath);
-			return false;
-		}
+		ConflictReportName = FPaths::SetExtension(ConflictReportName, CSVExtension);
 	}
 	const FString ReportFilePath = (DestinationPath / ConflictReportName);
 
