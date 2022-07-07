@@ -36,7 +36,12 @@ void UAudioGameplayVolumeProxyComponent::EnterProxy() const
 	TInlineComponentArray<UActorComponent*> ActorComponents(GetOwner());
 	for (UActorComponent* ActorComponent : ActorComponents)
 	{
-		if (ActorComponent && ActorComponent->Implements<UAudioGameplayVolumeInteraction>())
+		if (!ActorComponent || !ActorComponent->IsActive())
+		{
+			continue;
+		}
+
+		if (ActorComponent->Implements<UAudioGameplayVolumeInteraction>())
 		{
 			IAudioGameplayVolumeInteraction::Execute_OnListenerEnter(ActorComponent);
 		}
@@ -50,7 +55,12 @@ void UAudioGameplayVolumeProxyComponent::ExitProxy() const
 	TInlineComponentArray<UActorComponent*> ActorComponents(GetOwner());
 	for (UActorComponent* ActorComponent : ActorComponents)
 	{
-		if (ActorComponent && ActorComponent->Implements<UAudioGameplayVolumeInteraction>())
+		if (!ActorComponent || !ActorComponent->IsActive())
+		{
+			continue;
+		}
+
+		if (ActorComponent->Implements<UAudioGameplayVolumeInteraction>())
 		{
 			IAudioGameplayVolumeInteraction::Execute_OnListenerExit(ActorComponent);
 		}
