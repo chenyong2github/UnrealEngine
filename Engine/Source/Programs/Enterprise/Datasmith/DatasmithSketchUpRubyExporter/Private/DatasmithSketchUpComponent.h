@@ -136,8 +136,9 @@ namespace DatasmithSketchUp
 		virtual void InvalidateInstancesMetadata(FExportContext& Context) = 0; // Mark that all instances(and their occurrences) needed to be updated
 		virtual void FillOccurrenceActorMetadata(FNodeOccurence& Node) = 0;
 		
-		virtual FString GetSketchupSourceGUID() = 0;
-		virtual FString GetSketchupSourceName() = 0;
+		virtual FString GetSketchupSourceGUID() = 0; // Guid of the definition, SketchUp hashes definition contents into guid
+		virtual FString GetSketchupSourceName() = 0; // Name used for label
+		virtual FString GetSketchupSourceId() = 0; // Unique name identifier
 
 		virtual SUTransformation GetMeshBakedTransform() = 0; // Transform that may be used to bake geometry
 
@@ -186,6 +187,7 @@ namespace DatasmithSketchUp
 
 		virtual FString GetSketchupSourceGUID() override;
 		virtual FString GetSketchupSourceName() override;
+		virtual FString GetSketchupSourceId() override;
 
 		virtual SUTransformation GetMeshBakedTransform() override;
 		// End FDefinition
@@ -236,6 +238,7 @@ namespace DatasmithSketchUp
 
 		virtual FString GetSketchupSourceGUID() override;
 		virtual FString GetSketchupSourceName()  override;
+		virtual FString GetSketchupSourceId() override;
 
 		virtual SUTransformation GetMeshBakedTransform() override;
 		// End FDefinition
@@ -257,8 +260,6 @@ namespace DatasmithSketchUp
 		void UpdateGeometry(FExportContext& Context);
 		void AddMeshesToDatasmithScene(FExportContext& Context);
 		void RemoveMeshesFromDatasmithScene(FExportContext& Context);
-
-		TSharedPtr<IDatasmithMeshElement> CreateMeshElement(FExportContext& Context, FDatasmithMesh& DatasmithMesh);
 
 		TArray<SUGroupRef> GetGroups();
 

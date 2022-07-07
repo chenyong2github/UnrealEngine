@@ -14,6 +14,7 @@
 
 // SketchUp SDK.
 #include "DatasmithSketchUpSDKBegins.h"
+#include <SketchUpAPI/model/component_definition.h>
 #include "SketchUpAPI/model/drawing_element.h"
 #include "SketchUpAPI/model/edge.h"
 #include "SketchUpAPI/model/face.h"
@@ -426,7 +427,7 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 	{
 		if (ExtractedMeshPtr->ContainsGeometry())
 		{
-			FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *FMD5::HashAnsiString(*Definition.GetSketchupSourceGUID()), MeshCount + 1); // Count meshes from 1
+			FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *Definition.GetSketchupSourceId(), MeshCount + 1); // Count meshes from 1
 			FString MeshLabel = FDatasmithUtils::SanitizeObjectName(Definition.GetSketchupSourceName());
 
 			TSharedPtr<FDatasmithInstantiatedMesh> Mesh;
@@ -529,21 +530,6 @@ void FEntities::RemoveMeshesFromDatasmithScene(FExportContext& Context)
 	{
 		Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
 	}
-}
-
-TSharedPtr<IDatasmithMeshElement> FEntities::CreateMeshElement(FExportContext& Context, FDatasmithMesh& DatasmithMesh)
-{
-	FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *FMD5::HashAnsiString(*Definition.GetSketchupSourceGUID()), EntitiesGeometry->Meshes.Num() + 1); // Count meshes from 1
-	FString MeshLabel = FDatasmithUtils::SanitizeObjectName(Definition.GetSketchupSourceName());
-
-	FDatasmithMeshExporter DatasmithMeshExporter;
-	TSharedPtr<IDatasmithMeshElement> MeshElementPtr = DatasmithMeshExporter.ExportToUObject(Context.GetAssetsOutputPath(), *MeshElementName, DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
-
-	// Set the mesh element label used in the Unreal UI.
-	MeshElementPtr->SetLabel(*MeshLabel);
-
-	Context.DatasmithScene->AddMesh(MeshElementPtr);
-	return MeshElementPtr;
 }
 
 TArray<SUGroupRef> FEntities::GetGroups()

@@ -14,6 +14,7 @@
 #include "SketchUpAPI/model/component_definition.h"
 #include "SketchUpAPI/model/drawing_element.h"
 #include "SketchUpAPI/model/entities.h"
+#include <SketchUpAPI/model/entity.h>
 #include "SketchUpAPI/model/group.h"
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/model.h"
@@ -394,6 +395,11 @@ FString FModelDefinition::GetSketchupSourceName()
 	return SketchupSourceName;
 }
 
+FString FModelDefinition::GetSketchupSourceId()
+{
+	return GetSketchupSourceGUID();
+}
+
 SUTransformation FModelDefinition::GetMeshBakedTransform()
 {
 	SUTransformation Transform;
@@ -542,6 +548,26 @@ FString FComponentDefinition::GetSketchupSourceName()
 {
 	// Retrieve the SketchUp component definition name.
 	return SuGetString(SUComponentDefinitionGetName, ComponentDefinitionRef);
+}
+
+FString FComponentDefinition::GetSketchupSourceId()
+{
+// Although implemented since SUEntityGetPersistentID since SU 2017 is returns valid Id for Definitions
+// only since SU 2020.1 (even though SUEntityGetPersistentID docs states SUComponentDefinitionRef 'supported' from 2017)
+// see https://github.com/SketchUp/api-issue-tracker/issues/314
+#ifndef SKP_SDK_2019
+	// Use Entity PersistentID - this one is persistent(between sessions)  for model file and doesn't change when definition is modified(e.g. geometry edited)
+	int64_t EntityPid = 0;
+	if (SUEntityGetPersistentID(SUComponentDefinitionToEntity(ComponentDefinitionRef), &EntityPid) == SU_ERROR_NONE)
+	{
+		if (ensure(EntityPid != 0))
+		{
+			return FString::Printf(TEXT("%llx"), EntityPid);
+		}
+	}
+#endif
+
+	return FMD5::HashAnsiString(*GetSketchupSourceGUID());
 }
 
 // Bake transform into the mesh only when
@@ -978,6 +1004,10 @@ void FComponentInstance::FillOccurrenceActorMetadata(FNodeOccurence& Node)
 	TSharedPtr<IDatasmithKeyValueProperty> DefinitionName = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Definition"));
 	DefinitionName->SetValue(*GetDefinition()->GetSketchupSourceName());
 	Node.DatasmithMetadataElement->AddProperty(DefinitionName);
+
+	TSharedPtr<IDatasmithKeyValueProperty> DefinitionIdName = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("DefinitionIdName"));
+	DefinitionIdName->SetValue(*GetDefinition()->GetSketchupSourceId());
+	Node.DatasmithMetadataElement->AddProperty(DefinitionIdName);
 
 	// Add instance metadata
 	if (ParsedMetadata)
