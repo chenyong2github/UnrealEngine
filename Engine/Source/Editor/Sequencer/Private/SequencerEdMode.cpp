@@ -252,9 +252,11 @@ bool FSequencerEdMode::IsDoingDrag(FViewport* InViewport) const
 	const bool LeftMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
 	const bool bIsCtrlKeyDown = InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl);
 	const bool bIsAltKeyDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
+	EAxisList::Type CurrentAxis = GetCurrentWidgetAxis();
+
 	//if shfit is down we still want to drag
 
-	return LeftMouseButtonDown && !bIsCtrlKeyDown  && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
+	return LeftMouseButtonDown && (CurrentAxis == EAxisList::None) && !bIsCtrlKeyDown  && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
 }
 
 bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
