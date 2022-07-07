@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Serialization/StructuredArchiveFwd.h"
-#include "Serialization/StructuredArchiveDefines.h"
-#include "Serialization/StructuredArchiveAdapters.h"
-#include "Serialization/StructuredArchiveFormatter.h"
-#include "Serialization/StructuredArchiveNameHelpers.h"
-#include "Serialization/StructuredArchiveSlots.h"
-#include "Formatters/BinaryArchiveFormatter.h"
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "Formatters/BinaryArchiveFormatter.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveDefines.h"
+#include "Serialization/StructuredArchiveFormatter.h"
+#include "Serialization/StructuredArchiveFwd.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlotBase.h"
+#include "Serialization/StructuredArchiveSlots.h"
 #include "Templates/UniqueObj.h"
+
+class FStructuredArchive;
 
 namespace UE::StructuredArchive::Private
 {

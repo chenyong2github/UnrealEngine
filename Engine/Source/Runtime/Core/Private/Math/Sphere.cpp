@@ -5,8 +5,6 @@
 =============================================================================*/
 
 #include "Math/Sphere.h"
-#include "Math/Box.h"
-#include "Math/Transform.h"
 
 namespace UE {
 namespace Math {

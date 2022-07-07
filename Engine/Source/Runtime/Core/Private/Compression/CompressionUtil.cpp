@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Compression/CompressionUtil.h"
+
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Serialization/Archive.h"
 #include "UObject/NameTypes.h"
-#include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
+#include "UObject/UnrealNames.h"
 
 namespace FCompressionUtil
 {

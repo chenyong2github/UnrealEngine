@@ -2,11 +2,9 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
 #include "CoreMinimal.h"
-#include "Containers/StringView.h"
 #include "Misc/AES.h"
-
-class FArchive;
 
 namespace IoDirectoryIndexUtils
 {

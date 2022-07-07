@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/MessageDialog.h"
-#include "Misc/CString.h"
-#include "Logging/LogMacros.h"
+
 #include "CoreGlobals.h"
-#include "Internationalization/Text.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Internationalization/Internationalization.h"
-#include "Misc/OutputDeviceRedirector.h"
-#include "Misc/FeedbackContext.h"
-#include "Misc/CoreDelegates.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
 #include "Misc/App.h"
+#include "Misc/CString.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 namespace
 {

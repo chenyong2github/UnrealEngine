@@ -3,12 +3,26 @@
 #pragma once
 
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/StringFwd.h"
-#include "IO/IoHash.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
+#include "IO/IoHash.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 class FPackagePath;
+class FText;
+class UObject;
 
 namespace UE::Virtualization
 {

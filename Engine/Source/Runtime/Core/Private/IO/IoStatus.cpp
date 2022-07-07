@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "CoreMinimal.h"
 #include "IO/IoDispatcher.h"
 
 //////////////////////////////////////////////////////////////////////////

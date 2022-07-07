@@ -2,6 +2,11 @@
 
 #include "Misc/TextFilterUtils.h"
 
+#include "HAL/PlatformString.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/Char.h"
+#include "Templates/UnrealTemplate.h"
+
 namespace TextFilterInternal
 {
 	template <typename CharType>

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/LocalizationResourceTextSource.h"
-#include "Internationalization/TextLocalizationResource.h"
-#include "HAL/PlatformProperties.h"
+
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/CoreDelegates.h"
+#include "HAL/PlatformProperties.h"
+#include "Internationalization/TextLocalizationResource.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Paths.h"
 
 bool FLocalizationResourceTextSource::GetNativeCultureName(const ELocalizedTextSourceCategory InCategory, FString& OutNativeCultureName)
 {

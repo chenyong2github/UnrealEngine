@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Serialization/Archive.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
 
 /** CVar specifying the maximum serialization size for strings sent/received by the netcode */
 extern CORE_API TAutoConsoleVariable<int32> CVarMaxNetStringSize;

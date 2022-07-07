@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/Interval.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
-#include "Math/Interval.h"
 
 class FArchive;
 class FOutputDevice;
 class FString;
 class UObject;
+template <typename ElementType> struct TIntervalTraits;
 
 
 /**

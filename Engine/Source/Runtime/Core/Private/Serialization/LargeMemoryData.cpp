@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/LargeMemoryData.h"
-#include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
+
+#include "Containers/LockFreeList.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
 
 
 int32 GPooledLargeMemoryData_MaxPoolLength = 2;

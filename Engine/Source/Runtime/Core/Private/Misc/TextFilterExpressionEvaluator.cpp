@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/TextFilterExpressionEvaluator.h"
+
+#include "Containers/SparseArray.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Misc/CString.h"
+#include "Misc/ExpressionParserTypes.inl"
+#include "Misc/Guid.h"
+#include "Templates/Function.h"
+#include "Templates/ValueOrError.h"
 
 namespace TextFilterExpressionParser
 {

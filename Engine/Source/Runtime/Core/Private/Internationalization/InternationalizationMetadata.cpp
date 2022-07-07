@@ -1,7 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/InternationalizationMetadata.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Less.h"
+#include "Templates/Tuple.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationMetadata, Log, All);
 

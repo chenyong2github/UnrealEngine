@@ -6,8 +6,11 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
 #include "GenericOctreePublic.h"
+#include "Math/MathFwd.h"
+#include "Math/UnrealMathSSE.h"
 #include "Templates/Models.h"
 
 /** A concise iteration over the children of an octree node. */

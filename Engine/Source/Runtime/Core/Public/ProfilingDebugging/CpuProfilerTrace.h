@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 #include "Trace/Detail/Channel.h"
 #include "Trace/Detail/Channel.inl"
+#include "Trace/Trace.h"
 
 #if !defined(CPUPROFILERTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING

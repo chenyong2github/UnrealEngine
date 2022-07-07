@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "CoreMinimal.h"
 #include "IO/IoDispatcher.h"
+#include "Memory/MemoryFwd.h"
+#include "Memory/MemoryView.h"
+#include "Templates/RefCounting.h"
 
 //////////////////////////////////////////////////////////////////////////
 

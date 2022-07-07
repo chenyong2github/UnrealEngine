@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
-#include "UObject/NameTypes.h"
+#include "CoreTypes.h"
 #include "Misc/EnumClassFlags.h"
 #include "Serialization/MemoryArchive.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 enum class ELargeMemoryReaderFlags : uint8
 {

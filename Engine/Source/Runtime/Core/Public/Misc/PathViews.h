@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
 
 class FName;
 class FString;
+template <typename CharType> class TStringBuilderBase;
 template <typename FuncType> class TFunctionRef;
 
 class CORE_API FPathViews

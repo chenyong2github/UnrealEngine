@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "Tasks/Task.h"
+#include "Async/Fundamental/Scheduler.h"
+#include "Async/Fundamental/Task.h"
+#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "Tasks/Task.h"
+#include "Tasks/TaskPrivate.h"
 
 #include <atomic>
 

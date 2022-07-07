@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformProperties.h"
 #include "Internationalization/TextNamespaceFwd.h"
+#include "Math/MathFwd.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EngineVersionBase.h"
@@ -18,25 +19,28 @@
 #include "Templates/IsEnumClass.h"
 #include "Templates/IsSigned.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
+#include "Templates/UnrealTemplate.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "UObject/ObjectVersion.h"
 
 class FArchive;
+class FBulkData;
 class FCustomVersionContainer;
 class FLinker;
 class FName;
+class FProperty;
 class FString;
 class FText;
 class ITargetPlatform;
 class UObject;
-class FProperty;
-class FBulkData;
 namespace UE::Serialization{ class FEditorBulkData; }
 struct FArchiveSerializedPropertyChain;
 template<class TEnum> class TEnumAsByte;
+
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
-struct FUObjectSerializeContext;
 class FField;
+struct FUObjectSerializeContext;
+
 enum class EFileRegionType : uint8;
 struct FArchiveCookContext;
 

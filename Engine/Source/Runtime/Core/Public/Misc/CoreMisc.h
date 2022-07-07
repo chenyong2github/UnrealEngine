@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Exec.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
-#include "Templates/Function.h"
-#include "Math/IntPoint.h"
-#include "UObject/NameTypes.h"
+#include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/ThreadSingleton.h"
+#include "Math/IntPoint.h"
+#include "Misc/Exec.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
+
+class UWorld;
 
 /**
  * Exec handler that registers itself and is being routed via StaticExec.

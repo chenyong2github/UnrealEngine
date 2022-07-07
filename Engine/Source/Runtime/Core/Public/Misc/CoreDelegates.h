@@ -2,19 +2,29 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
-#include "Delegates/Delegate.h"
-#include "Math/IntVector.h"
-#include "Misc/AES.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFile.h"
+#include "Math/IntVector.h"
+#include "Math/MathFwd.h"
+#include "Misc/AES.h"
+#include "Templates/SharedPointerInternals.h"
 
 class AActor;
 class Error;
+class FConfigFile;
+class FSHAHash;
 class IPakFile;
+class ITargetPlatform;
+struct FGuid;
+
 enum class EForkProcessRole : uint8;
 
 // delegates for hotfixes

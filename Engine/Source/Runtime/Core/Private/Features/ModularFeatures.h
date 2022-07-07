@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
 #include "Delegates/Delegate.h"
+#include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
-
-class IModularFeature;
+#include "HAL/CriticalSection.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Private implementation of modular features interface

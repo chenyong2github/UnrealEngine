@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Misc/Optional.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
+
+class FStructuredArchive;
+class FStructuredArchiveFormatter;
 
 /**
  * FStructuredArchiveChildReader

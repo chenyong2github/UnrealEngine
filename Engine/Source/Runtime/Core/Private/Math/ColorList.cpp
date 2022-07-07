@@ -5,6 +5,9 @@
 =============================================================================*/
 
 #include "Math/ColorList.h"
+
+#include "Containers/UnrealString.h"
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogColorList, Log, All);

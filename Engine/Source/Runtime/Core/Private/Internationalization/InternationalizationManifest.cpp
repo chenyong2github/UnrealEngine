@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/InternationalizationManifest.h"
+
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Logging/LogMacros.h"
+#include "Misc/CString.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationManifestObject, Log, All);
 

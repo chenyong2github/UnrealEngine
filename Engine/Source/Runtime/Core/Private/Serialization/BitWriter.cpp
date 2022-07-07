@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/BitWriter.h"
-#include "Logging/LogMacros.h"
+
 #include "CoreGlobals.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Serialization/Archive.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

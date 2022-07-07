@@ -2,6 +2,7 @@
 
 #include "IO/IoHash.h"
 
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 
 FString LexToString(const FIoHash& Hash)

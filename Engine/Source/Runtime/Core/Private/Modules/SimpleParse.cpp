@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/SimpleParse.h"
+
+#include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
 
 bool FSimpleParse::MatchZeroOrMoreWhitespace(const TCHAR*& InOutPtr)

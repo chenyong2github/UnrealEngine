@@ -5,7 +5,12 @@
 #include "Algo/AllOf.h"
 #include "Algo/Find.h"
 #include "Algo/NoneOf.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/StringView.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Char.h"
 
 namespace UE::String::Private
 {

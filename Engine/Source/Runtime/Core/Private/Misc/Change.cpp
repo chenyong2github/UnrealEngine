@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Change.h"
+
 #include "Containers/UnrealString.h"
 #include "Misc/FeedbackContext.h"
+#include "Templates/EnableIf.h"
+
+class UObject;
 
 void FChange::PrintToLog( FFeedbackContext& FeedbackContext, const int32 IndentLevel )
 {

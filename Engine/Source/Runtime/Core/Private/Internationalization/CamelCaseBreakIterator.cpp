@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/CamelCaseBreakIterator.h"
-#include "Internationalization/Text.h"
+
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
 
 FCamelCaseBreakIterator::FCamelCaseBreakIterator()
 	: CurrentPosition(0)

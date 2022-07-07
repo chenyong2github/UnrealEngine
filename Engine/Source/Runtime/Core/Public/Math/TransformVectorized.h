@@ -2,23 +2,33 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Logging/LogMacros.h"
-#include "Math/Vector.h"
-#include "Math/VectorRegister.h"
-#include "Math/Rotator.h"
-#include "Math/Vector4.h"
+#include "Math/Axis.h"
+#include "Math/MathFwd.h"
 #include "Math/Matrix.h"
+#include "Math/Matrix.inl"
 #include "Math/Quat.h"
+#include "Math/Rotator.h"
 #include "Math/ScalarRegister.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/UnrealMathVectorConstants.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "Math/VectorRegister.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/IsFloatingPoint.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
 
 #if ENABLE_VECTORIZED_TRANSFORM
 
-struct Z_Construct_UScriptStruct_FTransform3f_Statics;
 struct Z_Construct_UScriptStruct_FTransform3d_Statics;
+struct Z_Construct_UScriptStruct_FTransform3f_Statics;
 struct Z_Construct_UScriptStruct_FTransform_Statics;
 
 namespace UE

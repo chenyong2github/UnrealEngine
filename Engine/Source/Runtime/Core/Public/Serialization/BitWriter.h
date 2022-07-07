@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/BitArchive.h"
-#include "Containers/Array.h"
-#include "Math/UnrealMathUtility.h"
+
+class FArchive;
 
 /*-----------------------------------------------------------------------------
 	FBitWriter.

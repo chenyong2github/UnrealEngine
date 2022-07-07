@@ -2,6 +2,7 @@
 
 #include "Serialization/VarInt.h"
 
+#include "CoreTypes.h"
 #include "Serialization/Archive.h"
 
 int64 ReadVarIntFromArchive(FArchive& Ar)

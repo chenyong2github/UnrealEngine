@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/NumericLimits.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/ExpressionParserTypes.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameTime.h"
-#include "Internationalization/Text.h"
-#include "Math/Range.h"
-#include "Misc/ExpressionParserTypes.h"
 #include "Templates/ValueOrError.h"
 
 struct FExpressionError;

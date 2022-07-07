@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tasks/Pipe.h"
+
 #include "Misc/ScopeExit.h"
-#include "Tasks/Task.h"
 
 namespace UE::Tasks
 {

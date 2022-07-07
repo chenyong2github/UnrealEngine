@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "ProfilingDebugging/FormatArgsTrace.h"
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
-#include "ProfilingDebugging/FormatArgsTrace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 #if !defined(LOADTIMEPROFILERTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING

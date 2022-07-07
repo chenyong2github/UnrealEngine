@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveLoadCompressedProxy.h"
-#include "Math/UnrealMathUtility.h"
-#include "HAL/UnrealMemory.h"
+
 #include "Containers/Array.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Compression.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

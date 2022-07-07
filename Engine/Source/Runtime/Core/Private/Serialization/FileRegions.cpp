@@ -2,6 +2,9 @@
 
 #include "Serialization/FileRegions.h"
 
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+
 const TCHAR* FFileRegion::RegionsFileExtension = TEXT(".uregs");
 
 // NOTE: This serialization function must match FileRegion::ReadRegionsFromFile in AutomationUtils/FileRegions.cs

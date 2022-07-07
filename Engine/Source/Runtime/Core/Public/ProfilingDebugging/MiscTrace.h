@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "CoreTypes.h"
-#include "Trace/Config.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
+#include "Trace/Config.h"
 
 #if !defined(MISCTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING

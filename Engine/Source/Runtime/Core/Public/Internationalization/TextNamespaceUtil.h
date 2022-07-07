@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/TextNamespaceFwd.h"
-#include "Containers/UnrealString.h"
+
+class FArchive;
 
 namespace TextNamespaceUtil
 {

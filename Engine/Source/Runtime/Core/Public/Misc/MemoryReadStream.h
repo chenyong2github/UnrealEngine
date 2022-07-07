@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/ThreadSafeCounter.h"
 #include "Templates/RefCounting.h"
 
 /**

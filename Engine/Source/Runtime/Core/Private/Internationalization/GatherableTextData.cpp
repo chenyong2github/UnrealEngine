@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/GatherableTextData.h"
+
+#include "CoreTypes.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
+
+class FArchive;
 
 FArchive& operator<<(FArchive& Archive, FTextSourceSiteContext& This)
 {

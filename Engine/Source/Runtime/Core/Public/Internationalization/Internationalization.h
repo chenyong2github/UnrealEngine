@@ -1,22 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Internationalization/Text.h"
+#include "Delegates/DelegateBase.h"
+#include "Internationalization/CulturePointer.h"
 #include "Internationalization/LocTesting.h"
-
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
 #include "Templates/UniqueObj.h"
+#include "UObject/NameTypes.h"
 
 #define LOC_DEFINE_REGION
 
 class FCulture;
-class ICustomCulture;
 class FICUInternationalization;
 class FLegacyInternationalization;
+class ICustomCulture;
 
 class FInternationalization
 {

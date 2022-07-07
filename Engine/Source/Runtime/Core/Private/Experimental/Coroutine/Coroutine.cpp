@@ -2,6 +2,8 @@
 
 #include "Experimental/Coroutine/Coroutine.h"
 
+#include "Experimental/Coroutine/CoroLocalVariable.h"
+
 namespace CoroTask_Detail
 {
 

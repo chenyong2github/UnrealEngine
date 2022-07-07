@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "ProfilingDebugging/ScopedDebugInfo.h"
+
 #include "HAL/PlatformTLS.h"
+#include "Misc/AssertionMacros.h"
 
 /** The TLS index for the debug info stack. */
 static uint32 GThreadDebugInfoTLSID = FPlatformTLS::AllocTlsSlot();

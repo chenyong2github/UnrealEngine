@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "Trace/Config.h"
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Trace/Config.h"
+#include "Trace/Trace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 #if !defined(UE_TASK_TRACE_ENABLED)
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING

@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/StructuredArchive.h"
-#include "Containers/Set.h"
-#include "Containers/UnrealString.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/MemoryOps.h"
+
+class FArchive;
 
 struct FStructuredArchiveFromArchive::FImpl
 {

@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "IO/PackageId.h"
+#include "CoreMinimal.h"
 #include "IO/IoContainerId.h"
+#include "IO/PackageId.h"
 #include "Serialization/MappedName.h"
+#include "UObject/NameBatchSerialization.h"
 
 class FArchive;
+class FSHAHash;
 
 /**
  * Package store entry array view.

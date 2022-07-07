@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
 #include "CoreTypes.h"
-#include "Containers/UnrealString.h"
+
+class FString;
 
 struct FSimpleParse
 {

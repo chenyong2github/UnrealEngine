@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
 #include "Internationalization/Text.h"
+#include "Logging/LogVerbosity.h"
 #include "Logging/TokenizedMessage.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class IMessageLog;
 

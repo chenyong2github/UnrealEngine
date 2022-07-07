@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace UE::String
 {

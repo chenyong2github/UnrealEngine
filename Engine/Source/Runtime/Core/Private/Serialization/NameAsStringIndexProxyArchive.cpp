@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/NameAsStringIndexProxyArchive.h"
-#include "Serialization/VarInt.h"
-#include "Containers/UnrealString.h"
-#include "UObject/NameTypes.h"
+
 #include "Containers/Array.h"
 #include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Serialization/Archive.h"
+#include "Serialization/VarInt.h"
+#include "UObject/NameTypes.h"
 
 FArchive& FNameAsStringIndexProxyArchive::operator<<(class FName& N)
 {

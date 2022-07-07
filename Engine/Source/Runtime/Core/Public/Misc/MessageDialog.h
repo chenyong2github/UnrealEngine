@@ -4,6 +4,9 @@
 
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/PlatformMisc.h"
+
+class FText;
 
 /** 
  * FMessageDialog

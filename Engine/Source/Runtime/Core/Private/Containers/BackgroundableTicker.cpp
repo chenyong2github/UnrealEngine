@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Containers/BackgroundableTicker.h"
+
+#include "Containers/Ticker.h"
+#include "Delegates/DelegateInstancesImpl.h"
 #include "Misc/CoreDelegates.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 
 FTSBackgroundableTicker& FTSBackgroundableTicker::GetCoreTicker()
 {

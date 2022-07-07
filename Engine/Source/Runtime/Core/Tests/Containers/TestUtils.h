@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Math/UnrealMathUtility.h"
 
 namespace Test
 {

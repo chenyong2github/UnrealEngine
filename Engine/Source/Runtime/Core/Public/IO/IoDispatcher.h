@@ -2,41 +2,51 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "IO/IoContainerId.h"
+#include "Async/Future.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
-#include "Logging/LogMacros.h"
-#include "Templates/RefCounting.h"
-#include "Templates/UnrealTemplate.h"
-#include "Templates/TypeCompatibleBytes.h"
-#include "HAL/PlatformAtomics.h"
-#include "Memory/MemoryView.h"
-#include "Misc/SecureHash.h"
-#include "IO/IoHash.h"
-#include "Misc/AES.h"
-#include "Misc/IEngineCrypto.h"
-#include "Serialization/FileRegions.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Async/Future.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformFile.h"
+#include "IO/IoContainerId.h"
+#include "IO/IoHash.h"
+#include "Logging/LogMacros.h"
+#include "Memory/MemoryFwd.h"
+#include "Memory/MemoryView.h"
+#include "Misc/AES.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "Misc/IEngineCrypto.h"
+#include "Misc/SecureHash.h"
+#include "Serialization/FileRegions.h"
+#include "String/BytesToHex.h"
 #include "Tasks/Task.h"
+#include "Templates/RefCounting.h"
+#include "Templates/TypeCompatibleBytes.h"
+#include "Templates/UnrealTemplate.h"
 
-class FIoRequest;
-class FIoDispatcher;
-class FIoStoreReader;
-class FIoStoreEnvironment;
-
-class FIoRequestImpl;
+class FEvent;
 class FIoBatchImpl;
+class FIoDirectoryIndexReaderImpl;
+class FIoDispatcher;
 class FIoDispatcherImpl;
-class FIoStoreWriterContextImpl;
+class FIoRequest;
+class FIoRequestImpl;
+class FIoStoreEnvironment;
+class FIoStoreReader;
 class FIoStoreReaderImpl;
+class FIoStoreWriterContextImpl;
+class FPackageId;
 class IMappedFileHandle;
 class IMappedFileRegion;
-class FIoDirectoryIndexReaderImpl;
+struct FFileRegion;
 struct IIoDispatcherBackend;
-class FPackageId;
+template <typename CharType> class TStringBuilderBase;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 

@@ -2,20 +2,27 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformString.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/UnrealTemplate.h"
-#include "Traits/IsCharType.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharEncodingSimplyConvertibleTo.h"
+#include "Traits/IsCharType.h"
 #include "Traits/IsContiguousContainer.h"
+
 #include <type_traits>
+
+template <typename T> struct TIsContiguousContainer;
 
 /**
  * String Builder

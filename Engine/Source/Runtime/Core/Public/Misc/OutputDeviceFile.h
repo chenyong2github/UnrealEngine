@@ -2,15 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
-#include "Misc/OutputDevice.h"
-#include "Templates/UniquePtr.h"
-#include "Templates/Function.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Runnable.h"
-#include "Serialization/Archive.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/OutputDevice.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SingleThreadRunnable.h"
-#include "Containers/Array.h"
+#include "Serialization/Archive.h"
+#include "Templates/Atomic.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
+class FRunnableThread;
 
 
 /** string added to the filename of timestamped backup log files */
@@ -182,6 +189,7 @@ private:
 
 	/** Internal data for category inclusion. Must be declared inside CPP file as it uses a TSet<FName> */
 	struct FCategoryInclusionInternal;
+
 	TUniquePtr<FCategoryInclusionInternal> CategoryInclusionInternal;
 
 	/** If true, existing files will not be backed up */

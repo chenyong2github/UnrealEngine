@@ -9,11 +9,23 @@
 #include "CoreTypes.h"
 #include "Math/Quat.h"
 #include "Math/ScalarRegister.h"
-#include "Math/TransformVectorized.h"
 #include "Math/TransformNonVectorized.h"
+#include "Math/TransformVectorized.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
+#include "Serialization/MemoryLayout.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/IsUECoreType.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 UE_DECLARE_LWC_TYPE(Transform, 3);
+class FArchive;
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
+class FPointerTableBase;
+class FSHA1;
+template <typename T> struct TCanBulkSerialize;
+template <typename T> struct TIsPODType;
 
 template<> struct TIsPODType<FTransform3f> { enum { Value = true }; };
 template<> struct TIsPODType<FTransform3d> { enum { Value = true }; };

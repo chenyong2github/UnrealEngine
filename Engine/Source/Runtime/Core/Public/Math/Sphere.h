@@ -3,16 +3,25 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Math/UnrealMathUtility.h"
-#include "Math/Vector.h"
+#include "Math/MathFwd.h"
 #include "Math/Matrix.h"
 #include "Math/Transform.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/IsUECoreType.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/ObjectVersion.h"
 
 /**
  * Implements a basic sphere.
  */
 namespace UE {
 namespace Math {
+template <typename T> struct TMatrix;
 
 template<typename T>
 struct TSphere

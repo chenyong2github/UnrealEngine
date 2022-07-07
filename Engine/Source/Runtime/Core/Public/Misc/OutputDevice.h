@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "Logging/LogVerbosity.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/VarArgs.h"
-#include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
+
+class FString;
+class FText;
 
 #ifndef USE_DEBUG_LOGGING
 #define USE_DEBUG_LOGGING 1

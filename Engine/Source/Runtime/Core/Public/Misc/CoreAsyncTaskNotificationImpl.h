@@ -2,7 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
+#include "Internationalization/Text.h"
 #include "Misc/AsyncTaskNotification.h"
+#include "Misc/Attribute.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/NameTypes.h"
+
+struct FLogCategoryBase;
 
 /**
  * Implementation interface of notifications for an on-going asynchronous task.

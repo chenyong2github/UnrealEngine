@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "UObject/NameTypes.h"
+
+class FOutputDevice;
 
 /*
 	A helper object for counting instances of struct or classes for debugging

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
+
+#include "CoreTypes.h"
 #include "HAL/PlatformTLS.h"
 
 FLogScopedCategoryAndVerbosityOverride::FLogScopedCategoryAndVerbosityOverride(FName Category, ELogVerbosity::Type Verbosity)

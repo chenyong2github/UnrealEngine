@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "PixelFormat.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
+#include "PixelFormat.h"
 
 // Describes the type of data found in a given file region.
 enum class EFileRegionType : uint8

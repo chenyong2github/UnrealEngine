@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/Set.h"
 #include "Containers/HashTable.h"
+#include "Containers/Set.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/Archive.h"
-#include "Serialization/MemoryLayout.h"
 #include "Serialization/MemoryImageWriter.h"
+#include "Serialization/MemoryLayout.h"
 #include "Templates/RefCounting.h"
 #include "Traits/IsCharType.h"
 

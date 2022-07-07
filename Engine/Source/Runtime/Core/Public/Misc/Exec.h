@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 
+class FOutputDevice;
+
 // Any object that is capable of taking commands.
 class CORE_API FExec
 {

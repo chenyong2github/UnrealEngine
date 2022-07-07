@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
 #include "Misc/Timespan.h"
+
+struct FColor;
+struct FLinearColor;
 
 //
 //	FDefaultValueHelper

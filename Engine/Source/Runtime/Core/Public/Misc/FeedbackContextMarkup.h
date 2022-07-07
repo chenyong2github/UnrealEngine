@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/UnrealString.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
+
+class FFeedbackContext;
+class FText;
 
 /**
  * A text-based markup language can be used to allow external processes to control the state 

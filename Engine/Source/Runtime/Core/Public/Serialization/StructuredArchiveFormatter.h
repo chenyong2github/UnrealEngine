@@ -2,9 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "Serialization/StructuredArchiveNameHelpers.h"
+
+class FArchive;
+class FName;
+class FString;
+class FText;
+class UObject;
 
 /**
  * Specifies the type of a value in a slot. Used by FContextFreeArchiveFormatter for introspection.

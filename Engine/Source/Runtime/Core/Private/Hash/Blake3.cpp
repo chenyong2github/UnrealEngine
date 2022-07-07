@@ -2,9 +2,12 @@
 
 #include "Hash/Blake3.h"
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/UnrealString.h"
 #include "Memory/CompositeBuffer.h"
-
+#include "Memory/SharedBuffer.h"
 #include "blake3.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

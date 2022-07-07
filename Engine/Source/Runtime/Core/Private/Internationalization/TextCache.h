@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
 #include "Internationalization/Text.h"
-#include "Internationalization/TextKey.h"
+
+class FTextId;
 
 /** Caches FText instances generated via the LOCTEXT macro to avoid repeated constructions */
 class FTextCache

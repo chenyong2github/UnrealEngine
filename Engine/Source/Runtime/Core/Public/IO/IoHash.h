@@ -4,13 +4,20 @@
 
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformString.h"
 #include "HAL/UnrealMemory.h"
 #include "Hash/Blake3.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
 #include "String/HexToBytes.h"
+
+class FCompositeBuffer;
+template <typename CharType> class TStringBuilderBase;
 
 /**
  * Stores a BLAKE3-160 hash, taken from the first 20 bytes of a BLAKE3-256 hash.

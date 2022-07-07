@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
-#include "Templates/Atomic.h"
-#include "Misc/CompressionFlags.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/CompressionFlags.h"
+#include "Templates/Atomic.h"
+#include "UObject/NameTypes.h"
 
 class IMemoryReadStream;
+template <typename T> class TAtomic;
 
 // Define global current platform default to current platform.  
 // DEPRECATED, USE NAME_Zlib

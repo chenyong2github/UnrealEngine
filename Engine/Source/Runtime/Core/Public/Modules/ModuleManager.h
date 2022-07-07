@@ -2,21 +2,31 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/UnrealTemplate.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UniquePtr.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/Optional.h"
+#include "Delegates/DelegateBase.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreMisc.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/Boilerplate/ModuleBoilerplate.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "Modules/Boilerplate/ModuleBoilerplate.h"
+#include "Modules/ModuleInterface.h"
+#include "Serialization/Archive.h"
+#include "Templates/Atomic.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SharedPointerInternals.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+class FOutputDevice;
+class UClass;
+class UWorld;
 
 #if WITH_HOT_RELOAD
 	/** If true, we are reloading a class for HotReload */

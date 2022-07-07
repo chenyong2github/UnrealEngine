@@ -6,10 +6,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Templates/Function.h"
+
+class FString;
+class IConsoleVariable;
 
 
 namespace UE::ConfigUtilities

@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FString;
 
 /** List of owner names that requested a specific item filtered, allows unregistering specific set of changes by a given plugin or system */
 typedef TArray<FName> FPermissionListOwners;

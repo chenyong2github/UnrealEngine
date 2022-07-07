@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreGlobals.h"
-#include "Misc/AssertionMacros.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformTLS.h"
+#include "Misc/AssertionMacros.h"
 
 #define ENABLE_MT_DETECTOR DO_CHECK
 

@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/OutputDeviceDebug.h"
+
+#include "Containers/StringFwd.h"
 #include "CoreGlobals.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/StringBuilder.h"
 

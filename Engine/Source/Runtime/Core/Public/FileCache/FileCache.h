@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "HAL/PlatformFile.h"
 #include "Misc/MemoryReadStream.h"
+
+class IAsyncReadFileHandle;
 
 //
 struct FFileCachePreloadEntry

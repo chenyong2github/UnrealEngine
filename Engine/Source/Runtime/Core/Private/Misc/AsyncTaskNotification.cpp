@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AsyncTaskNotification.h"
+
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreAsyncTaskNotificationImpl.h"
 
 FAsyncTaskNotification::FAsyncTaskNotification(const FAsyncTaskNotificationConfig& InConfig)

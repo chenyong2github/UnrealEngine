@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Compression/OodleDataCompression.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/ICompressionFormat.h"
-#include "HAL/PlatformMisc.h"
 
+#include "CoreGlobals.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProperties.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogCategory.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/UnrealTemplate.h"
 #include "oodle2.h"
+#include "oodle2base.h"
+
+struct ICompressionFormat;
 
 DEFINE_LOG_CATEGORY(OodleDataCompression);
 

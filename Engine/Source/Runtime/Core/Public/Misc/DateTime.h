@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Misc/Timespan.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
 #include "Templates/TypeHash.h"
 

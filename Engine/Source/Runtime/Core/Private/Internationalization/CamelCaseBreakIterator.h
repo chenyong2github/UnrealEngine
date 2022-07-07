@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Internationalization/IBreakIterator.h"
 
 /**

@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/Char.h"
 #include "Misc/CString.h"
+#include "Misc/Char.h"
 
 
 /** 

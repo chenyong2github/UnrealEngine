@@ -2,8 +2,18 @@
 
 #include "Serialization/CompactBinaryValidation.h"
 
+#include "Algo/Sort.h"
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "HAL/PlatformMemory.h"
 #include "IO/IoHash.h"
+#include "Memory/MemoryView.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"

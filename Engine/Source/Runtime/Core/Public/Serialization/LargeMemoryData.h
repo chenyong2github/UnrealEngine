@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/LockFreeList.h"
+#include "CoreTypes.h"
+
+template <class T, int TPaddingForCacheContention> class TLockFreePointerListUnordered;
 
 /**
 * Data storage for the large memory reader and writer.

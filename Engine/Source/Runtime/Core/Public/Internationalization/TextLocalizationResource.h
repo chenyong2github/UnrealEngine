@@ -2,10 +2,17 @@
 
 #pragma once 
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
-#include "Internationalization/TextKey.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
+#include "Internationalization/TextKey.h"
+#include "Misc/Crc.h"
+#include "Templates/SharedPointer.h"
+
+class FArchive;
 
 /** Utility class for working with Localization MetaData Resource (LocMeta) files. */
 class CORE_API FTextLocalizationMetaDataResource

@@ -6,6 +6,10 @@
 #include "HAL/MemoryBase.h"
 #include "HAL/ThreadSafeCounter.h"
 
+class FOutputDevice;
+class UWorld;
+struct FGenericMemoryStats;
+
 #if STATS
 
 /**

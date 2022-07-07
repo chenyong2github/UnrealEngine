@@ -6,6 +6,8 @@
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
 
+namespace UE { namespace Trace { class FChannel; } }
+
 #if !defined(COUNTERSTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define COUNTERSTRACE_ENABLED 1

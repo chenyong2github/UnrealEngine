@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
 #include "CoreGlobals.h"
-#include "HAL/Platform.h"
-#include "Logging/LogMacros.h"
 #include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 class CORE_API FTraceAuxiliary

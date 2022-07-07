@@ -2,18 +2,26 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Crc.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "Serialization/StructuredArchive.h"
-#include "Serialization/MemoryLayout.h"
+#include "CoreTypes.h"
 #include "Hash/CityHash.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Crc.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryLayout.h"
+#include "Serialization/StructuredArchive.h"
 
 class FArchive;
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
 class FOutputDevice;
+class FPointerTableBase;
+class FSHA1;
 class UObject;
+template <typename CharType> class TStringBuilderBase;
+template <typename T> struct TCanBulkSerialize;
+template <typename T> struct TIsPODType;
 
 
 /**

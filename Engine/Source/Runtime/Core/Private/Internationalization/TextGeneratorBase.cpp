@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextGeneratorBase.h"
+
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 FName FTextGeneratorBase::GetTypeID() const
 {

@@ -2,10 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Memory/MemoryFwd.h"
+#include "Memory/MemoryView.h"
 #include "Serialization/CompactBinary.h"
+
+class FCompositeBuffer;
+class FSharedBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

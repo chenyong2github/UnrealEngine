@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestUtils.h"
+
+#include "Math/UnrealMathUtility.h"
+
 #include <numeric>
 
 namespace Test

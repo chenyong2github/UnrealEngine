@@ -2,6 +2,8 @@
 
 #include "Misc/WildcardString.h"
 
+#include "Misc/Char.h"
+
 /* FWildcardString static functions
  *****************************************************************************/
 

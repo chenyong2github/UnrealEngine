@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/Set.h"
-#include "UObject/NameTypes.h"
+#include "CoreTypes.h"
 #include "Serialization/ArchiveProxy.h"
+#include "UObject/NameTypes.h"
+
+class FArchive;
 
 /**
  * Implements a proxy archive that serializes FNames as string data or an index (if the same name is repeated).

@@ -2,19 +2,28 @@
 
 #include "Serialization/CompactBinarySerialization.h"
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/StringConv.h"
-#include "HAL/Platform.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformString.h"
+#include "Memory/MemoryView.h"
 #include "Misc/AsciiSet.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Base64.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/Timespan.h"
+#include "Serialization/Archive.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryValue.h"
 #include "Serialization/VarInt.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

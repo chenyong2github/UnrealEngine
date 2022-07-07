@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 
 class FName;
+class FOutputDevice;
 
 /** Indicate what types of resources should be included for calculating used memory */
 namespace EResourceSizeMode

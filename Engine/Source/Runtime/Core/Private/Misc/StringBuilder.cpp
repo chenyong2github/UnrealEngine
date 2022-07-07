@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringBuilder.h"
+
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
+#include "Misc/CString.h"
 
 static inline uint64_t NextPowerOfTwo(uint64_t x)
 {

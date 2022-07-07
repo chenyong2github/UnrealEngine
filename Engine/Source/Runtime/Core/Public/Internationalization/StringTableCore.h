@@ -1,14 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include <atomic>
-#include "Internationalization/StringTableCoreFwd.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
+#include "Containers/SparseArray.h"
 #include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
-#include "Internationalization/LocKeyFuncs.h"
+#include "HAL/CriticalSection.h"
 #include "Internationalization/Internationalization.h"
+#include "Internationalization/LocKeyFuncs.h"
+#include "Internationalization/LocalizedTextSourceTypes.h"
+#include "Internationalization/StringTableCoreFwd.h"
+#include "Internationalization/Text.h"
+#include "Internationalization/TextKey.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SharedPointerInternals.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+#include <atomic>
+
+class FStringTable;
+class UStringTable;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStringTable, Log, All);
 

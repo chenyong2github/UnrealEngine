@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
 
 namespace UE::String
 {

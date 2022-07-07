@@ -4,14 +4,14 @@
 	FMallocDoubleFreeFinder.cpp: Memoory tracking allocator
 =============================================================================*/
 #include "HAL/MallocDoubleFreeFinder.h"
-#include "Logging/LogMacros.h"
-#include "Misc/OutputDeviceRedirector.h"
+
+#include "HAL/MemoryBase.h"
+#include "HAL/UnrealMemory.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/PlatformMisc.h"
-#include "HAL/PlatformStackWalk.h"
+
+class FOutputDevice;
+class UWorld;
 
 CORE_API FMallocDoubleFreeFinder* GMallocDoubleFreeFinder;
 CORE_API bool GMallocDoubleFreeFinderEnabled = false;

@@ -8,16 +8,20 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
-#include "Logging/LogMacros.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
 
-struct FHistogramBuilder;
 struct FAnalyticsEventAttribute;
+struct FHistogramBuilder;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHistograms, Log, All);
 

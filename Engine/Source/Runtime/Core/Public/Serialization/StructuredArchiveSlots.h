@@ -2,20 +2,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Formatters/BinaryArchiveFormatter.h"
 #include "Misc/Optional.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveFwd.h"
 #include "Serialization/StructuredArchiveNameHelpers.h"
 #include "Serialization/StructuredArchiveSlotBase.h"
-#include "Formatters/BinaryArchiveFormatter.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnumClass.h"
 
+class FName;
+class FString;
 class FStructuredArchive;
-class FStructuredArchiveChildReader;
-class FStructuredArchiveSlot;
-class FStructuredArchiveRecord;
 class FStructuredArchiveArray;
-class FStructuredArchiveStream;
+class FStructuredArchiveChildReader;
 class FStructuredArchiveMap;
+class FStructuredArchiveRecord;
+class FStructuredArchiveSlot;
+class FStructuredArchiveStream;
+class FText;
+class UObject;
+struct FLazyObjectPtr;
+struct FObjectPtr;
+struct FSoftObjectPath;
+struct FSoftObjectPtr;
+struct FWeakObjectPtr;
+template <class TEnum> class TEnumAsByte;
 
 namespace UE::StructuredArchive::Private
 {

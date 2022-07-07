@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ContainerAllocationPolicies.h"
-#include "Misc/Crc.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Set.h"
 #include "Containers/Map.h"
-#include "Templates/SharedPointer.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Internationalization/InternationalizationManifest.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Misc/Crc.h"
+#include "Templates/SharedPointer.h"
 
 class FLocMetadataObject;
 

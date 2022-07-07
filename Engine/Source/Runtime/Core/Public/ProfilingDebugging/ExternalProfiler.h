@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Containers/StringConv.h"
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
 #include "Features/IModularFeature.h"
+#include "UObject/NameTypes.h"
 
 #ifndef UE_EXTERNAL_PROFILING_ENABLED
 // temporarily turn off profiler on Switch because of a compiler issue (?) with the thread_local init bools (switching 1 to int helped, 1 did not)

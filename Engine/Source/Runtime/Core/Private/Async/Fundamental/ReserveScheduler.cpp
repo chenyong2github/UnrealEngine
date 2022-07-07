@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Async/Fundamental/ReserveScheduler.h"
+
+#include "Async/Fundamental/LocalQueue.h"
+#include "Async/Fundamental/Scheduler.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Trace/Trace.h"
 
 extern CORE_API bool GTaskGraphUseDynamicPrioritization;
 

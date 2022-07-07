@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoContainerId.h"
-#include "Serialization/StructuredArchive.h"
+
+#include "Hash/CityHash.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 FIoContainerId FIoContainerId::FromName(const FName& Name)
 {

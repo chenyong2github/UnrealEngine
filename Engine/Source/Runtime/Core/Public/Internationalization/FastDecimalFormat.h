@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Internationalization/Text.h"
 #include "Math/NumericLimits.h"
+#include "Misc/CString.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"

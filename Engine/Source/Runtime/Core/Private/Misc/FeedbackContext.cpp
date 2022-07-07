@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/FeedbackContext.h"
+
+#include "CoreTypes.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/SlowTask.h"
 
 FFeedbackContext::FFeedbackContext()
 	: TreatWarningsAsErrors(0)

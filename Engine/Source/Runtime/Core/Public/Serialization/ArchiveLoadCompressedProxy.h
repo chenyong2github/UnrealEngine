@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
-#include "Serialization/Archive.h"
 #include "Misc/Compression.h"
+#include "Misc/CompressionFlags.h"
+#include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
 
 /*----------------------------------------------------------------------------
 	FArchiveLoadCompressedProxy.

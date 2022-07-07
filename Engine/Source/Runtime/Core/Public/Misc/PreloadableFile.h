@@ -2,22 +2,24 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "Templates/Atomic.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 
+class FEvent;
 class IAsyncReadFileHandle;
 class IAsyncReadRequest;
 class IFileHandle;
-class FEvent;
 
 #define FPRELOADABLEFILE_TEST_ENABLED 0
 

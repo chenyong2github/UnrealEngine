@@ -3,10 +3,13 @@
 #include "Serialization/CompactBinaryPackage.h"
 
 #include "Algo/BinarySearch.h"
-#include "Compression/OodleDataCompression.h"
 #include "Memory/CompositeBuffer.h"
+#include "Memory/MemoryFwd.h"
+#include "Memory/MemoryView.h"
+#include "Serialization/Archive.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Templates/RemoveReference.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

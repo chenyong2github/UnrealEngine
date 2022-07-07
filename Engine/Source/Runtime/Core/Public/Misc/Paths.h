@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "Templates/UnrealTemplate.h"
+
+class FText;
 
 namespace UE::Core::Private
 {

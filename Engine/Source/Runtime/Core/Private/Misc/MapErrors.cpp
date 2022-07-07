@@ -2,6 +2,8 @@
 
 #include "Misc/MapErrors.h"
 
+#include "CoreTypes.h"
+
 FLazyName FMapErrors::MatchingActorGUID(TEXT("MatchingActorGUID"));
 FLazyName FMapErrors::MatchingLightGUID(TEXT("MatchingLightGUID"));
 FLazyName FMapErrors::ActorLargeShadowCaster(TEXT("ActorLargeShadowCaster"));

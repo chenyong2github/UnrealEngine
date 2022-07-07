@@ -2,14 +2,16 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "PackageId.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
+#include "PackageId.h"
 
 class FArchive;
-class FStructuredArchiveSlot;
 class FCbObject;
 class FCbWriter;
+class FStructuredArchiveSlot;
 
 /**
  * Package export information.

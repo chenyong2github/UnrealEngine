@@ -2,6 +2,9 @@
 
 #include "Misc/HierarchicalLogArchive.h"
 
+#include "Containers/StringFwd.h"
+#include "Misc/StringBuilder.h"
+
 FHierarchicalLogArchive::FHierarchicalLogArchive(FArchive& InInnerArchive)
 	: FArchiveProxy(InInnerArchive)
 	, Indentation(0)

@@ -2,6 +2,8 @@
 
 #include "String/ParseLines.h"
 
+#include "Templates/Function.h"
+
 namespace UE::String
 {
 

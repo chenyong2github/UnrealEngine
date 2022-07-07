@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
-#include "Misc/Timespan.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/DateTime.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
+#include "Misc/DateTime.h"
 #include "Misc/SingleThreadRunnable.h"
+#include "Misc/Timespan.h"
+
+class FRunnableThread;
 
 /**
  * Declares a delegate that is executed when a monitored process completed.

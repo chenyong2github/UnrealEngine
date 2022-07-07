@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Experimental/Containers/HazardPointer.h"
+
+#include "Algo/Sort.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 

@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "CoreTypes.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/NameTypes.h"
 
 /**

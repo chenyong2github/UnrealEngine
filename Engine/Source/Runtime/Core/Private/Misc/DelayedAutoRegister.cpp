@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/DelayedAutoRegister.h"
+
+#include "Containers/Set.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/DelegateInstancesImpl.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Misc/AssertionMacros.h"
 
 DECLARE_MULTICAST_DELEGATE(FDelayedAutoRegisterDelegate);
 

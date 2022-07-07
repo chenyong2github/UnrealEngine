@@ -3,13 +3,14 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/VarArgs.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformString.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Char.h"
-#include "HAL/PlatformString.h"
-#include "Templates/IsValidVariadicFunctionArg.h"
+#include "Misc/VarArgs.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 
 #define MAX_SPRINTF 1024

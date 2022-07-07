@@ -2,16 +2,24 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
+#include "HAL/UnrealMemory.h"
 #include "IO/IoHash.h"
+#include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "String/BytesToHex.h"
+#include "Templates/Function.h"
 #include "Templates/IsTriviallyDestructible.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
+
+template <typename CharType> class TStringBuilderBase;
 
 /**
  * This file declares a compact binary data format that is compatible with JSON and only slightly
@@ -64,7 +72,6 @@
  */
 
 class FArchive;
-class FIoHashBuilder;
 class FCbArrayView;
 class FCbField;
 class FCbFieldIterator;
@@ -73,6 +80,7 @@ class FCbFieldViewIterator;
 class FCbObjectId;
 class FCbObjectView;
 class FCbValue;
+class FIoHashBuilder;
 struct FDateTime;
 struct FGuid;
 struct FTimespan;

@@ -5,15 +5,15 @@
 =============================================================================*/
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/MemoryBase.h"
-#include "Serialization/Archive.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/MemoryBase.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CompressedGrowableBuffer.h"
+#include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
 
 #if USE_MALLOC_PROFILER
 

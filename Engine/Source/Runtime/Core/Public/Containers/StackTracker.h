@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
+
+class FOutputDevice;
+class FString;
 
 
 /**

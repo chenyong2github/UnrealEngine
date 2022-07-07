@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Experimental/Misc/ExecutionResource.h"
+
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace ExecutionResourceImpl
 {

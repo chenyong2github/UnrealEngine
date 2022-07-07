@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextFormatArgumentModifier.h"
-#include "Misc/Parse.h"
+
+#include "Containers/UnrealString.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/TextFormatter.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Misc/Parse.h"
+#include "Templates/Less.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 bool ITextFormatArgumentModifier::ParseKeyValueArgs(const FTextFormatString& InArgsString, TSortedMap<FTextFormatString, FTextFormatString>& OutArgKeyValues, const TCHAR InValueSeparator, const TCHAR InArgSeparator)
 {

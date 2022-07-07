@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/InternationalizationArchive.h"
+
+#include "Containers/Array.h"
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherArchiveObject, Log, All);
 

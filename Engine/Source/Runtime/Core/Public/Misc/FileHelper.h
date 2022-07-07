@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/FileManager.h"
-#include "Containers/ArrayView.h"
-#include "Misc/EnumClassFlags.h"
 #include "Math/Color.h"
+#include "Math/MathFwd.h"
+#include "Misc/EnumClassFlags.h"
+
+class IPlatformFile;
 
 /*-----------------------------------------------------------------------------
 	FFileHelper

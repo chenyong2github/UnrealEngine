@@ -9,6 +9,7 @@
 #include "Templates/UnrealTypeTraits.h"
 
 class FArchive;
+template <typename NumericType> struct TNumericLimits;
 
 /**
  * Typesafe 32-bit signed frame number. Defined in this way to prevent erroneous float->int conversions and afford type-safe operator overloading.

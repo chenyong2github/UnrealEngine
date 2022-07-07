@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
+#include "IO/IoHash.h"
+#include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
 #include "Serialization/CompactBinary.h"
+#include "Templates/Function.h"
 
 class FArchive;
+struct FGuid;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

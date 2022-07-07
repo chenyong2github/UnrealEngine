@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/EngineVersion.h"
+
+#include "BuildSettings.h"
+#include "Math/NumericLimits.h"
+#include "Misc/CString.h"
 #include "Misc/Guid.h"
 #include "Misc/LazySingleton.h"
-#include "Serialization/CustomVersion.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "Serialization/Archive.h"
+#include "Serialization/CustomVersion.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "BuildSettings.h"
-#include "CoreGlobals.h"
 
 FEngineVersionBase::FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist)
 : Major(InMajor)

@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformTime.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
-#include "Containers/UnrealString.h"
-#include "HAL/PlatformTime.h"
 
 /**
 * Utility class to capture time passed in seconds, adding delta time to passed

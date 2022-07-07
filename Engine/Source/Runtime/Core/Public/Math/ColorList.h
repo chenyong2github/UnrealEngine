@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Exec.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Math/Color.h"
+#include "Misc/Exec.h"
+
+class FString;
 
 class CORE_API FColorList
 {

@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Internationalization/StringTableCoreFwd.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "Delegates/Delegate.h"
 #include "Containers/UnrealString.h"
-#include "Internationalization/TextLocalizationManager.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Internationalization/StringTableCoreFwd.h"
+#include "Internationalization/TextKey.h"
+#include "Internationalization/TextLocalizationManager.h"
+#include "UObject/NameTypes.h"
+
+class UStringTable;
 
 /** Singleton registry of known string table instances */
 class CORE_API FStringTableRegistry

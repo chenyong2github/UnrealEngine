@@ -2,17 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/UnrealTypeTraits.h"
-#include "Templates/UnrealTemplate.h"
 #include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryImageWriter.h"
-#include "Math/UnrealMathUtility.h"
-#include "Misc/EnumClassFlags.h"
+#include "Serialization/MemoryLayout.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Invoke.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Traits/IsVoidType.h"
 
+class FPointerTableBase;
+class FSHA1;
 template<typename Allocator > class TBitArray;
 
 // Functions for manipulating bit sets.
@@ -37,17 +45,13 @@ struct FBitSet
 	}
 };
 
-
 // Forward declaration.
-template<typename Allocator = FDefaultBitArrayAllocator>
-class TBitArray;
-
-template<typename Allocator = FDefaultBitArrayAllocator>
-class TConstSetBitIterator;
-
 template<typename Allocator = FDefaultBitArrayAllocator,typename OtherAllocator = FDefaultBitArrayAllocator, bool Both=true>
 class TConstDualSetBitIterator;
-
+template<typename Allocator = FDefaultBitArrayAllocator>
+class TBitArray;
+template<typename Allocator = FDefaultBitArrayAllocator>
+class TConstSetBitIterator;
 template <typename AllocatorType, typename InDerivedType = void>
 class TScriptBitArray;
 

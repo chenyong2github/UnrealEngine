@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"

@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/OutputDevice.h"
 #include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/OutputDevice.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "UObject/NameTypes.h"
 
 /** Buffered output device. */
 class CORE_API FBufferedOutputDevice : public FOutputDevice

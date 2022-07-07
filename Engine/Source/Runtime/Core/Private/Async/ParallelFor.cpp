@@ -2,6 +2,9 @@
 
 #include "Async/ParallelFor.h"
 
+#include "CoreTypes.h"
+#include "HAL/IConsoleManager.h"
+
 CORE_API int32 GParallelForBackgroundYieldingTimeoutMs = 8;
 static FAutoConsoleVariableRef CVarParallelForBackgroundYieldingTimeout(
 	TEXT("Async.ParallelFor.YieldingTimeout"),

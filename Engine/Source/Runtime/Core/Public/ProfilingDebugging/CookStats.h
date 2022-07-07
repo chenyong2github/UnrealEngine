@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTemplate.h"
-#include "Templates/Decay.h"
 #include "Containers/Array.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "Templates/Function.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/ThreadSafeCounter64.h"
+#include "Templates/Decay.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Trace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 #ifndef ENABLE_COOK_STATS
 #define ENABLE_COOK_STATS WITH_EDITOR

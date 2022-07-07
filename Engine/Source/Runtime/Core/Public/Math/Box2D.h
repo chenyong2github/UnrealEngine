@@ -2,12 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
-#include "Math/UnrealMathUtility.h"
-#include "Containers/UnrealString.h"
-#include "Math/Vector2D.h"
+#include "Serialization/Archive.h"
+#include "Templates/IsUECoreType.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+template <typename T> struct TIsPODType;
 
 /**
  * Implements a rectangular 2D Box.

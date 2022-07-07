@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/DefaultValueHelper.h"
-#include "Math/Color.h"
-#include "Math/Vector2D.h"
-#include "Math/Vector.h"
-#include "Math/Vector4.h"
-#include "Math/Rotator.h"
 
+#include "Containers/Array.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Misc/Parse.h"
 
 bool FDefaultValueHelper::Is(const FString& Source, const TCHAR* CompareStr)
 {

@@ -2,6 +2,8 @@
 
 #include "Serialization/Csv/CsvParser.h"
 
+#include "Templates/UnrealTemplate.h"
+
 FCsvParser::FCsvParser(FString InSourceString)
 	: SourceString(MoveTemp(InSourceString))		
 {

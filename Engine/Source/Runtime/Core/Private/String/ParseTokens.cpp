@@ -7,7 +7,14 @@
 #include "Algo/NoneOf.h"
 #include "Algo/Transform.h"
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE::String::Private
 {

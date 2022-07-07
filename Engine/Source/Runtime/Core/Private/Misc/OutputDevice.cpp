@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/OutputDevice.h"
+
 #include "Containers/UnrealString.h"
-#include "Logging/LogMacros.h"
+#include "CoreGlobals.h"
 #include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
-#include "Misc/OutputDeviceHelper.h"
 #include "Misc/VarargsHelper.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class FOutputDeviceError;
 
 DEFINE_LOG_CATEGORY(LogOutputDevice);
 

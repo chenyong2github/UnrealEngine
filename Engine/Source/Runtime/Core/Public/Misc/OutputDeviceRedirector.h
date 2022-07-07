@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDevice.h"
 #include "Templates/PimplPtr.h"

@@ -3,6 +3,7 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 #include "Trace/Detail/LogScope.h"
+#include "UObject/NameTypes.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Fwd declare ELLMTag

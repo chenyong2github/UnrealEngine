@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Timespan.h"
-#include "Templates/TypeHash.h"
+
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "HAL/PlatformString.h"
+#include "Misc/CString.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
 #include "UObject/PropertyPortFlags.h"
 
 

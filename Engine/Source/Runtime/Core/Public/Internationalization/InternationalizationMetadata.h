@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/SharedPointer.h"
 
+class FArchive;
 class FLocMetadataObject;
 
 /**

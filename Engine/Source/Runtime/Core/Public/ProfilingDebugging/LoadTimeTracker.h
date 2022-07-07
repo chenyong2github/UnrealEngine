@@ -6,16 +6,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "Trace/Trace.inl"
+#include "Containers/SparseArray.h"
+#include "CoreTypes.h"
+#include "Misc/Optional.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/LoadTimeTrace.h"
 #include "Stats/Stats.h"
-#include "Misc/Optional.h"
+#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
+#include "UObject/NameTypes.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0

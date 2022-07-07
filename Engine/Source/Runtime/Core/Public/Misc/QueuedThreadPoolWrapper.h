@@ -2,16 +2,25 @@
 
 #pragma once
 
+#include "Async/Fundamental/Scheduler.h"
+#include "Async/Fundamental/Task.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
+#include "Experimental/ConcurrentLinearAllocator.h"
+#include "Experimental/Containers/FAAArrayQueue.h"
+#include "Experimental/Misc/ExecutionResource.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
+#include "HAL/PlatformAffinity.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Misc/IQueuedWork.h"
+#include "Misc/MemStack.h"
+#include "Misc/ScopeLock.h"
 #include "QueuedThreadPool.h"
 #include "ScopeRWLock.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Misc/IQueuedWork.h"
-#include "Async/Fundamental/Scheduler.h"
-#include "Experimental/Misc/ExecutionResource.h"
-#include "Experimental/Containers/FAAArrayQueue.h"
-#include "Experimental/ConcurrentLinearAllocator.h"
+#include "Stats/Stats2.h"
+#include "Templates/Atomic.h"
+#include "Templates/RefCounting.h"
 
 #include <atomic>
 

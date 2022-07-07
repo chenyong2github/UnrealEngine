@@ -4,14 +4,15 @@
 	FMallocFrameProfiler.cpp: Memoory tracking allocator
 =============================================================================*/
 #include "HAL/MallocFrameProfiler.h"
+
+#include "HAL/MemoryBase.h"
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/PlatformMisc.h"
-#include "HAL/PlatformStackWalk.h"
+
+class FOutputDevice;
+class UWorld;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMallocFrameProfiler, Log, All);
 DEFINE_LOG_CATEGORY(LogMallocFrameProfiler);

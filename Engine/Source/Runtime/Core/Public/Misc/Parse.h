@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+
+class FExec;
+class FName;
+class FOutputDevice;
+class FText;
 
 /*-----------------------------------------------------------------------------
 	Parsing functions.

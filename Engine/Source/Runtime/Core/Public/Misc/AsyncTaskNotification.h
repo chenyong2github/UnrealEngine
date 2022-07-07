@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/Attribute.h"
-#include "Logging/LogCategory.h"
+#include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 
-struct FSlateBrush;
 class IAsyncTaskNotificationImpl;
+struct FLogCategoryBase;
+struct FSlateBrush;
 
 /**
  * Configuration data for initializing an asynchronous task notification.

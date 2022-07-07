@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "Templates/UniquePtr.h"
 #include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 class FFeedbackContext;
 class FReferenceCollector;
+class UObject;
 
 /**
  * FChange modifies a UObject and is meant to be used to implement undo/redo.

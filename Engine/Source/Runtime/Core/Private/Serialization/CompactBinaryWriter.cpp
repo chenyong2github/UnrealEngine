@@ -2,12 +2,17 @@
 
 #include "Serialization/CompactBinaryWriter.h"
 
-#include "Containers/StringConv.h"
+#include "HAL/PlatformString.h"
+#include "HAL/UnrealMemory.h"
 #include "IO/IoHash.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 #include "Serialization/Archive.h"

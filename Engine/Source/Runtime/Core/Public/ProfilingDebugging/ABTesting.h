@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/BitArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Math/RandomStream.h"
 
 #if !UE_BUILD_SHIPPING

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Templates/Function.h"
 
 enum class EDelayedRegisterRunPhase : uint8

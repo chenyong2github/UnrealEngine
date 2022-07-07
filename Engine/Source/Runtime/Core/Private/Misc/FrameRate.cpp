@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/FrameRate.h"
+
 #include "Algo/BinarySearch.h"
 #include "Algo/Reverse.h"
-#include "Misc/ExpressionParser.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Internationalization/Internationalization.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Misc/ExpressionParser.h"
+#include "Misc/ExpressionParserTypes.h"
+#include "Misc/ExpressionParserTypes.inl"
+#include "Misc/Guid.h"
+#include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "FFrameRate"
 

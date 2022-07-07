@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Algo/FindSortedStringCaseInsensitive.h"
-#include "Misc/CString.h"
 
+#include "Misc/CString.h"
+#include "Misc/Char.h"
 
 namespace Algo
 {

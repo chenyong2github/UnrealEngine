@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/PolyglotTextData.h"
+
+#include "CoreTypes.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/TextLocalizationManager.h"
 #include "Internationalization/TextLocalizationResource.h"
-#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 
 #define LOCTEXT_NAMESPACE "PolyglotTextData"
 

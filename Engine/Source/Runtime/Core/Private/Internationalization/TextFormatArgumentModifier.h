@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/SortedMap.h"
 #include "CoreTypes.h"
-#include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
+#include "Internationalization/CulturePointer.h"
 #include "Internationalization/ITextFormatArgumentModifier.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
+class FString;
 struct FPrivateTextFormatArguments;
 
 /**

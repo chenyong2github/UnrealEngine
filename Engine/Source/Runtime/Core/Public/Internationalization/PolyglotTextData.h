@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
 #include "Internationalization/Text.h"
 
 /**

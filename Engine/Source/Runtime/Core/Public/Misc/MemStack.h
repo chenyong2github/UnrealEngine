@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/UnrealMemory.h"
 #include "Containers/ContainerAllocationPolicies.h"
-#include "Math/UnrealMathUtility.h"
-#include "Templates/AlignmentTemplates.h"
-#include "HAL/ThreadSingleton.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Misc/NoopCounter.h"
 #include "Containers/LockFreeFixedSizeAllocator.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "HAL/ThreadSingleton.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/NoopCounter.h"
+#include "Templates/AlignmentTemplates.h"
 
 
 // Enums for specifying memory allocation type.

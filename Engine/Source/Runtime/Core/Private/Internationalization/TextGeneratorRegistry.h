@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
 #include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 
 /** Singleton registry of text generator factory functions */
 class FTextGeneratorRegistry

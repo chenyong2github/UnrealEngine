@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
  
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Serialization/StructuredArchive.h"
+
+class FArchive;
 
 struct FTextSourceSiteContext
 {

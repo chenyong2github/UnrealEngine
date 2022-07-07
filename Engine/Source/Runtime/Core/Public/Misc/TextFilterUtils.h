@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "UObject/NameTypes.h"
 
 /** Defines the comparison operators that can be used for a complex (key->value) comparison */

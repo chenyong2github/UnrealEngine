@@ -2,6 +2,8 @@
 
 #include "ProfilingDebugging/ModuleDiagnostics.h"
 
+#include "Trace/Detail/Channel.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_CHANNEL_DEFINE(ModuleChannel, "Module information needed for symbols resolution", true)
  

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Trace/Trace.h"
+#include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
+#include "Trace/Config.h"
+#include "Trace/Trace.h"
 
 #if !defined(UE_MEMORY_TRACE_AVAILABLE)
 #   define UE_MEMORY_TRACE_AVAILABLE 0

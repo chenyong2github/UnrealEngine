@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextCache.h"
+
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Internationalization/TextKey.h"
+#include "Misc/CString.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
-#include "HAL/LowLevelMemTracker.h"
 
 FTextCache& FTextCache::Get()
 {

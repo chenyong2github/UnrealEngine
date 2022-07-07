@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "String/BytesToHex.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE::String
 {

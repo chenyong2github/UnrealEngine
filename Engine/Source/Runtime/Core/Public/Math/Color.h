@@ -2,15 +2,27 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Crc.h"
-#include "Math/UnrealMathUtility.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Crc.h"
 #include "Misc/Parse.h"
-#include "Serialization/StructuredArchive.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryLayout.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 class FFloat16Color;
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
+class FPointerTableBase;
+class FSHA1;
+struct FColor;
+template <typename T> struct TIsPODType;
 
 /**
  * Enum for the different kinds of gamma spaces we expect to need to convert from/to.

@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_CHANNEL_EXTERN(ModuleChannel)

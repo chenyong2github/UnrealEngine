@@ -2,6 +2,8 @@
 
 #include "Containers/BitArray.h"
 
+#include "Math/NumericLimits.h"
+
 void FBitArrayMemory::MemmoveBitsWordOrder(uint32* StartDest, int32 DestOffset, const uint32* StartSource, int32 SourceOffset, uint32 NumBits)
 {
 	// Normalize Inputs

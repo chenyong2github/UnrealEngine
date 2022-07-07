@@ -2,13 +2,18 @@
 
 #pragma once 
 #include "Async/Fundamental/Task.h"
-#include "HAL/Thread.h"
-#include "HAL/Event.h"
-#include "HAL/PlatformProcess.h"
-#include "LocalQueue.h"
+#include "Async/Fundamental/TaskDelegate.h"
 #include "Containers/Array.h"
-#include "Templates/UniquePtr.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformAffinity.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Thread.h"
+#include "LocalQueue.h"
 #include "Templates/Function.h"
+#include "Templates/IsInvocable.h"
+#include "Templates/UniquePtr.h"
 
 namespace LowLevelTasks
 {

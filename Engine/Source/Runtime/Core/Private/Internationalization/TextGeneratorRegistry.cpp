@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/TextGeneratorRegistry.h"
+
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/UnrealTemplate.h"
 
 FTextGeneratorRegistry& FTextGeneratorRegistry::Get()
 {

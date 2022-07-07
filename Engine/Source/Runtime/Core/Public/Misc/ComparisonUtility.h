@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "UObject/NameTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
 
 namespace UE { namespace ComparisonUtility {
 

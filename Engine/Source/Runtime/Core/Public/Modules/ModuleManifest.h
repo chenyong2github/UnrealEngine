@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Modules/BuildVersion.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Modules/BuildVersion.h"
 
 /**
  * Stores a record of a built target, with all metadata that other tools may need to know about the build.

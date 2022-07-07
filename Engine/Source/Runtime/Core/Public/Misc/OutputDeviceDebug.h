@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/OutputDevice.h"
+#include "UObject/NameTypes.h"
 
 class CORE_API FOutputDeviceDebug : public FOutputDevice
 {

@@ -2,20 +2,23 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTemplate.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Misc/Parse.h"
-#include "UObject/NameTypes.h"
 #include "CoreGlobals.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/Guid.h"
-#include "Misc/CoreMisc.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Optional.h"
-#include "Misc/QualifiedFrameTime.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/CommandLine.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "Misc/Parse.h"
+#include "Misc/QualifiedFrameTime.h"
+#include "Misc/Timecode.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Provides information about the application.

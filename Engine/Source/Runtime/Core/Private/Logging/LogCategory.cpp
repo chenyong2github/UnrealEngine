@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Logging/LogCategory.h"
+
 #include "CoreGlobals.h"
+#include "CoreMinimal.h"
 #include "Logging/LogSuppressionInterface.h"
+#include "Logging/LogTrace.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceRedirector.h"
 

@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Templates/Function.h"
 #include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "Internationalization/ITextFormatArgumentModifier.h"
 #include "Internationalization/Text.h"
 #include "Misc/ExpressionParserTypes.h"
-#include "Internationalization/ITextFormatArgumentModifier.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SharedPointerInternals.h"
 
 struct FPrivateTextFormatArguments;
 

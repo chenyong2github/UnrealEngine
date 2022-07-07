@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Math/Vector2D.h"
+#include "Math/MathFwd.h"
 #include "Math/Vector.h"
+#include "Math/Vector2D.h"
 
 /**
  * Support for Sobol quasi-random numbers

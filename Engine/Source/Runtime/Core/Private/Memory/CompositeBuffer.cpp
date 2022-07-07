@@ -4,7 +4,12 @@
 
 #include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
+#include "HAL/PlatformString.h"
+#include "Math/UnrealMathUtility.h"
+#include "Memory/MemoryView.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/Function.h"
+#include "Templates/RemoveReference.h"
 
 void FCompositeBuffer::Reset()
 {

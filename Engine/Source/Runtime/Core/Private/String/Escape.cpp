@@ -2,6 +2,7 @@
 
 #include "String/Escape.h"
 
+#include "CoreTypes.h"
 #include "Misc/StringBuilder.h"
 #include "String/BytesToHex.h"
 

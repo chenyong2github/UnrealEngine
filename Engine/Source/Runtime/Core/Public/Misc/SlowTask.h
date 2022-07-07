@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
-#include "Misc/Optional.h"
 #include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+
+class FFeedbackContext;
 
 /** Enum to specify a particular slow task section should be shown */
 enum class ESlowTaskVisibility

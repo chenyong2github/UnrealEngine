@@ -5,15 +5,20 @@
 #include "Algo/Find.h"
 #include "Algo/FindLast.h"
 #include "Algo/Replace.h"
-#include "Containers/UnrealString.h"
+#include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/Char.h"
 #include "Misc/StringBuilder.h"
 #include "String/Find.h"
 #include "String/ParseTokens.h"
 #include "Templates/Function.h"
-#include "UObject/NameTypes.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE4PathViews_Private
 {

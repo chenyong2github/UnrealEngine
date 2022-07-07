@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Experimental/Async/LazyEvent.h"
+
 #include "HAL/PlatformProcess.h"
+#include "Math/NumericLimits.h"
 
 namespace UE::Core::Private
 {

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
+
+class FArchive;
 
 /**
  * Implements a helper structure for compression support

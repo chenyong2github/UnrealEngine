@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/OutputDevice.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Templates/SharedPointer.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
+#include "Misc/OutputDevice.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SlowTask.h"
 #include "Misc/SlowTaskStack.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 class FContextSupplier;
 class SBuildProgressWidget;
+struct FSlowTask;
 
 /** A context for displaying modal warning messages. */
 class CORE_API FFeedbackContext

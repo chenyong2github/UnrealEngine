@@ -1,24 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
-#include "Misc/EnumClassFlags.h"
-#include "UObject/NameTypes.h"
-#include "Logging/LogMacros.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformTLS.h"
-#include "Templates/Atomic.h"
+#include "Logging/LogMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/OutputDevice.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/Atomic.h"
+#include "UObject/NameTypes.h"
 
 #include <atomic>
 
 class Error;
-class FConfigCacheIni;
-class FFixedUObjectArray;
 class FChunkedFixedUObjectArray;
+class FConfigCacheIni;
+class FExec;
+class FFixedUObjectArray;
 class FOutputDeviceConsole;
 class FOutputDeviceRedirector;
+class FRunnableThread;
+class FText;
 class ITransaction;
+class UClass;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogHAL, Log, All);
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogSerialization, Log, All);
@@ -739,6 +744,7 @@ void CORE_API SetEmitDrawEvents(bool EmitDrawEvents);
 
 /** Array to help visualize weak pointers in the debugger */
 class FChunkedFixedUObjectArray;
+
 extern CORE_API FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers;
 
 /** Array to help visualize object paths in the debugger */
@@ -750,6 +756,7 @@ extern CORE_API UE::ObjectPath::Private::FStoredObjectPath* GCoreComplexObjectPa
 
 /** Array to help visualize object handles in the debugger */
 struct FObjectHandlePackageDebugData;
+
 extern CORE_API FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug;
 
 /** @return True if running cook-on-the-fly. */

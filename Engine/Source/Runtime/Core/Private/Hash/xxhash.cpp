@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Hash/xxhash.h"
+
+#include "Containers/ContainersFwd.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryView.h"
+#include "Memory/SharedBuffer.h"
 
 THIRD_PARTY_INCLUDES_START
 #define XXH_INLINE_ALL

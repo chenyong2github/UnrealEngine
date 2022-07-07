@@ -2,21 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/UnrealTemplate.h"
-#include "Math/NumericLimits.h"
 #include "Containers/Array.h"
-#include "Math/UnrealMathUtility.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Set.h"
+#include "Containers/IndirectArray.h"
 #include "Containers/Map.h"
-#include "Misc/Parse.h"
-#include "UObject/NameTypes.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "Containers/IndirectArray.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Parse.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Stats/StatsCommon.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 struct FEventData;
 

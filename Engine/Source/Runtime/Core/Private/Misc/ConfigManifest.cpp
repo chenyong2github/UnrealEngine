@@ -1,19 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/ConfigManifest.h"
-#include "Misc/EngineVersionBase.h"
-#include "Containers/UnrealString.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFileManager.h"
+
+#include "Containers/Map.h"
 #include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/ConfigCacheIni.h"
+#include "HAL/PlatformFile.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformProperties.h"
 #include "Misc/App.h"
-
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/EngineVersion.h"
-
+#include "Misc/EngineVersionBase.h"
+#include "Misc/Paths.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 enum class EConfigManifestVersion
 {

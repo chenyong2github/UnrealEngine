@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "HAL/Platform.h"
 #include "OodleDataCompression.h"
 
 // OodleDataCompressionUtil : utilities for common Unreal actions built on top of OodleDataCompression

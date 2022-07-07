@@ -2,6 +2,10 @@
 
 #include "String/LineEndings.h"
 
+#include "CoreTypes.h"
+#include "Misc/CString.h"
+#include "Templates/UnrealTemplate.h"
+
 namespace UE::String
 {
 	CORE_API FString FromHostLineEndings(const FString& InString)

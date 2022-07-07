@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Internationalization/FastDecimalFormat.h"
+#include "Misc/ExpressionParserTypes.h"
 #include "Misc/Optional.h"
 #include "Templates/ValueOrError.h"
-#include "Misc/ExpressionParserTypes.h"
-#include "Internationalization/FastDecimalFormat.h"
+
+struct FDecimalNumberFormattingRules;
 
 #define DEFINE_EXPRESSION_OPERATOR_NODE(EXPORTAPI, TYPE, ...) \
 namespace ExpressionParser {\

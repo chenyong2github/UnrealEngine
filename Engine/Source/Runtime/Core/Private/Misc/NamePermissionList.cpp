@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/NamePermissionList.h"
-#include "Misc/StringBuilder.h"
+
+#include "Templates/ChooseClass.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 
 bool FNamePermissionList::PassesFilter(const FName Item) const

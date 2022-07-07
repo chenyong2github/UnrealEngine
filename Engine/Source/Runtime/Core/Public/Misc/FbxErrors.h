@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
-#include "Templates/SharedPointer.h"
 #include "Logging/TokenizedMessage.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 
 /**

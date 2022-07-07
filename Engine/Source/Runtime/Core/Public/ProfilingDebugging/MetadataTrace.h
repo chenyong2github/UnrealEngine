@@ -1,8 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Trace/Trace.h"
 #include "ProfilingDebugging/StringsTrace.h"
+#include "Trace/Config.h"
+#include "Trace/Trace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 # if !defined(UE_TRACE_METADATA_ENABLED)

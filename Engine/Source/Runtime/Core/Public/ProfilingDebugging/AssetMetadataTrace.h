@@ -2,6 +2,11 @@
 #pragma once
 
 #include "MetadataTrace.h"
+#include "ProfilingDebugging/StringsTrace.h"
+#include "Trace/Detail/EventNode.h"
+#include "Trace/Trace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #if !defined(UE_TRACE_ASSET_METADATA_ENABLED) 

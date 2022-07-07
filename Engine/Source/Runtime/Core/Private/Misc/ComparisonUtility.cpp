@@ -2,6 +2,10 @@
 
 #include "Misc/ComparisonUtility.h"
 
+#include "Containers/StringView.h"
+#include "CoreTypes.h"
+#include "Misc/CString.h"
+
 namespace UE { namespace ComparisonUtility {
 
 int32 CompareWithNumericSuffix(FName A, FName B)

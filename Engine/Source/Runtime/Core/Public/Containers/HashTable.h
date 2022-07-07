@@ -2,16 +2,25 @@
 
 #pragma once
 
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
-#include "Containers/ContainerAllocationPolicies.h"
-#include "Serialization/MemoryImageWriter.h"
-#include "Serialization/MemoryLayout.h"
-#include "Serialization/MemoryImageWriter.h"
-#include "Containers/ContainerAllocationPolicies.h"
-#include "Misc/AssertionMacros.h"
+#include "HAL/PlatformAtomics.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/MemoryImageWriter.h"
+#include "Serialization/MemoryImageWriter.h"
+#include "Serialization/MemoryLayout.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/UnrealTemplate.h"
+
 #include <initializer_list>
+
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
+class FPointerTableBase;
+class FSHA1;
 
 static FORCEINLINE uint32 MurmurFinalize32(uint32 Hash)
 {

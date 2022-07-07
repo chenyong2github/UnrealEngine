@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Unix/UnixPlatformOutputDevices.h"
-#include "Containers/StringConv.h"
-#include "Logging/LogMacros.h"
+
 #include "CoreGlobals.h"
-#include "Misc/Parse.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
-#include "Misc/OutputDeviceHelper.h"
-#include "Misc/CoreDelegates.h"
-#include "Misc/App.h"
 #include "Misc/OutputDeviceConsole.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
 #include "Unix/UnixErrorOutputDevice.h"
+
+class FOutputDeviceError;
 
 void FUnixOutputDevices::SetupOutputDevices()
 {

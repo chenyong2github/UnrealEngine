@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "CoreTypes.h"
 #include "IO/IoHash.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/TVariant.h"
 #include "Serialization/CompactBinary.h"
+#include "Templates/Function.h"
 #include "Templates/UnrealTemplate.h"
 
 class FArchive;

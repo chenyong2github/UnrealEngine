@@ -2,6 +2,9 @@
 
 #include "ProfilingDebugging/Histogram.h"
 
+#include "Logging/LogCategory.h"
+#include "Templates/Function.h"
+
 DEFINE_LOG_CATEGORY(LogHistograms);
 
 //////////////////////////////////////////////////////////////////////

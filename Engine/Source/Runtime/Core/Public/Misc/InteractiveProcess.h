@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Queue.h"
 #include "Containers/UnrealString.h"
-#include "Misc/Timespan.h"
-#include "Logging/LogMacros.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/DateTime.h"
+#include "Delegates/DelegateBase.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
-#include "Containers/Queue.h"
+#include "Logging/LogMacros.h"
+#include "Misc/DateTime.h"
+#include "Misc/Timespan.h"
+
+class FRunnableThread;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInteractiveProcess, Log, All);
 

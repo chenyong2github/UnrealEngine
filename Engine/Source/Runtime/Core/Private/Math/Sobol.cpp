@@ -3,6 +3,12 @@
 
 #include "Math/Sobol.h"
 
+#include "Math/IntPoint.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+
 float FSobol::Evaluate(int32 Index, int32 Dim, int32 Seed)
 {
 	check(Dim >= 0 && Dim <= MaxDimension);

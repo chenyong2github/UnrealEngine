@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Misc/NoopCounter.h"
+#include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/NoopCounter.h"
 #include "Templates/AlignmentTemplates.h"
+#include "Templates/Function.h"
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogLockFreeList, Log, All);
 

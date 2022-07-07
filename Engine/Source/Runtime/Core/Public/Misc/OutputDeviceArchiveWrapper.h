@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/OutputDevice.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/OutputDevice.h"
+
+class FArchive;
 
 /**
 * Output device wrapping any kind of FArchive.  Note: Works in any build configuration.

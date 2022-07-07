@@ -2,9 +2,21 @@
 
 #pragma once
 
-#include "Serialization/StructuredArchiveFormatter.h"
-#include "Serialization/Archive.h"
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveFormatter.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+
+class FName;
+class FString;
+class FText;
+class UObject;
+struct FLazyObjectPtr;
+struct FObjectPtr;
+struct FSoftObjectPath;
+struct FSoftObjectPtr;
+struct FWeakObjectPtr;
 
 class CORE_API FBinaryArchiveFormatter final : public FStructuredArchiveFormatter
 {

@@ -1,15 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/UnrealString.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/Optional.h"
+#include "Delegates/DelegateBase.h"
 #include "Internationalization/Text.h"
-#include "Misc/ExpressionParserTypes.h"
 #include "Misc/ExpressionParser.h"
+#include "Misc/ExpressionParserTypes.h"
+#include "Misc/Optional.h"
 #include "Misc/TextFilterUtils.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 class FTextToken;
 

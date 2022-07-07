@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/LocalTimestampDirectoryVisitor.h"
+
 #include "Misc/Paths.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
 
 /* FLocalTimestampVisitor structors
  *****************************************************************************/

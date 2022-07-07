@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/PackageId.h"
-#include "Serialization/StructuredArchive.h"
+
+#include "Hash/CityHash.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 FPackageId FPackageId::FromName(const FName& Name)
 {

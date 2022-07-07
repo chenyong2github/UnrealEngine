@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Delegates/Delegate.h"
-#include "Templates/SharedPointer.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/MpscQueue.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 #include <atomic>
 

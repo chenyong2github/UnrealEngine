@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include <atomic>
-#include "CoreMinimal.h"
-#include "Templates/UnrealTemplate.h"
-#include "Templates/SharedPointer.h"
-#include "Misc/MemStack.h"
-#include "Async/TaskTrace.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Async/Fundamental/Scheduler.h"
-#include "CoroutineHandle.h"
+#include "Async/Fundamental/Task.h"
+#include "Async/TaskTrace.h"
+#include "CoreMinimal.h"
 #include "CoroLocalVariable.h"
+#include "CoroutineHandle.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
+#include "Misc/MemStack.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+#include <atomic>
 
 #if WITH_CPP_COROUTINES
 

@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTemplate.h"
-#include "Misc/Crc.h"
-#include "Containers/UnrealString.h"
+#include "Containers/Array.h"
 #include "Containers/Set.h"
-#include "UObject/NameTypes.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Misc/Crc.h"
 #include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "Serialization/StructuredArchive.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
+class FArchive;
 class FCustomVersionContainer;
 struct FCustomVersion;
 

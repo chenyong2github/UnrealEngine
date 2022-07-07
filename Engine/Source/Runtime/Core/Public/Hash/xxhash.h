@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/ArrayView.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/MemoryFwd.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
+
+class FCompositeBuffer;
+template <typename CharType> class TStringBuilderBase;
 
 /** A 64-bit hash from XXH3. */
 struct FXxHash64

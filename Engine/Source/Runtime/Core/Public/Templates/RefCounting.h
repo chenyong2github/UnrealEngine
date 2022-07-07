@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/ThreadSafeCounter.h"
 #include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryLayout.h"
-#include "HAL/PlatformAtomics.h"
+#include "Templates/TypeHash.h"
 
 /** A virtual interface for ref counted objects to implement. */
 class IRefCountedObject

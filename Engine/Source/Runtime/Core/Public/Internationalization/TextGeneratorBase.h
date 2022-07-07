@@ -3,6 +3,8 @@
 
 #include "CoreTypes.h"
 #include "ITextGenerator.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Base class implementation for ITextGenerator.

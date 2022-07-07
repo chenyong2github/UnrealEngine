@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Logging/LogVerbosity.h"
+#include "Delegates/Delegate.h"
 #include "HAL/PlatformMisc.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreDelegates.h"
+
+class FText;
 
 // By default we bubble up runtime errors to the editor or log under the same circumstances as we assert with check/ensure
 #if !defined(UE_RAISE_RUNTIME_ERRORS)

@@ -23,8 +23,8 @@
 #define UE_WITH_HEAPARENA	0
 #define UE_WITH_ARENAMAP	0
 
-class FMemoryArena;
 class FHeapArena;
+class FMemoryArena;
 
 /** Tagged Arena Pointer
 

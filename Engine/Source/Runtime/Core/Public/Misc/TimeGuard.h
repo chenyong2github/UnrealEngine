@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Map.h"
 #include "CoreGlobals.h"
-#include "Misc/DateTime.h"
-#include "HAL/PlatformTime.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "HAL/PlatformTime.h"
+#include "Misc/DateTime.h"
 
 #ifndef DO_TIMEGUARD
 	// By default we are disabled, DO_TIMEGUARD can be set in XXX.Target.cs if so desired%

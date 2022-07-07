@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
+#include "CoreTypes.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Invoke.h"
 #include "Templates/TypeHash.h"
@@ -13,6 +14,9 @@
 
 #include <atomic>
 #include <type_traits>
+
+template <typename T> struct TIsWeakPointerType;
+template <typename T> struct TIsZeroConstructType;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

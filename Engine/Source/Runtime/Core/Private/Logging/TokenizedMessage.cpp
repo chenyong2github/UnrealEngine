@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Logging/TokenizedMessage.h"
+
+#include "CoreTypes.h"
+#include "Delegates/DelegateInstancesImpl.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/Internationalization.h"
 

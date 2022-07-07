@@ -2,6 +2,11 @@
 
 #include "ProfilingDebugging/ResourceSize.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/OutputDevice.h"
+
 FResourceSizeEx::FResourceSizeEx()
 	: ResourceSizeMode(EResourceSizeMode::Exclusive)
 {

@@ -5,11 +5,19 @@
 =============================================================================*/
 
 #include "Serialization/CustomVersion.h"
-#include "Serialization/StructuredArchive.h"
+
 #include "Algo/Sort.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeRWLock.h"
-#include "CoreGlobals.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "UObject/UnrealNames.h"
 
 namespace
 {

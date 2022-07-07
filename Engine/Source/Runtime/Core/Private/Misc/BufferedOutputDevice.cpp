@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/BufferedOutputDevice.h"
+
+#include "CoreTypes.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/UnrealTemplate.h"
 
 void FBufferedOutputDevice::Serialize(const TCHAR* InData, ELogVerbosity::Type Verbosity, const class FName& Category)
 {

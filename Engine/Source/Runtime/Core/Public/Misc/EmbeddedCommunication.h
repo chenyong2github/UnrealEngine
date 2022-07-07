@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Delegates/MulticastDelegateBase.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 typedef TMap<FString, FString> FEmbeddedCommunicationMap;
 

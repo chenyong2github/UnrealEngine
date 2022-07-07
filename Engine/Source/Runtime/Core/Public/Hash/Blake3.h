@@ -4,14 +4,21 @@
 
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformString.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
 #include "String/HexToBytes.h"
+#include "Templates/TypeCompatibleBytes.h"
 
 class FArchive;
+class FCompositeBuffer;
+template <typename CharType> class TStringBuilderBase;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

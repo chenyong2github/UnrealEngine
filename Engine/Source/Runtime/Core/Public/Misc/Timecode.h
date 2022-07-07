@@ -4,6 +4,8 @@
 
 #include "Containers/UnrealString.h"
 #include "GenericPlatform/GenericPlatformMath.h"
+#include "HAL/Platform.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timespan.h"

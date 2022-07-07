@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Memory/VirtualStackAllocator.h"
-#include "Templates/AlignmentTemplates.h"
+
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMemory.h"
 
 LLM_DEFINE_TAG(VirtualStackAllocator);
 

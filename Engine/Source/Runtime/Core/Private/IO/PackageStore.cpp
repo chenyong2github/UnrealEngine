@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/PackageStore.h"
-#include "Serialization/StructuredArchive.h"
+
+#include "Containers/StringView.h"
+#include "IO/PackageId.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 

@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoDirectoryIndex.h"
+
+#include "Containers/ArrayView.h"
+#include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/Paths.h"
-#include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 namespace IoDirectoryIndexUtils
 {

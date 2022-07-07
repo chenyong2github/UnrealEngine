@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Unix/UnixCriticalSection.h"
-#include "Misc/DateTime.h"
+
+#include "Containers/StringConv.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
-#include "Containers/StringConv.h"
-#include <spawn.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <sys/ioctl.h>
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+
+#include <fcntl.h>
+#include <float.h>
 #include <sys/file.h>
-#include <asm/ioctls.h>
+#include <unistd.h>
 
 FUnixSystemWideCriticalSection::FUnixSystemWideCriticalSection(const FString& InName, FTimespan InTimeout)
 {

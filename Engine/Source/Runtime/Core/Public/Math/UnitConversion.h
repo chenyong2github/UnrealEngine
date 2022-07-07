@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Misc/Optional.h"
+#include "Delegates/DelegateBase.h"
 #include "Internationalization/Text.h"
+#include "Misc/Optional.h"
 #include "Templates/ValueOrError.h"
 
+class FText;
 template<typename NumericType> struct FNumericUnit;
 
 /** Enum *must* be zero-indexed and sequential. Must be grouped by relevance and ordered by magnitude. */

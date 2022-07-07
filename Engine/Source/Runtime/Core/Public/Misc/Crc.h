@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/PlatformString.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/Char.h"
 #include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Templates/EnableIf.h"
 
 
 /** 

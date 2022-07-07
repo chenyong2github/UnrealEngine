@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/SlowTask.h"
+
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/SlowTaskStack.h"
 
 bool FSlowTask::ShouldCreateThrottledSlowTask()
 {

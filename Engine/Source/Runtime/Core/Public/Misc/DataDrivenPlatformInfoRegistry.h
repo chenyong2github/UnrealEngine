@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
 #include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "Misc/Guid.h"
 #include "UObject/NameTypes.h"
-#include "Internationalization/Text.h"
+#include "UObject/UnrealNames.h"
+
+class FConfigFile;
 
 #define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA (WITH_EDITOR || IS_PROGRAM)
 

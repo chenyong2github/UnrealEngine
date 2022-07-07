@@ -1,15 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Guid.h"
+
 #include "Algo/Replace.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StaticArray.h"
-#include "Misc/ByteSwap.h"
-#include "Misc/Parse.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformString.h"
 #include "Math/Int128.h"
-#include "UObject/PropertyPortFlags.h"
 #include "Misc/Base64.h"
+#include "Misc/ByteSwap.h"
+#include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Misc/Parse.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "UObject/PropertyPortFlags.h"
 
 
 /* FGuid interface

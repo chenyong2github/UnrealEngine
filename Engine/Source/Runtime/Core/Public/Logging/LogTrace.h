@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Config.h"
+#include "Logging/LogVerbosity.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Trace/Config.h"
+#include "Trace/Trace.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 #if !defined(LOGTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING

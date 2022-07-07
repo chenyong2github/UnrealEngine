@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "CoreFwd.h"
+
+class FConfigFile;
 
 enum class EConfigManifestVersion;
 

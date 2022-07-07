@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Algo/KahnTopologicalSort.h"
+#include "CoreMinimal.h"
 
 namespace Algo
 {

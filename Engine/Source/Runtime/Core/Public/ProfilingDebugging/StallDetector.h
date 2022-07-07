@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-
-#include "Containers/UnrealString.h"
+#include "Containers/Array.h"
 #include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "Logging/LogMacros.h"

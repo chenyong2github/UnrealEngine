@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Math/MathFwd.h"
 #include "Math/UnrealMathUtility.h"
 
 #if !WITH_DIRECTXMATH && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON && !(defined(__cplusplus_cli) && !PLATFORM_HOLOLENS) && PLATFORM_ENABLE_VECTORINTRINSICS

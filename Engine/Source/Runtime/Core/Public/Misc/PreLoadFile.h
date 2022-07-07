@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Misc/DelayedAutoRegister.h"
 
+class FEvent;
+
 struct CORE_API FPreLoadFile : public FDelayedAutoRegisterHelper
 {
 	FPreLoadFile(const TCHAR* InPath);

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/EngineBuildSettings.h"
+
+#include "CoreTypes.h"
 #include "Misc/Paths.h"
 
 

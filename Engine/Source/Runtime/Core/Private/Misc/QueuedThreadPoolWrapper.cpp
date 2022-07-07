@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "Misc/ScopeRWLock.h"
-#include "Misc/IQueuedWork.h"
-#include "ProfilingDebugging/CountersTrace.h"
+
 #include "HAL/PlatformProcess.h"
+#include "Misc/IQueuedWork.h"
+#include "Misc/QueuedThreadPool.h"
+#include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 TRACE_DECLARE_INT_COUNTER(QueuedThreadPoolWrapperScheduledWorkAllocs, TEXT("QueuedThreadPoolWrapper/ScheduledWorkAllocs"));
 
