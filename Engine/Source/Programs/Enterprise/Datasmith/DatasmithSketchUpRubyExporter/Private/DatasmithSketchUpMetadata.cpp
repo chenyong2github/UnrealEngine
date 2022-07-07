@@ -92,14 +92,30 @@ FMetadata::FMetadata(
 			size_t SSchemaCount = 0;
 			SUClassificationInfoGetNumSchemas(SClassificationInfoRef, &SSchemaCount);
 
+			TArray<FString> ClassificationSchemaTypes;
+			ClassificationSchemaTypes.Reserve(SSchemaCount);
+
 			for (int32 SSchemaNo = 0; SSchemaNo < SSchemaCount; SSchemaNo++)
 			{
+				SUStringRef ShemaTypeStringRef = SU_INVALID;
+				SUStringCreate(&ShemaTypeStringRef);
+				SUClassificationInfoGetSchemaType(SClassificationInfoRef, SSchemaNo, &ShemaTypeStringRef);
+				FString SchemaType = SuConvertString(ShemaTypeStringRef);
+				SUStringRelease(&ShemaTypeStringRef);
+				ClassificationSchemaTypes.Add(SchemaType);
+
+
 				// Retrieve the SketchUp classification schema attribute.
 				SUClassificationAttributeRef SSchemaAttributeRef = SU_INVALID;
 				SUClassificationInfoGetSchemaAttribute(SClassificationInfoRef, SSchemaNo, &SSchemaAttributeRef); // we can ignore the returned SU_RESULT
 
 				// Retrieve the key-value pairs of the SketchUp classification schema.
 				ScanClassificationSchema(SSchemaAttributeRef);
+			}
+
+			if (SSchemaCount > 0)
+			{
+				MetadataKeyValueMap.Add(TEXT("ClassificationSchemaTypes"), FString::Join(ClassificationSchemaTypes, TEXT(",")));
 			}
 
 			// Release the SketchUp component classification info.
