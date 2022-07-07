@@ -4,6 +4,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "Templates/SubclassOf.h"
+#include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "ContextualAnimTypes.generated.h"
 
