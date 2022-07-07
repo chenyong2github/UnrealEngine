@@ -6,8 +6,9 @@
 #include "MeshTypes.h"
 #include "MeshDescription.h"
 
-
 namespace MeshOperator
 {
-	bool OrientMesh(FMeshDescription& MeshDescription);
+
+bool OrientMesh(FMeshDescription& MeshDescription);
+
 }
