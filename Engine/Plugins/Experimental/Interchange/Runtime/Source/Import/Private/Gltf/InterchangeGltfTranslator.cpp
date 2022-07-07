@@ -15,6 +15,8 @@
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTexture2DNode.h"
 
+#include "Texture/InterchangeImageWrapperTranslator.h"
+
 #include "Algo/Find.h"
 #include "StaticMeshAttributes.h"
 #include "UObject/GCObjectScopeGuard.h"
@@ -41,7 +43,9 @@ namespace UE::Interchange::Gltf::Private
 		}
 		else
 		{
-			return GenerateNameForGltfNode( FPaths::GetBaseFilename( Texture.Source.URI ), NodeIndex );
+			// If texture has no URI, we consider it an embedded texture (coming from a .glb file)
+			const FString NodeName = Texture.Source.URI.IsEmpty() ? "EmbeddedTexture" : FPaths::GetBaseFilename(Texture.Source.URI);
+			return GenerateNameForGltfNode(NodeName, NodeIndex);
 		}
 	}
 
@@ -888,23 +892,33 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 	}
 
 	const GLTF::FTexture& GltfTexture = GltfAsset.Textures[ TextureIndex ];
-	const FString TextureFilePath = FPaths::ConvertRelativePathToFull( GltfTexture.Source.FilePath );
 
-	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData( TextureFilePath );
-	FGCObjectScopeGuard ScopedSourceData( PayloadSourceData );
-	
-	if ( !PayloadSourceData )
+	if (GltfTexture.Source.FilePath.IsEmpty())
 	{
-		return TOptional<UE::Interchange::FImportImage>();
+		// Embedded texture -- try using ImageWrapper to decode it
+		TArray64<uint8> ImageData(GltfTexture.Source.Data, GltfTexture.Source.DataByteLength);
+		return UInterchangeImageWrapperTranslator::GetTexturePayloadDataFromBuffer(ImageData);
 	}
-
-	UInterchangeTranslatorBase* SourceTranslator = UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData( PayloadSourceData );
-	FGCObjectScopeGuard ScopedSourceTranslator( SourceTranslator );
-	const IInterchangeTexturePayloadInterface* TextureTranslator = Cast< IInterchangeTexturePayloadInterface >( SourceTranslator );
-	if ( !ensure( TextureTranslator ) )
+	else
 	{
-		return TOptional<UE::Interchange::FImportImage>();
-	}
+		const FString TextureFilePath = FPaths::ConvertRelativePathToFull(GltfTexture.Source.FilePath);
 
-	return TextureTranslator->GetTexturePayloadData( PayloadSourceData, TextureFilePath );
+		UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(TextureFilePath);
+		FGCObjectScopeGuard ScopedSourceData(PayloadSourceData);
+
+		if (!PayloadSourceData)
+		{
+			return TOptional<UE::Interchange::FImportImage>();
+		}
+
+		UInterchangeTranslatorBase* SourceTranslator = UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData(PayloadSourceData);
+		FGCObjectScopeGuard ScopedSourceTranslator(SourceTranslator);
+		const IInterchangeTexturePayloadInterface* TextureTranslator = Cast< IInterchangeTexturePayloadInterface >(SourceTranslator);
+		if (!ensure(TextureTranslator))
+		{
+			return TOptional<UE::Interchange::FImportImage>();
+		}
+
+		return TextureTranslator->GetTexturePayloadData(PayloadSourceData, TextureFilePath);
+	}
 }

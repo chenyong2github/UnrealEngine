@@ -71,6 +71,11 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
+	return GetTexturePayloadDataFromBuffer(SourceDataBuffer);
+}
+
+TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer)
+{
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
 
@@ -151,4 +156,3 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 
 	return PayloadData;
 }
-
