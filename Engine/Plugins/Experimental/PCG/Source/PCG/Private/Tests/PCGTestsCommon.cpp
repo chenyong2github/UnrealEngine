@@ -2,7 +2,8 @@
 
 #include "Tests/PCGTestsCommon.h"
 
-#include "PCGHelpers.h"
+#include "PCGComponent.h"
+#include "PCGGraph.h"
 #include "PCGParamData.h"
 #include "PCGSettings.h"
 #include "Data/PCGPointData.h"
@@ -11,10 +12,70 @@
 #include "Data/PCGSurfaceData.h"
 #include "Data/PCGVolumeData.h"
 
-#include "GameFramework/Actor.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Engine/World.h"
+#endif
 
 namespace PCGTestsCommon
 {
+	FTestData::FTestData(int32 RandomSeed, UPCGSettings* DefaultSettings, TSubclassOf<AActor> ActorClass)
+		: Settings(DefaultSettings)
+		, Seed(RandomSeed)
+		, RandomStream(Seed)
+	{
+#if WITH_EDITOR
+		check(GEditor);
+		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+		check(EditorWorld);
+
+		// No getting the level dirty
+		FActorSpawnParameters TransientActorParameters;
+		TransientActorParameters.bHideFromSceneOutliner = true;
+		TransientActorParameters.bTemporaryEditorActor = true;
+		TransientActorParameters.ObjectFlags = RF_Transient;
+		TestActor = EditorWorld->SpawnActor<AActor>(ActorClass, TransientActorParameters);
+		check(TestActor);
+
+		TestPCGComponent = NewObject<UPCGComponent>(TestActor, FName(TEXT("Test PCG Component")), RF_Transient);
+		check(TestPCGComponent);
+		TestActor->AddInstanceComponent(TestPCGComponent);
+		TestPCGComponent->RegisterComponent();
+
+		UPCGGraph* TestGraph = NewObject<UPCGGraph>(TestPCGComponent, FName(TEXT("Test PCG Graph")), RF_Transient);
+		check(TestGraph);
+		TestPCGComponent->SetGraph(TestGraph);
+#else
+		TestActor = nullptr;
+		TestPCGComponent = nullptr;
+		Settings = nullptr;
+#endif
+	}
+
+	FTestData::~FTestData()
+	{
+#if WITH_EDITOR
+		if (GEditor)
+		{
+			if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+			{
+				if (TestActor)
+				{
+					EditorWorld->DestroyActor(TestActor);
+				}
+			}
+		}
+#endif // WITH_EDITOR
+	}
+
+	void FTestData::Reset()
+	{
+		// Clear all the data
+		RandomStream.Reset();
+		InputData.TaggedData.Empty();
+		Settings = nullptr;
+	}
+
 	AActor* CreateTemporaryActor()
 	{
 		return NewObject<AActor>();

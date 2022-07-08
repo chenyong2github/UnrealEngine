@@ -130,7 +130,7 @@ void ValidateOutPointData(
 
 void TestMeshSelectorByAttribute(
 	FPCGStaticMeshSpawnerByAttributeTest* Test, 
-	const PCGDeterminismTests::FTestData& TestData, 
+	const PCGTestsCommon::FTestData& TestData, 
 	const FName& AttributeName, 
 	const TArray<FPCGByAttributeValidationData>& ValidationDataEntries,
 	bool bValidateOutput=false)
@@ -258,7 +258,7 @@ void TestMeshSelectorByAttribute(
 
 void TestMeshSelectorWeighted(
 	FPCGStaticMeshSpawnerWeightedTest* Test, 
-	const PCGDeterminismTests::FTestData& TestData, 
+	const PCGTestsCommon::FTestData& TestData, 
 	const TArray<FPCGMeshSelectorWeightedEntry>& Entries, 
 	int PointCount,
 	bool bValidateOutput=false)
@@ -347,7 +347,7 @@ void TestMeshSelectorWeighted(
 
 void TestMeshSelectorWeightedByCategory(
 	FPCGStaticMeshSpawnerWeightedByCategoryTest* Test, 
-	const PCGDeterminismTests::FTestData& TestData, 
+	const PCGTestsCommon::FTestData& TestData, 
 	const FName& AttributeName, 
 	const TArray<FPCGWeightedByCategoryEntryList>& Entries, 
 	const TArray<FPCGWeightedByCategoryValidationData>& ValidationDataEntries,
@@ -430,7 +430,7 @@ void TestMeshSelectorWeightedByCategory(
 
 bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
 {
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGStaticMeshSpawnerSettings>(TestData);
 
 	// create test attribute data
@@ -520,7 +520,7 @@ bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
 
 bool FPCGStaticMeshSpawnerWeightedTest::RunTest(const FString& Parameters)
 {
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGStaticMeshSpawnerSettings>(TestData);
 
 	// create test meshes
@@ -589,7 +589,7 @@ bool FPCGStaticMeshSpawnerWeightedTest::RunTest(const FString& Parameters)
 
 bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Parameters)
 {
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGStaticMeshSpawnerSettings>(TestData);
 
 	// create test meshes

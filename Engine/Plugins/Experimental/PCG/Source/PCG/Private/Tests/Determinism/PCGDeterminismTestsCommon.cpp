@@ -17,55 +17,10 @@
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
 
-#if WITH_EDITOR
-#include "Editor.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 
 namespace PCGDeterminismTests
 {
-	FTestData::FTestData(int32 RandomSeed, UPCGSettings* DefaultSettings) :
-		Settings(DefaultSettings),
-		Seed(RandomSeed),
-		RandomStream(Seed)
-	{
-#if WITH_EDITOR
-		check(GEditor);
-		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-		check(EditorWorld);
-
-		// No getting the level dirty
-		FActorSpawnParameters TransientActorParameters;
-		TransientActorParameters.bHideFromSceneOutliner = true;
-		TransientActorParameters.bTemporaryEditorActor = true;
-		TransientActorParameters.ObjectFlags = RF_Transient;
-		TestActor = EditorWorld->SpawnActor<AActor>(AActor::StaticClass(), TransientActorParameters);
-		check(TestActor);
-
-		TestPCGComponent = NewObject<UPCGComponent>(TestActor, FName(TEXT("Test PCG Component")), RF_Transient);
-		check(TestPCGComponent);
-		TestActor->AddInstanceComponent(TestPCGComponent);
-		TestPCGComponent->RegisterComponent();
-
-		UPCGGraph* TestGraph = NewObject<UPCGGraph>(TestPCGComponent, FName(TEXT("Test PCG Graph")), RF_Transient);
-		check(TestGraph);
-		TestPCGComponent->SetGraph(TestGraph);
-#else
-		TestActor = nullptr;
-		TestPCGComponent = nullptr;
-		Settings = nullptr;
-#endif
-	}
-
-	void FTestData::Reset()
-	{
-		// Clear all the data
-		RandomStream.Reset();
-		InputData.TaggedData.Empty();
-		Settings = nullptr;
-	}
-
 	bool LogInvalidTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attempting to run an invalid determinism test"));
@@ -100,7 +55,7 @@ namespace PCGDeterminismTests
 
 	bool RunSingleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData TestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData TestData(Seed, InPCGNode->DefaultSettings);
 
 		// Generate random input data
 		AddInputDataBasedOnPins(TestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
@@ -110,8 +65,8 @@ namespace PCGDeterminismTests
 
 	bool RunSingleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
-		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
 
 		AddInputDataBasedOnPins(FirstTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
 		AddInputDataBasedOnPins(SecondTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
@@ -121,7 +76,7 @@ namespace PCGDeterminismTests
 
 	bool RunMultipleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData TestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData TestData(Seed, InPCGNode->DefaultSettings);
 
 		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
 		{
@@ -133,8 +88,8 @@ namespace PCGDeterminismTests
 
 	bool RunMultipleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
-		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
 
 		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
 		{
@@ -147,8 +102,8 @@ namespace PCGDeterminismTests
 
 	bool RunDataCollectionOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
-		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
 
 		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
 		{
@@ -163,8 +118,8 @@ namespace PCGDeterminismTests
 
 	bool RunAllDataOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
-		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		PCGTestsCommon::FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
 
 		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
 		{
@@ -178,7 +133,7 @@ namespace PCGDeterminismTests
 		return ExecutionIsDeterministic(FirstTestData, SecondTestData, InPCGNode);
 	}
 
-	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* PCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	void AddInputDataBasedOnPins(PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
 		check(PCGNode);
 
@@ -275,7 +230,7 @@ namespace PCGDeterminismTests
 		TaggedData.Pin = PinName;
 	}
 
-	void AddRandomizedSinglePointInputData(FTestData& TestData, int32 PointNum, const FName& PinName)
+	void AddRandomizedSinglePointInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum, const FName& PinName)
 	{
 		check(PointNum > 0);
 		for (int32 I = 0; I < PointNum; ++I)
@@ -284,7 +239,7 @@ namespace PCGDeterminismTests
 		}
 	}
 
-	void AddRandomizedMultiplePointInputData(FTestData& TestData, int32 PointNum, const FName& PinName)
+	void AddRandomizedMultiplePointInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum, const FName& PinName)
 	{
 		check(PointNum > 0);
 
@@ -301,7 +256,7 @@ namespace PCGDeterminismTests
 		AddMultiplePointsInputData(TestData.InputData, Points, PinName);
 	}
 
-	void AddRandomizedVolumeInputData(FTestData& TestData, const FName& PinName)
+	void AddRandomizedVolumeInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName)
 	{
 		AddVolumeInputData(TestData.InputData,
 			TestData.RandomStream.VRand() * Defaults::MediumDistance,
@@ -310,12 +265,12 @@ namespace PCGDeterminismTests
 			PinName);
 	}
 
-	void AddRandomizedSurfaceInputData(FTestData& TestData, const FName& PinName)
+	void AddRandomizedSurfaceInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName)
 	{
 		// TODO: PCG doesn't currently generate Surface data; function remains for future scalability
 	}
 
-	void AddRandomizedPolyLineInputData(FTestData& TestData, int32 PointNum, const FName& PinName)
+	void AddRandomizedPolyLineInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum, const FName& PinName)
 	{
 		check(TestData.TestActor);
 		USplineComponent* TestSplineComponent = Cast<USplineComponent>(TestData.TestActor->GetComponentByClass(USplineComponent::StaticClass()));
@@ -339,7 +294,7 @@ namespace PCGDeterminismTests
 		AddPolyLineInputData(TestData.InputData, TestSplineComponent, PinName);
 	}
 
-	void AddRandomizedPrimitiveInputData(FTestData& TestData, const FName& PinName)
+	void AddRandomizedPrimitiveInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName)
 	{
 		check(TestData.TestActor);
 		UPrimitiveComponent* TestPrimitiveComponent = Cast<UPrimitiveComponent>(TestData.TestActor->GetComponentByClass(UPrimitiveComponent::StaticClass()));
@@ -656,12 +611,12 @@ namespace PCGDeterminismTests
 		return Data && Data->IsA<UPCGPointData>();
 	}
 
-	void ShuffleInputOrder(FTestData& TestData)
+	void ShuffleInputOrder(PCGTestsCommon::FTestData& TestData)
 	{
 		ShuffleArray<FPCGTaggedData>(TestData.InputData.TaggedData, TestData.RandomStream);
 	}
 
-	void ShuffleAllInternalData(FTestData& TestData)
+	void ShuffleAllInternalData(PCGTestsCommon::FTestData& TestData)
 	{
 		for (FPCGTaggedData& TaggedData : TestData.InputData.TaggedData)
 		{
@@ -692,7 +647,7 @@ namespace PCGDeterminismTests
 		}
 	}
 
-	bool ExecutionIsDeterministic(const FTestData& FirstTestData, const FTestData& SecondTestData, const UPCGNode* PCGNode)
+	bool ExecutionIsDeterministic(const PCGTestsCommon::FTestData& FirstTestData, const PCGTestsCommon::FTestData& SecondTestData, const UPCGNode* PCGNode)
 	{
 		FPCGElementPtr FirstElement = FirstTestData.Settings->GetElement();
 		FPCGElementPtr SecondElement = SecondTestData.Settings->GetElement();
@@ -715,7 +670,7 @@ namespace PCGDeterminismTests
 		return DataCollectionsAreIdentical(FirstContext->OutputData, SecondContext->OutputData);
 	}
 
-	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode)
+	bool ExecutionIsDeterministicSameData(PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode)
 	{
 		return ExecutionIsDeterministic(TestData, TestData, PCGNode);
 	}

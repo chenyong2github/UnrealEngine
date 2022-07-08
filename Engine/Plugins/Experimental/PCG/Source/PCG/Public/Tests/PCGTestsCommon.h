@@ -2,24 +2,41 @@
 
 #pragma once
 
+#include "PCGData.h"
+
+#include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
 
-class AActor;
+class UPCGComponent;
 class UPCGParamData;
 class UPCGPointData;
 class UPCGPolyLineData;
 class UPCGPrimitiveData;
+class UPCGSettings;
 class UPCGSurfaceData;
 class UPCGVolumeData;
-class UPCGSettings;
-struct FPCGDataCollection;
 struct FPCGPinProperties;
 struct FPCGPoint;
 
 namespace PCGTestsCommon
 {
 	static const int TestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+
+	struct FTestData
+	{
+		FTestData(int32 Seed, UPCGSettings* DefaultSettings = nullptr, TSubclassOf<AActor> ActorClass = AActor::StaticClass());
+		~FTestData();
+
+		void Reset();
+
+		AActor* TestActor;
+		UPCGComponent* TestPCGComponent;
+		FPCGDataCollection InputData;
+		UPCGSettings* Settings;
+		int32 Seed;
+		FRandomStream RandomStream;
+	};
 
 	AActor* CreateTemporaryActor();
 	UPCGPointData* CreateEmptyPointData();

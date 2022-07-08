@@ -38,7 +38,7 @@ namespace PCGPropertyToParamDataHelpers
 		case EPCGActorSelection::ByName:
 			return [ActorSelectionName = InSettings->ActorSelectionName, &InFoundActor](AActor* Actor) -> bool
 				{
-					if (Actor->GetName() == ActorSelectionName)
+					if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false))
 					{
 						InFoundActor = Actor;
 						return false;
@@ -91,7 +91,7 @@ namespace PCGPropertyToParamDataHelpers
 
 		// Early out if we have not the information necessary
 		if ((Settings->ActorSelection == EPCGActorSelection::ByTag && Settings->ActorSelectionTag == NAME_None) ||
-			(Settings->ActorSelection == EPCGActorSelection::ByName && Settings->ActorSelectionName.IsEmpty()) ||
+			(Settings->ActorSelection == EPCGActorSelection::ByName && Settings->ActorSelectionName == NAME_None) ||
 			(Settings->ActorSelection == EPCGActorSelection::ByClass && !Settings->ActorSelectionClass))
 		{
 			return FoundActor;
@@ -220,8 +220,6 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-
 	// First find the actor depending on the selection
 	AActor* FoundActor = PCGPropertyToParamDataHelpers::FindActor(*Context);
 
@@ -263,6 +261,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	FPCGTaggedData& Output = Outputs.Emplace_GetRef();
 	Output.Data = ParamData;
 

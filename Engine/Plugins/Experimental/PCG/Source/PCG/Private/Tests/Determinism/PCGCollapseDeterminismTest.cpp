@@ -25,7 +25,7 @@ namespace
 		EPCGDataType::Primitive
 	};
 
-	void CreateNewRandomizedSpatialDataSet(TArray<PCGDeterminismTests::FTestData>& TestDataSet,
+	void CreateNewRandomizedSpatialDataSet(TArray<PCGTestsCommon::FTestData>& TestDataSet,
 		int32 NumSpatialSetsToAdd = 1,
 		int32 NumPointsToCreatePerSet = PCGDeterminismTests::Defaults::NumPointsToGenerate,
 		int32 NumPolyLinePointsToCreatePerSet = PCGDeterminismTests::Defaults::NumPolyLinePointsToGenerate)
@@ -33,9 +33,9 @@ namespace
 		check(NumSpatialSetsToAdd > 0 && NumPointsToCreatePerSet > 0 && NumPolyLinePointsToCreatePerSet > 0);
 
 		TestDataSet.Empty();
-		TestDataSet.Init(PCGDeterminismTests::FTestData(PCGDeterminismTests::Defaults::Seed), NumTestableSpatialDataTypes);
+		TestDataSet.Init(PCGTestsCommon::FTestData(PCGDeterminismTests::Defaults::Seed), NumTestableSpatialDataTypes);
 
-		for (PCGDeterminismTests::FTestData& Data : TestDataSet)
+		for (PCGTestsCommon::FTestData& Data : TestDataSet)
 		{
 			PCGDeterminismTests::GenerateSettings<UPCGCollapseSettings>(Data);
 		}
@@ -54,7 +54,7 @@ namespace
 bool FPCGCollapseDeterminismSingleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test single same data
-	TArray<PCGDeterminismTests::FTestData> TestDataSet;
+	TArray<PCGTestsCommon::FTestData> TestDataSet;
 	CreateNewRandomizedSpatialDataSet(TestDataSet);
 
 	for (int32 I = 0; I < TestDataSet.Num(); ++I)
@@ -69,8 +69,8 @@ bool FPCGCollapseDeterminismSingleSameDataTest::RunTest(const FString& Parameter
 bool FPCGCollapseDeterminismSingleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test single identical data
-	TArray<PCGDeterminismTests::FTestData> FirstTestDataSet;
-	TArray<PCGDeterminismTests::FTestData> SecondTestDataSet;
+	TArray<PCGTestsCommon::FTestData> FirstTestDataSet;
+	TArray<PCGTestsCommon::FTestData> SecondTestDataSet;
 	CreateNewRandomizedSpatialDataSet(FirstTestDataSet);
 	CreateNewRandomizedSpatialDataSet(SecondTestDataSet);
 
@@ -86,7 +86,7 @@ bool FPCGCollapseDeterminismSingleIdenticalDataTest::RunTest(const FString& Para
 bool FPCGCollapseDeterminismMultipleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple same data
-	TArray<PCGDeterminismTests::FTestData> TestDataSet;
+	TArray<PCGTestsCommon::FTestData> TestDataSet;
 	CreateNewRandomizedSpatialDataSet(TestDataSet, NumMultipleSpatialSetsToAdd, NumPointsToAddDuringMultipleCases);
 
 	for (int32 I = 0; I < TestDataSet.Num(); ++I)
@@ -101,8 +101,8 @@ bool FPCGCollapseDeterminismMultipleSameDataTest::RunTest(const FString& Paramet
 bool FPCGCollapseDeterminismMultipleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple identical data
-	TArray<PCGDeterminismTests::FTestData> FirstTestDataSet;
-	TArray<PCGDeterminismTests::FTestData> SecondTestDataSet;
+	TArray<PCGTestsCommon::FTestData> FirstTestDataSet;
+	TArray<PCGTestsCommon::FTestData> SecondTestDataSet;
 	CreateNewRandomizedSpatialDataSet(FirstTestDataSet, NumMultipleSpatialSetsToAdd);
 	CreateNewRandomizedSpatialDataSet(SecondTestDataSet, NumMultipleSpatialSetsToAdd);
 
@@ -118,8 +118,8 @@ bool FPCGCollapseDeterminismMultipleIdenticalDataTest::RunTest(const FString& Pa
 bool FPCGCollapseDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
 {
 	// Test shuffled input data
-	TArray<PCGDeterminismTests::FTestData> FirstTestDataSet;
-	TArray<PCGDeterminismTests::FTestData> SecondTestDataSet;
+	TArray<PCGTestsCommon::FTestData> FirstTestDataSet;
+	TArray<PCGTestsCommon::FTestData> SecondTestDataSet;
 	CreateNewRandomizedSpatialDataSet(FirstTestDataSet, NumMultipleSpatialSetsToAdd);
 	CreateNewRandomizedSpatialDataSet(SecondTestDataSet, NumMultipleSpatialSetsToAdd);
 

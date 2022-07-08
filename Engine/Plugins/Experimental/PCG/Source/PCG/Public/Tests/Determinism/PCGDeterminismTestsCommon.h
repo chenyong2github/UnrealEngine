@@ -39,20 +39,6 @@ namespace PCGDeterminismTests
 		const FBox TestingVolume = FBox(-1.2 * LargeVector, 1.2 * LargeVector);
 	}
 
-	struct FTestData
-	{
-		explicit FTestData(int32 Seed = Defaults::Seed, UPCGSettings* DefaultSettings = nullptr);
-
-		void Reset();
-
-		AActor* TestActor;
-		UPCGComponent* TestPCGComponent;
-		FPCGDataCollection InputData;
-		UPCGSettings* Settings;
-		int32 Seed;
-		FRandomStream RandomStream;
-	};
-
 	struct FNodeTestResult
 	{
 		int32 Index = -1;
@@ -102,7 +88,7 @@ namespace PCGDeterminismTests
 	bool RunAllDataOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
 
 	/** Adds input data to test data, based on input pins' allowed types */
-	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* InPCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	void AddInputDataBasedOnPins(PCGTestsCommon::FTestData& TestData, const UPCGNode* InPCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
 
 	/** Helper for adding PointData with a single Point to an InputData */
 	void AddSinglePointInputData(FPCGDataCollection& InputData, const FVector& Location, const FName& PinName = Defaults::TestPinName);
@@ -116,17 +102,17 @@ namespace PCGDeterminismTests
 	void AddPrimitiveInputData(FPCGDataCollection& InputData, UPrimitiveComponent* SplineComponent, const FVector& VoxelSize, const FName& PinName = Defaults::TestPinName);
 
 	/** Adds randomized PointData with a single Point */
-	void AddRandomizedSinglePointInputData(FTestData& TestData, int32 PointNum = Defaults::NumPointsToGenerate, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedSinglePointInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum = Defaults::NumPointsToGenerate, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized PointData with multiple Points */
-	void AddRandomizedMultiplePointInputData(FTestData& TestData, int32 PointNum = Defaults::NumPointsToGenerate, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedMultiplePointInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum = Defaults::NumPointsToGenerate, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized Volume Spatial Data */
-	void AddRandomizedVolumeInputData(FTestData& TestData, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedVolumeInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized Surface Spatial Data */
-	void AddRandomizedSurfaceInputData(FTestData& TestData, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedSurfaceInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized PolyLine Spatial Data */
-	void AddRandomizedPolyLineInputData(FTestData& TestData, int32 PointNum = Defaults::NumPolyLinePointsToGenerate, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedPolyLineInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum = Defaults::NumPolyLinePointsToGenerate, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized Primitive Spatial Data */
-	void AddRandomizedPrimitiveInputData(FTestData& TestData, const FName& PinName = Defaults::TestPinName);
+	void AddRandomizedPrimitiveInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName = Defaults::TestPinName);
 
 	/** Validates whether two DataCollection objects are identical */
 	bool DataCollectionsAreIdentical(const FPCGDataCollection& FirstCollection, const FPCGDataCollection& SecondCollection);
@@ -160,21 +146,21 @@ namespace PCGDeterminismTests
 	bool DataCanBeShuffled(const UPCGData* Data);
 
 	/** Randomizes the order of InputData collections */
-	void ShuffleInputOrder(FTestData& TestData);
+	void ShuffleInputOrder(PCGTestsCommon::FTestData& TestData);
 	/** Randomizes the order of all internal data */
-	void ShuffleAllInternalData(FTestData& TestData);
+	void ShuffleAllInternalData(PCGTestsCommon::FTestData& TestData);
 
 	/** Gets a comparison function to compare two of a specific DataType */
 	TFunction<bool(const UPCGData*, const UPCGData*)> GetCompareFunction(EPCGDataType DataType);
 
 	/** Execute the elements for each valid input and compare if all the outputs are identical */
-	bool ExecutionIsDeterministic(const FTestData& FirstTestData, const FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
+	bool ExecutionIsDeterministic(const PCGTestsCommon::FTestData& FirstTestData, const PCGTestsCommon::FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
 	/** Execute the same element twice compare if all the outputs are identical */
-	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode = nullptr);
+	bool ExecutionIsDeterministicSameData(PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode = nullptr);
 
 	/** Generates settings based upon a UPCGSettings subclass */
 	template<typename SettingsType>
-	SettingsType* GenerateSettings(FTestData& TestData, TFunction<void(FTestData&)> ExtraSettingsDelegate = nullptr)
+	SettingsType* GenerateSettings(PCGTestsCommon::FTestData& TestData, TFunction<void(PCGTestsCommon::FTestData&)> ExtraSettingsDelegate = nullptr)
 	{
 		SettingsType* TypedSettings = NewObject<SettingsType>();
 		check(TypedSettings);

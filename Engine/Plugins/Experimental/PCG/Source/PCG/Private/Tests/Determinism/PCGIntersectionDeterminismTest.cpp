@@ -13,7 +13,7 @@ IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGIntersectionDeterminismOrderIndepend
 
 namespace
 {
-	void IntersectionTestBase(PCGDeterminismTests::FTestData& TestData)
+	void IntersectionTestBase(PCGTestsCommon::FTestData& TestData)
 	{
 		PCGDeterminismTests::GenerateSettings<UPCGIntersectionSettings>(TestData);
 		// Source Volumes
@@ -21,71 +21,71 @@ namespace
 		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, PCGDeterminismTests::Defaults::SmallVector * -1.f, PCGDeterminismTests::Defaults::MediumVector, PCGDeterminismTests::Defaults::MediumVector);
 	}
 
-	void IntersectionTestMultiple(PCGDeterminismTests::FTestData& TestData)
+	void IntersectionTestMultiple(PCGTestsCommon::FTestData& TestData)
 	{
 		IntersectionTestBase(TestData);
 
 		// Randomized Sources
-		AddRandomizedVolumeInputData(TestData);
+		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData);
 	}
 }
 
 bool FPCGIntersectionDeterminismSingleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test single same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 
 	IntersectionTestBase(TestData);
 
-	return TestTrue(TEXT("Same single input and settings, same output"), ExecutionIsDeterministicSameData(TestData));
+	return TestTrue(TEXT("Same single input and settings, same output"), PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
 }
 
 bool FPCGIntersectionDeterminismSingleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test single identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	IntersectionTestBase(FirstTestData);
 	IntersectionTestBase(SecondTestData);
 
-	return TestTrue(TEXT("Identical single input and settings, same output"), ExecutionIsDeterministic(FirstTestData, SecondTestData));
+	return TestTrue(TEXT("Identical single input and settings, same output"), PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
 }
 
 bool FPCGIntersectionDeterminismMultipleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 
 	IntersectionTestMultiple(TestData);
 
-	return TestTrue(TEXT("Identical multiple input, same output"), ExecutionIsDeterministicSameData(TestData));
+	return TestTrue(TEXT("Identical multiple input, same output"), PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
 }
 
 bool FPCGIntersectionDeterminismMultipleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	IntersectionTestMultiple(FirstTestData);
 	IntersectionTestMultiple(SecondTestData);
 
-	return TestTrue(TEXT("Identical single input and settings, same output"), ExecutionIsDeterministic(FirstTestData, SecondTestData));
+	return TestTrue(TEXT("Identical single input and settings, same output"), PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
 }
 
 bool FPCGIntersectionDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
 {
 	// Test multiple identical, shuffled data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	IntersectionTestMultiple(FirstTestData);
 	IntersectionTestMultiple(SecondTestData);
 
-	ShuffleInputOrder(SecondTestData);
+	PCGDeterminismTests::ShuffleInputOrder(SecondTestData);
 
-	return TestTrue(TEXT("Shuffled input order, same output"), ExecutionIsDeterministic(FirstTestData, SecondTestData));
+	return TestTrue(TEXT("Shuffled input order, same output"), PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
 }
 
 #endif

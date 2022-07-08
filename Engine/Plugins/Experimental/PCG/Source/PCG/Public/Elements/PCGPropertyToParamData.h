@@ -58,7 +58,7 @@ public:
 	FName ActorSelectionTag;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection==EPCGActorSelection::ByName", EditConditionHides))
-	FString ActorSelectionName;
+	FName ActorSelectionName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection==EPCGActorSelection::ByClass", EditConditionHides))
 	TSubclassOf<AActor> ActorSelectionClass;
