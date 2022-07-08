@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 					"InterchangeNodes",
 					"TextureUtilitiesCommon",
+					"VariantManagerContent",
 				}
 			);
 

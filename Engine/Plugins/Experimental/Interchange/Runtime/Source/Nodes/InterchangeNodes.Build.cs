@@ -6,6 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public InterchangeNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
+			// This module does not depend on the Engine module. This is intentional.
+			// The InterchangeWorker program does not compile against the Engine module
+			// but depends on this module.
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -14,17 +17,6 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 				}
 			);
-
-			if(Target.bCompileAgainstEngine)
-			{
-				PublicDependencyModuleNames.AddRange(
-					new string[]
-					{
-						"CinematicCamera",
-						"Engine"
-					}
-				);
-			}
 		}
 	}
 }

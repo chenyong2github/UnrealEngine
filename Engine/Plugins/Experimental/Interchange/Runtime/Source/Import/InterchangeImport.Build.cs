@@ -41,6 +41,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"TextureUtilitiesCommon",
+					"VariantManagerContent",
 				}
 			);
 
@@ -52,6 +53,7 @@ namespace UnrealBuildTool.Rules
 						"BSPUtils",
 						"MaterialEditor",
 						"UnrealEd",
+						"VariantManager",
 					}
 				);
 

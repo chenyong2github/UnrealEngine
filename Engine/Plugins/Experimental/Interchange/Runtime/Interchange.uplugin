@@ -75,6 +75,14 @@
 		{
 			"Name": "GLTFImporter",
 			"Enabled": true
+		},
+		{
+			"Name": "VariantManagerContent",
+			"Enabled": true
+		},
+		{
+			"Name": "VariantManager",
+			"Enabled": true
 		}
 	],
 	"IsExperimentalVersion": false,

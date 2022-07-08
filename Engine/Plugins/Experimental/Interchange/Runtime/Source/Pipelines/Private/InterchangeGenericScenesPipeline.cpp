@@ -13,6 +13,8 @@
 #include "InterchangePipelineLog.h"
 #include "InterchangePipelineMeshesUtilities.h"
 #include "InterchangeSceneNode.h"
+#include "InterchangeSceneVariantSetsFactoryNode.h"
+#include "InterchangeVariantSetNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 
 #include "Animation/SkeletalMeshActor.h"
@@ -31,8 +33,10 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 		return;
 	}
 
+	BaseNodeContainer = InBaseNodeContainer;
+
 	FTransform GlobalOffsetTransform = FTransform::Identity;
-	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(InBaseNodeContainer))
+	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(BaseNodeContainer))
 	{
 		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
 	}
@@ -40,7 +44,7 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 	TArray<UInterchangeSceneNode*> SceneNodes;
 
 	//Find all translated node we need for this pipeline
-	InBaseNodeContainer->IterateNodes([&SceneNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
+	BaseNodeContainer->IterateNodes([&SceneNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
 		switch(Node->GetNodeContainerType())
 		{
@@ -69,14 +73,30 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 					continue;
 				}
 			}
-			ExecuteSceneNodePreImport(InBaseNodeContainer, GlobalOffsetTransform, SceneNode, InBaseNodeContainer);
+			ExecuteSceneNodePreImport(GlobalOffsetTransform, SceneNode);
+		}
+	}
+
+	//Find all translated scene variant sets
+	TArray<UInterchangeSceneVariantSetsNode*> SceneVariantSetNodes;
+
+	InBaseNodeContainer->IterateNodesOfType<UInterchangeSceneVariantSetsNode>([&SceneVariantSetNodes](const FString& NodeUid, UInterchangeSceneVariantSetsNode* Node)
+		{
+			SceneVariantSetNodes.Add(Node);
+		});
+
+	for (const UInterchangeSceneVariantSetsNode* SceneVariantSetNode : SceneVariantSetNodes)
+	{
+		if (SceneVariantSetNode)
+		{
+			ExecuteSceneVariantSetNodePreImport(*SceneVariantSetNode);
 		}
 	}
 }
 
-void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
+void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode)
 {
-	if (!SceneNode)
+	if (!BaseNodeContainer || !SceneNode)
 	{
 		return;
 	}
@@ -86,10 +106,10 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 	FString AssetInstanceUid;
 	if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
 	{
-		TranslatedAssetNode = FactoryNodeContainer->GetNode(AssetInstanceUid);
+		TranslatedAssetNode = BaseNodeContainer->GetNode(AssetInstanceUid);
 	}
 
-	UInterchangeActorFactoryNode* ActorFactoryNode = CreateActorFactoryNode(SceneNode, TranslatedAssetNode, FactoryNodeContainer);
+	UInterchangeActorFactoryNode* ActorFactoryNode = CreateActorFactoryNode(SceneNode, TranslatedAssetNode);
 
 	if (!ensure(ActorFactoryNode))
 	{
@@ -97,11 +117,11 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 	}
 
 	ActorFactoryNode->InitializeNode(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneNode->GetUniqueID()), SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
-	const FString ActorFactoryNodeUid = FactoryNodeContainer->AddNode(ActorFactoryNode);
+	const FString ActorFactoryNodeUid = BaseNodeContainer->AddNode(ActorFactoryNode);
 	if (!SceneNode->GetParentUid().IsEmpty())
 	{
 		const FString ParentFactoryNodeUid = TEXT("Factory_") + SceneNode->GetParentUid();
-		FactoryNodeContainer->SetNodeParentUid(ActorFactoryNodeUid, ParentFactoryNodeUid);
+		BaseNodeContainer->SetNodeParentUid(ActorFactoryNodeUid, ParentFactoryNodeUid);
 		ActorFactoryNode->AddFactoryDependencyUid(ParentFactoryNodeUid);
 	}
 
@@ -110,7 +130,7 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 
 	//TODO move this code to the factory, a stack over pipeline can change the global offset transform which will affect this value.
 	FTransform GlobalTransform;
-	if (SceneNode->GetCustomGlobalTransform(InBaseNodeContainer, GlobalOffsetTransform, GlobalTransform))
+	if (SceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalTransform))
 	{
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}
@@ -119,46 +139,51 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 
 	if (TranslatedAssetNode)
 	{
-		SetUpFactoryNode(ActorFactoryNode, SceneNode, TranslatedAssetNode, FactoryNodeContainer);
+		SetUpFactoryNode(ActorFactoryNode, SceneNode, TranslatedAssetNode);
 	}
 }
 
-UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
+UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode) const
 {
+	if (!ensure(BaseNodeContainer))
+	{
+		return nullptr;
+	}
+
 	if(TranslatedAssetNode)
 	{
 		if(TranslatedAssetNode->IsA<UInterchangeCameraNode>())
 		{
-			return NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangeCineCameraFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangeMeshNode>())
 		{
-			return NewObject<UInterchangeMeshActorFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangeMeshActorFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangeSpotLightNode>())
 		{
-			return NewObject<UInterchangeSpotLightFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangeSpotLightFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangePointLightNode>())
 		{
-			return NewObject<UInterchangePointLightFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangePointLightFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangeRectLightNode>())
 		{
-			return NewObject<UInterchangeRectLightFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangeRectLightFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangeDirectionalLightNode>())
 		{
-			return NewObject<UInterchangeDirectionalLightFactoryNode>(FactoryNodeContainer, NAME_None);
+			return NewObject<UInterchangeDirectionalLightFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 	}
 
-	return NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	return NewObject<UInterchangeActorFactoryNode>(BaseNodeContainer, NAME_None);
 }
 
-void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
+void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode) const
 {
-	if (!ensure(ActorFactoryNode && SceneNode && TranslatedAssetNode && FactoryNodeContainer))
+	if (!ensure(BaseNodeContainer && ActorFactoryNode && SceneNode && TranslatedAssetNode))
 	{
 		return;
 	}
@@ -180,7 +205,7 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			TMap<FString, FString> SlotMaterialDependencies;
 			SceneNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
 
-			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*MeshActorFactoryNode, SlotMaterialDependencies, *FactoryNodeContainer);
+			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*MeshActorFactoryNode, SlotMaterialDependencies, *BaseNodeContainer);
 
 			MeshActorFactoryNode->AddFactoryDependencyUid(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MeshNode->GetUniqueID()));
 		}
@@ -332,4 +357,48 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			}
 		}
 	}
+}
+
+void UInterchangeGenericLevelPipeline::ExecuteSceneVariantSetNodePreImport(const UInterchangeSceneVariantSetsNode& SceneVariantSetNode)
+{
+	if (!ensure(BaseNodeContainer))
+	{
+		return;
+	}
+
+	const FString FactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneVariantSetNode.GetUniqueID());
+
+	UInterchangeSceneVariantSetsFactoryNode* FactoryNode = NewObject<UInterchangeSceneVariantSetsFactoryNode>(BaseNodeContainer, NAME_None);
+
+	FactoryNode->InitializeNode(FactoryNodeUid, SceneVariantSetNode.GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
+	FactoryNode->SetEnabled(true);
+
+	TArray<FString> VariantSetUids;
+	SceneVariantSetNode.GetCustomVariantSetUids(VariantSetUids);
+
+	for (const FString& VariantSetUid : VariantSetUids)
+	{
+		FactoryNode->AddCustomVariantSetUid(VariantSetUid);
+
+		// Update factory's dependencies
+		if (const UInterchangeVariantSetNode* TrackNode = Cast<UInterchangeVariantSetNode>(BaseNodeContainer->GetNode(VariantSetUid)))
+		{
+			TArray<FString> ActorNodeUids;
+			TrackNode->GetCustomDependencyUids(ActorNodeUids);
+
+			for (const FString& ActorNodeUid : ActorNodeUids)
+			{
+				
+				const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
+				FactoryNode->AddFactoryDependencyUid(ActorFactoryNodeUid);
+			}
+		}
+	}
+
+	UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(&SceneVariantSetNode, FactoryNode, false);
+
+	FactoryNode->AddTargetNodeUid(SceneVariantSetNode.GetUniqueID());
+	SceneVariantSetNode.AddTargetNodeUid(FactoryNode->GetUniqueID());
+
+	BaseNodeContainer->AddNode(FactoryNode);
 }
