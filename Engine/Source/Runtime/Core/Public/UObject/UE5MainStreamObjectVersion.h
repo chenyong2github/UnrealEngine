@@ -253,6 +253,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Made stationary local and skylights behave similar to SM5
 		MobileStationaryLocalLights,
 
+		// Made ManagedArrayCollection::FValueType::Value always serialize when FValueType is
+		ManagedArrayCollectionAlwaysSerializeValue,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

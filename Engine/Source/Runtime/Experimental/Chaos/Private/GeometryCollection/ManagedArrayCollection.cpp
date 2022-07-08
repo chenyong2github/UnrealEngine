@@ -4,6 +4,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Templates/UnrealTemplate.h"
 #include "Chaos/ChaosArchive.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(FManagedArrayCollectionLogging, NoLogging, All);
 
@@ -462,6 +463,8 @@ static const FName GuidName("GUID");
 
 void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	if (Ar.IsSaving()) Version = 9;
 	Ar << Version;
 
@@ -499,6 +502,19 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 			}
 		}
 
+		TArray<FKeyType> ToRemoveKeys;
+		for (const TTuple<FKeyType, FValueType>& Pair : Map)
+		{
+			if (!Pair.Value.bExternalValue && !TmpMap.Find(Pair.Key))
+			{
+				ToRemoveKeys.Add(Pair.Key);
+			}
+		}
+		for (const FKeyType& Key : ToRemoveKeys)
+		{
+			Map.Remove(Key);
+		}
+
 #if WITH_EDITOR
 		//it's possible new entries have been added but are not in old content. Resize these.
 		for (TTuple<FKeyType, FValueType>& Pair : Map)
@@ -522,10 +538,31 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 		}
 
 	}
-	else
+	else // Ar.IsSaving()
 	{
 		Ar << GroupInfo;
-		Ar << Map;
+		// Unless it's an undo/redo transaction, strip out the keys that we don't want to save
+		if (!Ar.IsTransacting())
+		{
+			TMap<FKeyType, FValueType> ToSaveMap = Map;
+			TArray<FKeyType> ToRemoveKeys;
+			for (TTuple<FKeyType, FValueType>& Pair : ToSaveMap)
+			{
+				if (!Pair.Value.Saved)
+				{
+					ToRemoveKeys.Add(Pair.Key);
+				}
+			}
+			for (const FKeyType& Key : ToRemoveKeys)
+			{
+				ToSaveMap.Remove(Key);
+			}
+			Ar << ToSaveMap;
+		}
+		else
+		{
+			Ar << Map;
+		}
 	}
 }
 
@@ -555,17 +592,19 @@ FArchive& operator<<(FArchive& Ar, FManagedArrayCollection::FValueType& ValueIn)
 	if (Version >= 2)
 	{
 		Ar << ValueIn.GroupIndexDependency;
-		Ar << ValueIn.Saved;	//question: should we be saving if Saved is false?
+		Ar << ValueIn.Saved;
 	}
 
 	if (ValueIn.Value == nullptr)
 	{
 		ValueIn.Value = NewManagedTypedArray(ValueIn.ArrayType);
 	}
-
-	if (ValueIn.Saved)
+	
+	// Note: We switched to always saving the value here, and use the Saved flag
+	// to remove the property from the overall Map (see FManagedArrayCollection::Serialize above)
+	bool bNewSavedBehavior = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::ManagedArrayCollectionAlwaysSerializeValue;
+	if (bNewSavedBehavior || ValueIn.Saved)
 	{
-		//todo(ocohen): need a better way to enforce this
 		ValueIn.Value->Serialize(static_cast<Chaos::FChaosArchive&>(Ar));
 	}
 

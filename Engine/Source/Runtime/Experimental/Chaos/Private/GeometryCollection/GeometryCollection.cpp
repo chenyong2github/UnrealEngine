@@ -81,7 +81,7 @@ void FGeometryCollection::Construct()
 	// Material Group
 	AddExternalAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup, Sections, FacesDependency);
 
-	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();
+	InitializeInterfaces();
 }
 
 
@@ -661,7 +661,12 @@ void FGeometryCollection::Empty()
 	{
 		EmptyGroup(GroupName);
 	}
-	// re-initialize the interface to its default initial state
+	// re-initialize interfaces
+	InitializeInterfaces();
+}
+
+void FGeometryCollection::InitializeInterfaces()
+{
 	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();
 }
 
@@ -1027,8 +1032,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			}
 		}
 
-		RemoveAttribute("ExplodedTransform", FTransformCollection::TransformGroup);
-		RemoveAttribute("ExplodedVector", FTransformCollection::TransformGroup);
+
 
 		// Version 5 introduced accurate SimulationType tagging
 		if (Version < 5)
@@ -1114,8 +1118,9 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		{
 			if (!HasAttribute("UVs", FGeometryCollection::VerticesGroup))
 			{
+				// Note: As UVs is an external attribute that is always added by Construct, this should never be encountered
 				UE_LOG(FGeometryCollectionLogging, Log, TEXT("GeometryCollection updated to multiple UV sets."));
-				AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);				
+				AddExternalAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup, UVs);
 			}
 
 			TManagedArray<TArray<FVector2f>>& MultipleUVs = ModifyAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
@@ -1221,6 +1226,9 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			RemoveAttribute("Level", FTransformCollection::TransformGroup);
 			AddAttribute<int32>("Level", FTransformCollection::TransformGroup, FConstructionParameters(FName(), /*bSave=*/true));
 		}
+
+		// Finally, make sure expected interfaces are initialized
+		InitializeInterfaces();
 	}
 }
 

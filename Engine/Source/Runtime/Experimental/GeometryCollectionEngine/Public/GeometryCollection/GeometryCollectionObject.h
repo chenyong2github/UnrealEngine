@@ -322,7 +322,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-	void EnsureDataIsCooked(bool bInitResources = true);
+	void EnsureDataIsCooked(bool bInitResources = true, bool bIsTransacting = false);
 #endif
 
 	/** Accessors for internal geometry collection */

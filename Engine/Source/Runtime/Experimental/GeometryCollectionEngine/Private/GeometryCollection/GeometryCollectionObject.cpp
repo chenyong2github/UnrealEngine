@@ -835,7 +835,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	//for all versions loaded, make sure sim data is up to date
  	if (Ar.IsLoading())
 	{
-		EnsureDataIsCooked();	//make sure loaded content is built
+		EnsureDataIsCooked(true, Ar.IsTransacting());	//make sure loaded content is built
 	}
 #endif
 }
@@ -1252,11 +1252,11 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	return bSuperResult;
 }
 
-void UGeometryCollection::EnsureDataIsCooked(bool bInitResources)
+void UGeometryCollection::EnsureDataIsCooked(bool bInitResources, bool bIsTransacting)
 {
 	if (StateGuid != LastBuiltGuid)
 	{
-		CreateSimulationDataImp(/*bCopyFromDDC=*/ true);
+		CreateSimulationDataImp(/*bCopyFromDDC=*/ !bIsTransacting);
 
 		if (FApp::CanEverRender() && bInitResources)
 		{

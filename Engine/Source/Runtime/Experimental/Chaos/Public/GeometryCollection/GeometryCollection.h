@@ -181,6 +181,9 @@ public:
 	//
 	//
 
+	// Initialize any interfaces on the geometry collection (i.e., the FGeometryCollectionConvexPropertiesInterface)
+	virtual void InitializeInterfaces();
+
 
 	/**
 	*  Update bounding box entries for the geometry
