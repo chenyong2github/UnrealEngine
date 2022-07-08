@@ -525,7 +525,7 @@ namespace MeshCut
 
 		int ClosestEdge(FIndex2i EIDs, const FVector3d& Pos)
 		{
-			double BestIdx = -1;
+			int BestIdx = -1;
 			double BestDSq = FMathd::MaxReal;
 			for (int Idx = 0; Idx < 2; Idx++)
 			{
@@ -544,7 +544,7 @@ namespace MeshCut
 
 		int OnEdge(FIndex3i EIDs, const FVector3d& Pos, double BestDSq)
 		{
-			double BestIdx = -1;
+			int BestIdx = -1;
 			for (int Idx = 0; Idx < 3; Idx++)
 			{
 				int EID = EIDs[Idx];

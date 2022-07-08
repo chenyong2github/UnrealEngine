@@ -135,7 +135,7 @@ bool FSimpleHoleFiller::UpdateAttributes(TArray<FMeshRegionBoundaryLoops::VidOve
 			{
 				NewVertUV += UVMap[Vid].Value;
 			}
-			NewVertUV /= Loop.Vertices.Num();
+			NewVertUV /= (float)Loop.Vertices.Num();
 			UVMap.Add(NewVertex, FMeshRegionBoundaryLoops::ElementIDAndValue<FVector2f>(
 				IndexConstants::InvalidID, NewVertUV));
 		}

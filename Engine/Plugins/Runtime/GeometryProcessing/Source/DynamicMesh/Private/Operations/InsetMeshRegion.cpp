@@ -185,7 +185,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			int32 BaseEdgeID = Mesh->FindEdge(BaseLoopV[k], BaseLoopV[(k + 1) % NumLoopV]);
 			int32 BaseGroupID = (BaseEdgeID >= 0) ? Mesh->GetTriangleGroup(Mesh->GetEdgeT(BaseEdgeID).A) : InsetGroupID;
 
-			TPair<int32, int32> GroupPair(FMathd::Min(BaseGroupID, InsetGroupID), FMathd::Max(BaseGroupID, InsetGroupID));
+			TPair<int32, int32> GroupPair(FMath::Min(BaseGroupID, InsetGroupID), FMath::Max(BaseGroupID, InsetGroupID));
 			if (NewGroupsMap.Contains(GroupPair) == false)
 			{
 				int32 NewGroupID = Mesh->AllocateTriangleGroup();
@@ -359,7 +359,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 
 				if (k > 0)
 				{
-					AccumUVTranslation += Distance(Mesh->GetVertex(BaseLoopV[k]), Mesh->GetVertex(BaseLoopV[k - 1]));
+					AccumUVTranslation += (float)Distance(Mesh->GetVertex(BaseLoopV[k]), Mesh->GetVertex(BaseLoopV[k - 1]));
 				}
 
 				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)

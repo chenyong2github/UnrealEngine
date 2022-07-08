@@ -948,7 +948,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 				{
 					return;
 				}
-				float LerpT = (RemoveVPos - OtherVPos).Dot(OtherEdgeDir) / (KeepVPos - OtherVPos).Dot(OtherEdgeDir);
+				float LerpT = float( (RemoveVPos - OtherVPos).Dot(OtherEdgeDir) / (KeepVPos - OtherVPos).Dot(OtherEdgeDir) );
 				if (bPreserveVertexUVs && Mesh.HasVertexUVs())
 				{
 					FVector2f OtherUV = Mesh.GetVertexUV(OtherV);

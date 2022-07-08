@@ -275,7 +275,7 @@ namespace UniformTessellateLocals
 
 		void LerpElements(const RealType* Element1, const RealType* Element2, RealType* OutElement, RealType Alpha) 
 		{
-			Alpha = FMath::Clamp(Alpha, 0.0, 1.0);
+			Alpha = FMath::Clamp(Alpha, RealType(0), RealType(1));
 			RealType OneMinusAlpha = (RealType)1 - Alpha;
 
 			for (int Idx = 0; Idx < ElementSize; ++Idx) 
@@ -393,7 +393,7 @@ namespace UniformTessellateLocals
 					RealType OutElement[ElementSize];
 					for (int VertexOffset = 0; VertexOffset < NumNewLevelVertices; ++VertexOffset) 
 					{
-						const RealType Alpha = (RealType)(VertexOffset + 1) / (NumNewLevelVertices + 1);
+						const RealType Alpha = RealType(VertexOffset + 1) / (NumNewLevelVertices + 1);
 						LerpElements(Element1, Element2, OutElement, Alpha);
 						this->SetElementOnTriangle(TriangleID, ElementIDCounter, OutElement);
 						ElementIDCounter++;
@@ -1609,7 +1609,7 @@ namespace UniformTessellateLocals
 		void LerpWeights(const FBoneWeights& Weight1, const FBoneWeights& Weight2, FBoneWeights& OutWeight, double Alpha) 
 		{
 			Alpha = FMath::Clamp(Alpha, 0.0, 1.0);
-			OutWeight = FBoneWeights::Blend(Weight1, Weight2, Alpha);
+			OutWeight = FBoneWeights::Blend(Weight1, Weight2, (float)Alpha);
 		} 
 
 		bool GenerateEdgeElements() 

@@ -81,7 +81,7 @@ namespace FPNTrianglesLocals
 			FVector3f Normal;
 			if (FMath::IsNearlyZero(Divisor)) 
 			{
-				Normal = Normal21 / 2.0; // If edge is degenerate then simply interpolate between the normals
+				Normal = 0.5f * Normal21; // If edge is degenerate then simply interpolate between the normals
 			} 
 			else
 			{ 
