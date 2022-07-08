@@ -69,6 +69,11 @@ public:
 	/** Validity of this node. */
 	bool IsValid() const;
 
+#if WITH_EDITOR
+	/** Add node validity to data validation messages. */
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+#endif
+
 protected:
 	// Returns the factory function (checked)
 	virtual UFunction* GetFactoryFunction() const;

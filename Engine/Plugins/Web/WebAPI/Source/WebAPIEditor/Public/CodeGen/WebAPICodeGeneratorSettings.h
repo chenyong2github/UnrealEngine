@@ -47,7 +47,7 @@ struct WEBAPIEDITOR_API FWebAPICodeGeneratorSettings
 	bool bOverrideGeneratorClass = false;
 
 	/** The Code Generator to use. */
-	UPROPERTY(EditAnywhere, NoClear, Category = "Generator", meta = (MustImplement = "WebAPICodeGeneratorInterface", EditCondition="bOverrideGeneratorClass"))
+	UPROPERTY(EditAnywhere, NoClear, Category = "Generator", meta = (MustImplement = "/Script/WebAPIEditor.WebAPICodeGeneratorInterface", EditCondition="bOverrideGeneratorClass"))
 	TSoftClassPtr<UObject> CodeGeneratorClass;
 
 	/** The copyright notice to apply to generated files. */

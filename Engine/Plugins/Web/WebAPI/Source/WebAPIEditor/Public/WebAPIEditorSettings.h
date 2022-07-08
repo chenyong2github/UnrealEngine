@@ -15,7 +15,7 @@ class WEBAPIEDITOR_API UWebAPIEditorSettings : public UDeveloperSettings
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, NoClear, Category = "Generator", meta = (MustImplement = "WebAPICodeGeneratorInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NoClear, Category = "Generator", meta = (MustImplement = "/Script/WebAPIEditor.WebAPICodeGeneratorInterface"))
 	TSoftClassPtr<UObject> CodeGeneratorClass;
 	
 	virtual FName GetContainerName() const override { return FName("Project"); }

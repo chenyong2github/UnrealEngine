@@ -100,7 +100,7 @@ namespace UE::WebAPI::Private
 			return false;
 		}
 
-		UK2Node_CustomEvent* CurrentCENode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(CurrentNode, PinForCurrentDelegateProperty, SourceGraph);
+		UK2Node_CustomEvent* CurrentCustomEventNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(CurrentNode, PinForCurrentDelegateProperty, SourceGraph);
 		{
 		UK2Node_AddDelegate* AddDelegateNode = CompilerContext.SpawnIntermediateNode<UK2Node_AddDelegate>(CurrentNode, SourceGraph);
 		AddDelegateNode->SetFromProperty(CurrentProperty, false, CurrentProperty->GetOwnerClass());
@@ -108,17 +108,17 @@ namespace UE::WebAPI::Private
 			bIsErrorFree &= Schema->TryCreateConnection(AddDelegateNode->FindPinChecked(UEdGraphSchema_K2::PN_Self), ProxyObjectPin);
 			bIsErrorFree &= Schema->TryCreateConnection(InOutLastThenPin, AddDelegateNode->FindPinChecked(UEdGraphSchema_K2::PN_Execute));
 			InOutLastThenPin = AddDelegateNode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
-			CurrentCENode->CustomFunctionName = *FString::Printf(TEXT("%s_%s"), *CurrentProperty->GetName(), *CompilerContext.GetGuid(CurrentNode));
-			CurrentCENode->AllocateDefaultPins();
+			CurrentCustomEventNode->CustomFunctionName = *FString::Printf(TEXT("%s_%s"), *CurrentProperty->GetName(), *CompilerContext.GetGuid(CurrentNode));
+			CurrentCustomEventNode->AllocateDefaultPins();
 
-			bIsErrorFree &= CreateDelegateForNewFunction(AddDelegateNode->GetDelegatePin(), CurrentCENode->GetFunctionName(), CurrentNode, SourceGraph, CompilerContext);
-			bIsErrorFree &= CopyEventSignature(CurrentCENode, AddDelegateNode->GetDelegateSignature(), Schema);
+			bIsErrorFree &= CreateDelegateForNewFunction(AddDelegateNode->GetDelegatePin(), CurrentCustomEventNode->GetFunctionName(), CurrentNode, SourceGraph, CompilerContext);
+			bIsErrorFree &= CopyEventSignature(CurrentCustomEventNode, AddDelegateNode->GetDelegateSignature(), Schema);
 		}
 
-		OutLastActivatedThenPin = CurrentCENode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
+		OutLastActivatedThenPin = CurrentCustomEventNode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
 		for (const FOutputPinAndLocalVariable& OutputPair : VariableOutputs) // CREATE CHAIN OF ASSIGMENTS
 		{
-			UEdGraphPin* PinWithData = CurrentCENode->FindPin(OutputPair.OutputPin->PinName);
+			UEdGraphPin* PinWithData = CurrentCustomEventNode->FindPin(OutputPair.OutputPin->PinName);
 			if (PinWithData == nullptr)
 			{
 				continue;
@@ -142,6 +142,11 @@ namespace UE::WebAPI::Private
 
 void UK2Node_WebAPIOperation::AllocateDefaultPins()
 {
+	if(!IsValid())
+	{
+		return;
+	}
+	
 	InvalidatePinTooltips();
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
@@ -156,8 +161,6 @@ void UK2Node_WebAPIOperation::AllocateDefaultPins()
 	{
 		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
 	}
-
-	const UFunction* Function = GetFactoryFunction();
 
 	TArray<FMulticastDelegateProperty*, TFixedAllocator<2>> DelegateProperties = {
 		UE::WebAPI::Operation::GetPositiveOutcomeDelegate(OperationClass),
@@ -210,7 +213,7 @@ void UK2Node_WebAPIOperation::AllocateDefaultPins()
 	}
 
 	bool bAllPinsGood = true;
-	if (Function)
+	if (UFunction* Function = GetFactoryFunction())
 	{
 		TSet<FName> PinsToHide;
 		FBlueprintEditorUtils::GetHiddenPinsForFunction(GetGraph(), Function, PinsToHide);
@@ -709,6 +712,21 @@ bool UK2Node_WebAPIOperation::IsValid() const
 		&& OperationClass != nullptr
 		&& ((bHasCompilerMessage && ErrorType >= EMessageSeverity::Info) || !bHasCompilerMessage);
 }
+
+#if WITH_EDITOR
+EDataValidationResult UK2Node_WebAPIOperation::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	
+	if(OperationClass == nullptr)
+	{
+		ValidationErrors.Add(LOCTEXT("Missing_OperationClass", "OperationClass is invalid or missing"));
+		ValidationResult = EDataValidationResult::Invalid;
+	}
+
+	return ValidationResult;
+}
+#endif
 
 const UK2Node_CustomEvent* UK2Node_WebAPIOperation::GetCustomEventForOutcomeDelegate(
 	const UK2Node_WebAPIOperation* InNode,
