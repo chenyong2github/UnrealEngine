@@ -10,7 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "GroomBindingBuilder.h"
 
-// HairStrandsSamplesInit.usf
+// HairStrandsMesh.usf
 void InitMeshSamples(
 	uint32 MaxVertexCount,
 	const TArray<FVector3f>& VertexPositionsBuffer,
@@ -30,7 +30,7 @@ void InitMeshSamples(
 	}
 }
 
-// HairStrandsSamplesUpdate.usf
+// HairStrandsMesh.usf
 void UpdateMeshSamples(
 	uint32 MaxSampleCount,
 	const TArray<float>& InterpolationWeightsBuffer,

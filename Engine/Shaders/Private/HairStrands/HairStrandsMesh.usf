@@ -1,7 +1,213 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"  
+#include "HairStrandsMeshProjectionCommon.ush"
+
+////////////////////////////////////////////////////////////////////////
+// Deform hair mesh basd on RBF weights
+
+#if SHADER_HAIRMESHES
+
+uint VertexCount;
+uint MaxSampleCount;
+
+Buffer<float4> RestSamplePositionsBuffer;
+Buffer<float4> MeshSampleWeightsBuffer;
+
+Buffer<float4> RestPositionBuffer;
+RWBuffer<float4> OutDeformedPositionBuffer;
+
+[numthreads(128, 1, 1)]
+void MainHairMeshesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint VertexIndex = DispatchThreadId.x;
+	if (VertexIndex >= VertexCount)
+		return;
+
+	const float3 RestPosition = RestPositionBuffer[VertexIndex].xyz;
+	const float3 DeformedPosition = ApplyRBF(RestPosition, MaxSampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
+	OutDeformedPositionBuffer[VertexIndex] = float4(DeformedPosition,1);
+}
+
+#endif // SHADER_HAIRMESHES
+
+////////////////////////////////////////////////////////////////////////
+// Init RBF point based on mesh position
+
+#if SHADER_SAMPLE_INIT
+
+#ifndef MAX_SECTION_COUNT
+#error MAX_SECTION_COUNT needs to be defined
+#endif
+
+uint PassSectionCount;
+
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMeshProjection.cpp
+// PackedSectionScalars: SectionVertexOffset, SectionVertexCount, SectionBufferIndex, *free*
+uint4 PackedSectionScalars[MAX_SECTION_COUNT];
+#define SectionVertexOffset(SectionIndex) PackedSectionScalars[SectionIndex].x
+#define SectionVertexCount(SectionIndex)  PackedSectionScalars[SectionIndex].y
+#define SectionBufferIndex(SectionIndex)  PackedSectionScalars[SectionIndex].z
+
+#if PERMUTATION_POSITION_TYPE == 0
+Buffer<float> VertexPositionsBuffer0;
+Buffer<float> VertexPositionsBuffer1;
+Buffer<float> VertexPositionsBuffer2;
+Buffer<float> VertexPositionsBuffer3;
+Buffer<float> VertexPositionsBuffer4;
+Buffer<float> VertexPositionsBuffer5;
+Buffer<float> VertexPositionsBuffer6;
+Buffer<float> VertexPositionsBuffer7;
+#elif PERMUTATION_POSITION_TYPE == 1
+Buffer<float> RDGVertexPositionsBuffer0;
+Buffer<float> RDGVertexPositionsBuffer1;
+Buffer<float> RDGVertexPositionsBuffer2;
+Buffer<float> RDGVertexPositionsBuffer3;
+Buffer<float> RDGVertexPositionsBuffer4;
+Buffer<float> RDGVertexPositionsBuffer5;
+Buffer<float> RDGVertexPositionsBuffer6;
+Buffer<float> RDGVertexPositionsBuffer7;
+
+#define VertexPositionsBuffer0 RDGVertexPositionsBuffer0
+#define VertexPositionsBuffer1 RDGVertexPositionsBuffer1
+#define VertexPositionsBuffer2 RDGVertexPositionsBuffer2
+#define VertexPositionsBuffer3 RDGVertexPositionsBuffer3
+#define VertexPositionsBuffer4 RDGVertexPositionsBuffer4
+#define VertexPositionsBuffer5 RDGVertexPositionsBuffer5
+#define VertexPositionsBuffer6 RDGVertexPositionsBuffer6
+#define VertexPositionsBuffer7 RDGVertexPositionsBuffer7
+#endif
+
+uint MaxVertexCount;
+uint MaxSampleCount;
+Buffer<uint> SampleIndicesBuffer;
+RWBuffer<float4> OutSamplePositionsBuffer;
+
+[numthreads(128, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{ 
+	const uint SampleIndex = DispatchThreadId.x;
+	if (SampleIndex >= MaxSampleCount) 
+		return;
+
+	const uint VertexIndex = SampleIndicesBuffer[SampleIndex];
+	if (VertexIndex >= MaxVertexCount) 
+		return;
+	
+	bool bValid = false;  
+	uint SectionIndex = 0;
+	for (uint It = 0; It < PassSectionCount; ++It)
+	{
+		if ((VertexIndex >= SectionVertexOffset(It)) && (VertexIndex < (SectionVertexOffset(It) + SectionVertexCount(It))))
+		{
+			SectionIndex = It;
+			bValid = true;
+			break;
+		}
+	}
+	
+	if (!bValid)
+		return;
+
+	float3 SamplePosition = float3(0,0,0);
+	const uint BufferIndex = SectionBufferIndex(SectionIndex);
+	const int LocalIndex = VertexIndex;
+	if (BufferIndex == 0)
+	{
+		SamplePosition.x = VertexPositionsBuffer0.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer0.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer0.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 1)
+	{
+		SamplePosition.x = VertexPositionsBuffer1.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer1.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer1.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 2)
+	{
+		SamplePosition.x = VertexPositionsBuffer2.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer2.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer2.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 3)
+	{
+		SamplePosition.x = VertexPositionsBuffer3.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer3.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer3.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 4)
+	{
+		SamplePosition.x = VertexPositionsBuffer4.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer4.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer4.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 5)
+	{
+		SamplePosition.x = VertexPositionsBuffer5.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer5.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer5.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 6)
+	{
+		SamplePosition.x = VertexPositionsBuffer6.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer6.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer6.Load(LocalIndex * 3 + 2);
+	}
+	else if (BufferIndex == 7)
+	{
+		SamplePosition.x = VertexPositionsBuffer7.Load(LocalIndex * 3 + 0);
+		SamplePosition.y = VertexPositionsBuffer7.Load(LocalIndex * 3 + 1);
+		SamplePosition.z = VertexPositionsBuffer7.Load(LocalIndex * 3 + 2);
+	}
+
+	OutSamplePositionsBuffer[SampleIndex] = float4(SamplePosition,1);
+}
+
+#endif // SHADER_SAMPLE_INIT
+
+////////////////////////////////////////////////////////////////////////
+// Update RBF points
+
+#if SHADER_SAMPLE_UPDATE
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+uint MaxSampleCount;
+Buffer<uint> SampleIndicesBuffer;
+Buffer<float> InterpolationWeightsBuffer;
+
+Buffer<float4> SampleRestPositionsBuffer;
+Buffer<float4> SampleDeformedPositionsBuffer;
+
+RWBuffer<float4> OutSampleDeformationsBuffer; 
+
+[numthreads(128, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{ 
+	const uint SampleIndex = DispatchThreadId.x;
+	if (SampleIndex >= (MaxSampleCount + 4))
+	{
+		return;
+	}
+
+	uint WeightsOffset = SampleIndex * (MaxSampleCount+4);
+	float3 SampleDeformation = float3(0,0,0);
+	for(uint i = 0; i < MaxSampleCount; ++i, ++WeightsOffset)
+	{
+		SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] * 
+				(SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]).xyz;
+	}
+
+	OutSampleDeformationsBuffer[SampleIndex] = float4(SampleDeformation,1);
+}
+
+#endif // SHADER_SAMPLE_UPDATE
+
+////////////////////////////////////////////////////////////////////////
+// Update strands root triangle positions
 
 #if SHADER_MESH_UPDATE
 
@@ -230,6 +436,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 }
 
 #endif // SHADER_MESH_UPDATE
+
+////////////////////////////////////////////////////////////////////////
+// Update hair strands offset position
 
 #if SHADER_OFFSET_UPDATE
 

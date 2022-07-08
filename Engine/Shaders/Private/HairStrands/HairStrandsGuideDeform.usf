@@ -3,7 +3,6 @@
 #include "../Common.ush"
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
-#include "HairStrandsMeshRBF.ush"
 
 float3 SimRestOffset;
 uint VertexCount;

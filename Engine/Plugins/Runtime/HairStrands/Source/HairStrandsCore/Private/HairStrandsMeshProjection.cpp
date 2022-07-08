@@ -70,77 +70,6 @@ FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderDa
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef GPU_BINDING
-#define GPU_BINDING 0
-#endif
-#if GPU_BINDING
-class FMarkMeshSectionIdCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMarkMeshSectionIdCS);
-	SHADER_USE_PARAMETER_STRUCT(FMarkMeshSectionIdCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, MeshSectionId)
-		SHADER_PARAMETER(uint32, MeshSectionPrimitiveCount)
-		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
-		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
-		SHADER_PARAMETER(uint32, MeshIndexOffset)
-		SHADER_PARAMETER_SRV(Buffer<uint>, MeshIndexBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint32>, OutVertexSectionId)
-
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_SECTIONID"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMarkMeshSectionIdCS, "/Engine/Private/HairStrands/HairStrandsMeshProjection.usf", "MainMarkSectionIdCS", SF_Compute);
-
-static FRDGBufferRef AddMeshSectionId(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const FHairStrandsProjectionMeshData::LOD& MeshData)
-{
-	const int32 SectionCount = MeshData.Sections.Num();
-	if (SectionCount < 0)
-		return nullptr;
-
-	// Initialized the section ID to a large number, as the shader will do an atomic min on the section ID.
-	FRDGBufferRef VertexSectionIdBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MeshData.Sections[0].TotalVertexCount), TEXT("Hair.SectionId"));
-	FRDGBufferUAVRef VertexSectionIdBufferUAV = GraphBuilder.CreateUAV(VertexSectionIdBuffer, PF_R32_UINT);
-	AddClearUAVPass(GraphBuilder, VertexSectionIdBufferUAV, ~0u);
-	for (const FHairStrandsProjectionMeshData::Section& MeshSection : MeshData.Sections)
-	{	
-		FMarkMeshSectionIdCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMarkMeshSectionIdCS::FParameters>();
-		Parameters->MeshSectionId				= MeshSection.SectionIndex;
-		Parameters->MeshSectionPrimitiveCount	= MeshSection.NumPrimitives;
-		Parameters->MeshMaxIndexCount			= MeshSection.TotalIndexCount;
-		Parameters->MeshMaxVertexCount			= MeshSection.TotalVertexCount;
-		Parameters->MeshIndexOffset				= MeshSection.IndexBaseIndex;
-		Parameters->MeshIndexBuffer				= MeshSection.IndexBuffer;
-		Parameters->OutVertexSectionId			= VertexSectionIdBufferUAV;
-
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(MeshSection.NumPrimitives*3, 128);
-		check(DispatchGroupCount.X < 65536);
-		TShaderMapRef<FMarkMeshSectionIdCS> ComputeShader(ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsMarkVertexSectionId"),
-			ComputeShader,
-			Parameters,
-			DispatchGroupCount);
-	}
-
-	return VertexSectionIdBuffer;
-}
-#endif // GPU_BINDING
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 class FSkinUpdateCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSkinUpdateCS);
@@ -206,304 +135,6 @@ void AddSkinUpdatePass(
 		Parameters,
 		DispatchGroupCount);
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#if GPU_BINDING
-class FMeshTransferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMeshTransferCS);
-	SHADER_USE_PARAMETER_STRUCT(FMeshTransferCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, bNeedClear)
-		SHADER_PARAMETER(uint32, Source_MeshPrimitiveCount_Iteration)
-		SHADER_PARAMETER(uint32, Source_MeshMaxIndexCount)
-		SHADER_PARAMETER(uint32, Source_MeshMaxVertexCount)
-		SHADER_PARAMETER(uint32, Source_MeshIndexOffset)
-		SHADER_PARAMETER(uint32, Source_MeshUVsChannelOffset)
-		SHADER_PARAMETER(uint32, Source_MeshUVsChannelCount)
-		SHADER_PARAMETER(uint32, Target_MeshMaxVertexCount)
-		SHADER_PARAMETER(uint32, Target_MeshUVsChannelOffset)
-		SHADER_PARAMETER(uint32, Target_MeshUVsChannelCount)
-		SHADER_PARAMETER(uint32, Target_SectionId)
-		SHADER_PARAMETER_SRV(Buffer<uint>, Source_MeshIndexBuffer)
-		SHADER_PARAMETER_SRV(Buffer<float>, Source_MeshPositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer<float2>, Source_MeshUVsBuffer)
-		SHADER_PARAMETER_SRV(Buffer<float2>, Target_MeshUVsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, Target_VertexSectionId)
-		SHADER_PARAMETER_UAV(RWBuffer<float>, Target_MeshPositionBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint32>, OutDistanceBuffer)
-
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_MESHTRANSFER"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMeshTransferCS, "/Engine/Private/HairStrands/HairStrandsMeshProjection.usf", "MainMeshTransferCS", SF_Compute);
-
-static void AddMeshTransferPass(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	bool bClear,
-	const FHairStrandsProjectionMeshData::Section& SourceSectionData,
-	const FHairStrandsProjectionMeshData::Section& TargetSectionData,
-	FRDGBufferRef VertexSectionId, 
-	FRWBuffer& OutTargetRestPosition,
-	FBufferTransitionQueue& OutTransitionQueue)
-{
-	if (!SourceSectionData.IndexBuffer ||
-		!SourceSectionData.PositionBuffer ||
-		 SourceSectionData.TotalIndexCount == 0 ||
-		 SourceSectionData.TotalVertexCount == 0||
-
-		!TargetSectionData.IndexBuffer ||
-		!TargetSectionData.PositionBuffer ||
-		 TargetSectionData.TotalIndexCount == 0 ||
-		 TargetSectionData.TotalVertexCount == 0)
-	{
-		return;
-	}
-	
-	FRDGBufferRef PositionDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TargetSectionData.TotalVertexCount), TEXT("Hair.DistanceBuffer"));
-	FRDGBufferUAVRef PositionDistanceBufferUAV = GraphBuilder.CreateUAV(PositionDistanceBuffer, PF_R32_UINT);
-
-	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
-	// To avoid TDR, we split projection into multiple passes when the mesh is too large.
-	uint32 MeshPassNumPrimitive = 1024 * FMath::Clamp(GHairProjectionMaxTrianglePerProjectionIteration, 1, 256);
-	uint32 MeshPassCount = 1;
-	if (SourceSectionData.NumPrimitives < MeshPassNumPrimitive)
-	{
-		MeshPassNumPrimitive = SourceSectionData.NumPrimitives;
-	}
-	else
-	{
-		MeshPassCount = FMath::CeilToInt(SourceSectionData.NumPrimitives / float(MeshPassNumPrimitive));
-	}
-
-	FRDGBufferSRVRef VertexSectionIdSRV = GraphBuilder.CreateSRV(VertexSectionId, PF_R32_UINT);
-	for (uint32 MeshPassIt = 0; MeshPassIt < MeshPassCount; ++MeshPassIt)
-	{
-		FMeshTransferCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMeshTransferCS::FParameters>();
-		Parameters->bNeedClear = bClear ? 1 : 0;
-
-		Parameters->Source_MeshPrimitiveCount_Iteration = (MeshPassIt < MeshPassCount - 1) ? MeshPassNumPrimitive : (SourceSectionData.NumPrimitives - MeshPassNumPrimitive * MeshPassIt);
-		Parameters->Source_MeshMaxIndexCount		= SourceSectionData.TotalIndexCount;
-		Parameters->Source_MeshMaxVertexCount		= SourceSectionData.TotalVertexCount;
-		Parameters->Source_MeshIndexOffset			= SourceSectionData.IndexBaseIndex + (MeshPassNumPrimitive * MeshPassIt * 3);
-		Parameters->Source_MeshUVsChannelOffset		= SourceSectionData.UVsChannelOffset;
-		Parameters->Source_MeshUVsChannelCount		= SourceSectionData.UVsChannelCount;
-		Parameters->Source_MeshIndexBuffer			= SourceSectionData.IndexBuffer;
-		Parameters->Source_MeshPositionBuffer		= SourceSectionData.PositionBuffer;
-		Parameters->Source_MeshUVsBuffer			= SourceSectionData.UVsBuffer;
-
-		Parameters->Target_MeshMaxVertexCount		= TargetSectionData.TotalVertexCount;
-		Parameters->Target_MeshUVsChannelOffset		= TargetSectionData.UVsChannelOffset;
-		Parameters->Target_MeshUVsChannelCount		= TargetSectionData.UVsChannelCount;
-		Parameters->Target_MeshUVsBuffer			= TargetSectionData.UVsBuffer;
-		Parameters->Target_MeshPositionBuffer		= OutTargetRestPosition.UAV;
-		Parameters->Target_VertexSectionId			= VertexSectionIdSRV;
-		Parameters->Target_SectionId				= TargetSectionData.SectionIndex;
-
-		Parameters->OutDistanceBuffer				= PositionDistanceBufferUAV;
-
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(TargetSectionData.TotalVertexCount, 128);
-		check(DispatchGroupCount.X < 65536);
-		TShaderMapRef<FMeshTransferCS> ComputeShader(ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsTransferMesh"),
-			ComputeShader,
-			Parameters,
-			DispatchGroupCount);
-		bClear = false;
-
-		OutTransitionQueue.Add(OutTargetRestPosition.UAV);
-	}
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairMeshProjectionCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairMeshProjectionCS);
-	SHADER_USE_PARAMETER_STRUCT(FHairMeshProjectionCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, bClear)
-		SHADER_PARAMETER(uint32, MaxRootCount)
-
-		SHADER_PARAMETER(uint32, MeshPrimitiveOffset_Iteration)
-		SHADER_PARAMETER(uint32, MeshPrimitiveCount_Iteration)
-		SHADER_PARAMETER(uint32, MeshSectionIndex)
-		SHADER_PARAMETER(uint32, MeshMaxIndexCount)
-		SHADER_PARAMETER(uint32, MeshMaxVertexCount)
-		SHADER_PARAMETER(uint32, MeshIndexOffset)
-
-		SHADER_PARAMETER_SRV(Buffer, MeshIndexBuffer)
-		SHADER_PARAMETER_SRV(Buffer, MeshPositionBuffer)
-
-		SHADER_PARAMETER_SRV(Buffer, RootPositionBuffer)
-		SHADER_PARAMETER_SRV(Buffer, RootNormalBuffer)
-
-		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleIndex)
-		SHADER_PARAMETER_UAV(RWBuffer, OutRootTriangleBarycentrics)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutRootTriangleDistance)
-
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_PROJECTION"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairMeshProjectionCS, "/Engine/Private/HairStrands/HairStrandsMeshProjection.usf", "MainCS", SF_Compute);
-
-static void AddHairStrandMeshProjectionPass(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const bool bClear,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData::Section& MeshSectionData,
-	FHairStrandsRestRootResource* RestResources,
-	FRDGBufferRef RootDistanceBuffer)
-{
-	const uint32 RootCount = RestResources->RootData.RootCount;
-	if (!RestResources->RootPositionBuffer.SRV ||
-		!RestResources->RootNormalBuffer.SRV ||
-		LODIndex < 0 || LODIndex >= RestResources->LODs.Num() ||
-		!MeshSectionData.IndexBuffer ||
-		!MeshSectionData.PositionBuffer ||
-		MeshSectionData.TotalIndexCount == 0 ||
-		MeshSectionData.TotalVertexCount == 0)
-	{
-		return;
-	}
-
-	FHairStrandsRestRootResource::FLOD& RestLODDatas = RestResources->LODs[LODIndex];
-	if (!RestLODDatas.RootTriangleIndexBuffer.UAV || !RestLODDatas.RootTriangleBarycentricBuffer.UAV)
-	{
-		return;
-	}
-
-	// The current shader code HairStrandsMeshProjection.usf encode the section ID onto the highest 8bits of a 32bits uint. 
-	// This limits the number of section to 64. See EncodeTriangleIndex & DecodeTriangleIndex functions in 
-	// HairStarndsMeshProjectionCommon.ush for mode details.
-	// This means that the mesh needs to have less than 67M triangles (since triangle ID is stored onto 26bits).
-	//
-	// This could be increase if necessary.
-	check(MeshSectionData.SectionIndex < GetHairStrandsMaxSectionCount());
-	check(MeshSectionData.NumPrimitives < GetHairStrandsMaxTriangleCount());
-
-	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
-	// To avoid TDR, we split projection into multiple passes when the mesh is too large.
-	uint32 MeshPassNumPrimitive = 1024 * FMath::Clamp(GHairProjectionMaxTrianglePerProjectionIteration, 1, 256);
-	uint32 MeshPassCount = 1;
-	if (MeshSectionData.NumPrimitives < MeshPassNumPrimitive)
-	{
-		MeshPassNumPrimitive = MeshSectionData.NumPrimitives;
-	}
-	else
-	{
-		MeshPassCount = FMath::CeilToInt(MeshSectionData.NumPrimitives / float(MeshPassNumPrimitive));
-	}
-
-
-	FRDGBufferUAVRef DistanceUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RootDistanceBuffer, PF_R32_FLOAT));
-	for (uint32 MeshPassIt=0;MeshPassIt<MeshPassCount;++MeshPassIt)
-	{
-		FHairMeshProjectionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairMeshProjectionCS::FParameters>();
-		Parameters->bClear				= bClear && MeshPassIt == 0 ? 1 : 0;
-		Parameters->MaxRootCount		= RootCount;
-		Parameters->RootPositionBuffer	= RestResources->RootPositionBuffer.SRV;
-		Parameters->RootNormalBuffer	= RestResources->RootNormalBuffer.SRV;
-		Parameters->MeshSectionIndex	= MeshSectionData.SectionIndex;
-		Parameters->MeshMaxIndexCount	= MeshSectionData.TotalIndexCount;
-		Parameters->MeshMaxVertexCount	= MeshSectionData.TotalVertexCount;
-		Parameters->MeshIndexOffset		= MeshSectionData.IndexBaseIndex + (MeshPassNumPrimitive * MeshPassIt * 3);
-		Parameters->MeshIndexBuffer		= MeshSectionData.IndexBuffer;
-		Parameters->MeshPositionBuffer	= MeshSectionData.PositionBuffer;
-		Parameters->MeshPrimitiveOffset_Iteration	= MeshPassNumPrimitive * MeshPassIt;
-		Parameters->MeshPrimitiveCount_Iteration	= (MeshPassIt < MeshPassCount-1) ? MeshPassNumPrimitive : (MeshSectionData.NumPrimitives - MeshPassNumPrimitive * MeshPassIt);
-
-		// The projection is always done onto the source/rest mesh
-		Parameters->OutRootTriangleIndex		= RestLODDatas.RootTriangleIndexBuffer.UAV;
-		Parameters->OutRootTriangleBarycentrics = RestLODDatas.RootTriangleBarycentricBuffer.UAV;
-		Parameters->OutRootTriangleDistance		= DistanceUAV;
-
-		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootCount, 128);
-		check(DispatchGroupCount.X < 65536);
-		TShaderMapRef<FHairMeshProjectionCS> ComputeShader(ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsMeshProjection"),
-			ComputeShader,
-			Parameters,
-			DispatchGroupCount);
-	}
-}
-
-void ProjectHairStrandsOntoMesh(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsRestRootResource* RestResources)
-{
-	if (LODIndex < 0 || LODIndex >= RestResources->LODs.Num())
-		return;
-
-	const uint32 RootCount = RestResources->RootData.RootCount;
-	FHairStrandsRestRootResource::FLOD& RestLODDatas = RestResources->LODs[LODIndex];
-	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), RootCount), TEXT("Hair.TriangleDistance"));
-
-	bool ClearDistance = true;
-	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.LODs[LODIndex].Sections)
-	{
-		check(RestLODDatas.LODIndex == LODIndex);
-		AddHairStrandMeshProjectionPass(GraphBuilder, ShaderMap, ClearDistance, LODIndex, MeshSection, RestResources, RootDistanceBuffer);
-		RestLODDatas.Status = FHairStrandsRestRootResource::FLOD::EStatus::Completed;
-		ClearDistance = false;
-	}
-}
-
-void TransferMesh(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData& SourceMeshData,
-	const FHairStrandsProjectionMeshData& TargetMeshData,
-	FRWBuffer& OutPositionBuffer,
-	FBufferTransitionQueue& OutTransitionQueue)
-{
-	if (LODIndex < 0)
-		return;
-
-	// LODs are transfered using the LOD0 of the source mesh, as the LOD count can mismatch between source and target meshes.
-	const int32 SourceLODIndex = 0;
-	const int32 TargetLODIndex = LODIndex;
-
-	// Assume that the section 0 contains the head section, which is where the hair/facial hair should be projected on
-	const uint32 SourceSectionIndex = 0;
-	const uint32 TargetSectionIndex = 0;
-
-	const int32 SectionCount = TargetMeshData.LODs[TargetLODIndex].Sections.Num();
-	if (SectionCount < 0)
-		return;
-
-	FRDGBufferRef VertexSectionId = AddMeshSectionId(GraphBuilder, ShaderMap, TargetMeshData.LODs[TargetLODIndex]);
-	const FHairStrandsProjectionMeshData::Section& SourceMeshSection = SourceMeshData.LODs[SourceLODIndex].Sections[SourceSectionIndex];
-	const FHairStrandsProjectionMeshData::Section& TargetMeshSection = TargetMeshData.LODs[TargetLODIndex].Sections[TargetSectionIndex];
-	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer);
-}
-#endif // GPU_BINDING
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -603,9 +234,9 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshTriangleCS, "/Engine/Private/HairStrands/HairStrandsMeshUpdate.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshTriangleCS, "/Engine/Private/HairStrands/HairStrandsMesh.usf", "MainCS", SF_Compute);
 
-// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMeshUpdate.usf
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMesh.usf
 // PackedMeshSectionScalars1: MeshSectionIndices, MeshMaxIndexCount, MeshMaxVertexCount, MeshIndexOffset
 // PackedMeshSectionScalars2: MeshUVsChannelOffset, MeshUVsChannelCount, MeshSectionBufferIndex, *free*
 inline void SetMeshSectionIndices(FHairUpdateMeshTriangleCS::FParameters& Params, uint32 SectionIndex, uint32 MeshSectionIndices)         { Params.PackedMeshSectionScalars1[SectionIndex].X = MeshSectionIndices; }
@@ -925,7 +556,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairMeshesInterpolateCS, "/Engine/Private/HairStrands/HairStrandsMeshInterpolate.usf", "MainHairMeshesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairMeshesInterpolateCS, "/Engine/Private/HairStrands/HairStrandsMesh.usf", "MainHairMeshesCS", SF_Compute);
 
 template<typename TRestResource, typename TDeformedResource>
 void InternalAddHairRBFInterpolationPass(
@@ -1064,12 +695,13 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MAX_SECTION_COUNT"), SectionArrayCount);
+		OutEnvironment.SetDefine(TEXT("SHADER_SAMPLE_INIT"), 1);
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairInitMeshSamplesCS, "/Engine/Private/HairStrands/HairStrandsSamplesInit.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairInitMeshSamplesCS, "/Engine/Private/HairStrands/HairStrandsMesh.usf", "MainCS", SF_Compute);
 
-// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsSamplesInit.usf
+// Manual packing for mesh section scalars.  MUST MATCH WITH HairStrandsMesh.usf
 // PackedSectionScalars: SectionVertexOffset, SectionVertexCount, SectionBufferIndex, *free*
 inline void SetSectionVertexOffset(FHairInitMeshSamplesCS::FParameters& Params, uint32 SectionIndex, uint32 SectionVertexOffset) { Params.PackedSectionScalars[SectionIndex].X = SectionVertexOffset; }
 inline void SetSectionVertexCount(FHairInitMeshSamplesCS::FParameters& Params, uint32 SectionIndex, uint32 SectionVertexCount)   { Params.PackedSectionScalars[SectionIndex].Y = SectionVertexCount; }
@@ -1311,10 +943,11 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_SAMPLE_UPDATE"), 1);
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshSamplesCS, "/Engine/Private/HairStrands/HairStrandsSamplesUpdate.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairUpdateMeshSamplesCS, "/Engine/Private/HairStrands/HairStrandsMesh.usf", "MainCS", SF_Compute);
 
 void AddHairStrandUpdateMeshSamplesPass(
 	FRDGBuilder& GraphBuilder,
@@ -1708,7 +1341,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairUpdatePositionOffsetCS, "/Engine/Private/HairStrands/HairStrandsMeshUpdate.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairUpdatePositionOffsetCS, "/Engine/Private/HairStrands/HairStrandsMesh.usf", "MainCS", SF_Compute);
 
 void AddHairStrandUpdatePositionOffsetPass(
 	FRDGBuilder& GraphBuilder,

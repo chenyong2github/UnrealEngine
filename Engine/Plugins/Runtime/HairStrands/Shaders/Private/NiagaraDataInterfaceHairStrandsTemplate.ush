@@ -802,7 +802,7 @@ void GetLocalVector_{ParameterName}(in float3 WorldVector, in bool IsPosition, o
  * Attached the root to the skinned cache
  * -----------------------------------------------------------------
  */
-// Duplicate from #include "HairStrands/HairStrandsMeshRBF.ush"
+// Duplicate from #include "HairStrands/HairStrandsMeshProjectionCommon.ush" ApplyRBF()
 float3 ApplyRBF_{ParameterName}(in float3 RestControlPoint)
 {
 	float3 ControlPoint = RestControlPoint;
