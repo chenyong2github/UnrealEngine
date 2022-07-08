@@ -9,124 +9,123 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EpicGames.Serialization.Tests
 {
-    class TestObject
-    {
-        [CbField]
-        public CbBinaryAttachment BinaryAttachment { get; set; }
+	class TestObject
+	{
+		[CbField]
+		public CbBinaryAttachment BinaryAttachment { get; set; }
 
-        [CbField]
-        public CbObjectAttachment ObjectAttachment { get; set; }
-    }
+		[CbField]
+		public CbObjectAttachment ObjectAttachment { get; set; }
+	}
 
-    class SimpleObject
-    {
-        [CbField] public int A { get; set; } = 0;
+	class SimpleObject
+	{
+		[CbField] public int A { get; set; } = 0;
 
-        [CbField]
-        public string B { get; set; } = String.Empty;
-    }
+		[CbField]
+		public string B { get; set; } = String.Empty;
+	}
 
-    [TestClass]
-    public class CbPackageTests
-    {
-        [TestMethod]
-        public async Task RoundTrip()
-        {
-            TestObject root = new TestObject()
-            {
+	[TestClass]
+	public class CbPackageTests
+	{
+		[TestMethod]
+		public async Task RoundTrip()
+		{
+			TestObject root = new TestObject()
+			{
 
-            };
-            CbObject rootObject = CbSerializer.Serialize(root);
-            IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
-            
-            CbPackageBuilder builder = new();
-            await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
-            byte[] bytes = builder.ToByteArray();
-        
-            using MemoryStream ms = new MemoryStream(bytes);
-            CbPackageReader reader = await CbPackageReader.Create(ms);
+			};
+			CbObject rootObject = CbSerializer.Serialize(root);
+			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
+			
+			CbPackageBuilder builder = new();
+			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
+			byte[] bytes = builder.ToByteArray();
 
-            Assert.AreEqual(rootHash, reader.RootHash);
-            Assert.AreEqual(rootObject, reader.RootObject);
+			await using MemoryStream ms = new MemoryStream(bytes);
+			CbPackageReader reader = await CbPackageReader.Create(ms);
 
-            await foreach ((CbPackageAttachmentEntry, byte[]) _ in reader.IterateAttachments())
-            {
-                Assert.Fail("No Attachments expected");
-            }
-        }
+			Assert.AreEqual(rootHash, reader.RootHash);
+			Assert.AreEqual(rootObject, reader.RootObject);
 
-        [TestMethod]
-        public async Task RoundTripComplex()
-        {
-            byte[] blob = Encoding.UTF8.GetBytes("This is blob contents");
-            IoHash blobHash = IoHash.Compute(blob);
+			await foreach ((CbPackageAttachmentEntry, byte[]) _ in reader.IterateAttachments())
+			{
+				Assert.Fail("No Attachments expected");
+			}
+		}
 
-            SimpleObject simple = new SimpleObject();
-            CbObject simpleObject = CbSerializer.Serialize(simple);
-            IoHash simpleHash = IoHash.Compute(simpleObject.GetView().Span);
+		[TestMethod]
+		public async Task RoundTripComplex()
+		{
+			byte[] blob = Encoding.UTF8.GetBytes("This is blob contents");
+			IoHash blobHash = IoHash.Compute(blob);
 
-            TestObject root = new TestObject()
-            {
-                BinaryAttachment = blobHash,
-                ObjectAttachment = simpleHash,
-            };
-            CbObject rootObject = CbSerializer.Serialize(root);
-            IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
+			SimpleObject simple = new SimpleObject();
+			CbObject simpleObject = CbSerializer.Serialize(simple);
+			IoHash simpleHash = IoHash.Compute(simpleObject.GetView().Span);
 
-            CbPackageBuilder builder = new();
-            await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
-            await builder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
-            await builder.AddAttachment(blobHash, 0, blob);
+			TestObject root = new TestObject()
+			{
+				BinaryAttachment = blobHash,
+				ObjectAttachment = simpleHash,
+			};
+			CbObject rootObject = CbSerializer.Serialize(root);
+			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
 
-            byte[] bytes = builder.ToByteArray();
+			CbPackageBuilder builder = new();
+			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
+			await builder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
+			await builder.AddAttachment(blobHash, 0, blob);
 
-            using MemoryStream ms = new MemoryStream(bytes);
-            CbPackageReader reader = await CbPackageReader.Create(ms);
+			byte[] bytes = builder.ToByteArray();
 
-            Assert.AreEqual(rootHash, reader.RootHash);
-            Assert.AreEqual(rootObject, reader.RootObject);
+			await using MemoryStream ms = new MemoryStream(bytes);
+			CbPackageReader reader = await CbPackageReader.Create(ms);
 
-            int countOfAttachments = 0;
-            await foreach ((CbPackageAttachmentEntry entry, byte[] attachmentBytes) in reader.IterateAttachments())
-            {
-                countOfAttachments++;
-                if (entry.AttachmentHash == blobHash)
-                {
-                    Assert.AreEqual((ulong)blob.Length, entry.PayloadSize);
-                    CollectionAssert.AreEqual(blob, attachmentBytes);
-                    continue;
-                }
+			Assert.AreEqual(rootHash, reader.RootHash);
+			Assert.AreEqual(rootObject, reader.RootObject);
 
-                if (entry.AttachmentHash == simpleHash)
-                {
-                    Assert.AreEqual((ulong)simpleObject.GetView().Length, entry.PayloadSize);
+			int countOfAttachments = 0;
+			await foreach ((CbPackageAttachmentEntry entry, byte[] attachmentBytes) in reader.IterateAttachments())
+			{
+				countOfAttachments++;
+				if (entry.AttachmentHash == blobHash)
+				{
+					Assert.AreEqual((ulong)blob.Length, entry.PayloadSize);
+					CollectionAssert.AreEqual(blob, attachmentBytes);
+					continue;
+				}
 
-                    CbObject roundTrippedObject = new CbObject(attachmentBytes);
-                    Assert.AreEqual(simpleObject, roundTrippedObject);
-                    continue;
-                }
+				if (entry.AttachmentHash == simpleHash)
+				{
+					Assert.AreEqual((ulong)simpleObject.GetView().Length, entry.PayloadSize);
 
-                Assert.Fail($"Unknown attachment {entry.AttachmentHash}");
-            }
-            Assert.AreEqual(2, countOfAttachments);
-        }
+					CbObject roundTrippedObject = new CbObject(attachmentBytes);
+					Assert.AreEqual(simpleObject, roundTrippedObject);
+					continue;
+				}
 
-        [TestMethod]
-        public async Task ReadNoAttachments()
-        {
-            using MemoryStream ms = new MemoryStream();
-            CbPackageHeader header = new CbPackageHeader(0);
-            header.Write(ms);
-            ms.Position = 0;
+				Assert.Fail($"Unknown attachment {entry.AttachmentHash}");
+			}
+			Assert.AreEqual(2, countOfAttachments);
+		}
 
-            try
-            {
-                await CbPackageReader.Create(ms);
-                Assert.Fail("Exception should be thrown");
-            }
-            catch (Exception)
-            {
-            }
-        }
-    }
+		[TestMethod]
+		public async Task ReadNoAttachments()
+		{
+			CbPackageBuilder packageBuilder = new CbPackageBuilder();
+			byte[] buf = packageBuilder.ToByteArray();
+			await using MemoryStream ms = new MemoryStream(buf);
+
+			try
+			{
+				await CbPackageReader.Create(ms);
+				Assert.Fail("Exception should be thrown");
+			}
+			catch (Exception)
+			{
+			}
+		}
+	}
 }
