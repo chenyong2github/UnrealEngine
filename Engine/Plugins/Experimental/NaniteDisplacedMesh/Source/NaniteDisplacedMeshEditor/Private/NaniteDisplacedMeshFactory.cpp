@@ -45,7 +45,7 @@ UObject* UNaniteDisplacedMeshFactory::FactoryCreateNew(UClass* Class, UObject* I
 	return NewNaniteDisplacedMesh;
 }
 
-UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, bool bCreateTransientAsset)
+UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting)
 {
 	checkf(GEditor, TEXT("There is no need to run that code if we don't have the editor"));
 
@@ -61,13 +61,31 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		return nullptr;
 	}
 
-	if (IsValid(ExistingDisplacedMesh) && (bCreateTransientAsset || (!ExistingDisplacedMesh->HasAnyFlags(RF_Transient) && ExistingDisplacedMesh->HasAnyFlags(RF_Public))))
+	// Make sure the referenced displaced mesh asset matches the provided combination
+	// Note: This is a faster test than generating Ids for LHS and RHS and comparing (this check will occur frequently)
+	if (IsValid(ExistingDisplacedMesh))
 	{
-		// Make sure the referenced displaced mesh asset matches the provided combination
-		// Note: This is a faster test than generating Ids for LHS and RHS and comparing (this check will occur frequently)
-		if (ExistingDisplacedMesh->Parameters == InParameters)
+		if (!ExistingDisplacedMesh->HasAnyFlags(RF_Transient) && ExistingDisplacedMesh->HasAnyFlags(RF_Public))
 		{
-			return ExistingDisplacedMesh;
+			// Persistent asset
+			if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset)
+			{
+				if (ExistingDisplacedMesh->Parameters == InParameters)
+				{
+					return ExistingDisplacedMesh;
+				}
+			}
+		}
+		else
+		{
+			// Transient asset
+			if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset)
+			{
+				if (ExistingDisplacedMesh->Parameters == InParameters)
+				{
+					return ExistingDisplacedMesh;
+				}
+			}
 		}
 	}
 
@@ -83,54 +101,59 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	// Generate unique asset path
 	FString DisplacedAssetPath = FPaths::Combine(DisplacedMeshFolder, DisplacedMeshName);
 
-	// The mesh needed might already exist. Using load object because it's faster then using the asset registry which might still be loading
-	if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath, nullptr, LOAD_Quiet))
+	if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstTransientAsset)
 	{
-		// Finish loading the object if needed
-		if (LoadedDisplacedMesh->HasAnyFlags(RF_NeedLoad))
+		// The mesh needed might already exist. Using load object because it's faster then using the asset registry which might still be loading
+		if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath, nullptr, LOAD_Quiet))
 		{
-			if (FLinkerLoad* TextureLinker = LoadedDisplacedMesh->GetLinker())
+			// Finish loading the object if needed
+			if (LoadedDisplacedMesh->HasAnyFlags(RF_NeedLoad))
 			{
-				TextureLinker->Preload(LoadedDisplacedMesh);
+				if (FLinkerLoad* TextureLinker = LoadedDisplacedMesh->GetLinker())
+				{
+					TextureLinker->Preload(LoadedDisplacedMesh);
+				}
 			}
-		}
 
-		LoadedDisplacedMesh->ConditionalPostLoad();
-
-
-		// The asset path may match, but someone could have (incorrectly) directly modified the parameters
-		// on the displaced mesh asset.
-		if (LoadedDisplacedMesh->Parameters == InParameters)
-		{
-			return LoadedDisplacedMesh;
-		}
-		else
-		{
-			FString LoadedDisplacedMeshId = GetAggregatedIdString(LoadedDisplacedMesh->Parameters);
-
-			UE_LOG(
-				LogNaniteDisplacedMesh,
-				Error,
-				TEXT("The NaniteDisplacementMesh parameters doesn't match the guid from its name (Current parameters: %s). Updating parameters of (%s). Consider saving the displaced mesh again to remove this error."),
-				*LoadedDisplacedMeshId,
-				*(LoadedDisplacedMesh->GetPathName())
-			);
-
-			// If this check assert we will need to update how we generate the id because we have a hash collision.
-			check(LoadedDisplacedMeshId != GetAggregatedIdString(InParameters));
-
-			LoadedDisplacedMesh->PreEditChange(nullptr);
-			LoadedDisplacedMesh->Parameters = InParameters;
-			LoadedDisplacedMesh->bIsEditable = false;
-			LoadedDisplacedMesh->PostEditChange();
+			LoadedDisplacedMesh->ConditionalPostLoad();
 
 
-			return LoadedDisplacedMesh;
+			// The asset path may match, but someone could have (incorrectly) directly modified the parameters
+			// on the displaced mesh asset.
+			if (LoadedDisplacedMesh->Parameters == InParameters)
+			{
+				return LoadedDisplacedMesh;
+			}
+			else
+			{
+				FString LoadedDisplacedMeshId = GetAggregatedIdString(LoadedDisplacedMesh->Parameters);
+
+				UE_LOG(
+					LogNaniteDisplacedMesh,
+					Error,
+					TEXT("The NaniteDisplacementMesh parameters doesn't match the guid from its name (Current parameters: %s). Updating parameters of (%s). Consider saving the displaced mesh again to remove this error."),
+					*LoadedDisplacedMeshId,
+					*(LoadedDisplacedMesh->GetPathName())
+				);
+
+				// If this check assert we will need to update how we generate the id because we have a hash collision.
+				check(LoadedDisplacedMeshId != GetAggregatedIdString(InParameters));
+
+				LoadedDisplacedMesh->PreEditChange(nullptr);
+				LoadedDisplacedMesh->Parameters = InParameters;
+				LoadedDisplacedMesh->bIsEditable = false;
+				LoadedDisplacedMesh->PostEditChange();
+
+
+				return LoadedDisplacedMesh;
+			}
 		}
 	}
 
-	if (bCreateTransientAsset)
+	if (LinkDisplacedMeshAssetSetting != ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset)
 	{
+		// Use a transient asset
+
 		UPackage* NaniteDisplacedMeshTransientPackage = FNaniteDisplacedMeshEditorModule::GetModule().GetNaniteDisplacementMeshTransientPackage();
 
 		// First check if we already have a valid temp asset
@@ -152,7 +175,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 			}
 		}
 
-		// Create a temp asset
+		// Create a transient asset
 		UNaniteDisplacedMesh* TempNaniteDisplacedMesh = UNaniteDisplacedMeshFactory::StaticFactoryCreateNew(
 			UNaniteDisplacedMesh::StaticClass(),
 			NaniteDisplacedMeshTransientPackage,
@@ -171,7 +194,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	}
 	else
 	{
-		// We need to create a new asset
+		// We need to create a new persistent asset
 		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
 		TStrongObjectPtr<UNaniteDisplacedMeshFactory> DisplacedMeshFactory(NewObject<UNaniteDisplacedMeshFactory>());

@@ -25,11 +25,18 @@ public:
 	bool bCreateReadOnlyAsset = false;
 };
 
+enum class ELinkDisplacedMeshAssetSetting : uint8
+{
+	LinkAgainstPersistentAsset,
+	CanLinkAgainstPersistentAndTransientAsset,
+	LinkAgainstTransientAsset
+};
+
 NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
 	UNaniteDisplacedMesh* ExistingDisplacedMesh,
 	const FNaniteDisplacedMeshParams& InParameters,
 	const FString& DisplacedMeshFolder,
-	bool bCreateTransientAsset = false
+	ELinkDisplacedMeshAssetSetting LinkDisplacedMeshAssetSetting = ELinkDisplacedMeshAssetSetting::LinkAgainstPersistentAsset
 );
 
 NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams);
