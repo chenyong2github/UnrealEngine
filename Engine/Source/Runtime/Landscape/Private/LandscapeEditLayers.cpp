@@ -7333,7 +7333,7 @@ void ALandscape::UpdateCachedHasLayersContent(bool bInCheckComponentDataIntegrit
 
 	// For consistency with the ALandscape::HasLayersContent() override above, make sure the cached bHasLayersContent boolean is also valid when we have at least one edit layer : 
 	//  Otherwise, as ALandscapeProxy::UpdateCachedHasLayersContent relies on the presence of landscape components and in distributed landscape setups (one ALandscape + multiple ALandscapeStreamingProxy),  
-	//  the master ALandscape actor doesn't have any landscape, hence it would have bHasLayersContent erroneously set to false (while ALandscape::HasLayersContent() would actually return true!)
+	//  the "parent" ALandscape actor doesn't have any landscape component, hence it would have bHasLayersContent erroneously set to false (while ALandscape::HasLayersContent() would actually return true!)
 	bHasLayersContent |= ALandscape::HasLayersContent();
 }
 

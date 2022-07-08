@@ -165,7 +165,7 @@ void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 	ULandscapeHeightfieldCollisionComponent* HFCollisionComponent = CollisionComponent.Get();
 	if (HFCollisionComponent)
 	{
-        // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+        // In Landscape Layers the Collision Component gets regenerated after the heightmap changes are undone and doesn't need to be transacted
 		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			HFCollisionComponent->Modify();
@@ -1055,7 +1055,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	bool CreatedNew = false;
 	bool ChangeType = false;
 
-    // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+	// In Landscape Layers the Collision Component gets regenerated after the heightmap changes are undone and doesn't need to be transacted
 	if (!Proxy->HasLayersContent())
 	{
 		if (CollisionComp)

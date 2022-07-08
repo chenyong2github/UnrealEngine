@@ -1126,7 +1126,7 @@ public:
 
 	LANDSCAPE_API FIntRect GetComponentExtent() const;
 
-	/** Updates navigation properties to match landscape's master switch */
+	/** Updates navigation properties to match landscape actor's */
 	void UpdateNavigationRelevance();
 
 	/** Updates the reject navmesh underneath flag in the collision component */
