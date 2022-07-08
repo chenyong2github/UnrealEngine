@@ -142,12 +142,17 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 			RootMode = EPCGCopyPointsMetadataInheritanceMode::Source;
 			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::Target;
 		}
-		else if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::Target)
-		{ 
+		else // if (Settings->AttributeInheritance == EPCGCopyPointsMetadataInheritanceMode::Target)
+		{
 			RootMetadata = TargetPointData->Metadata;
 			NonRootMetadata = SourcePointData->Metadata;
 			RootMode = EPCGCopyPointsMetadataInheritanceMode::Target;
 			NonRootMode = EPCGCopyPointsMetadataInheritanceMode::Source;
+		}
+
+		if (!TestTrue("Valid input metadata", RootMetadata && NonRootMetadata))
+		{
+			return;
 		}
 
 		TArray<const FPCGMetadataAttribute<float>*> InheritedAttributes;
