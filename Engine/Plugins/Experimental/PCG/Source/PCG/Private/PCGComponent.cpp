@@ -159,6 +159,8 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	Seed = Original->Seed;
 	SetGraph(Original->Graph);
 
+	GenerationTrigger = Original->GenerationTrigger;
+
 #if WITH_EDITOR
 	// Note that while we dirty here, we won't trigger a refresh since we don't have the required context
 	if (bIsDirty)
@@ -512,7 +514,7 @@ void UPCGComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if(bActivated && !bGenerated && !IsPartitioned())
+	if(bActivated && !bGenerated && !IsPartitioned() && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)
 	{
 		GenerateLocal(/*bForce=*/false);
 		bRuntimeGenerated = true;
@@ -525,6 +527,7 @@ void UPCGComponent::OnComponentCreated()
 
 #if WITH_EDITOR
 	SetupActorCallbacks();
+	UpdateIsLocalComponent();
 #endif
 }
 
@@ -600,6 +603,8 @@ void UPCGComponent::PostLoad()
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
+	
+	UpdateIsLocalComponent();
 #endif
 }
 
@@ -1902,6 +1907,14 @@ void UPCGComponent::DirtyCacheForAllTrackedTags()
 bool UPCGComponent::GraphUsesLandscapePin() const
 {
 	return Graph && Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel);
+}
+
+void UPCGComponent::UpdateIsLocalComponent()
+{
+	if (GetOwner() && GetOwner()->IsA<APCGPartitionActor>())
+	{
+		bIsComponentLocal = true;
+	}
 }
 
 #endif // WITH_EDITOR

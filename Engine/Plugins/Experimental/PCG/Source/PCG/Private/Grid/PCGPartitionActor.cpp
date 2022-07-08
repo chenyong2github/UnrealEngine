@@ -6,6 +6,7 @@
 #include "PCGWorldActor.h"
 
 #include "Landscape.h"
+#include "Components/BoxComponent.h"
 
 constexpr uint32 InvalidPCGGridSizeValue = 0u;
 
@@ -13,6 +14,17 @@ APCGPartitionActor::APCGPartitionActor(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 {
 	PCGGridSize = InvalidPCGGridSizeValue;
+
+#if WITH_EDITOR
+	// Setup bounds component
+	BoundsComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoundsComponent"));
+	BoundsComponent->SetCollisionObjectType(ECC_WorldStatic);
+	BoundsComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BoundsComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BoundsComponent->SetGenerateOverlapEvents(false);
+	BoundsComponent->SetupAttachment(GetRootComponent());
+	BoundsComponent->bDrawOnlyIfSelected = true;
+#endif // WITH_EDITOR
 }
 
 void APCGPartitionActor::PostLoad()
@@ -28,11 +40,25 @@ void APCGPartitionActor::PostLoad()
 #if WITH_EDITOR
 	// Make sure that we don't track objects that do not exist anymore
 	CleanupDeadGraphInstances();
+
+	if (BoundsComponent)
+	{
+		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
+	}
 #endif // WITH_EDITOR
 }
 
 void APCGPartitionActor::BeginPlay()
 {
+	// Pass through all the pcg components, and make sure we match generation trigger for the local component if it is not overriden
+	for (auto& It : OriginalToLocalMap)
+	{
+		if (It.Key && It.Value && !It.Value->bGenerationTriggerLocalOverride)
+		{
+			It.Value->GenerationTrigger = It.Key->GenerationTrigger;
+		}
+	}
+
 	Super::BeginPlay();
 
 	// Register cell to the PCG grid
@@ -201,6 +227,13 @@ bool APCGPartitionActor::CleanupDeadGraphInstances()
 void APCGPartitionActor::PostCreation()
 {
 	PCGGridSize = GridSize;
+
+#if WITH_EDITOR
+	if (BoundsComponent)
+	{
+		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
+	}
+#endif // WITH_EDITOR
 }
 
 bool APCGPartitionActor::IsSafeForDeletion() const

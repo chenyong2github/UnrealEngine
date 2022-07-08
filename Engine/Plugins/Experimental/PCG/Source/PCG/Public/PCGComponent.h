@@ -32,6 +32,13 @@ enum class EPCGComponentInput : uint8
 	EPCGComponentInput_MAX
 };
 
+UENUM(Blueprintable)
+enum class EPCGComponentGenerationTrigger : uint8
+{
+	GenerateOnLoad,
+	GenerateOnDemand
+};
+
 UENUM(meta = (Bitflags))
 enum class EPCGComponentDirtyFlag : uint8
 {
@@ -121,8 +128,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	bool bActivated = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal"))
 	bool bIsPartitioned = true;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "bIsComponentLocal", EditConditionHides))
+	bool bGenerationTriggerLocalOverride = false;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "!bIsComponentLocal || bGenerationTriggerLocalOverride", EditConditionHides))
+	EPCGComponentGenerationTrigger GenerationTrigger = EPCGComponentGenerationTrigger::GenerateOnLoad;
 
 	/** Flag to indicate whether this component has run in the editor. Note that for partitionable actors, this will always be false. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, AdvancedDisplay, Category = Properties)
@@ -132,6 +145,9 @@ public:
 	bool bRuntimeGenerated = false;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(VisibleAnywhere, Transient, Category = Properties, meta = (EditCondition = false, EditConditionHides))
+	bool bIsComponentLocal = false;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (DisplayName = "Regenerate PCG volume in editor"))
 	bool bRegenerateInEditor = true;
 
@@ -271,6 +287,7 @@ private:
 	void TeardownLandscapeTracking();
 	void UpdateTrackedLandscape(bool bBoundsCheck = true);
 	void OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams);
+	void UpdateIsLocalComponent();
 #endif
 
 #if WITH_EDITORONLY_DATA

@@ -8,6 +8,7 @@
 #include "PCGPartitionActor.generated.h"
 
 class UPCGComponent;
+class UBoxComponent;
 
 /** 
 * The APCGPartitionActor actor is used to store grid cell data
@@ -82,4 +83,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = WorldPartition)
 	uint32 PCGGridSize;
+
+#if WITH_EDITORONLY_DATA
+	/** Box component to draw the Partition actor bounds in the Editor viewport */
+	UPROPERTY(Transient)
+	TObjectPtr<UBoxComponent> BoundsComponent;
+#endif // WITH_EDITORONLY_DATA
 };
