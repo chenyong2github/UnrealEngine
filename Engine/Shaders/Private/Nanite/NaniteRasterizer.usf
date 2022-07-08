@@ -47,6 +47,8 @@ ALLOW_NO_PS_EXPORT
 
 uint ActiveRasterizerBin;
 
+float2 HardwareViewportSize;
+
 // .x = count of SW clusters in bin
 // .y = count of HW clusters in bin
 // .z = offset of contiguous cluster range in global buffer
@@ -1443,6 +1445,8 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 #if VIRTUAL_TEXTURE_TARGET
 	PointClipPixel.xy *= (VSM_RASTER_WINDOW_PAGES * VSM_PAGE_SIZE);
 	PointClipPixel.xy += VisibleCluster.vPage * (VSM_PAGE_SIZE * PointClipPixel.w);
+#elif NANITE_MULTI_VIEW
+	PointClipPixel.xy *= HardwareViewportSize;	// Offset handled by ClipSpaceScaleOffset
 #else
 	PointClipPixel.xy *= NaniteView.ViewSizeAndInvSize.xy;
 	PointClipPixel.xy += NaniteView.ViewRect.xy * PointClipPixel.w;
@@ -2010,7 +2014,7 @@ void HWRasterizePS(VSOut In
 #endif
 	{
 		const uint ViewId		= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 16, 0);
-#if VIRTUAL_TEXTURE_TARGET
+	#if VIRTUAL_TEXTURE_TARGET
 		const uint MipLevel		= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 8, 16);
 		const uint ArrayIndex	= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 8, 24);
 		const uint LevelOffset	= In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z;

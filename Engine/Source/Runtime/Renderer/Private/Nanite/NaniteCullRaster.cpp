@@ -734,6 +734,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER( uint32,		RenderFlags )
 	SHADER_PARAMETER( uint32,		VisualizeModeBitMask )
 	SHADER_PARAMETER( uint32,		ActiveRasterizerBin )
+	SHADER_PARAMETER( FVector2f,	HardwareViewportSize )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, MaterialSlotTable )
@@ -2449,6 +2450,7 @@ FBinningData AddPass_Rasterize(
 	RasterPassParameters->RasterParameters = RasterParameters;
 	RasterPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
 	RasterPassParameters->PageConstants = PageConstants;
+	RasterPassParameters->HardwareViewportSize = FVector2f(ViewRect.Width(), ViewRect.Height());
 	RasterPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	RasterPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	RasterPassParameters->IndirectArgs = BinIndirectArgs;
