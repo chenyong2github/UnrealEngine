@@ -89,6 +89,23 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void CompileHppEventMatcher()
+		{
+			// Visual C++ error
+			{
+				string[] lines =
+				{
+					@"D:/build/U5M+Inc/Sync/Engine/Source/ThirdParty/nanoflann/1.4.2/include\nanoflann/nanoflann.hpp(129,9): error: cannot use 'throw' with exceptions disabled",
+					@"        throw std::logic_error(""Try to change the size of a std::array."");",
+					@"        ^",
+				};
+
+				List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+				CheckEventGroup(logEvents, 0, 3, LogLevel.Error, KnownLogEvents.Compiler);
+			}
+		}
+
+		[TestMethod]
 		public void MicrosoftEventMatcher()
 		{
 			// Generic Microsoft errors which can be parsed by visual studio
