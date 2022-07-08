@@ -4,8 +4,6 @@
 
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
-#include "UGSCore/DetectProjectSettingsTask.h"
-#include "UGSCore/UserSettings.h"
 #include "Widgets/SModalTaskWindow.h"
 #include "Widgets/SLogWidget.h"
 
@@ -14,7 +12,7 @@
 UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   TabWidget(SNew(SDockTab)),
 				   EmptyTabView(SNew(SEmptyTab).Tab(this)),
-				   GameSyncTabView(SNew(SGameSyncTab))
+				   GameSyncTabView(SNew(SGameSyncTab).Tab(this))
 {
 	TabWidget->SetContent(EmptyTabView);
 }
@@ -24,28 +22,14 @@ const TSharedRef<SDockTab> UGSTab::GetTabWidget()
 	return TabWidget;
 }
 
-void UGSTab::SetTabArgs(FSpawnTabArgs InTabArgs) 
-{ 
-	TabArgs = InTabArgs; 
-}
-
-FSpawnTabArgs UGSTab::GetTabArgs() const 
-{ 
-	return TabArgs; 
-}
-
-bool UGSTab::OnWorkspaceChosen(const FString& Project)
+void UGSTab::SetTabArgs(FSpawnTabArgs InTabArgs)
 {
-	bool bIsDataValid = FPaths::FileExists(Project); // Todo: Check that the project file is also associated with a workspace
-	if (bIsDataValid)
-	{
-		ProjectFileName = Project;
-		SetupWorkspace();
-		TabWidget->SetContent(GameSyncTabView); // Todo: Set GameSyncTabView data
-		return true;
-	}
-	
-	return false;
+	TabArgs = InTabArgs;
+}
+
+FSpawnTabArgs UGSTab::GetTabArgs() const
+{
+	return TabArgs;
 }
 
 namespace
@@ -148,7 +132,7 @@ namespace
 	{
 		TArray<FBuildStep> DefaultBuildSteps;
 		DefaultBuildSteps.Add(FBuildStep(FGuid(0x01F66060, 0x73FA4CC8, 0x9CB3E217, 0xFBBA954E), 0, TEXT("Compile UnrealHeaderTool"), TEXT("Compiling UnrealHeaderTool..."), 1, TEXT("UnrealHeaderTool"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		FString ActualEditorTargetName = (EditorTargetName.Len() > 0)? EditorTargetName : "UnrealEditor";
+		FString ActualEditorTargetName = (EditorTargetName.Len() > 0) ? EditorTargetName : "UnrealEditor";
 		DefaultBuildSteps.Add(FBuildStep(FGuid(0xF097FF61, 0xC9164058, 0x839135B4, 0x6C3173D5), 1, FString::Printf(TEXT("Compile %s"), *ActualEditorTargetName), FString::Printf(TEXT("Compiling %s..."), *ActualEditorTargetName), 10, ActualEditorTargetName, HostPlatform, ::ToString(Settings->CompiledEditorBuildConfig), TEXT(""), !ShouldSyncPrecompiledEditor()));
 		DefaultBuildSteps.Add(FBuildStep(FGuid(0xC6E633A1, 0x956F4AD3, 0xBC956D06, 0xD131E7B4), 2, TEXT("Compile ShaderCompileWorker"), TEXT("Compiling ShaderCompileWorker..."), 1, TEXT("ShaderCompileWorker"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
 		DefaultBuildSteps.Add(FBuildStep(FGuid(0x24FFD88C, 0x79014899, 0x9696AE10, 0x66B4B6E8), 3, TEXT("Compile UnrealLightmass"), TEXT("Compiling UnrealLightmass..."), 1, TEXT("UnrealLightmass"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
@@ -208,14 +192,49 @@ namespace
 	}
 }
 
+bool UGSTab::OnWorkspaceChosen(const FString& Project)
+{
+	bool bIsDataValid = FPaths::FileExists(Project); // Todo: Check that the project file is also associated with a workspace
+	if (bIsDataValid)
+	{
+		ProjectFileName = Project;
+		SetupWorkspace();
+		TabWidget->SetContent(GameSyncTabView); // Todo: Set GameSyncTabView data
+		return true;
+	}
+
+	return false;
+}
+
+void UGSTab::OnSyncLatest()
+{
+	// Hacking in the CL
+	int ChangeNumber = 20992726;
+	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
+		ChangeNumber,
+		Options,
+		CombinedSyncFilter,
+		GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
+		ProjectSettings->BuildSteps,
+		TSet<FGuid>(),
+		GetWorkspaceVariables(DetectSettings));
+
+	// Update the workspace with the Context!
+	Workspace->Update(Context);
+}
+
 void UGSTab::SetupWorkspace()
 {
 	ProjectFileName = FUtility::GetPathWithCorrectCase(ProjectFileName);
 
 	// TODO likely should also log this on an Empty tab... so we can show logging info when we are loading things
-	TSharedRef<FDetectProjectSettingsTask> DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
+	DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
 
-	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(TabWidget, DetectSettings, LOCTEXT("OpeningProjectTitle", "Opening Project"), LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
+	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(
+		TabWidget,
+		DetectSettings.ToSharedRef(),
+		LOCTEXT("OpeningProjectTitle", "Opening Project"),
+		LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
 	if(Result->Failed())
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, Result->GetMessage());
@@ -225,73 +244,72 @@ void UGSTab::SetupWorkspace()
 	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
 	IFileManager::Get().MakeDirectory(*DataFolder);
 
-	TSharedPtr<FUserSettings> Settings = MakeShared<FUserSettings>(*(DataFolder / TEXT("UnrealGameSync.ini")));
+	UserSettings = MakeShared<FUserSettings>(*(DataFolder / TEXT("UnrealGameSync.ini")));
 
-	TSharedRef<FPerforceConnection> PerforceClient = DetectSettings->PerforceClient.ToSharedRef();
-	TSharedRef<FUserWorkspaceSettings> WorkspaceSettings = Settings->FindOrAddWorkspace(*DetectSettings->BranchClientPath);
-	TSharedRef<FUserProjectSettings> ProjectSettings = Settings->FindOrAddProject(*DetectSettings->NewSelectedClientFileName);
-
-	FString SelectedClientFileName = DetectSettings->NewSelectedClientFileName;
-	FString BranchDirectoryName = DetectSettings->BranchDirectoryName;
-	FString BranchClientPath = DetectSettings->BranchClientPath;
-	FString SelectedProjectIdentifier = DetectSettings->NewSelectedProjectIdentifier;
-	FString EditorTarget = DetectSettings->NewProjectEditorTarget;
+	PerforceClient = DetectSettings->PerforceClient;
+	WorkspaceSettings = UserSettings->FindOrAddWorkspace(*DetectSettings->BranchClientPath);
+	ProjectSettings = UserSettings->FindOrAddProject(*DetectSettings->NewSelectedClientFileName);
 
 	// Check if the project we've got open in this workspace is the one we're actually synced to
 	int CurrentChangeNumber = -1;
-	if(WorkspaceSettings->CurrentProjectIdentifier == SelectedProjectIdentifier)
+	if(WorkspaceSettings->CurrentProjectIdentifier == DetectSettings->NewSelectedProjectIdentifier)
 	{
 		CurrentChangeNumber = WorkspaceSettings->CurrentChangeNumber;
 	}
 
-	FString ClientKey = BranchClientPath.Replace(*FString::Printf(TEXT("//%s/"), *PerforceClient->ClientName), TEXT(""));
+	FString ClientKey = DetectSettings->BranchClientPath.Replace(*FString::Printf(TEXT("//%s/"), *PerforceClient->ClientName), TEXT(""));
 	if(ClientKey.EndsWith(TEXT("/")))
 	{
 		ClientKey = ClientKey.Left(ClientKey.Len() - 1);
 	}
 
 	FString ProjectLogBaseName = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
-	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*SelectedProjectIdentifier);
+	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
 
 	FString LogFileName = DataFolder / FPaths::GetPath(ProjectFileName) + TEXT(".sync.log");
 	GameSyncTabView->SetSyncLogLocation(LogFileName);
 
-	Workspace = MakeShared<FWorkspace>(PerforceClient, BranchDirectoryName, ProjectFileName, BranchClientPath, SelectedClientFileName, CurrentChangeNumber, WorkspaceSettings->LastBuiltChangeNumber, TelemetryProjectIdentifier, MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()));
+	Workspace = MakeShared<FWorkspace>(
+		PerforceClient.ToSharedRef(),
+		DetectSettings->BranchDirectoryName,
+		ProjectFileName,
+		DetectSettings->BranchClientPath,
+		DetectSettings->NewSelectedClientFileName,
+		CurrentChangeNumber,
+		WorkspaceSettings->LastBuiltChangeNumber,
+		TelemetryProjectIdentifier,
+		MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()));
 
-	// Todo:Move into a sync operation
-	/*
-	TArray<FString> CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(Workspace->GetSyncCategories(), Settings->SyncView, Settings->SyncExcludedCategories, WorkspaceSettings->SyncView, WorkspaceSettings->SyncExcludedCategories);
+	// Todo: Eventually move into the sync operation
+	CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(
+		Workspace->GetSyncCategories(),
+		UserSettings->SyncView,
+		UserSettings->SyncExcludedCategories,
+		WorkspaceSettings->SyncView,
+		WorkspaceSettings->SyncExcludedCategories);
 
 	// Options on what to do with workspace when updating it
-	EWorkspaceUpdateOptions Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
-	if(Settings->bAutoResolveConflicts)
+	Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
+	if(UserSettings->bAutoResolveConflicts)
 	{
 		Options |= EWorkspaceUpdateOptions::AutoResolveChanges;
 	}
-	if(Settings->bUseIncrementalBuilds)
+	if(UserSettings->bUseIncrementalBuilds)
 	{
 		Options |= EWorkspaceUpdateOptions::UseIncrementalBuilds;
 	}
-	if(Settings->bBuildAfterSync)
+	if(UserSettings->bBuildAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::Build;
 	}
-	if(Settings->bBuildAfterSync && Settings->bRunAfterSync)
+	if(UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::RunAfterSync;
 	}
-	if(Settings->bOpenSolutionAfterSync)
+	if(UserSettings->bOpenSolutionAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
 	}
-
-	// // Hacking in the CL
-	int ChangeNumber = 20992206;
-	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(EditorTarget, Settings), ProjectSettings->BuildSteps, TSet<FGuid>(), GetWorkspaceVariables(DetectSettings));
-
-	// // Update the workspace with the Context!
-	Workspace->Update(Context);
-	*/
 }
 
 #undef LOCTEXT_NAMESPACE

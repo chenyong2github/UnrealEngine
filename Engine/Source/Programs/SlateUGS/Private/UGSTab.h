@@ -7,6 +7,8 @@
 #include "Widgets/SWorkspaceWindow.h"
 
 #include "UGSCore/Workspace.h"
+#include "UGSCore/DetectProjectSettingsTask.h"
+#include "UGSCore/UserSettings.h"
 
 class UGSTab
 {
@@ -20,6 +22,7 @@ public:
 
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
+	void OnSyncLatest();
 private:
 
 	// Core functions
@@ -32,6 +35,13 @@ private:
 	TSharedRef<SGameSyncTab> GameSyncTabView;
 
 	// Core data
-	TSharedPtr<FWorkspace> Workspace;
 	FString ProjectFileName;
+	TSharedPtr<FWorkspace> Workspace;
+	TSharedPtr<FPerforceConnection> PerforceClient;
+	TSharedPtr<FUserWorkspaceSettings> WorkspaceSettings;
+	TSharedPtr<FUserProjectSettings> ProjectSettings;
+	EWorkspaceUpdateOptions Options;
+	TSharedPtr<FDetectProjectSettingsTask> DetectSettings;
+	TArray<FString> CombinedSyncFilter;
+	TSharedPtr<FUserSettings> UserSettings;
 };

@@ -15,6 +15,8 @@
 
 #include "Styling/AppStyle.h"
 
+#include "UGSTab.h"
+
 #define LOCTEXT_NAMESPACE "UGSWindow"
 
 TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
@@ -107,8 +109,30 @@ TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<HordeB
 	];
 }
 
+// Button callbacks
+TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Sync Latest")),
+		FText::FromString(TEXT("Sync to the latest submitted changelist")),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				Tab->OnSyncLatest();
+			}),
+			FCanExecuteAction::CreateLambda([] { return true; })),
+		NAME_None,
+		EUserInterfaceActionType::Button
+		);
+
+	return MenuBuilder.MakeWidget();
+}
+
 void SGameSyncTab::Construct(const FArguments& InArgs)
 {
+	Tab = InArgs._Tab;
 	HordeBuilds = InArgs._HordeBuilds;
 
 	this->ChildSlot
@@ -116,7 +140,8 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		SNew(SVerticalBox)
 		// Toolbar at the top of the tab // Todo: Maybe use a FToolBarBuilder instead
 		+SVerticalBox::Slot()
-		.MaxHeight(35.0f)
+		.FillHeight(0.05f)
+		// .MaxHeight(35.0f)
 		.Padding(20.0f, 5.0f)
 		[
 			SNew(SBorder)
@@ -134,6 +159,10 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("Sync", "Sync"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
 						.HasDownArrow(true)
+						.MenuContent()
+						[
+							MakeSyncButtonDropdown()
+						]
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -206,16 +235,16 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 				]
 			]
 		]
-		// Stream banner 
+		// Stream banner
 		+SVerticalBox::Slot()
 		.Padding(20.0f, 5.0f)
-		.AutoHeight()
+		.FillHeight(0.2f)
 		[
 			SNew(SOverlay)
 			+SOverlay::Slot()
 			[
 				SNew(SSimpleGradient) // Todo: save literals in class and use different colors depending on stream (Fortnite, UE5, etc)
-				.StartColor(FLinearColor(161.0f / 255.0f, 57.0f / 255.0f, 191.0f / 255.0f)) 
+				.StartColor(FLinearColor(161.0f / 255.0f, 57.0f / 255.0f, 191.0f / 255.0f))
 				.EndColor(FLinearColor(27.0f / 255.0f, 27.0f / 255.0f, 27.0f / 255.0f))
 			]
 			+SOverlay::Slot()
@@ -240,7 +269,6 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					SNew(SVerticalBox) // Todo: Add buttons/dropdowns to each option here
 					+SVerticalBox::Slot()
 					.Padding(10.0f, 25.0f)
-					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
@@ -259,7 +287,6 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					]
 					+SVerticalBox::Slot()
 					.Padding(10.0f, 12.5f)
-					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
@@ -278,7 +305,6 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					]
 					+SVerticalBox::Slot()
 					.Padding(10.0f, 25.0f)
-					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
@@ -313,119 +339,60 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					.Padding(10.0f, 10.0f)
 					.AutoWidth()
 					[
-						SNew(STextBlock) 
+						SNew(STextBlock)
 						.Text(LOCTEXT("SyncProgress", "Syncing Files... (85/7827)"))
 					]
-				]
-			]
-		]
-		// Horde build table header bar
-		+SVerticalBox::Slot()
-		.MaxHeight(25.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
-			[
-				SNew(SHorizontalBox)
-				// CODE/CONTENT
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderType", "TYPE"))
-				]
-				// Changelist
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderChange", "CHANGE"))
-				]
-				// Time
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderTime", "TIME"))
-				]
-				// Author
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderAuthor", "AUTHOR"))
-				]
-				// Description
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderDescription", "DESCRIPTION"))
-				]
-				// EDITOR
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderEditor", "EDITOR"))
-				]
-				// PLATFORMS
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderPlatforms", "PLATFORMS"))
-				]
-				// CIS
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderCIS", "CIS"))
-				]
-				// Status
-				+SHorizontalBox::Slot()
-				.Padding(HordeBuildRowHorizontalPadding, HordeBuildRowVerticalPadding)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HordeHeaderStatus", "STATUS"))
 				]
 			]
 		]
 		// Horde builds
 		+SVerticalBox::Slot()
 		.Padding(20.0f, 5.0f)
+		.FillHeight(0.45f)
 		[
 			SAssignNew(HordeBuildsView, SListView<TSharedPtr<HordeBuildRowInfo>>)
 			.ListItemsSource(&HordeBuilds)
+			.HeaderRow(
+				SNew(SHeaderRow)
+				+SHeaderRow::Column(FName(TEXT("TYPE")))
+				.DefaultLabel(LOCTEXT("HordeHeaderType", "TYPE"))
+				+SHeaderRow::Column(FName(TEXT("CHANGE")))
+				.DefaultLabel(LOCTEXT("HordeHeaderChange", "CHANGE"))
+				+SHeaderRow::Column(FName(TEXT("AUTHOR")))
+				.DefaultLabel(LOCTEXT("HordeHeaderAuthor", "AUTHOR"))
+				+SHeaderRow::Column(FName(TEXT("DESCRIPTION")))
+				.DefaultLabel(LOCTEXT("HordeHeaderDescription", "DESCRIPTION"))
+				+SHeaderRow::Column(FName(TEXT("EDITOR")))
+				.DefaultLabel(LOCTEXT("HordeHeaderEditor", "EDITOR"))
+				+SHeaderRow::Column(FName(TEXT("PLATFORMS")))
+				.DefaultLabel(LOCTEXT("HordeHeaderPlatforms", "PLATFORMS"))
+				+SHeaderRow::Column(FName(TEXT("CIS")))
+				.DefaultLabel(LOCTEXT("HordeHeaderCIS", "CIS"))
+				+SHeaderRow::Column(FName(TEXT("STATUS")))
+				.DefaultLabel(LOCTEXT("HordeHeaderStatus", "STATUS"))
+			)
 			.OnGenerateRow(this, &SGameSyncTab::GenerateHordeBuildTableRow)
 		]
+		// Log
 		+SVerticalBox::Slot()
+		.Padding(10.0f, 5.0f, 10.0f, 10.0f)
+		.FillHeight(0.3f)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 4.0f, 0.0f, 8.0f)
+			.AutoHeight()
+			.Padding(0.0f, 4.0f, 0.0f, 8.0f)
+			[
+				SNew(SHeader)
 				[
-					SNew(SHeader)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Log", "Log"))
-					]
+					SNew(STextBlock)
+					.Text(LOCTEXT("Log", "Log"))
 				]
+			]
 			+SVerticalBox::Slot()
-				[
-					SAssignNew(SyncLog, SLogWidget)
-				]
+			[
+				SAssignNew(SyncLog, SLogWidget)
+			]
 		]
 	];
 }
