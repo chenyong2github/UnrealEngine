@@ -13,6 +13,7 @@
 #include "Engine/Classes/Engine/UserDefinedStruct.h"
 
 #include "UObject/UnrealType.h"
+#include "UObject/UObjectIterator.h"
 
 
 static bool IsStructHashable(const UScriptStruct* InStructType)
