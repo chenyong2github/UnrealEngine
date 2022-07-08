@@ -14,6 +14,7 @@
 #include "Retargeter/IKRetargeter.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "ScopedTransaction.h"
+#include "AnimationRuntime.h"
 
 #if WITH_EDITOR
 #include "HAL/PlatformApplicationMisc.h"
