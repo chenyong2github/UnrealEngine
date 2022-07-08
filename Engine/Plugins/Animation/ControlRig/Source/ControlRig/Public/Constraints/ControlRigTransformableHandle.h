@@ -60,7 +60,8 @@ public:
 
 #if WITH_EDITOR
 	/** @todo document */
-	virtual FName GetName() const override;
+	virtual FString GetLabel() const override;
+	virtual FString GetFullLabel() const override;
 #endif
 
 	/** The ControlRig that this handle is pointing at. */

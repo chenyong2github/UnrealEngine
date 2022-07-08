@@ -363,13 +363,30 @@ void SEditableConstraintItem::Construct(
 		}
 	});
 
+	// constraint
 	auto GetConstraint = [this]()
 	{
 		UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 		return Controller.GetConstraint(ConstraintItem->Name);
 	};
+	UTickableConstraint* Constraint = GetConstraint();
+
+	// labels
+	FString ParentLabel(TEXT("undefined")), ChildLabel(TEXT("undefined"));
+	if (!InItem->Label.IsEmpty())
+	{
+		ChildLabel = InItem->Label;
+		InItem->Label.Split(TEXT("."), &ParentLabel, &ChildLabel);
+	}
 	
+	FString ParentFullLabel = ParentLabel, ChildFullLabel = ChildLabel;
+	if (Constraint)
+	{
+		Constraint->GetFullLabel().Split(TEXT("."), &ParentFullLabel, &ChildFullLabel);
+	}
+
+	// widgets
 	ChildSlot
 	.Padding(FMargin(8.f, 2.f, 12.f, 2.f))
 	[
@@ -384,13 +401,13 @@ void SEditableConstraintItem::Construct(
 			SNew(SBorder)
 			.Padding(FMargin(5.0, 2.0, 5.0, 2.0))
 			.BorderImage(RoundedBoxBrush)
-			.BorderBackgroundColor_Lambda([GetConstraint]()
+			.BorderBackgroundColor_Lambda([Constraint]()
 			{
-				if (const UTickableConstraint* Constraint = GetConstraint())
+				if (!Constraint)
 				{
-					return Constraint->Active ? FStyleColors::Select : FStyleColors::Transparent;
+					return FStyleColors::Transparent;
 				}
-				return FStyleColors::Transparent;
+				return Constraint->Active ? FStyleColors::Select : FStyleColors::Transparent;
 			})
 			.Content()
 			[
@@ -416,25 +433,29 @@ void SEditableConstraintItem::Construct(
 				.Padding(0)
 				[
 					SNew( STextBlock )
-					.Text_Lambda( [InItem]()
+					.Text_Lambda( [ParentLabel]()
 					{
-						if(InItem->ParentName == NAME_None)
-						{
-							return FText::FromName(InItem->Name);
-						}
-
-						const FString TextStr = FString::Printf(TEXT("%s (%s)"), *InItem->Name.ToString(), *InItem->ParentName.ToString());
-						return FText::FromString(TextStr);
+						return FText::FromString(ParentLabel);
 					})
-					.Font_Lambda([GetConstraint]()
+					.Font_Lambda([Constraint]()
 					{
-						const UTickableConstraint* Constraint = GetConstraint();
 						if (!Constraint)
 						{
 							return IDetailLayoutBuilder::GetDetailFont();
 						}
-
 						return Constraint->Active ? IDetailLayoutBuilder::GetDetailFont() : IDetailLayoutBuilder::GetDetailFontItalic();
+					})
+					.ToolTipText_Lambda( [Constraint, ParentFullLabel, ChildFullLabel]()
+					{
+						if (!Constraint)
+						{
+							return FText();
+						}
+
+						static constexpr TCHAR ToolTipFormat[] = TEXT("%s constraint between parent '%s' and child '%s'.");
+						const FString TypeLabel = Constraint->GetTypeLabel();
+						const FString FullLabel = FString::Printf(ToolTipFormat, *TypeLabel, *ParentFullLabel, *ChildFullLabel);
+						return FText::FromString(FullLabel);
 					})
 				]
 			]
@@ -456,9 +477,8 @@ void SEditableConstraintItem::Construct(
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.ContentPadding(0)
-			.OnClicked_Lambda(	[GetConstraint]()
+			.OnClicked_Lambda(	[Constraint]()
 			{
-				UTickableConstraint* Constraint = GetConstraint();
 				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 				{
 					// FConstraintChannelHelper::AddConstraintKey(TransformConstraint);

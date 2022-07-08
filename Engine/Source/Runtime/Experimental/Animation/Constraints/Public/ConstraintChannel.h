@@ -5,6 +5,7 @@
 #include "Channels/MovieSceneBoolChannel.h"
 #include "MovieSceneClipboard.h"
 #include "ConstraintsManager.h"
+#include "Templates/Function.h"
 #include "ConstraintChannel.generated.h"
 
 USTRUCT()
@@ -16,6 +17,11 @@ struct CONSTRAINTS_API FMovieSceneConstraintChannel : public FMovieSceneBoolChan
 
 	// @todo 
 	bool Evaluate(FFrameTime InTime, bool& OutValue) const;
+
+#if WITH_EDITOR
+	using ExtraLabelFunction = TFunction< FString() >;
+	ExtraLabelFunction ExtraLabel;
+#endif
 };
 
 template<>

@@ -1280,7 +1280,7 @@ void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName,
 void UMovieSceneControlRigParameterSection::RegisterConstraintsHandles()
 {
 	if (OnConstraintRemovedHandle.IsValid())
-	{
+	{ 
 		return;
 	}
 
@@ -1289,6 +1289,11 @@ void UMovieSceneControlRigParameterSection::RegisterConstraintsHandles()
 		return;
 	}
 
+	if (ConstraintsChannels.IsEmpty())
+	{
+		return;
+	}
+	
 	// register constraint deletion handle
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
 	OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
@@ -1338,6 +1343,20 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 			ReconstructChannelProxy();
 		}
 		RegisterConstraintsHandles();
+	}
+}
+
+void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const FName& InConstraintName)
+{
+	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+	{
+		return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+	});
+
+	if (ConstraintsChannels.IsValidIndex(Index))
+	{
+		ConstraintsChannels.RemoveAt(Index);
+		ReconstructChannelProxy();
 	}
 }
 
@@ -1411,7 +1430,8 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		};
 
 
-		auto AddConstrainChannels = [this, GetConstraints, &ConstraintsChannelIndex, &TotalIndex, &Channels](const FName& InControlName, const FText& InGroup, const bool bEnabled)
+		auto AddConstrainChannels = [this, GetConstraints, &ConstraintsChannelIndex, &TotalIndex, &Channels](
+			const FName& InControlName, const FText& InGroup, const bool bEnabled)
 		{
 			TArray<TObjectPtr<UTickableConstraint>> Constraints = GetConstraints(InControlName);
 			for (const TObjectPtr<UTickableConstraint>& Constraint: Constraints)
@@ -1425,12 +1445,26 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 					}
 
 #if WITH_EDITOR
-					FMovieSceneChannelMetaData MetaData(ConstraintName,  FText::FromName(ConstraintName), InGroup, bEnabled);
+					ConstraintChannel->ActiveChannel.ExtraLabel = [WeakConstraint = MakeWeakObjectPtr(Constraint)]
+					{
+						if (WeakConstraint.IsValid())
+						{
+							FString ParentStr; WeakConstraint->GetLabel().Split(TEXT("."), &ParentStr, nullptr);
+							if (!ParentStr.IsEmpty())
+							{
+								return ParentStr;
+							}		
+						}
+						static const FString DummyStr;
+						return DummyStr;
+					};
+					
+					const FText DisplayText = FText::FromString(Constraint->GetTypeLabel());
+					FMovieSceneChannelMetaData MetaData(ConstraintName, DisplayText,InGroup, bEnabled);
 					ConstraintsChannelIndex += 1;
 					MetaData.SortOrder = TotalIndex++;
 					MetaData.bCanCollapseToTrack = false;
-
-					// Channels.Add(ConstraintChannel->ActiveCurve.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+		
 					Channels.Add(ConstraintChannel->ActiveChannel, MetaData, TMovieSceneExternalValue<bool>());
 #else
 					Channels.Add(ConstraintChannel->ActiveChannel);

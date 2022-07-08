@@ -58,7 +58,8 @@ public:
 	FHandleModifiedEvent& HandleModified();
 
 #if WITH_EDITOR
-	virtual FName GetName() const PURE_VIRTUAL(GetName, return NAME_None;);
+	virtual FString GetLabel() const PURE_VIRTUAL(GetLabel, return FString(););
+	virtual FString GetFullLabel() const PURE_VIRTUAL(GetFullLabel, return FString(););
 #endif
 
 protected:
@@ -102,7 +103,8 @@ public:
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
 #if WITH_EDITOR
-	virtual FName GetName() const override;
+	virtual FString GetLabel() const override;
+	virtual FString GetFullLabel() const override;
 #endif
 	
 	/** The Component that this handle is pointing at. */

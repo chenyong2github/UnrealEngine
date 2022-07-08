@@ -3373,8 +3373,34 @@ uint32 UControlRig::GetHashForInitializeVMSnapShot()
 	return Hash;
 }
 
-UTransformableControlHandle* UControlRig::CreateTransformableControlHandle(UObject* InOuter, const FName& InControlName)
+UTransformableControlHandle* UControlRig::CreateTransformableControlHandle(
+	UObject* InOuter,
+	const FName& InControlName) const
 {
+	auto IsConstrainable = [this](const FName& InControlName)
+	{
+		const FRigControlElement* ControlElement = FindControl(InControlName);
+		if (!ControlElement)
+		{
+			return false;
+		}
+		
+		const FRigControlSettings& ControlSettings = ControlElement->Settings;
+		if (ControlSettings.ControlType == ERigControlType::Bool ||
+			ControlSettings.ControlType == ERigControlType::Float ||
+			ControlSettings.ControlType == ERigControlType::Integer)
+		{
+			return false;
+		}
+
+		return true;
+	};
+
+	if (!IsConstrainable(InControlName))
+	{
+		return nullptr;
+	}
+	
 	UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(InOuter);
 	ensure(CtrlHandle);
 	CtrlHandle->ControlRig = this;

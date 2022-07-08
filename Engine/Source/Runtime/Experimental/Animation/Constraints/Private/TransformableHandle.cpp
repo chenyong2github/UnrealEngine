@@ -167,14 +167,21 @@ void UTransformableComponentHandle::OnPostPropertyChanged(
 }
 
 #if WITH_EDITOR
-FName UTransformableComponentHandle::GetName() const
+FString UTransformableComponentHandle::GetLabel() const
 {
 	if (!Component.IsValid())
 	{
-		return NAME_None;
+		static const FString DummyLabel;
+		return DummyLabel;
 	}
 
 	const AActor* Actor = Component->GetOwner();
-	return Actor ? FName(*Actor->GetActorLabel()) : Component->GetFName();
+	return Actor ? Actor->GetActorLabel() : Component->GetName();
 }
+
+FString UTransformableComponentHandle::GetFullLabel() const
+{
+	return GetLabel();
+};
+
 #endif

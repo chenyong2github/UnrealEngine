@@ -107,6 +107,64 @@ void DrawKeys(
 	}
 }
 
+namespace
+{
+
+struct FConstraintChannelLabelBuilder
+{
+public:
+	FConstraintChannelLabelBuilder(const UMovieSceneSection* InOwner, const FMovieSceneConstraintChannel* InChannel)
+		: Owner(InOwner)
+		, Channel(InChannel)
+	{
+		ConstructLabel();
+	}
+
+	FText Label;
+	bool bValid = false;
+	
+private:
+	void ConstructLabel() 
+	{
+		if (!Channel || !Owner)
+		{
+			return;
+		}
+
+		// get the stored extra label
+		const FString ExtraLabel = Channel->ExtraLabel ? Channel->ExtraLabel() : FString();
+		if (!ExtraLabel.IsEmpty())
+		{
+			Label = FText::FromString(ExtraLabel);
+			bValid = true;
+			return;
+		}
+
+		// fallback to meta data
+		const FMovieSceneChannelProxy& Proxy = Owner->GetChannelProxy();
+		const TArrayView<FMovieSceneConstraintChannel*> ConstraintChannels = Proxy.GetChannels<FMovieSceneConstraintChannel>();
+		const TArrayView<const FMovieSceneChannelMetaData> MetaData = Proxy.GetMetaData<FMovieSceneConstraintChannel>();
+		
+		const int32 ChannelIndex = ConstraintChannels.IndexOfByKey(Channel);
+		if (!ConstraintChannels.IsValidIndex(ChannelIndex) || !MetaData.IsValidIndex(ChannelIndex))
+		{
+			return;
+		}
+
+		const FName& ConstraintName = MetaData[ChannelIndex].Name;
+		if (ConstraintName != NAME_None)
+		{
+			Label = FText::FromName(ConstraintName);
+			bValid = true;
+		}
+	}
+
+	const UMovieSceneSection* Owner = nullptr;
+	const FMovieSceneConstraintChannel* Channel = nullptr;
+};
+
+}
+
 void DrawExtra(
 	FMovieSceneConstraintChannel* Channel,
 	const UMovieSceneSection* Owner,
@@ -165,26 +223,9 @@ void DrawExtra(
 	const double InputMax = TimeToPixel.PixelToSeconds(Painter.SectionGeometry.GetLocalSize().X);
 
 	// label data
-	FText Label;
-	bool bDrawLabel = false;
-	
-	const FMovieSceneChannelProxy& Proxy = Owner->GetChannelProxy();
-	const TArrayView<FMovieSceneConstraintChannel*> ConstraintChannels = Proxy.GetChannels<FMovieSceneConstraintChannel>();
-	const int32 ChannelIndex = ConstraintChannels.IndexOfByKey(Channel);
-	if (ConstraintChannels.IsValidIndex(ChannelIndex))
-	{
-		const TArrayView<const FMovieSceneChannelMetaData> MetaData = Proxy.GetMetaData<FMovieSceneConstraintChannel>();
-		if (MetaData.IsValidIndex(ChannelIndex))
-		{
-			const FName& ConstraintName = MetaData[ChannelIndex].Name;
-			if (ConstraintName != NAME_None)
-			{
-				Label = FText::FromName(ConstraintName);
-				bDrawLabel = true;
-			}
-		}
-	}
-	const FVector2D TextSize = bDrawLabel ? FontMeasure->Measure(Label, FontInfo) : FVector2D::ZeroVector;
+	const FConstraintChannelLabelBuilder LabelBuilder(Owner, Channel);
+	const FText& Label = LabelBuilder.Label;
+	const FVector2D TextSize = LabelBuilder.bValid ? FontMeasure->Measure(Label, FontInfo) : FVector2D::ZeroVector;
 	static constexpr double LabelPixelOffset = 10.0;  
 	
 	for (int32 Index = 0; Index < Ranges.Num(); ++Index)
@@ -210,7 +251,7 @@ void DrawExtra(
 		FSlateDrawElement::MakeBox(Painter.DrawElements, Painter.LayerId, BoxGeometry, WhiteBrush, DrawEffects, Range.Color);
 
 		// draw label
-		if (bDrawLabel)
+		if (LabelBuilder.bValid)
 		{
 			const double LabelPos = BoxStart + LabelPixelOffset;
 			const FVector2D Position(LabelPos, LaneTop + (LocalSize.Y - TextSize.Y) * .5f);
@@ -232,4 +273,30 @@ void DrawExtra(
 			}
 		}
 	}
+}
+
+FKeyHandle AddOrUpdateKey(
+	FMovieSceneConstraintChannel* Channel,
+	UMovieSceneSection* SectionToKey,
+	FFrameNumber Time,
+	ISequencer& Sequencer,
+	const FGuid& ObjectBindingID,
+	FTrackInstancePropertyBindings* PropertyBindings)
+{
+	return FKeyHandle::Invalid();
+}
+
+bool CanCreateKeyEditor(const FMovieSceneConstraintChannel* InChannel)
+{
+	return false;
+}
+
+TSharedRef<SWidget> CreateKeyEditor(
+	const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& InChannel,
+	UMovieSceneSection* InSection,
+	const FGuid& InObjectBindingID,
+	TWeakPtr<FTrackInstancePropertyBindings> PropertyBindings,
+	TWeakPtr<ISequencer> InSequencer)
+{
+	return SNullWidget::NullWidget;
 }

@@ -93,8 +93,12 @@ public:
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
 
 #if WITH_EDITOR
-	/** @todo document */
-	virtual FName GetLabel() const;
+	/** Returns the constraint's label used for UI. */
+	virtual FString GetLabel() const;
+	virtual FString GetFullLabel() const;
+
+	/** Returns the constraint's type label used for UI. */
+	virtual FString GetTypeLabel() const;
 
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

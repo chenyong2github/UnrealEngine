@@ -113,7 +113,11 @@ protected:
 #if WITH_EDITOR
 public:
 	/** Returns the constraint's label used for UI. */
-	virtual FName GetLabel() const override;
+	virtual FString GetLabel() const override;
+	virtual FString GetFullLabel() const override;
+
+	/** Returns the constraint's type label used for UI. */
+	virtual FString GetTypeLabel() const override;
 
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

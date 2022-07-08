@@ -148,20 +148,20 @@ public:
 	static TSharedRef<FEditableConstraintItem> Make(
 		const FName& InName,
 		ETransformConstraintType InType,
-		const FName& InParentName)
+		const FString& InLabel)
 	{
-		return MakeShareable(new FEditableConstraintItem(InName, InType, InParentName));
+		return MakeShareable(new FEditableConstraintItem(InName, InType, InLabel));
 	}
 	
 	FName Name = NAME_None;
 	ETransformConstraintType Type = ETransformConstraintType::Parent;
-	FName ParentName = NAME_None;
+	FString Label;
 
 private:
-	FEditableConstraintItem(const FName& InName, ETransformConstraintType InType, const FName& InParentName)
+	FEditableConstraintItem(const FName& InName, ETransformConstraintType InType, const FString& InLabel)
 		: Name(InName)
 		, Type(InType)
-		, ParentName(InParentName)
+		, Label(InLabel)
 	{}
 	FEditableConstraintItem() {}
 };

@@ -55,7 +55,7 @@ FString FConstraintTickFunction::DiagnosticMessage()
 	}
 
 #if WITH_EDITOR
-	return FString::Printf(TEXT("FConstraintTickFunction::Tick[%p] (%s)"), this, *Constraint->GetLabel().ToString());
+	return FString::Printf(TEXT("FConstraintTickFunction::Tick[%p] (%s)"), this, *Constraint->GetLabel());
 #else
 	return FString::Printf(TEXT("FConstraintTickFunction::Tick[%p] (%s)"), this, *Constraint->GetName());
 #endif
@@ -78,9 +78,19 @@ void UTickableConstraint::Evaluate() const
 
 #if WITH_EDITOR
 
-FName UTickableConstraint::GetLabel() const
+FString UTickableConstraint::GetLabel() const
 {
-	return GetFName();
+	return UTickableConstraint::StaticClass()->GetName();
+}
+
+FString UTickableConstraint::GetFullLabel() const
+{
+	return GetLabel();
+}
+
+FString UTickableConstraint::GetTypeLabel() const
+{
+	return GetLabel();
 }
 
 void UTickableConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -97,7 +107,6 @@ void UTickableConstraint::PostEditChangeProperty(FPropertyChangedEvent& Property
 		}
 	}
 }
-
 
 #endif
 

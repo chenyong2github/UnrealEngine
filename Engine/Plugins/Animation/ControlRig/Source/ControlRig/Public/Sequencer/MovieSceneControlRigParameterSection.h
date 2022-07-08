@@ -404,6 +404,7 @@ public:
 	bool HasConstraintChannel(const FName& InConstraintName) const;
 	FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
 	void AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel);
+	void RemoveConstraintChannel(const FName& InConstraintName);
 
 	/** Clear Everything Out*/
 	void ClearAllParameters();

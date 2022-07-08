@@ -158,7 +158,7 @@ public:
 	/** Creates a transformable control handle for the specified control to be used by the constraints system. Should use the UObject from 
 	ConstraintsScriptingLibrary::GetManager(UWorld* InWorld)*/
 	UFUNCTION(BlueprintPure, Category = "Control Rig | Constraints")
-	UTransformableControlHandle* CreateTransformableControlHandle(UObject* Outer, const FName& ControlName);
+	UTransformableControlHandle* CreateTransformableControlHandle(UObject* Outer, const FName& ControlName) const;
 
 
 #if WITH_EDITOR

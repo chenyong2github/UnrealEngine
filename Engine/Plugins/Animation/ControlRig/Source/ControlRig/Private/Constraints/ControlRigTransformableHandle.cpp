@@ -262,16 +262,23 @@ void UTransformableControlHandle::OnControlModified(
 
 #if WITH_EDITOR
 
-FName UTransformableControlHandle::GetName() const
+FString UTransformableControlHandle::GetLabel() const
+{
+	return ControlName.ToString();
+}
+
+FString UTransformableControlHandle::GetFullLabel() const
 {
 	const USkeletalMeshComponent* SkeletalMesh = GetSkeletalMesh();
+	if (!SkeletalMesh)
+	{
+		static const FString DummyLabel;
+		return DummyLabel;
+	}
 	
-	const AActor* Actor = SkeletalMesh ? SkeletalMesh->GetOwner() : nullptr;
-	const FName ControlRigName = Actor ? FName(*Actor->GetActorLabel()) : SkeletalMesh ? SkeletalMesh->GetFName() : NAME_None; 
-
-	const FString FullName = FString::Printf(TEXT("%s/%s"), *ControlRigName.ToString(), *ControlName.ToString() );
-
-	return FName(*FullName);
+	const AActor* Actor = SkeletalMesh->GetOwner();
+	const FString ControlRigLabel = Actor ? Actor->GetActorLabel() : SkeletalMesh->GetName();
+	return FString::Printf(TEXT("%s/%s"), *ControlRigLabel, *ControlName.ToString() );
 }
 
 void UTransformableControlHandle::OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstances)

@@ -10,16 +10,54 @@
  * UTickableTransformConstraint
  **/
 
-/** @todo remove to use something else. */
 int64 UTickableTransformConstraint::GetType() const
 {
 	return static_cast<int64>(Type);
 }
 
 #if WITH_EDITOR
-FName UTickableTransformConstraint::GetLabel() const
+
+FString UTickableTransformConstraint::GetLabel() const
 {
-	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetName() : NAME_None;
+	if (!ChildTRSHandle->IsValid())
+	{
+		static const FString DummyLabel;
+		return DummyLabel;
+	}
+	
+	if (ParentTRSHandle->IsValid())
+	{
+		return FString::Printf(TEXT("%s.%s"), *ParentTRSHandle->GetLabel(), *ChildTRSHandle->GetLabel() );		
+	}
+
+	return ChildTRSHandle->GetLabel();
+}
+
+FString UTickableTransformConstraint::GetFullLabel() const
+{
+	if (!ChildTRSHandle->IsValid())
+	{
+		static const FString DummyLabel;
+		return DummyLabel;
+	}
+	
+	if (ParentTRSHandle->IsValid())
+	{
+		return FString::Printf(TEXT("%s.%s"), *ParentTRSHandle->GetFullLabel(), *ChildTRSHandle->GetFullLabel() );		
+	}
+
+	return ChildTRSHandle->GetLabel();
+}
+
+FString UTickableTransformConstraint::GetTypeLabel() const
+{
+	static const UEnum* TypeEnum = StaticEnum<ETransformConstraintType>();
+	if (TypeEnum->IsValidEnumValue(GetType()))
+	{
+		return TypeEnum->GetNameStringByValue(GetType());
+	}
+
+	return Super::GetTypeLabel();
 }
 
 void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -837,10 +875,13 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 
 	UTransformableHandle* ParentHandle = GetHandle(InParent, ConstraintsManager);
 	UTransformableHandle* ChildHandle = GetHandle(InChild, ConstraintsManager);
+
+	if (!ParentHandle || !ChildHandle)
+	{
+		return nullptr;
+	}
 	
 	UTickableTransformConstraint* Constraint = FTransformConstraintUtils::CreateFromType(InWorld, InType);
-
-
 	if (Constraint && (ParentHandle->IsValid() && ChildHandle->IsValid()))
 	{
 		if (AddConstraint(InWorld, ParentHandle, ChildHandle, Constraint, bMaintainOffset) == false)
