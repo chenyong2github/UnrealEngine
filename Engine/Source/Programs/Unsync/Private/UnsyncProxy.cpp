@@ -438,8 +438,9 @@ FUnsyncProtocolImpl::SendTelemetryEvent(const FRemoteDesc& RemoteDesc, const FTe
 		Obj["session"] = Event.Session;
 	}
 
-	Obj["type"]		 = "sync_complete";
-	Obj["source"]	 = Event.Source;
+	Obj["type"]			  = "sync_complete";
+	Obj["client_version"] = Event.ClientVersion;
+	Obj["source"]		  = Event.Source;
 	Obj["total_mb"]	 = SizeMb(Event.TotalBytes);  // use size in megabytes due lack of JSON 64 bit int support and better human readability
 	Obj["source_mb"] = SizeMb(Event.SourceBytes);
 	Obj["base_mb"]	 = SizeMb(Event.BaseBytes);

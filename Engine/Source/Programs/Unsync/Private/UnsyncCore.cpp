@@ -3668,6 +3668,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	{
 		FTelemetryEventSyncComplete Event;
 
+		Event.ClientVersion	   = GetVersionString();
 		Event.Session		   = ProxyPool.GetSessionId();
 		Event.Source		   = ConvertWideToUtf8(SourcePath.wstring());
 		Event.TotalBytes	   = TotalSourceSize;

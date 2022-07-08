@@ -81,6 +81,7 @@ struct FRemoteProtocolFeatures
 
 struct FTelemetryEventSyncComplete
 {
+	std::string ClientVersion;
 	std::string Session;
 	std::string Source;
 	uint64 TotalBytes = 0;
