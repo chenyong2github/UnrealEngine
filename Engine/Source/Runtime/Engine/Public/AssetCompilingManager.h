@@ -127,8 +127,12 @@ private:
 	FAssetCompilingManager();
 	friend struct IAssetCompilingManager;
 
+	/** Take some action whenever the number of remaining asset changes. */
+	void UpdateNumRemainingAssets();
+
 	bool bHasShutdown = false;
-	
+	int32 LastNumRemainingAssets = 0;
+
 	TArray<IAssetCompilingManager*> AssetCompilingManagers;
 	TArray<IAssetCompilingManager*> AssetCompilingManagersWithValidDependencies;
 

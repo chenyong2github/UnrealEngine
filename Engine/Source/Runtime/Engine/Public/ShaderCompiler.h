@@ -900,6 +900,8 @@ private:
 	FString AbsoluteShaderDebugInfoDirectory;
 	/** Name of the shader worker application. */
 	FString ShaderCompileWorkerName;
+	/** Last value of GetNumRemainingAssets */
+	int32 LastNumRemainingAssets = 0;
 
 	/** 
 	 * Tracks the total time that shader compile workers have been busy since startup.  
@@ -950,7 +952,10 @@ private:
 	
 	/** Checks if any target platform down't support remote shader compiling */
 	bool AllTargetPlatformSupportsRemoteShaderCompiling();
-	
+
+	/** Take some action whenever the number of remaining asset changes. */
+	void UpdateNumRemainingAssets();
+
 	/** Returns the first remote compiler controller found */
 	IDistributedBuildController* FindRemoteCompilerController() const;
 

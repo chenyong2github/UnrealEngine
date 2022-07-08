@@ -381,6 +381,8 @@ void FAssetCompilingManager::FinishAllCompilation()
 	{
 		AssetCompilingManager->FinishAllCompilation();
 	}
+
+	UpdateNumRemainingAssets();
 }
 
 /**
@@ -416,6 +418,21 @@ void FAssetCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	{
 		AssetCompilingManager->ProcessAsyncTasks(bLimitExecutionTime);
 	}
+
+	UpdateNumRemainingAssets();
+}
+
+void FAssetCompilingManager::UpdateNumRemainingAssets()
+{
+	const int32 NumRemainingAssets = GetNumRemainingAssets();
+	if (LastNumRemainingAssets > 0 && NumRemainingAssets == 0)
+	{
+		// This is important to at least broadcast once we reach 0 remaining assets
+		// because some listener are only interested to be notified when the number
+		// of total async compilation reaches 0.
+		FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast({});
+	}
+	LastNumRemainingAssets = NumRemainingAssets;
 }
 
 #undef LOCTEXT_NAMESPACE

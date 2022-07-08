@@ -3885,6 +3885,8 @@ void FShaderCompilingManager::SubmitJobs(TArray<FShaderCommonCompileJobPtr>& New
 	}
 
 	AllJobs.SubmitJobs(NewJobs);
+
+	UpdateNumRemainingAssets();
 }
 
 bool FShaderCompilingManager::IsCompilingShaderMap(uint32 Id)
@@ -4177,6 +4179,8 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 			}
 		}
 	}
+
+	UpdateNumRemainingAssets();
 }
 
 void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps)
@@ -4289,6 +4293,8 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 			It.RemoveCurrent();
 		}
 	}
+
+	UpdateNumRemainingAssets();
 }
 
 namespace
@@ -4603,6 +4609,8 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	}
 
 	GShaderCompilingManager->PrintStats();
+
+	UpdateNumRemainingAssets();
 #endif // WITH_EDITOR
 }
 
@@ -5173,7 +5181,28 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 		check(AllJobs.GetNumPendingJobs() == 0);
 	}
 
-	Notification.Update(GetNumRemainingAssets());
+	UpdateNumRemainingAssets();
+}
+
+void FShaderCompilingManager::UpdateNumRemainingAssets()
+{
+	if (IsInGameThread())
+	{
+		const int32 NumRemainingAssets = GetNumRemainingAssets();
+		if (LastNumRemainingAssets != NumRemainingAssets)
+		{
+			if (NumRemainingAssets == 0)
+			{
+				// This is important to at least broadcast once we reach 0 remaining assets
+				// even if we don't have any UObject to report because some listener are only 
+				// interested to be notified when the number of async compilation reaches 0.
+				FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast({});
+			}
+
+			LastNumRemainingAssets = NumRemainingAssets;
+			Notification.Update(NumRemainingAssets);
+		}
+	}
 }
 
 bool FShaderCompilingManager::IsShaderCompilerWorkerRunning(FProcHandle & WorkerHandle)
