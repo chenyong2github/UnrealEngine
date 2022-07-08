@@ -77,6 +77,9 @@ namespace Horde.Build
 		public string? AwsProfile { get; set; }
 
 		/// <inheritdoc/>
+		public string? AwsRegion { get; set; }
+
+		/// <inheritdoc/>
 		public string? RelayServer { get; set; }
 
 		/// <inheritdoc/>

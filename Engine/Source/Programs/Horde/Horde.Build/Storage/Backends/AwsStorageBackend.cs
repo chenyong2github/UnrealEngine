@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -39,6 +40,16 @@ namespace Horde.Build.Storage.Backends
 	public enum AwsCredentialsType
 	{
 		/// <summary>
+		/// Use default credentials from the AWS SDK
+		/// </summary>
+		Default,
+
+		/// <summary>
+		/// Read credentials from the <see cref="IAwsStorageOptions.AwsProfile"/> profile in the AWS config file
+		/// </summary>
+		Profile,
+
+		/// <summary>
 		/// Assume a particular role. Should specify ARN in <see cref="IAwsStorageOptions.AwsRole"/>
 		/// </summary>
 		AssumeRole,
@@ -47,16 +58,6 @@ namespace Horde.Build.Storage.Backends
 		/// Assume a particular role using the current environment variables.
 		/// </summary>
 		AssumeRoleWebIdentity,
-
-		/// <summary>
-		/// Use default credentials from the AWS SDK
-		/// </summary>
-		Fallback,
-
-		/// <summary>
-		/// Read credentials from a profile in the AWS config file
-		/// </summary>
-		SharedCredentials,
 	}
 
 	/// <summary>
@@ -88,6 +89,11 @@ namespace Horde.Build.Storage.Backends
 		/// The AWS profile to read credentials form
 		/// </summary>
 		public string? AwsProfile { get; }
+
+		/// <summary>
+		/// Region to connect to
+		/// </summary>
+		public string? AwsRegion { get; }
 	}
 
 	/// <summary>
@@ -142,8 +148,26 @@ namespace Horde.Build.Storage.Backends
 		static AWSOptions GetAwsOptions(IConfiguration configuration, IAwsStorageOptions options)
 		{
 			AWSOptions awsOptions = configuration.GetAWSOptions();
+			if (options.AwsRegion != null)
+			{
+				awsOptions.Region = RegionEndpoint.GetBySystemName(options.AwsRegion);
+			}
+
 			switch (options.AwsCredentials)
 			{
+				case AwsCredentialsType.Default:
+					// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.
+					awsOptions.Credentials = FallbackCredentialsFactory.GetCredentials();
+					break;
+				case AwsCredentialsType.Profile:
+					if (options.AwsProfile == null)
+					{
+						throw new AwsException($"Missing {nameof(IAwsStorageOptions.AwsProfile)} setting for configuring {nameof(AwsStorageBackend)}", null);
+					}
+
+					(string accessKey, string secretAccessKey, string secretToken) = AwsHelper.ReadAwsCredentials(options.AwsProfile);
+					awsOptions.Credentials = new Amazon.SecurityToken.Model.Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
+					break;
 				case AwsCredentialsType.AssumeRole:
 					if(options.AwsRole == null)
 					{
@@ -153,19 +177,6 @@ namespace Horde.Build.Storage.Backends
 					break;
 				case AwsCredentialsType.AssumeRoleWebIdentity:
 					awsOptions.Credentials = AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
-					break;
-				case AwsCredentialsType.Fallback:
-					// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.
-					awsOptions.Credentials = FallbackCredentialsFactory.GetCredentials();
-					break;
-				case AwsCredentialsType.SharedCredentials:
-					if (options.AwsProfile == null)
-					{
-						throw new AwsException($"Missing {nameof(IAwsStorageOptions.AwsProfile)} setting for configuring {nameof(AwsStorageBackend)}", null);
-					}
-
-					(string accessKey, string secretAccessKey, string secretToken) = AwsHelper.ReadAwsCredentials(options.AwsProfile);
-					awsOptions.Credentials = new Amazon.SecurityToken.Model.Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
 					break;
 			}
 			return awsOptions;

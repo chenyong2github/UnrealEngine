@@ -965,6 +965,7 @@ namespace Horde.Build
 		public static ServiceProvider CreateServiceProvider(IConfiguration configuration, ILoggerProvider loggerProvider)
 		{
 			IServiceCollection services = new ServiceCollection();
+			services.AddSingleton(configuration);
 			services.AddSingleton(loggerProvider);
 			AddServices(services, configuration);
 			return services.BuildServiceProvider();
