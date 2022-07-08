@@ -13,8 +13,9 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
-class IDetailsView;
 struct FPropertyAndParent;
+class IDetailsView;
+class SCheckBox;
 
 class FInterchangePipelineStacksTreeNodeItem : protected FGCObject
 {
@@ -86,8 +87,8 @@ protected:
 enum class ECloseEventType : uint8
 {
 	Cancel,
-	ImportAll,
-	Import
+	Import,
+	WindowClosing
 };
 
 class SInterchangePipelineConfigurationDialog : public SCompoundWidget
@@ -106,7 +107,7 @@ public:
 public:
 
 	SInterchangePipelineConfigurationDialog();
-	~SInterchangePipelineConfigurationDialog();
+	virtual ~SInterchangePipelineConfigurationDialog();
 
 	void Construct(const FArguments& InArgs);
 	virtual bool SupportsKeyboardFocus() const override { return true; }
@@ -119,16 +120,17 @@ public:
 		return FReply::Handled();
 	}
 
+	void OnWindowClosed(const TSharedRef<SWindow>& ClosedWindow)
+	{
+		ClosePipelineConfiguration(ECloseEventType::WindowClosing);
+	}
+
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-	bool IsCanceled() { return bCanceled; }
-	bool IsImportAll() { return bImportAll; }
-private:
-	TWeakPtr< SWindow > OwnerWindow;
-	TWeakObjectPtr<UInterchangeSourceData> SourceData;
-	bool bReimport = false;
-	TArray<UInterchangePipelineBase*> PipelineStack;
+	bool IsCanceled() const { return bCanceled; }
+	bool IsImportAll() const { return bImportAll; }
 
+private:
 	TSharedRef<SBox> SpawnPipelineConfiguration();
 	void OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType);
 
@@ -144,10 +146,17 @@ private:
 	void RecursiveSavePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const;
 	void RecursiveLoadPipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const;
 
+private:
+	TWeakPtr< SWindow > OwnerWindow;
+	TWeakObjectPtr<UInterchangeSourceData> SourceData;
+	TArray<UInterchangePipelineBase*> PipelineStack;
+	
 	//Graph Inspector UI elements
 	TSharedPtr<SInterchangePipelineStacksTreeView> PipelineConfigurationTreeView;
 	TSharedPtr<IDetailsView> PipelineConfigurationDetailsView;
+	TSharedPtr<SCheckBox> UseSameSettingsForAllCheckBox;
 
+	bool bReimport = false;
 	bool bCanceled = false;
 	bool bImportAll = false;
 

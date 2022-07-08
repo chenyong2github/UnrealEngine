@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetTools",
 					"InputCore",
 					"InterchangePipelines",
 					"MainFrame",
@@ -27,8 +28,8 @@ namespace UnrealBuildTool.Rules
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",
-					"UnrealEd",
-					"AssetTools"
+					"ToolWidgets",
+					"UnrealEd"
 				}
 			);
 		}

@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "SPrimaryButton.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -335,9 +336,10 @@ SInterchangePipelineConfigurationDialog::SInterchangePipelineConfigurationDialog
 
 SInterchangePipelineConfigurationDialog::~SInterchangePipelineConfigurationDialog()
 {
-	PipelineConfigurationTreeView = nullptr;
-	PipelineConfigurationDetailsView = nullptr;
-	OwnerWindow = nullptr;
+	if (TSharedPtr<SWindow> OwnerWindowPinned = OwnerWindow.Pin())
+	{
+		OwnerWindowPinned->GetOnWindowClosedEvent().RemoveAll(this);
+	}
 }
 
 TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfiguration()
@@ -421,6 +423,10 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 	PipelineStack = InArgs._PipelineStack;
 
 	check(OwnerWindow.IsValid());
+	if (TSharedPtr<SWindow> OwnerWindowPinned = OwnerWindow.Pin())
+	{
+		OwnerWindowPinned->GetOnWindowClosedEvent().AddRaw(this, &SInterchangePipelineConfigurationDialog::OnWindowClosed);
+	}
 
 	this->ChildSlot
 	[
@@ -464,36 +470,54 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 			.HAlign(HAlign_Right)
 			.Padding(2)
 			[
-				SNew(SUniformGridPanel)
-				.SlotPadding(2)
-				+ SUniformGridPanel::Slot(0, 0)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(4.f, 0.f)
+				.AutoWidth()
 				[
 					IDocumentation::Get()->CreateAnchor(FString("Engine/Content/Interchange/PipelineConfiguration"))
 				]
-				+ SUniformGridPanel::Slot(1, 0)
+				+ SHorizontalBox::Slot()
+				.Padding(4.f, 0.f)
+				.AutoWidth()
+				[
+					SNew(SHorizontalBox)
+					.ToolTipText(LOCTEXT("InspectorGraphWindow_ReuseSettingsToolTip", "When importing multiple files, keep the same import settings for every file or open the settings dialog for each file."))
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					.Padding(4.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("InspectorGraphWindow_ReuseSettings", "Use the same settings for subsequent files"))
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(4.f, 0.f)
+					[
+						SAssignNew(UseSameSettingsForAllCheckBox, SCheckBox)
+						.IsChecked(true)
+						.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f, 0.f) 
+				[
+					SNew(SPrimaryButton)
+					.Text(LOCTEXT("InspectorGraphWindow_Import", "Import"))
+					.ToolTipText(this, &SInterchangePipelineConfigurationDialog::GetImportButtonTooltip)
+					.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
+					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::Import)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f, 0.f) 
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("InspectorGraphWindow_Cancel", "Cancel"))
 					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::Cancel)
-				]
-				+ SUniformGridPanel::Slot(2, 0)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("InspectorGraphWindow_ImportAll", "Import All"))
-					.ToolTipText(this, &SInterchangePipelineConfigurationDialog::GetImportButtonTooltip)
-					.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
-					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::ImportAll)
-				]
-				+ SUniformGridPanel::Slot(3, 0)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("InspectorGraphWindow_Import", "Import"))
-					.ToolTipText(this, &SInterchangePipelineConfigurationDialog::GetImportButtonTooltip)
-					.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
-					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::Import)
 				]
 			]
 		]
@@ -705,7 +729,7 @@ void SInterchangePipelineConfigurationDialog::RecursiveLoadPipelineSettings(cons
 
 void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const ECloseEventType CloseEventType)
 {
-	if (CloseEventType == ECloseEventType::Cancel)
+	if (CloseEventType == ECloseEventType::Cancel || CloseEventType == ECloseEventType::WindowClosing)
 	{
 		bCanceled = true;
 		bImportAll = false;
@@ -719,16 +743,10 @@ void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const E
 			}
 		}
 	}
-	else if (CloseEventType == ECloseEventType::ImportAll)
+	else //ECloseEventType::Import
 	{
 		bCanceled = false;
-		bImportAll = true;
-	}
-	else
-	{
-		//ECloseEventType::Import
-		bCanceled = false;
-		bImportAll = false;
+		bImportAll = UseSameSettingsForAllCheckBox->IsChecked();
 	}
 
 	if (!bReimport && PipelineConfigurationTreeView)
@@ -743,9 +761,13 @@ void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const E
 	PipelineConfigurationTreeView = nullptr;
 	PipelineConfigurationDetailsView = nullptr;
 
-	if (TSharedPtr<SWindow> OwnerWindowPin = OwnerWindow.Pin())
+	if (CloseEventType != ECloseEventType::WindowClosing)
 	{
-		OwnerWindowPin->RequestDestroyWindow();
+		if (TSharedPtr<SWindow> OwnerWindowPin = OwnerWindow.Pin())
+		{
+			OwnerWindowPin->GetOnWindowClosedEvent().RemoveAll(this);
+			OwnerWindowPin->RequestDestroyWindow();
+		}
 	}
 	OwnerWindow = nullptr;
 }
