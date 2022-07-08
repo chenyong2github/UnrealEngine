@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Kismet",
 					"PCG",
+					"PropertyEditor",
 					"Slate",
 					"SlateCore",
 					"SourceControl",

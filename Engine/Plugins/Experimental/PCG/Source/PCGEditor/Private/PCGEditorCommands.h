@@ -14,7 +14,9 @@ public:
 	virtual void RegisterCommands() override;
 	// ~End TCommands<> interface
 
-	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> CollapseNodes;
+	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> RunDeterminismTest;
+	TSharedPtr<FUICommandInfo> StartInspectNode;
+	TSharedPtr<FUICommandInfo> StopInspectNode;
 };

@@ -2,6 +2,7 @@
 
 #include "PCGEditorGraphNodeBase.h"
 
+#include "PCGEditorCommands.h"
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphSchema.h"
@@ -71,6 +72,7 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
+		Section.AddMenuEntry(bIsInspected ? FPCGEditorCommands::Get().StopInspectNode : FPCGEditorCommands::Get().StartInspectNode);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 		Section.AddMenuEntry(FPCGEditorCommands::Get().CollapseNodes);
 	}
@@ -290,7 +292,11 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 {
 	if (PCGNode)
 	{
-		if (PCGNode->NodeTitleColor != FLinearColor::White)
+		if (bIsInspected)
+		{
+			return GetDefault<UPCGEditorSettings>()->InspectNodeColor;
+		}
+		else if (PCGNode->NodeTitleColor != FLinearColor::White)
 		{
 			return PCGNode->NodeTitleColor;
 		}

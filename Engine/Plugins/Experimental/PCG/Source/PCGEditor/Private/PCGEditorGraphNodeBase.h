@@ -47,6 +47,7 @@ public:
 	const UPCGNode* GetPCGNode() const { return PCGNode; }
 	void PostCopy();
 	void PostPaste();
+	void SetInspected(bool InIsInspecting) { bIsInspected = InIsInspecting; }
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
@@ -66,4 +67,5 @@ protected:
 	TObjectPtr<UPCGNode> PCGNode = nullptr;
 
 	bool bDisableReconstructFromNode = false;
+	bool bIsInspected = false;
 };

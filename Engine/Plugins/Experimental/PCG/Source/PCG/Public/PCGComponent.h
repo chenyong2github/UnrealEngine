@@ -151,6 +151,13 @@ public:
 
 	/** Return if we are currently generating the graph for this component */
 	bool IsGenerating() const { return bIsGenerating; }
+
+	/** Functions for managing the node inspection cache */
+	bool IsInspecting() const { return bIsInspecting; }
+	void EnableInspection() { bIsInspecting = true; };
+	void DisableInspection();
+	void StoreInspectionData(const UPCGNode* InNode, const FPCGDataCollection& InInspectionData);
+	const FPCGDataCollection* GetInspectionData(const UPCGNode* InNode) const;
 #endif
 
 	bool IsPartitioned() const;
@@ -256,6 +263,7 @@ private:
 
 #if WITH_EDITOR
 	bool bIsGenerating = false;
+	bool bIsInspecting = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
 
@@ -278,6 +286,9 @@ private:
 	TMap<TWeakObjectPtr<AActor>, TSet<FName>> CachedTrackedActorToTags;
 	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>> CachedTrackedActorToDependencies;
 	bool bActorToTagsMapPopulated = false;
+
+	UPROPERTY(Transient)
+	TMap<const UPCGNode*, FPCGDataCollection> InspectionCache;
 #endif
 
 	FCriticalSection GeneratedResourcesLock;

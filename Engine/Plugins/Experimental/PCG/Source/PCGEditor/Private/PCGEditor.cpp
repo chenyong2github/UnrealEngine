@@ -2,12 +2,14 @@
 
 #include "PCGEditor.h"
 
+#include "PCGComponent.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGGraphFactory.h"
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubgraph.h"
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "PCGEditorCommands.h"
 #include "PCGEditorCommon.h"
@@ -17,39 +19,41 @@
 #include "PCGEditorGraphNodeOutput.h"
 #include "PCGEditorGraphSchema.h"
 #include "PCGEditorGraphSchemaActions.h"
+#include "PCGEditorMenuContext.h"
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
+#include "SPCGEditorGraphAttributeListView.h"
+#include "SPCGEditorGraphDebugObjectWidget.h"
 #include "SPCGEditorGraphDeterminism.h"
 #include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
-#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
+#include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
 #include "Editor.h"
+#include "Editor/UnrealEdEngine.h"
+#include "EditorAssetLibrary.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "GraphEditAction.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
+#include "Preferences/UnrealEdOptions.h"
 #include "PropertyEditorModule.h"
 #include "SNodePanel.h"
 #include "ScopedTransaction.h"
-#include "ToolMenus.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "SourceCodeNavigation.h"
+#include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
-#include "Editor/UnrealEdEngine.h"
-#include "Preferences/UnrealEdOptions.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "GraphEditAction.h"
-#include "AssetToolsModule.h"
-#include "EditorAssetLibrary.h"
 
 #define LOCTEXT_NAMESPACE "PCGGraphEditor"
 
@@ -82,9 +86,11 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
 	FindWidget = CreateFindWidget();
+	AttributesWidget = CreateAttributesWidget();
 	DeterminismWidget = CreateDeterminismWidget();
 
 	BindCommands();
+	RegisterToolbar();
 
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.4")
 		->AddArea
@@ -135,6 +141,31 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 UPCGEditorGraph* FPCGEditor::GetPCGEditorGraph()
 {
 	return PCGEditorGraph;
+}
+
+void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
+{
+	if (PCGComponentBeingDebugged != InPCGComponent)
+	{
+		PCGComponentBeingDebugged = InPCGComponent;
+
+		OnDebugObjectChangedDelegate.Broadcast(PCGComponentBeingDebugged); 
+
+		if (PCGComponentBeingDebugged)
+		{
+			// We need to force generation so that we create debug data
+			PCGComponentBeingDebugged->GenerateLocal(/*bForce=*/true);
+		}
+	}
+}
+
+void FPCGEditor::SetPCGNodeBeingInspected(UPCGNode* InPCGNode)
+{
+	if (GetPCGNodeBeingInspected() != InPCGNode)
+	{
+		PCGNodeBeingInspected = InPCGNode;
+		OnInspectedNodeChangedDelegate.Broadcast(PCGNodeBeingInspected);	
+	}
 }
 
 void FPCGEditor::JumpToNode(const UEdGraphNode* InNode)
@@ -234,6 +265,35 @@ FString FPCGEditor::GetWorldCentricTabPrefix() const
 	return LOCTEXT("WorldCentricTabPrefix", "PCG ").ToString();
 }
 
+void FPCGEditor::RegisterToolbar() const
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	FName ParentName;
+	const FName MenuName = GetToolMenuToolbarName(ParentName);
+
+	UToolMenu* ToolBar = ToolMenus->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+
+	const FPCGEditorCommands& PCGEditorCommands = FPCGEditorCommands::Get();
+	const FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+	{
+		FToolMenuSection& Section = ToolBar->AddSection("PCGToolbar", TAttribute<FText>(), InsertAfterAssetSection);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+ 			PCGEditorCommands.Find,
+ 			TAttribute<FText>(),
+ 			TAttribute<FText>(),
+ 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintEditor.FindInBlueprint"))); // TODO, use own application style?
+		Section.AddSeparator(NAME_None);
+		Section.AddDynamicEntry("Debugging", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			const UPCGEditorMenuContext* Context = InSection.FindContext<UPCGEditorMenuContext>();
+			if (Context && Context->PCGEditor.IsValid())
+			{
+				InSection.AddEntry(FToolMenuEntry::InitWidget("SelectedDebugObjectWidget", SNew(SPCGEditorGraphDebugObjectWidget, Context->PCGEditor.Pin()), FText::GetEmpty()));	
+			}
+		}));
+	}
+}
+
 void FPCGEditor::BindCommands()
 {
 	const FPCGEditorCommands& PCGEditorCommands = FPCGEditorCommands::Get();
@@ -246,6 +306,14 @@ void FPCGEditor::BindCommands()
 		PCGEditorCommands.CollapseNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnCollapseNodesInSubgraph),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanCollapseNodesInSubgraph));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.StartInspectNode,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnStartInspectNode));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.StopInspectNode,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnStopInspectNode));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.RunDeterminismTest,
@@ -328,7 +396,7 @@ void FPCGEditor::OnDeterminismTests()
 	}
 }
 
-bool FPCGEditor::CanCollapseNodesInSubgraph()
+bool FPCGEditor::CanCollapseNodesInSubgraph() const
 {
 	bool HasPCGNode = false;
 
@@ -702,6 +770,50 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	GraphEditorWidget->NotifyGraphChanged();
 	PCGGraph->NotifyGraphChanged(true);
 	NewPCGGraph->NotifyGraphChanged(true);
+}
+
+void FPCGEditor::OnStartInspectNode()
+{
+	if (!GraphEditorWidget.IsValid())
+	{
+		return;
+	}
+
+	UEdGraphNode* GraphNode = GraphEditorWidget->GetSingleSelectedNode();
+	if (!GraphNode)
+	{
+		return;
+	}
+
+	UPCGEditorGraphNodeBase* PCGGraphNodeBase = Cast<UPCGEditorGraphNodeBase>(GraphNode);
+	if (!PCGGraphNodeBase)
+	{
+		return;
+	}
+	
+	if (PCGGraphNodeBase == PCGGraphNodeBeingInspected)
+	{
+		return;
+	}
+	
+	if (PCGGraphNodeBeingInspected)
+	{
+		PCGGraphNodeBeingInspected->SetInspected(false);
+	}	
+
+	PCGGraphNodeBeingInspected = PCGGraphNodeBase;
+	PCGGraphNodeBeingInspected->SetInspected(true);
+	SetPCGNodeBeingInspected(PCGGraphNodeBase->GetPCGNode());
+}
+
+void FPCGEditor::OnStopInspectNode()
+{
+	if (PCGGraphNodeBeingInspected)
+	{
+		PCGGraphNodeBeingInspected->SetInspected(false);
+		PCGGraphNodeBeingInspected = nullptr;
+		SetPCGNodeBeingInspected(nullptr);
+	}
 }
 
 void FPCGEditor::SelectAllNodes()
@@ -1151,6 +1263,15 @@ void FPCGEditor::OnClose()
 	FAssetEditorToolkit::OnClose();
 }
 
+void FPCGEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UPCGEditorMenuContext* Context = NewObject<UPCGEditorMenuContext>();
+	Context->PCGEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
+}
+
 TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 {
 	return SNew(SPCGEditorGraphNodePalette);
@@ -1159,6 +1280,11 @@ TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 TSharedRef<SPCGEditorGraphFind> FPCGEditor::CreateFindWidget()
 {
 	return SNew(SPCGEditorGraphFind, SharedThis(this));
+}
+
+TSharedRef<SPCGEditorGraphAttributeListView> FPCGEditor::CreateAttributesWidget()
+{
+	return SNew(SPCGEditorGraphAttributeListView, SharedThis(this));
 }
 
 TSharedRef<SPCGEditorGraphDeterminismListView> FPCGEditor::CreateDeterminismWidget()
@@ -1305,7 +1431,7 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Attributes(const FSpawnTabArgs& Args)
 		.Label(LOCTEXT("PCGAttributesTitle", "Attributes"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SNullWidget::NullWidget
+			AttributesWidget.ToSharedRef()
 		];
 }
 

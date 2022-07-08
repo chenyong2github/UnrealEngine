@@ -236,6 +236,14 @@ void FPCGGraphExecutor::Execute()
 					StoreResults(Task.NodeId, CachedOutput);
 					ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
 					bSomeTaskEndedInCurrentLoop = true;
+#if WITH_EDITOR
+					UPCGComponent* SourceComponent = Task.SourceComponent;
+					if (SourceComponent && SourceComponent->IsInspecting())
+					{
+						SourceComponent->StoreInspectionData(Task.Node, CachedOutput);
+					}
+#endif
+					
 					continue;
 				}
 
@@ -342,6 +350,12 @@ void FPCGGraphExecutor::Execute()
 			// Execute debug display code as needed - done here because it needs to be done on the main thread
 			// Additional note: this needs to be executed before the StoreResults since debugging might cancel further tasks
 			ActiveTask.Element->DebugDisplay(ActiveTask.Context.Get());
+
+			UPCGComponent* SourceComponent = ActiveTask.Context->SourceComponent;
+			if (SourceComponent && SourceComponent->IsInspecting())
+			{
+				SourceComponent->StoreInspectionData(ActiveTask.Context->Node, ActiveTask.Context->OutputData);
+			}
 #endif
 
 			// Store output in data map

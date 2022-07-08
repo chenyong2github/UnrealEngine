@@ -9,11 +9,18 @@
 class FUICommandList;
 class IDetailsView;
 class SGraphEditor;
+class SPCGEditorGraphAttributeListView;
 class SPCGEditorGraphDeterminismListView;
 class SPCGEditorGraphFind;
 class SPCGEditorGraphNodePalette;
+class UPCGComponent;
 class UPCGEditorGraph;
+class UPCGEditorGraphNodeBase;
 class UPCGGraph;
+class UPCGNode;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDebugObjectChanged, UPCGComponent*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedNodeChanged, UPCGNode*);
 
 class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 {
@@ -23,6 +30,18 @@ public:
 
 	/** Get the PCG graph being edited */
 	UPCGEditorGraph* GetPCGEditorGraph();
+
+	/** Sets the PCG component we want to debug */
+	void SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent);
+	
+	/** Gets the PCG component we are debugging */
+	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged; }
+
+	/** Sets the PCG node we want to inspect */
+	void SetPCGNodeBeingInspected(UPCGNode* InPCGNode);
+	
+	/** Gets the PCG node we are inspecting */
+	UPCGNode* GetPCGNodeBeingInspected() const { return PCGNodeBeingInspected; }
 
 	/** Focus the graph view on a specific node */
 	void JumpToNode(const UEdGraphNode* InNode);
@@ -44,7 +63,11 @@ public:
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual void OnClose() override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	// ~End FAssetEditorToolkit interface
+	
+	FOnDebugObjectChanged OnDebugObjectChangedDelegate;
+	FOnInspectedNodeChanged OnInspectedNodeChangedDelegate;
 
 protected:
 	// ~Begin FAssetEditorToolkit interface
@@ -53,11 +76,19 @@ protected:
 	// ~End FAssetEditorToolkit interface
 
 private:
+	/** Register PCG specific toolbar for the editor */
+	void RegisterToolbar() const;
+
 	/** Bind commands to delegates */
 	void BindCommands();
 
 	/** Bring up the find tab */
 	void OnFind();
+
+	/** Start inspecting the current selected node */
+	void OnStartInspectNode();
+	/** Stop inspecting the current inspected node */
+	void OnStopInspectNode();
 
 	/** Can determinism be tested on this node */
 	bool CanRunDeterminismTests() const;
@@ -99,7 +130,7 @@ private:
 	/** Collapse the currently selected nodes in a subgraph */
 	void OnCollapseNodesInSubgraph();
 	/** Whether we can collapse nodes in a subgraph */
-	bool CanCollapseNodesInSubgraph();
+	bool CanCollapseNodesInSubgraph() const;
 
 	void OnAlignTop();
 	void OnAlignMiddle();
@@ -120,6 +151,9 @@ private:
 
 	/** Create new find widget */
 	TSharedRef<SPCGEditorGraphFind> CreateFindWidget();
+
+	/** Create new attributes widget */
+	TSharedRef<SPCGEditorGraphAttributeListView> CreateAttributesWidget();
 
 	/** Create a new determinism tab widget */
 	TSharedRef<SPCGEditorGraphDeterminismListView> CreateDeterminismWidget();
@@ -158,10 +192,15 @@ private:
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<SPCGEditorGraphNodePalette> PaletteWidget;
 	TSharedPtr<SPCGEditorGraphFind> FindWidget;
+	TSharedPtr<SPCGEditorGraphAttributeListView> AttributesWidget;
 	TSharedPtr<SPCGEditorGraphDeterminismListView> DeterminismWidget;
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
 	UPCGGraph* PCGGraphBeingEdited = nullptr;
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
+
+	UPCGComponent* PCGComponentBeingDebugged = nullptr;
+	UPCGNode* PCGNodeBeingInspected = nullptr;
+	UPCGEditorGraphNodeBase* PCGGraphNodeBeingInspected = nullptr;
 };

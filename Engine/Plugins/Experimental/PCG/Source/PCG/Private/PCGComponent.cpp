@@ -1129,6 +1129,10 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool 
 		{
 			Refresh();
 		}
+
+#if WITH_EDITOR
+		InspectionCache.Empty();	
+#endif
 	}
 }
 
@@ -1194,6 +1198,34 @@ void UPCGComponent::ResetLastGeneratedBounds()
 {
 	LastGeneratedBounds = FBox(EForceInit::ForceInit);
 }
+
+#if WITH_EDITOR
+void UPCGComponent::DisableInspection()
+{
+	bIsInspecting = false;
+	InspectionCache.Empty();
+};
+
+void UPCGComponent::StoreInspectionData(const UPCGNode* InNode, const FPCGDataCollection& InInspectionData)
+{
+	if (!InNode)
+	{
+		return;
+	}
+
+	if (GetGraph() != InNode->GetGraph())
+	{
+		return;
+	}
+
+	InspectionCache.Add(InNode, InInspectionData);
+}
+
+const FPCGDataCollection* UPCGComponent::GetInspectionData(const UPCGNode* InNode) const
+{
+	return InspectionCache.Find(InNode);
+}
+#endif
 
 void UPCGComponent::Refresh()
 {
