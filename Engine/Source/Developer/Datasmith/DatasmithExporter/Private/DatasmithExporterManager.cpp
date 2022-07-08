@@ -105,7 +105,7 @@ namespace DatasmithGameThread
 		if ( GLog )
 		{
 			// Make sure Logger is set on the right thread
-			GLog->SetCurrentThreadAsMainLogThread();
+			GLog->SetCurrentThreadAsPrimaryThread();
 
 			if ( bSuppressLogs )
 			{
@@ -130,7 +130,7 @@ namespace DatasmithGameThread
 			// Set the current thread on the Logger
 			if ( GLog )
 			{
-				GLog->SetCurrentThreadAsMainLogThread();
+				GLog->SetCurrentThreadAsPrimaryThread();
 			}
 
 			// Re-attach task graph to new game thread

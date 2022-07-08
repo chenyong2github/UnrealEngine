@@ -1549,7 +1549,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// until initialization is far enough along to try to start a dedicated master thread.
 	if (GLog)
 	{
-		GLog->SetCurrentThreadAsMainLogThread();
+		GLog->SetCurrentThreadAsPrimaryThread();
 	}
 
 	// Command line option for enabling named events
@@ -1700,7 +1700,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// Try to start the dedicated master thread now that the command line is available.
 	if (!FParse::Param(FCommandLine::Get(), TEXT("NoLogThread")))
 	{
-		GLog->TryStartDedicatedMainLogThread();
+		GLog->TryStartDedicatedPrimaryThread();
 	}
 
 	// Initialize std out device as early as possible if requested in the command line
