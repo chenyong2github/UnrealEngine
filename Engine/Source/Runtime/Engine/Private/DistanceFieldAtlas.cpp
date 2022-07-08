@@ -151,6 +151,8 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 
 void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldVolumeData::CacheDerivedData);
+
 	const TArray<FStaticMaterial>& StaticMaterials = Mesh->GetStaticMaterials();
 
 	TArray<FSignedDistanceFieldBuildMaterialData> BuildMaterialData;

@@ -670,6 +670,8 @@ void FHLSLMaterialTranslator::ValidateVtPropertyLimits()
  
 bool FHLSLMaterialTranslator::Translate()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHLSLMaterialTranslator::Translate);
+
 	STAT(double HLSLTranslateTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(HLSLTranslateTime);

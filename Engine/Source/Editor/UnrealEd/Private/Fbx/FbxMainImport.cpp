@@ -621,6 +621,8 @@ void FFbxImporter::PartialCleanUp()
 //-------------------------------------------------------------------------
 void FFbxImporter::ReleaseScene()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ReleaseScene);
+
 	if (Importer)
 	{
 		Importer->Destroy();

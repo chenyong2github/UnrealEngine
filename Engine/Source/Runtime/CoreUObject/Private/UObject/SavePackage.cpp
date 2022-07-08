@@ -34,6 +34,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
 	const FSavePackageArgs& SaveArgs)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPackage::Save);
+
 	return UPackage::Save2(InOuter, InAsset, Filename, SaveArgs);
 }
 
