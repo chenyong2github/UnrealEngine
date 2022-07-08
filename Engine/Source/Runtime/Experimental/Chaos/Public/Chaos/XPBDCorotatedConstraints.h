@@ -24,8 +24,6 @@ namespace Chaos::Softs
 		//this one only accepts tetmesh input and mesh
 		FXPBDCorotatedConstraints(
 			const Chaos::Softs::FSolverParticles& InParticles,
-			int32 ParticleOffset,
-			int32 ParticleCount,
 			const TArray<TVector<int32, 4>>& InMesh,
 			const bool bRecordMetricIn = true,
 			const Chaos::Softs::FSolverReal& EMesh = (FSolverReal)10.0,
