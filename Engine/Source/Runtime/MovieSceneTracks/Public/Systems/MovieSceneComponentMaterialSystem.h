@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Templates/TypeHash.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
 
