@@ -7,6 +7,7 @@
 #include "Async/Async.h"
 #include "Scene/Lights.h"
 #include "LightmapRenderer.h"
+#include "LightmapPreviewVirtualTexture.h"
 #include "GPULightmassModule.h"
 #include "Async/ParallelFor.h"
 #include "Compression/OodleDataCompression.h"
@@ -170,34 +171,6 @@ FLightmapRenderState::FLightmapRenderState(Initializer InInitializer, FGeometryI
 	{
 		TileRelevantLightSampleCountStates.AddDefaulted(GetPaddedSizeInTilesAtMipLevel(MipLevel).X * GetPaddedSizeInTilesAtMipLevel(MipLevel).Y);
 	}
-
-	{
-		FPrecomputedLightingUniformParameters Parameters;
-		
-		{
-			Parameters.StaticShadowMapMasks = FVector4f(1, 1, 1, 1);
-			Parameters.InvUniformPenumbraSizes = FVector4f(0, 0, 0, 0);
-			Parameters.ShadowMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
-
-			const uint32 NumCoef = FMath::Max<uint32>(NUM_HQ_LIGHTMAP_COEF, NUM_LQ_LIGHTMAP_COEF);
-			for (uint32 CoefIndex = 0; CoefIndex < NumCoef; ++CoefIndex)
-			{
-				Parameters.LightMapScale[CoefIndex] = FVector4f(1, 1, 1, 1);
-				Parameters.LightMapAdd[CoefIndex] = FVector4f(0, 0, 0, 0);
-			}
-
-			FMemory::Memzero(Parameters.LightmapVTPackedPageTableUniform);
-
-			for (uint32 LayerIndex = 0u; LayerIndex < 5u; ++LayerIndex)
-			{
-				Parameters.LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
-			}
-		}
-
-		Parameters.LightMapCoordinateScaleBias = LightmapCoordinateScaleBias;
-
-		SetPrecomputedLightingBuffer(TUniformBufferRef<FPrecomputedLightingUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame));
-	}
 }
 
 bool FLightmapRenderState::IsTileGIConverged(FTileVirtualCoordinates Coords, int32 NumGISamples)
@@ -229,6 +202,46 @@ bool FLightmapRenderState::IsTileShadowConverged(FTileVirtualCoordinates Coords,
 bool FLightmapRenderState::DoesTileHaveValidCPUData(FTileVirtualCoordinates Coords, int32 CurrentRevision)
 {
 	return RetrieveTileState(Coords).CPURevision == CurrentRevision;
+}
+
+void CreateLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderState, ERHIFeatureLevel::Type FeatureLevel, FLightmapRenderer* LightmapRenderer)
+{
+	LightmapRenderState->LightmapPreviewVirtualTexture = new FLightmapPreviewVirtualTexture(LightmapRenderState, LightmapRenderer);
+	LightmapRenderState->ResourceCluster->AllocatedVT = LightmapRenderState->LightmapPreviewVirtualTexture->AllocatedVT;
+	LightmapRenderState->ResourceCluster->InitResource();
+
+	{
+		IAllocatedVirtualTexture* AllocatedVT = LightmapRenderState->LightmapPreviewVirtualTexture->AllocatedVT;
+
+		check(AllocatedVT);
+
+		AllocatedVT->GetPackedPageTableUniform(&LightmapRenderState->LightmapVTPackedPageTableUniform[0]);
+		uint32 NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
+		for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
+		{
+			AllocatedVT->GetPackedUniform(&LightmapRenderState->LightmapVTPackedUniform[LayerIndex], LayerIndex);
+		}
+		for (uint32 LayerIndex = NumLightmapVTLayers; LayerIndex < 5u; ++LayerIndex)
+		{
+			LightmapRenderState->LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
+		}
+	}
+				
+	LightmapRenderState->ResourceCluster->OverrideFeatureLevel(FeatureLevel);
+	LightmapRenderState->ResourceCluster->UpdateUniformBuffer_RenderThread();
+
+	LightmapRenderState->SetResourceCluster(nullptr);
+}
+
+void FLightmapRenderState::ReleasePreviewVirtualTexture()
+{
+	ResourceCluster->ReleaseResource();
+
+	if (LightmapPreviewVirtualTexture != nullptr)
+	{
+		FVirtualTextureProducerHandle ProducerHandle = LightmapPreviewVirtualTexture->ProducerHandle;
+		GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandle);
+	}
 }
 
 }

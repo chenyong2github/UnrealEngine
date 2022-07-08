@@ -290,6 +290,8 @@ public:
 		return FLightInteraction::LightMap();
 	}
 
+	void ReleasePreviewVirtualTexture();
+
 private:
 	FIntPoint Size;
 	int32 MaxLevel;
@@ -298,6 +300,8 @@ private:
 };
 
 using FLightmapRenderStateRef = TEntityArray<FLightmapRenderState>::EntityRefType;
+
+void CreateLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderState, ERHIFeatureLevel::Type FeatureLevel, class FLightmapRenderer* LightmapRenderer);
 
 }
 

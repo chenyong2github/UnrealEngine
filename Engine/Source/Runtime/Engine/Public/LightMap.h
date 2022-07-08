@@ -633,6 +633,8 @@ public:
 	virtual void InitRHI();
 	virtual void ReleaseRHI();
 
+	void OverrideFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { SetFeatureLevel(InFeatureLevel); }
+	
 	void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
 	void UpdateUniformBuffer_RenderThread();
 

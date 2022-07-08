@@ -428,8 +428,7 @@ void FScene::AddLight(LightComponentType* LightComponent)
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = SceneProxy->GetPrimitiveSceneInfo();
 			if (PrimitiveSceneInfo && PrimitiveSceneInfo->IsIndexValid())
 			{
-				PrimitiveSceneInfo->UpdateStaticLightingBuffer();
-				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
+				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedStaticLighting);
 			}
 		}
 	});
@@ -514,8 +513,7 @@ void FScene::RemoveLight(LightComponentType* PointLightComponent)
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = SceneProxy->GetPrimitiveSceneInfo();
 			if (PrimitiveSceneInfo && PrimitiveSceneInfo->IsIndexValid())
 			{
-				PrimitiveSceneInfo->UpdateStaticLightingBuffer();
-				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex());
+				PrimitiveSceneInfo->Scene->GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->GetIndex(), EPrimitiveDirtyState::ChangedStaticLighting);
 			}
 		}
 	});
@@ -747,7 +745,6 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 	}
 
 	TArray<FLightmapRenderState::Initializer> InstanceLightmapRenderStateInitializers;
-	TArray<FLightmapResourceCluster*> ResourceClusters;
 
 	for (FLightmapRef& Lightmap : Instance->LODLightmaps)
 	{
@@ -760,18 +757,18 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 				AddLightToLightmap(Lightmap.GetReference_Unsafe(), DirectionalLight);
 			}
 
+			// Ownership will be transferred to render thread, can be nullptr if not created
 			FLightmapResourceCluster* ResourceCluster = Lightmap->ResourceCluster.Release();
 
 			FLightmapRenderState::Initializer Initializer {
 				Lightmap->Name,
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
-				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
+				ResourceCluster,
 				FVector4f(FVector2f(Lightmap->LightmapObject->CoordinateScale), FVector2f(Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(MoveTemp(Initializer));
-			ResourceClusters.Add(ResourceCluster);
 		}
 		else
 		{
@@ -785,6 +782,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 
 	ENQUEUE_RENDER_COMMAND(RenderThreadInit)(
 		[
+			FeatureLevel = FeatureLevel,
 			InstanceRenderState = MoveTemp(InstanceRenderState), 
 			InstanceLightmapRenderStateInitializers = MoveTemp(InstanceLightmapRenderStateInitializers),
 			&RenderState = RenderState,
@@ -814,27 +812,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 			if (Initializer.IsValid())
 			{
 				FLightmapRenderStateRef LightmapRenderState = RenderState.LightmapRenderStates.Emplace(Initializer, RenderState.StaticMeshInstanceRenderStates.CreateGeometryInstanceRef(InstanceRenderStateRef, LODIndex));
-				FLightmapPreviewVirtualTexture* LightmapPreviewVirtualTexture = new FLightmapPreviewVirtualTexture(LightmapRenderState, RenderState.LightmapRenderer.Get());
-				LightmapRenderState->LightmapPreviewVirtualTexture = LightmapPreviewVirtualTexture;
-				LightmapRenderState->ResourceCluster->AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-				LightmapRenderState->ResourceCluster->InitResource();
-
-				{
-					IAllocatedVirtualTexture* AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-
-					check(AllocatedVT);
-
-					AllocatedVT->GetPackedPageTableUniform(&LightmapRenderState->LightmapVTPackedPageTableUniform[0]);
-					uint32 NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
-					for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
-					{
-						AllocatedVT->GetPackedUniform(&LightmapRenderState->LightmapVTPackedUniform[LayerIndex], LayerIndex);
-					}
-					for (uint32 LayerIndex = NumLightmapVTLayers; LayerIndex < 5u; ++LayerIndex)
-					{
-						LightmapRenderState->LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
-					}
-				}
+				CreateLightmapPreviewVirtualTexture(LightmapRenderState, FeatureLevel, RenderState.LightmapRenderer.Get());
 
 				InstanceRenderStateRef->LODLightmapRenderStates.Emplace(LightmapRenderState);
 
@@ -875,11 +853,6 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 
 	bNeedsVoxelization = true;
 
-	for (auto ResourceCluster : ResourceClusters)
-	{
-		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
-	}
-
 	if (InComponent->GetWorld())
 	{
 		InComponent->GetWorld()->SendAllEndOfFrameUpdates();
@@ -913,11 +886,7 @@ void FScene::RemoveGeometryInstanceFromComponent(UStaticMeshComponent* InCompone
 		{
 			if (Lightmap.IsValid())
 			{
-				Lightmap->ResourceCluster->ReleaseResource();
-
-				FVirtualTextureProducerHandle ProducerHandle = Lightmap->LightmapPreviewVirtualTexture->ProducerHandle;
-				GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandle);
-
+				Lightmap->ReleasePreviewVirtualTexture();
 				RenderState.LightmapRenderStates.Remove(Lightmap);
 			}
 		}
@@ -965,7 +934,6 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 	Instance->AllocateLightmaps(Lightmaps);
 
 	TArray<FLightmapRenderState::Initializer> InstanceLightmapRenderStateInitializers;
-	TArray<FLightmapResourceCluster*> ResourceClusters;
 
 	for (int32 LODIndex = 0; LODIndex < Instance->LODLightmaps.Num(); LODIndex++)
 	{
@@ -1004,18 +972,18 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 				AddLightToLightmap(Lightmap.GetReference_Unsafe(), DirectionalLight);
 			}
 
+			// Ownership will be transferred to render thread, can be nullptr if not created
 			FLightmapResourceCluster* ResourceCluster = Lightmap->ResourceCluster.Release();
 
 			FLightmapRenderState::Initializer Initializer {
 				Lightmap->Name,
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
-				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
+				ResourceCluster,
 				FVector4f(FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);
-			ResourceClusters.Add(ResourceCluster);
 		}
 		else
 		{
@@ -1046,6 +1014,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 
 	ENQUEUE_RENDER_COMMAND(RenderThreadInit)(
 		[
+			FeatureLevel = FeatureLevel,
 			InstanceRenderState = MoveTemp(InstanceRenderState),
 			InstanceLightmapRenderStateInitializers = MoveTemp(InstanceLightmapRenderStateInitializers),
 			&RenderState = RenderState,
@@ -1063,27 +1032,8 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 			if (Initializer.IsValid())
 			{
 				FLightmapRenderStateRef LightmapRenderState = RenderState.LightmapRenderStates.Emplace(Initializer, RenderState.InstanceGroupRenderStates.CreateGeometryInstanceRef(InstanceRenderStateRef, LODIndex));
-				FLightmapPreviewVirtualTexture* LightmapPreviewVirtualTexture = new FLightmapPreviewVirtualTexture(LightmapRenderState, RenderState.LightmapRenderer.Get());
-				LightmapRenderState->LightmapPreviewVirtualTexture = LightmapPreviewVirtualTexture;
-				LightmapRenderState->ResourceCluster->AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-				LightmapRenderState->ResourceCluster->InitResource();
+				CreateLightmapPreviewVirtualTexture(LightmapRenderState, FeatureLevel, RenderState.LightmapRenderer.Get());
 
-				{
-					IAllocatedVirtualTexture* AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-
-					check(AllocatedVT);
-
-					AllocatedVT->GetPackedPageTableUniform(&LightmapRenderState->LightmapVTPackedPageTableUniform[0]);
-					uint32 NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
-					for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
-					{
-						AllocatedVT->GetPackedUniform(&LightmapRenderState->LightmapVTPackedUniform[LayerIndex], LayerIndex);
-					}
-					for (uint32 LayerIndex = NumLightmapVTLayers; LayerIndex < 5u; ++LayerIndex)
-					{
-						LightmapRenderState->LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
-					}
-				}
 
 				InstanceRenderStateRef->LODLightmapRenderStates.Emplace(MoveTemp(LightmapRenderState));
 
@@ -1114,11 +1064,6 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 	});
 
 	bNeedsVoxelization = true;
-
-	for (auto ResourceCluster : ResourceClusters)
-	{
-		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
-	}
 }
 
 void FScene::RemoveGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InComponent)
@@ -1157,11 +1102,7 @@ void FScene::RemoveGeometryInstanceFromComponent(UInstancedStaticMeshComponent* 
 		{
 			if (Lightmap.IsValid())
 			{
-				Lightmap->ResourceCluster->ReleaseResource();
-
-				FVirtualTextureProducerHandle ProducerHandle = Lightmap->LightmapPreviewVirtualTexture->ProducerHandle;
-				GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandle);
-
+				Lightmap->ReleasePreviewVirtualTexture();
 				RenderState.LightmapRenderStates.Remove(Lightmap);
 			}
 		}
@@ -1199,7 +1140,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	Instance->AllocateLightmaps(Lightmaps);
 
 	TArray<FLightmapRenderState::Initializer> InstanceLightmapRenderStateInitializers;
-	TArray<FLightmapResourceCluster*> ResourceClusters;
 
 	for (int32 LODIndex = 0; LODIndex < Instance->LODLightmaps.Num(); LODIndex++)
 	{
@@ -1217,18 +1157,18 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 				AddLightToLightmap(Lightmap.GetReference_Unsafe(), DirectionalLight);
 			}
 
+			// Ownership will be transferred to render thread, can be nullptr if not created
 			FLightmapResourceCluster* ResourceCluster = Lightmap->ResourceCluster.Release();
 
 			FLightmapRenderState::Initializer Initializer{
 				Lightmap->Name,
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
-				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
+				ResourceCluster,
 				FVector4f(FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);
-			ResourceClusters.Add(ResourceCluster);
 		}
 		else
 		{
@@ -1408,27 +1348,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			if (LightmapInitializer.IsValid())
 			{
 				FLightmapRenderStateRef LightmapRenderState = RenderState.LightmapRenderStates.Emplace(LightmapInitializer, RenderState.LandscapeRenderStates.CreateGeometryInstanceRef(InstanceRenderStateRef, LODIndex));
-				FLightmapPreviewVirtualTexture* LightmapPreviewVirtualTexture = new FLightmapPreviewVirtualTexture(LightmapRenderState, RenderState.LightmapRenderer.Get());
-				LightmapRenderState->LightmapPreviewVirtualTexture = LightmapPreviewVirtualTexture;
-				LightmapRenderState->ResourceCluster->AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-				LightmapRenderState->ResourceCluster->InitResource();
-
-				{
-					IAllocatedVirtualTexture* AllocatedVT = LightmapPreviewVirtualTexture->AllocatedVT;
-
-					check(AllocatedVT);
-
-					AllocatedVT->GetPackedPageTableUniform(&LightmapRenderState->LightmapVTPackedPageTableUniform[0]);
-					uint32 NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
-					for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
-					{
-						AllocatedVT->GetPackedUniform(&LightmapRenderState->LightmapVTPackedUniform[LayerIndex], LayerIndex);
-					}
-					for (uint32 LayerIndex = NumLightmapVTLayers; LayerIndex < 5u; ++LayerIndex)
-					{
-						LightmapRenderState->LightmapVTPackedUniform[LayerIndex] = FUintVector4(ForceInitToZero);
-					}
-				}
+				CreateLightmapPreviewVirtualTexture(LightmapRenderState, LocalFeatureLevel, RenderState.LightmapRenderer.Get());
 
 				InstanceRenderStateRef->LODLightmapRenderStates.Emplace(MoveTemp(LightmapRenderState));
 
@@ -1459,11 +1379,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	});
 
 	bNeedsVoxelization = true;
-
-	for (auto ResourceCluster : ResourceClusters)
-	{
-		ResourceCluster->UpdateUniformBuffer(FeatureLevel);
-	}
 
 	if (InComponent->GetWorld())
 	{
@@ -1536,11 +1451,7 @@ void FScene::RemoveGeometryInstanceFromComponent(ULandscapeComponent* InComponen
 		{
 			if (Lightmap.IsValid())
 			{
-				Lightmap->ResourceCluster->ReleaseResource();
-
-				FVirtualTextureProducerHandle ProducerHandle = Lightmap->LightmapPreviewVirtualTexture->ProducerHandle;
-				GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandle);
-
+				Lightmap->ReleasePreviewVirtualTexture();
 				RenderState.LightmapRenderStates.Remove(Lightmap);
 			}
 		}
