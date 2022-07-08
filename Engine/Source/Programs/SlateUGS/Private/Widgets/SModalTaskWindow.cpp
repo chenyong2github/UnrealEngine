@@ -14,11 +14,12 @@ SModalTaskWindow::SModalTaskWindow()
 
 SModalTaskWindow::~SModalTaskWindow()
 {
-	if(Thread != nullptr)
+	if (Thread != nullptr)
 	{
 		Thread->WaitForCompletion();
 		delete Thread;
 	}
+
 	FPlatformProcess::ReturnSynchEventToPool(CloseEvent);
 }
 
@@ -61,11 +62,12 @@ void SModalTaskWindow::Construct(const FArguments& InArgs)
 
 EActiveTimerReturnType SModalTaskWindow::OnTickTimer(double CurrentTime, float DeltaTime)
 {
-	if(CloseEvent->Wait(FTimespan::Zero()))
+	if (CloseEvent->Wait(FTimespan::Zero()))
 	{
 		RequestDestroyWindow();
 		return EActiveTimerReturnType::Stop;
 	}
+
 	return EActiveTimerReturnType::Continue;
 }
 
@@ -73,6 +75,7 @@ uint32 SModalTaskWindow::Run()
 {
 	Result = Task->Run(AbortEvent);
 	CloseEvent->Trigger();
+
 	return 0;
 }
 
