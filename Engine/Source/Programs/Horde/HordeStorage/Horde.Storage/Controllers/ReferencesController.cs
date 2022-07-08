@@ -349,6 +349,10 @@ namespace Horde.Storage.Controllers
                                     _logger.Error("Failed to find blob {Blob} in namespace {Namespace} but it was expected to exist after reference resolving", attachmentToSend, ns);
                                     throw;
                                 }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error(ex, "Unknown exception encountered while writing body for jupiter inlined payload.");
+                                }
                                 return new EmptyResult();
                             }
                             else if (referencedBlobs.Count == 0)
