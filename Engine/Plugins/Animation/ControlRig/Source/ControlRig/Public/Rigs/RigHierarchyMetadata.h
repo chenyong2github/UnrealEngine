@@ -147,6 +147,7 @@ protected:
 
 	static UScriptStruct* GetMetadataStruct(const ERigMetadataType& InType);
 	static FRigBaseMetadata* MakeMetadata(const FRigBaseElement* InElement, const FName& InName, ERigMetadataType InType);
+	static void DestroyMetadata(FRigBaseMetadata** Metadata);
 
 	FORCEINLINE const FProperty* GetValueProperty() const
 	{

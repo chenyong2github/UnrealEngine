@@ -13,6 +13,34 @@
 // FRigBaseElement
 ////////////////////////////////////////////////////////////////////////////////
 
+FRigBaseElement::FRigBaseElement(const FRigBaseElement& InOther)
+{
+	*this = InOther;
+}
+
+FRigBaseElement& FRigBaseElement::operator=(const FRigBaseElement& InOther)
+{
+	Key = InOther.Key;
+	NameString = InOther.NameString;
+	Index = InOther.Index;
+	SubIndex = InOther.SubIndex;
+	bSelected = InOther.bSelected;
+	CreatedAtInstructionIndex = InOther.CreatedAtInstructionIndex;
+	TopologyVersion = InOther.TopologyVersion;
+	CachedChildren.Reset();
+	OwnedInstances = 1;
+
+	RemoveAllMetadata();
+	for(const FRigBaseMetadata* InOtherMd : InOther.Metadata)
+	{
+		FRigBaseMetadata* Md = SetupValidMetadata(InOtherMd->Name, InOtherMd->Type);
+		check(Md);
+		Md->SetValueData(InOtherMd->GetValueData(), InOtherMd->GetValueSize());
+	}
+
+	return *this;
+}
+
 FRigBaseElement::~FRigBaseElement()
 {
 	RemoveAllMetadata();
@@ -143,14 +171,7 @@ bool FRigBaseElement::RemoveMetadata(const FName& InName)
 	if(const int32* MetadataIndexPtr = MetadataNameToIndex.Find(InName))
 	{
 		const int32 MetadataIndex = *MetadataIndexPtr;
-		{
-			FRigBaseMetadata* Md = Metadata[MetadataIndex];
-			if(const UScriptStruct* Struct = Md->GetMetadataStruct())
-			{
-				Struct->DestroyStruct(Md, 1);
-			}
-			FMemory::Free(Md);
-		}
+		FRigBaseMetadata::DestroyMetadata(&Metadata[MetadataIndex]);
 		MetadataNameToIndex.Remove(InName);
 		Metadata.RemoveAt(MetadataIndex);
 		for(TPair<FName, int32>& Pair : MetadataNameToIndex)
@@ -171,11 +192,7 @@ bool FRigBaseElement::RemoveAllMetadata()
 	{
 		for(FRigBaseMetadata* Md : Metadata)
 		{
-			if(const UScriptStruct* Struct = Md->GetMetadataStruct())
-			{
-				Struct->DestroyStruct(Md, 1);
-			}
-			FMemory::Free(Md);
+			FRigBaseMetadata::DestroyMetadata(&Md);
 		}
 		Metadata.Reset();
 		MetadataNameToIndex.Reset();
@@ -218,23 +235,17 @@ void FRigBaseElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOt
 
 FRigBaseMetadata* FRigBaseElement::SetupValidMetadata(const FName& InName, ERigMetadataType InType)
 {
-	if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
+	if(const int32* MetadataIndexPtr = MetadataNameToIndex.Find(InName))
 	{
-		FRigBaseMetadata* Md = Metadata[*MetadataIndex];
-		if(Md->GetType() == InType)
+		const int32 MetadataIndex = *MetadataIndexPtr;
+		if(Metadata[MetadataIndex]->GetType() == InType)
 		{
-			return Md;
+			return Metadata[MetadataIndex];
 		}
 
-		if(const UScriptStruct* Struct = Md->GetMetadataStruct())
-		{
-			Struct->DestroyStruct(Md, 1);
-		}
-		FMemory::Free(Md);
-
-		Md = FRigBaseMetadata::MakeMetadata(this, InName, InType);
-		Metadata[*MetadataIndex] = Md;
-		return Md;
+		FRigBaseMetadata::DestroyMetadata(&Metadata[MetadataIndex]);
+		Metadata[MetadataIndex] = FRigBaseMetadata::MakeMetadata(this, InName, InType);
+		return Metadata[MetadataIndex];
 	}
 
 	FRigBaseMetadata* Md = FRigBaseMetadata::MakeMetadata(this, InName, InType);

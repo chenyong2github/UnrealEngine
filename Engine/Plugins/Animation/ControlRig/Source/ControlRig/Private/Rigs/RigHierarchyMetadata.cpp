@@ -122,6 +122,19 @@ FRigBaseMetadata* FRigBaseMetadata::MakeMetadata(const FRigBaseElement* InElemen
 	return Md;
 }
 
+void FRigBaseMetadata::DestroyMetadata(FRigBaseMetadata** Metadata)
+{
+	check(Metadata);
+	FRigBaseMetadata* Md = *Metadata;
+	check(Md);
+	if(const UScriptStruct* Struct = Md->GetMetadataStruct())
+	{
+		Struct->DestroyStruct(Md, 1);
+	}
+	FMemory::Free(Md);
+	Md = nullptr;
+}
+
 void FRigBaseMetadata::Serialize(FArchive& Ar, bool bIsLoading)
 {
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);

@@ -516,6 +516,9 @@ public:
 	, OwnedInstances(0)
 	{}
 
+	FRigBaseElement(const FRigBaseElement& InOther);
+	FRigBaseElement& operator= (const FRigBaseElement& InOther);
+
 	virtual ~FRigBaseElement();
 
 	enum ESerializationPhase
