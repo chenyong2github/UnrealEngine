@@ -44,11 +44,11 @@ if %IsTag%==1 (
   SET RefType=heads
 )
 
-@Rem Look for a WebServers directory next to this script
-if exist WebServers\ (
-  echo WebServers directory found...skipping install.
+@Rem Look for a SignallingWebServer directory next to this script
+if exist SignallingWebServer\ (
+  echo SignallingWebServer directory found...skipping install.
 ) else (
-  echo WebServers directory not found...beginning ps-infra download.
+  echo SignallingWebServer directory not found...beginning ps-infra download.
 
   if DEFINED GitHubAccessToken (
     @Rem Download ps-infra with authentication and follow redirects.
@@ -62,7 +62,19 @@ if exist WebServers\ (
   tar -xmf ps-infra.zip || echo bad archive, contents: && type ps-infra.zip && exit 0
 
   @Rem Rename the extracted, versioned, directory
-  move "EpicGames-PixelStreamingInfrastructure-*" "WebServers"
+  for /d %%i in ("PixelStreamingInfrastructure-*") do (
+    for /d %%j in ("%%i/*") do (
+      echo "%%i\%%j"
+      move "%%i\%%j" .
+    )
+    for %%j in ("%%i/*") do (
+      echo "%%i\%%j"
+      move "%%i\%%j" .
+    )
+
+    echo "%%i"
+    rmdir /s /q "%%i"
+  )
 
   @Rem Delete the downloaded zip
   del ps-infra.zip
