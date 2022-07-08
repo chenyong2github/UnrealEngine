@@ -17,9 +17,11 @@ public class MediaSourceManagerEditor : ModuleRules
 				"MediaAssets",
 				"MediaPlayerEditor",
 				"MediaSourceManager",
+				"PropertyEditor",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
+				"WorkspaceMenuStructure",
 			}
 			);
 	}

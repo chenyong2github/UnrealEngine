@@ -26,7 +26,12 @@ public:
 	 * @param InArgs					The declaration data for this widget.
 	 * @param InMediaSourceManager		The manager to show details for.
 	 */
-	void Construct(const FArguments& InArgs, UMediaSourceManager& InMediaSourceManager);
+	void Construct(const FArguments& InArgs, UMediaSourceManager* InMediaSourceManager);
+
+	/**
+	 * Call this to set which manager to use.
+	 */
+	void SetManager(UMediaSourceManager* InManager);
 
 private:
 

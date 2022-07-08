@@ -11,9 +11,9 @@
 #define LOCTEXT_NAMESPACE "SMediaSourceManagerSources"
 
 void SMediaSourceManagerSources::Construct(const FArguments& InArgs,
-	UMediaSourceManager& InMediaSourceManager)
+	UMediaSourceManager* InMediaSourceManager)
 {
-	MediaSourceManagerPtr = &InMediaSourceManager;
+	MediaSourceManagerPtr = InMediaSourceManager;
 
 	ChildSlot
 		[
@@ -27,6 +27,12 @@ void SMediaSourceManagerSources::Construct(const FArguments& InArgs,
 
 		];
 
+	RefreshChannels();
+}
+
+void SMediaSourceManagerSources::SetManager(UMediaSourceManager* InManager)
+{
+	MediaSourceManagerPtr = InManager;
 	RefreshChannels();
 }
 

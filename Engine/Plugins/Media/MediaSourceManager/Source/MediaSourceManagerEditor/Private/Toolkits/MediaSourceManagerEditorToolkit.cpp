@@ -194,7 +194,7 @@ TSharedRef<SDockTab> FMediaSourceManagerEditorToolkit::HandleTabManagerSpawnTab(
 
 	if (TabIdentifier == MediaSourceManagerEditorToolkit::SourcesTabId)
 	{
-		TabWidget = SNew(SMediaSourceManagerSources, *MediaSourceManager);
+		TabWidget = SNew(SMediaSourceManagerSources, MediaSourceManager);
 	}
 
 	return SNew(SDockTab)
