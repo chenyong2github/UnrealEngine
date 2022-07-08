@@ -14,7 +14,7 @@ IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDensityRemapTest, FPCGTestBaseClass,
 
 bool FPCGDensityRemapTest::RunTest(const FString& Parameters)
 {
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGDensityRemapSettings>(TestData);
 	UPCGDensityRemapSettings* Settings = CastChecked<UPCGDensityRemapSettings>(TestData.Settings);
 	FPCGElementPtr DensityRemapElement = TestData.Settings->GetElement();

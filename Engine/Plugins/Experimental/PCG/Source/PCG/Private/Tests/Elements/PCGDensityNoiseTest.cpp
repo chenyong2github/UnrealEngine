@@ -14,7 +14,7 @@ IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDensityNoiseTest, FPCGTestBaseClass,
 
 bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
 {
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
+	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGDensityNoiseSettings>(TestData);
 	UPCGDensityNoiseSettings* Settings = CastChecked<UPCGDensityNoiseSettings>(TestData.Settings);
 	FPCGElementPtr DensityNoiseElement = TestData.Settings->GetElement();
