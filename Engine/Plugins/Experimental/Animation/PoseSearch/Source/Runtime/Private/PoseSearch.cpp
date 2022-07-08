@@ -2275,7 +2275,8 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 {
 	check(History && Schema);
 
-	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 ? Schema->BoneIndices[SchemaBoneIdx] : RoolBoneIdx;
+	static constexpr FBoneIndexType RootBoneIdx = 0xFFFF;
+	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 ? Schema->BoneIndices[SchemaBoneIdx] : RootBoneIdx;
 
 	// @todo: use an hashmap if we end up having too many entries
 	const CachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::CachedEntry& Entry)
@@ -2289,7 +2290,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 		return Entry->Transform;
 	}
 
-	if (BoneIndexType >= 0)
+	if (BoneIndexType != RootBoneIdx)
 	{
 		TArray<FTransform> SampledLocalPose;
 		if (History->TrySampleLocalPose(-SampleTime, &Schema->BoneIndicesWithParents, &SampledLocalPose, nullptr))

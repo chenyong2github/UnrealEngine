@@ -1287,7 +1287,7 @@ struct POSESEARCH_API FSearchContext
 	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error);
 	void ClearCachedEntries();
 
-	enum { RoolBoneIdx = -1 };
+	static constexpr int8 SchemaRootBoneIdx = -1;
 
 private:
 	struct CachedEntry
