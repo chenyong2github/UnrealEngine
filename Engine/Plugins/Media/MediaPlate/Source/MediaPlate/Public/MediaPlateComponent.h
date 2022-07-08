@@ -10,6 +10,7 @@
 
 #include "MediaPlateComponent.generated.h"
 
+class FMediaComponentClockSink;
 class UMediaComponent;
 class UMediaPlayer;
 class UMediaPlaylist;
@@ -30,6 +31,7 @@ public:
 	//~ UActorComponent interface.
 	virtual void OnRegister();
 	virtual void BeginPlay();
+	virtual void BeginDestroy();
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -74,6 +76,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MediaPlate", meta = (ClampMin = "0.0"))
 	float StartTime = 0.0f;
 
+	/** If true then set the aspect ratio automatically based on the media. */
+	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
+	bool bIsAspectRatioAuto = true;
+
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMediaComponent> MediaComponent;
@@ -81,6 +87,10 @@ public:
 	/** Holds the component to play sound. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
+
+	/** Holds the component for the mesh. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 
 	/** What media playlist to play. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
@@ -114,6 +124,16 @@ public:
 	 */
 	void UnregisterWithMediaTextureTracker();
 
+	/**
+	 * Call this to set the aspect ratio of the mesh.
+	 */
+	void SetAspectRatio(float AspectRatio);
+
+	/**
+	 * Called from the media clock.
+	 */
+	void TickOutput();
+
 #if WITH_EDITOR
 	/** Propagate visible calculation changes to the tracker/player objects, optionally restarting playback if needed. */
 	void OnVisibleMipsTilesCalculationsChange();
@@ -130,6 +150,10 @@ private:
 
 	/** Info representing this object. */
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
+	/** Our media clock sink. */
+	TSharedPtr<FMediaComponentClockSink, ESPMode::ThreadSafe> ClockSink;
+	/** True if we are waiting for the first frame to come out. */
+	bool bIsWaitingForRender = false;
 
 	/**
 	 * Plays a media source.
@@ -138,4 +162,10 @@ private:
 	 * @return	True if we played anything.
 	 */
 	bool PlayMediaSource(UMediaSource* InMediaSource);
+
+	/**
+	 * Stops the clock sink so we no longer tick.
+	 */
+	void StopClockSink();
+
 };

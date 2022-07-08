@@ -8,6 +8,7 @@
 #include "Input/Reply.h"
 #include "MediaPlateCustomizationMesh.h"
 #include "MediaTextureTracker.h"
+#include "Styling/SlateTypes.h"
 
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
@@ -79,6 +80,16 @@ private:
 	 * Returns menu options for all aspect ratio presets.
 	 */
 	TSharedRef<SWidget> OnGetAspectRatios();
+
+	/**
+	 * Call this to see if auto aspect ratio is enabled.
+	 */
+	ECheckBoxState IsAspectRatioAuto() const;
+
+	/**
+	 * Call this to enable/disable automatic aspect ratio.
+	 */
+	void SetIsAspectRatioAuto(ECheckBoxState State);
 
 	/**
 	 * Call this to set the aspect ratio.

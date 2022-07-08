@@ -4,6 +4,9 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "IMediaClock.h"
+#include "IMediaClockSink.h"
+#include "IMediaModule.h"
 #include "MediaComponent.h"
 #include "MediaPlateModule.h"
 #include "MediaPlayer.h"
@@ -14,6 +17,43 @@
 #include "MediaTextureTracker.h"
 
 #define LOCTEXT_NAMESPACE "MediaPlate"
+
+
+/**
+ * Media clock sink for media textures.
+ */
+class FMediaComponentClockSink
+	: public IMediaClockSink
+{
+public:
+
+	FMediaComponentClockSink(UMediaPlateComponent* InOwner)
+		: Owner(InOwner)
+	{ }
+
+	virtual ~FMediaComponentClockSink() { }
+
+	virtual void TickOutput(FTimespan DeltaTime, FTimespan Timecode) override
+	{
+		if (UMediaPlateComponent* OwnerPtr = Owner.Get())
+		{
+			Owner->TickOutput();
+		}
+	}
+
+
+	/**
+	 * Call this when the owner is destroyed.
+	 */
+	void OwnerDestroyed()
+	{
+		Owner.Reset();
+	}
+
+private:
+
+	TWeakObjectPtr<UMediaPlateComponent> Owner;
+};
 
 FLazyName UMediaPlateComponent::MediaComponentName(TEXT("MediaComponent0"));
 FLazyName UMediaPlateComponent::MediaPlaylistName(TEXT("MediaPlaylist0"));
@@ -68,6 +108,25 @@ void UMediaPlateComponent::BeginPlay()
 	}
 }
 
+void UMediaPlateComponent::BeginDestroy()
+{
+	if (ClockSink.IsValid())
+	{
+		// Tell sink we are done.
+		ClockSink->OwnerDestroyed();
+
+		IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+		if (MediaModule != nullptr)
+		{
+			MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
+		}
+
+		ClockSink.Reset();
+	}
+
+	Super::BeginDestroy();
+}
+
 UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
 {
 	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
@@ -109,6 +168,25 @@ void UMediaPlateComponent::Play()
 	{
 		UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
 	}
+	else
+	{
+		// Are we using automatic aspect ratio?
+		if ((bIsAspectRatioAuto) &&
+			(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
+		{
+			// Start the clock sink so we can tick.
+			IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+			if (MediaModule != nullptr)
+			{
+				if (ClockSink.IsValid() == false)
+				{
+					ClockSink = MakeShared<FMediaComponentClockSink, ESPMode::ThreadSafe>(this);
+				}
+				bIsWaitingForRender = true;
+				MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
+			}
+		}
+	}
 }
 
 void UMediaPlateComponent::Stop()
@@ -118,6 +196,8 @@ void UMediaPlateComponent::Stop()
 	{
 		MediaPlayer->Close();
 	}
+
+	StopClockSink();
 }
 
 void UMediaPlateComponent::SetMeshHorizontalRange(float InMeshHorizontalRange)
@@ -183,6 +263,72 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 	}
 
 	return bIsPlaying;
+}
+
+void UMediaPlateComponent::SetAspectRatio(float AspectRatio)
+{
+	// Get the static mesh.
+	if (StaticMeshComponent != nullptr)
+	{
+		// Update the scale.
+		float Height = 1.0f;
+		if (AspectRatio != 0.0f)
+		{
+			Height = 1.0f / AspectRatio;
+		}
+		FVector Scale(1.0f, 1.0f, Height);
+#if WITH_EDITOR
+		StaticMeshComponent->Modify();
+#endif // WITH_EDITOR
+		StaticMeshComponent->SetRelativeScale3D(Scale);
+	}
+}
+
+void UMediaPlateComponent::TickOutput()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+	if (MediaPlayer != nullptr)
+	{
+		// Is the player ready?
+		if (MediaPlayer->IsPreparing() == false)
+		{
+			if (bIsWaitingForRender)
+			{
+				bIsWaitingForRender = false;
+			}
+			else
+			{
+				// Get the texture.
+				UMediaTexture* Texture = GetMediaTexture();
+				if (Texture != nullptr)
+				{
+					float Width = Texture->GetSurfaceWidth();
+					float Height = Texture->GetSurfaceHeight();
+					// Set aspect ratio.
+					if (Height != 0.0f)
+					{
+						float AspectRatio = Width / Height;
+						SetAspectRatio(AspectRatio);
+					}
+
+					// No need to tick anymore.
+					StopClockSink();
+				}
+			}
+		}
+	}
+}
+
+void UMediaPlateComponent::StopClockSink()
+{
+	if (ClockSink.IsValid())
+	{
+		IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media");
+		if (MediaModule != nullptr)
+		{
+			MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
+		}
+	}
 }
 
 #if WITH_EDITOR

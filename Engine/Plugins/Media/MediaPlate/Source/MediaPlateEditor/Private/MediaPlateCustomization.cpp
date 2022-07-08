@@ -18,6 +18,7 @@
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -416,6 +417,24 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				]
 		];
 
+	// Add auto aspect ratio.
+	DetailGroup.AddWidgetRow()
+		.Visibility(MeshPlaneVisibility)
+		.NameContent()
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("AutoAspectRatio", "Auto Aspect Ratio"))
+				.ToolTipText(LOCTEXT("AutoAspectRatio_ToolTip",
+					"Sets the aspect ratio to match the media."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+				.IsChecked(this, &FMediaPlateCustomization::IsAspectRatioAuto)
+				.OnCheckStateChanged(this, &FMediaPlateCustomization::SetIsAspectRatioAuto)
+		];
+
 	// Add sphere horizontal arc.
 	DetailGroup.AddWidgetRow()
 		.Visibility(MeshSphereVisibility)
@@ -479,6 +498,48 @@ void FMediaPlateCustomization::SetSphereMesh(UMediaPlateComponent* MediaPlate)
 	MeshCustomization.SetSphereMesh(MediaPlate);
 }
 
+ECheckBoxState FMediaPlateCustomization::IsAspectRatioAuto() const
+{
+	ECheckBoxState State = ECheckBoxState::Undetermined;
+
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			ECheckBoxState NewState = MediaPlate->bIsAspectRatioAuto ? ECheckBoxState::Checked :
+				ECheckBoxState::Unchecked;
+			if (State == ECheckBoxState::Undetermined)
+			{
+				State = NewState;
+			}
+			else if (State != NewState)
+			{
+				// If the media plates have different states then return undetermined.
+				State = ECheckBoxState::Undetermined;
+				break;
+			}
+		}
+	}
+
+	return State;
+}
+
+void FMediaPlateCustomization::SetIsAspectRatioAuto(ECheckBoxState State)
+{
+	bool bEnable = (State == ECheckBoxState::Checked);
+
+	// Loop through all our objects.
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			MediaPlate->bIsAspectRatioAuto = bEnable;
+		}
+	}
+}
+
 TSharedRef<SWidget> FMediaPlateCustomization::OnGetAspectRatios()
 {
 	FMenuBuilder MenuBuilder(true, NULL);
@@ -500,33 +561,13 @@ TSharedRef<SWidget> FMediaPlateCustomization::OnGetAspectRatios()
 
 void FMediaPlateCustomization::SetAspectRatio(float AspectRatio)
 {
-	// Calculate required scale from the aspect ratio.
-	float Height = 1.0f;
-	if (AspectRatio != 0.0f)
-	{
-		Height = 1.0f / AspectRatio;
-	}
-	FVector Scale(1.0f, 1.0f, Height);
-
 	// Loop through all our objects.
 	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
 	{
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			AActor* Owner = MediaPlate->GetOwner();
-			AMediaPlate* MediaPlateActor = Cast<AMediaPlate>(Owner);
-			if (MediaPlateActor != nullptr)
-			{
-				// Get the static mesh.
-				UStaticMeshComponent* StaticMeshComponent = MediaPlateActor->StaticMeshComponent;
-				if (StaticMeshComponent != nullptr)
-				{
-					// Update the scale.
-					StaticMeshComponent->SetRelativeScale3D(Scale);
-					StaticMeshComponent->MarkPackageDirty();
-				}
-			}
+			MediaPlate->SetAspectRatio(AspectRatio);
 		}
 	}
 
