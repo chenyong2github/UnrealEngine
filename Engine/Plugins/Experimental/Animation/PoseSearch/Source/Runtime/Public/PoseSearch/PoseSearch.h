@@ -1067,7 +1067,7 @@ public:
 	int32 KDTreeQueryNumNeighbors = 100;
 
 	UPROPERTY(EditAnywhere, Category = "Performance")
-	EPoseSearchMode PoseSearchMode = EPoseSearchMode::BruteForce;
+	EPoseSearchMode PoseSearchMode = EPoseSearchMode::PCAKDTree;
 
 	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;

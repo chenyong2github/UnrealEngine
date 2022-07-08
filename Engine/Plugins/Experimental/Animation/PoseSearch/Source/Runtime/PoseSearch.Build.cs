@@ -9,7 +9,8 @@ public class PoseSearch : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
-			"Eigen"
+			"Eigen",
+			"nanoflann"
 		);
 
 		PublicIncludePaths.AddRange(
