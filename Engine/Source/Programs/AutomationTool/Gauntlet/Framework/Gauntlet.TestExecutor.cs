@@ -481,7 +481,7 @@ namespace Gauntlet
 					}
 
 					// report all tests
-					ReportMasterSummary(CurrentTestPass + 1, Options.TestIterations, PassDuration, CompletedTests);
+					ReportMainSummary(CurrentTestPass + 1, Options.TestIterations, PassDuration, CompletedTests);
 
 					if (FailedCount > 0 && Options.StopOnError)
 					{
@@ -622,7 +622,7 @@ namespace Gauntlet
 		/// <param name="Duration"></param>
 		/// <param name="AllInfo"></param>
 		/// <returns></returns>
-		void ReportMasterSummary(int CurrentPass, int NumPasses, TimeSpan Duration, IEnumerable<TestExecutionInfo> AllInfo)
+		void ReportMainSummary(int CurrentPass, int NumPasses, TimeSpan Duration, IEnumerable<TestExecutionInfo> AllInfo)
 		{
 
 			MarkdownBuilder MB = new MarkdownBuilder();

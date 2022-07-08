@@ -194,7 +194,6 @@ namespace Gauntlet
 		/// <summary>
 		/// Gets the filehost IP to provide to devkits by examining our local adapters and
 		/// returning the one that's active and on the local LAN (based on DNS assignment)
-		/// AG-TODO: PreferredDomain should be in the master config
 		/// </summary>
 		/// <returns></returns>
 		public static string GetHostIpAddress(string PreferredDomain="epicgames.net")
@@ -214,7 +213,7 @@ namespace Gauntlet
 				//
 				// When the above fails, attempt to extract the eth IP manually.
 				//
-				// TODO: Fallback to the wireless adapter if/when no eth device is
+				// TODO: Fallback to the wireless adapter if/when no device is
 				//       available/active.
 				//
 				LocalAddress = GetAllLocalIPv4(NetworkInterfaceType.Ethernet)
