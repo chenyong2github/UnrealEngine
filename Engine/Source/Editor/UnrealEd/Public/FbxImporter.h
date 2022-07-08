@@ -1912,6 +1912,25 @@ private:
 	bool ImportCurveToAnimSequence(class UAnimSequence * TargetSequence, const FString& CurveName, const FbxAnimCurve* FbxCurve, int32 CurveFlags,const FbxTimeSpan& AnimTimeSpan, float ValueScale = 1.f) const;
 
 	/**
+	 * Import rich Curves to anim sequence
+	 */
+	bool ImportRichCurvesToAnimSequence(class UAnimSequence * TargetSequence, const TArray<FString>& CurveNames, const TArray<FRichCurve> RichCurves, int32 CurveFlags) const;
+	
+	/**
+	 * Given a primary blend shape channel curve and inbetween target full weights,
+	 * generate curves for each target as if they are standalone blend shapes
+	 * while preserving the animation
+	 */
+	TArray<FRichCurve> ResolveWeightsForBlendShapeCurve(FRichCurve& ChannelWeightCurve, const TArray<float>& InbetweenFullWeights) const;
+	
+	/**
+	 * Given a primary blend shape channel curve value and inbetween target full weights,
+	 * calculate the curve value for each target as if they are standalone blend shapes
+	 * while preserving the animation
+	 */
+	void ResolveWeightsForBlendShape(const TArray<float>& InbetweenFullWeights , float InWeight, float& OutMainWeight, TArray<float>& OutInbetweenWeights) const;
+	
+	/**
 	 * Import custom attribute (curve or not) to the associated bone.
 	 *
 	 * @return Returns true if the given custom attribute was properly added to the bone, false otherwise.
