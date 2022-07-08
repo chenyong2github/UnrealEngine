@@ -9,7 +9,7 @@
 
 #include "PCGDensityRemap.generated.h"
 
-UCLASS(BlueprintType, ClassGroup = (Procedural))
+UCLASS(BlueprintType, ClassGroup = (Procedural), Hidden, meta = (Deprecated = "5.1", DeprecationMessage = "Use DensityNoise instead."))
 class PCG_API UPCGLinearDensityRemapSettings : public UPCGSettings
 {
 	GENERATED_BODY()
