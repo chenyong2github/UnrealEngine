@@ -586,9 +586,17 @@ void FModeToolkit::UpdatePrimaryModePanel()
 			}
 		}
 
-		if (GetInlineContent().IsValid() && InlineContentHolder.IsValid())
+		if (InlineContentHolder.IsValid())
 		{
-			InlineContentHolder->SetContent(GetInlineContent().ToSharedRef());
+			if (TSharedPtr<SWidget> InlineContent = GetInlineContent())
+			{
+				InlineContentHolder->SetContent(
+					SNew(SScrollBox)
+					+ SScrollBox::Slot()
+					[
+						InlineContent.ToSharedRef()
+					]);
+			}
 		}
 
 	}
