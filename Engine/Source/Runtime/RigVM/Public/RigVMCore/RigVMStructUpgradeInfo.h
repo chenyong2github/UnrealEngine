@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMTemplate.h"
 
 struct FRigVMStruct;
 
@@ -14,14 +15,24 @@ public:
 	FRigVMStructUpgradeInfo();
 
 	template<typename Old, typename New>
-	FRigVMStructUpgradeInfo(const Old& InOld, const New& InNew, const FName& InOldDispatchFunction = NAME_None, const FName& InNewDispatchFunction = NAME_None)
+	FRigVMStructUpgradeInfo(const Old& InOld, const New& InNew)
 	{
 		OldStruct = Old::StaticStruct();
 		NewStruct = New::StaticStruct();
-		OldDispatchFunction = InOldDispatchFunction;
-		NewDispatchFunction = InNewDispatchFunction;
+		OldDispatchFunction = NAME_None;
+		NewDispatchFunction = NAME_None;
 		SetDefaultValues(&InNew);
 	}
+
+	FRigVMStructUpgradeInfo(UScriptStruct* InOldDispatchStruct, UScriptStruct* InNewDispatchStruct, const FName& InOldDispatchFunction, const FName& InNewDispatchFunction)
+	{
+		OldStruct = InOldDispatchStruct;
+		NewStruct = InNewDispatchStruct;
+		OldDispatchFunction = InOldDispatchFunction;
+		NewDispatchFunction = InNewDispatchFunction;
+	}
+
+	static FRigVMStructUpgradeInfo MakeFromStructToFactory(UScriptStruct* InRigVMStruct, UScriptStruct* InFactoryStruct);
 
 	// returns true if this upgrade info can be applied
 	bool IsValid() const;
@@ -38,6 +49,9 @@ public:
 	// returns the default value for a given pin
 	const FString& GetDefaultValueForPin(const FName& InPinName) const;
 
+	// sets the default value for a given pin
+	void SetDefaultValueForPin(const FName& InPinName, const FString& InDefaultValue);
+
 	// adds a pin to be remapped
 	void AddRemappedPin(const FString& InOldPinPath, const FString& InNewPinPath, bool bAsInput = true, bool bAsOutput = true);
 
@@ -49,6 +63,9 @@ public:
 
 	// returns the aggregate pins to add
 	const TArray<FString>& GetAggregatePins() const { return AggregatePins; }
+
+	// returns a type map representing the struct members
+	static FRigVMTemplateTypeMap GetTypeMapFromStruct(UScriptStruct* InScriptStruct);
 
 private:
 	

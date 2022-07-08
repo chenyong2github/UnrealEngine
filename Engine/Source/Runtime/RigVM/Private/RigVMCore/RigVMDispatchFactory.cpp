@@ -67,7 +67,7 @@ FString FRigVMDispatchFactory::GetKeywords() const
 
 FRigVMFunctionPtr FRigVMDispatchFactory::GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
 {
-	const FString PermutationName = GetPermutationName(InTypes);
+	const FString PermutationName = GetPermutationNameImpl(InTypes);
 	if(const FRigVMFunction* ExistingFunction = FRigVMRegistry::Get().FindFunction(*PermutationName))
 	{
 		return ExistingFunction->FunctionPtr;
@@ -76,6 +76,19 @@ FRigVMFunctionPtr FRigVMDispatchFactory::GetDispatchFunction(const FRigVMTemplat
 }
 
 FString FRigVMDispatchFactory::GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const
+{
+#if WITH_EDITOR
+	const TArray<FRigVMTemplateArgument> Arguments = GetArguments();
+	check(InTypes.Num() == Arguments.Num());
+	for(const FRigVMTemplateArgument& Argument : Arguments)
+	{
+		check(InTypes.Contains(Argument.GetName()));
+	}
+#endif
+	return GetPermutationNameImpl(InTypes);
+}
+
+FString FRigVMDispatchFactory::GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const
 {
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	TArray<FString> TypePairStrings;

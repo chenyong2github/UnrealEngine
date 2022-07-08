@@ -50,21 +50,40 @@ FString FRigVMFunction::GetModuleRelativeHeaderPath() const
 	return FString();
 }
 
-const TArray<int32>& FRigVMFunction::GetArgumentTypeIndices() const
+const TArray<TRigVMTypeIndex>& FRigVMFunction::GetArgumentTypeIndices() const
 {
 	if(ArgumentTypeIndices.IsEmpty() && !Arguments.IsEmpty())
 	{
-		for(const FRigVMFunctionArgument& Argument : Arguments)
+		if(Struct)
 		{
-			if(const FProperty* Property = Struct->FindPropertyByName(Argument.Name))
+			for(const FRigVMFunctionArgument& Argument : Arguments)
 			{
-				FName CPPType = NAME_None;
-				UObject* CPPTypeObject = nullptr;
-				FRigVMExternalVariable::GetTypeFromProperty(Property, CPPType, CPPTypeObject);
+				if(const FProperty* Property = Struct->FindPropertyByName(Argument.Name))
+				{
+					FName CPPType = NAME_None;
+					UObject* CPPTypeObject = nullptr;
+					FRigVMExternalVariable::GetTypeFromProperty(Property, CPPType, CPPTypeObject);
 
-				const FRigVMTemplateArgumentType Type(CPPType, CPPTypeObject);
-				ArgumentTypeIndices.Add(FRigVMRegistry::Get().FindOrAddType(Type));
+					const FRigVMTemplateArgumentType Type(CPPType, CPPTypeObject);
+					ArgumentTypeIndices.Add(FRigVMRegistry::Get().FindOrAddType(Type));
+				}
 			}
+		}
+		else if(const FRigVMTemplate* Template = GetTemplate())
+		{
+			const int32 PermutationIndex = Template->FindPermutation(this);
+			check(PermutationIndex != INDEX_NONE);
+
+			for(const FRigVMFunctionArgument& FunctionArgument : Arguments)
+			{
+				const FRigVMTemplateArgument* TemplateArgument = Template->FindArgument(FunctionArgument.Name);
+				check(TemplateArgument);
+				ArgumentTypeIndices.Add(TemplateArgument->GetTypeIndices()[PermutationIndex]);
+			}
+		}
+		else
+		{
+			checkNoEntry();
 		}
 	}
 	return ArgumentTypeIndices;

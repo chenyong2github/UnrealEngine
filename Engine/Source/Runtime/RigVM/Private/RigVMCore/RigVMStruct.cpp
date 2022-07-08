@@ -92,6 +92,49 @@ FRigVMStructUpgradeInfo::FRigVMStructUpgradeInfo()
 {
 }
 
+FRigVMStructUpgradeInfo FRigVMStructUpgradeInfo::MakeFromStructToFactory(UScriptStruct* InRigVMStruct, UScriptStruct* InFactoryStruct)
+{
+	check(InRigVMStruct);
+	check(InFactoryStruct);
+	
+	const FRigVMDispatchFactory* Factory = FRigVMRegistry::Get().FindOrAddDispatchFactory(InFactoryStruct);
+	check(Factory);
+	const FRigVMTemplateTypeMap Types = GetTypeMapFromStruct(InRigVMStruct);
+	const FString PermutationName = Factory->GetPermutationName(Types);
+
+	FRigVMStructUpgradeInfo Info;
+	Info.OldStruct = InRigVMStruct;
+	Info.NewStruct = InFactoryStruct;
+	Info.NewDispatchFunction = *PermutationName;
+	return Info;
+}
+
+FRigVMTemplateTypeMap FRigVMStructUpgradeInfo::GetTypeMapFromStruct(UScriptStruct* InScriptStruct)
+{
+	FRigVMTemplateTypeMap Types;
+#if WITH_EDITOR
+	for (TFieldIterator<FProperty> It(InScriptStruct); It; ++It)
+	{
+		if(It->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+
+		if(!It->HasMetaData(FRigVMStruct::InputMetaName) &&
+			!It->HasMetaData(FRigVMStruct::OutputMetaName) &&
+			!It->HasMetaData(FRigVMStruct::VisibleMetaName))
+		{
+			continue;
+		}
+		
+		const FName PropertyName = It->GetFName();
+		const TRigVMTypeIndex TypeIndex = FRigVMTemplateArgument(*It).GetTypeIndices()[0];
+		Types.Add(PropertyName, TypeIndex);
+	}
+#endif
+	return Types;
+}
+
 bool FRigVMStructUpgradeInfo::IsValid() const
 {
 	return NodePath.IsEmpty() && (OldStruct != nullptr) && (NewStruct != nullptr);
@@ -105,6 +148,11 @@ const FString& FRigVMStructUpgradeInfo::GetDefaultValueForPin(const FName& InPin
 		return *DefaultValue;
 	}
 	return EmptyString;
+}
+
+void FRigVMStructUpgradeInfo::SetDefaultValueForPin(const FName& InPinName, const FString& InDefaultValue)
+{
+	DefaultValues.FindOrAdd(InPinName) = InDefaultValue;
 }
 
 void FRigVMStructUpgradeInfo::AddRemappedPin(const FString& InOldPinPath, const FString& InNewPinPath, bool bAsInput,

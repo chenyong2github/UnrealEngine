@@ -2170,10 +2170,13 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& In
 	{
 		FRigVMController_PinPathRemapDelegate RemapPinDelegate;
 		URigVMNode* UpgradedNode = UpgradeNode(Node, bSetupUndoRedo, &RemapPinDelegate);
-		UpgradedNodes.Add(UpgradedNode);
-		if(RemapPinDelegate.IsBound())
+		if(UpgradedNode)
 		{
-			RemapPinDelegates.Add(UpgradedNode->GetName(), RemapPinDelegate);
+			UpgradedNodes.Add(UpgradedNode);
+			if(RemapPinDelegate.IsBound())
+			{
+				RemapPinDelegates.Add(UpgradedNode->GetName(), RemapPinDelegate);
+			}
 		}
 	}
 
@@ -2220,91 +2223,120 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 
 	URigVMNode* UpgradedNode = nullptr;
 
+	const FRigVMStructUpgradeInfo UpgradeInfo = InNode->GetUpgradeInfo();
+	check(UpgradeInfo.IsValid());
+	
+	FName MethodName = TEXT("Execute");
 	if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 	{
-		const FName MethodName = UnitNode->GetMethodName();
-		
-		const FRigVMStructUpgradeInfo UpgradeInfo = UnitNode->GetUpgradeInfo();
-		check(UpgradeInfo.IsValid());
+		MethodName = UnitNode->GetMethodName();
+	}
 
-		if(OutRemapPinDelegate)
+	if(OutRemapPinDelegate)
+	{
+		*OutRemapPinDelegate = FRigVMController_PinPathRemapDelegate::CreateLambda([UpgradeInfo](const FString& InPinPath, bool bIsInput) -> FString
 		{
-			*OutRemapPinDelegate = FRigVMController_PinPathRemapDelegate::CreateLambda([UpgradeInfo](const FString& InPinPath, bool bIsInput) -> FString
-			{
-				return UpgradeInfo.RemapPin(InPinPath, bIsInput, true);
-			});
+			return UpgradeInfo.RemapPin(InPinPath, bIsInput, true);
+		});
+	}
+
+	if(!RemoveNode(InNode, bSetupUndoRedo, true, false, false))
+	{
+		if(bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action, this);
 		}
+		ReportErrorf(TEXT("Unable to remove node %s."), *NodeName);
+		return nullptr;
+	}
 
-		if(!RemoveNode(InNode, bSetupUndoRedo, true, false, false))
+	URigVMNode* NewNode = nullptr;
+	if(UpgradeInfo.GetNewStruct()->IsChildOf(FRigVMStruct::StaticStruct()))
+	{
+		NewNode = AddUnitNode(UpgradeInfo.GetNewStruct(), MethodName, NodePosition, NodeName, bSetupUndoRedo, false);
+	}
+	else if(UpgradeInfo.GetNewStruct()->IsChildOf(FRigVMDispatchFactory::StaticStruct()) && !UpgradeInfo.NewDispatchFunction.IsNone())
+	{
+		if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*UpgradeInfo.NewDispatchFunction.ToString()))
 		{
-			if(bSetupUndoRedo)
+			if(const FRigVMTemplate* Template = Function->GetTemplate())
 			{
-				ActionStack->CancelAction(Action, this);
-			}
-			ReportErrorf(TEXT("Unable to remove node %s."), *NodeName);
-			return nullptr;
-		}
-
-		URigVMNode* NewNode = AddUnitNode(UpgradeInfo.GetNewStruct(), MethodName, NodePosition, NodeName, bSetupUndoRedo, false);
-		if(NewNode == nullptr)
-		{
-			if(bSetupUndoRedo)
-			{
-				ActionStack->CancelAction(Action, this);
-			}
-			ReportErrorf(TEXT("Unable to upgrade node %s."), *NodeName);
-			return nullptr;
-		}
-
-		const TArray<FString>& AggregatePins = UpgradeInfo.GetAggregatePins();
-		for(const FString& AggregatePinName : AggregatePins)
-		{
-			const FName PreviousName = NewNode->GetFName();
-			AddAggregatePin(PreviousName.ToString(), AggregatePinName, FString(), bSetupUndoRedo, false);
-			NewNode = GetGraph()->FindNodeByName(PreviousName);
-		}
-
-		for(URigVMPin* Pin : NewNode->GetPins())
-		{
-			const FString DefaultValue = UpgradeInfo.GetDefaultValueForPin(Pin->GetFName());
-			if(!DefaultValue.IsEmpty())
-			{
-				SetPinDefaultValue(Pin, DefaultValue, true, bSetupUndoRedo, false);
-			}
-		}
-
-		// redirect pin state paths
-		for(TPair<FString, FPinState>& PinState : PinStates)
-		{
-			for(int32 TrueFalse = 0; TrueFalse < 2; TrueFalse++)
-			{
-				const FString RemappedInputPath = UpgradeInfo.RemapPin(PinState.Key, TrueFalse == 0, false);
-				if(RemappedInputPath != PinState.Key)
+				if(const FRigVMDispatchFactory* Factory = Template->GetDispatchFactory())
 				{
-					if(!RedirectedPinPaths.Contains(PinState.Key))
+					if(Factory->GetScriptStruct() == UpgradeInfo.GetNewStruct())
 					{
-						RedirectedPinPaths.Add(PinState.Key, RemappedInputPath);
+						NewNode = AddTemplateNode(Template->GetNotation(), NodePosition, NodeName, bSetupUndoRedo, false);
+						if(NewNode)
+						{
+							for(int32 ArgumentIndex=0;ArgumentIndex<Function->GetArguments().Num();ArgumentIndex++)
+							{
+								const FRigVMFunctionArgument& Argument = Function->GetArguments()[ArgumentIndex];
+								if(URigVMPin* Pin = NewNode->FindPin(Argument.Name))
+								{
+									if(Pin->IsWildCard())
+									{
+										ResolveWildCardPin(Pin, Function->GetArgumentTypeIndices()[ArgumentIndex], bSetupUndoRedo, false);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
 		}
-
-
-		UpgradedNode = NewNode;
 	}
-	else
+	
+	if(NewNode == nullptr)
 	{
-		// for now we don't allow to upgrade anything else but unit nodes
-		checkNoEntry();
+		if(bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action, this);
+		}
+		ReportErrorf(TEXT("Unable to upgrade node %s."), *NodeName);
+		return nullptr;
 	}
 
-	check(UpgradedNode);
+	const TArray<FString>& AggregatePins = UpgradeInfo.GetAggregatePins();
+	for(const FString& AggregatePinName : AggregatePins)
+	{
+		const FName PreviousName = NewNode->GetFName();
+		AddAggregatePin(PreviousName.ToString(), AggregatePinName, FString(), bSetupUndoRedo, false);
+		NewNode = GetGraph()->FindNodeByName(PreviousName);
+	}
 
-	// reapply the pin states but don't touch defaults
+	for(URigVMPin* Pin : NewNode->GetPins())
+	{
+		const FString DefaultValue = UpgradeInfo.GetDefaultValueForPin(Pin->GetFName());
+		if(!DefaultValue.IsEmpty())
+		{
+			SetPinDefaultValue(Pin, DefaultValue, true, bSetupUndoRedo, false);
+
+			if(FPinState* PinState = PinStates.Find(Pin->GetPinPath()))
+			{
+				PinState->DefaultValue.Reset();
+			}
+		}
+	}
+
+	// redirect pin state paths
 	for(TPair<FString, FPinState>& PinState : PinStates)
 	{
-		PinState.Value.DefaultValue.Reset();
+		for(int32 TrueFalse = 0; TrueFalse < 2; TrueFalse++)
+		{
+			const FString RemappedInputPath = UpgradeInfo.RemapPin(PinState.Key, TrueFalse == 0, false);
+			if(RemappedInputPath != PinState.Key)
+			{
+				if(!RedirectedPinPaths.Contains(PinState.Key))
+				{
+					RedirectedPinPaths.Add(PinState.Key, RemappedInputPath);
+				}
+			}
+		}
 	}
+
+	UpgradedNode = NewNode;
+	check(UpgradedNode);
+
 	ApplyPinStates(UpgradedNode, PinStates, RedirectedPinPaths, bSetupUndoRedo);
 
 	if(bSetupUndoRedo)

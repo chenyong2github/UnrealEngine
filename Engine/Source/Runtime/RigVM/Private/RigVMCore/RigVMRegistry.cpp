@@ -1011,6 +1011,11 @@ FRigVMDispatchFactory* FRigVMRegistry::FindDispatchFactory(const FName& InFactor
 	return nullptr;
 }
 
+FRigVMDispatchFactory* FRigVMRegistry::FindOrAddDispatchFactory(UScriptStruct* InFactoryStruct)
+{
+	return (FRigVMDispatchFactory*)RegisterFactory(InFactoryStruct);
+}
+
 const TArray<FRigVMDispatchFactory*>& FRigVMRegistry::GetFactories() const
 {
 	return Factories;

@@ -896,7 +896,7 @@ const FRigVMFunction* FRigVMTemplate::GetOrCreatePermutation(int32 InIndex)
 			}
 			
 			static constexpr TCHAR Format[] = TEXT("%s::%s");
-			const FString PermutationName = Factory->GetPermutationName(Types);
+			const FString PermutationName = Factory->GetPermutationNameImpl(Types);
 			const int32 FunctionIndex = Permutations[InIndex] = Registry.Functions.Num();
 			
 			Registry.Functions.AddElement(
@@ -908,6 +908,7 @@ const FRigVMFunction* FRigVMTemplate::GetOrCreatePermutation(int32 InIndex)
 					FunctionArguments
 				)
 			);
+			Registry.Functions[FunctionIndex].TemplateIndex = Index;
 			Registry.FunctionNameToIndex.Add(*PermutationName, FunctionIndex);
 
 			return &Registry.Functions[FunctionIndex];

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RigVMExecuteContext.h"
 #include "RigVMMemory.h"
+#include "RigVMTypeIndex.h"
 #include "Blueprint/BlueprintSupport.h"
 
 typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
@@ -76,7 +77,7 @@ struct RIGVM_API FRigVMFunction
 	int32 Index;
 	int32 TemplateIndex;
 	TArray<FRigVMFunctionArgument> Arguments;
-	mutable TArray<int32> ArgumentTypeIndices;
+	mutable TArray<TRigVMTypeIndex> ArgumentTypeIndices;
 
 	FRigVMFunction()
 		: Name()
@@ -118,7 +119,7 @@ struct RIGVM_API FRigVMFunction
 	FString GetModuleName() const;
 	FString GetModuleRelativeHeaderPath() const;
 	const TArray<FRigVMFunctionArgument>& GetArguments() const { return Arguments; }
-	const TArray<int32>& GetArgumentTypeIndices() const;
+	const TArray<TRigVMTypeIndex>& GetArgumentTypeIndices() const;
 	bool IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const;
 	const FRigVMTemplate* GetTemplate() const;
 };

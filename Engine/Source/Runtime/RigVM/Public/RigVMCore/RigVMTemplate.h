@@ -217,6 +217,7 @@ protected:
 	friend struct FRigVMTemplate;
 	friend class URigVMController;
 	friend struct FRigVMRegistry;
+	friend struct FRigVMStructUpgradeInfo;
 };
 
 /**

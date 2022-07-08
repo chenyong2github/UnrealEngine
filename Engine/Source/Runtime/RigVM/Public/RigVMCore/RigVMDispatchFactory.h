@@ -92,9 +92,14 @@ public:
 	// builds and returns the template
 	const FRigVMTemplate* GetTemplate() const;
 
+	// returns the name of the permutation for a given set of types
+	FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
+
 protected:
 
-	FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
+	// returns the name of the permutation for a given set of types
+	FString GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const;
+
 	FORCEINLINE virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
 
 	static const FString DispatchPrefix;

@@ -175,6 +175,9 @@ public:
 	// Returns a dispatch factory given its name (or nullptr)
 	FRigVMDispatchFactory* FindDispatchFactory(const FName& InFactoryName) const;
 
+	// Returns a dispatch factory given its static struct (or nullptr)
+	FRigVMDispatchFactory* FindOrAddDispatchFactory(UScriptStruct* InFactoryStruct);
+
 	// Returns all dispatch factories
 	const TArray<FRigVMDispatchFactory*>& GetFactories() const;
 
