@@ -6,7 +6,7 @@
 #include "RemoteControlPreset.h"
 #include "UI/SRenderPagesPropsBase.h"
 #include "RenderPage/RenderPagePropsSource.h"
-
+#include "Components/SRenderPagesRemoteControlTreeNode.h"
 
 class URenderPage;
 
