@@ -22,7 +22,7 @@ namespace UE::Interchange::Tests::Private
 				Result.AddError(TEXT("Unexpected error (invalid FProperty)"));
 			}
 
-			//if (!PropertyA->SameType(PropertyB))
+			if (!PropertyA->SameType(PropertyB))
 			{
 				Result.AddError(FString::Printf(TEXT("Unexpected error (FProperty %s::%s doesn't match FProperty %s::%s)"),
 					*PropertyA->GetOwnerStruct()->GetName(), *PropertyA->GetName(),
