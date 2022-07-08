@@ -882,7 +882,6 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 					DamageThreshold = DamageData.DamageThreshold;
 					Broken = DamageData.bIsBroken;
 				}
-
 				RemoveOnBreakAvailable = (RemoveOnBreakArray != nullptr); 
 				if (RemoveOnBreakAvailable)
 				{
