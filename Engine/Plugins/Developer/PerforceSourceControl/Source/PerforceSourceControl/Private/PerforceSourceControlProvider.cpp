@@ -726,12 +726,11 @@ ECommandResult::Type FPerforceSourceControlProvider::SwitchWorkspace(FStringView
 	FString UserName = P4Settings.GetUserName();
 	FString ClientSpecName = FString(NewWorkspaceName);
 
-	if (FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, P4Settings.GetConnectionInfo(), *this, EConnectionOptions::None))
+	if (FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, P4Settings.GetConnectionInfo(), *this, EConnectionOptions::WorkspaceOptional))
 	{
 		P4Settings.SetPort(PortName);
 		P4Settings.SetUserName(UserName);
 		P4Settings.SetWorkspace(ClientSpecName);
-		check(NewWorkspaceName == ClientSpecName);
 
 		bServerAvailable = true;
 

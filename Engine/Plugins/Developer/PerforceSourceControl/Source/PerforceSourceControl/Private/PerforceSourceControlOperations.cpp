@@ -337,6 +337,17 @@ bool FPerforceConnectWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnectWorker::Execute);
 
+	if (InCommand.ConnectionInfo.Workspace.IsEmpty())
+	{
+		// Running FConnect for perforce does not actually connect to the server but
+		// validates that the clientspec for the connection is correct and working.
+		// So if the connection does not have a valid clientspec then we might as well
+		// early out at this point and return true.
+
+		InCommand.bCommandSuccessful = true;
+		return InCommand.bCommandSuccessful;
+	}
+
 	FScopedPerforceConnection ScopedConnection(InCommand);
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{

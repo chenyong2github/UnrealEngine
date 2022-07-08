@@ -626,22 +626,19 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 		}
 	}
 
-	const bool bRequireWorkspace = EnumHasAllFlags(Options, EConnectionOptions::WorkspaceOptional);
+	const bool bRequireWorkspace = !EnumHasAllFlags(Options, EConnectionOptions::WorkspaceOptional);
 
 	// Try to auto detect the client if none were specified and we require one
-	if (bConnectionOK)
+	if (bConnectionOK && bRequireWorkspace && NewClientSpecName.IsEmpty())
 	{
-		if ( bRequireWorkspace && NewClientSpecName.IsEmpty() )
-		{
-			FPerforceConnectionInfo AutoCredentials = InConnectionInfo;
-			AutoCredentials.Port = TO_TCHAR(TestP4.GetPort().Text(), bIsUnicodeServer);
-			AutoCredentials.UserName = TO_TCHAR(TestP4.GetUser().Text(), bIsUnicodeServer);
+		FPerforceConnectionInfo AutoCredentials = InConnectionInfo;
+		AutoCredentials.Port = TO_TCHAR(TestP4.GetPort().Text(), bIsUnicodeServer);
+		AutoCredentials.UserName = TO_TCHAR(TestP4.GetUser().Text(), bIsUnicodeServer);
 
-		 	bConnectionOK = FPerforceConnection::AutoDetectWorkspace(AutoCredentials, SCCProvider, NewClientSpecName);
-			if ( bConnectionOK )
-			{
-				TestP4.SetClient(FROM_TCHAR(*NewClientSpecName, bIsUnicodeServer));
-			}
+		bConnectionOK = FPerforceConnection::AutoDetectWorkspace(AutoCredentials, SCCProvider, NewClientSpecName);
+		if (bConnectionOK)
+		{
+			TestP4.SetClient(FROM_TCHAR(*NewClientSpecName, bIsUnicodeServer));
 		}
 	}
 
@@ -679,15 +676,17 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 	}
 
 	//if never specified, take the default connection values
-	if (NewServerName.Len() == 0)
+	if (NewServerName.IsEmpty())
 	{
 		NewServerName = TO_TCHAR(TestP4.GetPort().Text(), bIsUnicodeServer);
 	}
-	if (NewUserName.Len() == 0)
+
+	if (NewUserName.IsEmpty())
 	{
 		NewUserName = TO_TCHAR(TestP4.GetUser().Text(), bIsUnicodeServer);
 	}
-	if (NewClientSpecName.Len() == 0)
+
+	if (NewClientSpecName.IsEmpty() && bRequireWorkspace)
 	{
 		NewClientSpecName = TO_TCHAR(TestP4.GetClient().Text(), bIsUnicodeServer);
 		if (NewClientSpecName == TO_TCHAR(TestP4.GetHost().Text(), bIsUnicodeServer))
