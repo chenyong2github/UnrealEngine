@@ -20,6 +20,7 @@ namespace UE::Interchange::Tests::Private
 			if (!PropertyA || !PropertyB)
 			{
 				Result.AddError(TEXT("Unexpected error (invalid FProperty)"));
+				return;
 			}
 
 			if (!PropertyA->SameType(PropertyB))
