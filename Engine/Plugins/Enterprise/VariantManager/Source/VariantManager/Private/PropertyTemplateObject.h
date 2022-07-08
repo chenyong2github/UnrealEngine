@@ -85,7 +85,7 @@ public:
 	bool bCapturedBoolProperty;
 
 	UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured UObject property"))
-	UObject* CapturedObjectProperty;
+	TObjectPtr<UObject> CapturedObjectProperty;
 
 	//UPROPERTY(Transient, EditAnywhere, Category="Template", meta=(ToolTip="Captured Weak UObject property"))
 	//TWeakObjectPtr<UObject> CapturedWeakObjectProperty;
