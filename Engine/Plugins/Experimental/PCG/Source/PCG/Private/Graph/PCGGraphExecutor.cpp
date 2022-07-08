@@ -561,11 +561,12 @@ void FPCGGraphExecutor::ReleaseUnusedActors()
 	ActorsToRelease.Reset();
 	ActorsListLock.Unlock();
 
-	// TODO: maybe consider other checks
-	if (bRunGC)
+#if WITH_EDITOR
+	if (bRunGC && !GIsPlayInEditorWorld)
 	{
 		CollectGarbage(RF_NoFlags, true);
 	}
+#endif
 }
 
 void FPCGGraphExecutor::NotifyGraphChanged(UPCGGraph* InGraph)

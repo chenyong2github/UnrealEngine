@@ -30,5 +30,5 @@ FString FPCGContext::GetTaskName() const
 
 FString FPCGContext::GetComponentName() const
 {
-	return SourceComponent ? SourceComponent->GetOwner()->GetFName().ToString() : TEXT("Non-PCG Component");
+	return SourceComponent && SourceComponent->GetOwner() ? SourceComponent->GetOwner()->GetFName().ToString() : TEXT("Non-PCG Component");
 }

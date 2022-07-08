@@ -82,10 +82,15 @@ namespace PCGHelpers
 		if (ALandscape* Landscape = Cast<ALandscape>(InLandscape))
 		{
 #if WITH_EDITOR
-			return Landscape->GetCompleteBounds();
-#else
-			return Landscape->GetLoadedBounds();
+			if (!GIsPlayInEditorWorld)
+			{
+				return Landscape->GetCompleteBounds();
+			}
+			else
 #endif
+			{
+				return Landscape->GetLoadedBounds();
+			}
 		}
 		else
 		{
