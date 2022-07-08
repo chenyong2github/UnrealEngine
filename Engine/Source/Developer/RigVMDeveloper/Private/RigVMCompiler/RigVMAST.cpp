@@ -3118,8 +3118,12 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 						{
 							if (!ShouldRecursePin(ParentSourcePinProxy))
 							{
-								SourcePinProxy = FRigVMASTProxy();
-								break;
+								// only discard results here if we haven't crossed a collapse node boundary
+								if(ParentSourcePinProxy.GetSubjectChecked<URigVMPin>()->GetGraph() == ChildPin->GetGraph())
+								{
+									SourcePinProxy = FRigVMASTProxy();
+									break;
+								}
 							}
 						}
 					}
