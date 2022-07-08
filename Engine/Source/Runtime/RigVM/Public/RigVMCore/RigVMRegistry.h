@@ -39,6 +39,9 @@ public:
 	// based on the names.
 	void Refresh();
 
+	// Clear the registry
+	void Reset();
+
 	// Adds a type if it doesn't exist yet and returns its index.
 	// This function is not thead-safe
 	TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType);

@@ -5,21 +5,14 @@
 #include "RigVMTypeUtils.h"
 #include "RigVMModule.h"
 #include "UObject/UObjectIterator.h"
+#include "Misc/CoreDelegates.h"
 
 FRigVMRegistry FRigVMRegistry::s_RigVMRegistry;
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 FRigVMRegistry::~FRigVMRegistry()
 {
-	for(FRigVMDispatchFactory* Factory : Factories)
-	{
-		if(const UScriptStruct* ScriptStruct = Factory->GetScriptStruct())
-		{
-			ScriptStruct->DestroyStruct(Factory, 1);
-		}
-		FMemory::Free(Factory);
-	}
-	Factories.Reset();
+	Reset();
 }
 
 FRigVMRegistry& FRigVMRegistry::Get()
@@ -125,6 +118,12 @@ void FRigVMRegistry::InitializeIfNeeded()
 	}
 
 	Refresh();
+
+	// hook the registry to prepare for engine shutdown
+	FCoreDelegates::OnExit.AddLambda([]()
+	{
+		s_RigVMRegistry.Reset();
+	});
 }
 
 void FRigVMRegistry::Refresh()
@@ -173,6 +172,19 @@ void FRigVMRegistry::Refresh()
 			RegisterFactory(ScriptStruct);
 		}
 	}
+}
+
+void FRigVMRegistry::Reset()
+{
+	for(FRigVMDispatchFactory* Factory : Factories)
+	{
+		if(const UScriptStruct* ScriptStruct = Factory->GetScriptStruct())
+		{
+			ScriptStruct->DestroyStruct(Factory, 1);
+		}
+		FMemory::Free(Factory);
+	}
+	Factories.Reset();
 }
 
 TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
