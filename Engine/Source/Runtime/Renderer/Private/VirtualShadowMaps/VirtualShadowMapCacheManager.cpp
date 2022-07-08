@@ -892,6 +892,17 @@ void FVirtualShadowMapArrayCacheManager::SetHZBViewParams(int32 HZBKey, Nanite::
 	}
 }
 
+#if WITH_MGPU
+void FVirtualShadowMapArrayCacheManager::UpdateGPUMask(FRHIGPUMask GPUMask)
+{
+	if (LastGPUMask != GPUMask)
+	{
+		LastGPUMask = GPUMask;
+		Invalidate();
+	}
+}
+#endif  // WITH_MGPU
+
 static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* CacheManager, int32 TotalInstanceCount, const FGPUScene& GPUScene, 
 	FVirtualSmInvalidateInstancePagesCS::FParameters& OutPassParameters,
 	FVirtualSmInvalidateInstancePagesCS::FPermutationDomain &OutPermutationVector)

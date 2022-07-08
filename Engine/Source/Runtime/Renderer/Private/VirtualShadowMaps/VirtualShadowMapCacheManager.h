@@ -208,6 +208,9 @@ public:
 		
 	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
 
+#if WITH_MGPU
+	void UpdateGPUMask(FRHIGPUMask GPUMask);
+#endif
 
 	GPUMessage::FSocket StatusFeedbackSocket;
 
@@ -236,6 +239,9 @@ private:
 	FDelegateHandle ScreenMessageDelegate;
 	int32 LastOverflowFrame = -1;
 	bool bLoggedPageOverflow = false;
+#endif
+#if WITH_MGPU
+	FRHIGPUMask LastGPUMask;
 #endif
 	FScene* Scene;
 };

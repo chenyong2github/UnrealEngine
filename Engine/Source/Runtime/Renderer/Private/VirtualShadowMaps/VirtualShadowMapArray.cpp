@@ -352,6 +352,10 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	bEnabled = bInEnabled;
 	CacheManager = InCacheManager;
 
+#if WITH_MGPU
+	CacheManager->UpdateGPUMask(GraphBuilder.RHICmdList.GetGPUMask());
+#endif
+
 	bCullBackfacingPixels = CVarCullBackfacingPixels.GetValueOnRenderThread() != 0;
 	bUseHzbOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() != 0;
 	bUseTwoPassHzbOcclusion = CVarShadowsVirtualUseHZB.GetValueOnRenderThread() == 2;
