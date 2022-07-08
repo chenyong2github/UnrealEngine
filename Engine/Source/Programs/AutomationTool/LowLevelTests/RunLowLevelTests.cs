@@ -595,7 +595,7 @@ namespace LowLevelTests
 			Platform = InPlatform;
 			BuildPath = InBuildPath;
 			ExecutablePath = InExecutablePath;
-			Flags = BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
+			Flags = BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
 		}
 	}
 }
