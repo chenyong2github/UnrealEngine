@@ -197,19 +197,23 @@ namespace IncludeTool
 			{
 				return true;
 			}
-			if(NormalizedPath.StartsWith("/engine/plugins/experimental/phya/source/phya/private/phyalib/"))
+			if (NormalizedPath.StartsWith("/engine/plugins/experimental/phya/source/phya/private/phyalib/"))
 			{
 				return true;
 			}
-			if(NormalizedPath.StartsWith("/engine/plugins/runtime/leapmotion/thirdparty/"))
+			if (NormalizedPath.StartsWith("/engine/plugins/runtime/leapmotion/thirdparty/"))
 			{
 				return true;
 			}
-			if(NormalizedPath.EndsWith("/recastmesh.cpp") || NormalizedPath.EndsWith("/recastfilter.cpp") || NormalizedPath.EndsWith("/recastcontour.cpp") || NormalizedPath.EndsWith("/framepro.h") || NormalizedPath.EndsWith("/framepro.cpp") || NormalizedPath.EndsWith("/frameproue4.h") || NormalizedPath.EndsWith("/frameproue4.cpp") || NormalizedPath.EndsWith("/sqlite3.h") || NormalizedPath.EndsWith("/sqlite3.inl") || NormalizedPath.EndsWith("/vorbis_stream_encoder.h") || NormalizedPath.EndsWith("/integral_types.h"))
+			if (NormalizedPath.Contains("/rev.runtime/"))
 			{
 				return true;
 			}
-			if(NormalizedPath.Contains("/thirdparty/rapidjson/"))
+			if (NormalizedPath.EndsWith("/recastmesh.cpp") || NormalizedPath.EndsWith("/recastfilter.cpp") || NormalizedPath.EndsWith("/recastcontour.cpp") || NormalizedPath.EndsWith("/framepro.h") || NormalizedPath.EndsWith("/framepro.cpp") || NormalizedPath.EndsWith("/frameproue4.h") || NormalizedPath.EndsWith("/frameproue4.cpp") || NormalizedPath.EndsWith("/sqlite3.h") || NormalizedPath.EndsWith("/sqlite3.inl") || NormalizedPath.EndsWith("/vorbis_stream_encoder.h") || NormalizedPath.EndsWith("/integral_types.h"))
+			{
+				return true;
+			}
+			if (NormalizedPath.Contains("/thirdparty/rapidjson/"))
 			{
 				return true;
 			}
@@ -575,6 +579,10 @@ namespace IncludeTool
 				return true;
 			}
 			if (Markup.Type == PreprocessorMarkupType.Elif && Markup.Tokens.Count == 4 && Markup.Tokens[2].Text == "RL_SHARED")
+			{
+				return true;
+			}
+			if((File.Flags & SourceFileFlags.External) != 0)
 			{
 				return true;
 			}
