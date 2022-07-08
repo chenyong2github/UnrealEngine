@@ -720,6 +720,7 @@ void LaunchFixProjectPathCase()
 				{
 					Builder.RemoveSuffix(Builder.Len() - LenBeforeCurrentComponent);
 					Builder.Append(Data.cFileName);
+					FindClose(Handle);
 				}
 			}
 		);
