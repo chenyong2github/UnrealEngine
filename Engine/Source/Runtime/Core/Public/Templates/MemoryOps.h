@@ -7,7 +7,7 @@
 #include "Templates/AreTypesEqual.h"
 #include "Templates/IsTriviallyCopyConstructible.h"
 #include "Templates/UnrealTypeTraits.h"
-#include <new>
+#include <new> // IWYU pragma: export
 
 #include "Templates/IsTriviallyCopyAssignable.h"
 #include "Templates/IsTriviallyDestructible.h"

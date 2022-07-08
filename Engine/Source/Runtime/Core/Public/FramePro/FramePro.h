@@ -1159,8 +1159,8 @@ namespace FramePro
 //------------------------------------------------------------------------
 
 //------------------------------------------------------------------------
-#include <stdarg.h>
-#include <time.h>
+#include <stdarg.h> // IWYU pragma: export
+#include <time.h> // IWYU pragma: export
 
 //------------------------------------------------------------------------
 //                         FRAMEPRO_PLATFORM_UE4

@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// IWYU pragma: begin_exports
 
 #pragma once
 
@@ -130,3 +131,5 @@
 	#endif
 
 #endif
+
+// IWYU pragma: end_exports

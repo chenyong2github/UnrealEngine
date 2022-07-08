@@ -4,7 +4,7 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 
-#include <time.h>
+#include <time.h> // IWYU pragma: export
 
 class CORE_API FUnixSignalGameHitchHeartBeat
 {

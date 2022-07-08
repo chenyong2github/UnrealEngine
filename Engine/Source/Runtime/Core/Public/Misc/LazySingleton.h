@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <new>
+#include <new> // IWYU pragma: export
 
 /** Allows inline friend declaration without forward-declaring TLazySingleton */
 class FLazySingleton

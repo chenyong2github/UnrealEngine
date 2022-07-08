@@ -1816,6 +1816,6 @@ public:
 	}
 };
 
-#include "GenericOctree.inl"
+#include "GenericOctree.inl" // IWYU pragma: export
 
-#include <stddef.h>
+#include <stddef.h> // IWYU pragma: export

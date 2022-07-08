@@ -6,7 +6,10 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Unix/UnixSystemIncludes.h" // IWYU pragma: export
 #include "Templates/Atomic.h"
+
+#include <ucontext.h> // IWYU pragma: export
 
 /** Passed in through sigqueue for gathering of a callstack from a signal */
 struct ThreadStackUserData

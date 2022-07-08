@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// IWYU pragma: begin_exports
+
 #pragma once
 
 // Set up compiler pragmas, etc
@@ -53,3 +55,5 @@ typedef struct tagRECT RECT;
 #if defined(__GLIBC__) && (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 17)
 #  define secure_getenv __secure_getenv
 #endif
+
+// IWYU pragma: end_exports

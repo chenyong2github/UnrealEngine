@@ -2,7 +2,7 @@
 #pragma once
 
 #if __cplusplus >= 201703L
-#include <new>
+#include <new> // IWYU pragma: export
 #define UE_LAUNDER(x) std::launder(x)
 #else
 #define UE_LAUNDER(x) (x)

@@ -17,7 +17,7 @@
 #include "Templates/IsPointer.h"
 #include "Templates/UnrealTemplate.h"
 #include "Math/UnrealMathUtility.h"
-#include <new>
+#include <new> // IWYU pragma: export
 
 
 // Disable visualization hack for shipping or test builds.

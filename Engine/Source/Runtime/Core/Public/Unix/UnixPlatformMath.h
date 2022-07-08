@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// IWYU pragma: begin_exports
 
 /*=============================================================================================
 	LinuxPlatformMath.h: Linux platform Math functions
@@ -36,3 +37,4 @@ struct FLinuxPlatformMath : public TUnrealPlatformMathSSE4Base<FClangPlatformMat
 
 typedef FLinuxPlatformMath FPlatformMath;
 
+// IWYU pragma: end_exports

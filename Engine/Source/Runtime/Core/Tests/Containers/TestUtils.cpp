@@ -2,8 +2,6 @@
 
 #include "TestUtils.h"
 
-#include "HAL/Platform.h"
-
 #include <numeric>
 
 namespace Test

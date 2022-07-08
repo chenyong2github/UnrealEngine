@@ -9,6 +9,8 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformTime.h"
 
+#include <time.h> // IWYU pragma: export
+
 /**
  * Unix implementation of the Time OS functions
  */
