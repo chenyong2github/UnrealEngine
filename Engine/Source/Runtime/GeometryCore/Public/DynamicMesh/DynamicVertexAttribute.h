@@ -513,10 +513,10 @@ protected:
 		int IndexSet = AttribDimension * SetAttribute;
 		int IndexA = AttribDimension * AttributeA;
 		int IndexB = AttribDimension * AttributeB;
-		AttribValueType Beta = ((AttribValueType)1 - Alpha);
+		double Beta = (1. - Alpha);
 		for (int i = 0; i < AttribDimension; ++i)
 		{
-			AttribValues[IndexSet+i] = Beta*AttribValues[IndexA+i] + Alpha*AttribValues[IndexB+i];
+			AttribValues[IndexSet+i] = AttribValueType(Beta*AttribValues[IndexA+i] + Alpha*AttribValues[IndexB+i]);
 		}
 	}
 
@@ -529,8 +529,8 @@ protected:
 		int IndexC = AttribDimension * AttributeC;
 		for (int i = 0; i < AttribDimension; ++i)
 		{
-			AttribValues[IndexSet + i] = 
-				BaryCoords.X*AttribValues[IndexA+i] + BaryCoords.Y*AttribValues[IndexB+i] + BaryCoords.Z*AttribValues[IndexC+i];
+			AttribValues[IndexSet + i] = AttribValueType(
+				BaryCoords.X*AttribValues[IndexA+i] + BaryCoords.Y*AttribValues[IndexB+i] + BaryCoords.Z*AttribValues[IndexC+i]);
 		}
 	}
 

@@ -483,7 +483,7 @@ protected:
 	void SetBoneWeightsFromLerp(int SetAttribute, int AttributeA, int AttributeB, double Alpha)
 	{
 		Alpha = FMath::Clamp(Alpha, 0.0, 1.0);
-		VertexBoneWeights[SetAttribute] = FBoneWeights::Blend(VertexBoneWeights[AttributeA], VertexBoneWeights[AttributeB], Alpha);
+		VertexBoneWeights[SetAttribute] = FBoneWeights::Blend(VertexBoneWeights[AttributeA], VertexBoneWeights[AttributeB], (float)Alpha);
 	}
 
 	/** Set the value at an Attribute to be a barycentric interpolation of three other Attributes */
@@ -494,9 +494,9 @@ protected:
 		if (!FMath::IsNearlyZero(BaryCoords.Y + BaryCoords.Z))
 		{
 			const double BCW = BaryCoords.Y / (BaryCoords.Y + BaryCoords.Z);
-			const FBoneWeights BC = FBoneWeights::Blend(VertexBoneWeights[AttributeB], VertexBoneWeights[AttributeC], BCW);
+			const FBoneWeights BC = FBoneWeights::Blend(VertexBoneWeights[AttributeB], VertexBoneWeights[AttributeC], (float)BCW);
 
-			VertexBoneWeights[SetAttribute] = FBoneWeights::Blend(VertexBoneWeights[AttributeA], BC, BaryCoords.X);
+			VertexBoneWeights[SetAttribute] = FBoneWeights::Blend(VertexBoneWeights[AttributeA], BC, (float)BaryCoords.X);
 		}
 		else if (SetAttribute != AttributeA)
 		{
