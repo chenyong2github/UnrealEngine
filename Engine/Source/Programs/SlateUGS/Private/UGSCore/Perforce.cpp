@@ -926,6 +926,23 @@ bool FPerforceConnection::Sync(const TArray<FString>& DepotPaths, int ChangeNumb
 	return RunCommand(CommandLine, nullptr, [&Parser, &OutTamperedFiles, &Log](const FPerforceOutputLine& Line){ return FilterSyncOutput(Line, Parser, OutTamperedFiles, Log); }, ECommandOptions::NoFailOnErrors | ECommandOptions::IgnoreFilesUpToDateError | ECommandOptions::IgnoreExitCode, AbortEvent, Log);
 }
 
+bool FPerforceConnection::LatestChangeList(int& OutChangeList, FEvent* AbortEvent, FOutputDevice& Log) const
+{
+	TArray<TMap<FString, FString>> OutLatestChange;
+	RunCommand(TEXT("changes -m 1"), OutLatestChange, ECommandOptions::None, AbortEvent, Log);
+
+	if (OutLatestChange.Num() == 1)
+	{
+		FString StringChangeList;
+		if (TryGetValue(OutLatestChange[0], TEXT("change"), StringChangeList))
+		{
+			return FUtility::TryParse(*StringChangeList, OutChangeList);
+		}
+	}
+
+	return false;
+}
+
 bool FPerforceConnection::FilterSyncOutput(const FPerforceOutputLine& Line, FPerforceTagRecordParser& Parser, TArray<FString>& OutTamperedFiles, FOutputDevice& Log)
 {
 	if(Line.Channel == EPerforceOutputChannel::TaggedInfo)

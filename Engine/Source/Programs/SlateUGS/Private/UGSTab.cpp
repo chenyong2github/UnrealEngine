@@ -208,19 +208,25 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 
 void UGSTab::OnSyncLatest()
 {
-	// Hacking in the CL
-	int ChangeNumber = 20992726;
-	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
-		ChangeNumber,
-		Options,
-		CombinedSyncFilter,
-		GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
-		ProjectSettings->BuildSteps,
-		TSet<FGuid>(),
-		GetWorkspaceVariables(DetectSettings));
+	int ChangeNumber = -1;
+	FEvent* AbortEvent = FPlatformProcess::GetSynchEventFromPool(true);
 
-	// Update the workspace with the Context!
-	Workspace->Update(Context);
+	if (PerforceClient->LatestChangeList(ChangeNumber, AbortEvent, MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()).Get()))
+	{
+		TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
+			ChangeNumber,
+			Options,
+			CombinedSyncFilter,
+			GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
+			ProjectSettings->BuildSteps,
+			TSet<FGuid>(),
+			GetWorkspaceVariables(DetectSettings));
+
+		// Update the workspace with the Context!
+		Workspace->Update(Context);
+	}
+
+	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
 }
 
 void UGSTab::SetupWorkspace()
