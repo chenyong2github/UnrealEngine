@@ -506,7 +506,7 @@ AOnlineBeaconClient* AOnlineBeaconHost::GetClientActor(UNetConnection* Connectio
 {
 	for (int32 ClientIdx=0; ClientIdx < ClientActors.Num(); ClientIdx++)
 	{
-		if (ClientActors[ClientIdx]->GetNetConnection() == Connection)
+		if (ensure(ClientActors[ClientIdx]) && ClientActors[ClientIdx]->GetNetConnection() == Connection)
 		{
 			return ClientActors[ClientIdx];
 		}
