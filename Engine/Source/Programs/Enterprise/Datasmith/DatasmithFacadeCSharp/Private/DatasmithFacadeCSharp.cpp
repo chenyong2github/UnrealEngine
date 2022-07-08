@@ -7465,6 +7465,18 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_IDatasmithExporterUIModule(void * jarg
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_IDirectLinkUI_SetStreamWindowCenter(void * jarg1, int jarg2, int jarg3) {
+  IDirectLinkUI *arg1 = (IDirectLinkUI *) 0 ;
+  int arg2 ;
+  int arg3 ;
+  
+  arg1 = (IDirectLinkUI *)jarg1; 
+  arg2 = (int)jarg2; 
+  arg3 = (int)jarg3; 
+  (arg1)->SetStreamWindowCenter(arg2,arg3);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_IDirectLinkUI_OpenDirectLinkStreamWindow(void * jarg1) {
   IDirectLinkUI *arg1 = (IDirectLinkUI *) 0 ;
   

@@ -10,6 +10,7 @@ public:
 	/**
 	 * Open the direct link connections window or move it up front if it's already open
 	 */
+	virtual void SetStreamWindowCenter(int InCenterX, int InCenterY) = 0;
 	virtual void OpenDirectLinkStreamWindow() = 0;
 
 	/**

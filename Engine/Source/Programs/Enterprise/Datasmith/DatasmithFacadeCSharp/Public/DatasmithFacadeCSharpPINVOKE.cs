@@ -2060,6 +2060,9 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_IDatasmithExporterUIModule")]
   public static extern void delete_IDatasmithExporterUIModule(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_IDirectLinkUI_SetStreamWindowCenter")]
+  public static extern void IDirectLinkUI_SetStreamWindowCenter(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, int jarg3);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_IDirectLinkUI_OpenDirectLinkStreamWindow")]
   public static extern void IDirectLinkUI_OpenDirectLinkStreamWindow(global::System.Runtime.InteropServices.HandleRef jarg1);
 

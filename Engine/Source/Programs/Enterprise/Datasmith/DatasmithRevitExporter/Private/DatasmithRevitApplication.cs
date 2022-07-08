@@ -414,11 +414,14 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		public static void ShowExportMessages()
+		public static void ShowExportMessages(ExternalCommandData InCommandData)
 		{
 			if (ExportMessagesDialog == null || ExportMessagesDialog.IsDisposed)
 			{
-				ExportMessagesDialog = new DatasmithRevitExportMessages(() => ExportMessages = "");
+				int CenterX = (InCommandData.Application.MainWindowExtents.Left + InCommandData.Application.MainWindowExtents.Right) / 2;
+				int CenterY = (InCommandData.Application.MainWindowExtents.Top + InCommandData.Application.MainWindowExtents.Bottom) / 2;
+				
+				ExportMessagesDialog = new DatasmithRevitExportMessages(new System.Drawing.Point(CenterX, CenterY), () => ExportMessages = "");
 				ExportMessagesDialog.Messages = ExportMessages;
 				ExportMessagesDialog.Show();
 			}

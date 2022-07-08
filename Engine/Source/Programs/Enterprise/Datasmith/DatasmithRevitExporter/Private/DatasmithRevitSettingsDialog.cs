@@ -95,6 +95,9 @@ namespace DatasmithRevitExporter
 		private List<string> AddedParamNames = new List<string>();
 		private bool bSettingsChanged = false;
 
+		private static FormStartPosition ShowStartPosition = FormStartPosition.CenterParent;
+		private static Point ShowLocation = new Point(0, 0);
+
 		public DatasmithRevitSettingsDialog(Autodesk.Revit.DB.Document InDocument, FSettings InSettings)
 		{
 			string FormatTooltip(string InText)
@@ -308,7 +311,9 @@ namespace DatasmithRevitExporter
 			MinimizeBox = false;
 			//Padding = new Padding(7);
 			SizeGripStyle = SizeGripStyle.Hide;
-			StartPosition = FormStartPosition.CenterParent;
+
+			StartPosition = ShowStartPosition;
+			Location = ShowLocation;
 
 			Panel ParentPanel = new Panel();
 			ParentPanel.BorderStyle = BorderStyle.FixedSingle;
@@ -366,6 +371,9 @@ namespace DatasmithRevitExporter
 
 		private void OnClosing(object InSender, FormClosingEventArgs InArgs)
 		{
+			ShowStartPosition = FormStartPosition.Manual;
+			ShowLocation = Location;
+
 			if (bSettingsChanged)
 			{
 				Settings.LevelOfTesselation = Decimal.ToInt32(LevelOfTessellation.Value);

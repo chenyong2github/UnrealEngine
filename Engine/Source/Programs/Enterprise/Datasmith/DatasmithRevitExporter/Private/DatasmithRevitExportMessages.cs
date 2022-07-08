@@ -15,9 +15,21 @@ namespace DatasmithRevitExporter
 
 		private ClearCallback OnClear;
 
-		public DatasmithRevitExportMessages(ClearCallback InCallback)
+		private static bool ClosedBefore = false;
+		private static Point ShowLocation = new Point(0, 0);
+		private static Size ShowClientSize = new Size(1200, 300);
+
+		public DatasmithRevitExportMessages(Point InCenter, ClearCallback InCallback)
 		{
+			if (!ClosedBefore)
+			{
+				ShowLocation = InCenter;
+				ShowLocation.X -= (ShowClientSize.Width / 2);
+				ShowLocation.Y -= (ShowClientSize.Height / 2);
+			}
+
 			OnClear = InCallback;
+			FormClosing += OnClosing;
 
 			MessageBox = new TextBox();
 			MessageBox.Name = "MessageBox";
@@ -73,11 +85,13 @@ namespace DatasmithRevitExporter
 			Text = DatasmithRevitResources.Strings.MessagesDialog_Title;
 			AutoScaleDimensions = new SizeF(12F, 25F);
 			AutoScaleMode = AutoScaleMode.Font;
-			ClientSize = new Size(1200, 300);
 			Padding = new Padding(10);
 			ShowIcon = false;
 			SizeGripStyle = SizeGripStyle.Show;
-			StartPosition = FormStartPosition.CenterParent;
+
+			StartPosition = FormStartPosition.Manual;
+			Location = ShowLocation;
+			ClientSize = ShowClientSize;
 
 			Controls.Add(DialogLayout);
 		}
@@ -88,6 +102,13 @@ namespace DatasmithRevitExporter
 		)
 		{
 			Close();
+		}
+
+		private void OnClosing(object InSender, FormClosingEventArgs InArgs)
+		{
+			ClosedBefore = true;
+			ShowLocation = Location;
+			ShowClientSize = ClientSize;
 		}
 
 		private void ClearButtonClicked(

@@ -59,7 +59,10 @@ namespace DirectLinkUIUtils
 	}
 }
 
+FVector2D FDirectLinkUI::StreamWindowDefaultSize = FVector2D(640, 480);
+
 FDirectLinkUI::FDirectLinkUI()
+	: StreamWindowSize(StreamWindowDefaultSize)
 {
 	const FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
 	const FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( false );
@@ -100,6 +103,12 @@ FDirectLinkUI::FDirectLinkUI()
 	GConfig->SetString(*DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, *DirectLinkCacheDirectory, ConfigPath);
 }
 
+void FDirectLinkUI::SetStreamWindowCenter( int InCenterX, int InCenterY )
+{
+	StreamWindowCenterSet = true;
+	StreamWindowPosition = FVector2D(InCenterX, InCenterY) - (StreamWindowSize / 2);
+}
+
 void FDirectLinkUI::OpenDirectLinkStreamWindow()
 {
 	FSimpleDelegate RunOnUIThread;
@@ -118,15 +127,22 @@ void FDirectLinkUI::OpenDirectLinkStreamWindow()
 		}
 		else
 		{
+			EAutoCenter AutoCenterValue = StreamWindowClosedBefore ? (EAutoCenter::None) : (StreamWindowCenterSet ? EAutoCenter::None : EAutoCenter::PrimaryWorkArea);
+
 			// This window setup might be an issue on mac where users often expect os borders on their window
 			TSharedRef<SWindow> Window = SNew( SWindow )
 				.CreateTitleBar( false )
-				.ClientSize( FVector2D( 640, 480 ) )
-				.AutoCenter( EAutoCenter::PrimaryWorkArea )
+				.ClientSize( StreamWindowDefaultSize )
+				.AutoCenter( AutoCenterValue )
 				.SizingRule( ESizingRule::UserSized )
 				.FocusWhenFirstShown( true )
 				.Title( LOCTEXT("DirectlinkStreamManagerWindowTitle", "Datasmith Direct Link Connection Status") );
 
+			if ( AutoCenterValue == EAutoCenter::None )
+			{
+				Window->ReshapeWindow( StreamWindowPosition, StreamWindowSize );
+			}
+			
 			TSharedRef<SWindowTitleBar> WindowTitleBar = SNew( SWindowTitleBar, Window, nullptr, DirectLinkUIUtils::GetWindowTitleAlignement() )
 				.Visibility( EVisibility::Visible )
 				.ShowAppIcon( false );
@@ -155,7 +171,7 @@ void FDirectLinkUI::OpenDirectLinkStreamWindow()
 						]
 					]
 				);
-
+			Window->SetOnWindowClosed( FOnWindowClosed::CreateRaw(this, &FDirectLinkUI::WindowClosed) );
 			DirectLinkWindow = Window;
 			FSlateApplication::Get().AddWindow( Window, true );
 			Window->HACK_ForceToFront();
@@ -167,6 +183,14 @@ void FDirectLinkUI::OpenDirectLinkStreamWindow()
 #else
 	RunOnUIThread.Execute();
 #endif
+}
+
+void FDirectLinkUI::WindowClosed( const TSharedRef<SWindow>& WindowArg )
+{
+	StreamWindowClosedBefore = true;
+
+	StreamWindowSize = WindowArg->GetSizeInScreen();
+	StreamWindowPosition = WindowArg->GetPositionInScreen();
 }
 
 const TCHAR* FDirectLinkUI::GetDirectLinkCacheDirectory()

@@ -45,6 +45,10 @@ public class IDirectLinkUI : global::System.IDisposable {
     }
   }
 
+  public virtual void SetStreamWindowCenter(int InCenterX, int InCenterY) {
+    DatasmithFacadeCSharpPINVOKE.IDirectLinkUI_SetStreamWindowCenter(swigCPtr, InCenterX, InCenterY);
+  }
+
   public virtual void OpenDirectLinkStreamWindow() {
     DatasmithFacadeCSharpPINVOKE.IDirectLinkUI_OpenDirectLinkStreamWindow(swigCPtr);
   }

@@ -401,9 +401,17 @@ namespace DatasmithRevitExporter
 	[Transaction(TransactionMode.Manual)]
 	public class DatasmithManageConnectionsRevitCommand : IExternalCommand
 	{
+		private static bool ConnectionWindowCenterSet = false;
 		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements) 
 		{
 			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			if (!ConnectionWindowCenterSet)
+			{
+				int CenterX = (InCommandData.Application.MainWindowExtents.Left + InCommandData.Application.MainWindowExtents.Right) / 2;
+				int CenterY = (InCommandData.Application.MainWindowExtents.Top + InCommandData.Application.MainWindowExtents.Bottom) / 2;
+				DirectLinkUI?.SetStreamWindowCenter(CenterX, CenterY);
+				ConnectionWindowCenterSet = true;
+			}
 			DirectLinkUI?.OpenDirectLinkStreamWindow();
 			return Result.Succeeded;
 		}
@@ -414,7 +422,7 @@ namespace DatasmithRevitExporter
 	{
 		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
 		{
-			DatasmithRevitApplication.ShowExportMessages();
+			DatasmithRevitApplication.ShowExportMessages(InCommandData);
 			return Result.Succeeded;
 		}
 	}
