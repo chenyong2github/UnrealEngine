@@ -112,7 +112,7 @@ public:
 		
 		uint32 PropSize = sizeof(AudioDeviceID);
 		AudioDeviceID InputDevice = 0;
-		AudioObjectPropertyAddress Address = { kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster };
+		AudioObjectPropertyAddress Address = { kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
 		if ( AudioObjectGetPropertyData(kAudioObjectSystemObject, &Address, 0, nullptr, &PropSize, &InputDevice) != 0 || InputDevice == kAudioDeviceUnknown )
 		{
 			UE_LOG(LogVoiceCapture, Warning, TEXT("Couldn't get Default CoreAudio input device"));
