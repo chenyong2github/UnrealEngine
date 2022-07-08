@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateUGSApp.h"
+#include "UGSLog.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -11,6 +12,7 @@
 #include "UGSTabManager.h"
 
 IMPLEMENT_APPLICATION(SlateUGS, "SlateUGS");
+DEFINE_LOG_CATEGORY(LogSlateUGS);
 
 #define LOCTEXT_NAMESPACE "SlateUGS"
 

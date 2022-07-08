@@ -2,6 +2,7 @@
 
 #include "UGSTab.h"
 
+#include "UGSLog.h"
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
 #include "Widgets/SModalTaskWindow.h"
@@ -114,7 +115,7 @@ namespace
 	public:
 		virtual void FlushLine(const FString& Line) override
 		{
-			printf("%s\n", TCHAR_TO_ANSI(*Line));
+			UE_LOG(LogSlateUGS, Log, TEXT("%s"), *Line);
 		}
 	};
 
