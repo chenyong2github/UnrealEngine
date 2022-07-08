@@ -114,11 +114,11 @@ struct FOutputDeviceRedirectorState
 	std::atomic<uint32> OutputDevicesLockState = 0;
 	uint8 OutputDevicesLockPadding[CalculateRedirectorCacheLinePadding(sizeof(OutputDevicesLock) + sizeof(OutputDevicesLockState))]{};
 
-	/** A queue of lines logged by non-master threads. */
+	/** A queue of lines logged by non-main threads. */
 	TDepletableMpscQueue<FOutputDeviceLine, FOutputDeviceLinearAllocator> BufferedLines;
 	uint8 BufferedLinesPadding[CalculateRedirectorCacheLinePadding(sizeof(BufferedLines))]{};
 
-	/** Array of output devices to redirect to from the master thread. */
+	/** Array of output devices to redirect to from the main thread. */
 	TArray<FOutputDevice*> BufferedOutputDevices;
 
 	/** Array of output devices to redirect to from the calling thread. */
@@ -128,23 +128,23 @@ struct FOutputDeviceRedirectorState
 	TArray<FBufferedLine> BacklogLines;
 	FRWLock BacklogLock;
 
-	/** An optional dedicated master thread for logging to buffered output devices. */
+	/** An optional dedicated main thread for logging to buffered output devices. */
 	FThread Thread;
 
 	/** A lock to synchronize access to the thread. */
 	FRWLock ThreadLock;
 
-	/** A queue of events to trigger when the dedicated master thread is idle. */
+	/** A queue of events to trigger when the dedicated main thread is idle. */
 	TDepletableMpscQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
 
-	/** An event to wake the dedicated master thread to process buffered lines. */
+	/** An event to wake the dedicated main thread to process buffered lines. */
 	std::atomic<FEvent*> ThreadWakeEvent = nullptr;
 
-	/** The ID of the thread holding the master lock. */
+	/** The ID of the thread holding the main lock. */
 	std::atomic<uint32> LockedThreadId = MAX_uint32;
 
-	/** The ID of the master thread. Logging from other threads will be buffered for processing by the master thread. */
-	std::atomic<uint32> MasterThreadId = FPlatformTLS::GetCurrentThreadId();
+	/** The ID of the main logging thread. Logging from other threads will be buffered for processing by the main thread. */
+	std::atomic<uint32> MainLogThreadId = FPlatformTLS::GetCurrentThreadId();
 
 	/** The ID of the panic thread, which is only set by Panic(). */
 	std::atomic<uint32> PanicThreadId = MAX_uint32;
@@ -156,9 +156,9 @@ struct FOutputDeviceRedirectorState
 	TBitArray<TInlineAllocator<1>> BufferedOutputDevicesCanBeUsedOnPanicThread;
 	TBitArray<TInlineAllocator<1>> UnbufferedOutputDevicesCanBeUsedOnPanicThread;
 
-	bool IsMasterThread(const uint32 ThreadId) const
+	bool IsMainLogThread(const uint32 ThreadId) const
 	{
-		return ThreadId == MasterThreadId.load(std::memory_order_relaxed);
+		return ThreadId == MainLogThreadId.load(std::memory_order_relaxed);
 	}
 
 	bool IsPanicThread(const uint32 ThreadId) const
@@ -212,7 +212,7 @@ struct FOutputDeviceRedirectorState
  * The read lock:
  * - Must be locked to read the OutputDevices arrays.
  * - Must be locked to write to unbuffered output devices.
- * - Must not be entered when the thread holds a write or master lock.
+ * - Must not be entered when the thread holds a write or main lock.
  */
 class FOutputDevicesReadScopeLock
 {
@@ -251,9 +251,9 @@ private:
 /**
  * A scoped lock for writers of the OutputDevices arrays.
  *
- * The write lock has the same access as the master lock, and:
+ * The write lock has the same access as the main lock, and:
  * - Must be locked to add or remove output devices.
- * - Must not be entered when the thread holds a read, write, or master lock.
+ * - Must not be entered when the thread holds a read, write, or main lock.
  */
 class FOutputDevicesWriteScopeLock
 {
@@ -294,20 +294,20 @@ private:
 };
 
 /**
- * A scoped lock for readers of the OutputDevices arrays that need to access master thread state.
+ * A scoped lock for readers of the OutputDevices arrays that need to access main logging thread's state.
  *
- * The master lock has the same access as the read lock, and:
- * - Must not be entered when the thread holds a write lock or master lock.
+ * The main lock has the same access as the read lock, and:
+ * - Must not be entered when the thread holds a write lock or main lock.
  * - Must check IsLocked() before performing restricted operations.
  * - Must be locked to write to buffered output devices.
  * - Must be locked while calling FlushBufferedLines().
  * - May be locked when the thread holds a read lock.
  * - When a panic thread is active, may only be locked from the panic thread.
  */
-class FOutputDevicesMasterScope
+class FOutputDevicesMainLogScope
 {
 public:
-	explicit FOutputDevicesMasterScope(FOutputDeviceRedirectorState& InState)
+	explicit FOutputDevicesMainLogScope(FOutputDeviceRedirectorState& InState)
 		: State(InState)
 	{
 		const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -337,7 +337,7 @@ public:
 		}
 	}
 
-	FORCEINLINE ~FOutputDevicesMasterScope()
+	FORCEINLINE ~FOutputDevicesMainLogScope()
 	{
 		if (bLocked)
 		{
@@ -421,17 +421,17 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 {
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 
-	if (FOutputDevicesMasterScope Lock(*this); Lock.IsLocked())
+	if (FOutputDevicesMainLogScope Lock(*this); Lock.IsLocked())
 	{
-		MasterThreadId.store(ThreadId, std::memory_order_relaxed);
+		MainLogThreadId.store(ThreadId, std::memory_order_relaxed);
 	}
 
 	while (FEvent* WakeEvent = ThreadWakeEvent.load(std::memory_order_acquire))
 	{
 		WakeEvent->Wait();
-		while (!BufferedLines.IsEmpty() && IsMasterThread(ThreadId))
+		while (!BufferedLines.IsEmpty() && IsMainLogThread(ThreadId))
 		{
-			if (FOutputDevicesMasterScope Lock(*this); Lock.IsLocked())
+			if (FOutputDevicesMainLogScope Lock(*this); Lock.IsLocked())
 			{
 				FlushBufferedLines();
 			}
@@ -510,7 +510,7 @@ void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOpti
 		return;
 	}
 
-	if (UE::Private::FOutputDevicesMasterScope Lock(*State); Lock.IsLocked())
+	if (UE::Private::FOutputDevicesMainLogScope Lock(*State); Lock.IsLocked())
 	{
 		State->FlushBufferedLines();
 	}
@@ -535,24 +535,24 @@ void FOutputDeviceRedirector::EnableBacklog(bool bEnable)
 	}
 }
 
-void FOutputDeviceRedirector::SetCurrentThreadAsMasterThread()
+void FOutputDeviceRedirector::SetCurrentThreadAsMainLogThread()
 {
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 
-	if (UE::Private::FOutputDevicesMasterScope Lock(*State); !Lock.IsLocked() || State->MasterThreadId.load(std::memory_order_relaxed) == ThreadId)
+	if (UE::Private::FOutputDevicesMainLogScope Lock(*State); !Lock.IsLocked() || State->MainLogThreadId.load(std::memory_order_relaxed) == ThreadId)
 	{
 		return;
 	}
 	else
 	{
-		State->MasterThreadId.store(ThreadId, std::memory_order_relaxed);
+		State->MainLogThreadId.store(ThreadId, std::memory_order_relaxed);
 		State->FlushBufferedLines();
 	}
 
 	State->TryStopThread();
 }
 
-bool FOutputDeviceRedirector::TryStartDedicatedMasterThread()
+bool FOutputDeviceRedirector::TryStartDedicatedMainLogThread()
 {
 	return FApp::ShouldUseThreadingForPerformance() && State->TryStartThread();
 }
@@ -590,13 +590,13 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 		State->BacklogLines.Emplace(Data, Category, Verbosity, RealTime);
 	}
 
-	// Serialize to buffered output devices from the master thread.
+	// Serialize to buffered output devices from the main logging thread.
 	// Lines are queued until buffered output devices are added to avoid missing early log lines.
-	if (State->IsMasterThread(ThreadId) && !State->BufferedOutputDevices.IsEmpty())
+	if (State->IsMainLogThread(ThreadId) && !State->BufferedOutputDevices.IsEmpty())
 	{
-		// Verify that this is the master thread again because another thread may have become
-		// the master thread between the previous check and the lock.
-		if (UE::Private::FOutputDevicesMasterScope MasterLock(*State); MasterLock.IsLocked() && State->IsMasterThread(ThreadId))
+		// Verify that this is the main thread again because another thread may have become
+		// the main thread between the previous check and the lock.
+		if (UE::Private::FOutputDevicesMainLogScope MainLock(*State); MainLock.IsLocked() && State->IsMainLogThread(ThreadId))
 		{
 			State->FlushBufferedLines();
 			State->BroadcastTo(ThreadId, State->BufferedOutputDevices, State->BufferedOutputDevicesCanBeUsedOnPanicThread,
@@ -610,7 +610,7 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 		}
 	}
 
-	// Queue the line to serialize to buffered output devices from the master thread.
+	// Queue the line to serialize to buffered output devices from the main thread.
 	if (State->BufferedLines.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
 	{
 		if (FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
@@ -637,7 +637,7 @@ void FOutputDeviceRedirector::RedirectLog(const FLazyName& Category, ELogVerbosi
 
 void FOutputDeviceRedirector::Flush()
 {
-	if (UE::Private::FOutputDevicesMasterScope Lock(*State); Lock.IsLocked())
+	if (UE::Private::FOutputDevicesMainLogScope Lock(*State); Lock.IsLocked())
 	{
 		State->FlushBufferedLines();
 		const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -671,8 +671,8 @@ void FOutputDeviceRedirector::Panic()
 			FPlatformProcess::Yield();
 		}
 
-		// Make the panic thread the master thread. Neither thread can be changed after this point.
-		State->MasterThreadId.exchange(ThreadId, std::memory_order_relaxed);
+		// Make the panic thread the main thread. Neither thread can be changed after this point.
+		State->MainLogThreadId.exchange(ThreadId, std::memory_order_relaxed);
 
 		// Flush. Every log from the panic thread after this point will also flush.
 		Flush();
@@ -686,7 +686,7 @@ void FOutputDeviceRedirector::Panic()
 
 void FOutputDeviceRedirector::TearDown()
 {
-	SetCurrentThreadAsMasterThread();
+	SetCurrentThreadAsMainLogThread();
 
 	Flush();
 

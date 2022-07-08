@@ -1531,7 +1531,7 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 
 				// Start up the log again
 				FPlatformOutputDevices::SetupOutputDevices();
-				GLog->SetCurrentThreadAsMasterThread();
+				GLog->SetCurrentThreadAsMainLogThread();
 
 				// Set the process name, if specified
 				if (ChildIdx > 0)

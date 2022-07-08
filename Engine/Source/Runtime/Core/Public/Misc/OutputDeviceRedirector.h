@@ -57,7 +57,7 @@ enum class EOutputDeviceRedirectorFlushOptions : uint32
 	/**
 		* Flush asynchronously when possible.
 		*
-		* When this flag is set and there is a dedicated master thread, the flush function returns immediately.
+		* When this flag is set and there is a dedicated main logging thread, the flush function returns immediately.
 		* Otherwise, the flush function does not return until the requested type of flush is complete.
 		*/
 	Async = 1 << 0,
@@ -122,17 +122,17 @@ public:
 	 */
 	void EnableBacklog(bool bEnable);
 
-	/** Sets the current thread to be the master thread redirects logs without buffering. */
-	void SetCurrentThreadAsMasterThread();
+	/** Sets the current thread to be the main thread, redirecting logs without buffering. */
+	void SetCurrentThreadAsMainLogThread();
 
 	/**
-	 * Starts a dedicated master thread that redirects logs that require buffering.
+	 * Starts a dedicated main thread that redirects logs that require buffering.
 	 *
 	 * A thread will not be started for certain configurations or platforms, or when threading is disabled.
 	 *
-	 * @return true if a dedicated master thread is running, false otherwise.
+	 * @return true if a dedicated main logging thread is running, false otherwise.
 	 */
-	bool TryStartDedicatedMasterThread();
+	bool TryStartDedicatedMainLogThread();
 
 	/**
 	 * Serializes the passed in data via all current output devices.
@@ -162,7 +162,7 @@ public:
 	 *
 	 * Only one thread can be the panic thread. Subsequent calls from other threads are ignored.
 	 * Only redirects logs to panic-safe output devices from this point forward.
-	 * Makes the calling thread the master thread as well.
+	 * Makes the calling thread the main log thread as well.
 	 * Flushes buffered logs to panic-safe output devices.
 	 * Flushes panic-safe output devices.
 	 */

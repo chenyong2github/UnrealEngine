@@ -411,7 +411,7 @@ void FAppEntry::Init()
 	NSLog(@"%s", "Initializing ULD Communications in game mode\n");
 	GCommandSystem.Init();
 
-	GLog->SetCurrentThreadAsMasterThread();
+	GLog->SetCurrentThreadAsMainLogThread();
 	
 	// Send the launch local notification to the local notification service now that the engine module system has been initialized
 	if(gAppLaunchedWithLocalNotification)

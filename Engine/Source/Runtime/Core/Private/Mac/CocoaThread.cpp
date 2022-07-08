@@ -377,7 +377,7 @@ FCocoaRunLoopSource* FCocoaRunLoopSource::GameRunLoopSource = nullptr;
 	
 	if (GLog)
 	{
-		GLog->SetCurrentThreadAsMasterThread();
+		GLog->SetCurrentThreadAsMainLogThread();
 	}
 
 	[super main];
