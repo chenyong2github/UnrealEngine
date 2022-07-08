@@ -1515,7 +1515,7 @@ public:
 	}
 
 	/** Everytime master enable changes, this number increases. This is used to determine full frames. **/
-	static FORCEINLINE_STATS int32 MasterDisableChangeTag()
+	static FORCEINLINE_STATS int32 PrimaryDisableChangeTag()
 	{
 		if (MasterDisableChangeTagLock.GetValue())
 		{

@@ -63,7 +63,7 @@ extern RENDERCORE_API bool IsRenderingThreadHealthy();
 /**
  * Advances stats for the rendering thread. Called from the game thread.
  */
-extern RENDERCORE_API void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, int32 MasterDisableChangeTagStartFrame );
+extern RENDERCORE_API void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, int32 DisableChangeTagStartFrame );
 
 /**
  * Waits for the rendering thread to finish executing all pending rendering commands.  Should only be used from the game thread.

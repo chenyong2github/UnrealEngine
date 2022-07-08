@@ -18,7 +18,7 @@
 #include "RHIShaderFormatDefinitions.inl"
 #endif
 
-// This is a per-project master switch for Nanite, that influences the shader permutations compiled. Changing it will cause shaders to be recompiled.
+// This is a per-project main switch for Nanite, that influences the shader permutations compiled. Changing it will cause shaders to be recompiled.
 int32 GNaniteProjectEnabled = 1;
 FAutoConsoleVariableRef CVarAllowNanite(
 	TEXT("r.Nanite.ProjectEnabled"),

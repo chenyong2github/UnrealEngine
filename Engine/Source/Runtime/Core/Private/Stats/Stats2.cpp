@@ -206,9 +206,9 @@ void FStats::AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThre
 	}
 	if( MasterDisableChangeTagStartFrame == -1 )
 	{
-		MasterDisableChangeTagStartFrame = FThreadStats::MasterDisableChangeTag();
+		MasterDisableChangeTagStartFrame = FThreadStats::PrimaryDisableChangeTag();
 	}
-	if( !FThreadStats::IsCollectingData() || MasterDisableChangeTagStartFrame != FThreadStats::MasterDisableChangeTag() )
+	if( !FThreadStats::IsCollectingData() || MasterDisableChangeTagStartFrame != FThreadStats::PrimaryDisableChangeTag() )
 	{
 		Frame = -Frame; // mark this as a bad frame
 	}
@@ -230,7 +230,7 @@ void FStats::AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThre
 
 	FThreadStats::ExplicitFlush( bDiscardCallstack );
 	FThreadStats::WaitForStats();
-	MasterDisableChangeTagStartFrame = FThreadStats::MasterDisableChangeTag();
+	MasterDisableChangeTagStartFrame = FThreadStats::PrimaryDisableChangeTag();
 #endif
 }
 

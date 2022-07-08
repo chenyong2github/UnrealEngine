@@ -99,7 +99,7 @@ static TAutoConsoleVariable<int32> GDumpRenderingConsoleVariablesCVar(
 
 static TAutoConsoleVariable<int32> GDumpTestEnableDiskWrite(
 	TEXT("r.DumpGPU.Test.EnableDiskWrite"), 1,
-	TEXT("Master switch whether any files should be written to disk, used for r.DumpGPU automation tests to not fill up workers' hard drive."),
+	TEXT("Main switch whether any files should be written to disk, used for r.DumpGPU automation tests to not fill up workers' hard drive."),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> GDumpTestPrettifyResourceFileNames(

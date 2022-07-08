@@ -398,11 +398,11 @@ void RenderingThreadMain( FEvent* TaskGraphBoundSyncEvent )
 /**
  * Advances stats for the rendering thread.
  */
-static void AdvanceRenderingThreadStats(int64 StatsFrame, int32 MasterDisableChangeTagStartFrame)
+static void AdvanceRenderingThreadStats(int64 StatsFrame, int32 DisableChangeTagStartFrame)
 {
 #if STATS
 	int64 Frame = StatsFrame;
-	if (!FThreadStats::IsCollectingData() ||  MasterDisableChangeTagStartFrame != FThreadStats::MasterDisableChangeTag())
+	if (!FThreadStats::IsCollectingData() || DisableChangeTagStartFrame != FThreadStats::PrimaryDisableChangeTag())
 	{
 		Frame = -StatsFrame; // mark this as a bad frame
 	}
@@ -417,12 +417,12 @@ static void AdvanceRenderingThreadStats(int64 StatsFrame, int32 MasterDisableCha
 /**
  * Advances stats for the rendering thread. Called from the game thread.
  */
-void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, int32 MasterDisableChangeTagStartFrame )
+void AdvanceRenderingThreadStatsGT( bool bDiscardCallstack, int64 StatsFrame, int32 DisableChangeTagStartFrame )
 {
 	ENQUEUE_RENDER_COMMAND(RenderingThreadTickCommand)(
-		[StatsFrame, MasterDisableChangeTagStartFrame](FRHICommandList& RHICmdList)
+		[StatsFrame, DisableChangeTagStartFrame](FRHICommandList& RHICmdList)
 		{
-			AdvanceRenderingThreadStats(StatsFrame, MasterDisableChangeTagStartFrame );
+			AdvanceRenderingThreadStats(StatsFrame, DisableChangeTagStartFrame);
 		}
 	);
 	if( bDiscardCallstack )

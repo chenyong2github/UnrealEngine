@@ -1845,7 +1845,7 @@ struct FEditorShaderStableInfo
 				}
 			}
 
-			// Only the master cooker needs to write to the output directory, child cookers only write to the Saved directory
+			// Only the primary cooker needs to write to the output directory, child cookers only write to the Saved directory
 			FString OutputFilePath = GetStableInfoArchiveFilename(OutputDir, LibraryName, FormatName);
 
 			// Copy to output location - support for iterative native library cooking
