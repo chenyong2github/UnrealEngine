@@ -390,33 +390,6 @@ struct CONTROLRIG_API FRigUnit_StringMiddle : public FRigUnit_StringBase
 };
 
 /**
- * Compares two strings (case sensitive)
- */
-USTRUCT(meta = (DisplayName = "Equals", TemplateName = "Equals", Keywords = "Same,Match"))
-struct CONTROLRIG_API FRigUnit_StringEquals : public FRigUnit_StringBase
-{
-	GENERATED_BODY()
-
-	FRigUnit_StringEquals()
-	{
-		A = B = FString();
-		Result = false;
-	}
-
-	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta = (Input))
-	FString A;
-
-	UPROPERTY(meta = (Input))
-	FString B;
-
-	UPROPERTY(meta = (Output))
-	bool Result;
-};
-
-/**
  * Finds a string within another string
  */
 USTRUCT(meta = (DisplayName = "Find", Keywords = "IndexOf"))
@@ -530,7 +503,7 @@ struct CONTROLRIG_API FRigUnit_StringPadInteger : public FRigUnit_StringBase
 /*
  * Converts any value to string
  */
-USTRUCT(meta=(DisplayName = "To String", odeColor = "0.462745, 1,0, 0.329412"))
+USTRUCT(meta=(DisplayName = "To String", NodeColor = "0.462745, 1,0, 0.329412"))
 struct FRigDispatch_ToString : public FRigDispatchFactory
 {
 	GENERATED_BODY()

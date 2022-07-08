@@ -98,11 +98,6 @@ FRigUnit_StringMiddle_Execute()
 	}
 }
 
-FRigUnit_StringEquals_Execute()
-{
-	Result = A.Equals(B, ESearchCase::CaseSensitive);
-}
-
 FRigUnit_StringFind_Execute()
 {
 	Index = INDEX_NONE;

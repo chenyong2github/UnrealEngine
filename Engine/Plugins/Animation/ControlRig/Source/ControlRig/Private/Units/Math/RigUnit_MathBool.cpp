@@ -43,10 +43,20 @@ FRigUnit_MathBoolEquals_Execute()
 	Result = A == B;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathBoolEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+}
+
 FRigUnit_MathBoolNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathBoolNotEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathBoolToggled_Execute()

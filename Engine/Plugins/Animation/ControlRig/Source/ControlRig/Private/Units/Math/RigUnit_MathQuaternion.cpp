@@ -5,6 +5,7 @@
 #include "Units/RigUnitContext.h"
 #include "AnimationCoreLibrary.h"
 #include "Math/ControlRigMathLibrary.h"
+#include "Units/Core/RigUnit_CoreDispatch.h"
 
 FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
@@ -150,10 +151,20 @@ FRigUnit_MathQuaternionEquals_Execute()
 	Result = A == B;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathQuaternionEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+}
+
 FRigUnit_MathQuaternionNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathQuaternionNotEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathQuaternionSelectBool_Execute()

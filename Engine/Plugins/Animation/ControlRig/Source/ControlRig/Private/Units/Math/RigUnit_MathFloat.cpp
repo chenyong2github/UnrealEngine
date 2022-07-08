@@ -2,6 +2,7 @@
 
 #include "Units/Math/RigUnit_MathFloat.h"
 #include "Units/RigUnitContext.h"
+#include "Units/Core/RigUnit_CoreDispatch.h"
 
 FRigUnit_MathFloatConstPi_Execute()
 {
@@ -177,10 +178,20 @@ FRigUnit_MathFloatEquals_Execute()
 	Result = A == B;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathFloatEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+}
+
 FRigUnit_MathFloatNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathFloatNotEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathFloatGreater_Execute()

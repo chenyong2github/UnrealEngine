@@ -80,7 +80,7 @@ struct CONTROLRIG_API FRigUnit_ItemReplace : public FRigUnit_ItemBase
 /**
 * Returns true if the two items are equal
 */
-USTRUCT(meta=(DisplayName="Item Equals", Keywords=""))
+USTRUCT(meta=(DisplayName="Item Equals", Keywords="", Deprecated="5.1"))
 struct CONTROLRIG_API FRigUnit_ItemEquals : public FRigUnit_ItemBase
 {
 	GENERATED_BODY()
@@ -102,12 +102,15 @@ struct CONTROLRIG_API FRigUnit_ItemEquals : public FRigUnit_ItemBase
 
 	UPROPERTY(meta = (Output))
 	bool Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
 * Returns true if the two items are not equal
 */
-USTRUCT(meta=(DisplayName="Item Not Equals", Keywords=""))
+USTRUCT(meta=(DisplayName="Item Not Equals", Keywords="", Deprecated="5.1"))
 struct CONTROLRIG_API FRigUnit_ItemNotEquals : public FRigUnit_ItemBase
 {
 	GENERATED_BODY()
@@ -129,6 +132,9 @@ struct CONTROLRIG_API FRigUnit_ItemNotEquals : public FRigUnit_ItemBase
 
 	UPROPERTY(meta = (Output))
 	bool Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

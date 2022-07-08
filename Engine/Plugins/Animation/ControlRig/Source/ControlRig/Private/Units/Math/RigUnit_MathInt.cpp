@@ -2,6 +2,7 @@
 
 #include "Units/Math/RigUnit_MathInt.h"
 #include "Units/RigUnitContext.h"
+#include "Units/Core/RigUnit_CoreDispatch.h"
 
 FRigUnit_MathIntAdd_Execute()
 {
@@ -99,10 +100,20 @@ FRigUnit_MathIntEquals_Execute()
 	Result = A == B;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathIntEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+}
+
 FRigUnit_MathIntNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathIntNotEquals::GetUpgradeInfo() const
+{
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathIntGreater_Execute()
