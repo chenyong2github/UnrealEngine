@@ -50,6 +50,11 @@ IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 	return IAuthPtr(AsShared(), Get<IAuth>());
 }
 
+IUserInfoPtr FOnlineServicesCommon::GetUserInfoInterface()
+{
+	return IUserInfoPtr(AsShared(), Get<IUserInfo>());
+}
+
 IFriendsPtr FOnlineServicesCommon::GetFriendsInterface()
 {
 	return IFriendsPtr(AsShared(), Get<IFriends>());
