@@ -6,4 +6,4 @@
 
 #pragma once
 
-#include "Unix/UnixPlatformFile.h"
+#include "Unix/UnixPlatformFile.h" // IWYU pragma: export

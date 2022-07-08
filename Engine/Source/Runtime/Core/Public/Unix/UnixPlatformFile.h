@@ -8,7 +8,7 @@
 
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "GenericPlatform/GenericPlatformFile.h"
+#include "GenericPlatform/GenericPlatformFile.h" // IWYU pragma: export
 #include "Misc/DateTime.h"
 
 class IMappedFileHandle;

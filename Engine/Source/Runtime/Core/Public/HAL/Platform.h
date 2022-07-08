@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+// IWYU pragma: begin_exports
 #pragma once
 
 #include "Misc/Build.h"
@@ -1169,3 +1169,5 @@ namespace UE::Core::Private
 #define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
 
 #define WIDETEXT(str) WIDETEXT_PASTE(str)
+
+// IWYU pragma: end_exports

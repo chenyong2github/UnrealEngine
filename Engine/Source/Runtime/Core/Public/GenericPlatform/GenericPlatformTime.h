@@ -6,7 +6,7 @@
 #include "Containers/UnrealString.h"
 
 #if PLATFORM_HAS_BSD_TIME 
-	#include <sys/time.h>
+	#include <sys/time.h> // IWYU pragma: export
 #endif
 
 

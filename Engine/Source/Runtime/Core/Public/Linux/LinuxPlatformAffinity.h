@@ -2,5 +2,5 @@
 
 #pragma once
 
-#include "GenericPlatform/GenericPlatformAffinity.h"
+#include "GenericPlatform/GenericPlatformAffinity.h" // IWYU pragma: export
 typedef FGenericPlatformAffinity FPlatformAffinity;

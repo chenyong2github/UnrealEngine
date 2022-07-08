@@ -9,7 +9,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "GenericPlatform/GenericPlatformProcess.h" // IWYU pragma: export
 #include "HAL/PlatformMisc.h"
 #include "Misc/AssertionMacros.h"
 
