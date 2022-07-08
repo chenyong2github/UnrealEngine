@@ -16,29 +16,8 @@ public class PLCrashReporter : ModuleRules
 		string PLCrashReporterPath = Path.Combine(Target.UEThirdPartySourceDirectory,"PLCrashReporter");
 		string PLSourcePath = Path.Combine(PLCrashReporterPath,PLGitRepoRoot,"Source");
 		string LibConfig = "Release";
-
-		string XcodeVersionOutput = Utils.RunLocalProcessAndReturnStdOut("xcodebuild", "-version");
-		string XcodeVersion;
-		using (var Reader = new StringReader(XcodeVersionOutput.Substring(6)))
-		{
-			XcodeVersion = Reader.ReadLine();
-		}
-
-		string[] VersionComponents = XcodeVersion.Split('.');
-		string CurrentLibFolder = "lib-Xcode-" + XcodeVersion;
-		string PLLibPath = Path.Combine(PLCrashReporterPath, "lib", CurrentLibFolder);
-
-		if ( !Directory.Exists( Path.Combine(Directory.GetCurrentDirectory(), PLLibPath) ) )
-		{
-			string DefaultLibFolder = "lib-Xcode-12.4";
-			if ( VersionComponents[0] == "11" )
-			{
-				DefaultLibFolder = "lib-Xcode-11.3.1";
-			}
-
-			Log.TraceInformationOnce("Couldn't find PLCrashReporter in folder '{0}', using default '{1}'", CurrentLibFolder, DefaultLibFolder);
-			PLLibPath = Path.Combine(PLCrashReporterPath, "lib", DefaultLibFolder);
-		}
+		string DefaultLibFolder = "lib-Xcode-12.4";
+		string PLLibPath = Path.Combine(PLCrashReporterPath, "lib", DefaultLibFolder);
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
