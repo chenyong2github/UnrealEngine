@@ -18,7 +18,7 @@ struct FInterchangePipelineStack
 	GENERATED_BODY()
 	
 	/** The starting mesh for the blueprint **/
-	UPROPERTY(EditAnywhere, Category = Interchange, meta=(AllowedClasses = "InterchangePipelineBase, InterchangeBlueprintPipelineBase, InterchangePythonPipelineAsset"))
+	UPROPERTY(EditAnywhere, Category = Interchange, meta=(AllowedClasses = "/Script/InterchangeCore.InterchangePipelineBase, /Script/InterchangeEngine.InterchangeBlueprintPipelineBase, /Script/InterchangeEngine.InterchangePythonPipelineAsset"))
 	TArray<FSoftObjectPath> Pipelines;
 };
 
