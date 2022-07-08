@@ -3,6 +3,7 @@
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Math/UnrealMathUtility.h"
 
 using namespace UE::Geometry;
 
@@ -10,7 +11,7 @@ using namespace UE::Geometry;
 // tri to be selected (valid values are 1,2,3)
 FMeshFaceSelection::FMeshFaceSelection(const FDynamicMesh3* mesh, const FMeshVertexSelection& convertV, int minCount) : Mesh(mesh)
 {
-	minCount = FMathd::Clamp(minCount, 1, 3);
+	minCount = FMath::Clamp(minCount, 1, 3);
 
 	if (minCount == 1)
 	{

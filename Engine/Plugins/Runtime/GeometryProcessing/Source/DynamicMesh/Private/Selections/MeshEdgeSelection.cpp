@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
+#include "Math/UnrealMathUtility.h"
 
 using namespace UE::Geometry;
 
@@ -27,7 +28,7 @@ FMeshEdgeSelection::FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshVer
 // convert face selection to edge selection. Require at least minCount tris of edge to be selected
 FMeshEdgeSelection::FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshFaceSelection& convertT, int minCount) : Mesh(mesh)
 {
-	minCount = FMathd::Clamp(minCount, 1, 2);
+	minCount = FMath::Clamp(minCount, 1, 2);
 
 	if (minCount == 1)
 	{

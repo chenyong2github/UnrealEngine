@@ -210,9 +210,9 @@ void InternalSetPerTriangleUVs(EnumerableType TriangleIDs, const FDynamicMesh3* 
 		FIndex3i ElemTri;
 		for (int32 j = 0; j < 3; ++j)
 		{
-			FVector2f UV = (FVector2f)TriProjFrame.ToPlaneUV(Mesh->GetVertex(MeshTri[j]), 2);
+			FVector2d UV = TriProjFrame.ToPlaneUV(Mesh->GetVertex(MeshTri[j]), 2);
 			UV *= ScaleFactor;
-			ElemTri[j] = UVOverlay->AppendElement(UV);
+			ElemTri[j] = UVOverlay->AppendElement((FVector2f)UV);
 			NewUVIndices.Add(ElemTri[j]);
 		}
 		UVOverlay->SetTriangle(TriangleID, ElemTri);
@@ -277,10 +277,10 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromPlanarProjection(
 			{
 				FVector3d Pos = Mesh->GetVertex(BaseTri[j]);
 				FVector3d TransformPos = PointTransform(Pos);
-				FVector2f UV = (FVector2f)ProjectionFrame.ToPlaneUV(TransformPos, 2);
+				FVector2d UV = ProjectionFrame.ToPlaneUV(TransformPos, 2);
 				UV.X *= ScaleX;
 				UV.Y *= ScaleY;
-				ElemTri[j] = UVOverlay->AppendElement(UV);
+				ElemTri[j] = UVOverlay->AppendElement(FVector2f(UV));
 				NewUVIndices.Add(ElemTri[j]);
 				BaseToOverlayVIDMap.Add(BaseTri[j], ElemTri[j]);
 			}
@@ -486,10 +486,10 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(
 	{
 		if (Param.HasUV(vid))
 		{
-			FVector2f UV = (FVector2f)Param.GetUV(vid);
+			FVector2d UV = Param.GetUV(vid);
 			UV.X *= ScaleX;
 			UV.Y *= ScaleY;
-			VtxElementIDs[vid] = UVOverlay->AppendElement(UV);
+			VtxElementIDs[vid] = UVOverlay->AppendElement(FVector2f(UV));
 			NewElementIDs.Add(VtxElementIDs[vid]);
 		}
 	}
@@ -1055,7 +1055,9 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
 
 		int MajorAxis = TriBoxInfo.A;
 		int Bucket = TriBoxInfo.B;
-		double MajorAxisSign = FMathd::Sign(N[MajorAxis]);
+		int MajorAxisSign =  (N[MajorAxis] > 0.0) ? 1 : ( (N[MajorAxis] < 0.0) ? -1 : 0 );
+		
+		FMathd::Sign(N[MajorAxis]);
 		int Minor1 = Minor1s[MajorAxis];
 		int Minor2 = Minor2s[MajorAxis];
 
@@ -1071,7 +1073,7 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
 				FVector3d BoxPos = BoxFrame.ToFramePoint(TransformPos);
 				BoxPos *= Scale;
 
-				FVector2f UV = ProjAxis(BoxPos, Minor1, Minor2, MajorAxisSign * Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]);
+				FVector2f UV = ProjAxis(BoxPos, Minor1, Minor2, float(MajorAxisSign * Minor1Flip[MajorAxis] ), (float)Minor2Flip[MajorAxis]);
 
 				ElemTri[j] = UVOverlay->AppendElement(UV);
 				NewUVIndices.Add(ElemTri[j]);
@@ -1193,7 +1195,8 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 				FVector2f UV = FVector2f::Zero();
 				if (Bucket <= 2)
 				{
-					UV = ProjAxis(BoxPos, 0, 1, FMathd::Sign(N[MajorAxis]) * Minor1Flip[MajorAxis], Minor2Flip[MajorAxis]);
+					int MajorAxisSign =  (N[MajorAxis] > 0.0) ? 1 : ( (N[MajorAxis] < 0.0) ? -1 : 0 );
+					UV = ProjAxis(BoxPos, 0, 1, float( MajorAxisSign * Minor1Flip[MajorAxis] ), (float)Minor2Flip[MajorAxis]);
 				}
 				else
 				{
@@ -1268,7 +1271,7 @@ bool FDynamicMeshUVEditor::ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, b
 	for (int32 eid : Elements)
 	{
 		FVector2f UV = UVOverlay->GetElement(eid);
-		UV = (UV - ScaleOrigin) * UVScale + Translation;
+		UV = (UV - ScaleOrigin) * float(UVScale) + Translation;
 		UVOverlay->SetElement(eid, UV);
 	}
 

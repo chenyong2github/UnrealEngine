@@ -1361,8 +1361,8 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 		// could end up clamping to different endpoints as we connect multiple paths through the same start/end
 		// point (such as when following a loop)
 		FIndex2i EdgeVids = Mesh.GetEdgeV(StartPoint.ElementID);
-		CurrentEdgeVertPlaneDistances[0] = FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.A), CutPlaneOrigin, CutPlaneNormal);
-		CurrentEdgeVertPlaneDistances[1] = FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.B), CutPlaneOrigin, CutPlaneNormal);
+		CurrentEdgeVertPlaneDistances[0] = (float)FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.A), CutPlaneOrigin, CutPlaneNormal);
+		CurrentEdgeVertPlaneDistances[1] = (float)FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.B), CutPlaneOrigin, CutPlaneNormal);
 
 			OutputPath.Emplace(FMeshSurfacePoint(StartPoint.ElementID, StartPoint.EdgeTValue), FDynamicMesh3::InvalidID);
 		}
@@ -1447,8 +1447,8 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 				}
 
 				// See if one of the other vertices is on the plane (and is therefore the next destination)
-				float PlaneDistanceA = FVector::PointPlaneDist((FVector)Mesh.GetVertex(VertA), CutPlaneOrigin, CutPlaneNormal);
-				float PlaneDistanceB = FVector::PointPlaneDist((FVector)Mesh.GetVertex(VertB), CutPlaneOrigin, CutPlaneNormal);
+				float PlaneDistanceA = (float)FVector::PointPlaneDist((FVector)Mesh.GetVertex(VertA), CutPlaneOrigin, CutPlaneNormal);
+				float PlaneDistanceB = (float)FVector::PointPlaneDist((FVector)Mesh.GetVertex(VertB), CutPlaneOrigin, CutPlaneNormal);
 				bool bVertAIsOnPlane = abs(PlaneDistanceA) <= VertexCutTolerance;
 				bool bVertBIsOnPlane = abs(PlaneDistanceB) <= VertexCutTolerance;
 
@@ -1574,7 +1574,7 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 			}
 
 			// We'll keep going. Get the placement of the opposite vert relative to the plane.
-			float OppositeVertPlaneDistance = FVector::PointPlaneDist((FVector)Mesh.GetVertex(OppositeVert), CutPlaneOrigin, CutPlaneNormal);
+			float OppositeVertPlaneDistance = (float)FVector::PointPlaneDist((FVector)Mesh.GetVertex(OppositeVert), CutPlaneOrigin, CutPlaneNormal);
 			if (abs(OppositeVertPlaneDistance) <= VertexCutTolerance && !DisallowedVids.Contains(OppositeVert))
 			{
 				// We are cutting through a vertex

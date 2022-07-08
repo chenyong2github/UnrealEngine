@@ -770,7 +770,7 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToMaxError(double MaxError)
 	SimplifyMode = ETargetModes::MaxError;
 	TargetCount = 1;
 	MinEdgeLength = FMathd::MaxReal;
-	MaxErrorAllowed = MaxError;
+	MaxErrorAllowed = (float)MaxError;
 	DoSimplify();
 }
 

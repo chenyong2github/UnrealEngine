@@ -152,8 +152,8 @@ bool FDynamicMeshEditor::ConvertLoopToTriVidPairSequence(const FDynamicMesh3& Me
 		int32 SecondVid = VidLoop[(QuadIndex + 1) % VidLoop.Num()];
 
 		FIndex3i TriVids = Mesh.GetTriangle(Tid);
-		int8 SubIdx1 = IndexUtil::FindTriIndex(FirstVid, TriVids);
-		int8 SubIdx2 = IndexUtil::FindTriIndex(SecondVid, TriVids);
+		int8 SubIdx1 = (int8)IndexUtil::FindTriIndex(FirstVid, TriVids);
+		int8 SubIdx2 = (int8)IndexUtil::FindTriIndex(SecondVid, TriVids);
 		if (ensure(SubIdx1 >= 0 && SubIdx2 >= 0))
 		{
 			TriVertPairsOut.Emplace(Tid,
@@ -264,9 +264,9 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 		int Starts[2] { MatchedIndices1[i], MatchedIndices2[i] };
 		int Ends[2] { MatchedIndices1[(i + 1) % CorrespondN], MatchedIndices2[(i + 1) % CorrespondN] };
 
-		auto GetWrappedSpanLen = [](const FDynamicMesh3* M, const TArray<int>& VertexIDs, int StartInd, int EndInd)
+		auto GetWrappedSpanLen = [](const FDynamicMesh3* M, const TArray<int>& VertexIDs, int StartInd, int EndInd)->float
 		{
-			float LenTotal = 0;
+			double LenTotal = 0;
 			FVector3d V = M->GetVertex(VertexIDs[StartInd]);
 			for (int Ind = StartInd, IndNext; Ind != EndInd;)
 			{
@@ -276,7 +276,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				Ind = IndNext;
 				V = VNext;
 			}
-			return LenTotal;
+			return (float)LenTotal;
 		};
 		float LenTotal[2] { GetWrappedSpanLen(Mesh, VertexIDs1, Starts[0], Ends[0]), GetWrappedSpanLen(Mesh, VertexIDs2, Starts[1], Ends[1]) };
 		float LenAlong[2] { FMathf::Epsilon, FMathf::Epsilon };
@@ -300,7 +300,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				
 				Tri.C = VertexIDs1[Walks[0]];
 				FVector3d NextV = Mesh->GetVertex(Tri.C);
-				LenAlong[0] += Distance(NextV, Vertex[0]);
+				LenAlong[0] += (float)Distance(NextV, Vertex[0]);
 				Vertex[0] = NextV;
 			}
 			else
@@ -308,7 +308,7 @@ bool FDynamicMeshEditor::StitchSparselyCorrespondedVertexLoops(const TArray<int>
 				Walks[1] = (Walks[1] + 1) % VertexIDs2.Num();
 				Tri.C = VertexIDs2[Walks[1]];
 				FVector3d NextV = Mesh->GetVertex(Tri.C);
-				LenAlong[1] += Distance(NextV, Vertex[1]);
+				LenAlong[1] += (float)Distance(NextV, Vertex[1]);
 				Vertex[1] = NextV;
 			}
 			if (bReverseOrientation)
@@ -1067,7 +1067,7 @@ void FDynamicMeshEditor::SetGeneralTubeUVs(const TArray<int>& Triangles,
 	FVector3d RefPos = Mesh->GetVertex(VertexIDs1[0]);
 	auto GetUV = [this, &VDir, &UVScaleFactor, &UVTranslation, &RefPos](int MeshIdx, float UStart, float UEnd, float Param)
 	{
-		return FVector2f((Mesh->GetVertex(MeshIdx) - RefPos).Dot((FVector3d)VDir), FMath::Lerp(UStart, UEnd, Param)) * UVScaleFactor + UVTranslation;
+		return FVector2f(float( (Mesh->GetVertex(MeshIdx) - RefPos).Dot((FVector3d)VDir) ), FMath::Lerp(UStart, UEnd, Param)) * UVScaleFactor + UVTranslation;
 	};
 
 	TArray<FVector2f> VertUVs[2];
@@ -1107,7 +1107,7 @@ void FDynamicMeshEditor::SetGeneralTubeUVs(const TArray<int>& Triangles,
 				}
 				for (int InsideIdx = (Start + 1) % NumVertices; InsideIdx != End; InsideIdx = (InsideIdx + 1) % NumVertices)
 				{
-					double InterpT = (Mesh->GetVertex(VertexIDs[InsideIdx]) - StartPos).Dot(Along) / SepSq;
+					float InterpT = float( (Mesh->GetVertex(VertexIDs[InsideIdx]) - StartPos).Dot(Along) / SepSq );
 					VertUVs[Side][InsideIdx] = GetUV(VertexIDs[InsideIdx], UValues[Idx], UValues[NextIdx], InterpT);
 				}
 			}
@@ -1303,7 +1303,7 @@ void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, in
 		}
 		if (TotalEdgeUVLen > KINDA_SMALL_NUMBER)
 		{
-			float AvgUVScale = TotalEdgeLen / TotalEdgeUVLen;
+			float AvgUVScale = float (TotalEdgeLen / TotalEdgeUVLen);
 			UVScale *= AvgUVScale;
 		}
 	}
