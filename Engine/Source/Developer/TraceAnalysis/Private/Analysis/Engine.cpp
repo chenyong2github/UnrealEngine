@@ -3512,7 +3512,7 @@ void FProtocol5Stage::DetectSerialGaps(TArray<FEventDescStream>& EventDescHeap)
 		uint32 GapCount = 0;
 		auto RecordGap = [this, &GapCount] (int32 Lhs, int32 Rhs)
 		{
-			if (SerialGaps.IsEmpty())
+			if (SerialGaps.IsEmpty() || GapCount >= (uint32)SerialGaps.Num())
 			{
 				return false;
 			}
