@@ -158,6 +158,14 @@ public:
 	static bool LinkAnimSequence(ULevelSequence* Sequence, UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions, const FMovieSceneBindingProxy& Binding);
 
 	/*
+	 * Clear all linked anim sequences between this level sequence and any linked anim sequences
+	 *
+	 * @InLevelSequence LevelSequence to clean links for
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static void ClearLinkedAnimSequences(ULevelSequence* InLevelSequence);
+
+	/*
 	 * Get the link to the level sequence if it exists on this anim sequence
 	 *
 	 * @InAnimSequence AnimSequence to get links from
