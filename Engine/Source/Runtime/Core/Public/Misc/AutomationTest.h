@@ -1514,6 +1514,7 @@ public:
 	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FTransform Actual, FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FRotator Actual, FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
 	bool TestEqual(const TCHAR* What, FLinearColor Actual, FLinearColor Expected);

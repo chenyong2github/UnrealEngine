@@ -1364,6 +1364,16 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const FVector Actual, con
 	return true;
 }
 
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance)
+{
+	if (!Expected.Equals(Actual, Tolerance))
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s within tolerance %f."), What, *Expected.ToString(), *Actual.ToString(), Tolerance), 1);
+		return false;
+	}
+	return true;
+}
+
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance)
 {
 	if (!Expected.Equals(Actual, Tolerance))
