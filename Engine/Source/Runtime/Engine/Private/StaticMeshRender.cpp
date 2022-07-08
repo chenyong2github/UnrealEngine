@@ -2080,6 +2080,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 			SetLightMap(MeshMapBuildData->LightMap);
 			SetShadowMap(MeshMapBuildData->ShadowMap);
 			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			bNeedsPrecomputedLightingUniformBuffer = false;
 			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
 		}
 	}
@@ -2099,6 +2100,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 					SetLightMap(MeshMapBuildData->LightMap);
 					SetShadowMap(MeshMapBuildData->ShadowMap);
 					SetResourceCluster(MeshMapBuildData->ResourceCluster);
+					bNeedsPrecomputedLightingUniformBuffer = false;
 					IrrelevantLights = MeshMapBuildData->IrrelevantLights;
 				}
 			}
@@ -2163,6 +2165,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 				SetLightMap(MeshMapBuildData->LightMap);
 				SetShadowMap(MeshMapBuildData->ShadowMap);
 				SetResourceCluster(MeshMapBuildData->ResourceCluster);
+				bNeedsPrecomputedLightingUniformBuffer = false;
 				IrrelevantLights = MeshMapBuildData->IrrelevantLights;
 			}
 		}

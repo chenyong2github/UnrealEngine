@@ -927,7 +927,7 @@ void InitializeSharedSamplerStates()
 
 void FLightCacheInterface::CreatePrecomputedLightingUniformBuffer_RenderingThread(ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (LightMap || ShadowMap)
+	if (bNeedsPrecomputedLightingUniformBuffer && (LightMap || ShadowMap))
 	{
 		FPrecomputedLightingUniformParameters Parameters;
 		GetPrecomputedLightingParameters(FeatureLevel, Parameters, this);

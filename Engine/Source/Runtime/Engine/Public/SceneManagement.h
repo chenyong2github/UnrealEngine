@@ -837,17 +837,7 @@ ENGINE_API extern TGlobalResource< FDefaultLightmapResourceClusterUniformBuffer 
 class FLightCacheInterface
 {
 public:
-	FLightCacheInterface()
-		: bGlobalVolumeLightmap(false)
-		, LightMap(nullptr)
-		, ShadowMap(nullptr)
-		, ResourceCluster(nullptr)
-	{
-	}
-
-	virtual ~FLightCacheInterface()
-	{
-	}
+	virtual ~FLightCacheInterface() {}
 
 	// @param LightSceneProxy must not be 0
 	virtual FLightInteraction GetInteraction(const class FLightSceneProxy* LightSceneProxy) const = 0;
@@ -914,20 +904,24 @@ public:
 
 	ENGINE_API FShadowMapInteraction GetShadowMapInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
+protected:
+	// If false, precomputed lighting parameters will be drawn from GPUScene
+	bool bNeedsPrecomputedLightingUniformBuffer = true;
+	
 private:
 
-	bool bGlobalVolumeLightmap;
+	bool bGlobalVolumeLightmap = false;
 
 	// The light-map used by the element. may be 0
-	const FLightMap* LightMap;
+	const FLightMap* LightMap = nullptr;
 
 	// The shadowmap used by the element, may be 0
-	const FShadowMap* ShadowMap;
+	const FShadowMap* ShadowMap = nullptr;
 
-	const FLightmapResourceCluster* ResourceCluster;
+	const FLightmapResourceCluster* ResourceCluster = nullptr;
 
 	/** The uniform buffer holding mapping the lightmap policy resources. */
-	FUniformBufferRHIRef PrecomputedLightingUniformBuffer;
+	FUniformBufferRHIRef PrecomputedLightingUniformBuffer = nullptr;
 };
 
 
