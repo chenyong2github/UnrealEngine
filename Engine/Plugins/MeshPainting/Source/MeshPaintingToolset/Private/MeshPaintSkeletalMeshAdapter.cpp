@@ -12,6 +12,7 @@
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeGenericMeshPipeline.h"
+#include "InterchangePythonPipelineBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintSkeletalMeshAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////
@@ -398,9 +399,19 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 		UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(ReferencedSkeletalMesh->GetAssetImportData());
 		if (InterchangeAssetImportData)
 		{
-			for (TObjectPtr<UInterchangePipelineBase> PipelineBase : InterchangeAssetImportData->Pipelines)
+			for (TObjectPtr<UObject> PipelineBase : InterchangeAssetImportData->Pipelines)
 			{
-				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
+				UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get());
+
+				if (!GenericAssetPipeline)
+				{
+					if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(PipelineBase.Get()))
+					{
+						GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PythonPipelineAsset->GeneratedPipeline);
+					}
+				}
+				
+				if (GenericAssetPipeline)
 				{
 					if (!GenericAssetPipeline->CommonMeshesProperties.IsNull() && GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{

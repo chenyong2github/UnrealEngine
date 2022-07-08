@@ -21,11 +21,14 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"InputCore",
+					"InterchangePipelines",
 					"MainFrame",
 					"Projects",
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",
+					"UnrealEd",
+					"AssetTools"
 				}
 			);
 		}

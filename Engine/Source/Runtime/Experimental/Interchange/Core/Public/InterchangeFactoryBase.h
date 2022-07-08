@@ -140,6 +140,7 @@ public:
 		FString NodeUniqueID;
 		UInterchangeBaseNodeContainer* NodeContainer = nullptr;
 		TArray<UInterchangePipelineBase*> Pipelines;
+		TArray<UObject*> OriginalPipelines;
 		
 		bool bIsReimport  = false;
 ;

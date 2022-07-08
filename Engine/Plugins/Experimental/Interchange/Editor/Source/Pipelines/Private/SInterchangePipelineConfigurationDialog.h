@@ -2,18 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Styling/SlateColor.h"
 #include "UObject/GCObject.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
 class IDetailsView;
+struct FPropertyAndParent;
 
 class FInterchangePipelineStacksTreeNodeItem : protected FGCObject
 {
@@ -64,6 +65,7 @@ public:
 	FReply OnCollapseAll();
 
 	const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& GetRootNodeArray() const { return RootNodeArray; }
+	TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& GetMutableRootNodeArray() { return RootNodeArray; }
 protected:
 	/** Delegate to invoke when selection changes. */
 	FOnPipelineConfigurationSelectionChanged OnSelectionChangedDelegate;
@@ -130,7 +132,10 @@ private:
 	TSharedRef<SBox> SpawnPipelineConfiguration();
 	void OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType);
 
+	bool IsPropertyVisible(const FPropertyAndParent&) const;
 	FText GetSourceDescription() const;
+	void RecursiveIterateNode(TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, TFunctionRef<void(TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& CurrentNode)> IterationLambda);
+	FReply OnResetToDefault();
 
 	bool RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, TOptional<FText>& OutInvalidReason) const;
 	bool IsImportButtonEnabled() const;
@@ -145,5 +150,8 @@ private:
 
 	bool bCanceled = false;
 	bool bImportAll = false;
+
+	FName CurrentStackName = NAME_None;
+	TWeakObjectPtr<UInterchangePipelineBase> CurrentSelectedPipeline = nullptr;
 };
 

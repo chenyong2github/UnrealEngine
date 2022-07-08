@@ -24,7 +24,7 @@ class UInterchangeStaticMeshLodDataNode;
 class UPhysicsAsset;
 
 /* Hide drop down will make sure the class is not showing in the class picker */
-UCLASS(BlueprintType, Experimental, hidedropdown)
+UCLASS(BlueprintType, hidedropdown, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMeshPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
@@ -69,7 +69,7 @@ public:
 	//////	Static Meshes Build settings Properties //////
 
 	/** If enabled this option will allow you to use Nanite rendering at runtime. Can only be used with simple opaque materials. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes|Build Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
 	bool bBuildNanite = false;
 	
 	//////	SKELETAL_MESHES_CATEGORY Properties //////
@@ -107,6 +107,8 @@ public:
 	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset) override;
+
+	virtual void PreDialogCleanup(const FName PipelineStackName) override;
 
 protected:
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;

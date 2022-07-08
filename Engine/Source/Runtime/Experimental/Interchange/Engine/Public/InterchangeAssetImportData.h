@@ -87,6 +87,6 @@ public:
 	FString NodeUniqueID;
 
 	/** List of pipelines use to import an asset */
-	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
-	TArray<TObjectPtr<UInterchangePipelineBase>> Pipelines;
+	UPROPERTY(EditAnywhere, Category = "Interchange | AssetImportData")
+	TArray<TObjectPtr<UObject>> Pipelines;
 };

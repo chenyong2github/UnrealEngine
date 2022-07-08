@@ -1384,7 +1384,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 																						 , Arguments.SourceData
 																						 , Arguments.NodeUniqueID
 																						 , Arguments.NodeContainer
-																						 , Arguments.Pipelines);
+																						 , Arguments.OriginalPipelines);
 		SetImportAssetDataParameters.SourceFiles = MoveTemp(SourceFiles);
 
 		Texture->AssetImportData = UE::Interchange::FFactoryCommon::SetImportAssetData(SetImportAssetDataParameters);

@@ -15,7 +15,7 @@ class UInterchangeActorFactoryNode;
 class UInterchangeSceneNode;
 
 
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType, editinlinenew, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericLevelPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()

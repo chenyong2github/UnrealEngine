@@ -7,6 +7,9 @@
 #include "Modules/ModuleManager.h"
 #include "Styling/ISlateStyle.h"
 
+class FAssetTypeActions_InterchangeBlueprintPipelineBase;
+class FAssetTypeActions_InterchangePipelineBase;
+class FAssetTypeActions_InterchangePythonPipelineBase;
 
 /**
  * The public interface to this module
@@ -38,5 +41,9 @@ public:
 	}
 
 	TArray<FName> ClassesToUnregisterOnShutdown;
+
+	TSharedPtr<FAssetTypeActions_InterchangeBlueprintPipelineBase> BlueprintPipelineBase_TypeActions;
+	TSharedPtr<FAssetTypeActions_InterchangePipelineBase> PipelineBase_TypeActions;
+	TSharedPtr<FAssetTypeActions_InterchangePythonPipelineBase> PythonPipelineBase_TypeActions;
 };
 

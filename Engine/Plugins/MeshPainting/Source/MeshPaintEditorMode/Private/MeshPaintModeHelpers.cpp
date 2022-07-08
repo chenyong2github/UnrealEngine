@@ -49,6 +49,7 @@
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeGenericMeshPipeline.h"
+#include "InterchangePythonPipelineBase.h"
 
 
 void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
@@ -318,14 +319,24 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Sk
 		UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
 		if (InterchangeAssetImportData)
 		{
-			for (TObjectPtr<UInterchangePipelineBase> PipelineBase : InterchangeAssetImportData->Pipelines)
+			for (TObjectPtr<UObject> PipelineBase : InterchangeAssetImportData->Pipelines)
 			{
-				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
+				UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get());
+
+				if (!GenericAssetPipeline)
+				{
+					if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(PipelineBase.Get()))
+					{
+						GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PythonPipelineAsset->GeneratedPipeline);
+					}
+				}
+
+				if (GenericAssetPipeline)
 				{
 					if (!GenericAssetPipeline->CommonMeshesProperties.IsNull() && GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{
-						InterchangeAssetImportData->SetFlags(RF_Transactional);
-						InterchangeAssetImportData->Modify();
+						GenericAssetPipeline->SetFlags(RF_Transactional);
+						GenericAssetPipeline->Modify();
 						GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
 					}
 				}

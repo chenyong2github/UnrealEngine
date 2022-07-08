@@ -494,7 +494,7 @@ void UInterchangeStaticMeshFactory::PreImportPreCompletedCallback(const FImportP
 		UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Arguments.ImportedObject);
 
 		UAssetImportData* ImportDataPtr = StaticMesh->GetAssetImportData();
-		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(StaticMesh, ImportDataPtr, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.Pipelines);
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(StaticMesh, ImportDataPtr, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.OriginalPipelines);
 		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 		StaticMesh->SetAssetImportData(ImportDataPtr);
 	}

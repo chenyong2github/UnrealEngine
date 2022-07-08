@@ -44,7 +44,7 @@ enum class EInterchangeVertexColorImportOption : uint8
 };
 
 
-UCLASS(BlueprintType, Experimental, hidedropdown)
+UCLASS(BlueprintType, hidedropdown, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericCommonMeshesProperties : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
@@ -72,7 +72,7 @@ public:
 	FColor VertexOverrideColor;
 };
 
-UCLASS(BlueprintType, Experimental, hidedropdown)
+UCLASS(BlueprintType, hidedropdown, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties : public UInterchangePipelineBase
 {
 	GENERATED_BODY()

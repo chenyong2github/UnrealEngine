@@ -2,16 +2,21 @@
 
 #include "InterchangeEditorPipelinesModule.h"
 
+#include "AssetToolsModule.h"
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
 #include "InterchangeEditorPipelineDetails.h"
 #include "InterchangeEditorPipelineStyle.h"
-#include "InterchangeGraphInspectorPipeline.h"
 #include "InterchangeManager.h"
+#include "InterchangePipelineBase.h"
+#include "InterchangePipelineFactories.h"
+#include "InterchangePythonPipelineBase.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "PropertyEditorModule.h"
+
+
 
 #define LOCTEXT_NAMESPACE "InterchangeEditorPipelines"
 
@@ -20,6 +25,12 @@ class FInterchangeEditorPipelinesModule : public IInterchangeEditorPipelinesModu
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+	//Called when we start the module
+	void AcquireResources();
+	
+	//Can be called multiple time
+	void ReleaseResources();
 
 	TSharedRef<FPropertySection> RegisterPropertySection(FPropertyEditorModule& PropertyModule, FName ClassName, FName SectionName, FText DisplayName);
 	void RegisterPropertySectionMappings();
@@ -35,6 +46,16 @@ private:
 IMPLEMENT_MODULE(FInterchangeEditorPipelinesModule, InterchangeEditorPipelines)
 
 void FInterchangeEditorPipelinesModule::StartupModule()
+{
+	AcquireResources();
+}
+
+void FInterchangeEditorPipelinesModule::ShutdownModule()
+{
+	ReleaseResources();
+}
+
+void FInterchangeEditorPipelinesModule::AcquireResources()
 {
 	auto RegisterItems = [this]()
 	{
@@ -59,13 +80,36 @@ void FInterchangeEditorPipelinesModule::StartupModule()
 	ClassesToUnregisterOnShutdown.Add(UInterchangeBaseNode::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangeBaseNodeDetailsCustomization::MakeInstance));
 	
+	ClassesToUnregisterOnShutdown.Add(UInterchangePipelineBase::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangePipelineBaseDetailsCustomization::MakeInstance));
+
+
 	if (!InterchangeEditorPipelineStyle.IsValid())
 	{
 		InterchangeEditorPipelineStyle = MakeShared<FInterchangeEditorPipelineStyle>();
 	}
+
+	// Register the InterchangeImportTestPlan asset
+	FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
+	IAssetTools& AssetTools = AssetToolsModule.Get();
+	
+	BlueprintPipelineBase_TypeActions = MakeShared<FAssetTypeActions_InterchangeBlueprintPipelineBase>();
+	AssetTools.RegisterAssetTypeActions(BlueprintPipelineBase_TypeActions.ToSharedRef());
+
+	PipelineBase_TypeActions = MakeShared<FAssetTypeActions_InterchangePipelineBase>();
+	AssetTools.RegisterAssetTypeActions(PipelineBase_TypeActions.ToSharedRef());
+
+	PythonPipelineBase_TypeActions = MakeShared<FAssetTypeActions_InterchangePythonPipelineBase>();
+	AssetTools.RegisterAssetTypeActions(PythonPipelineBase_TypeActions.ToSharedRef());
+
+	FCoreDelegates::OnPreExit.AddLambda([this]()
+		{
+			//We must release the resources before the application start to unload modules
+			ReleaseResources();
+		});
 }
 
-void FInterchangeEditorPipelinesModule::ShutdownModule()
+void FInterchangeEditorPipelinesModule::ReleaseResources()
 {
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 	if (PropertyEditorModule)
@@ -75,10 +119,20 @@ void FInterchangeEditorPipelinesModule::ShutdownModule()
 			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
 		}
 	}
+	ClassesToUnregisterOnShutdown.Empty();
 
 	UnregisterPropertySectionMappings();
 
 	InterchangeEditorPipelineStyle = nullptr;
+
+	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+	if (AssetToolsModule)
+	{
+		IAssetTools& AssetTools = AssetToolsModule->Get();
+		AssetTools.UnregisterAssetTypeActions(BlueprintPipelineBase_TypeActions.ToSharedRef());
+		AssetTools.UnregisterAssetTypeActions(PipelineBase_TypeActions.ToSharedRef());
+		AssetTools.UnregisterAssetTypeActions(PythonPipelineBase_TypeActions.ToSharedRef());
+	}
 }
 
 TSharedRef<FPropertySection> FInterchangeEditorPipelinesModule::RegisterPropertySection(FPropertyEditorModule& PropertyModule, FName ClassName, FName SectionName, FText DisplayName)
@@ -150,6 +204,8 @@ void FInterchangeEditorPipelinesModule::UnregisterPropertySectionMappings()
 		PropertyModule->RemoveSection(PropertySectionIterator->Key, PropertySectionIterator->Value);
 		PropertySectionIterator.RemoveCurrent();
 	}
+
+	RegisteredPropertySections.Empty();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -180,8 +180,11 @@ namespace UE
 			TArray<UInterchangeSourceData*> SourceDatas;
 			TArray<UInterchangeTranslatorBase*> Translators;
 
-			//Pipelines array is not per source data 
+			//Pipelines array is not per source data
 			TArray<UInterchangePipelineBase*> Pipelines;
+			//The original pipelines asset to save in the asset reimport data. The original pipeline can restore python class member value.
+			//Python class instanced assets cannot be saved, so we have to serialize in json the data to restore it when we do a re-import.
+			TArray<UObject*> OriginalPipelines;
 
 			TArray<FGraphEventRef> TranslatorTasks;
 			TArray<FGraphEventRef> PipelinePreImportTasks;
@@ -235,6 +238,9 @@ namespace UE
 		void SanitizeObjectPath(FString& ObjectPath);
 
 		void SanitizeObjectName(FString& ObjectName);
+
+		/* This function take an asset representing a pipeline and generate a UInterchangePipelineBase asset. */
+		INTERCHANGEENGINE_API UInterchangePipelineBase* GeneratePipelineInstance(const FSoftObjectPath& PipelineInstance);
 
 	} //ns interchange
 } //ns UE

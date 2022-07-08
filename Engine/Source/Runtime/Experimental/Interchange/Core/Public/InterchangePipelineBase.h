@@ -31,7 +31,7 @@ enum class EInterchangeReimportType : uint8
 	AssetAlternateSkinningReimport,
 };
 
-UCLASS(BlueprintType, Blueprintable, Experimental, EditInlineNew, Abstract)
+UCLASS(BlueprintType, Blueprintable, editinlinenew, Experimental, Abstract)
 class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 {
 	GENERATED_BODY()
@@ -168,6 +168,22 @@ public:
 		Results = InResults;
 	}
 
+	bool SetLockedPropertyStatus(const FName PropertyPath, bool bLocked);
+	bool GetLockedPropertyStatus(const FName PropertyPath) const;
+
+	/**
+	 * Return the property name of the LockedProperties map
+	 */
+	static FName GetLockedPropertiesPropertyName();
+
+	/**
+	 * If true, the property editor for this pipeline instance will allow locked properties edition.
+	 * If false, the property editor for this pipeline instance will set locked properties in read only.
+	 * 
+	 * Note: If you open in the content browser a pipeline asset you will be able to edit locked properties.
+	 *       If you import a file with interchange, the import dialog will show locked properties in read only mode.
+	 */
+	bool bAllowLockedPropertiesEdition = true;
 
 protected:
 
@@ -209,7 +225,14 @@ protected:
 	{
 	}
 
+	void LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, bool>& ParentLockedProperties);
+
+	void SaveSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename);
 
 	UPROPERTY()
 	TObjectPtr<UInterchangeResultsContainer> Results;
+
+	/* Map of property path and lock status. Any properties that have a true lock status will be readonly when showing the import dialog */
+	UPROPERTY(BlueprintReadWrite, Category = "Pipeline Properties Manager")
+	TMap<FName, bool> LockedProperties;
 };

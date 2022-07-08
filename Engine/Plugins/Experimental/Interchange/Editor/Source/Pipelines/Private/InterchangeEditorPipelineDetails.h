@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
@@ -13,6 +13,7 @@ class IDetailLayoutBuilder;
 class IDetailPropertyRow;
 class IPropertyHandle;
 class UInterchangeBaseNode;
+class UInterchangePipelineBase;
 
 namespace UE
 {
@@ -22,6 +23,33 @@ namespace UE
 	}
 }
 
+class FInterchangePipelineBaseDetailsCustomization : public IDetailCustomization
+{
+public:
+
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	/** End IDetailCustomization interface */
+
+private:
+	struct FInternalPropertyData
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle;
+		bool bReadOnly = false;
+	};
+	void RefreshCustomDetail();
+	void LockPropertyHandleRow(const TSharedPtr<IPropertyHandle> PropertyHandle, IDetailPropertyRow& PropertyRow) const;
+	void AddSubCategory(IDetailLayoutBuilder& DetailBuilder, TMap<FName, TMap<FName, TArray<FInternalPropertyData>>>& SubCategoriesPropertiesPerMainCategory);
+	void InternalGetPipelineProperties(const UInterchangePipelineBase* Pipeline, const TArray<FName>& AllCategoryNames, TMap<FName, TArray<FName>>& PropertiesPerCategorys) const;
+	/** Use MakeInstance to create an instance of this class */
+	FInterchangePipelineBaseDetailsCustomization();
+
+	TWeakObjectPtr<UInterchangePipelineBase> InterchangePipeline;
+	IDetailLayoutBuilder* CachedDetailBuilder;	// The detail builder for this customisation
+};
 
 class FInterchangeBaseNodeDetailsCustomization : public IDetailCustomization
 {

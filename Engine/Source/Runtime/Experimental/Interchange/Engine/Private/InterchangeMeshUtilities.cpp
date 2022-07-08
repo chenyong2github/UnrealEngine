@@ -10,6 +10,7 @@
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeManager.h"
 #include "InterchangeProjectSettings.h"
+#include "InterchangePythonPipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Logging/LogMacros.h"
 #include "UObject/Class.h"
@@ -112,11 +113,22 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 
 	FImportAssetParameters ImportAssetParameters;
 	ImportAssetParameters.bIsAutomated = true;
-	for (TObjectPtr<UInterchangePipelineBase> SelectedPipeline : InterchangeAssetImportData->Pipelines)
+	for (TObjectPtr<UObject> SelectedPipeline : InterchangeAssetImportData->Pipelines)
 	{
-		UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SelectedPipeline, GetTransientPackage()));
-		GeneratedPipeline->AdjustSettingsForReimportType(ImportType, nullptr);
-		ImportAssetParameters.OverridePipelines.Add(GeneratedPipeline);
+		UInterchangePipelineBase* GeneratedPipeline = nullptr;
+		if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(SelectedPipeline))
+		{
+			GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(PythonPipelineAsset->GeneratedPipeline, GetTransientPackage()));
+		}
+		else
+		{
+			GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SelectedPipeline, GetTransientPackage()));
+		}
+		if (ensure(GeneratedPipeline))
+		{
+			GeneratedPipeline->AdjustSettingsForReimportType(ImportType, nullptr);
+			ImportAssetParameters.OverridePipelines.Add(GeneratedPipeline);
+		}
 	}
 	FString ImportAssetPath = TEXT("/Engine/TempEditor/Interchange/") + FGuid::NewGuid().ToString(EGuidFormats::Base36Encoded);
 	UE::Interchange::FAssetImportResultRef AssetImportResult = InterchangeManager.ImportAssetAsync(ImportAssetPath, SourceData, ImportAssetParameters);

@@ -488,7 +488,7 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 																										  , Arguments.SourceData
 																										  , Arguments.NodeUniqueID
 																										  , Arguments.NodeContainer
-																										  , Arguments.Pipelines);
+																										  , Arguments.OriginalPipelines);
 
 		ImportedMaterialInterface->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 #endif // WITH_EDITORONLY_DATA

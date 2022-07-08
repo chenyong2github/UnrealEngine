@@ -964,7 +964,7 @@ void UInterchangeAnimSequenceFactory::PreImportPreCompletedCallback(const FImpor
 		UAnimSequence* AnimSequence = CastChecked<UAnimSequence>(Arguments.ImportedObject);
 
 		UAssetImportData* ImportDataPtr = AnimSequence->AssetImportData;
-		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(AnimSequence, ImportDataPtr, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.Pipelines);
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(AnimSequence, ImportDataPtr, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.OriginalPipelines);
 		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 		AnimSequence->AssetImportData = ImportDataPtr;
 	}

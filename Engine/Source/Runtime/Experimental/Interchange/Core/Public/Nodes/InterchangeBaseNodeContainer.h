@@ -183,7 +183,7 @@ private:
 	UInterchangeBaseNode* GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex);
 
 	/** Flat List of the nodes. Since the nodes are variable size, we store a pointer. */
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Interchange | Node Container")
 	TMap<FString, TObjectPtr<UInterchangeBaseNode> > Nodes;
 
 	mutable TMap<FString, TArray<FString> > ChildrenCache;

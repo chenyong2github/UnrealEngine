@@ -31,6 +31,11 @@ void UInterchangeGenericMeshPipeline::AdjustSettingsForReimportType(EInterchange
 	}
 }
 
+void UInterchangeGenericMeshPipeline::PreDialogCleanup(const FName PipelineStackName)
+{
+	PhysicsAsset = nullptr;
+}
+
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)

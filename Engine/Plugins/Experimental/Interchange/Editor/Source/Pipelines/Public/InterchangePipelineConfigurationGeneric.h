@@ -11,7 +11,7 @@
 
 class UInterchangeSourceData;
 
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, editinlinenew, Experimental)
 class INTERCHANGEEDITORPIPELINES_API UInterchangePipelineConfigurationGeneric : public UInterchangePipelineConfigurationBase
 {
 	GENERATED_BODY()

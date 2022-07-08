@@ -8,6 +8,7 @@
 #include "InterchangeFilePickerBase.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineConfigurationBase.h"
+#include "UObject/SoftObjectPath.h"
 
 #include "InterchangeProjectSettings.generated.h"
 
@@ -15,10 +16,10 @@ USTRUCT()
 struct FInterchangePipelineStack
 {
 	GENERATED_BODY()
-
+	
 	/** The starting mesh for the blueprint **/
-	UPROPERTY(EditAnywhere, config, Category = Interchange)
-	TArray<TSoftClassPtr<UInterchangePipelineBase>> Pipelines;
+	UPROPERTY(EditAnywhere, Category = Interchange, meta=(AllowedClasses = "InterchangePipelineBase, InterchangeBlueprintPipelineBase, InterchangePythonPipelineAsset"))
+	TArray<FSoftObjectPath> Pipelines;
 };
 
 UCLASS(config=Engine, meta=(DisplayName=Interchange), MinimalAPI)

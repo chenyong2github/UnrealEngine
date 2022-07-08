@@ -5,6 +5,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangePipelineBase.h"
+#include "InterchangePythonPipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
@@ -49,9 +50,9 @@ namespace UE
 				FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
 				AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
 				AssetImportData->Pipelines.Reset();
-				for (const UInterchangePipelineBase* Pipeline : Parameters.Pipelines)
+				for (const UObject* Pipeline : Parameters.Pipelines)
 				{
-					UInterchangePipelineBase* DupPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(Pipeline, AssetImportData));
+					UObject* DupPipeline = Cast<UObject>(StaticDuplicateObject(Pipeline, AssetImportData));
 					if (DupPipeline)
 					{
 						AssetImportData->Pipelines.Add(DupPipeline);
@@ -65,7 +66,7 @@ namespace UE
 																							, const UInterchangeSourceData* InSourceData
 																							, FString InNodeUniqueID
 																							, UInterchangeBaseNodeContainer* InNodeContainer
-																						   , const TArray<UInterchangePipelineBase*>& InPipelines)
+																						   , const TArray<UObject*>& InPipelines)
 			: AssetImportDataOuter(InAssetImportDataOuter)
 			, AssetImportData(InAssetImportData)
 			, SourceData(InSourceData)
@@ -135,7 +136,7 @@ namespace UE
 																					, const UInterchangeSourceData* InSourceData
 																					, FString InNodeUniqueID
 																					, UInterchangeBaseNodeContainer* InNodeContainer
-																					, const TArray<UInterchangePipelineBase*>& InPipelines)
+																					, const TArray<UObject*>& InPipelines)
 			: FUpdateImportAssetDataParameters(InAssetImportDataOuter
 				, InAssetImportData
 				, InSourceData
@@ -220,9 +221,20 @@ namespace UE
 				return false;
 			}
 
-			for (UInterchangePipelineBase* PipelineBase : InterchangeAssetImportData->Pipelines)
+			for (UObject* PipelineObject : InterchangeAssetImportData->Pipelines)
 			{
-				PipelineBase->ScriptedSetReimportSourceIndex(Object->GetClass(), SourceIndex);
+				if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(PipelineObject))
+				{
+					if (PythonPipelineAsset->GeneratedPipeline)
+					{
+						PythonPipelineAsset->GeneratedPipeline->ScriptedSetReimportSourceIndex(Object->GetClass(), SourceIndex);
+						PythonPipelineAsset->SetupFromPipeline(PythonPipelineAsset->GeneratedPipeline);
+					}
+				}
+				else if (UInterchangePipelineBase* PipelineBase = Cast<UInterchangePipelineBase>(PipelineObject))
+				{
+					PipelineBase->ScriptedSetReimportSourceIndex(Object->GetClass(), SourceIndex);
+				}
 			}
 			return true;
 		}

@@ -7,8 +7,12 @@
 #include "DetailWidgetRow.h"
 #include "Editor.h"
 #include "IDetailGroup.h"
+#include "InterchangePipelineBase.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "PropertyHandle.h"
+#include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -17,8 +21,260 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 
-
 #define LOCTEXT_NAMESPACE "InterchangeEditorPipelineDetails"
+
+FInterchangePipelineBaseDetailsCustomization::FInterchangePipelineBaseDetailsCustomization()
+{
+	InterchangePipeline = nullptr;
+	CachedDetailBuilder = nullptr;
+}
+
+void FInterchangePipelineBaseDetailsCustomization::RefreshCustomDetail()
+{
+	if (CachedDetailBuilder)
+	{
+		CachedDetailBuilder->ForceRefreshDetails();
+	}
+}
+
+void FInterchangePipelineBaseDetailsCustomization::LockPropertyHandleRow(const TSharedPtr<IPropertyHandle> PropertyHandle, IDetailPropertyRow& PropertyRow) const
+{
+	//When we have a locked property we do not show the Reset to default button
+	FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateLambda([](TSharedPtr<IPropertyHandle> PropertyHandle)
+		{
+			return false;
+		});
+	FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateLambda([](TSharedPtr<IPropertyHandle> PropertyHandle) { return; });
+	FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+
+	uint32 NumChildren = 0;
+	if (PropertyHandle.Get()->GetNumChildren(NumChildren) == FPropertyAccess::Success && NumChildren > 0)
+	{
+		//Remove the reset to CDO for the locked property
+		constexpr bool bShowChildren = false;
+		TSharedPtr<SWidget> NameWidget;
+		TSharedPtr<SWidget> ValueWidget;
+		FDetailWidgetRow Row;
+		PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+		NameWidget->SetEnabled(false);
+		ValueWidget->SetEnabled(false);
+		FDetailWidgetRow& WidgetRow = PropertyRow.CustomWidget(bShowChildren)
+			.NameContent()
+			.MinDesiredWidth(Row.NameWidget.MinWidth)
+			.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+			[
+				NameWidget.ToSharedRef()
+			]
+		.ValueContent()
+			.MinDesiredWidth(Row.ValueWidget.MinWidth)
+			.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+			.VAlign(VAlign_Center)
+			[
+				ValueWidget.ToSharedRef()
+			];
+		WidgetRow.OverrideResetToDefault(ResetOverride);
+	}
+	else
+	{
+		PropertyRow.IsEnabled(false);
+		PropertyRow.OverrideResetToDefault(ResetOverride);
+	}
+}
+
+void FInterchangePipelineBaseDetailsCustomization::AddSubCategory(IDetailLayoutBuilder& DetailBuilder, TMap<FName, TMap<FName, TArray<FInternalPropertyData>>>& SubCategoriesPropertiesPerMainCategory)
+{
+	for (const TPair<FName, TMap<FName, TArray<FInternalPropertyData>>>& MainCategoryAndSubCategoriesProperties : SubCategoriesPropertiesPerMainCategory)
+	{
+		const FName& MainCategoryName = MainCategoryAndSubCategoriesProperties.Key;
+		const TMap<FName, TArray<FInternalPropertyData>>& SubCategoriesProperties = MainCategoryAndSubCategoriesProperties.Value;
+		IDetailCategoryBuilder& MainCategory = DetailBuilder.EditCategory(MainCategoryName);
+		//If we found some sub category we can add them to the group
+		for (const TPair<FName, TArray<FInternalPropertyData>>& SubCategoryProperties : SubCategoriesProperties)
+		{
+			const FName& SubCategoryName = SubCategoryProperties.Key;
+			const TArray<FInternalPropertyData>& Properties = SubCategoryProperties.Value;
+			constexpr bool SubCategoryAdvanced = false;
+			IDetailGroup& Group = MainCategory.AddGroup(SubCategoryName, FText::FromName(SubCategoryName), SubCategoryAdvanced);
+			for (int32 PropertyIndex = 0; PropertyIndex < Properties.Num(); ++PropertyIndex)
+			{
+				const FInternalPropertyData& PropertyData = Properties[PropertyIndex];
+				const TSharedPtr<IPropertyHandle>& PropertyHandle = PropertyData.PropertyHandle;
+				DetailBuilder.HideProperty(PropertyHandle);
+				IDetailPropertyRow& PropertyRow = Group.AddPropertyRow(PropertyHandle.ToSharedRef());
+				//If needed, make the property read only
+				if (PropertyData.bReadOnly)
+				{
+					LockPropertyHandleRow(PropertyHandle, PropertyRow);
+				}
+			}
+		}
+	}
+}
+
+TSharedRef<IDetailCustomization> FInterchangePipelineBaseDetailsCustomization::MakeInstance()
+{
+	return MakeShareable(new FInterchangePipelineBaseDetailsCustomization);
+}
+
+void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	CachedDetailBuilder = &DetailBuilder;
+	TArray<TWeakObjectPtr<UObject>> EditingObjects;
+	DetailBuilder.GetObjectsBeingCustomized(EditingObjects);
+	check(EditingObjects.Num() == 1);
+
+	InterchangePipeline = Cast<UInterchangePipelineBase>(EditingObjects[0].Get());
+
+	if (!ensure(InterchangePipeline.IsValid()))
+	{
+		return;
+	}
+
+	const bool bAllowLockedPropertiesEdition = InterchangePipeline->bAllowLockedPropertiesEdition;
+
+	TArray<FName> AllCategoryNames;
+	CachedDetailBuilder->GetCategoryNames(AllCategoryNames);
+	TMap<FName, TArray<FName>> PropertiesPerCategorys;
+	InternalGetPipelineProperties(InterchangePipeline.Get(), AllCategoryNames, PropertiesPerCategorys);
+
+	TMap<FName, TMap<FName, TArray<FInternalPropertyData>>> SubCategoriesPropertiesPerMainCategory;
+
+	for (const TPair<FName, TArray<FName>>& CategoryAndProperties : PropertiesPerCategorys)
+	{
+		const FName CategoryName = CategoryAndProperties.Key;
+		IDetailCategoryBuilder& Category = CachedDetailBuilder->EditCategory(CategoryName);
+		
+		TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
+
+		Category.GetDefaultProperties(CategoryProperties);
+
+		for (TSharedRef<IPropertyHandle>& PropertyHandle : CategoryProperties)
+		{
+			FProperty* PropertyPtr = PropertyHandle.Get().GetProperty();
+			if (!PropertyPtr)
+			{
+				continue;
+			}
+			const FName PropertyName = PropertyHandle.Get().GetProperty() ? PropertyHandle.Get().GetProperty()->GetFName() : NAME_None;
+			if (PropertyName == UInterchangePipelineBase::GetLockedPropertiesPropertyName())
+			{
+				CachedDetailBuilder->HideProperty(PropertyHandle);
+				continue;
+			}
+			// Skip the property if:
+			// We do not allow property edition
+			// property is not in the List of supported properties
+			if (!CategoryAndProperties.Value.Contains(PropertyName))
+			{
+				continue;
+			}
+			FName PropertyPath = FName(PropertyPtr->GetPathName());
+			CachedDetailBuilder->HideProperty(PropertyHandle);
+			if (!bAllowLockedPropertiesEdition)
+			{
+				const bool bLockedProperty = InterchangePipeline->GetLockedPropertyStatus(PropertyPath);
+				const FName SubCategoryData = FName(PropertyHandle->GetMetaData(TEXT("SubCategory")));
+				if (SubCategoryData != NAME_None)
+				{
+					TMap<FName, TArray<FInternalPropertyData>>& SubCategoriesProperties = SubCategoriesPropertiesPerMainCategory.FindOrAdd(CategoryName);
+					TArray<FInternalPropertyData>& SubCategoryProperties = SubCategoriesProperties.FindOrAdd(SubCategoryData);
+					FInternalPropertyData& PropertyData = SubCategoryProperties.AddDefaulted_GetRef();
+					PropertyData.PropertyHandle = PropertyHandle;
+					PropertyData.bReadOnly = bLockedProperty;
+				}
+				else
+				{
+					IDetailPropertyRow& PropertyRow = Category.AddProperty(PropertyHandle);
+					//When we use the pipeline in interchange
+					if (bLockedProperty)
+					{
+						LockPropertyHandleRow(PropertyHandle, PropertyRow);
+					}
+				}
+			}
+			else
+			{
+				constexpr bool bShowChildren = true;
+				IDetailPropertyRow& PropertyRow = Category.AddProperty(PropertyHandle);
+				TSharedPtr<SWidget> NameWidget;
+				TSharedPtr<SWidget> ValueWidget;
+				FDetailWidgetRow Row;
+				PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+				//When we edit the default value and the locked properties of a pipeline assets
+				PropertyRow.CustomWidget(bShowChildren)
+				.NameContent()
+				.MinDesiredWidth(Row.NameWidget.MinWidth)
+				.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(3.0f, 1.0f)
+					[
+						SNew(SCheckBox)
+						.CheckedImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+						.CheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+						.CheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+						.UncheckedImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
+						.UncheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
+						.UncheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
+						.ToolTipText(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "LockedTooltip", "If true this property will be readonly in the interchange import dialog."))
+						.OnCheckStateChanged_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath](ECheckBoxState CheckType)
+						{
+							if (!ensure(InterchangePipelinePtr.IsValid()))
+							{
+								return;
+							}
+							FScopedTransaction ScopedTransaction(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "TransactionLockedPropertiesSet", "Toggle Property Locked"), !GIsTransacting);
+							InterchangePipelinePtr->Modify();
+							InterchangePipelinePtr->SetLockedPropertyStatus(PropertyPath, (CheckType == ECheckBoxState::Checked));
+							InterchangePipelinePtr->PostEditChange();
+						})
+						.IsChecked_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
+						{
+							if (!InterchangePipelinePtr.IsValid())
+							{
+								return ECheckBoxState::Unchecked;
+							}
+							return InterchangePipelinePtr->GetLockedPropertyStatus(PropertyPath) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						})
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.Padding(3.0f, 1.0f)
+					[
+						SNew(SBorder)
+						.BorderBackgroundColor(FStyleColors::Background)
+						.ForegroundColor_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
+							{
+								if (!InterchangePipelinePtr.IsValid())
+								{
+									return FStyleColors::Foreground;
+								}
+								if (InterchangePipelinePtr->GetLockedPropertyStatus(PropertyPath))
+								{
+									return FStyleColors::AccentBlue;
+								}
+								return FStyleColors::Foreground;
+							})
+						[
+							NameWidget.ToSharedRef()
+						]
+					]
+				]
+				.ValueContent()
+				.MinDesiredWidth(Row.ValueWidget.MinWidth)
+				.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+				.VAlign(VAlign_Center)
+				[
+					ValueWidget.ToSharedRef()
+				];
+			}
+		}
+	}
+
+	AddSubCategory(DetailBuilder, SubCategoriesPropertiesPerMainCategory);
+}
 
 FInterchangeBaseNodeDetailsCustomization::FInterchangeBaseNodeDetailsCustomization()
 {
@@ -37,6 +293,40 @@ void FInterchangeBaseNodeDetailsCustomization::RefreshCustomDetail()
 		CachedDetailBuilder->ForceRefreshDetails();
 	}
 }
+
+void FInterchangePipelineBaseDetailsCustomization::InternalGetPipelineProperties(const UInterchangePipelineBase* Pipeline, const TArray<FName>& AllCategoryNames, TMap<FName, TArray<FName>>& PropertiesPerCategorys) const
+{
+	const UClass* PipelineClass = Pipeline->GetClass();
+	const FName CategoryKey("Category");
+	TArray<UInterchangePipelineBase*> SubPipelines;
+	for (FProperty* Property = PipelineClass->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	{
+		//Do not load a transient property
+		if (Property->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
+		if (UInterchangePipelineBase* SubPipeline = SubObject ? Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(Pipeline)) : nullptr)
+		{
+			SubPipelines.Add(SubPipeline);
+		}
+		else if (const FString* PropertyCategoryString = Property->FindMetaData(CategoryKey))
+		{
+			FName PropertyCategoryName(*PropertyCategoryString);
+			if (AllCategoryNames.Contains(PropertyCategoryName))
+			{
+				PropertiesPerCategorys.FindOrAdd(PropertyCategoryName).AddUnique(Property->GetFName());
+			}
+		}
+	}
+	//Get all sub pipeline object properties
+	for (UInterchangePipelineBase* SubPipeline : SubPipelines)
+	{
+		InternalGetPipelineProperties(SubPipeline, AllCategoryNames, PropertiesPerCategorys);
+	}
+}
+
 
 TSharedRef<IDetailCustomization> FInterchangeBaseNodeDetailsCustomization::MakeInstance()
 {

@@ -1448,7 +1448,7 @@ void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImpor
 																										  , Arguments.SourceData
 																										  , Arguments.NodeUniqueID
 																										  , Arguments.NodeContainer
-																										  , Arguments.Pipelines);
+																										  , Arguments.OriginalPipelines);
 
 		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters, [&Arguments, SkeletalMesh](UInterchangeAssetImportData* AssetImportData)
 			{

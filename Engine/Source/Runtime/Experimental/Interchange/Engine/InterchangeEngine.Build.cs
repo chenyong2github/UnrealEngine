@@ -23,6 +23,8 @@ public class InterchangeEngine : ModuleRules
 				"Slate",
 				"DeveloperSettings",
 				"SkeletalMeshUtilitiesCommon",
+				"Json",
+				"JsonUtilities",
 			}
 		);
 	}

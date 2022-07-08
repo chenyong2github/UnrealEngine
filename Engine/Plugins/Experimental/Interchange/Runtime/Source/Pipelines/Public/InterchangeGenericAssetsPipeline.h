@@ -23,7 +23,7 @@ class UInterchangeGenericTexturePipeline;
  * All shared import options between mesh type should be added here.
  *
  */
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType, editinlinenew, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericAssetsPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
@@ -115,5 +115,3 @@ private:
 	TArray<const UInterchangeSourceData*> SourceDatas;
 	
 };
-
-

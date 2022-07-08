@@ -13,7 +13,7 @@
 class UInterchangeTextureFactoryNode;
 class UInterchangeTextureNode;
 
-UCLASS(BlueprintType, Experimental, hidedropdown)
+UCLASS(BlueprintType, hidedropdown, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericTexturePipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()

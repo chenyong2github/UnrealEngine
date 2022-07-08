@@ -16,7 +16,7 @@ namespace UE
 		{
 			FString CreateConfigSectionName(const FName PipelineStackName, UClass* PipelineClass)
 			{
-				FString Section = TEXT("Interchange__StackName_") + PipelineStackName.ToString() + TEXT("__PipelineClassName_") + PipelineClass->GetName();
+				FString Section = TEXT("Interchange_StackName__") + PipelineStackName.ToString() + TEXT("__PipelineClassName_") + PipelineClass->GetName();
 				return Section;
 			}
 		}
@@ -24,6 +24,47 @@ namespace UE
 }
 
 void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
+{
+	LoadSettingsInternal(PipelineStackName, GEditorPerProjectIni, LockedProperties);
+}
+
+void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
+{
+	SaveSettingsInternal(PipelineStackName, GEditorPerProjectIni);
+}
+
+bool UInterchangePipelineBase::SetLockedPropertyStatus(const FName PropertyPath, bool bLocked)
+{
+	ensure(bAllowLockedPropertiesEdition);
+
+	if (!bLocked)
+	{
+		LockedProperties.Remove(PropertyPath);
+	}
+	else
+	{
+		bool& bLockStatus = LockedProperties.FindOrAdd(PropertyPath);
+		bLockStatus = bLocked;
+	}
+
+	return true;
+}
+
+bool UInterchangePipelineBase::GetLockedPropertyStatus(const FName PropertyPath) const
+{
+	if (const bool* bLockStatus = LockedProperties.Find(PropertyPath))
+	{
+		return *bLockStatus;
+	}
+	return false;
+}
+
+FName UInterchangePipelineBase::GetLockedPropertiesPropertyName()
+{
+	return GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties);
+}
+
+void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, bool>& ParentLockedProperties)
 {
 	int32 PortFlags = 0;
 	UClass* Class = this->GetClass();
@@ -35,25 +76,39 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 			continue;
 		}
 
-		FString Section = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
+		FString SectionName = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
 		FString Key = Property->GetName();
+		const FName PropertyName = Property->GetFName();
+		const FName PropertyPath = FName(Property->GetPathName());
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties))
+		{
+			continue;
+		}
+
+		if (const bool* LockStatus = ParentLockedProperties.Find(PropertyPath))
+		{
+			if (*LockStatus)
+			{
+				//Skip this locked property
+				continue;
+			}
+		}
 
 		const bool bIsPropertyInherited = Property->GetOwnerClass() != Class;
 		UObject* SuperClassDefaultObject = Class->GetSuperClass()->GetDefaultObject();
 
-		const FString& PropFileName = GEditorPerProjectIni;
 		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
 		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
 			const bool bForce = false;
 			const bool bConst = true;
-			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, bForce, bConst, *GEditorPerProjectIni);
-			if (Sec != nullptr)
+			FConfigSection* Section = GConfig->GetSectionPrivate(*SectionName, bForce, bConst, ConfigFilename);
+			if (Section != nullptr)
 			{
 				TArray<FConfigValue> List;
 				const FName KeyName(*Key, FNAME_Find);
-				Sec->MultiFind(KeyName, List);
+				Section->MultiFind(KeyName, List);
 
 				FScriptArrayHelper_InContainer ArrayHelper(Array, this);
 				// Only override default properties if there is something to override them with.
@@ -80,7 +135,7 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 						{
 							break;
 						}
-						ElementValue = Sec->Find(IndexedName);
+						ElementValue = Section->Find(IndexedName);
 
 						// If found, import the element
 						if (ElementValue != nullptr)
@@ -100,7 +155,7 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 			// Load the settings if the referenced pipeline is a subobject of ours
 			if (SubPipeline->IsInOuter(this))
 			{
-				SubPipeline->LoadSettings(PipelineStackName);
+				SubPipeline->LoadSettingsInternal(PipelineStackName, ConfigFilename, ParentLockedProperties);
 			}
 		}
 		else
@@ -113,7 +168,7 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 				}
 
 				FString Value;
-				bool bFoundValue = GConfig->GetString(*Section, *Key, Value, *GEditorPerProjectIni);
+				bool bFoundValue = GConfig->GetString(*SectionName, *Key, Value, ConfigFilename);
 
 				if (bFoundValue)
 				{
@@ -128,7 +183,7 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 	}
 }
 
-void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
+void UInterchangePipelineBase::SaveSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename)
 {
 	int32 PortFlags = 0;
 	UClass* Class = this->GetClass();
@@ -140,8 +195,13 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 			continue;
 		}
 
-		FString Section = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
+		FString SectionName = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
 		FString Key = Property->GetName();
+		const FName PropertyName = Property->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties))
+		{
+			continue;
+		}
 
 		const bool bIsPropertyInherited = Property->GetOwnerClass() != Class;
 		UObject* SuperClassDefaultObject = Class->GetSuperClass()->GetDefaultObject();
@@ -151,16 +211,16 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 		{
 			const bool bForce = true;
 			const bool bConst = false;
-			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, bForce, bConst, *GEditorPerProjectIni);
-			check(Sec);
-			Sec->Remove(*Key);
+			FConfigSection* Section = GConfig->GetSectionPrivate(*SectionName, bForce, bConst, ConfigFilename);
+			check(Section);
+			Section->Remove(*Key);
 
 			FScriptArrayHelper_InContainer ArrayHelper(Array, this);
 			for (int32 i = 0; i < ArrayHelper.Num(); i++)
 			{
 				FString	Buffer;
 				Array->Inner->ExportTextItem_Direct(Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags);
-				Sec->Add(*Key, *Buffer);
+				Section->Add(*Key, *Buffer);
 			}
 		}
 		else if (UInterchangePipelineBase* SubPipeline = SubObject ? Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)) : nullptr)
@@ -168,7 +228,7 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 			// Save the settings if the referenced pipeline is a subobject of ours
 			if (SubPipeline->IsInOuter(this))
 			{
-				SubPipeline->SaveSettings(PipelineStackName);
+				SubPipeline->SaveSettingsInternal(PipelineStackName, ConfigFilename);
 			}
 		}
 		else
@@ -184,10 +244,9 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 
 				FString	Value;
 				Property->ExportText_InContainer(Index, Value, this, this, this, PortFlags);
-				GConfig->SetString(*Section, *Key, *Value, *GEditorPerProjectIni);
+				GConfig->SetString(*SectionName, *Key, *Value, ConfigFilename);
 			}
 		}
 	}
 	GConfig->Flush(0);
 }
-

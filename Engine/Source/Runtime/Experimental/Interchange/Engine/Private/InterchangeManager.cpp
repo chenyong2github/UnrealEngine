@@ -9,9 +9,11 @@
 #include "Engine/Blueprint.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "InterchangeAssetImportData.h"
+#include "InterchangeBlueprintPipelineBase.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeProjectSettings.h"
+#include "InterchangePythonPipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
@@ -357,6 +359,49 @@ void UE::Interchange::SanitizeObjectName(FString& ObjectName)
 		ObjectName.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
 		++InvalidChar;
 	}
+}
+
+UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftObjectPath& PipelineInstance)
+{
+	UObject* ReferenceInstance = PipelineInstance.TryLoad();
+	if (!ReferenceInstance)
+	{
+		return nullptr;
+	}
+	UInterchangePipelineBase* GeneratedPipeline = nullptr;
+	if (const UInterchangeBlueprintPipelineBase* BlueprintPipeline = Cast<UInterchangeBlueprintPipelineBase>(ReferenceInstance))
+	{
+		if (BlueprintPipeline->GeneratedClass.Get())
+		{
+			GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), BlueprintPipeline->GeneratedClass);
+		}
+		else
+		{
+			//Log an error because we cannot load the python class, maybe the python script was not loaded
+			UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot generate a pipeline instance because the blueprint %s do not have a valid generated class."), *PipelineInstance.GetAssetPathName().ToString());
+		}
+	}
+	else if (const UInterchangePythonPipelineAsset* PythonPipeline = Cast<UInterchangePythonPipelineAsset>(ReferenceInstance))
+	{
+		if (PythonPipeline->GeneratedPipeline)
+		{
+			GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(PythonPipeline->GeneratedPipeline.Get(), GetTransientPackage());
+		}
+		else
+		{
+			//Log an error because we cannot load the python class, maybe the python script was not loaded
+			UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot generate a pipeline instance because the Python pipeline asset %s do not have a valid generated pipeline instance."), *PipelineInstance.GetAssetPathName().ToString());
+		}
+	}
+	else if (const UInterchangePipelineBase* DefaultPipeline = Cast<UInterchangePipelineBase>(ReferenceInstance))
+	{
+		GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(DefaultPipeline, GetTransientPackage());
+	}
+	else
+	{
+		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot generate a pipeline instance because the pipeline asset %s type is unknown."), *PipelineInstance.GetAssetPathName().ToString());
+	}
+	return GeneratedPipeline;
 }
 
 UInterchangeManager& UInterchangeManager::GetInterchangeManager()
@@ -751,7 +796,14 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			TArray<UInterchangePipelineBase*> PipelineStack;
 			for (int32 PipelineIndex = 0; PipelineIndex < OriginalAssetImportData->Pipelines.Num(); ++PipelineIndex)
 			{
-				UInterchangePipelineBase* SourcePipeline = OriginalAssetImportData->Pipelines[PipelineIndex];
+				UInterchangePipelineBase* SourcePipeline = Cast<UInterchangePipelineBase>(OriginalAssetImportData->Pipelines[PipelineIndex]);
+				if (!SourcePipeline)
+				{
+					if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(OriginalAssetImportData->Pipelines[PipelineIndex]))
+					{
+						SourcePipeline = PythonPipelineAsset->GeneratedPipeline;
+					}
+				}
 				if (SourcePipeline) //Its possible a pipeline doesnt exist anymore so it wont load into memory when we loading the outer asset
 				{
 					//Duplicate the pipeline saved in the asset import data
@@ -791,6 +843,21 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			// Simply move the existing pipeline
 			AsyncHelper->Pipelines = MoveTemp(PipelineStack);
 
+			//Fill the original pipeline array that will be save in the asset import data
+			for (UInterchangePipelineBase* Pipeline : AsyncHelper->Pipelines)
+			{
+				if (UInterchangePythonPipelineBase* PythonPipeline = Cast<UInterchangePythonPipelineBase>(Pipeline))
+				{
+					UInterchangePythonPipelineAsset* PythonPipelineAsset = NewObject<UInterchangePythonPipelineAsset>(GetTransientPackage());
+					PythonPipelineAsset->PythonClass = PythonPipeline->GetClass();
+					PythonPipelineAsset->SetupFromPipeline(PythonPipeline);
+					AsyncHelper->OriginalPipelines.Add(PythonPipelineAsset);
+				}
+				else
+				{
+					AsyncHelper->OriginalPipelines.Add(Pipeline);
+				}
+			}
 		}
 		else
 		{
@@ -811,40 +878,50 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			}
 			if (!bImportCancel)
 			{
-				//Get the latest PipelineStacks (the Dialog can change the CDO)
-				const TMap<FName, FInterchangePipelineStack>& PipelineStacks = InterchangeProjectSettings->PipelineStacks;
-				if (!PipelineStacks.Contains(PipelineStackName))
+				if (!DefaultPipelineStacks.Contains(PipelineStackName))
 				{
-					if (PipelineStacks.Contains(GetDefaultPipelineStackName()))
+					if (DefaultPipelineStacks.Contains(GetDefaultPipelineStackName()))
 					{
 						PipelineStackName = GetDefaultPipelineStackName();
 					}
 					else
 					{
 						//Log an error, we cannot import asset without a valid pipeline, we will use the first available pipeline
-						for (const TPair<FName, FInterchangePipelineStack>& PipelineStack : PipelineStacks)
+						for (const TPair<FName, FInterchangePipelineStack>& PipelineStack : DefaultPipelineStacks)
 						{
 							PipelineStackName = PipelineStack.Key;
 						}
 					}
 				}
 
-				if (PipelineStacks.Contains(PipelineStackName))
+				if (DefaultPipelineStacks.Contains(PipelineStackName))
 				{
 					//use the default pipeline
-					const FInterchangePipelineStack& PipelineStack = PipelineStacks.FindChecked(PipelineStackName);
-					TArray<TSoftClassPtr<UInterchangePipelineBase>> Pipelines = PipelineStack.Pipelines;
+					const FInterchangePipelineStack& PipelineStack = DefaultPipelineStacks.FindChecked(PipelineStackName);
+					const TArray<FSoftObjectPath>& Pipelines = PipelineStack.Pipelines;
 					for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < Pipelines.Num(); ++GraphPipelineIndex)
 					{
 						if (Pipelines[GraphPipelineIndex].IsValid())
 						{
-							UClass* PipelineClass = Pipelines[GraphPipelineIndex].LoadSynchronous();
-							if (PipelineClass)
+							if(UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(Pipelines[GraphPipelineIndex]))
 							{
-								UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
+								GeneratedPipeline->bAllowLockedPropertiesEdition = false;
 								//Load the settings for this pipeline
+								//The dialog is saving the settings for all default pipelines
 								GeneratedPipeline->LoadSettings(PipelineStackName);
 								AsyncHelper->Pipelines.Add(GeneratedPipeline);
+
+								//We need to save the python pipeline asset because we cannot save an asset create with a python class
+								UObject* OriginalPipeline = DuplicateObject<UObject>(Pipelines[GraphPipelineIndex].TryLoad(), GetTransientPackage());
+								if (UInterchangePythonPipelineAsset* PythonPipelineAsset = Cast<UInterchangePythonPipelineAsset>(OriginalPipeline))
+								{
+									PythonPipelineAsset->SetupFromPipeline(Cast<UInterchangePythonPipelineBase>(GeneratedPipeline));
+									AsyncHelper->OriginalPipelines.Add(OriginalPipeline);
+								}
+								else
+								{
+									AsyncHelper->OriginalPipelines.Add(GeneratedPipeline);
+								}
 							}
 						}
 					}
@@ -862,7 +939,9 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < ImportAssetParameters.OverridePipelines.Num(); ++GraphPipelineIndex)
 		{
 			// Duplicate the override pipelines to protect the scripted users form making race conditions
-			AsyncHelper->Pipelines.Add(DuplicateObject<UInterchangePipelineBase>(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], GetTransientPackage()));
+			UInterchangePipelineBase* GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], GetTransientPackage());
+			GeneratedPipeline->bAllowLockedPropertiesEdition = false;
+			AsyncHelper->Pipelines.Add(GeneratedPipeline);
 		}
 	}
 
