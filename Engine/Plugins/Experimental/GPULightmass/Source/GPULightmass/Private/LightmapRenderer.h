@@ -115,7 +115,7 @@ public:
 		FRHICommandList& RHICmdList,
 		const FSceneView* View,
 		int32 GPUScenePrimitiveId,
-		TArray<FMeshBatch>& MeshBatches,
+		TArray<FMeshBatch> MeshBatches,
 		FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias,
 		int32 RenderPassIndex,
 		FIntPoint ScratchTilePoolOffset);
