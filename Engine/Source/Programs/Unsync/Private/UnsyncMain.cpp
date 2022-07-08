@@ -54,6 +54,7 @@ InnerMain(int Argc, char** Argv)
 	std::string				 InputFilename2Utf8;
 	std::string				 SourceManifestFilenameUtf8;
 	std::vector<std::string> ExcludeFilterArrayUtf8;
+	std::vector<std::string> OverlayArrayUtf8;
 	std::string				 RemoteAddressUtf8;
 	std::string				 PreferredDfsUtf8;
 	std::string				 WeakHashUtf8	= "buzhash";
@@ -64,18 +65,18 @@ InnerMain(int Argc, char** Argv)
 	std::string				 ProtocolName = "jupiter";
 	std::string				 HttpHeaderFilenameUtf8;
 	std::string				 QueryStringUtf8;
-	bool					 bForceOperation		= false;
-	bool					 bAllowInsecureTls		= false;
-	bool					 bUseTls				= false;
-	bool					 bUseDebugMode			= false;
-	bool					 bIncrementalMode		= false;
-	bool					 bNoOutputValidation	= false;
-	bool					 bNoCleanupAfterSync	= false;
-	bool					 bFullSourceScan		= false;
-	bool					 bFullDifference		= false;
-	int32					 CompressionLevel		= 3;
-	uint32					 DiffBlockSize			= uint32(4_KB);
-	uint32					 HashOrSyncBlockSize	= uint32(64_KB);
+	bool					 bForceOperation	 = false;
+	bool					 bAllowInsecureTls	 = false;
+	bool					 bUseTls			 = false;
+	bool					 bUseDebugMode		 = false;
+	bool					 bIncrementalMode	 = false;
+	bool					 bNoOutputValidation = false;
+	bool					 bNoCleanupAfterSync = false;
+	bool					 bFullSourceScan	 = false;
+	bool					 bFullDifference	 = false;
+	int32					 CompressionLevel	 = 3;
+	uint32					 DiffBlockSize		 = uint32(4_KB);
+	uint32					 HashOrSyncBlockSize = uint32(64_KB);
 
 	struct FDeprecatedOptions
 	{
@@ -159,6 +160,7 @@ InnerMain(int Argc, char** Argv)
 						RemoteAddressUtf8,
 						"FProxy server address ([transport://]address[:port][/request][#namespace])");
 	SubSync->add_option("--dfs", PreferredDfsUtf8, "Preferred DFS mirror (matched by sub-string)");
+	SubSync->add_option("--overlay", OverlayArrayUtf8, "Additional source directory to sync (keep unique files from all sources, overwrite conflicting files with overlay source)");
 	SubSync->add_option("--exclude", ExcludeFilterArrayUtf8, "Exclude filenames that contain specified words (comma separated)");
 #if UNSYNC_USE_TLS
 	AddTlsOptions(SubSync);
@@ -616,6 +618,11 @@ InnerMain(int Argc, char** Argv)
 		SyncOptions.BlockSize			   = HashOrSyncBlockSize;
 		SyncOptions.Filter				   = &SyncFilter;
 		SyncOptions.bValidateTargetFiles   = !bNoOutputValidation;
+
+		for (const std::string& Entry : OverlayArrayUtf8)
+		{
+			SyncOptions.Overlays.push_back(NormalizeFilenameUtf8(Entry));
+		}
 
 		return CmdSync(SyncOptions);
 	}

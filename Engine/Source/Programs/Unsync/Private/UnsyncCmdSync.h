@@ -16,6 +16,8 @@ struct FCmdSyncOptions
 	FPath Target;
 	FPath SourceManifestOverride;
 
+	std::vector<FPath> Overlays;
+
 	FRemoteDesc Remote;
 
 	bool bFullDifference = false;

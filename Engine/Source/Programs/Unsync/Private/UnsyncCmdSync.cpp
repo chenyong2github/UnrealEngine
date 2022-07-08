@@ -9,21 +9,60 @@ namespace unsync {
 int32  // TODO: return a TResult
 CmdSync(const FCmdSyncOptions& Options)
 {
-	std::error_code ErrorCode	   = {};
-	FPath			ResolvedSource = Options.Filter ? Options.Filter->Resolve(Options.Source) : Options.Source;
-
-	UNSYNC_VERBOSE(L"Sync source: '%ls'", Options.Source.wstring().c_str());
-	if (Options.Source != ResolvedSource)
+	auto ResolvePath = [&Options](const FPath& Path) -> FPath
 	{
-		UNSYNC_VERBOSE(L"-- resolved: '%ls'", ResolvedSource.wstring().c_str());
+		return Options.Filter ? Options.Filter->Resolve(Path) : Path;
+	};
+
+	std::error_code ErrorCode	   = {};
+	FPath			ResolvedSource = ResolvePath(Options.Source);
+
+	if (Options.Source == ResolvedSource)
+	{
+		UNSYNC_VERBOSE(L"Sync source: '%ls'", Options.Source.wstring().c_str());
 	}
-	UNSYNC_VERBOSE(L"Sync target: '%ls'", Options.Target.wstring().c_str());
+	else
+	{
+		UNSYNC_VERBOSE(L"Sync source: '%ls' ('%ls')", Options.Source.wstring().c_str(), ResolvedSource.wstring().c_str());
+	}
 
 	const bool bSourcePathExists	 = PathExists(ResolvedSource, ErrorCode);
 	const bool bSourceIsDirectory	 = bSourcePathExists && unsync::IsDirectory(ResolvedSource);
 	const bool bSourceIsManifestHash = !bSourcePathExists && LooksLikeHash160(Options.Source.native());
 
 	bool bSourceFileSystemRequired = !bSourceIsManifestHash;
+
+	if (!Options.Overlays.empty())
+	{
+		for (const FPath& Entry : Options.Overlays)
+		{
+			FPath ResolvedEntry = ResolvePath(Entry);
+			if (ResolvedEntry == Entry)
+			{
+				UNSYNC_VERBOSE(L"Sync overlay: '%ls'", ResolvedEntry.wstring().c_str());
+			}
+			else
+			{
+				UNSYNC_VERBOSE(L"Sync overlay: '%ls' ('%ls')", Entry.wstring().c_str(), ResolvedEntry.wstring().c_str());
+			}
+		}
+
+		bSourceFileSystemRequired = true;
+
+		if (!bSourcePathExists || !bSourceIsDirectory)
+		{
+			UNSYNC_ERROR(L"Sync overlay option requires sync source to be a directory that exists on disk.");
+			return 1;
+		}
+
+		if (bSourceIsManifestHash)
+		{
+			UNSYNC_ERROR(L"Sync overlay option is not compatible with manifest override.");
+			return 1;
+		}
+	}
+
+	UNSYNC_VERBOSE(L"Sync target: '%ls'", Options.Target.wstring().c_str());
 
 	if (!Options.SourceManifestOverride.empty())
 	{
@@ -64,6 +103,7 @@ CmdSync(const FCmdSyncOptions& Options)
 			SyncOptions.Source				   = Options.Source;
 			SyncOptions.Base				   = Options.Target;  // read base data from existing target
 			SyncOptions.Target				   = Options.Target;
+			SyncOptions.Overlays			   = Options.Overlays;
 			SyncOptions.SourceManifestOverride = Options.SourceManifestOverride;
 			SyncOptions.Remote				   = &Options.Remote;
 			SyncOptions.SyncFilter			   = Options.Filter;

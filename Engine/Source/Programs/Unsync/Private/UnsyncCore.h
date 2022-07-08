@@ -163,6 +163,11 @@ struct FDirectoryManifest
 	// runtime data
 	FAlgorithmOptions Options = {};
 	uint64			  Version = 0;
+
+	bool IsValid() const
+	{
+		return Version != EVersions::Invalid;
+	}
 };
 
 struct FDirectoryManifestInfo
@@ -340,6 +345,7 @@ struct FSyncDirectoryOptions
 	FPath			   Source;					// remote data location
 	FPath			   Target;					// output target location
 	FPath			   Base;					// base data location, which typically is the same as sync target
+	std::vector<FPath> Overlays;				// extra source directories to overlay over primary (add extra files, replace existing files)
 	FPath			   SourceManifestOverride;	// force the manifest to be read from a specified file instead of source directory
 	FSyncFilter*	   SyncFilter = nullptr;	// filter callback for partial sync support
 	const FRemoteDesc* Remote	  = nullptr;	// unsync proxy server connection settings

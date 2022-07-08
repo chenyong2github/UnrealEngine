@@ -25,7 +25,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.42"
+#define UNSYNC_VERSION_STR "1.0.43"
 
 namespace unsync {
 
@@ -2040,6 +2040,13 @@ UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const FPath& Root, uin
 	}
 }
 
+static bool AlgorithmOptionsCompatible(const FAlgorithmOptions& A, const FAlgorithmOptions& B)
+{
+	return A.StrongHashAlgorithmId == B.StrongHashAlgorithmId
+		&& B.WeakHashAlgorithmId == B.WeakHashAlgorithmId
+		&& B.ChunkingAlgorithmId == B.ChunkingAlgorithmId;
+}
+
 bool
 LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
 {
@@ -2058,8 +2065,7 @@ LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const FPath& Root, uin
 	}
 
 	const bool bExistingManifestLoaded = bManifestFileExists && LoadDirectoryManifest(OldDirectoryManifest, Root, DirectoryManifestPath);
-	const bool bExistingManifestCompatible = OldDirectoryManifest.Options.StrongHashAlgorithmId == Algorithm.StrongHashAlgorithmId &&
-											 OldDirectoryManifest.Options.WeakHashAlgorithmId == Algorithm.WeakHashAlgorithmId;
+	const bool bExistingManifestCompatible = AlgorithmOptionsCompatible(OldDirectoryManifest.Options, Algorithm);
 
 	if (bExistingManifestLoaded && bExistingManifestCompatible)
 	{
@@ -2621,6 +2627,12 @@ IsNonCaseSensitiveFileSystem(const FPath& ExistingPath)
 	}
 }
 
+static bool
+IsCaseSensitiveFileSystem(const FPath& ExistingPath)
+{
+	return !IsNonCaseSensitiveFileSystem(ExistingPath);
+}
+
 struct FPendingFileRename
 {
 	std::wstring Old;
@@ -2770,6 +2782,62 @@ FixFileNameCases(const FPath& RootPath, const std::vector<FPendingFileRename>& P
 	return true;
 }
 
+static bool
+MergeManifests(FDirectoryManifest& Existing, const FDirectoryManifest& Other, bool bCaseSensitive)
+{
+	if (!Existing.IsValid())
+	{
+		Existing = Other;
+		return true;
+	}
+
+	if (!AlgorithmOptionsCompatible(Existing.Options, Other.Options))
+	{
+		UNSYNC_ERROR("Trying to merge incompatible manifests (diff algorithm options do not match)");
+		return false;
+	}
+
+	if (bCaseSensitive)
+	{
+		// Trivial case: just replace existing entries
+		for (const auto& OtherFile : Other.Files)
+		{
+			Existing.Files[OtherFile.first] = OtherFile.second;
+		}
+	}
+	else
+	{
+		// Lookup table of lowercase -> original file name used to replace conflicting entries on non-case-sensitive filesystems
+		// TODO: Could potentially add case-sensitive/insensitive entry lookup helper functions to FDirectoryManifest itself in the future
+		std::unordered_map<std::wstring, std::wstring> ExistingFileNamesLowerCase;
+
+		for (auto& ExistingEntry : Existing.Files)
+		{
+			std::wstring FileNameLowerCase = StringToLower(ExistingEntry.first);
+			ExistingFileNamesLowerCase.insert(std::pair<std::wstring, std::wstring>(FileNameLowerCase, ExistingEntry.first));
+		}
+
+		for (const auto& OtherFile : Other.Files)
+		{
+			std::wstring OtherNameLowerCase = StringToLower(OtherFile.first);
+			auto LowerCaseEntry = ExistingFileNamesLowerCase.find(OtherNameLowerCase);
+			if (LowerCaseEntry != ExistingFileNamesLowerCase.end())
+			{
+				// Remove file with conflicting case and add entry from the other manifest instead
+				const std::wstring& ExistingNameOriginalCase = LowerCaseEntry->second;
+				Existing.Files.erase(ExistingNameOriginalCase);
+
+				// Update the lookup table entry to refer to the name we're about to insert
+				ExistingFileNamesLowerCase[LowerCaseEntry->first] = OtherFile.first;
+			}
+
+			Existing.Files[OtherFile.first] = OtherFile.second;
+		}
+	}
+
+	return true;
+}
+
 // Delete files from target directory that are not in the source directory manifest
 static void
 DeleteUnnecessaryFiles(const FPath&				 TargetDirectory,
@@ -2811,6 +2879,71 @@ ToPath(const std::wstring_view& Str)
 #else	// UNSYNC_PLATFORM_UNIX
 	return FPath(Str);
 #endif	// UNSYNC_PLATFORM_UNIX
+}
+
+static bool
+LoadAndMergeSourceManifest(FDirectoryManifest& Output,
+						   const FPath&		   SourcePath,
+						   const FPath&		   TempPath,
+						   FSyncFilter*		   SyncFilter,
+						   const FPath&		   SourceManifestOverride,
+						   bool				   bCaseSensitiveTargetFileSystem)
+{
+	auto ResolvePath = [SyncFilter](const FPath& Filename) -> FPath { return SyncFilter ? SyncFilter->Resolve(Filename) : Filename; };
+
+	FDirectoryManifest LoadedManifest;
+
+	FPath SourceManifestRoot = SourcePath / ".unsync";
+	FPath SourceManifestPath = SourceManifestRoot / "manifest.bin";
+
+	SourceManifestPath = ResolvePath(SourceManifestPath);
+
+	if (!SourceManifestOverride.empty())
+	{
+		SourceManifestPath = SourceManifestOverride;
+	}
+
+	FHash128 SourcePathHash =
+		HashBlake3Bytes<FHash128>((const uint8*)SourcePath.native().c_str(), SourcePath.native().length() * sizeof(SourcePath.native()[0]));
+
+	std::string SourcePathHashStr	   = BytesToHexString(SourcePathHash.Data, sizeof(SourcePathHash.Data));
+	FPath		SourceManifestTempPath = TempPath / SourcePathHashStr;
+
+	if (!PathExists(SourceManifestPath))
+	{
+		UNSYNC_ERROR(L"Source manifest '%ls' does not exist", SourceManifestPath.wstring().c_str());
+		return false;
+	}
+
+	LogGlobalStatus(L"Caching source manifest");
+
+	UNSYNC_VERBOSE(L"Caching source manifest");
+	UNSYNC_VERBOSE(L" Source '%ls'", SourceManifestPath.wstring().c_str());
+	UNSYNC_VERBOSE(L" Target '%ls'", SourceManifestTempPath.wstring().c_str());
+	std::error_code CopyErrorCode = CopyFileIfNewer(SourceManifestPath, SourceManifestTempPath);
+	if (CopyErrorCode)
+	{
+		UNSYNC_LOG(L"Failed to copy manifest '%ls' to '%ls'",
+				   SourceManifestPath.wstring().c_str(),
+				   SourceManifestTempPath.wstring().c_str());
+		UNSYNC_ERROR(L"%hs (%d)", CopyErrorCode.message().c_str(), CopyErrorCode.value());
+		return false;
+	}
+
+	if (!LoadDirectoryManifest(LoadedManifest, SourcePath, SourceManifestTempPath))
+	{
+		UNSYNC_ERROR(L"Failed to load source directory manifest '%ls'", SourceManifestPath.wstring().c_str());
+
+		return false;
+	}
+
+	if (Output.IsValid() && !AlgorithmOptionsCompatible(Output.Options, LoadedManifest.Options))
+	{
+		UNSYNC_ERROR(L"Can't merge manifest '%ls' as it uses different algorithm options", SourcePath.wstring().c_str());
+		return false;
+	}
+
+	return MergeManifests(Output, LoadedManifest, bCaseSensitiveTargetFileSystem);
 }
 
 bool  // TODO: return a TResult
@@ -2877,56 +3010,32 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	FDirectoryManifest SourceDirectoryManifest;
 	FPath			   SourceManifestTempPath;
 
+	const bool bCaseSensitiveTargetFileSystem = IsCaseSensitiveFileSystem(TargetTempPath);
+
 	if (bFileSystemSource || !SourceManifestOverride.empty())
 	{
-		FPath SourceManifestRoot = SourcePath / ".unsync";
-		FPath SourceManifestPath = SourceManifestRoot / "manifest.bin";
-
-		SourceManifestPath = ResolvePath(SourceManifestPath);
-
-		if (!SourceManifestOverride.empty())
+		std::vector<FPath> AllSources;
+		AllSources.push_back(SourcePath);
+		for (const FPath& OverlayPath : SyncOptions.Overlays)
 		{
-			SourceManifestPath = SourceManifestOverride;
+			AllSources.push_back(OverlayPath);
 		}
 
-		FHash128 SourcePathHash = HashBlake3Bytes<FHash128>((const uint8*)SourcePath.native().c_str(),
-															SourcePath.native().length() * sizeof(SourcePath.native()[0]));
-
-		std::string SourcePathHashStr = BytesToHexString(SourcePathHash.Data, sizeof(SourcePathHash.Data));
-		SourceManifestTempPath		  = TargetTempPath / SourcePathHashStr;
-
-		if (!PathExists(SourceManifestPath))
+		for (const FPath& ThisSourcePath : AllSources)
 		{
-			UNSYNC_ERROR(L"Source manifest '%ls' does not exist", SourceManifestPath.wstring().c_str());
-			return false;
-		}
-
-		LogGlobalStatus(L"Caching source manifest");
-
-		UNSYNC_VERBOSE(L"Caching source manifest");
-		UNSYNC_VERBOSE(L" Source '%ls'", SourceManifestPath.wstring().c_str());
-		UNSYNC_VERBOSE(L" Target '%ls'", SourceManifestTempPath.wstring().c_str());
-		std::error_code CopyErrorCode = CopyFileIfNewer(SourceManifestPath, SourceManifestTempPath);
-		if (CopyErrorCode)
-		{
-			UNSYNC_LOG(L"Failed to copy manifest '%ls' to '%ls'",
-					   SourceManifestPath.wstring().c_str(),
-					   SourceManifestTempPath.wstring().c_str());
-			UNSYNC_ERROR(L"%hs (%d)", CopyErrorCode.message().c_str(), CopyErrorCode.value());
-			return false;
-		}
-
-		if (!LoadDirectoryManifest(SourceDirectoryManifest, SourcePath, SourceManifestTempPath))
-		{
-			bSourceManifestOk = false;
-			UNSYNC_ERROR(L"Failed to load source directory manifest '%ls'", SourceManifestPath.wstring().c_str());
-
-			return false;
+			if (!LoadAndMergeSourceManifest(SourceDirectoryManifest,
+				ThisSourcePath,
+				TargetTempPath,
+				SyncFilter,
+				SourceManifestOverride,
+				bCaseSensitiveTargetFileSystem))
+			{
+				return false;
+			}
 		}
 	}
 	else
 	{
-		// TODO: download manifest from Jupiter
 		if (!ProxyPool.IsValid())
 		{
 			UNSYNC_ERROR(L"Remote server connection is required when syncing by manifest hash");
@@ -2970,7 +3079,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	FAlgorithmOptions  Algorithm			   = SourceDirectoryManifest.Options;
 	FDirectoryManifest TargetDirectoryManifest = CreateDirectoryManifest(TargetPath, 0, Algorithm);
 
-	if (IsNonCaseSensitiveFileSystem(TargetTempPath))
+	if (!bCaseSensitiveTargetFileSystem)
 	{
 		std::vector<FPendingFileRename> PendingRenames;
 		PendingRenames = FixManifestFileNameCases(TargetDirectoryManifest, SourceDirectoryManifest);
@@ -3037,10 +3146,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		&& PathExists(BaseManifestPath))
 	{
 		bBaseDirectoryManifestValid = LoadDirectoryManifest(BaseDirectoryManifest, BasePath, BaseManifestPath);
-		if (bBaseDirectoryManifestValid &&
-			SourceDirectoryManifest.Options.ChunkingAlgorithmId == TargetDirectoryManifest.Options.ChunkingAlgorithmId &&
-			SourceDirectoryManifest.Options.StrongHashAlgorithmId == TargetDirectoryManifest.Options.StrongHashAlgorithmId &&
-			SourceDirectoryManifest.Options.WeakHashAlgorithmId == TargetDirectoryManifest.Options.WeakHashAlgorithmId)
+		if (bBaseDirectoryManifestValid && AlgorithmOptionsCompatible(SourceDirectoryManifest.Options, TargetDirectoryManifest.Options))
 		{
 			bQuickDifferencePossible = true;
 		}
@@ -3081,7 +3187,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 			}
 		}
 
-		FPath SourceFilePath = SourcePath / ToPath(SourceManifestIt.first);
+		FPath SourceFilePath = SourceManifestIt.second.CurrentPath;
 		FPath BaseFilePath	 = BasePath / ToPath(SourceManifestIt.first);
 		FPath TargetFilePath = TargetPath / ToPath(SourceManifestIt.first);
 
@@ -3543,16 +3649,11 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	// It can be used to speed up the diffing process during next sync.
 	if (bFileSystemSource && bSyncSucceeded && !GDryRun)
 	{
-		// TODO: cache the manfiest if it's downloaded from Jupiter also
+		bool bSaveOk = SaveDirectoryManifest(SourceDirectoryManifest, TargetManifestPath);
 
-		std::error_code ErrorCode;
-		bool			bCopyOk = FileCopyOverwrite(SourceManifestTempPath, TargetManifestPath, ErrorCode);
-
-		if (!bCopyOk)
+		if (!bSaveOk)
 		{
-			UNSYNC_WARNING(L"Failed to save manifest after sync. System error code: %hs (%d).",
-						   ErrorCode.message().c_str(),
-						   ErrorCode.value());
+			UNSYNC_ERROR(L"Failed to save manifest after sync");
 		}
 	}
 
