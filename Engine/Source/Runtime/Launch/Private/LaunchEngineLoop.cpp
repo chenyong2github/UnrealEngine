@@ -4339,8 +4339,8 @@ int32 FEngineLoop::Init()
 			
 			if (SessionService.IsValid())
 			{
-			SessionService->Start();
-		}
+				SessionService->Start();
+			}
 		}
 
 		EngineService = new FEngineService();
