@@ -6,48 +6,6 @@
 
 ////////////////////////////////////////////////////////////////////////
 
-#if SHADER_ROOTTRIANGLE
-
-uint MaxRootCount;
-uint MaxSampleCount;
-
-Buffer<float4> RestSamplePositionsBuffer;
-Buffer<float4> MeshSampleWeightsBuffer;
-
-Buffer<float4> RestRootTrianglePosition0;
-Buffer<float4> RestRootTrianglePosition1;
-Buffer<float4> RestRootTrianglePosition2;
-
-RWBuffer<float4> OutDeformedRootTrianglePosition0;
-RWBuffer<float4> OutDeformedRootTrianglePosition1;
-RWBuffer<float4> OutDeformedRootTrianglePosition2;
-
-void ApplyRBF(
-	uint InRootIndex,
-	Buffer<float4> InRestRootTrianglePosition,
-	RWBuffer<float4> OutDeformedRootTrianglePosition)
-{
-	const float3 RestControlPoint = InRestRootTrianglePosition[InRootIndex].xyz;
-	const float3 DeformedControlPoint = ApplyRBF(RestControlPoint, MaxSampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
-	OutDeformedRootTrianglePosition[InRootIndex + MaxRootCount] = float4(DeformedControlPoint, 1);
-}
-
-[numthreads(128, 1, 1)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{ 
-	const uint RootIndex = DispatchThreadId.x;
-	if (RootIndex >= MaxRootCount) 
-		return;
-
-	ApplyRBF(RootIndex, RestRootTrianglePosition0, OutDeformedRootTrianglePosition0);
-	ApplyRBF(RootIndex, RestRootTrianglePosition1, OutDeformedRootTrianglePosition1);
-	ApplyRBF(RootIndex, RestRootTrianglePosition2, OutDeformedRootTrianglePosition2);
-}
-
-#endif // SHADER_ROOTTRIANGLE
-
-////////////////////////////////////////////////////////////////////////
-
 #if SHADER_HAIRMESHES
 
 uint VertexCount;

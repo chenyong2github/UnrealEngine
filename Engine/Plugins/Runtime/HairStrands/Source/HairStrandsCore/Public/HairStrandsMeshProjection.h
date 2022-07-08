@@ -115,14 +115,6 @@ void AddComputeMipsPass(
 	FGlobalShaderMap* ShaderMap,
 	FRDGTextureRef& OutTexture);
 
-void AddHairStrandInterpolateMeshTrianglesPass(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData::LOD& MeshData,
-	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources);
-
 void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
