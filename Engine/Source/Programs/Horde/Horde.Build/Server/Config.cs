@@ -362,7 +362,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Prefix for all triage messages
 		/// </summary>
-		public string? TriagePrefix { get; set; } = ":thread: ";
+		public string? TriagePrefix { get; set; }
 
 		/// <summary>
 		/// Suffix for all triage messages
