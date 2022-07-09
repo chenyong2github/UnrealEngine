@@ -28,7 +28,7 @@ namespace D3D12RHI
 			TEXT("If true, enable a dummy outer occlusion query around occlusion query batches. Can help performance on some GPU architectures"),
 			ECVF_Default
 		);
-		
+
 #if D3D12_SUBMISSION_GAP_RECORDER
 		int32 GAdjustRenderQueryTimestamps = 1;
 		static FAutoConsoleVariableRef CVarAdjustRenderQueryTimestamps(

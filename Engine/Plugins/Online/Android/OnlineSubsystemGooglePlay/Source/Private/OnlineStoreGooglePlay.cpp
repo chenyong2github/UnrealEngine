@@ -212,7 +212,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryCompl
 
 			const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(NewProductInfo.CurrencyCode);
 			const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-			double Val = static_cast<double>(PricesRaw[Idx]) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
+			double Val = static_cast<double>(PricesRaw[Idx])* static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
 
 			NewProductInfo.NumericPrice = FMath::TruncToInt(Val + 0.5);
 

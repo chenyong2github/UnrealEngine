@@ -26,8 +26,8 @@ public class MotionWarping : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
-                "Engine",
+				"CoreUObject",		
+				"Engine",
 				"NetCore"
 			}
 			);

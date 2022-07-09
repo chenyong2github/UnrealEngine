@@ -22,7 +22,6 @@ class ULevel;
 class UInstancedPlacemenClientSettings;
 class AVolume;
 class UBrushBuilder;
-
 UCLASS(collapsecategories, hidecategories=Object, editinlinenew, config=Editor, abstract, transient)
 class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 {
