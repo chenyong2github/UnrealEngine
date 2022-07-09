@@ -384,6 +384,24 @@ TArray<FKey> IEnhancedInputSubsystemInterface::QueryKeysMappedToAction(const UIn
 	return MappedKeys;
 }
 
+TArray<FEnhancedActionKeyMapping> IEnhancedInputSubsystemInterface::GetAllPlayerMappableActionKeyMappings() const
+{
+	TArray<FEnhancedActionKeyMapping> PlayerMappableMappings;
+	
+	if (const UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+    {
+    	for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+		{
+			if (Mapping.bIsPlayerMappable)
+			{
+				PlayerMappableMappings.AddUnique(Mapping);
+			}
+		}
+    }
+	
+	return PlayerMappableMappings;
+}
+
 int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options)
 {
 	int32 NumMappingsApplied = 0;
@@ -425,6 +443,16 @@ void IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeys(const FModifyCo
 	}
 
 	RequestRebuildControlMappings(Options);
+}
+
+FKey IEnhancedInputSubsystemInterface::GetPlayerMappedKey(const FName MappingName) const
+{
+	if (const FKey* MappedKey = PlayerMappedSettings.Find(MappingName))
+	{
+		return FKey(*MappedKey);
+	}
+	
+	return EKeys::Invalid;
 }
 
 void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)

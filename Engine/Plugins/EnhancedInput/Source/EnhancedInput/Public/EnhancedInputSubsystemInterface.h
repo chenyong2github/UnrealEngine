@@ -191,6 +191,12 @@ public:
 	virtual TArray<FKey> QueryKeysMappedToAction(const UInputAction* Action) const;
 
 	/**
+	 * Get an array of the currently applied key mappings that are marked as Player Mappable.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")
+	virtual TArray<FEnhancedActionKeyMapping> GetAllPlayerMappableActionKeyMappings() const;
+	
+	/**
 	 * Replace any currently applied mappings to this key mapping with the given new one.
 	 * Requests a rebuild of the player mappings. 
 	 *
@@ -207,6 +213,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
 	virtual int32 RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Get the player mapped key to the given mapping name. If there is not a player mapped key, then this will return
+	 * EKeys::Invalid.
+	 *
+	 * @param MappingName	The FName of the mapped key that would have been set with the AddPlayerMappedKey function.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable")
+	virtual FKey GetPlayerMappedKey(const FName MappingName) const;
 	
 	/**
 	 * Remove All PlayerMappedKeys
