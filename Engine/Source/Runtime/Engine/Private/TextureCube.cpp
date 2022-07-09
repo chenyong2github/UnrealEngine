@@ -35,6 +35,8 @@ UTextureCube* UTextureCube::CreateTransient(int32 InSizeX, int32 InSizeY, EPixel
 		NewTexture->SetPlatformData(new FTexturePlatformData());
 		NewTexture->GetPlatformData()->SizeX = InSizeX;
 		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->SetIsCubemap(true);
+		NewTexture->GetPlatformData()->SetNumSlices(6);
 		NewTexture->GetPlatformData()->PixelFormat = InFormat;
 
 		// Allocate first mipmap.
@@ -44,8 +46,9 @@ UTextureCube* UTextureCube::CreateTransient(int32 InSizeX, int32 InSizeY, EPixel
 		NewTexture->GetPlatformData()->Mips.Add(Mip);
 		Mip->SizeX = InSizeX;
 		Mip->SizeY = InSizeY;
+		Mip->SizeZ = 1;
 		Mip->BulkData.Lock(LOCK_READ_WRITE);
-		Mip->BulkData.Realloc(6 * NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip->BulkData.Realloc((int64)6 * NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
 		Mip->BulkData.Unlock();
 	}
 	else
@@ -155,11 +158,7 @@ void UTextureCube::PostLoad()
 	{
 		if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
 		{
-			// Might already have been triggered during serialization
-			if (!PrivatePlatformData)
-			{
 				BeginCachePlatformData();
-			}
 		}
 		else
 		{
@@ -217,6 +216,13 @@ FString UTextureCube::GetDesc()
 
 uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 {
+#if WITH_EDITOR
+	if (IsDefaultTexture())
+	{
+		return GetDefaultTextureCube(this)->CalcTextureMemorySize(MipCount);
+	}
+#endif
+
 	uint32 Size = 0;
 	if (GetPlatformData())
 	{
@@ -602,11 +608,20 @@ private:
 FTextureResource* UTextureCube::CreateResource()
 {
 #if WITH_EDITOR
-	if (!IsAsyncCacheComplete())
+	if (PrivatePlatformData)
 	{
-		FTextureCompilingManager::Get().AddTextures({ this });
-
-		return new FTextureCubeResource(this, (const FTextureCubeResource*)GetDefaultTextureCube(this)->GetResource());
+		if (PrivatePlatformData->IsAsyncWorkComplete())
+		{
+			// Make sure AsyncData has been destroyed in case it still exists to avoid
+			// IsDefaultTexture thinking platform data is still being computed.
+			PrivatePlatformData->FinishCache();
+		}
+		else
+		{
+			FTextureCompilingManager::Get().AddTextures({ this });
+			UnlinkStreaming();
+			return new FTextureCubeResource(this, (const FTextureCubeResource*)GetDefaultTextureCube(this)->GetResource());
+		}
 	}
 #endif
 

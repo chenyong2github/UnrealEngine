@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner, const FStreamableRenderResourceState& InState) 
-: FStreamableTextureResource(InOwner, InOwner->PlatformData, InState, false)
+: FStreamableTextureResource(InOwner, InOwner->GetPlatformData(), InState, false)
 {
 	AddressU = InOwner->AddressX == TA_Wrap ? AM_Wrap : (InOwner->AddressX == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressV = InOwner->AddressY == TA_Wrap ? AM_Wrap : (InOwner->AddressY == TA_Clamp ? AM_Clamp : AM_Mirror);
@@ -40,6 +40,12 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner, const
 		const int32 MipCountLostDueToPacking = MipsInTail - 1;
 		check(AllMipsData.Num() == State.NumRequestedLODs - MipCountLostDueToPacking);
 	}
+}
+
+FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner, const FTexture2DArrayResource* InProxiedResource)
+	: FStreamableTextureResource(InOwner, InProxiedResource->PlatformData, FStreamableRenderResourceState(), false)
+	, ProxiedResource(InProxiedResource)
+{
 }
 
 void FTexture2DArrayResource::CreateTexture()
@@ -94,6 +100,21 @@ uint64 FTexture2DArrayResource::GetPlatformMipsSize(uint32 NumMips) const
 	else
 	{
 		return 0;
+	}
+}
+
+void FTexture2DArrayResource::InitRHI()
+{
+	if (ProxiedResource)
+	{
+		TextureRHI = ProxiedResource->TextureRHI;
+		RHIUpdateTextureReference(TextureReferenceRHI, TextureRHI);
+		SamplerStateRHI = ProxiedResource->SamplerStateRHI;
+		DeferredPassSamplerStateRHI = ProxiedResource->DeferredPassSamplerStateRHI;
+	}
+	else
+	{
+		FStreamableTextureResource::InitRHI();
 	}
 }
 

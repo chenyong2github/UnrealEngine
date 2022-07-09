@@ -20,6 +20,14 @@ public:
 
 	FTexture2DArrayResource(UTexture2DArray* InOwner, const FStreamableRenderResourceState& InState);
 
+	/**
+	 * Make this Texture2DArrayResource Proxy another one.
+	 *
+	 * @param InOwner             UTexture2DArray which this FTexture2DArrayResource represents.
+	 * @param InProxiedResource   The resource to proxy.
+	 */
+	FTexture2DArrayResource(UTexture2DArray* InOwner, const FTexture2DArrayResource* InProxiedResource);
+
 	// Dynamic cast methods.
 	ENGINE_API virtual FTexture2DArrayResource* GetTexture2DArrayResource() { return this; }
 	// Dynamic cast methods (const).
@@ -27,12 +35,18 @@ public:
 
 	virtual uint64 GetPlatformMipsSize(uint32 NumMips) const override;
 
+	virtual void InitRHI() override;
+	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
+
 protected:
 
 	void CreateTexture() final override;
 	void CreatePartiallyResidentTexture() final override;
 
 	void GetData(int32 BaseRHIMipSizeX, int32 BaseRHIMipSizeY, uint32 ArrayIndex, uint32 MipIndex, void* Dest, uint32 DestPitch) const;
+
+	/** Another resource being proxied by this one. */
+	const FTexture2DArrayResource* const ProxiedResource = nullptr;
 
 	// Each mip has all array slices. This will be [State.NumRequestedLODs] long, less any packed mips.
 	TArray<FUniqueBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> AllMipsData;

@@ -19,6 +19,10 @@
 #include "Streaming/TextureStreamOut.h"
 #include "Engine/TextureMipDataProviderFactory.h"
 #include "Misc/ScopedSlowTask.h"
+#include "TextureCompiler.h"
+#include "Engine/Public/ImageUtils.h"
+#include "Misc/ScopedSlowTask.h"
+#include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "UTexture2DArray"
 
@@ -32,7 +36,63 @@ static TAutoConsoleVariable<int32> CVarAllowTexture2DArrayAssetCreation(
 	ECVF_Default
 );
 
-UTexture2DArray::UTexture2DArray(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UTexture2DArray* UTexture2DArray::CreateTransient(int32 InSizeX, int32 InSizeY, int32 InArraySize, EPixelFormat InFormat, const FName InName)
+{
+	UTexture2DArray* NewTexture = nullptr;
+	if (InSizeX > 0 && InSizeY > 0 && InArraySize > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0)
+	{
+		NewTexture = NewObject<UTexture2DArray>(
+			GetTransientPackage(),
+			InName,
+			RF_Transient
+			);
+
+		NewTexture->SetPlatformData(new FTexturePlatformData());
+		NewTexture->GetPlatformData()->SizeX = InSizeX;
+		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->SetNumSlices(InArraySize);
+		NewTexture->GetPlatformData()->PixelFormat = InFormat;
+
+		// Allocate first mipmap.
+		int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		NewTexture->GetPlatformData()->Mips.Add(Mip);
+		Mip->SizeX = InSizeX;
+		Mip->SizeY = InSizeY;
+		Mip->SizeZ = InArraySize;
+		Mip->BulkData.Lock(LOCK_READ_WRITE);
+		Mip->BulkData.Realloc((int64)GPixelFormats[InFormat].BlockBytes * NumBlocksX * NumBlocksY * InArraySize);
+		Mip->BulkData.Unlock();
+	}
+	else
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2DArray::CreateTransient()"));
+	}
+	return NewTexture;
+}
+
+/**
+ * Get the optimal placeholder to use during texture compilation
+ */
+static UTexture2DArray* GetDefaultTexture2DArray(const UTexture2DArray* Texture)
+{
+	static TStrongObjectPtr<UTexture2DArray> CheckerboardTexture;
+	if (!CheckerboardTexture.IsValid())
+	{
+		CheckerboardTexture.Reset(FImageUtils::CreateCheckerboardTexture2DArray(FColor(200, 200, 200, 128), FColor(128, 128, 128, 128)));
+	}
+	return CheckerboardTexture.Get();
+}
+
+UTexture2DArray::UTexture2DArray(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, PrivatePlatformData(nullptr)
+	, PlatformData(
+		[this]()-> FTexturePlatformData* { return GetPlatformData(); },
+		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 #if WITH_EDITORONLY_DATA
 	SRGB = true;
@@ -40,15 +100,59 @@ UTexture2DArray::UTexture2DArray(const FObjectInitializer& ObjectInitializer) : 
 #endif
 }
 
+FTexturePlatformData** UTexture2DArray::GetRunningPlatformData()
+{
+	// @todo DC GetRunningPlatformData is fundamentally unsafe but almost unused... should we replace it with Get/SetRunningPlatformData directly in the base class
+	return &PrivatePlatformData;
+}
+
+void UTexture2DArray::SetPlatformData(FTexturePlatformData* InPlatformData)
+{
+	PrivatePlatformData = InPlatformData;
+}
+
+// Any direct access to GetPlatformData() will stall until the structure
+// is safe to use. It is advisable to replace those use case with
+// async aware code to avoid stalls where possible.
+const FTexturePlatformData* UTexture2DArray::GetPlatformData() const
+{
+#if WITH_EDITOR
+	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2DArray::GetPlatformDataStall);
+		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformData() is forcing a wait on data that is not yet ready."));
+
+		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture compilation {0} ..."), FText::FromString(GetName()));
+		FScopedSlowTask Progress(1.f, Msg, true);
+		Progress.MakeDialog(true);
+		uint64 StartTime = FPlatformTime::Cycles64();
+		PrivatePlatformData->FinishCache();
+		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
+	}
+#endif // #if WITH_EDITOR
+
+	return PrivatePlatformData;
+}
+
+FTexturePlatformData* UTexture2DArray::GetPlatformData()
+{
+	// For now, this is the same implementation as the const version.
+	const UTexture2DArray* ConstThis = this;
+	return const_cast<FTexturePlatformData*>(ConstThis->GetPlatformData());
+}
+
 #if WITH_EDITOR
 bool UTexture2DArray::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
 {
-	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2DArray*>(this)->PlatformData, InPlatformData);
-	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
-	if (GetNumMips() > 0 && FormatInfo.Supported)
+	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2DArray*>(this)->PrivatePlatformData, InPlatformData);
+	if (GetPlatformData())
 	{
-		OutState = GetResourcePostInitState(PlatformData, GSupportsTexture2DArrayStreaming, 0, 0, /*bSkipCanBeLoaded*/ true);
-		return true;
+		const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
+		if (GetNumMips() > 0 && FormatInfo.Supported)
+		{
+			OutState = GetResourcePostInitState(GetPlatformData(), GSupportsTexture2DArrayStreaming, 0, 0, /*bSkipCanBeLoaded*/ true);
+			return true;
+		}
 	}
 	return false;
 }
@@ -56,10 +160,28 @@ bool UTexture2DArray::GetStreamableRenderResourceState(FTexturePlatformData* InP
 
 FTextureResource* UTexture2DArray::CreateResource()
 {
+#if WITH_EDITOR
+	if (PrivatePlatformData)
+	{
+		if (PrivatePlatformData->IsAsyncWorkComplete())
+		{
+			// Make sure AsyncData has been destroyed in case it still exists to avoid
+			// IsDefaultTexture thinking platform data is still being computed.
+			PrivatePlatformData->FinishCache();
+		}
+		else
+		{
+			FTextureCompilingManager::Get().AddTextures({ this });
+			UnlinkStreaming();
+			return new FTexture2DArrayResource(this, (const FTexture2DArrayResource*)GetDefaultTexture2DArray(this)->GetResource());
+		}
+	}
+#endif
+
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
 	if (GetNumMips() > 0 && FormatInfo.Supported)
 	{
-		return new FTexture2DArrayResource(this, GetResourcePostInitState(PlatformData, GSupportsTexture2DArrayStreaming));
+		return new FTexture2DArrayResource(this, GetResourcePostInitState(GetPlatformData(), GSupportsTexture2DArrayStreaming));
 	}
 	else if (GetNumMips() == 0)
 	{
@@ -79,7 +201,7 @@ FTextureResource* UTexture2DArray::CreateResource()
 FTexturePlatformData* UTexture2DArray::GetPlatformDataOrWait()
 {
 #if WITH_EDITOR
-	if (PlatformData && !PlatformData->IsAsyncWorkComplete())
+	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::GetPlatformDataStall);
 		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformDataOrWait() is forcing a wait on data that is not yet ready."));
@@ -88,19 +210,26 @@ FTexturePlatformData* UTexture2DArray::GetPlatformDataOrWait()
 		FScopedSlowTask Progress(1.f, Msg, true);
 		Progress.MakeDialog(true);
 		uint64 StartTime = FPlatformTime::Cycles64();
-		PlatformData->FinishCache();
+		PrivatePlatformData->FinishCache();
 		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
 	}
 #endif
 
-	return PlatformData;
+	return PrivatePlatformData;
 }
 
 void UTexture2DArray::UpdateResource()
 {
 #if WITH_EDITOR
 	// Re-cache platform data if the source has changed.
-	CachePlatformData();
+	if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	{
+		BeginCachePlatformData();
+	}
+	else
+	{
+		CachePlatformData();
+	}
 #endif // #if WITH_EDITOR
 
 	Super::UpdateResource();
@@ -108,10 +237,17 @@ void UTexture2DArray::UpdateResource()
 
 uint32 UTexture2DArray::CalcTextureMemorySize(int32 MipCount) const
 {
+#if WITH_EDITOR
+	if (IsDefaultTexture())
+	{
+		return GetDefaultTexture2DArray(this)->CalcTextureMemorySize(MipCount);
+	}
+#endif
+
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
 
 	uint32 Size = 0;
-	if (FormatInfo.Supported && PlatformData)
+	if (FormatInfo.Supported && GetPlatformData())
 	{
 		const EPixelFormat Format = GetPixelFormat();
 		if (Format != PF_Unknown)
@@ -123,7 +259,7 @@ uint32 UTexture2DArray::CalcTextureMemorySize(int32 MipCount) const
 			// Must be consistent with the logic in FTexture2DResource::InitRHI
 			const FIntPoint MipExtents = CalcMipMapExtent(GetSizeX(), GetSizeY(), Format, FirstMip);
 			uint32 TextureAlign = 0;
-			Size = (uint32)RHICalcTexture2DArrayPlatformSize(MipExtents.X, MipExtents.Y, GetArraySize(), Format, FMath::Max(1, MipCount), 1, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+			Size = (uint32)RHICalcTexture2DArrayPlatformSize(MipExtents.X, MipExtents.Y, GetArraySize(), Format, FMath::Max(1, MipCount), 1, Flags, FRHIResourceCreateInfo(GetPlatformData()->GetExtData()), TextureAlign);
 		}
 	}
 	return Size;
@@ -139,7 +275,88 @@ uint32 UTexture2DArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 	return CalcTextureMemorySize(GetNumMips());
 }
 
+// While compiling the platform data in editor, we will return the 
+// placeholders value to ensure rendering works as expected and that
+// there are no thread-unsafe access to the platform data being built.
+// Any process requiring a fully up-to-date platform data is expected to
+// call FTextureCompiler:Get().FinishCompilation on UTexture first.
+int32 UTexture2DArray::GetSizeX() const
+{
+	if (PrivatePlatformData)
+	{
 #if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTexture2DArray(this)->GetSizeX();
+		}
+#endif
+		return PrivatePlatformData->SizeX;
+	}
+	return 0;
+}
+
+int32 UTexture2DArray::GetSizeY() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTexture2DArray(this)->GetSizeY();
+		}
+#endif
+		return PrivatePlatformData->SizeY;
+	}
+	return 0;
+}
+
+int32 UTexture2DArray::GetArraySize() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTexture2DArray(this)->GetArraySize();
+		}
+#endif
+		return PrivatePlatformData->GetNumSlices();
+	}
+	return 0;
+}
+
+int32 UTexture2DArray::GetNumMips() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTexture2DArray(this)->GetNumMips();
+		}
+#endif
+		return PrivatePlatformData->Mips.Num();
+	}
+	return 0;
+}
+
+EPixelFormat UTexture2DArray::GetPixelFormat() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTexture2DArray(this)->GetPixelFormat();
+		}
+#endif
+		return PrivatePlatformData->PixelFormat;
+	}
+	return PF_Unknown;
+}
+
+#if WITH_EDITOR
+
 ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 {
 	bool bError = false;
@@ -261,14 +478,14 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 	return true;
 }
 
-ENGINE_API void UTexture2DArray::InvadiateTextureSource()
+ENGINE_API void UTexture2DArray::InvalidateTextureSource()
 {
 	Modify();
 
-	if (PlatformData) 
+	if (GetPlatformData())
 	{
-		delete PlatformData;
-		PlatformData = NULL;
+		delete GetPlatformData();
+		SetPlatformData(nullptr);
 	}
 
 	Source = FTextureSource();
@@ -292,21 +509,23 @@ void UTexture2DArray::Serialize(FArchive& Ar)
 	{
 		SerializeCookedPlatformData(Ar);
 	}
-
-#if WITH_EDITOR
-	if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked)
-	{
-		BeginCachePlatformData();
-	}
-#endif
 }
 
 void UTexture2DArray::PostLoad() 
 {
 #if WITH_EDITOR
-	FinishCachePlatformData();
+	if (FApp::CanEverRender())
+	{
+		if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+		{
+			BeginCachePlatformData();
+		}
+		else
+		{
+			FinishCachePlatformData();
+		}
+	}
 #endif // #if WITH_EDITOR
-
 	Super::PostLoad();
 };
 
@@ -345,6 +564,12 @@ void UTexture2DArray::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 #if WITH_EDITOR
+
+bool UTexture2DArray::IsDefaultTexture() const
+{
+	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (GetResource() && GetResource()->IsProxy());
+}
+
 uint32 UTexture2DArray::GetMaximumDimension() const
 {
 	return GetMax2DTextureDimension();
@@ -360,7 +585,7 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 		// Empty SourceTextures, remove any resources if present.
 		if (SourceTextures.Num() == 0) 
 		{
-			InvadiateTextureSource();
+			InvalidateTextureSource();
 		}
 		// First entry into an empty texture array.
 		else if (SourceTextures.Num() == 1)

@@ -8,6 +8,7 @@ ImageUtils.cpp: Image utility functions.
 
 #include "CubemapUnwrapUtils.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureCubeArray.h"
 #include "Engine/VolumeTexture.h"
@@ -807,6 +808,36 @@ UTexture2D* FImageUtils::CreateCheckerboardTexture(FColor ColorOne, FColor Color
 	return CheckerboardTexture;
 }
 
+UTexture2DArray* FImageUtils::CreateCheckerboardTexture2DArray(FColor ColorOne, FColor ColorTwo, int32 CheckerSize, int32 ArraySize)
+{
+	CheckerSize = FMath::Min<uint32>(FMath::RoundUpToPowerOfTwo(CheckerSize), 4096);
+	const int32 HalfCheckerSize = CheckerSize >> 1;
+
+	// Create the texture
+	UTexture2DArray* CheckerboardTexture = UTexture2DArray::CreateTransient(CheckerSize, CheckerSize, ArraySize, PF_B8G8R8A8);
+
+	// Lock the checkerboard texture so it can be modified
+	FColor* MipData = reinterpret_cast<FColor*>(CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+
+	// Fill in the colors in a checkerboard pattern
+	for (int32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++)
+	{
+		for (int32 RowIndex = 0; RowIndex < CheckerSize; RowIndex++)
+		{
+			for (int32 ColumnIndex = 0; ColumnIndex < CheckerSize; ColumnIndex++)
+			{
+				*MipData++ = ColumnIndex < HalfCheckerSize == RowIndex < HalfCheckerSize ? ColorOne : ColorTwo;
+			}
+		}
+	}
+
+	// Unlock the texture
+	CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
+	CheckerboardTexture->UpdateResource();
+
+	return CheckerboardTexture;
+}
+
 UTextureCube* FImageUtils::CreateCheckerboardCubeTexture(FColor ColorOne, FColor ColorTwo, int32 CheckerSize)
 {
 	CheckerSize = FMath::Min<uint32>(FMath::RoundUpToPowerOfTwo(CheckerSize), 4096);
@@ -838,6 +869,69 @@ UTextureCube* FImageUtils::CreateCheckerboardCubeTexture(FColor ColorOne, FColor
 			}
 		}
 		MipData += CheckerSize * CheckerSize;
+	}
+
+	// Unlock the texture
+	CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
+	CheckerboardTexture->UpdateResource();
+
+	return CheckerboardTexture;
+}
+
+UTextureCubeArray* FImageUtils::CreateCheckerboardTextureCubeArray(FColor ColorOne, FColor ColorTwo, int32 CheckerSize, int32 ArraySize)
+{
+	CheckerSize = FMath::Min<uint32>(FMath::RoundUpToPowerOfTwo(CheckerSize), 4096);
+	const int32 HalfCheckerSize = CheckerSize >> 1;
+
+	// Create the texture
+	UTextureCubeArray* CheckerboardTexture = UTextureCubeArray::CreateTransient(CheckerSize, CheckerSize, ArraySize, PF_B8G8R8A8);
+
+	// Lock the checkerboard texture so it can be modified
+	FColor* MipData = reinterpret_cast<FColor*>(CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+
+	// Fill in the colors in a checkerboard pattern
+	for (int32 ArrayIndex = 0; ArrayIndex < ArraySize; ArrayIndex++)
+	{
+		for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
+		{
+			for (int32 RowIndex = 0; RowIndex < CheckerSize; RowIndex++)
+			{
+				for (int32 ColumnIndex = 0; ColumnIndex < CheckerSize; ColumnIndex++)
+				{
+					*MipData++ = ColumnIndex < HalfCheckerSize == RowIndex < HalfCheckerSize ? ColorOne : ColorTwo;
+				}
+			}
+		}
+	}
+
+	// Unlock the texture
+	CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
+	CheckerboardTexture->UpdateResource();
+
+	return CheckerboardTexture;
+}
+
+UVolumeTexture* FImageUtils::CreateCheckerboardVolumeTexture(FColor ColorOne, FColor ColorTwo, int32 CheckerSize)
+{
+	CheckerSize = FMath::Min<uint32>(FMath::RoundUpToPowerOfTwo(CheckerSize), 4096);
+	const int32 HalfCheckerSize = CheckerSize >> 1;
+
+	// Create the texture
+	UVolumeTexture* CheckerboardTexture = UVolumeTexture::CreateTransient(CheckerSize, CheckerSize, CheckerSize, PF_B8G8R8A8);
+
+	// Lock the checkerboard texture so it can be modified
+	FColor* MipData = reinterpret_cast<FColor*>(CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+
+	// Fill in the colors in a checkerboard pattern
+	for (int32 SliceIndex = 0; SliceIndex < CheckerSize; SliceIndex++)
+	{
+		for (int32 RowIndex = 0; RowIndex < CheckerSize; RowIndex++)
+		{
+			for (int32 ColumnIndex = 0; ColumnIndex < CheckerSize; ColumnIndex++)
+			{
+				*MipData++ = ColumnIndex < HalfCheckerSize == RowIndex < HalfCheckerSize ? ColorOne : ColorTwo;
+			}
+		}
 	}
 
 	// Unlock the texture

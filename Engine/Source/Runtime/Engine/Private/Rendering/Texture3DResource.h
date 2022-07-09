@@ -67,6 +67,14 @@ public:
 
 	FTexture3DResource(UVolumeTexture* InOwner, const FStreamableRenderResourceState& InState);
 
+	/**
+	 * Make this FTexture3DResource Proxy another one.
+	 *
+	 * @param InOwner             UVolumeTexture which this FTexture3DResource represents.
+	 * @param InProxiedResource   The resource to proxy.
+	 */
+	FTexture3DResource(UVolumeTexture* InOwner, const FTexture3DResource* InProxiedResource);
+
 	// Dynamic cast methods.
 	ENGINE_API virtual FTexture3DResource* GetTexture3DResource() override { return this; }
 	// Dynamic cast methods (const).
@@ -75,10 +83,16 @@ public:
 	/** Returns the platform mip size for the given mip count. */
 	virtual uint64 GetPlatformMipsSize(uint32 NumMips) const override;
 
+	virtual void InitRHI() override;
+	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
+
 private:
 
 	void CreateTexture() final override;
 	void CreatePartiallyResidentTexture() final override;
+
+	/** Another resource being proxied by this one. */
+	const FTexture3DResource* const ProxiedResource = nullptr;
 
 protected:
 	FVolumeTextureBulkData InitialData;

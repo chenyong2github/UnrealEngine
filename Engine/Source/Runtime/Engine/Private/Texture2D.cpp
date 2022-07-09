@@ -601,11 +601,7 @@ void UTexture2D::PostLoad()
 	{
 		if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
 		{
-			// Might already have been triggered during serialization
-			if (!PrivatePlatformData)
-			{
-				BeginCachePlatformData();
-			}
+			BeginCachePlatformData();
 		}
 		else
 		{
@@ -1047,6 +1043,7 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 		NewTexture->SetPlatformData(new FTexturePlatformData());
 		NewTexture->GetPlatformData()->SizeX = InSizeX;
 		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->SetNumSlices(1);
 		NewTexture->GetPlatformData()->PixelFormat = InFormat;
 
 		// Allocate first mipmap.
@@ -1056,8 +1053,9 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 		NewTexture->GetPlatformData()->Mips.Add(Mip);
 		Mip->SizeX = InSizeX;
 		Mip->SizeY = InSizeY;
+		Mip->SizeZ = 1;
 		Mip->BulkData.Lock(LOCK_READ_WRITE);
-		Mip->BulkData.Realloc(NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip->BulkData.Realloc((int64)NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
 		Mip->BulkData.Unlock();
 	}
 	else

@@ -65,7 +65,7 @@ void FVolumeTextureBulkData::MergeMips(int32 NumMips)
 //*****************************************************************************
 
 FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamableRenderResourceState& InState)
-: FStreamableTextureResource(InOwner, InOwner->PlatformData, InState, false)
+: FStreamableTextureResource(InOwner, InOwner->GetPlatformData(), InState, false)
 , InitialData(InState.RequestedFirstLODIdx())
 {
 	const int32 FirstLODIdx = InState.RequestedFirstLODIdx();
@@ -105,6 +105,13 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 		}
 
 	}
+}
+
+FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FTexture3DResource* InProxiedResource)
+	: FStreamableTextureResource(InOwner, InProxiedResource->PlatformData, FStreamableRenderResourceState(), false)
+	, ProxiedResource(InProxiedResource)
+	, InitialData(0)
+{
 }
 
 void FTexture3DResource::CreateTexture()
@@ -192,5 +199,20 @@ uint64 FTexture3DResource::GetPlatformMipsSize(uint32 NumMips) const
 	else
 	{
 		return 0;
+	}
+}
+
+void FTexture3DResource::InitRHI()
+{
+	if (ProxiedResource)
+	{
+		TextureRHI = ProxiedResource->TextureRHI;
+		RHIUpdateTextureReference(TextureReferenceRHI, TextureRHI);
+		SamplerStateRHI = ProxiedResource->SamplerStateRHI;
+		DeferredPassSamplerStateRHI = ProxiedResource->DeferredPassSamplerStateRHI;
+	}
+	else
+	{
+		FStreamableTextureResource::InitRHI();
 	}
 }

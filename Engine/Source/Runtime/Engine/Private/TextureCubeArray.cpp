@@ -11,6 +11,12 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
+#include "TextureCompiler.h"
+#include "Engine/Public/ImageUtils.h"
+#include "Misc/ScopedSlowTask.h"
+#include "UObject/StrongObjectPtr.h"
+
+#define LOCTEXT_NAMESPACE "UTextureCubeArray"
 
 class FTextureCubeArrayResource : public FTextureResource
 {
@@ -30,8 +36,8 @@ public:
 		check(Owner);
 		check(Owner->GetNumMips() > 0);
 
-		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-		const int32 FirstMipTailIndex = Mips.Num() - FMath::Max(1, InOwner->PlatformData->GetNumMipsInTail());
+		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->GetPlatformData()->Mips;
+		const int32 FirstMipTailIndex = Mips.Num() - FMath::Max(1, InOwner->GetPlatformData()->GetNumMipsInTail());
 
 		NumSlices = Owner->GetNumSlices();
 		MipData.Empty(NumSlices * (FirstMipTailIndex + 1));
@@ -123,7 +129,7 @@ public:
 			.SetFormat(Owner->GetPixelFormat())
 			.SetNumMips(Owner->GetNumMips())
 			.SetFlags(TexCreateFlags)
-			.SetExtData(Owner->PlatformData->GetExtData());
+			.SetExtData(Owner->GetPlatformData()->GetExtData());
 
 		TextureCubeRHI = RHICreateTexture(Desc);
 		TextureRHI = TextureCubeRHI;
@@ -133,7 +139,7 @@ public:
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 
 		// Read the mip-levels into the RHI texture.
-		const int32 FirstMipTailIndex = Owner->GetNumMips() - FMath::Max(1, Owner->PlatformData->GetNumMipsInTail());
+		const int32 FirstMipTailIndex = Owner->GetNumMips() - FMath::Max(1, Owner->GetPlatformData()->GetNumMipsInTail());
 		for (int32 MipIndex = 0; MipIndex <= FirstMipTailIndex; MipIndex++)
 		{
 			for (uint32 ArrayIndex = 0u; ArrayIndex < ArraySize; ++ArrayIndex)
@@ -248,7 +254,7 @@ private:
 		// runtime block size checking, conversion, or the like
 		if (DestPitch == 0)
 		{
-			FMemory::Memcpy(Dest, MipData[Index], Owner->PlatformData->Mips[MipIndex].BulkData.GetBulkDataSize() / Owner->GetNumSlices());
+			FMemory::Memcpy(Dest, MipData[Index], Owner->GetPlatformData()->Mips[MipIndex].BulkData.GetBulkDataSize() / Owner->GetNumSlices());
 		}
 		else
 		{
@@ -292,7 +298,64 @@ private:
 	}
 };
 
-UTextureCubeArray::UTextureCubeArray(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UTextureCubeArray* UTextureCubeArray::CreateTransient(int32 InSizeX, int32 InSizeY, int32 InArraySize, EPixelFormat InFormat, const FName InName)
+{
+	UTextureCubeArray* NewTexture = nullptr;
+	if (InSizeX > 0 && InSizeY > 0 && InArraySize > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0)
+	{
+		NewTexture = NewObject<UTextureCubeArray>(
+			GetTransientPackage(),
+			InName,
+			RF_Transient
+			);
+
+		NewTexture->SetPlatformData(new FTexturePlatformData());
+		NewTexture->GetPlatformData()->SizeX = InSizeX;
+		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->SetIsCubemap(true);
+		NewTexture->GetPlatformData()->SetNumSlices(InArraySize * 6);
+		NewTexture->GetPlatformData()->PixelFormat = InFormat;
+
+		// Allocate first mipmap.
+		int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		NewTexture->GetPlatformData()->Mips.Add(Mip);
+		Mip->SizeX = InSizeX;
+		Mip->SizeY = InSizeY;
+		Mip->SizeZ = InArraySize * 6;
+		Mip->BulkData.Lock(LOCK_READ_WRITE);
+		Mip->BulkData.Realloc((int64)GPixelFormats[InFormat].BlockBytes * NumBlocksX * NumBlocksY * 6 * InArraySize);
+		Mip->BulkData.Unlock();
+	}
+	else
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTextureCubeArray::CreateTransient()"));
+	}
+	return NewTexture;
+}
+
+/**
+ * Get the optimal placeholder to use during texture compilation
+ */
+static UTextureCubeArray* GetDefaultTextureCubeArray(const UTextureCubeArray* Texture)
+{
+	static TStrongObjectPtr<UTextureCubeArray> CheckerboardTexture;
+	if (!CheckerboardTexture.IsValid())
+	{
+		CheckerboardTexture.Reset(FImageUtils::CreateCheckerboardTextureCubeArray(FColor(200, 200, 200, 128), FColor(128, 128, 128, 128)));
+	}
+	return CheckerboardTexture.Get();
+}
+
+UTextureCubeArray::UTextureCubeArray(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, PrivatePlatformData(nullptr)
+	, PlatformData(
+		[this]()-> FTexturePlatformData* { return GetPlatformData(); },
+		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 #if WITH_EDITORONLY_DATA
 	SRGB = true;
@@ -300,8 +363,67 @@ UTextureCubeArray::UTextureCubeArray(const FObjectInitializer& ObjectInitializer
 #endif
 }
 
+FTexturePlatformData** UTextureCubeArray::GetRunningPlatformData()
+{
+	// @todo DC GetRunningPlatformData is fundamentally unsafe but almost unused... should we replace it with Get/SetRunningPlatformData directly in the base class
+	return &PrivatePlatformData;
+}
+
+void UTextureCubeArray::SetPlatformData(FTexturePlatformData* InPlatformData)
+{
+	PrivatePlatformData = InPlatformData;
+}
+
+// Any direct access to GetPlatformData() will stall until the structure
+// is safe to use. It is advisable to replace those use case with
+// async aware code to avoid stalls where possible.
+const FTexturePlatformData* UTextureCubeArray::GetPlatformData() const
+{
+#if WITH_EDITOR
+	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UTextureCubeArray::GetPlatformDataStall);
+		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformData() is forcing a wait on data that is not yet ready."));
+
+		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture compilation {0} ..."), FText::FromString(GetName()));
+		FScopedSlowTask Progress(1.f, Msg, true);
+		Progress.MakeDialog(true);
+		uint64 StartTime = FPlatformTime::Cycles64();
+		PrivatePlatformData->FinishCache();
+		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
+	}
+#endif // #if WITH_EDITOR
+
+	return PrivatePlatformData;
+}
+
+FTexturePlatformData* UTextureCubeArray::GetPlatformData()
+{
+	// For now, this is the same implementation as the const version.
+	const UTextureCubeArray* ConstThis = this;
+	return const_cast<FTexturePlatformData*>(ConstThis->GetPlatformData());
+}
+
 FTextureResource* UTextureCubeArray::CreateResource()
 {
+#if WITH_EDITOR
+	if (PrivatePlatformData)
+	{
+		if (PrivatePlatformData->IsAsyncWorkComplete())
+		{
+			// Make sure AsyncData has been destroyed in case it still exists to avoid
+			// IsDefaultTexture thinking platform data is still being computed.
+			PrivatePlatformData->FinishCache();
+		}
+		else
+		{
+			FTextureCompilingManager::Get().AddTextures({ this });
+			UnlinkStreaming();
+			return new FTextureCubeArrayResource(this, (const FTextureCubeArrayResource*)GetDefaultTextureCubeArray(this)->GetResource());
+		}
+	}
+#endif
+
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
 	if (GetNumMips() > 0 && FormatInfo.Supported)
 	{
@@ -322,7 +444,14 @@ void UTextureCubeArray::UpdateResource()
 {
 #if WITH_EDITOR
 	// Re-cache platform data if the source has changed.
-	CachePlatformData();
+	if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	{
+		BeginCachePlatformData();
+	}
+	else
+	{
+		CachePlatformData();
+	}
 #endif // #if WITH_EDITOR
 
 	Super::UpdateResource();
@@ -330,8 +459,15 @@ void UTextureCubeArray::UpdateResource()
 
 uint32 UTextureCubeArray::CalcTextureMemorySize(int32 MipCount) const
 {
+#if WITH_EDITOR
+	if (IsDefaultTexture())
+	{
+		return GetDefaultTextureCubeArray(this)->CalcTextureMemorySize(MipCount);
+	}
+#endif
+
 	uint32 Size = 0;
-	if (PlatformData)
+	if (GetPlatformData())
 	{
 		int32 SizeX = GetSizeX();
 		int32 SizeY = GetSizeY();
@@ -347,7 +483,7 @@ uint32 UTextureCubeArray::CalcTextureMemorySize(int32 MipCount) const
 
 		// TODO add RHICalcTextureCubeArrayPlatformSize
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max(1, MipCount), TexCreate_None, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign) * ArraySize;
+		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max(1, MipCount), TexCreate_None, FRHIResourceCreateInfo(GetPlatformData()->GetExtData()), TextureAlign) * ArraySize;
 		Size = (uint32)TextureSize;
 	}
 	return Size;
@@ -363,7 +499,88 @@ uint32 UTextureCubeArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 	return CalcTextureMemorySize(GetNumMips());
 }
 
+// While compiling the platform data in editor, we will return the 
+// placeholders value to ensure rendering works as expected and that
+// there are no thread-unsafe access to the platform data being built.
+// Any process requiring a fully up-to-date platform data is expected to
+// call FTextureCompiler:Get().FinishCompilation on UTexture first.
+int32 UTextureCubeArray::GetSizeX() const
+{
+	if (PrivatePlatformData)
+	{
 #if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCubeArray(this)->GetSizeX();
+		}
+#endif
+		return PrivatePlatformData->SizeX;
+	}
+	return 0;
+}
+
+int32 UTextureCubeArray::GetSizeY() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCubeArray(this)->GetSizeY();
+		}
+#endif
+		return PrivatePlatformData->SizeY;
+	}
+	return 0;
+}
+
+int32 UTextureCubeArray::GetNumSlices() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCubeArray(this)->GetNumSlices();
+		}
+#endif
+		return PrivatePlatformData->GetNumSlices();
+	}
+	return 0;
+}
+
+int32 UTextureCubeArray::GetNumMips() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCubeArray(this)->GetNumMips();
+		}
+#endif
+		return PrivatePlatformData->Mips.Num();
+	}
+	return 0;
+}
+
+EPixelFormat UTextureCubeArray::GetPixelFormat() const
+{
+	if (PrivatePlatformData)
+	{
+#if WITH_EDITOR
+		if (IsDefaultTexture())
+		{
+			return GetDefaultTextureCubeArray(this)->GetPixelFormat();
+		}
+#endif
+		return PrivatePlatformData->PixelFormat;
+	}
+	return PF_Unknown;
+}
+
+#if WITH_EDITOR
+
 ENGINE_API bool UTextureCubeArray::CheckArrayTexturesCompatibility()
 {
 	if (SourceTextures.Num() == 0)
@@ -503,14 +720,14 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 	return true;
 }
 
-ENGINE_API void UTextureCubeArray::InvadiateTextureSource()
+ENGINE_API void UTextureCubeArray::InvalidateTextureSource()
 {
 	Modify();
 
-	if (PlatformData)
+	if (GetPlatformData())
 	{
-		delete PlatformData;
-		PlatformData = NULL;
+		delete GetPlatformData();
+		SetPlatformData(nullptr);
 	}
 
 	Source = FTextureSource();
@@ -534,21 +751,23 @@ void UTextureCubeArray::Serialize(FArchive& Ar)
 	{
 		SerializeCookedPlatformData(Ar);
 	}
-
-#if WITH_EDITOR
-	if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked)
-	{
-		BeginCachePlatformData();
-	}
-#endif
 }
 
 void UTextureCubeArray::PostLoad()
 {
 #if WITH_EDITOR
-	FinishCachePlatformData();	
+	if (FApp::CanEverRender())
+	{
+		if (FTextureCompilingManager::Get().IsAsyncCompilationAllowed(this))
+		{
+			BeginCachePlatformData();
+		}
+		else
+		{
+			FinishCachePlatformData();
+		}
+	}
 #endif // #if WITH_EDITOR
-
 	Super::PostLoad();
 };
 
@@ -587,6 +806,12 @@ void UTextureCubeArray::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 }
 
 #if WITH_EDITOR
+
+bool UTextureCubeArray::IsDefaultTexture() const
+{
+	return (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete()) || (GetResource() && GetResource()->IsProxy());
+}
+
 uint32 UTextureCubeArray::GetMaximumDimension() const
 {
 	return GetMaxCubeTextureDimension();
@@ -602,7 +827,7 @@ ENGINE_API void UTextureCubeArray::PostEditChangeProperty(FPropertyChangedEvent&
 		// Empty SourceTextures, remove any resources if present.
 		if (SourceTextures.Num() == 0)
 		{
-			InvadiateTextureSource();
+			InvalidateTextureSource();
 		}
 		// First entry into an empty texture array.
 		else if (SourceTextures.Num() == 1)
@@ -627,3 +852,5 @@ ENGINE_API void UTextureCubeArray::PostEditChangeProperty(FPropertyChangedEvent&
 }
 
 #endif // #if WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
