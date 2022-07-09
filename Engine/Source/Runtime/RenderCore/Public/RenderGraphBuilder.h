@@ -747,7 +747,8 @@ private:
 	void SetupParallelExecute();
 	void DispatchParallelExecute(IRHICommandContext* RHICmdContext);
 
-	void SubmitBufferUploads(FGraphEventArray* AsyncCompileEvents);
+	void SetupBufferUploads();
+	void SubmitBufferUploads();
 	void BeginFlushResourcesRHI();
 	void EndFlushResourcesRHI();
 
@@ -764,7 +765,7 @@ private:
 
 	void CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle);
 
-	void CreatePassBarriers(TFunctionRef<void()> PreWork);
+	void CreatePassBarriers(FGraphEventArray* AsyncCompileEvents);
 
 	void CreateUniformBuffers(FGraphEventArray* AsyncCompileEvents);
 
