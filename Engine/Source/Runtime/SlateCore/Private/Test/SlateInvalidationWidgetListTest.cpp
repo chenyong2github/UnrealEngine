@@ -491,7 +491,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 							bool bIsIncluded = Range.Include(Element.Get<1>());
 							if (bIsIncluded != Element.Get<2>())
 							{
-								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the ProxiesBuilt range"), *Element.Get<0>(), (bIsIncluded ? TEXT("included") : TEXT("not be included"))));
+								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the ProxiesBuilt range"), *Element.Get<0>(), (!bIsIncluded ? TEXT("included") : TEXT("not be included"))));
 							}
 						}
 					}
