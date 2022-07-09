@@ -236,6 +236,8 @@ static void ReassignNodeChildren(FEmbreeBVH8Node* InOutNode, FVector3f BoundingB
 						}
 					}
 
+					CA_ASSUME(TopValueIndex < 8);
+
 					const float Bid = TopValues[0] - TopValues[1] + AuctionEpsilon;
 					Bids[Slot][TopValueIndex] = Bid;
 					BidsMask |= (1 << TopValueIndex);
