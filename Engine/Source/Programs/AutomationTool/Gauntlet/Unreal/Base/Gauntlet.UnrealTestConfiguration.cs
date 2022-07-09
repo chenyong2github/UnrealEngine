@@ -923,12 +923,6 @@ namespace Gauntlet
 					AppConfig.CommandLineParams.GameMap = MapChoice;
 				}
 			}
-
-			// we write results to Horde test data if we run under Horde agent
-			if (HordeReport.IsUnderHordeAgent && Globals.Params.ParseValues("WriteTestResultsForHorde").Count() == 0)
-			{
-				WriteTestResultsForHorde = true;
-			}
 		}			
 	}
 
