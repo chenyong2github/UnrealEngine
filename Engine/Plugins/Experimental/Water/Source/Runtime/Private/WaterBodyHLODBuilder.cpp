@@ -2,6 +2,8 @@
 
 #include "WaterBodyHLODBuilder.h"
 
+#if WITH_EDITOR
+
 #include "WaterBodyComponent.h"
 #include "WaterZoneActor.h"
 #include "WaterMeshComponent.h"
@@ -124,3 +126,4 @@ TArray<UActorComponent*> UWaterBodyHLODBuilder::Build(const FHLODBuildContext& I
 	return HLODComponents;
 }
 
+#endif // #if WITH_EDITOR
