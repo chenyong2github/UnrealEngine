@@ -5,11 +5,11 @@
 #include "Containers/Array.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 
-namespace GeometryCollection
+namespace GeometryCollection::Facades
 {
 
 	/**
-	* FSelectionAlgo
+	* FSelectionFacade
 	* 
 	* Defines common API for storing a sib indexing of a separate group. For example, to store
 	* a subset of vertices defined in the group "VerticesGroup", use the function :
@@ -20,24 +20,24 @@ namespace GeometryCollection
 	*
 	* The following groups are created on the collection based on which API is called. 
 	* 
-	*	<Group> = FSelectionAlgo::UnboundGroup_<DependencyGroup>
+	*	<Group> = FSelectionFacade::UnboundGroup_<DependencyGroup>
 	*	- FindAttribute<TArray<int32>>(FVertexSetInterface::IndexAttribute, <Group>);
 	* 
-	*	<Group> = FSelectionAlgo::WeightedUnboundGroup_<DependencyGroup>
+	*	<Group> = FSelectionFacade::WeightedUnboundGroup_<DependencyGroup>
 	*	- FindAttribute<TArray<int32>>(FVertexSetInterface::IndexAttribute, <Group>);
 	*	- FindAttribute<TArray<float>>(FVertexSetInterface::WeightAttribute, <Group>);
 	* 
-	*	<Group> = FSelectionAlgo::BoundGroup_<DependencyGroup>
+	*	<Group> = FSelectionFacade::BoundGroup_<DependencyGroup>
 	*	- FindAttribute<TArray<int32>>(FVertexSetInterface::IndexAttribute, <Group>);
 	*	- FindAttribute<int32>(FVertexSetInterface::BoneIndexAttribute,<Group>);
 	*
-	*	<Group> = FSelectionAlgo::WeightedBoundGroup_<DependencyGroup>
+	*	<Group> = FSelectionFacade::WeightedBoundGroup_<DependencyGroup>
 	*	- FindAttribute<TArray<int32>>(FVertexSetInterface::IndexAttribute, <Group>);
 	* 	- FindAttribute<TArray<float>>(FVertexSetInterface::WeightAttribute, <Group>);
 	*	- FindAttribute<int32>(FVertexSetInterface::BoneIndexAttribute, <Group>);
 	* 
 	*/
-	class CHAOS_API FSelectionAlgo
+	class CHAOS_API FSelectionFacade
  	{
 		FManagedArrayCollection* Self;
 
@@ -67,10 +67,10 @@ namespace GeometryCollection
 		};
 
 		/**
-		* FSelectionAlgo Constuctor
+		* FSelectionFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FSelectionAlgo(FManagedArrayCollection* InSelf);
+		FSelectionFacade(FManagedArrayCollection* InSelf);
 
 		/**
 		* Add the indices to the FVertexSetInterface::UnboundGroup 
