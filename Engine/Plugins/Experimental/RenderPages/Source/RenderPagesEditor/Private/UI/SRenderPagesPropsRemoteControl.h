@@ -4,21 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "RemoteControlPreset.h"
-#include "UI/SRenderPagesPropsBase.h"
 #include "RenderPage/RenderPagePropsSource.h"
-#include "Components/SRenderPagesRemoteControlTreeNode.h"
+#include "UI/Components/SRenderPagesRemoteControlTreeNode.h"
+#include "UI/SRenderPagesPropsBase.h"
+
 
 class URenderPage;
 
 namespace UE::RenderPages
 {
 	class IRenderPageCollectionEditor;
-}
-
-namespace UE::RenderPages::Private
-{
-	struct SRenderPagesRemoteControlTreeNode;
-	struct FRenderPagesRemoteControlGenerateWidgetArgs;
 }
 
 
