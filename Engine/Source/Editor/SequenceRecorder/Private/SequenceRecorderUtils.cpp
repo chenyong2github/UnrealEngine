@@ -36,7 +36,7 @@ AActor* GetAttachment(AActor* InActor, FName& SocketName, FName& ComponentName)
 	return AttachedActor;
 }
 
-bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset)
+bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset, bool bShowMessage)
 {
 	UAnimSingleNodeInstance* SingleNodeInstance = (PreviewComponent) ? Cast<UAnimSingleNodeInstance>(PreviewComponent->GetAnimInstance()) : nullptr;
 	if (SingleNodeInstance && NewAsset)
@@ -77,7 +77,7 @@ bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponen
 			RecordMesh(PreviewComponent, SingleNodeInstance, AnimRecorder, Length, Remainder);
 		}
 
-		AnimRecorder.FinishRecording(true);
+		AnimRecorder.FinishRecording(bShowMessage);
 		return true;
 	}
 

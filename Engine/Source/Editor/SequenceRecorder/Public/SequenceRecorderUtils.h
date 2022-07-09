@@ -203,8 +203,9 @@ SEQUENCERECORDER_API AActor* GetAttachment(AActor* InActor, FName& SocketName, F
  * 
  * @param: PreviewComponent - this component should contains SingleNodeInstance with time-line based asset, currently support AnimSequence or AnimComposite
  * @param: NewAsset - this is the asset that should be recorded. This will reset all animation data internally
+ * @param: bShowMessage - show a notification of new asset creation
  */
-SEQUENCERECORDER_API bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset);
+SEQUENCERECORDER_API bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset, bool bShowMessage = true);
 
 /**
  * Get timecode source

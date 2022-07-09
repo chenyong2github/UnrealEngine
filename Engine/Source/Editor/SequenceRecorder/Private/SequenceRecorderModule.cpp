@@ -795,9 +795,9 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 		}
 	}
 
-	virtual bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset) override
+	virtual bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset, bool bShowMessage) override
 	{
-		return SequenceRecorderUtils::RecordSingleNodeInstanceToAnimation(PreviewComponent, NewAsset);
+		return SequenceRecorderUtils::RecordSingleNodeInstanceToAnimation(PreviewComponent, NewAsset, bShowMessage);
 	}
 
 #if WITH_EDITOR

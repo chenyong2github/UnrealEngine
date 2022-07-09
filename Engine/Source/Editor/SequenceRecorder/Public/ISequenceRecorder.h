@@ -172,6 +172,7 @@ public:
 	*
 	* @param: PreviewComponent - this component should contains SingleNodeInstance with time-line based asset, currently support AnimSequence or AnimComposite
 	* @param: NewAsset - this is the asset that should be recorded. This will reset all animation data internally
+	* @param: bShowMessage - show a notification of new asset creation
 	*/
-	virtual bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset) = 0;
+	virtual bool RecordSingleNodeInstanceToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset, bool bShowMessage = true) = 0;
 };

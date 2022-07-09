@@ -518,16 +518,13 @@ namespace AnimationEditorUtils
 		{
 			if (!AssetCreated.Execute(ObjectsToSync))
 			{
-				//Destroy the assets we just create
+				// Rename the objects we created out of the way
 				for (UObject* ObjectToDelete : ObjectsToSync)
 				{
 					// Notify the asset registry
 					FAssetRegistryModule::AssetDeleted(ObjectToDelete);
-					ObjectToDelete->ClearFlags(RF_Standalone | RF_Public);
-					ObjectToDelete->RemoveFromRoot();
-					ObjectToDelete->MarkAsGarbage();
+					ObjectToDelete->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
 				}
-				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 			}
 		}
 	}
