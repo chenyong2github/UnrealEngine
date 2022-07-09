@@ -452,6 +452,9 @@ void FAdaptiveTessellator::FindSplitBVH( uint32 TriIndex )
 						uint32 e1 = (1 << e0) & 3;
 						uint32 e2 = (1 << e1) & 3;
 
+						CA_ASSUME(e1 <= 2);
+						CA_ASSUME(e2 <= 2);
+
 						bool bTooCloseToEdge = DistToEdge[ e0 ] < 0.5f * SampleRate;
 						if( bTooCloseToEdge && !bCouldFlipEdge[ e0 ] )
 						{
