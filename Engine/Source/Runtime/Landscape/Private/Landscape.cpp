@@ -1615,7 +1615,11 @@ void ULandscapeComponent::PropagateLightingScenarioChange()
 
 bool ULandscapeComponent::IsHLODRelevant() const
 {
+#if WITH_EDITOR
 	return bEnableAutoLODGeneration;
+#else
+	return false;
+#endif
 }
 
 TArray<URuntimeVirtualTexture*> const& ULandscapeComponent::GetRuntimeVirtualTextures() const
