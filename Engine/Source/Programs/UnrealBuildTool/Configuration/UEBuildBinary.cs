@@ -477,12 +477,15 @@ namespace UnrealBuildTool
 						FileReference PrecompiledManifestLocation = Module.PrecompiledManifestLocation;
 						BuildProducts.Add(PrecompiledManifestLocation, BuildProductType.BuildResource);
 
-						PrecompiledManifest ModuleManifest = PrecompiledManifest.Read(PrecompiledManifestLocation);
-						foreach(FileReference OutputFile in ModuleManifest.OutputFiles)
+						if (FileReference.Exists(PrecompiledManifestLocation)) // May be single file compile; skipped modulePrecompiledManifestLocation{
 						{
-							if(!BuildProducts.ContainsKey(OutputFile))
+							PrecompiledManifest ModuleManifest = PrecompiledManifest.Read(PrecompiledManifestLocation);
+							foreach (FileReference OutputFile in ModuleManifest.OutputFiles)
 							{
-								BuildProducts.Add(OutputFile, BuildProductType.BuildResource);
+								if (!BuildProducts.ContainsKey(OutputFile))
+								{
+									BuildProducts.Add(OutputFile, BuildProductType.BuildResource);
+								}
 							}
 						}
 					}
