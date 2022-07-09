@@ -23,6 +23,7 @@ static TAutoConsoleVariable<int32> CVarLandscapeBrushPadding(
 ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	: OwningLandscape(nullptr)
+	, UpdateOnPropertyChange(true)
 	, AffectHeightmap(false)
 	, AffectWeightmap(false)
 	, bIsVisible(true)
@@ -186,7 +187,7 @@ void ALandscapeBlueprintBrushBase::PostEditChangeProperty(FPropertyChangedEvent&
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 #if WITH_EDITORONLY_DATA
-	if (OwningLandscape)
+	if (OwningLandscape && UpdateOnPropertyChange)
 	{
 		OwningLandscape->OnBlueprintBrushChanged();
 	}

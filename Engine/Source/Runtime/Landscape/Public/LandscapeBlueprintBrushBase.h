@@ -21,6 +21,9 @@ protected:
 	TObjectPtr<class ALandscape> OwningLandscape;
 
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	bool UpdateOnPropertyChange;
+
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
 	bool AffectHeightmap;
 
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
