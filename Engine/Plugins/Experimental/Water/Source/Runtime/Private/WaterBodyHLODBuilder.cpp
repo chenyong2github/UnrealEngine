@@ -22,10 +22,14 @@
 #include "Serialization/ArchiveCrc32.h"
 #include "Engine/HLODProxy.h"
 
+#endif
+
 UWaterBodyHLODBuilder::UWaterBodyHLODBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
+
+#if WITH_EDITOR
 
 static double GetPixelToWorldUnit(const double InDistanceZ)
 {
