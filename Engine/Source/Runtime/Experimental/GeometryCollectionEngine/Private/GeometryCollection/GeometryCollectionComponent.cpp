@@ -1419,6 +1419,9 @@ void UGeometryCollectionComponent::UpdateRepData()
 		TSet<FPBDRigidClusteredParticleHandle*> Processed;
 		for (FPBDRigidClusteredParticleHandle* Particle : PhysicsProxy->GetParticles())
 		{
+			// Particle can be null if we have embedded geometry 
+			if (Particle)
+			{
 			bool bProcess = true;
 			Processed.Add(Particle);
 			FPBDRigidClusteredParticleHandle* Root = Particle;
@@ -1480,6 +1483,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 					}
 				}
 			}
+		}
 		}
 		
 		INC_DWORD_STAT_BY(STAT_GCReplicatedFractures, RepData.OneOffActivated.Num());
