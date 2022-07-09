@@ -247,23 +247,6 @@ static TAutoConsoleVariable<int32> CVarMaxMobileShadowCascades(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarSupportSimpleForwardShading(
-	TEXT("r.SupportSimpleForwardShading"),
-	0,
-	TEXT("Whether to compile the shaders to support r.SimpleForwardShading being enabled (PC only)."),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarSimpleForwardShading(
-	TEXT("r.SimpleForwardShading"),
-	0,
-	TEXT("Whether to use the simple forward shading base pass shaders which only support lightmaps + stationary directional light + stationary skylight\n")
-	TEXT("All other lighting features are disabled when true.  This is useful for supporting very low end hardware, and is only supported on PC platforms.\n")
-	TEXT("0:off, 1:on"),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
-// Keep track of the previous value for CVarSimpleForwardShading so we can avoid costly updates when it hasn't actually changed
-static int32 CVarSimpleForwardShading_PreviousValue = 0;
-
 static TAutoConsoleVariable<float> CVarNormalCurvatureToRoughnessBias(
 	TEXT("r.NormalCurvatureToRoughnessBias"),
 	0.0f,
@@ -4435,45 +4418,6 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 	FSceneRenderer::RenderThreadEnd(RHICmdList, SceneRenderers);
 }
 
-void OnChangeSimpleForwardShading(IConsoleVariable* Var)
-{
-	static const auto SupportSimpleForwardShadingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSimpleForwardShading"));
-	static const auto SimpleForwardShadingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SimpleForwardShading"));
-
-	const bool bWasEnabled = CVarSimpleForwardShading_PreviousValue != 0;
-	const bool bShouldBeEnabled = SimpleForwardShadingCVar->GetValueOnAnyThread() != 0;
-	if( bWasEnabled != bShouldBeEnabled )
-	{
-	bool bWasIgnored = false;
-	{
-		if (SupportSimpleForwardShadingCVar->GetValueOnAnyThread() == 0)
-		{
-				if (bShouldBeEnabled)
-				{
-					UE_LOG( LogRenderer, Warning, TEXT( "r.SimpleForwardShading ignored as r.SupportSimpleForwardShading is not enabled" ) );
-				}
-			bWasIgnored = true;
-		}
-		else if (!PlatformSupportsSimpleForwardShading(GMaxRHIShaderPlatform))
-		{
-				if (bShouldBeEnabled)
-				{
-					UE_LOG( LogRenderer, Warning, TEXT( "r.SimpleForwardShading ignored, only supported on PC shader platforms.  Current shader platform %s" ), *LegacyShaderPlatformToShaderFormat( GMaxRHIShaderPlatform ).ToString() );
-				}
-			bWasIgnored = true;
-		}
-	}
-
-	if( !bWasIgnored )
-	{
-		// Propagate cvar change to static draw lists
-	FGlobalComponentRecreateRenderStateContext Context;
-	}
-	}
-
-	CVarSimpleForwardShading_PreviousValue = SimpleForwardShadingCVar->GetValueOnAnyThread();
-}
-
 void OnChangeCVarRequiringRecreateRenderState(IConsoleVariable* Var)
 {
 	// Propgate cvar change to static draw lists
@@ -4482,9 +4426,6 @@ void OnChangeCVarRequiringRecreateRenderState(IConsoleVariable* Var)
 
 FRendererModule::FRendererModule()
 {
-	CVarSimpleForwardShading_PreviousValue = CVarSimpleForwardShading.AsVariable()->GetInt();
-	CVarSimpleForwardShading.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeSimpleForwardShading));
-
 	static auto EarlyZPassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
 	EarlyZPassVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 

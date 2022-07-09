@@ -1106,19 +1106,6 @@ RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector2()
 	return GVector2VertexDeclaration.VertexDeclarationRHI;
 }
 
-RENDERCORE_API bool PlatformSupportsSimpleForwardShading(const FStaticShaderPlatform Platform)
-{
-	static const auto SupportSimpleForwardShadingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportSimpleForwardShading"));
-	// Scalability feature only needed / used on PC
-	return IsPCPlatform(Platform) && SupportSimpleForwardShadingCVar->GetValueOnAnyThread() != 0;
-}
-
-RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Platform)
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SimpleForwardShading"));
-	return CVar->GetValueOnAnyThread() != 0 && PlatformSupportsSimpleForwardShading(Platform);
-}
-
 RENDERCORE_API bool MobileSupportsGPUScene()
 {
 	// make it shader platform setting?

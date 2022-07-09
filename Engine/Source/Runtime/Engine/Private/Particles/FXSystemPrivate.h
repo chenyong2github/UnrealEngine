@@ -56,17 +56,14 @@ enum EParticleCollisionShaderMode
 };
 
 /** Helper function to determine whether the given particle collision shader mode is supported on the given shader platform */
-inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleCollisionShaderMode InCollisionShaderMode, bool bForCaching = false)
+inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleCollisionShaderMode InCollisionShaderMode)
 {
 	switch (InCollisionShaderMode)
 	{
 	case PCM_None:
 		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES3_1);
 	case PCM_DepthBuffer:
-		// we only need to check for simple forward if we're NOT currently attempting to cache the shader
-		// since SF is a runtime change, we need to compile the shader regardless, because we could be switching to deferred at any time
-		return (IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5))
-			&& (bForCaching || !IsSimpleForwardShadingEnabled(InPlatform));
+		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 	case PCM_DistanceField:
 		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 	}

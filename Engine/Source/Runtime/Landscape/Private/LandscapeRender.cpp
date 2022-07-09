@@ -3538,13 +3538,6 @@ public:
 			FName(TEXT("TBasePassPSFNoLightMapPolicy")),
 			FName(TEXT("TBasePassVSFCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassPSFCachedPointIndirectLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleDirectionalLightLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleDirectionalLightLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSimpleDirectionalLightLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleNoLightmapLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleNoLightmapLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSimpleNoLightmapLightingPolicy")),
-			FName(TEXT("TBasePassVSFSimpleNoLightmapLightingPolicySkyAtmosphereAP")),
 			FName(TEXT("FAnisotropyVS")),
 			FName(TEXT("FAnisotropyPS")),
 			FName(TEXT("TDepthOnlyVS<false>")),
@@ -3556,12 +3549,6 @@ public:
 			FName(TEXT("FVelocityVS")),
 			FName(TEXT("FVelocityPS")),
 
-			FName(TEXT("TBasePassPSFSimpleStationaryLightSingleSampleShadowsLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleStationaryLightSingleSampleShadowsLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSimpleStationaryLightSingleSampleShadowsLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleStationaryLightPrecomputedShadowsLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleStationaryLightPrecomputedShadowsLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSimpleStationaryLightPrecomputedShadowsLightingPolicy")),
 			FName(TEXT("TBasePassVSFNoLightMapPolicySkyAtmosphereAP")),
 			FName(TEXT("TLightMapDensityVSFNoLightMapPolicy")),
 			FName(TEXT("TLightMapDensityPSFNoLightMapPolicy")),
@@ -3631,7 +3618,6 @@ public:
 			FName(TEXT("TBasePassPSTLightMapPolicyLQ")),
 			FName(TEXT("TBasePassPSTLightMapPolicyLQSkylight")),
 			FName(TEXT("TBasePassVSTLightMapPolicyLQ")),
-			FName(TEXT("TBasePassVSFSimpleStationaryLightVolumetricLightmapShadowsLightingPolicy")),
 
 			// Debug materials : 
 			FName(TEXT("FDebugViewModePS")),
@@ -3669,8 +3655,6 @@ public:
 			FName(TEXT("TBasePassPSFPrecomputedVolumetricLightmapLightingPolicySkylight")),
 			FName(TEXT("TBasePassVSFPrecomputedVolumetricLightmapLightingPolicy")),
 			FName(TEXT("TBasePassPSFPrecomputedVolumetricLightmapLightingPolicy")),
-
-			FName(TEXT("TBasePassPSFSimpleStationaryLightVolumetricLightmapShadowsLightingPolicy")),
 
 			FName(TEXT("TBasePassVSFCachedPointIndirectLightingPolicy")),
 			FName(TEXT("TBasePassVSFSelfShadowedCachedPointIndirectLightingPolicy")),
@@ -3715,10 +3699,6 @@ public:
 			FName(TEXT("TBasePassPSFSelfShadowedVolumetricLightmapPolicy")),
 			FName(TEXT("TBasePassPSFSelfShadowedVolumetricLightmapPolicySkylight")),
 			FName(TEXT("TBasePassVSFSelfShadowedVolumetricLightmapPolicy")),
-
-			FName(TEXT("TBasePassPSFSimpleLightmapOnlyLightingPolicy")),
-			FName(TEXT("TBasePassPSFSimpleLightmapOnlyLightingPolicySkylight")),
-			FName(TEXT("TBasePassVSFSimpleLightmapOnlyLightingPolicy")),
 
 #if RHI_RAYTRACING
 			// No ray tracing on thumbnails

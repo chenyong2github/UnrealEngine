@@ -481,10 +481,6 @@ RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector3();
 
 RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector2();
 
-RENDERCORE_API bool PlatformSupportsSimpleForwardShading(const FStaticShaderPlatform Platform);
-
-RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Platform);
-
 RENDERCORE_API bool MobileSupportsGPUScene();
 
 RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform);
@@ -603,12 +599,6 @@ inline bool IsForwardShadingEnabled(const FStaticShaderPlatform Platform)
 		&& GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5;
 }
 
-/** Returns if ForwardShading or SimpleForwardShading is enabled. Only valid for the current platform. */
-inline bool IsAnyForwardShadingEnabled(const FStaticShaderPlatform Platform)
-{
-	return IsForwardShadingEnabled(Platform) || IsSimpleForwardShadingEnabled(Platform);
-}
-
 /** Returns if the GBuffer is used. Only valid for the current platform. */
 inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 {
@@ -618,7 +608,7 @@ inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 	}
 	else
 	{
-		return !IsAnyForwardShadingEnabled(Platform);
+		return !IsForwardShadingEnabled(Platform);
 	}
 }
 

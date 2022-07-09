@@ -239,7 +239,6 @@ bool FLightSceneInfo::SetupMobileMovableLocalLightShadowParameters(const FViewIn
 	Proxy->GetLightShaderParameters(LightParameters);
 
 	bool bShouldCastShadow = View.Family->EngineShowFlags.DynamicShadows
-		&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform())
 		&& GetShadowQuality() > 0
 		&& LightType == LightType_Spot
 		&& VisibleLightInfos[Id].AllProjectedShadows.Num() > 0

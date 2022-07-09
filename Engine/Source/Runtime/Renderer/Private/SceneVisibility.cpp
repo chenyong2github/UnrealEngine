@@ -5071,7 +5071,6 @@ void FDeferredShadingSceneRenderer::InitViewsBeforePrepass(FRDGBuilder& GraphBui
 	if (GEarlyInitDynamicShadows &&
 		CurrentDynamicShadowsTaskData == nullptr &&
 		ViewFamily.EngineShowFlags.DynamicShadows
-		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !bHasRayTracedOverlay)
 	{
@@ -5089,7 +5088,6 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
 
 	if (ViewFamily.EngineShowFlags.DynamicShadows 
-		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !bHasRayTracedOverlay)
 	{

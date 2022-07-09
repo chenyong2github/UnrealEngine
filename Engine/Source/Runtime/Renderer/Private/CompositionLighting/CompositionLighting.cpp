@@ -75,7 +75,7 @@ static bool IsReflectionEnvironmentActive(const FSceneView& View)
 	bool HasReflectionCaptures = (Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() > 0);
 	bool HasSSR = View.Family->EngineShowFlags.ScreenSpaceReflections;
 
-	return (Scene->GetFeatureLevel() == ERHIFeatureLevel::SM5 && IsReflectingEnvironment && (HasReflectionCaptures || HasSSR) && !IsAnyForwardShadingEnabled(View.GetShaderPlatform()));
+	return (Scene->GetFeatureLevel() == ERHIFeatureLevel::SM5 && IsReflectingEnvironment && (HasReflectionCaptures || HasSSR) && !IsForwardShadingEnabled(View.GetShaderPlatform()));
 }
 
 static bool IsSkylightActive(const FViewInfo& View)
@@ -94,8 +94,7 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 		&& View.Family->EngineShowFlags.Lighting
 		&& View.FinalPostProcessSettings.AmbientOcclusionRadius >= 0.1f
 		&& !View.Family->UseDebugViewPS()
-		&& (FSSAOHelper::IsBasePassAmbientOcclusionRequired(View) || IsAmbientCubemapPassRequired(View) || IsReflectionEnvironmentActive(View) || IsSkylightActive(View) || View.Family->EngineShowFlags.VisualizeBuffer)
-		&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
+		&& (FSSAOHelper::IsBasePassAmbientOcclusionRequired(View) || IsAmbientCubemapPassRequired(View) || IsReflectionEnvironmentActive(View) || IsSkylightActive(View) || View.Family->EngineShowFlags.VisualizeBuffer);
 #if RHI_RAYTRACING
 	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion(View);
 #endif
@@ -630,7 +629,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRDGBuilder& GraphBuilder)
 			AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeLighting);
 		}
 
-		if (bEnableDecals && !IsSimpleForwardShadingEnabled(View.GetShaderPlatform()))
+		if (bEnableDecals)
 		{
 			// DBuffer decals with emissive component
 			AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::Emissive);

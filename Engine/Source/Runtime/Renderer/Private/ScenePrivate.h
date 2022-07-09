@@ -3274,7 +3274,7 @@ public:
 			bRenderSkyLight = bRenderSkyLight
 				&& ((ReadOnlyCVARCache.bEnableStationarySkylight && SkyLight->bWantsStaticShadowing)
 					|| (!SkyLight->bWantsStaticShadowing
-						&& (IsAnyForwardShadingEnabled(GetShaderPlatform()) || IsMobilePlatform(GetShaderPlatform()))));
+						&& (IsForwardShadingEnabled(GetShaderPlatform()) || IsMobilePlatform(GetShaderPlatform()))));
 		}
 
 		return bRenderSkyLight;

@@ -179,7 +179,7 @@ void CopySceneCaptureComponentToTarget(
 {
 	ESceneCaptureSource SceneCaptureSource = ViewFamily.SceneCaptureSource;
 
-	if (IsAnyForwardShadingEnabled(ViewFamily.GetShaderPlatform()) && (SceneCaptureSource == SCS_Normal || SceneCaptureSource == SCS_BaseColor))
+	if (IsForwardShadingEnabled(ViewFamily.GetShaderPlatform()) && (SceneCaptureSource == SCS_Normal || SceneCaptureSource == SCS_BaseColor))
 	{
 		SceneCaptureSource = SCS_SceneColorHDR;
 	}

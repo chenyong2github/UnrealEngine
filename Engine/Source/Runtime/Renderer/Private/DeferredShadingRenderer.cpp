@@ -2350,8 +2350,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	bool bComputeLightGrid = false;
 	bool bAnyLumenEnabled = false;
-	// Simple forward shading doesn't support local lights. No need to compute light grid
-	if (!IsSimpleForwardShadingEnabled(ShaderPlatform))
+
 	{
 		if (bUseGBuffer)
 		{

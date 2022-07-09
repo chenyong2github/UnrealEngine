@@ -710,7 +710,7 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 			}
 		}
 
-		if ((!IsAnyForwardShadingEnabled(Parameters.Platform) || !RHISupportsMSAA(Parameters.Platform)) && PermutationVector.Get<FMSAASampleCount>() > 1)
+		if ((!IsForwardShadingEnabled(Parameters.Platform) || !RHISupportsMSAA(Parameters.Platform)) && PermutationVector.Get<FMSAASampleCount>() > 1)
 		{
 			// We only compile the MSAA support when Forward shading is enabled because MSAA can only be used in this case.
 			return false;

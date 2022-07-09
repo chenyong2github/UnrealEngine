@@ -81,7 +81,7 @@ DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse In
 
 static bool IsScreenSpaceDiffuseIndirectSupported(EShaderPlatform ShaderPlatform)
 {
-	if (IsAnyForwardShadingEnabled(ShaderPlatform))
+	if (IsForwardShadingEnabled(ShaderPlatform))
 	{
 		return false;
 	}
@@ -147,7 +147,7 @@ bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)
 		return false;
 	}
 
-	if (IsAnyForwardShadingEnabled(View.GetShaderPlatform()))
+	if (IsForwardShadingEnabled(View.GetShaderPlatform()))
 	{
 		return false;
 	}

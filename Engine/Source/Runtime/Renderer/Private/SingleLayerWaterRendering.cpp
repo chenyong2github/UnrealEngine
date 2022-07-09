@@ -838,7 +838,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	RenderSingleLayerWaterInner(GraphBuilder, SceneTextures, SceneWithoutWaterTextures);
 
 	// No SSR or composite needed in Forward. Reflections are applied in the WaterGBuffer pass.
-	if (!IsAnyForwardShadingEnabled(ShaderPlatform))
+	if (!IsForwardShadingEnabled(ShaderPlatform))
 	{
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
 		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures, SceneWithoutWaterTextures, LumenFrameTemporaries);

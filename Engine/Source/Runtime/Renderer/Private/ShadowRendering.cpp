@@ -2371,7 +2371,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 
 void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View)
 {
-	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
+	if (!ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
 	{
 		return;
 	}

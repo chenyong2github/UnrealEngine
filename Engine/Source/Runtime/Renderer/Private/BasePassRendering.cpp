@@ -112,12 +112,6 @@ IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_NO_LIGHTM
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>, FPrecomputedVolumetricLightmapLightingPolicy );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>, FCachedVolumeIndirectLightingPolicy );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_CACHED_POINT_INDIRECT_LIGHTING>, FCachedPointIndirectLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_NO_LIGHTMAP>, FSimpleNoLightmapLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING>, FSimpleLightmapOnlyLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING>, FSimpleDirectionalLightLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING>, FSimpleStationaryLightPrecomputedShadowsLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING>, FSimpleStationaryLightSingleSampleShadowsLightingPolicy );
-IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING>, FSimpleStationaryLightVolumetricLightmapShadowsLightingPolicy );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>, TLightMapPolicyLQ );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>, TLightMapPolicyHQ );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>, TDistanceFieldShadowsAndLightMapPolicyHQ  );
@@ -526,18 +520,6 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 		return GetUniformBasePassShaders<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_CACHED_POINT_INDIRECT_LIGHTING:
 		return GetUniformBasePassShaders<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_NO_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_SIMPLE_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
-	case LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING:
-		return GetUniformBasePassShaders<LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_LQ_LIGHTMAP:
 		return GetUniformBasePassShaders<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
 	case LMP_HQ_LIGHTMAP:
@@ -1434,168 +1416,6 @@ bool FBasePassMeshProcessor::Process(
 	return true;
 }
 
-bool FBasePassMeshProcessor::AddMeshBatchForSimpleForwardShading(
-	const FMeshBatch& RESTRICT MeshBatch,
-	uint64 BatchElementMask,
-	int32 StaticMeshId,
-	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-	const FMaterialRenderProxy& MaterialRenderProxy,
-	const FMaterial& Material,
-	const FLightMapInteraction& LightMapInteraction,
-	bool bIsLitMaterial,
-	bool bAllowStaticLighting,
-	bool bUseVolumetricLightmap,
-	bool bAllowIndirectLightingCache,
-	ERasterizerFillMode MeshFillMode,
-	ERasterizerCullMode MeshCullMode)
-{
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-
-	bool bResult = false;
-	if (bAllowStaticLighting && LightMapInteraction.GetType() == LMIT_Texture)
-	{
-		const FShadowMapInteraction ShadowMapInteraction = (MeshBatch.LCI && bIsLitMaterial)
-			? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
-			: FShadowMapInteraction();
-
-		if (ShadowMapInteraction.GetType() == SMIT_Texture)
-		{
-			bResult = Process< FUniformLightMapPolicy >(
-				MeshBatch,
-				BatchElementMask,
-				StaticMeshId,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				BlendMode,
-				ShadingModels,
-				FUniformLightMapPolicy(LMP_SIMPLE_STATIONARY_PRECOMPUTED_SHADOW_LIGHTING),
-				MeshBatch.LCI,
-				MeshFillMode,
-				MeshCullMode);
-		}
-		else
-		{
-			bResult = Process< FUniformLightMapPolicy >(
-				MeshBatch,
-				BatchElementMask,
-				StaticMeshId,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				BlendMode,
-				ShadingModels,
-				FUniformLightMapPolicy(LMP_SIMPLE_LIGHTMAP_ONLY_LIGHTING),
-				MeshBatch.LCI,
-				MeshFillMode,
-				MeshCullMode);
-		}
-	}
-	else if (bIsLitMaterial
-		&& bAllowStaticLighting
-		&& bUseVolumetricLightmap
-		&& PrimitiveSceneProxy)
-	{
-		bResult = Process< FUniformLightMapPolicy >(
-			MeshBatch,
-			BatchElementMask,
-			StaticMeshId,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			BlendMode,
-			ShadingModels,
-			FUniformLightMapPolicy(LMP_SIMPLE_STATIONARY_VOLUMETRICLIGHTMAP_SHADOW_LIGHTING),
-			MeshBatch.LCI,
-			MeshFillMode,
-			MeshCullMode);
-	}
-	else if (bIsLitMaterial
-		&& IsIndirectLightingCacheAllowed(FeatureLevel)
-		&& bAllowIndirectLightingCache
-		&& PrimitiveSceneProxy)
-	{
-		const FIndirectLightingCacheAllocation* IndirectLightingCacheAllocation = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->IndirectLightingCacheAllocation;
-		const bool bPrimitiveIsMovable = PrimitiveSceneProxy->IsMovable();
-		const bool bPrimitiveUsesILC = PrimitiveSceneProxy->GetIndirectLightingCacheQuality() != ILCQ_Off;
-
-		// Use the indirect lighting cache shaders if the object has a cache allocation
-		// This happens for objects with unbuilt lighting
-		if (bPrimitiveUsesILC &&
-			((IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
-				// Use the indirect lighting cache shaders if the object is movable, it may not have a cache allocation yet because that is done in InitViews
-				// And movable objects are sometimes rendered in the static draw lists
-				|| bPrimitiveIsMovable))
-		{
-			// Use a lightmap policy that supports reading indirect lighting from a single SH sample
-			bResult = Process< FUniformLightMapPolicy >(
-				MeshBatch,
-				BatchElementMask,
-				StaticMeshId,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				BlendMode,
-				ShadingModels,
-				FUniformLightMapPolicy(LMP_SIMPLE_STATIONARY_SINGLESAMPLE_SHADOW_LIGHTING),
-				MeshBatch.LCI,
-				MeshFillMode,
-				MeshCullMode);
-		}
-		else
-		{
-			bResult = Process< FUniformLightMapPolicy >(
-				MeshBatch,
-				BatchElementMask,
-				StaticMeshId,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				BlendMode,
-				ShadingModels,
-				FUniformLightMapPolicy(LMP_SIMPLE_NO_LIGHTMAP),
-				MeshBatch.LCI,
-				MeshFillMode,
-				MeshCullMode);
-		}
-	}
-	else if (bIsLitMaterial)
-	{
-		// Always choosing shaders to support dynamic directional even if one is not present
-		bResult = Process< FUniformLightMapPolicy >(
-			MeshBatch,
-			BatchElementMask,
-			StaticMeshId,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			BlendMode,
-			ShadingModels,
-			FUniformLightMapPolicy(LMP_SIMPLE_DIRECTIONAL_LIGHT_LIGHTING),
-			MeshBatch.LCI,
-			MeshFillMode,
-			MeshCullMode);
-	}
-	else
-	{
-	bResult = Process< FUniformLightMapPolicy >(
-			MeshBatch,
-			BatchElementMask,
-			StaticMeshId,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			BlendMode,
-			ShadingModels,
-			FUniformLightMapPolicy(LMP_SIMPLE_NO_LIGHTMAP),
-			MeshBatch.LCI,
-			MeshFillMode,
-			MeshCullMode);
-	}
-	return bResult;
-}
-
 void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	if (MeshBatch.bUseForMaterial)
@@ -1697,27 +1517,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 		FMeshMaterialShaderElementData MeshMaterialShaderElementData;
 		MeshMaterialShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
-		if (IsSimpleForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
-		{
-			// Only compiling simple lighting shaders for HQ lightmaps to save on permutations
-			check(bPlatformAllowsHighQualityLightMaps);
-			bResult = AddMeshBatchForSimpleForwardShading(
-				MeshBatch,
-				BatchElementMask,
-				StaticMeshId,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				LightMapInteraction,
-				bIsLitMaterial,
-				bAllowStaticLighting,
-				bUseVolumetricLightmap,
-				bAllowIndirectLightingCache,
-				MeshFillMode,
-				MeshCullMode);
-		}
 		// Render volumetric translucent self-shadowing only for >= SM4 and fallback to non-shadowed for lesser shader models
-		else if (bIsLitMaterial
+		if (bIsLitMaterial
 			&& bIsTranslucent
 			&& PrimitiveSceneProxy
 			&& PrimitiveSceneProxy->CastsVolumetricTranslucentShadow())

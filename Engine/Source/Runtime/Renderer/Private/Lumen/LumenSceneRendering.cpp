@@ -378,7 +378,7 @@ bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
 		&& ViewFamily.EngineShowFlags.SkyLighting
 		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
-		&& !IsAnyForwardShadingEnabled(Scene->GetShaderPlatform())
+		&& !IsForwardShadingEnabled(Scene->GetShaderPlatform())
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 }
 

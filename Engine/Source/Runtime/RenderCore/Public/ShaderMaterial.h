@@ -50,13 +50,11 @@ struct FShaderGlobalDefines
 };
 
 
-// maybe should renamt this to VertexFactoryDefines?
+// maybe should rename this to VertexFactoryDefines?
 struct FShaderLightmapPropertyDefines
 {
 	void ModifyEnvironment(FShaderCompilerEnvironment& OutEnvironment) const;
 
-	bool SIMPLE_FORWARD_SHADING;
-	bool SIMPLE_FORWARD_DIRECTIONAL_LIGHT;
 	bool LQ_TEXTURE_LIGHTMAP;
 	bool HQ_TEXTURE_LIGHTMAP;
 	bool CACHED_POINT_INDIRECT_LIGHTING;

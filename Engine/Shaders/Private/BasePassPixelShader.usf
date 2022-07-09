@@ -79,7 +79,7 @@
 #endif
 
 #include "ReflectionEnvironmentShared.ush"
-#if SIMPLE_FORWARD_SHADING || PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE
+#if PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE
 #define GetEffectiveSkySHDiffuse GetSkySHDiffuseSimple
 #else
 #define GetEffectiveSkySHDiffuse GetSkySHDiffuse
@@ -98,7 +98,7 @@
 #endif
 
 #include "ShadingModelsMaterial.ush"
-#if MATERIAL_SHADINGMODEL_HAIR || SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#if MATERIAL_SHADINGMODEL_HAIR || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #include "ShadingModels.ush"
 #endif
 
@@ -112,7 +112,7 @@
 	#define COMPILER_GLSL 0
 #endif
 
-#define FORCE_FULLY_ROUGH (SIMPLE_FORWARD_SHADING || MATERIAL_FULLY_ROUGH)
+#define FORCE_FULLY_ROUGH (MATERIAL_FULLY_ROUGH)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 #define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE )
@@ -637,26 +637,6 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		OutIndirectIrradiance = Luminance(OutDiffuseLighting);
 	#endif
 }
-
-#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-
-float3 GetSimpleForwardLightingDirectionalLight(FGBufferData GBuffer, float3 DiffuseColor, float3 SpecularColor, float Roughness, float3 WorldNormal, float3 CameraVector)
-{
-	float3 V = -CameraVector;
-	float3 N = WorldNormal;
-	float3 L = ResolvedView.DirectionalLightDirection;
-	float NoL = saturate( dot( N, L ) );
-
-	float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
-	
-	FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
-	FDirectLighting Lighting = EvaluateBxDF( GBuffer, N, V, L, NoL, Shadow );
-
-	// Not computing specular, material was forced fully rough
-	return LightColor * (Lighting.Diffuse + Lighting.Transmission);
-}
-
-#endif
 
 #if EDITOR_ALPHA2COVERAGE != 0
 uint CustomAlpha2Coverage(inout float4 InOutColor)
@@ -1312,28 +1292,6 @@ void FPixelShaderInOut_MainPS(
 					#endif
 				}
 			#endif
-        #endif
-
-		#if SIMPLE_FORWARD_DIRECTIONAL_LIGHT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-
-			float3 DirectionalLighting = GetSimpleForwardLightingDirectionalLight(
-				GBuffer,
-				DiffuseColorForIndirect,
-				GBuffer.SpecularColor,
-				GBuffer.Roughness,
-				MaterialParameters.WorldNormal, 
-				MaterialParameters.CameraVector);
-			
-			#if STATICLIGHTING_SIGNEDDISTANCEFIELD
-				DirectionalLighting *= GBuffer.PrecomputedShadowFactors.x;
-			#elif PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
-				DirectionalLighting *= GetVolumetricLightmapDirectionalLightShadowing(VolumetricLightmapBrickTextureUVs);
-			#elif CACHED_POINT_INDIRECT_LIGHTING
-				DirectionalLighting *= IndirectLightingCache.DirectionalLightShadowing;
-			#endif
-			
-			Color += DirectionalLighting;
-
 		#endif
 	#endif
 
@@ -1402,7 +1360,7 @@ void FPixelShaderInOut_MainPS(
 #if !STRATA_ENABLED
 
 	// Volume lighting for lit translucency
-#if (MATERIAL_SHADINGMODEL_DEFAULT_LIT || MATERIAL_SHADINGMODEL_SUBSURFACE) && (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && !SIMPLE_FORWARD_SHADING && !FORWARD_SHADING
+#if (MATERIAL_SHADINGMODEL_DEFAULT_LIT || MATERIAL_SHADINGMODEL_SUBSURFACE) && (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE) && !FORWARD_SHADING
 	if (GBuffer.ShadingModelID == SHADINGMODELID_DEFAULT_LIT || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE)
 	{
 		Color += GetTranslucencyVolumeLighting(MaterialParameters, PixelMaterialInputs, BasePassInterpolants, GBuffer, IndirectIrradiance);

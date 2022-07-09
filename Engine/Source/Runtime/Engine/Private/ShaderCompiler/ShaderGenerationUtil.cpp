@@ -108,9 +108,6 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderGlobalDefines& SrcDef
 
 void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderLightmapPropertyDefines& SrcDefines, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FETCH_COMPILE_BOOL(SIMPLE_FORWARD_SHADING);
-	FETCH_COMPILE_BOOL(SIMPLE_FORWARD_DIRECTIONAL_LIGHT);
-
 	FETCH_COMPILE_BOOL(LQ_TEXTURE_LIGHTMAP);
 	FETCH_COMPILE_BOOL(HQ_TEXTURE_LIGHTMAP);
 

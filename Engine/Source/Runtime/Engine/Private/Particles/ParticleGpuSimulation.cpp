@@ -1012,7 +1012,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return SupportsGPUParticles(Parameters.Platform) && IsParticleCollisionModeSupported(Parameters.Platform, CollisionMode, true);
+		return SupportsGPUParticles(Parameters.Platform) && IsParticleCollisionModeSupported(Parameters.Platform, CollisionMode);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

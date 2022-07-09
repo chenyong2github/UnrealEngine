@@ -245,7 +245,7 @@ bool ShouldRenderAnisotropyPass(const FViewInfo& View)
 		return false;
 	}
 
-	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(View.FeatureLevel)))
+	if (IsForwardShadingEnabled(GetFeatureLevelShaderPlatform(View.FeatureLevel)))
 	{
 		return false;
 	}

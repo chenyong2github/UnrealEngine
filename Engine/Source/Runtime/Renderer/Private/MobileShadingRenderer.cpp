@@ -577,7 +577,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	
-	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
+	if (bDynamicShadows)
 	{
 		// Setup dynamic shadows.
 		InitDynamicShadows(RHICmdList, InstanceCullingManager);

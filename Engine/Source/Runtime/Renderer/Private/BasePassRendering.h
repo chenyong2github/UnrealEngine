@@ -413,10 +413,9 @@ public:
 		const bool bCacheShaders = !bEnableSkyLight
 			//translucent materials need to compile skylight support to support MOVABLE skylights also.
 			|| bTranslucent
-			// Some lightmap policies (eg Simple Forward) always require skylight support
 			|| IsSingleLayerWater
-			|| LightMapPolicyType::RequiresSkylight()
 			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.MaterialParameters.ShadingModels.IsLit());
+		
 		return bCacheShaders
 			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 			&& TBasePassPixelShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters);
@@ -618,21 +617,6 @@ public:
 private:
 
 	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
-
-	bool AddMeshBatchForSimpleForwardShading(
-		const FMeshBatch& RESTRICT MeshBatch,
-		uint64 BatchElementMask,
-		int32 StaticMeshId,
-		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-		const FMaterialRenderProxy& MaterialRenderProxy,
-		const FMaterial& Material,
-		const FLightMapInteraction& LightMapInteraction,
-		bool bIsLitMaterial,
-		bool bAllowStaticLighting,
-		bool bUseVolumetricLightmap,
-		bool bAllowIndirectLightingCache,
-		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode);
 
 	template<typename LightMapPolicyType>
 	bool Process(

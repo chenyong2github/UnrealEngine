@@ -867,8 +867,8 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTarget
 			}
 		}
 	}
-	// Forward shading path. Simple forward shading does not use velocity.
-	else if (IsUsingBasePassVelocity(Config.ShaderPlatform) && !IsSimpleForwardShadingEnabled(Config.ShaderPlatform))
+	// Forward shading path
+	else if (IsUsingBasePassVelocity(Config.ShaderPlatform))
 	{
 		RenderTargets[RenderTargetCount++] = FTextureRenderTargetBinding(Velocity);
 	}
@@ -994,7 +994,7 @@ void SetupSceneTextureUniformParameters(
 			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
 		}
 
-		if (IsUsingGBuffers(ShaderPlatform) || IsSimpleForwardShadingEnabled(ShaderPlatform))
+		if (IsUsingGBuffers(ShaderPlatform))
 		{
 			if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::GBufferA) && HasBeenProduced(SceneTextures->GBufferA))
 			{

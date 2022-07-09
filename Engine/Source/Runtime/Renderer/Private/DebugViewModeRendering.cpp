@@ -84,11 +84,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FDebugViewModePS, TEXT("/Engine/Private/DebugVi
 
 int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (IsSimpleForwardShadingEnabled(Platform))
-	{
-		return 1;
-	}
-	else if (IsForwardShadingEnabled(Platform))
+	if (IsForwardShadingEnabled(Platform))
 	{
 		return FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) ? 2 : 1;
 	}
@@ -357,16 +353,8 @@ void FDebugViewModeMeshProcessor::UpdateInstructionCount(FDebugViewModeShaderEle
 			const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InBatchMaterial->GetFeatureLevel());
 
 			FMaterialShaderTypes ShaderTypes;
-			if (IsSimpleForwardShadingEnabled(ShaderPlatform))
-			{
-				ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<LMP_SIMPLE_NO_LIGHTMAP>>>();
-				ShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<LMP_SIMPLE_NO_LIGHTMAP>, false>>();
-			}
-			else
-			{
-				ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>>();
-				ShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>>();
-			}
+			ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>>();
+			ShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false>>();
 
 			FMaterialShaders Shaders;
 			if (InBatchMaterial->TryGetShaders(ShaderTypes, InVertexFactoryType, Shaders))
@@ -374,9 +362,7 @@ void FDebugViewModeMeshProcessor::UpdateInstructionCount(FDebugViewModeShaderEle
 				OutShaderElementData.NumVSInstructions = Shaders.Shaders[SF_Vertex]->GetNumInstructions();
 				OutShaderElementData.NumPSInstructions = Shaders.Shaders[SF_Pixel]->GetNumInstructions();
 
-				if (IsForwardShadingEnabled(ShaderPlatform) &&
-					!IsSimpleForwardShadingEnabled(ShaderPlatform) &&
-					!IsTranslucentBlendMode(InBatchMaterial->GetBlendMode()))
+				if (IsForwardShadingEnabled(ShaderPlatform) && !IsTranslucentBlendMode(InBatchMaterial->GetBlendMode()))
 				{
 					const bool bLit = InBatchMaterial->GetShadingModels().IsLit();
 

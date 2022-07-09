@@ -284,7 +284,7 @@ bool IsSubsurfaceEnabled()
 
 bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 {
-	const bool bSimpleDynamicLighting = IsAnyForwardShadingEnabled(View.GetShaderPlatform());
+	const bool bSimpleDynamicLighting = IsForwardShadingEnabled(View.GetShaderPlatform());
 	const bool bSubsurfaceEnabled = IsSubsurfaceEnabled();
 	const bool bViewHasSubsurfaceMaterials = ((View.ShadingModelMaskInView & GetUseSubsurfaceProfileShadingModelMask()) != 0);
 	return (bSubsurfaceEnabled && bViewHasSubsurfaceMaterials && !bSimpleDynamicLighting);

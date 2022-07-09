@@ -2949,10 +2949,6 @@ float3 CalculateAnisotropyTangent(in out FMaterialPixelParameters Parameters, FP
 	float3 Tangent = GetMaterialTangent(PixelMaterialInputs);
 
 #if MATERIAL_TANGENTSPACENORMAL
-	#if SIMPLE_FORWARD_SHADING
-		Tangent = float3(1, 0, 0);
-	#endif
-
 	Tangent = TransformTangentNormalToWorld(Parameters.TangentToWorld, Tangent);
 #endif
 
@@ -2985,9 +2981,6 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 	float3 MaterialNormal = GetMaterialNormal(Parameters, PixelMaterialInputs);
 
 #if MATERIAL_TANGENTSPACENORMAL
-#if SIMPLE_FORWARD_SHADING
-	Parameters.WorldNormal = float3(0, 0, 1);
-#endif
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	// Mobile will rely on only the final normalize for performance
@@ -3046,9 +3039,6 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 	float3 MaterialNormal = GetMaterialNormal(Parameters, PixelMaterialInputs);
 
 #if MATERIAL_TANGENTSPACENORMAL
-#if SIMPLE_FORWARD_SHADING
-	Parameters.WorldNormal = float3(0, 0, 1);
-#endif
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	// Mobile will rely on only the final normalize for performance
