@@ -68,18 +68,6 @@ FAutoConsoleVariableRef CVarMeshSDFSurfaceBiasExpand(
 	ECVF_RenderThreadSafe
 );
 
-float GTwoSidedSurfaceBiasExpand = 1.0f;
-FAutoConsoleVariableRef CVarTwoSidedSurfaceBiasExpand(
-	TEXT("r.DistanceFields.TwoSidedSurfaceBiasExpand"),
-	GTwoSidedSurfaceBiasExpand,
-	TEXT("Amount to scale the surface bias for meshes with mostly two sided triangles.  Two sided meshes are not represented well with Signed Distance Fields, as no negative region gets created.  Expanding the surface improves representation quality, at the cost of over-occlusion."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		FGlobalComponentRecreateRenderStateContext Context;
-	}),
-	ECVF_RenderThreadSafe
-);
-
 int32 GDFPreviousReverseAtlasAllocationOrder = 0;
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -782,11 +770,6 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
 									float ExpandSurfaceDistance = (GMeshSDFSurfaceBiasExpand * VolumePositionExtent / FVector(DistanceFieldData->Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize)).Size();
-									if (DistanceFieldData->bMostlyTwoSided)
-									{
-										// Two sided meshes are not represented well with Signed Distance Fields, as no negative region gets created.  Expanding the surface improves representation quality, at the cost of over-occlusion.
-										ExpandSurfaceDistance *= GTwoSidedSurfaceBiasExpand;
-									}
 
 									const float WSign = DistanceFieldData->bMostlyTwoSided ? -1 : 1;
 									UploadObjectData[4] = FVector4f((FVector3f)VolumePositionExtent, WSign * ExpandSurfaceDistance);

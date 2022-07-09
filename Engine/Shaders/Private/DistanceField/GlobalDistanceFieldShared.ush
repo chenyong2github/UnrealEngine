@@ -21,7 +21,7 @@
 #if DISTANCE_FIELD_IN_VIEW_UB
     // for materials, these are in the view UB
 	#define GlobalDistanceFieldPageAtlasTexture			View.GlobalDistanceFieldPageAtlasTexture
-	#define GlobalDistanceFieldCoverageAtlasTexture	View.GlobalDistanceFieldCoverageAtlasTexture
+	#define GlobalDistanceFieldCoverageAtlasTexture		View.GlobalDistanceFieldCoverageAtlasTexture
 	#define GlobalDistanceFieldPageTableTexture			View.GlobalDistanceFieldPageTableTexture
 	#define GlobalDistanceFieldMipTexture				View.GlobalDistanceFieldMipTexture
 	#define GlobalVolumeCenterAndExtent					View.GlobalVolumeCenterAndExtent
@@ -33,14 +33,17 @@
 	#define GlobalDistanceFieldMipFactor				View.GlobalDistanceFieldMipFactor
 	#define GlobalDistanceFieldMipTransition			View.GlobalDistanceFieldMipTransition
 	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
-	#define GlobalDistanceFieldInvCoverageAtlasSize	View.GlobalDistanceFieldInvCoverageAtlasSize
+	#define GlobalDistanceFieldInvCoverageAtlasSize		View.GlobalDistanceFieldInvCoverageAtlasSize
 	#define GlobalDistanceFieldClipmapSizeInPages		View.GlobalDistanceFieldClipmapSizeInPages
 	#define GlobalVolumeDimension						View.GlobalVolumeDimension
 	#define GlobalVolumeTexelSize						View.GlobalVolumeTexelSize
 	#define NumGlobalSDFClipmaps						View.NumGlobalSDFClipmaps
-	#define FullyCoveredExpandSurfaceScale				View.FullyCoveredExpandSurfaceScale
-	#define UncoveredExpandSurfaceScale					View.UncoveredExpandSurfaceScale
-	#define UncoveredMinStepScale						View.UncoveredMinStepScale
+	#define CoveredExpandSurfaceScale					View.CoveredExpandSurfaceScale
+	#define NotCoveredExpandSurfaceScale				View.NotCoveredExpandSurfaceScale
+	#define NotCoveredMinStepScale						View.NotCoveredMinStepScale
+	#define DitheredTransparencyStepThreshold			View.DitheredTransparencyStepThreshold
+	#define DitheredTransparencyTraceThreshold			View.DitheredTransparencyTraceThreshold
+
 #else
 	// these are only used for the precomputation shaders; which don't have a view UB
 	Texture3D GlobalDistanceFieldPageAtlasTexture;
@@ -59,9 +62,11 @@
 	float GlobalVolumeDimension;
 	float GlobalVolumeTexelSize;
 	uint NumGlobalSDFClipmaps;
-	float FullyCoveredExpandSurfaceScale;
-	float UncoveredExpandSurfaceScale;
-	float UncoveredMinStepScale;
+	float CoveredExpandSurfaceScale;
+	float NotCoveredExpandSurfaceScale;
+	float NotCoveredMinStepScale;
+	float DitheredTransparencyStepThreshold;
+	float DitheredTransparencyTraceThreshold;
 #endif
 
 // Must match GlobalDistanceField.cpp

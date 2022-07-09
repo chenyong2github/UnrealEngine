@@ -366,7 +366,7 @@ float ShadowTraceHeightfield(
 	return 1.0f;
 }
 
-float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal, bool bLocalLight)
+float TraceOffscreenShadows(FLumenCardData CardData, uint2 TexelCoord, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal, bool bLocalLight)
 {
 	float ShadowFactor = 1.0f;
 
@@ -426,6 +426,7 @@ float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float
 
 		// Bias away from the starting point on surface
 		TraceInput.VoxelSizeRelativeBias = GetCardBiasForShadowing(L, WorldNormal, GlobalSDFShadowRayBias);
+		TraceInput.DitherScreenCoord = TexelCoord;
 
 		if (bLocalLight)
 		{
@@ -506,7 +507,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #endif
 
 		ShadowMaskRay.bShadowFactorComplete = true;
-		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(CardData, WorldPosition, L, ToLight, WorldNormal, bLocalLight);
+		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(CardData, TexelInCardPageCoord, WorldPosition, L, ToLight, WorldNormal, bLocalLight);
 
 		WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy);
 	}

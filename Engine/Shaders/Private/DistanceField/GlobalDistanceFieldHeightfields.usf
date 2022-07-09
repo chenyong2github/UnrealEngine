@@ -286,7 +286,7 @@ void ComposeHeightfieldsIntoPagesCS(
 					bool bThreadWritesCoverage = all(TexelCoordInPageWithZ % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0);
 					uint3 CoverageTexelCoordInPage = TexelCoordInPageWithZ / GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR;
 
-					if (bThreadWritesCoverage && abs(HeightfieldMinDistance) < ClipmapVoxelExtent * DEFAULT_BAND_SIZE 
+					if (bThreadWritesCoverage && abs(HeightfieldMinDistance) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE
 						&& all(CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS))
 					{
 						uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;

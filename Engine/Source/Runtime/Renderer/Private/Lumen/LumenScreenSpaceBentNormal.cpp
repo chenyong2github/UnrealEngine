@@ -141,7 +141,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("Lumen::ScreenSpaceBentNormal(Rays=%u, Overflow)", NumPixelRays),
+				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u, Overflow)", NumPixelRays),
 				ComputeShader,
 				PassParameters,
 				View.StrataViewData.BSDFTileDispatchIndirectBuffer,
@@ -151,7 +151,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		{
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("Lumen::ScreenSpaceBentNormal(Rays=%u)", NumPixelRays),
+				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u)", NumPixelRays),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));

@@ -118,6 +118,7 @@ void LumenRadiosityDistanceFieldTracingCS(
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
+			TraceInput.DitherScreenCoord = (RadiosityTexel.CardCoord >> ProbeSpacingInRadiosityTexelsDivideShift) + TraceTexelCoord;
 
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Transparency = 1;

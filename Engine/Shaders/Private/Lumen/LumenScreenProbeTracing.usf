@@ -465,6 +465,8 @@ void TraceMeshSDFs(
 			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
+			TraceInput.bDitheredTransparency = true;
+			TraceInput.DitherScreenCoord = ScreenTileCoord * ScreenProbeTracingOctahedronResolution + TraceTexelCoord;
 
 			uint CardGridCellIndex = ComputeCardGridCellIndex(ScreenProbeScreenPosition - PrimaryView.ViewRectMinAndSize.xy, SceneDepth);
 			TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
@@ -595,6 +597,8 @@ void TraceVoxels(
 			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2);
+			TraceInput.bDitheredTransparency = true;
+			TraceInput.DitherScreenCoord = ScreenTileCoord * ScreenProbeTracingOctahedronResolution + TraceTexelCoord;
 
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Lighting = 0;

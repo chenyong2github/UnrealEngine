@@ -525,6 +525,7 @@ void TraceVoxels(
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
 	TraceInput.InitialMaxDistance = 0;
+	TraceInput.DitherScreenCoord = ReflectionTracingCoord.Coord;
 
 	// Dither step factor to smooth out SDF stepping artifacts, but only when near mirror
 	float StepFactorNoise = lerp(.95f, 1.0f / .95f, InterleavedGradientNoise(ReflectionTracingCoord.Coord, View.StateFrameIndexMod8));

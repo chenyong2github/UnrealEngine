@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define TWO_SIDED_BAND_SIZE 4.0f
-#define DEFAULT_BAND_SIZE 4.0f
+// Controls how many voxels around a single sided object will be marked with full coverage
+// This should be larger than or equal to r.LumenScene.GlobalSDF.NotCoveredMinStepScale to avoid artifacts (stepping too far)
+#define ONE_SIDED_BAND_SIZE (4.0f * GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR)
 
 #ifndef GLOBALSDF_USE_COVERAGE_BASED_EXPAND
 #define GLOBALSDF_USE_COVERAGE_BASED_EXPAND 1
@@ -43,6 +44,10 @@ struct FGlobalSDFTraceInput
 	float VoxelSizeRelativeBias;
 	// Ray length bias relative to the clipmap's voxel size
 	float VoxelSizeRelativeRayEndBias;
+
+	// For dithered semi-transparency
+	bool bDitheredTransparency;
+	float2 DitherScreenCoord;
 };
 
 FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InMinTraceDistance, float InMaxTraceDistance, float InStepFactor, float InMinStepFactor)
@@ -58,6 +63,8 @@ FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InW
 	TraceInput.InitialMaxDistance = 0;
 	TraceInput.VoxelSizeRelativeBias = 0.0f;
 	TraceInput.VoxelSizeRelativeRayEndBias = 0.0f;
+	TraceInput.bDitheredTransparency = false;
+	TraceInput.DitherScreenCoord = float2(0, 0);
 	return TraceInput;
 }
 
@@ -84,6 +91,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 	TraceResult.TotalStepsTaken = 0;
 	TraceResult.ExpandSurfaceAmount = 0;
 
+	float TraceNoise = InterleavedGradientNoise(TraceInput.DitherScreenCoord.xy, View.StateFrameIndexMod8);
 	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart + TraceInput.MinTraceDistance * TraceInput.WorldRayDirection);
 	float MaxDistance = TraceInput.InitialMaxDistance;
 	float MinRayTime = TraceInput.MinTraceDistance;
@@ -146,12 +154,15 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 				MaxDistance = max(DistanceField, MaxDistance);
 
 				float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime - ClipmapRayBias : MaxDistance;
-				float ExpandSurfaceScale = lerp(UncoveredExpandSurfaceScale, FullyCoveredExpandSurfaceScale, Coverage);
+				float ExpandSurfaceScale = lerp(NotCoveredExpandSurfaceScale, CoveredExpandSurfaceScale, Coverage);
 
 				const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
 				const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff) * ExpandSurfaceScale;
 
-				if (DistanceField < ExpandSurfaceAmount)
+				float StepNoise = InterleavedGradientNoise(TraceInput.DitherScreenCoord.xy, View.StateFrameIndexMod8 * MaxSteps + StepIndex);
+
+				if (DistanceField < ExpandSurfaceAmount 
+					&& (!TraceInput.bDitheredTransparency || (StepNoise * (1 - Coverage) <= DitheredTransparencyStepThreshold && TraceNoise * (1 - Coverage) <= DitheredTransparencyTraceThreshold)))
 				{
 					TraceResult.HitTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, 0.0f);
 					TraceResult.HitClipmapIndex = ClipmapIndex;
@@ -159,7 +170,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 					break;
 				}
 
-				float LocalMinStepSize = MinStepSize * lerp(UncoveredMinStepScale, 1.0f, Coverage);
+				float LocalMinStepSize = MinStepSize * lerp(NotCoveredMinStepScale, 1.0f, Coverage);
 				float StepDistance = max(DistanceField * TraceInput.StepFactor, LocalMinStepSize);
 				SampleRayTime += StepDistance;
 

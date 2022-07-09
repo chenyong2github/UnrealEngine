@@ -138,6 +138,9 @@ extern void GetLumenCardTracingParameters(
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
+	SHADER_PARAMETER(float, MeshSDFNotCoveredExpandSurfaceScale)
+	SHADER_PARAMETER(float, MeshSDFNotCoveredMinStepScale)
+	SHADER_PARAMETER(float, MeshSDFDitheredTransparencyStepThreshold)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridParameters, )
@@ -239,6 +242,7 @@ extern void CullForCardTracing(
 
 extern void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
+extern void SetupLumenMeshSDFTracingParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View,FLumenMeshSDFTracingParameters& OutParameters);
 
 extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	FRDGBuilder& GraphBuilder, 

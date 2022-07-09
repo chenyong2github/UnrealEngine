@@ -208,27 +208,43 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMipFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale = 1.0f;
-FAutoConsoleVariableRef CVarLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale(
-	TEXT("r.LumenScene.GlobalSDF.FullyCoveredExpandSurfaceScale"),
-	GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale,
+float GLumenSceneGlobalSDFCoveredExpandSurfaceScale = 1.0f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalSDFCoveredExpandSurfaceScale(
+	TEXT("r.LumenScene.GlobalSDF.CoveredExpandSurfaceScale"),
+	GLumenSceneGlobalSDFCoveredExpandSurfaceScale,
 	TEXT("Scales the half voxel SDF expand used by the Global SDF to reconstruct surfaces that are thinner than the distance between two voxels, erring on the side of over-occlusion."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneGlobalSDFUncoveredExpandSurfaceScale = .6f;
-FAutoConsoleVariableRef CVarLumenScenGlobalSDFUncoveredExpandSurfaceScale(
-	TEXT("r.LumenScene.GlobalSDF.UncoveredExpandSurfaceScale"),
-	GLumenSceneGlobalSDFUncoveredExpandSurfaceScale,
+float GLumenSceneGlobalSDFNotCoveredExpandSurfaceScale = .6f;
+FAutoConsoleVariableRef CVarLumenScenGlobalSDFNotCoveredExpandSurfaceScale(
+	TEXT("r.LumenScene.GlobalSDF.NotCoveredExpandSurfaceScale"),
+	GLumenSceneGlobalSDFNotCoveredExpandSurfaceScale,
 	TEXT("Scales the half voxel SDF expand used by the Global SDF to reconstruct surfaces that are thinner than the distance between two voxels, for regions of space that only contain Two Sided Mesh SDFs."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneGlobalSDFUncoveredMinStepScale = 4.0f;
-FAutoConsoleVariableRef CVarLumenScenGlobalSDFUncoveredMinStepScale(
-	TEXT("r.LumenScene.GlobalSDF.UncoveredMinStepScale"),
-	GLumenSceneGlobalSDFUncoveredMinStepScale,
+float GLumenSceneGlobalSDFNotCoveredMinStepScale = 4.0f;
+FAutoConsoleVariableRef CVarLumenScenGlobalSDFNotCoveredMinStepScale(
+	TEXT("r.LumenScene.GlobalSDF.NotCoveredMinStepScale"),
+	GLumenSceneGlobalSDFNotCoveredMinStepScale,
 	TEXT("Scales the min step size to improve performance, for regions of space that only contain Two Sided Mesh SDFs."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalSDFDitheredTransparencyStepThreshold = .5f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalSDFDitheredTransparencyStepThreshold(
+	TEXT("r.LumenScene.GlobalSDF.DitheredTransparencyStepThreshold"),
+	GLumenSceneGlobalSDFDitheredTransparencyStepThreshold,
+	TEXT("Per-step stochastic semi-transparency threshold, for tracing users that have dithered transparency enabled, for regions of space that only contain Two Sided Mesh SDFs."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalSDFDitheredTransparencyTraceThreshold = .9f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalSDFDitheredTransparencyTraceThreshold(
+	TEXT("r.LumenScene.GlobalSDF.DitheredTransparencyTraceThreshold"),
+	GLumenSceneGlobalSDFDitheredTransparencyTraceThreshold,
+	TEXT("Per-trace stochastic semi-transparency threshold, for tracing users that have dithered transparency enabled, for regions of space that only contain Two Sided Mesh SDFs.  Anything less than 1 causes leaking."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -266,10 +282,12 @@ FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobal
 	ShaderParameters.MaxGlobalDFAOConeDistance = ParameterData.MaxDFAOConeDistance;
 	ShaderParameters.NumGlobalSDFClipmaps = ParameterData.NumGlobalSDFClipmaps;
 
-	ShaderParameters.FullyCoveredExpandSurfaceScale = GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale;
-	ShaderParameters.UncoveredExpandSurfaceScale = GLumenSceneGlobalSDFUncoveredExpandSurfaceScale;
-	ShaderParameters.UncoveredMinStepScale = GLumenSceneGlobalSDFUncoveredMinStepScale;
-
+	ShaderParameters.CoveredExpandSurfaceScale = GLumenSceneGlobalSDFCoveredExpandSurfaceScale;
+	ShaderParameters.NotCoveredExpandSurfaceScale = GLumenSceneGlobalSDFNotCoveredExpandSurfaceScale;
+	ShaderParameters.NotCoveredMinStepScale = GLumenSceneGlobalSDFNotCoveredMinStepScale;
+	ShaderParameters.DitheredTransparencyStepThreshold = GLumenSceneGlobalSDFDitheredTransparencyStepThreshold;
+	ShaderParameters.DitheredTransparencyTraceThreshold = GLumenSceneGlobalSDFDitheredTransparencyTraceThreshold;
+	
 	return ShaderParameters;
 }
 
@@ -1228,9 +1246,11 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(GlobalDistanceFieldInfo.ParameterData.PageTableTexture);
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.MipTexture);
 
-	ViewUniformShaderParameters.FullyCoveredExpandSurfaceScale = GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale;
-	ViewUniformShaderParameters.UncoveredExpandSurfaceScale = GLumenSceneGlobalSDFUncoveredExpandSurfaceScale;
-	ViewUniformShaderParameters.UncoveredMinStepScale = GLumenSceneGlobalSDFUncoveredMinStepScale;
+	ViewUniformShaderParameters.CoveredExpandSurfaceScale = GLumenSceneGlobalSDFCoveredExpandSurfaceScale;
+	ViewUniformShaderParameters.NotCoveredExpandSurfaceScale = GLumenSceneGlobalSDFNotCoveredExpandSurfaceScale;
+	ViewUniformShaderParameters.NotCoveredMinStepScale = GLumenSceneGlobalSDFNotCoveredMinStepScale;
+	ViewUniformShaderParameters.DitheredTransparencyStepThreshold = GLumenSceneGlobalSDFDitheredTransparencyStepThreshold;
+	ViewUniformShaderParameters.DitheredTransparencyTraceThreshold = GLumenSceneGlobalSDFDitheredTransparencyTraceThreshold;
 }
 
 void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)

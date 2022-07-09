@@ -396,6 +396,8 @@ void VoxelTraceCS(
 			ObjectIndex,
 			true,
 			0.0f,
+			false, 
+			float2(0, 0),
 			TraceMeshSDFResult);
 
 		if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)

@@ -264,8 +264,8 @@ struct FConeTraceInput
 	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
 	float InitialMaxDistance;
 
-	// Used for dithering
-	uint2 ScreenCoord;
+	bool bDitheredTransparency;
+	uint2 DitherScreenCoord;
 
 	// Whether to use epsilon trace (skip back face hits over initial short distance) for heightfield tracing
 	bool bUseEpsilonTraceForHeightfields;
@@ -312,7 +312,8 @@ struct FConeTraceInput
 		bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = true;
 		InitialMaxDistance = 0;
 
-		ScreenCoord = uint2(0, 0);
+		bDitheredTransparency = false;
+		DitherScreenCoord = uint2(0, 0);
 		bHiResSurface = false;
 		bCalculateHitVelocity = false;
 
@@ -596,6 +597,10 @@ struct FTraceMeshSDFResult
 	bool bRayStartInsideGeometry;
 };
 
+float MeshSDFNotCoveredExpandSurfaceScale;
+float MeshSDFNotCoveredMinStepScale;
+float MeshSDFDitheredTransparencyStepThreshold;
+
 void RayTraceSingleMeshSDF(
 	float3 WorldRayStart, 
 	float3 WorldRayDirection, 
@@ -608,13 +613,18 @@ void RayTraceSingleMeshSDF(
 	// Expanding as MaxDistance increases has less incorrect self-intersection which is desirable for reflections rays.
 	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance,
 	float InitialMaxDistance,
+	bool bDitheredTransparency,
+	float2 DitherScreenCoord,
 	inout FTraceMeshSDFResult TraceResult)
 {
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 	float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
-	// Trace up to the current hit point
-	MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.VolumeSurfaceBias);
+	if (!bDitheredTransparency || !DFObjectData.bMostlyTwoSided)
+	{
+		// Trace up to the current hit point
+		MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.VolumeSurfaceBias);
+	}
 
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
 	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
@@ -643,11 +653,14 @@ void RayTraceSingleMeshSDF(
 			DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
 		#endif
 
+		float Coverage = DFObjectData.bMostlyTwoSided ? 0.0f : 1.0f;
+		float ExpandSurfaceScale = lerp(MeshSDFNotCoveredExpandSurfaceScale, 1.0f, Coverage);
+
 		bool bRayStartInsideGeometry = false;
 		float SampleRayTime = VolumeSpaceIntersectionTimes.x;
 
 		uint MaxSteps = 64;
-		float MinStepSize = 1.0f / (16 * MaxSteps);
+		float MinStepSize = 1.0f / (16.0f * MaxSteps);
 		uint StepIndex = 0;
 		bool bHit = false;
 		float MaxDistance = InitialMaxDistance;
@@ -665,7 +678,9 @@ void RayTraceSingleMeshSDF(
 			// This still causes incorrect self-occlusion at grazing angles
 			float ExpandSurfaceDistance = DFObjectData.VolumeSurfaceBias;
 			const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
-			const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff);
+			const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff) * ExpandSurfaceScale;
+
+			float StepNoise = InterleavedGradientNoise(DitherScreenCoord.xy, View.StateFrameIndexMod8 * MaxSteps + StepIndex);
 
 #if SDF_TRACING_TRAVERSE_MIPS
 
@@ -686,7 +701,9 @@ void RayTraceSingleMeshSDF(
 			}
 			else 
 #endif
-			if (DistanceField < ExpandSurfaceAmount && ReversedMipIndex == MaxMipIndex)
+			if (DistanceField < ExpandSurfaceAmount 
+				&& ReversedMipIndex == MaxMipIndex
+				&& (!bDitheredTransparency || StepNoise * (1 - Coverage) <= MeshSDFDitheredTransparencyStepThreshold))
 			{
 				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
 				// One more step to the surface
@@ -696,7 +713,8 @@ void RayTraceSingleMeshSDF(
 				break;
 			}
 
-			float StepDistance = max(DistanceField, MinStepSize);
+			float LocalMinStepSize = MinStepSize * lerp(MeshSDFNotCoveredMinStepScale, 1.0f, Coverage);
+			float StepDistance = max(DistanceField, LocalMinStepSize);
 			SampleRayTime += StepDistance;		
 
 			if (SampleRayTime > VolumeSpaceIntersectionTimes.y + ExpandSurfaceAmount)
@@ -1031,7 +1049,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 		if (bHitFrontFace)
 		{
 			OutResult.Lighting = SampleLumenMeshCards(
-				TraceInput.ScreenCoord,
+				TraceInput.DitherScreenCoord,
 				LumenHeightfield.MeshCardsIndex,
 				SamplePosition,
 				SampleNormal,
@@ -1073,6 +1091,8 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			ObjectIndex, 
 			TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance,
 			TraceInput.InitialMaxDistance,
+			TraceInput.bDitheredTransparency,
+			TraceInput.DitherScreenCoord,
 			TraceMeshSDFResult);
 	}
 
@@ -1096,7 +1116,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 	
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 		OutResult.Lighting = SampleLumenMeshCards(
-			TraceInput.ScreenCoord,
+			TraceInput.DitherScreenCoord,
 			TraceSDFData.MeshCardsIndex,
 			InterpolatePosition,
 			TraceSDFData.HitNormal,
@@ -1185,6 +1205,8 @@ void ConeTraceVoxels(
 	// Trace SDF ray
 	{
 		FGlobalSDFTraceInput SDFTraceInput = SetupGlobalSDFTraceInput(TraceInput.ConeOrigin, TraceInput.ConeDirection, TraceInput.MinTraceDistance, TraceInput.MaxTraceDistance, TraceInput.SDFStepFactor, TraceInput.VoxelStepFactor);
+		SDFTraceInput.bDitheredTransparency = TraceInput.bDitheredTransparency;
+		SDFTraceInput.DitherScreenCoord = TraceInput.DitherScreenCoord;
 		SDFTraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
 		SDFTraceInput.InitialMaxDistance = TraceInput.InitialMaxDistance;
 

@@ -16,7 +16,7 @@
 
 int32 GMeshSDFAverageCulledCount = 512;
 FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(
-	TEXT("r.Lumen.DiffuseIndirect.MeshSDFAverageCulledCount"),
+	TEXT("r.Lumen.DiffuseIndirect.MeshSDF.AverageCulledCount"),
 	GMeshSDFAverageCulledCount,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -24,9 +24,33 @@ FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(
 
 float GMeshSDFRadiusThreshold = 30;
 FAutoConsoleVariableRef CVarMeshSDFRadiusThreshold(
-	TEXT("r.Lumen.DiffuseIndirect.MeshSDFRadiusThreshold"),
+	TEXT("r.Lumen.DiffuseIndirect.MeshSDF.RadiusThreshold"),
 	GMeshSDFRadiusThreshold,
 	TEXT(""),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GMeshSDFNotCoveredExpandSurfaceScale = .6f;
+FAutoConsoleVariableRef CVarMeshSDFNotCoveredExpandSurfaceScale(
+	TEXT("r.Lumen.DiffuseIndirect.MeshSDF.NotCoveredExpandSurfaceScale"),
+	GMeshSDFNotCoveredExpandSurfaceScale,
+	TEXT("Scales the surface expand used for Mesh SDFs that contain mostly two sided materials (foliage)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GMeshSDFNotCoveredMinStepScale = 32;
+FAutoConsoleVariableRef CVarMeshSDFNotCoveredMinStepScale(
+	TEXT("r.Lumen.DiffuseIndirect.MeshSDF.NotCoveredMinStepScale"),
+	GMeshSDFNotCoveredMinStepScale,
+	TEXT("Scales the min step size to improve performance, for Mesh SDFs that contain mostly two sided materials (foliage)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GMeshSDFDitheredTransparencyStepThreshold = .1f;
+FAutoConsoleVariableRef CVarMeshSDFDitheredTransparencyStepThreshold(
+	TEXT("r.Lumen.DiffuseIndirect.MeshSDF.DitheredTransparencyStepThreshold"),
+	GMeshSDFDitheredTransparencyStepThreshold,
+	TEXT("Per-step stochastic semi-transparency threshold, for tracing users that have dithered transparency enabled, for Mesh SDFs that contain mostly two sided materials (foliage)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -43,6 +67,20 @@ static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldFroxelCulling(
 	TEXT("Enables Heightfield froxel view culling (default = 1)"),
 	ECVF_RenderThreadSafe
 );
+
+void SetupLumenMeshSDFTracingParameters(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View, 
+	FLumenMeshSDFTracingParameters& OutParameters)
+{
+	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+	OutParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
+	OutParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
+	OutParameters.MeshSDFNotCoveredExpandSurfaceScale = GMeshSDFNotCoveredExpandSurfaceScale;
+	OutParameters.MeshSDFNotCoveredMinStepScale = GMeshSDFNotCoveredMinStepScale;
+	OutParameters.MeshSDFDitheredTransparencyStepThreshold = GMeshSDFDitheredTransparencyStepThreshold;
+}
 
 uint32 CullMeshSDFObjectsForViewGroupSize = 64;
 
@@ -392,7 +430,8 @@ void FillGridParameters(
 	FLumenMeshSDFGridParameters& OutGridParameters)
 {
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-	OutGridParameters.TracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
+
+	SetupLumenMeshSDFTracingParameters(GraphBuilder, Scene, View, OutGridParameters.TracingParameters);
 
 	if (Context)
 	{
@@ -403,8 +442,6 @@ void FillGridParameters(
 			OutGridParameters.NumGridCulledMeshSDFObjects = GraphBuilder.CreateSRV(Context->NumGridCulledMeshSDFObjects, PF_R32_UINT);
 			OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
 			OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
-
-			OutGridParameters.TracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 		}
 
 		bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData);

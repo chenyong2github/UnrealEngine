@@ -79,7 +79,8 @@ void VisualizeQuadsCS(
 	TraceInput.Setup(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
 	TraceInput.VoxelStepFactor = VoxelStepFactor;
 	TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
-	TraceInput.ScreenCoord = PixelPos;
+	TraceInput.bDitheredTransparency = false;
+	TraceInput.DitherScreenCoord = PixelPos;
 	TraceInput.bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 	float3 Debug = -1;

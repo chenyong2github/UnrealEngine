@@ -715,6 +715,9 @@ void TraceFromProbesCS(
 				EffectiveStepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 
+			TraceInput.bDitheredTransparency = true;
+			TraceInput.DitherScreenCoord = RadianceProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift) + ProbeTexelCoord;
+
 			bool bContinueCardTracing = false;
 
 			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);

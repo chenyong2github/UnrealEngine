@@ -754,9 +754,11 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeTexelSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaxGlobalDFAOConeDistance) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, NumGlobalSDFClipmaps) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, FullyCoveredExpandSurfaceScale) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, UncoveredExpandSurfaceScale) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, UncoveredMinStepScale) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, CoveredExpandSurfaceScale) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, NotCoveredExpandSurfaceScale) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, NotCoveredMinStepScale) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, DitheredTransparencyStepThreshold) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, DitheredTransparencyTraceThreshold) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FIntPoint, CursorPosition) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, bCheckerboardSubsurfaceProfileRendering) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector3f, VolumetricFogInvGridSize) \

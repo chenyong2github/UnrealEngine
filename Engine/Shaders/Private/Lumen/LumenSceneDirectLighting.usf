@@ -16,10 +16,6 @@
 #include "../ForwardShadowingCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "../LightFunctionCommon.ush"
-#include "../DistanceField/GlobalDistanceFieldUtils.ush"
-#include "../DistanceFieldLightingShared.ush"
-#define DF_SHADOW_QUALITY 2
-#include "../DistanceFieldShadowingShared.ush"
 #if USE_CLOUD_TRANSMITTANCE
 	#include "../VolumetricCloudCommon.ush"
 #endif

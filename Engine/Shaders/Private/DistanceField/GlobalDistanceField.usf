@@ -651,13 +651,13 @@ float ClipmapVoxelExtent;
 float3 PageCoordToVoxelCenterScale;
 float3 PageCoordToVoxelCenterBias;
 
-void CompositeMeshSDF(uint ObjectIndex, float3 VoxelWorldCenter, inout float MinDistance, inout bool bVoxelHasTwoSidedMeshes, inout bool bVoxelHasOneSidedMeshes)
+void CompositeMeshSDF(uint ObjectIndex, float3 VoxelWorldCenter, inout float MinDistance, inout bool bVoxelHasOneSidedMeshes)
 {
 	float MaxEarlyOutDistance = 0.0f;
 
 #if COMPOSITE_COVERAGE_ATLAS
 	// Only allow skipping the SDF sample if we are beyond the range that is needed for COMPOSITE_COVERAGE_ATLAS
-	MaxEarlyOutDistance = ClipmapVoxelExtent * max(TWO_SIDED_BAND_SIZE, DEFAULT_BAND_SIZE);
+	MaxEarlyOutDistance = ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE;
 #endif
 
 	float MaxQueryDistance = min(InfluenceRadius, max(MinDistance, MaxEarlyOutDistance));
@@ -667,11 +667,7 @@ void CompositeMeshSDF(uint ObjectIndex, float3 VoxelWorldCenter, inout float Min
 	MinDistance = min(MinDistance, DistanceToOccluder);
 
 #if COMPOSITE_COVERAGE_ATLAS
-	if (DFObjectData.bMostlyTwoSided && abs(DistanceToOccluder) < ClipmapVoxelExtent * TWO_SIDED_BAND_SIZE)
-	{
-		bVoxelHasTwoSidedMeshes = true;
-	}
-	else if (!DFObjectData.bMostlyTwoSided && abs(DistanceToOccluder) < ClipmapVoxelExtent * DEFAULT_BAND_SIZE)
+	if (!DFObjectData.bMostlyTwoSided && abs(DistanceToOccluder) < ClipmapVoxelExtent * ONE_SIDED_BAND_SIZE)
 	{
 		bVoxelHasOneSidedMeshes = true;
 	}
@@ -718,7 +714,6 @@ void ComposeObjectsIntoPagesCS(
 	uint CullGridObjectOffset = CullGridObjectHeader[CullGridLinearIndex * 2 + 1];
 
 	float MinDistance = InfluenceRadius;
-	bool bVoxelHasTwoSidedMeshes = false;
 	bool bVoxelHasOneSidedMeshes = false;
 
 #if PROCESS_DISTANCE_FIELDS
@@ -764,7 +759,7 @@ void ComposeObjectsIntoPagesCS(
 		for (uint ListObjectIndex = 0; ListObjectIndex < LocalNumTileCulledObjects; ListObjectIndex++)
 		{
 			uint ObjectIndex = SharedCulledObjectList[ListObjectIndex];
-			CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasTwoSidedMeshes, bVoxelHasOneSidedMeshes);
+			CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes);
 		}
 	}
 
@@ -773,7 +768,7 @@ void ComposeObjectsIntoPagesCS(
 	for (uint IndexInCullGrid = 0; IndexInCullGrid < CullGridObjectNum; ++IndexInCullGrid)
 	{
 		uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullGrid];
-		CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasTwoSidedMeshes, bVoxelHasOneSidedMeshes);
+		CompositeMeshSDF(ObjectIndex, VoxelWorldCenter, MinDistance, bVoxelHasOneSidedMeshes);
 	}
 
 #endif
@@ -785,8 +780,9 @@ void ComposeObjectsIntoPagesCS(
 		bool bThreadWritesCoverage = all(and(
 			TexelCoordInPage % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0,
 			CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS));
-		// Conservatively set uncovered only if there are no one sided meshes, and we're not in empty space
-		float Coverage = bVoxelHasTwoSidedMeshes && !bVoxelHasOneSidedMeshes ? 0.0f : 1.0f;
+		// Only voxels near one sided meshes will have full coverage
+		// This allows compositing the parent coverage correctly, but has the side effect that empty space is considered not covered
+		float Coverage = bVoxelHasOneSidedMeshes ? 1.0f : 0.0f;
 
 		#if COMPOSE_PARENT_DISTANCE_FIELD
 		{
