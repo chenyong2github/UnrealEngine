@@ -155,7 +155,8 @@ bool FPCGCopyPointsTest::RunTest(const FString& Parameters)
 			return;
 		}
 
-		check(RootMetadata); // Static analyzer doesn't understand semantics of TestTrue, but does understand check().
+		CA_ASSUME(RootMetadata); // Static analyzer doesn't understand semantics of TestTrue.
+		CA_ASSUME(NonRootMetadata);
 
 		TArray<const FPCGMetadataAttribute<float>*> InheritedAttributes;
 		TArray<EPCGCopyPointsMetadataInheritanceMode> InheritedAttributeModes;
