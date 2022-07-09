@@ -35,12 +35,15 @@
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 #include "WaterBodySceneProxy.h"
+#include "Engine/StaticMesh.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
 #include "Modules/ModuleManager.h"
 #include "WaterModule.h"
+#include "StaticMeshAttributes.h"
+#include "WaterBodyHLODBuilder.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
@@ -98,6 +101,16 @@ UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitial
 	bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED = false;
 	CollisionProfileName_DEPRECATED = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
 #endif // WITH_EDITORONLY_DATA
+}
+
+bool UWaterBodyComponent::IsHLODRelevant() const
+{
+	if (!bEnableAutoLODGeneration)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void UWaterBodyComponent::OnVisibilityChanged()
@@ -1257,6 +1270,18 @@ void UWaterBodyComponent::PostLoad()
 	{
 		WaterMeshOverride = nullptr;
 	}
+
+	// If available, use far mesh material as the HLOD material for water bodies created before HLOD support was added.
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterHLODSupportAdded)
+	{
+		if (const AWaterZone* WaterZone = GetWaterZone())
+		{
+			const UWaterMeshComponent* WaterMeshComponent = WaterZone->GetWaterMeshComponent();
+			check(WaterMeshComponent);
+
+			WaterHLODMaterial = WaterMeshComponent->FarDistanceMaterial;
+		}
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	DeprecateData();
@@ -1644,6 +1669,74 @@ void UWaterBodyComponent::UpdateWaterSpriteComponent()
 		SpriteComponent->MarkRenderStateDirty();
 	}
 }
+
+TSubclassOf<UHLODBuilder> UWaterBodyComponent::GetCustomHLODBuilderClass() const
+{
+	return UWaterBodyHLODBuilder::StaticClass();
+}
+
+FMeshDescription UWaterBodyComponent::GetHLODMeshDescription() const
+{
+	if (WaterMeshOverride)
+	{
+		return *WaterMeshOverride->GetMeshDescription(WaterMeshOverride->GetNumLODs() - 1);
+	}
+	
+	FMeshDescription MeshDescription;
+
+	FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
+	StaticMeshAttributes.Register();
+
+	TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
+
+	const int32 NumVertices = WaterBodyMeshVertices.Num();
+	const int32 NumTriangles = WaterBodyMeshIndices.Num() / 3;
+
+	MeshDescription.ReserveNewVertices(NumVertices);
+	MeshDescription.ReserveNewVertexInstances(NumVertices);
+	MeshDescription.ReserveNewTriangles(NumTriangles);
+
+	FPolygonGroupID PolygonGroupID = MeshDescription.CreatePolygonGroup();
+
+	// Positions
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+	{
+		FVertexID VertexID = MeshDescription.CreateVertex();
+		VertexPositions[VertexID] = WaterBodyMeshVertices[VertexIndex].Position;
+	}
+
+	// Triangles
+	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+	{
+		TStaticArray<FVertexInstanceID, 3> VertexInstanceIDs;
+
+		for (int32 Corner = 0; Corner < 3; ++Corner)
+		{
+			uint32 VertexIndex = WaterBodyMeshIndices[TriangleIndex * 3 + Corner];
+
+			FVertexID VertexID(VertexIndex);
+			FVertexInstanceID VertexInstanceID = MeshDescription.CreateVertexInstance(VertexID);
+			
+			VertexInstanceIDs[Corner] = VertexInstanceID;
+		}
+
+		// Create a triangle
+		MeshDescription.CreateTriangle(PolygonGroupID, VertexInstanceIDs);
+	}
+	
+	return MeshDescription;
+}
+
+UMaterialInterface* UWaterBodyComponent::GetHLODMaterial() const
+{
+	return WaterHLODMaterial;
+}
+
+void UWaterBodyComponent::SetHLODMaterial(UMaterialInterface* InMaterial)
+{
+	WaterHLODMaterial = InMaterial;
+}
+
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

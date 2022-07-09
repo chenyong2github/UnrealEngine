@@ -226,6 +226,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// if a widget exposes its named slot to everyone (even if it has content), which by default they wont any longer.
 		WidgetInheritedNamedSlots,
 
+		// Added water HLOD material
+		WaterHLODSupportAdded,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

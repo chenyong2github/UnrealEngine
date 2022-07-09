@@ -852,7 +852,7 @@ public:
 	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
 #endif
 	virtual void PropagateLightingScenarioChange() override;
-	virtual bool IsHLODRelevant() const { return true; }
+	virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent Interface.
 
 	/** Gets the landscape info object for this landscape */

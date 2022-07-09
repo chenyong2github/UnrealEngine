@@ -46,10 +46,18 @@ public class Water : ModuleRules
         {
 			bWithWaterSelectionSupport = true;
 
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"MeshDescription"
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"SourceControl",
-					"UnrealEd"
+					"UnrealEd",
+					"StaticMeshDescription",
+					"MeshConversion"
 				}
 			);
 		}

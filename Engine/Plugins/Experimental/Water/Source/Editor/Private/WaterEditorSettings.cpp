@@ -31,12 +31,18 @@ UMaterialInterface* FWaterZoneActorDefaults::GetFarDistanceMaterial() const
 
 FWaterBodyDefaults::FWaterBodyDefaults()
 	: WaterMaterial(FSoftObjectPath(TEXT("/Water/Materials/WaterSurface/Water_Material.Water_Material")))
+	, WaterHLODMaterial(FSoftObjectPath(TEXT("/Water/Materials/HLOD/HLODWater.HLODWater")))
 	, UnderwaterPostProcessMaterial(FSoftObjectPath(TEXT("/Water/Materials/PostProcessing/M_UnderWater_PostProcess_Volume.M_UnderWater_PostProcess_Volume")))
 {}
 
 UMaterialInterface* FWaterBodyDefaults::GetWaterMaterial() const
 {
 	return WaterMaterial.LoadSynchronous();
+}
+
+UMaterialInterface* FWaterBodyDefaults::GetWaterHLODMaterial() const
+{
+	return WaterHLODMaterial.LoadSynchronous();
 }
 
 UMaterialInterface* FWaterBodyDefaults::GetUnderwaterPostProcessMaterial() const

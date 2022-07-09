@@ -17,6 +17,11 @@
 #include "WaterWaves.h"
 #include "WaterBodyTypes.h"
 #include "DynamicMeshBuilder.h"
+
+#if WITH_EDITOR
+#include "MeshDescription.h"
+#endif
+
 #include "WaterBodyComponent.generated.h"
 
 class UWaterSplineComponent;
@@ -101,6 +106,10 @@ public:
 	virtual TArray<UPrimitiveComponent*> GetBrushRenderableComponents() const { return TArray<UPrimitiveComponent*>(); }
 	
 	virtual void UpdateWaterSpriteComponent();
+
+	virtual FMeshDescription GetHLODMeshDescription() const;
+	virtual UMaterialInterface* GetHLODMaterial() const;
+	virtual void SetHLODMaterial(UMaterialInterface* InMaterial);
 #endif //WITH_EDITOR
 
 	/** Returns whether the body supports waves */
@@ -330,7 +339,12 @@ public:
 	
 	/** Set the navigation area class */
 	void SetNavAreaClass(TSubclassOf<UNavAreaBase> NewWaterNavAreaClass) { WaterNavAreaClass = NewWaterNavAreaClass; }
+
 protected:
+	//~ Begin UActorComponent interface.
+	virtual bool IsHLODRelevant() const override;
+	//~ End UActorComponent interface.
+
 	//~ Begin USceneComponent Interface.
 	virtual void OnVisibilityChanged();
 	virtual void OnHiddenInGameChanged();
@@ -425,6 +439,8 @@ protected:
 	void RegisterOnChangeWaterSplineData(bool bRegister);
 
 	void CreateWaterSpriteComponent();
+
+	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
 #endif // WITH_EDITOR
 
 public:
@@ -469,6 +485,9 @@ public:
 
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
 	UMaterialInterface* WaterMaterial;
+
+	UPROPERTY(Category = HLOD, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Water HLOD Material"))
+	UMaterialInterface* WaterHLODMaterial;
 
 	/** Post process material to apply when the camera goes underwater (only available when bGenerateCollisions is true because collisions are needed to detect if it's under water). */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (EditCondition = "bGenerateCollisions", DisplayAfter = "WaterMaterial"))

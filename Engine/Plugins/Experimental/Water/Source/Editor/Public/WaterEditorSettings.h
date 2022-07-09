@@ -68,12 +68,18 @@ public:
 	UMaterialInterface* GetWaterMaterial() const;
 	FSoftObjectPath GetWaterMaterialPath() const { return WaterMaterial.ToSoftObjectPath(); }
 
+	UMaterialInterface* GetWaterHLODMaterial() const;
+	FSoftObjectPath GetWaterHLODMaterialPath() const { return WaterHLODMaterial.ToSoftObjectPath(); }
+
 	UMaterialInterface* GetUnderwaterPostProcessMaterial() const;
 	FSoftObjectPath GetUnderwaterPostProcessMaterialPath() const { return UnderwaterPostProcessMaterial.ToSoftObjectPath(); }
 
 protected:
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TSoftObjectPtr<UMaterialInterface> WaterMaterial;
+
+	UPROPERTY(EditAnywhere, config, Category = Rendering)
+	TSoftObjectPtr<UMaterialInterface> WaterHLODMaterial;
 
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TSoftObjectPtr<UMaterialInterface> UnderwaterPostProcessMaterial;

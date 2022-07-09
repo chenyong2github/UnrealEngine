@@ -567,6 +567,11 @@ void AWaterBody::PostRegisterAllComponents()
 	}
 }
 
+bool AWaterBody::IsHLODRelevant() const
+{
+	return true;
+}
+
 #if WITH_EDITOR
 void AWaterBody::SetActorHiddenInGame(bool bNewHidden)
 {

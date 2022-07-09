@@ -1613,6 +1613,11 @@ void ULandscapeComponent::PropagateLightingScenarioChange()
 	FComponentRecreateRenderStateContext Context(this);
 }
 
+bool ULandscapeComponent::IsHLODRelevant() const
+{
+	return bEnableAutoLODGeneration;
+}
+
 TArray<URuntimeVirtualTexture*> const& ULandscapeComponent::GetRuntimeVirtualTextures() const
 {
 	return GetLandscapeProxy()->RuntimeVirtualTextures;

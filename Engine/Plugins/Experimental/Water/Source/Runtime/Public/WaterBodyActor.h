@@ -68,6 +68,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
+	virtual bool IsHLODRelevant() const override;
 
 #if WITH_EDITOR
 	virtual void SetActorHiddenInGame(bool bNewHidden) override;

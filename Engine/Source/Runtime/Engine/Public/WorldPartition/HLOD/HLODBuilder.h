@@ -99,7 +99,7 @@ public:
 	virtual uint32 ComputeHLODHash(const UActorComponent* InSourceComponent) const;
 
 	/**
-	 * Components created with this method needs to be properly outered & assigned to your target actor.
+	 * Components created with this method need to be properly outered & assigned to your target actor.
 	 */
 	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const PURE_VIRTUAL(UHLODBuilder::CreateComponents, return {};);
 

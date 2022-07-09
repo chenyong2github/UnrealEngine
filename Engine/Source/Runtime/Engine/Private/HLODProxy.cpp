@@ -425,7 +425,7 @@ static void AppendRoundedTransform(const FTransform& InTransform, FArchive& Ar)
 	AppendRoundedTransform(InTransform.Rotator(), InTransform.GetLocation(), InTransform.GetScale3D(), Ar);
 }
 
-static int32 GetTransformCRC(const FTransform& InTransform, uint32 InCRC = 0)
+uint32 UHLODProxy::GetCRC(const FTransform& InTransform, uint32 InCRC)
 {
 	FArchiveCrc32 Ar(InCRC);
 	AppendRoundedTransform(InTransform, Ar);
@@ -537,7 +537,7 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 		}
 
 		// HLODBakingTransform
-		CRC = GetTransformCRC(LODActor->GetLevel()->GetWorldSettings()->HLODBakingTransform, CRC);
+		CRC = GetCRC(LODActor->GetLevel()->GetWorldSettings()->HLODBakingTransform, CRC);
 
 		// screen size + override
 		{
@@ -753,13 +753,13 @@ bool UHLODProxy::SetHLODBakingTransform(const FTransform& InTransform)
 {
 	bool bChanged = false;
 
-	int32 NewTransformCRC = GetTransformCRC(InTransform);
+	int32 NewTransformCRC = GetCRC(InTransform);
 
 	for (auto ItHLODActor = HLODActors.CreateIterator(); ItHLODActor; ++ItHLODActor)
 	{
 		UHLODProxyDesc* HLODProxyDesc = ItHLODActor.Key();
 
-		int32 OldTransformCRC = GetTransformCRC(HLODProxyDesc->HLODBakingTransform);
+		int32 OldTransformCRC = GetCRC(HLODProxyDesc->HLODBakingTransform);
 		if (OldTransformCRC != NewTransformCRC)
 		{
 			HLODProxyDesc->HLODBakingTransform = InTransform;
