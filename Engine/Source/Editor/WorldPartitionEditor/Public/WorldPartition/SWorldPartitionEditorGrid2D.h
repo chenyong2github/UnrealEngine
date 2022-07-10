@@ -118,13 +118,17 @@ protected:
 		}
 	};
 
-	using FLoaderAdapterSet = TSet<TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, FKeyFuncs>;
-	FLoaderAdapterSet SelectedLoaderAdapters;
+	using FLoaderInterface = TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>;
+	using FLoaderInterfaceSet = TSet<FLoaderInterface, FKeyFuncs>;
+	using FLoaderInterfaceStack = TArray<FLoaderInterface>;
+	
+	FLoaderInterfaceSet SelectedLoaderInterfaces;
 	
 	// Updated every tick
 	TSet<FGuid> ShownActorGuids;
-	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> ShownLoaderAdapters;
-	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> HighlightedLoaderAdapters;
-	TWeakInterfacePtr<IWorldPartitionActorLoaderInterface> HoveredLoaderAdapter;
-	FGuid HoveredActor;
+	FLoaderInterfaceSet ShownLoaderInterfaces;
+	FLoaderInterfaceSet HighlightedLoaderInterfaces;
+	FLoaderInterfaceSet HoveredLoaderInterfaces;
+	FLoaderInterfaceStack HoveredLoaderInterfacesStack;
+	FLoaderInterface HoveredLoaderInterface;
 };
