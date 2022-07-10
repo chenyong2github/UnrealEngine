@@ -123,6 +123,6 @@ namespace Horde.Build.Notifications
 		/// Post a notification for the open issues in a stream
 		/// </summary>
 		/// <param name="report">The report data to send</param>
-		Task SendIssueReportAsync(IssueReport report);
+		Task SendIssueReportAsync(IssueReportGroup report);
 	}
 }

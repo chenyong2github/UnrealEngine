@@ -87,7 +87,7 @@ namespace Horde.Build.Notifications
 		/// </summary>
 		/// <param name="report"></param>
 		/// <returns></returns>
-		Task SendIssueReportAsync(IssueReport report);
+		Task SendIssueReportAsync(IssueReportGroup report);
 
 		#endregion
 
