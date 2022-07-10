@@ -1229,7 +1229,7 @@ namespace PerfSummaries
 					if (columnLookup.ContainsKey(s.ToLower()))
 					{
 						SummaryTableColumn column = columnLookup[s.ToLower()];
-						key += "{" + column.GetStringValue(i) + "}";
+						key += "{" + column.GetStringValue(i,false,"0.0000000000") + "}";
 					}
 					else
 					{
