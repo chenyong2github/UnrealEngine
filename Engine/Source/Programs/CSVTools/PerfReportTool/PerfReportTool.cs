@@ -25,7 +25,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.84";
+        private static string VersionString = "4.85";
 
         public static string Get() { return VersionString; }
     };
@@ -754,7 +754,19 @@ namespace PerfReportTool
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
 				string summaryTitle = GetArg("summaryTitle", null);
-				filteredTable.WriteToHTML(filenameWithoutExtension + ".html", VersionString, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, bScrollableTable, bAutoColorizeTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName, summaryTitle);
+				filteredTable.WriteToHTML(
+					filenameWithoutExtension + ".html", 
+					VersionString, 
+					bSpreadsheetFriendlyStrings, 
+					tableInfo.sectionBoundaries, 
+					bScrollableTable, 
+					bAutoColorizeTable, 
+					addMinMaxColumns, 
+					tableInfo.hideStatPrefix,
+					GetIntArg("maxSummaryTableStringLength", -1), 
+					reportXML.columnFormatInfoList, 
+					weightByColumnName, 
+					summaryTitle );
 			}
 		}
 
