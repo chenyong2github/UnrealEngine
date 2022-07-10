@@ -173,6 +173,7 @@ namespace Horde.Build.Issues
 			public StreamId StreamId { get; set; }
 			public bool? MergeOrigin { get; set; }
 			public bool? ContainsFix { get; set; }
+			public bool? FixFailed { get; set; }
 
 			public IssueStream()
 			{
@@ -183,6 +184,7 @@ namespace Horde.Build.Issues
 				StreamId = other.StreamId;
 				MergeOrigin = other.MergeOrigin;
 				ContainsFix = other.ContainsFix;
+				FixFailed = other.FixFailed;
 			}
 		}
 

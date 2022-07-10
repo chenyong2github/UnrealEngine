@@ -377,6 +377,9 @@ namespace Horde.Build.Issues
 		/// <inheritdoc cref="IIssueStream.ContainsFix"/>
 		public bool? ContainsFix { get; set; }
 
+		/// <inheritdoc cref="IIssueStream.FixFailed"/>
+		public bool? FixFailed { get; set; }
+
 		/// <summary>
 		/// Constructor
 		/// </summary>

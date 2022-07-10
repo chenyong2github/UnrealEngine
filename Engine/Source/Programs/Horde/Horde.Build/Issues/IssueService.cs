@@ -1006,6 +1006,10 @@ namespace Horde.Build.Issues
 						{
 							newStream.ContainsFix = await ContainsFixChange(newStream.StreamId, issue.FixChange.Value, fixChangeCache);
 						}
+						if (spans.Any(x => x.StreamId == newStream.StreamId && x.LastFailure.Change > issue.FixChange.Value))
+						{
+							newStream.FixFailed = true;
+						}
 					}
 				}
 

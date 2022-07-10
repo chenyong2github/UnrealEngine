@@ -190,6 +190,11 @@ namespace Horde.Build.Issues
 		/// Whether this stream contains the fix change
 		/// </summary>
 		bool? ContainsFix { get; }
+
+		/// <summary>
+		/// Whether the fix failed in this stream
+		/// </summary>
+		bool? FixFailed { get; }
 	}
 
 	/// <summary>

@@ -1411,7 +1411,7 @@ namespace Horde.Build.Notifications.Sinks
 					{
 						double totalPct = (report.WorkflowStats.NumPassingSteps * 100.0) / report.WorkflowStats.NumSteps;
 						string header = $"*{totalPct:0.0}%* of build steps ({report.WorkflowStats.NumPassingSteps:n0} of {report.WorkflowStats.NumSteps:n0}) succeeded since last status update.";
-						await SendMessageAsync(report.Channel, text: String.Join(" ", header), withEnvironment: false);
+						await SendMessageAsync(report.Channel, text: header, withEnvironment: false);
 					}
 				}
 			}
@@ -1577,13 +1577,17 @@ namespace Horde.Build.Notifications.Sinks
 			string status = "*Unassigned*";
 			if (issue.FixChange != null)
 			{
-				if (owner == null)
+				if (issue.Streams.Any(x => x.FixFailed ?? false))
 				{
-					status = $"Fixed in CL {issue.FixChange.Value}";
+					status = "*Fix failed*";
+				}
+				else if (span != null && issue.Streams.Any(x => x.StreamId == span.StreamId && (x.MergeOrigin ?? false) && !(x.ContainsFix ?? false)))
+				{
+					status = "*Fix needs merging*";
 				}
 				else
 				{
-					status = $"Fixed in CL {issue.FixChange.Value} by {owner.Name}";
+					status = $"Fixed in CL {issue.FixChange.Value}";
 				}
 			}
 			else if (issue.OwnerId != null)
