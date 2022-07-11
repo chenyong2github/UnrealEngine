@@ -748,9 +748,6 @@ public:
 	 */
 	void SetMouseCaptureMode(EMouseCaptureMode Mode);
 
-	UE_DEPRECATED(4.26, "Please call UGameViewportClient::SetMouseCaptureMode(EMouseCaptureMode) instead.")
-	void SetCaptureMouseOnClick(EMouseCaptureMode Mode) { SetMouseCaptureMode(Mode); }
-
 	/**
 	 * Gets the mouse capture behavior when the viewport is clicked
 	 */
