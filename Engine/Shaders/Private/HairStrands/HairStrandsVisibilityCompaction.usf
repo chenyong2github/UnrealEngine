@@ -345,12 +345,10 @@ float  GetDepthTexture(uint2 PixelCoord, uint SampleIt) { return MSAA_DepthTextu
 
 #endif // PERMUTATION_MSAACOUNT>1
 
-#if PERMUTATION_TILE
 int2 TileCountXY;
 uint TileSize;
 Buffer<uint> TileCountBuffer;
 Buffer<uint2> TileDataBuffer;
-#endif // PERMUTATION_TILE
 
 Texture2D<float> ViewTransmittanceTexture;
 
@@ -366,7 +364,6 @@ void MainCS(
 		AllocationNodeCount = 0;
 		AllocationNodeOffset = 0;
 	}
-#if PERMUTATION_TILE
 	const uint TileCount = TileCountBuffer[HAIRTILE_HAIR_ALL];
 	const uint LinearIndex = GroupId.x + GroupId.y * TileCountXY.x;
 	if (LinearIndex >= TileCount)
@@ -375,9 +372,6 @@ void MainCS(
 	}
 	const uint2 TileCoord = TileDataBuffer[LinearIndex];
 	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId.xy;
-#else
-	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
-#endif // PERMUTATION_TILE
 
 	if (PixelCoord.x >= uint(OutputResolution.x) || PixelCoord.y >= uint(OutputResolution.y))
 		PixelCoord = uint2(0, 0);

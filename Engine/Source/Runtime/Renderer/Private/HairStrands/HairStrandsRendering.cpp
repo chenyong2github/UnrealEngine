@@ -27,23 +27,11 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
 		Parameters->MaxSamplePerPixelCount = In->MaxSampleCount;
 
-		if (In->TileData.IsValid())
-		{
-			Parameters->HairTileData = In->TileData.GetTileBufferSRV(FHairStrandsTiles::ETileType::HairAll);
-			Parameters->HairTileCount = In->TileData.TileCountSRV;
-			Parameters->HairTileCountXY = In->TileData.TileCountXY;
-			Parameters->bHairTileValid = true;
-		}
-		else
-		{
-			FRDGBufferRef DummyBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, 4);
-			FRDGBufferSRVRef DummyBufferR32SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R32_UINT);
-			FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
-			Parameters->HairTileData = DummyBufferRG16SRV;
-			Parameters->HairTileCount = DummyBufferR32SRV;
-			Parameters->HairTileCountXY = FIntPoint(0,0);
-			Parameters->bHairTileValid = false;
-		}
+		check(In->TileData.IsValid())
+		Parameters->HairTileData = In->TileData.GetTileBufferSRV(FHairStrandsTiles::ETileType::HairAll);
+		Parameters->HairTileCount = In->TileData.TileCountSRV;
+		Parameters->HairTileCountXY = In->TileData.TileCountXY;
+		Parameters->bHairTileValid = true;
 
 		if (!Parameters->HairOnlyDepthFurthestHZBTexture)
 		{

@@ -36,12 +36,10 @@ Texture2D<float> CoverageTexture;
   #endif
 #endif
 
-#if PERMUTATION_TILE
 uint TileSize;
 int2 TileCountXY;
 Buffer<uint> TileCountBuffer;
 Buffer<uint2> TileDataBuffer;
-#endif
 
 RWTexture2D<uint> OutResolveMaskTexture;
 
@@ -54,7 +52,6 @@ float4 ToOutput(float4 In) { return In; }
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_GroupID, uint2 InGroupThreadId : SV_GroupThreadID)
 {
-#if PERMUTATION_TILE
 	const uint TileCount = TileCountBuffer[HAIRTILE_HAIR_ALL];
 	const uint TileIndex1D = InGroupId.x + InGroupId.y * TileCountXY.x;
 	if (TileIndex1D >= TileCount)
@@ -63,9 +60,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_G
 	}
 	const uint2 GroupId = TileDataBuffer[TileIndex1D];
 	const uint2 PixelCoord = GroupId * TileSize + InGroupThreadId;
-#else
-	const uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
-#endif
 
 	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelCoord, 0)));
 	bool bNeedFastResolve = false;
