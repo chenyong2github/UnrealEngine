@@ -2,7 +2,7 @@
 
 #include "PoseSearch/KDTree.h"
 
-#define UE_POSE_SEARCH_USE_NANOFLANN 0
+#define UE_POSE_SEARCH_USE_NANOFLANN 1
 
 // @third party code - BEGIN nanoflann
 #if UE_POSE_SEARCH_USE_NANOFLANN
