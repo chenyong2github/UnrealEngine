@@ -35,6 +35,10 @@
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true
+		},
+		{
+			"Name": "HairStrands",
+			"Enabled": true
 		}		
 	]
 }
