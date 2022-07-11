@@ -83,7 +83,7 @@ void DeformStrands(
 	const FHairStrandsDatas& HairStandsData,
 	const TArray<FHairStrandsIndexFormat::Type>& VertexToCurveIndexBuffer,
 	const TArray<FHairStrandsIndexFormat::Type>& RootToUniqueTriangleBuffer,
-	const TArray<FHairStrandsCurveTriangleBarycentricFormat::Type>& RootBarycentricBuffer,
+	const TArray<FHairStrandsRootBarycentricFormat::Type>& RootBarycentricBuffer,
 
 	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition0Buffer_Rest,
 	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition1Buffer_Rest,

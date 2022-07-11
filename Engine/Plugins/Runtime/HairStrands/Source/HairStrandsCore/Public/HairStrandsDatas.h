@@ -243,7 +243,8 @@ struct FHairStrandsMeshTrianglePositionFormat
 	static const EPixelFormat Format = PF_A32B32G32R32F;
 };
 
-struct FHairStrandsCurveTriangleIndexFormat
+// Encode Section ID and triangle Index from the source skel. mesh
+struct FHairStrandsUniqueTriangleIndexFormat
 {
 	using Type = uint32;
 	using BulkType = uint32;
@@ -253,7 +254,17 @@ struct FHairStrandsCurveTriangleIndexFormat
 	static const EPixelFormat Format = PF_R32_UINT;
 };
 
-struct FHairStrandsCurveTriangleBarycentricFormat
+struct FHairStrandsRootToUniqueTriangleIndexFormat
+{
+	using Type = uint32;
+	using BulkType = uint32;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_UINT;
+};
+
+struct FHairStrandsRootBarycentricFormat
 {
 	using Type = uint32;
 	using BulkType = uint32;
@@ -593,11 +604,11 @@ struct FHairStrandsRootData
 		/* Triangle on which a root is attached */
 		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
 		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		TArray<uint32> RootToUniqueTriangleIndexBuffer;
-		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootBarycentricBuffer;
+		TArray<FHairStrandsRootToUniqueTriangleIndexFormat::Type> RootToUniqueTriangleIndexBuffer;
+		TArray<FHairStrandsRootBarycentricFormat::Type> RootBarycentricBuffer;
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		TArray<FHairStrandsCurveTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
+		TArray<FHairStrandsUniqueTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
 		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition0Buffer;
 		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition1Buffer;
 		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition2Buffer;
