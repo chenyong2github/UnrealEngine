@@ -185,12 +185,18 @@ void FTrackModel::ForceUpdate()
 
 	if (NumRows == 0)
 	{
+		// Reset expansion state if this track can no longer be expanded
+		SetExpansion(false);
+
 		// Clear any left-over row models, layout models, or section models.
 		OutlinerChildren.Empty();
 		SectionChildren.Empty();
 	}
 	else if (NumRows == 1)
 	{
+		// Reset expansion state if this track can no longer be expanded
+		SetExpansion(false);
+
 		// Keep sections alive by retaining the previous list temporarily
 		TSharedPtr<FViewModel> SectionsTail;
 
