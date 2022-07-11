@@ -94,6 +94,14 @@ void UNiagaraDataInterfaceSpriteRendererInfo::PostLoad()
 	}
 }
 
+void UNiagaraDataInterfaceSpriteRendererInfo::BeginDestroy()
+{
+#if WITH_EDITOR
+	OnSpriteRendererChanged(nullptr);
+#endif
+	Super::BeginDestroy();
+}
+
 #if WITH_EDITOR
 void UNiagaraDataInterfaceSpriteRendererInfo::PreEditChange(FProperty* PropertyAboutToChange)
 {

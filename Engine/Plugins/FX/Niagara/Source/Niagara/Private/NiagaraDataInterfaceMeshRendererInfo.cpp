@@ -84,9 +84,10 @@ void UNiagaraDataInterfaceMeshRendererInfo::PostLoad()
 
 void UNiagaraDataInterfaceMeshRendererInfo::BeginDestroy()
 {
-	Super::BeginDestroy();
-
+#if WITH_EDITOR
 	OnMeshRendererChanged(nullptr);
+#endif
+	Super::BeginDestroy();
 }
 
 #if WITH_EDITOR
