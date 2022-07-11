@@ -1256,7 +1256,12 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 			{
 				Existing->bLoadFailed = false;
 				Existing->bAsyncLoadRequestOutstanding = true;
-				LoadPackageAsync(PackagePath, NAME_None /* PackageNameToCreate */, FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName), PKG_None /* InPackageFlags */, Priority);
+				LoadPackageAsync(PackagePath,
+					NAME_None /* PackageNameToCreate */,
+					FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName),
+					PKG_None /* InPackageFlags */,
+					INDEX_NONE /* InPIEInstanceID */,
+					Priority /* InPackagePriority */);
 			}
 		}
 	}
