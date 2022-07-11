@@ -860,7 +860,7 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 	// 5. Write the function for fetching character for a given entry index
 	const uint32 EntryCount = Entries.Num();
 	FString TextChars;
-	if (EntryCount)
+	if (EntryCount>0 && GlobalCount>0)
 	{
 		// 1. Encoded character for each text entry within a single global char array
 		TextChars = FString::Printf(TEXT("static const uint TEXT_CHARS[%d] = {\n"), GlobalCount);
