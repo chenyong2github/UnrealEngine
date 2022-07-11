@@ -69,6 +69,16 @@
 #endif
 #endif
 
+/* Unreal Engine changes: disable throw if __cpp_exceptions are not defined */
+#ifndef NANOFLANN_THROW_WRAPPER
+	#ifndef __cpp_exceptions
+		#define NANOFLANN_THROW_WRAPPER(ex) {}
+	#else
+		#define NANOFLANN_THROW_WRAPPER(ex) throw ex
+	#endif
+#endif // !NANOFLANN_THROW_WRAPPER
+
+
 namespace nanoflann
 {
 /** @addtogroup nanoflann_grp nanoflann C++ library for ANN
@@ -126,7 +136,7 @@ inline typename std::enable_if<!has_resize<Container>::value, void>::type
     resize(Container& c, const size_t nElements)
 {
     if (nElements != c.size())
-        throw std::logic_error("Try to change the size of a std::array.");
+		NANOFLANN_THROW_WRAPPER(std::logic_error("Try to change the size of a std::array."));
 }
 
 /**
@@ -291,9 +301,9 @@ class RadiusResultSet
     std::pair<IndexType, DistanceType> worst_item() const
     {
         if (m_indices_dists.empty())
-            throw std::runtime_error(
+			NANOFLANN_THROW_WRAPPER(std::runtime_error(
                 "Cannot invoke RadiusResultSet::worst_item() on "
-                "an empty list of results.");
+                "an empty list of results."));
         using DistIt = typename std::vector<
             std::pair<IndexType, DistanceType>>::const_iterator;
         DistIt it = std::max_element(
@@ -793,7 +803,7 @@ class PooledAllocator
             if (!m)
             {
                 fprintf(stderr, "Failed to allocate memory.\n");
-                throw std::bad_alloc();
+				NANOFLANN_THROW_WRAPPER(std::bad_alloc());
             }
 
             /* Fill first word of new block with pointer to previous block. */
@@ -1397,9 +1407,9 @@ class KDTreeSingleIndexAdaptor
         assert(vec);
         if (this->size(*this) == 0) return false;
         if (!BaseClassRef::root_node)
-            throw std::runtime_error(
+			NANOFLANN_THROW_WRAPPER(std::runtime_error(
                 "[nanoflann] findNeighbors() called before building the "
-                "index.");
+                "index."));
         float epsError = 1 + searchParams.eps;
 
         distance_vector_t
@@ -1508,9 +1518,9 @@ class KDTreeSingleIndexAdaptor
         {
             const Size N = dataset.kdtree_get_point_count();
             if (!N)
-                throw std::runtime_error(
+				NANOFLANN_THROW_WRAPPER(std::runtime_error(
                     "[nanoflann] computeBoundingBox() called but "
-                    "no data points found.");
+                    "no data points found."));
             for (Dimension i = 0; i < (DIM > 0 ? DIM : BaseClassRef::dim); ++i)
             {
                 bbox[i].low = bbox[i].high =
@@ -1912,9 +1922,9 @@ class KDTreeSingleIndexDynamicAdaptor_
         {
             const Size N = BaseClassRef::m_size;
             if (!N)
-                throw std::runtime_error(
+				NANOFLANN_THROW_WRAPPER(std::runtime_error(
                     "[nanoflann] computeBoundingBox() called but "
-                    "no data points found.");
+                    "no data points found."));
             for (Dimension i = 0; i < (DIM > 0 ? DIM : BaseClassRef::dim); ++i)
             {
                 bbox[i].low = bbox[i].high =
@@ -2274,13 +2284,13 @@ struct KDTreeEigenMatrixAdaptor
     {
         const auto dims = row_major ? mat.get().cols() : mat.get().rows();
         if (static_cast<Dimension>(dims) != dimensionality)
-            throw std::runtime_error(
+			NANOFLANN_THROW_WRAPPER(std::runtime_error(
                 "Error: 'dimensionality' must match column count in data "
-                "matrix");
+                "matrix"));
         if (DIM > 0 && static_cast<int32_t>(dims) != DIM)
-            throw std::runtime_error(
+			NANOFLANN_THROW_WRAPPER(std::runtime_error(
                 "Data set dimensionality does not match the 'DIM' template "
-                "argument");
+                "argument"));
         index = new index_t(
             dims, *this /* adaptor */,
             nanoflann::KDTreeSingleIndexAdaptorParams(leaf_max_size));
