@@ -3672,6 +3672,10 @@ void DrawHitProxies(
 			TileData,
 			SceneDepthTexture);
 
+		// Generate Tile data
+		check(VisDepthTexture);
+		TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, VisDepthTexture->Desc.Extent);
+
 		FRDGTextureRef VisIdTexture = nullptr;
 		AddHairVisibilityMSAAPass(
 			GraphBuilder,

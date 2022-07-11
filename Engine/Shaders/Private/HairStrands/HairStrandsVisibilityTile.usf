@@ -12,6 +12,7 @@
 #if SHADER_TILE_GENERATION
 int2 BufferResolution;
 uint bUintTexture;
+uint bForceOutputAllTiles;
 float TransmittanceThreshold;
 uint IntCoverageThreshold;
 Texture2D<float> InputFloatTexture;
@@ -36,7 +37,13 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool pHair = false;
 	if (all(PixelCoord < uint2(BufferResolution)))
 	{
-		if (bUintTexture)
+		if (bForceOutputAllTiles)
+		{
+			// When bForceOutputAllTiles, we generate tiles for all pixels.
+			fHair = true;
+			pHair = true;
+		}
+		else if (bUintTexture)
 		{
 			const uint Coverage = InputUintTexture.Load(uint3(PixelCoord, 0));
 			fHair = Coverage >= IntCoverageThreshold;
