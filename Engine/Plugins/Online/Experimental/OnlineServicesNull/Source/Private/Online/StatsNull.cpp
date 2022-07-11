@@ -3,6 +3,7 @@
 #include "Online/StatsNull.h"
 #include "Online/AuthNull.h"
 #include "Online/OnlineServicesNull.h"
+#include "Math/UnrealMathUtility.h"
 
 namespace UE::Online {
 
@@ -52,33 +53,48 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 			{
 				if (FStatDefinition* StatDefinition = StatDefinitions.Find(UpdateUserStatPair.Key))
 				{
-					if (StatDefinition->UsageFlags & (uint32)EStatUsageFlags::Achievement)
+					if (FStatValue* StatValue = UserStats.Find(UpdateUserStatPair.Key))
 					{
-						if (FStatValue* StatValue = UserStats.Find(UpdateUserStatPair.Key))
+						switch (StatDefinition->ModifyMethod)
 						{
+						case EStatModifyMethod::Set:
 							*StatValue = UpdateUserStatPair.Value;
-
-							// TODO: Apply the value properly when SchemaVariant is ready
-							//switch (StatDefinition->ModifyMethod)
-							//{
-							//case EStatModifyMethod::Set:
-							//	*StatValue = UpdateUserStatPair.Value;
-							//	break;
-							//case EStatModifyMethod::Sum:
-							//	*StatValue += UpdateUserStatPair.Value;
-							//	break;
-							//case EStatModifyMethod::Largest:
-							//	*StatValue = Max(*StatValue, UpdateUserStatPair.Value);
-							//	break;
-							//case EStatModifyMethod::Smallest:
-							//	*StatValue = Min(*StatValue, UpdateUserStatPair.Value);
-							//	break;
-							//}
+							break;
+						case EStatModifyMethod::Sum:
+							if (StatValue->VariantData.IsType<double>())
+							{
+								StatValue->Set(StatValue->GetDouble() + UpdateUserStatPair.Value.GetDouble());
+							}
+							else if (StatValue->VariantData.IsType<int64>())
+							{
+								StatValue->Set(StatValue->GetInt64() + UpdateUserStatPair.Value.GetInt64());
+							}
+							break;
+						case EStatModifyMethod::Largest:
+							if (StatValue->VariantData.IsType<double>())
+							{
+								StatValue->Set(FMath::Max(StatValue->GetDouble(), UpdateUserStatPair.Value.GetDouble()));
+							}
+							else if (StatValue->VariantData.IsType<int64>())
+							{
+								StatValue->Set(FMath::Max(StatValue->GetInt64(), UpdateUserStatPair.Value.GetInt64()));
+							}
+							break;
+						case EStatModifyMethod::Smallest:
+							if (StatValue->VariantData.IsType<double>())
+							{
+								StatValue->Set(FMath::Min(StatValue->GetDouble(), UpdateUserStatPair.Value.GetDouble()));
+							}
+							else if (StatValue->VariantData.IsType<int64>())
+							{
+								StatValue->Set(FMath::Min(StatValue->GetInt64(), UpdateUserStatPair.Value.GetInt64()));
+							}
+							break;
 						}
-						else
-						{
-							UserStats.Emplace(UpdateUserStatPair.Key, UpdateUserStatPair.Value);
-						}
+					}
+					else
+					{
+						UserStats.Emplace(UpdateUserStatPair.Key, UpdateUserStatPair.Value);
 					}
 
 					if (StatDefinition->UsageFlags & (uint32)EStatUsageFlags::Leaderboard)

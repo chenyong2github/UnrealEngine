@@ -26,7 +26,26 @@ void FStatsOSSAdapter::ConvertStatValueV2ToStatUpdateV1(const FString& StatName,
 {
 	FOnlineStatValue OnlineStatValue;
 
-	// TODO: Add the FOnlineStatValue conversion when SchemaVariant is ready
+	if (StatValue.VariantData.IsType<double>())
+	{
+		OnlineStatValue.SetValue(StatValue.GetDouble());
+	}
+	else if (StatValue.VariantData.IsType<int64>())
+	{
+		OnlineStatValue.SetValue(StatValue.GetInt64());
+	}
+	else if (StatValue.VariantData.IsType<bool>())
+	{
+		OnlineStatValue.SetValue(StatValue.GetBoolean());
+	}
+	else if (StatValue.VariantData.IsType<FString>())
+	{
+		OnlineStatValue.SetValue(StatValue.GetString());
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Can't convert stat value!"));
+	}
 
 	FOnlineStatUpdate::EOnlineStatModificationType OnlineStatModificationType = FOnlineStatUpdate::EOnlineStatModificationType::Unknown;
 
@@ -50,7 +69,16 @@ void FStatsOSSAdapter::ConvertStatValueV2ToStatUpdateV1(const FString& StatName,
 
 void FStatsOSSAdapter::ConvertStatValueV1ToStatValueV2(const FOnlineStatValue& OnlineStatValue, FStatValue& OutStatValue)
 {
-	// TODO: Add the conversion when SchemaVariant is ready
+	switch (OnlineStatValue.GetType())
+	{
+	case EOnlineKeyValuePairDataType::String: OnlineStatValue.GetValue(OutStatValue.VariantData.Get<FString>()); break;
+	case EOnlineKeyValuePairDataType::Bool: OnlineStatValue.GetValue(OutStatValue.VariantData.Get<bool>()); break;
+	case EOnlineKeyValuePairDataType::Double: OnlineStatValue.GetValue(OutStatValue.VariantData.Get<double>()); break;
+	case EOnlineKeyValuePairDataType::Int64: OnlineStatValue.GetValue(OutStatValue.VariantData.Get<int64>()); break;
+	default: 
+		ensureMsgf(false, TEXT("Can't convert online stat value!"));
+		break;
+	}
 }
 
 FOnlineError FStatsOSSAdapter::ConvertUpdateUsersStatsV2toV1(const TArray<FUserStats>& UpdateUsersStats, TArray<FOnlineStatsUserUpdatedStats>& OutUpdateUserStatsV1)

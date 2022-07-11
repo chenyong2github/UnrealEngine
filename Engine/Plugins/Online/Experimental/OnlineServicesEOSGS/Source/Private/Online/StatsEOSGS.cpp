@@ -30,18 +30,6 @@ void FStatsEOSGS::Initialize()
 	check(StatsHandle);
 }
 
-namespace Private
-{
-
-int32 ConvertToIntegerFromStatValue(const FStatValue& StatValue)
-{
-	int32 Value = 0;
-	// TODO: Convert to proper value when SchemaVariant is ready
-	return Value;
-}
-
-}
-
 TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params&& Params)
 {
 	TOnlineAsyncOpRef<FUpdateStats> Op = GetOp<FUpdateStats>(MoveTemp(Params));
@@ -72,7 +60,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 				EOSStat.ApiVersion = EOS_STATS_INGESTDATA_API_LATEST;
 				static_assert(EOS_STATS_INGESTDATA_API_LATEST == 1, "EOS_Stats_IngestData updated, check new fields");
 
-				EOSStat.IngestAmount = Private::ConvertToIntegerFromStatValue(StatPair.Value);
+				EOSStat.IngestAmount = static_cast<int32>(StatPair.Value.GetInt64());
 				FCStringAnsi::Strncpy(EOSStatNames[Index].StatName, TCHAR_TO_UTF8(*StatPair.Key), STAT_NAME_MAX_LENGTH_EOS);
 				EOSStat.StatName = EOSStatNames[Index].StatName;
 
@@ -154,8 +142,7 @@ void ReadStatsFromEOSResult(EOS_HStats StatsHandle, const EOS_Stats_OnQueryStats
 		EOS_Stats_Stat* ReadStat = nullptr;
 		if (EOS_Stats_CopyStatByName(StatsHandle, &Options, &ReadStat) == EOS_EResult::EOS_Success)
 		{
-			// TODO: Add the stats here when SchemaVariant is ready
-			//OutStats.Add(StatName, FStatValue(ReadStat->Value));
+			OutStats.Add(StatName, FStatValue(static_cast<int64>(ReadStat->Value)));
 			EOS_Stats_Stat_Release(ReadStat);
 		}
 		else

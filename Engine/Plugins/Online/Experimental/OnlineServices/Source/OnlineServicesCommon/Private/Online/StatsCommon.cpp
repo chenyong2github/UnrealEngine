@@ -66,7 +66,7 @@ void LexFromString(EStatLeaderboardUpdateMethod& OutValue, const TCHAR* InStr)
 	{
 		OutValue = EStatLeaderboardUpdateMethod::KeepBest;
 	}
-	else if (FCString::Stricmp(InStr, TEXT("Set")) == 0)
+	else if (FCString::Stricmp(InStr, TEXT("Force")) == 0)
 	{
 		OutValue = EStatLeaderboardUpdateMethod::Force;
 	}
@@ -183,14 +183,11 @@ void FStatsCommon::ReadStatDefinitionsFromConfig()
 			StatDefinition.UsageFlags |= (uint32)StatUsageFlag;
 		}
 
-		if (StatDefinition.UsageFlags & (uint32)EStatUsageFlags::Achievement)
+		FText StatModifyMethod;
+		GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_ModifyMethod"), StatIdx), StatModifyMethod, GEngineIni);
+		if (!StatModifyMethod.IsEmpty())
 		{
-			FText StatModifyMethod;
-			GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_ModifyMethod"), StatIdx), StatModifyMethod, GEngineIni);
-			if (!StatModifyMethod.IsEmpty())
-			{
-				LexFromString(StatDefinition.ModifyMethod, *StatModifyMethod.ToString());
-			}
+			LexFromString(StatDefinition.ModifyMethod, *StatModifyMethod.ToString());
 		}
 
 		if (StatDefinition.UsageFlags & (uint32)EStatUsageFlags::Leaderboard)
