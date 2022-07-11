@@ -598,15 +598,17 @@ FProxyPool::FProxyPool(const FRemoteDesc& InRemoteDesc)
 		{
 			LogError(Response.GetError());
 		}
+		else
+		{
+			const FUnsyncProtocolImpl::FHelloResponse& Data = Response.GetData();
+			UNSYNC_VERBOSE(L"Connection established. Server name: %hs, version: %hs, git: %hs.", 
+				Data.Name.empty() ? "unknown" : Data.Name.c_str(),
+				Data.VersionNumber.empty() ? "unknown" : Data.VersionNumber.c_str(),
+				Data.VersionGit.empty() ? "unknown" : Data.VersionGit.c_str());
 
-		const FUnsyncProtocolImpl::FHelloResponse& Data = Response.GetData();
-		UNSYNC_VERBOSE(L"Connection established. Server name: %hs, version: %hs, git: %hs.", 
-			Data.Name.empty() ? "unknown" : Data.Name.c_str(),
-			Data.VersionNumber.empty() ? "unknown" : Data.VersionNumber.c_str(),
-			Data.VersionGit.empty() ? "unknown" : Data.VersionGit.c_str());
-
-		Features = Data.Features;
-		SessionId = Data.SessionId;
+			Features = Data.Features;
+			SessionId = Data.SessionId;
+		}
 
 		bValid = Response.IsOk();
 	}

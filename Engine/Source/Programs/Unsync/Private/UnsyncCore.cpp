@@ -25,7 +25,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.43"
+#define UNSYNC_VERSION_STR "1.0.44"
 
 namespace unsync {
 
@@ -3399,7 +3399,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 		std::unique_ptr<FProxy> Proxy = ProxyPool.Alloc();
 
-		if (Proxy->IsValid())
+		if (Proxy.get() && Proxy->IsValid())
 		{
 			// TODO: report TLS status
 			// ESocketSecurity security = proxy->get_socket_security();

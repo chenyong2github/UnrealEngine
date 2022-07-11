@@ -237,8 +237,8 @@ HttpRequest(const FRemoteDesc& RemoteDesc,
 			EHttpContentType   PayloadContentType,
 			FBufferView		   Payload)
 {
-	FTlsClientSettings TlsSettings = RemoteDesc.GetTlsClientSettings();
-	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, &TlsSettings);
+	const FTlsClientSettings* TlsSettings = nullptr;
+	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, TlsSettings);
 
 	FHttpRequest Request;
 
