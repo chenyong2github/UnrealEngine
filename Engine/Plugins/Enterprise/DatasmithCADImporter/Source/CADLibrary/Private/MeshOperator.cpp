@@ -6,15 +6,20 @@
 
 #include "Containers/Array.h"
 #include "Containers/Queue.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMeshToMeshDescription.h"
 #include "MeshAttributes.h"
+#include "MeshDescriptionHelper.h"
+#include "MeshDescriptionToDynamicMesh.h"
 #include "MeshElementArray.h"
+#include "Operations/MeshResolveTJunctions.h"
 #include "StaticMeshAttributes.h"
-
-using namespace MeshOperator;
-using namespace MeshCategory;
 
 bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 {
+	using namespace MeshCategory;
+
 	FMeshEditingWrapper MeshWrapper(MeshDescription);
 
 	TQueue<FTriangleID> Front;
@@ -243,4 +248,65 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 	}
 
 	return true;
+}
+
+void MeshOperator::ResolveTJunctions(FMeshDescription& MeshDescription, double Tolerance)
+{
+	UE::Geometry::FDynamicMesh3 DynamicMesh(UE::Geometry::EMeshComponents::FaceGroups);
+	DynamicMesh.EnableAttributes();
+
+	{
+		FMeshDescriptionToDynamicMesh ConverterToDynamicMesh;
+		ConverterToDynamicMesh.Convert(&MeshDescription, DynamicMesh);
+	}
+
+	// Check if there are boundary edges
+	int32 BoundaryEdgeCount = 0;
+	for (int32 eid : DynamicMesh.BoundaryEdgeIndicesItr())
+	{
+		BoundaryEdgeCount++;
+		break;
+	}
+
+	if (BoundaryEdgeCount == 0)
+	{
+		return;
+	}
+
+	UE::Geometry::FMeshResolveTJunctions MeshResolveTJunctions(&DynamicMesh);
+	MeshResolveTJunctions.DistanceTolerance = Tolerance;
+	bool bResolveOK = MeshResolveTJunctions.Apply();
+
+	if (bResolveOK && MeshResolveTJunctions.NumSplitEdges > 0)
+	{
+		UE::Geometry::FMergeCoincidentMeshEdges MergeCoincidentEdges(&DynamicMesh);
+		MergeCoincidentEdges.MergeVertexTolerance = Tolerance;
+		MergeCoincidentEdges.MergeSearchTolerance = 2 * Tolerance;
+		MergeCoincidentEdges.Apply();
+		BoundaryEdgeCount = MergeCoincidentEdges.FinalNumBoundaryEdges;
+	}
+
+	// TODO: Should not be needed as soon as CopyMaterialSlotNames, and CopyPatchGroups are no more called
+	FMeshDescription NewMeshDescription(MeshDescription);
+
+	{
+		FConversionToMeshDescriptionOptions ConversionOptions;
+		ConversionOptions.bSetPolyGroups = true;
+		ConversionOptions.bUpdatePositions = true;
+		ConversionOptions.bUpdateNormals = true;
+		ConversionOptions.bUpdateTangents = true;
+		ConversionOptions.bUpdateUVs = true;
+		ConversionOptions.bUpdateVtxColors = true;
+		ConversionOptions.bTransformVtxColorsSRGBToLinear = false;
+
+		FDynamicMeshToMeshDescription ConverterToMeshDescription(ConversionOptions);
+		ConverterToMeshDescription.Convert(&DynamicMesh, NewMeshDescription);
+	}
+
+
+	// TODO: Should not be needed as soon as ConverterToMeshDescription.Convert won't lose data anymore
+	CADLibrary::CopyMaterialSlotNames(MeshDescription, NewMeshDescription);
+	CADLibrary::CopyPatchGroups(MeshDescription, NewMeshDescription);
+
+	MeshDescription = MoveTemp(NewMeshDescription);
 }

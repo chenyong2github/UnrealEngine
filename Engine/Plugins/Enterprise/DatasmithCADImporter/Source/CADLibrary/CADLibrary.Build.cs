@@ -17,7 +17,10 @@ public class CADLibrary : ModuleRules
 				"CADTools",
 				"CADKernel",
 				"DatasmithCore",
+				"DynamicMesh",
+				"MeshConversion",
 				"MeshDescription",
+				"GeometryCore",
 				"StaticMeshDescription"
 			}
 		);

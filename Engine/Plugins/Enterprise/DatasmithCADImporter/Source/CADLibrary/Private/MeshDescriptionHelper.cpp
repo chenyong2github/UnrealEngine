@@ -385,6 +385,20 @@ void GetExistingPatches(FMeshDescription& MeshDestination, TSet<int32>& OutPatch
 	}
 }
 
+void CopyMaterialSlotNames(FMeshDescription& MeshSource, FMeshDescription& MeshDestination)
+{
+	FStaticMeshAttributes MeshAttributes(MeshSource);
+	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
+
+	FStaticMeshAttributes NewMeshDescriptionAttributes(MeshDestination);
+	TPolygonGroupAttributesRef<FName> NewPolygonGroupImportedMaterialSlotNames = NewMeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
+
+	for (int32 Index = 0; Index < PolygonGroupImportedMaterialSlotNames.GetNumElements(); ++Index)
+	{
+		NewPolygonGroupImportedMaterialSlotNames[Index] = PolygonGroupImportedMaterialSlotNames[Index];
+	}
+}
+
 bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& ImportParams, FBodyMesh& BodyTessellation, FMeshDescription& MeshDescription)
 {
 	const int32 UVChannel = 0;
@@ -613,6 +627,13 @@ bool ConvertBodyMeshToMeshDescription(const FImportParameters& ImportParams, con
 
 	// Orient mesh
 	MeshOperator::OrientMesh(MeshDescription);
+
+	// Sew mesh
+	if(FImportParameters::bGSewMeshIfNeeded)
+	{
+		double Tolerance = FImportParameters::GStitchingTolerance;
+		MeshOperator::ResolveTJunctions(MeshDescription, Tolerance);
+	}
 
 	// Build edge meta data
 	FStaticMeshOperations::DetermineEdgeHardnessesFromVertexInstanceNormals(MeshDescription);

@@ -11,4 +11,6 @@ namespace MeshOperator
 
 bool OrientMesh(FMeshDescription& MeshDescription);
 
+void ResolveTJunctions(FMeshDescription& MeshDescription, double Tolerance);
+
 }

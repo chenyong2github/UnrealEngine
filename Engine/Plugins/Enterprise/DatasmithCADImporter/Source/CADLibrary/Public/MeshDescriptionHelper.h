@@ -27,6 +27,7 @@ CADLIBRARY_API TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFro
 
 CADLIBRARY_API bool ConvertBodyMeshToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription);
 CADLIBRARY_API void CopyPatchGroups(FMeshDescription& MeshSource, FMeshDescription& MeshDestination);
+CADLIBRARY_API void CopyMaterialSlotNames(FMeshDescription& MeshSource, FMeshDescription& MeshDestination);
 
 /** 
  * Enable per-triangle integer attribute named PolyTriGroups 

@@ -62,6 +62,15 @@ FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
 Default value of StitchingTolerance is 0.001 cm\n"),
 ECVF_Default);
 
+bool FImportParameters::bGSewMeshIfNeeded = true;
+FAutoConsoleVariableRef GCADTranslatorSewMeshIfNeeded(
+	TEXT("ds.CADTranslator.SewMeshIfNeeded"),
+	FImportParameters::bGSewMeshIfNeeded,
+	TEXT("Prefrom a welding of the mesh to try to stitch mesh cracks\n\
+This welding is performed respecting the ds.CADTranslator.StitchingTolerance\n\
+Default value is true\n"),
+ECVF_Default);
+
 static bool bGAliasSewByColor = false;
 FAutoConsoleVariableRef GAliasSewByColor(
 	TEXT("ds.CADTranslator.Alias.SewByColor"),

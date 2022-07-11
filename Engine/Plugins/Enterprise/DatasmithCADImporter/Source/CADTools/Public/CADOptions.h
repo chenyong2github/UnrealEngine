@@ -35,6 +35,7 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGOverwriteCache;
 		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
 		CADTOOLS_API static float GStitchingTolerance;
+		CADTOOLS_API static bool bGSewMeshIfNeeded;
 
 	public:
 		FImportParameters(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
