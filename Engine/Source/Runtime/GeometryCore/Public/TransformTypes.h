@@ -109,6 +109,14 @@ public:
 		return Rotation; 
 	}
 
+	/**
+	* @return Rotation portion of Transform, as FRotator
+	*/
+	FRotator GetRotator() const 
+	{ 
+		return (FRotator)Rotation; 
+	}
+
 	/** 
 	 * Set Rotation portion of Transform 
 	 */

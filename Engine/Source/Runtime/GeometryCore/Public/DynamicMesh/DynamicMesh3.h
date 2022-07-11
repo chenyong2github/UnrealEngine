@@ -243,6 +243,13 @@ public:
 	void Clear();
 
 	/**
+	 * Ensure that all the same extended attributes available in ToMatch are also enabled.
+	 * By default, clears existing attributes, so that there will be an exact match
+	 * If bClearExisting is passed as false, existing attributes are not removed/cleared.
+	 */
+	void EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting = true);
+
+	/**
 	 * Serialization operator for FDynamicMesh3.
 	 *
 	 * @param Ar Archive to serialize with.
@@ -742,6 +749,21 @@ public:
 
 	/** Return edge vertex indices, but oriented based on attached triangle (rather than min-sorted) */
 	FIndex2i GetOrientedBoundaryEdgeV(int EdgeID) const;
+
+	/** Return (triangle, edge_index) representation for given Edge ID */
+	inline FMeshTriEdgeID GetTriEdgeIDFromEdgeID(int EdgeID) const
+	{
+		checkSlow(IsEdge(EdgeID));
+		int32 TriIndex = Edges[EdgeID].Tri.A;
+		FIndex3i TriEdges = TriangleEdges[TriIndex];
+		if (TriEdges.A == EdgeID)
+		{
+			return FMeshTriEdgeID(TriIndex, 0);
+		}
+		{ 
+			return FMeshTriEdgeID(TriIndex, ( TriEdges.B == EdgeID ) ? 1 : 2 );
+		}
+	}
 
 	//
 	// Vertex and Triangle attribute arrays

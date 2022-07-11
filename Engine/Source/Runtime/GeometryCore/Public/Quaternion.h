@@ -116,6 +116,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Quat.W = (double)W;
 		return Quat;
 	}
+	explicit inline operator FRotator() const
+	{
+		return ((FQuat)*this).Rotator();
+	}
 	explicit inline TQuaternion(const FQuat4f& Quat)
 	{
 		X = (RealType)Quat.X;
@@ -125,6 +129,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	explicit inline TQuaternion(const FQuat4d& Quat)
 	{
+		X = (RealType)Quat.X;
+		Y = (RealType)Quat.Y;
+		Z = (RealType)Quat.Z;
+		W = (RealType)Quat.W;
+	}
+	explicit inline TQuaternion(const FRotator& Rotator)
+	{
+		FQuat4d Quat(Rotator);
 		X = (RealType)Quat.X;
 		Y = (RealType)Quat.Y;
 		Z = (RealType)Quat.Z;

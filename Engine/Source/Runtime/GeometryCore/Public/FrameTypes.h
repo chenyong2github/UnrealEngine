@@ -464,6 +464,16 @@ struct TFrame3
 
 };
 
+template <typename T>
+TFrame3<T> Lerp(const TFrame3<T>& A, const TFrame3<T>& B, T Alpha)
+{
+	return TFrame3<T>(
+		UE::Geometry::Lerp(A.Origin, B.Origin, Alpha),
+		TQuaternion<T>(A.Rotation, B.Rotation, Alpha));
+}
+
+
+
 typedef TFrame3<float> FFrame3f;
 typedef TFrame3<double> FFrame3d;
 

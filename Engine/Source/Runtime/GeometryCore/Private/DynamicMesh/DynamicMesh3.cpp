@@ -335,6 +335,68 @@ void FDynamicMesh3::Clear()
 }
 
 
+void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting)
+{
+	bool bWantVertexNormals = ToMatch.HasVertexNormals() || (this->HasVertexNormals() && bClearExisting == false);
+	if (bClearExisting || bWantVertexNormals == false)
+	{
+		DiscardVertexNormals();
+	}
+	if (bWantVertexNormals)
+	{
+		EnableVertexNormals(FVector3f::UnitZ());
+	}
+
+	bool bWantVertexColors = ToMatch.HasVertexColors() || (this->HasVertexColors() && bClearExisting == false);
+	if (bClearExisting || bWantVertexColors == false)
+	{
+		DiscardVertexColors();
+	}
+	if (bWantVertexColors)
+	{
+		EnableVertexColors(FVector3f::Zero());
+	}
+
+
+	bool bWantVertexUVs = ToMatch.HasVertexUVs() || (this->HasVertexUVs() && bClearExisting == false);
+	if (bClearExisting || bWantVertexUVs == false)
+	{
+		DiscardVertexUVs();
+	}
+	if (bWantVertexUVs)
+	{
+		EnableVertexUVs(FVector2f::Zero());
+	}
+
+
+	bool bWantTriangleGroups = ToMatch.HasTriangleGroups() || (this->HasTriangleGroups() && bClearExisting == false);
+	if (bClearExisting || bWantTriangleGroups == false)
+	{
+		DiscardTriangleGroups();
+	}
+	if (bWantTriangleGroups)
+	{
+		EnableTriangleGroups();
+	}
+
+
+	bool bWantAttributes = ToMatch.HasAttributes() || (this->HasAttributes() && bClearExisting == false);
+	if (bClearExisting || bWantAttributes == false)
+	{
+		DiscardAttributes();
+	}
+	if (bWantAttributes)
+	{
+		EnableAttributes();
+	}
+	if (HasAttributes() && ToMatch.HasAttributes())
+	{
+		Attributes()->EnableMatchingAttributes(*ToMatch.Attributes(), bClearExisting);
+	}
+
+}
+
+
 
 int FDynamicMesh3::GetComponentsFlags() const
 {
