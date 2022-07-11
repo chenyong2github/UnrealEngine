@@ -23,8 +23,6 @@ struct FBubbleShortEntry
 
 groupshared FBubbleShortEntry BubbleSortTemp[THREADGROUP_SIZE];
 
-
-
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupIndex : SV_GroupIndex, uint3 InGroupID : SV_GroupID)
 {
@@ -38,7 +36,7 @@ void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupI
 	const int LocalIndexOffset = InGroupIndex;
 
 	FBubbleShortEntry NewEntry;
-	NewEntry.ParticleID = GlobalIndexOffset; //(TotalNumParticles - 1) - GlobalIndexOffset;
+	NewEntry.ParticleID = min(GlobalIndexOffset, int(TotalNumParticles - 1));
 	NewEntry.LinkID = GetRibbonLinkID(NewEntry.ParticleID);	
 #if HAS_RIBBON_ID
 	NewEntry.RibbonID = GetRibbonID(NewEntry.ParticleID);
@@ -83,11 +81,6 @@ void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupI
 }
 
 
-
-
-
-
-
 int MergeSortCompare(float SearchLinkOrder, float TestLinkOrder)
 {
 	if (SearchLinkOrder > TestLinkOrder)
@@ -121,9 +114,6 @@ int MergeSortCompare(FRibbonID Left, float LeftLinkOrder, FRibbonID Right, float
 	return -1;
 }
 #endif
-
-
-
 
 // This is a scatter based mergesort kernel
 [numthreads(THREADGROUP_SIZE, 1, 1)]
@@ -182,7 +172,3 @@ void MergeSort(uint3 DispatchThreadId : SV_DispatchThreadID)
 		DestinationSortedIndices[FinalIndex] = ParticleID;
 	}
 }
-
-
-
-

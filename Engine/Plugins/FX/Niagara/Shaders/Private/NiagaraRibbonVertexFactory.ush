@@ -286,11 +286,6 @@ void SetUV(inout FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex, flo
 
 #endif
 
-int GetParticleIdByInterpVtxId(uint InterpVtxId)
-{
-	return NiagaraRibbonVFLooseParameters.SortedIndices[UnpackParticleId(InterpVtxId)];
-}
-
 uint GetInterpCount()
 {
 	BRANCH
@@ -317,14 +312,29 @@ float GetOneOverInterpCount()
 	}
 }
 
-FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
+void GetInterpVtxAndRibbonDataData(FVertexFactoryInput Input, out FInterpVtxData InterpVtxData, out FSegmentData SegmentData)
 {
-	FInterpVtxData InterpVtxData = (FInterpVtxData)0;
-
+	// Get First Particle Data
 	InterpVtxData.RawParticleId0 = UnpackParticleId(Input.InterpVtxId);
-	InterpVtxData.RawParticleId1 = InterpVtxData.RawParticleId0 + 1;
-
 	InterpVtxData.ParticleId0 = NiagaraRibbonVFLooseParameters.SortedIndices[InterpVtxData.RawParticleId0];
+
+	// Unpack Ribbon Data
+	const uint RibbonIndex = NiagaraRibbonVF.ShouldUseMultiRibbon == 1 ? NiagaraRibbonVFLooseParameters.MultiRibbonIndices[InterpVtxData.RawParticleId0] : 0;
+	const uint RibbonBufferIndex = RibbonIndex * 8;
+
+	SegmentData.UV0Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 0]), NiagaraRibbonVF.PackedVData.x);
+	SegmentData.UV0Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 1]), NiagaraRibbonVF.PackedVData.y);
+	SegmentData.U0DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 2]);
+	
+	SegmentData.UV1Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 3]), NiagaraRibbonVF.PackedVData.z);
+	SegmentData.UV1Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 4]), NiagaraRibbonVF.PackedVData.w);
+	SegmentData.U1DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 5]);
+
+	SegmentData.StartParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 6];
+	SegmentData.LastParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[RibbonBufferIndex + 7];
+
+	// Get Remaining Interp Data
+	InterpVtxData.RawParticleId1 = min(InterpVtxData.RawParticleId0 + 1, SegmentData.LastParticleId);
 	InterpVtxData.ParticleId1 = NiagaraRibbonVFLooseParameters.SortedIndices[InterpVtxData.RawParticleId1];
 
 #if USE_PARTICLE_INTERPOLATION
@@ -334,27 +344,6 @@ FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
 #else
 	InterpVtxData.Alpha = 0;
 #endif
-
-	return InterpVtxData;
-}
-
-FSegmentData UnpackPerRibbonDataByIndex(int RibbonIndex)
-{
-	FSegmentData SegmentData = (FSegmentData)0;
-	const int Index = RibbonIndex * 8;
-
-	SegmentData.UV0Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 0]), NiagaraRibbonVF.PackedVData.x);
-	SegmentData.UV0Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 1]), NiagaraRibbonVF.PackedVData.y);
-	SegmentData.U0DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 2]);
-	
-	SegmentData.UV1Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 3]), NiagaraRibbonVF.PackedVData.z);
-	SegmentData.UV1Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 4]), NiagaraRibbonVF.PackedVData.w);
-	SegmentData.U1DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 5]);
-
-	SegmentData.StartParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 6];
-	SegmentData.LastParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 7];
-
-	return SegmentData;
 }
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
@@ -623,13 +612,12 @@ FRibbonPositionIntermediates GetRibbonPositionIntermediates(
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
-	FInterpVtxData InterpVtxData = GetInterpVtxData(Input);
+	FInterpVtxData InterpVtxData = (FInterpVtxData)0;
+	FSegmentData SegmentData = (FSegmentData)0;
+	GetInterpVtxAndRibbonDataData(Input, InterpVtxData, SegmentData);
 	
 	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	
-	uint RibbonIndex = NiagaraRibbonVF.ShouldUseMultiRibbon == 1? NiagaraRibbonVFLooseParameters.MultiRibbonIndices[InterpVtxData.RawParticleId0] : 0;
-	FSegmentData SegmentData = UnpackPerRibbonDataByIndex(RibbonIndex);
-
 	const float2 SliceVertexNormals = UnpackParticleVertexNormal(Input.InterpVtxId);
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();

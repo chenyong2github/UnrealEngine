@@ -56,22 +56,24 @@ struct FNiagaraGenerationInputDataCPUAccessors
 
 struct FNiagaraIndexGenerationInput
 {
-	float ViewDistance;
-	int32 LODDistanceFactor;
+	float ViewDistance = 0.0f;
+	int32 LODDistanceFactor = 0;
 	
-	uint32 MaxSegmentCount;
-	uint32 SubSegmentCount;	
+	uint32 MaxSegmentCount = 0;
+	uint32 SubSegmentCount = 0;
 
-	uint32 SegmentBitShift;
-	uint32 SegmentBitMask;
+	uint32 SegmentBitShift = 0;
+	uint32 SegmentBitMask = 0;
 
-	uint32 SubSegmentBitShift;
-	uint32 SubSegmentBitMask;
+	uint32 SubSegmentBitShift = 0;
+	uint32 SubSegmentBitMask = 0;
 
-	uint32 ShapeBitMask;
+	uint32 ShapeBitMask = 0;
 	
-	uint32 TotalBitCount;
-	uint32 TotalNumIndices;
+	uint32 TotalBitCount = 0;
+	uint32 TotalNumIndices = 0;
+
+	uint32 CPUTriangleCount = 0;
 };
 
 struct FNiagaraRibbonGenerationConfig
@@ -240,40 +242,46 @@ struct FNiagaraRibbonTessellationSmoothingData
 	float TessellationTotalSegmentLength = 0;
 };
 
-struct FNiagaraRibbonVertexBuffers
+struct FNiagaraRibbonGpuBuffer
 {
-	FRWBuffer SortedIndicesBuffer;
-	FRWBuffer TangentsAndDistancesBuffer;
-	FRWBuffer MultiRibbonIndicesBuffer;
-	FRWBuffer RibbonLookupTableBuffer;
-	FRWBuffer SegmentsBuffer;
-
-	FRWBuffer GPUComputeCommandBuffer;
-
-	int32 SortedIndicesLength;
-	int32 TangentsLength;
-	int32 MultiRibbonIndexLength;
-	int32 RibbonLookupTableLength;
-	int32 SegmentLength;
-	int32 GPUComputeCommandLength;
-	bool bJustCreatedCommandBuffer;
-
-	FNiagaraRibbonVertexBuffers()
-		: SortedIndicesLength(0)
-		, TangentsLength(0)
-		, MultiRibbonIndexLength(0)
-		, RibbonLookupTableLength(0)
-		, SegmentLength(0)
-		, GPUComputeCommandLength(0)
-		, bJustCreatedCommandBuffer(false)
+	FNiagaraRibbonGpuBuffer(const TCHAR* InDebugName, EPixelFormat InPixelFormat, uint32 InElementBytes)
+		: DebugName(InDebugName)
+		, PixelFormat(InPixelFormat)
+		, ElementBytes(InElementBytes)
 	{
-		
 	}
 
-	static bool InitOrUpdateBuffer(bool bEnabled, FRWBuffer& Buffer, int32& CurrentLength, int32 NeededLength, int32 MaxLength, FRWBuffer (*InitFunction)(int32, ERHIAccess), ERHIAccess InitialAccessFlags = ERHIAccess::None);
+	~FNiagaraRibbonGpuBuffer()
+	{
+		Release();
+	}
 
-	void InitializeOrUpdateBuffers(const FNiagaraRibbonGenerationConfig& GenerationConfig, const TSharedPtr<FNiagaraRibbonCPUGeneratedVertexData>& GeneratedGeometryData,
-		const FNiagaraDataBuffer* SourceParticleData, int32 MaxAllocatedCount, bool bIsUsingGPUInit);
+	bool Allocate(uint32 NumElements, uint32 MaxElements, ERHIAccess InResourceState, bool bGpuReadOnly);
+	void Release();
+
+	const TCHAR*				DebugName = nullptr;
+	const EPixelFormat			PixelFormat = PF_Unknown;
+	const uint32				ElementBytes = 0;
+
+	uint32						NumBytes = 0;
+	FBufferRHIRef				Buffer;
+	FUnorderedAccessViewRHIRef	UAV;
+	FShaderResourceViewRHIRef	SRV;
+};
+
+struct FNiagaraRibbonVertexBuffers
+{
+	FNiagaraRibbonVertexBuffers();
+
+	FNiagaraRibbonGpuBuffer SortedIndicesBuffer;
+	FNiagaraRibbonGpuBuffer TangentsAndDistancesBuffer;
+	FNiagaraRibbonGpuBuffer MultiRibbonIndicesBuffer;
+	FNiagaraRibbonGpuBuffer RibbonLookupTableBuffer;
+	FNiagaraRibbonGpuBuffer SegmentsBuffer;
+	FNiagaraRibbonGpuBuffer GPUComputeCommandBuffer;
+	bool bJustCreatedCommandBuffer = false;
+
+	void InitializeOrUpdateBuffers(const FNiagaraRibbonGenerationConfig& GenerationConfig, const TSharedPtr<FNiagaraRibbonCPUGeneratedVertexData>& GeneratedGeometryData, const FNiagaraDataBuffer* SourceParticleData, int32 MaxAllocatedCount, bool bIsUsingGPUInit);
 
 	void Release()
 	{
@@ -283,21 +291,7 @@ struct FNiagaraRibbonVertexBuffers
 		RibbonLookupTableBuffer.Release();
 		SegmentsBuffer.Release();
 		GPUComputeCommandBuffer.Release();
-		
-		SortedIndicesLength = 0;
-		TangentsLength = 0;
-		MultiRibbonIndexLength = 0;
-		RibbonLookupTableLength = 0;
-		SegmentLength = 0;
-		GPUComputeCommandLength = 0;
 	}
-
-	static FRWBuffer CreateSortedIndicesBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
-	static FRWBuffer CreateTangentsAndDistancesBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
-	static FRWBuffer CreateMultiRibbonIndicesBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
-	static FRWBuffer CreateRibbonLookupTableBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
-	static FRWBuffer CreateSegmentsBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
-	static FRWBuffer CreateCommandBuffer(int32 Size, ERHIAccess InitialAccessFlags = ERHIAccess::None);
 };
 
 struct FNiagaraRibbonShapeGeometryData
@@ -438,10 +432,3 @@ protected:
 
 	friend class FNiagaraRibbonComputeDispatchManager;
 };
-
-
-
-
-
-
-
