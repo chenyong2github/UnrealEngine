@@ -76,7 +76,7 @@ class AIMODULE_API UCrowdFollowingComponent : public UPathFollowingComponent, pu
 	/** pass desired position to movement component (after resolving collisions between crowd agents) */
 	virtual void ApplyCrowdAgentPosition(const FVector& NewPosition);
 
-	/** master switch for crowd steering & avoidance */
+	/** main switch for crowd steering & avoidance */
 	UFUNCTION(BlueprintCallable, Category = "Crowd")
 	virtual void SuspendCrowdSteering(bool bSuspend);
 

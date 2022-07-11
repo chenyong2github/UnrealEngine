@@ -97,8 +97,8 @@ static void MergeDecoratorOpsHelper(TArray<FBTDecoratorLogic>& LinkOps, const TA
 	if (NumOriginalDecorators > 0)
 	{
 		// and operator for two groups of composites: original and new one
-		FBTDecoratorLogic MasterAndOp(EBTDecoratorLogic::And, LinkOps.Num() ? 2 : (NumOriginalDecorators + 1));
-		LinkOps.Insert(MasterAndOp, 0);
+		FBTDecoratorLogic MainAndOp(EBTDecoratorLogic::And, LinkOps.Num() ? 2 : (NumOriginalDecorators + 1));
+		LinkOps.Insert(MainAndOp, 0);
 
 		if (NumOriginalOps == 0)
 		{
