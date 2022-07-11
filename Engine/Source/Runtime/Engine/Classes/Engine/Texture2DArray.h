@@ -47,14 +47,6 @@ public:
 	*/
 	bool GetMipData(int32 InFirstMipToLoad, TArray<FUniqueBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>>& OutMipData);
 
-	/** 
-	*  Returns the platform data, potentially waiting on texture build if not ready.
-	*  Generally waits should be avoided by structuring callers to expect async behavior.
-	* 
-	*  Waits only occur in the editor (as builds only occur in the editor).
-	*/
-	FTexturePlatformData* GetPlatformDataOrWait();
-
 	//~ Begin UTexture Interface
 	virtual ETextureClass GetTextureClass() const override { return ETextureClass::Array; }
 	virtual void Serialize(FArchive& Ar) override;

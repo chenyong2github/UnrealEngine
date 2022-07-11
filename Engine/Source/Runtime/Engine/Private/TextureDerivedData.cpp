@@ -2617,7 +2617,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 
 bool UTexture2DArray::GetMipData(int32 InFirstMipToLoad, TArray<FUniqueBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>>& OutMipData)
 {
-	FTexturePlatformData* LocalPlatformData = GetPlatformDataOrWait();
+	FTexturePlatformData* LocalPlatformData = GetPlatformData();
 	const int32 ReadableMipCount = LocalPlatformData->Mips.Num() - (LocalPlatformData->GetNumMipsInTail() > 0 ? LocalPlatformData->GetNumMipsInTail() - 1 : 0);
 
 	int32 OutputMipCount = ReadableMipCount - InFirstMipToLoad;

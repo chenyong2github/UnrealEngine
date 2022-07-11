@@ -122,7 +122,7 @@ const FTexturePlatformData* UTexture2DArray::GetPlatformData() const
 		TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2DArray::GetPlatformDataStall);
 		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformData() is forcing a wait on data that is not yet ready."));
 
-		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation2", "Waiting on texture compilation {0} ..."), FText::FromString(GetName()));
+		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture compilation {0} ..."), FText::FromString(GetName()));
 		FScopedSlowTask Progress(1.f, Msg, true);
 		Progress.MakeDialog(true);
 		uint64 StartTime = FPlatformTime::Cycles64();
@@ -192,30 +192,6 @@ FTextureResource* UTexture2DArray::CreateResource()
 		UE_LOG(LogTexture, Warning, TEXT("%s cannot be created, rhi does not support format %s."), *GetFullName(), FormatInfo.Name);
 	}
 	return nullptr;
-}
-
-
-// Any direct access to GetPlatformDataOrWait() will stall until the structure
-// is safe to use. It is advisable to replace those use case with
-// async aware code to avoid stalls where possible.
-FTexturePlatformData* UTexture2DArray::GetPlatformDataOrWait()
-{
-#if WITH_EDITOR
-	if (PrivatePlatformData && !PrivatePlatformData->IsAsyncWorkComplete())
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::GetPlatformDataStall);
-		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformDataOrWait() is forcing a wait on data that is not yet ready."));
-
-		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture array compilation {0} ..."), FText::FromString(GetName()));
-		FScopedSlowTask Progress(1.f, Msg, true);
-		Progress.MakeDialog(true);
-		uint64 StartTime = FPlatformTime::Cycles64();
-		PrivatePlatformData->FinishCache();
-		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
-	}
-#endif
-
-	return PrivatePlatformData;
 }
 
 void UTexture2DArray::UpdateResource()
