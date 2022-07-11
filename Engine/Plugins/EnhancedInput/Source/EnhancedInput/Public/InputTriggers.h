@@ -119,6 +119,12 @@ public:
 	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
 	float ActuationThreshold = 0.5f;
 
+	/* Decides whether this trigger ticks every frame or not.
+	 * This WILL affect performance and should only be used in specific custom triggers.
+	 */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Trigger Settings")
+	bool bShouldAlwaysTick = false;
+
 	/*
 	* Is the value passed in sufficiently large to be of interest to the trigger.
 	* This is a helper function that implements the most obvious (>=) interpretation of the actuation threshold.

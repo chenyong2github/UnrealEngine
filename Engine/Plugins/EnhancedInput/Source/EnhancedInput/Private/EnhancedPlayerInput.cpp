@@ -117,9 +117,22 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action,
 	// Reset action data on the first event processed for the action this tick.
 	bool bResetActionData = !ActionsWithEventsThisTick.Contains(Action);
 	bool bMappingTriggersApplied = false;
+
+	bool bHasAnyAlwaysTickTriggers = false;
+	for (const UInputTrigger* Trigger : Triggers)
+	{
+		if (Trigger)
+		{
+			if (Trigger->bShouldAlwaysTick)
+			{
+				bHasAnyAlwaysTickTriggers = true;
+				break;
+			}
+		}
+	}
 	
 	// If the key state is changing or the key is actuated and being held (and not coming back up this tick) recalculate its value and resulting trigger state.
-	if (KeyEvent != EKeyEvent::None)
+	if (KeyEvent != EKeyEvent::None || bHasAnyAlwaysTickTriggers)
 	{
 		if (bResetActionData)
 		{
