@@ -71,6 +71,7 @@ void SMediaSourceManagerPreviews::RefreshChannels()
 					.HAlign(HAlign_Center)
 					[
 						SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, StyleRef, false)
+							.bShowUrl(false)
 					];
 
 				Channel->Play();

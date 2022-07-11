@@ -257,6 +257,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 					[
 						// url area
 						SNew(SHorizontalBox)
+							.Visibility(InArgs._bShowUrl ? EVisibility::Visible : EVisibility::Collapsed)
 
 						+ SHorizontalBox::Slot()
 							.AutoWidth()

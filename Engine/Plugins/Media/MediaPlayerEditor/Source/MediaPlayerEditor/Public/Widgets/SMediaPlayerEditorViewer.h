@@ -30,7 +30,13 @@ class MEDIAPLAYEREDITOR_API SMediaPlayerEditorViewer
 {
 public:
 
-	SLATE_BEGIN_ARGS(SMediaPlayerEditorViewer) { }
+	SLATE_BEGIN_ARGS(SMediaPlayerEditorViewer)
+		: _bShowUrl(true)
+	{ }
+
+		/** If the url should be shown. */
+		SLATE_ARGUMENT(bool, bShowUrl)
+
 	SLATE_END_ARGS()
 
 public:

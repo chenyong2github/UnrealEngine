@@ -219,7 +219,8 @@ TSharedRef<SDockTab> FMediaSourceManagerEditorToolkit::HandlePreviewTabManagerSp
 			{
 				UMediaPlayer* MediaPlayer = Channel->GetMediaPlayer();
 				UMediaTexture* MediaTexture = Cast<UMediaTexture>(Channel->OutTexture);
-				TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, Style, false);
+				TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, Style, false)
+					.bShowUrl(false);
 			}
 		}
 	}
