@@ -10,6 +10,8 @@
 #include "Data/PCGPointData.h"
 #include "Elements/PCGTransformPoints.h"
 
+#if WITH_EDITOR
+
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGTransformPointsTest, FPCGTestBaseClass, "pcg.tests.TransformPoints.Basic", PCGTestsCommon::TestFlags)
 
 bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
@@ -56,7 +58,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 	Settings->ScaleMin = FVector(1.f);
 	Settings->ScaleMax = FVector(2.f);
 
-	auto ValidateTransformPoints = [this, &TestData, TransformPointsElement, Settings]()
+	auto ValidateTransformPoints = [this, &TestData, TransformPointsElement, Settings]() -> bool
 	{
 		TUniquePtr<FPCGContext> Context = MakeUnique<FPCGContext>(*TransformPointsElement->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr));
 		Context->NumAvailableTasks = 1;
@@ -69,8 +71,10 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 		if (!TestEqual("Valid number of outputs", Inputs.Num(), Outputs.Num()))
 		{
-			return;
+			return false;
 		}
+
+		bool bTestPassed = true;
 
 		for (int DataIndex = 0; DataIndex < Inputs.Num(); ++DataIndex)
 		{
@@ -87,6 +91,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 			if (!TestTrue("Valid output data", Output.Data != nullptr))
 			{
+				bTestPassed = false;
 				continue;
 			}
 
@@ -94,6 +99,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 			if (!TestNotNull("Valid ouptut SpatialData", OutSpatialData))
 			{
+				bTestPassed = false;
 				continue;
 			}
 
@@ -101,6 +107,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 			if (!TestNotNull("Valid output PointData", OutPointData))
 			{
+				bTestPassed = false;
 				continue;
 			}
 
@@ -109,6 +116,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 			if (!TestEqual("Input and output point counts match", InPoints.Num(), OutPoints.Num()))
 			{ 
+				bTestPassed = false;
 				continue;
 			}
 
@@ -119,7 +127,7 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 
 				FPCGPoint RepositionedPoint = InPoint;
 				RepositionedPoint.Transform = OutPoint.Transform;
-				TestTrue("RepositionedPoint and OutPoint are identical", PCGTestsCommon::PointsAreIdentical(RepositionedPoint, OutPoint));
+				bTestPassed &= TestTrue("RepositionedPoint and OutPoint are identical", PCGTestsCommon::PointsAreIdentical(RepositionedPoint, OutPoint));
 
 				// Validate transform is within range of original transform
 				const FTransform& InTransform = InPoint.Transform;
@@ -139,23 +147,23 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 				FRotator OriginalRotation = TransformForRotation.GetRotation().Rotator();
 				FVector OriginalScale = TransformForScale.GetScale3D();
 
-				TestTrue("Valid location", OriginalOffset.X >= Settings->OffsetMin.X && OriginalOffset.X <= Settings->OffsetMax.X
+				bTestPassed &= TestTrue("Valid location", OriginalOffset.X >= Settings->OffsetMin.X && OriginalOffset.X <= Settings->OffsetMax.X
 					&& OriginalOffset.Y >= Settings->OffsetMin.Y && OriginalOffset.Y <= Settings->OffsetMax.Y
 					&& OriginalOffset.Z >= Settings->OffsetMin.Z && OriginalOffset.Z <= Settings->OffsetMax.Z);
 
-				TestTrue("Valid rotation", OriginalRotation.Pitch >= Settings->RotationMin.Pitch && OriginalRotation.Pitch <= Settings->RotationMax.Pitch
+				bTestPassed &= TestTrue("Valid rotation", OriginalRotation.Pitch >= Settings->RotationMin.Pitch && OriginalRotation.Pitch <= Settings->RotationMax.Pitch
 					&& OriginalRotation.Yaw >= Settings->RotationMin.Yaw && OriginalRotation.Yaw <= Settings->RotationMax.Yaw
 					&& OriginalRotation.Roll >= Settings->RotationMin.Roll && OriginalRotation.Roll <= Settings->RotationMax.Roll);
 
 				if (Settings->bUniformScale)
 				{
-					TestTrue("Valid scale", OriginalScale.X >= Settings->ScaleMin.X && OriginalScale.X <= Settings->ScaleMax.X
+					bTestPassed &= TestTrue("Valid scale", OriginalScale.X >= Settings->ScaleMin.X && OriginalScale.X <= Settings->ScaleMax.X
 						&& OriginalScale.Y >= Settings->ScaleMin.X && OriginalScale.Y <= Settings->ScaleMax.X
 						&& OriginalScale.Z >= Settings->ScaleMin.X && OriginalScale.Z <= Settings->ScaleMax.X);
 				}
 				else
 				{
-					TestTrue("Valid scale", OriginalScale.X >= Settings->ScaleMin.X && OriginalScale.X <= Settings->ScaleMax.X
+					bTestPassed &= TestTrue("Valid scale", OriginalScale.X >= Settings->ScaleMin.X && OriginalScale.X <= Settings->ScaleMax.X
 						&& OriginalScale.Y >= Settings->ScaleMin.Y && OriginalScale.Y <= Settings->ScaleMax.Y
 						&& OriginalScale.Z >= Settings->ScaleMin.Z && OriginalScale.Z <= Settings->ScaleMax.Z);
 				}
@@ -163,33 +171,38 @@ bool FPCGTransformPointsTest::RunTest(const FString& Parameters)
 				if (Settings->bRecomputeSeed)
 				{
 					const FVector& Position = OutTransform.GetLocation();
-					TestEqual("Valid seed", OutPoint.Seed, PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z));
+					bTestPassed &= TestEqual("Valid seed", OutPoint.Seed, PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z));
 				}
 				else
 				{
-					TestEqual("Valid seed", OutPoint.Seed, InPoint.Seed);
+					bTestPassed &= TestEqual("Valid seed", OutPoint.Seed, InPoint.Seed);
 				}
 			}
 		}
+
+		return bTestPassed;
 	};
+
+	bool bTestPassed = true;
 
 	// Test 1 - absolute transformations
 	Settings->bAbsoluteOffset = true;
 	Settings->bAbsoluteRotation = true;
 	Settings->bAbsoluteScale = true;
-	ValidateTransformPoints();
+	bTestPassed &= ValidateTransformPoints();
 
 	// Test 2 - relative transformations
 	Settings->bAbsoluteOffset = false;
 	Settings->bAbsoluteRotation = false;
 	Settings->bAbsoluteScale = false;
-	ValidateTransformPoints();
+	bTestPassed &= ValidateTransformPoints();
 
 	// Test 3 - uniform scale and recompute seed
 	Settings->bUniformScale = true;
 	Settings->bRecomputeSeed = true;
-	ValidateTransformPoints();
+	bTestPassed &= ValidateTransformPoints();
 
-	return true;
-
+	return bTestPassed;
 }
+
+#endif // WITH_EDITOR
