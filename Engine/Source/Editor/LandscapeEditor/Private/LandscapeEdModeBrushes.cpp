@@ -142,7 +142,7 @@ public:
 		TSet<ULandscapeComponent*> NewComponents;
 		bool bHasUnloadedComponents = false;
 		// Adjusting the brush may use the same keybind as moving the camera as they can be user-set, so we need this second check.
-		if (!ViewportClient->IsMovingCamera() || EdMode->IsAdjustingBrush(ViewportClient->Viewport))
+		if (!ViewportClient->IsMovingCamera() || EdMode->IsAdjustingBrush(ViewportClient))
 		{
 			// GetComponentsInRegion expects an inclusive max
 			LandscapeInfo->GetComponentsInRegion(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X - 1, Bounds.Max.Y - 1, NewComponents);
@@ -418,7 +418,7 @@ public:
 		TSet<ULandscapeComponent*> NewComponents;
 
 		// Adjusting the brush may use the same keybind as moving the camera as they can be user-set, so we need this second check.
-		if (!ViewportClient->IsMovingCamera() || EdMode->IsAdjustingBrush(ViewportClient->Viewport))
+		if (!ViewportClient->IsMovingCamera() || EdMode->IsAdjustingBrush(ViewportClient))
 		{
 			ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 			if (LandscapeInfo && LandscapeInfo->ComponentSizeQuads > 0)

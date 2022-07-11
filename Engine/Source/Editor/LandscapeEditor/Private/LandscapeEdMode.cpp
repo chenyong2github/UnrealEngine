@@ -777,7 +777,7 @@ void FEdModeLandscape::Tick(FEditorViewportClient* ViewportClient, float DeltaTi
 			(LandscapeEditorControlType == ELandscapeFoliageEditorControlType::RequireCtrl && !IsCtrlDown(Viewport)))
 		{
 			// Don't end the current tool if we are just modifying it
-			if (!IsAdjustingBrush(Viewport) && CurrentTool->IsToolActive())
+			if (!IsAdjustingBrush(ViewportClient) && CurrentTool->IsToolActive())
 			{
 				CurrentTool->EndTool(ViewportClient);
 				Viewport->CaptureMouse(false);
@@ -849,29 +849,42 @@ bool FEdModeLandscape::MouseMove(FEditorViewportClient* InViewportClient, FViewp
 
 		if (FMath::Abs(MouseXDelta) > 0 || FMath::Abs(MouseYDelta) > 0)
 		{
-			const bool bSizeChange = FMath::Abs(MouseXDelta) > FMath::Abs(MouseYDelta) ?
+			const bool bHorizontallyDominant = FMath::Abs(MouseXDelta) >= FMath::Abs(MouseYDelta);
+			const bool bIncrease = bHorizontallyDominant ?
 				MouseXDelta > 0 : 
 				MouseYDelta < 0; // The way y position is stored here is inverted relative to expected mouse movement to change brush size
+
 			// Are we altering something about the brush?
-			FInputChord CompareChord;
-			FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushSize"), EMultipleKeyBindingIndex::Primary, CompareChord);
-			if (InViewport->KeyState(CompareChord.Key))
+			const FLandscapeEditorCommands& LandscapeActions = FLandscapeEditorCommands::Get();
+			if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushSizeAndFalloff))
 			{
-				ChangeBrushSize(bSizeChange);
+				// If a chord controlling both Size and Falloff is specified, control Size when moving mostly left-right and Falloff when moving mostly up/down
+				if (bHorizontallyDominant)
+				{
+					ChangeBrushSize(bIncrease);
+				}
+				else
+				{
+					ChangeBrushFalloff(bIncrease);
+				}
 				return true;
 			}
 
-			FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushStrength"), EMultipleKeyBindingIndex::Primary, CompareChord);
-			if (InViewport->KeyState(CompareChord.Key))
+			if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushSize))
 			{
-				ChangeBrushStrength(bSizeChange);
+				ChangeBrushSize(bIncrease);
 				return true;
 			}
 
-			FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushFalloff"), EMultipleKeyBindingIndex::Primary, CompareChord);
-			if (InViewport->KeyState(CompareChord.Key))
+			if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushFalloff))
 			{
-				ChangeBrushFalloff(bSizeChange);
+				ChangeBrushFalloff(bIncrease);
+				return true;
+			}
+
+			if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushStrength))
+			{
+				ChangeBrushStrength(bIncrease);
 				return true;
 			}
 		}
@@ -1495,21 +1508,22 @@ bool FEdModeLandscape::HandleClick(FEditorViewportClient* InViewportClient, HHit
 	return false;
 }
 
-bool FEdModeLandscape::IsAdjustingBrush(FViewport* InViewport) const
+bool FEdModeLandscape::IsAdjustingBrush(FEditorViewportClient* InViewportClient) const
 {
-	FInputChord CompareChord;
-	FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushSize"), EMultipleKeyBindingIndex::Primary, CompareChord);
-	if (InViewport->KeyState(CompareChord.Key))
+	const FLandscapeEditorCommands& LandscapeActions = FLandscapeEditorCommands::Get();
+	if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushSizeAndFalloff))
 	{
 		return true;
 	}
-	FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushFalloff"), EMultipleKeyBindingIndex::Primary, CompareChord);
-	if (InViewport->KeyState(CompareChord.Key))
+	if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushSize))
 	{
 		return true;
 	}
-	FInputBindingManager::Get().GetUserDefinedChord(FLandscapeEditorCommands::LandscapeContext, TEXT("DragBrushStrength"), EMultipleKeyBindingIndex::Primary, CompareChord);
-	if (InViewport->KeyState(CompareChord.Key))
+	if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushFalloff))
+	{
+		return true;
+	}
+	if (InViewportClient->IsCommandChordPressed(LandscapeActions.DragBrushStrength))
 	{
 		return true;
 	}
@@ -1643,7 +1657,7 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 	}
 
 
-	if(IsAdjustingBrush(Viewport))
+	if(IsAdjustingBrush(ViewportClient))
 	{
 		ToolActiveViewport = Viewport;
 		return false; // false to let FEditorViewportClient.InputKey start mouse tracking and enable InputDelta() so we can use it

@@ -2758,25 +2758,6 @@ TSharedPtr<FDragTool> FLevelEditorViewportClient::MakeDragTool( EDragTool::Type 
 	return DragTool;
 }
 
-static bool CommandAcceptsInput( FLevelEditorViewportClient& ViewportClient, FKey Key, const TSharedPtr<FUICommandInfo> Command )
-{
-	bool bAccepted = false;
-	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
-	{
-		// check each bound chord
-		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
-		const FInputChord& Chord = *Command->GetActiveChord(ChordIndex);
-
-		bAccepted |= Chord.IsValidChord()
-			&& (!Chord.NeedsControl() || ViewportClient.IsCtrlPressed())
-			&& (!Chord.NeedsAlt() || ViewportClient.IsAltPressed())
-			&& (!Chord.NeedsShift() || ViewportClient.IsShiftPressed())
-			&& (!Chord.NeedsCommand() || ViewportClient.IsCmdPressed())
-			&& Chord.Key == Key;
-	}
-	return bAccepted;
-}
-
 static const FLevelViewportCommands& GetLevelViewportCommands()
 {
 	static FName LevelEditorName("LevelEditor");
@@ -2909,7 +2890,7 @@ bool FLevelEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 	bool bHandled = FEditorViewportClient::InputKey(InEventArgs);
 
 	// Handle input for the player height preview mode. 
-	if (!InputState.IsMouseButtonEvent() && CommandAcceptsInput(*this, InEventArgs.Key, GetLevelViewportCommands().EnablePreviewMesh))
+	if (!InputState.IsMouseButtonEvent() && IsCommandChordPressed(GetLevelViewportCommands().EnablePreviewMesh, InEventArgs.Key))
 	{
 		// Holding down the backslash buttons turns on the mode. 
 		if (InEventArgs.Event == IE_Pressed)
@@ -2917,7 +2898,7 @@ bool FLevelEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 			GEditor->SetPreviewMeshMode(true);
 
 			// If shift down, cycle between the preview meshes
-			if (CommandAcceptsInput(*this, InEventArgs.Key, GetLevelViewportCommands().CyclePreviewMesh))
+			if (IsCommandChordPressed(GetLevelViewportCommands().CyclePreviewMesh, InEventArgs.Key))
 			{
 				GEditor->CyclePreviewMesh();
 			}

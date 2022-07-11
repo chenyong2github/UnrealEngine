@@ -404,7 +404,7 @@ public:
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
 
 	/** True if we are interactively changing the brush size, falloff, or strength */
-	bool IsAdjustingBrush(FViewport* InViewport) const;
+	bool IsAdjustingBrush(FEditorViewportClient* InViewportClient) const;
 	void ChangeBrushSize(bool bIncrease);
 	void ChangeBrushFalloff(bool bIncrease);
 	void ChangeBrushStrength(bool bIncrease);

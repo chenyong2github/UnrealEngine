@@ -3195,6 +3195,23 @@ bool FEditorViewportClient::IsCmdPressed() const
 	return Viewport->KeyState(EKeys::LeftCommand) || Viewport->KeyState(EKeys::RightCommand);
 }
 
+bool FEditorViewportClient::IsCommandChordPressed(const TSharedPtr<FUICommandInfo> InCommand, FKey InOptionalKey) const
+{
+	bool bIsChordPressed = false;
+	// Check each bound chord
+	for (uint32 i = 0; i < static_cast<uint32>(EMultipleKeyBindingIndex::NumChords); ++i)
+	{
+		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex> (i);
+		const FInputChord& Chord = *InCommand->GetActiveChord(ChordIndex);
+
+		bIsChordPressed |= (Chord.NeedsControl() == IsCtrlPressed())
+			&& (Chord.NeedsAlt() == IsAltPressed())
+			&& (Chord.NeedsShift() == IsShiftPressed())
+			&& (Chord.NeedsCommand() == IsCmdPressed())
+			&& Viewport->KeyState(InOptionalKey.IsValid() ? InOptionalKey : Chord.Key) == true;
+	}
+	return bIsChordPressed;
+}
 
 void FEditorViewportClient::ProcessDoubleClickInViewport( const struct FInputEventState& InputState, FSceneView& View )
 {

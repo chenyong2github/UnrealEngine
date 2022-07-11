@@ -1050,6 +1050,14 @@ public:
 	bool IsCtrlPressed() const;
 	bool IsShiftPressed() const;
 	bool IsCmdPressed() const;
+	
+	/**
+	 * Utility function to return whether the command accepts the key states
+	 * @param InCommand The command being checked
+	 * @param InOptionalKey (Optional) input key being tested against. If not specified, the current viewport's key state's key will be used
+	 * @return True if one of the command's chords accepts the input :
+	 */
+	bool IsCommandChordPressed(const TSharedPtr<FUICommandInfo> InCommand, FKey InOptionalKey = FKey()) const;
 
 	/** @return True if the window is in an immersive viewport */
 	bool IsInImmersiveViewport() const;
