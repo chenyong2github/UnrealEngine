@@ -6,16 +6,16 @@
 #include "HairStrandsVisibilityCommon.ush"
 
 #define OUTPUT_DEPTH 0
-#define OUTPUT_GBUFFER 1 
+#define OUTPUT_MATERIALDATA 1 
 #define OUTPUT_LIGHTCHANNEL 2
-#define OUTPUT_GBUFFER_LIGHTCHANNEL 3
+#define OUTPUT_MATERIALDATA_LIGHTCHANNEL 3
 
 // Manual binding of the sample data as the uniform buffer is not created at this point
 Texture2D<float>					CoverageTexture;
 Texture2D<uint>						HairSampleOffset;
 StructuredBuffer<FPackedHairSample> HairSampleData;
 
-#if PERMUTATION_OUTPUT_TYPE == OUTPUT_GBUFFER_LIGHTCHANNEL || PERMUTATION_OUTPUT_TYPE == OUTPUT_LIGHTCHANNEL
+#if PERMUTATION_OUTPUT_TYPE == OUTPUT_MATERIALDATA_LIGHTCHANNEL || PERMUTATION_OUTPUT_TYPE == OUTPUT_LIGHTCHANNEL
 RWTexture2D<uint> OutLightChannelMaskTexture;
 #endif
 
@@ -45,19 +45,23 @@ FHairSampleData ExtractSampleData(uint3 PixelCoord)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Gbuffer patching (+ LightChannel mask)
-#if PERMUTATION_OUTPUT_TYPE == OUTPUT_GBUFFER || PERMUTATION_OUTPUT_TYPE == OUTPUT_GBUFFER_LIGHTCHANNEL
+#if STRATA_ENABLED
+#define OUTPUT_FORMAT uint
+#else
+#define OUTPUT_FORMAT float4
+#endif
+#if PERMUTATION_OUTPUT_TYPE == OUTPUT_MATERIALDATA || PERMUTATION_OUTPUT_TYPE == OUTPUT_MATERIALDATA_LIGHTCHANNEL
 void MainPS(
 	in FScreenVertexOutput Input,
-	out float SvDepth		: SV_DEPTH,
-	out float4 OutGBufferB	: SV_Target0,
-	out float4 OutGBufferC	: SV_Target1,
-	out float4 OutColor		: SV_Target2
-)
+	out float SvDepth			: SV_DEPTH,
+	out OUTPUT_FORMAT Output0	: SV_Target0,
+	out OUTPUT_FORMAT Output1	: SV_Target1,
+	out float4 OutColor			: SV_Target2)
 {
 	const uint3 PixelCoord = uint3(Input.Position.xy, 0);
 	const float Coverage = CoverageTexture.Load(PixelCoord);
 
-	#if PERMUTATION_OUTPUT_TYPE == OUTPUT_GBUFFER
+	#if PERMUTATION_OUTPUT_TYPE == OUTPUT_MATERIALDATA
 	if (Coverage < 1.0f)
 	{
 		discard;
@@ -69,11 +73,16 @@ void MainPS(
 	const float DepthBias = 0.001f; 
 	const FHairSampleData SampleData = ExtractSampleData(PixelCoord);
 	SvDepth = SampleData.DeviceZ - DepthBias;
-	OutGBufferB = float4(0, 0, 0, 0); // EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_HAIR, 0)
-	OutGBufferC = 0;
+#if STRATA_ENABLED
+	Output0 = 0; // MaterialData
+	Output1 = 0; // TopLayerData
+#else
+	Output0 = float4(0, 0, 0, 0);
+	Output1 = 0;
+#endif
 	OutColor = 0;
 
-	#if PERMUTATION_OUTPUT_TYPE == OUTPUT_GBUFFER_LIGHTCHANNEL
+	#if PERMUTATION_OUTPUT_TYPE == OUTPUT_MATERIALDATA_LIGHTCHANNEL
 	OutLightChannelMaskTexture[PixelCoord.xy] = SampleData.LightChannelMask;
 	if (Coverage < 1.0f)
 	{
