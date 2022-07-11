@@ -2282,7 +2282,7 @@ void FNameEntry::AppendNameToString(FString& Out) const
 	Out.Append(EntryToCString(*this, Temp), Header.Len);
 }
 
-void FNameEntry::AppendNameToString(FStringBuilderBase& Out) const
+void FNameEntry::AppendNameToString(FWideStringBuilderBase& Out) const
 {
 	checkName(Header.Len != 0);
 	const int32 Offset = Out.AddUninitialized(Header.Len);
@@ -2296,6 +2296,19 @@ void FNameEntry::AppendNameToString(FStringBuilderBase& Out) const
 	{
 		CopyUnterminatedName(reinterpret_cast<ANSICHAR*>(OutChars));
 		ConvertInPlace<ANSICHAR, TCHAR>(reinterpret_cast<ANSICHAR*>(OutChars), Header.Len);
+	}
+}
+
+void FNameEntry::AppendNameToString(FUtf8StringBuilderBase& Out) const
+{
+	checkName(Header.Len != 0);
+	if (Header.bIsWide)
+	{
+		Out << FWideStringView(WideName, Header.Len);
+	}
+	else
+	{
+		Out << FAnsiStringView(AnsiName, Header.Len);
 	}
 }
 
@@ -3338,7 +3351,13 @@ void FName::ToString(FString& Out) const
 #endif // UE_FNAME_OUTLINE_NUMBER
 }
 
-void FName::ToString(FStringBuilderBase& Out) const
+void FName::ToString(FWideStringBuilderBase& Out) const
+{
+	Out.Reset();
+	AppendString(Out);
+}
+
+void FName::ToString(FUtf8StringBuilderBase& Out) const
 {
 	Out.Reset();
 	AppendString(Out);
@@ -3399,10 +3418,11 @@ void FName::AppendString(FString& Out) const
 	}
 }
 
-void FName::AppendString(FStringBuilderBase& Out) const
+template <typename StringBuilderType>
+void FName::AppendStringInternal(StringBuilderType& Out) const
 {
 #if UE_FNAME_OUTLINE_NUMBER
-	FNameEntryId Id = GetDisplayIndexInternal();	
+	FNameEntryId Id = GetDisplayIndexInternal();
 	const FNameEntry* ThisNameEntry = ResolveEntry(GetDisplayIndexInternal());
 
 	if (ThisNameEntry->Header.Len != 0)
@@ -3414,7 +3434,7 @@ void FName::AppendString(FStringBuilderBase& Out) const
 	{
 		const FNameEntry* BaseEntry = ResolveEntry(ThisNameEntry->NumberedName.Id);
 		BaseEntry->AppendNameToString(Out);
-		Out << TEXT('_') << NAME_INTERNAL_TO_EXTERNAL(ThisNameEntry->GetNumber());
+		Out << '_' << NAME_INTERNAL_TO_EXTERNAL(ThisNameEntry->GetNumber());
 	}
 
 #else // UE_FNAME_OUTLINE_NUMBER
@@ -3423,9 +3443,19 @@ void FName::AppendString(FStringBuilderBase& Out) const
 	const int32 InternalNumber = GetNumber();
 	if (InternalNumber != NAME_NO_NUMBER_INTERNAL)
 	{
-		Out << TEXT('_') << NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
+		Out << '_' << NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
 	}
 #endif // UE_FNAME_OUTLINE_NUMBER
+}
+
+void FName::AppendString(FWideStringBuilderBase& Out) const
+{
+	AppendStringInternal(Out);
+}
+
+void FName::AppendString(FUtf8StringBuilderBase& Out) const
+{
+	AppendStringInternal(Out);
 }
 
 bool FName::TryAppendAnsiString(FAnsiStringBuilderBase& Out) const
@@ -3543,7 +3573,13 @@ bool FName::IsValidXName(const FStringView& InName, const FString& InInvalidChar
 	return true;
 }
 
-FStringBuilderBase& operator<<(FStringBuilderBase& Builder, FNameEntryId Id)
+FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, FNameEntryId Id)
+{
+	FName::GetEntry(Id)->AppendNameToString(Builder);
+	return Builder;
+}
+
+FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, FNameEntryId Id)
 {
 	FName::GetEntry(Id)->AppendNameToString(Builder);
 	return Builder;

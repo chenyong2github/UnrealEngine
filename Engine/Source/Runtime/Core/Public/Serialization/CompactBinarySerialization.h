@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
 #include "CoreTypes.h"
 #include "IO/IoHash.h"
@@ -12,6 +13,7 @@
 #include "Templates/Function.h"
 
 class FArchive;
+class FName;
 struct FGuid;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +94,8 @@ CORE_API FArchive& operator<<(FArchive& Ar, FCbObject& Object);
 
 CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FUtf8StringBuilderBase& OutValue);
 CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FWideStringBuilderBase& OutValue);
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FString& OutValue);
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FName& OutValue);
 
 inline bool LoadFromCompactBinary(FCbFieldView Field, int8& OutValue, const int8 Default = 0)
 {
@@ -172,6 +176,18 @@ inline bool LoadFromCompactBinary(FCbFieldView Field, FCbObjectId& OutValue, con
 {
 	OutValue = Field.AsObjectId(Default);
 	return !Field.HasError();
+}
+
+template <typename T, typename Allocator>
+inline bool LoadFromCompactBinary(FCbFieldView Field, TArray<T, Allocator>& OutValue)
+{
+	OutValue.Reset(Field.AsArrayView().Num());
+	bool bOk = !Field.HasError();
+	for (const FCbFieldView& ElementField : Field)
+	{
+		bOk = LoadFromCompactBinary(ElementField, OutValue.Emplace_GetRef()) & bOk;
+	}
+	return bOk;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

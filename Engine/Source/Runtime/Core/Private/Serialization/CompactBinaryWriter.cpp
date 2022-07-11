@@ -19,6 +19,7 @@
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/VarInt.h"
+#include "UObject/NameTypes.h"
 
 enum class FCbWriter::EStateFlags : uint8
 {
@@ -625,6 +626,12 @@ FCbWriter& operator<<(FCbWriter& Writer, const FDateTime Value)
 FCbWriter& operator<<(FCbWriter& Writer, const FTimespan Value)
 {
 	Writer.AddTimeSpan(Value);
+	return Writer;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, FName Value)
+{
+	Writer << WriteToUtf8String<FName::StringBufferSize>(Value).ToView();
 	return Writer;
 }
 

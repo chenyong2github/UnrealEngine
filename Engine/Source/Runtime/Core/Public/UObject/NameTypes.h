@@ -283,7 +283,8 @@ public:
 	CORE_API void AppendNameToString(FString& OutString) const;
 
 	/** Appends name to string builder. */
-	CORE_API void AppendNameToString(FStringBuilderBase& OutString) const;
+	CORE_API void AppendNameToString(FWideStringBuilderBase& OutString) const;
+	CORE_API void AppendNameToString(FUtf8StringBuilderBase& OutString) const;
 
 	/** Appends name to string builder. Entry must not be wide. */
 	CORE_API void AppendAnsiNameToString(FAnsiStringBuilderBase& OutString) const;
@@ -583,7 +584,8 @@ public:
 	 * 
 	 * @param Out StringBuilder to fill with the string representation of the name
 	 */
-	void ToString(FStringBuilderBase& Out) const;
+	void ToString(FWideStringBuilderBase& Out) const;
+	void ToString(FUtf8StringBuilderBase& Out) const;
 
 	/**
 	 * Get the number of characters, excluding null-terminator, that ToString() would yield
@@ -622,7 +624,8 @@ public:
 	 * 
 	 * @param Out StringBuilder to append with the string representation of the name
 	 */
-	void AppendString(FStringBuilderBase& Out) const;
+	void AppendString(FWideStringBuilderBase& Out) const;
+	void AppendString(FUtf8StringBuilderBase& Out) const;
 
 	/**
 	 * Converts an ANSI FName to a readable format appended to the string builder.
@@ -1110,6 +1113,9 @@ private:
 	friend bool operator==(FName Lhs, FScriptName Rhs);
 	friend bool operator==(FName Lhs, FMemoryImageName Rhs);
 
+	template <typename StringBufferType>
+	FORCEINLINE void AppendStringInternal(StringBufferType& Out) const;
+
 	FORCEINLINE FNameEntryId GetDisplayIndexFast() const
 	{
 #if WITH_CASE_PRESERVING_NAME
@@ -1587,13 +1593,20 @@ FORCEINLINE void LexFromString(FName& Name, const TCHAR* Str)
 	Name = FName(Str);
 }
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FName& Name)
+inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const FName& Name)
 {
 	Name.AppendString(Builder);
 	return Builder;
 }
 
-CORE_API FStringBuilderBase& operator<<(FStringBuilderBase& Builder, FNameEntryId Id);
+inline FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, const FName& Name)
+{
+	Name.AppendString(Builder);
+	return Builder;
+}
+
+CORE_API FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, FNameEntryId Id);
+CORE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, FNameEntryId Id);
 
 /**
  * Equality operator with CharType* on left hand side and FName on right hand side

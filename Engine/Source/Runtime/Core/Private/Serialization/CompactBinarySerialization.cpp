@@ -25,6 +25,7 @@
 #include "Templates/Invoke.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -284,6 +285,18 @@ bool LoadFromCompactBinary(FCbFieldView Field, FUtf8StringBuilderBase& OutValue)
 bool LoadFromCompactBinary(FCbFieldView Field, FWideStringBuilderBase& OutValue)
 {
 	OutValue << Field.AsString();
+	return !Field.HasError();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FString& OutValue)
+{
+	OutValue = FString(Field.AsString());
+	return !Field.HasError();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FName& OutValue)
+{
+	OutValue = FName(Field.AsString());
 	return !Field.HasError();
 }
 

@@ -6,7 +6,8 @@
 #include "Containers/ArrayView.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
-#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 class FSocket;
 
@@ -125,4 +126,78 @@ private:
 	friend class UE::CompactBinaryTCP::FCompactBinaryTCPImpl;
 };
 
+}
+
+template <typename KeyType, typename KeyFuncs, typename Allocator>
+inline bool LoadFromCompactBinary(FCbFieldView Field, TSet<KeyType, KeyFuncs, Allocator>& OutValue)
+{
+	OutValue.Reset();
+	OutValue.Reserve(Field.AsArrayView().Num());
+	bool bOk = !Field.HasError();
+	for (const FCbFieldView& ElementField : Field)
+	{
+		KeyType Key;
+		if (LoadFromCompactBinary(ElementField, Key))
+		{
+			OutValue.Add(MoveTemp(Key));
+		}
+		else
+		{
+			bOk = false;
+		}
+	}
+	return bOk;
+}
+
+template <typename KeyType, typename KeyFuncs, typename Allocator,
+	std::void_t<decltype(std::declval<FCbWriter&>() << std::declval<const KeyType&>())>* = nullptr>
+inline FCbWriter& operator<<(FCbWriter& Writer, const TSet<KeyType, KeyFuncs, Allocator>& Value)
+{
+	Writer.BeginArray();
+	for (const KeyType& Key : Value)
+	{
+		Writer << Key;
+	}
+	Writer.EndArray();
+	return Writer;
+}
+
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+inline bool LoadFromCompactBinary(FCbFieldView Field, TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& OutValue)
+{
+	OutValue.Reset();
+	OutValue.Reserve(Field.AsArrayView().Num());
+	bool bOk = !Field.HasError();
+	for (const FCbFieldView& PairField : Field)
+	{
+		bOk &= PairField.IsObject();
+		KeyType Key;
+		if (LoadFromCompactBinary(PairField["K"], Key))
+		{
+			ValueType& Value = OutValue.FindOrAdd(MoveTemp(Key));
+			bOk = LoadFromCompactBinary(PairField["V"], Value) & bOk;
+		}
+		else
+		{
+			bOk = false;
+		}
+	}
+	return bOk;
+}
+
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs,
+	std::void_t<decltype(std::declval<FCbWriter&>() << std::declval<const KeyType&>())>* = nullptr,
+	std::void_t<decltype(std::declval<FCbWriter&>() << std::declval<const ValueType&>())>* = nullptr>
+inline FCbWriter& operator<<(FCbWriter& Writer, const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Value)
+{
+	Writer.BeginArray();
+	for (const auto& Pair : Value)
+	{
+		Writer.BeginObject();
+		Writer << "K" << Pair.Key;
+		Writer << "V" << Pair.Value;
+		Writer.EndObject();
+	}
+	Writer.EndArray();
+	return Writer;
 }
