@@ -36,6 +36,7 @@
 #include "Templates/UniquePtr.h"
 #include "WeightedRandomSampler.h"
 #include "PerPlatformProperties.h"
+#include "RayTracingInstance.h"
 
 class FDistanceFieldVolumeData;
 class UBodySetup;
@@ -999,6 +1000,9 @@ protected:
 	bool bDynamicRayTracingGeometry;
 	TArray<FRayTracingGeometry, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometries;
 	TArray<FRWBuffer, TInlineAllocator<MAX_MESH_LOD_COUNT>> DynamicRayTracingGeometryVertexBuffers;
+	TArray<FMeshBatch> CachedRayTracingMaterials;
+	int16 CachedRayTracingMaterialsLODIndex = INDEX_NONE;
+	FRayTracingMaskAndFlags CachedRayTracingInstanceMaskAndFlags;
 #endif
 	/**
 	 * The forcedLOD set in the static mesh editor, copied from the mesh component
