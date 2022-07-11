@@ -20,6 +20,7 @@ SModalTaskWindow::~SModalTaskWindow()
 		delete Thread;
 	}
 
+	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
 	FPlatformProcess::ReturnSynchEventToPool(CloseEvent);
 }
 
