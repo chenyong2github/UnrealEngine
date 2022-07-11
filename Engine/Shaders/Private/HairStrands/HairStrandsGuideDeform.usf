@@ -38,6 +38,7 @@ Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
 Buffer<uint>    SimVertexToRootIndexBuffer;
+Buffer<uint>	SimRootToUniqueTriangleIndexBuffer;
 
 // Return world position of a guide vertex deformed by a skinned triangle
 float3 DeformGuideByTriangle(
@@ -85,8 +86,9 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 	const uint RootIndex = SimVertexToRootIndexBuffer[VertexIndex];
 	const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
-	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
+	const uint TriangleIndex = SimRootToUniqueTriangleIndexBuffer[RootIndex];
+	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
+	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
 
 	return DeformGuideByTriangle(VertexIndex, RestTriangle, DeformedTriangle, RootBarycentric) - OutSimHairPositionOffset;
 #endif

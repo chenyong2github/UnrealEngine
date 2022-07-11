@@ -517,15 +517,16 @@ struct FHairStrandsRootBulkData
 		Total += VertexToCurveIndexBuffer.IsBulkDataLoaded() ? VertexToCurveIndexBuffer.GetBulkDataSize() : 0u;
 		for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
 		{
-			Total += LOD.RootTriangleIndexBuffer.IsBulkDataLoaded() ?			LOD.RootTriangleIndexBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.RootTriangleBarycentricBuffer.IsBulkDataLoaded() ?		LOD.RootTriangleBarycentricBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestRootTrianglePosition0Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition0Buffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestRootTrianglePosition1Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition1Buffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestRootTrianglePosition2Buffer.IsBulkDataLoaded() ?	LOD.RestRootTrianglePosition2Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.UniqueTriangleIndexBuffer.IsBulkDataLoaded() ?			LOD.UniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RootToUniqueTriangleIndexBuffer.IsBulkDataLoaded() ?	LOD.RootToUniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RootBarycentricBuffer.IsBulkDataLoaded() ?				LOD.RootBarycentricBuffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestUniqueTrianglePosition0Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition0Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestUniqueTrianglePosition1Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition1Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestUniqueTrianglePosition2Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition2Buffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshInterpolationWeightsBuffer.IsBulkDataLoaded() ?	LOD.MeshInterpolationWeightsBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshSampleIndicesBuffer.IsBulkDataLoaded() ?			LOD.MeshSampleIndicesBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RestSamplePositionsBuffer.IsBulkDataLoaded() ?			LOD.RestSamplePositionsBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.ValidSectionIndices.GetAllocatedSize();
+			Total += LOD.UniqueSectionIndices.GetAllocatedSize();
 		}
 		return Total;
 	}
@@ -533,32 +534,35 @@ struct FHairStrandsRootBulkData
 	struct FMeshProjectionLOD
 	{
 		int32 LODIndex = -1;
+		uint32 UniqueTriangleCount = 0;
 
-		/* Triangle on which a root is attached */
-		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
-		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		FByteBulkData RootTriangleIndexBuffer;
-		FByteBulkData RootTriangleBarycentricBuffer;
+		/* Map each root onto the unique triangle Id (per-root) */
+		FByteBulkData RootToUniqueTriangleIndexBuffer;
+		/* Root's barycentric (per-root) */
+		FByteBulkData RootBarycentricBuffer;
 
-		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		FByteBulkData RestRootTrianglePosition0Buffer;
-		FByteBulkData RestRootTrianglePosition1Buffer;
-		FByteBulkData RestRootTrianglePosition2Buffer;
+		/* Unique triangles list from skeleton mesh section IDs and triangle IDs (per-unique-triangle) */
+		FByteBulkData UniqueTriangleIndexBuffer;
+
+		/* Rest triangle positions (per-unique-triangle) */
+		FByteBulkData RestUniqueTrianglePosition0Buffer;
+		FByteBulkData RestUniqueTrianglePosition1Buffer;
+		FByteBulkData RestUniqueTrianglePosition2Buffer;
 
 		/* Number of samples used for the mesh interpolation */
 		uint32 SampleCount = 0;
 
-		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
+		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount (per-sample)*/
 		FByteBulkData MeshInterpolationWeightsBuffer;
 
-		/* Store the samples vertex indices */
+		/* Store the samples vertex indices (per-sample) */
 		FByteBulkData MeshSampleIndicesBuffer;
 
-		/* Store the samples rest positions */
+		/* Store the samples rest positions (per-sample) */
 		FByteBulkData RestSamplePositionsBuffer;
 
 		/* Store the mesh section indices which are relevant for this root LOD data */
-		TArray<uint32> ValidSectionIndices;
+		TArray<uint32> UniqueSectionIndices;
 	};
 
 	/* Number of roots */
@@ -589,13 +593,14 @@ struct FHairStrandsRootData
 		/* Triangle on which a root is attached */
 		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
 		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		TArray<FHairStrandsCurveTriangleIndexFormat::Type> RootTriangleIndexBuffer;
-		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootTriangleBarycentricBuffer;
+		TArray<uint32> RootToUniqueTriangleIndexBuffer;
+		TArray<FHairStrandsCurveTriangleBarycentricFormat::Type> RootBarycentricBuffer;
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition0Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition1Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestRootTrianglePosition2Buffer;
+		TArray<FHairStrandsCurveTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition0Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition1Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition2Buffer;
 
 		/* Number of samples used for the mesh interpolation */
 		uint32 SampleCount = 0;
@@ -610,7 +615,7 @@ struct FHairStrandsRootData
 		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
 
 		/* Store the mesh section indices which are relevant for this root LOD data */
-		TArray<uint32> ValidSectionIndices;
+		TArray<uint32> UniqueSectionIds;
 	};
 
 	/* Number of roots */
@@ -625,7 +630,6 @@ struct FHairStrandsRootData
 	/* Store the hair projection information for each mesh LOD */
 	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
-
 
 /* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
 	The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)

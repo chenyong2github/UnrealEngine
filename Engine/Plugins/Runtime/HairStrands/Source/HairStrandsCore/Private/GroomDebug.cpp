@@ -259,18 +259,19 @@ class FHairProjectionHairDebugCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DeformedFrameEnable)
 		SHADER_PARAMETER(FMatrix44f, RootLocalToWorld)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition0Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition1Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestPosition2Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition0Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition1Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition2Buffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition0Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition1Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition2Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition0Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition1Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition2Buffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RestSamplePositionsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedSamplePositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestSamplePositionsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedSamplePositionsBuffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootBarycentricBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootBarycentricBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootToUniqueTriangleIndexBuffer)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
@@ -332,7 +333,7 @@ static void AddDebugProjectionHairPass(
 	ShaderPrint::RequestSpaceForTriangles(PrimitiveCount);
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType &&
-		!RestRootResources->LODs[MeshLODIndex].RootTriangleBarycentricBuffer.Buffer)
+		!RestRootResources->LODs[MeshLODIndex].RootBarycentricBuffer.Buffer)
 		return;
 
 	if (EDebugProjectionHairType::HairSamples == GeometryType &&
@@ -342,16 +343,16 @@ static void AddDebugProjectionHairPass(
 	const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
 	const FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = DeformedRootResources->LODs[MeshLODIndex];
 
-	if (!RestLODDatas.RestRootTrianglePosition0Buffer.Buffer ||
-		!RestLODDatas.RestRootTrianglePosition1Buffer.Buffer ||
-		!RestLODDatas.RestRootTrianglePosition2Buffer.Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition0Buffer[0].Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition1Buffer[0].Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition2Buffer[0].Buffer	)
+	if (!RestLODDatas.RestUniqueTrianglePosition0Buffer.Buffer ||
+		!RestLODDatas.RestUniqueTrianglePosition1Buffer.Buffer ||
+		!RestLODDatas.RestUniqueTrianglePosition2Buffer.Buffer ||
+		!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[0].Buffer ||
+		!DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[0].Buffer ||
+		!DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[0].Buffer	)
 		return;
 
 	// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
-	if (IsHairStrandContinuousDecimationReorderingEnabled() && (!DeformedLODDatas.DeformedRootTrianglePosition0Buffer[1].Buffer || !DeformedLODDatas.DeformedRootTrianglePosition1Buffer[1].Buffer || !DeformedLODDatas.DeformedRootTrianglePosition2Buffer[1].Buffer))
+	if (IsHairStrandContinuousDecimationReorderingEnabled() && (!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[1].Buffer))
 	{
 		return;
 	}
@@ -366,16 +367,18 @@ static void AddDebugProjectionHairPass(
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
 	{
-		Parameters->RootBarycentricBuffer	= RegisterAsSRV(GraphBuilder, RestLODDatas.RootTriangleBarycentricBuffer);
+		Parameters->RootBarycentricBuffer	= RegisterAsSRV(GraphBuilder, RestLODDatas.RootBarycentricBuffer);
 	}
 
-	Parameters->RestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition0Buffer);
-	Parameters->RestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition1Buffer);
-	Parameters->RestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition2Buffer);
+	Parameters->RootToUniqueTriangleIndexBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootToUniqueTriangleIndexBuffer);
 
-	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
-	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
-	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->RestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition0Buffer);
+	Parameters->RestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition1Buffer);
+	Parameters->RestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition2Buffer);
+
+	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
 
 	Parameters->RestSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestSamplePositionsBuffer);
 	Parameters->DeformedSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedSamplePositionsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
@@ -884,7 +887,12 @@ static void AddHairDebugPrintInstancePass(
 	TArray<uint8> Names;
 	Names.Reserve(MaxPrimitiveNameCount * 30u);
 
-	TArray<FUintVector4> Infos;
+	struct FInstanceInfos
+	{
+		FUintVector4 Data0;
+		FUintVector4 Data1;
+	};
+	TArray<FInstanceInfos> Infos;
 	Infos.Reserve(InstanceCount);
 	for (uint32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 	{
@@ -912,7 +920,9 @@ static void AddHairDebugPrintInstancePass(
 		const uint32 IntLODIndex = Instance->HairGroupPublicData->LODIndex;
 		const uint32 LODCount = Instance->HairGroupPublicData->GetLODScreenSizes().Num();
 
-		const uint32 DataX =
+		FUintVector4 Data0 = { 0,0,0,0 };
+		FUintVector4 Data1 = { 0,0,0,0 };
+		Data0.X =
 			((Instance->Debug.GroupIndex & 0xFF)) |
 			((Instance->Debug.GroupCount & 0xFF) << 8) |
 			((LODCount & 0xFF) << 16) |
@@ -921,38 +931,43 @@ static void AddHairDebugPrintInstancePass(
 			((Instance->Guides.bIsSimulationEnable ? 0x1 : 0x0) << 30) |
 			((Instance->Guides.bHasGlobalInterpolation ? 0x1 : 0x0) << 31);
 
-		const uint32 DataY =
+		Data0.Y =
 			(FFloat16(LODIndex).Encoded) |
 			(FFloat16(Instance->Strands.Modifier.HairLengthScale_Override ? Instance->Strands.Modifier.HairLengthScale : -1.f).Encoded << 16);
-
-		uint32 DataZ = 0;
-		uint32 DataW = 0;
+		
 		switch (Instance->GeometryType)
 		{
 		case EHairGeometryType::Strands:
 			if (Instance->Strands.IsValid())
 			{
-				DataZ = Instance->Strands.Data->GetNumCurves(); // Change this later on for having dynamic value
-				DataW = Instance->Strands.Data->GetNumPoints(); // Change this later on for having dynamic value
+				Data0.Z = Instance->Strands.Data->GetNumCurves(); // Change this later on for having dynamic value
+				Data0.W = Instance->Strands.Data->GetNumPoints(); // Change this later on for having dynamic value
+				const int32 MeshLODIndex = Instance->HairGroupPublicData->MeshLODIndex;
+				if (MeshLODIndex>=0)
+				{
+					Data1.X = Instance->Strands.RestRootResource->BulkData.MeshProjectionLODs[MeshLODIndex].UniqueSectionIndices.Num();
+					Data1.Y = Instance->Strands.RestRootResource->BulkData.MeshProjectionLODs[MeshLODIndex].UniqueTriangleCount;
+					Data1.Z = Instance->Strands.RestRootResource->BulkData.RootCount;
+					Data1.W = Instance->Strands.RestRootResource->BulkData.PointCount;
+				}
 			}
 			break;
 		case EHairGeometryType::Cards:
 			if (Instance->Cards.IsValid(IntLODIndex))
 			{
-				DataZ = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
-				DataW = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
+				Data0.Z = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
+				Data0.W = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
 			}
 			break;
 		case EHairGeometryType::Meshes:
 			if (Instance->Meshes.IsValid(IntLODIndex))
 			{
-				DataZ = 0;
-				DataW = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
+				Data0.Z = 0;
+				Data0.W = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
 			}
 			break;
 		}
-
-		Infos.Add(FUintVector4(DataX, DataY, DataZ, DataW));
+		Infos.Add({Data0, Data1});
 	}
 
 	if (NameInfos.IsEmpty())
@@ -967,10 +982,11 @@ static void AddHairDebugPrintInstancePass(
 		Names.Add(uint8('e'));
 	}	
 
-	const uint32 InfoInBytes = 16u;
+	const uint32 InfoInBytes  = sizeof(FInstanceInfos);
+	const uint32 InfoIn4Bytes = sizeof(FInstanceInfos) / sizeof(uint8);
 	FRDGBufferRef NameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNames"), FRDGBufferDesc::CreateBufferDesc(1, Names.Num()), Names.GetData(), Names.Num());
 	FRDGBufferRef NameInfoBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNameInfos"), NameInfos);	
-	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(InfoInBytes, Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
+	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(4, InfoIn4Bytes * Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
 
 	// Draw general information for all instances (one pass for all instances)
 	{
@@ -980,7 +996,7 @@ static void AddHairDebugPrintInstancePass(
 		Parameters->NameCharacterCount = Names.Num();
 		Parameters->Names = GraphBuilder.CreateSRV(NameBuffer, PF_R8_UINT);
 		Parameters->NameInfos = GraphBuilder.CreateSRV(NameInfoBuffer);
-		Parameters->Infos = GraphBuilder.CreateSRV(InfoBuffer, PF_R32G32B32A32_UINT);
+		Parameters->Infos = GraphBuilder.CreateSRV(InfoBuffer, PF_R32_UINT);
 		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 		FHairDebugPrintInstanceCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FHairDebugPrintInstanceCS::FOutputType>(0);

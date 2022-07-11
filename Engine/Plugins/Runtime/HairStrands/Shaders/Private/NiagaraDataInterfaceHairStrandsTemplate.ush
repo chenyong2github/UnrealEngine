@@ -14,6 +14,7 @@ Buffer<float4>		{ParameterName}_DeformedTrianglePositionABuffer;
 Buffer<float4>		{ParameterName}_DeformedTrianglePositionBBuffer;
 Buffer<float4>		{ParameterName}_DeformedTrianglePositionCBuffer;
 Buffer<uint>		{ParameterName}_RootBarycentricCoordinatesBuffer;
+Buffer<uint>		{ParameterName}_RootToUniqueTriangleIndexBuffer;
 float4x4			{ParameterName}_WorldTransform;
 float4x4			{ParameterName}_WorldInverse;
 float4				{ParameterName}_WorldRotation;
@@ -557,20 +558,22 @@ void ComputeProjectionTriangle_{ParameterName}(in float2 ProjectionUV, in float3
 }
 
 // Get the deformed triangle
-void BuildDeformedTriangle_{ParameterName}(in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+void BuildDeformedTriangle_{ParameterName}(in float2 ProjectionUV, in int TriangleIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
 {
-	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, {ParameterName}_DeformedTrianglePositionABuffer[StrandIndex].xyz,
-		{ParameterName}_DeformedTrianglePositionBBuffer[StrandIndex].xyz, 
-		{ParameterName}_DeformedTrianglePositionCBuffer[StrandIndex].xyz, 
+	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, 
+		{ParameterName}_DeformedTrianglePositionABuffer[TriangleIndex].xyz,
+		{ParameterName}_DeformedTrianglePositionBBuffer[TriangleIndex].xyz,
+		{ParameterName}_DeformedTrianglePositionCBuffer[TriangleIndex].xyz,
 	    {ParameterName}_DeformedRootOffset, OutTrianglePosition, OutTriangleRotation);
 }
 
 // Get the rest triangle
-void BuildRestTriangle_{ParameterName}(in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+void BuildRestTriangle_{ParameterName}(in float2 ProjectionUV, in int TriangleIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
 {
-	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, {ParameterName}_RestTrianglePositionABuffer[StrandIndex].xyz,
-		{ParameterName}_RestTrianglePositionBBuffer[StrandIndex].xyz,
-		{ParameterName}_RestTrianglePositionCBuffer[StrandIndex].xyz,
+	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, 
+		{ParameterName}_RestTrianglePositionABuffer[TriangleIndex].xyz,
+		{ParameterName}_RestTrianglePositionBBuffer[TriangleIndex].xyz,
+		{ParameterName}_RestTrianglePositionCBuffer[TriangleIndex].xyz,
 	    {ParameterName}_RestRootOffset, OutTrianglePosition, OutTriangleRotation);
 }
 
@@ -605,9 +608,10 @@ void UpdateTriangleDisplace_{ParameterName}(in int StrandIndex, in float3 NodePo
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
 		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
-	
-		BuildRestTriangle_{ParameterName}(ProjectionUV, StrandIndex, RestTrianglePosition, RestTriangleOrientation);
-		BuildDeformedTriangle_{ParameterName}(ProjectionUV, StrandIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
+		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
+
+		BuildRestTriangle_{ParameterName}(ProjectionUV, TriangleIndex, RestTrianglePosition, RestTriangleOrientation);
+		BuildDeformedTriangle_{ParameterName}(ProjectionUV, TriangleIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
 	
 		const float3 LocalRestPosition = TriangleLocalPosition_{ParameterName}(RestTrianglePosition, RestTriangleOrientation, RestPosition);
 		const float3 LocalDeformedPosition = TriangleLocalPosition_{ParameterName}(DeformedTrianglePosition, DeformedTriangleOrientation, NodePosition);
@@ -851,10 +855,11 @@ void ComputeLocalState_{ParameterName}(in float3 RestPosition, in float4 RestOri
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
 		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
-		
+		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
+
 		float3 RestTrianglePosition = float3(0, 0, 0);
 		float4 RestTriangleOrientation = QUATERNION_IDENTITY;
-		BuildRestTriangle_{ParameterName}(ProjectionUV, StrandIndex, RestTrianglePosition, RestTriangleOrientation);
+		BuildRestTriangle_{ParameterName}(ProjectionUV, TriangleIndex, RestTrianglePosition, RestTriangleOrientation);
 		
 		OutLocalPosition = TriangleLocalPosition_{ParameterName}(RestTrianglePosition, RestTriangleOrientation, RestPosition);
 		OutLocalOrientation = TriangleLocalOrientation_{ParameterName}(RestTrianglePosition, RestTriangleOrientation, RestOrientation);
@@ -871,10 +876,11 @@ void AttachNodeState_{ParameterName}(in float3 LocalPosition, in float4 LocalOri
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
 		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
-		
+		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
+
 		float3 DeformedTrianglePosition = float3(0, 0, 0);
 		float4 DeformedTriangleOrientation = QUATERNION_IDENTITY;
-		BuildDeformedTriangle_{ParameterName}(ProjectionUV, StrandIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
+		BuildDeformedTriangle_{ParameterName}(ProjectionUV, TriangleIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
 		
 		OutNodePosition = TriangleWorldPosition_{ParameterName}(DeformedTrianglePosition, DeformedTriangleOrientation, LocalPosition);
 		OutNodeOrientation = TriangleWorldOrientation_{ParameterName}(DeformedTrianglePosition, DeformedTriangleOrientation, LocalOrientation);

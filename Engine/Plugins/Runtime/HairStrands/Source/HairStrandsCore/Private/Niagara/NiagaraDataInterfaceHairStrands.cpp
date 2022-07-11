@@ -37,6 +37,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
 	SHADER_PARAMETER_SRV(Buffer<float4>,				DeformedTrianglePositionBBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>,				DeformedTrianglePositionCBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>,					RootBarycentricCoordinatesBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>,					RootToUniqueTriangleIndexBuffer)
 	SHADER_PARAMETER(FMatrix44f,						WorldTransform)
 	SHADER_PARAMETER(FMatrix44f,						WorldInverse)
 	SHADER_PARAMETER(FQuat4f,							WorldRotation)
@@ -866,6 +867,7 @@ class FInterpolateGroomGuidesCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<float4>,	DeformedTrianglePositionBBuffer)
 		SHADER_PARAMETER_SRV(Buffer<float4>,	DeformedTrianglePositionCBuffer)
 		SHADER_PARAMETER_SRV(Buffer<uint>,		RootBarycentricCoordinatesBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		RootToUniqueTriangleIndexBuffer)
 
 		SHADER_PARAMETER_SRV(Buffer<uint>,		VertexToCurveIndexBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>,	DeformedPositionBuffer)
@@ -945,13 +947,14 @@ static void InterpolateGroomGuides(FRDGBuilder& GraphBuilder, FNiagaraDataBuffer
 			const FHairStrandsRestRootResource::FLOD* RestMeshProjection = &(HairStrandsBuffer->SourceRestRootResources->LODs[MeshLODIndex]) ;
 			const FHairStrandsDeformedRootResource::FLOD* DeformedMeshProjection =  &(HairStrandsBuffer->SourceDeformedRootResources->LODs[MeshLODIndex]);
 
-			PassParameters->RestTrianglePositionABuffer = RestMeshProjection->RestRootTrianglePosition0Buffer.SRV;
-			PassParameters->RestTrianglePositionBBuffer = RestMeshProjection->RestRootTrianglePosition1Buffer.SRV;
-			PassParameters->RestTrianglePositionCBuffer = RestMeshProjection->RestRootTrianglePosition2Buffer.SRV;
-			PassParameters->DeformedTrianglePositionABuffer = DeformedMeshProjection->GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
-			PassParameters->DeformedTrianglePositionBBuffer = DeformedMeshProjection->GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
-			PassParameters->DeformedTrianglePositionCBuffer = DeformedMeshProjection->GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
-			PassParameters->RootBarycentricCoordinatesBuffer = RestMeshProjection->RootTriangleBarycentricBuffer.SRV;
+			PassParameters->RestTrianglePositionABuffer = RestMeshProjection->RestUniqueTrianglePosition0Buffer.SRV;
+			PassParameters->RestTrianglePositionBBuffer = RestMeshProjection->RestUniqueTrianglePosition1Buffer.SRV;
+			PassParameters->RestTrianglePositionCBuffer = RestMeshProjection->RestUniqueTrianglePosition2Buffer.SRV;
+			PassParameters->DeformedTrianglePositionABuffer = DeformedMeshProjection->GetDeformedUniqueTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
+			PassParameters->DeformedTrianglePositionBBuffer = DeformedMeshProjection->GetDeformedUniqueTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
+			PassParameters->DeformedTrianglePositionCBuffer = DeformedMeshProjection->GetDeformedUniqueTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV;
+			PassParameters->RootBarycentricCoordinatesBuffer = RestMeshProjection->RootBarycentricBuffer.SRV;
+			PassParameters->RootToUniqueTriangleIndexBuffer = RestMeshProjection->RootToUniqueTriangleIndexBuffer.SRV;
 		}
 
 		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_INTERPOLATE;
@@ -3391,14 +3394,15 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		const FHairStrandsRestRootResource::FLOD* RestMeshProjection = bHasSkinnedInterpolation ? &(HairStrandsBuffer->SourceRestRootResources->LODs[MeshLODIndex]) : nullptr;
 		const FHairStrandsDeformedRootResource::FLOD* DeformedMeshProjection = bHasSkinnedInterpolation ? &(HairStrandsBuffer->SourceDeformedRootResources->LODs[MeshLODIndex]) : nullptr;
 
-		FRHIShaderResourceView* RestTrianglePositionASRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestRootTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-		FRHIShaderResourceView* RestTrianglePositionBSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestRootTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-		FRHIShaderResourceView* RestTrianglePositionCSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestRootTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* RestTrianglePositionASRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestUniqueTrianglePosition0Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* RestTrianglePositionBSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestUniqueTrianglePosition1Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* RestTrianglePositionCSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RestUniqueTrianglePosition2Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-		FRHIShaderResourceView* DeformedTrianglePositionASRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-		FRHIShaderResourceView* DeformedTrianglePositionBSRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-		FRHIShaderResourceView* DeformedTrianglePositionCSRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-		FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RootTriangleBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
+		FRHIShaderResourceView* DeformedTrianglePositionASRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedUniqueTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* DeformedTrianglePositionBSRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedUniqueTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* DeformedTrianglePositionCSRV = (bHasSkinnedInterpolation && DeformedMeshProjection) ? DeformedMeshProjection->GetDeformedUniqueTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current).SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+		FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RootBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
+		FRHIShaderResourceView* RootToUniqueTriangleIndexSRV = (bHasSkinnedInterpolation && RestMeshProjection) ? RestMeshProjection->RootToUniqueTriangleIndexBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
 
 		// RBF buffers
 		const bool bHasSamples = (RestMeshProjection && RestMeshProjection->SampleCount > 0);
@@ -3478,6 +3482,7 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		ShaderParameters->RestSamplePositionsBuffer = RestSamplePositionsBufferSRV;
 		ShaderParameters->MeshSampleWeightsBuffer = MeshSampleWeightsBufferSRV;
 		ShaderParameters->RootBarycentricCoordinatesBuffer = RootBarycentricCoordinatesSRV;
+		ShaderParameters->RootToUniqueTriangleIndexBuffer = RootToUniqueTriangleIndexSRV;
 	}
 	else
 	{
@@ -3525,6 +3530,7 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		ShaderParameters->RestSamplePositionsBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 		ShaderParameters->MeshSampleWeightsBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 		ShaderParameters->RootBarycentricCoordinatesBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
+		ShaderParameters->RootToUniqueTriangleIndexBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 		ShaderParameters->ParamsScaleBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 	}
 }

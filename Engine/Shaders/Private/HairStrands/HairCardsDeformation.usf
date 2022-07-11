@@ -38,6 +38,7 @@ Buffer<float4>  TriangleDeformedPosition2Buffer;
 
 Buffer<uint>	GuideRootBarycentricBuffer;
 Buffer<uint>    GuideVertexToRootIndexBuffer;
+Buffer<uint>    GuideRootToUniqueTriangleIndexBuffer;
 
 
 #if PERMUTATION_GROUP_SIZE == 64
@@ -154,10 +155,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float GuideLerp = ((PackedInterpolationData >> 24) & 0xFF) / float(0xFF);
 
 	const uint RootIndex = GuideVertexToRootIndexBuffer[GuideIndex0];
+	const uint TriangleIndex = GuideRootToUniqueTriangleIndexBuffer[RootIndex];
+
 	const float3 RootBarycentric = DecodeBarycentrics(GuideRootBarycentricBuffer[RootIndex]);
 
-	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(RootIndex, TriangleRestPosition0Buffer, TriangleRestPosition1Buffer, TriangleRestPosition2Buffer);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(RootIndex, TriangleDeformedPosition0Buffer, TriangleDeformedPosition1Buffer, TriangleDeformedPosition2Buffer);
+	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, TriangleRestPosition0Buffer, TriangleRestPosition1Buffer, TriangleRestPosition2Buffer);
+	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, TriangleDeformedPosition0Buffer, TriangleDeformedPosition1Buffer, TriangleDeformedPosition2Buffer);
 
 	const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, 1, RestTriangle, DeformedTriangle, RootBarycentric, GuideDeformedPositionOffset);
 	const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, 1, RestTriangle, DeformedTriangle, RootBarycentric, GuideDeformedPositionOffset);

@@ -95,7 +95,8 @@ Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
 Buffer<float4>  DeformedPosition2Buffer;
 
-Buffer<uint>	RootBarycentricBuffer;
+Buffer<uint>	RenRootBarycentricBuffer;
+Buffer<uint>	RenRootToUniqueTriangleIndexBuffer;
 
 Buffer<float4>  SimRestPosition0Buffer;
 Buffer<float4>  SimRestPosition1Buffer;
@@ -106,6 +107,7 @@ Buffer<float4>  SimDeformedPosition1Buffer;
 Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
+Buffer<uint>	SimRootToUniqueTriangleIndexBuffer;
 #endif
 
 #if PERMUTATION_DEBUG == 1
@@ -205,6 +207,7 @@ uint4 WriteOutput(float3 WorldPosition, float3 OutPositionOffset, uint PackedDat
 struct FRootTriangleData
 {
 	uint RootIndex;
+	uint TriangleIndex;
 	float3 RootBarycentric;
 	FHairMeshTriangle RestTriangle;
 	FHairMeshTriangle DeformedTriangle;
@@ -217,16 +220,18 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 	if (bSim)
 	{
 		Out.RootIndex		 = SimVertexToRootIndexBuffer[VertexIndex];
+		Out.TriangleIndex	 = SimRootToUniqueTriangleIndexBuffer[Out.RootIndex];
 		Out.RootBarycentric  = DecodeBarycentrics(SimRootBarycentricBuffer[Out.RootIndex]);
-		Out.RestTriangle	 = GetTriangleTransformation(Out.RootIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
-		Out.DeformedTriangle = GetTriangleTransformation(Out.RootIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);	
+		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
+		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
 	}
 	else
 	{
 		Out.RootIndex		 = RenVertexToRootIndexBuffer[VertexIndex];
-		Out.RootBarycentric  = DecodeBarycentrics(RootBarycentricBuffer[Out.RootIndex]);
-		Out.RestTriangle	 = GetTriangleTransformation(Out.RootIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		Out.DeformedTriangle = GetTriangleTransformation(Out.RootIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		Out.TriangleIndex	 = RenRootToUniqueTriangleIndexBuffer[Out.RootIndex];
+		Out.RootBarycentric  = DecodeBarycentrics(RenRootBarycentricBuffer[Out.RootIndex]);
+		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
 	}
 	#endif
 	return Out;

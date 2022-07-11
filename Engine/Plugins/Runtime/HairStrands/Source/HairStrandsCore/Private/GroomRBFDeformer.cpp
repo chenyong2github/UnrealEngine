@@ -82,15 +82,16 @@ FVector3f DisplacePosition(
 void DeformStrands(	
 	const FHairStrandsDatas& HairStandsData,
 	const TArray<FHairStrandsIndexFormat::Type>& VertexToCurveIndexBuffer,
-	const TArray<FHairStrandsCurveTriangleBarycentricFormat::Type>& RootTriangleBarycentricBuffer,
+	const TArray<FHairStrandsIndexFormat::Type>& RootToUniqueTriangleBuffer,
+	const TArray<FHairStrandsCurveTriangleBarycentricFormat::Type>& RootBarycentricBuffer,
 
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition0Buffer_Rest,
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition1Buffer_Rest,
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition2Buffer_Rest,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition0Buffer_Rest,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition1Buffer_Rest,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition2Buffer_Rest,
 
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition0Buffer_Deformed,
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition1Buffer_Deformed,
-	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& RootTrianglePosition2Buffer_Deformed,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition0Buffer_Deformed,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition1Buffer_Deformed,
+	const TArray<FHairStrandsMeshTrianglePositionFormat::Type>& UniqueTrianglePosition2Buffer_Deformed,
 
 	uint32 VertexCount,
 	uint32 SampleCount,
@@ -117,6 +118,7 @@ void DeformStrands(
 	{
 		const uint32 VertexOffset = HairStandsData.StrandsCurves.CurvesOffset[CurveIndex];
 		const uint32 RootIndex = VertexToCurveIndexBuffer[VertexOffset];
+		const uint32 TriangleIndex = RootToUniqueTriangleBuffer[RootIndex];
 
 		// Sanity check
 		check(RootIndex == CurveIndex);
@@ -124,19 +126,18 @@ void DeformStrands(
 		const FVector3f& Rest_Position   = HairStandsData.StrandsPoints.PointsPosition[VertexOffset];
 		const FVector3f& Deform_Position = OutDeformedPositionBuffer[VertexOffset];
 
-
-		const uint32 PackedBarycentric = RootTriangleBarycentricBuffer[RootIndex];
+		const uint32 PackedBarycentric = RootBarycentricBuffer[RootIndex];
 		const FVector2f B0 = FVector2f(FHairStrandsRootUtils::DecodeBarycentrics(PackedBarycentric));
 		const FVector3f   B  = FVector3f(B0.X, B0.Y, 1.f - B0.X - B0.Y);
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		const FVector3f& Rest_V0 = RootTrianglePosition0Buffer_Rest[RootIndex];
-		const FVector3f& Rest_V1 = RootTrianglePosition1Buffer_Rest[RootIndex];
-		const FVector3f& Rest_V2 = RootTrianglePosition2Buffer_Rest[RootIndex];
+		const FVector3f& Rest_V0 = UniqueTrianglePosition0Buffer_Rest[TriangleIndex];
+		const FVector3f& Rest_V1 = UniqueTrianglePosition1Buffer_Rest[TriangleIndex];
+		const FVector3f& Rest_V2 = UniqueTrianglePosition2Buffer_Rest[TriangleIndex];
 
-		const FVector3f& Deform_V0 = RootTrianglePosition0Buffer_Deformed[RootIndex];
-		const FVector3f& Deform_V1 = RootTrianglePosition1Buffer_Deformed[RootIndex];
-		const FVector3f& Deform_V2 = RootTrianglePosition2Buffer_Deformed[RootIndex];
+		const FVector3f& Deform_V0 = UniqueTrianglePosition0Buffer_Deformed[TriangleIndex];
+		const FVector3f& Deform_V1 = UniqueTrianglePosition1Buffer_Deformed[TriangleIndex];
+		const FVector3f& Deform_V2 = UniqueTrianglePosition2Buffer_Deformed[TriangleIndex];
 
 		const FVector3f Rest_RootPosition		=   Rest_V0 * B.X +   Rest_V1 * B.Y +   Rest_V2 * B.Z;
 		const FVector3f Deform_RootPosition	= Deform_V0 * B.X + Deform_V1 * B.Y + Deform_V2 * B.Z;
@@ -158,27 +159,26 @@ void DeformStrands(
 }
 
 // Compute the triangle positions for each curve's roots
-void ExtractRootTrianglePositions(
+void ExtractUniqueTrianglePositions(
 	const FHairStrandsRootData::FMeshProjectionLOD& RestLODData,
 	const uint32 MeshLODIndex,
-	const FHairStrandsDatas& HairStrandsData,
+	const uint32 UniqueTriangleCount,
 	const FSkeletalMeshRenderData* InMeshRenderData, 
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformRootTrianglePosition0Buffer,
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformRootTrianglePosition1Buffer,
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformRootTrianglePosition2Buffer)
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformUniqueTrianglePosition0Buffer,
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformUniqueTrianglePosition1Buffer,
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type>& OutDeformUniqueTrianglePosition2Buffer)
 {
-	const uint32 RootCount = HairStrandsData.GetNumCurves();
-	OutDeformRootTrianglePosition0Buffer.SetNum(RootCount);
-	OutDeformRootTrianglePosition1Buffer.SetNum(RootCount);
-	OutDeformRootTrianglePosition2Buffer.SetNum(RootCount);
+	OutDeformUniqueTrianglePosition0Buffer.SetNum(UniqueTriangleCount);
+	OutDeformUniqueTrianglePosition1Buffer.SetNum(UniqueTriangleCount);
+	OutDeformUniqueTrianglePosition2Buffer.SetNum(UniqueTriangleCount);
 
 	const uint32 SectionCount = InMeshRenderData->LODRenderData[MeshLODIndex].RenderSections.Num();
 	TArray<uint32> IndexBuffer;
 	InMeshRenderData->LODRenderData[MeshLODIndex].MultiSizeIndexContainer.GetIndexBuffer(IndexBuffer);
 
-	for (uint32 RootIndex = 0; RootIndex < RootCount; ++RootIndex)
+	for (uint32 UniqueTriangleIndex = 0; UniqueTriangleIndex < UniqueTriangleCount; ++UniqueTriangleIndex)
 	{
-		const uint32 PackedTriangleIndex = RestLODData.RootTriangleIndexBuffer[RootIndex];
+		const uint32 PackedTriangleIndex = RestLODData.UniqueTriangleIndexBuffer[UniqueTriangleIndex];
 		uint32 TriangleIndex = 0;
 		uint32 SectionIndex = 0;
 		FHairStrandsRootUtils::DecodeTriangleIndex(PackedTriangleIndex, TriangleIndex, SectionIndex);
@@ -195,9 +195,9 @@ void ExtractRootTrianglePositions(
 		const FVector3f P1 = InMeshRenderData->LODRenderData[MeshLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(I1);
 		const FVector3f P2 = InMeshRenderData->LODRenderData[MeshLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(I2);
 
-		OutDeformRootTrianglePosition0Buffer[RootIndex] = P0;
-		OutDeformRootTrianglePosition1Buffer[RootIndex] = P1;
-		OutDeformRootTrianglePosition2Buffer[RootIndex] = P2;
+		OutDeformUniqueTrianglePosition0Buffer[UniqueTriangleIndex] = P0;
+		OutDeformUniqueTrianglePosition1Buffer[UniqueTriangleIndex] = P1;
+		OutDeformUniqueTrianglePosition2Buffer[UniqueTriangleIndex] = P2;
 	}
 }
 
@@ -217,6 +217,8 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 
 	InitMeshSamples(MaxVertexCount, MeshVertexPositionsBuffer_Target, MaxSampleCount, SampleIndicesBuffer, OutSamplePositionsBuffer);
 
+	const TArray<FHairStrandsIndexFormat::Type>& RootToUniqueTriangleBuffer = RestLODData.RootToUniqueTriangleIndexBuffer;
+
 	// Update those vertices with the RBF interpolation weights
 	const TArray<float>& InterpolationWeightsBuffer = RestLODData.MeshInterpolationWeightsBuffer;
 	const TArray<FVector4f>& SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer;
@@ -232,21 +234,21 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 	TArray<FVector3f> OutPositions = Points.PointsPosition;
 
 	// Use the vertex position of the binding, as the source asset might not have the same topology (in case the groom has been transfered from one mesh toanother using UV sharing)
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition0Buffer_Rest = RestLODData.RestRootTrianglePosition0Buffer;
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition1Buffer_Rest = RestLODData.RestRootTrianglePosition1Buffer;
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition2Buffer_Rest = RestLODData.RestRootTrianglePosition2Buffer;
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition0Buffer_Rest = RestLODData.RestUniqueTrianglePosition0Buffer;
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition1Buffer_Rest = RestLODData.RestUniqueTrianglePosition1Buffer;
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition2Buffer_Rest = RestLODData.RestUniqueTrianglePosition2Buffer;
 
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition0Buffer_Deformed;
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition1Buffer_Deformed;
-	TArray<FHairStrandsMeshTrianglePositionFormat::Type> RootTrianglePosition2Buffer_Deformed;
-	ExtractRootTrianglePositions(
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition0Buffer_Deformed;
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition1Buffer_Deformed;
+	TArray<FHairStrandsMeshTrianglePositionFormat::Type> UniqueTrianglePosition2Buffer_Deformed;
+	ExtractUniqueTrianglePositions(
 		RestLODData,
 		MeshLODIndex,
-		HairStrandsData,
+		RestLODData.RestUniqueTrianglePosition0Buffer.Num(),
 		InMeshRenderData,
-		RootTrianglePosition0Buffer_Deformed,
-		RootTrianglePosition1Buffer_Deformed,
-		RootTrianglePosition2Buffer_Deformed);
+		UniqueTrianglePosition0Buffer_Deformed,
+		UniqueTrianglePosition1Buffer_Deformed,
+		UniqueTrianglePosition2Buffer_Deformed);
 
 	// Deform the strands vertices with the deformed mesh samples
 	const TArray<FVector3f>& RestPosePositionBuffer = OutPositions;
@@ -257,15 +259,16 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 	DeformStrands(
 		HairStrandsData,
 		VertexToCurveIndexBuffer,
-		RestLODData.RootTriangleBarycentricBuffer,
+		RootToUniqueTriangleBuffer,
+		RestLODData.RootBarycentricBuffer,
 
-		RootTrianglePosition0Buffer_Rest,
-		RootTrianglePosition1Buffer_Rest,
-		RootTrianglePosition2Buffer_Rest,
+		UniqueTrianglePosition0Buffer_Rest,
+		UniqueTrianglePosition1Buffer_Rest,
+		UniqueTrianglePosition2Buffer_Rest,
 
-		RootTrianglePosition0Buffer_Deformed,
-		RootTrianglePosition1Buffer_Deformed,
-		RootTrianglePosition2Buffer_Deformed,
+		UniqueTrianglePosition0Buffer_Deformed,
+		UniqueTrianglePosition1Buffer_Deformed,
+		UniqueTrianglePosition2Buffer_Deformed,
 
 		VertexCount, 
 		MaxSampleCount, 

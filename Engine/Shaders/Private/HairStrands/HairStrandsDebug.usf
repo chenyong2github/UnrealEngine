@@ -222,6 +222,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #define INPUT_ROOT_TRIANGLE 1
 #define INPUT_ROOT_SAMPLES 2
 
+uint MaxUniqueSection;
+uint MaxUniqueTriangleCount;
 uint MaxRootCount;
 float4x4 RootLocalToWorld;
 uint DeformedFrameEnable;
@@ -229,6 +231,8 @@ uint DeformedFrameEnable;
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
 Buffer<uint>   RootBarycentricBuffer;
 #endif
+
+Buffer<uint>  RootToUniqueTriangleIndexBuffer;
 
 Buffer<float4>  RestPosition0Buffer;
 Buffer<float4>  RestPosition1Buffer;
@@ -247,12 +251,13 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	ResolvedView = ResolveView();
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME  
-	const uint LineIndex = DispatchThreadId.x;
+	const uint RootIndex = DispatchThreadId.x;
 
-	if (LineIndex > MaxRootCount) return;
+	if (RootIndex > MaxRootCount) return;
 	{
-		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		const uint TriangleIndex = RootToUniqueTriangleIndexBuffer[RootIndex];
+		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
 
 		FHairMeshTriangleWithUVs Tri;
 		if (DeformedFrameEnable > 0)
@@ -260,7 +265,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		else
 			Tri = RestTriangle;
 
-		const float3 B  = DecodeBarycentrics(RootBarycentricBuffer[LineIndex]);
+		const float3 B  = DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
 		float3 P0 = B.x * Tri.P0 + B.y * Tri.P1 + B.z * Tri.P2;
 		float3 P1 = P0 + Tri.N;
 
@@ -1087,13 +1092,76 @@ void AddNewLine(float2 OriginalPos, inout float2 Pos)
 int2					MaxResolution;
 uint					InstanceCount;
 
-Buffer<uint4>			Infos;
+Buffer<uint>			Infos;
 
 uint					NameInfoCount;
 uint					NameCharacterCount;
 StructuredBuffer<uint2> NameInfos;
 Buffer<uint>			Names;
 Buffer<int>				InstanceAABB;
+
+struct FInstanceInfo
+{
+	uint  GroupIndex;
+	uint  GroupCount;
+	float LODCount;
+	uint  GeometryType;
+	uint  BindingType;
+	bool  bHasSim;
+	bool  bHasRBF;
+	float LOD;
+	float ClipValue;
+
+	// Strands data
+	uint StrandsCount;
+	uint VertexCount;
+
+	// Binding
+	uint UniqueTriangle;
+	uint UniqueSection;
+	uint RootCount;
+	uint ControlPointCount;
+};
+
+FInstanceInfo ReadInstanceInfo(uint Index)
+{
+	const uint Index8 = Index * 8;
+
+	uint4 Data0 = 0;
+	Data0.x = Infos[Index8 + 0];
+	Data0.y = Infos[Index8 + 1];
+	Data0.z = Infos[Index8 + 2];
+	Data0.w = Infos[Index8 + 3];
+
+	uint4 Data1 = 0;
+	Data1.x = Infos[Index8 + 4];
+	Data1.y = Infos[Index8 + 5];
+	Data1.z = Infos[Index8 + 6];
+	Data1.w = Infos[Index8 + 7];
+
+	FInstanceInfo Out = (FInstanceInfo)0;
+	Out.GroupIndex = (Data0.x >> 0) & 0xFF;
+	Out.GroupCount = (Data0.x >> 8) & 0xFF;
+	Out.LODCount = (Data0.x >> 16) & 0xFF;
+	Out.GeometryType = (Data0.x >> 24) & 0x7;
+	Out.BindingType = (Data0.x >> 27) & 0x7;
+	Out.bHasSim = (Data0.x >> 30) & 0x1;
+	Out.bHasRBF = (Data0.x >> 31) & 0x1;
+
+	Out.LOD = f16tof32((Data0.y >> 0) & 0xFFFF);
+	Out.ClipValue = f16tof32((Data0.y >> 16) & 0xFFFF);
+
+	Out.StrandsCount = Data0.z;
+	Out.VertexCount = Data0.w;
+
+	// Strands binding data
+	Out.UniqueSection		= Data1.x;
+	Out.UniqueTriangle		= Data1.y;
+	Out.RootCount			= Data1.z;
+	Out.ControlPointCount	= Data1.w;
+
+	return Out;
+}
 
 struct FNameInfo
 {
@@ -1161,11 +1229,13 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	const uint TotalGroup = InstanceCount;
 	uint TotalStrandsCount = 0;
 	uint TotalVertexCount = 0;
-	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 	{
-		const uint4 InstanceData = Infos[InstanceIndex];
-		TotalStrandsCount += InstanceData.z;
-		TotalVertexCount += InstanceData.w;
+		for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+		{
+			const FInstanceInfo Info = ReadInstanceInfo(InstanceIndex);
+			TotalStrandsCount += Info.StrandsCount;
+			TotalVertexCount += Info.VertexCount;
+		}
 	}
 
 	Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
@@ -1183,77 +1253,70 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	AddNewLine(OriginalPos, Pos);
 
 	// Draw instance details
-	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Name"));
+	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Name"));
 	AddNewLine(OriginalPos, Pos);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 	{
-		const uint4 InstanceData	= Infos[InstanceIndex];
-		const uint GroupIndex		= (InstanceData.x>>0)  & 0xFF;
-		const uint GroupCount		= (InstanceData.x>>8)  & 0xFF;
-		const float LODCount		= (InstanceData.x>>16) & 0xFF;
-		const uint GeometryType		= (InstanceData.x>>24) & 0x7;
-		const uint BindingType		= (InstanceData.x>>27) & 0x7;
-		const bool bHasSim			= (InstanceData.x>>30) & 0x1;
-		const bool bHasRBF			= (InstanceData.x>>31) & 0x1;
-
-		const float LOD				= f16tof32((InstanceData.y>>0)  & 0xFFFF);
-		const float ClipValue		= f16tof32((InstanceData.y>>16) & 0xFFFF);
-
-		const uint StrandsCount		= InstanceData.z;
-		const uint VertexCount		= InstanceData.w;
+		const FInstanceInfo Info = ReadInstanceInfo(InstanceIndex);
 
 		// Index
 		Pos = Print(Pos, InstanceIndex, FontSilver, 2);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
 		// Group
-		Pos = Print(Pos, GroupIndex, FontYellow, 1);
+		Pos = Print(Pos, Info.GroupIndex, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, GroupCount, FontYellow, 1);
+		Pos = Print(Pos, Info.GroupCount, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("    "));
 
 		// LOD
-		Pos = Print(Pos, LOD, FontYellow, 4, 2);	
+		Pos = Print(Pos, Info.LOD, FontYellow, 4, 2);
 		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, LODCount, FontYellow, 1);
+		Pos = Print(Pos, Info.LODCount, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("  "));
 
 		// Geometry
-		if (GeometryType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Strands "), FontEmerald); }
-		else if (GeometryType == 1) { Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontEmerald); }
-		else if (GeometryType == 2) { Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontEmerald); }
+		if (Info.GeometryType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Strands "), FontEmerald); }
+		else if (Info.GeometryType == 1){ Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontEmerald); }
+		else if (Info.GeometryType == 2){ Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontEmerald); }
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
 		// Binding
-		if (BindingType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Skinned "), FontTurquoise); }
-		else if (BindingType == 1)	{ Pos = ShaderPrintText(Pos, TEXT("Rigid   "), FontTurquoise); }
-		else if (BindingType == 2)	{ Pos = ShaderPrintText(Pos, TEXT("None    "), FontTurquoise); }
+		if (Info.BindingType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Skinned "), FontTurquoise); }
+		else if (Info.BindingType == 1)	{ Pos = ShaderPrintText(Pos, TEXT("Rigid   "), FontTurquoise); }
+		else if (Info.BindingType == 2)	{ Pos = ShaderPrintText(Pos, TEXT("None    "), FontTurquoise); }
 
 		// Sim
-		if (bHasSim)
+		if (Info.bHasSim)
 			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
 		else
 			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
 		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
 
 		// RBF
-		if (bHasRBF)
+		if (Info.bHasRBF)
 			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
 		else
 			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
 		// Clip
-		if (ClipValue >= 0)
-			Pos = Print(Pos, ClipValue, FontGreen, 7);
+		if (Info.ClipValue >= 0)
+			Pos = Print(Pos, Info.ClipValue, FontGreen, 7);
 		else 
 			Pos = Print(Pos, 0u, FontSilver, 7);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
-		// Count
-		Pos = Print(Pos, StrandsCount, FontOrange, 8);
-		Pos = Print(Pos, VertexCount,  FontSilver, 8);
+		// Strands/Vertex sCount
+		Pos = Print(Pos, Info.StrandsCount, FontOrange, 8);
+		Pos = Print(Pos, Info.VertexCount,  FontSilver, 8);
+
+		// Binding data
+		Pos = Print(Pos, Info.UniqueTriangle, FontOrange, 8);
+		Pos = ShaderPrintText(Pos, TEXT("      "));
+		Pos = Print(Pos, Info.UniqueSection, FontSilver, 8);
+		Pos = ShaderPrintText(Pos, TEXT("     "));
 
 		// Name
 		Pos = PrintInstanceName(Pos, InstanceIndex, FontWhite);

@@ -7,6 +7,7 @@
 
 float2 OutputResolution;
 uint MaxRootCount;
+uint MaxUniqueTriangleIndex;
 uint Channel;
 uint KernelSizeInPixels;
 
@@ -14,9 +15,10 @@ uint KernelSizeInPixels;
 #define UV_ROOT 1
 
 #if PERMUTATION_UV_TYPE == UV_MESH
-Buffer<float4> TrianglePosition0Buffer;
-Buffer<float4> TrianglePosition1Buffer;
-Buffer<float4> TrianglePosition2Buffer;
+Buffer<float4> UniqueTrianglePosition0Buffer;
+Buffer<float4> UniqueTrianglePosition1Buffer;
+Buffer<float4> UniqueTrianglePosition2Buffer;
+Buffer<uint>   RootToUniqueTriangleIndexBuffer;
 Buffer<uint>   RootBarycentricBuffer; 
 #endif 
 
@@ -36,20 +38,27 @@ void MainVS(
 
 	ResolvedView = ResolveView();
 
+
+	const uint RootIndex = VertexId / 3;
 	const uint TriangleVertex = (VertexId % 3);
-	const uint TriangleIndex = VertexId / 3;
 
 #if PERMUTATION_UV_TYPE == UV_MESH
-	if (TriangleIndex > MaxRootCount) return;
-	const FHairMeshTriangleWithUVs Tri = GetTriangleWithUVsTransformation(TriangleIndex, TrianglePosition0Buffer, TrianglePosition1Buffer, TrianglePosition2Buffer);
+	uint UniqueTriangleIndex = 0;
+	if (RootIndex < MaxRootCount)
+	{
+		UniqueTriangleIndex = RootToUniqueTriangleIndexBuffer[RootIndex];
+	}
 
-	const uint EncodedBarycentric = RootBarycentricBuffer[TriangleIndex];
+	if (UniqueTriangleIndex > MaxUniqueTriangleIndex) return;
+	const FHairMeshTriangleWithUVs Tri = GetTriangleWithUVsTransformation(UniqueTriangleIndex, UniqueTrianglePosition0Buffer, UniqueTrianglePosition1Buffer, UniqueTrianglePosition2Buffer);
+
+	const uint EncodedBarycentric = RootBarycentricBuffer[RootIndex];
 	const float3 Barycentric = DecodeBarycentrics(EncodedBarycentric);
 	float2 RootUV = Barycentric.x * Tri.UV0 + Barycentric.y * Tri.UV1 + Barycentric.z * Tri.UV2;
 #endif
 
 #if PERMUTATION_UV_TYPE == UV_ROOT
-	float2 RootUV = RootUVsBuffer[TriangleIndex];
+	float2 RootUV = RootUVsBuffer[RootIndex];
 #endif
 
 	const float2 KernelRadius = float2(KernelSizeInPixels, KernelSizeInPixels);

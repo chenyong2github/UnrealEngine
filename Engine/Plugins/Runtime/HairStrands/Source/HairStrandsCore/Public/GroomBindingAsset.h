@@ -47,14 +47,6 @@ enum class EGroomBindingMeshType : uint8
 	GeometryCache
 };
 
-/** Binding data */
-struct FHairRootGroupData
-{
-	FHairStrandsRootData			SimRootData;
-	FHairStrandsRootData			RenRootData;
-	TArray<FHairStrandsRootData>	CardsRootData;
-};
-
 /** Binding bulk data */
 struct FHairGroupBulkData
 {

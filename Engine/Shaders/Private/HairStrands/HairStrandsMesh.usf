@@ -318,17 +318,17 @@ Buffer<float2> MeshUVsBuffer7;
 Buffer<float2> MeshUVsBuffer8;
 #endif
 
-uint MaxRootCount;
-Buffer<uint> RootTriangleIndex;
+uint MaxUniqueTriangleCount;
+Buffer<uint> UniqueTriangleIndices;
 
-RWBuffer<float4> OutRootTriangleCurrPosition0;
-RWBuffer<float4> OutRootTriangleCurrPosition1;
-RWBuffer<float4> OutRootTriangleCurrPosition2;
+RWBuffer<float4> OutUniqueTriangleCurrPosition0;
+RWBuffer<float4> OutUniqueTriangleCurrPosition1;
+RWBuffer<float4> OutUniqueTriangleCurrPosition2;
 
 #if PERMUTATION_PREVIOUS
-RWBuffer<float4> OutRootTrianglePrevPosition0;
-RWBuffer<float4> OutRootTrianglePrevPosition1;
-RWBuffer<float4> OutRootTrianglePrevPosition2;
+RWBuffer<float4> OutUniqueTrianglePrevPosition0;
+RWBuffer<float4> OutUniqueTrianglePrevPosition1;
+RWBuffer<float4> OutUniqueTrianglePrevPosition2;
 #endif
 
 #if PERMUTATION_WITHUV == 1
@@ -374,11 +374,11 @@ FHairMeshTriangle GetTriangleData(FHairTriangleIndex TriangleIndex, uint Section
 [numthreads(128, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 { 
-	const uint RootIndex = DispatchThreadId.x;
-	if (RootIndex >= MaxRootCount) 
+	const uint UniqueTriangleIndex = DispatchThreadId.x;
+	if (UniqueTriangleIndex >= MaxUniqueTriangleCount)
 		return;
 	
-	const FHairTriangleIndex TriangleIndex = DecodeTriangleIndex(RootTriangleIndex[RootIndex]);
+	const FHairTriangleIndex TriangleIndex = DecodeTriangleIndex(UniqueTriangleIndices[UniqueTriangleIndex]);
 	if (TriangleIndex.SectionIndex >= MaxSectionCount)
 		return;
 
@@ -403,33 +403,33 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_WITHUV == 1
 	{
 		const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, false);
-		OutRootTriangleCurrPosition0[RootIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
-		OutRootTriangleCurrPosition1[RootIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
-		OutRootTriangleCurrPosition2[RootIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
+		OutUniqueTriangleCurrPosition0[UniqueTriangleIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
+		OutUniqueTriangleCurrPosition1[UniqueTriangleIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
+		OutUniqueTriangleCurrPosition2[UniqueTriangleIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 	}
 
 	#if PERMUTATION_PREVIOUS
 	{
 		const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, true);
-		OutRootTrianglePrevPosition0[RootIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
-		OutRootTrianglePrevPosition1[RootIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
-		OutRootTrianglePrevPosition2[RootIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
+		OutUniqueTrianglePrevPosition0[UniqueTriangleIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
+		OutUniqueTrianglePrevPosition1[UniqueTriangleIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
+		OutUniqueTrianglePrevPosition2[UniqueTriangleIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 	}
 	#endif
 #else
 	{
 		const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, false);
-		OutRootTriangleCurrPosition0[RootIndex] = (float4(Tri.P0, 1));
-		OutRootTriangleCurrPosition1[RootIndex] = (float4(Tri.P1, 1));
-		OutRootTriangleCurrPosition2[RootIndex] = (float4(Tri.P2, 1));
+		OutUniqueTriangleCurrPosition0[UniqueTriangleIndex] = (float4(Tri.P0, 1));
+		OutUniqueTriangleCurrPosition1[UniqueTriangleIndex] = (float4(Tri.P1, 1));
+		OutUniqueTriangleCurrPosition2[UniqueTriangleIndex] = (float4(Tri.P2, 1));
 	}
 
 	#if PERMUTATION_PREVIOUS
 	{
 		const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, true);
-		OutRootTrianglePrevPosition0[RootIndex] = (float4(Tri.P0, 1));
-		OutRootTrianglePrevPosition1[RootIndex] = (float4(Tri.P1, 1));
-		OutRootTrianglePrevPosition2[RootIndex] = (float4(Tri.P2, 1));
+		OutUniqueTrianglePrevPosition0[UniqueTriangleIndex] = (float4(Tri.P0, 1));
+		OutUniqueTrianglePrevPosition1[UniqueTriangleIndex] = (float4(Tri.P1, 1));
+		OutUniqueTrianglePrevPosition2[UniqueTriangleIndex] = (float4(Tri.P2, 1));
 	}
 	#endif
 #endif
