@@ -74,6 +74,34 @@ FRigUnit_AddParent_Execute()
 	}
 }
 
+FRigUnit_SetDefaultParent_Execute()
+{
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true))
+	{
+		return;
+	}
+	
+	FRigTransformElement* ChildElement = ExecuteContext.Hierarchy->Find<FRigTransformElement>(Child);
+	if(ChildElement == nullptr)
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Child item %s does not exist."), *Child.ToString())
+		return;
+	}
+
+	FRigTransformElement* ParentElement = ExecuteContext.Hierarchy->Find<FRigTransformElement>(Parent);
+	if(ParentElement == nullptr)
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Parent item %s does not exist."), *Parent.ToString())
+		return;
+	}
+
+	FRigHierarchyEnableControllerBracket EnableController(ExecuteContext.Hierarchy, true);
+	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
+	{
+		Controller->AddParent(ChildElement, ParentElement, 1.0f, true, true);
+	}
+}
+
 FRigUnit_SwitchParent_Execute()
 {
 	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, false))

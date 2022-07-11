@@ -54,6 +54,35 @@ struct CONTROLRIG_API FRigUnit_AddParent : public FRigUnit_DynamicHierarchyBaseM
 	FRigElementKey Parent;
 };
 
+/**
+ * Changes the default parent for an item - this removes all other current parents.
+ */
+USTRUCT(meta=(DisplayName="Set Default Parent", Keywords="Children,Parent,Constraint,Space,SetParent,AddParent", Varying))
+struct CONTROLRIG_API FRigUnit_SetDefaultParent : public FRigUnit_DynamicHierarchyBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetDefaultParent()
+	{
+		Child = Parent = FRigElementKey(NAME_None, ERigElementType::Control);
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/*
+	 * The child to be parented under the new default parent
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+
+	/*
+	 * The default parent to be used for the child
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Parent;
+};
+
 UENUM()
 enum class ERigSwitchParentMode : uint8
 {
