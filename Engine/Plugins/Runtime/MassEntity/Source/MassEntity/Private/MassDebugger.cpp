@@ -6,6 +6,7 @@
 #include "MassEntitySubsystem.h"
 #include "MassArchetypeTypes.h"
 #include "MassArchetypeData.h"
+#include "MassEntityQuery.h"
 
 
 DEFINE_ENUM_TO_STRING(EMassFragmentAccess, "/Script/MassEntity");
@@ -16,6 +17,19 @@ DEFINE_ENUM_TO_STRING(EMassFragmentPresence, "/Script/MassEntity");
 //----------------------------------------------------------------------//
 TConstArrayView<FMassEntityQuery*> FMassDebugger::GetProcessorQueries(const UMassProcessor& Processor)
 {
+	return Processor.OwnedQueries;
+}
+
+TConstArrayView<FMassEntityQuery*> FMassDebugger::GetUpToDateProcessorQueries(const UMassEntitySubsystem& EntitySubsystem, UMassProcessor& Processor)
+{
+	for (FMassEntityQuery* Query : Processor.OwnedQueries)
+	{
+		if (Query)
+		{
+			Query->CacheArchetypes(EntitySubsystem);
+		}
+	}
+
 	return Processor.OwnedQueries;
 }
 

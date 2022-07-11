@@ -127,7 +127,7 @@ public:
 	/** Will gather all archetypes from InEntitySubsystem matching this->Requirements.
 	 *  Note that no work will be done if the cached data is up to date (as tracked by EntitySubsystemHash and 
 	 *	ArchetypeDataVersion properties). */
-	void CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem);
+	void CacheArchetypes(const UMassEntitySubsystem& InEntitySubsystem);
 
 	FMassEntityQuery& AddRequirement(const UScriptStruct* FragmentType, const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
 	{

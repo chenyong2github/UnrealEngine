@@ -39,6 +39,10 @@ struct MASSENTITY_API FQueryRequirementsView
 struct MASSENTITY_API FMassDebugger
 {
 	static TConstArrayView<FMassEntityQuery*> GetProcessorQueries(const UMassProcessor& Processor);
+	/** fetches all queries registered for given Processor. Note that in order to get up to date information
+	 *  FMassEntityQuery::CacheArchetypes will be called on each query */
+	static TConstArrayView<FMassEntityQuery*> GetUpToDateProcessorQueries(const UMassEntitySubsystem& EntitySubsystem, UMassProcessor& Processor);
+
 	static UE::Mass::Debug::FQueryRequirementsView GetQueryRequirements(const FMassEntityQuery& Query);
 	static void GetQueryExecutionRequirements(const FMassEntityQuery& Query, FMassExecutionRequirements& OutExecutionRequirements);
 	

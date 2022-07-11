@@ -104,7 +104,7 @@ void FMassEntityQuery::SortRequirements()
 	SharedRequirements.Sort(FScriptStructSortOperator());
 }
 
-void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
+void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsystem)
 {
 	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
 	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion)
