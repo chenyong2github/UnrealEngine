@@ -260,8 +260,9 @@ void FBulkDataRegistryImpl::UpdateRegistrationData(UPackage* Owner, const UE::Se
 		FWriteScopeLock RegistryScopeLock(RegistryLock);
 		check(bActive); // Registrations should not come in after we destruct
 		UE::BulkDataRegistry::Private::FRegisteredBulk& RegisteredBulk = Registry.FindOrAdd(BulkData.GetIdentifier());
-		// Add the owner if we previously did not have an owner, otherwise keep the first owner
-		if (RegisteredBulk.PackageName.IsNone())
+		// Update the Owner if we have it. This is important for Package Renames, which call UpdateRegistrationData when they save
+		// to the newly renamed package, with the renamed Owner package.
+		if (!PackageName.IsNone())
 		{
 			RegisteredBulk.PackageName = PackageName;
 		}
