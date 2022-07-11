@@ -123,7 +123,6 @@ private:
 	virtual uint32 Run() override;
 	void UpdateWorkspace(FWorkspaceUpdateContext& Context);
 	EWorkspaceUpdateResult UpdateWorkspaceInternal(FWorkspaceUpdateContext& Context, FString& OutStatusMessage);
-	bool MatchFilter(const FString& FileName, const FFileFilter& Filter);
 
 	static TArray<FString> GetSyncPaths(const FString& ClientRootPath, const FString& SelectedClientFileName);
 	static TSharedRef<FCustomConfigFile, ESPMode::ThreadSafe> ReadProjectConfigFile(const FString& LocalRootPath, const FString& SelectedLocalFileName, FLineBasedTextWriter& Log);

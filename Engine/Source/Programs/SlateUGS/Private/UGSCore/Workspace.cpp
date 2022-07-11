@@ -407,7 +407,7 @@ EWorkspaceUpdateResult FWorkspace::UpdateWorkspaceInternal(FWorkspaceUpdateConte
 
 				if(UserFilter.IsValid())
 				{
-//					SyncRecords.RemoveAll([&UserFilter](const FPerforceFileRecord& SyncRecord){ return SyncRecord.ClientPath.Len() > 0 && !MatchFilter(FPaths::Con.GetFullPath(x.ClientPath), UserFilter));
+					SyncRecords.RemoveAll([&UserFilter](const FPerforceFileRecord& SyncRecord){ return SyncRecord.ClientPath.Len() > 0 && !UserFilter->Matches(SyncRecord.ClientPath); });
 				}
 
 				for(const FPerforceFileRecord& SyncRecord : SyncRecords)
