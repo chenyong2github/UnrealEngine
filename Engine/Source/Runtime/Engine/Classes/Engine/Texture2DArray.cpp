@@ -207,6 +207,10 @@ void UTexture2DArray::UpdateResource()
 		CachePlatformData();
 	}
 #endif // #if WITH_EDITOR
+	
+#if WITH_EDITORONLY_DATA
+	bSourceGeneratedFromSourceTexturesArray = !Source.GetNumSlices() || SourceTextures.Num();
+#endif
 
 	Super::UpdateResource();
 }
@@ -448,7 +452,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 
 		ValidateSettingsAfterImportOrEdit();
 		SetLightingGuid();
-		UpdateResource();		
+		UpdateResource();
 	}
 
 	return true;
@@ -502,6 +506,10 @@ void UTexture2DArray::PostLoad()
 		}
 	}
 #endif // #if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	bSourceGeneratedFromSourceTexturesArray = !Source.GetNumSlices() || SourceTextures.Num();
+#endif
+
 	Super::PostLoad();
 };
 

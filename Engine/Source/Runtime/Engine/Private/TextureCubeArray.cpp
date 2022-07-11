@@ -454,6 +454,10 @@ void UTextureCubeArray::UpdateResource()
 	}
 #endif // #if WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+	bSourceGeneratedFromSourceTexturesArray = !Source.GetNumSlices() || SourceTextures.Num();
+#endif
+
 	Super::UpdateResource();
 }
 
@@ -768,6 +772,10 @@ void UTextureCubeArray::PostLoad()
 		}
 	}
 #endif // #if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	bSourceGeneratedFromSourceTexturesArray = !Source.GetNumSlices() || SourceTextures.Num();
+#endif
+
 	Super::PostLoad();
 };
 
