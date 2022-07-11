@@ -265,7 +265,7 @@ void UGSTab::SetupWorkspace()
 	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
 	IFileManager::Get().MakeDirectory(*DataFolder);
 
-	UserSettings = MakeShared<FUserSettings>(*(DataFolder / TEXT("UnrealGameSync.ini")));
+	UserSettings = MakeShared<FUserSettings>(*(DataFolder / TEXT("UnrealGameSync_Slate.ini")));
 
 	PerforceClient = DetectSettings->PerforceClient;
 	WorkspaceSettings = UserSettings->FindOrAddWorkspace(*DetectSettings->BranchClientPath);
