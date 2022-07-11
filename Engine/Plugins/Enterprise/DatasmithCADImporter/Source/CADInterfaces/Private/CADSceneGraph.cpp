@@ -132,8 +132,10 @@ FArchiveInstance& FArchiveSceneGraph::AddInstance(const FArchiveCADObject& Paren
 
 	int32 Index = Instances.Emplace(InstanceId, Parent);
 	CADIdToIndex.Add(Index);
+	FArchiveInstance& Instance = Instances[Index];
+	Instance.Unit = Parent.Unit;
 
-	return Instances[Index];
+	return Instance;
 }
 
 FArchiveInstance& FArchiveSceneGraph::GetInstance(FCadId CadId)

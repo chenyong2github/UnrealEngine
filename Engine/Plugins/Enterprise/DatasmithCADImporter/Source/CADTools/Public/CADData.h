@@ -125,13 +125,10 @@ public:
 	 */
 	void DefineGraphicsPropertiesFromNoOverwrite(const FArchiveGraphicProperties& Source)
 	{
-		if (!ColorUId)
+
+		if (!ColorUId && !MaterialUId)
 		{
 			ColorUId = Source.ColorUId;
-		}
-
-		if (!MaterialUId)
-		{
 			MaterialUId = Source.MaterialUId;
 		}
 	}

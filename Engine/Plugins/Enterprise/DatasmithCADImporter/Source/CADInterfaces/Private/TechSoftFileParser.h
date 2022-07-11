@@ -74,8 +74,6 @@ private:
 	void CountUnderModel();
 	void CountUnderConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence);
-	void CountUnderPrototype(const A3DAsmProductOccurrence* Prototype);
-	void CountUnderSubPrototype(const A3DAsmProductOccurrence* Prototype);
 	void CountUnderPartDefinition(const A3DAsmPartDefinition* PartDefinition);
 	void CountUnderRepresentationItem(const A3DRiRepresentationItem* RepresentationItem);
 	void CountUnderRepresentationSet(const A3DRiSet* RepresentationSet);
@@ -164,6 +162,7 @@ protected:
 	double FileUnit = 1;
 
 	TMap<A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
+	TMap<A3DAsmProductOccurrence*, FCadId> ReferenceCache;
 };
 
 } // ns CADLibrary

@@ -361,20 +361,19 @@ TSharedPtr<IDatasmithActorElement>  FDatasmithSceneBaseGraphBuilder::BuildInstan
 	DatasmithSceneGraphBuilderImpl::GetNodeUuidAndLabel(Instance, *Reference, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	TSharedPtr<IDatasmithActorElement> Actor = CreateActor(*ActorUUID, *ActorLabel);
-	if (!Actor.IsValid())
+	if (Actor.IsValid())
 	{
-		return TSharedPtr<IDatasmithActorElement>();
+		AddMetaData(Actor, Instance, *Reference);
+
+		ActorData InstanceData(*ActorUUID, ParentData);
+
+		DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(Instance, InstanceData);
+		DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(*Reference, InstanceData);
+
+		AddChildren(Actor, *Reference, InstanceData);
+
+		DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
 	}
-	AddMetaData(Actor, Instance, *Reference);
-
-	ActorData InstanceData(*ActorUUID, ParentData);
-
-	DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(Instance, InstanceData);
-	DatasmithSceneGraphBuilderImpl::SpreadGraphicProperties(*Reference, InstanceData);
-
-	AddChildren(Actor, *Reference, InstanceData);
-
-	DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
 
 	if (SceneGraph != InstanceSceneGraph)
 	{
