@@ -1416,7 +1416,7 @@ public:
 
 struct FCompareFMeshDrawCommands
 {
-	FORCEINLINE bool operator() (FVisibleMeshDrawCommand A, FVisibleMeshDrawCommand B) const
+	FORCEINLINE bool operator() (const FVisibleMeshDrawCommand& A, const FVisibleMeshDrawCommand& B) const
 	{
 		// First order by a sort key.
 		if (A.SortKey != B.SortKey)
