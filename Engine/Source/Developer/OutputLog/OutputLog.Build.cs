@@ -15,7 +15,7 @@ public class OutputLog : ModuleRules
 				"SlateCore",
                 "TargetPlatform",
                 "DesktopPlatform",
-				"ToolWidgets"
+				"ToolWidgets", 
 			}
 		);
 
@@ -23,10 +23,17 @@ public class OutputLog : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
-						"EditorFramework",
-                        "UnrealEd"
+					"EditorFramework",
+					"UnrealEd",
+					"StatusBar",
 				}
 			);
-        }
-    }
+		}
+
+		if (Target.bCompileAgainstEngine)
+		{
+			// Required for output log drawer in editor / engine builds. 
+			PrivateDependencyModuleNames.Add("Engine");
+		}
+	}
 }

@@ -259,13 +259,14 @@ bool UStatusBarSubsystem::ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, b
 {
 	bool bToggledSuccessfully = false;
 
-	FOutputLogModule& OutputLogModule = FOutputLogModule::Get();
+	FOutputLogModule& OutputLogModule = FModuleManager::Get().LoadModuleChecked<FOutputLogModule>("OutputLog");
+
 
 	// Get the global output log tab if it exists. If it exists and is in the same editor as the status bar we'll focus that instead
 	TSharedPtr<SDockTab> MainOutputLogTab = OutputLogModule.GetOutputLogTab();
 	
-	const bool bCycleToOutputLogDrawer = GetDefault<UOutputLogSettings>()->bCycleToOutputLogDrawer || bAlwaysToggleDrawer;
-
+	const bool bCycleToOutputLogDrawer = OutputLogModule.ShouldCycleToOutputLogDrawer() || bAlwaysToggleDrawer;
+	
 	for (auto StatusBar : StatusBars)
 	{
 		FStatusBarData& SBData = StatusBar.Value;
@@ -339,6 +340,12 @@ bool UStatusBarSubsystem::OpenOutputLogDrawer()
 {
 	TSharedPtr<SWindow> ParentWindow = UE::StatusBarSubsystem::Private::FindParentWindow();
 
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Notification)
+	{
+		// Get the parent window directly behind the notification. 
+		ParentWindow = FSlateApplication::Get().GetActiveTopLevelRegularWindow(); 
+	}
+	
 	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
 	{
 		return ToggleDebugConsole(ParentWindow.ToSharedRef(), true);
@@ -444,7 +451,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 
 	StatusBar->RegisterDrawer(MoveTemp(ContentBrowserDrawer));
 
-	FOutputLogModule& OutputLogModule = FOutputLogModule::Get();
+	FOutputLogModule& OutputLogModule = FModuleManager::Get().LoadModuleChecked<FOutputLogModule>("OutputLog");
 
 	TWeakPtr<SStatusBar> StatusBarWeakPtr = StatusBar;
 
@@ -515,6 +522,31 @@ bool UStatusBarSubsystem::ActiveWindowHasStatusBar() const
 		}
 	}
 
+	return false;
+}
+
+// This function is identical to UStatusBarSubsystem::ActiveWindowHasStatusBar(), except the variable ParentWindow stores the topmost
+// Regular window rather than the direct parent window. This function is only used when users click on the hyperlink "Show Output Log" on 
+// the notification window. 
+bool UStatusBarSubsystem::ActiveWindowBehindNotificationHasStatusBar()
+{
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelRegularWindow(); 
+
+	// Same code as ActiveWindowHasStatusBar() from here: 
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		for (const TPair<FName, FStatusBarData>& StatusBar : StatusBars)
+		{
+			if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
+			{
+				TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
+				if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
+				{
+					return true;
+				}
+			}
+		}
+	}
 	return false;
 }
 
@@ -767,9 +799,11 @@ void UStatusBarSubsystem::HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> P
 
 TSharedRef<SWidget> UStatusBarSubsystem::OnGetOutputLog()
 {
+	FOutputLogModule& OutputLogModule = FModuleManager::Get().LoadModuleChecked<FOutputLogModule>("OutputLog"); 
+
 	if (!StatusBarOutputLog)
 	{
-		StatusBarOutputLog = FOutputLogModule::Get().MakeOutputLogDrawerWidget(FSimpleDelegate::CreateUObject(this, &UStatusBarSubsystem::OnDebugConsoleDrawerClosed));
+		StatusBarOutputLog = OutputLogModule.MakeOutputLogDrawerWidget(FSimpleDelegate::CreateUObject(this, &UStatusBarSubsystem::OnDebugConsoleDrawerClosed));
 	}
 
 	return StatusBarOutputLog.ToSharedRef();
@@ -788,8 +822,8 @@ void UStatusBarSubsystem::OnOutputLogOpened(FName StatusBarWithDrawerName)
 			}
 		}
 	}
-
-	FOutputLogModule::Get().FocusOutputLogConsoleBox(StatusBarOutputLog.ToSharedRef());
+	FOutputLogModule& OutputLogModule = FModuleManager::Get().LoadModuleChecked<FOutputLogModule>("OutputLog");
+	OutputLogModule.FocusOutputLogConsoleBox(StatusBarOutputLog.ToSharedRef());
 }
 
 void UStatusBarSubsystem::OnOutputLogDismised(const TSharedPtr<SWidget>& NewlyFocusedWidget)

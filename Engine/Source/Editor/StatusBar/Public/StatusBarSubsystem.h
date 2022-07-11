@@ -116,6 +116,11 @@ public:
 	bool ActiveWindowHasStatusBar() const;
 
 	/**
+	 * @return true if a status bar was found for the active window immediately behind a Notification Window
+	*/
+	bool ActiveWindowBehindNotificationHasStatusBar();
+
+	/**
 	 * Creates a new instance of a status bar widget
 	 *
 	 * @param StatusBarName	The name of the status bar to add the drawer to

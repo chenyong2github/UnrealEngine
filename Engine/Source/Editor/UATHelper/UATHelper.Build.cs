@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
                     "UnrealEd",
 					"Analytics",
+					"OutputLog", 
 			    }
 			);
 		}
