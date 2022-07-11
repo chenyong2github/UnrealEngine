@@ -6990,11 +6990,9 @@ void FChildActorComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 				static FText RestrictReason = LOCTEXT("NoSelfChildActors", "Cannot append a child-actor of this blueprint type (could cause infinite recursion).");
 				TSharedPtr<FPropertyRestriction> ClassRestriction = MakeShareable(new FPropertyRestriction(RestrictReason));
 
-				ClassRestriction->AddDisabledValue(Blueprint->GetName());
 				ClassRestriction->AddDisabledValue(Blueprint->GetPathName());
 				if (Blueprint->GeneratedClass)
 				{
-					ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetName());
 					ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetPathName());
 				}
 
