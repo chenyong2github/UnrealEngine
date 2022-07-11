@@ -16,6 +16,7 @@ UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   GameSyncTabView(SNew(SGameSyncTab).Tab(this))
 {
 	TabWidget->SetContent(EmptyTabView);
+	TabWidget->SetLabel(FText(LOCTEXT("TabName", "Select a Project")));
 }
 
 const TSharedRef<SDockTab> UGSTab::GetTabWidget()
@@ -200,7 +201,10 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 	{
 		ProjectFileName = Project;
 		SetupWorkspace();
+		GameSyncTabView->SetStreamPathText(FText::FromString(DetectSettings->StreamName));
+		GameSyncTabView->SetProjectPathText(FText::FromString(ProjectFileName));
 		TabWidget->SetContent(GameSyncTabView); // Todo: Set GameSyncTabView data
+		TabWidget->SetLabel(FText::FromString(DetectSettings->StreamName));
 		return true;
 	}
 
@@ -228,6 +232,16 @@ void UGSTab::OnSyncLatest()
 	}
 
 	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
+}
+
+bool UGSTab::IsSyncing() const
+{
+	if (Workspace.IsValid())
+	{
+		return Workspace->IsBusy();
+	}
+
+	return false;
 }
 
 void UGSTab::SetupWorkspace()

@@ -12,6 +12,8 @@
 #include "Widgets/Testing/STestSuite.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Colors/SSimpleGradient.h"
+#include "Widgets/Images/SThrobber.h"
+
 
 #include "Styling/AppStyle.h"
 
@@ -145,6 +147,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		.Padding(20.0f, 5.0f)
 		[
 			SNew(SBorder)
+			.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SHorizontalBox)
@@ -261,7 +264,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					.Text(LOCTEXT("StreamLogoText", "Fortnite Stream Logo")) // Todo: replace with logo image
 					.TextStyle(FAppStyle::Get(), TEXT("Menu.Heading"))
 				]
-				// Stream, Changelist, uproject path
+				// Stream and uproject path
 				+SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
@@ -281,26 +284,8 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						+SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("StreamTextValue", "//UE5/Main")) // Todo: replace literal
-						]
-					]
-					+SVerticalBox::Slot()
-					.Padding(10.0f, 12.5f)
-					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.Padding(5.0f, 0.0f)
-						.HAlign(HAlign_Right)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("ChangelistText", "CHANGELIST"))
-						]
-						+SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("ChangelistValue", "14066246")) // Todo: replace literal
+							SAssignNew(StreamPathText, STextBlock)
+							.Text(LOCTEXT("StreamTextValue", "No stream path found"))
 						]
 					]
 					+SVerticalBox::Slot()
@@ -317,8 +302,8 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						+SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("ProjectValue", "/media/robertseiver/DATA1/UE5-Main/QAGame/QAGame.uproject")) // Todo: replace literal
+							SAssignNew(ProjectPathText, STextBlock)
+							.Text(LOCTEXT("ProjectValue", "No project path found"))
 						]
 					]
 				]
@@ -328,19 +313,19 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				[
 					SNew(SHorizontalBox) // Todo: Only display this widget when syncing
+					.Visibility_Lambda([this] { return Tab->IsSyncing() ? EVisibility::Visible : EVisibility::Hidden; })
 					+SHorizontalBox::Slot()
-					.Padding(10.0f, 10.0f)
-					.AutoWidth()
-					[
-						SNew(SImage) // Todo: stop image from being vertically stretched
-						.Image(FAppStyle::Get().GetBrush("Icons.Refresh"))
-					]
-					+SHorizontalBox::Slot()
-					.Padding(10.0f, 10.0f)
+					.Padding(5.0f, 10.0f)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("SyncProgress", "Syncing Files... (85/7827)"))
+						.Text(LOCTEXT("SyncProgress", "Syncing Files"))
+					]
+					+SHorizontalBox::Slot()
+					.Padding(0.0f, 5.0f, 10.0f, 5.0f)
+					.AutoWidth()
+					[
+						SNew(SThrobber)
 					]
 				]
 			]
@@ -351,6 +336,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		.FillHeight(0.45f)
 		[
 			SAssignNew(HordeBuildsView, SListView<TSharedPtr<HordeBuildRowInfo>>)
+			.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 			.ListItemsSource(&HordeBuilds)
 			.HeaderRow(
 				SNew(SHeaderRow)
@@ -405,6 +391,17 @@ TSharedPtr<SLogWidget> SGameSyncTab::GetSyncLog() const
 void SGameSyncTab::SetSyncLogLocation(const FString& LogFileName)
 {
     SyncLog->OpenFile(*LogFileName);
+}
+
+void SGameSyncTab::SetStreamPathText(FText StreamPath)
+{
+	fprintf(stderr, "Setting stream path to: %s\n", TCHAR_TO_ANSI(*StreamPath.ToString()));
+	StreamPathText->SetText(StreamPath);
+}
+void SGameSyncTab::SetProjectPathText(FText ProjectPath)
+{
+	fprintf(stderr, "Setting project path to: %s\n", TCHAR_TO_ANSI(*ProjectPath.ToString()));
+	ProjectPathText->SetText(ProjectPath);
 }
 
 #undef LOCTEXT_NAMESPACE

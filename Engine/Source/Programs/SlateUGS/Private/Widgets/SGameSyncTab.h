@@ -23,16 +23,21 @@ public:
 	TSharedPtr<SLogWidget> GetSyncLog() const;
 	void SetSyncLogLocation(const FString& LogFileName);
 
+	void SetStreamPathText(FText StreamPath);
+	// void SetChangelistText(FText Changelist); // Todo: Display the LAST SYNC'd changelist
+	void SetProjectPathText(FText ProjectPath);
+
 private:
 	TSharedRef<ITableRow> GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable);
-
-	// Button callbacks
 	TSharedRef<SWidget> MakeSyncButtonDropdown();
 
 	TSharedPtr<SListView<TSharedPtr<HordeBuildRowInfo>>> HordeBuildsView;
 	TArray<TSharedPtr<HordeBuildRowInfo>> HordeBuilds;
 
 	TSharedPtr<SLogWidget> SyncLog;
+
+	TSharedPtr<STextBlock> StreamPathText;
+	TSharedPtr<STextBlock> ProjectPathText;
 
 	static constexpr float HordeBuildRowHorizontalPadding = 10.0f;
 	static constexpr float HordeBuildRowVerticalPadding = 2.5f;

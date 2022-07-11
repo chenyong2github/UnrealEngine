@@ -23,6 +23,7 @@ public:
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
 	void OnSyncLatest();
+	bool IsSyncing() const;
 private:
 
 	// Core functions

@@ -65,7 +65,6 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 			 			.OnTextChanged_Lambda([this](const FText& InText)
 						{
 							WorkspacePathText = InText.ToString();
-							fprintf(stderr, "Workspace path text changed to: %s\n", TCHAR_TO_ANSI(*WorkspacePathText));
 						})
 					]
 					+SHorizontalBox::Slot()
