@@ -334,7 +334,6 @@ namespace AutomationTool
             this.UnversionedCookedContent = InParams.UnversionedCookedContent;
 			this.OptionalContent = InParams.OptionalContent;
 			this.SkipCookingEditorContent = InParams.SkipCookingEditorContent;
-            this.NumCookersToSpawn = InParams.NumCookersToSpawn;
 			this.FileServer = InParams.FileServer;
 			this.DedicatedServer = InParams.DedicatedServer;
 			this.Client = InParams.Client;
@@ -478,7 +477,6 @@ namespace AutomationTool
             bool? EncryptPakIndex = null,
 			bool? EncryptEverything = null,
 			bool? SkipCookingEditorContent = null,
-            int? NumCookersToSpawn = null,
             string AdditionalCookerOptions = null,
 			string OriginalReleaseVersion = null,
 			string BasedOnReleaseVersion = null,
@@ -756,14 +754,6 @@ namespace AutomationTool
             this.UnversionedCookedContent = GetOptionalParamValueIfNotSpecified(Command, UnversionedCookedContent, this.UnversionedCookedContent, "UnversionedCookedContent", "VersionCookedContent");
 			this.OptionalContent = GetOptionalParamValueIfNotSpecified(Command, OptionalContent, this.OptionalContent, "editoroptional", "noeditoroptional");
 			this.SkipCookingEditorContent = GetParamValueIfNotSpecified(Command, SkipCookingEditorContent, this.SkipCookingEditorContent, "SkipCookingEditorContent");
-            if (NumCookersToSpawn.HasValue)
-            {
-                this.NumCookersToSpawn = NumCookersToSpawn.Value;
-            }
-            else if (Command != null)
-            {
-                this.NumCookersToSpawn = Command.ParseParamInt("NumCookersToSpawn");
-            }
 			this.Compressed = GetParamValueIfNotSpecified(Command, Compressed, this.Compressed, "compressed");
 			this.ForceUncompressed = GetParamValueIfNotSpecified(Command, ForceUncompressed, this.ForceUncompressed, "ForceUncompressed");
 			this.AdditionalPakOptions = ParseParamValueIfNotSpecified(Command, AdditionalPakOptions, "AdditionalPakOptions");

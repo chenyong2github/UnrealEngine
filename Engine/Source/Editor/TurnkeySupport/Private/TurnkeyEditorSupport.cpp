@@ -40,11 +40,6 @@ FString FTurnkeyEditorSupport::GetUATOptions()
 	FString Options;
 	Options += FString::Printf(TEXT(" -unrealexe=\"%s\""), *FUnrealEdMisc::Get().GetExecutableForCommandlets());
 
-	int32 NumCookers = GetDefault<UEditorExperimentalSettings>()->MultiProcessCooking;
-	if (NumCookers > 0)
-	{
-		Options += FString::Printf(TEXT(" -NumCookersToSpawn=%d"), NumCookers);
-	}
 	return Options;
 #else
 	return TEXT("");

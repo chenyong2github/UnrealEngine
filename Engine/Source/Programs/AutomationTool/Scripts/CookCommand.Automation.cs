@@ -185,10 +185,6 @@ namespace AutomationScripts
 			{
 				CommandletParams += " -createreleaseversion=" + Params.CreateReleaseVersion;
 			}
-			if (Params.NumCookersToSpawn != 0)
-			{
-				CommandletParams += " -numcookerstospawn=" + Params.NumCookersToSpawn;
-			}
 			if (Params.CookPartialGC)
 			{
 				CommandletParams += " -partialgc";

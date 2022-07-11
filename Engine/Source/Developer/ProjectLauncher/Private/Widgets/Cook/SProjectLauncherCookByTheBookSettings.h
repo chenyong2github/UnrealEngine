@@ -139,11 +139,6 @@ private:
 	/** Callback for changing the cookers additional options */
 	void HandleCookerOptionsCommitted(const FText& NewText, ETextCommit::Type CommitType);
 
-	/** Callback for when the number of cookers need to be refreshed */
-	FText HandleMultiProcessCookerTextBlockText() const;
-	/** callback for when the number of cookers changes */
-	void HandleMultiProcessCookerCommitted(const FText& NewText, ETextCommit::Type CommitType);
-
 	/** Callback for updating any settings after the selected project has changed in the profile. */
 	void HandleProfileProjectChanged();
 

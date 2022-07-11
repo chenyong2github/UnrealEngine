@@ -50,6 +50,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDUSEIOSTORE = 29,
 	LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG = 30,
 	LAUNCHERSERVICES_ADDEDREFERENCECONTAINERS = 31,
+	LAUNCHERSERVICES_REMOVEDNUMCOOKERSTOSPAWN = 32,
 	//ADD NEW STUFF HERE
 
 
@@ -418,11 +419,6 @@ public:
 	virtual const TArray<FString>& GetCookedCultures( ) const override
 	{
 		return CookedCultures;
-	}
-
-	virtual const int32 GetNumCookersToSpawn() const override
-	{
-		return NumCookersToSpawn;
 	}
 
 	virtual const bool GetSkipCookingEditorContent() const override
@@ -969,9 +965,10 @@ public:
 		{
 			Archive << DeployPlatformString;
 		}		
-		if (Version >= LAUNCHERSERVICES_ADDEDNUMCOOKERSTOSPAWN)
+		if (Version >= LAUNCHERSERVICES_ADDEDNUMCOOKERSTOSPAWN && Version < LAUNCHERSERVICES_REMOVEDNUMCOOKERSTOSPAWN)
 		{
-			Archive << NumCookersToSpawn;
+			int32 OldNumCookersToSpawn;
+			Archive << OldNumCookersToSpawn;
 		}
 		if (Version >= LAUNCHERSERVICES_ADDEDSKIPCOOKINGEDITORCONTENT)
 		{
@@ -1172,7 +1169,6 @@ public:
 		Writer.WriteValue("EncryptIniFiles", EncryptIniFiles);
 		Writer.WriteValue("ForDistribution", ForDistribution);
 		Writer.WriteValue("DeployPlatform", DefaultDeployPlatform.ToString());
-		Writer.WriteValue("NumCookersToSpawn", NumCookersToSpawn);
 		Writer.WriteValue("SkipCookingEditorContent", bSkipCookingEditorContent);
 		Writer.WriteValue("DeployIncremental", DeployIncremental);
 		Writer.WriteValue("GeneratePatch", GeneratePatch);
@@ -1424,11 +1420,6 @@ public:
 					Writer.WriteValue("archivedirectory", GetArchiveDirectory());
 				}
 
-				if (GetNumCookersToSpawn() > 0)
-				{
-					Writer.WriteValue("numcookerstospawn", GetNumCookersToSpawn());
-				}
-
 				TMap<FString, FString> CookCommands = ParseCommands(GetCookOptions());
 				for (TMap<FString, FString>::TIterator Iter = CookCommands.CreateIterator(); Iter; ++Iter)
 				{
@@ -1552,7 +1543,6 @@ public:
 		"cookontheflystreaming", "true/false"
 		"unversionedcookcontent", "true/false"
 		"skipcookingeditorcontent", "true/false"
-		"numcookerstospawn", "8"
 		"compressed", "true/false"
 		"iterativecooking", "true/false"
 		"skipcookonthefly", "true/false"
@@ -1812,7 +1802,6 @@ public:
 		}
 
 		DefaultDeployPlatform = *(Object.GetStringField("DeployPlatform"));
-		NumCookersToSpawn = (int32)Object.GetNumberField("NumCookersToSpawn");
 		bSkipCookingEditorContent = Object.GetBoolField("SkipCookingEditorContent");
 		DeployIncremental = Object.GetBoolField("DeployIncremental");
 		GeneratePatch = Object.GetBoolField("GeneratePatch");
@@ -1979,7 +1968,6 @@ public:
 		bSkipCookingEditorContent = false;
         ForceClose = true;
         Timeout = 60;
-		NumCookersToSpawn = 0;
 
 /*		if (GetTargetPlatformManager()->GetRunningTargetPlatform() != NULL)
 		{
@@ -2114,15 +2102,6 @@ public:
 		{
 			CookOptions = Options;
 
-			Validate();
-		}
-	}
-
-	virtual void SetNumCookersToSpawn(const int32 InNumCookersToSpawn) override
-	{
-		if (NumCookersToSpawn != InNumCookersToSpawn)
-		{
-			NumCookersToSpawn = InNumCookersToSpawn;
 			Validate();
 		}
 	}
@@ -2864,9 +2843,6 @@ private:
 
 	// Holds a flag indicating whether packages should be saved without a version.
 	bool CookUnversioned;
-
-	// num cookers we want to spawn during cooking
-	int32 NumCookersToSpawn;
 
 	bool bSkipCookingEditorContent;
 

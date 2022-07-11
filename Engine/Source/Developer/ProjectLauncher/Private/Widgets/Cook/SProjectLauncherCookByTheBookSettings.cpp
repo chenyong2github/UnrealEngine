@@ -661,26 +661,6 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 								]
 						]
 
-					// multiprocess cooking options
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(0.0f, 8.0f, 0.0f, 0.0f)
-						[
-							SNew(SProjectLauncherFormLabel)
-								.LabelText(LOCTEXT("MultiProcessCookerTextBoxLabel", "Num cookers to spawn:"))
-						]
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(0.0f, 4.0f, 0.0f, 0.0f)
-						[
-							// cooker command line options
-							SNew(SEditableTextBox)
-								.ToolTipText(LOCTEXT("MultiProcessCookerTextBoxTooltip", "The number of cookers to spawn when we do a cook by the book."))
-								.Text(this, &SProjectLauncherCookByTheBookSettings::HandleMultiProcessCookerTextBlockText)
-								.OnTextCommitted(this, &SProjectLauncherCookByTheBookSettings::HandleMultiProcessCookerCommitted)
-						]
-
 					// unreal pak check box
 					+ SVerticalBox::Slot()
 						.AutoHeight()
@@ -1641,42 +1621,6 @@ void SProjectLauncherCookByTheBookSettings::HandleCookerOptionsCommitted(const F
 			break;
 		}
 		SelectedProfile->SetCookOptions(useOptions);
-	}
-}
-
-
-FText SProjectLauncherCookByTheBookSettings::HandleMultiProcessCookerTextBlockText() const
-{
-	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
-
-	FText result;
-
-	if (SelectedProfile.IsValid())
-	{
-		result = FText::FromString(FString::FromInt(SelectedProfile->GetNumCookersToSpawn()));
-	}
-
-	return result;
-}
-
-
-void SProjectLauncherCookByTheBookSettings::HandleMultiProcessCookerCommitted(const FText& NewText, ETextCommit::Type CommitType)
-{
-	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
-
-	if (SelectedProfile.IsValid())
-	{
-		int32 NumCookersToSpawn = FCString::Atoi(*NewText.ToString());
-		switch (CommitType)
-		{
-		case ETextCommit::Default:
-		case ETextCommit::OnCleared:
-			NumCookersToSpawn = 0;
-			break;
-		default:
-			break;
-		}
-		SelectedProfile->SetNumCookersToSpawn(NumCookersToSpawn);
 	}
 }
 
