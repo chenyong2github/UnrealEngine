@@ -200,6 +200,8 @@ namespace Audio
 
 	void FMixerDevice::OnListenerUpdated(const TArray<FListener>& InListeners)
 	{
+		LLM_SCOPE(ELLMTag::AudioMixer);
+
 		ListenerTransforms.Reset(InListeners.Num());
 
 		for (const FListener& Listener : InListeners)

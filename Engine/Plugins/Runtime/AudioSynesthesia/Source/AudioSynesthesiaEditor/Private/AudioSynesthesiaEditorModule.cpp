@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioSynesthesiaEditorModule.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+
 #include "AssetToolsModule.h"
-#include "UObject/UObjectIterator.h"
-#include "AudioSynesthesiaNRT.h"
-#include "AudioSynesthesia.h"
 #include "AssetTypeActions_AudioSynesthesiaNRT.h"
 #include "AssetTypeActions_AudioSynesthesiaNRTSettings.h"
 #include "AssetTypeActions_AudioSynesthesiaSettings.h"
+#include "AudioAnalyzerModule.h"
+#include "AudioSynesthesia.h"
+#include "AudioSynesthesiaNRT.h"
+#include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/UObjectIterator.h"
 
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesiaEditor);
@@ -22,6 +25,7 @@ public:
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(AudioAnalysis);
 		RegisterAssetActions();
 	}
 

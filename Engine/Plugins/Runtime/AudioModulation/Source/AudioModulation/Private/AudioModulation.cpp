@@ -7,6 +7,7 @@
 #include "AudioModulationSystem.h"
 #include "CanvasTypes.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "IAudioModulation.h"
 #include "Modules/ModuleManager.h"
 #include "SoundControlBusMix.h"
@@ -256,6 +257,7 @@ TAudioModulationPtr FAudioModulationPluginFactory::CreateNewModulationPlugin(FAu
 
 void FAudioModulationModule::StartupModule()
 {
+	LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 	IModularFeatures::Get().RegisterModularFeature(FAudioModulationPluginFactory::GetModularFeatureName(), &ModulationPluginFactory);
 
 	if (const UAudioModulationSettings* ModulationSettings = GetDefault<UAudioModulationSettings>())
@@ -274,6 +276,7 @@ void FAudioModulationModule::StartupModule()
 
 void FAudioModulationModule::ShutdownModule()
 {
+	LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 	IModularFeatures::Get().UnregisterModularFeature(FAudioModulationPluginFactory::GetModularFeatureName(), &ModulationPluginFactory);
 	UE_LOG(LogAudioModulation, Log, TEXT("Audio Modulation Shutdown"));
 }

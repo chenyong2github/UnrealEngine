@@ -10,6 +10,8 @@ namespace Audio
 {
 	IAnalyzerFactory* GetAnalyzerFactory(FName InFactoryName)
 	{
+		LLM_SCOPE_BYTAG(AudioAnalysis);
+
 		// Get all analyzer nrt factories implementations.
 		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IAnalyzerFactory*> RegisteredFactories = IModularFeatures::Get().GetModularFeatureImplementations<IAnalyzerFactory>(IAnalyzerFactory::GetModularFeatureName());
@@ -43,6 +45,8 @@ namespace Audio
 
 	TUniquePtr<IAnalyzerResult> FAnalyzerFacade::AnalyzeAudioBuffer(const TArray<float>& InAudioBuffer, int32 InNumChannels, float InSampleRate)
 	{
+		LLM_SCOPE_BYTAG(AudioAnalysis);
+
 		if (nullptr == Factory)
 		{
 			UE_LOG(LogAudioAnalyzer, Error, TEXT("Cannot analyze audio due to null factory"));

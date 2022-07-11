@@ -216,6 +216,10 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		FMetasoundFrontendInterfaceStyle InputStyle;
 #endif // WITH_EDITOR
 
+		// Reserve memory to minimize memory use in ClassInterface.Inputs array.
+		ClassInterface.Inputs.Reserve(InputInterface.Num());
+
+
 		for (const FInputDataVertex& InputVertex : InputInterface)
 		{
 			FMetasoundFrontendClassInput ClassInput;
@@ -270,6 +274,9 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		FMetasoundFrontendInterfaceStyle OutputStyle;
 #endif // WITH_EDITOR
 
+		// Reserve memory to minimize memory use in ClassInterface.Outputs array.
+		ClassInterface.Outputs.Reserve(OutputInterface.Num());
+
 		for (const FOutputDataVertex& OutputVertex: OutputInterface)
 		{
 			FMetasoundFrontendClassOutput ClassOutput;
@@ -308,6 +315,9 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		ClassInterface.OutputStyle = MoveTemp(OutputStyle);
 #endif // WITH_EDITOR
 	}
+
+	// Reserve size to minimize memory use in ClassInterface.Environment array
+	ClassInterface.Environment.Reserve(InVertexInterface.GetEnvironmentInterface().Num());
 
 	for (const FEnvironmentVertex& EnvVertex : InVertexInterface.GetEnvironmentInterface())
 	{

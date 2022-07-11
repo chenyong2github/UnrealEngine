@@ -2,12 +2,18 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
 #include "CoreMinimal.h"
+#endif
+
+#include "HAL/LowLevelMemTracker.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioAnalyzer, Log, All);
+LLM_DECLARE_TAG_API(AudioAnalysis, AUDIOANALYZER_API);
 
-class FAudioAnalyzerModule : public IModuleInterface
+class AUDIOANALYZER_API FAudioAnalyzerModule : public IModuleInterface
 {
 	public:
 	/** IModuleInterface implementation */

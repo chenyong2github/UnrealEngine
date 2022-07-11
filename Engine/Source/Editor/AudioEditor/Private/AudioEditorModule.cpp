@@ -22,6 +22,7 @@
 #include "EdGraphUtilities.h"
 #include "Factories/ReimportSoundFactory.h"
 #include "Factories/SoundFactory.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Sound/AudioSettings.h"
@@ -79,12 +80,14 @@ class FAudioEditorModule : public IAudioEditorModule
 public:
 	FAudioEditorModule()
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		// Create style set for audio asset icons
 		AudioStyleSet = MakeShared<FSlateStyleSet>("AudioStyleSet");
 	}
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		SoundClassExtensibility.Init();
 		SoundCueExtensibility.Init();
 		SoundSubmixExtensibility.Init();
@@ -139,6 +142,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 #if WITH_SNDFILE_IO
 		Audio::ShutdownSoundFileIOManager();
 #endif // WITH_SNDFILE_IO
@@ -177,6 +181,7 @@ public:
 
 	virtual void RegisterAssetActions() override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		// Register the audio editor asset type actions
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
@@ -249,6 +254,7 @@ public:
 
 	virtual TSharedRef<FAssetEditorToolkit> CreateSoundClassEditor( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundClass* InSoundClass ) override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		TSharedRef<FSoundClassEditor> NewSoundClassEditor(new FSoundClassEditor());
 		NewSoundClassEditor->InitSoundClassEditor(Mode, InitToolkitHost, InSoundClass);
 		return NewSoundClassEditor;
@@ -256,6 +262,7 @@ public:
 
 	virtual TSharedRef<FAssetEditorToolkit> CreateSoundSubmixEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundSubmixBase* InSoundSubmix) override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		TSharedPtr<FSoundSubmixEditor> NewSubmixEditor = MakeShared<FSoundSubmixEditor>();
 		NewSubmixEditor->Init(Mode, InitToolkitHost, InSoundSubmix);
 		return StaticCastSharedPtr<FAssetEditorToolkit>(NewSubmixEditor).ToSharedRef();
@@ -283,6 +290,7 @@ public:
 
 	virtual TSharedRef<ISoundCueEditor> CreateSoundCueEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundCue* SoundCue) override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		TSharedRef<FSoundCueEditor> NewSoundCueEditor(new FSoundCueEditor());
 		NewSoundCueEditor->InitSoundCueEditor(Mode, InitToolkitHost, SoundCue);
 		return NewSoundCueEditor;
@@ -335,6 +343,7 @@ public:
 
 	USoundWave* ImportSoundWave(UPackage* const SoundWavePackage, const FString& InSoundWaveAssetName, const FString& InWavFilename) override
 	{
+		LLM_SCOPE(ELLMTag::AudioMisc);
 		USoundFactory* SoundWaveFactory = NewObject<USoundFactory>();
 
 		// Setup sane defaults for importing localized sound waves

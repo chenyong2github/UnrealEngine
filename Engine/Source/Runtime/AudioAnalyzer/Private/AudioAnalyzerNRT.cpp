@@ -6,7 +6,6 @@
 #include "SampleBuffer.h"
 #include "Async/Async.h"
 
-
 #if WITH_EDITOR
 
 namespace 
@@ -123,6 +122,8 @@ bool UAudioAnalyzerNRT::ShouldEventTriggerAnalysis(struct FPropertyChangedEvent 
 
 void UAudioAnalyzerNRT::AnalyzeAudio()
 {
+	LLM_SCOPE_BYTAG(AudioAnalysis);
+
 	TSharedPtr<Audio::IAnalyzerNRTResult, ESPMode::ThreadSafe> NewResult;
 
 	// Create a new result id for this result.
@@ -268,6 +269,8 @@ void UAudioAnalyzerNRT::Serialize(FArchive& Ar)
 
 TUniquePtr<Audio::IAnalyzerNRTSettings> UAudioAnalyzerNRT::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
+	LLM_SCOPE_BYTAG(AudioAnalysis);
+
 	return MakeUnique<Audio::IAnalyzerNRTSettings>();
 }
 

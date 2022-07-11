@@ -8,6 +8,7 @@
 #include "MetasoundEngineArchetypes.h"
 #include "MetasoundInterface.h"
 #include "MetasoundSource.h"
+#include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "MetasoundWaveTable.h"
@@ -26,6 +27,7 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
+		METASOUND_LLM_SCOPE;
 		FModuleManager::Get().LoadModuleChecked("MetasoundGraphCore");
 		FModuleManager::Get().LoadModuleChecked("MetasoundFrontend");
 		FModuleManager::Get().LoadModuleChecked("MetasoundStandardNodes");

@@ -32,6 +32,7 @@
 #include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Modules/ModuleInterface.h"
@@ -651,6 +652,7 @@ namespace Metasound
 
 			virtual void StartupModule() override
 			{
+				METASOUND_LLM_SCOPE;
 				// Register Metasound asset type actions
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
 
@@ -756,6 +758,8 @@ namespace Metasound
 
 			virtual void ShutdownModule() override
 			{
+				METASOUND_LLM_SCOPE;
+
 				if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 				{
 					SettingsModule->UnregisterSettings("Editor", "Audio", "MetaSound Editor");

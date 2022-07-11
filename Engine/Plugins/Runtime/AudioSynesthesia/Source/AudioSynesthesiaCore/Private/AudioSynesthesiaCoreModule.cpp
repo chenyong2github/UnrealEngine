@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioSynesthesiaCoreModule.h"
 
+#include "AudioAnalyzerModule.h"
 #include "AudioSynesthesiaCoreLog.h"
 #include "ConstantQNRTFactory.h"
 #include "CoreMinimal.h"
@@ -21,6 +22,7 @@ namespace Audio
 		public:
 			void StartupModule()
 			{
+				LLM_SCOPE_BYNAME(TEXT("Audio/AudioAnalysis"));
 				// Register factories on startup
 				IModularFeatures::Get().RegisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessNRTFactory);
 				IModularFeatures::Get().RegisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQNRTFactory);
@@ -32,6 +34,7 @@ namespace Audio
 
 			void ShutdownModule()
 			{
+				LLM_SCOPE_BYNAME(TEXT("Audio/AudioAnalysis"));
 				// Unregister factories on shutdown
 				IModularFeatures::Get().UnregisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessNRTFactory);
 				IModularFeatures::Get().UnregisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQNRTFactory);
@@ -49,7 +52,6 @@ namespace Audio
 			FLoudnessFactory LoudnessFactory;
 			FMeterFactory MeterFactory;
 	};
-
 }
 
 IMPLEMENT_MODULE(Audio::FAudioSynesthesiaCoreModule, AudioSynesthesiaCore);

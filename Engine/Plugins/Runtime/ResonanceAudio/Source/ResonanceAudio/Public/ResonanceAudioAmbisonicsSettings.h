@@ -4,9 +4,12 @@
 
 #pragma once
 
-#include "ResonanceAudioCommon.h"
+#include "AudioDevice.h"
 #include "ISoundfieldFormat.h"
+#include "ResonanceAudioCommon.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "ResonanceAudioAmbisonicsSettings.generated.h"
+
 
 UENUM()
 enum class EResonanceRenderMode : uint8
@@ -45,6 +48,7 @@ public:
 
 	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> Duplicate() const override
 	{
+		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
 		FResonanceAmbisonicsSettingsProxy* Proxy = new FResonanceAmbisonicsSettingsProxy();
 		Proxy->RenderingMode = RenderingMode;
 		return TUniquePtr<ISoundfieldEncodingSettingsProxy>(Proxy);
@@ -63,6 +67,7 @@ public:
 
 	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> GetProxy() const override
 	{
+		LLM_SCOPE_BYTAG(AudioSpatializationPlugins);
 		FResonanceAmbisonicsSettingsProxy* Proxy = new FResonanceAmbisonicsSettingsProxy();
 
 		switch (RenderMode)

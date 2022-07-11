@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #if !defined(METASOUND_CPUPROFILERTRACE_ENABLED)
@@ -29,6 +30,8 @@
 
 #endif
 
+LLM_DECLARE_TAG_API(MetaSound, METASOUNDGRAPHCORE_API);
 // Convenience macro for MetaSound LLM scope to avoid misspells. 
-#define METASOUND_LLM_SCOPE LLM_SCOPE_BYNAME(TEXT("Audio/MetaSound"));
+//
+#define METASOUND_LLM_SCOPE LLM_SCOPE_BYTAG(MetaSound);
 

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCapture.h"
+
+#include "AudioCaptureCore.h"
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
-#include "AudioCaptureCore.h"
-#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY(LogAudioCapture);
 
@@ -81,6 +83,7 @@ bool UAudioCapture::IsCapturingAudio()
 
 UAudioCapture* UAudioCaptureFunctionLibrary::CreateAudioCapture()
 {
+	LLM_SCOPE(ELLMTag::Audio);
 	UAudioCapture* NewAudioCapture = NewObject<UAudioCapture>();
 	if (NewAudioCapture->OpenDefaultAudioStream())
 	{
@@ -93,6 +96,7 @@ UAudioCapture* UAudioCaptureFunctionLibrary::CreateAudioCapture()
 
 void FAudioCaptureModule::StartupModule()
 {
+	LLM_SCOPE(ELLMTag::Audio);
 	// Load platform specific implementations for audio capture (if specified in a .ini file)
 	FString AudioCaptureModuleName;
 	if (GConfig->GetString(TEXT("Audio"), TEXT("AudioCaptureModuleName"), AudioCaptureModuleName, GEngineIni))
