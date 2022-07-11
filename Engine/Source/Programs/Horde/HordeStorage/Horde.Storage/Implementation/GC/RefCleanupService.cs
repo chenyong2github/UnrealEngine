@@ -60,21 +60,14 @@ namespace Horde.Storage.Implementation
                     return false;
                 }
                 List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
-                await Parallel.ForEachAsync(namespaces, cancellationToken, async (ns, token) =>
-                {
-                    _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
-                    try
-                    {
-                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, token);
-                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
-                            countOfRemovedRecords);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
-                    }
-                });
+                List<Task> cleanupTasks = new List<Task>();
 
+                foreach(NamespaceId ns in namespaces)
+                {
+                    cleanupTasks.Add(DoCleanup(ns, state, cancellationToken));
+                }
+
+                await Task.WhenAll(cleanupTasks);
                 // Do not run the cleanup of legacy namespaces as this can take a very long time and we do not care about these anymore
                 /*
                  await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
@@ -96,6 +89,21 @@ namespace Horde.Storage.Implementation
             finally
             {
                 _alreadyPolling = false;
+            }
+        }
+
+        private async Task DoCleanup(NamespaceId ns, RefCleanupState state, CancellationToken cancellationToken)
+        {
+            _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
+            try
+            {
+                int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
+                _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
+                    countOfRemovedRecords);
+            }
+            catch (Exception e)
+            {
+                _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
             }
         }
     }

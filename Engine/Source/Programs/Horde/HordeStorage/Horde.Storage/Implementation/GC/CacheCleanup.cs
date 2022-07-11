@@ -95,6 +95,7 @@ namespace Horde.Storage.Implementation
                 _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
                 using IScope scope = Tracer.Instance.StartActive("gc.ref");
                 scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
+                scope.Span.SetTag("namespace", ns.ToString());
                 // delete the old record from the ref refs
 
                 bool storeDelete = false;
