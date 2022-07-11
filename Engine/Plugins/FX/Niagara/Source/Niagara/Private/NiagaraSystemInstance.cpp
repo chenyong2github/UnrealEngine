@@ -2282,7 +2282,7 @@ void FNiagaraSystemInstance::WaitForConcurrentTickDoNotFinalize(bool bEnsureComp
 		{
 			do
 			{
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+				FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread_Local);
 			} while (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete());
 		}
 

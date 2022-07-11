@@ -1617,7 +1617,7 @@ void FNiagaraSystemSimulation::WaitForConcurrentTickComplete(bool bEnsureComplet
 		}
 		else
 		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread_Local);
 		}
 	}
 	ConcurrentTickGraphEvent = nullptr;
