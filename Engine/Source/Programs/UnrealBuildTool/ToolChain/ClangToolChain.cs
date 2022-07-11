@@ -7,6 +7,7 @@ using System.Linq;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -111,11 +112,68 @@ namespace UnrealBuildTool
 
 	abstract class ClangToolChain : ISPCToolChain
 	{
+		protected class ClangToolChainInfo
+		{
+			protected ILogger Logger { get; init; }
+			public FileReference Clang { get; init; }
+			public FileReference Archiver { get; init; }
+
+			public Version ClangVersion => LazyClangVersion.Value;
+			public string ClangVersionString => LazyClangVersionString.Value;
+			public string ArchiverVersionString => LazyArchiverVersionString.Value;
+
+			Lazy<Version> LazyClangVersion;
+			Lazy<string> LazyClangVersionString;
+			Lazy<string> LazyArchiverVersionString;
+
+			/// <summary>
+			/// Constructor for ClangToolChainInfo
+			/// </summary>
+			/// <param name="Clang">The path to the compiler</param>
+			/// <param name="Archiver">The path to the archiver</param>
+			/// <param name="Logger">Logging interface</param>
+			public ClangToolChainInfo(FileReference Clang, FileReference Archiver, ILogger Logger)
+			{
+				this.Logger = Logger;
+				this.Clang = Clang;
+				this.Archiver = Archiver;
+
+				LazyClangVersion = new Lazy<Version>(() => QueryClangVersion());
+				LazyClangVersionString = new Lazy<string>(() => QueryClangVersionString());
+				LazyArchiverVersionString = new Lazy<string>(() => QueryArchiverVersionString());
+			}
+
+			/// <summary>
+			/// Lazily query the clang version. Will only be executed once.
+			/// </summary>
+			/// <returns>The version of clang</returns>
+			/// <exception cref="BuildException"></exception>
+			protected virtual Version QueryClangVersion()
+			{
+				Match MatchClangVersion = Regex.Match(ClangVersionString, @"clang version (?<full>(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+))");
+				if (MatchClangVersion.Success && Version.TryParse(MatchClangVersion.Groups["full"].Value, out Version? ClangVersion))
+				{
+					return ClangVersion;
+				}
+				throw new BuildException("Failed to query the Clang version number!");
+			}
+
+			/// <summary>
+			/// Lazily query the clang version output. Will only be executed once.
+			/// </summary>
+			/// <returns>The standard output when running Clang --version</returns>
+			protected virtual string QueryClangVersionString() => Utils.RunLocalProcessAndReturnStdOut(Clang.FullName, "--version", null);
+
+			/// <summary>
+			/// Lazily query the archiver version output. Will only be executed once.
+			/// </summary>
+			/// <returns>The standard output when running Archiver --version</returns>
+			protected virtual string QueryArchiverVersionString() => Utils.RunLocalProcessAndReturnStdOut(Archiver.FullName, "--version", null);
+		}
+
 		// The Clang version being used to compile
-		protected string? ClangVersionString = null;
-		protected int ClangVersionMajor = -1;
-		protected int ClangVersionMinor = -1;
-		protected int ClangVersionPatch = -1;
+		Lazy<ClangToolChainInfo> LazyInfo;
+		protected ClangToolChainInfo Info => LazyInfo.Value;
 
 		protected ClangToolChainOptions Options;
 
@@ -141,7 +199,11 @@ namespace UnrealBuildTool
 			: base(InLogger)
 		{
 			Options = InOptions;
+
+			LazyInfo = new Lazy<ClangToolChainInfo>(() => GetToolChainInfo());
 		}
+
+		protected abstract ClangToolChainInfo GetToolChainInfo();
 
 		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
 		{
@@ -210,30 +272,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Checks if compiler version matches the requirements
 		/// </summary>
-		protected bool CompilerVersionGreaterOrEqual(int Major, int Minor, int Patch)
-		{
-			// TODO: Temporary verification check to ensure a clang version has been set until ClangVersion is standarized across all clang-based toolchains.
-			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
-			{
-				throw new BuildException($"ClangVersion not valid ({ClangVersionMajor}.{ClangVersionMinor}.{ClangVersionPatch}), unable to check compiler version requirements");
-			}
-
-			return new Version(ClangVersionMajor, ClangVersionMinor, ClangVersionPatch) >= new Version(Major, Minor, Patch);
-		}
+		protected bool CompilerVersionGreaterOrEqual(int Major, int Minor, int Patch) => Info.ClangVersion >= new Version(Major, Minor, Patch);
 
 		/// <summary>
 		/// Checks if compiler version matches the requirements
 		/// </summary>
-		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch)
-		{
-			// TODO: Temporary verification check until ClangVersion is standarized across all clang-based toolchains to ensure a version has been set.
-			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
-			{
-				throw new BuildException($"ClangVersion not valid ({ClangVersionMajor}.{ClangVersionMinor}.{ClangVersionPatch}), unable to check compiler version requirements");
-			}
-
-			return new Version(ClangVersionMajor, ClangVersionMinor, ClangVersionPatch) < new Version(Major, Minor, Patch);
-		}
+		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch) => Info.ClangVersion < new Version(Major, Minor, Patch);
 
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
@@ -791,7 +835,7 @@ namespace UnrealBuildTool
 			Arguments.Add(GetOutputFileArgument(OutputFile));
 		}
 
-		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, FileReference CommandPath, string CommandVersion, CPPOutput Result)
+		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, CPPOutput Result)
 		{
 			Action CompileAction = Graph.CreateAction(ActionType.Compile);
 
@@ -819,7 +863,7 @@ namespace UnrealBuildTool
 				// >>>> xxx-clang.exe': The filename or extension is too long.  (0xCE)
 				// Clang processes and modifies the response file contents and this makes the final cmd line size hard for us to predict.
 				// To be conservative we add a dummy define to inflate the response file size and force clang to use the response file mode when we are close to the limit.
-				int CmdLineLength = CommandPath.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+				int CmdLineLength = Info.Clang.ToString().Length + string.Join(' ', ResponseFileContents).Length;
 				bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
 				if (bIsInDangerZone)
 				{
@@ -833,8 +877,8 @@ namespace UnrealBuildTool
 			CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
 
 			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			CompileAction.CommandPath = CommandPath;
-			CompileAction.CommandVersion = CommandVersion;
+			CompileAction.CommandPath = Info.Clang;
+			CompileAction.CommandVersion = Info.ClangVersionString;
 			CompileAction.CommandDescription = StaticAnalyzer == StaticAnalyzer.Default ? "Analyze" : "Compile";
 			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 			CompileAction.bIsGCCCompiler = true;
@@ -884,7 +928,7 @@ namespace UnrealBuildTool
 
 				if (RuntimePlatform.IsWindows)
 				{
-					int CmdLineLength = CommandPath.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+					int CmdLineLength = Info.Clang.ToString().Length + string.Join(' ', ResponseFileContents).Length;
 					bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
 					if (bIsInDangerZone)
 					{
@@ -902,6 +946,21 @@ namespace UnrealBuildTool
 			}
 
 			return CompileAction;
+		}
+
+		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
+		{
+			List<string> GlobalArguments = new();
+			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
+
+			// Create a compile action for each source file.
+			CPPOutput Result = new CPPOutput();
+			foreach (FileItem SourceFile in InputFiles)
+			{
+				CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, Result);
+			}
+
+			return Result;
 		}
 	}
 }

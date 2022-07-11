@@ -17,6 +17,7 @@ using EpicGames.Core;
 using System.Security.Cryptography.X509Certificates;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace UnrealBuildTool
 {
@@ -124,19 +125,21 @@ namespace UnrealBuildTool
 		private Lazy<IOSToolChainSettings> Settings;
 
 		/// <summary>
-		/// Which compiler frontend to use
+		/// Which compiler\linker frontend to use
 		/// </summary>
 		private const string IOSCompiler = "clang++";
-
-		/// <summary>
-		/// Which linker frontend to use
-		/// </summary>
-		private const string IOSLinker = "clang++";
 
 		/// <summary>
 		/// Which library archiver to use
 		/// </summary>
 		private const string IOSArchiver = "libtool";
+
+		protected override ClangToolChainInfo GetToolChainInfo()
+		{
+			FileReference CompilerPath = new FileReference(Settings.Value.ToolchainDir + IOSCompiler);
+			FileReference ArchiverPath = new FileReference(Settings.Value.ToolchainDir + IOSArchiver);
+			return new AppleToolChainInfo(CompilerPath, ArchiverPath, Logger);
+		}
 
 		public override string GetSDKVersion()
 		{
@@ -214,7 +217,7 @@ namespace UnrealBuildTool
 		{
 			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
 
-			if (GetClangVersion().Major >= 12)
+			if (CompilerVersionGreaterOrEqual(12, 0, 0))
 			{
 				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
 				Arguments.Add("-fno-delete-null-pointer-checks");
@@ -501,9 +504,6 @@ namespace UnrealBuildTool
 
 			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 
-			FileReference CompilerPath = new FileReference(Settings.Value.ToolchainDir + IOSCompiler);
-			string CompilerVersion = GetFullClangVersion();
-
 			List<FileItem> FrameworkTokenFiles = new List<FileItem>();
 			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
 			{
@@ -518,7 +518,7 @@ namespace UnrealBuildTool
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
+				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, Result);
 				CompileAction.PrerequisiteItems.AddRange(FrameworkTokenFiles);
 			}
 			return Result;
@@ -526,8 +526,7 @@ namespace UnrealBuildTool
 
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
-			string LinkerPath = Settings.Value.ToolchainDir +
-				(LinkEnvironment.bIsBuildingLibrary ? IOSArchiver : IOSLinker);
+			FileReference LinkerPath = LinkEnvironment.bIsBuildingLibrary ? Info.Archiver : Info.Clang;
 
 			// Create an action that invokes the linker.
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
@@ -540,7 +539,7 @@ namespace UnrealBuildTool
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
 				// @todo roll this put into GetLinkArguments_Global
-				LinkerPath = IOSLinker;
+				LinkerPath = Info.Clang;
 				LinkCommandArguments += " -dynamiclib -Xlinker -export_dynamic -Xlinker -no_deduplicate";
 
 				string InstallName = LinkEnvironment.InstallName ?? String.Format("@executable_path/Frameworks/{0}", LinkEnvironment.OutputFilePath.MakeRelativeTo(LinkEnvironment.OutputFilePath.Directory.ParentDirectory!));
@@ -654,7 +653,7 @@ namespace UnrealBuildTool
 
 			LinkAction.StatusDescription = string.Format("{0}", OutputFile.AbsolutePath);
 
-			LinkAction.CommandVersion = GetFullClangVersion();
+			LinkAction.CommandVersion = Info.ClangVersionString;
 
 			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			if (LinkEnvironment.Configuration == CppConfiguration.Shipping && Path.GetExtension(OutputFile.AbsolutePath) != ".a")

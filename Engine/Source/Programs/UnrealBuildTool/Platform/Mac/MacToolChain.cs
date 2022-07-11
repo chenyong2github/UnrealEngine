@@ -92,14 +92,9 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Which compiler frontend to use
+		/// Which compiler\linker frontend to use
 		/// </summary>
 		private const string MacCompiler = "clang++";
-
-		/// <summary>
-		/// Which linker frontend to use
-		/// </summary>
-		private const string MacLinker = "clang++";
 
 		/// <summary>
 		/// Which archiver to use
@@ -112,6 +107,13 @@ namespace UnrealBuildTool
 		private bool bHasWipedFixDylibScript = false;
 
 		private static List<FileItem> BundleDependencies = new List<FileItem>();
+
+		protected override ClangToolChainInfo GetToolChainInfo()
+		{
+			FileReference CompilerPath = new FileReference(Settings.ToolchainDir + MacCompiler);
+			FileReference ArchiverPath = new FileReference(Settings.ToolchainDir + MacArchiver);
+			return new AppleToolChainInfo(CompilerPath, ArchiverPath, Logger);
+		}
 
 		private static void SetupXcodePaths(bool bVerbose)
 		{
@@ -259,7 +261,7 @@ namespace UnrealBuildTool
 
 			// Temporary workaround for linker warning with Xcode 14:
 			//		'ld: warning: could not create compact unwind for _inflate_fast: registers 27 not saved contiguously in frame'
-			if (GetClangVersion().Major < 14)
+			if (CompilerVersionLessThan(14, 0, 0))
 			{
 				Result += " -Wl,-fatal_warnings";
 			}
@@ -304,24 +306,6 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -static";
-			return Result;
-		}
-
-		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
-		{
-			List<string> GlobalArguments = new();
-
-			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
-
-			FileReference CompilerPath = new FileReference(Settings.ToolchainDir + MacCompiler);
-			string CompilerVersion = GetFullClangVersion();
-
-			CPPOutput Result = new CPPOutput();
-			// Create a compile action for each source file.
-			foreach (FileItem SourceFile in InputFiles)
-			{
-				CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
-			}
 			return Result;
 		}
 
@@ -478,13 +462,12 @@ namespace UnrealBuildTool
 			// Create an action that invokes the linker.
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
 
-			string Linker = bIsBuildingLibrary ? MacArchiver : MacLinker;
-			string LinkerPath = Settings.ToolchainDir + Linker;
+			FileReference LinkerPath = bIsBuildingLibrary ? Info.Archiver : Info.Clang;
 
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
-			LinkAction.CommandPath = new FileReference(LinkerPath);
+			LinkAction.CommandPath = LinkerPath;
 			LinkAction.CommandDescription = "Link";
-			LinkAction.CommandVersion = GetFullClangVersion();
+			LinkAction.CommandVersion = Info.ClangVersionString;
 
 			string EngineAPIVersion = LoadEngineAPIVersion();
 			string EngineDisplayVersion = LoadEngineDisplayVersion(true);

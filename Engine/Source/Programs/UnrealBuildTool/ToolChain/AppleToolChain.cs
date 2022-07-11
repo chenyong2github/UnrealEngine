@@ -148,6 +148,18 @@ namespace UnrealBuildTool
 
 	abstract class AppleToolChain : ClangToolChain
 	{
+		protected class AppleToolChainInfo : ClangToolChainInfo
+		{
+			public AppleToolChainInfo(FileReference Clang, FileReference Archiver, ILogger Logger)
+				: base(Clang, Archiver, Logger)
+			{
+			}
+
+			// libtool doesn't provide version, just use clang's version string
+			/// <inheritdoc/>
+			protected override string QueryArchiverVersionString() => ClangVersionString;
+		}
+
 		protected FileReference? ProjectFile;
 
 		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger) : base(InOptions, InLogger)
@@ -174,37 +186,6 @@ namespace UnrealBuildTool
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
-		}
-
-		static Version? ClangVersion = null;
-		static string? FullClangVersion = null;
-
-		protected Version GetClangVersion()
-		{
-			if (ClangVersion == null)
-			{
-				FileReference ClangLocation = new FileReference("/usr/bin/clang");
-				ClangVersion = RunToolAndCaptureVersion(ClangLocation, "--version");
-			}
-			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
-			{
-				ClangVersionMajor = ClangVersion.Major;
-				ClangVersionMinor = ClangVersion.Minor;
-				ClangVersionPatch = ClangVersion.Build;
-			}
-			return ClangVersion;
-		}
-
-		protected string GetFullClangVersion()
-		{
-			if (FullClangVersion == null)
-			{
-				// get the first line that has the full clang and build number
-				FileReference ClangLocation = new FileReference("/usr/bin/clang");
-				FullClangVersion = RunToolAndCaptureOutput(ClangLocation, "--version", "(.*)")!;
-			}
-
-			return FullClangVersion;
 		}
 
 		/// <inheritdoc/>
@@ -240,11 +221,11 @@ namespace UnrealBuildTool
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 			Arguments.Add("-stdlib=libc++");
 
-			if (GetClangVersion().Major >= 11)
+			if (CompilerVersionGreaterOrEqual(11, 0, 0))
 			{
 				Arguments.Add("-fpch-validate-input-files-content");
 			}
-			if (GetClangVersion().Major >= 13) // Note this is supported for >=11 on other clang platforms
+			if (CompilerVersionGreaterOrEqual(13, 0, 0)) // Note this is supported for >=11 on other clang platforms
 			{
 				Arguments.Add("-fpch-instantiate-templates");
 			}
@@ -265,7 +246,7 @@ namespace UnrealBuildTool
 
 			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
 			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
-			if (GetClangVersion().Major >= 12)
+			if (CompilerVersionGreaterOrEqual(12, 0, 0))
 			{
 				Arguments.Add("-Wno-range-loop-analysis");
 			}
@@ -330,9 +311,6 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			// Ensure Clang version is set for base.GetCompileArguments_Global()
-			GetClangVersion();
-
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 			Arguments.Add(GetRTTIFlag(CompileEnvironment));

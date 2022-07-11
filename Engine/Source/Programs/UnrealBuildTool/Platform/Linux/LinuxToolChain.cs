@@ -15,6 +15,29 @@ namespace UnrealBuildTool
 {
 	class LinuxToolChain : ClangToolChain
 	{
+		protected class LinuxToolChainInfo : ClangToolChainInfo
+		{
+			// cache the location of NDK tools
+			public bool bIsCrossCompiling { get; init; }
+			public DirectoryReference? BaseLinuxPath { get; init; }
+			public DirectoryReference? MultiArchRoot { get; init; }
+
+			public FileReference Objcopy { get; init; }
+			public FileReference DumpSyms { get; init; }
+			public FileReference BreakpadEncoder { get; init; }
+
+			public LinuxToolChainInfo(DirectoryReference? BaseLinuxPath, DirectoryReference? MultiArchRoot, FileReference Clang, FileReference Archiver, FileReference Objcopy, ILogger Logger)
+				: base(Clang, Archiver, Logger)
+			{
+				this.BaseLinuxPath = BaseLinuxPath;
+				this.MultiArchRoot = MultiArchRoot;
+				this.Objcopy = Objcopy;
+				// these are supplied by the engine and do not change depending on the circumstances
+				DumpSyms = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Linux", $"dump_syms{BuildHostPlatform.Current.BinarySuffix}");
+				BreakpadEncoder = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Linux", $"BreakpadSymbolEncoder{BuildHostPlatform.Current.BinarySuffix}");
+			}
+		}
+
 		/** Flavor of the current build (target triplet)*/
 		string Architecture;
 
@@ -31,30 +54,56 @@ namespace UnrealBuildTool
 		/** Platform SDK to use */
 		protected LinuxPlatformSDK PlatformSDK;
 
-		/** Toolchain information to print during the build. */
-		protected string? ToolchainInfo;
+		protected LinuxToolChainInfo LinuxInfo => (Info as LinuxToolChainInfo)!;
 
 		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions, ILogger InLogger)
 			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InOptions, InLogger)
 		{
-			MultiArchRoot = PlatformSDK.GetSDKLocation();
-			BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(InArchitecture);
+			CheckDefaultCompilerSettings();
+
+			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
+			if (CompilerVersionLessThan(13, 0, 0) || CompilerVersionGreaterOrEqual(14, 0, 0))
+			{
+				throw new BuildException(
+					string.Format("This version of the Unreal Engine can only be compiled with clang 13.0. clang {0} may not build it - please use a different version.",
+						Info.ClangVersion)
+					);
+			}
+		}
+
+		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions, ILogger InLogger)
+			: base(InOptions, InLogger)
+		{
+			Architecture = InArchitecture;
+			PlatformSDK = InSDK;
+		}
+
+		protected override ClangToolChainInfo GetToolChainInfo()
+		{
+			DirectoryReference? MultiArchRoot = PlatformSDK.GetSDKLocation();
+			DirectoryReference? BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(Architecture);
 
 			bool bForceUseSystemCompiler = PlatformSDK.ForceUseSystemCompiler();
-			bool bHasValidCompiler;
 
 			if (bForceUseSystemCompiler)
 			{
-				// Validate the system toolchain.
-				BaseLinuxPath = null;
-				MultiArchRoot = null;
-
-				ToolchainInfo = "system toolchain";
-
 				// use native linux toolchain
-				ClangPath = FileReference.FromString(LinuxCommon.WhichClang(Logger));
-				LlvmArPath = FileReference.FromString(LinuxCommon.Which("llvm-ar", Logger));
-				ObjcopyPath = FileReference.FromString(LinuxCommon.Which("llvm-objcopy", Logger));
+				FileReference? ClangPath = FileReference.FromString(LinuxCommon.WhichClang(Logger));
+				FileReference? LlvmArPath = FileReference.FromString(LinuxCommon.Which("llvm-ar", Logger));
+				FileReference? ObjcopyPath = FileReference.FromString(LinuxCommon.Which("llvm-objcopy", Logger));
+
+				if (ClangPath == null)
+				{
+					throw new BuildException("Unable to find system clang; cannot instantiate Linux toolchain");
+				}
+				else if (LlvmArPath == null)
+				{
+					throw new BuildException("Unable to find system llvm-ar; cannot instantiate Linux toolchain");
+				}
+				else if (ObjcopyPath == null)
+				{
+					throw new BuildException("Unable to find system llvm-objcopy; cannot instantiate Linux toolchain");
+				}
 
 				// When compiling on Linux, use a faster way to relink circularly dependent libraries.
 				// Race condition between actions linking to the .so and action overwriting it is avoided thanks to inodes
@@ -62,7 +111,7 @@ namespace UnrealBuildTool
 
 				bIsCrossCompiling = false;
 
-				bHasValidCompiler = DetermineCompilerVersion();
+				return new LinuxToolChainInfo(null, null, ClangPath, LlvmArPath, ObjcopyPath, Logger);
 			}
 			else
 			{
@@ -76,12 +125,10 @@ namespace UnrealBuildTool
 					Logger.LogInformation("Using LINUX_ROOT (deprecated, consider LINUX_MULTIARCH_ROOT)");
 				}
 
-				ToolchainInfo = $"toolchain located at '{BaseLinuxPath}'";
-
 				// set up the path to our toolchain
-				ClangPath = FileReference.Combine(BaseLinuxPath, "bin", $"clang++{BuildHostPlatform.Current.BinarySuffix}");
-				LlvmArPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-ar{BuildHostPlatform.Current.BinarySuffix}" );
-				ObjcopyPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-objcopy{BuildHostPlatform.Current.BinarySuffix}");
+				FileReference ClangPath = FileReference.Combine(BaseLinuxPath, "bin", $"clang++{BuildHostPlatform.Current.BinarySuffix}");
+				FileReference LlvmArPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-ar{BuildHostPlatform.Current.BinarySuffix}");
+				FileReference ObjcopyPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-objcopy{BuildHostPlatform.Current.BinarySuffix}");
 
 				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
 				bUseFixdeps = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
@@ -93,63 +140,13 @@ namespace UnrealBuildTool
 
 				bIsCrossCompiling = true;
 
-				bHasValidCompiler = DetermineCompilerVersion();
+				return new LinuxToolChainInfo(BaseLinuxPath, MultiArchRoot, ClangPath, LlvmArPath, ObjcopyPath, Logger);
 			}
-
-			if (!bHasValidCompiler)
-			{
-				throw new BuildException("Could not determine version of the compiler, not registering Linux toolchain.");
-			}
-
-			CheckDefaultCompilerSettings();
-
-			// refuse to use compilers that we know won't work
-
-			// prevent unknown clangs since the build is likely to fail on too old or too new compilers
-			if ((ClangVersionMajor * 10 + ClangVersionMinor) > 130 || (ClangVersionMajor * 10 + ClangVersionMinor) < 130)
-			{
-				throw new BuildException(
-					string.Format("This version of the Unreal Engine can only be compiled with clang 13.0. clang {0} may not build it - please use a different version.",
-						ClangVersionString)
-					);
-			}
-		}
-
-		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions, ILogger InLogger)
-			: base(InOptions, InLogger)
-		{
-			Architecture = InArchitecture;
-			PlatformSDK = InSDK;
-
-			// these are supplied by the engine and do not change depending on the circumstances
-			DumpSymsPath = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Linux", $"dump_syms{BuildHostPlatform.Current.BinarySuffix}");
-			BreakpadEncoderPath = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Linux", $"BreakpadSymbolEncoder{BuildHostPlatform.Current.BinarySuffix}");
 		}
 
 		protected virtual bool CrossCompiling()
 		{
 			return bIsCrossCompiling;
-		}
-
-
-		/// <summary>
-		/// Splits compiler version string into numerical components, leaving unchanged if not known
-		/// </summary>
-		private void DetermineCompilerMajMinPatchFromVersionString()
-		{
-			string[] Parts = ClangVersionString!.Split('.');
-			if (Parts.Length >= 1)
-			{
-				ClangVersionMajor = Convert.ToInt32(Parts[0]);
-			}
-			if (Parts.Length >= 2)
-			{
-				ClangVersionMinor = Convert.ToInt32(Parts[1]);
-			}
-			if (Parts.Length >= 3)
-			{
-				ClangVersionPatch = Convert.ToInt32(Parts[2]);
-			}
 		}
 
 		protected internal virtual string GetDumpEncodeDebugCommand(LinkEnvironment LinkEnvironment, FileItem OutputFile)
@@ -171,14 +168,14 @@ namespace UnrealBuildTool
 
 			// dump_syms
 			Out.WriteLine(DumpCommand,
-				DumpSymsPath,
+				LinuxInfo.DumpSyms,
 				OutputFile.AbsolutePath,
 				SymbolsFile.AbsolutePath
 			);
 
 			// encode breakpad symbols
 			Out.WriteLine("\"{0}\" \"{1}\" \"{2}\"",
-				BreakpadEncoderPath,
+				LinuxInfo.BreakpadEncoder,
 				SymbolsFile.AbsolutePath,
 				EncodedBinarySymbolsFile.AbsolutePath
 			);
@@ -196,21 +193,21 @@ namespace UnrealBuildTool
 
 				// objcopy stripped file
 				Out.WriteLine("\"{0}\" --strip-all \"{1}\" \"{2}\"",
-					ObjcopyPath!,
+					LinuxInfo.Objcopy,
 					OutputFile.AbsolutePath,
 					StrippedFile.AbsolutePath
 				);
 
 				// objcopy debug file
 				Out.WriteLine("\"{0}\" --only-keep-debug \"{1}\" \"{2}\"",
-					ObjcopyPath!,
+					LinuxInfo.Objcopy,
 					OutputFile.AbsolutePath,
 					DebugFile.AbsolutePath
 				);
 
 				// objcopy link debug file to final so
 				Out.WriteLine("\"{0}\" --add-gnu-debuglink=\"{1}\" \"{2}\" \"{3}.temp\"",
-					ObjcopyPath!,
+					LinuxInfo.Objcopy,
 					DebugFile.AbsolutePath,
 					StrippedFile.AbsolutePath,
 					OutputFile.AbsolutePath
@@ -258,60 +255,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Queries compiler for the version
-		/// </summary>
-		protected bool DetermineCompilerVersion()
-		{
-			ClangVersionString = null;
-			ClangVersionMajor = -1;
-			ClangVersionMinor = -1;
-			ClangVersionPatch = -1;
-
-			using (Process Proc = new Process())
-			{
-				Proc.StartInfo.UseShellExecute = false;
-				Proc.StartInfo.CreateNoWindow = true;
-				Proc.StartInfo.RedirectStandardOutput = true;
-				Proc.StartInfo.RedirectStandardError = true;
-
-				if (ClangPath != null && FileReference.Exists(ClangPath))
-				{
-					Proc.StartInfo.FileName = ClangPath.FullName;
-					Proc.StartInfo.Arguments = " --version";
-
-					Proc.Start();
-					Proc.WaitForExit();
-
-					if (Proc.ExitCode == 0)
-					{
-						// read just the first string
-						string? VersionString = Proc.StandardOutput.ReadLine();
-
-						if (VersionString != null)
-						{
-							Regex VersionPattern = new Regex("version \\d+(\\.\\d+)+");
-							Match VersionMatch = VersionPattern.Match(VersionString);
-
-							// version match will be like "version 3.3", so remove the "version"
-							if (VersionMatch.Value.StartsWith("version "))
-							{
-								ClangVersionString = VersionMatch.Value.Replace("version ", "");
-
-								DetermineCompilerMajMinPatchFromVersionString();
-							}
-						}
-					}
-				}
-				else
-				{
-					// icl?
-				}
-			}
-
-			return !String.IsNullOrEmpty(ClangVersionString);
-		}
-
-		/// <summary>
 		/// Checks default compiler settings
 		/// </summary>
 		private void CheckDefaultCompilerSettings()
@@ -324,9 +267,9 @@ namespace UnrealBuildTool
 				Proc.StartInfo.RedirectStandardError = true;
 				Proc.StartInfo.RedirectStandardInput = true;
 
-				if (ClangPath != null && FileReference.Exists(ClangPath))
+				if (FileReference.Exists(Info.Clang))
 				{
-					Proc.StartInfo.FileName = ClangPath.FullName;
+					Proc.StartInfo.FileName = Info.Clang.FullName;
 					Proc.StartInfo.Arguments = " -E -dM -";
 
 					Proc.Start();
@@ -605,7 +548,7 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add($"-target {CompileEnvironment.Architecture}");        // Set target triple
 				}
-				Arguments.Add($"--sysroot=\"{NormalizeCommandLinePath(BaseLinuxPath!)}\"");
+				Arguments.Add($"--sysroot=\"{NormalizeCommandLinePath(LinuxInfo.BaseLinuxPath!)}\"");
 			}
 		}
 
@@ -686,7 +629,7 @@ namespace UnrealBuildTool
 				if (CrossCompiling())
 				{
 					Arguments.Add(string.Format("-Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
-							BaseLinuxPath, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch));
+							LinuxInfo.BaseLinuxPath, Info.ClangVersion.Major, Info.ClangVersion.Minor, Info.ClangVersion.Build));
 				}
 			}
 
@@ -776,7 +719,7 @@ namespace UnrealBuildTool
 			if (CrossCompiling())
 			{
 				Arguments.Add($"-target {LinkEnvironment.Architecture}");        // Set target triple
-				DirectoryReference SysRootPath = BaseLinuxPath!;
+				DirectoryReference SysRootPath = LinuxInfo.BaseLinuxPath!;
 				Arguments.Add($"--sysroot=\"{NormalizeCommandLinePath(SysRootPath)}\"");
 
 				// Linking with the toolchain on linux appears to not search usr/
@@ -797,14 +740,6 @@ namespace UnrealBuildTool
 
 		// cache the location of NDK tools
 		protected bool bIsCrossCompiling;
-		protected DirectoryReference? BaseLinuxPath;
-		protected FileReference? ClangPath;
-		protected FileReference? LlvmArPath;
-		protected FileReference? ObjcopyPath;
-		protected FileReference? DumpSymsPath;
-		protected FileReference? BreakpadEncoderPath;
-		protected DirectoryReference? MultiArchRoot;
-
 		/// <summary>
 		/// Whether to use old, slower way to relink circularly dependent libraries.
 		/// It makes sense to use it when cross-compiling on Windows due to race conditions between actions reading and modifying the libs.
@@ -828,14 +763,14 @@ namespace UnrealBuildTool
 		protected void PrintBuildDetails(CppCompileEnvironment CompileEnvironment, ILogger Logger)
 		{
 			Logger.LogInformation("------- Build details --------");
-			Logger.LogInformation("Using {ToolchainInfo}.", ToolchainInfo);
+			Logger.LogInformation("Using {ToolchainInfo}.", LinuxInfo.BaseLinuxPath == null ? "system toolchain" : $"toolchain located at '{LinuxInfo.BaseLinuxPath}'");
 			Logger.LogInformation("Using clang ({ClangPath}) version '{ClangVersionString}' (string), {ClangVersionMajor} (major), {ClangVersionMinor} (minor), {ClangVersionPatch} (patch)",
-				ClangPath, ClangVersionString, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
+				Info.Clang, Info.ClangVersionString, Info.ClangVersion.Major, Info.ClangVersion.Minor, Info.ClangVersion.Build);
 
 			// inform the user which C++ library the engine is going to be compiled against - important for compatibility with third party code that uses STL
 			Logger.LogInformation("Using {Lib} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
 			Logger.LogInformation("Using lld linker");
-			Logger.LogInformation("Using llvm-ar ({LlvmAr})", LlvmArPath);
+			Logger.LogInformation("Using llvm-ar ({LlvmAr}) version '{LlvmArVersionString} (string)'", Info.Archiver, Info.ArchiverVersionString);
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
@@ -905,7 +840,7 @@ namespace UnrealBuildTool
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, ClangPath!, ClangVersionString!, Result);
+				CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, Result);
 			}
 
 			return Result;
@@ -919,7 +854,7 @@ namespace UnrealBuildTool
 			// Create an archive action
 			Action ArchiveAction = Graph.CreateAction(ActionType.Link);
 			ArchiveAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			ArchiveAction.CommandPath = LlvmArPath!;
+			ArchiveAction.CommandPath = Info.Archiver;
 
 			// this will produce a final library
 			ArchiveAction.bProducesImportLibrary = true;
@@ -1049,7 +984,7 @@ namespace UnrealBuildTool
 			LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 
 			string LinkCommandString;
-			LinkCommandString = "\"" + ClangPath + "\"";
+			LinkCommandString = "\"" + Info.Clang + "\"";
 
 			// Get link arguments.
 			List<string> LinkArguments = new List<string>();
@@ -1082,7 +1017,7 @@ namespace UnrealBuildTool
 			}
 			// because the logic choosing between lld and ld is somewhat messy atm (lld fails to link .DSO due to bugs), make the name of the linker clear
 			LinkAction.CommandDescription += (LinkCommandString.Contains("-fuse-ld=lld")) ? " (lld)" : " (ld)";
-			LinkAction.CommandVersion = ClangVersionString!;
+			LinkAction.CommandVersion = Info.ClangVersionString;
 			LinkAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
 
 			// Add the output file to the command-line.
@@ -1624,7 +1559,7 @@ namespace UnrealBuildTool
 			}
 
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
-			StartInfo.FileName = ObjcopyPath!.FullName;
+			StartInfo.FileName = LinuxInfo.Objcopy.FullName;
 			StartInfo.Arguments = "--strip-debug \"" + TargetFile.FullName + "\"";
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;

@@ -100,6 +100,10 @@ namespace UnrealBuildTool
 		public string? NDKToolchainVersion;
 		public UInt64 NDKVersionInt;
 
+		int ClangVersionMajor = -1;
+		int ClangVersionMinor = -1;
+		int ClangVersionPatch = -1;
+
 		protected void SetClangVersion(int Major, int Minor, int Patch)
 		{
 			ClangVersionMajor = Major;
@@ -283,6 +287,11 @@ namespace UnrealBuildTool
 				ToolchainParamsArm64 += " -D__ANDROID_API__=" + NDKApiLevel64Int;
 				ToolchainParamsx64 += " -D__ANDROID_API__=" + NDKApiLevel64Int;
 			}
+		}
+
+		protected override ClangToolChainInfo GetToolChainInfo()
+		{
+			return new ClangToolChainInfo(FileReference.FromString(ClangPath)!, FileReference.FromString(ArPathArm64)!, Logger);
 		}
 
 		public virtual void ParseArchitectures()
