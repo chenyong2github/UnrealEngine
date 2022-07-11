@@ -81,8 +81,7 @@ FRigVMFunctionPtr FRigDispatch_CoreEquals::GetDispatchFunctionImpl(const FRigVMT
 	{
 		return &FRigDispatch_CoreEquals::MathTypeEquals<FLinearColor>;
 	}
-
-	return FRigDispatch_CoreBase::GetDispatchFunctionImpl(InTypes);
+	return &FRigDispatch_CoreEquals::Execute;
 }
 
 bool FRigDispatch_CoreEquals::AdaptResult(bool bResult, const FRigVMExtendedExecuteContext& InContext)
