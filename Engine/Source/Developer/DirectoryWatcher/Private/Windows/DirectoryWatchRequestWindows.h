@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "Windows/WindowsHWrapper.h"
 #include "Delegates/Delegate.h"
 #include "IDirectoryWatcher.h"
+#include "HAL/UnrealMemory.h"
+#include "Templates/UniquePtr.h"
+#include "Windows/WindowsHWrapper.h"
 
 class FDirectoryWatchRequestWindows
 {
@@ -33,21 +35,31 @@ public:
 private:
 	/** Non-static handler for an OS notification of a directory change */
 	void ProcessChange(uint32 Error, uint32 NumBytes);
+	void SetBufferByChangeCount(int32 MaxChanges);
+	void SetBufferBySize(int32 BufferSize);
+
 	/** Static Handler for an OS notification of a directory change */
 	static void CALLBACK ChangeNotification(::DWORD Error, ::DWORD NumBytes, LPOVERLAPPED InOverlapped);
 
 	FString Directory;
 	HANDLE DirectoryHandle;
-	int32 MaxChanges;
 	bool bWatchSubtree;
 	uint32 NotifyFilter;
-	uint32 BufferLength;
-	void* Buffer;
-	void* BackBuffer;
+	uint32 BufferLength = 0;
+	struct FDeleterFree
+	{
+		void operator()(uint8* Ptr) const
+		{
+			if (Ptr) { FMemory::Free(Ptr); }
+		}
+	};
+	TUniquePtr<uint8, FDeleterFree> Buffer;
+	TUniquePtr<uint8, FDeleterFree> BackBuffer;
 	OVERLAPPED Overlapped;
 
 	bool bPendingDelete;
 	bool bEndWatchRequestInvoked;
+	bool bBufferInUse = false;
 
 	TArray<IDirectoryWatcher::FDirectoryChanged> Delegates;
 	TArray<FFileChangeData> FileChanges;
