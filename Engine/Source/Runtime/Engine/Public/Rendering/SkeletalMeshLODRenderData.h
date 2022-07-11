@@ -21,6 +21,17 @@ class USkinnedAsset;
 class FSkeletalMeshLODModel;
 #endif // WITH_EDITOR
 
+
+/** An external morph target set. External morph targets are managed by systems outside of the skinned meshes. */
+struct ENGINE_API FExternalMorphTargetSet
+{
+	/** A name for this set, useful for debugging. */
+	FName Name = FName(TEXT("Unknown"));
+
+	/** The GPU compressed morph buffers. */
+	FMorphTargetVertexInfoBuffers MorphBuffers;
+};
+
 struct FSkelMeshRenderSection
 {
 	/** Material (texture) used for this section. */
@@ -137,6 +148,15 @@ public:
 
 	/** GPU friendly access data for MorphTargets for an LOD */
 	FMorphTargetVertexInfoBuffers	MorphTargetVertexInfoBuffers;
+
+	/** 
+	 * External GPU based morph target buffers.
+	 * This contains an additional set of GPU only morphs that come from external other systems that generate morph targets.
+	 * These morph targets can only be updated on the GPU, will not be serialized as part of the Skeletal Mesh, and will not show up in the editors morph target list.
+	 * We only register them inside the render data so that these morph targets can get applied when rendering.
+	 * Every set of external morph targets has some given ID.
+	 */
+	TMap<int32, TSharedPtr<FExternalMorphTargetSet>> ExternalMorphSets;
 
 	/** Skin weight profile data structures, can contain multiple profiles and their runtime FSkinWeightVertexBuffer */
 	FSkinWeightProfilesData SkinWeightProfilesData;
@@ -265,6 +285,24 @@ public:
 		FSkinWeightVertexBuffer* OverrideBuffer = SkinWeightProfilesData.GetDefaultOverrideBuffer();
 		return OverrideBuffer != nullptr ? OverrideBuffer : &SkinWeightVertexBuffer;
 	}
+
+	/** 
+	 * Register an external set of GPU compressed morph targets. 
+	 * These compressed morph targets are GPU only morph targets that will not appear inside the UI and are owned by external systems.
+	 * Every set of these morph targets has some unique ID.
+	 * @param ID The unique ID for this set of morph targets.
+	 * @param MorphSet A shared pointer to a morph set, which basically contains a GPU friendly morph buffer. This buffer should be owned by an external system that calls this method.
+	 */
+	ENGINE_API void AddExternalMorphSet(int32 ID, TSharedPtr<FExternalMorphTargetSet> MorphSet);
+
+	/** Remove a given set of external GPU based morph targets. */
+	ENGINE_API void RemoveExternalMorphSet(int32 ID);
+
+	/** Clear all externally registered morph target buffers. */
+	ENGINE_API void ClearExternalMorphSets();
+
+	/** Do we have a given set of external morph targets? */
+	ENGINE_API bool HasExternalMorphSet(int32 ID) const;
 
 	/** Utility function for returning total number of faces in this LOD. */
 	ENGINE_API int32 GetTotalFaces() const;

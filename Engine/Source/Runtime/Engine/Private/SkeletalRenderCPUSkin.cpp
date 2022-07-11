@@ -128,7 +128,13 @@ void FSkeletalMeshObjectCPUSkin::EnableOverlayRendering(bool bEnabled, const TAr
 	}
 }
 
-void FSkeletalMeshObjectCPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode)
+void FSkeletalMeshObjectCPUSkin::Update(
+	int32 LODIndex,
+	USkinnedMeshComponent* InMeshComponent,
+	const TArray<FActiveMorphTarget>& ActiveMorphTargets,
+	const TArray<float>& MorphTargetWeights,
+	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
+	const FExternalMorphWeightData& InExternalMorphWeightData)
 {
 	if (InMeshComponent)
 	{

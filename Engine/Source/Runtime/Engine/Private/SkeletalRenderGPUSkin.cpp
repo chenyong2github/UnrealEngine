@@ -403,12 +403,18 @@ void FSkeletalMeshObjectGPUSkin::ReleaseMorphResources()
 	bMorphResourcesInitialized = false;
 }
 
-void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode)
+void FSkeletalMeshObjectGPUSkin::Update(
+	int32 LODIndex,
+	USkinnedMeshComponent* InMeshComponent,
+	const TArray<FActiveMorphTarget>& ActiveMorphTargets,
+	const TArray<float>& MorphTargetWeights,
+	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
+	const FExternalMorphWeightData& InExternalMorphWeightData)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
 	// make sure morph data has been initialized for each LOD
-	if(InMeshComponent && !bMorphResourcesInitialized && ActiveMorphTargets.Num() > 0 )
+	if(InMeshComponent && !bMorphResourcesInitialized && (ActiveMorphTargets.Num() > 0 || !InExternalMorphWeightData.MorphSets.IsEmpty()))
 	{
 		// initialized on-the-fly in order to avoid creating extra vertex streams for each skel mesh instance
 		InitMorphResources(InMeshComponent->bPerBoneMotionBlur, MorphTargetWeights);		
@@ -417,7 +423,15 @@ void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* In
 	// create the new dynamic data for use by the rendering thread
 	// this data is only deleted when another update is sent
 	FDynamicSkelMeshObjectDataGPUSkin* NewDynamicData = FDynamicSkelMeshObjectDataGPUSkin::AllocDynamicSkelMeshObjectDataGPUSkin();		
-	NewDynamicData->InitDynamicSkelMeshObjectDataGPUSkin(InMeshComponent,SkeletalMeshRenderData,this,LODIndex,ActiveMorphTargets, MorphTargetWeights, PreviousBoneTransformUpdateMode);
+	NewDynamicData->InitDynamicSkelMeshObjectDataGPUSkin(
+		InMeshComponent,
+		SkeletalMeshRenderData,
+		this,
+		LODIndex,
+		ActiveMorphTargets,
+		MorphTargetWeights,
+		PreviousBoneTransformUpdateMode,
+		InExternalMorphWeightData);
 
 	// We prepare the next frame but still have the value from the last one
 	uint32 FrameNumberToPrepare = GFrameNumber + 1;
@@ -513,6 +527,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	bMorphNeedsUpdate = 
 		bAlwaysUpdateMorphVertexBuffer ||
 		(bMorphNeedsUpdateDeferred && bNeedsUpdateDeferred) || // the need for an update sticks
+		InDynamicData->ExternalMorphWeightData.HasActiveMorphs() ||
 		(DynamicData ? (DynamicData->LODIndex != InDynamicData->LODIndex ||
 		!DynamicData->ActiveMorphTargetsEqual(InDynamicData->ActiveMorphTargets, InDynamicData->MorphTargetWeights))
 		: true);
@@ -596,7 +611,10 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	const TArray<FSkelMeshRenderSection>& Sections = GetRenderSections(LODIndex);
 
 	// Only consider morphs with active curves and data to deform.
-	const bool bMorph = bAlwaysUpdateMorphVertexBuffer || (DynamicData->NumWeightedActiveMorphTargets > 0 && LODData.GetNumVertices() > 0);
+	const bool bMorph = 
+		bAlwaysUpdateMorphVertexBuffer || 
+		(DynamicData->NumWeightedActiveMorphTargets > 0 && LODData.GetNumVertices() > 0) || 
+		(DynamicData->ExternalMorphWeightData.HasActiveMorphs() && LODData.GetNumVertices() > 0);
 
 	// use correct vertex factories based on alternate weights usage
 	FVertexFactoryData& VertexFactoryData = LOD.GPUSkinVertexFactories;
@@ -611,7 +629,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	{
 		FGPUSkinCache::Release(SkinCacheEntry);
 	}
-
 
 	if (MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate))
 	{
@@ -661,7 +678,9 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 				}
 				else
 				{
-					if(bAlwaysUpdateMorphVertexBuffer || (DynamicData->NumWeightedActiveMorphTargets > 0 && DynamicData->SectionIdsUseByActiveMorphTargets.Contains(SectionIdx)))
+					if (bAlwaysUpdateMorphVertexBuffer || 
+						(DynamicData->NumWeightedActiveMorphTargets > 0 && DynamicData->SectionIdsUseByActiveMorphTargets.Contains(SectionIdx)) || 
+						!DynamicData->ExternalMorphWeightData.MorphSets.IsEmpty())
 					{
 						VertexFactory = VertexFactoryData.MorphVertexFactories[SectionIdx].Get();
 					}
@@ -899,15 +918,180 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 
 #endif // RHI_RAYTRACING
 
+
+int32 FSkeletalMeshObjectGPUSkin::CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FSkeletalMeshLODRenderData& LODData) const
+{
+	if (!UseGPUMorphTargets(FeatureLevel) || !IsValidRef(MorphVertexBuffer.VertexBufferRHI))
+	{
+		return 0;
+	}
+
+	// Count all active external morph sets.
+	int32 NumMorphSets = 1; // Start at one, as we have our standard morph targets as well.
+	for (const auto& MorphSet : LODData.ExternalMorphSets)
+	{
+		if (IsExternalMorphSetActive(MorphSet.Key, *MorphSet.Value))
+		{
+			NumMorphSets++;
+		}
+	}
+	return NumMorphSets;
+}
+
+bool FSkeletalMeshObjectGPUSkin::IsExternalMorphSetActive(int32 MorphSetID, FExternalMorphTargetSet& MorphSet) const
+{
+	const FMorphTargetVertexInfoBuffers& CompressedBuffers = MorphSet.MorphBuffers;
+	FExternalMorphSetWeights* WeightData = DynamicData->ExternalMorphWeightData.MorphSets.Find(MorphSetID);
+	return (WeightData &&
+			WeightData->Weights.Num() == CompressedBuffers.GetNumMorphs() &&
+			WeightData->NumActiveMorphTargets > 0);
+}
+
+static void CalculateMorphDeltaBoundsAccum(
+	const TArray<float>& MorphTargetWeights,
+	const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
+	FVector4& MinAccumScale,
+	FVector4& MaxAccumScale,
+	FVector4& MaxScale)
+{
+	for (uint32 i = 0; i < MorphTargetVertexInfoBuffers.GetNumMorphs(); i++)
+	{
+		FVector4f MinMorphScale = MorphTargetVertexInfoBuffers.GetMinimumMorphScale(i);
+		FVector4f MaxMorphScale = MorphTargetVertexInfoBuffers.GetMaximumMorphScale(i);
+
+		for (uint32 j = 0; j < 4; j++)
+		{
+			if (MorphTargetWeights.IsValidIndex(i))
+			{
+				MinAccumScale[j] += MorphTargetWeights[i] * MinMorphScale[j];
+				MaxAccumScale[j] += MorphTargetWeights[i] * MaxMorphScale[j];
+			}
+
+			double AbsMorphScale = FMath::Max<double>(FMath::Abs(MinMorphScale[j]), FMath::Abs(MaxMorphScale[j]));
+			double AbsAccumScale = FMath::Max<double>(FMath::Abs(MinAccumScale[j]), FMath::Abs(MaxAccumScale[j]));
+
+			// The maximum accumulated and the maximum local value have to fit into out int24.
+			MaxScale[j] = FMath::Max(MaxScale[j], FMath::Max(AbsMorphScale, AbsAccumScale));
+		}
+	}
+}
+
+static void CalculateMorphDeltaBoundsIncludingExternalMorphs(
+	const TArray<float>& MorphTargetWeights,
+	const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
+	const TMap<int32, TSharedPtr<FExternalMorphTargetSet>>& ExternalMorphSets,
+	const TMap<int32, FExternalMorphSetWeights>& ExternalWeights,
+	FVector4& MorphScale,
+	FVector4& InvMorphScale)
+{
+	FVector4 MinAccumScale(0, 0, 0, 0);
+	FVector4 MaxAccumScale(0, 0, 0, 0);
+	FVector4 MaxScale(0, 0, 0, 0);
+
+	// Include the standard morph targets.
+	CalculateMorphDeltaBoundsAccum(MorphTargetWeights, MorphTargetVertexInfoBuffers, MinAccumScale, MaxAccumScale, MaxScale);
+
+	// Include all external morph targets.
+	for (const auto& MorphSet : ExternalMorphSets)
+	{
+		const int32 MorphSetID = MorphSet.Key;
+		const FMorphTargetVertexInfoBuffers& CompressedBuffers = MorphSet.Value->MorphBuffers;
+		const FExternalMorphSetWeights* WeightData = ExternalWeights.Find(MorphSetID);
+		check(WeightData);
+		CalculateMorphDeltaBoundsAccum(WeightData->Weights, CompressedBuffers, MinAccumScale, MaxAccumScale, MaxScale);
+	}
+
+	MaxScale[0] = FMath::Max<double>(MaxScale[0], 1.0);
+	MaxScale[1] = FMath::Max<double>(MaxScale[1], 1.0);
+	MaxScale[2] = FMath::Max<double>(MaxScale[2], 1.0);
+	MaxScale[3] = FMath::Max<double>(MaxScale[3], 1.0);
+
+	const double ScaleToInt24 = 16777216.0;
+
+	MorphScale = FVector4
+	(
+		ScaleToInt24 / (MaxScale[0]),
+		ScaleToInt24 / (MaxScale[1]),
+		ScaleToInt24 / (MaxScale[2]),
+		ScaleToInt24 / (MaxScale[3])
+	);
+
+	InvMorphScale = FVector4
+	(
+		MaxScale[0] / ScaleToInt24,
+		MaxScale[1] / ScaleToInt24,
+		MaxScale[2] / ScaleToInt24,
+		MaxScale[3] / ScaleToInt24
+	);
+}
+
 void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediate& RHICmdList, EGPUSkinCacheEntryMode Mode, FSkeletalMeshObjectLOD& LOD, const FSkeletalMeshLODRenderData& LODData, 
 															bool bGPUSkinCacheEnabled, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_UpdateMorphBuffer);
 	if (UseGPUMorphTargets(FeatureLevel))
 	{
-		// sometimes this goes out of bound, we'll ensure here
+		const int32 NumMorphSets = CalcNumActiveGPUMorphSets(MorphVertexBuffer, LODData);
+		int32 MorphSetIndex = 0;
+
+		// Calculate the delta bounds.
+		FVector4 MorphScale;
+		FVector4 InvMorphScale;
+		{
+			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_ApplyDelta);
+			CalculateMorphDeltaBoundsIncludingExternalMorphs(
+				DynamicData->MorphTargetWeights,
+				LODData.MorphTargetVertexInfoBuffers,
+				LODData.ExternalMorphSets,
+				DynamicData->ExternalMorphWeightData.MorphSets,
+				MorphScale,
+				InvMorphScale);
+		}
+
+		// Sometimes this goes out of bound, we'll ensure here.
 		ensureAlways(DynamicData->MorphTargetWeights.Num() == LODData.MorphTargetVertexInfoBuffers.GetNumMorphs());
-		LOD.UpdateMorphVertexBufferGPU(RHICmdList, DynamicData->MorphTargetWeights, LODData.MorphTargetVertexInfoBuffers, DynamicData->SectionIdsUseByActiveMorphTargets, GetDebugName(), Mode, MorphVertexBuffer);
+		LOD.UpdateMorphVertexBufferGPU(
+			RHICmdList, 
+			DynamicData->MorphTargetWeights, 
+			LODData.MorphTargetVertexInfoBuffers, 
+			DynamicData->SectionIdsUseByActiveMorphTargets, 
+			GetDebugName(), 
+			Mode, 
+			MorphVertexBuffer, 
+			true,	// Only clear the morph vertex buffer at the first morph set.
+			(MorphSetIndex == NumMorphSets-1),
+			MorphScale,
+			InvMorphScale);	// Normalize only after the last morph set.
+
+		MorphSetIndex++;
+
+		// Process all external morph targets.
+		for (const auto& MorphSet : LODData.ExternalMorphSets)
+		{
+			const int32 MorphSetID = MorphSet.Key;
+			const FMorphTargetVertexInfoBuffers& CompressedBuffers = MorphSet.Value->MorphBuffers;
+			FExternalMorphSetWeights* WeightData = DynamicData->ExternalMorphWeightData.MorphSets.Find(MorphSetID);
+			check(WeightData);
+			if (IsExternalMorphSetActive(MorphSetID, *MorphSet.Value))
+			{
+				LOD.UpdateMorphVertexBufferGPU(
+					RHICmdList, WeightData->Weights,
+					CompressedBuffers,
+					TArray<int32>(),
+					GetDebugName(),
+					Mode,
+					MorphVertexBuffer,
+					false,	// Don't clear the vertex buffer as we already did with the standard morph targets above.
+					(MorphSetIndex == NumMorphSets - 1),
+					MorphScale,
+					InvMorphScale);	// Normalize only after the last morph set.
+
+				MorphSetIndex++;
+			}
+		}
+
+		// If this hits, the CalcNumActiveGPUMorphSets most likely returns the wrong number.
+		check(NumMorphSets == MorphSetIndex);
 	}
 	else
 	{
@@ -951,7 +1135,6 @@ void FGPUMorphUpdateCS::SetMorphOffsetsAndWeights(FRHICommandList& RHICmdList, u
 	SetShaderValue(RHICmdList, CS, MorphTargetWeightsParameter,		*(float(*)[MorphTargetDispatchBatchSize]) Weights);
 }
 
-
 void FGPUMorphUpdateCS::Dispatch(FRHICommandList& RHICmdList, uint32 Size)
 {
 	const FIntVector DispatchSize = FComputeShaderUtils::GetGroupCountWrapped(Size);
@@ -987,60 +1170,18 @@ void FGPUMorphNormalizeCS::EndAllDispatches(FRHICommandList& RHICmdList)
 
 IMPLEMENT_SHADER_TYPE(, FGPUMorphNormalizeCS, TEXT("/Engine/Private/MorphTargets.usf"), TEXT("GPUMorphNormalizeCS"), SF_Compute);
 
-static void CalculateMorphDeltaBounds(const TArray<float>& MorphTargetWeights, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FVector4& MorphScale, FVector4& InvMorphScale)
-{
-	double MinAccumScale[4] = { 0, 0, 0, 0 };
-	double MaxAccumScale[4] = { 0, 0, 0, 0 };
-	double MaxScale[4] = { 0, 0, 0, 0 };
-
-	for (uint32 i = 0; i < MorphTargetVertexInfoBuffers.GetNumMorphs(); i++)
-	{
-		FVector4f MinMorphScale = MorphTargetVertexInfoBuffers.GetMinimumMorphScale(i);
-		FVector4f MaxMorphScale = MorphTargetVertexInfoBuffers.GetMaximumMorphScale(i);
-
-		for (uint32 j = 0; j < 4; j++)
-		{
-			if (MorphTargetWeights.IsValidIndex(i))
-			{
-				MinAccumScale[j] += MorphTargetWeights[i] * MinMorphScale[j];
-				MaxAccumScale[j] += MorphTargetWeights[i] * MaxMorphScale[j];
-			}
-
-			double AbsMorphScale = FMath::Max<double>(FMath::Abs(MinMorphScale[j]), FMath::Abs(MaxMorphScale[j]));
-			double AbsAccumScale = FMath::Max<double>(FMath::Abs(MinAccumScale[j]), FMath::Abs(MaxAccumScale[j]));
-			//the maximum accumulated and the maximum local value have to fit into out int24
-			MaxScale[j] = FMath::Max(MaxScale[j], FMath::Max(AbsMorphScale, AbsAccumScale));
-		}
-	}
-
-	MaxScale[0] = FMath::Max<double>(MaxScale[0], 1.0);
-	MaxScale[1] = FMath::Max<double>(MaxScale[1], 1.0);
-	MaxScale[2] = FMath::Max<double>(MaxScale[2], 1.0);
-	MaxScale[3] = FMath::Max<double>(MaxScale[3], 1.0);
-
-	const double ScaleToInt24 = 16777216.0;
-
-	MorphScale = FVector4
-	(
-		ScaleToInt24 / (MaxScale[0]),
-		ScaleToInt24 / (MaxScale[1]),
-		ScaleToInt24 / (MaxScale[2]),
-		ScaleToInt24 / (MaxScale[3])
-	);
-
-	InvMorphScale = FVector4
-	(
-		MaxScale[0] / ScaleToInt24,
-		MaxScale[1] / ScaleToInt24,
-		MaxScale[2] / ScaleToInt24,
-		MaxScale[3] / ScaleToInt24
-	);
-}
-
-void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBufferGPU(FRHICommandListImmediate& RHICmdList, const TArray<float>& MorphTargetWeights, 
-																					const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, 
-																					const TArray<int32>& SectionIdsUseByActiveMorphTargets, const FName& OwnerName, EGPUSkinCacheEntryMode Mode,
-																					FMorphVertexBuffer& MorphVertexBuffer)
+void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBufferGPU(
+	FRHICommandListImmediate& RHICmdList, 
+	const TArray<float>& MorphTargetWeights,
+	const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
+	const TArray<int32>& SectionIdsUseByActiveMorphTargets,
+	const FName& OwnerName,
+	EGPUSkinCacheEntryMode Mode,
+	FMorphVertexBuffer& MorphVertexBuffer,
+	bool bClearMorphVertexBuffer,
+	bool bNormalizePass,
+	const FVector4& MorphScale,
+	const FVector4& InvMorphScale)
 {
 	if (IsValidRef(MorphVertexBuffer.VertexBufferRHI))
 	{
@@ -1062,16 +1203,12 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			MorphTargetVertexInfoBuffers.GetNumBatches());
 
 		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
+		if (bClearMorphVertexBuffer)
+		{
+			RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
+		}
 
 		{
-			FVector4 MorphScale; 
-			FVector4 InvMorphScale; 
-			{
-				SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_ApplyDelta);
-				CalculateMorphDeltaBounds(MorphTargetWeights, MorphTargetVertexInfoBuffers, MorphScale, InvMorphScale);
-			}
-
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateScatter, TEXT("Scatter"));
 
@@ -1124,6 +1261,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
 			}
 
+			if (bNormalizePass)
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateNormalize, TEXT("Normalize"));
 
@@ -1405,7 +1543,8 @@ FGPUBaseSkinVertexFactory const* FSkeletalMeshObjectGPUSkin::GetBaseSkinVertexFa
 			}
 		}
 	}
-	else if (bAlwaysUpdateMorphVertexBuffer)
+	
+	if (bAlwaysUpdateMorphVertexBuffer || !DynamicData->ExternalMorphWeightData.MorphSets.IsEmpty())
 	{
 		return LOD.GPUSkinVertexFactories.MorphVertexFactories[ChunkIdx].Get();
 	}
@@ -2073,6 +2212,7 @@ void FDynamicSkelMeshObjectDataGPUSkin::Clear()
 	LODIndex = 0;
 	ActiveMorphTargets.Reset();
 	MorphTargetWeights.Reset();
+	ExternalMorphWeightData.Reset();
 	NumWeightedActiveMorphTargets = 0;
 	ClothingSimData.Reset();
 	ClothBlendWeight = 0.0f;
@@ -2174,8 +2314,8 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	int32 InLODIndex,
 	const TArray<FActiveMorphTarget>& InActiveMorphTargets,
 	const TArray<float>& InMorphTargetWeights, 
-	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode
-	)
+	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
+	const FExternalMorphWeightData& InExternalMorphWeightData)
 {
 	LODIndex = InLODIndex;
 	check(!ActiveMorphTargets.Num() && !ReferenceToLocal.Num() && !ClothingSimData.Num() && !MorphTargetWeights.Num());
@@ -2184,6 +2324,8 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	ActiveMorphTargets.Append(InActiveMorphTargets);
 	MorphTargetWeights.Append(InMorphTargetWeights);
 	NumWeightedActiveMorphTargets = 0;
+	ExternalMorphWeightData = InExternalMorphWeightData;	// TODO: Make this more efficient?
+	ExternalMorphWeightData.UpdateNumActiveMorphTargets();
 
 	// Gather any bones referenced by shadow shapes
 	FSkeletalMeshSceneProxy* SkeletalMeshProxy = InMeshComponent ? (FSkeletalMeshSceneProxy*)InMeshComponent->SceneProxy : nullptr;

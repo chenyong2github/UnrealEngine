@@ -23,8 +23,12 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 	RHIUnlockBuffer(MorphDataBuffer);
 	MorphDataSRV = RHICreateShaderResourceView(MorphDataBuffer);
 
-	MorphData.Empty();
-	bIsMorphCPUDataValid = false;
+	if (bEmptyMorphCPUDataOnInitRHI)
+	{
+		MorphData.Empty();
+		bIsMorphCPUDataValid = false;
+	}
+
 	bRHIIntialized = true;
 }
 

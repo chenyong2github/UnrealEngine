@@ -62,8 +62,8 @@ public:
 		int32 InLODIndex,
 		const TArray<FActiveMorphTarget>& InActiveMorphTargets,
 		const TArray<float>& InMorphTargetWeights, 
-		EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode
-		);
+		EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
+		const FExternalMorphWeightData& InExternalMorphWeightData);
 
 	/** ref pose to local space transforms */
 	TArray<FMatrix44f> ReferenceToLocal;
@@ -92,6 +92,12 @@ public:
 	TArray<int32> SectionIdsUseByActiveMorphTargetsForRayTracing;
 	/** number of active morph targets with weights > 0 */
 	int32 NumWeightedActiveMorphTargets;
+
+	/** 
+	 * The dynamic data for each external morph target set.
+	 * This dynamic data contains things such as the weights for each set of external morph targets.
+	 */
+	FExternalMorphWeightData ExternalMorphWeightData;
 
 	/** data for updating cloth section */
 	TMap<int32, FClothSimulData> ClothingSimData;
@@ -323,7 +329,7 @@ public:
 	//~ Begin FSkeletalMeshObject Interface
 	virtual void InitResources(USkinnedMeshComponent* InMeshComponent) override;
 	virtual void ReleaseResources() override;
-	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode) override;
+	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode, const FExternalMorphWeightData& InExternalMorphWeightData) override;
 	void UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint32 FrameNumberToPrepare, uint32 RevisionNumber);
 	virtual void PreGDMECallback(FGPUSkinCache* GPUSkinCache, uint32 FrameNumber) override;
 	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const override;
@@ -402,6 +408,15 @@ public:
 		}
 	}
 	//~ End FSkeletalMeshObject Interface
+
+	/**
+	 * Calculate how many GPU compressed morph target sets are active.
+	 * This includes regular morph targets as well as external morph targets.
+	 */
+	int32 CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FSkeletalMeshLODRenderData& LODData) const;
+
+	/** Check if a given morph set is active or not. If so, we will process it. */
+	bool IsExternalMorphSetActive(int32 MorphSetID, FExternalMorphTargetSet& MorphSet) const;
 
 	FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer(int32 LODIndex) const;
 
@@ -592,8 +607,10 @@ protected:
 		 */
 		void UpdateMorphVertexBufferCPU(const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, const TArray<int32>& SectionIdsUseByActiveMorphTargets, 
 										bool bGPUSkinCacheEnabled, FMorphVertexBuffer& MorphVertexBuffer);
+
 		void UpdateMorphVertexBufferGPU(FRHICommandListImmediate& RHICmdList, const TArray<float>& MorphTargetWeights, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, 
-										const TArray<int32>& SectionIdsUseByActiveMorphTargets, const FName& OwnerName, EGPUSkinCacheEntryMode Mode, FMorphVertexBuffer& MorphVertexBuffer);
+										const TArray<int32>& SectionIdsUseByActiveMorphTargets, const FName& OwnerName, EGPUSkinCacheEntryMode Mode, FMorphVertexBuffer& MorphVertexBuffer,
+										bool bClearMorphVertexBuffer, bool bNormalizePass, const FVector4& MorphScale, const FVector4& InvMorphScale);
 
 		void UpdateSkinWeights(FSkelMeshComponentLODInfo* CompLODInfo);
 

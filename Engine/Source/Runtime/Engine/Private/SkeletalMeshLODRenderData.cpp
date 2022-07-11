@@ -205,7 +205,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 		}
 	}
 
-	// Always make sure the morph target resources are in an initialized state. This could should not get hit since the data should come with the load.
+	// Always make sure the morph target resources are in an initialized state. This should not get hit since the data should come with the load.
 	bool bNeedsMorphTargetRenderData = Owner && Owner->GetMorphTargets().Num() > 0 && !MorphTargetVertexInfoBuffers.IsMorphResourcesInitialized();
 	if (bNeedsMorphTargetRenderData)
 	{
@@ -255,7 +255,7 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 		}
 	}
 	BeginReleaseResource(&MorphTargetVertexInfoBuffers);
-	
+
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
 	SkinWeightProfilesData.ReleaseResources();
 
@@ -960,4 +960,24 @@ void FSkeletalMeshLODRenderData::GetSectionFromVertexIndex(int32 InVertIndex, in
 
 	// InVertIndex should always be in some chunk!
 	//check(false);
+}
+
+void FSkeletalMeshLODRenderData::AddExternalMorphSet(int32 ID, TSharedPtr<FExternalMorphTargetSet> MorphSet)
+{
+	ExternalMorphSets.Add(ID, MorphSet);
+}
+
+void FSkeletalMeshLODRenderData::RemoveExternalMorphSet(int32 ID)
+{
+	ExternalMorphSets.Remove(ID);
+}
+
+bool FSkeletalMeshLODRenderData::HasExternalMorphSet(int32 ID) const
+{
+	return (ExternalMorphSets.Find(ID) != nullptr);
+}
+
+void FSkeletalMeshLODRenderData::ClearExternalMorphSets()
+{
+	ExternalMorphSets.Empty();
 }

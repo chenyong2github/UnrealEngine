@@ -330,6 +330,32 @@ namespace FAnimUpdateRateManager
 
 //////////////////////////////////////////////////////////////////////////
 
+void FExternalMorphSetWeights::UpdateNumActiveMorphTargets()
+{
+	NumActiveMorphTargets = 0;
+	for (int32 Index = 0; Index < Weights.Num(); ++Index)
+	{
+		if (FMath::Abs<float>(Weights[Index]) >= ActiveWeightThreshold)
+		{
+			NumActiveMorphTargets++;
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void FExternalMorphWeightData::UpdateNumActiveMorphTargets()
+{
+	NumActiveMorphTargets = 0;
+	for (auto& MapItem : MorphSets)
+	{
+		MapItem.Value.UpdateNumActiveMorphTargets();
+		NumActiveMorphTargets += MapItem.Value.NumActiveMorphTargets;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, MeshObjectFactory(nullptr)
@@ -524,6 +550,8 @@ void USkinnedMeshComponent::OnRegister()
 	InvalidateCachedBounds();
 
 	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this) : nullptr;
+
+	RefreshExternalMorphTargetWeights();
 }
 
 void USkinnedMeshComponent::OnUnregister()
@@ -538,6 +566,49 @@ void USkinnedMeshComponent::OnUnregister()
 	}
 
 	MeshDeformerInstance = nullptr;
+}
+
+void USkinnedMeshComponent::RefreshExternalMorphTargetWeights()
+{
+	// Clear the external weights if there is no skeletal mesh.
+	if (SkeletalMesh.Get() == nullptr || SkeletalMesh->GetResourceForRendering() == nullptr)
+	{
+		ExternalMorphWeightData.Empty();
+		ExternalMorphWeightData.AddDefaulted(GetNumLODs());
+		return;
+	}
+
+	// Init based on the highest LOD.
+	const int32 NumLODs = GetNumLODs();
+	ExternalMorphWeightData.Reset();
+	ExternalMorphWeightData.AddDefaulted(NumLODs);
+	check(SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() == NumLODs);
+
+	for (int32 LOD = 0; LOD < NumLODs; ++LOD)
+	{
+		FExternalMorphWeightData& ExternalWeights = GetExternalMorphWeights(LOD);
+
+		auto& MorphSets = SkeletalMesh->GetResourceForRendering()->LODRenderData[LOD].ExternalMorphSets;
+		for (const auto& Item : MorphSets)
+		{
+			check(Item.Value.IsValid());
+			const int32 MorphSetID = Item.Key;
+			const FMorphTargetVertexInfoBuffers& MorphBuffer = Item.Value->MorphBuffers;
+
+			FExternalMorphSetWeights* MorphSetWeights = ExternalWeights.MorphSets.Find(MorphSetID);
+			if (MorphSetWeights == nullptr)
+			{
+				MorphSetWeights = &ExternalWeights.MorphSets.Add(MorphSetID);
+			}
+			check(MorphSetWeights != nullptr);
+
+			MorphSetWeights->Name = Item.Value->Name;
+			MorphSetWeights->Weights.Reset();
+			MorphSetWeights->Weights.AddZeroed(MorphBuffer.GetNumMorphs());
+		}
+
+		ExternalWeights.UpdateNumActiveMorphTargets();
+	}
 }
 
 void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
@@ -657,7 +728,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 					ActiveMorphTargets.Empty();
 				}
 
-				MeshObject->Update(ModifiedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
+				MeshObject->Update(ModifiedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious, GetExternalMorphWeights(ModifiedLODLevel));  // send to rendering thread
 			}
 		}
 
@@ -749,7 +820,15 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 				ActiveMorphTargets.Empty();
 			}
 
-			MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+			MeshObject->Update(
+				UseLOD,
+				this,
+				ActiveMorphTargets,
+				MorphTargetWeights,
+				bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None,
+				GetExternalMorphWeights(UseLOD)
+			);  // send to rendering thread
+
 			MeshObject->bHasBeenUpdatedAtLeastOnce = true;
 			bForceMeshObjectUpdate = false;
 
@@ -789,10 +868,10 @@ void USkinnedMeshComponent::ClearMotionVector()
 		// use this function to clear it
 		// this function updates renderer twice using increasing of revision number, so that renderer updates previous/new transform correctly
 		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));  // send to rendering thread
 
 		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));  // send to rendering thread
 
 		// Skin cache may need updating
 		MarkForNeededEndOfFrameUpdate();
@@ -811,7 +890,7 @@ void USkinnedMeshComponent::ForceMotionVector()
 		}
 
 		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));
 
 		// Skin cache may need updating
 		MarkForNeededEndOfFrameUpdate();
@@ -1704,8 +1783,12 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 			// clear morphtarget cache
 			ActiveMorphTargets.Empty();			
 			MorphTargetWeights.Empty();
+			ExternalMorphWeightData.Empty();
 		}
 	}
+
+	// Update external weight array sizes.
+	RefreshExternalMorphTargetWeights();
 	
 	if (IsRegistered())
 	{

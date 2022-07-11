@@ -139,6 +139,44 @@ struct FActiveMorphTarget
 	}
 };
 
+/** The weight data for a specific external morph set. */
+struct ENGINE_API FExternalMorphSetWeights
+{
+	/** Update the number of active morph targets. */
+	void UpdateNumActiveMorphTargets();
+
+	/** The debug name. */
+	FName Name = FName(TEXT("Unknown"));
+
+	/** The weights, which can also be negative and go beyond 1.0 or -1.0. */
+	TArray<float> Weights;
+
+	/** The number of active morph targets. */
+	int32 NumActiveMorphTargets = 0;
+
+	/** The treshold used to determine if a morph target is active or not. Any weight equal to or above this value is seen as active morph target. */
+	float ActiveWeightThreshold = 0.001f;
+};
+
+/** The morph target weight data for all external morph target sets. */
+struct ENGINE_API FExternalMorphWeightData
+{
+	/** Update the number of active morph targets for all sets. */
+	void UpdateNumActiveMorphTargets();
+
+	/** Reset the morph target sets. */
+	void Reset() { MorphSets.Reset(); NumActiveMorphTargets = 0; }
+
+	/** Check if we have active morph targets or not. */
+	bool HasActiveMorphs() const { return (NumActiveMorphTargets > 0); }
+
+	/** The map with a collection of morph sets. Each set can contains multiple morph targets. */
+	TMap<int32, FExternalMorphSetWeights> MorphSets;
+
+	/** The number of active morph targets. */
+	int32 NumActiveMorphTargets = 0;
+};
+
 /** Vertex skin weight info supplied for a component override. */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/Engine.KismetRenderingLibrary.MakeSkinWeightInfo", HasNativeBreak = "/Script/Engine.KismetRenderingLibrary.BreakSkinWeightInfo"))
 struct FSkelMeshSkinWeightInfo
@@ -373,6 +411,9 @@ public:
 
 	const TArray<int32>& GetMasterBoneMap() const { return MasterBoneMap; }
 
+	const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const { return ExternalMorphWeightData[LOD]; }
+	FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) { return ExternalMorphWeightData[LOD]; }
+
 	/** 
 	 * Get CPU skinned vertices for the specified LOD level. Includes morph targets if they are enabled.
 	 * Note: This function is very SLOW as it needs to flush the render thread.
@@ -402,6 +443,9 @@ public:
 
 	/** Array of weights for all morph targets. This array is updated inside RefreshBoneTransforms based on the Anim Blueprint. */
 	TArray<float> MorphTargetWeights;
+
+	/** The external morph target set weight data, for each LOD. This data is (re)initialized by RefreshExternalMorphTargetWeights(). */
+	TArray<FExternalMorphWeightData> ExternalMorphWeightData;
 
 #if WITH_EDITORONLY_DATA
 private:
@@ -916,6 +960,9 @@ public:
 
 	/** Get the pre-skinning local space bounds for this component. */
 	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
+
+	/** Refresh the external morph target weight buffers. This makes sure the amount of morph sets and number of weights are valid. */
+	void RefreshExternalMorphTargetWeights();
 
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.
