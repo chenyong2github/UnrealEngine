@@ -94,6 +94,7 @@ bool URigHierarchy::bEnableValidityCheckbyDefault = false;
 
 URigHierarchy::URigHierarchy()
 : TopologyVersion(0)
+, MetadataVersion(0)
 , bEnableDirtyPropagation(true)
 , Elements()
 , IndexLookup()
@@ -292,6 +293,7 @@ void URigHierarchy::Reset()
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	
 	TopologyVersion = 0;
+	MetadataVersion = 0;
 	bEnableDirtyPropagation = true;
 
 	// walk in reverse since certain elements might not have been allocated themselves
@@ -411,6 +413,7 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 
 
 	TopologyVersion = InHierarchy->GetTopologyVersion();
+	MetadataVersion = InHierarchy->GetMetadataVersion();
 	UpdateAllCachedChildren();
 	
 	EnsureCacheValidity();
@@ -4097,6 +4100,10 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 	{
 		Element->OwnedInstances = InCount;
 	}
+
+	Element->MetadataChangedDelegate.BindUObject(this, &URigHierarchy::OnMetadataChanged);
+	Element->MetadataTagChangedDelegate.BindUObject(this, &URigHierarchy::OnMetadataTagChanged);
+	
 	return Element;
 }
 
@@ -4104,6 +4111,9 @@ void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	check(InElement != nullptr);
+
+	InElement->MetadataChangedDelegate.Unbind();
+	InElement->MetadataTagChangedDelegate.Unbind();
 
 	if(InElement->OwnedInstances == 0)
 	{
@@ -4115,55 +4125,55 @@ void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
 	{
 		case ERigElementType::Bone:
 		{
-			FRigBoneElement* Elements = Cast<FRigBoneElement>(InElement);
+			FRigBoneElement* ExistingElements = Cast<FRigBoneElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigBoneElement(); 
+				ExistingElements[Index].~FRigBoneElement(); 
 			}
 			break;
 		}
 		case ERigElementType::Null:
 		{
-			FRigNullElement* Elements = Cast<FRigNullElement>(InElement);
+			FRigNullElement* ExistingElements = Cast<FRigNullElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigNullElement(); 
+				ExistingElements[Index].~FRigNullElement(); 
 			}
 			break;
 		}
 		case ERigElementType::Control:
 		{
-			FRigControlElement* Elements = Cast<FRigControlElement>(InElement);
+			FRigControlElement* ExistingElements = Cast<FRigControlElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigControlElement(); 
+				ExistingElements[Index].~FRigControlElement(); 
 			}
 			break;
 		}
 		case ERigElementType::Curve:
 		{
-			FRigCurveElement* Elements = Cast<FRigCurveElement>(InElement);
+			FRigCurveElement* ExistingElements = Cast<FRigCurveElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigCurveElement(); 
+				ExistingElements[Index].~FRigCurveElement(); 
 			}
 			break;
 		}
 		case ERigElementType::RigidBody:
 		{
-			FRigRigidBodyElement* Elements = Cast<FRigRigidBodyElement>(InElement);
+			FRigRigidBodyElement* ExistingElements = Cast<FRigRigidBodyElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigRigidBodyElement(); 
+				ExistingElements[Index].~FRigRigidBodyElement(); 
 			}
 			break;
 		}
 		case ERigElementType::Reference:
 		{
-			FRigReferenceElement* Elements = Cast<FRigReferenceElement>(InElement);
+			FRigReferenceElement* ExistingElements = Cast<FRigReferenceElement>(InElement);
 			for(int32 Index=0;Index<Count;Index++)
 			{
-				Elements[Index].~FRigReferenceElement(); 
+				ExistingElements[Index].~FRigReferenceElement(); 
 			}
 			break;
 		}
@@ -4451,6 +4461,23 @@ void URigHierarchy::CleanupInvalidCaches()
 
 	ResetPoseToInitial(ERigElementType::All);
 	EnsureCacheValidity();
+}
+
+void URigHierarchy::OnMetadataChanged(const FRigElementKey& InKey, const FName& InName)
+{
+	IncrementMetadataVersion();
+	if(MetadataChangedDelegate.IsBound())
+	{
+		MetadataChangedDelegate.Broadcast(InKey, InName);
+	}
+}
+
+void URigHierarchy::OnMetadataTagChanged(const FRigElementKey& InKey, const FName& InTag, bool bAdded)
+{
+	if(MetadataTagChangedDelegate.IsBound())
+	{
+		MetadataTagChangedDelegate.Broadcast(InKey, InTag, bAdded);
+	}
 }
 
 void URigHierarchy::EnsureCacheValidityImpl()

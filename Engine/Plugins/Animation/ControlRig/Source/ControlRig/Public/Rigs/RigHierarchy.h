@@ -21,6 +21,8 @@ class URigHierarchyController;
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
 DECLARE_EVENT_FiveParams(URigHierarchy, FRigHierarchyUndoRedoTransformEvent, URigHierarchy*, const FRigElementKey&, ERigTransformType::Type, const FTransform&, bool /* bUndo */);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FRigHierarchyMetadataChangedDelegate, const FRigElementKey& /* Key */, const FName& /* Name */);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyMetadataTagChangedDelegate, const FRigElementKey& /* Key */, const FName& /* Tag */, bool /* AddedOrRemoved */);
 
 UENUM()
 enum ERigTransformStackEntryType
@@ -95,6 +97,7 @@ public:
 	typedef TMap<int32, TArray<int32>> TElementDependencyMap;
 	typedef TPair<int32, TArray<int32>> TElementDependencyMapPair;
 	typedef TTuple<int32, int32, int32, ERigTransformType::Type> TInstructionSliceElement;
+	inline static const FName TagMetadataName = TEXT("Tags");
 
 	URigHierarchy();
 
@@ -1356,6 +1359,40 @@ public:
 		return SetArrayMetadata<FRigElementKey>(InItem, ERigMetadataType::RigElementKeyArray, InMetadataName, InValue);
 	}
 
+	/*
+	 * Returns the tags for a given item
+	 * @param InItem The item to return the tags for
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FName> GetTags(FRigElementKey InItem) const
+	{
+		return GetNameArrayMetadata(InItem, TagMetadataName);
+	}
+
+	/*
+	 * Returns true if a given item has a certain tag
+	 * @param InItem The item to return the tags for
+	 * @param InTag The tag to check
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE bool HasTag(FRigElementKey InItem, FName InTag) const
+	{
+		return GetTags(InItem).Contains(InTag);
+	}
+
+	/*
+     * Sets a tag on an element in the hierarchy
+     * @param InItem The item to set the tag for
+     * @param InTag The tag to set
+     */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetTag(FRigElementKey InItem, FName InTag)
+	{
+		TArray<FName> Tags = GetTags(InItem);
+		Tags.AddUnique(InTag);
+		return SetNameArrayMetadata(InItem, TagMetadataName, Tags);
+	}
+
 	/**
 	 * Returns the selected elements
 	 * @InTypeFilter The types to retrieve the selection for
@@ -1477,6 +1514,20 @@ public:
 	 * @return The event used for subscription.
 	 */
 	FRigHierarchyModifiedEvent& OnModified() { return ModifiedEvent; }
+
+	/**
+	 * Returns the MetadataChanged event, which can be used to track metadata changes
+	 * Note: This notification has a very high volume - so the consequences of subscribing
+	 * to it may cause performance slowdowns.
+	 */
+	FRigHierarchyMetadataChangedDelegate& OnMetadataChanged() { return MetadataChangedDelegate; }
+
+	/**
+	 * Returns the MetadataTagChanged event, which can be used to track metadata tag changes
+	 * Note: This notification has a very high volume - so the consequences of subscribing
+	 * to it may cause performance slowdowns.
+	 */
+	FRigHierarchyMetadataTagChangedDelegate& OnMetadataTagChanged() { return MetadataTagChangedDelegate; }
 
 	/**
 	 * Returns the local current or initial value for a given key.
@@ -2830,6 +2881,16 @@ public:
 	void IncrementTopologyVersion();
 
 	/**
+	 * Returns the metadata version of this hierarchy
+	 */
+	uint16 GetMetadataVersion() const { return MetadataVersion; }
+
+	/**
+	 * Increments the metadata version
+	 */
+	FORCEINLINE void IncrementMetadataVersion() { MetadataVersion++; }
+
+	/**
 	 * Returns the current / initial pose of the hierarchy
 	 * @param bInitial If set to true the initial pose will be returned
 	 * @return The pose of the hierarchy
@@ -3114,6 +3175,8 @@ public:
 private:
 
 	FRigHierarchyModifiedEvent ModifiedEvent;
+	FRigHierarchyMetadataChangedDelegate MetadataChangedDelegate;
+	FRigHierarchyMetadataTagChangedDelegate MetadataTagChangedDelegate;
 	FRigEventDelegate EventDelegate;
 
 public:
@@ -3389,12 +3452,12 @@ private:
 	/*
 	 * Helper function to create an element for a given type
 	 */
-	static FRigBaseElement* MakeElement(ERigElementType InElementType, int32 InCount = 1, int32* OutStructureSize = nullptr); 
+	FRigBaseElement* MakeElement(ERigElementType InElementType, int32 InCount = 1, int32* OutStructureSize = nullptr); 
 
 	/*
 	* Helper function to create an element for a given type
 	*/
-	static void DestroyElement(FRigBaseElement*& InElement);
+	void DestroyElement(FRigBaseElement*& InElement);
 
 	/*
 	 * Templated helper function to create an element
@@ -3448,6 +3511,13 @@ private:
 	 */
 	UPROPERTY(transient)
 	uint16 TopologyVersion;
+
+	/**
+	 * The metadata version of the hierarchy changes when metadata is being
+	 * created or removed (not when the metadata values changes)
+	 */
+	UPROPERTY(transient)
+	uint16 MetadataVersion;
 
 	/**
 	 * If set to false the dirty flag propagation will be disabled
@@ -3867,6 +3937,9 @@ private:
 		return SetMetadata<TArray<T>>(InElement, InType, InMetadataName, InValue);
 	}
 
+	void OnMetadataChanged(const FRigElementKey& InKey, const FName& InName);
+	void OnMetadataTagChanged(const FRigElementKey& InKey, const FName& InTag, bool bAdded);
+
 protected:
 	
 	bool bEnableCacheValidityCheck;
@@ -3961,6 +4034,7 @@ private:
 
 	// certain units are allowed to use this
 	friend struct FRigUnit_AddParent;
+	friend struct FRigUnit_SetDefaultParent;
 
 private:
 	TGuardValue<bool> GuardIsControllerAvailable;

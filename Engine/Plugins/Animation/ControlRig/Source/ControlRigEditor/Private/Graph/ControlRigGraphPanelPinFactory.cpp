@@ -204,6 +204,229 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							return &EmptyNameList;
 						});
 				}
+				else if (CustomWidgetName == TEXT("MetadataName") || CustomWidgetName == TEXT("MetadataNameAll"))
+				{
+					struct FCachedMetadataNames
+					{
+						int32 MetadataVersion;
+						TSharedPtr<TArray<TSharedPtr<FString>>> Names;
+						
+						FCachedMetadataNames()
+						: MetadataVersion(INDEX_NONE)
+						{}
+					};
+
+					const bool bCompleteList = CustomWidgetName == TEXT("MetadataNameAll");
+					
+					return SNew(SControlRigGraphPinNameList, InPin)
+						.ModelPin(ModelPin)
+						.OnGetNameListContent_Lambda([RigGraph, bCompleteList](const URigVMPin* InPin)
+						{
+							if (const UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
+							{
+								if(UControlRig* ControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+								{
+									FRigElementKey ItemKey;
+									bool bHasSourceLinks = false;
+
+									// find the pin that holds the item
+									for(URigVMPin* Pin : InPin->GetRootPin()->GetNode()->GetPins())
+									{
+										if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
+										{
+											if(!bCompleteList)
+											{
+												if(Pin->GetSourceLinks(true).Num() > 0)
+												{
+													bHasSourceLinks = true;
+												}
+											}
+											if(!bHasSourceLinks)
+											{
+												const FString DefaultValue = Pin->GetDefaultValue();
+												if(!DefaultValue.IsEmpty())
+												{
+													FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &ItemKey, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+												}
+											}
+											break;
+										}
+									}
+
+									const FRigBaseElement* Element = nullptr;
+									if(ItemKey.IsValid())
+									{
+										if(!bCompleteList && !bHasSourceLinks)
+										{
+											Element = ControlRig->GetHierarchy()->Find(ItemKey);
+											if(Element == nullptr)
+											{
+												static TArray<TSharedPtr<FString>> EmptyNameList;
+												return &EmptyNameList;
+											}
+										}
+									}
+
+									const FString MapHash = Element ?
+										Blueprint->GetPathName() + TEXT("|") + ItemKey.ToString() :
+										Blueprint->GetPathName();
+									const int32 MetadataVersion = Element ? Element->GetMetadataVersion() : ControlRig->GetHierarchy()->GetMetadataVersion(); 
+
+									static TMap<FString, FCachedMetadataNames> MetadataNameLists;
+									FCachedMetadataNames& MetadataNames = MetadataNameLists.FindOrAdd(MapHash);
+
+									if(MetadataNames.MetadataVersion != MetadataVersion)
+									{
+										TArray<FName> Names;
+										if(bCompleteList || bHasSourceLinks || (Element == nullptr))
+										{
+											for(int32 ElementIndex=0; ElementIndex < ControlRig->GetHierarchy()->Num(); ElementIndex++)
+											{
+												const FRigBaseElement* OtherElement = ControlRig->GetHierarchy()->Get(ElementIndex);
+												for(int32 MetadataIndex = 0; MetadataIndex < OtherElement->NumMetadata(); MetadataIndex++)
+												{
+													Names.AddUnique(OtherElement->GetMetadata(MetadataIndex)->GetName());
+												}
+											}
+										}
+										else if(Element)
+										{
+											for(int32 MetadataIndex = 0; MetadataIndex < Element->NumMetadata(); MetadataIndex++)
+											{
+												Names.Add(Element->GetMetadata(MetadataIndex)->GetName());
+											}
+										}
+
+										if(!MetadataNames.Names.IsValid())
+										{
+											MetadataNames.Names = MakeShareable(new TArray<TSharedPtr<FString>>());
+										}
+										MetadataNames.Names->Reset();
+
+										for(const FName& Name : Names)
+										{
+											MetadataNames.Names->Add(MakeShareable(new FString(Name.ToString())));
+										}
+
+										MetadataNames.Names->Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B)
+										{
+											return A.Get() > B.Get();
+										});
+										MetadataNames.Names->Insert(MakeShareable(new FString(FName(NAME_None).ToString())), 0);
+
+										MetadataNames.MetadataVersion = MetadataVersion;
+									}
+									return MetadataNames.Names.Get();
+								}
+							}
+
+							static TArray<TSharedPtr<FString>> EmptyNameList;
+							return &EmptyNameList;
+						});
+				}
+				else if (CustomWidgetName == TEXT("MetadataTagName") || CustomWidgetName == TEXT("MetadataTagNameAll"))
+				{
+					bool bCompleteList = CustomWidgetName == TEXT("MetadataTagNameAll");
+
+					struct FCachedMetadataTagNames
+					{
+						TSharedPtr<TArray<TSharedPtr<FString>>> Names;
+						FCachedMetadataTagNames()
+						{}
+					};
+
+					return SNew(SControlRigGraphPinNameList, InPin)
+						.ModelPin(ModelPin)
+						.OnGetNameListContent_Lambda([RigGraph, bCompleteList](const URigVMPin* InPin)
+						{
+							if (const UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
+							{
+								if(UControlRig* ControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+								{
+									FRigElementKey ItemKey;
+									bool bHasSourceLinks = false;
+
+									// find the pin that holds the item
+									for(URigVMPin* Pin : InPin->GetRootPin()->GetNode()->GetPins())
+									{
+										if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
+										{
+											if(!bCompleteList)
+											{
+												if(Pin->GetSourceLinks(true).Num() > 0)
+												{
+													bHasSourceLinks = true;
+												}
+											}
+											if(!bHasSourceLinks)
+											{
+												const FString DefaultValue = Pin->GetDefaultValue();
+												if(!DefaultValue.IsEmpty())
+												{
+													FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &ItemKey, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+												}
+											}
+											break;
+										}
+									}
+
+									const FString MapHash = ItemKey.IsValid() ?
+										Blueprint->GetPathName() + TEXT("|") + ItemKey.ToString() :
+										Blueprint->GetPathName();
+
+									static TMap<FString, FCachedMetadataTagNames> MetadataTagNameLists;
+									FCachedMetadataTagNames& MetadataTagNames = MetadataTagNameLists.FindOrAdd(MapHash);
+
+									TArray<FName> Tags; 
+									if(bCompleteList || !ItemKey.IsValid())
+									{
+										for(int32 ElementIndex=0; ElementIndex < ControlRig->GetHierarchy()->Num(); ElementIndex++)
+										{
+											const FRigBaseElement* Element = ControlRig->GetHierarchy()->Get(ElementIndex);
+											if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+											{
+												for(const FName& Tag : Md->GetValue())
+												{
+													Tags.AddUnique(Tag);
+												}
+											}
+										}
+									}
+									else
+									{
+										if(const FRigBaseElement* Element = ControlRig->GetHierarchy()->Find(ItemKey))
+										{
+											if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+											{
+												Tags = Md->GetValue();
+											}
+										}
+									}
+
+									if(!MetadataTagNames.Names.IsValid())
+									{
+										MetadataTagNames.Names = MakeShareable(new TArray<TSharedPtr<FString>>());
+									}
+									MetadataTagNames.Names->Reset();
+
+									for(const FName& Tag : Tags)
+									{
+										MetadataTagNames.Names->Add(MakeShareable(new FString(Tag.ToString())));
+									}
+									MetadataTagNames.Names->Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B)
+									{
+										return A.Get() > B.Get();
+									});
+									MetadataTagNames.Names->Insert(MakeShareable(new FString(FName(NAME_None).ToString())), 0);
+
+									return MetadataTagNames.Names.Get();
+								}
+							}
+
+							static TArray<TSharedPtr<FString>> EmptyNameList;
+							return &EmptyNameList;
+						});
+				}
 			}
 
 			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)

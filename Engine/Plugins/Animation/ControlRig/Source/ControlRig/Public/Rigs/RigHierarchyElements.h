@@ -13,6 +13,9 @@ struct FRigControlElement;
 class URigHierarchy;
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigReferenceGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
+DECLARE_DELEGATE_TwoParams(FRigElementMetadataChangedDelegate, const FRigElementKey& /* Key */, const FName& /* Name */);
+DECLARE_DELEGATE_ThreeParams(FRigElementMetadataTagChangedDelegate, const FRigElementKey& /* Key */, const FName& /* Tag */, bool /* AddedOrRemoved */);
+DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigReferenceGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
 
 #define DECLARE_RIG_ELEMENT_METHODS(ElementType) \
 template<typename T> \
@@ -513,6 +516,7 @@ public:
 	, bSelected(false)
 	, CreatedAtInstructionIndex(INDEX_NONE)
 	, TopologyVersion(0)
+	, MetadataVersion(0)
 	, OwnedInstances(0)
 	{}
 
@@ -572,6 +576,7 @@ public:
 	FORCEINLINE bool IsSelected() const { return bSelected; }
 	FORCEINLINE int32 GetCreatedAtInstructionIndex() const { return CreatedAtInstructionIndex; }
 	FORCEINLINE bool IsProcedural() const { return CreatedAtInstructionIndex != INDEX_NONE; }
+	FORCEINLINE int32 GetMetadataVersion() const { return MetadataVersion; }
 
 	FORCEINLINE int32 NumMetadata() const { return Metadata.Num(); }
 	FORCEINLINE FRigBaseMetadata* GetMetadata(int32 InIndex) const { return Metadata[InIndex]; }
@@ -666,15 +671,25 @@ protected:
 	// sets up the metadata and ensures the right type
 	FRigBaseMetadata* SetupValidMetadata(const FName& InName, ERigMetadataType InType);
 
+	void NotifyMetadataChanged(const FName& InName);
+	void NotifyMetadataTagChanged(const FName& InTag, bool bAdded);
+
 	mutable uint16 TopologyVersion;
+	mutable uint16 MetadataVersion;
 	mutable FRigBaseElementChildrenArray CachedChildren;
 
 	// used for constructing / destructing the memory. typically == 1
 	int32 OwnedInstances;
 
+	FRigElementMetadataChangedDelegate MetadataChangedDelegate;
+	FRigElementMetadataTagChangedDelegate MetadataTagChangedDelegate;
+
 	friend class URigHierarchy;
 	friend class URigHierarchyController;
 	friend struct FRigDispatch_SetMetadata;
+	friend struct FRigUnit_SetMetadataTag;
+	friend struct FRigUnit_SetMetadataTagArray;
+	friend struct FRigUnit_RemoveMetadataTag;
 };
 
 USTRUCT(BlueprintType)

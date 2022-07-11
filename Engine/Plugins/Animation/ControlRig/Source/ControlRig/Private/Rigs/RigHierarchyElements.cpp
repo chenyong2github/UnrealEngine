@@ -162,6 +162,11 @@ void FRigBaseElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializatio
 			{
 				MetadataNameToIndex.Add(Metadata[MetadataIndex]->GetName(), MetadataIndex);
 			}
+
+			for(int32 MetadataIndex = 0; MetadataIndex < Metadata.Num(); MetadataIndex++)
+			{
+				NotifyMetadataChanged(Metadata[MetadataIndex]->GetName());
+			}
 		}
 	}
 }
@@ -181,6 +186,7 @@ bool FRigBaseElement::RemoveMetadata(const FName& InName)
 				Pair.Value--;
 			}
 		}
+		NotifyMetadataChanged(InName);
 		return true;
 	}
 	return false;
@@ -190,12 +196,19 @@ bool FRigBaseElement::RemoveAllMetadata()
 {
 	if(!Metadata.IsEmpty())
 	{
+		TArray<FName> Names;
+		Names.Reserve(Metadata.Num());
 		for(FRigBaseMetadata* Md : Metadata)
 		{
+			Names.Add(Md->GetName());
 			FRigBaseMetadata::DestroyMetadata(&Md);
 		}
 		Metadata.Reset();
 		MetadataNameToIndex.Reset();
+		for(const FName& Name: Names)
+		{
+			NotifyMetadataChanged(Name);
+		}
 		return true;
 	}
 	return false;
@@ -245,13 +258,32 @@ FRigBaseMetadata* FRigBaseElement::SetupValidMetadata(const FName& InName, ERigM
 
 		FRigBaseMetadata::DestroyMetadata(&Metadata[MetadataIndex]);
 		Metadata[MetadataIndex] = FRigBaseMetadata::MakeMetadata(this, InName, InType);
+		NotifyMetadataChanged(InName);
 		return Metadata[MetadataIndex];
 	}
 
 	FRigBaseMetadata* Md = FRigBaseMetadata::MakeMetadata(this, InName, InType);
 	const int32 MetadataIndex = Metadata.Add(Md);
 	MetadataNameToIndex.Add(InName, MetadataIndex);
+	NotifyMetadataChanged(InName);
 	return Md;
+}
+
+void FRigBaseElement::NotifyMetadataChanged(const FName& InName)
+{
+	MetadataVersion++;
+	if(MetadataChangedDelegate.IsBound())
+	{
+		MetadataChangedDelegate.Execute(GetKey(), InName);
+	}
+}
+
+void FRigBaseElement::NotifyMetadataTagChanged(const FName& InTag, bool bAdded)
+{
+	if(MetadataTagChangedDelegate.IsBound())
+	{
+		MetadataTagChangedDelegate.Execute(GetKey(), InTag, bAdded);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1185,7 +1185,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 
 				PastedKeys.Add(ExistingElement->GetKey());
 
-				URigHierarchy::DestroyElement(NewElement);
+				Hierarchy->DestroyElement(NewElement);
 				continue;
 			}
 		}
@@ -1811,7 +1811,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 		Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
 	}
 
-	URigHierarchy::DestroyElement(InElement);
+	Hierarchy->DestroyElement(InElement);
 
 	Hierarchy->EnsureCacheValidity();
 

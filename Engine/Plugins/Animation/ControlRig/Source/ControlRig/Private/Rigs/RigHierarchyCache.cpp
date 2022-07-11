@@ -24,7 +24,24 @@ bool FCachedRigElement::UpdateCache(const FRigElementKey& InKey, const URigHiera
 		{
 			// have to create a copy since Reset below
 			// potentially resets the InKey as well.
-			const FRigElementKey KeyToResolve = InKey; 
+			const FRigElementKey KeyToResolve = InKey;
+
+			// first try to resolve with the known index.
+			// this happens a lot - where the topology version has
+			// increased - but the known item is still valid
+			if(InHierarchy->IsValidIndex(Index))
+			{
+				if(const FRigBaseElement* PreviousElement = InHierarchy->Get(Index))
+				{
+					if(PreviousElement->GetKey() == KeyToResolve)
+					{
+						Key = KeyToResolve;
+						Element = PreviousElement;
+						ContainerVersion = InHierarchy->GetTopologyVersion();
+						return IsValid();
+					}
+				}
+			}
 
 			Reset();
 

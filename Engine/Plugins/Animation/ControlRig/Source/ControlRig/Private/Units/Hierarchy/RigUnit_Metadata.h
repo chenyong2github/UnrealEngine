@@ -53,6 +53,10 @@ struct CONTROLRIG_API FRigDispatch_GetMetadata : public FRigDispatch_MetadataBas
 
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 
+#if WITH_EDITOR
+	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const override;
+#endif
+
 protected:
 
 	static FRigBaseMetadata* FindMetadata(const FRigVMExtendedExecuteContext& InContext, const FRigElementKey& InKey, const FName& InName, ERigMetadataType InType, FCachedRigElement& Cache);
@@ -168,9 +172,80 @@ protected:
 };
 
 /**
+ * Removes an existing metadata filed from an item
+ */
+USTRUCT(meta=(DisplayName="Remove Metadata", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="DeleteMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_RemoveMetadata : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_RemoveMetadata()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Name(NAME_None)
+		, Removed(false)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to remove the metadata from 
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the metadata to remove
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataName"))
+	FName Name;
+
+	// True if the metadata has been removed
+	UPROPERTY(meta=(Output))
+	bool Removed;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Removes an existing metadata filed from an item
+ */
+USTRUCT(meta=(DisplayName="Remove All Metadata", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="DeleteMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_RemoveAllMetadata : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_RemoveAllMetadata()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Removed(false)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to remove the metadata from 
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	// True if any metadata has been removed
+	UPROPERTY(meta=(Output))
+	bool Removed;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
  * Returns true if a given item in the hierarchy has a specific set of metadata
  */
-USTRUCT(meta=(DisplayName="Has Metadata", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,SupportsMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Has Metadata", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,SupportsMetadata,FindMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_HasMetadata : public FRigUnit
 {
 	GENERATED_BODY()
@@ -179,7 +254,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadata : public FRigUnit
 		: Item(NAME_None, ERigElementType::Bone)
 		, Name(NAME_None)
 		, Type(ERigMetadataType::Float)
-		, bFound(false)
+		, Found(false)
 		, CachedIndex()
 	{}
 
@@ -195,7 +270,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadata : public FRigUnit
 	/**
 	 * The name of the metadata to check
 	 */ 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataName"))
 	FName Name;
 
 	/**
@@ -206,7 +281,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadata : public FRigUnit
 
 	// True if the item has the metadata
 	UPROPERTY(meta=(Output))
-	bool bFound;
+	bool Found;
 
 	// Used to cache the internally
 	UPROPERTY()
@@ -233,7 +308,7 @@ struct CONTROLRIG_API FRigUnit_FindItemsWithMetadata : public FRigUnit
 	/**
 	 * The name of the metadata to find
 	 */ 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataNameAll"))
 	FName Name;
 
 	/**
@@ -245,4 +320,322 @@ struct CONTROLRIG_API FRigUnit_FindItemsWithMetadata : public FRigUnit
 	// The items containing the metadata
 	UPROPERTY(meta=(Output))
 	TArray<FRigElementKey> Items;
+};
+
+/**
+ * Returns the metadata tags on an item
+ */
+USTRUCT(meta=(DisplayName="Get Tags", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,Tagging,FindTag", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_GetMetadataTags : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetMetadataTags()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tags()
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to check the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the tag to check
+	 */ 
+	UPROPERTY(meta = (Output))
+	TArray<FName> Tags;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Sets a single tag on an item 
+ */
+USTRUCT(meta=(DisplayName="Add Tag", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,Tagging,FindTag,SetTag", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_SetMetadataTag : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetMetadataTag()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tag(NAME_None)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to set the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the tag to set
+	 */ 
+	UPROPERTY(meta = (Input))
+	FName Tag;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Sets multiple tags on an item 
+ */
+USTRUCT(meta=(DisplayName="Add Multiple Tags", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="AddTags,MetadataExists,HasKey,Tagging,FindTag,SetTags", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_SetMetadataTagArray : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetMetadataTagArray()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tags()
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to set the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The tags to set for the item
+	 */ 
+	UPROPERTY(meta = (Input))
+	TArray<FName> Tags;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Removes a tag from an item 
+ */
+USTRUCT(meta=(DisplayName="Remove Tag", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="DeleteTag", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_RemoveMetadataTag : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_RemoveMetadataTag()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tag(NAME_None)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to set the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the tag to set
+	 */ 
+	UPROPERTY(meta = (Input))
+	FName Tag;
+
+	/**
+	 * Returns true if the removal was successful
+	 */ 
+	UPROPERTY(meta = (Output))
+	bool Removed;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Returns true if a given item in the hierarchy has a specific tag stored in the metadata
+ */
+USTRUCT(meta=(DisplayName="Has Tag", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,Tagging,FindTag", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_HasMetadataTag : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_HasMetadataTag()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tag(NAME_None)
+		, Found(false)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to check the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the tag to check
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
+	FName Tag;
+
+	// True if the item has the metadata
+	UPROPERTY(meta=(Output))
+	bool Found;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Returns true if a given item in the hierarchy has all of the provided tags
+ */
+USTRUCT(meta=(DisplayName="Has Multiple Tags", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,Tagging,FindTag", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_HasMetadataTagArray : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_HasMetadataTagArray()
+		: Item(NAME_None, ERigElementType::Bone)
+		, Tags()
+		, Found(false)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to check the metadata for
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	/**
+	 * The name of the tag to check
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
+	TArray<FName> Tags;
+
+	// True if the item has the metadata
+	UPROPERTY(meta=(Output))
+	bool Found;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedIndex;
+};
+
+/**
+ * Returns all items with a specific tag
+ */
+USTRUCT(meta=(DisplayName="Find Items with Tag", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,SupportsMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_FindItemsWithMetadataTag : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_FindItemsWithMetadataTag()
+		: Tag(NAME_None)
+		, Items()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The name of the tag to find
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	FName Tag;
+
+	// The items containing the metadata
+	UPROPERTY(meta=(Output))
+	TArray<FRigElementKey> Items;
+};
+
+/**
+ * Returns all items with a specific tag
+ */
+USTRUCT(meta=(DisplayName="Find Items with multiple Tags", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,SupportsMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_FindItemsWithMetadataTagArray : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_FindItemsWithMetadataTagArray()
+		: Tags()
+		, Items()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The tags to find
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	TArray<FName> Tags;
+
+	// The items containing the metadata
+	UPROPERTY(meta=(Output))
+	TArray<FRigElementKey> Items;
+};
+
+/**
+ * Filters an item array by a list of tags
+ */
+USTRUCT(meta=(DisplayName="Filter Items by Tags", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="MetadataExists,HasKey,SupportsMetadata", NodeColor="0.462745, 1,0, 0.329412", Varying))
+struct CONTROLRIG_API FRigUnit_FilterItemsByMetadataTags : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_FilterItemsByMetadataTags()
+		: Items()
+		, Tags()
+		, Inclusive(true)
+		, Result()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	// The items to filter
+	UPROPERTY(meta=(Input))
+	TArray<FRigElementKey> Items;
+
+	/**
+	 * The tags to find
+	 */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	TArray<FName> Tags;
+
+	/**
+     * If set to true only items with ALL of tags will be returned,
+     * if set to false items with ANY of the tags will be removed
+     */ 
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	bool Inclusive;
+
+	// The results of the filter
+	UPROPERTY(meta=(Output))
+	TArray<FRigElementKey> Result;
+
+	// Used to cache the internally
+	UPROPERTY()
+	TArray<FCachedRigElement> CachedIndices;
 };

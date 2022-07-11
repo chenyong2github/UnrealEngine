@@ -5,6 +5,10 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "Units/RigUnitContext.h"
 
+#if WITH_EDITOR
+#include "RigVMModel/RigVMPin.h"
+#endif
+
 FName FRigDispatch_MetadataBase::ItemArgName = TEXT("Item");
 FName FRigDispatch_MetadataBase::NameArgName = TEXT("Name");
 FName FRigDispatch_MetadataBase::CacheArgName = TEXT("Cache");
@@ -153,8 +157,24 @@ TArray<FRigVMTemplateArgument> FRigDispatch_GetMetadata::GetArguments() const
 	return Arguments;
 }
 
+#if WITH_EDITOR
+
+FString FRigDispatch_GetMetadata::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
+{
+	if(InArgumentName == TEXT("Name"))
+	{
+		if(InMetaDataKey == FRigVMStruct::CustomWidgetMetaName)
+		{
+			return TEXT("MetadataName");
+		}
+	}
+	return FRigDispatch_MetadataBase::GetArgumentMetaData(InArgumentName, InMetaDataKey);
+}
+
+#endif
+
 FRigBaseMetadata* FRigDispatch_GetMetadata::FindMetadata(const FRigVMExtendedExecuteContext& InContext,
-                                                              const FRigElementKey& InKey, const FName& InName, ERigMetadataType InType, FCachedRigElement& Cache)
+                                                         const FRigElementKey& InKey, const FName& InName, ERigMetadataType InType, FCachedRigElement& Cache)
 {
 	const FRigUnitContext& Context = GetRigUnitContext(InContext);
 	if(Cache.UpdateCache(InKey, Context.Hierarchy))
@@ -371,17 +391,47 @@ FRigVMFunctionPtr FRigDispatch_SetMetadata::GetDispatchFunctionImpl(const FRigVM
 	return nullptr;
 }
 
+FRigUnit_RemoveMetadata_Execute()
+{
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+
+	Removed = false;
+
+	if(CachedIndex.UpdateCache(Item, Hierarchy))
+	{
+		if(FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
+		{
+			Removed = Element->RemoveMetadata(Name);
+		}
+	}
+}
+
+FRigUnit_RemoveAllMetadata_Execute()
+{
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+
+	Removed = false;
+
+	if(CachedIndex.UpdateCache(Item, Hierarchy))
+	{
+		if(FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
+		{
+			Removed = Element->RemoveAllMetadata();
+		}
+	}
+}
+
 FRigUnit_HasMetadata_Execute()
 {
 	const URigHierarchy* Hierarchy = Context.Hierarchy;
 
-	bFound = false;
+	Found = false;
 
 	if(CachedIndex.UpdateCache(Item, Hierarchy))
 	{
 		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
 		{
-			bFound = Element->GetMetadata(Name, Type) != nullptr;
+			Found = Element->GetMetadata(Name, Type) != nullptr;
 		}
 	}
 }
@@ -400,4 +450,229 @@ FRigUnit_FindItemsWithMetadata_Execute()
 		}
 		bContinue = true;
 	});
+}
+
+FRigUnit_GetMetadataTags_Execute()
+{
+	Tags.Reset();
+	
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	if(CachedIndex.UpdateCache(Item, Hierarchy))
+	{
+		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
+		{
+			if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				Tags = Md->GetValue();
+			}
+		}
+	}
+}
+
+FRigUnit_SetMetadataTag_Execute()
+{
+	if(CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy))
+	{
+		if(FRigBaseElement* Element = ExecuteContext.Hierarchy->Get(CachedIndex))
+		{
+			if(FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->SetupValidMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				const int32 LastIndex = Md->GetValue().Num(); 
+				if(Md->GetValue().AddUnique(Tag) == LastIndex)
+				{
+					Element->NotifyMetadataTagChanged(Tag, true);
+				}
+			}
+		}
+	}
+}
+
+FRigUnit_SetMetadataTagArray_Execute()
+{
+	if(CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy))
+	{
+		if(FRigBaseElement* Element = ExecuteContext.Hierarchy->Get(CachedIndex))
+		{
+			if(FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->SetupValidMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				for(const FName& Tag : Tags)
+				{
+					const int32 LastIndex = Md->GetValue().Num(); 
+					if(Md->GetValue().AddUnique(Tag) == LastIndex)
+					{
+						Element->NotifyMetadataTagChanged(Tag, true);
+					}
+				}
+			}
+		}
+	}
+}
+
+FRigUnit_RemoveMetadataTag_Execute()
+{
+	Removed = false;
+	if(CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy))
+	{
+		if(FRigBaseElement* Element = ExecuteContext.Hierarchy->Get(CachedIndex))
+		{
+			if(FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				Removed = Md->GetValue().Remove(Tag) > 0;
+				if(Removed)
+				{
+					Element->NotifyMetadataTagChanged(Tag, false);
+				}
+			}
+		}
+	}
+}
+
+FRigUnit_HasMetadataTag_Execute()
+{
+	Found = false;
+	
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	if(CachedIndex.UpdateCache(Item, Hierarchy))
+	{
+		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
+		{
+			if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				Found = Md->GetValue().Contains(Tag);
+			}
+		}
+	}
+}
+
+FRigUnit_HasMetadataTagArray_Execute()
+{
+	Found = false;
+	
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+	if(CachedIndex.UpdateCache(Item, Hierarchy))
+	{
+		if(const FRigBaseElement* Element = Hierarchy->Get(CachedIndex))
+		{
+			if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				Found = true;
+				for(const FName& Tag : Tags)
+				{
+					if(!Md->GetValue().Contains(Tag))
+					{
+						Found = false;
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+FRigUnit_FindItemsWithMetadataTag_Execute()
+{
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+
+	Items.Reset();
+
+	Hierarchy->Traverse([&Items, Tag](const FRigBaseElement* Element, bool& bContinue)
+	{
+		if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+		{
+			if(Md->GetValue().Contains(Tag))
+			{
+				Items.Add(Element->GetKey());
+			}
+		}
+		bContinue = true;
+	});
+}
+
+FRigUnit_FindItemsWithMetadataTagArray_Execute()
+{
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+
+	Items.Reset();
+
+	Hierarchy->Traverse([&Items, Tags](const FRigBaseElement* Element, bool& bContinue)
+	{
+		if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+		{
+			bool bFoundAll = true;
+			for(const FName& Tag : Tags)
+			{
+				if(!Md->GetValue().Contains(Tag))
+				{
+					bFoundAll = false;
+					break;
+				}
+			}
+
+			if(bFoundAll)
+			{
+				Items.Add(Element->GetKey());
+			}
+		}
+		bContinue = true;
+	});
+}
+
+FRigUnit_FilterItemsByMetadataTags_Execute()
+{
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
+
+	Result.Reset();
+
+	if(CachedIndices.Num() != Items.Num())
+	{
+		CachedIndices.Reset();
+		CachedIndices.SetNumZeroed(Items.Num());
+	}
+
+	for(int32 Index = 0; Index < Items.Num(); Index++)
+	{
+		if(CachedIndices[Index].UpdateCache(Items[Index], Hierarchy))
+		{
+			const FRigBaseElement* Element = CachedIndices[Index].GetElement();
+			if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
+			{
+				if(Inclusive)
+				{
+					bool bFoundAll = true;
+					for(const FName& Tag : Tags)
+					{
+						if(!Md->GetValue().Contains(Tag))
+						{
+							bFoundAll = false;
+							break;
+						}
+					}
+					if(bFoundAll)
+					{
+						Result.Add(Element->GetKey());
+					}
+				}
+				else
+				{
+					bool bFoundAny = false;
+					for(const FName& Tag : Tags)
+					{
+						if(Md->GetValue().Contains(Tag))
+						{
+							bFoundAny = true;
+							break;
+						}
+					}
+					if(bFoundAny)
+					{
+						Result.Add(Element->GetKey());
+					}
+				}
+			}
+		}
+		else
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Item '%s' not found"), *Items[Index].ToString());
+		}
+	}
 }
