@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace EpicGames.BuildGraph.Expressions
@@ -69,11 +70,13 @@ namespace EpicGames.BuildGraph.Expressions
 	public abstract class BgList<T> : BgExpr where T : BgExpr
 	{
 		/// <inheritdoc/>
+		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
 		public Type ElementType => typeof(T);
 
 		/// <summary>
 		/// Constant representation of an empty list
 		/// </summary>
+		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
 		public static BgList<T> Empty { get; } = new BgListEmptyExpr<T>();
 
 		/// <summary>
@@ -143,6 +146,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Gets the length of this list
 		/// </summary>
+		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
 		public BgInt Count => new BgListCountExpr<T>(this);
 
 		/// <summary>

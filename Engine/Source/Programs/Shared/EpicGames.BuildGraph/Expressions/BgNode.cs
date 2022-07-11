@@ -118,7 +118,7 @@ namespace EpicGames.BuildGraph.Expressions
 			Name = node.Name;
 			Thunk = node.Thunk;
 			Agent = node.Agent;
-			DefaultOutput = node.DefaultOutput;
+			DefaultOutput = new BgFileSetFromNodeOutputExpr(this, 0);
 			Inputs = node.Inputs;
 			Fences = node.Fences;
 			RunEarly = node.RunEarly;
@@ -150,7 +150,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <returns></returns>
 		internal BgNode Modify(BgList<BgFileSet>? inputs = null, BgList<BgNode>? fences = null, BgBool? runEarly = null, BgList<BgLabel>? labels = null)
 		{
-			BgNode node = (BgNode)MemberwiseClone();
+			BgNode node = Clone();
 			if (inputs is object)
 			{
 				node.Inputs = inputs;
@@ -169,6 +169,12 @@ namespace EpicGames.BuildGraph.Expressions
 			}
 			return node;
 		}
+
+		/// <summary>
+		/// Clone this node
+		/// </summary>
+		/// <returns>Clone of this node</returns>
+		protected virtual BgNode Clone() => new BgNode(this);
 
 		/// <summary>
 		/// Gets the default tag name for the numbered output index
@@ -349,8 +355,14 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgNode(BgNode<T> other)
 			: base(other)
 		{
-			Output = other.Output;
+			Output = CreateOutput();
 		}
+
+		/// <summary>
+		/// Clone this node
+		/// </summary>
+		/// <returns>Clone of this node</returns>
+		protected override BgNode Clone() => new BgNode<T>(this);
 
 		T CreateOutput()
 		{

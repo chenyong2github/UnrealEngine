@@ -34,11 +34,11 @@ namespace EpicGames.BuildGraph.Tests
 			BgAgent agent = new BgAgent("name", "type");
 			BgNode nodeSpec1 = agent.AddNode(x => UpdateVersionFiles());
 
-			BgNode nodeSpec2 = agent.AddNode(x => CompileShooterGameWin64()).Requires(BgList<BgFileSet>.Create(nodeSpec1));
+			BgNode nodeSpec2 = agent.AddNode(x => CompileShooterGameWin64()).Requires(nodeSpec1);
 
 			BgNode nodeSpec3 = agent.AddNode(x => CookShooterGameWin64()).Requires(BgList<BgFileSet>.Create(nodeSpec2.DefaultOutput));
 
-			BgNodeDef node3 = ((BgNodeDef)Evaluate(nodeSpec3));
+			BgNodeDef node3 = ((BgObjectDef)Evaluate(nodeSpec3)).Deserialize<BgNodeExpressionDef>();
 			Assert.AreEqual(node3.Name, "Cook Shooter Game Win64");
 			Assert.AreEqual(2, node3.InputDependencies.Count);
 			Assert.AreEqual(1, node3.Inputs.Count);
@@ -82,7 +82,7 @@ namespace EpicGames.BuildGraph.Tests
 
 			BgAggregate aggregateSpec = new BgAggregate("All nodes", BgList<BgNode>.Create(nodeSpec1, nodeSpec2));
 
-			BgAggregateDef aggregate = ((BgObjectDef)Evaluate(aggregateSpec)).Deserialize<BgAggregateDef>();
+			BgAggregateDef aggregate = ((BgObjectDef)Evaluate(aggregateSpec)).Deserialize<BgAggregateExpressionDef>().ToAggregateDef();
 			Assert.AreEqual("All nodes", aggregate.Name);
 
 			BgNodeDef node1 = aggregate.RequiredNodes.OrderBy(x => x.Name).ElementAt(0);

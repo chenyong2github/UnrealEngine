@@ -65,10 +65,10 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgString Append(BgString other) => this + other;
 
 		/// <inheritdoc/>
-		public BgBool Match(string pattern) => new BgStringMatchExpr(this, pattern);
+		public BgBool Match(BgString pattern) => new BgStringMatchExpr(this, pattern);
 
 		/// <inheritdoc/>
-		public BgString Replace(string pattern, BgString replace) => new BgStringReplaceExpr(this, pattern, replace);
+		public BgString Replace(BgString pattern, BgString replace) => new BgStringReplaceExpr(this, pattern, replace);
 
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => throw new InvalidOperationException();
@@ -188,9 +188,9 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgStringMatchExpr : BgBool
 	{
 		public BgString Input { get; }
-		public string Pattern { get; }
+		public BgString Pattern { get; }
 
-		public BgStringMatchExpr(BgString input, string pattern)
+		public BgStringMatchExpr(BgString input, BgString pattern)
 			: base(input.Flags & BgExprFlags.Eager)
 		{
 			Input = input;
@@ -201,17 +201,17 @@ namespace EpicGames.BuildGraph.Expressions
 		{
 			writer.WriteOpcode(BgOpcode.StrIsMatch);
 			writer.WriteExpr(Input);
-			writer.WriteString(Pattern);
+			writer.WriteExpr(Pattern);
 		}
 	}
 
 	class BgStringReplaceExpr : BgString
 	{
 		public BgString Input { get; }
-		public string Pattern { get; }
+		public BgString Pattern { get; }
 		public BgString Replacement { get; }
 
-		public BgStringReplaceExpr(BgString input, string pattern, BgString replacement)
+		public BgStringReplaceExpr(BgString input, BgString pattern, BgString replacement)
 			: base(input.Flags & replacement.Flags & BgExprFlags.Eager)
 		{
 			Input = input;
@@ -223,7 +223,7 @@ namespace EpicGames.BuildGraph.Expressions
 		{
 			writer.WriteOpcode(BgOpcode.StrReplace);
 			writer.WriteExpr(Input);
-			writer.WriteString(Pattern);
+			writer.WriteExpr(Pattern);
 			writer.WriteExpr(Replacement);
 		}
 	}
