@@ -492,7 +492,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 		FComponentClassComboEntryPtr NewBPClass = MakeShareable(new FComponentClassComboEntry(NewComponentsHeading, UActorComponent::StaticClass(), true, EComponentCreateAction::CreateNewBlueprintClass));
 		ComponentClassList.Add(NewBPClass);
 
-		if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+		if (GUnrealEd && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 		{
 			FComponentClassComboEntryPtr NewCPPClass = MakeShareable(new FComponentClassComboEntry(NewComponentsHeading, UActorComponent::StaticClass(), true, EComponentCreateAction::CreateNewCPPClass));
 			ComponentClassList.Add(NewCPPClass);
