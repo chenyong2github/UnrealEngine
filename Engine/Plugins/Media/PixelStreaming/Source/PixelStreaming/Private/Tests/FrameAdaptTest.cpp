@@ -63,13 +63,16 @@ namespace UE::PixelStreaming
 		virtual ~FMockAdapterProcess() = default;
 
 		int GetBufferCreateCount() const { return BuffersCreated; }
-		FMockAdaptedOutputFrame* GetCurrentWriteBuffer() { return StaticCast<FMockAdaptedOutputFrame*>(CurrentOutputBuffer.Get()); }
+		
+		FMockAdaptedOutputFrame* GetCurrentWriteBuffer() 
+		{ 
+			return StaticCast<FMockAdaptedOutputFrame*>(CurrentOutputBuffer.Get()); 
+		}
 
 		void MockFinish()
 		{
 			FMockAdaptedOutputFrame* WriteBuffer = StaticCast<FMockAdaptedOutputFrame*>(CurrentOutputBuffer.Get());
 			WriteBuffer->SetWorking(false);
-			CurrentOutputBuffer = nullptr;
 			EndProcess();
 		}
 
@@ -211,6 +214,11 @@ namespace UE::PixelStreaming
 		TSharedPtr<FMockVideoInput> MockVideoInput = MakeShared<FMockVideoInput>();
 		TArray<float> LayerScales{ 1.0f, 0.5f, 0.25f };
 		TSharedPtr<FMockFrameAdapter> MockFrameAdapter = MakeShared<FMockFrameAdapter>(MockVideoInput, LayerScales);
+
+		// Bind OnFrameReady to call MockFrameAdapter::Process with the new frame when it comes through.
+		MockVideoInput->OnFrameReady.AddLambda([MockFrameAdapter](const IPixelStreamingInputFrame& InputFrame){
+			MockFrameAdapter->Process(InputFrame);
+		});
 
 		TestFalse("IsReady after create", MockFrameAdapter->IsReady());
 		TestTrue("GetNumLayers() returns expected count", MockFrameAdapter->GetNumLayers() == 0);

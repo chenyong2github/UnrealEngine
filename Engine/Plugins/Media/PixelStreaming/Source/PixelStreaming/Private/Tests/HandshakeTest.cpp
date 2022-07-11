@@ -190,7 +190,7 @@ namespace UE::PixelStreaming
 		TUniquePtr<FMockStreamRun> StreamRunnable;
 	};
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHandshakeTest, "System.Plugins.PixelStreaming.Handshake", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHandshakeTest, "System.Plugins.PixelStreaming.Handshake", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::Disabled)
 	bool FHandshakeTest::RunTest(const FString& Parameters)
 	{
 		ADD_LATENT_AUTOMATION_COMMAND(FHandshakeWaitCommand(*this));
