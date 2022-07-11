@@ -26,20 +26,23 @@
 
 <Property Name="ShowExplicitFlags" Value="true" />
 
-<Property Name="AllEditorPlatforms" Value="Mac+Win64" />
+<Property Name="AllEditorPlatforms" Value="Mac+Win64+Linux" />
 <Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Mac+PS4+PS5+Stadia+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XB1+XSX" />
 
 <Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
 <Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
+<Option Name="CookedEditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooCookedEditor', a list of editors to build and cooked. Win64+Mac etc"/>
 
 <!-- Support simple One+Two+Three style -->
 <Option Name="TargetConfigurations" DefaultValue="" Description="Configuration(s) to build"/>
 <Option Name="PackageConfigurations" DefaultValue="$(TargetConfigurations)" Description="Configuration to package"/>
 <Option Name="TestConfigurations" DefaultValue="$(PackageConfigurations)" Description="Configuration to test"/>
+<Option Name="CookedEditorConfigurations" DefaultValue="" Description="Configuration(s) to use when making a cooked editor (Development, Shipping or Development+Shipping)"/>
 
 <!-- No means of reliably running these tests atm -->
 <Option Name="EditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor platforms that editor tests won't be run on" />
 <Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Stadia+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
+<Option Name="CookedEditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor cooked platforms that editor tests won't be run on" />
 <Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that all tests won't be run on. Overrides Editor/TargetPlatformsToSkipTests when non-empty." />
 
 <!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
@@ -47,6 +50,8 @@
 	<Option Name="WithWin64Editor" DefaultValue="false" Description="Build and test Win64 Editor"/>
 	<Option Name="WithMacEditor" DefaultValue="false" Description="Build and test Mac Editor"/>
 	<Option Name="WithLinuxEditor" DefaultValue="false" Description="Build and test Linux Editor"/>
+
+	<Option Name="WithCookedEditor" DefaultValue="false" Description="Build and cooked CookedEditor"/>
 
 	<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
 	<Option Name="WithHoloLens" DefaultValue="false" Description="Build and test HoloLens"/>
@@ -69,6 +74,13 @@
 		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Win64+" If="$(WithWin64Editor)" />
 		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Mac+" If="$(WithMacEditor)" />
 		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Linux+" If="$(WithLinuxEditor)" />
+	</Do>
+
+	<Do If="'$(CookedEditorPlatforms)' == ''">
+		<Property Name="CookedEditorPlatforms" Value="" />
+		<Property Name="CookedEditorPlatforms" Value="$(CookedEditorPlatforms)Win64+" If="$(WithWin64Editor) And $(WithCookedEditor)" />
+		<Property Name="CookedEditorPlatforms" Value="$(CookedEditorPlatforms)Mac+" If="$(WithMacEditor) And $(WithCookedEditor)" />
+		<Property Name="CookedEditorPlatforms" Value="$(CookedEditorPlatforms)Linux+" If="$(WithLinuxEditor) And $(WithCookedEditor)" />
 	</Do>
 
 	<Do If="'$(TargetPlatforms)' == ''" >
@@ -96,6 +108,10 @@
 	<Property Name="EditorPlatforms" Value="$(DefaultEditorPlatforms)" />
 </Do>
 
+<Do If="'$(CookedEditorPlatforms)' == ''" >
+	<Property Name="CookedEditorPlatforms" Value="$(DefaultCookedEditorPlatforms)" />
+</Do>
+
 <Do If="'$(TargetPlatforms)' == ''" >
 	<Property Name="TargetPlatforms" Value="$(DefaultTargetPlatforms)" />
 </Do>
@@ -103,6 +119,9 @@
 <!-- 'None' means don't do any platforms. We need to do this because an empty string means use defaults.. -->
 <Do If="'$(EditorPlatforms)' == 'None'" >
 	<Property Name="EditorPlatforms" Value="" />
+</Do>
+<Do If="'$(CookedEditorPlatforms)' == 'None'" >
+	<Property Name="CookedEditorPlatforms" Value="" />
 </Do>
 <Do If="'$(TargetPlatforms)' == 'None'" >
 	<Property Name="TargetPlatforms" Value="" />
@@ -114,6 +133,9 @@
 </Do>
 <Do If="'$(TargetPlatforms)' == 'All'" >
 	<Property Name="TargetPlatforms" Value="$(AllTargetPlatforms)" />
+</Do>
+<Do If="'$(CookedEditorPlatforms)' == 'All'" >
+	<Property Name="CookedEditorPlatforms" Value="$(AllEditorPlatforms)"/>
 </Do>
 
 <Property Name="RequiredEditorPlatforms" Value="$(EditorPlatforms)" />
@@ -129,6 +151,16 @@
 
 	<Do If="!ContainsItem('$(RequiredEditorPlatforms)','$(HostAgentType)', '+')">
 		<Property Name="RequiredEditorPlatforms" Value="$(RequiredEditorPlatforms)+$(HostAgentType)" />
+	</Do>
+</ForEach>
+
+<ForEach Name="CookedEditorPlatform" Values="$(CookedEditorPlatforms)" Separator="+">
+	<!-- Check the platform is valid -->
+	<Do If="!ContainsItem('$(AllEditorPlatforms)','$(CookedEditorPlatform)','+')" >
+		<Error Message="Platform $(CookedEditorPlatform) is not a recognized platform!" />
+	</Do>
+	<Do If="!ContainsItem('$(RequiredEditorPlatforms)','$(CookedEditorPlatform)', '+')">
+		<Property Name="RequiredEditorPlatforms" Value="$(RequiredEditorPlatforms)+$(CookedEditorPlatform)" />
 	</Do>
 </ForEach>
 
@@ -155,6 +187,9 @@
 	<Option Name="WithTestTests" DefaultValue="false" Description="Run tests on Test builds"/>
 	<Option Name="WithShippingTests" DefaultValue="false" Description="Run tests on Shipping builds"/>
 
+	<Option Name="WithDevelopmentCookedEditor" DefaultValue="false" Description="Build Development configuration for Editor cooked"/>
+	<Option Name="WithShippingCookedEditor" DefaultValue="false" Description="Build Shipping configuration for Editor cooked"/>
+
 	<Do If="'$(TargetConfigurations)' == ''" >	
 		<Property Name="TargetConfigurations" Value="" />
 		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)Debug+"  If="$(WithDebugTargets)" />
@@ -178,6 +213,12 @@
 		<Property Name="TestConfigurations" Value="$(TestConfigurations)Test+"  If="$(WithTestTests)" />
 		<Property Name="TestConfigurations" Value="$(TestConfigurations)Shipping+"  If="$(WithShippingTests)" />
 	</Do>
+
+	<Do If="'$(CookedEditorConfigurations)' == ''" >	
+		<Property Name="CookedEditorConfigurations" Value="" />
+		<Property Name="CookedEditorConfigurations" Value="$(CookedEditorConfigurations)Development+"  If="$(WithDevelopmentCookedEditor)" />
+		<Property Name="CookedEditorConfigurations" Value="$(CookedEditorConfigurations)Shipping+"  If="$(WithShippingCookedEditor)" />
+	</Do>
 </Do>
 
 <Do If="'$(TargetConfigurations)' == ''" >
@@ -190,6 +231,10 @@
 
 <Do If="'$(TestConfigurations)' == ''" >	
 	<Property Name="TestConfigurations" Value="$(PackageConfigurations)" />
+</Do>
+
+<Do If="'$(CookedEditorConfigurations)' == ''" >	
+	<Property Name="CookedEditorConfigurations" Value="$(DefaultCookedEditorConfigurations)" />
 </Do>
 
 <!-- add up any package configurations that are needed by test configurations.. -->
@@ -212,5 +257,6 @@
 <Property Name="TargetConfigurations" Value="Development" If="'$(TargetConfigurations)' == ''" />
 <Property Name="PackageConfigurations" Value="$(TargetConfigurations)" If="'$(PackageConfigurations)' == ''" />
 <Property Name="TestConfigurations" Value="$(PackageConfigurations)" If="'$(TestConfigurations)' == ''" />
+<Property Name="CookedEditorConfigurations" Value="Development" If="'$(CookedEditorConfigurations)' == ''" />
 
 </BuildGraph>
