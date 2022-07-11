@@ -1317,10 +1317,6 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public async Task SendIssueReportAsync(IssueReportGroup group)
 		{
-			List<BlockBase> introBlocks = new List<BlockBase>();
-			introBlocks.Add(new DividerBlock());
-			await SendMessageAsync(group.Channel, blocks: introBlocks.ToArray(), withEnvironment: false);
-
 			foreach (IssueReport report in group.Reports.OrderBy(x => x.WorkflowId).ThenBy(x => x.Stream.Id))
 			{
 				await SendIssueReportForStreamAsync(group.Channel, group.Time, report);
