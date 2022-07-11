@@ -354,7 +354,6 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 #endif
 
 	float MaterialMask = 1.0f;
-	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
 	SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPosPhysical, Raster.PageTranslation, PixelValue, DeviceZ);
 #if ENABLE_EARLY_Z_TEST
@@ -382,14 +381,14 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
-	// TODO: PROG_RASTER - MaterialDepthOffset
+	#if WANT_PIXEL_DEPTH_OFFSET
+	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
+	#endif
 
 	#if MATERIALBLENDING_MASKED
 	MaterialMask = GetMaterialMask(PixelMaterialInputs);
 	#endif
 #endif
-
-	WriteParams.DeviceZ += MaterialDepthOffset;
 
 	BRANCH
 	if (MaterialMask >= 0)
@@ -2029,7 +2028,6 @@ void HWRasterizePS(VSOut In
 		float DeviceZ = SvPosition.z;
 
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
-		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
 		SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPos, PageTranslation, PixelValue, DeviceZ);
 	#if ENABLE_EARLY_Z_TEST
@@ -2097,14 +2095,14 @@ void HWRasterizePS(VSOut In
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
-		// TODO: PROG_RASTER - MaterialDepthOffset
+		#if WANT_PIXEL_DEPTH_OFFSET
+		ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
+		#endif
 
 		#if MATERIALBLENDING_MASKED
 		MaterialMask = GetMaterialMask(PixelMaterialInputs);
 		#endif
 	#endif
-
-		WriteParams.DeviceZ += MaterialDepthOffset;
 
 		BRANCH
 		if (MaterialMask >= 0)

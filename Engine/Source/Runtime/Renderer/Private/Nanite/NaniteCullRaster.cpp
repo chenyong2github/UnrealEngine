@@ -769,12 +769,12 @@ static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bUsePrimi
 
 static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
 {
-	return MaterialParameters.bIsMasked;	// TODO: add bHasPixelDepthOffsetConnected when PDO is supported
+	return MaterialParameters.bIsMasked || MaterialParameters.bHasPixelDepthOffsetConnected;
 }
 
 static bool IsPixelProgrammable(const FMaterial& RasterMaterial)
 {
-	return RasterMaterial.IsMasked();		// TODO: add RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread() when PDO is supported
+	return RasterMaterial.IsMasked() || RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread();
 }
 
 static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters& MaterialParameters, bool bPermutationVertexProgrammable, bool bPermutationPixelProgrammable, bool bPermutationPrimitiveShader)
