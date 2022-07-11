@@ -28,11 +28,13 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 
 	static FLightWeightInstanceSubsystem& Get()
 	{
-		FScopeLock Lock(&GetFunctionCS);
-
 		if (!LWISubsystem)
 		{
-			LWISubsystem = MakeShareable(new FLightWeightInstanceSubsystem());
+			FScopeLock Lock(&GetFunctionCS);
+			if (!LWISubsystem)
+			{
+				LWISubsystem = MakeShareable(new FLightWeightInstanceSubsystem());
+			}
 		}
 		return *LWISubsystem;
 	}
