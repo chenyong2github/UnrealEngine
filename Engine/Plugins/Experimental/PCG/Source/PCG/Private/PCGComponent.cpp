@@ -769,14 +769,12 @@ void UPCGComponent::PostEditUndo()
 void UPCGComponent::SetupActorCallbacks()
 {
 	GEngine->OnActorMoved().AddUObject(this, &UPCGComponent::OnActorMoved);
-	GEngine->OnComponentTransformChanged().AddUObject(this, &UPCGComponent::OnComponentTransformChanged);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UPCGComponent::OnObjectPropertyChanged);
 }
 
 void UPCGComponent::TeardownActorCallbacks()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-	GEngine->OnComponentTransformChanged().RemoveAll(this);
 	GEngine->OnActorMoved().RemoveAll(this);
 }
 
@@ -938,17 +936,6 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 			Refresh();
 		}
 	}
-}
-
-void UPCGComponent::OnComponentTransformChanged(USceneComponent* InComponent, ETeleportType InTeleport)
-{
-	if (!InComponent || InComponent->GetOwner() != GetOwner())
-	{
-		return;
-	}
-
-	DirtyGenerated(EPCGComponentDirtyFlag::Actor);
-	Refresh();
 }
 
 void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)

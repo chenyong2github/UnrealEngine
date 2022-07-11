@@ -224,7 +224,6 @@ private:
 	void OnActorAdded(AActor* InActor);
 	void OnActorDeleted(AActor* InActor);
 	void OnActorMoved(AActor* InActor);
-	void OnComponentTransformChanged(USceneComponent* InComponent, ETeleportType InTeleport);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	bool ActorHasExcludedTag(AActor* InActor) const;
 	bool ActorIsTracked(AActor* InActor) const;
