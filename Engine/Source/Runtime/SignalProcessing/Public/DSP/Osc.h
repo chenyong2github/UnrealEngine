@@ -128,6 +128,10 @@ namespace Audio
 		// Sets whether or not this oscillator should be synced to a leader oscillator. leader oscillator needs to have set this oscillator as its follower.
 		void SetSync(const bool bInSync) { bIsSync = bInSync; }
 
+		// Deprecated: use SetFollowerOsc
+		UE_DEPRECATED(5.1, "SetSlaveOsc is deprecated, please use SetFollowerOsc instead.")
+		void SetSlaveOsc(IOscBase* InSlaveOsc);
+
 		// Sets the input oscillator as the follower of this oscillator
 		void SetFollowerOsc(IOscBase* InFollowerOsc);
 

@@ -631,8 +631,12 @@ namespace Audio
 		/** Stops the render thread from generating audio. */
 		void StopGeneratingAudio();
 
-		/** Performs buffer fades for shutdown/startup of audio mixer. */
+		// Deprecated - use ApplyPrimaryAttenuation
+		UE_DEPRECATED(5.1, "ApplyMasterAttenuation is deprecated, please use ApplyPrimaryAttenuation instead.")
 		void ApplyMasterAttenuation(TArrayView<const uint8>& InOutPoppedAudio);
+
+		/** Performs buffer fades for shutdown/startup of audio mixer. */
+		void ApplyPrimaryAttenuation(TArrayView<const uint8>& InOutPoppedAudio);
 
 		template<typename BufferType>
 		void ApplyAttenuationInternal(TArrayView<BufferType>& InOutBuffer);
@@ -677,7 +681,7 @@ namespace Audio
 		/** The number of mixer buffers to queue on the output source voice. */
 		int32 NumOutputBuffers;
 
-		/** The fade value. Used for fading in/out master audio. */
+		/** The fade value. Used for fading in/out primary audio. */
 		float FadeVolume;
 
 		/** Source param used to fade in and out audio device. */

@@ -514,7 +514,7 @@ namespace Audio
 		NullDeviceCallback.Reset(new FMixerNullCallback(InBufferDuration, InCallback, TPri_TimeCritical, bShouldPauseOnStart));
 	}
 
-	void IAudioMixerPlatformInterface::ApplyMasterAttenuation(TArrayView<const uint8>& OutPoppedAudio)
+	void IAudioMixerPlatformInterface::ApplyPrimaryAttenuation(TArrayView<const uint8>& OutPoppedAudio)
 	{
 		EAudioMixerStreamDataFormat::Type Format = OutputBuffer.GetFormat();
 
@@ -599,7 +599,7 @@ namespace Audio
 			bWarnedBufferUnderrun = false;
 		}
 
-		ApplyMasterAttenuation(PoppedAudio);
+		ApplyPrimaryAttenuation(PoppedAudio);
 		SubmitBuffer(PoppedAudio.GetData());
 
 		DeviceSwapCriticalSection.Unlock();
