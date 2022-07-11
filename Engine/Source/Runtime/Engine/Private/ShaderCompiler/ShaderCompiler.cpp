@@ -4602,6 +4602,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 		if (FApp::CanEverRender())
 		{
+			// This empties MaterialsToUpdate, see the comment inside the function for the reason.
 			PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
 
 			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -4614,7 +4615,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 #endif // WITH_EDITOR
 }
 
-void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>& MaterialsToUpdate)
+void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>& MaterialsToUpdate)
 {
 	// don't perform any work if no compiling
 	if (!AllowShaderCompiling())
@@ -4671,6 +4672,13 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 			}
 		}
 	}
+
+	// Recreating the render state for the primitives may end up recreating the material resources if some materials are missing some usage flags.
+	// For example, if some materials are not marked as used with static lighting and we build lightmaps, UMaterialInstance::CheckMaterialUsage
+	// will catch the problem and try to set the flag. However, since MaterialsToUpdate stores smart pointers, the material resources will have
+	// a refcount of 2, so the FMaterial destructor will trigger a check failure because the refcount doesn't reach 0. Empty this map before
+	// recreating the render state to allow resources to be deleted cleanly.
+	MaterialsToUpdate.Empty();
 
 	UpdateAllPrimitiveSceneInfosForScenes(ScenesToUpdate);
 	ComponentContexts.Empty();
