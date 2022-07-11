@@ -927,7 +927,10 @@ void InitializeSharedSamplerStates()
 
 void FLightCacheInterface::CreatePrecomputedLightingUniformBuffer_RenderingThread(ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (bNeedsPrecomputedLightingUniformBuffer && (LightMap || ShadowMap))
+	const bool bPrecomputedLightingParametersFromGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && bCanUsePrecomputedLightingParametersFromGPUScene;
+
+	// Only create UB when GPUScene isn't available
+	if (!bPrecomputedLightingParametersFromGPUScene && (LightMap || ShadowMap))
 	{
 		FPrecomputedLightingUniformParameters Parameters;
 		GetPrecomputedLightingParameters(FeatureLevel, Parameters, this);

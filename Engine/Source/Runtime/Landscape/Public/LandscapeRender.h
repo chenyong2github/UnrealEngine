@@ -591,7 +591,7 @@ class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy,
 				SetLightMap(MapBuildData->LightMap);
 				SetShadowMap(MapBuildData->ShadowMap);
 				SetResourceCluster(MapBuildData->ResourceCluster);
-				bNeedsPrecomputedLightingUniformBuffer = false;
+				bCanUsePrecomputedLightingParametersFromGPUScene = true;
 				IrrelevantLights = MapBuildData->IrrelevantLights;
 			}
 		}

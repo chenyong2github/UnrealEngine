@@ -905,8 +905,10 @@ public:
 	ENGINE_API FShadowMapInteraction GetShadowMapInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 protected:
-	// If false, precomputed lighting parameters will be drawn from GPUScene
-	bool bNeedsPrecomputedLightingUniformBuffer = true;
+	// Load parameters from GPUScene when possible
+	// Basically this is the same as VF_SUPPORTS_PRIMITIVE_SCENE_DATA on the vertex factory, but we can't deduce automatically
+	// because we don't know about VF type until we see the actual mesh batch
+	bool bCanUsePrecomputedLightingParametersFromGPUScene = false;
 	
 private:
 
