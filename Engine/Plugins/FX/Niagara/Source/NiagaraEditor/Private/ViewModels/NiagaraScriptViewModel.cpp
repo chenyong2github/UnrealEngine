@@ -11,6 +11,7 @@
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
 #include "NiagaraScriptSource.h"
+#include "NiagaraScriptVariable.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 
 template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptViewModel*>> TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::ObjectsToViewModels{};
@@ -310,6 +311,23 @@ FVersionedNiagaraScript FNiagaraScriptViewModel::GetStandaloneScript()
 		}
 	}
 	return FVersionedNiagaraScript();
+}
+
+bool FNiagaraScriptViewModel::RenameParameter(const FNiagaraVariable TargetParameter, const FName NewName)
+{
+	GetStandaloneScript().Script->Modify();
+	UNiagaraGraph* Graph = GetGraphViewModel()->GetGraph();
+	
+	Graph->Modify();
+	if (Graph->RenameParameter(TargetParameter, NewName))
+	{
+		UNiagaraScriptVariable* RenamedScriptVar = Graph->GetScriptVariable(NewName);
+
+		// Check if the rename will give the same name and type as an existing parameter definition, and if so, link to the definition automatically.
+		FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(RenamedScriptVar, this);
+	}
+
+	return true;
 }
 
 void FNiagaraScriptViewModel::UpdateCompileStatus(ENiagaraScriptCompileStatus InAggregateCompileStatus, const FString& InAggregateCompileErrorString,

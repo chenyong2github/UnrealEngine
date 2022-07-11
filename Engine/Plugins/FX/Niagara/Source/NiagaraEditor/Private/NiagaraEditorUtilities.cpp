@@ -3965,4 +3965,47 @@ EParameterDefinitionMatchState FNiagaraParameterDefinitionsUtilities::GetDefinit
 	}
 }
 
+void FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(UNiagaraScriptVariable* ScriptVar, INiagaraParameterDefinitionsSubscriberViewModel* OwningDefinitionSubscriberViewModel)
+{
+	const FName& ScriptVarName = ScriptVar->Variable.GetName();
+	const TArray<const UNiagaraScriptVariable*> ReservedParametersForName = FNiagaraParameterDefinitionsUtilities::FindReservedParametersByName(ScriptVarName);
+
+	if (ReservedParametersForName.Num() == 0)
+	{
+		// Do not call SetParameterIsSubscribedToLibrary() unless ScriptVarToModify is already marked as SubscribedToParameterDefinitions.
+		if (ScriptVar->GetIsSubscribedToParameterDefinitions())
+		{
+			//SetParameterIsSubscribedToLibrary(ScriptVar, false);
+			OwningDefinitionSubscriberViewModel->SetParameterIsSubscribedToDefinitions(ScriptVar->Metadata.GetVariableGuid(), false);
+		}
+	}
+	else if (ReservedParametersForName.Num() == 1)
+	{
+		const UNiagaraScriptVariable* ReservedParameterDefinition = (ReservedParametersForName)[0];
+		if (ReservedParameterDefinition->Variable.GetType() != ScriptVar->Variable.GetType())
+		{
+			const FText TypeMismatchWarningTemplate = LOCTEXT("RenameParameter_DefinitionTypeMismatch", "Renamed parameter \"{0}\" with type {1}. Type does not match existing parameter definition \"{0}\" with type {2} from {3}! ");
+			FText TypeMismatchWarning = FText::Format(
+				TypeMismatchWarningTemplate,
+				FText::FromName(ScriptVarName),
+				ScriptVar->Variable.GetType().GetNameText(),
+				ReservedParameterDefinition->Variable.GetType().GetNameText(),
+				FText::FromString(ReservedParameterDefinition->GetTypedOuter<UNiagaraParameterDefinitions>()->GetName()));
+			FNiagaraEditorUtilities::WarnWithToastAndLog(TypeMismatchWarning);
+
+			// Do not call SetParameterIsSubscribedToLibrary() unless ScriptVarToModify is already marked as SubscribedToParameterDefinitions.
+			if (ScriptVar->GetIsSubscribedToParameterDefinitions())
+			{
+				OwningDefinitionSubscriberViewModel->SetParameterIsSubscribedToDefinitions(ScriptVar->Metadata.GetVariableGuid(), false);
+			}
+		}
+		else
+		{
+			// NOTE: It is possible we are calling SetParameterIsSubscribedToLibrary() on a UNiagaraScriptVariable that is already marked as SubscribedToParameterDefinitions;
+			// This is intended as SetParameterIsSubscribedToLibrary() will register a new link to a different parameter definition.
+			OwningDefinitionSubscriberViewModel->SetParameterIsSubscribedToDefinitions(ScriptVar->Metadata.GetVariableGuid(), true);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

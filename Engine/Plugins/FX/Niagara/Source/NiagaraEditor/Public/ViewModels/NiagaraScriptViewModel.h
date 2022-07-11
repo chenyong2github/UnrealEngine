@@ -86,7 +86,8 @@ public:
 
 	/** If this is editing a standalone script, returns the script being edited.*/
 	virtual FVersionedNiagaraScript GetStandaloneScript();
-	//const UNiagaraScript* GetStandaloneScript() const;
+	
+	bool RenameParameter(const FNiagaraVariable TargetParameter, const FName NewName);
 
 private:
 	/** Handles the selection changing in the graph view model. */

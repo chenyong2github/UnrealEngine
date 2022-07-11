@@ -80,7 +80,6 @@ private:
 class FNiagaraSystemToolkitParameterDefinitionsPanelViewModel : public INiagaraParameterDefinitionsPanelViewModel
 {
 public:
-	FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& SystemGraphSelectionViewModelWeak);
 	FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel);
 
 	void Init(const FSystemToolkitUIContext& InUIContext);

@@ -18,7 +18,7 @@ public:
 
 	FNiagaraSystemGraphSelectionViewModel() = default;
 
-	void Init(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
+	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
 	const TArray<TWeakObjectPtr<UNiagaraGraph>> GetSelectedEmitterScriptGraphs() const { return SelectedEmitterScriptGraphs; };
 

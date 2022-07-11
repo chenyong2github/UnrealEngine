@@ -434,4 +434,5 @@ namespace FNiagaraParameterDefinitionsUtilities
 	TArray<const UNiagaraScriptVariable*>  FindReservedParametersByName(const FName ParameterName);
 	int32 GetNumParametersReservedForName(const FName ParameterName);
 	EParameterDefinitionMatchState GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter);
+	void TrySubscribeScriptVarToDefinitionByName(UNiagaraScriptVariable* ScriptVar, INiagaraParameterDefinitionsSubscriberViewModel* OwningDefinitionSubscriberViewModel);
 };

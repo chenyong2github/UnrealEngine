@@ -10,6 +10,7 @@
 #include "NiagaraScriptVariable.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraStandaloneScriptViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 
@@ -84,7 +85,12 @@ void FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::Init(const FScript
 
 const TArray<UNiagaraGraph*> FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::GetEditableGraphsConst() const
 {
-	return FNiagaraScriptToolkitParameterPanelUtilities::GetEditableGraphs(ScriptViewModel);
+	TArray<UNiagaraGraph*> EditableGraphs;
+	if (UNiagaraGraph* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph())
+	{
+		EditableGraphs.Add(Graph);
+	}
+	return EditableGraphs;
 }
 
 const TArray<UNiagaraParameterDefinitions*> FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::GetAvailableParameterDefinitionsAssets(bool bSkipSubscribedParameterDefinitions) const
@@ -203,15 +209,11 @@ FReply FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::OnParameterItems
 /// System Toolkit Parameter Definitions Panel View Model					///
 ///////////////////////////////////////////////////////////////////////////////
 
-FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel, const TWeakPtr<FNiagaraSystemGraphSelectionViewModel>& InSystemGraphSelectionViewModelWeak)
+FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel)
 {
 	SystemViewModel = InSystemViewModel;
-	SystemGraphSelectionViewModelWeak = InSystemGraphSelectionViewModelWeak;
+	SystemGraphSelectionViewModelWeak = SystemViewModel->GetSystemGraphSelectionViewModel();
 }
-
-FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel)
-	: FNiagaraSystemToolkitParameterDefinitionsPanelViewModel(InSystemViewModel, nullptr)
-{}
 
 void FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::Cleanup()
 {
@@ -227,7 +229,7 @@ void FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::Init(const FSystem
 
 const TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::GetEditableGraphsConst() const
 {
-	return FNiagaraSystemToolkitParameterPanelUtilities::GetEditableGraphs(SystemViewModel, SystemGraphSelectionViewModelWeak, false);
+	return SystemViewModel->GetSelectedGraphs();
 }
 
 const TArray<UNiagaraParameterDefinitions*> FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::GetAvailableParameterDefinitionsAssets(bool bSkipSubscribedParameterDefinitions) const
