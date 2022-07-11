@@ -62,7 +62,7 @@ struct FImgMediaTileSelection
 	 * @param TargetMipLevel Higher target mip level for the selection (usually 1 and above).
 	 * @param bDefaultVisibility Optional visibility for the entire region.
 	 */
-	static FImgMediaTileSelection CreateForTargetMipLevel(int32 BaseNumTilesX, int32 BaseNumTilesY, int32 TargetMipLevel, bool bDefaultVisibility = false);
+	static FImgMediaTileSelection CreateForTargetMipLevel(const FIntPoint& BaseTileNum, int32 TargetMipLevel, bool bDefaultVisibility = false);
 
 	FImgMediaTileSelection() = default;
 	~FImgMediaTileSelection() noexcept = default;

@@ -1311,7 +1311,7 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 		//Fallback case where we activate all mips and tiles.
 		for (int32 MipLevel = 0; MipLevel < GetNumMipLevels(); ++MipLevel)
 		{
-			OutMipsAndTiles.Emplace(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(GetNumTilesX(), GetNumTilesY(), MipLevel, true));
+			OutMipsAndTiles.Emplace(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(TilingDescription.TileNum, MipLevel, true));
 		}
 	}
 }
