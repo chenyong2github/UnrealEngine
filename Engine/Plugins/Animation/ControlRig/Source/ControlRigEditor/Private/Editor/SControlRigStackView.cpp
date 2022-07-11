@@ -796,7 +796,6 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 							break;
 						}
 						case EMessageSeverity::Error:
-						case EMessageSeverity::CriticalError:
 						{
 							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Error, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message, FRigVMASTProxy()));
 							break;

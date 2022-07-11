@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeCompilerLog.h"
 #include "StateTreeState.h"
@@ -53,7 +53,6 @@ void FStateTreeCompilerLog::DumpToLog(const FLogCategoryBase& Category) const
 
 		switch (StateTreeMessage.Severity)
 		{
-		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
 			UE_LOG_REF(Category, Error, TEXT("%s"), *Message);
 			break;

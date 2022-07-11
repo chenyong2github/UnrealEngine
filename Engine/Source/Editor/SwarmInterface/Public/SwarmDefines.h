@@ -217,7 +217,7 @@ enum TAlertLevel
 	ALERT_LEVEL_INFO						= 0x00000001,
 	ALERT_LEVEL_WARNING						= 0x00000002,
 	ALERT_LEVEL_ERROR						= 0x00000003,
-	ALERT_LEVEL_CRITICAL_ERROR				= 0x00000004,
+	ALERT_LEVEL_CRITICAL_ERROR	UE_DEPRECATED(5.1, "CriticalError was removed because it can't trigger an assert at the callsite. Use 'checkf' instead.") = 0x00000004,
 };
 
 }

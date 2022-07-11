@@ -6384,7 +6384,6 @@ static void ShowNotification(const FText& Message, EMessageSeverity::Type Severi
 	{
 		switch(Severity)
 		{
-		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
 			UE_LOG(LogBlueprint, Error, TEXT("%s"), *Message.ToString());
 			break;
@@ -6404,7 +6403,6 @@ static void ShowNotification(const FText& Message, EMessageSeverity::Type Severi
 		Warning.bFireAndForget = true;
 		switch(Severity)
 		{
-		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
 			Warning.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
 			break;

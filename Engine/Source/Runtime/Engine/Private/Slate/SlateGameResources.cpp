@@ -152,18 +152,20 @@ const FSlateWidgetStyle* FSlateGameResources::GetWidgetStyleInternal(const FName
 
 void FSlateGameResources::Log( ISlateStyle::EStyleMessageSeverity Severity, const FText& Message ) const
 {
-	EMessageSeverity::Type EngineMessageSeverity = EMessageSeverity::CriticalError;
-	switch( Severity )
+	if (GIsEditor)
 	{
-	case ISlateStyle::EStyleMessageSeverity::CriticalError: EngineMessageSeverity = EMessageSeverity::CriticalError; break;
-	case ISlateStyle::EStyleMessageSeverity::Error: EngineMessageSeverity = EMessageSeverity::Error; break;
-	case ISlateStyle::EStyleMessageSeverity::PerformanceWarning: EngineMessageSeverity = EMessageSeverity::PerformanceWarning; break;
-	case ISlateStyle::EStyleMessageSeverity::Warning: EngineMessageSeverity = EMessageSeverity::Warning; break;
-	case ISlateStyle::EStyleMessageSeverity::Info: EngineMessageSeverity = EMessageSeverity::Info; break;
-	}
+		const EMessageSeverity::Type EngineMessageSeverity = [Severity]()
+		{
+			switch (Severity)
+			{
+			default:
+			case ISlateStyle::EStyleMessageSeverity::Error:					return EMessageSeverity::Error;
+			case ISlateStyle::EStyleMessageSeverity::PerformanceWarning:	return EMessageSeverity::PerformanceWarning;
+			case ISlateStyle::EStyleMessageSeverity::Warning:				return EMessageSeverity::Warning;
+			case ISlateStyle::EStyleMessageSeverity::Info:					return EMessageSeverity::Info;
+			}
+		}();
 
-	if( GIsEditor )
-	{
 		FMessageLog SlateStyleLog("SlateStyleLog");
 		SlateStyleLog.AddMessage(FTokenizedMessage::Create(EngineMessageSeverity, Message));
 

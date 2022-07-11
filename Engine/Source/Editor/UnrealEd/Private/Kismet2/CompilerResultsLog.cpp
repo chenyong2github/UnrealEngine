@@ -439,7 +439,7 @@ void FCompilerResultsLog::InternalLogMessage(FName MessageID, const TSharedRef<F
 
 	if (!bSilentMode && (!bLogInfoOnly || (Severity == EMessageSeverity::Info)))
 	{
-		if (Severity == EMessageSeverity::CriticalError || Severity == EMessageSeverity::Error)
+		if (Severity == EMessageSeverity::Error)
 		{
 			if (IsRunningCommandlet())
 			{

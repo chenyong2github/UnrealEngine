@@ -92,7 +92,6 @@ UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::MessageToStackIssue(TS
 	EStackIssueSeverity StackIssueSeverity;
 	switch (TokenizedMessage->GetSeverity())
 	{
-	case EMessageSeverity::CriticalError:
 	case EMessageSeverity::Error:
 		StackIssueSeverity = EStackIssueSeverity::Error;
 		break;

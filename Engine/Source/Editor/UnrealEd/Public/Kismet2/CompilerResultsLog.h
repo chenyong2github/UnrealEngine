@@ -245,7 +245,6 @@ public:
 		switch (InMessage->GetSeverity())
 		{
 		case EMessageSeverity::Error:
-		case EMessageSeverity::CriticalError:
 			++NumErrors;
 			break;
 		case EMessageSeverity::Warning:

@@ -449,7 +449,6 @@ void FLightmassProcessor::SwarmCallback( NSwarm::FMessage* CallbackMessage, void
 			case NSwarm::ALERT_LEVEL_INFO:	break;
 			case NSwarm::ALERT_LEVEL_WARNING:			CheckType = EMessageSeverity::Warning;			break;
 			case NSwarm::ALERT_LEVEL_ERROR:				CheckType = EMessageSeverity::Error;			break;
-			case NSwarm::ALERT_LEVEL_CRITICAL_ERROR:	CheckType = EMessageSeverity::CriticalError;	break;
 			}
 
 			FGuid ObjectGuid = FGuid(	AlertMessage->ObjectGuid.A, 

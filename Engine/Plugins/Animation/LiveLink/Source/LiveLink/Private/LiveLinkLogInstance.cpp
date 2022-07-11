@@ -438,7 +438,6 @@ void FLiveLinkLogInstance::LogMessage(EMessageSeverity::Type Severity, const FSt
 
 	switch (Severity)
 	{
-	case EMessageSeverity::CriticalError:
 	case EMessageSeverity::Error:
 		UE_LOG(LogLiveLink, Error, TEXT("%s"), *Message);
 		break;
@@ -457,7 +456,6 @@ void FLiveLinkLogInstance::IncrementLogCount(EMessageSeverity::Type Severity)
 {
 	switch (Severity)
 	{
-	case EMessageSeverity::CriticalError:
 	case EMessageSeverity::Error:
 		++ErrorCount;
 		break;

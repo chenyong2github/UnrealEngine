@@ -11352,8 +11352,7 @@ URigVMUserWorkflowOptions* URigVMController::MakeOptionsForWorkflow(UObject* InS
 		{
 			if(URigVMController* StrongThis = WeakThis.Get())
 			{
-				if(InSeverity == EMessageSeverity::Error ||
-					InSeverity == EMessageSeverity::CriticalError)
+				if(InSeverity == EMessageSeverity::Error)
 				{
 					StrongThis->ReportAndNotifyError(InMessage);
 				}

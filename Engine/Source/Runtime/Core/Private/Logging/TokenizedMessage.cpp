@@ -64,8 +64,6 @@ FText FTokenizedMessage::GetSeverityText( EMessageSeverity::Type InSeverity )
 {
 	switch (InSeverity)
 	{
-	case EMessageSeverity::CriticalError:		
-		return LOCTEXT("CritError", "Critical Error");			
 	case EMessageSeverity::Error:				
 		return LOCTEXT("Error", "Error");						
 	case EMessageSeverity::PerformanceWarning:	
@@ -84,9 +82,6 @@ FName FTokenizedMessage::GetSeverityIconName(EMessageSeverity::Type InSeverity)
 	FName SeverityIconName;
 	switch (InSeverity)
 	{
-	case EMessageSeverity::CriticalError:		
-		SeverityIconName = "Icons.ErrorWithColor";		
-		break;
 	case EMessageSeverity::Error:				
 		SeverityIconName = "Icons.ErrorWithColor";		
 		break;

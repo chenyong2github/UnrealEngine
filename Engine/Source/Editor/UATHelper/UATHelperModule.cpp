@@ -223,8 +223,8 @@ private:
 					bHasAssetErrors = true;
 				}
 
-				TSharedRef<FTokenizedMessage> PackagingMsg = MessageType == EMessageSeverity::Error ? FMessageLog("PackagingResults").Error()
-					: FMessageLog("PackagingResults").Warning();
+				FMessageLog Message("PackagingResults");
+				TSharedRef<FTokenizedMessage> PackagingMsg = MessageType == EMessageSeverity::Error ? Message.Error() : Message.Warning();
 
 				PackagingMsg->AddToken(FTextToken::Create(FText::FromString(MessageArray.Num() > 1 ? MessageArray[1] : MessageString)));
 

@@ -160,7 +160,7 @@ public:
 				FMessageLog(NAME_CategoryPIE).SuppressLoggingToOutputLog(true).Error(Message);
 				break;
 			case ELogVerbosity::Fatal:
-				FMessageLog(NAME_CategoryPIE).SuppressLoggingToOutputLog(true).CriticalError(Message);
+				checkf(false, *Message.ToString());
 				break;
 			}
 		}
@@ -461,9 +461,9 @@ void UEditorEngine::EndPlayMap()
 		// We cannot safely recover from this.
 		if (UObjectBaseUtility::IsPendingKillEnabled())
 		{
-			FMessageLog(NAME_CategoryPIE).CriticalError()
-				->AddToken(FUObjectToken::Create(Object, FText::FromString(Object->GetFullName())))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("PIEObjectStillReferenced", "Object from PIE level still referenced. Shortest path from root: {Path}"), Arguments)));
+			Arguments.Add(TEXT("Object"), FText::FromString(Object->GetFullName()));
+			checkf(false, *FText::Format(
+				LOCTEXT("PIEObjectStillReferenced", "Object '{Object}' from PIE level still referenced. Shortest path from root: {Path}"), Arguments).ToString());
 		}
 		else
 		{

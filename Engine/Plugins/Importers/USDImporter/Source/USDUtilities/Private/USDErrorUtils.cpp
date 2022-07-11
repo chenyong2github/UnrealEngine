@@ -200,7 +200,7 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 
 	if ( !bMessageProcessed )
 	{
-		if ( Message->GetSeverity() == EMessageSeverity::CriticalError || Message->GetSeverity() == EMessageSeverity::Error )
+		if ( Message->GetSeverity() == EMessageSeverity::Error )
 		{
 			UE_LOG( LogUsd, Error, TEXT("%s"), *(Message->ToText().ToString()) );
 		}

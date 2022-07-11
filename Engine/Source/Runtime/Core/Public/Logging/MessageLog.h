@@ -50,7 +50,8 @@ public:
 	 * @return the message for chaining calls.
 	 */
 	CORE_API TSharedRef<FTokenizedMessage> Message( EMessageSeverity::Type InSeverity, const FText& InMessage = FText() );
-	CORE_API TSharedRef<FTokenizedMessage> CriticalError( const FText& InMessage = FText() );
+	UE_DEPRECATED(5.1, "CriticalError was removed because it can't trigger an assert at the callsite. Use 'checkf' instead.")
+	CORE_API TSharedRef<FTokenizedMessage> CriticalError(const FText& InMessage = FText());
 	CORE_API TSharedRef<FTokenizedMessage> Error( const FText& InMessage = FText() );
 	CORE_API TSharedRef<FTokenizedMessage> PerformanceWarning( const FText& InMessage = FText() );
 	CORE_API TSharedRef<FTokenizedMessage> Warning( const FText& InMessage = FText() );

@@ -4551,7 +4551,7 @@ FFbxLogger::~FFbxLogger()
 	{
 		for (TSharedRef<FTokenizedMessage> TokenMessage : TokenizedErrorMessages)
 		{
-			if (TokenMessage->GetSeverity() == EMessageSeverity::CriticalError || TokenMessage->GetSeverity() == EMessageSeverity::Error)
+			if (TokenMessage->GetSeverity() == EMessageSeverity::Error)
 			{
 				ShowLogMessage = true;
 				break;

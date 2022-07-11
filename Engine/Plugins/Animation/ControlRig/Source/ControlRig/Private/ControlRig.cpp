@@ -3034,7 +3034,6 @@ void UControlRig::LogOnce(EMessageSeverity::Type InSeverity, int32 InInstruction
 
 	switch (InSeverity)
 	{
-		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
 		{
 			UE_LOG(LogControlRig, Error, TEXT("%s"), *InMessage);

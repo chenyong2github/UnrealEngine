@@ -130,7 +130,13 @@ TSharedRef<FTokenizedMessage> FMessageLog::Message( EMessageSeverity::Type InSev
 
 TSharedRef<FTokenizedMessage> FMessageLog::CriticalError( const FText& InMessage )
 {
-	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError, InMessage);
+	// Deprecated: This call has been deprecated. As EMessageSeverity::CriticalError has been deprecated as well, this call
+	//		will no longer function as before. To avoid this going unnoticed an explicit call to checkf will be made
+	checkf(false, 
+		TEXT("[Deprecated] FMessageLog::CriticalError has been deprecated. Please update callsites. The original error message: \n%s"), 
+		*InMessage.ToString());
+	
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, InMessage);
 	Messages.Add(Message);
 	return Message;
 }
@@ -223,8 +229,6 @@ ELogVerbosity::Type FMessageLog::GetLogVerbosity( EMessageSeverity::Type InSever
 {
 	switch(InSeverity)
 	{
-	case EMessageSeverity::CriticalError:
-		return ELogVerbosity::Fatal;
 	case EMessageSeverity::Error:
 		return ELogVerbosity::Error;
 	case EMessageSeverity::PerformanceWarning:
@@ -243,14 +247,14 @@ const TCHAR* const FMessageLog::GetLogColor( EMessageSeverity::Type InSeverity )
 #else
 	switch(InSeverity)
 	{
-	case EMessageSeverity::CriticalError:
+	case EMessageSeverity::Error:
 		return OutputDeviceColor::COLOR_RED;
 	case EMessageSeverity::PerformanceWarning:
 	case EMessageSeverity::Warning:
 		return OutputDeviceColor::COLOR_YELLOW;
 	case EMessageSeverity::Info:
 	default:
-		return NULL;
+		return nullptr;
 	}
 #endif
 }

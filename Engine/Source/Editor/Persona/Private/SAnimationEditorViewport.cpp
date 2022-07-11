@@ -364,7 +364,6 @@ TWeakPtr<SWidget> SAnimationEditorViewportTabBody::AddNotification(TAttribute<EM
 	{
 		switch(InSeverity.Get())
 		{
-		case EMessageSeverity::CriticalError:
 		case EMessageSeverity::Error:
 			return FAppStyle::GetBrush("AnimViewport.Notification.Error");
 		case EMessageSeverity::PerformanceWarning:

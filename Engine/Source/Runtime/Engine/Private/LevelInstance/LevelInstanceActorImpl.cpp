@@ -361,7 +361,8 @@ void FLevelInstanceActorImpl::CheckForErrors()
 	const ILevelInstanceInterface* LoopStart = nullptr;
 	if (!ULevelInstanceSubsystem::CheckForLoop(LevelInstance, LevelInstance->GetWorldAsset(), & LoopInfo, &LoopStart))
 	{
-		TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()->AddToken(FTextToken::Create(LOCTEXT("LevelInstanceActor_Loop_CheckForErrors", "LevelInstance level loop found!")));
+		FMessageLog Message("MapCheck");
+		TSharedRef<FTokenizedMessage> Error = Message.Error()->AddToken(FTextToken::Create(LOCTEXT("LevelInstanceActor_Loop_CheckForErrors", "LevelInstance level loop found!")));
 		const AActor* LoopStartActor = CastChecked<AActor>(LoopStart);
 		TSoftObjectPtr<UWorld> LoopStartAsset(LoopStartActor->GetLevel()->GetTypedOuter<UWorld>());
 		Error->AddToken(FAssetNameToken::Create(LoopStartAsset.GetLongPackageName(), FText::FromString(LoopStartAsset.GetAssetName())));
@@ -380,7 +381,7 @@ void FLevelInstanceActorImpl::CheckForErrors()
 	FPackagePath WorldAssetPath;
 	if (!FPackagePath::TryFromPackageName(LevelInstance->GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
 	{
-		TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
+		FMessageLog("MapCheck").Error()
 			->AddToken(FTextToken::Create(LOCTEXT("LevelInstanceActor_InvalidPackage", "LevelInstance actor")))
 			->AddToken(FUObjectToken::Create(CastChecked<AActor>(LevelInstance)))
 			->AddToken(FTextToken::Create(FText::FromString(TEXT("refers to an invalid asset:"))))

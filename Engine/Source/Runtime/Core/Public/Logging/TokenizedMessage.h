@@ -20,11 +20,11 @@ namespace EMessageSeverity
 	/** Ordered according to their severity */
 	enum Type
 	{
-		CriticalError		= 0,
-		Error				= 1,
-		PerformanceWarning	= 2,
-		Warning				= 3,
-		Info				= 4,	// Should be last
+		CriticalError UE_DEPRECATED(5.1, "CriticalError was removed because it can't trigger an assert at the callsite. Use 'checkf' instead.") = 0,
+		Error = 1,
+		PerformanceWarning = 2,
+		Warning = 3,
+		Info = 4,	// Should be last
 	};
 }
 
