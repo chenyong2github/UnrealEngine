@@ -6,11 +6,13 @@
 
 #include "GroomAsset.h"
 #include "GroomBuilder.h"
+#include "GroomComponent.h"
 #include "GroomImportOptions.h"
 #include "HairDescription.h"
 #include "HairStrandsImporter.h"
 #include "Misc/ArchiveMD5.h"
 
+#include "UnrealUSDWrapper.h"
 #include "USDAssetImportData.h"
 #include "USDGroomConversion.h"
 #include "USDIntegrationUtils.h"
@@ -163,7 +165,7 @@ protected:
 
 bool FUsdGroomTranslator::IsGroomPrim() const
 {
-	return UsdUtils::PrimHasGroomSchema(GetPrim());
+	return UsdUtils::PrimHasSchema(GetPrim(), UnrealIdentifiers::GroomAPI);
 }
 
 void FUsdGroomTranslator::CreateAssets()
@@ -183,7 +185,18 @@ USceneComponent* FUsdGroomTranslator::CreateComponents()
 		return Super::CreateComponents();
 	}
 
-	return nullptr;
+	// Display the groom as a standalone actor only if the stage loads the matching purpose.
+	// The groom asset is processed regardless of the purpose so that it can be bound to mesh prims.
+	if (!EnumHasAllFlags(Context->PurposesToLoad, IUsdPrim::GetPurpose(GetPrim())))
+	{
+		return nullptr;
+	}
+
+	bool bNeedsActor = true;
+	USceneComponent* Component = CreateComponentsEx(TSubclassOf<USceneComponent>(UGroomComponent::StaticClass()), bNeedsActor);
+	UpdateComponents(Component);
+
+	return Component;
 }
 
 void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
@@ -191,6 +204,36 @@ void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 	if (!IsGroomPrim())
 	{
 		Super::UpdateComponents(SceneComponent);
+	}
+
+	if (UGroomComponent* GroomComponent = Cast<UGroomComponent>(SceneComponent))
+	{
+		GroomComponent->Modify();
+
+		UGroomAsset* Groom = Cast<UGroomAsset>(Context->AssetCache->GetAssetForPrim(PrimPath.GetString()));
+
+		bool bShouldRegister = false;
+		if (Groom != GroomComponent->GroomAsset.Get())
+		{
+			bShouldRegister = true;
+
+			if (GroomComponent->IsRegistered())
+			{
+				GroomComponent->UnregisterComponent();
+			}
+
+			GroomComponent->SetGroomAsset(Groom);
+		}
+
+		// Use the prim purpose in conjunction with the prim's computed visibility to toggle the visibility of the groom component
+		// since the component itself cannot be removed if the groom shouldn't be displayed
+		const bool bShouldRender = UsdUtils::IsVisible(GetPrim()) && EnumHasAllFlags(Context->PurposesToLoad, IUsdPrim::GetPurpose(GetPrim()));
+		GroomComponent->SetVisibility(bShouldRender);
+
+		if (bShouldRegister && !GroomComponent->IsRegistered())
+		{
+			GroomComponent->RegisterComponent();
+		}
 	}
 }
 

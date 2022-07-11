@@ -10,10 +10,11 @@
 #include "UsdWrappers/UsdPrim.h"
 
 #include "USDIncludesStart.h"
+#include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usdGeom/basisCurves.h"
 #include "pxr/usd/usdGeom/primvar.h"
 #include "pxr/usd/usdGeom/primvarsAPI.h"
-#include "pxr/usd/usdGeom/xformable.h"
+#include "pxr/usd/usdGeom/xform.h"
 #include "USDIncludesEnd.h"
 
 namespace UE::UsdGroomConversion::Private
@@ -315,15 +316,19 @@ namespace UsdToUnreal
 
 			// Following the USD recommendation that gprims be not nested, a Curves prim is handled as a leaf
 		}
-		else if (pxr::UsdGeomXformable Xform = pxr::UsdGeomXformable(Prim))
+		else if (pxr::UsdGeomImageable(Prim))
 		{
-			// Propagate the prim transform to the children
-			bool bResetXformStack = false;
-			FTransform PrimTransform = FTransform::Identity;
-			bool bConverted = UsdToUnreal::ConvertXformable(Prim.GetStage(), Xform, PrimTransform, TimeCode.GetValue(), &bResetXformStack);
-			if (bConverted)
+			// UsdGeomImageable includes UsdGeomXformable and UsdGeomScope
+			if (pxr::UsdGeomXform Xform = pxr::UsdGeomXform(Prim))
 			{
-				TransformToPropagate = bResetXformStack ? PrimTransform : ParentTransform * PrimTransform;
+				// Propagate the prim transform to the children
+				bool bResetXformStack = false;
+				FTransform PrimTransform = FTransform::Identity;
+				bool bConverted = UsdToUnreal::ConvertXformable(Prim.GetStage(), Xform, PrimTransform, TimeCode.GetValue(), &bResetXformStack);
+				if (bConverted)
+				{
+					TransformToPropagate = bResetXformStack ? PrimTransform : ParentTransform * PrimTransform;
+				}
 			}
 
 			for (const pxr::UsdPrim& Child : Prim.GetChildren())

@@ -18,6 +18,36 @@
 
 #define LOCTEXT_NAMESPACE "USDIntegrationUtils"
 
+bool UsdUtils::PrimHasSchema( const pxr::UsdPrim& Prim, const pxr::TfToken& SchemaToken )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( SchemaToken );
+	ensure( static_cast<bool>( Schema ) );
+
+	return Prim.HasAPI( Schema );
+}
+
+bool UsdUtils::ApplySchema( const pxr::UsdPrim& Prim, const pxr::TfToken& SchemaToken )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( SchemaToken );
+	ensure( static_cast<bool>( Schema ) );
+
+	return Prim.ApplyAPI( Schema );
+}
+
 bool UsdUtils::PrimHasLiveLinkSchema( const pxr::UsdPrim& Prim )
 {
 	if ( !Prim )
@@ -41,19 +71,6 @@ bool UsdUtils::PrimHasControlRigSchema( const pxr::UsdPrim& Prim )
 	FScopedUsdAllocs Allocs;
 
 	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::ControlRigAPI );
-	return Prim.HasAPI( Schema );
-}
-
-bool UsdUtils::PrimHasGroomSchema( const pxr::UsdPrim& Prim )
-{
-	if ( !Prim )
-	{
-		return false;
-	}
-
-	FScopedUsdAllocs Allocs;
-
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::GroomAPI );
 	return Prim.HasAPI( Schema );
 }
 
@@ -84,22 +101,6 @@ bool UsdUtils::ApplyLiveLinkSchema( const pxr::UsdPrim& Prim )
 
 	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
 	ensure( static_cast< bool >( Schema ) );
-
-	ensure( Prim.ApplyAPI( Schema ) );
-	return true;
-}
-
-bool UsdUtils::ApplyGroomSchema( const pxr::UsdPrim& Prim )
-{
-	if ( !Prim )
-	{
-		return false;
-	}
-
-	FScopedUsdAllocs Allocs;
-
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::GroomAPI );
-	ensure( static_cast<bool>( Schema ) );
 
 	ensure( Prim.ApplyAPI( Schema ) );
 	return true;

@@ -109,6 +109,13 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float
 	return CurrentSampleInfo;
 }
 
+bool UGeometryCacheTrackUsd::GetMeshDataAtTime(float Time, FGeometryCacheMeshData& OutMeshData)
+{
+	const bool bLooping = true;
+	const int32 SampleIndex = FindSampleIndexFromTime(Time, bLooping);
+	return GetMeshData(SampleIndex, OutMeshData);
+}
+
 bool UGeometryCacheTrackUsd::GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData)
 {
 	if (IGeometryCacheStreamer::Get().IsTrackRegistered(this))

@@ -403,7 +403,7 @@ bool FUsdPrimViewModel::CanRemoveControlRig() const
 void FUsdPrimViewModel::ApplyGroomSchema()
 {
 #if USE_USD_SDK
-	UsdUtils::ApplyGroomSchema( UsdPrim );
+	UsdUtils::ApplySchema( UsdPrim, UnrealIdentifiers::GroomAPI );
 #endif // #if USE_USD_SDK
 }
 

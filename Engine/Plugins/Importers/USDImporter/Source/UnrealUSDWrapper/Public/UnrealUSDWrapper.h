@@ -390,6 +390,9 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken WorldSpaceNormals;
 
 	extern UNREALUSDWRAPPER_API const pxr::TfToken GroomAPI;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken GroomBindingAPI;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealGroomToBind;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealGroomReferenceMesh;
 #endif // #if USE_USD_SDK
 
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;

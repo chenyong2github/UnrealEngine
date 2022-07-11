@@ -145,6 +145,9 @@ namespace UnrealIdentifiers
 	const TfToken WorldSpaceNormals = TfToken( "worldSpaceNormals" );
 
 	const TfToken GroomAPI = TfToken( "GroomAPI" );
+	const TfToken GroomBindingAPI = TfToken( "GroomBindingAPI" );
+	const TfToken UnrealGroomToBind = TfToken( "unreal:groomBinding:groom" );
+	const TfToken UnrealGroomReferenceMesh = TfToken( "unreal:groomBinding:referenceMesh" );
 }
 
 std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )

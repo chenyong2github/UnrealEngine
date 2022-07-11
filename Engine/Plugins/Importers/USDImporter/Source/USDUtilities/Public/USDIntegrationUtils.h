@@ -11,6 +11,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class UsdPrim;
+	class TfToken;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // #if USE_USD_SDK
@@ -22,14 +23,17 @@ namespace UsdUtils
 {
 #if USE_USD_SDK
 
+	// Returns true if Prim has the given Schema
+	USDUTILITIES_API bool PrimHasSchema( const pxr::UsdPrim& Prim, const pxr::TfToken& Schema );
+
+	// Apply the given Schema to the Prim. Returns true if the application was successful
+	USDUTILITIES_API bool ApplySchema( const pxr::UsdPrim& Prim, const pxr::TfToken& Schema );
+
 	// Returns true in case Prim has our custom "LiveLinkAPI" schema
 	USDUTILITIES_API bool PrimHasLiveLinkSchema( const pxr::UsdPrim& Prim );
 
 	// Returns true in case Prim has our custom "ControlRigAPI" schema
 	USDUTILITIES_API bool PrimHasControlRigSchema( const pxr::UsdPrim& Prim );
-
-	// Returns true if Prim has the custom "GroomAPI" schema
-	USDUTILITIES_API bool PrimHasGroomSchema( const pxr::UsdPrim& Prim );
 
 	// Apply the control rig schema to the prim, creates all the required attributes and sets default values
 	// if they're otherwise not authored
@@ -38,9 +42,6 @@ namespace UsdUtils
 	// Apply the live link schema to the prim, creates all the required attributes and sets default values
 	// if they're otherwise not authored
 	USDUTILITIES_API bool ApplyLiveLinkSchema( const pxr::UsdPrim& Prim );
-
-	// Apply the groom schema to the prim
-	USDUTILITIES_API bool ApplyGroomSchema( const pxr::UsdPrim& Prim );
 
 #endif // USE_USD_SDK
 }

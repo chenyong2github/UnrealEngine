@@ -10,6 +10,8 @@
 #include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
+#include "USDGroomTranslatorUtils.h"
+#include "USDIntegrationUtils.h"
 #include "USDLog.h"
 #include "USDPrimConversion.h"
 #include "USDTypesConversion.h"
@@ -24,6 +26,7 @@
 #include "Engine/StaticMesh.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
+#include "GroomComponent.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/Material.h"
@@ -1484,6 +1487,24 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				bAllowInterpretingLODs,
 				Context->RenderContext
 			);
+
+#if WITH_EDITOR
+			// Check if the prim has the GroomBinding schema and setup the component and assets necessary to bind the groom to the GeometryCache
+			if ( UsdUtils::PrimHasSchema( GetPrim(), UnrealIdentifiers::GroomBindingAPI ) )
+			{
+				UsdGroomTranslatorUtils::CreateGroomBindingAsset( GetPrim(), *( Context->AssetCache ), Context->ObjectFlags );
+
+				// For the groom binding to work, the GroomComponent must be a child of the SceneComponent 
+				// so the Context ParentComponent is set to the SceneComponent temporarily
+				TGuardValue< USceneComponent* > ParentComponentGuard{ Context->ParentComponent, SceneComponent };
+				const bool bNeedsActor = false;
+				UGroomComponent* GroomComponent = Cast< UGroomComponent >( CreateComponentsEx( TSubclassOf< USceneComponent >( UGroomComponent::StaticClass() ), bNeedsActor ) );
+				if ( GroomComponent )
+				{
+					UpdateComponents( SceneComponent );
+				}
+			}
+#endif // !WITH_EDITOR
 		}
 	}
 
@@ -1554,6 +1575,12 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		if ( bShouldRegister && !GeometryCacheUsdComponent->IsRegistered() )
 		{
 			GeometryCacheUsdComponent->RegisterComponent();
+		}
+
+		// If the prim has a GroomBinding schema, apply the target groom to its associated GroomComponent
+		if ( UsdUtils::PrimHasSchema( GetPrim(), UnrealIdentifiers::GroomBindingAPI ) )
+		{
+			UsdGroomTranslatorUtils::SetGroomFromPrim( GetPrim(), *Context->AssetCache, SceneComponent );
 		}
 	}
 #endif // WITH_EDITOR

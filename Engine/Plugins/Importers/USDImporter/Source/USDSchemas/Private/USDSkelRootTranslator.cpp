@@ -10,6 +10,7 @@
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
+#include "USDGroomTranslatorUtils.h"
 #include "USDIntegrationUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
@@ -29,6 +30,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "GroomComponent.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
@@ -1225,8 +1227,27 @@ void FUsdSkelRootTranslator::CreateAssets()
 
 USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 {
-	// Don't need to call UpdateComponents as FUsdGeomXformableTranslator will already do that for us
-	return FUsdGeomXformableTranslator::CreateComponents();
+	USceneComponent* SceneComponent = FUsdGeomXformableTranslator::CreateComponents();
+
+#if WITH_EDITOR
+	// Check if the prim has the GroomBinding schema and setup the component and assets necessary to bind the groom to the SkeletalMesh
+	if ( UsdUtils::PrimHasSchema( GetPrim(), UnrealIdentifiers::GroomBindingAPI ) )
+	{
+		UsdGroomTranslatorUtils::CreateGroomBindingAsset( GetPrim(), *( Context->AssetCache ), Context->ObjectFlags );
+
+		// For the groom binding to work, the GroomComponent must be a child of the SceneComponent 
+		// so the Context ParentComponent is set to the SceneComponent temporarily
+		TGuardValue< USceneComponent* > ParentComponentGuard{ Context->ParentComponent, SceneComponent };
+		const bool bNeedsActor = false;
+		UGroomComponent* GroomComponent = Cast< UGroomComponent >( CreateComponentsEx( TSubclassOf< USceneComponent >( UGroomComponent::StaticClass() ), bNeedsActor ) );
+		if ( GroomComponent )
+		{
+			UpdateComponents( SceneComponent );
+		}
+	}
+#endif // WITH_EDITOR
+
+	return SceneComponent;
 }
 
 void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
@@ -1364,6 +1385,12 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			SkeletalMeshComponent->MarkRenderTransformDirty();
 			SkeletalMeshComponent->MarkRenderDynamicDataDirty();
 		}
+	}
+
+	// If the prim has a GroomBinding schema, apply the target groom to its associated GroomComponent
+	if ( UsdUtils::PrimHasSchema( Prim, UnrealIdentifiers::GroomBindingAPI ) )
+	{
+		UsdGroomTranslatorUtils::SetGroomFromPrim( Prim, *Context->AssetCache, SceneComponent );
 	}
 #endif // WITH_EDITOR
 }
