@@ -334,10 +334,10 @@ void UPoseSearchSchema::PostLoad()
 
 		UPoseSearchFeatureChannel_Trajectory* Channel = NewObject<UPoseSearchFeatureChannel_Trajectory>(this);
 		Channel->Domain = EPoseSearchFeatureDomain::Time;
-		Channel->SampleOffsets = TrajectorySampleTimes_DEPRECATED;
-		Channel->bUseFacingDirections = bUseTrajectoryForwardVectors_DEPRECATED;
-		Channel->bUseLinearVelocities = bUseTrajectoryVelocities_DEPRECATED;
-		Channel->bUsePositions = bUseTrajectoryPositions_DEPRECATED;
+		Channel->SampleOffsets_DEPRECATED = TrajectorySampleTimes_DEPRECATED;
+		Channel->bUseFacingDirections_DEPRECATED = bUseTrajectoryForwardVectors_DEPRECATED;
+		Channel->bUseLinearVelocities_DEPRECATED = bUseTrajectoryVelocities_DEPRECATED;
+		Channel->bUsePositions_DEPRECATED = bUseTrajectoryPositions_DEPRECATED;
 		Channels.Add(Channel);
 
 		TrajectorySampleTimes_DEPRECATED.Empty();
@@ -349,10 +349,10 @@ void UPoseSearchSchema::PostLoad()
 
 		UPoseSearchFeatureChannel_Trajectory* Channel = NewObject<UPoseSearchFeatureChannel_Trajectory>(this);
 		Channel->Domain = EPoseSearchFeatureDomain::Distance;
-		Channel->SampleOffsets = TrajectorySampleDistances_DEPRECATED;
-		Channel->bUseFacingDirections = bUseTrajectoryForwardVectors_DEPRECATED;
-		Channel->bUseLinearVelocities = bUseTrajectoryVelocities_DEPRECATED;
-		Channel->bUsePositions = bUseTrajectoryPositions_DEPRECATED;
+		Channel->SampleOffsets_DEPRECATED = TrajectorySampleDistances_DEPRECATED;
+		Channel->bUseFacingDirections_DEPRECATED = bUseTrajectoryForwardVectors_DEPRECATED;
+		Channel->bUseLinearVelocities_DEPRECATED = bUseTrajectoryVelocities_DEPRECATED;
+		Channel->bUsePositions_DEPRECATED = bUseTrajectoryPositions_DEPRECATED;
 		Channels.Add(Channel);
 
 		TrajectorySampleDistances_DEPRECATED.Empty();
@@ -380,16 +380,81 @@ void UPoseSearchSchema::PostLoad()
 				bNeedFinalize = true;
 				break;
 			}
+		}
+	}
 
-			if (UPoseSearchFeatureChannel_Pose* ChannelPose = Cast<UPoseSearchFeatureChannel_Pose>(Channel))
+	for (UPoseSearchFeatureChannel* Channel : Channels)
+	{
+		if (UPoseSearchFeatureChannel_Pose* ChannelPose = Cast<UPoseSearchFeatureChannel_Pose>(Channel))
+		{
+			for (FPoseSearchBone& SampledBone : ChannelPose->SampledBones)
+			if (SampledBone.bUseVelocity_DEPRECATED ||
+				SampledBone.bUsePosition_DEPRECATED ||
+				SampledBone.bUseRotation_DEPRECATED ||
+				SampledBone.bUsePhase_DEPRECATED)
 			{
-				if (ChannelPose->SchemaBoneIdx.Num() == 0)
+				SampledBone.Flags = 0;
+				if (SampledBone.bUseVelocity_DEPRECATED)
 				{
-					bNeedFinalize = true;
-					break;
+					SampledBone.Flags |= EPoseSearchBoneFlags::Velocity;
+					SampledBone.bUseVelocity_DEPRECATED = false;
 				}
+				
+				if (SampledBone.bUsePosition_DEPRECATED)
+				{
+					SampledBone.Flags |= EPoseSearchBoneFlags::Position;
+					SampledBone.bUsePosition_DEPRECATED = false;
+				}
+
+				if (SampledBone.bUseRotation_DEPRECATED)
+				{
+					SampledBone.Flags |= EPoseSearchBoneFlags::Rotation;
+					SampledBone.bUseRotation_DEPRECATED = false;
+				}
+
+				if (SampledBone.bUsePhase_DEPRECATED)
+				{
+					SampledBone.Flags |= EPoseSearchBoneFlags::Phase;
+					SampledBone.bUsePhase_DEPRECATED = false;
+				}
+
+				bNeedFinalize = true;
 			}
 		}
+
+		if (UPoseSearchFeatureChannel_Trajectory* ChannelTrajectory = Cast<UPoseSearchFeatureChannel_Trajectory>(Channel))
+		{
+			if (ChannelTrajectory->SampleOffsets_DEPRECATED.Num() > 0)
+			{
+				ChannelTrajectory->Samples.Reset();
+
+				for (float Offset : ChannelTrajectory->SampleOffsets_DEPRECATED)
+				{
+					FPoseSearchTrajectorySample Sample;
+					Sample.Flags = 0;
+					if (ChannelTrajectory->bUsePositions_DEPRECATED)
+					{
+						Sample.Flags |= EPoseSearchTrajectoryFlags::Position;
+					}
+					if (ChannelTrajectory->bUseLinearVelocities_DEPRECATED)
+					{
+						Sample.Flags |= EPoseSearchTrajectoryFlags::Velocity;
+					}
+					if (ChannelTrajectory->bUseFacingDirections_DEPRECATED)
+					{
+						Sample.Flags |= EPoseSearchTrajectoryFlags::FacingDirection;
+					}
+					Sample.Offset = Offset;
+					Sample.Weight = 1.f;
+					ChannelTrajectory->Samples.Add(Sample);
+				}
+
+				ChannelTrajectory->SampleOffsets_DEPRECATED.Reset();
+				ChannelTrajectory->bUsePositions_DEPRECATED = false;
+				ChannelTrajectory->bUseLinearVelocities_DEPRECATED = false;
+				ChannelTrajectory->bUseFacingDirections_DEPRECATED = false;
+			}
+		}		
 	}
 
 #endif // WITH_EDITORONLY_DATA
@@ -1968,7 +2033,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 
 	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
 
-	const bool IsCurrentResultFromThisDatabase = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
+	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
 	if (IsCurrentResultFromThisDatabase)
 	{
 		Result.ContinuityPoseCost = ComparePoses(
@@ -2055,7 +2120,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	constexpr int NonSelectableIdxDataSize = 128;
 	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
 	int NonSelectableIdxUsedSize = 0;
-	const bool IsCurrentResultFromThisDatabase = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
+	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
 	if (IsCurrentResultFromThisDatabase)
 	{
 		Result.ContinuityPoseCost = ComparePoses(

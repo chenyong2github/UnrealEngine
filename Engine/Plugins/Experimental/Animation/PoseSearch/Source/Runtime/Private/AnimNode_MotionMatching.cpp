@@ -92,7 +92,8 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		&ActiveTagsContainer,
 		Trajectory,
 		Settings,
-		MotionMatchingState
+		MotionMatchingState,
+		bForceInterrupt
 	);
 
 

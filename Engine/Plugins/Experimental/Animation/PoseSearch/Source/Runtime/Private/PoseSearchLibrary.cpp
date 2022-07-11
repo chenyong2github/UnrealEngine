@@ -219,7 +219,8 @@ void UpdateMotionMatchingState(
 	const FGameplayTagContainer* ActiveTagsContainer,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
-	FMotionMatchingState& InOutMotionMatchingState
+	FMotionMatchingState& InOutMotionMatchingState,
+	bool bForceInterrupt
 )
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Update);
@@ -245,7 +246,7 @@ void UpdateMotionMatchingState(
 	// Check if we can advance. Includes the case where we can advance but only by switching to a follow up asset.
 	bool bAdvanceToFollowUpAsset = false;
 	FSearchResult FollowUpAsset;
-	bool bCanAdvance = InOutMotionMatchingState.CanAdvance(Context.GetDeltaTime(), bAdvanceToFollowUpAsset, FollowUpAsset);
+	bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime, bAdvanceToFollowUpAsset, FollowUpAsset);
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
 	if (!bCanAdvance || (InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime))
@@ -257,6 +258,7 @@ void UpdateMotionMatchingState(
 		SearchContext.Trajectory = &Trajectory;
 		SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
 		SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
+		SearchContext.bForceInterrupt = bForceInterrupt;
 
 #if WITH_EDITORONLY_DATA
 		SearchContext.DebugDrawParams.SearchCostHistoryBruteForce = &InOutMotionMatchingState.SearchCostHistoryBruteForce;

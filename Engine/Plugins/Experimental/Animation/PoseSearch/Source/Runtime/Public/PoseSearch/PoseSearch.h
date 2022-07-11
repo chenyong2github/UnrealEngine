@@ -173,6 +173,19 @@ struct FPoseSearchBlockTransitionParameters
 };
 
 // @todo: move it into PoseSearchFeatureChannels after removing SampledBones_DEPRECATED 
+UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EPoseSearchBoneFlags : uint32
+{
+	Velocity = 1 << 0,
+	Position = 1 << 1,
+	Rotation = 1 << 2,
+	Phase = 1 << 3,
+};
+ENUM_CLASS_FLAGS(EPoseSearchBoneFlags);
+constexpr bool EnumHasAnyFlags(int32 Flags, EPoseSearchBoneFlags Contains) { return (Flags & int32(Contains)) != 0; }
+inline int32& operator|=(int32& Lhs, EPoseSearchBoneFlags Rhs) { return Lhs |= int32(Rhs); }
+
+// @todo: move it into PoseSearchFeatureChannels after removing SampledBones_DEPRECATED 
 USTRUCT()
 struct POSESEARCH_API FPoseSearchBone
 {
@@ -181,17 +194,22 @@ struct POSESEARCH_API FPoseSearchBone
 	UPROPERTY(EditAnywhere, Category = Config)
 	FBoneReference Reference;
 
-	UPROPERTY(EditAnywhere, Category = Config)
-	bool bUseVelocity = false;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bUseVelocity_DEPRECATED = false;
 
-	UPROPERTY(EditAnywhere, Category = Config)
-	bool bUsePosition = false;
+	UPROPERTY()
+	bool bUsePosition_DEPRECATED = false;
 
-	UPROPERTY(EditAnywhere, Category = Config)
-	bool bUseRotation = false;
+	UPROPERTY()
+	bool bUseRotation_DEPRECATED = false;
 
-	UPROPERTY(EditAnywhere, Category = Config)
-	bool bUsePhase = false;
+	UPROPERTY()
+	bool bUsePhase_DEPRECATED = false;
+#endif
+
+	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/PoseSearch.EPoseSearchBoneFlags"), Category = Config)
+	int32 Flags = int32(EPoseSearchBoneFlags::Position);
 
 	// @todo: temporary location for the channel bone weight to help the weights refactoring
 	UPROPERTY(EditAnywhere, Category = Config)
@@ -1283,6 +1301,7 @@ struct POSESEARCH_API FSearchContext
 	const FBoneContainer* BoneContainer = nullptr;
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
+	bool bForceInterrupt = false;
 
 	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error);
 	void ClearCachedEntries();

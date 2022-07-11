@@ -114,7 +114,8 @@ POSESEARCH_API void UpdateMotionMatchingState(
 	const FGameplayTagContainer* ActiveTagsContainer,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
-	FMotionMatchingState& InOutMotionMatchingState
+	FMotionMatchingState& InOutMotionMatchingState,
+	bool bForceInterrupt
 );
 
 UCLASS(DisplayName = "Bias")
