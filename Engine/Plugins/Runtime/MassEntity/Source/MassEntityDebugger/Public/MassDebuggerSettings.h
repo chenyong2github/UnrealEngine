@@ -6,10 +6,14 @@
 #include "MassDebuggerSettings.generated.h"
 
 
-UCLASS(config = Mass, defaultconfig, DisplayName = "Mass Debugger")
+#define GET_MASSDEBUGGER_CONFIG_VALUE(a) (GetMutableDefault<UMassDebuggerSettings>()->a)
+
+UCLASS(config = EditorPerProjectUserSettings, DisplayName = "Mass Debugger")
 class MASSENTITYDEBUGGER_API UMassDebuggerSettings : public UMassModuleSettings
 {
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, config, Category=Debugger)
+	bool bStripMassPrefix = true;
 };

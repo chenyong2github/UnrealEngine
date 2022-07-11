@@ -33,6 +33,7 @@ void FMassDebuggerModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
 	FMassDebuggerStyle::Initialize();
+	FMassDebuggerCommands::Register();
 
 	// register the UI tab
 	IModularFeatures::Get().RegisterModularFeature(MassDebugTabName, this);

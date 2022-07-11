@@ -26,9 +26,20 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"Slate",
 					"WorkspaceMenuStructure",
-					"Projects"
+					"Projects",
+					"UMG"
 				}
 			);
+
+			if (Target.bBuildEditor == true)
+			{
+				PublicDependencyModuleNames.AddRange(
+					new string[] {
+						"InputCore",
+						"UnrealEd"
+					}
+				);
+			}
 		}
 	}
 }

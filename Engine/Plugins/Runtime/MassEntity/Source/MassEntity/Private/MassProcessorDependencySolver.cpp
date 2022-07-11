@@ -60,6 +60,14 @@ void FMassExecutionRequirements::CountResourcesUsed()
 	}
 }
 
+int32 FMassExecutionRequirements::GetTotalBitsUsedCount()
+{
+	CountResourcesUsed();
+
+	return ResourcesUsedCount + RequiredAllTags.CountStoredTypes()
+		+ RequiredAnyTags.CountStoredTypes() + RequiredNoneTags.CountStoredTypes();
+}
+
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FResourceUsage
 //----------------------------------------------------------------------//
