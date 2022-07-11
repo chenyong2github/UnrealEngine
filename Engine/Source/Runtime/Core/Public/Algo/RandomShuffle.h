@@ -23,7 +23,7 @@ namespace Algo
 		for (SizeType Index = 0; Index < Num - 1; ++Index)
 		{
 			// Get a random integer in [Index, Num)
-			const SizeType RandomIndex = Index + FMath::RandHelper64(Num - Index);
+			const SizeType RandomIndex = Index + (SizeType)FMath::RandHelper64(Num - Index);
 			if (RandomIndex != Index)
 			{
 				Swap(Data[Index], Data[RandomIndex]);

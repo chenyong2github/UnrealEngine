@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/Invoke.h"
+#include "Misc/CoreMiscDefines.h"
 
 namespace Algo
 {
@@ -31,7 +32,7 @@ namespace Algo
 			{
 				if (IterStart == IterEnd)
 				{
-					return IterStart - First;
+					return UE_PTRDIFF_TO_INT32(IterStart - First);
 				}
 
 				if (Invoke(Pred, *IterStart))
@@ -54,7 +55,7 @@ namespace Algo
 
 				if (IterStart == IterEnd)
 				{
-					return IterStart - First;
+					return UE_PTRDIFF_TO_INT32(IterStart - First);
 				}
 			}
 
@@ -88,7 +89,7 @@ namespace Algo
 		{
 			if (IterStart == Last)
 			{
-				return IterStart - First;
+				return UE_PTRDIFF_TO_INT32(IterStart - First);
 			}
 
 			if (Invoke(Pred, *IterStart))
@@ -106,7 +107,7 @@ namespace Algo
 		{
 			if (IterKeep == Last)
 			{
-				return IterStart - First;
+				return UE_PTRDIFF_TO_INT32(IterStart - First);
 			}
 
 			if (!Invoke(Pred, *IterKeep))

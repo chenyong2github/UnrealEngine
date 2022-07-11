@@ -802,14 +802,14 @@ int32 TCString<T>::Strcspn( const CharType* String, const CharType* Mask )
 		{
 			if (*StringIt == *MaskIt)
 			{
-				return StringIt - String;
+				return UE_PTRDIFF_TO_INT32(StringIt - String);
 			}
 		}
 
 		++StringIt;
 	}
 
-	return StringIt - String;
+	return UE_PTRDIFF_TO_INT32(StringIt - String);
 }
 
 template <typename T> FORCEINLINE 
