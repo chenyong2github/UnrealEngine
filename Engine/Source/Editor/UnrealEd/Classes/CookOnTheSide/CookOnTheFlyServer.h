@@ -126,6 +126,8 @@ namespace UE::Cook
 {
 	class FBuildDefinitions;
 	class FCookDirector;
+	class FCookWorkerClient;
+	class FCookWorkerServer;
 	class FRequestCluster;
 	class FRequestQueue;
 	class FSaveCookedPackageContext;
@@ -552,6 +554,7 @@ public:
 	void Tick(float DeltaTime) override;
 	bool IsTickable() const override;
 	ECookMode::Type GetCookMode() const { return CurrentCookMode; }
+	ECookInitializationFlags GetCookFlags() const { return CookFlags; }
 
 
 	/**
@@ -1312,6 +1315,7 @@ private:
 	TUniquePtr<UE::Cook::IWorkerRequests> WorkerRequests;
 	TUniquePtr<UE::Cook::FBuildDefinitions> BuildDefinitions;
 	TUniquePtr<UE::Cook::FCookDirector> CookDirector;
+	TUniquePtr<UE::Cook::FCookWorkerClient> CookWorkerClient;
 
 	TArray<UE::Cook::FCookSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
@@ -1345,7 +1349,10 @@ private:
 	EIdleStatus IdleStatus = EIdleStatus::Done;
 
 	friend UE::Cook::FBeginCookConfigSettings;
+	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FCookDirector;
+	friend UE::Cook::FCookWorkerClient;
+	friend UE::Cook::FCookWorkerServer;
 	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;

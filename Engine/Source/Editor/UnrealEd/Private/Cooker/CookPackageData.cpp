@@ -9,6 +9,7 @@
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/ParallelFor.h"
+#include "CompactBinaryTCP.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookRequestCluster.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
@@ -1266,7 +1267,36 @@ UE::Cook::FGeneratorPackage* FPackageData::CreateGeneratorPackage(const UObject*
 	}
 	return GetGeneratorPackage();
 }
-	
+
+FConstructPackageData FPackageData::CreateConstructData()
+{
+	FConstructPackageData ConstructData;
+	ConstructData.PackageName = PackageName;
+	ConstructData.NormalizedFileName = FileName;
+	return ConstructData;
+}
+
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FConstructPackageData& PackageData)
+{
+	Writer.BeginObject();
+	Writer << "P" << PackageData.PackageName;
+	Writer << "F" << PackageData.NormalizedFileName;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FConstructPackageData& PackageData)
+{
+	LoadFromCompactBinary(Field["P"], PackageData.PackageName);
+	LoadFromCompactBinary(Field["F"], PackageData.NormalizedFileName);
+	return !PackageData.PackageName.IsNone() && !PackageData.NormalizedFileName.IsNone();
+}
+
+namespace UE::Cook
+{
+
 //////////////////////////////////////////////////////////////////////////
 // FGeneratorPackage
 

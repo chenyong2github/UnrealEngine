@@ -27,9 +27,15 @@
 class FPreloadableFile;
 class FReferenceCollector;
 class ITargetPlatform;
+class FCbFieldView;
+class FCbWriter;
 class UCookOnTheFlyServer;
 class UObject;
 class UPackage;
+namespace UE::Cook { struct FConstructPackageData; }
+
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FConstructPackageData& PackageData);
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FConstructPackageData& PackageData);
 
 namespace UE::Cook
 {
@@ -67,6 +73,16 @@ enum class ESendFlags : uint8
 	QueueAddAndRemove = QueueAdd | QueueRemove,
 };
 ENUM_CLASS_FLAGS(ESendFlags);
+
+/** Data necessary to create an FPackageData without checking the disk, for e.g. AddExistingPackageDatasForPlatform */
+struct FConstructPackageData
+{
+	friend FCbWriter& ::operator<<(FCbWriter& Writer, const FConstructPackageData& PackageData);
+	friend bool ::LoadFromCompactBinary(FCbFieldView Field, FConstructPackageData& PackageData);
+
+	FName PackageName;
+	FName NormalizedFileName;
+};
 
 /**
  * Contains all the information the cooker uses for a package, during request, load, or save.  Once allocated, this
@@ -468,6 +484,9 @@ public:
 	FWorkerId GetWorkerAssignment() const { return WorkerAssignment; }
 	/** Set the id of the worker this Package is assigned to. */
 	void SetWorkerAssignment(FWorkerId InWorkerAssignment) { WorkerAssignment = InWorkerAssignment; }
+
+	/** Marshall this PackageData to a ConstructData that can be used later or on a remote machine to reconstruct it. */
+	FConstructPackageData CreateConstructData();
 
 private:
 	friend struct UE::Cook::FPackageDatas;
@@ -943,13 +962,6 @@ public:
 
 	FPackageDataQueue PreloadingQueue;
 	FPackageDataQueue EntryQueue;
-};
-
-/** Data necessary to create an FPackageData without checking the disk, for e.g. AddExistingPackageDatasForPlatform */
-struct FConstructPackageData
-{
-	FName PackageName;
-	FName NormalizedFileName;
 };
 
 /*

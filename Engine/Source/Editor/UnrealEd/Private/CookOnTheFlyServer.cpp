@@ -28,6 +28,7 @@
 #include "Cooker/CookRequestCluster.h"
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
+#include "Cooker/CookWorkerClient.h"
 #include "Cooker/DiffPackageWriter.h"
 #include "Cooker/IoStoreCookOnTheFlyRequestManager.h"
 #include "Cooker/LooseCookedPackageWriter.h"
@@ -1293,6 +1294,12 @@ uint32 UCookOnTheFlyServer::TickCookWorker()
 	UE::Cook::FTickStackData StackData(MAX_flt, ECookTickFlags::None);
 
 	TickMainCookLoop(StackData);
+	if (StackData.bCookCancelled)
+	{
+		CancelAllQueues();
+		ShutdownCookSession();
+		SetIdleStatus(StackData, EIdleStatus::Done);
+	}
 
 	return StackData.ResultFlags;
 }
@@ -2077,6 +2084,10 @@ void UCookOnTheFlyServer::InitializePollables()
 		DirectorPollable = new FPollable(TEXT("CookDirector"), 1.0f, 1.0f, [this](FTickStackData& StackData) { CookDirector->TickFromSchedulerThread(); });
 		Pollables.Add(FPollableQueueKey(DirectorPollable));
 	}
+	if (CookWorkerClient)
+	{
+		Pollables.Emplace(new FPollable(TEXT("CookWorkerClient"), 1.0f, 1.0f, [this](FTickStackData& StackData) { CookWorkerClient->TickFromSchedulerThread(StackData); }));
+	}
 	Pollables.Heapify();
 
 	PollNextTimeSeconds = 0.;
@@ -2222,12 +2233,43 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		}
 	}
 
-	if (IsCookOnTheFlyMode())
+	if (IsCookOnTheFlyMode() || IsCookWorkerMode())
 	{
+		// These modes are not done until a manual trigger, so continue polling idle
 		if (CurrentTime >= PollNextTimeIdleSeconds)
 		{
 			// Polling does not impact idle status
 			return ECookAction::PollIdle;
+		}
+		if (IsCookOnTheFlyMode())
+		{
+			SetIdleStatus(StackData, EIdleStatus::Done);
+			return ECookAction::Done;
+		}
+		else
+		{
+			SetIdleStatus(StackData, EIdleStatus::Idle);
+			return ECookAction::WaitForAsync;
+		}
+	}
+
+	// We're in the CookComplete phase, pump the special cases in this phase
+	// and return WaitForAsync until they are complete
+	if (CookDirector)
+	{
+		bool bCompleted;
+		CookDirector->PumpCookComplete(bCompleted);
+		if (!bCompleted)
+		{
+			// Continue polling idle
+			if (CurrentTime >= PollNextTimeIdleSeconds)
+			{
+				// Polling does not impact idle status
+				return ECookAction::PollIdle;
+			}
+
+			SetIdleStatus(StackData, EIdleStatus::Idle);
+			return ECookAction::WaitForAsync;
 		}
 	}
 
@@ -5803,21 +5845,7 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 
 void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfigSettings&& Settings)
 {
-	OutputDirectoryOverride = MoveTemp(Settings.OutputDirectoryOverride);
-	MaxPrecacheShaderJobs = Settings.MaxPrecacheShaderJobs;
-	MaxConcurrentShaderJobs = Settings.MaxConcurrentShaderJobs;
-	PackagesPerGC = Settings.PackagesPerGC;
-	MemoryExpectedFreedToSpreadRatio = Settings.MemoryExpectedFreedToSpreadRatio;
-	IdleTimeToGC = Settings.IdleTimeToGC;
-	MemoryMaxUsedVirtual = Settings.MemoryMaxUsedVirtual;
-	MemoryMaxUsedPhysical = Settings.MemoryMaxUsedPhysical;
-	MemoryMinFreeVirtual = Settings.MemoryMinFreeVirtual;
-	MemoryMinFreePhysical = Settings.MemoryMinFreePhysical;
-	MinFreeUObjectIndicesBeforeGC = Settings.MinFreeUObjectIndicesBeforeGC;
-	MaxNumPackagesBeforePartialGC = Settings.MaxNumPackagesBeforePartialGC;
-	ConfigSettingDenyList = MoveTemp(Settings.ConfigSettingDenyList);
-	MaxAsyncCacheForType = MoveTemp(Settings.MaxAsyncCacheForType);
-	bHybridIterativeDebug = Settings.bHybridIterativeDebug;
+	Settings.MoveToLocal(*this);
 
 	MaxPreloadAllocated = 16;
 	DesiredSaveQueueLength = 8;
@@ -5863,14 +5891,14 @@ bool UCookOnTheFlyServer::TryInitializeCookWorker()
 	{
 		return false;
 	}
+	CookWorkerClient = MakeUnique<FCookWorkerClient>(*this);
 	TUniquePtr<FWorkerRequestsRemote> RemoteTasks = MakeUnique<FWorkerRequestsRemote>(*this);
-	ECookInitializationFlags LocalCookFlags;
-	if (!RemoteTasks->TryConnect(MoveTemp(ConnectInfo), LocalCookFlags))
+	if (!CookWorkerClient->TryConnect(MoveTemp(ConnectInfo)))
 	{
 		return false;
 	}
 	WorkerRequests.Reset(RemoteTasks.Release());
-	Initialize(ECookMode::CookWorker, LocalCookFlags, FString());
+	Initialize(ECookMode::CookWorker, CookWorkerClient->GetCookInitializationFlags(), FString());
 	StartCookAsCookWorker();
 	return true;
 }
@@ -7808,9 +7836,9 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 
 void UCookOnTheFlyServer::BeginCookFinishShaderCodeLibrary(FBeginCookContext& BeginContext)
 {
-	check(BeginContext.StartupOptions && IsDirectorCookByTheBook()); // CookByTheBook only for now
+	check(IsDirectorCookByTheBook()); // CookByTheBook only for now
 	// don't resave the global shader map files in dlc
-	if (!IsCookingDLC() && !EnumHasAnyFlags(BeginContext.StartupOptions->CookOptions, ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
+	if (!IsCookWorkerMode() && !IsCookingDLC() && !EnumHasAnyFlags(CookByTheBookOptions->StartupOptions, ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
 	{
 		OpenGlobalShaderLibrary();
 
@@ -8348,6 +8376,10 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 void UCookOnTheFlyServer::ShutdownCookSession()
 {
+	if (CookDirector)
+	{
+		CookDirector->ShutdownCookSession();
+	}
 	for (UE::Cook::FPackageData* PackageData : *PackageDatas)
 	{
 		PackageData->DestroyGeneratorPackage();
@@ -9131,6 +9163,7 @@ FBeginCookContext UCookOnTheFlyServer::CreateBeginCookByTheBookContext(const FCo
 	BeginContext.StartupOptions = &StartupOptions;
 	const ECookByTheBookOptions& CookOptions = StartupOptions.CookOptions;
 	bZenStore = !!(CookOptions & ECookByTheBookOptions::ZenStore);
+	CookByTheBookOptions->StartupOptions = CookOptions;
 	CookByTheBookOptions->CookTime = 0.0f;
 	CookByTheBookOptions->CookStartTime = FPlatformTime::Seconds();
 	CookByTheBookOptions->bGenerateStreamingInstallManifests = StartupOptions.bGenerateStreamingInstallManifests;
@@ -9206,6 +9239,7 @@ void UCookOnTheFlyServer::StartCookAsCookWorker()
 	{
 		GShaderCompilingManager->SkipShaderCompilation(true);
 	}
+	CookWorkerClient->DoneWithInitialSettings();
 
 	// Initialize systems referenced by later stages or that need to start early for async performance
 	// MPCOOKTODO: Need to send information from ShaderCodeLibrary to director
@@ -9254,12 +9288,24 @@ void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
 
 FBeginCookContext UCookOnTheFlyServer::CreateCookWorkerContext()
 {
-	// MPCOOKTODO: Copy CookByTheBookOptions and CookOnTheFlyOptions from CookDirector
-	// MPCOOKTODO: Copy TargetPlatforms from CookDirector
-	// MPCOOKTODO: GenerateLocalizationReferences(BeginContext.StartupOptions->CookCultures);
-	// MPCOOKTODO: RecordDLCPackagesFromBaseGame(BeginContext);
+	FBeginCookContext BeginContext(*this);
+	*CookByTheBookOptions = CookWorkerClient->ConsumeCookByTheBookOptions();
+	*CookOnTheFlyOptions = CookWorkerClient->ConsumeCookOnTheFlyOptions();
+	BeginContext.TargetPlatforms = CookWorkerClient->GetTargetPlatforms();
 
-	return FBeginCookContext(*this);
+	TArray<ITargetPlatform*> UniqueTargetPlatforms = BeginContext.TargetPlatforms;
+	Algo::Sort(UniqueTargetPlatforms);
+	UniqueTargetPlatforms.SetNum(Algo::Unique(UniqueTargetPlatforms));
+	checkf(UniqueTargetPlatforms.Num() == BeginContext.TargetPlatforms.Num(), TEXT("List of TargetPlatforms received from Director was not unique."));
+
+	BeginContext.PlatformContexts.SetNum(BeginContext.TargetPlatforms.Num());
+	for (int32 Index = 0; Index < BeginContext.TargetPlatforms.Num(); ++Index)
+	{
+		BeginContext.PlatformContexts[Index].TargetPlatform = BeginContext.TargetPlatforms[Index];
+		// PlatformContext.PlatformData is currently null and is set in SelectSessionPlatforms
+	}
+
+	return BeginContext;
 }
 
 bool UCookOnTheFlyServer::IsCookWorkerMode() const
@@ -9300,7 +9346,7 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 	const TArray<FString>& CookMaps = BeginContext.StartupOptions->CookMaps;
 	const TArray<FString>& CookDirectories = BeginContext.StartupOptions->CookDirectories;
 	const TArray<FString>& IniMapSections = BeginContext.StartupOptions->IniMapSections;
-	ECookByTheBookOptions CookOptions = BeginContext.StartupOptions->CookOptions;
+	ECookByTheBookOptions CookOptions = CookByTheBookOptions->StartupOptions;
 	CollectFilesToCook(FilesInPath, FilesInPathInstigators, CookMaps, CookDirectories, IniMapSections, CookOptions, TargetPlatforms, GameDefaultObjects);
 
 	// Add soft/hard startup references after collecting requested files and handling empty requests
@@ -9410,7 +9456,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		return;
 	}
 
-	const ECookByTheBookOptions& CookOptions = BeginContext.StartupOptions->CookOptions;
+	const ECookByTheBookOptions& CookOptions = CookByTheBookOptions->StartupOptions;
 	const FString& BasedOnReleaseVersion = BeginContext.StartupOptions->BasedOnReleaseVersion;
 
 	// If we're cooking against a fixed base, we don't need to verify the packages exist on disk, we simply want to use the Release Data 

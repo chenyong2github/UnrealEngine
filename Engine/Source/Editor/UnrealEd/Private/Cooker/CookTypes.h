@@ -17,8 +17,23 @@
 #include "UObject/NameTypes.h"
 #include "UObject/SavePackage.h"
 
+class FCbFieldView;
+class FCbWriter;
 class ITargetPlatform;
 namespace UE::DerivedData { class FBuildDefinition; }
+namespace UE::Cook { struct FBeginCookConfigSettings; }
+namespace UE::Cook { struct FCookByTheBookOptions; }
+namespace UE::Cook { struct FCookOnTheFlyOptions; }
+namespace UE::Cook { struct FInitializeConfigSettings; }
+
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSettings& Value);
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookByTheBookOptions& Value);
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookOnTheFlyOptions& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookOnTheFlyOptions& Value);
+FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettings& Value);
+bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettings& Value);
 
 #define COOK_CHECKSLOW_PACKAGEDATA 0
 #define DEBUG_COOKONTHEFLY 0
@@ -256,8 +271,15 @@ namespace UE::Cook
 
 	struct FInitializeConfigSettings
 	{
+	public:
 		void LoadLocal(const FString& InOutputDirectoryOverride);
+		void CopyFromLocal(const UCookOnTheFlyServer& COTFS);
+		void MoveToLocal(UCookOnTheFlyServer& COTFS);
+	private:
+		template <typename SourceType, typename TargetType>
+		void MoveOrCopy(SourceType&& Source, TargetType&& Target);
 
+	public:
 		FString OutputDirectoryOverride;
 		int32 MaxPrecacheShaderJobs = 0;
 		int32 MaxConcurrentShaderJobs = 0;
@@ -273,6 +295,9 @@ namespace UE::Cook
 		TArray<FString> ConfigSettingDenyList;
 		TMap<FName, int32> MaxAsyncCacheForType; // max number of objects of a specific type which are allowed to async cache at once
 		bool bHybridIterativeDebug = false;
+
+		friend FCbWriter& ::operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettings& Value);
+		friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettings& Value);
 	};
 
 	struct FBeginCookConfigSettings
@@ -280,11 +305,15 @@ namespace UE::Cook
 		/** Initialize NeverCookPackageList from packaging settings and platform-specific sources. */
 		void LoadLocal(FBeginCookContext& BeginContext);
 		void LoadNeverCookLocal(FBeginCookContext& BeginContext);
+		void CopyFromLocal(const UCookOnTheFlyServer& COTFS);
 
 		FString CookShowInstigator;
 		bool bHybridIterativeEnabled = true;
 		TArray<FName> NeverCookPackageList;
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
+
+		friend FCbWriter& ::operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& Value);
+		friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSettings& Value);
 	};
 
 	/**
@@ -367,6 +396,8 @@ public:
 	double							CookTime = 0.0;
 	double							CookStartTime = 0.0;
 
+	ECookByTheBookOptions			StartupOptions = ECookByTheBookOptions::None;
+
 	/** Should we generate streaming install manifests (only valid option in cook by the book) */
 	bool							bGenerateStreamingInstallManifests = false;
 
@@ -389,6 +420,9 @@ public:
 		EmptyOptions.StartupPackages = MoveTemp(StartupPackages);
 		*this = MoveTemp(EmptyOptions);
 	}
+
+	friend FCbWriter& ::operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& Value);
+	friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookByTheBookOptions& Value);
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -399,6 +433,9 @@ struct FCookOnTheFlyOptions
 	bool bBindAnyPort = false;
 	/** Whether the network file server should use a platform-specific communication protocol instead of TCP (used when bZenStore == false) */
 	bool bPlatformProtocol = false;
+
+	friend FCbWriter& ::operator<<(FCbWriter& Writer, const UE::Cook::FCookOnTheFlyOptions& Value);
+	friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookOnTheFlyOptions& Value);
 };
 
 }

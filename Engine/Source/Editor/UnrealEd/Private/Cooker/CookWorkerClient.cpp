@@ -4,10 +4,12 @@
 
 #include "CompactBinaryTCP.h"
 #include "CookDirector.h"
+#include "CookPackageData.h"
+#include "CookPlatformManager.h"
 #include "CookTypes.h"
+#include "CookWorkerServer.h"
 #include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
-#include "Serialization/CompactBinaryWriter.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "WorkerRequestsRemote.h"
@@ -15,8 +17,23 @@
 namespace UE::Cook
 {
 
+namespace CookWorkerClient
+{
+constexpr float WaitForConnectReplyTimeout = 60.f;
+}
+
+FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
+	: COTFS(InCOTFS)
+{
+}
+
 FCookWorkerClient::~FCookWorkerClient()
 {
+	if (ConnectStatus == EConnectStatus::Connected ||
+		(EConnectStatus::WaitForDisconnectFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::WaitForDisconnectLast))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d was destroyed before it finished Disconnect. The CookDirector may be missing some information."));
+	}
 	Sockets::CloseSocket(ServerSocket);
 }
 
@@ -34,6 +51,89 @@ bool FCookWorkerClient::TryConnect(FDirectorConnectionInfo&& ConnectInfo)
 		FPlatformProcess::Sleep(SleepTime);
 	}
 	return Status == EPollStatus::Success;
+}
+
+void FCookWorkerClient::TickFromSchedulerThread(FTickStackData& StackData)
+{
+	if (ConnectStatus == EConnectStatus::Connected)
+	{
+		PumpReceiveMessages();
+		if (ConnectStatus == EConnectStatus::Connected)
+		{
+			SendPendingResults();
+			PumpSendMessages();
+		}
+	}
+	else
+	{
+		PumpDisconnect(StackData);
+	}
+}
+
+bool FCookWorkerClient::IsDisconnecting() const
+{
+	return ConnectStatus == EConnectStatus::LostConnection ||
+		(EConnectStatus::WaitForDisconnectFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::WaitForDisconnectLast);
+}
+
+bool FCookWorkerClient::IsDisconnectComplete() const
+{
+	return ConnectStatus == EConnectStatus::LostConnection;
+}
+
+ECookInitializationFlags FCookWorkerClient::GetCookInitializationFlags()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->GetCookInitializationFlags();
+}
+FInitializeConfigSettings&& FCookWorkerClient::ConsumeInitializeConfigSettings()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->ConsumeInitializeConfigSettings();
+}
+FBeginCookConfigSettings&& FCookWorkerClient::ConsumeBeginCookConfigSettings()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->ConsumeBeginCookConfigSettings();
+}
+FCookByTheBookOptions&& FCookWorkerClient::ConsumeCookByTheBookOptions()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->ConsumeCookByTheBookOptions();
+}
+FCookOnTheFlyOptions&& FCookWorkerClient::ConsumeCookOnTheFlyOptions()
+{
+	check(InitialConfigMessage); // Should only be called after TryConnect and before DoneWithInitialSettings
+	return InitialConfigMessage->ConsumeCookOnTheFlyOptions();
+}
+const TArray<ITargetPlatform*>& FCookWorkerClient::GetTargetPlatforms() const
+{
+	return OrderedSessionPlatforms;
+}
+void FCookWorkerClient::DoneWithInitialSettings()
+{
+	InitialConfigMessage.Reset();
+}
+
+void FCookWorkerClient::ReportDemoteToIdle(FPackageData& PackageData, ESuppressCookReason Reason)
+{
+	FPackageResult& Result = PendingResults.Emplace_GetRef();
+	Result.PackageName = PackageData.GetPackageName();
+	Result.SuppressCookReason = Reason;
+}
+
+void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
+{
+	FPackageResult& Result = PendingResults.Emplace_GetRef();
+	Result.PackageName = PackageData.GetPackageName();
+	Result.SuppressCookReason = ESuppressCookReason::InvalidSuppressCookReason;
+	for (ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
+	{
+		FPackagePlatformResult& PlatformResult = Result.Platforms.Emplace_GetRef();
+		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+		PlatformResult.bSuccessful = PackagePlatformData.bCookSucceeded;
+		// MPCOOKTODO: Accumulate results for saved information so we can add the other information about the Platform
+	}
 }
 
 EPollStatus FCookWorkerClient::PollTryConnect(const FDirectorConnectionInfo& ConnectInfo)
@@ -61,10 +161,9 @@ EPollStatus FCookWorkerClient::PollTryConnect(const FDirectorConnectionInfo& Con
 				return EPollStatus::Incomplete;
 			}
 			break;
-		case EConnectStatus::Failed:
+		case EConnectStatus::LostConnection:
 			return EPollStatus::Error;
 		default:
-			checkNoEntry();
 			return EPollStatus::Error;
 		}
 	}
@@ -81,7 +180,7 @@ void FCookWorkerClient::CreateServerSocket(const FDirectorConnectionInfo& Connec
 	if (!SocketSubsystem)
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: platform does not support network sockets, cannot connect to CookDirector."));
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 
@@ -90,7 +189,7 @@ void FCookWorkerClient::CreateServerSocket(const FDirectorConnectionInfo& Connec
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: could not convert -CookDirectorHost=%s into an address, cannot connect to CookDirector."),
 			*DirectorURI);
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 
@@ -100,7 +199,7 @@ void FCookWorkerClient::CreateServerSocket(const FDirectorConnectionInfo& Connec
 	if (!ServerSocket)
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: Could not connect to CookDirector."));
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 
@@ -111,7 +210,7 @@ void FCookWorkerClient::CreateServerSocket(const FDirectorConnectionInfo& Connec
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: Timed out after %.0f seconds trying to connect to CookDirector."),
 			ConditionalTimeoutSeconds);
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 
@@ -120,54 +219,266 @@ void FCookWorkerClient::CreateServerSocket(const FDirectorConnectionInfo& Connec
 	EConnectionStatus Status = TryWritePacket(ServerSocket, SendBuffer, ConnectMessage);
 	if (Status == EConnectionStatus::Incomplete)
 	{
-		ConnectStatus = EConnectStatus::PollWriteConnectMessage;
+		SendToState(EConnectStatus::PollWriteConnectMessage);
 		return;
 	}
 	else if (Status != EConnectionStatus::Okay)
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: could not send ConnectMessage."));
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 	LogConnected();
 
-	ConnectStatus = EConnectStatus::PollReceiveConfigMessage;
+	SendToState(EConnectStatus::PollReceiveConfigMessage);
 }
 
 void FCookWorkerClient::PollWriteConnectMessage()
 {
 	using namespace CompactBinaryTCP;
-	constexpr float WaitForConnectTimeout = 60.f;
 
 	EConnectionStatus Status = TryFlushBuffer(ServerSocket, SendBuffer);
 	if (Status == EConnectionStatus::Incomplete)
 	{
-		if (FPlatformTime::Seconds() - ConnectStartTimeSeconds > WaitForConnectTimeout && !IsCookIgnoreTimeouts())
+		if (FPlatformTime::Seconds() - ConnectStartTimeSeconds > CookWorkerClient::WaitForConnectReplyTimeout &&
+			!IsCookIgnoreTimeouts())
 		{
-			UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: timed out waiting for %fs to send ConnectMessage."), WaitForConnectTimeout);
-			ConnectStatus = EConnectStatus::Failed;
+			UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: timed out waiting for %fs to send ConnectMessage."),
+				CookWorkerClient::WaitForConnectReplyTimeout);
+			SendToState(EConnectStatus::LostConnection);
 		}
 		return;
 	}
 	else if (Status != EConnectionStatus::Okay)
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: could not send ConnectMessage."));
-		ConnectStatus = EConnectStatus::Failed;
+		SendToState(EConnectStatus::LostConnection);
 		return;
 	}
 	LogConnected();
-	ConnectStatus = EConnectStatus::PollReceiveConfigMessage;
+	SendToState(EConnectStatus::PollReceiveConfigMessage);
 }
 
 void FCookWorkerClient::PollReceiveConfigMessage()
 {
-	UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: reading Settings information is not yet implemented."));
-	ConnectStatus = EConnectStatus::Failed;
+	using namespace UE::CompactBinaryTCP;
+	TArray<FMarshalledMessage> Messages;
+	EConnectionStatus SocketStatus = TryReadPacket(ServerSocket, ReceiveBuffer, Messages);
+	if (SocketStatus != EConnectionStatus::Okay && SocketStatus != EConnectionStatus::Incomplete)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: failed to read from socket."));
+		SendToState(EConnectStatus::LostConnection);
+		return;
+	}
+	if (Messages.Num() == 0)
+	{
+		if (FPlatformTime::Seconds() - ConnectStartTimeSeconds > CookWorkerClient::WaitForConnectReplyTimeout &&
+			!IsCookIgnoreTimeouts())
+		{
+			UE_LOG(LogCook, Error, TEXT("CookWorker initialization failure: timed out waiting for %fs to receive InitialConfigMessage."),
+				CookWorkerClient::WaitForConnectReplyTimeout);
+			SendToState(EConnectStatus::LostConnection);
+		}
+		return;
+	}
+	
+	if (Messages[0].MessageType != FInitialConfigMessage::MessageType)
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookWorker initialization failure: Director sent a different message before sending an InitialConfigMessage. MessageType: %s."),
+			*Messages[0].MessageType.ToString());
+		SendToState(EConnectStatus::LostConnection);
+		return;
+	}
+	check(!InitialConfigMessage);
+	InitialConfigMessage = MakeUnique<FInitialConfigMessage>();
+	if (!InitialConfigMessage->TryRead(Messages[0].Object))
+	{
+		UE_LOG(LogCook, Warning, TEXT("CookWorker initialization failure: Director sent an invalid InitialConfigMessage."));
+		SendToState(EConnectStatus::LostConnection);
+		return;
+	}
+	DirectorCookMode = InitialConfigMessage->GetDirectorCookMode();
+	OrderedSessionPlatforms = InitialConfigMessage->GetOrderedSessionPlatforms();
+
+	UE_LOG(LogCook, Display, TEXT("Initialization from CookDirector complete."));
+	SendToState(EConnectStatus::Connected);
+	Messages.RemoveAt(0);
+	HandleReceiveMessages(MoveTemp(Messages));
 }
 
 void FCookWorkerClient::LogConnected()
 {
 	UE_LOG(LogCook, Display, TEXT("Connection to CookDirector successful."));
+}
+
+void FCookWorkerClient::PumpSendMessages()
+{
+	UE::CompactBinaryTCP::EConnectionStatus Status = UE::CompactBinaryTCP::TryFlushBuffer(ServerSocket, SendBuffer);
+	if (Status == UE::CompactBinaryTCP::Failed)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookWorkerClient failed to write message to Director. We will abort the CookAsCookWorker commandlet."));
+		SendToState(EConnectStatus::LostConnection);
+	}
+}
+
+void FCookWorkerClient::SendPendingResults()
+{
+	if (PendingResults.IsEmpty())
+	{
+		return;
+	}
+	FPackageResultsMessage Message;
+	Message.Results = MoveTemp(PendingResults);
+	SendMessage(Message);
+	PendingResults.Reset();
+}
+
+void FCookWorkerClient::PumpReceiveMessages()
+{
+	using namespace UE::CompactBinaryTCP;
+	TArray<FMarshalledMessage> Messages;
+	EConnectionStatus SocketStatus = TryReadPacket(ServerSocket, ReceiveBuffer, Messages);
+	if (SocketStatus != EConnectionStatus::Okay && SocketStatus != EConnectionStatus::Incomplete)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookWorkerClient failed to read from Director. We will abort the CookAsCookWorker commandlet."));
+		SendToState(EConnectStatus::LostConnection);
+		return;
+	}
+	HandleReceiveMessages(MoveTemp(Messages));
+}
+
+void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages)
+{
+	for (UE::CompactBinaryTCP::FMarshalledMessage& Message : Messages)
+	{
+		if (Message.MessageType == FAbortWorkerMessage::MessageType)
+		{
+			FAbortWorkerMessage AbortMessage;
+			AbortMessage.TryRead(Message.Object);
+			if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
+			{
+				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
+				// MPCOOKTODO: Add synchronous flush of messages here
+			}
+			else
+			{
+				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received AbortWorker message from Director. Shutting down."));
+			}
+			SendToState(EConnectStatus::WaitForDisconnect);
+			break;
+		}
+		else if (Message.MessageType == FInitialConfigMessage::MessageType)
+		{
+			UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received unexpected repeat of InitialConfigMessage. Ignoring it."));
+		}
+		else if (Message.MessageType == FAssignPackagesMessage::MessageType)
+		{
+			FAssignPackagesMessage AssignPackagesMessage;
+			if (!AssignPackagesMessage.TryRead(Message.Object))
+			{
+				LogInvalidMessage(TEXT("FAssignPackagesMessage"));
+			}
+			else
+			{
+				AssignPackages(AssignPackagesMessage);
+			}
+		}
+	}
+}
+
+void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
+{
+	for (;;)
+	{
+		switch (ConnectStatus)
+		{
+		case EConnectStatus::WaitForDisconnect:
+		{
+			// Add code here for any waiting we need to do for the local CookOnTheFlyServer to gracefully shutdown
+			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
+			SendToState(EConnectStatus::WaitForDisconnectSocketFlush);
+			break;
+		}
+		case EConnectStatus::WaitForDisconnectSocketFlush:
+		{
+			using namespace UE::CompactBinaryTCP;
+			EConnectionStatus SocketStatus = TryFlushBuffer(ServerSocket, SendBuffer);
+			if (SocketStatus == EConnectionStatus::Incomplete)
+			{
+				constexpr float WaitForDisconnectTimeout = 60.f;
+				if (FPlatformTime::Seconds() - ConnectStartTimeSeconds > WaitForDisconnectTimeout && !IsCookIgnoreTimeouts())
+				{
+					UE_LOG(LogCook, Warning, TEXT("Timedout after %.0fs waiting to send disconnect message to CookDirector."),
+						WaitForDisconnectTimeout);
+					SendToState(EConnectStatus::LostConnection);
+					return;
+				}
+				return; // Exit the Pump loop for now and keep waiting
+			}
+			SendToState(EConnectStatus::LostConnection);
+			break;
+		}
+		case EConnectStatus::LostConnection:
+		{
+			StackData.bCookCancelled = true;
+			StackData.ResultFlags |= UCookOnTheFlyServer::COSR_YieldTick;
+			return;
+		}
+		default:
+			return;
+		}
+	}
+}
+
+void FCookWorkerClient::SendMessage(const UE::CompactBinaryTCP::IMessage& Message)
+{
+	UE::CompactBinaryTCP::TryWritePacket(ServerSocket, SendBuffer, Message);
+}
+
+void FCookWorkerClient::SendToState(EConnectStatus TargetStatus)
+{
+	switch (TargetStatus)
+	{
+	case EConnectStatus::WaitForDisconnect:
+		ConnectStartTimeSeconds = FPlatformTime::Seconds();
+		break;
+	case EConnectStatus::LostConnection:
+		Sockets::CloseSocket(ServerSocket);
+		break;
+	}
+	ConnectStatus = TargetStatus;
+}
+
+void FCookWorkerClient::LogInvalidMessage(const TCHAR* MessageTypeName)
+{
+	UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received invalidly formatted message for type %s from CookDirector. Ignoring it."),
+		MessageTypeName);
+}
+
+void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
+{
+	for (FConstructPackageData& ConstructPackageData : Message.PackageDatas)
+	{
+		FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(ConstructPackageData.PackageName,
+			ConstructPackageData.NormalizedFileName);
+		// If already InProgress, ignore the duplicate package silently
+		if (PackageData.IsInProgress())
+		{
+			return;
+		}
+
+		// We do not want CookWorkers to explore dependencies in CookRequestCluster because the Director did it already.
+		// Mmark the PackageDatas we get from the Director as already explored.
+		for (const ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
+		{
+			FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+			PlatformData.bExplored = true;
+		}
+
+		PackageData.SetRequestData(OrderedSessionPlatforms , false /* bInIsUrgent */, FCompletionCallback(),
+			FInstigator(EInstigator::CookDirector));
+		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+	}
 }
 
 }

@@ -25,11 +25,10 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
 	WorkersStalledStartTimeSeconds = MAX_flt;
 	WorkersStalledWarnTimeSeconds = MAX_flt;
 
-	const TCHAR* CommandLine = FCommandLine::Get();
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("CookWorkerCount"), DesiredNumRemoteWorkers, GEditorIni);
-	FParse::Value(CommandLine, TEXT("-CookWorkerCount="), DesiredNumRemoteWorkers);
+	ParseDesiredNumRemoteWorkers();
 	WorkerConnectPort = Sockets::COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT;
-	FParse::Value(CommandLine, TEXT("-CookDirectorListenPort="), WorkerConnectPort);
+	FParse::Value(FCommandLine::Get(), TEXT("-CookDirectorListenPort="), WorkerConnectPort);
+	ParseShowWorkerOption();
 
 	if (DesiredNumRemoteWorkers > 0)
 	{
@@ -44,6 +43,39 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
 	if (DesiredNumRemoteWorkers > 0)
 	{
 		TryCreateWorkerConnectSocket();
+	}
+	UE_LOG(LogCook, Display, TEXT("MultiprocessCook is enabled with %d CookWorker processes."), DesiredNumRemoteWorkers);
+}
+
+void FCookDirector::ParseDesiredNumRemoteWorkers()
+{
+	DesiredNumRemoteWorkers = 4;
+	GConfig->GetInt(TEXT("CookSettings"), TEXT("CookWorkerCount"), DesiredNumRemoteWorkers, GEditorIni);
+	FParse::Value(FCommandLine::Get(), TEXT("-CookWorkerCount="), DesiredNumRemoteWorkers);
+}
+
+void FCookDirector::ParseShowWorkerOption()
+{
+	FString Text;
+	const TCHAR* CommandLine = FCommandLine::Get();
+	if (!FParse::Value(CommandLine, TEXT("-ShowCookWorker="), Text))
+	{
+		if (FParse::Param(CommandLine, TEXT("ShowCookWorker")))
+		{
+			Text = TEXT("SeparateWindows");
+		}
+	}
+
+	if (Text == TEXT("CombinedLogs")) { ShowWorkerOption = EShowWorker::CombinedLogs; }
+	else if (Text == TEXT("SeparateLogs")) { ShowWorkerOption = EShowWorker::SeparateLogs; }
+	else if (Text == TEXT("SeparateWindows")) { ShowWorkerOption = EShowWorker::SeparateWindows; }
+	else
+	{
+		if (!Text.IsEmpty())
+		{
+			UE_LOG(LogCook, Warning, TEXT("Invalid selection \"%s\" for -ShowCookWorker."), *Text);
+		}
+		ShowWorkerOption = EShowWorker::CombinedLogs;
 	}
 }
 
@@ -153,6 +185,46 @@ void FCookDirector::TickFromSchedulerThread()
 
 	bool bIsStalled = COTFS.IsMultiprocessLocalWorkerIdle() && !COTFS.PackageDatas->GetAssignedToWorkerSet().IsEmpty();
 	SetWorkersStalled(bIsStalled);
+}
+
+void FCookDirector::PumpCookComplete(bool& bCompleted)
+{
+	TickWorkerConnects();
+	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	{
+		FCookWorkerServer& RemoteWorker = *Pair.Value;
+		RemoteWorker.PumpCookComplete();
+		if (RemoteWorker.IsShuttingDown())
+		{
+			TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(&RemoteWorker);
+			check(!Existing); // We should not be able to send the same pointer into ShuttingDown twice
+		}
+	}
+	TickWorkerShutdowns();
+	bCompleted = RemoteWorkers.Num() == 0;
+	SetWorkersStalled(!bCompleted);
+}
+
+void FCookDirector::ShutdownCookSession()
+{
+	while (!RemoteWorkers.IsEmpty())
+	{
+		AbortWorker(TMap<int32, TUniquePtr<FCookWorkerServer>>::TIterator(RemoteWorkers).Value()->GetWorkerId());
+	}
+	for (;;)
+	{
+		TickWorkerShutdowns();
+		if (ShuttingDownWorkers.IsEmpty())
+		{
+			break;
+		}
+		constexpr double SleepSeconds = 0.010;
+		FPlatformProcess::Sleep(SleepSeconds);
+	}
+	PendingConnections.Reset();
+
+	// Restore the FCookDirector to its original state so that it is ready for a new session
+	ParseDesiredNumRemoteWorkers();
 }
 
 void FCookDirector::SetWorkersStalled(bool bInWorkersStalled)
@@ -376,6 +448,7 @@ void FCookDirector::TickWorkerShutdowns()
 	{
 		FCookWorkerServer& Worker = *Iter.Key();
 		check(Iter.Value()); // All non-yet-moved workers should have been moved by the AbortWorker calls above
+		Worker.TickFromSchedulerThread();
 		if (Worker.IsShutdownComplete())
 		{
 			// Worker is now deleted, do not access
@@ -402,7 +475,8 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
 				Token.StartsWith(TEXT("-CookCultures")) ||
 				Token.StartsWith(TEXT("-CookDirectorCount=")) ||
 				Token.StartsWith(TEXT("-CookDirectorHost=")) ||
-				Token.StartsWith(TEXT("-CookWorkerId="))
+				Token.StartsWith(TEXT("-CookWorkerId=")) ||
+				Token.StartsWith(TEXT("-ShowCookWorker"))
 				)
 			{
 				return;

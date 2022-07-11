@@ -11,18 +11,8 @@ namespace UE::Cook
 {
 
 FWorkerRequestsRemote::FWorkerRequestsRemote(UCookOnTheFlyServer& InCOTFS)
+	: CookWorkerClient(*InCOTFS.CookWorkerClient)
 {
-}
-
-bool FWorkerRequestsRemote::TryConnect(FDirectorConnectionInfo&& ConnectInfo, ECookInitializationFlags& OutCookFlags)
-{
-	return CookWorkerClient.TryConnect(MoveTemp(ConnectInfo));
-}
-
-bool FWorkerRequestsRemote::TryGetInitializeSettings(ECookMode::Type& OutCookMode, ECookInitializationFlags& OutCookFlags,
-	FString& OutOutputDirectoryOverride)
-{
-	return false;
 }
 
 bool FWorkerRequestsRemote::HasExternalRequests() const
@@ -112,25 +102,23 @@ void FWorkerRequestsRemote::ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS
 
 void FWorkerRequestsRemote::ReportDemoteToIdle(UE::Cook::FPackageData& PackageData, ESuppressCookReason Reason)
 {
-	// MPCOOKTODO: Not yet implemented
+	CookWorkerClient.ReportDemoteToIdle(PackageData, Reason);
 }
 
 void FWorkerRequestsRemote::ReportPromoteToSaveComplete(UE::Cook::FPackageData& PackageData)
 {
-	// MPCOOKTODO: Not yet implemented
+	CookWorkerClient.ReportPromoteToSaveComplete(PackageData);
 }
 
 void FWorkerRequestsRemote::GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS,
 	const FString& OutputDirectoryOverride, UE::Cook::FInitializeConfigSettings& Settings)
 {
-	// MPCOOKTODO: Not yet implemented
-	Settings.LoadLocal(OutputDirectoryOverride);
+	Settings = CookWorkerClient.ConsumeInitializeConfigSettings();
 }
 
 void FWorkerRequestsRemote::GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings)
 {
-	// MPCOOKTODO: Not yet implemented
-	Settings.LoadLocal(BeginContext);
+	Settings = CookWorkerClient.ConsumeBeginCookConfigSettings();
 }
 
 void FWorkerRequestsRemote::GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext)
@@ -152,8 +140,7 @@ void FWorkerRequestsRemote::GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTF
 
 ECookMode::Type FWorkerRequestsRemote::GetDirectorCookMode(UCookOnTheFlyServer& COTFS)
 {
-	// MPCOOKTODO: Not yet implemented
-	return ECookMode::CookByTheBook;
+	return CookWorkerClient.GetDirectorCookMode();
 }
 
 void FWorkerRequestsRemote::LogCalledCookByTheBookError(const TCHAR* FunctionName) const

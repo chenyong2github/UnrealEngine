@@ -18,10 +18,6 @@ class FWorkerRequestsRemote : public IWorkerRequests
 public:
 	FWorkerRequestsRemote(UCookOnTheFlyServer& InCOTFS);
 
-	bool TryConnect(FDirectorConnectionInfo&& ConnectInfo, ECookInitializationFlags& OutCookFlags);
-	bool TryGetInitializeSettings(ECookMode::Type& OutCookMode, ECookInitializationFlags& OutCookFlags,
-		FString& OutOutputDirectoryOverride);
-
 	virtual bool HasExternalRequests() const override;
 	virtual int32 GetNumExternalRequests() const override;
 	virtual EExternalRequestType DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests) override;
@@ -54,7 +50,7 @@ private:
 
 private:
 	FExternalRequests ExternalRequests;
-	FCookWorkerClient CookWorkerClient;
+	FCookWorkerClient& CookWorkerClient;
 };
 
 }

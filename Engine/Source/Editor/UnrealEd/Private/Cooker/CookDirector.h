@@ -11,9 +11,9 @@
 #include "CookTypes.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
-#include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
 
+class FCbObjectView;
 class FCbWriter;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FCookWorkerServer; }
@@ -39,6 +39,19 @@ public:
 	void RemoveFromWorker(FPackageData& PackageData);
 	/** Periodic tick function. Sends/Receives messages to CookWorkers. */
 	void TickFromSchedulerThread();
+	/** Called when the COTFS Server has detected all packages are complete. Tells the CookWorkers to flush messages and exit. */
+	void PumpCookComplete(bool& bOutCompleted);
+	/** Called when a session ends. The Director blocks on shutdown of all CookWorkers and returns state to before session started. */
+	void ShutdownCookSession();
+
+	/** Enum specifying how CookWorker log output should be shown. */
+	enum EShowWorker
+	{
+		CombinedLogs,
+		SeparateLogs,
+		SeparateWindows, // Implies SeparateLogs as well
+	};
+	EShowWorker GetShowWorkerOption() const { return ShowWorkerOption; }
 
 private:
 	/** CookWorker connections that have not yet identified which CookWorker they are. */
@@ -57,6 +70,10 @@ private:
 		FSocket* Socket = nullptr;
 		UE::CompactBinaryTCP::FReceiveBuffer Buffer;
 	};
+	/** Helper for constructor parsing. */
+	void ParseDesiredNumRemoteWorkers();
+	/** Helper for constructor parsing. */
+	void ParseShowWorkerOption();
 	/** Initialization helper: create the listen socket. */
 	bool TryCreateWorkerConnectSocket();
 	/** Initialization helper: add the local Server for a remote worker, worker process not yet created. */
@@ -87,9 +104,10 @@ private:
 	FSocket* WorkerConnectSocket = nullptr;
 	double WorkersStalledStartTimeSeconds = 0.;
 	double WorkersStalledWarnTimeSeconds = 0.;
-	int32 DesiredNumRemoteWorkers = 4;
+	int32 DesiredNumRemoteWorkers = 0;
 	int32 WorkerConnectPort = 0;
 	bool bWorkersStalled = false;
+	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
 
 	friend class UE::Cook::FCookWorkerServer;
 };
