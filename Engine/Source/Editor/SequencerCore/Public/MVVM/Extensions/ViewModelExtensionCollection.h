@@ -53,13 +53,13 @@ private:
 
 	void OnHierarchyUpdated();
 
+	void ConditionalUpdate() const;
+
 	template<typename T>
 	TArrayView<T* const> GetExtensions() const
 	{
-		if (bNeedsUpdate)
-		{
-			Update();
-		}
+		// Conditionally update any ptrs before we allow any access to them
+		ConditionalUpdate();
 
 		void* const * BaseExtensions = ExtensionContainer.GetData();
 		T* const * Data = reinterpret_cast<T* const *>(BaseExtensions);
