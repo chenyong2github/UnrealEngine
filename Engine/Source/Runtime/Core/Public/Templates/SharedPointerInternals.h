@@ -112,6 +112,24 @@ namespace SharedPointerInternals
 			}
 		}
 
+		/** Checks if there is exactly one reference left to the object. */
+		FORCEINLINE bool IsUnique() const
+		{
+			if constexpr (Mode == ESPMode::ThreadSafe)
+			{
+				// This is equivalent to https://en.cppreference.com/w/cpp/memory/shared_ptr/unique,
+				// however instead of deprecating it, we implement it with an acquire, which should
+				// suit our use cases.
+
+				// This reference count may be accessed by multiple threads
+				return SharedReferenceCount.load(std::memory_order_acquire) == 1;
+			}
+			else
+			{
+				return SharedReferenceCount == 1;
+			}
+		}
+
 		/** Adds a shared reference to this counter */
 		FORCEINLINE void AddSharedReference()
 		{
@@ -647,7 +665,7 @@ namespace SharedPointerInternals
 		 */
 		FORCEINLINE const bool IsUnique() const
 		{
-			return GetSharedReferenceCount() == 1;
+			return ReferenceController != nullptr && ReferenceController->IsUnique();
 		}
 
 	private:

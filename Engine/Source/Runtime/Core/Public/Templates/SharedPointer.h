@@ -514,7 +514,11 @@ public:
 	/**
 	 * Returns true if this is the only shared reference to this object.  Note that there may be
 	 * outstanding weak references left.
-	 * IMPORTANT: Not necessarily fast!  Should only be used for debugging purposes!
+	 *
+	 * IMPORTANT: This has different behavior to GetSharedReferenceCount() == 1 in a multithreaded
+	 *            context.  The expectation is that this will be used when a user wants exclusive
+	 *            write-access to an otherwise-immutable object.  Care still needs to be taken when
+	 *            pinning TWeakPtrs to make new shared references.
 	 *
 	 * @return  True if there is only one shared reference to the object, and this is it!
 	 */
