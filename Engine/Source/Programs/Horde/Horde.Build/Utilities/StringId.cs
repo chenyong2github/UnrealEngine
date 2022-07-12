@@ -20,7 +20,7 @@ namespace Horde.Build.Utilities
 	[JsonSchemaString]
 	[TypeConverter(typeof(StringIdTypeConverter))]
 	[CbConverter(typeof(CbStringIdConverter<>))]
-	public struct StringId<T> : IEquatable<StringId<T>>
+	public struct StringId<T> : IEquatable<StringId<T>>, IComparable<StringId<T>>
 	{
 		/// <summary>
 		/// Empty string
@@ -163,6 +163,12 @@ namespace Horde.Build.Utilities
 		public bool Equals(StringId<T> other)
 		{
 			return _text.Equals(other._text, StringComparison.Ordinal);
+		}
+
+		/// <inheritdoc/>
+		public int CompareTo(StringId<T> other)
+		{
+			return String.CompareOrdinal(_text, other._text);
 		}
 
 		/// <inheritdoc/>
