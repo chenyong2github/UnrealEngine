@@ -4898,6 +4898,11 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 		SetPlaybackStatus(NewPlaybackStatus.GetValue());
 		// Evaluate the sequence with the new status
 		EvaluateInternal(EvalRange);
+
+		if (NewPlaybackStatus.GetValue() == EMovieScenePlayerStatus::Stopped)
+		{
+			OnStopDelegate.Broadcast();
+		}
 	}
 }
 
