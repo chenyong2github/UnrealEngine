@@ -89,4 +89,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBoxComponent> BoundsComponent;
 #endif // WITH_EDITORONLY_DATA
+
+	void RegisterActorToOriginalComponents() const;
+	void UnregisterActorToOriginalComponents() const;
 };

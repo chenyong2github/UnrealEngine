@@ -8,6 +8,7 @@
 
 #include "PCGComponent.generated.h"
 
+class APCGPartitionActor;
 class UPCGComponent;
 class UPCGGraph;
 class UPCGManagedResource;
@@ -68,6 +69,7 @@ public:
 
 	//~Begin UActorComponent Interface
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	//~End UActorComponent Interface
@@ -131,10 +133,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (EditCondition = "!bIsComponentLocal"))
 	bool bIsPartitioned = true;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "bIsComponentLocal", EditConditionHides))
-	bool bGenerationTriggerLocalOverride = false;
-
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "!bIsComponentLocal || bGenerationTriggerLocalOverride", EditConditionHides))
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Properties, AdvancedDisplay, meta = (EditCondition = "!bIsComponentLocal", EditConditionHides))
 	EPCGComponentGenerationTrigger GenerationTrigger = EPCGComponentGenerationTrigger::GenerateOnLoad;
 
 	/** Flag to indicate whether this component has run in the editor. Note that for partitionable actors, this will always be false. */
@@ -158,15 +157,15 @@ public:
 	FOnPCGGraphCleaned OnPCGGraphCleanedDelegate;
 #endif
 
+	/** Return if we are currently generating the graph for this component */
+	bool IsGenerating() const { return bIsGenerating; }
+
 #if WITH_EDITOR
 	void Refresh();
 	void DirtyGenerated(EPCGComponentDirtyFlag DataToDirtyFlag = EPCGComponentDirtyFlag::None);
 
 	/** Reset last generated bounds to force PCGPartitionActor creation on next refresh */
 	void ResetLastGeneratedBounds();
-
-	/** Return if we are currently generating the graph for this component */
-	bool IsGenerating() const { return bIsGenerating; }
 
 	/** Functions for managing the node inspection cache */
 	bool IsInspecting() const { return bIsInspecting; }
@@ -183,6 +182,10 @@ public:
 
 	UPCGSubsystem* GetSubsystem() const;
 
+	void AddPCGPartitionActor(const APCGPartitionActor* Actor);
+	void RemovePCGPartitionActor(const APCGPartitionActor* Actor);
+	void ClearPCGPartitionActors();
+
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	TObjectPtr<UPCGGraph> Graph;
@@ -195,8 +198,9 @@ private:
 	UPCGData* CreateLandscapePCGData();
 	void UpdatePCGExclusionData();
 
-	bool ShouldGenerate(bool bForce = false) const;
-	FPCGTaskId GenerateInternal(bool bForce, const TArray<FPCGTaskId>& Dependencies);
+	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
+	void GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger);
+	FPCGTaskId GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& Dependencies);
 	void CleanupInternal(bool bRemoveComponents);
 	void CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
@@ -276,8 +280,9 @@ private:
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
 
-#if WITH_EDITOR
 	bool bIsGenerating = false;
+
+#if WITH_EDITOR
 	bool bIsInspecting = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
@@ -306,6 +311,10 @@ private:
 	UPROPERTY(Transient)
 	TMap<const UPCGNode*, FPCGDataCollection> InspectionCache;
 #endif
+
+	// TODO: Will need to be cleaned up after we have dynamic association between PartitionActors and PCGComponents.
+	UPROPERTY(Transient)
+	TSet<TSoftObjectPtr<APCGPartitionActor>> PartitionActors;
 
 	FCriticalSection GeneratedResourcesLock;
 };

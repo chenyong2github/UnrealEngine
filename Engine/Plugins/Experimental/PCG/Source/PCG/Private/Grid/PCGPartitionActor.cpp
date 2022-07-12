@@ -50,14 +50,26 @@ void APCGPartitionActor::PostLoad()
 
 void APCGPartitionActor::BeginPlay()
 {
-	// Pass through all the pcg components, and make sure we match generation trigger for the local component if it is not overriden
+	// Pass through all the pcg components, to verify if we need to generate them
 	for (auto& It : OriginalToLocalMap)
 	{
-		if (It.Key && It.Value && !It.Value->bGenerationTriggerLocalOverride)
+		if (It.Key && It.Value)
 		{
-			It.Value->GenerationTrigger = It.Key->GenerationTrigger;
+			// If we have an original component that is generated (or generating), this one is automatically generated => GenerateOnLoad
+			if (It.Key->bGenerated || It.Key->IsGenerating())
+			{
+				It.Value->GenerationTrigger = EPCGComponentGenerationTrigger::GenerateOnLoad;
+			}
+			// Otherwise, make them match
+			else
+			{
+				It.Value->GenerationTrigger = It.Key->GenerationTrigger;
+			}
 		}
 	}
+
+	// Make the Partition actor register itself to the PCG Component
+	RegisterActorToOriginalComponents();
 
 	Super::BeginPlay();
 
@@ -69,6 +81,9 @@ void APCGPartitionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// Unregister each cell to the PCG grid
 	// TODO
+
+	// Make the Partition actor unregister itself to the PCG Component
+	UnregisterActorToOriginalComponents();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -113,6 +128,28 @@ UPCGComponent* APCGPartitionActor::GetOriginalComponent(const UPCGComponent* Loc
 {
 	const TObjectPtr<UPCGComponent>* OriginalComponent = LocalToOriginalMap.Find(LocalComponent);
 	return OriginalComponent ? (*OriginalComponent).Get() : nullptr;
+}
+
+void APCGPartitionActor::RegisterActorToOriginalComponents() const
+{
+	for (auto& It : OriginalToLocalMap)
+	{
+		if (It.Key && It.Value)
+		{
+			It.Key->AddPCGPartitionActor(this);
+		}
+	}
+}
+
+void APCGPartitionActor::UnregisterActorToOriginalComponents() const
+{
+	for (auto& It : OriginalToLocalMap)
+	{
+		if (It.Key && It.Value)
+		{
+			It.Key->RemovePCGPartitionActor(this);
+		}
+	}
 }
 
 #if WITH_EDITOR

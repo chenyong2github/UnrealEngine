@@ -154,6 +154,40 @@ FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, const T
 	return GraphExecutor->ScheduleGeneric(InOperation, TaskDependencies);
 }
 
+TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleComponent(UPCGComponent* OriginalComponent, TSet<TSoftObjectPtr<APCGPartitionActor>>& PartitionActors, const TArray<FPCGTaskId>& Dependencies)
+{
+	TArray<FPCGTaskId> TaskIds;
+	for (TSoftObjectPtr<APCGPartitionActor>& PartitionActorPtr : PartitionActors)
+	{
+		if (APCGPartitionActor* PartitionActor = PartitionActorPtr.Get())
+		{
+			if (UPCGComponent* LocalComponent = PartitionActor->GetLocalComponent(OriginalComponent))
+			{
+				TaskIds.Add(ScheduleComponent(LocalComponent, Dependencies));
+			}
+		}
+	}
+
+	return TaskIds;
+}
+
+TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleCleanup(UPCGComponent* OriginalComponent, TSet<TSoftObjectPtr<APCGPartitionActor>>& PartitionActors, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
+{
+	TArray<FPCGTaskId> TaskIds;
+	for (TSoftObjectPtr<APCGPartitionActor>& PartitionActorPtr : PartitionActors)
+	{
+		if (APCGPartitionActor* PartitionActor = PartitionActorPtr.Get())
+		{
+			if (UPCGComponent* LocalComponent = PartitionActor->GetLocalComponent(OriginalComponent))
+			{
+				TaskIds.Add(ScheduleCleanup(LocalComponent, bRemoveComponents, Dependencies));
+			}
+		}
+	}
+
+	return TaskIds;
+}
+
 bool UPCGSubsystem::GetOutputData(FPCGTaskId TaskId, FPCGDataCollection& OutData)
 {
 	check(GraphExecutor);
@@ -360,7 +394,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 					return InvalidPCGTaskId;
 				}
 
-				return LocalComponent->GenerateInternal(/*bForce=*/false, TaskDependencies);
+				return LocalComponent->GenerateInternal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnDemand, TaskDependencies);
 			}
 			else
 			{
@@ -442,29 +476,42 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 }
 
+FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
+{
+	TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
+
+	auto CleanupTask = [ComponentPtr, bRemoveComponents]() {
+		check(ComponentPtr.Get() != nullptr);
+		if (UPCGComponent* Component = ComponentPtr.Get())
+		{
+			Component->CleanupInternal(bRemoveComponents);
+		}
+
+		return true;
+	};
+
+	return GraphExecutor->ScheduleGeneric(CleanupTask, Dependencies);
+}
+
 void UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave)
 {
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
 
 	auto ScheduleTask = [this, ComponentPtr, bRemoveComponents](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) {
-		auto CleanupTask = [ComponentPtr, PCGActor, bRemoveComponents]() {
-			check(ComponentPtr.Get() != nullptr && PCGActor != nullptr);
-			UPCGComponent* Component = ComponentPtr.Get();
+		UPCGComponent* Component = ComponentPtr.Get();
+		check(Component != nullptr && PCGActor != nullptr);
 
-			if (!PCGActor || !Component)
-			{
-				return true;
-			}
+		if (!PCGActor || !Component)
+		{
+			return InvalidPCGTaskId;
+		}
 
-			if (UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component))
-			{
-				LocalComponent->CleanupInternal(bRemoveComponents);
-			}
+		if (UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component))
+		{
+			return ScheduleCleanup(LocalComponent, bRemoveComponents, TaskDependencies);
+		}
 
-			return true;
-		};
-
-		return GraphExecutor->ScheduleGeneric(CleanupTask, TaskDependencies);
+		return InvalidPCGTaskId;
 	};
 
 	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, bSave, ScheduleTask);

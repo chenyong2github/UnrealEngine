@@ -98,29 +98,30 @@ void UPCGComponent::ForEachManagedResource(TFunctionRef<void(UPCGManagedResource
 	}
 }
 
-bool UPCGComponent::ShouldGenerate(bool bForce) const
+bool UPCGComponent::ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const
 {
 	if (!bActivated || !Graph || !GetSubsystem())
 	{
 		return false;
 	}
 
-	if (IsPartitioned())
-	{
 #if WITH_EDITOR
-		return !GIsPlayInEditorWorld;
-#else
-		return false;
-#endif
-	}
-	else
+	// Always run Generate if we are in editor and partitioned since the original component doesn't know the state of the local one.
+	if (IsPartitioned() && !GIsPlayInEditorWorld)
 	{
-		return (!bGenerated || 
+		return true;
+	}
+#endif
+
+	// A request is invalid only if it was requested "GenerateOnLoad", but it is "GenerateOnDemand"
+	// Meaning that all "GenerateOnDemand" requests are always valid, and "GenerateOnLoad" request is only valid if we want a "GenerateOnLoad" trigger.
+	bool bValidRequest = !(RequestedGenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnDemand);
+
+	return ((!bGenerated && bValidRequest) ||
 #if WITH_EDITOR
 			bDirtyGenerated || 
 #endif
 			bForce);
-	}
 }
 
 void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
@@ -173,12 +174,12 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 void UPCGComponent::Generate()
 {
-#if WITH_EDITOR
 	if (bIsGenerating)
 	{
 		return;
 	}
 
+#if WITH_EDITOR
 	FScopedTransaction Transaction(LOCTEXT("PCGGenerate", "Execute generation on PCG component"));
 #endif
 
@@ -192,12 +193,15 @@ void UPCGComponent::Generate_Implementation(bool bForce)
 
 void UPCGComponent::GenerateLocal(bool bForce)
 {
-#if WITH_EDITOR
+	GenerateLocal(bForce, EPCGComponentGenerationTrigger::GenerateOnDemand);
+}
+
+void UPCGComponent::GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger)
+{
 	if (bIsGenerating)
 	{
 		return;
 	}
-#endif
 
 	// Force component activation so it's easier to control by BP.
 	if (!bActivated)
@@ -206,21 +210,19 @@ void UPCGComponent::GenerateLocal(bool bForce)
 		bActivated = true;
 	}
 
-	FPCGTaskId TaskId = GenerateInternal(bForce, {});
+	FPCGTaskId TaskId = GenerateInternal(bForce, RequestedGenerationTrigger, {});
 
-#if WITH_EDITOR
 	if (TaskId != InvalidPCGTaskId)
 	{
 		bIsGenerating = true;
 	}
-#endif
 }
 
-FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, const TArray<FPCGTaskId>& TaskDependencies)
+FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& TaskDependencies)
 {
 	FPCGTaskId TaskId = InvalidPCGTaskId;
 
-	if (!ShouldGenerate(bForce))
+	if (!ShouldGenerate(bForce, RequestedGenerationTrigger))
 	{
 		return InvalidPCGTaskId;
 	}
@@ -238,8 +240,34 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, const TArray<FPCGTaskId>
 	if (IsPartitioned())
 	{
 #if WITH_EDITOR
-		TaskId = GetSubsystem()->DelayGenerateGraph(this, /*bSave=*/bForce);
+		if (!GIsPlayInEditorWorld)
+		{
+			TaskId = GetSubsystem()->DelayGenerateGraph(this, /*bSave=*/bForce);
+		}
+		else
 #endif
+		{
+			// If we don't have valid bounds, just cleanup
+			const FBox NewBounds = GetGridBounds();
+			if (!NewBounds.IsValid)
+			{
+				CleanupLocal(/*bRemoveComponents=*/false);
+				return InvalidPCGTaskId;
+			}
+
+			// Otherwise, ask for generation on all the partition actors registered.
+			TArray<FPCGTaskId> TaskIds = GetSubsystem()->ScheduleMultipleComponent(this, PartitionActors, TaskDependencies);
+
+			// Finally, create a task to call PostProcessGraph.
+			if (!TaskIds.IsEmpty())
+			{
+				return GetSubsystem()->ScheduleGeneric([this, NewBounds]() { PostProcessGraph(NewBounds, true); return true; }, TaskIds);
+			}
+			else
+			{
+				return InvalidPCGTaskId;
+			}
+		}
 	}
 	else
 	{
@@ -250,10 +278,12 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, const TArray<FPCGTaskId>
 		}
 
 		const FBox NewBounds = GetGridBounds();
-		if (NewBounds.IsValid)
+		if (!NewBounds.IsValid)
 		{
-			TaskId = GetSubsystem()->ScheduleComponent(this, TaskDependencies);
+			return InvalidPCGTaskId;
 		}
+
+		TaskId = GetSubsystem()->ScheduleComponent(this, TaskDependencies);
 	}
 
 	return TaskId;
@@ -297,6 +327,21 @@ bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjec
 	return bHasValidTag;
 }
 
+void UPCGComponent::AddPCGPartitionActor(const APCGPartitionActor* Actor)
+{
+	PartitionActors.Add(Actor);
+}
+
+void UPCGComponent::RemovePCGPartitionActor(const APCGPartitionActor* Actor)
+{
+	PartitionActors.Remove(Actor);
+}
+
+void UPCGComponent::ClearPCGPartitionActors()
+{
+	PartitionActors.Empty();
+}
+
 void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 {
 	LastGeneratedBounds = InNewBounds;
@@ -307,9 +352,10 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 
 		bGenerated = true;
 
+		bIsGenerating = false;
+
 #if WITH_EDITOR
 		bDirtyGenerated = false;
-		bIsGenerating = false;
 		OnPCGGraphGeneratedDelegate.Broadcast(this);
 #endif
 	}
@@ -320,10 +366,10 @@ void UPCGComponent::OnProcessGraphAborted()
 	UE_LOG(LogPCG, Warning, TEXT("Process Graph was called but aborted, check for errors in log if you expected a result."));
 
 	bGenerated = false;
+	bIsGenerating = false;
 
 #if WITH_EDITOR
 	bDirtyGenerated = false;
-	bIsGenerating = false;
 #endif
 }
 
@@ -360,9 +406,14 @@ void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 		{
 			Modify();
 			GetSubsystem()->CleanupGraph(this, LastGeneratedBounds, bRemoveComponents, bSave);
-			bGenerated = false;
 		}
+		else
 #endif
+		{
+			GetSubsystem()->ScheduleMultipleCleanup(this, PartitionActors, bRemoveComponents, {});
+		}
+
+		bGenerated = false;
 	}
 	else
 	{
@@ -382,12 +433,10 @@ AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
 	}
 
 	// TODO: Perhaps remove this part if we want to do it in the PCG Graph.
-#if WITH_EDITOR
 	if (bIsGenerating)
 	{
 		return nullptr;
 	}
-#endif // WITH_EDITOR
 
 	UWorld* World = GetWorld();
 
@@ -514,11 +563,32 @@ void UPCGComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if(bActivated && !bGenerated && !IsPartitioned() && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)
+	if(bActivated && !bGenerated && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)
 	{
-		GenerateLocal(/*bForce=*/false);
-		bRuntimeGenerated = true;
+		if (IsPartitioned())
+		{
+			// If we are partitioned, the responsibility of the generation is to the partition actors.
+			// but we still need to know that we are currently generated (even if the state is held by the partition actors)
+			// TODO: Will be cleaner when we have dynamic association.
+			const FBox NewBounds = GetGridBounds();
+			if (NewBounds.IsValid)
+			{
+				PostProcessGraph(NewBounds, true);
+			}
+		}
+		else
+		{
+			GenerateLocal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnLoad);
+			bRuntimeGenerated = true;
+		}
 	}
+}
+
+void UPCGComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	ClearPCGPartitionActors();
 }
 
 void UPCGComponent::OnComponentCreated()
@@ -664,19 +734,39 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			if (bActivated)
 			{
 				bool bIsNowPartitioned = bIsPartitioned;
-				bIsPartitioned = !bIsPartitioned;
+				if (bGenerated)
+				{
+					bIsPartitioned = !bIsPartitioned;
 
-				// First, we'll cleanup
-				bActivated = false;
-				Refresh();
+					// First, we'll cleanup
+					bActivated = false;
+					Refresh();
 
-				// Then invalidate the previous bounds to force actor creation (as if we moved the volume)
-				// and do a normal refresh
-				bActivated = true;
-				bIsPartitioned = bIsNowPartitioned;
-				ResetLastGeneratedBounds();
-				DirtyGenerated();
-				Refresh();
+					// Then invalidate the previous bounds to force actor creation (as if we moved the volume)
+					// and do a normal refresh
+					bActivated = true;
+					bIsPartitioned = bIsNowPartitioned;
+					ResetLastGeneratedBounds();
+					DirtyGenerated();
+					Refresh();
+				}
+				else
+				{
+					// We need the component to be partitioned if we use the subsystem.
+					bIsPartitioned = true;
+
+					if (bIsNowPartitioned)
+					{
+						GetSubsystem()->DelayPartitionGraph(this);
+					}
+					else
+					{
+						GetSubsystem()->DelayUnpartitionGraph(this);
+
+					}
+
+					bIsPartitioned = bIsNowPartitioned;
+				}
 			}
 		}
 		else
