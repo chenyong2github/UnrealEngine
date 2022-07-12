@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IRewindDebuggerExtension.h"
+#include "RewindDebuggerSettings.h"
 #include "UObject/WeakObjectPtr.h"
 
 class ACameraActor;
@@ -14,12 +15,6 @@ class ACameraActor;
 class FRewindDebuggerCamera : public IRewindDebuggerExtension
 {
 public:
-	enum class ECameraMode
-	{
-		Replay,
-		FollowTargetActor,
-		Disabled,
-	};
 
 
 	FRewindDebuggerCamera();
@@ -28,12 +23,14 @@ public:
 
 	virtual void Update(float DeltaTime, IRewindDebugger* RewindDebugger) override;
 
-	ECameraMode CameraMode();
-	void SetCameraMode(ECameraMode Mode);
+	ERewindDebuggerCameraMode CameraMode() const;
+	void SetCameraMode(ERewindDebuggerCameraMode Mode);
+	
 private:
+
+	
 	bool LastPositionValid;
 	FVector LastPosition;
-
-	ECameraMode Mode = ECameraMode::Replay;
+	
 	TWeakObjectPtr<ACameraActor> CameraActor; 
 };

@@ -60,8 +60,8 @@ public:
 
 	bool CanStartRecording() const { return !IsRecording() && bPIESimulating; }
 
-	bool AutoRecord() const { return bAutoRecord; }
-	void SetAutoRecord(bool value) { bAutoRecord = value; }
+	bool ShouldAutoRecordOnPIE() const;
+	void SetShouldAutoRecordOnPIE(bool value);
 
 	// Stop recording: Stop tracing Object + Animation Data.
 	void StopRecording();
@@ -140,8 +140,7 @@ private:
 
 	bool bPIEStarted;
 	bool bPIESimulating;
-
-	bool bAutoRecord;
+	
 	bool bRecording;
 
 	float PlaybackRate;

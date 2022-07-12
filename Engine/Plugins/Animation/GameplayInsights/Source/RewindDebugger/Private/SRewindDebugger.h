@@ -10,6 +10,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"
+#include "RewindDebuggerSettings.h"
 
 class SDockTab;
 
@@ -66,9 +67,9 @@ private:
 
 	void MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
 
-	void ToggleDisplayEmptyTracks() { bDisplayEmptyTracks = !bDisplayEmptyTracks; RefreshDebugComponents(); }
-	bool ShouldDisplayEmptyTracks() { return bDisplayEmptyTracks; }
-	
+	void ToggleDisplayEmptyTracks();
+	bool ShouldDisplayEmptyTracks() const;
+
 	// Time Slider
 	TAttribute<double> ScrubTimeAttribute;
 	TAttribute<bool> TrackScrubbingAttribute;
@@ -106,4 +107,6 @@ private:
 	
 	bool bInSelectionChanged = false;
 	bool bDisplayEmptyTracks = false;
+
+	URewindDebuggerSettings & Settings;
 };

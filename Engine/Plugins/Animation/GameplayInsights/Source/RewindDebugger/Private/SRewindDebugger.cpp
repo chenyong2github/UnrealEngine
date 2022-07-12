@@ -25,6 +25,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "RewindDebuggerSettings.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -32,6 +33,7 @@ SRewindDebugger::SRewindDebugger()
 	: SCompoundWidget()
 	, ViewRange(0,10)
 	, DebugComponents(nullptr)
+	, Settings(URewindDebuggerSettings::Get())
 { 
 }
 
@@ -84,6 +86,17 @@ void SRewindDebugger::SetViewRange(TRange<double> NewRange)
 {
 	ViewRange = NewRange;
 	OnViewRangeChanged.ExecuteIfBound(NewRange);
+}
+
+void SRewindDebugger::ToggleDisplayEmptyTracks()
+{
+	Settings.bShowEmptyObjectTracks = !Settings.bShowEmptyObjectTracks;
+	RefreshDebugComponents();
+}
+
+bool SRewindDebugger::ShouldDisplayEmptyTracks() const
+{
+	return Settings.bShowEmptyObjectTracks;
 }
 
 void SRewindDebugger::SetDebugTargetActor(AActor* Actor)

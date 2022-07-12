@@ -36,7 +36,8 @@ namespace UnrealBuildTool.Rules
 				"UnrealEd",
 				"RewindDebuggerInterface",
 				"ToolWidgets",
-				"MainFrame"
+				"MainFrame",
+				"DeveloperSettings",
 			});
 		}
 	}

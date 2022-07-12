@@ -20,6 +20,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "ToolMenus.h"
+#include "RewindDebuggerSettings.h"
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {
@@ -38,7 +39,6 @@ FRewindDebugger::FRewindDebugger()  :
 	ControlState(FRewindDebugger::EControlState::Pause),
 	bPIEStarted(false),
 	bPIESimulating(false),
-	bAutoRecord(false),
 	bRecording(false),
 	PlaybackRate(1),
 	PreviousTraceTime(-1),
@@ -116,7 +116,7 @@ void FRewindDebugger::OnPIEStarted(bool bSimulating)
 
 	UE::Trace::ToggleChannel(TEXT("Object"), true);
 
-	if (bAutoRecord)
+	if (ShouldAutoRecordOnPIE())
 	{
 		StartRecording();
 	}
@@ -295,6 +295,16 @@ void FRewindDebugger::StartRecording()
 	UWorld* World = GetWorldToVisualize();
 	FObjectTrace::ResetWorldElapsedTime(World);
 	FObjectTrace::SetWorldRecordingIndex(World, RecordingIndex);
+}
+
+bool FRewindDebugger::ShouldAutoRecordOnPIE() const
+{
+	return URewindDebuggerSettings::Get().bShouldAutoRecordOnPIE;
+}
+
+void FRewindDebugger::SetShouldAutoRecordOnPIE(bool value)
+{
+	URewindDebuggerSettings::Get().bShouldAutoRecordOnPIE = value;
 }
 
 void FRewindDebugger::StopRecording()

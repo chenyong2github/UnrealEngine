@@ -28,13 +28,13 @@ void FRewindDebuggerCamera::Initialize()
 	Menu->AddSection("Camera Mode", LOCTEXT("Camera Mode","Camera Mode"));
 	Menu->AddMenuEntry("Camera Mode",
 			FToolMenuEntry::InitMenuEntry("CameraModeDisabled",
-				LOCTEXT("Camera Mode Dosan;ed", "Disabled"),
+				LOCTEXT("Camera Mode Disabled", "Disabled"),
 				FText(),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ECameraMode::Disabled),
+					FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ERewindDebuggerCameraMode::Disabled),
 					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda([this] { return Mode == ECameraMode::Disabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
+					FGetActionCheckState::CreateLambda([this] { return CameraMode() == ERewindDebuggerCameraMode::Disabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
 				EUserInterfaceActionType::Check
 				)
 			);
@@ -44,9 +44,9 @@ void FRewindDebuggerCamera::Initialize()
 				LOCTEXT("Camera Mode Follow", "Follow Target Actor"),
 				FText(),
 				FSlateIcon(),
-				FUIAction( FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ECameraMode::FollowTargetActor),
+				FUIAction( FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ERewindDebuggerCameraMode::FollowTargetActor),
 					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda([this] { return Mode == ECameraMode::FollowTargetActor ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
+					FGetActionCheckState::CreateLambda([this] { return CameraMode() == ERewindDebuggerCameraMode::FollowTargetActor ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
 				EUserInterfaceActionType::Check
 				)
 			);
@@ -56,33 +56,40 @@ void FRewindDebuggerCamera::Initialize()
 				LOCTEXT("Camera Mode Recorded", "Replay Recorded Camera"),
 				FText(),
 				FSlateIcon(),
-				FUIAction( FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ECameraMode::Replay),
+				FUIAction( FExecuteAction::CreateRaw(this, &FRewindDebuggerCamera::SetCameraMode, ERewindDebuggerCameraMode::Replay),
 					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda([this] { return Mode == ECameraMode::Replay ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
+					FGetActionCheckState::CreateLambda([this] { return CameraMode() == ERewindDebuggerCameraMode::Replay ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )),
 				EUserInterfaceActionType::Check
 				)
 			);
 }
 
-void FRewindDebuggerCamera::SetCameraMode(ECameraMode InMode)
+ERewindDebuggerCameraMode FRewindDebuggerCamera::CameraMode() const
+{
+	return URewindDebuggerSettings::Get().CameraMode;
+}
+
+void FRewindDebuggerCamera::SetCameraMode(ERewindDebuggerCameraMode InMode)
 {
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
 	FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
 
-	if (Mode == ECameraMode::Replay && InMode != ECameraMode::Replay)
+	URewindDebuggerSettings& RewindDebuggerSettings = URewindDebuggerSettings::Get();
+	
+	if (RewindDebuggerSettings.CameraMode == ERewindDebuggerCameraMode::Replay && InMode != ERewindDebuggerCameraMode::Replay)
 	{
 		LevelViewportClient.SetActorLock(nullptr);
 	}
-	else if (Mode == ECameraMode::Replay)
+	else if (RewindDebuggerSettings.CameraMode == ERewindDebuggerCameraMode::Replay)
 	{
 		if (CameraActor.IsValid())
 		{
 			LevelViewportClient.SetActorLock(CameraActor.Get());
 		}
 	}
-
-	Mode = InMode;
+	
+	RewindDebuggerSettings.CameraMode = InMode;
 }
 
 void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebugger)
@@ -110,7 +117,7 @@ void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebug
 			// only update camera in playback or scrubbing when the time has changed (allow free movement when paused)
 			LastCameraScrubTime = CurrentTraceTime;
 
-			if (Mode == ECameraMode::FollowTargetActor)
+			if (CameraMode() == ERewindDebuggerCameraMode::FollowTargetActor)
 			{
 				// Follow Actor mode: apply position changes from the target actor to the camera
 				if (bTargetActorPositionValid)
@@ -139,7 +146,6 @@ void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebug
 									FActorSpawnParameters SpawnParameters;
 									SpawnParameters.ObjectFlags |= RF_Transient;
 									CameraActor = RewindDebugger->GetWorldToVisualize()->SpawnActor<ACameraActor>(ViewMessage.Position, ViewMessage.Rotation, SpawnParameters);
-									UCameraComponent* Camera = CameraActor->GetCameraComponent();
 									CameraActor->SetActorLabel("RewindDebuggerCamera"); 
 								}
 
@@ -154,7 +160,7 @@ void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebug
 				});
 			}
 
-			if (Mode == ECameraMode::Replay)
+			if (CameraMode() == ERewindDebuggerCameraMode::Replay)
 			{
 				if (CameraActor.IsValid())
 				{
