@@ -28,6 +28,7 @@ public:
 	 * This function is useful because it's difficult to retrieve this actor otherwise, as it will be filtered from
 	 * the results of functions like EditorLevelLibrary.get_all_level_actors()
 	 */
+	UE_DEPRECATED( 5.1, "This function was moved to the UUsdConversionBlueprintLibrary C++ class (UsdConversionLibrary on Python/Blueprint)" )
 	UFUNCTION( BlueprintCallable, Category = "USD Foliage Exporter" )
 	static AInstancedFoliageActor* GetInstancedFoliageActorForLevel( bool bCreateIfNone = false, ULevel* Level = nullptr );
 
@@ -36,6 +37,7 @@ public:
 	 * This function exists because we want to retrieve all instances of all foliage types on an actor, but we
 	 * can't return nested containers from UFUNCTIONs, so users of this API should call this, and then GetInstanceTransforms.
 	 */
+	UE_DEPRECATED( 5.1, "This function was moved to the UUsdConversionBlueprintLibrary C++ class (UsdConversionLibrary on Python/Blueprint)" )
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
 	static TArray<UFoliageType*> GetUsedFoliageTypes( AInstancedFoliageActor* Actor );
 
@@ -43,6 +45,7 @@ public:
 	 * Returns the source asset for a UFoliageType.
 	 * It can be a UStaticMesh in case we're dealing with a UFoliageType_InstancedStaticMesh, but it can be other types of objects.
 	 */
+	UE_DEPRECATED( 5.1, "This function was moved to the UUsdConversionBlueprintLibrary C++ class (UsdConversionLibrary on Python/Blueprint)" )
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
 	static UObject* GetSource( UFoliageType* FoliageType );
 
@@ -50,10 +53,12 @@ public:
 	 * Returns the transforms of all instances of a particular UFoliageType on a given level. If no level is provided all instances will be returned.
 	 * Use GetUsedFoliageTypes() to retrieve all foliage types managed by a particular actor.
 	 */
+	UE_DEPRECATED( 5.1, "This function was moved to the UUsdConversionBlueprintLibrary C++ class (UsdConversionLibrary on Python/Blueprint)" )
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
 	static TArray<FTransform> GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel = nullptr );
 
 	/** Defer to the USDClasses module to actually send analytics information */
+	UE_DEPRECATED( 5.1, "This function was moved to the UUsdConversionBlueprintLibrary C++ class (UsdConversionLibrary on Python/Blueprint)" )
 	UFUNCTION( BlueprintCallable, Category = "Analytics" )
 	static void SendAnalytics( const TArray<FAnalyticsEventAttr>& Attrs, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension );
 };
