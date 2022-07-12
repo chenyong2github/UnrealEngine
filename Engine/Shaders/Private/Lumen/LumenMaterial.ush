@@ -215,7 +215,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
 	Out.WorldNormal						= TopLayerData.WorldNormal;
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
-	Out.ShadingID						= StrataHeaderIsValid(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
+	Out.ShadingID						= IsStrataMaterial(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
 	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 	Out.bIsSLW							= StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_SINGLELAYERWATER;

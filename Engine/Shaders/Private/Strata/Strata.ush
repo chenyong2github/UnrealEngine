@@ -1810,12 +1810,6 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	return Out;
 }
 
-bool StrataHeaderIsValid(in FStrataPixelHeader StrataPixelHeader)
-{
-	bool bIsValid = IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader);
-	return bIsValid ? true : StrataPixelHeader.BSDFCount > 0;
-}
-
 float3x3 StrataGetBSDFSharedBasis_InlineShading(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
 {
 #if STRATA_INLINE_SHADING
