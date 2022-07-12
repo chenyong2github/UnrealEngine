@@ -96,6 +96,49 @@ public:
 	*/
 	bool InitializeFromTriangleComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
 
+	/**
+	* Find all connected vertex components of the Mesh and store in Components array.
+	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
+	*/
+	void FindConnectedVertices(TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+
+	/**
+	* Find all connected vertex components of a subset of vertices of the Mesh and store in Components array.
+	* @param VertexROI list of vertices to search across
+	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
+	*/
+	void FindConnectedVertices(const TArray<int>& VertexROI, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+
+	/**
+	* Find all connected vertex components of a subset of vertices of the Mesh and store in Components array.
+	* @param IndexFilterFunc defines set of vertices to search across, return true for vertex IDs that are to be considered
+	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
+	*/
+	void FindConnectedVertices(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)>VertsConnectedPredicate = nullptr);
+
+	/**
+	* Find all connected vertex components that contain one or more Seed Vertices and store in Components array.
+	 Search only starts from Seed Vertices.
+	* @param SeedVertices list of start vertices, each component contains at least one of these vertices
+	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
+	*/
+	void FindVerticesConnectedToSeeds(const TArray<int>& SeedVertices, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+
+	/**
+	 * Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
+	 * @param bValidateIDs if true, test that each value corresponds to a valid vertex ID on the Mesh
+	 * @return true if all IDs are valid, or if check was skipped
+	 */
+	bool InitializeFromVertexComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs);
+
+	/**
+	* Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
+	* @param bMoveSubLists if true, steal the arrays inside the ComponentLists (via MoveTemp), to avoid memory copies
+	* @param bValidateIDs if true, test that each value corresponds to a valid vertex ID on the Mesh
+	* @return true if all IDs are valid, or if check was skipped
+	*/
+	bool InitializeFromVertexComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
+
 	//
 	// Query functions. Only valid to call after a Calculation function has been called.
 	//
@@ -153,7 +196,10 @@ protected:
 	void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> TriConnectedPredicate);
 	void RemoveFromActiveSet(const FComponent* Component, TArray<uint8>& ActiveSet);
 
-
+	void FindVertComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
+	void FindVertComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
+	void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
+	void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> VertsConnectedPredicate);
 
 public:
 	/**
