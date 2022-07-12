@@ -207,6 +207,9 @@ void FTextureCompilingManager::PostCompilation(UTexture* Texture)
 	Texture->FinishCachePlatformData();
 	Texture->UpdateResource();
 
+	// Needs to be called after the placeholder resource has been replaced by the real one
+	Texture->UpdateCachedLODBias();
+
 	// Generate an empty property changed event, to force the asset registry tag
 	// to be refreshed now that pixel format and alpha channels are available.
 	FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);

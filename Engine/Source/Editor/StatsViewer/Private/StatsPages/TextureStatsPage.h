@@ -6,6 +6,7 @@
 #include "IStatsViewer.h"
 #include "StatsPage.h"
 #include "TextureStats.h"
+#include "AssetCompilingManager.h"
 
 /** Stats page representing texture stats */
 class FTextureStatsPage : public FStatsPage<UTextureStats>
@@ -25,10 +26,13 @@ public:
 
 private:
 
-	/** Delegate to allow is to trigger a refresh on actor selection */
+	/** Delegate to trigger a refresh on actor selection */
 	void OnEditorSelectionChanged( UObject* NewSelection, TWeakPtr< class IStatsViewer > InParentStatsViewer );
 
-	/** Delegate to allow is to trigger a refresh on new level */
+	/** Delegate to trigger a refresh on new level */
 	void OnEditorNewCurrentLevel( TWeakPtr< class IStatsViewer > InParentStatsViewer );
+
+	/** Delegate to trigger a refresh when a texture finishes compiling */
+	void OnAssetPostCompile( const TArray<FAssetCompileData>& CompiledAssets, TWeakPtr< IStatsViewer > InParentStatsViewer );
 };
 
