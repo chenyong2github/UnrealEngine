@@ -462,7 +462,7 @@ protected:
 	TArray<FComponentSet> PreviewComponents;
 
 	UPROPERTY()
-	TSet<UPrimitiveComponent*> AllComponents;		// to keep components in FComponentSet alive
+	TSet<TObjectPtr<UPrimitiveComponent>> AllComponents;		// to keep components in FComponentSet alive
 
 	
 	TMap<int32, FComponentSet> StaticMeshPools;
