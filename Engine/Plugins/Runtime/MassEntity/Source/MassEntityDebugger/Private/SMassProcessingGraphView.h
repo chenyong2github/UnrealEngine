@@ -8,8 +8,8 @@
 struct FMassDebuggerProcessingGraph;
 struct FMassDebuggerModel;
 template<typename T> class STreeView;
+class SVerticalBox;
 
-class SHeaderRow;
 
 struct FMassDebuggerProcessingGraphNodeTreeItem
 {

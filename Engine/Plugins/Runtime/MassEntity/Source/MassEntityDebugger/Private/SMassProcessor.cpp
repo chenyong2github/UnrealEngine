@@ -5,6 +5,10 @@
 #include "MassDebuggerStyle.h"
 #include "SMassQuery.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"
 
 
