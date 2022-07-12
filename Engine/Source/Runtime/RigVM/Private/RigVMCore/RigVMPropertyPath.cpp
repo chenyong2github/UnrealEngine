@@ -195,6 +195,10 @@ uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr, const FProperty* InPro
 				InProperty = CastFieldChecked<FArrayProperty>(Segment.Property)->Inner;
 #endif
 				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(Segment.Property), InPtr);
+				if(!ArrayHelper.IsValidIndex(Segment.Index))
+				{
+					return nullptr;
+				}
 				InPtr = ArrayHelper.GetRawPtr(Segment.Index);
 				break;
 			}

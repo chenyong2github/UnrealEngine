@@ -3187,6 +3187,10 @@ void URigVM::CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMOperand& I
 		check(ExternalVariable.IsValid(false));
 
 		CachedMemoryHandles[InHandleIndex] = {ExternalVariable.Memory, ExternalVariable.Property, PropertyPath};
+#if UE_BUILD_DEBUG
+		// make sure the handle points to valid memory
+		check(CachedMemoryHandles[InHandleIndex].GetData(false) != nullptr);
+#endif
 		return;
 	}
 
@@ -3203,6 +3207,19 @@ void URigVM::CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMOperand& I
 	uint8* Data = Memory->GetData<uint8>(InArg.GetRegisterIndex());
 	const FProperty* Property = Memory->GetProperties()[InArg.GetRegisterIndex()];
 	CachedMemoryHandles[InHandleIndex] = {Data, Property, PropertyPath};
+
+#if UE_BUILD_DEBUG
+	// make sure the handle points to valid memory
+	FRigVMMemoryHandle& Handle = CachedMemoryHandles[InHandleIndex]; 
+	check(Handle.GetData(false) != nullptr);
+	if(PropertyPath)
+	{
+		uint8* MemoryPtr = Handle.GetData(false);
+		// don't check the result - since it may be an array element
+		// that doesn't exist yet. 
+		PropertyPath->GetData<uint8>(MemoryPtr, Property);
+	}
+#endif
 }
 
 void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand)

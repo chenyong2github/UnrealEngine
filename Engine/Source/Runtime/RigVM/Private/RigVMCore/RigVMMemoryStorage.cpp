@@ -324,6 +324,34 @@ bool FRigVMPropertyDescription::RequiresCPPTypeObject(const FString& InCPPType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FRigVMMemoryStorageImportErrorContext : public FOutputDevice
+{
+public:
+
+	bool bLogErrors;
+	int32 NumErrors;
+
+	FRigVMMemoryStorageImportErrorContext(bool InLogErrors = true)
+		: FOutputDevice()
+		, bLogErrors(InLogErrors)
+		, NumErrors(0)
+	{
+	}
+
+	FORCEINLINE_DEBUGGABLE void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		if(bLogErrors)
+		{
+#if WITH_EDITOR
+			UE_LOG(LogRigVM, Display, TEXT("Skipping Importing To MemoryStorage: %s"), V);
+#else
+			UE_LOG(LogRigVM, Error, TEXT("Error Importing To MemoryStorage: %s"), V);
+#endif
+		}
+		NumErrors++;
+	}
+};
+
 void URigVMMemoryStorageGeneratorClass::PurgeClass(bool bRecompilingOnLoad)
 {
 	Super::PurgeClass(bRecompilingOnLoad);
@@ -520,7 +548,19 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 		const FProperty* Property = LinkedProperties[PropertyIndex];
 		uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(CDO);
 
-		Property->ImportText_Direct(*DefaultValue, ValuePtr, nullptr, EPropertyPortFlags::PPF_None);
+		FRigVMMemoryStorageImportErrorContext ErrorPipe(false);
+		Property->ImportText_Direct(*DefaultValue, ValuePtr, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
+		if(ErrorPipe.NumErrors > 0)
+		{
+			// check if the default value was provided as a single element
+			if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				static constexpr TCHAR BraceFormat[] = TEXT("(%s)");
+				const FString DefaultValueWithBraces = FString::Printf(BraceFormat, *DefaultValue);
+				ErrorPipe = FRigVMMemoryStorageImportErrorContext(false);
+				Property->ImportText_Direct(*DefaultValueWithBraces, ValuePtr, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
+			}
+		}
 	}
 
 	return Class;
@@ -844,29 +884,6 @@ FString URigVMMemoryStorage::GetDataAsStringSafe(const FRigVMOperand& InOperand,
 	return GetDataAsStringSafe(PropertyIndex, PortFlags);
 }
 
-class FRigVMMemoryStorageImportErrorContext : public FOutputDevice
-{
-public:
-
-	int32 NumErrors;
-
-	FRigVMMemoryStorageImportErrorContext()
-		: FOutputDevice()
-		, NumErrors(0)
-	{
-	}
-
-	FORCEINLINE_DEBUGGABLE void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
-	{
-#if WITH_EDITOR
-		UE_LOG(LogRigVM, Display, TEXT("Skipping Importing To MemoryStorage: %s"), V);
-#else
-		UE_LOG(LogRigVM, Error, TEXT("Error Importing To MemoryStorage: %s"), V);
-#endif
-		NumErrors++;
-	}
-};
-
 bool URigVMMemoryStorage::SetDataFromString(int32 InPropertyIndex, const FString& InValue)
 {
 	check(IsValidIndex(InPropertyIndex));
@@ -1071,6 +1088,17 @@ bool URigVMMemoryStorage::CopyProperty(
 	uint8* SourcePtr = (uint8*)InSourcePtr;
 	TraversePropertyPath(InTargetProperty, InTargetPtr, InTargetPropertyPath);
 	TraversePropertyPath(InSourceProperty, SourcePtr, InSourcePropertyPath);
+
+	if(InTargetPtr == nullptr)
+	{
+		check(!InTargetPropertyPath.IsEmpty());
+		return false;
+	}
+	if(InSourcePtr == nullptr)
+	{
+		check(!InSourcePropertyPath.IsEmpty());
+		return false;
+	}
 
 	return CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, SourcePtr);
 }
