@@ -907,7 +907,7 @@ namespace Horde.Build.Notifications.Sinks
 
 					await SetMessageTimestampAsync(state.Id, state.Channel, state.Ts, permalink);
 
-					if (workflow.AllowMentions)
+					if (_environment.IsProduction() && workflow.AllowMentions)
 					{
 						await InviteUsersAsync(state.Channel, inviteUserIds);
 					}
