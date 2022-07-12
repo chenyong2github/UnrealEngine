@@ -78,7 +78,7 @@ void SSyncFilterWindow::Construct(const FArguments& InArgs)
 
 FReply SSyncFilterWindow::OnShowCombinedFilterClicked()
 {
-	fprintf(stderr, "Sync filters:\n%sEnd of sync filters\n", FString::Join(Tab->GetSyncFilters(), TEXT("\n")));
+	fprintf(stderr, "Sync filters:\n%sEnd of sync filters\n", TCHAR_TO_ANSI(*FString::Join(Tab->GetSyncFilters(), TEXT("\n"))));
 
 	TSharedRef<SPopupTextWindow> CombinedFilterWindow = SNew(SPopupTextWindow)
 		.TitleText(FText::FromString("Combined Sync Filter"))
