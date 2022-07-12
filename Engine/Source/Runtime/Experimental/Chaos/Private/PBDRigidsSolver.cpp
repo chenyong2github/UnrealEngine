@@ -398,6 +398,7 @@ namespace Chaos
 					bool ResetData = (MSubStepInfo.Step == 0);
 					MSolver->GetEventManager()->FillProducerData(MSolver, ResetData);
 					MSolver->GetEvolution()->ResetAllRemovals();
+					MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterCrumblings();
 				}
 
 				// flip on last sub-step of frame

@@ -42,5 +42,10 @@ namespace Chaos
 		 */
 		static void RegisterRemovalEvent(FEventManager& EventManager);
 
+		/**
+		* Register crumbling event gathering function & data type
+		*/
+		static void RegisterCrumblingEvent(FEventManager& EventManager);
+
 	};
 }

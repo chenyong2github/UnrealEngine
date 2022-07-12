@@ -44,6 +44,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBrea
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosRemovalEvent, const FChaosRemovalEvent&, RemovalEvent);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosCrumblingEvent, const FChaosCrumblingEvent&, CrumbleEvent);
+
 namespace GeometryCollection
 {
 	enum class ESelectionMode : uint8
@@ -798,6 +800,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetNotifyRemovals(bool bNewNotifyRemovals);
 
+	/** Changes whether or not this component will get future break notifications. */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetNotifyCrumblings(bool bNewNotifyCrumblings);
+	
 	/** Overrideable native notification */
 	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};
 
@@ -809,10 +815,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Chaos")
 	FOnChaosRemovalEvent OnChaosRemovalEvent;
-	
+
+	UPROPERTY(BlueprintAssignable, Category = "Chaos")
+	FOnChaosCrumblingEvent OnChaosCrumblingEvent;
+
 	void DispatchBreakEvent(const FChaosBreakEvent& Event);
 
 	void DispatchRemovalEvent(const FChaosRemovalEvent& Event);
+
+	void DispatchCrumblingEvent(const FChaosCrumblingEvent& Event);
 
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Interp, Category = "Chaos")
 	float DesiredCacheTime;
@@ -883,6 +894,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bNotifyRemovals;
 
+	/** If true, this component will generate crumbling events that other systems may subscribe to. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
+	bool bNotifyCrumblings;
+
+	/** If this and bNotifyCrumblings are true, the crumbling events will contain released children indices. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General", meta = (EditCondition = "bNotifyCrumblings"))
+	bool bCrumblingEventIncludesChildren;
+	
 	/** If true, this component will save linear and angular velocities on its DynamicCollection. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bStoreVelocities;
@@ -923,9 +942,8 @@ protected:
 	void UpdateRBCollisionEventRegistration();
 	void UpdateBreakEventRegistration();
 	void UpdateRemovalEventRegistration();
-
-
-
+	void UpdateCrumblingEventRegistration();
+	
 	/* Per-instance override to enable/disable replication for the geometry collection */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Network)
 	bool bEnableReplication;

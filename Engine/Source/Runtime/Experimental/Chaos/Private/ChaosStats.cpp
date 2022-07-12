@@ -35,6 +35,7 @@ DEFINE_STAT(STAT_SkelMeshUpdateAnim);
 DEFINE_STAT(STAT_DispatchEventNotifies);
 DEFINE_STAT(STAT_DispatchCollisionEvents);
 DEFINE_STAT(STAT_DispatchBreakEvents);
+DEFINE_STAT(STAT_DispatchCrumblingEvents);
 DEFINE_STAT(STAT_BufferPhysicsResults);
 DEFINE_STAT(STAT_FlipResults);
 DEFINE_STAT(STAT_ProcessDeferredCreatePhysicsState);
@@ -61,6 +62,7 @@ DEFINE_STAT(STAT_GatherCollisionEvent)
 DEFINE_STAT(STAT_GatherBreakingEvent)
 DEFINE_STAT(STAT_GatherTrailingEvent)
 DEFINE_STAT(STAT_GatherSleepingEvent)
+DEFINE_STAT(STAT_GatherCrumblingEvent)
 DEFINE_STAT(STAT_AccelerationStructureReset);
 
 DEFINE_STAT(STAT_ParamUpdateObject);

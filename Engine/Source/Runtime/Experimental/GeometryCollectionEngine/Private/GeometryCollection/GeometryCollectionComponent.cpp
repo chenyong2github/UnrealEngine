@@ -244,6 +244,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bNotifyBreaks(false)
 	, bNotifyCollisions(false)
 	, bNotifyRemovals(false)
+	, bNotifyCrumblings(false)
 	, bStoreVelocities(false)
 	, bShowBoneColors(false)
 #if WITH_EDITORONLY_DATA 
@@ -713,6 +714,15 @@ void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
 	}
 }
 
+void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings)
+{
+	if (bNotifyCrumblings != bNewNotifyCrumblings)
+	{
+		bNotifyCrumblings = bNewNotifyCrumblings;
+		UpdateBreakEventRegistration();
+	}
+}
+
 FBodyInstance* UGeometryCollectionComponent::GetBodyInstance(FName BoneName /*= NAME_None*/, bool bGetWelded /*= true*/, int32 Index /*=INDEX_NONE*/) const
 {
 	return nullptr;// const_cast<FBodyInstance*>(&DummyBodyInstance);
@@ -836,6 +846,15 @@ void UGeometryCollectionComponent::DispatchRemovalEvent(const FChaosRemovalEvent
 	if (OnChaosRemovalEvent.IsBound())
 	{
 		OnChaosRemovalEvent.Broadcast(Event);
+	}
+}
+
+void UGeometryCollectionComponent::DispatchCrumblingEvent(const FChaosCrumblingEvent& Event)
+{
+	// bp
+	if (OnChaosCrumblingEvent.IsBound())
+	{
+		OnChaosCrumblingEvent.Broadcast(Event);
 	}
 }
 
@@ -1271,6 +1290,14 @@ static void DispatchGeometryCollectionRemovalEvent(const FChaosRemovalEvent& Eve
 	}
 }
 
+static void DispatchGeometryCollectionCrumblingEvent(const FChaosCrumblingEvent& Event)
+{
+	if (UGeometryCollectionComponent* const GC = Cast<UGeometryCollectionComponent>(Event.Component))
+	{
+		GC->DispatchCrumblingEvent(Event);
+	}
+}
+
 void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
 {
 	ReceivePhysicsCollision(CollisionInfo);
@@ -1280,7 +1307,7 @@ void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(
 // call when first registering
 void UGeometryCollectionComponent::RegisterForEvents()
 {
-	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals)
+	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals || bNotifyCrumblings)
 	{
 		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
 		if (Solver)
@@ -1315,6 +1342,16 @@ void UGeometryCollectionComponent::RegisterForEvents()
 						Solver->SetGenerateRemovalData(true);
 					});
 
+			}
+
+			if (bNotifyCrumblings)
+			{
+				EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
+
+				Solver->EnqueueCommandImmediate([Solver]()
+					{
+						Solver->SetGenerateBreakingData(true);
+					});
 			}
 		}
 	}
@@ -1353,6 +1390,18 @@ void UGeometryCollectionComponent::UpdateRemovalEventRegistration()
 	else
 	{
 		EventDispatcher->UnRegisterForRemovalEvents(this);
+	}
+}
+
+void UGeometryCollectionComponent::UpdateCrumblingEventRegistration()
+{
+	if (bNotifyCrumblings)
+	{
+		EventDispatcher->RegisterForCrumblingEvents(this, &DispatchGeometryCollectionCrumblingEvent);
+	}
+	else
+	{
+		EventDispatcher->UnRegisterForCrumblingEvents(this);
 	}
 }
 
@@ -2301,6 +2350,8 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.bGenerateCollisionData = bNotifyCollisions;
 		SimulationParameters.bGenerateTrailingData = bNotifyTrailing;
 		SimulationParameters.bGenerateRemovalsData = bNotifyRemovals;
+		SimulationParameters.bGenerateCrumblingData = bNotifyCrumblings;
+		SimulationParameters.bGenerateCrumblingChildrenData = bCrumblingEventIncludesChildren;
 		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 		SimulationParameters.EnableGravity = BodyInstance.bEnableGravity;
 		SimulationParameters.UseInertiaConditioning = BodyInstance.IsInertiaConditioningEnabled();

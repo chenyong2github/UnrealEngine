@@ -26,7 +26,8 @@ namespace Chaos
 		Breaking = 1,
 		Trailing = 2,
 		Sleeping = 3,
-		Removal = 4
+		Removal = 4,
+		Crumbling = 5,
 	};
 
 	typedef int32 FEventID;

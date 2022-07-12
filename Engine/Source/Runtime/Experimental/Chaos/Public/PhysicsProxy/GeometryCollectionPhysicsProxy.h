@@ -318,6 +318,19 @@ public:
 		return INDEX_NONE;
 	}
 
+	void GetTransformGroupIndicesFromHandles(const TArray<FParticleHandle*> Handles, TArray<int32>& IndicesOut) const
+	{
+		IndicesOut.SetNumUninitialized(Handles.Num());
+		for (int32 HandleIndex = 0; HandleIndex < Handles.Num(); ++HandleIndex)
+		{
+			IndicesOut[HandleIndex] = INDEX_NONE;
+			if (const int32* TransformGroupIndex = HandleToTransformGroupIndex.Find(Handles[HandleIndex]))
+			{
+				IndicesOut[HandleIndex] = (*TransformGroupIndex);
+			}
+		}
+	}
+
 	FGeometryCollectionItemIndex GetInternalClusterParentItemIndex_External(int32 ChildTransformIndex) const
 	{
 		// first find the GTParticle matching the Transform index

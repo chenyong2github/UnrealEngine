@@ -153,7 +153,7 @@ public:
 	*    @param ClusteredParticle handle of the cluster to break
 	*    @return true if the cluster was successfully found and act upon 
 	*/
-	bool BreakCluster(const FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	bool BreakCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 	
 	//
 	// Operational 
@@ -255,6 +255,14 @@ public:
 	void ResetAllClusterBreakings() { MAllClusterBreakings.Reset(); }
 
 	/*
+	*  Cluster crumbling Data
+	*     triggered when all the children of a cluster are released all at once
+	*     event is generated only if the owning proxy allows it
+	*/
+	const TArray<FCrumblingData>& GetAllClusterCrumblings() const { return MAllClusterCrumblings; }
+	void ResetAllClusterCrumblings() { MAllClusterCrumblings.Reset(); }
+
+	/*
 	* GetConnectivityEdges
 	*    Provides a list of each rigid body's current siblings and associated strain within the cluster.
 	*/
@@ -351,7 +359,9 @@ public:
 	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
 
 	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
+
 	void SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	void SendCrumblingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesImpl(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
@@ -381,6 +391,8 @@ private:
 	bool DoGenerateBreakingData;
 	TArray<FBreakingData> MAllClusterBreakings;
 
+	TArray<FCrumblingData> MAllClusterCrumblings;
+	
 	FReal MClusterConnectionFactor;
 	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;
 };

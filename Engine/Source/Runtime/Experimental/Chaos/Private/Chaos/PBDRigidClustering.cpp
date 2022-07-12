@@ -403,6 +403,42 @@ namespace Chaos
 		}
 	}
 
+	
+	void FRigidClustering::SendCrumblingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	{
+		check(ClusteredParticle);
+		if (IPhysicsProxyBase* Proxy = ClusteredParticle->PhysicsProxy())
+		{
+			if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			{
+				FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
+				FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters(); 
+				if (SimParams.bGenerateCrumblingData)
+				{
+					FCrumblingData& ClusterCrumbling = MAllClusterCrumblings.AddDefaulted_GetRef();
+					ClusterCrumbling.Proxy = ClusteredParticle->PhysicsProxy();
+					ClusterCrumbling.Location = ClusteredParticle->X();
+					ClusterCrumbling.Orientation = ClusteredParticle->R();
+					ClusterCrumbling.LinearVelocity = ClusteredParticle->V();
+					ClusterCrumbling.AngularVelocity = ClusteredParticle->W();
+					ClusterCrumbling.Mass = ClusteredParticle->M();
+					if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
+					{
+						ClusterCrumbling.LocalBounds = ClusteredParticle->Geometry()->BoundingBox();
+					}
+					if (SimParams.bGenerateCrumblingChildrenData)
+					{
+						// when sending this event, children are still attached
+						if (const FRigidHandleArray* Children = MChildren.Find(ClusteredParticle))
+						{
+							ConcreteProxy->GetTransformGroupIndicesFromHandles(*Children, ClusterCrumbling.Children);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	TArray<FRigidClustering::FParticleIsland> FRigidClustering::FindIslandsInChildren(const FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
 		const TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
@@ -1288,10 +1324,10 @@ namespace Chaos
 
 	}
 
-	bool FRigidClustering::BreakCluster(const FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	bool FRigidClustering::BreakCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
 		// max strain will allow to unconditionally release the children when strain is evaluated
-		const FReal MaxStrain = TNumericLimits<FReal>::Max();
+		constexpr FReal MaxStrain = TNumericLimits<FReal>::Max();
 		if (TArray<FPBDRigidParticleHandle*>* ChildrenHandles = GetChildrenMap().Find(ClusteredParticle))
 		{
 			for (FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
@@ -1300,6 +1336,10 @@ namespace Chaos
 				{
 					ClusteredChildHandle->SetExternalStrain(MaxStrain);
 				}
+			}
+			if (ChildrenHandles->Num() > 0)
+			{
+				SendCrumblingEvent(ClusteredParticle);
 			}
 			return true;
 		}

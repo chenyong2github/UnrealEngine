@@ -15,6 +15,7 @@ namespace Chaos
 	struct FBreakingEventData;
 	struct FSleepingEventData;
 	struct FRemovalEventData;
+	struct FCrumblingEventData;
 }
 
 USTRUCT(BlueprintType)
@@ -71,6 +72,53 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct CHAOSSOLVERENGINE_API FChaosCrumblingEvent
+{
+	GENERATED_BODY()
+
+public:
+	FChaosCrumblingEvent()
+		: Component(nullptr)
+		, Location(FVector::ZeroVector)
+		, Orientation(FQuat::Identity)
+		, LinearVelocity(FVector::ZeroVector)
+		, AngularVelocity(FVector::ZeroVector)
+	{}
+
+	/** primitive component involved in the crumble event */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	TObjectPtr<UPrimitiveComponent> Component = nullptr;
+
+	/** World location of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	FVector Location;
+
+	/** World orientation of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	FQuat Orientation;
+
+	/** Linear Velocity of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	FVector LinearVelocity;
+
+	/** Angular Velocity of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	FVector AngularVelocity;
+
+	/** Mass of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	float Mass;
+
+	/** Local bounding box of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	FBox LocalBounds;
+	
+	/** List of children indices released (optional : see geometry collection component bCrumblingEventIncludesChildren) */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+	TArray<int32> Children;
+};
+
 typedef TFunction<void(const FChaosBreakEvent&)> FOnBreakEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
@@ -93,6 +141,18 @@ struct CHAOSSOLVERENGINE_API FRemovalEventCallbackWrapper
 
 public:
 	FOnRemovalEventCallback RemovalEventCallback;
+};
+
+typedef TFunction<void(const FChaosCrumblingEvent&)> FOnCrumblingEventCallback;
+
+/** UStruct wrapper so we can store the TFunction in a TMap */
+USTRUCT()
+struct CHAOSSOLVERENGINE_API FCrumblingEventCallbackWrapper
+{
+	GENERATED_BODY()
+
+public:
+	FOnCrumblingEventCallback CrumblingEventCallback;
 };
 
 /** UStruct wrapper so we can store the TSet in a TMap */
@@ -177,6 +237,9 @@ public:
 	void RegisterForRemovalEvents(UPrimitiveComponent* Component, FOnRemovalEventCallback InFunc);
 	void UnRegisterForRemovalEvents(UPrimitiveComponent* Component);
 
+	void RegisterForCrumblingEvents(UPrimitiveComponent* Component, FOnCrumblingEventCallback InFunc);
+	void UnRegisterForCrumblingEvents(UPrimitiveComponent* Component);
+	
 private:
 
  	UPROPERTY()
@@ -188,9 +251,14 @@ private:
 	UPROPERTY()
 	TMap<TObjectPtr<UPrimitiveComponent>, FRemovalEventCallbackWrapper> RemovalEventRegistrations;
 
+	UPROPERTY()
+	TMap<TObjectPtr<UPrimitiveComponent>, FCrumblingEventCallbackWrapper> CrumblingEventRegistrations;
+	
+
 	float LastCollisionDataTime = -1.f;
 	float LastBreakingDataTime = -1.f;
 	float LastRemovalDataTime = -1.f;
+	float LastCrumblingDataTime = -1.f;
 
 	void DispatchPendingCollisionNotifies();
 	void DispatchPendingWakeNotifies();
@@ -204,6 +272,7 @@ private:
 	void HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData);
 	void AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType);
 	void HandleRemovalEvents(const Chaos::FRemovalEventData& RemovalData);
+	void HandleCrumblingEvents(const Chaos::FCrumblingEventData& CrumblingData);
 
 };
 

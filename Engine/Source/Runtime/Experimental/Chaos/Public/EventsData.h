@@ -22,6 +22,7 @@ namespace Chaos
 	typedef TArray<FTrailingData> FTrailingDataArray;
 	typedef TArray<FRemovalData> FRemovalDataArray;
 	typedef TArray<FSleepingData> FSleepingDataArray;
+	typedef TArray<FCrumblingData> FCrumblingDataArray;
 
 	/* Common */
 
@@ -151,4 +152,49 @@ namespace Chaos
 		FSleepingDataArray SleepingData;
 	};
 
+	/*
+	* All the crumbling events for one frame time stamped with the time for that frame
+	*/
+	struct FAllCrumblingData : public FTimeResource
+	{
+		FAllCrumblingData() : AllCrumblingsArray(FCrumblingDataArray()) {}
+
+		void Reset()
+		{
+			AllCrumblingsArray.Reset();
+		}
+
+		FCrumblingDataArray AllCrumblingsArray;
+	};
+
+	struct FCrumblingEventData
+	{
+		FCrumblingEventData() {}
+
+		void Reset()
+		{
+			CrumblingData.Reset();
+			PhysicsProxyToCrumblingIndices.Reset();
+		}
+
+		FORCEINLINE_DEBUGGABLE void Reserve(int32 Num)
+		{
+			CrumblingData.AllCrumblingsArray.Reserve(Num);
+		}
+		
+		FORCEINLINE_DEBUGGABLE void SetTimeCreated(FReal TimeCreatedIn)
+		{
+			CrumblingData.TimeCreated = TimeCreatedIn;
+		}
+
+		FORCEINLINE_DEBUGGABLE void AddCrumbling(const FCrumblingData& CrumblingToAdd)
+		{
+			const int32 NewIndex = CrumblingData.AllCrumblingsArray.Emplace(CrumblingToAdd);
+			TArray<int32>& Indices = PhysicsProxyToCrumblingIndices.PhysicsProxyToIndicesMap.FindOrAdd(CrumblingToAdd.Proxy);
+			Indices.Add(NewIndex);
+		}
+		
+		FAllCrumblingData CrumblingData;
+		FIndicesByPhysicsProxy PhysicsProxyToCrumblingIndices;
+	};
 }

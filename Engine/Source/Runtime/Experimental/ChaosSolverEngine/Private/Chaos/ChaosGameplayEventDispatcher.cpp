@@ -79,6 +79,20 @@ static void DispatchPendingRemovalEvents(TArray<FChaosRemovalEvent> const& Event
 	}
 }
 
+static void DispatchPendingCrumblingEvents(TArray<FChaosCrumblingEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FCrumblingEventCallbackWrapper> const& Registrations)
+{
+	for (FChaosCrumblingEvent const& E : Events)
+	{
+		if (E.Component)
+		{
+			if (const FCrumblingEventCallbackWrapper* const Callback = Registrations.Find(E.Component))
+			{
+				Callback->CrumblingEventCallback(E);
+			}
+		}
+	}
+}
+
 static void SetCollisionInfoFromComp(FRigidBodyCollisionInfo& Info, UPrimitiveComponent* Comp)
 {
 	if (Comp)
@@ -245,6 +259,23 @@ void UChaosGameplayEventDispatcher::UnRegisterForRemovalEvents(UPrimitiveCompone
 	}
 }
 
+void UChaosGameplayEventDispatcher::RegisterForCrumblingEvents(UPrimitiveComponent* Component, FOnCrumblingEventCallback InFunc)
+{
+	if (Component)
+	{
+		FCrumblingEventCallbackWrapper F = { InFunc };
+		CrumblingEventRegistrations.Add(Component, F);
+	}
+}
+
+void UChaosGameplayEventDispatcher::UnRegisterForCrumblingEvents(UPrimitiveComponent* Component)
+{
+	if (Component)
+	{
+		CrumblingEventRegistrations.Remove(Component);
+	}
+}
+
 void UChaosGameplayEventDispatcher::DispatchPendingWakeNotifies()
 {
 	for (auto MapItr = PendingSleepNotifies.CreateIterator(); MapItr; ++MapItr)
@@ -270,6 +301,7 @@ void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
 			EventManager->RegisterHandler<Chaos::FSleepingEventData>(Chaos::EEventType::Sleeping, this, &UChaosGameplayEventDispatcher::HandleSleepingEvents);
 			EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosGameplayEventDispatcher::HandleRemovalEvents);
+			EventManager->RegisterHandler<Chaos::FCrumblingEventData>(Chaos::EEventType::Crumbling, this, &UChaosGameplayEventDispatcher::HandleCrumblingEvents);
 		}
 	}
 }
@@ -287,6 +319,7 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 				EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 				EventManager->UnregisterHandler(Chaos::EEventType::Sleeping, this);
 				EventManager->UnregisterHandler(Chaos::EEventType::Removal, this);
+				EventManager->UnregisterHandler(Chaos::EEventType::Crumbling, this);
 			}
 		}
 	}
@@ -543,3 +576,47 @@ void UChaosGameplayEventDispatcher::HandleRemovalEvents(const Chaos::FRemovalEve
 
 }
 
+void UChaosGameplayEventDispatcher::HandleCrumblingEvents(const Chaos::FCrumblingEventData& Event)
+{
+	SCOPE_CYCLE_COUNTER(STAT_DispatchCrumblingEvents);
+
+	// CRUMBLING EVENTS
+
+	const float CrumblingDataTimestamp = Event.CrumblingData.TimeCreated;
+	if (CrumblingDataTimestamp > LastCrumblingDataTime)
+	{
+		LastCrumblingDataTime = CrumblingDataTimestamp;
+
+		Chaos::FCrumblingDataArray const& BreakingData = Event.CrumblingData.AllCrumblingsArray;
+
+		// let's assume crumbles are rare, so we will iterate breaks instead of registered components for now
+		TArray<FChaosCrumblingEvent> PendingCrumblingEvent;
+		for (const Chaos::FCrumblingData& CrumblingDataItem : Event.CrumblingData.AllCrumblingsArray)
+		{	
+			if (CrumblingDataItem.Proxy)
+			{
+				if (UPrimitiveComponent* const PrimComp = Cast<UPrimitiveComponent>(CrumblingDataItem.Proxy->GetOwner()))
+				{
+					if (CrumblingEventRegistrations.Contains(PrimComp))
+					{
+						// queue them up so we can release the physics data before triggering BP events
+						FChaosCrumblingEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
+						CrumblingEvent.Component = PrimComp;
+						CrumblingEvent.Location = CrumblingDataItem.Location;
+						CrumblingEvent.Orientation = CrumblingDataItem.Orientation;
+						CrumblingEvent.LinearVelocity = CrumblingDataItem.LinearVelocity;
+						CrumblingEvent.AngularVelocity = CrumblingDataItem.AngularVelocity;
+						CrumblingEvent.Mass = static_cast<float>(CrumblingDataItem.Mass);
+						CrumblingEvent.LocalBounds = FBox(CrumblingDataItem.LocalBounds.Min(), CrumblingDataItem.LocalBounds.Max());
+						CrumblingEvent.Children = CrumblingDataItem.Children;
+					}
+				}
+			}
+		}
+		if (PendingCrumblingEvent.Num() > 0)
+		{
+			DispatchPendingCrumblingEvents(PendingCrumblingEvent, CrumblingEventRegistrations);
+		}
+	}
+
+}

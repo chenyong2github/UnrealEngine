@@ -67,6 +67,7 @@ namespace Chaos
 		RegisterTrailingEvent(EventManager);
 		RegisterSleepingEvent(EventManager);
 		RegisterRemovalEvent(EventManager);
+		RegisterCrumblingEvent(EventManager);
 	}
 
 	void FEventDefaults::RegisterCollisionEvent(FEventManager& EventManager)
@@ -551,5 +552,35 @@ namespace Chaos
 				}
 			
 			});
+	}
+
+	void FEventDefaults::RegisterCrumblingEvent(FEventManager& EventManager)
+	{
+		EventManager.template RegisterEvent<FCrumblingEventData>(EEventType::Crumbling, []
+		(const Chaos::FPBDRigidsSolver* Solver, FCrumblingEventData& CrumblingEventData, bool bResetData)
+		{
+			check(Solver);
+
+			EnsureIsInPhysicsThreadContext();
+
+			SCOPE_CYCLE_COUNTER(STAT_GatherBreakingEvent);
+
+			// @todo(chaos) : should we check for a way to globally stop this from being processed ? 
+
+			if (bResetData)
+			{
+				CrumblingEventData.Reset();
+			}
+			CrumblingEventData.SetTimeCreated(Solver->MTime);
+
+			const TArray<FCrumblingData>& AllCrumblingsArray = Solver->GetEvolution()->GetRigidClustering().GetAllClusterCrumblings();
+
+			CrumblingEventData.Reserve(AllCrumblingsArray.Num());
+			for (const FCrumblingData& Crumbling: AllCrumblingsArray)
+			{
+				// todo(chaos) : implement filtering only if necessary as crumbling event should be sparser than breaking ones
+				CrumblingEventData.AddCrumbling(Crumbling);
+			}
+		});
 	}
 }

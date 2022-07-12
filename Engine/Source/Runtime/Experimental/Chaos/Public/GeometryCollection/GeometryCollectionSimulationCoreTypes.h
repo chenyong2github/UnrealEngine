@@ -198,6 +198,8 @@ struct FSimulationParameters
 		, bGenerateCollisionData(false)
 		, bGenerateTrailingData(false)
 		, bGenerateRemovalsData(false)
+		, bGenerateCrumblingData(false)
+		, bGenerateCrumblingChildrenData(false)
 		, RemoveOnFractureEnabled(false)
 		, EnableGravity(true)
 		, UseInertiaConditioning(true)
@@ -241,6 +243,8 @@ struct FSimulationParameters
 		, bGenerateCollisionData(Other.bGenerateCollisionData)
 		, bGenerateTrailingData(Other.bGenerateTrailingData)
 		, bGenerateRemovalsData(Other.bGenerateRemovalsData)
+		, bGenerateCrumblingData(Other.bGenerateCrumblingData)
+		, bGenerateCrumblingChildrenData(Other.bGenerateCrumblingChildrenData)
 		, Shared(Other.Shared)
 		, RemoveOnFractureEnabled(Other.RemoveOnFractureEnabled)
 		, EnableGravity(Other.EnableGravity)
@@ -305,6 +309,8 @@ struct FSimulationParameters
 	bool bGenerateCollisionData;
 	bool bGenerateTrailingData;
 	bool bGenerateRemovalsData;
+	bool bGenerateCrumblingData;
+	bool bGenerateCrumblingChildrenData;
 
 	FSharedSimulationParameters Shared;
 

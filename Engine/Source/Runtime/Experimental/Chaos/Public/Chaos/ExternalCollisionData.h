@@ -180,6 +180,49 @@ namespace Chaos
 	};
 
 	/*
+	CrumblingData passed from the physics solver to subsystems
+	*/
+	struct FCrumblingData
+	{
+		FCrumblingData()
+			: Proxy(nullptr)
+			, Location(FVec3::ZeroVector)
+			, Orientation(FRotation3::Identity)
+			, LinearVelocity(FVec3::ZeroVector)
+			, AngularVelocity(FVec3::ZeroVector)
+			, Mass((FReal)0.0)
+			, LocalBounds(FAABB3(FVec3((FReal)0.0), FVec3((FReal)0.0)))
+		{}
+
+		FCrumblingData(const FCrumblingData& Other)
+			: Proxy(Other.Proxy)
+			, Location(Other.Location)
+			, Orientation(Other.Orientation)
+			, LinearVelocity(Other.LinearVelocity)
+			, AngularVelocity(Other.AngularVelocity)
+			, Mass(Other.Mass)
+			, LocalBounds(Other.LocalBounds)
+			, Children(Other.Children)
+		{}
+		
+		// The pointer to the proxy should be used with caution on the Game Thread.
+		// Ideally we only ever use this as a table key when acquiring related structures.
+		// If we genuinely need to dereference the pointer for any reason, test if it is deleted (nullptr) or
+		// pending deletion: if a call to FPhysScene_Chaos::GetOwningComponent<UPrimitiveComponent>() returns
+		// nullptr, the proxy should not be used.
+		IPhysicsProxyBase* Proxy;
+		
+		FVec3 Location;
+		FRotation3 Orientation;
+		FVec3 LinearVelocity;
+		FVec3 AngularVelocity;
+		FReal Mass;
+		FAABB3 LocalBounds;
+		// optional ( see proxy options )
+		TArray<int32> Children;
+	};
+	
+	/*
 	BreakingData used in the subsystems
 	*/
 	struct FBreakingDataExt
