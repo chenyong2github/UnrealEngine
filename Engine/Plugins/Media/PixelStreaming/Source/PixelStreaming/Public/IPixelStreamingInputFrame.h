@@ -15,7 +15,7 @@
  *     NewType2
  * }
  */
-enum EPixelStreamingInputFrameType : int32
+enum class EPixelStreamingInputFrameType : int32
 {
 	Unknown,
 	RHI,

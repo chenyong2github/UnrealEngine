@@ -18,7 +18,7 @@ public:
 	}
 	virtual ~FPixelStreamingInputFrameRHI() = default;
 
-	virtual int32 GetType() const override { return EPixelStreamingInputFrameType::RHI; }
+	virtual int32 GetType() const override { return static_cast<int32>(EPixelStreamingInputFrameType::RHI); }
 	virtual int32 GetWidth() const override { return FrameTexture->GetDesc().Extent.X; }
 	virtual int32 GetHeight() const override { return FrameTexture->GetDesc().Extent.Y; }
 

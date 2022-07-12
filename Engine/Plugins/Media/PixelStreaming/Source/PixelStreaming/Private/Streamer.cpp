@@ -57,7 +57,7 @@ namespace UE::PixelStreaming
 	{
 		VideoSourceGroup->SetVideoInput(Input);
 		Input->OnFrameReady.AddLambda([this](const IPixelStreamingInputFrame& SourceFrame) {
-			if (SourceFrame.GetType() == EPixelStreamingInputFrameType::RHI)
+			if (SourceFrame.GetType() == static_cast<int32>(EPixelStreamingInputFrameType::RHI))
 			{
 				const FPixelStreamingInputFrameRHI& RHISourceFrame = StaticCast<const FPixelStreamingInputFrameRHI&>(SourceFrame);
 

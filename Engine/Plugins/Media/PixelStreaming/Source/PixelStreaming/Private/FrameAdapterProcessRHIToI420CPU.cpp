@@ -66,7 +66,7 @@ namespace UE::PixelStreaming
 
 	void FFrameAdapterProcessRHIToI420CPU::BeginProcess(const IPixelStreamingInputFrame& InputFrame, TSharedPtr<IPixelStreamingAdaptedOutputFrame> OutputBuffer)
 	{
-		checkf(InputFrame.GetType() == EPixelStreamingInputFrameType::RHI, TEXT("Incorrect source frame coming into frame adapter process."));
+		checkf(InputFrame.GetType() == static_cast<int32>(EPixelStreamingInputFrameType::RHI), TEXT("Incorrect source frame coming into frame adapter process."));
 
 		const FPixelStreamingInputFrameRHI& RHISourceFrame = StaticCast<const FPixelStreamingInputFrameRHI&>(InputFrame);
 		FTexture2DRHIRef SourceTexture = RHISourceFrame.FrameTexture;

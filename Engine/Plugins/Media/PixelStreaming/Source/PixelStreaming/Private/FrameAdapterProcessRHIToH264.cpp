@@ -40,7 +40,7 @@ namespace UE::PixelStreaming
 
 	void FFrameAdapterProcessRHIToH264::BeginProcess(const IPixelStreamingInputFrame& InputFrame, TSharedPtr<IPixelStreamingAdaptedOutputFrame> OutputBuffer)
 	{
-		checkf(InputFrame.GetType() == EPixelStreamingInputFrameType::RHI, TEXT("Incorrect source frame coming into frame adapter process."));
+		checkf(InputFrame.GetType() == static_cast<int32>(EPixelStreamingInputFrameType::RHI), TEXT("Incorrect source frame coming into frame adapter process."));
 
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&) { MarkAdaptProcessStarted(); });

@@ -20,7 +20,7 @@ namespace UE::PixelStreaming
 		{
 		}
 
-		virtual int32 GetType() const override { return EPixelStreamingInputFrameType::User; }
+		virtual int32 GetType() const override { return static_cast<int32>(EPixelStreamingInputFrameType::User); }
 		virtual int32 GetWidth() const override { return Width; }
 		virtual int32 GetHeight() const override { return Height; }
 
