@@ -996,6 +996,9 @@ public:
 	/** Retrieves XY coordinates of tile specified by position */
 	bool GetNavMeshTileXY(const FVector& Point, int32& OutX, int32& OutY) const;
 
+	/** Checks the supplied Points tile indicies can fit in the range of an int32 */
+	bool CheckTileIndicesInValidRange(const FVector& Point, bool& bOutInRange) const;
+
 	/** Retrieves all tile indices at matching XY coordinates */
 	void GetNavMeshTilesAt(int32 TileX, int32 TileY, TArray<int32>& Indices) const;
 

@@ -1065,6 +1065,20 @@ bool ARecastNavMesh::GetNavMeshTileXY(const FVector& Point, int32& OutX, int32& 
 	return RecastNavMeshImpl && RecastNavMeshImpl->GetNavMeshTileXY(Point, OutX, OutY);
 }
 
+bool ARecastNavMesh::CheckTileIndicesInValidRange(const FVector& Point, bool& bOutInRange) const
+{
+	const dtNavMesh* const DetourNavMesh = RecastNavMeshImpl ? RecastNavMeshImpl->DetourNavMesh : nullptr;
+	const bool bValidMesh = DetourNavMesh != nullptr;
+
+	if (bValidMesh)
+	{
+		const FVector RecastPt = Unreal2RecastPoint(Point);
+		bOutInRange = DetourNavMesh->isTileLocInValidRange(&RecastPt.X);
+	}
+
+	return bValidMesh;
+}
+
 void ARecastNavMesh::GetNavMeshTilesAt(int32 TileX, int32 TileY, TArray<int32>& Indices) const
 {
 	if (RecastNavMeshImpl)

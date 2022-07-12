@@ -2089,10 +2089,38 @@ const dtMeshTile* dtNavMesh::getTile(int i) const
 	return &m_tiles[i];
 }
 
+bool dtNavMesh::isTileLocInValidRange(const dtReal tx, const dtReal ty) const
+{
+	return (tx >= (dtReal)std::numeric_limits<int>::min()) &&
+		(tx <= (dtReal)std::numeric_limits<int>::max()) &&
+		(ty >= (dtReal)std::numeric_limits<int>::min()) &&
+		(ty <= (dtReal)std::numeric_limits<int>::max());
+}
+
+void dtNavMesh::calcTileLoc(const dtReal* pos, dtReal* tx, dtReal* ty) const
+{
+	*tx = dtFloor((pos[0] - m_orig[0]) / m_tileWidth);
+	*ty = dtFloor((pos[2] - m_orig[2]) / m_tileHeight);
+}
+
 void dtNavMesh::calcTileLoc(const dtReal* pos, int* tx, int* ty) const
 {
-	*tx = (int)dtFloor((pos[0]-m_orig[0]) / m_tileWidth);
-	*ty = (int)dtFloor((pos[2]-m_orig[2]) / m_tileHeight);
+	dtReal txReal = 0.;
+	dtReal tyReal = 0.;
+
+	calcTileLoc(pos, &txReal, &tyReal);
+	
+	*tx = (int)txReal;
+	*ty = (int)tyReal;
+}
+
+bool dtNavMesh::isTileLocInValidRange(const dtReal* pos) const
+{
+	dtReal tx = 0.;
+	dtReal ty = 0.;
+
+	calcTileLoc(pos, &tx, &ty);
+	return isTileLocInValidRange(tx, ty);
 }
 
 dtStatus dtNavMesh::getTileAndPolyByRef(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const

@@ -4323,7 +4323,27 @@ FString FRecastTileGenerator::GetReferencerName() const
 	return TEXT("FRecastTileGenerator");
 }
 
-static int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeInWorldUnits, FVector::FReal AvgLayersPerGridCell, const uint32 NavMeshVersion)
+namespace UE::NavMesh::Private
+{
+void CheckTileIndicesInValidRange(const TNavStatArray<FBox>& NavigableAreas, const ARecastNavMesh& NavMesh)
+{
+	auto CheckTileHelper = [&NavMesh](const FVector& Pos) {
+		// If there are no NavigableAreas then there won't be any indices for them so default true.
+		bool bIndiciesFitInInt32 = false;
+
+		ensure(NavMesh.CheckTileIndicesInValidRange(Pos, bIndiciesFitInInt32));
+
+		UE_CLOG(!bIndiciesFitInInt32, LogNavigation, Error, TEXT("Magnitude of Recast tile indicies are too large to fit in an int32 for NavigableAreas extent %s for %s"),*Pos.ToString(), *GetFullNameSafe(&NavMesh));
+	};
+
+	for (const FBox& AreaBounds : NavigableAreas)
+	{
+		CheckTileHelper(AreaBounds.Min);
+		CheckTileHelper(AreaBounds.Max);
+	}
+}
+
+int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeInWorldUnits, FVector::FReal AvgLayersPerGridCell, const uint32 NavMeshVersion)
 {
 	int32 GridCellsCount = 0;
 	for (const FBox& AreaBounds : NavigableAreas)
@@ -4350,6 +4370,7 @@ static int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, F
 	
 	return FMath::CeilToInt(GridCellsCount * AvgLayersPerGridCell);
 }
+} // UE::NavMesh::Private
 
 // Whether navmesh is static, does not support rebuild from geometry
 static bool IsGameStaticNavMesh(ARecastNavMesh* InNavMesh)
@@ -4537,6 +4558,8 @@ void FRecastNavMeshGenerator::Init()
 							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(static_cast<float>(SavedNavParams->maxTiles)))
 							, MaxTiles, FMath::CeilToInt(FMath::Log2(static_cast<float>(MaxTiles))));
 					}
+
+					UE::NavMesh::Private::CheckTileIndicesInValidRange(InclusionBounds, *DestNavMesh);
 				}
 			}
 		};
@@ -4648,6 +4671,8 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 				bSuccess = true;
 				NumActiveTiles = GetTilesCountHelper(DetourMesh);
 				DestNavMesh->GetRecastNavMeshImpl()->SetRecastMesh(DetourMesh);
+
+				UE::NavMesh::Private::CheckTileIndicesInValidRange(InclusionBounds, *DestNavMesh);
 			}
 		}
 
@@ -4689,7 +4714,7 @@ void FRecastNavMeshGenerator::CalcNavMeshProperties(int32& MaxTiles, int32& MaxP
 	int32 MaxRequestedTiles = 0;
 	if (DestNavMesh->IsResizable())
 	{
-		MaxRequestedTiles = CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
 	}
 	else
 	{
@@ -4847,13 +4872,15 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 
 void FRecastNavMeshGenerator::OnNavigationBoundsChanged()
 {
+	check(DestNavMesh);
+
 	UpdateNavigationBounds();
 	
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl() ? DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh() : nullptr;
 	if (!IsGameStaticNavMesh(DestNavMesh) && DestNavMesh->IsResizable() && DetourMesh)
 	{
 		// Check whether Navmesh size needs to be changed
-		int32 MaxRequestedTiles = CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		const int32 MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
 		if (DetourMesh->getMaxTiles() != MaxRequestedTiles)
 		{
 			// Destroy current NavMesh
@@ -4873,6 +4900,8 @@ void FRecastNavMeshGenerator::OnNavigationBoundsChanged()
 				RebuildDirtyAreas(AsDirtyAreas);
 			}
 		}
+
+		UE::NavMesh::Private::CheckTileIndicesInValidRange(InclusionBounds, *DestNavMesh);
 	}
 }
 
