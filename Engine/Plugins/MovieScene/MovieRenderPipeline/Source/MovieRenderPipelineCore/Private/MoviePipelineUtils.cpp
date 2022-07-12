@@ -256,6 +256,7 @@ namespace MoviePipeline
 						Node->bOriginalMovieScenePackageDirty = OwningPackage->IsDirty();
 					}
 
+					Node->EvaluationType = Node->MovieScene->GetEvaluationType();
 				}
 
 				// Unlock the movie scene so we can make changes to sections below, it'll get re-locked later if needed.
@@ -319,6 +320,7 @@ namespace MoviePipeline
 				if (!bInSave)
 				{
 					Node->MovieScene->SetPlaybackRange(Node->OriginalMovieScenePlaybackRange);
+					Node->MovieScene->SetEvaluationType(Node->EvaluationType);
 #if WITH_EDITOR
 					Node->MovieScene->SetReadOnly(Node->bOriginalMovieSceneReadOnly);
 					Node->MovieScene->SetPlaybackRangeLocked(Node->bOriginalMovieScenePlaybackRangeLocked);
@@ -347,6 +349,7 @@ namespace MoviePipeline
 				Node->MovieScene->SetReadOnly(false);
 				Node->MovieScene->SetPlaybackRangeLocked(false);
 #endif
+				Node->MovieScene->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
 			}
 
 			if (Node->Section.IsValid())
