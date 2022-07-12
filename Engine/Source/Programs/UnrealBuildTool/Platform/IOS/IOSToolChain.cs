@@ -413,10 +413,9 @@ namespace UnrealBuildTool
 
 			Arguments.Add("-dead_strip");
 			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
-			Arguments.Add("-Wl");
 			if (!IsBitcodeCompilingEnabled(LinkEnvironment.Configuration))
 			{
-				Arguments.Add("-no-pie");
+				Arguments.Add("-Wl-no_pie");
 			}
 			Arguments.Add("-stdlib=libc++");
 			Arguments.Add("-ObjC");
