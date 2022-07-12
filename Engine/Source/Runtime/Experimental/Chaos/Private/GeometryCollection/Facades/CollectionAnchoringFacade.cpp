@@ -63,7 +63,7 @@ namespace Chaos::Facades
 		
 	bool FCollectionAnchoringFacade::IsAnchored(int32 TransformIndex) const
 	{
-		return AnchoredAttribute.Get()[TransformIndex];
+		return AnchoredAttribute.IsValid()? AnchoredAttribute.Get()[TransformIndex]: false;
 	}
 
 	void FCollectionAnchoringFacade::SetAnchored(int32 TransformIndex, bool bValue)

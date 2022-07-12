@@ -879,7 +879,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					CollisionParticlesPerObjectFraction);
 
 				// initialize anchoring information if available 
-				Handle->SetIsAnchored(AnchoringFacade.HasAnchoredAttribute()? AnchoringFacade.IsAnchored(TransformGroupIndex): false);
+				Handle->SetIsAnchored(AnchoringFacade.IsAnchored(TransformGroupIndex));
 				
 				if (Parameters.EnableClustering)
 				{
@@ -1247,6 +1247,9 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 			FMath::TruncToInt32(Chaos::FReal(FMath::Max(0, FMath::Min(NumCollisionParticles * CollisionParticlesPerObjectFraction, NumCollisionParticles))));
 		ClusterCreationParameters.CollisionParticles->Resize(ClampedCollisionParticlesSize);
 	}
+	Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(DynamicCollection);
+	ClusterCreationParameters.bIsAnchored = AnchoringFacade.IsAnchored(CollectionClusterIndex);
+	
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*> ChildHandlesCopy(ChildHandles);
 
 	// Construct an active cluster particle, disable children, derive M and I from children:

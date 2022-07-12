@@ -228,46 +228,53 @@ namespace Chaos
 		{
 			if (MChildren.Contains(ClusteredCurrentNode) && MChildren[ClusteredCurrentNode].Num())
 			{
-				// TQueue is a linked list, which has no preallocator.
-				TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
-				for (Chaos::FPBDRigidParticleHandle* Child : MChildren[ClusteredCurrentNode])
+				if (ClusteredCurrentNode->IsAnchored())
 				{
-					Queue.Enqueue(Child);
+					ObjectState = EObjectStateType::Kinematic;
 				}
-
-				Chaos::FPBDRigidParticleHandle* CurrentHandle;
-				while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
+				else
 				{
-					bool bIsAnchored = false;
-					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
+					// TQueue is a linked list, which has no preallocator.
+					TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
+					for (Chaos::FPBDRigidParticleHandle* Child : MChildren[ClusteredCurrentNode])
 					{
-						// @question : Maybe we should just store the leaf node bodies in a
-						// map, that will require Memory(n*log(n))
-						if (MChildren.Contains(CurrentClusterHandle))
-						{
-							for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
-							{
-								Queue.Enqueue(Child);
-							}
-						}
-						
-						bIsAnchored = CurrentClusterHandle->IsAnchored();
+						Queue.Enqueue(Child);
 					}
 
-					if (bIsAnchored)
+					Chaos::FPBDRigidParticleHandle* CurrentHandle;
+					while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
 					{
-						ObjectState = EObjectStateType::Kinematic;
-					}
-					else
-					{
-						const EObjectStateType CurrState = CurrentHandle->ObjectState();
-						if (CurrState == EObjectStateType::Kinematic)
+						bool bIsAnchored = false;
+						if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
+						{
+							// @question : Maybe we should just store the leaf node bodies in a
+							// map, that will require Memory(n*log(n))
+							if (MChildren.Contains(CurrentClusterHandle))
+							{
+								for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
+								{
+									Queue.Enqueue(Child);
+								}
+							}
+							
+							bIsAnchored = CurrentClusterHandle->IsAnchored();
+						}
+
+						if (bIsAnchored)
 						{
 							ObjectState = EObjectStateType::Kinematic;
 						}
-						else if (CurrState == EObjectStateType::Static)
+						else
 						{
-							ObjectState = EObjectStateType::Static;
+							const EObjectStateType CurrState = CurrentHandle->ObjectState();
+							if (CurrState == EObjectStateType::Kinematic)
+							{
+								ObjectState = EObjectStateType::Kinematic;
+							}
+							else if (CurrState == EObjectStateType::Static)
+							{
+								ObjectState = EObjectStateType::Static;
+							}
 						}
 					}
 				}

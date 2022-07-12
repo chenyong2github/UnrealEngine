@@ -103,7 +103,7 @@ namespace Chaos
 		NewParticle->SetClusterId(ClusterId(nullptr, Children.Num()));
 		NewParticle->SetClusterGroupIndex(ClusterGroupIndex);
 		NewParticle->SetStrains(0.0);
-		NewParticle->SetIsAnchored(false);
+		NewParticle->SetIsAnchored(Parameters.bIsAnchored);
 
 		// Update clustering data structures.
 		if (MChildren.Contains(NewParticle))
