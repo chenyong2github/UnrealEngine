@@ -1295,10 +1295,10 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 				SyncDisplay.SyncState = TEXT("Unsynced");
 				break;
 			case NVAPI_GSYNC_DISPLAY_SYNC_STATE_SLAVE:
-				SyncDisplay.SyncState = TEXT("Slave");
+				SyncDisplay.SyncState = TEXT("Follower");
 				break;
 			case NVAPI_GSYNC_DISPLAY_SYNC_STATE_MASTER:
-				SyncDisplay.SyncState = TEXT("Master");
+				SyncDisplay.SyncState = TEXT("Leader");
 				break;
 			default:
 				SyncDisplay.SyncState = TEXT("Unknown");
@@ -1344,7 +1344,7 @@ static void FillOutSyncTopologies(TArray<FSyncTopo>& SyncTopos)
 			SyncTopo.SyncStatusParams.RefreshRate = GSyncStatusParams.refreshRate;
 			SyncTopo.SyncStatusParams.HouseSyncIncoming = GSyncStatusParams.houseSyncIncoming;
 			SyncTopo.SyncStatusParams.bHouseSync = !!GSyncStatusParams.bHouseSync;
-			SyncTopo.SyncStatusParams.bInternalSlave = GSyncStatusParams.bInternalSlave;
+			SyncTopo.SyncStatusParams.bInternalSecondary = GSyncStatusParams.bInternalSlave;
 		}
 
 		// Sync Control Parameters

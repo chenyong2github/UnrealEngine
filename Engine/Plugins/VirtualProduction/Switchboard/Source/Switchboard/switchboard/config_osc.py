@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 UE4_LAUNCH = '/UE4Launch'
 UE4_LAUNCH_QUERY = '/UE4LaunchQuery'
 UE4_LAUNCH_CONFIRM = '/UE4LaunchConfirm'
@@ -21,7 +22,7 @@ CLEAR_LIVE_LINK_ADDRESSES = '/ClearAllLiveLinkAddresses'
 LIVE_LINK_STREAM_START = '/LiveLinkStreamStart'
 LIVE_LINK_STREAM_STOP = '/LiveLinkStreamStop'
 
-# Master Recording commands
+# Recording commands
 RECORD_START = '/RecordStart'
 RECORD_START_CONFIRM = '/RecordStartConfirm'
 RECORD_STOP = '/RecordStop'

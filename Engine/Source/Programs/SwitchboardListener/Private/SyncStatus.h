@@ -53,8 +53,9 @@ struct FSyncStatusParams
 	UPROPERTY()
 	bool bHouseSync;
 
+	/** Per nvapi.h comment: "means that this P2061 board receives input from another P2061 board" */
 	UPROPERTY()
-	bool bInternalSlave;
+	bool bInternalSecondary;
 };
 
 USTRUCT()

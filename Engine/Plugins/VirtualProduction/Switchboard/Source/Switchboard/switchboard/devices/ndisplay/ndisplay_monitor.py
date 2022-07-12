@@ -107,7 +107,7 @@ class nDisplayMonitor(QAbstractTableModel):
             return self.COLOR_NORMAL if is_good else self.COLOR_WARNING
 
         if colname == 'Displays':
-            is_normal = (('Slave' in value or 'Master' in value)
+            is_normal = (('Follower' in value or 'Leader' in value)
                          and ('Unsynced' not in value))
             return self.COLOR_NORMAL if is_normal else self.COLOR_WARNING
 
@@ -132,6 +132,7 @@ class nDisplayMonitor(QAbstractTableModel):
                     # the mechanism for retrieving it seems fragile.
                     # Based on: https://docs.microsoft.com/en-us/windows/release-health/release-information  # noqa
                     BUILD_TO_SDK_VERSION = {
+                        '19044': '21H2',
                         '19043': '21H1',
                         '19042': '20H2',
                         '19041': '2004',
@@ -360,19 +361,20 @@ class nDisplayMonitor(QAbstractTableModel):
                         for sync_topo in sync_topos]
         sync_sources = [source_str.get(sync_source, 'Unknown')
                         for sync_source in sync_sources]
-        bInternalSlaves = [sync_topo['syncStatusParams']['bInternalSlave']
-                           for sync_topo in sync_topos]
+        bInternalSecondaries = [
+            sync_topo['syncStatusParams']['bInternalSecondary']
+            for sync_topo in sync_topos]
 
-        sync_slaves = []
+        sync_followers = []
 
         for i in range(len(sync_sources)):
-            if bInternalSlaves[i] and sync_sources[i] == 'Vsync':
-                sync_slaves.append('Vsync(daisy)')
+            if bInternalSecondaries[i] and sync_sources[i] == 'Vsync':
+                sync_followers.append('Vsync(daisy)')
             else:
-                sync_slaves.append(sync_sources[i])
+                sync_followers.append(sync_sources[i])
 
-        if len(sync_slaves) > 0:
-            data['SyncSource'] = '\n'.join(sync_slaves)
+        if len(sync_followers) > 0:
+            data['SyncSource'] = '\n'.join(sync_followers)
         else:
             data['SyncSource'] = self.DATA_MISSING
 
