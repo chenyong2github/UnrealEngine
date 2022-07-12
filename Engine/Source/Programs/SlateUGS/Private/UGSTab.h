@@ -26,6 +26,11 @@ public:
 	bool IsSyncing() const;
 private:
 
+	void OnWorkspaceSyncComplete(
+		TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
+		EWorkspaceUpdateResult SyncResult,
+		const FString& StatusMessage);
+
 	// Core functions
 	void SetupWorkspace();
 

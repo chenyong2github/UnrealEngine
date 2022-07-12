@@ -342,10 +342,10 @@ uint32 FWorkspace::Run()
 	PendingChangeNumber = CurrentChangeNumber;
 	FPlatformAtomics::InterlockedCompareExchangePointer((void**)&ActiveWorkspace, nullptr, this);
 
-//	if(OnUpdateComplete != null)
-//	{
-//		OnUpdateComplete(Context, Result, StatusMessage);
-//	}
+	if (OnUpdateComplete)
+	{
+		OnUpdateComplete(WorkerThreadContext.ToSharedRef(), Result, StatusMessage);
+	}
 
 	WorkerThreadContext.Reset();
 	return 0;

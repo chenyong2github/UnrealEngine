@@ -200,11 +200,13 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 	if (bIsDataValid)
 	{
 		ProjectFileName = Project;
+
 		SetupWorkspace();
 		GameSyncTabView->SetStreamPathText(FText::FromString(DetectSettings->StreamName));
 		GameSyncTabView->SetProjectPathText(FText::FromString(ProjectFileName));
 		TabWidget->SetContent(GameSyncTabView); // Todo: Set GameSyncTabView data
 		TabWidget->SetLabel(FText::FromString(DetectSettings->StreamName));
+
 		return true;
 	}
 
@@ -242,6 +244,20 @@ bool UGSTab::IsSyncing() const
 	}
 
 	return false;
+}
+
+void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
+{
+	WorkspaceSettings->CurrentChangeNumber = Workspace->GetCurrentChangeNumber();
+	WorkspaceSettings->LastBuiltChangeNumber = Workspace->GetLastBuiltChangeNumber();
+	WorkspaceSettings->LastSyncResult = SyncResult;
+	WorkspaceSettings->LastSyncResultMessage = StatusMessage;
+
+	WorkspaceSettings->LastSyncTime = WorkspaceContext->StartTime;
+	// TODO check this is valid, may be off
+	WorkspaceSettings->LastSyncDurationSeconds = (FDateTime::UtcNow() - WorkspaceContext->StartTime).GetSeconds();
+
+	UserSettings->Save();
 }
 
 void UGSTab::SetupWorkspace()
@@ -300,6 +316,10 @@ void UGSTab::SetupWorkspace()
 		WorkspaceSettings->LastBuiltChangeNumber,
 		TelemetryProjectIdentifier,
 		MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()));
+
+	Workspace->OnUpdateComplete = [this] (TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage) {
+		OnWorkspaceSyncComplete(WorkspaceContext, SyncResult, StatusMessage);
+	};
 
 	// Todo: Eventually move into the sync operation
 	CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(
