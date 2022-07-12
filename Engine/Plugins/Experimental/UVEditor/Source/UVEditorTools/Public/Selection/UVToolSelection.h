@@ -66,6 +66,11 @@ public:
 
 	bool AreElementsPresentInMesh(FDynamicMesh3& Mesh) const;
 
+	/**
+	 * Utility method to construct a new selection from an existing reference selection, only with a new geometry type.
+	 */
+	FUVToolSelection GetConvertedSelection(const FDynamicMesh3& Mesh, FUVToolSelection::EType ExpectedSelectionType) const;
+
 protected:
 	
 	FMeshEdgesFromTriangleSubIndices StableEdgeIDs;
