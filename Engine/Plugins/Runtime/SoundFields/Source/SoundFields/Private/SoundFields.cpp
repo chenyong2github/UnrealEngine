@@ -5,6 +5,7 @@
 #include "DSP/AlignedBuffer.h"
 #include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
+#include "EngineAnalytics.h"
 #include "SoundFieldRendering.h"
 #include "HAL/IConsoleManager.h"
 
@@ -251,6 +252,10 @@ TUniquePtr<ISoundfieldTranscodeStream> FAmbisonicsSoundfieldFormat::CreateTransc
 
 TUniquePtr<ISoundfieldMixerStream> FAmbisonicsSoundfieldFormat::CreateMixerStream(const ISoundfieldEncodingSettingsProxy& InitialSettings)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent("Audio.Usage.SoundFields.MixerStreamCreated");
+	}
 	return TUniquePtr<ISoundfieldMixerStream>(new FAmbisonicsMixer());
 }
 

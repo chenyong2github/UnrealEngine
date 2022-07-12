@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSimpleFactory.h"
+#include "EngineAnalytics.h"
 #include "SoundSimple.h"
 
 USoundSimpleFactory::USoundSimpleFactory(const FObjectInitializer& ObjectInitializer)
@@ -35,6 +36,11 @@ UObject* USoundSimpleFactory::FactoryCreateNew(UClass* Class, UObject* InParent,
 
 	// Write out the duration to be the longest duration
 	SoundSimple->Duration = Duration;
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent("Audio.Usage.SoundUtilities.SimpleSoundCreated");
+	}
 
 	return SoundSimple;
 }
