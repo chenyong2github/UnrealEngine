@@ -3,6 +3,7 @@
 #include "SNaniteTools.h"
 #include "NaniteToolsModule.h"
 #include "SNaniteAudit.h"
+#include "NaniteAuditRegistry.h"
 #include "NaniteToolsArguments.h"
 #include "NaniteToolCommands.h"
 #include "DetailsViewArgs.h"

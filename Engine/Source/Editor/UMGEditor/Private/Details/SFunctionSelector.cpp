@@ -26,6 +26,7 @@
 #include "ScopedTransaction.h"
 #include "Components/WidgetComponent.h"
 #include "Binding/PropertyBinding.h"
+#include "WidgetBlueprintEditor.h"
 
 
 #define LOCTEXT_NAMESPACE "SFunctionSelector"

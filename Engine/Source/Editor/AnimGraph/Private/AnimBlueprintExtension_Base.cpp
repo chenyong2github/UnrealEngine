@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimBlueprintExtension_Base.h"
+#include "AnimBlueprintExtension_PropertyAccess.h"
 #include "AnimGraphNode_Base.h"
 #include "AnimationGraphSchema.h"
 #include "AnimGraphNode_CustomProperty.h"

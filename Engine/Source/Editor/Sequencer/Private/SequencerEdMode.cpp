@@ -5,6 +5,7 @@
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
 #include "MVVM/ObjectBindingModelStorageExtension.h"
+#include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/Views/STrackAreaView.h"
@@ -38,7 +39,9 @@
 #include "Tools/MotionTrailOptions.h"
 #include "SequencerCommands.h"
 #include "SnappingUtils.h"
+#include "SequencerNodeTree.h"
 #include "SequencerSettings.h"
+
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
 static TAutoConsoleVariable<bool> CVarDrawMeshTrails(

@@ -15,6 +15,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "GPUSkinCache.h"
 #include "Engine/RendererSettings.h"
+#include "IPersonaPreviewScene.h"
 
 #define LOCTEXT_NAMESPACE "SMorphTargetViewer"
 

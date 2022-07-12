@@ -34,6 +34,7 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "ToolMenus.h"
+#include "ContentBrowserPluginFilters.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

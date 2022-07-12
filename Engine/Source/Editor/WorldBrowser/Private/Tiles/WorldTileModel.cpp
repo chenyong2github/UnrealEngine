@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "UObject/Package.h"
+#include "DragAndDrop/LevelDragDropOp.h"
 #include "Engine/LevelBounds.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Editor.h"

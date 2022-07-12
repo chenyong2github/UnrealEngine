@@ -14,6 +14,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystem.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorAsset.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "PropertyEditorHelpers.h"
 #include "IAssetTools.h"
@@ -30,6 +31,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "FileHelpers.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 

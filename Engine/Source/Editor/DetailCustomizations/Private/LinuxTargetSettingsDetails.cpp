@@ -29,6 +29,7 @@
 #include "SExternalImageReference.h"
 #include "RHIDefinitions.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "ShaderFormatsPropertyDetails.h"
 
 #if WITH_ENGINE
 #include "AudioDevice.h"

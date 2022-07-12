@@ -47,6 +47,7 @@
 #include "CustomStaticScreenPercentage.h"
 #include "CustomEditorStaticScreenPercentage.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 

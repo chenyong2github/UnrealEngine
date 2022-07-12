@@ -40,6 +40,7 @@
 #include "SkeletalMeshTypes.h"
 #include "IPersonaToolkit.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "SNameComboBox.h"
 
 #define LOCTEXT_NAMESPACE "PersonaViewportToolbar"
 

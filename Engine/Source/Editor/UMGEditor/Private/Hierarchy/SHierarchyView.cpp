@@ -13,12 +13,10 @@
 
 #include "Hierarchy/SHierarchyViewItem.h"
 #include "WidgetBlueprintEditorUtils.h"
-
-
-
 #include "Widgets/Input/SSearchBox.h"
 
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Views/TreeFilterHandler.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

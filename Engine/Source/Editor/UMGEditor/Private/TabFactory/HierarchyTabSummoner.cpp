@@ -7,6 +7,7 @@
 #endif // WITH_EDITOR
 
 #include "Hierarchy/SHierarchyView.h"
+#include "WidgetBlueprintEditor.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

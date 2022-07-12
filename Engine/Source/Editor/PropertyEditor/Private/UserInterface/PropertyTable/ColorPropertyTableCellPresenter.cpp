@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"
 #include "IPropertyTableUtilities.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditorColor.h"
 #include "SResetToDefaultPropertyEditor.h"

@@ -60,6 +60,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementCommonActions.h"
+#include "Elements/Interfaces/TypedElementDetailsInterface.h"
 #include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
 #include "Elements/Actor/ActorElementLevelEditorCommonActionsCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
@@ -67,6 +68,10 @@
 #include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Elements/SMInstance/SMInstanceElementLevelEditorSelectionCustomization.h"
 #include "DerivedDataEditorModule.h"
+#include "EditorModeManager.h"
+#include "EditorViewportLayout.h"
+#include "LevelViewportTabContent.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 

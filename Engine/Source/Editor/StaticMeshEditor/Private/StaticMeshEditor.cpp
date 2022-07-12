@@ -59,7 +59,9 @@
 #include "UnrealExporter.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#include "AssetEditorModeManager.h"
+#include "StaticMeshEditorViewportClient.h"
+#include "AdvancedPreviewScene.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditor"
 

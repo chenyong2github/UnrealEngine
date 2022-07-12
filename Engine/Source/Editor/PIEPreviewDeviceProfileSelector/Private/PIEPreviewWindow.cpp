@@ -17,7 +17,8 @@
 #include "Slate/SGameLayerManager.h"
 #include "UnrealEngine.h"
 #include "PIEPreviewSettings.h"
-
+#include "PIEPreviewDevice.h"
+#include "PIEPreviewDeviceSpecification.h"
 
 #if WITH_EDITOR
 //***********************************************************************************

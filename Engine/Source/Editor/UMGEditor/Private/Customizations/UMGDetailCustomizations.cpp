@@ -32,6 +32,7 @@
 #include "Binding/PropertyBinding.h"
 #include "Components/WidgetComponent.h"
 #include "UMGEditorModule.h"
+#include "WidgetBlueprintEditor.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

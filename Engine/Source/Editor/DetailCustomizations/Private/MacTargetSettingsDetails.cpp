@@ -22,6 +22,7 @@
 #include "Widgets/Notifications/SErrorText.h"
 #include "IDetailPropertyRow.h"
 #include "RHI.h"
+#include "ShaderFormatsPropertyDetails.h"
 
 namespace MacTargetSettingsDetailsConstants
 {

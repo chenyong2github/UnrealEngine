@@ -50,6 +50,8 @@
 #include "ActorGroupingUtils.h"
 #include "IMergeActorsModule.h"
 #include "IMergeActorsTool.h"
+#include "SLevelEditor.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportContextMenu"
 

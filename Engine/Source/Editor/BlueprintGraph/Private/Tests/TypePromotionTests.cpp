@@ -3,6 +3,8 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
+#include "BlueprintActionDatabase.h"
+#include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintTypePromotion.h"
 #include "EdGraph/EdGraphPin.h"
 #include "K2Node_PromotableOperator.h"

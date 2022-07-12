@@ -109,6 +109,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
+#include "EditorModeManager.h"
 
 #include "Internationalization/Culture.h"
 

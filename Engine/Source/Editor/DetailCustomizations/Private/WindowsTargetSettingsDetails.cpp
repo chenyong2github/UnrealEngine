@@ -30,6 +30,7 @@
 #include "SExternalImageReference.h"
 #include "UnrealEngine.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "ShaderFormatsPropertyDetails.h"
 
 #if WITH_ENGINE
 #include "AudioDevice.h"

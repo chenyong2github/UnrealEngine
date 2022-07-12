@@ -19,6 +19,7 @@
 #include "EngineUtils.h"
 #include "UnrealEdGlobals.h"
 #include "BehaviorTreeGraphNode_Decorator.h"
+#include "BehaviorTreeGraphNode_Root.h"
 #include "BehaviorTreeGraphNode_Service.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTreeDelegates.h"

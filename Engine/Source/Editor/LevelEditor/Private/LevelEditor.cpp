@@ -34,6 +34,8 @@
 #include "CommonMenuExtensionsModule.h"
 #include "ProjectDescriptor.h"
 #include "PlatformInfo.h"
+#include "Editor.h"
+#include "SLevelViewport.h"
 
 // @todo Editor: remove this circular dependency
 #include "Interfaces/IMainFrameModule.h"

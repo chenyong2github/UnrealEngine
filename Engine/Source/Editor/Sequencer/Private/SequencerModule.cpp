@@ -29,6 +29,7 @@
 #include "MVVM/TrackModelStorageExtension.h"
 #include "MVVM/TrackRowModelStorageExtension.h"
 #include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"

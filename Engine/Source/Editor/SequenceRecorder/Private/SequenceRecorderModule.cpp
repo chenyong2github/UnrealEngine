@@ -47,6 +47,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "SequenceRecorderUtils.h"
 #include "Animation/AnimSequence.h"
+#include "LevelSequence.h"
 
 #define LOCTEXT_NAMESPACE "SequenceRecorder"
 

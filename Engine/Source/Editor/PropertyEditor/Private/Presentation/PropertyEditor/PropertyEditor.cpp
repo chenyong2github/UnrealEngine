@@ -22,6 +22,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ActorTreeItem.h"
 #include "PropertyHandleImpl.h"
+#include "IPropertyUtilities.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 

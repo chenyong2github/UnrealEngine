@@ -52,6 +52,7 @@
 #include "IContentBrowserSingleton.h"
 #include "Animation/MirrorDataTable.h"
 #include "ScopedTransaction.h"
+#include "SNameComboBox.h"
 
 #define LOCTEXT_NAMESPACE "AnimViewportToolBar"
 

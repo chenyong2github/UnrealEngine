@@ -92,6 +92,8 @@
 #include "SInViewportDetails.h"
 #include "Viewports/InViewportUIDragOperation.h"
 #include "SActorEditorContext.h"
+#include "LevelViewportLayout.h"
+#include "EditorViewportTabContent.h"
 
 static const FName LevelEditorName("LevelEditor");
 static FAutoConsoleCommand EnableInViewportMenu(TEXT("Editor.EnableInViewportMenu"), TEXT("Enables the new in-viewport property menu"), FConsoleCommandDelegate::CreateStatic(&SLevelViewport::EnableInViewportMenu));
