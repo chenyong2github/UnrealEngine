@@ -51,16 +51,9 @@ namespace UE::PixelStreaming
         /**
          * Controller handling
          */
-    	UE_DEPRECATED(5.1, "This version of HandleOnControllerAnalog is deprecated, use HandleOnControllerAnalogWithPlatformUser instead.")
         virtual void HandleOnControllerAnalog(FMemoryReader& Ar);
-    	UE_DEPRECATED(5.1, "This version of HandleOnControllerButtonPressed is deprecated, use HandleOnControllerButtonPressedWithPlatformUser instead.")
         virtual void HandleOnControllerButtonPressed(FMemoryReader& Ar);
-    	UE_DEPRECATED(5.1, "This version of HandleOnControllerButtonReleased is deprecated, use HandleOnControllerButtonReleasedWithPlatformUser instead.")
         virtual void HandleOnControllerButtonReleased(FMemoryReader& Ar);
-
-    	virtual void HandleOnControllerAnalogWithPlatformUser(FMemoryReader& Ar);
-    	virtual void HandleOnControllerButtonPressedWithPlatformUser(FMemoryReader& Ar);
-    	virtual void HandleOnControllerButtonReleasedWithPlatformUser(FMemoryReader& Ar);
     	
         /**
          * Mouse handling
