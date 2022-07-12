@@ -3,13 +3,11 @@
 
 #include "SMassDebuggerViewBase.h"
 #include "MassDebuggerModel.h"
-
+#include "Widgets/SBoxPanel.h"
 
 struct FMassDebuggerProcessingGraph;
 struct FMassDebuggerModel;
 template<typename T> class STreeView;
-class SVerticalBox;
-
 
 struct FMassDebuggerProcessingGraphNodeTreeItem
 {

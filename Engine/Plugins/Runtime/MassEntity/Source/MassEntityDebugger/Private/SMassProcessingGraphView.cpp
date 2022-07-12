@@ -4,7 +4,6 @@
 #include "MassDebuggerModel.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
 #include "Styling/SlateBrush.h"
 #include "MassDebuggerStyle.h"
 #include "Widgets/Views/STreeView.h"

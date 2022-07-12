@@ -5,41 +5,11 @@
 #include "MassDebuggerStyle.h"
 #include "SMassQuery.h"
 #include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"
 
-
 #define LOCTEXT_NAMESPACE "SMassDebugger"
-
-
-//----------------------------------------------------------------------//
-// SMassQueryTableRow
-//----------------------------------------------------------------------//
-using FMassDebuggerQueryDataPtr = TSharedPtr<FMassDebuggerQueryData, ESPMode::ThreadSafe>;
-
-class SMassQueryTableRow : public STableRow<FMassDebuggerQueryDataPtr>
-{
-public:
-	SLATE_BEGIN_ARGS(SMassQueryTableRow) {}
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FMassDebuggerQueryDataPtr InEntryItem)
-	{
-		Item = InEntryItem;
-
-		STableRow<FMassDebuggerQueryDataPtr>::Construct(STableRow<FMassDebuggerQueryDataPtr>::FArguments(), InOwnerTableView);
-
-		ChildSlot
-			[
-				SNew(SMassQuery, Item)
-			];
-	}
-
-	FMassDebuggerQueryDataPtr Item;
-};
 
 //----------------------------------------------------------------------//
 // SMassProcessor

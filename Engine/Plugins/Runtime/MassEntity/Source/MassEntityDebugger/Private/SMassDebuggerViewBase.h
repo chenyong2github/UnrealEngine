@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
-
+#include "Types/SlateEnums.h"
 
 struct FMassDebuggerProcessorData;
 struct FMassDebuggerArchetypeData;

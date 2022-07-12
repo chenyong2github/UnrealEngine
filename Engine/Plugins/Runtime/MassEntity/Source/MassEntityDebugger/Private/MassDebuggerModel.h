@@ -5,6 +5,7 @@
 #include "MassEntityQuery.h"
 #include "MassProcessorDependencySolver.h"
 #include "MassProcessingTypes.h"
+#include "Types/SlateEnums.h"
 #include "MassDebugger.h"
 
 
