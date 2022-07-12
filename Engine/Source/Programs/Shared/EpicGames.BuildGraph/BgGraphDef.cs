@@ -705,8 +705,9 @@ namespace EpicGames.BuildGraph
 			{
 				foreach (BgLabelDef label in node.Labels)
 				{
-					labels.Add(label);
 					label.RequiredNodes.Add(node);
+					label.IncludedNodes.Add(node);
+					labels.Add(label);
 				}
 			}
 			foreach (BgAggregateExpressionDef aggregate in Aggregates)
@@ -714,6 +715,7 @@ namespace EpicGames.BuildGraph
 				if (aggregate.Label != null)
 				{
 					aggregate.Label.RequiredNodes.UnionWith(aggregate.RequiredNodes);
+					aggregate.Label.IncludedNodes.UnionWith(aggregate.RequiredNodes);
 					labels.Add(aggregate.Label);
 				}
 			}
