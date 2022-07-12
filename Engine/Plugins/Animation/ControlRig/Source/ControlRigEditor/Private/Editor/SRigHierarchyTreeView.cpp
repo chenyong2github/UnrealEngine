@@ -722,13 +722,20 @@ TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType
 	{
 		case ERigElementType::Control:
 		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
 			if(const FRigControlElement* Control = InHierarchy->Find<FRigControlElement>(InKey))
 			{
 				FLinearColor ShapeColor = FLinearColor::White;
 				
 				if(Control->Settings.SupportsShape())
 				{
+					if(Control->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+					{
+						Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.ProxyControl");
+					}
+					else
+					{
+						Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
+					}
 					ShapeColor = Control->Settings.ShapeColor;
 				}
 				else
@@ -741,6 +748,10 @@ TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType
 				// ensure the alpha is always visible
 				ShapeColor.A = 1.f;
 				Color = FSlateColor(ShapeColor);
+			}
+			else
+			{
+				Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
 			}
 			break;
 		}
