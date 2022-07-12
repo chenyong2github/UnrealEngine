@@ -17,6 +17,7 @@ int					{ParameterName}_MaterialType;
 float4				{ParameterName}_UVUniforms[3];
 uint4				{ParameterName}_PageTableUniforms[2];
 float2				{ParameterName}_WorldHeightUnpack;
+float3				{ParameterName}_SystemLWCTile;
 SamplerState		{ParameterName}_SharedSampler;
 
 void GetAttributesValid_{ParameterName}(out bool BaseColorValid, out bool SpecularValid, out bool RoughnessValid, out bool NormalValid, out bool WorldHeightValid, out bool MaskValid)
@@ -85,7 +86,10 @@ void SampleRVT_{ParameterName}(in float3 WorldPosition, out float3 BaseColor, ou
 	Mask = 1.0f;
 
 	// Get Sample Location
-	float2 SampleUV = VirtualTextureWorldToUV(LWCPromote(WorldPosition), LWCPromote({ParameterName}_UVUniforms[0].xyz), {ParameterName}_UVUniforms[1].xyz, {ParameterName}_UVUniforms[2].xyz);
+	FLWCVector3 LWCWorldPosition = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
+	FLWCVector3 LWCUVOrigin = MakeLWCVector3({ParameterName}_SystemLWCTile, {ParameterName}_UVUniforms[0].xyz);
+
+	float2 SampleUV = VirtualTextureWorldToUV(LWCWorldPosition, LWCUVOrigin, {ParameterName}_UVUniforms[1].xyz, {ParameterName}_UVUniforms[2].xyz);
 
 	// Sample Textures
 	float4 LayerSample[3];
