@@ -3741,7 +3741,7 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 				}
 				
 				constexpr bool bMarkDirty = false;
-				Instance->SetActorLabel(StrName, bMarkDirty);
+				Instance->SetActorLabel(ActorLabel, bMarkDirty);
 			}
 #endif // WITH_EDITOR
 		}
