@@ -29,6 +29,7 @@ void FTitleFileEOSGS::Initialize()
 
 void FTitleFileEOSGS::LoadConfig()
 {
+	Super::LoadConfig();
 	Super::LoadConfig(Config);
 }
 

@@ -25,6 +25,7 @@ void FUserFileOSSAdapter::PostInitialize()
 
 void FUserFileOSSAdapter::LoadConfig()
 {
+	Super::LoadConfig();
 	Super::LoadConfig(Config);
 }
 

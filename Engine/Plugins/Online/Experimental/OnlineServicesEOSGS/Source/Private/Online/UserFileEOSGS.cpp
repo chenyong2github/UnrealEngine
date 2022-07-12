@@ -32,6 +32,7 @@ void FUserFileEOSGS::Initialize()
 
 void FUserFileEOSGS::LoadConfig()
 {
+	Super::LoadConfig();
 	Super::LoadConfig(Config);
 }
 
