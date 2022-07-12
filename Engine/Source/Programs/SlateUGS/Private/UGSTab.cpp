@@ -281,7 +281,7 @@ void UGSTab::SetupWorkspace()
 	DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
 
 	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(
-		TabWidget,
+		FSlateApplication::Get().GetActiveModalWindow(),
 		DetectSettings.ToSharedRef(),
 		LOCTEXT("OpeningProjectTitle", "Opening Project"),
 		LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));

@@ -83,7 +83,8 @@ FReply SSyncFilterWindow::OnShowCombinedFilterClicked()
 	TSharedRef<SPopupTextWindow> CombinedFilterWindow = SNew(SPopupTextWindow)
 		.TitleText(FText::FromString("Combined Sync Filter"))
 		.BodyText(FText::FromString(FString::Join(Tab->GetCombinedSyncFilter(), TEXT("\n"))))
-		.BodyTextJustification(ETextJustify::Left);
+		.BodyTextJustification(ETextJustify::Left)
+		.ShowScrollBars(true);
 	FSlateApplication::Get().AddModalWindow(CombinedFilterWindow, SharedThis(this), false);
 	return FReply::Handled();
 }
