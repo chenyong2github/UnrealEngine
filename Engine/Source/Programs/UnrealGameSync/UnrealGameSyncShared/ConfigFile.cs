@@ -310,9 +310,9 @@ namespace UnrealGameSync
 			{
 				while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 				{
-					string name = reader.GetString();
+					string name = reader.GetString()!;
 					reader.Read();
-					string value = reader.GetString();
+					string value = reader.GetString()!;
 					obj.Pairs.Add(KeyValuePair.Create(name, value));
 				}
 			}

@@ -121,7 +121,7 @@ namespace UnrealGameSync
 		public static T LoadJson<T>(FileReference file)
 		{
 			byte[] data = FileReference.ReadAllBytes(file);
-			return JsonSerializer.Deserialize<T>(data, DefaultJsonSerializerOptions);
+			return JsonSerializer.Deserialize<T>(data, DefaultJsonSerializerOptions)!;
 		}
 
 		public static void SaveJson<T>(FileReference file, T obj)
@@ -320,7 +320,7 @@ namespace UnrealGameSync
 				options.PropertyNameCaseInsensitive = true;
 				options.Converters.Add(new JsonStringEnumConverter());
 
-				ProjectJson project = JsonSerializer.Deserialize<ProjectJson>(text, options);
+				ProjectJson project = JsonSerializer.Deserialize<ProjectJson>(text, options)!;
 
 				return project.Enterprise;
 			}
