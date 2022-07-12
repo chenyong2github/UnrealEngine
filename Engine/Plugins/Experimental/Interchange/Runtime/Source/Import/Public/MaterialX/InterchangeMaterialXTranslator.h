@@ -325,6 +325,24 @@ protected:
 	 */
 	FString GetColorSpace(MaterialX::ElementPtr Element) const;
 
+	/**
+	 * Helper function that returns a color after a color space conversion, the function makes no assumption on the input, and it should have a value of Color3 type
+	 * 
+	 * @param Input - The input that has a Color3 value in it
+	 * 
+	 * @return The linear color after color space conversion
+	 */
+	FLinearColor MakeLinearColorFromColor3(MaterialX::InputPtr Input) const;
+
+	/**
+	 * Helper function that returns a color after a color space conversion, the function makes no assumption on the input, and it should have a value of Color3 type
+	 *
+	 * @param Input - The input that has a Color3 value in it
+	 *
+	 * @return The linear color after color space conversion
+	 */
+	FLinearColor MakeLinearColorFromColor4(MaterialX::InputPtr Input) const;
+
 private:
 
 	TMap<TPair<FString, FString>, FString> InputNamesMaterialX2UE; //given a MaterialX node (category - input), return the UE/Interchange input name.
