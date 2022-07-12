@@ -418,7 +418,7 @@ namespace UnrealBuildTool
 			Result += " -Wl";
 			if (!IsBitcodeCompilingEnabled(LinkEnvironment.Configuration))
 			{
-				Result += "-no_pie";
+				Result += "-no-pie";
 			}
 			Result += " -stdlib=libc++";
 			Result += " -ObjC";
