@@ -326,7 +326,14 @@ ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute(bool bExclusiveS
 	}
 	else
 	{
-		CurrentTask = CurrentTask->Continuation;
+		if ( CurrentTask->Result.IsSet() )
+		{
+			CurrentTask = CurrentTask->Result->Get() ? CurrentTask->Continuation : nullptr;
+		}
+		else
+		{
+			CurrentTask = CurrentTask->Continuation;
+		}
 
 		if (( TranslatorTask = CurrentTask.Get()) != nullptr )
 		{
