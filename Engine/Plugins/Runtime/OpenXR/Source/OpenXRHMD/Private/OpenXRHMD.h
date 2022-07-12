@@ -65,6 +65,13 @@ public:
 		XrPosef BasePose;
 	};
 
+	struct FPluginViewInfo
+	{
+		class IOpenXRExtensionPlugin* Plugin = nullptr;
+		EStereoscopicPass PassType = EStereoscopicPass::eSSP_PRIMARY;
+		bool bIsPluginManaged = false;
+	};
+
 	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
 	// when the game thread progresses to the next frame while the render thread is still working on the previous frame.
 	struct FPipelinedFrameState
@@ -78,7 +85,7 @@ public:
 		float PixelDensity = 1.0f;
 
 		TArray<XrViewConfigurationView> ViewConfigs;
-		TArray<class IOpenXRExtensionPlugin*> PluginViews;
+		TArray<FPluginViewInfo> PluginViewInfos;
 
 		bool bXrFrameStateUpdated = false;
 	};
