@@ -247,6 +247,16 @@ FString UGSTab::GetSyncProgress() const
 	return Workspace->GetCurrentProgress().Key;
 }
 
+const TArray<FString>& UGSTab::GetSyncFilters() const
+{
+	return WorkspaceSettings->SyncView;
+}
+
+const TArray<FString>& UGSTab::GetCombinedSyncFilter() const
+{
+	return CombinedSyncFilter;
+}
+
 // This is getting called on a thread, lock our stuff up
 void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
 {
@@ -324,7 +334,6 @@ void UGSTab::SetupWorkspace()
 		OnWorkspaceSyncComplete(WorkspaceContext, SyncResult, StatusMessage);
 	};
 
-	// Todo: Eventually move into the sync operation
 	CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(
 		Workspace->GetSyncCategories(),
 		UserSettings->SyncView,

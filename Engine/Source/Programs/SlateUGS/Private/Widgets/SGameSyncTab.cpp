@@ -7,13 +7,13 @@
 #include "SPositiveActionButton.h"
 #include "SSimpleComboButton.h"
 #include "SSimpleButton.h"
+#include "SSyncFilterWindow.h"
 #include "Widgets/SLogWidget.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Testing/STestSuite.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Colors/SSimpleGradient.h"
 #include "Widgets/Images/SThrobber.h"
-
 
 #include "Styling/AppStyle.h"
 
@@ -226,6 +226,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Filter", "Filter"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSyncFilterWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()

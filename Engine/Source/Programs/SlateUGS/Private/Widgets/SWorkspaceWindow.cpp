@@ -8,7 +8,7 @@
 #include "UGSTab.h"
 #include "HordeBuildRowInfo.h"
 #include "SGameSyncTab.h"
-#include "SErrorWindow.h"
+#include "SPopupTextWindow.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
@@ -177,11 +177,9 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
 				.Padding(10.0f, 0.0f)
-				.FillWidth(6) // Todo: figure out how to right justify below buttons without using this invisible dummy button as a space filler
+				.FillWidth(6)
 				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.Visibility(EVisibility::Hidden)
+					SNew(SSpacer)
 				]
 				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Fill)
@@ -217,8 +215,9 @@ FReply SWorkspaceWindow::OnOkClicked()
 	else
 	{
 		// Todo: report other errors (no workspace associated with the file)
+		FText Title = FText::FromString("Error");
 		FText Error = FText::FromString("Project file does not exist, try again");
-		FSlateApplication::Get().AddModalWindow(SNew(SErrorWindow).ErrorText(Error), SharedThis(this), false);
+		FSlateApplication::Get().AddModalWindow(SNew(SPopupTextWindow).TitleText(Title).BodyText(Error), SharedThis(this), false);
 	}
 
 	return FReply::Handled();

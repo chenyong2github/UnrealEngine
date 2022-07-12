@@ -25,6 +25,8 @@ public:
 	void OnSyncLatest();
 	bool IsSyncing() const;
 	FString GetSyncProgress() const;
+	const TArray<FString>& GetSyncFilters() const; // Todo: is return type okay?
+	const TArray<FString>& GetCombinedSyncFilter() const; // Todo: is return type okay?
 private:
 
 	void OnWorkspaceSyncComplete(

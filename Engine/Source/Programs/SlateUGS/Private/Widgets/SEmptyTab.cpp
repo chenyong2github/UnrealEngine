@@ -56,7 +56,7 @@ void SEmptyTab::Construct(const FArguments& InArgs)
 						SNew(SButton)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
-						.Text(LOCTEXT("OpenProject", "OpenProject"))
+						.Text(LOCTEXT("OpenProject", "Open Project"))
 						.OnClicked(this, &SEmptyTab::OnOpenProjectClicked)
 					]
 				]

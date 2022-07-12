@@ -2,21 +2,23 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWindow.h"
 
 class UGSTab;
 
-class SEmptyTab : public SCompoundWidget
+class SSyncFilterWindow : public SWindow
 {
 public:
-	SLATE_BEGIN_ARGS(SEmptyTab) {}
+	SLATE_BEGIN_ARGS(SSyncFilterWindow) {}
 		SLATE_ARGUMENT(UGSTab*, Tab)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
 private:
-	FReply OnOpenProjectClicked();
+	FReply OnShowCombinedFilterClicked();
+	FReply OnOkClicked();
+	FReply OnCancelClicked();
 
 	UGSTab* Tab;
 };

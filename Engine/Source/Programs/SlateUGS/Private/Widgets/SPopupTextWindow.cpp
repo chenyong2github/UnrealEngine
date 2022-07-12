@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SErrorWindow.h"
+#include "SPopupTextWindow.h"
 
-#define LOCTEXT_NAMESPACE "ErrorWindow"
+#define LOCTEXT_NAMESPACE "PopupTextWindow"
 
-void SErrorWindow::Construct(const FArguments& InArgs)
+void SPopupTextWindow::Construct(const FArguments& InArgs)
 {
 	SWindow::Construct(SWindow::FArguments()
-	.Title(LOCTEXT("WindowTitle", "Error"))
+	.Title(InArgs._TitleText)
 	.SizingRule(ESizingRule::Autosized)
 	.MaxWidth(400)
 	[
@@ -19,8 +19,8 @@ void SErrorWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(STextBlock)
 			.AutoWrapText(true)
-			.Justification(ETextJustify::Center)
-			.Text(InArgs._ErrorText)
+			.Justification(InArgs._BodyTextJustification)
+			.Text(InArgs._BodyText)
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -28,7 +28,7 @@ void SErrorWindow::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
-			.Text(LOCTEXT("ErrorWindowOkayButtonText", "Ok"))
+			.Text(LOCTEXT("PopupTextWindowOkayButtonText", "Ok"))
 			.OnClicked_Lambda([this]()
 			{
 				SharedThis(this)->RequestDestroyWindow();
