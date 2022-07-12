@@ -18,7 +18,7 @@ namespace UE
 	{
 		namespace Private
 		{
-			UInterchangeLightNode* FFbxLight::CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName, const FbxLight& LightAttribute)
+			UInterchangeBaseLightNode* FFbxLight::CreateLightNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName, const FbxLight& LightAttribute)
 			{
 				UClass* LightClass;
 
@@ -42,18 +42,18 @@ namespace UE
 					break;
 				}
 
-				UInterchangeLightNode* LightNode = NewObject<UInterchangeLightNode>(&NodeContainer, LightClass, NAME_None);
-				if (!ensure(LightNode))
+				UInterchangeBaseLightNode* BaseLightNode = NewObject<UInterchangeBaseLightNode>(&NodeContainer, LightClass, NAME_None);
+				if (!ensure(BaseLightNode))
 				{
 					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 					Message->Text = LOCTEXT("CannotAllocateNode", "Cannot allocate a node when importing FBX.");
 					return nullptr;
 				}
 
-				LightNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
-				NodeContainer.AddNode(LightNode);
+				BaseLightNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
+				NodeContainer.AddNode(BaseLightNode);
 
-				return LightNode;
+				return BaseLightNode;
 			}
 
 			void FFbxLight::AddLightsRecursively(FbxNode* Node, UInterchangeBaseNodeContainer& NodeContainer)
@@ -65,10 +65,10 @@ namespace UE
 
 					if (NodeAttribute && NodeAttribute->GetAttributeType() == FbxNodeAttribute::eLight)
 					{
-						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
-						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeLightNode::StaticAssetTypeName());
+						FString NodeName = FFbxHelper::GetNodeAttributeName(NodeAttribute, UInterchangeBaseLightNode::StaticAssetTypeName());
+						FString NodeUid = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, UInterchangeBaseLightNode::StaticAssetTypeName());
 
-						const UInterchangeLightNode* LightNode = Cast<const UInterchangeLightNode>(NodeContainer.GetNode(NodeUid));
+						const UInterchangeBaseLightNode* LightNode = Cast<const UInterchangeBaseLightNode>(NodeContainer.GetNode(NodeUid));
 
 						if (!LightNode)
 						{
