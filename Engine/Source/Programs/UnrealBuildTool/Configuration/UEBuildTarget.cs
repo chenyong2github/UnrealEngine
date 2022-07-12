@@ -3662,7 +3662,7 @@ namespace UnrealBuildTool
 				EnabledUbtPlugins.SortBy(P => P.FullName);
 
 				// Build the plugins
-				bool bCompiled = PluginsBase.BuildUbtPlugins(ProjectFile, EnabledUbtPlugins, Logger, out BuiltPlugins);
+				bool bCompiled = PluginsBase.BuildUbtPlugins(ProjectFile, EnabledUbtPlugins, RulesAssembly.PreprocessorDefines, Logger, out BuiltPlugins);
 				if (!bCompiled)
 				{
 					throw new BuildException("Not all plugins compiled");

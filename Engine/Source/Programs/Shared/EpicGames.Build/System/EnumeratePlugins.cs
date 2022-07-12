@@ -133,11 +133,12 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <param name="FoundPlugins">Collection of plugins to build</param>
+		/// <param name="DefineConstants">Collection of constants to add to the projects</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <param name="Plugins">Collection of built plugins</param>
 		/// <returns>True if the plugins compiled</returns>
-		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins, ILogger Logger,
-			out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
+		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins,
+			List<string>? DefineConstants, ILogger Logger, out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
 		{
 			bool bBuildSuccess = true;
 			Plugins = null;
@@ -153,7 +154,7 @@ namespace UnrealBuildBase
 			{
 				Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)>? BuiltPlugins =
 					CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, new HashSet<FileReference>(NotBuilt),
-					GetBaseDirectories(ProjectFile), false, false, true, out bBuildSuccess,
+					GetBaseDirectories(ProjectFile), DefineConstants, false, false, true, out bBuildSuccess,
 					Count =>
 					{
 						if (Log.OutputFile != null)

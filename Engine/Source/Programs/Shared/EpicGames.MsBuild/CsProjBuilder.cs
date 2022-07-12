@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 
 namespace EpicGames.MsBuild
@@ -151,19 +152,40 @@ namespace EpicGames.MsBuild
 		/// <summary>
 		/// Builds multiple projects
 		/// </summary>
+		/// <param name="FoundProjects">Collection of project to be built</param>
+		/// <param name="bForceCompile">If true, force the compilation of the projects</param>
+		/// <param name="bBuildSuccess">Set to true/false depending on if all projects compiled or are up-to-date</param>
+		/// <param name="Hook">Interface to fetch data about the building environment</param>
+		/// <param name="BaseDirectories">Base directories of the engine and project</param>
+		/// <param name="DefineConstants">Collection of constants to be defined while building projects</param>
+		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
+		/// <param name="Logger">Destination logger</param>
 		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects, ILogger Logger)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, 
+			List<string> DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 
 			// Register the MS build path prior to invoking the internal routine.  By not having the internal routine
 			// inline, we avoid having the issue of the Microsoft.Build libraries being resolved prior to the build path
 			// being set.
 			RegisterMsBuildPath(Hook);
-			return BuildInternal(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects, Logger);
+			return BuildInternal(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, DefineConstants, OnBuildingProjects, Logger);
 		}
 
+		/// <summary>
+		/// Builds multiple projects.  This is the internal implementation invoked after the MS build path is set
+		/// </summary>
+		/// <param name="FoundProjects">Collection of project to be built</param>
+		/// <param name="bForceCompile">If true, force the compilation of the projects</param>
+		/// <param name="bBuildSuccess">Set to true/false depending on if all projects compiled or are up-to-date</param>
+		/// <param name="Hook">Interface to fetch data about the building environment</param>
+		/// <param name="BaseDirectories">Base directories of the engine and project</param>
+		/// <param name="DefineConstants">Collection of constants to be defined while building projects</param>
+		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
+		/// <param name="Logger">Destination logger</param>
 		private static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildInternal(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects, ILogger Logger)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, List<string> DefineConstants,
+			Action<int> OnBuildingProjects, ILogger Logger)
 		{
 			Dictionary<string, string> GlobalProperties = new Dictionary<string, string>
 			{
@@ -174,6 +196,11 @@ namespace EpicGames.MsBuild
 				{ "Configuration", "Development" },
 #endif
 			};
+
+			if (DefineConstants.Count > 0)
+			{
+				GlobalProperties.Add("DefineConstants", String.Join(';', DefineConstants));
+			}
 
 			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
 

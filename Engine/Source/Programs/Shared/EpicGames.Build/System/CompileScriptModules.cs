@@ -114,7 +114,7 @@ namespace UnrealBuildBase
 				GameFolders: Unreal.IsEngineInstalled() ? GameDirectories : new List<DirectoryReference>(), 
 				ForeignPlugins: null, AdditionalSearchPaths: AdditionalDirectories.Concat(GameBuildDirectories).ToList()));
 
-			return GetTargetPaths(Build(RulesFileType, FoundProjects, BaseDirectories, bForceCompile, bNoCompile, bUseBuildRecords, out bBuildSuccess, OnBuildingProjects, Logger));
+			return GetTargetPaths(Build(RulesFileType, FoundProjects, BaseDirectories, null, bForceCompile, bNoCompile, bUseBuildRecords, out bBuildSuccess, OnBuildingProjects, Logger));
 		}
 
 		/// <summary>
@@ -149,6 +149,7 @@ namespace UnrealBuildBase
 		/// <param name="RulesFileType"></param>
 		/// <param name="FoundProjects">Projects to be compiled</param>
 		/// <param name="BaseDirectories">Base directories for all the projects</param>
+		/// <param name="DefineConstants">Collection of constants to be added to the project</param>
 		/// <param name="bForceCompile"></param>
 		/// <param name="bNoCompile"></param>
 		/// <param name="bUseBuildRecords"></param>
@@ -157,7 +158,8 @@ namespace UnrealBuildBase
 		/// <param name="Logger"></param>
 		/// <returns>Collection of all the projects.  They will have been compiled.</returns>
 		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(Rules.RulesFileType RulesFileType,
-			HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, bool bForceCompile, bool bNoCompile, bool bUseBuildRecords,
+			HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, List<string>? DefineConstants, 
+			bool bForceCompile, bool bNoCompile, bool bUseBuildRecords,
 			out bool bBuildSuccess, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 			CsProjBuildHook Hook = new Hook(Logger);
@@ -244,7 +246,8 @@ namespace UnrealBuildBase
 			}
 
 			// Fall back to the slower approach: use msbuild to load csproj files & build as necessary
-			return Build(FoundProjects, bForceCompile || !bUseBuildRecords, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects, Logger);
+			return Build(FoundProjects, bForceCompile || !bUseBuildRecords, out bBuildSuccess, Hook, BaseDirectories,
+				DefineConstants, OnBuildingProjects, Logger);
 		}
 
 		/// <summary>
@@ -254,9 +257,9 @@ namespace UnrealBuildBase
 		/// </summary>
 		static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories,
-			Action<int> OnBuildingProjects, ILogger Logger)
+			List<string>? DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
-			return CsProjBuilder.Build(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects, Logger);
+			return CsProjBuilder.Build(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, DefineConstants ?? (new()), OnBuildingProjects, Logger);
 		}
 
 		/// <summary>
