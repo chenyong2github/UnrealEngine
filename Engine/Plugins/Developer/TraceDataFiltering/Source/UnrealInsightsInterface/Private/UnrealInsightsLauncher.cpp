@@ -45,7 +45,8 @@ void FUnrealInsightsLauncher::RegisterMenus()
 void FUnrealInsightsLauncher::RunUnrealInsights_Execute()
 {
 	FString Path = FPlatformProcess::GenerateApplicationPath(TEXT("UnrealInsights"), EBuildConfiguration::Development);
-
+	Path = FPaths::ConvertRelativePathToFull(Path);
+	
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	if (!MessageLogModule.IsRegisteredLogListing(LogListingName))
 	{
