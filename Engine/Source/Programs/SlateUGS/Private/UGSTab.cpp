@@ -203,7 +203,7 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 
 		SetupWorkspace();
 		GameSyncTabView->SetStreamPathText(FText::FromString(DetectSettings->StreamName));
-		GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(Workspace->GetPendingChangeNumber()))); // Todo: also set changelist when completing a sync
+		GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(WorkspaceSettings->CurrentChangeNumber)));
 		GameSyncTabView->SetProjectPathText(FText::FromString(ProjectFileName));
 		TabWidget->SetContent(GameSyncTabView);
 		TabWidget->SetLabel(FText::FromString(DetectSettings->StreamName));
@@ -257,6 +257,8 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode
 	WorkspaceSettings->LastSyncTime = WorkspaceContext->StartTime;
 	// TODO check this is valid, may be off
 	WorkspaceSettings->LastSyncDurationSeconds = (FDateTime::UtcNow() - WorkspaceContext->StartTime).GetSeconds();
+
+	GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(Workspace->GetCurrentChangeNumber())));
 
 	UserSettings->Save();
 }
