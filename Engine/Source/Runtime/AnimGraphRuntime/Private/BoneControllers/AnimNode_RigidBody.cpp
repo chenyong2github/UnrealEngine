@@ -58,7 +58,7 @@ FAutoConsoleVariableRef CVarRigidBodyNodeIncludeClothColliders(TEXT("p.RigidBody
 bool bRBAN_SimSpace_EnableOverride = false;
 FSimSpaceSettings RBAN_SimSpaceOverride;
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceOverride(TEXT("p.RigidBodyNode.Space.Override"), bRBAN_SimSpace_EnableOverride, TEXT("Force-enable the advanced simulation space movement forces"), ECVF_Default);
-FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMasterAlpha(TEXT("p.RigidBodyNode.Space.MasterAlpha"), RBAN_SimSpaceOverride.MasterAlpha, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceWorldAlpha(TEXT("p.RigidBodyNode.Space.WorldAlpha"), RBAN_SimSpaceOverride.WorldAlpha, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceVelScaleZ(TEXT("p.RigidBodyNode.Space.VelocityScaleZ"), RBAN_SimSpaceOverride.VelocityScaleZ, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinVel(TEXT("p.RigidBodyNode.Space.MaxLinearVelocity"), RBAN_SimSpaceOverride.MaxLinearVelocity, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngVel(TEXT("p.RigidBodyNode.Space.MaxAngularVelocity"), RBAN_SimSpaceOverride.MaxAngularVelocity, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
@@ -103,7 +103,7 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSimulationTaskPriority(
 );
 
 FSimSpaceSettings::FSimSpaceSettings()
-	: MasterAlpha(0)
+	: WorldAlpha(0)
 	, VelocityScaleZ(1)
 	, MaxLinearVelocity(10000)
 	, MaxAngularVelocity(10000)
@@ -416,7 +416,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 	SpaceAngularAcc = FVector::ZeroVector;
 
 	// If the system is disabled, nothing else to do
-	if ((Settings.MasterAlpha == 0.0f) || (Dt < SMALL_NUMBER))
+	if ((Settings.WorldAlpha == 0.0f) || (Dt < SMALL_NUMBER))
 	{
 		return;
 	}
@@ -837,7 +837,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SimulationAngularAcceleration);
 
 			PhysicsSimulation->SetSimulationSpaceSettings(
-				UseSimSpaceSettings->MasterAlpha, 
+				UseSimSpaceSettings->WorldAlpha,
 				UseSimSpaceSettings->ExternalLinearDragV);
 
 			PhysicsSimulation->SetSolverSettings(
