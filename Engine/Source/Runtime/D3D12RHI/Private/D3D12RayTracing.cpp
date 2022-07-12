@@ -2745,6 +2745,11 @@ public:
 				NodeDevice,
 				RayGenShaders.Identifiers,
 				HitGroupShaders.Identifiers[0]);
+
+			if (MissShaders.Identifiers.Num())
+			{
+				DefaultShaderTables[GPUIndex].SetMissIdentifier(0, MissShaders.Identifiers[0]);
+			}			
 		}
 
 		PipelineStackSize = PipelineProperties->GetPipelineStackSize();
@@ -2798,6 +2803,7 @@ public:
 
 	// Shader table that can be used to dispatch ray tracing work that doesn't require real SBT bindings.
 	// This is useful for the case where user only provides default RayGen, Miss and HitGroup shaders.
+	// Currently only used by RayTraceOcclusion/Intersection.
 	FD3D12RayTracingShaderTable DefaultShaderTables[MAX_NUM_GPUS];
 
 	ID3D12RootSignature* GlobalRootSignature = nullptr;
