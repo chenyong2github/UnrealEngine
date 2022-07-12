@@ -3870,6 +3870,10 @@ namespace UnrealGameSync
 							StatusPanel.ResumeLayout();
 							break;
 						}
+						if (MessageBox.Show("You have files open for edit in this workspace. If you continue, you will not be able to submit them until you switch back.\n\nContinue switching streams?", "Files checked out", MessageBoxButtons.YesNo) != DialogResult.Yes)
+						{
+							break;
+						}
 					}
 				}
 			}
