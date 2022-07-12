@@ -417,7 +417,7 @@ void APlayerController::ClientAddTextureStreamingLoc_Implementation(FVector InLo
 {
 	if (!IStreamingManager::HasShutdown())
 	{
-		IStreamingManager::Get().AddViewSlaveLocation(InLoc, 1.0f, bOverrideLocation, Duration);
+		IStreamingManager::Get().AddViewLocation(InLoc, 1.0f, bOverrideLocation, Duration);
 	}
 }
 

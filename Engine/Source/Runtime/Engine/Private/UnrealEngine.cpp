@@ -10690,17 +10690,17 @@ void UEngine::EnableScreenSaver( bool bEnable )
 }
 
 /**
-* Queue up view "slave" locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
-* re-using the screensize and FOV settings.
+* Adds a world location as a secondary view location for purposes of texture streaming.
+* Lasts one frame, or a specified number of seconds (for overriding locations only).
 *
-* @param SlaveLocation			World-space view origin
+* @param InLoc					World-space view origin
 * @param BoostFactor			A factor that affects all streaming distances for this location. 1.0f is default. Higher means higher-resolution textures and vice versa.
 * @param bOverrideLocation		Whether this is an override location, which forces the streaming system to ignore all other locations
 * @param OverrideDuration		How long the streaming system should keep checking this location if bOverrideLocation is true, in seconds. 0 means just for the next Tick.
 */
-void UEngine::AddTextureStreamingSlaveLoc(FVector InLoc, float BoostFactor, bool bOverrideLocation, float OverrideDuration)
+void UEngine::AddTextureStreamingLoc(FVector InLoc, float BoostFactor, bool bOverrideLocation, float OverrideDuration)
 {
-	IStreamingManager::Get().AddViewSlaveLocation(InLoc, BoostFactor, bOverrideLocation, OverrideDuration);
+	IStreamingManager::Get().AddViewLocation(InLoc, BoostFactor, bOverrideLocation, OverrideDuration);
 }
 
 /** Looks up the GUID of a package on disk. The package must NOT be in the autodownload cache.

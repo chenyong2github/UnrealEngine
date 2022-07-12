@@ -56,7 +56,7 @@ TArray<FStreamingViewInfo> IStreamingManager::PendingViewInfos;
 TArray<FStreamingViewInfo> IStreamingManager::LastingViewInfos;
 
 /** Collection of view locations that will be added at the next call to AddViewInformation. */
-TArray<IStreamingManager::FSlaveLocation> IStreamingManager::SlaveLocations;
+TArray<IStreamingManager::FSecondaryLocation> IStreamingManager::SecondaryLocations;
 
 /** Set when Tick() has been called. The first time a new view is added, it will clear out all old views. */
 bool IStreamingManager::bPendingRemoveViews = false;
@@ -464,7 +464,7 @@ TArray<FStreamingViewInfo> GPrevViewLocations;
 #endif
 
 /**
- * Sets up the CurrentViewInfos array based on PendingViewInfos, LastingViewInfos and SlaveLocations.
+ * Sets up the CurrentViewInfos array based on PendingViewInfos, LastingViewInfos and SecondaryLocations.
  * Removes out-dated LastingViewInfos.
  *
  * @param DeltaTime		Time since last call in seconds
@@ -472,7 +472,7 @@ TArray<FStreamingViewInfo> GPrevViewLocations;
 void IStreamingManager::SetupViewInfos( float DeltaTime )
 {
 	// Reset CurrentViewInfos
-	CurrentViewInfos.Empty( PendingViewInfos.Num() + LastingViewInfos.Num() + SlaveLocations.Num() );
+	CurrentViewInfos.Empty( PendingViewInfos.Num() + LastingViewInfos.Num() + SecondaryLocations.Num() );
 
 	bool bHaveMultiplePlayerViews = (PendingViewInfos.Num() > 1) ? true : false;
 
@@ -492,14 +492,14 @@ void IStreamingManager::SetupViewInfos( float DeltaTime )
 
 	// Add them to the appropriate array (pending views or lasting views).
 	{
-		// Disable this flag as it could be used in AddViewInformation to empty SlaveLocation.
+		// Disable this flag as it could be used in AddViewInformation to empty SecondaryLocation.
 		const bool bPendingRemoveViewsBackup = bPendingRemoveViews;
 		bPendingRemoveViews = false;
 
-		for ( int32 SlaveLocationIndex=0; SlaveLocationIndex < SlaveLocations.Num(); SlaveLocationIndex++ )
+		for ( int32 SecondaryLocationIndex=0; SecondaryLocationIndex < SecondaryLocations.Num(); SecondaryLocationIndex++ )
 		{
-			const FSlaveLocation& SlaveLocation = SlaveLocations[ SlaveLocationIndex ];
-			AddViewInformation( SlaveLocation.Location, ScreenSize, FOVScreenSize, SlaveLocation.BoostFactor, SlaveLocation.bOverrideLocation, SlaveLocation.Duration );
+			const FSecondaryLocation& SecondaryLocation = SecondaryLocations[ SecondaryLocationIndex ];
+			AddViewInformation( SecondaryLocation.Location, ScreenSize, FOVScreenSize, SecondaryLocation.BoostFactor, SecondaryLocation.bOverrideLocation, SecondaryLocation.Duration );
 		}
 
 		bPendingRemoveViews = bPendingRemoveViewsBackup;
@@ -646,7 +646,7 @@ void IStreamingManager::AddViewInformation( const FVector& ViewOrigin, float Scr
 		{
 			bPendingRemoveViews = false;
 
-			// Remove out-dated override views and empty the PendingViewInfos/SlaveLocation arrays to be populated again during next frame.
+			// Remove out-dated override views and empty the PendingViewInfos/SecondaryLocation arrays to be populated again during next frame.
 			RemoveStreamingViews( RemoveStreamingViews_Normal );
 		}
 
@@ -673,15 +673,15 @@ void IStreamingManager::AddViewInformation( const FVector& ViewOrigin, float Scr
 }
 
 /**
- * Queue up view "slave" locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
+ * Queue up view locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
  * re-using the screensize and FOV settings.
  *
- * @param SlaveLocation			World-space view origin
+ * @param Location				World-space view origin
  * @param BoostFactor			A factor that affects all streaming distances for this location. 1.0f is default. Higher means higher-resolution textures and vice versa.
  * @param bOverrideLocation		Whether this is an override location, which forces the streaming system to ignore all other locations
  * @param Duration				How long the streaming system should keep checking this location (in seconds). 0 means just for the next Tick.
  */
-void IStreamingManager::AddViewSlaveLocation( const FVector& SlaveLocation, float BoostFactor/*=1.0f*/, bool bOverrideLocation/*=false*/, float Duration/*=0.0f*/ )
+void IStreamingManager::AddViewLocation( const FVector& Location, float BoostFactor/*=1.0f*/, bool bOverrideLocation/*=false*/, float Duration/*=0.0f*/ )
 {
 	const float MinBoost = CVarStreamingMinBoost.GetValueOnGameThread();
 	const float BoostScale = FMath::Max(CVarStreamingBoost.GetValueOnGameThread(),MinBoost);
@@ -691,11 +691,11 @@ void IStreamingManager::AddViewSlaveLocation( const FVector& SlaveLocation, floa
 	{
 		bPendingRemoveViews = false;
 
-		// Remove out-dated override views and empty the PendingViewInfos/SlaveLocation arrays to be populated again during next frame.
+		// Remove out-dated override views and empty the PendingViewInfos/SecondaryLocation arrays to be populated again during next frame.
 		RemoveStreamingViews( RemoveStreamingViews_Normal );
 	}
 
-	new (SlaveLocations) FSlaveLocation(SlaveLocation, BoostFactor, bOverrideLocation, Duration );
+	new (SecondaryLocations) FSecondaryLocation(Location, BoostFactor, bOverrideLocation, Duration );
 }
 
 /**
@@ -706,7 +706,7 @@ void IStreamingManager::AddViewSlaveLocation( const FVector& SlaveLocation, floa
 void IStreamingManager::RemoveStreamingViews( ERemoveStreamingViews RemovalType )
 {
 	PendingViewInfos.Empty();
-	SlaveLocations.Empty();
+	SecondaryLocations.Empty();
 	if ( RemovalType == RemoveStreamingViews_All )
 	{
 		LastingViewInfos.Empty();

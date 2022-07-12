@@ -234,15 +234,21 @@ struct IStreamingManager
 	ENGINE_API void AddViewInformation(const FVector& ViewOrigin, float ScreenSize, float FOVScreenSize, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f, TWeakObjectPtr<AActor> InActorToBoost = NULL);
 
 	/**
-	 * Queue up view "slave" locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
+	 * Queue up view locations to the streaming system. These locations will be added properly at the next call to AddViewInformation,
 	 * re-using the screensize and FOV settings.
 	 *
-	 * @param SlaveLocation			World-space view origin
+	 * @param Location				World-space view origin
 	 * @param BoostFactor			A factor that affects all streaming distances for this location. 1.0f is default. Higher means higher-resolution textures and vice versa.
 	 * @param bOverrideLocation		Whether this is an override location, which forces the streaming system to ignore all other locations
 	 * @param Duration				How long the streaming system should keep checking this location, in seconds. 0 means just for the next Tick.
 	 */
-	ENGINE_API void AddViewSlaveLocation(const FVector& SlaveLocation, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f);
+	ENGINE_API void AddViewLocation(const FVector& Location, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f);
+
+	UE_DEPRECATED(5.1, "This is deprecated to follow inclusive naming rules. Use AddViewLocation() instead.")
+	ENGINE_API void AddViewSlaveLocation(const FVector& Location, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f)
+	{
+		AddViewLocation(Location, BoostFactor, bOverrideLocation, Duration);
+	}
 
 	/** Don't stream world resources for the next NumFrames. */
 	virtual void SetDisregardWorldResourcesForFrames(int32 NumFrames) = 0;
@@ -332,7 +338,7 @@ struct IStreamingManager
 protected:
 
 	/**
-	 * Sets up the CurrentViewInfos array based on PendingViewInfos, LastingViewInfos and SlaveLocations.
+	 * Sets up the CurrentViewInfos array based on PendingViewInfos, LastingViewInfos and SecondaryLocations.
 	 * Removes out-dated LastingViewInfos.
 	 *
 	 * @param DeltaTime		Time since last call in seconds
@@ -361,9 +367,9 @@ protected:
 	 */
 	static void RemoveViewInfoFromArray( TArray<FStreamingViewInfo> &ViewInfos, const FVector& ViewOrigin );
 
-	struct FSlaveLocation
+	struct FSecondaryLocation
 	{
-		FSlaveLocation( const FVector& InLocation, float InBoostFactor, bool bInOverrideLocation, float InDuration )
+		FSecondaryLocation( const FVector& InLocation, float InBoostFactor, bool bInOverrideLocation, float InDuration )
 		:	Location( InLocation )
 		,	BoostFactor( InBoostFactor )
 		,	Duration( InDuration )
@@ -390,7 +396,7 @@ protected:
 	static TArray<FStreamingViewInfo> LastingViewInfos;
 
 	/** Collection of view locations that will be added at the next call to AddViewInformation. */
-	static TArray<FSlaveLocation> SlaveLocations;
+	static TArray<FSecondaryLocation> SecondaryLocations;
 
 	/** Set when Tick() has been called. The first time a new view is added, it will clear out all old views. */
 	static bool bPendingRemoveViews;

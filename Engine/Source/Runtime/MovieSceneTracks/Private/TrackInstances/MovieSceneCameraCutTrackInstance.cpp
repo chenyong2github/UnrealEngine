@@ -146,7 +146,7 @@ namespace MovieScene
 			if (Params.bHasCutTransform)
 			{
 				FVector Location = Params.CutTransform.GetLocation();
-				IStreamingManager::Get().AddViewSlaveLocation(Location);
+				IStreamingManager::Get().AddViewLocation(Location);
 			}
 			else
 			{
@@ -155,7 +155,7 @@ namespace MovieScene
 				if (AActor* Actor = Cast<AActor>(CameraObject))
 				{
 					FVector Location = Actor->GetActorLocation();
-					IStreamingManager::Get().AddViewSlaveLocation(Location);
+					IStreamingManager::Get().AddViewLocation(Location);
 				}
 			}
 		}
