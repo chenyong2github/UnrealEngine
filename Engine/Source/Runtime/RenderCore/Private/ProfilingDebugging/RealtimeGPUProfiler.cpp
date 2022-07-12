@@ -1175,9 +1175,8 @@ void FRealtimeGPUProfiler::PopStat(FRHICommandListImmediate& RHICmdList, FRHIDra
 /*-----------------------------------------------------------------------------
 FScopedGPUStatEvent
 -----------------------------------------------------------------------------*/
-void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
+void FScopedGPUStatEvent::Begin(FRHICommandListBase& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr)
 {
-	check(IsInRenderingThread());
 	if (!AreGPUStatsEnabled())
 	{
 		return;
@@ -1187,21 +1186,21 @@ void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name
 	if (InRHICmdList.IsImmediate())
 	{
 		NumDrawCallsPtr = InNumDrawCallsPtr;
-		RHICmdList = &static_cast<FRHICommandListImmediate&>(InRHICmdList);
-		FRealtimeGPUProfiler::Get()->PushStat(*RHICmdList, Name, StatName, Description, InNumDrawCallsPtr);
+		RHICmdList = &InRHICmdList;
+		FRealtimeGPUProfiler::Get()->PushStat(InRHICmdList.GetAsImmediate(), Name, StatName, Description, InNumDrawCallsPtr);
 	}
 }
 
 void FScopedGPUStatEvent::End()
 {
-	check(IsInRenderingThread());
 	if (!AreGPUStatsEnabled())
 	{
 		return;
 	}
 	if (RHICmdList != nullptr)
 	{
-		FRealtimeGPUProfiler::Get()->PopStat(*RHICmdList, NumDrawCallsPtr);
+		// Command list is initialized only if it is immediate during Begin() and GetAsImmediate() also internally checks this.
+		FRealtimeGPUProfiler::Get()->PopStat(RHICmdList->GetAsImmediate(), NumDrawCallsPtr);
 	}
 }
 #endif // HAS_GPU_STATS

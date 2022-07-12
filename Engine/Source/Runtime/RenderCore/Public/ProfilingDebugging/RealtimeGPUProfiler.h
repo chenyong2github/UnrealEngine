@@ -433,10 +433,13 @@ private:
 class FScopedGPUStatEvent
 {
 	/** Cmdlist to push onto. */
-	FRHICommandListImmediate* RHICmdList;
+	FRHICommandListBase* RHICmdList;
 
 	FRHIDrawCallsStatPtr NumDrawCallsPtr;
 public:
+
+	UE_NONCOPYABLE(FScopedGPUStatEvent)
+
 	/** Default constructor, initializing all member variables. */
 	FORCEINLINE FScopedGPUStatEvent()
 		: RHICmdList(nullptr)
@@ -457,7 +460,7 @@ public:
 	/**
 	* Start/Stop functions for timer stats
 	*/
-	RENDERCORE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr);
+	RENDERCORE_API void Begin(FRHICommandListBase& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, FRHIDrawCallsStatPtr InNumDrawCallsPtr);
 	RENDERCORE_API void End();
 };
 #endif // HAS_GPU_STATS
