@@ -395,72 +395,70 @@ namespace UnrealBuildTool
 			}
 		}
 
-		string GetLinkArguments_Global(LinkEnvironment LinkEnvironment)
+		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
-			Result += GetArchitectureArgument(LinkEnvironment.Configuration, LinkEnvironment.Architecture);
+			Arguments.Add(GetArchitectureArgument(LinkEnvironment.Configuration, LinkEnvironment.Architecture));
 
 			bool bIsDevice = (LinkEnvironment.Architecture != "-simulator");
-			Result += String.Format(" -isysroot \\\"{0}Platforms/{1}.platform/Developer/SDKs/{1}{2}.sdk\\\"",
-				Settings.Value.XcodeDeveloperDir, bIsDevice ? Settings.Value.DevicePlatformName : Settings.Value.SimulatorPlatformName, Settings.Value.IOSSDKVersion);
+			Arguments.Add(String.Format(" -isysroot \\\"{0}Platforms/{1}.platform/Developer/SDKs/{1}{2}.sdk\\\"",
+				Settings.Value.XcodeDeveloperDir, bIsDevice ? Settings.Value.DevicePlatformName : Settings.Value.SimulatorPlatformName, Settings.Value.IOSSDKVersion));
 
 			if (IsBitcodeCompilingEnabled(LinkEnvironment.Configuration))
 			{
 				FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 
-				Result += " -fembed-bitcode -Xlinker -bitcode_verify -Xlinker -bitcode_hide_symbols -Xlinker -bitcode_symbol_map ";
-				Result += " -Xlinker \\\"" + Path.GetDirectoryName(OutputFile.AbsolutePath) + "\\\"";
+				Arguments.Add("-fembed-bitcode -Xlinker -bitcode_verify -Xlinker -bitcode_hide_symbols -Xlinker -bitcode_symbol_map ");
+				Arguments.Add("-Xlinker \\\"" + Path.GetDirectoryName(OutputFile.AbsolutePath) + "\\\"");
 			}
 
-			Result += " -dead_strip";
-			Result += " -m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion;
-			Result += " -Wl";
+			Arguments.Add("-dead_strip");
+			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
+			Arguments.Add("-Wl");
 			if (!IsBitcodeCompilingEnabled(LinkEnvironment.Configuration))
 			{
-				Result += "-no-pie";
+				Arguments.Add("-no-pie");
 			}
-			Result += " -stdlib=libc++";
-			Result += " -ObjC";
-			//			Result += " -v";
+			Arguments.Add("-stdlib=libc++");
+			Arguments.Add("-ObjC");
+			// Arguments.Add("-v");
 
 			// use LTO if desired (like VCToolchain does)
 			if (LinkEnvironment.bAllowLTCG)
 			{
-				Result += " -flto";
+				Arguments.Add("-flto");
 			}
 
 			string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
 			{
-				Result += " -rpath \"@executable_path/Frameworks\"";
-				Result += " -fsanitize=address";
+				Arguments.Add("-rpath \"@executable_path/Frameworks\"");
+				Arguments.Add("-fsanitize=address");
 			}
 
 			string? UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
 			if ((UndefSanitizerMode != null && UndefSanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer)))
 			{
-				Result += " -rpath \"@executable_path/libclang_rt.ubsan_ios_dynamic.dylib\"";
-				Result += " -fsanitize=undefined";
+				Arguments.Add("-rpath \"@executable_path/libclang_rt.ubsan_ios_dynamic.dylib\"");
+				Arguments.Add("-fsanitize=undefined");
 			}
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 			{
-				Result += " -rpath \"@executable_path/libclang_rt.tsan_ios_dynamic.dylib\"";
-				Result += " -fsanitize=thread";
+				Arguments.Add("-rpath \"@executable_path/libclang_rt.tsan_ios_dynamic.dylib\"");
+				Arguments.Add("-fsanitize=thread");
 			}
 
 			// need to tell where to load Framework dylibs
-			Result += " -rpath @executable_path/Frameworks";
+			Arguments.Add("-rpath @executable_path/Frameworks");
 
-			Result += " " + GetAdditionalLinkerFlags(LinkEnvironment.Configuration);
+			Arguments.Add(GetAdditionalLinkerFlags(LinkEnvironment.Configuration));
 
 			// link in the frameworks
 			foreach (string Framework in LinkEnvironment.Frameworks)
 			{
 				if (Framework != "ARKit" || Settings.Value.IOSSDKVersionFloat >= 11.0f)
 				{
-					Result += " -framework " + Framework;
+					Arguments.Add("-framework " + Framework);
 				}
 			}
 			foreach (UEBuildFramework Framework in LinkEnvironment.AdditionalFrameworks)
@@ -476,26 +474,20 @@ namespace UnrealBuildTool
 					{
 						FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
 					}
-					Result += String.Format(" -F\\\"{0}\\\"", FrameworkDir);
+					Arguments.Add(String.Format("-F\\\"{0}\\\"", FrameworkDir));
 				}
 
-				Result += " -framework " + Framework.Name;
+				Arguments.Add("-framework " + Framework.Name);
 			}
 			foreach (string Framework in LinkEnvironment.WeakFrameworks)
 			{
-				Result += " -weak_framework " + Framework;
+				Arguments.Add("-weak_framework " + Framework);
 			}
-
-			return Result;
 		}
 
-		static string GetArchiveArguments_Global(LinkEnvironment LinkEnvironment)
+		void GetArchiveArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
-			Result += " -static";
-
-			return Result;
+			Arguments.Add("-static");
 		}
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
@@ -535,7 +527,16 @@ namespace UnrealBuildTool
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
 
 			// build this up over the rest of the function
-			string LinkCommandArguments = LinkEnvironment.bIsBuildingLibrary ? GetArchiveArguments_Global(LinkEnvironment) : GetLinkArguments_Global(LinkEnvironment);
+			List<string> LinkArguments = new();
+			if (LinkEnvironment.bIsBuildingLibrary)
+			{
+				GetArchiveArguments_Global(LinkEnvironment, LinkArguments);
+			}
+			else
+			{
+				GetLinkArguments_Global(LinkEnvironment, LinkArguments);
+			}
+			string LinkCommandArguments = string.Join(' ', LinkArguments);
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
 				// @todo roll this put into GetLinkArguments_Global

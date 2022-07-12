@@ -249,64 +249,58 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		string GetLinkArguments_Global(LinkEnvironment LinkEnvironment)
+		void GetLinkArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
 			// Pass through architecture and OS info		
-			Result += " " + FormatArchitectureArg(LinkEnvironment.Architecture);
-			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
-			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
-			Result += " -dead_strip";
+			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architecture));
+			Arguments.Add(string.Format("-isysroot \"{0}\"", SDKPath));
+			Arguments.Add("-mmacosx-version-min=" + Settings.MacOSVersion);
+			Arguments.Add("-dead_strip");
 
 			// Temporary workaround for linker warning with Xcode 14:
 			//		'ld: warning: could not create compact unwind for _inflate_fast: registers 27 not saved contiguously in frame'
 			if (CompilerVersionLessThan(14, 0, 0))
 			{
-				Result += " -Wl,-fatal_warnings";
+				Arguments.Add("-Wl,-fatal_warnings");
 			}
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
-				Result += " -g";
+				Arguments.Add("-g");
 				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 				{
-					Result += " -fsanitize=address";
+					Arguments.Add("-fsanitize=address");
 				}
 				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
-					Result += " -fsanitize=thread";
+					Arguments.Add("-fsanitize=thread");
 				}
 				else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
-					Result += " -fsanitize=undefined";
+					Arguments.Add("-fsanitize=undefined");
 				}
 			}
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
-				Result += " -dynamiclib";
+				Arguments.Add("-dynamiclib");
 			}
 
 			if (LinkEnvironment.Configuration == CppConfiguration.Debug)
 			{
 				// Apple's Clang is not supposed to run the de-duplication pass when linking in debug configs. Xcode adds this flag automatically, we need it as well, otherwise linking would take very long
-				Result += " -Wl,-no_deduplicate";
+				Arguments.Add("-Wl,-no_deduplicate");
 			}
 
 			// Needed to make sure install_name_tool will be able to update paths in Mach-O headers
-			Result += " -headerpad_max_install_names";
+			Arguments.Add("-headerpad_max_install_names");
 
-			Result += " -lc++";
-
-			return Result;
+			Arguments.Add("-lc++");
 		}
 
-		static string GetArchiveArguments_Global(LinkEnvironment LinkEnvironment)
+		void GetArchiveArguments_Global(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-			Result += " -static";
-			return Result;
+			Arguments.Add("-static");
 		}
 
 		private void AppendMacLine(StreamWriter Writer, string Format, params object[] Arg)
@@ -473,7 +467,17 @@ namespace UnrealBuildTool
 			string EngineDisplayVersion = LoadEngineDisplayVersion(true);
 			string VersionArg = LinkEnvironment.bIsBuildingDLL ? " -current_version " + EngineAPIVersion + " -compatibility_version " + EngineDisplayVersion : "";
 
-			string LinkCommand = VersionArg + " " + (bIsBuildingLibrary ? GetArchiveArguments_Global(LinkEnvironment) : GetLinkArguments_Global(LinkEnvironment));
+			List<string> LinkArguments = new();
+			if (bIsBuildingLibrary)
+			{
+				GetArchiveArguments_Global(LinkEnvironment, LinkArguments);
+			}
+			else
+			{
+				GetLinkArguments_Global(LinkEnvironment, LinkArguments);
+			}
+
+			string LinkCommand = VersionArg + " " + string.Join(' ', LinkArguments);
 
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
