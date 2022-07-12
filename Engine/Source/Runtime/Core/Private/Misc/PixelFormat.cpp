@@ -251,3 +251,14 @@ EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr)
 		return PF_Unknown;
 }
 
+static struct FValidatePixelFormats
+{
+	FValidatePixelFormats()
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(GPixelFormats); ++Index)
+		{
+			// Make sure GPixelFormats has an entry for every unreal format
+			checkf((EPixelFormat)Index == GPixelFormats[Index].UnrealFormat, TEXT("Missing entry for EPixelFormat %d"), (int32)Index);
+		}
+	}
+} ValidatePixelFormats;
