@@ -62,9 +62,13 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc/>
 		public override void Write(BgBytecodeWriter writer)
 		{
-			BgObject<BgAggregateDef> obj = BgObject<BgAggregateDef>.Empty;
+			BgObject<BgAggregateExpressionDef> obj = BgObject<BgAggregateExpressionDef>.Empty;
 			obj = obj.Set(x => x.Name, Name);
 			obj = obj.Set(x => x.RequiredNodes, Requires);
+			if (Label != null)
+			{
+				obj = obj.Set(x => x.Label, Label);
+			}
 			writer.WriteExpr(obj);
 		}
 
