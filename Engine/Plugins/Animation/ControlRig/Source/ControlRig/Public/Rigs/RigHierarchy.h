@@ -2888,7 +2888,23 @@ public:
 	/**
 	 * Increments the metadata version
 	 */
-	FORCEINLINE void IncrementMetadataVersion() { MetadataVersion++; }
+	FORCEINLINE void IncrementMetadataVersion(const FRigElementKey& InKey, const FName& InName)
+	{
+		MetadataVersion += 1 + (int32)GetTypeHash(InName);
+	}
+
+	/**
+     * Returns the metadata tag version of this hierarchy
+	 */
+	uint16 GetMetadataTagVersion() const { return MetadataTagVersion; }
+
+	/**
+	 * Increments the metadataTag version
+	 */
+	FORCEINLINE void IncrementMetadataTagVersion(const FRigElementKey& InKey, const FName& InTag, bool bAdded)
+	{
+		MetadataTagVersion += 1 + (int32)GetTypeHash(InTag);
+	}
 
 	/**
 	 * Returns the current / initial pose of the hierarchy
@@ -3518,6 +3534,13 @@ private:
 	 */
 	UPROPERTY(transient)
 	uint16 MetadataVersion;
+
+	/**
+	 * The metadata version of the hierarchy changes when metadata is being
+	 * created or removed (not when the metadata values changes)
+	 */
+	UPROPERTY(transient)
+	uint16 MetadataTagVersion;
 
 	/**
 	 * If set to false the dirty flag propagation will be disabled

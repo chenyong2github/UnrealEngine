@@ -17,6 +17,7 @@ struct CONTROLRIG_API FRigDispatch_MetadataBase : public FRigDispatchFactory
 	virtual bool IsSetMetadata() const { return false; }
 
 #if WITH_EDITOR
+	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const override;
 	virtual FText GetArgumentTooltip(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 #endif
 
@@ -52,10 +53,6 @@ struct CONTROLRIG_API FRigDispatch_GetMetadata : public FRigDispatch_MetadataBas
 	GENERATED_BODY()
 
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
-
-#if WITH_EDITOR
-	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const override;
-#endif
 
 protected:
 
@@ -308,7 +305,7 @@ struct CONTROLRIG_API FRigUnit_FindItemsWithMetadata : public FRigUnit
 	/**
 	 * The name of the metadata to find
 	 */ 
-	UPROPERTY(meta = (Input, CustomWidget="MetadataNameAll"))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataName"))
 	FName Name;
 
 	/**
@@ -382,7 +379,7 @@ struct CONTROLRIG_API FRigUnit_SetMetadataTag : public FRigUnitMutable
 	/**
 	 * The name of the tag to set
 	 */ 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	FName Tag;
 
 	// Used to cache the internally
@@ -416,7 +413,7 @@ struct CONTROLRIG_API FRigUnit_SetMetadataTagArray : public FRigUnitMutable
 	/**
 	 * The tags to set for the item
 	 */ 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	TArray<FName> Tags;
 
 	// Used to cache the internally
@@ -450,7 +447,7 @@ struct CONTROLRIG_API FRigUnit_RemoveMetadataTag : public FRigUnitMutable
 	/**
 	 * The name of the tag to set
 	 */ 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	FName Tag;
 
 	/**
@@ -561,7 +558,7 @@ struct CONTROLRIG_API FRigUnit_FindItemsWithMetadataTag : public FRigUnit
 	/**
 	 * The name of the tag to find
 	 */ 
-	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	FName Tag;
 
 	// The items containing the metadata
@@ -588,7 +585,7 @@ struct CONTROLRIG_API FRigUnit_FindItemsWithMetadataTagArray : public FRigUnit
 	/**
 	 * The tags to find
 	 */ 
-	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	TArray<FName> Tags;
 
 	// The items containing the metadata
@@ -621,7 +618,7 @@ struct CONTROLRIG_API FRigUnit_FilterItemsByMetadataTags : public FRigUnit
 	/**
 	 * The tags to find
 	 */ 
-	UPROPERTY(meta = (Input, CustomWidget="MetadataTagNameAll"))
+	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	TArray<FName> Tags;
 
 	/**

@@ -32,6 +32,8 @@ public:
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow(true)
+		, _SearchHintText(NSLOCTEXT("SControlRigGraphPinNameListValueWidget", "Search", "Search"))
+		, _AllowUserProvidedText(false)
 	{}
 
 	/** Slot for this button's content (optional) */
@@ -62,6 +64,16 @@ public:
 		 * to make their own visual hint that this is a drop down.
 		 */
 		SLATE_ARGUMENT(bool, HasDownArrow)
+
+		/*
+		 * The visible text in the search / editable text field
+		 */
+		SLATE_ARGUMENT(FText, SearchHintText)
+
+		/*
+		 * If set to true the user is allowed to enter custom text here
+		 */
+		SLATE_ARGUMENT(bool, AllowUserProvidedText)
 
 	SLATE_END_ARGS()
 
@@ -133,6 +145,7 @@ private:
 	FOnGenerateWidget OnGenerateWidget;
 
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+	bool AllowUserProvidedText;
 
 	/** Used to focus the name box immediately following construction */
 	EActiveTimerReturnType SetFocusPostConstruct(double InCurrentTime, float InDeltaTime);

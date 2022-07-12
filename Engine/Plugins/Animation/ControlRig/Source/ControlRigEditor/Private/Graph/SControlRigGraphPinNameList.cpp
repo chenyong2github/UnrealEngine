@@ -31,6 +31,9 @@ void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPi
 	this->OnGetNameListContentForValidation = InArgs._OnGetNameListContentForValidation;
 	this->OnGetNameFromSelection = InArgs._OnGetNameFromSelection;
 	this->bMarkupInvalidItems = InArgs._MarkupInvalidItems;
+	this->EnableNameListCache = InArgs._EnableNameListCache;
+	this->SearchHintText = InArgs._SearchHintText;
+	this->AllowUserProvidedText = InArgs._AllowUserProvidedText;
 
 	UpdateNameLists();
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
@@ -61,6 +64,8 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 					.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
 					.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
 					.InitiallySelectedItem(InitialSelected)
+					.SearchHintText(SearchHintText)
+					.AllowUserProvidedText(AllowUserProvidedText)
 					.Content()
 					[
 						SNew(STextBlock)
@@ -159,10 +164,16 @@ void SControlRigGraphPinNameList::SetNameListText(const FText& NewTypeInValue, E
 	}
 }
 
-void SControlRigGraphPinNameList::UpdateNameLists()
+void SControlRigGraphPinNameList::UpdateNameLists(bool bUpdateCurrent, bool bUpdateValidation)
 {
-	CurrentList = GetNameList(true);
-	ValidationList = GetNameList(false);
+	if(CurrentList == nullptr || bUpdateCurrent)
+	{
+		CurrentList = GetNameList(true);
+	}
+	if(ValidationList == nullptr || bUpdateValidation)
+	{
+		ValidationList = GetNameList(false);
+	}
 }
 
 FSlateColor SControlRigGraphPinNameList::GetNameColor() const
@@ -170,7 +181,12 @@ FSlateColor SControlRigGraphPinNameList::GetNameColor() const
 	if(bMarkupInvalidItems)
 	{
 		FString CurrentItem = GetNameListText().ToString();
-		
+
+		if(!EnableNameListCache)
+		{
+			((SControlRigGraphPinNameList*)this)->UpdateNameLists(false, true);
+		}
+
 		bool bFound = false;
 		for (TSharedPtr<FString> Item : (*ValidationList))
 		{
@@ -221,7 +237,10 @@ void SControlRigGraphPinNameList::OnNameListComboBox()
 		}
 	}
 	NameListComboBox->SetOptionsSource(CurrentList);
-	NameListComboBox->SetSelectedItem(CurrentlySelected);
+	if(CurrentlySelected.IsValid())
+	{
+		NameListComboBox->SetSelectedItem(CurrentlySelected);
+	}
 }
 
 FSlateColor SControlRigGraphPinNameList::OnGetWidgetForeground() const

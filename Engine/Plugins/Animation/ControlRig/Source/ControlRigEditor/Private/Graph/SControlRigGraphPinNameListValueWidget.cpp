@@ -12,6 +12,7 @@ void SControlRigGraphPinNameListValueWidget::Construct(const FArguments& InArgs)
 	this->OnComboBoxOpening = InArgs._OnComboBoxOpening;
 	this->OnSelectionChanged = InArgs._OnSelectionChanged;
 	this->OnGenerateWidget = InArgs._OnGenerateWidget;
+	this->AllowUserProvidedText = InArgs._AllowUserProvidedText;
 
 	OptionsSource = InArgs._OptionsSource;
 	CustomScrollbar = InArgs._CustomScrollbar;
@@ -27,7 +28,7 @@ void SControlRigGraphPinNameListValueWidget::Construct(const FArguments& InArgs)
 			.AutoHeight()
 			[
 				SAssignNew(this->SearchField, SEditableTextBox)
-				.HintText(LOCTEXT("Search", "Search"))
+				.HintText(InArgs._SearchHintText)
 				.OnTextChanged(this, &SControlRigGraphPinNameListValueWidget::OnSearchTextChanged)
 				.OnTextCommitted(this, &SControlRigGraphPinNameListValueWidget::OnSearchTextCommitted)
 				.OnKeyDownHandler(this, &SControlRigGraphPinNameListValueWidget::OnSearchTextKeyDown)
@@ -201,7 +202,7 @@ void SControlRigGraphPinNameListValueWidget::OnSelectionChanged_Internal(TShared
 	if (SelectInfo != ESelectInfo::OnNavigation || bForce)
 	{
 		// Ensure that the proposed selection is different from selected
-		if (ProposedSelection != SelectedItem || bForce)
+		if ((ProposedSelection.IsValid() && (ProposedSelection != SelectedItem)) || bForce)
 		{
 			SelectedItem = ProposedSelection;
 			OnSelectionChanged.ExecuteIfBound(ProposedSelection, ESelectInfo::OnMouseClick); // SelectInfo);
@@ -254,14 +255,21 @@ void SControlRigGraphPinNameListValueWidget::OnSearchTextCommitted(const FText& 
 {
 	if (CommitType == ETextCommit::OnEnter)
 	{
-		FString ProposedSelection = ChangedText.ToString().ToLower();
+		const FString LowerCaseProposedSelection = ChangedText.ToString().ToLower();
 		for (int32 i = 0; i < OptionsSource->Num(); i++)
 		{
 			const TSharedPtr<FString>& Option = (*OptionsSource)[i];
-			if (Option->ToLower() == ProposedSelection)
+			if (Option->ToLower() == LowerCaseProposedSelection)
 			{
 				OnSelectionChanged_Internal(Option, ESelectInfo::OnKeyPress, true);
+				return;
 			}
+		}
+
+		if(AllowUserProvidedText)
+		{
+			const TSharedPtr<FString> UserDefinedOption = MakeShareable(new FString(ChangedText.ToString()));
+			OnSelectionChanged_Internal(UserDefinedOption, ESelectInfo::OnKeyPress, true);
 		}
 	}
 }

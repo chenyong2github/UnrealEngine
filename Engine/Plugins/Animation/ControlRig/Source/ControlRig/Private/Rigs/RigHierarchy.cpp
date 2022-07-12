@@ -95,6 +95,7 @@ bool URigHierarchy::bEnableValidityCheckbyDefault = false;
 URigHierarchy::URigHierarchy()
 : TopologyVersion(0)
 , MetadataVersion(0)
+, MetadataTagVersion(0)
 , bEnableDirtyPropagation(true)
 , Elements()
 , IndexLookup()
@@ -4466,7 +4467,7 @@ void URigHierarchy::CleanupInvalidCaches()
 
 void URigHierarchy::OnMetadataChanged(const FRigElementKey& InKey, const FName& InName)
 {
-	IncrementMetadataVersion();
+	IncrementMetadataVersion(InKey, InName);
 	if(MetadataChangedDelegate.IsBound())
 	{
 		MetadataChangedDelegate.Broadcast(InKey, InName);
@@ -4475,6 +4476,7 @@ void URigHierarchy::OnMetadataChanged(const FRigElementKey& InKey, const FName& 
 
 void URigHierarchy::OnMetadataTagChanged(const FRigElementKey& InKey, const FName& InTag, bool bAdded)
 {
+	IncrementMetadataTagVersion(InKey, InTag, bAdded);
 	if(MetadataTagChangedDelegate.IsBound())
 	{
 		MetadataTagChangedDelegate.Broadcast(InKey, InTag, bAdded);

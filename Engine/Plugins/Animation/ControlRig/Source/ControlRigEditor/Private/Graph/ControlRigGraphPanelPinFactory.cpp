@@ -204,7 +204,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							return &EmptyNameList;
 						});
 				}
-				else if (CustomWidgetName == TEXT("MetadataName") || CustomWidgetName == TEXT("MetadataNameAll"))
+				else if (CustomWidgetName == TEXT("MetadataName"))
 				{
 					struct FCachedMetadataNames
 					{
@@ -216,61 +216,19 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						{}
 					};
 
-					const bool bCompleteList = CustomWidgetName == TEXT("MetadataNameAll");
-					
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
-						.OnGetNameListContent_Lambda([RigGraph, bCompleteList](const URigVMPin* InPin)
+						.SearchHintText(NSLOCTEXT("FControlRigGraphPanelPinFactory", "MetadataName", "Metadata Name"))
+						.AllowUserProvidedText(true)
+						.EnableNameListCache(false)
+						.OnGetNameListContent_Lambda([RigGraph](const URigVMPin* InPin)
 						{
 							if (const UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
 							{
 								if(UControlRig* ControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 								{
-									FRigElementKey ItemKey;
-									bool bHasSourceLinks = false;
-
-									// find the pin that holds the item
-									for(URigVMPin* Pin : InPin->GetRootPin()->GetNode()->GetPins())
-									{
-										if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
-										{
-											if(!bCompleteList)
-											{
-												if(Pin->GetSourceLinks(true).Num() > 0)
-												{
-													bHasSourceLinks = true;
-												}
-											}
-											if(!bHasSourceLinks)
-											{
-												const FString DefaultValue = Pin->GetDefaultValue();
-												if(!DefaultValue.IsEmpty())
-												{
-													FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &ItemKey, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
-												}
-											}
-											break;
-										}
-									}
-
-									const FRigBaseElement* Element = nullptr;
-									if(ItemKey.IsValid())
-									{
-										if(!bCompleteList && !bHasSourceLinks)
-										{
-											Element = ControlRig->GetHierarchy()->Find(ItemKey);
-											if(Element == nullptr)
-											{
-												static TArray<TSharedPtr<FString>> EmptyNameList;
-												return &EmptyNameList;
-											}
-										}
-									}
-
-									const FString MapHash = Element ?
-										Blueprint->GetPathName() + TEXT("|") + ItemKey.ToString() :
-										Blueprint->GetPathName();
-									const int32 MetadataVersion = Element ? Element->GetMetadataVersion() : ControlRig->GetHierarchy()->GetMetadataVersion(); 
+									const FString MapHash = Blueprint->GetPathName();
+									const int32 MetadataVersion = ControlRig->GetHierarchy()->GetMetadataVersion(); 
 
 									static TMap<FString, FCachedMetadataNames> MetadataNameLists;
 									FCachedMetadataNames& MetadataNames = MetadataNameLists.FindOrAdd(MapHash);
@@ -278,22 +236,12 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 									if(MetadataNames.MetadataVersion != MetadataVersion)
 									{
 										TArray<FName> Names;
-										if(bCompleteList || bHasSourceLinks || (Element == nullptr))
+										for(int32 ElementIndex=0; ElementIndex < ControlRig->GetHierarchy()->Num(); ElementIndex++)
 										{
-											for(int32 ElementIndex=0; ElementIndex < ControlRig->GetHierarchy()->Num(); ElementIndex++)
+											const FRigBaseElement* OtherElement = ControlRig->GetHierarchy()->Get(ElementIndex);
+											for(int32 MetadataIndex = 0; MetadataIndex < OtherElement->NumMetadata(); MetadataIndex++)
 											{
-												const FRigBaseElement* OtherElement = ControlRig->GetHierarchy()->Get(ElementIndex);
-												for(int32 MetadataIndex = 0; MetadataIndex < OtherElement->NumMetadata(); MetadataIndex++)
-												{
-													Names.AddUnique(OtherElement->GetMetadata(MetadataIndex)->GetName());
-												}
-											}
-										}
-										else if(Element)
-										{
-											for(int32 MetadataIndex = 0; MetadataIndex < Element->NumMetadata(); MetadataIndex++)
-											{
-												Names.Add(Element->GetMetadata(MetadataIndex)->GetName());
+												Names.AddUnique(OtherElement->GetMetadata(MetadataIndex)->GetName());
 											}
 										}
 
@@ -324,62 +272,37 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							return &EmptyNameList;
 						});
 				}
-				else if (CustomWidgetName == TEXT("MetadataTagName") || CustomWidgetName == TEXT("MetadataTagNameAll"))
+				else if (CustomWidgetName == TEXT("MetadataTagName"))
 				{
-					bool bCompleteList = CustomWidgetName == TEXT("MetadataTagNameAll");
-
 					struct FCachedMetadataTagNames
 					{
+						int32 MetadataTagVersion;
 						TSharedPtr<TArray<TSharedPtr<FString>>> Names;
 						FCachedMetadataTagNames()
+						: MetadataTagVersion(INDEX_NONE)
 						{}
 					};
 
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
-						.OnGetNameListContent_Lambda([RigGraph, bCompleteList](const URigVMPin* InPin)
+						.SearchHintText(NSLOCTEXT("FControlRigGraphPanelPinFactory", "TagName", "Tag Name"))
+						.AllowUserProvidedText(true)
+						.EnableNameListCache(false)
+						.OnGetNameListContent_Lambda([RigGraph](const URigVMPin* InPin)
 						{
 							if (const UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
 							{
 								if(UControlRig* ControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 								{
-									FRigElementKey ItemKey;
-									bool bHasSourceLinks = false;
-
-									// find the pin that holds the item
-									for(URigVMPin* Pin : InPin->GetRootPin()->GetNode()->GetPins())
-									{
-										if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
-										{
-											if(!bCompleteList)
-											{
-												if(Pin->GetSourceLinks(true).Num() > 0)
-												{
-													bHasSourceLinks = true;
-												}
-											}
-											if(!bHasSourceLinks)
-											{
-												const FString DefaultValue = Pin->GetDefaultValue();
-												if(!DefaultValue.IsEmpty())
-												{
-													FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &ItemKey, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
-												}
-											}
-											break;
-										}
-									}
-
-									const FString MapHash = ItemKey.IsValid() ?
-										Blueprint->GetPathName() + TEXT("|") + ItemKey.ToString() :
-										Blueprint->GetPathName();
+									const FString MapHash = Blueprint->GetPathName();
+									const int32 MetadataTagVersion = ControlRig->GetHierarchy()->GetMetadataTagVersion(); 
 
 									static TMap<FString, FCachedMetadataTagNames> MetadataTagNameLists;
 									FCachedMetadataTagNames& MetadataTagNames = MetadataTagNameLists.FindOrAdd(MapHash);
 
-									TArray<FName> Tags; 
-									if(bCompleteList || !ItemKey.IsValid())
+									if(MetadataTagNames.MetadataTagVersion != MetadataTagVersion)
 									{
+										TArray<FName> Tags; 
 										for(int32 ElementIndex=0; ElementIndex < ControlRig->GetHierarchy()->Num(); ElementIndex++)
 										{
 											const FRigBaseElement* Element = ControlRig->GetHierarchy()->Get(ElementIndex);
@@ -391,33 +314,25 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 												}
 											}
 										}
-									}
-									else
-									{
-										if(const FRigBaseElement* Element = ControlRig->GetHierarchy()->Find(ItemKey))
+
+										if(!MetadataTagNames.Names.IsValid())
 										{
-											if(const FRigNameArrayMetadata* Md = Cast<FRigNameArrayMetadata>(Element->GetMetadata(URigHierarchy::TagMetadataName, ERigMetadataType::NameArray)))
-											{
-												Tags = Md->GetValue();
-											}
+											MetadataTagNames.Names = MakeShareable(new TArray<TSharedPtr<FString>>());
 										}
-									}
+										MetadataTagNames.Names->Reset();
 
-									if(!MetadataTagNames.Names.IsValid())
-									{
-										MetadataTagNames.Names = MakeShareable(new TArray<TSharedPtr<FString>>());
-									}
-									MetadataTagNames.Names->Reset();
+										for(const FName& Tag : Tags)
+										{
+											MetadataTagNames.Names->Add(MakeShareable(new FString(Tag.ToString())));
+										}
+										MetadataTagNames.Names->Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B)
+										{
+											return A.Get() > B.Get();
+										});
+										MetadataTagNames.Names->Insert(MakeShareable(new FString(FName(NAME_None).ToString())), 0);
 
-									for(const FName& Tag : Tags)
-									{
-										MetadataTagNames.Names->Add(MakeShareable(new FString(Tag.ToString())));
+										MetadataTagNames.MetadataTagVersion = MetadataTagVersion;
 									}
-									MetadataTagNames.Names->Sort([](const TSharedPtr<FString>& A, const TSharedPtr<FString>& B)
-									{
-										return A.Get() > B.Get();
-									});
-									MetadataTagNames.Names->Insert(MakeShareable(new FString(FName(NAME_None).ToString())), 0);
 
 									return MetadataTagNames.Names.Get();
 								}

@@ -109,6 +109,18 @@ FText FRigDispatch_MetadataBase::GetArgumentTooltip(const FName& InArgumentName,
 	return FRigDispatchFactory::GetArgumentTooltip(InArgumentName, InTypeIndex);
 }
 
+FString FRigDispatch_MetadataBase::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
+{
+	if(InArgumentName == TEXT("Name"))
+	{
+		if(InMetaDataKey == FRigVMStruct::CustomWidgetMetaName)
+		{
+			return TEXT("MetadataName");
+		}
+	}
+	return Super::GetArgumentMetaData(InArgumentName, InMetaDataKey);
+}
+
 #endif
 
 const TArray<TRigVMTypeIndex>& FRigDispatch_MetadataBase::GetValueTypes() const
@@ -156,22 +168,6 @@ TArray<FRigVMTemplateArgument> FRigDispatch_GetMetadata::GetArguments() const
 	};
 	return Arguments;
 }
-
-#if WITH_EDITOR
-
-FString FRigDispatch_GetMetadata::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
-{
-	if(InArgumentName == TEXT("Name"))
-	{
-		if(InMetaDataKey == FRigVMStruct::CustomWidgetMetaName)
-		{
-			return TEXT("MetadataName");
-		}
-	}
-	return FRigDispatch_MetadataBase::GetArgumentMetaData(InArgumentName, InMetaDataKey);
-}
-
-#endif
 
 FRigBaseMetadata* FRigDispatch_GetMetadata::FindMetadata(const FRigVMExtendedExecuteContext& InContext,
                                                          const FRigElementKey& InKey, const FName& InName, ERigMetadataType InType, FCachedRigElement& Cache)

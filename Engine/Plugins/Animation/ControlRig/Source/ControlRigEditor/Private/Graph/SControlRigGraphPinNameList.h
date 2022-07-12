@@ -18,6 +18,9 @@ public:
 
 	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList)
 		: _MarkupInvalidItems(true)
+		, _EnableNameListCache(true)
+		, _SearchHintText(NSLOCTEXT("SControlRigGraphPinNameList", "Search", "Search"))
+		, _AllowUserProvidedText(false)
 	{}
 
 		SLATE_ARGUMENT(URigVMPin*, ModelPin)
@@ -25,6 +28,9 @@ public:
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContentForValidation)
 		SLATE_EVENT(FOnGetNameFromSelection, OnGetNameFromSelection)
 		SLATE_ARGUMENT(bool, MarkupInvalidItems)
+		SLATE_ARGUMENT(bool, EnableNameListCache)
+		SLATE_ARGUMENT(FText, SearchHintText)
+		SLATE_ARGUMENT(bool, AllowUserProvidedText)
 
 	SLATE_END_ARGS()
 
@@ -39,7 +45,7 @@ protected:
 	FText GetNameListText() const;
 	FSlateColor GetNameColor() const;
 	virtual void SetNameListText(const FText& NewTypeInValue, ETextCommit::Type CommitInfo);
-	void UpdateNameLists();
+	void UpdateNameLists(bool bUpdateCurrent = true, bool bUpdateValidation = true);
 
 	TSharedRef<SWidget> MakeNameListItemWidget(TSharedPtr<FString> InItem);
 	void OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
@@ -53,6 +59,9 @@ protected:
 	const TArray<TSharedPtr<FString>>* CurrentList;
 	const TArray<TSharedPtr<FString>>* ValidationList;
 	bool bMarkupInvalidItems;
+	bool EnableNameListCache;
+	FText SearchHintText;
+	bool AllowUserProvidedText;
 
 	/** Helper buttons. */
 	FSlateColor OnGetWidgetForeground() const;
