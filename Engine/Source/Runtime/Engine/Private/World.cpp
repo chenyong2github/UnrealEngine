@@ -702,7 +702,7 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 			// Move dependant objects into the new actor package
 			for (UObject* DependantObject : DependantObjects)
 			{
-				DependantObject->Rename(nullptr, Actor->GetExternalPackage(), REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
+				DependantObject->Rename(nullptr, Actor->GetExternalPackage(), Flags);
 			}
 		}
 
