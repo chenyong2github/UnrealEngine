@@ -304,7 +304,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 				}
 			}
 
-			return false;
+			return ActorTags.IsEmpty() && ActorProperties.IsEmpty();
 		};
 
 		ForEachActorWithLoadingParams.OnPreGarbageCollect = [&PackagesToSave, &PackageHelper]()
