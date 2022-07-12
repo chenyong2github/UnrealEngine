@@ -664,11 +664,15 @@ FRigUnit_FilterItemsByMetadataTags_Execute()
 								break;
 							}
 						}
-						if(bFoundAny)
+						if(!bFoundAny)
 						{
 							Result.Add(Element->GetKey());
 						}
 					}
+				}
+				else if(!Inclusive)
+				{
+					Result.Add(Element->GetKey());
 				}
 			}
 		}
