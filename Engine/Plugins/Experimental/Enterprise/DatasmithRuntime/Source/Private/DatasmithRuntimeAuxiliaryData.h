@@ -67,7 +67,7 @@ public:
 
 	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override
 	{
-		return &AssetUserData;
+		return &ToRawPtrTArrayUnsafe(AssetUserData);
 	}
 	//~ End IInterface_AssetUserData Interface
 

@@ -114,8 +114,8 @@ public:
 	/** Get the Controller this agent is controlling. */
 	const AController* GetController() const { return Controller; }
 	
-	TArray<UMLAdapterSensor*>::TConstIterator GetSensorsConstIterator() const { return Sensors.CreateConstIterator(); }
-	TArray<UMLAdapterActuator*>::TConstIterator GetActuatorsConstIterator() const { return Actuators.CreateConstIterator(); }
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE_SUFFIXED(TArray, UMLAdapterSensor, ::TConstIterator) GetSensorsConstIterator() const { return Sensors.CreateConstIterator(); }
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE_SUFFIXED(TArray, UMLAdapterActuator, ::TConstIterator) GetActuatorsConstIterator() const { return Actuators.CreateConstIterator(); }
 	
 	/** If the avatar is a controller, then get the current score from the controller's player state. */
 	virtual float GetReward() const;

@@ -20,7 +20,7 @@ struct FMassObserversMap
 	GENERATED_BODY()
 
 	// a helper accessor simplifying access while still keeping Container private
-	TMap<const UScriptStruct*, FMassRuntimePipeline>& operator*()
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG1(TMap, const UScriptStruct, FMassRuntimePipeline)& operator*()
 	{
 		return Container;
 	}

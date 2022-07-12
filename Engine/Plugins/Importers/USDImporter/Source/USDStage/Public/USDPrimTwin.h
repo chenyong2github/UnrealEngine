@@ -24,7 +24,7 @@ class UUsdPrimTwin final : public UObject
 public:
 	UUsdPrimTwin& AddChild( const FString& InPrimPath );
 	void RemoveChild( const TCHAR* InPrimPath );
-	const TMap< FString, UUsdPrimTwin* >& GetChildren() const { return Children; }
+	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TMap, FString, UUsdPrimTwin)& GetChildren() const { return Children; }
 
 	UUsdPrimTwin* GetParent() const { return Parent.Get(); }
 
@@ -32,7 +32,7 @@ public:
 
 	void Iterate( TFunction< void( UUsdPrimTwin& ) > Func, bool bRecursive )
 	{
-		for ( TMap< FString, UUsdPrimTwin* >::TIterator It = Children.CreateIterator(); It; ++It )
+		for ( UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2_SUFFIXED(TMap, FString, UUsdPrimTwin, ::TIterator) It = Children.CreateIterator(); It; ++It )
 		{
 			UUsdPrimTwin* Child = It->Value;
 

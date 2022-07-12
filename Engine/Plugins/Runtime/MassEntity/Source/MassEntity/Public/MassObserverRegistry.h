@@ -30,12 +30,12 @@ struct FMassEntityObserverClassesMap
 	GENERATED_BODY()
 
 	/** a helper accessor simplifying access while still keeping Container private */
-	const TMap<const UScriptStruct*, FMassProcessorClassCollection>& operator*() const
+	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG1(TMap, const UScriptStruct, FMassProcessorClassCollection)& operator*() const
 	{
 		return Container;
 	}
 
-	TMap<const UScriptStruct*, FMassProcessorClassCollection>& operator*()
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG1(TMap, const UScriptStruct, FMassProcessorClassCollection)& operator*()
 	{
 		return Container;
 	}

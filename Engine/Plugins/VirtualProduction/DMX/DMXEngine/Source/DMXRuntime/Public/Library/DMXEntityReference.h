@@ -65,7 +65,7 @@ public:
 		// Take the Library address and the EntityID to make a hash from both
 		uint64 ToHash[] =
 		{
-			reinterpret_cast<uintptr_t>(EntityRef.DMXLibrary),
+			reinterpret_cast<uintptr_t>(ToRawPtr(EntityRef.DMXLibrary)),
 			static_cast<uint64>(EntityId64[0]),
 			static_cast<uint64>(EntityId64[1])
 		};

@@ -59,7 +59,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Manager", meta = (WorldContext = "WorldContextObject"))
 	static UContextualAnimManager* GetContextualAnimManager(UObject* WorldContextObject);
 
-	FORCEINLINE const TSet<UContextualAnimSceneActorComponent*>& GetSceneActorCompContainer() const { return SceneActorCompContainer; };
+	FORCEINLINE const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UContextualAnimSceneActorComponent)& GetSceneActorCompContainer() const { return SceneActorCompContainer; };
 
 	/** Attempts to start an scene instance with the supplied actors using the first valid set based on selection criteria */
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Manager", meta = (DisplayName = "Try Start Scene"))

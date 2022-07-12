@@ -24,6 +24,14 @@
  * TObjectPtr<T> after the transition is complete and the type won't be toggling back and forth anymore.
  */
 #define UE_TRANSITIONAL_OBJECT_PTR(Type) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(Templ, Type) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE_SUFFIXED(Templ, Type, Suffix) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG1(Templ, Type1, Type2) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG1_SUFFIXED(Templ, Type1, Type2, Suffix) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(Templ, Type1, Type2) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2_SUFFIXED(Templ, Type1, Type2, Suffix) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG_BOTH(Templ, Type1, Type2) auto 
+#define UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG_BOTH_SUFFIXED(Templ, Type1, Type2, Suffix) auto 
 
 #if PLATFORM_MICROSOFT && defined(_MSC_EXTENSIONS)
 	/**

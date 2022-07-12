@@ -48,7 +48,7 @@ public:
 
 	const FWaterQuadTree& GetWaterQuadTree() const { return WaterQuadTree; }
 
-	const TSet<UMaterialInterface*>& GetUsedMaterialsSet() const { return UsedMaterials; }
+	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UMaterialInterface)& GetUsedMaterialsSet() const { return UsedMaterials; }
 
 	void MarkWaterMeshGridDirty() { bNeedsRebuild = true; }
 
