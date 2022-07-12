@@ -166,7 +166,7 @@ private:
 		{
 			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
-				const FName IconName = ActorDesc->GetNativeClass();
+				const FName IconName = ActorDesc->GetDisplayClassName();
 
 				const FSlateBrush* CachedBrush = WeakSceneOutliner.Pin()->GetCachedIconForClass(IconName);
 				if (CachedBrush != nullptr)

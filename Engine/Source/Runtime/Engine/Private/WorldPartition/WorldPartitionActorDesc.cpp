@@ -45,7 +45,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	// Get the first native class in the hierarchy
 	ActorNativeClass = GetParentNativeClass(ActorClass);
-	NativeClass = ActorNativeClass->GetFName();
+	NativeClass = *ActorNativeClass->GetPathName();
 	
 	// For native class, don't set this
 	if (!ActorClass->IsNative())
@@ -135,7 +135,7 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
 	ActorNativeClass = DescData.NativeClass;
-	NativeClass = DescData.NativeClass->GetFName();
+	NativeClass = *DescData.NativeClass->GetPathName();
 
 	// Serialize actor metadata
 	FMemoryReader MetadataAr(DescData.SerializedData, true);
@@ -436,21 +436,20 @@ FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 
 FName FWorldPartitionActorDesc::GetDisplayClassName() const
 {
-	if (BaseClass.IsNone())
+	auto GetCleanClassName = [](FName ClassName) -> FName
 	{
-		return NativeClass;
-	}
+		int32 Index;
+		FString ClassNameStr(ClassName.ToString());
+		if (ClassNameStr.FindLastChar(TCHAR('.'), Index))
+		{
+			FString CleanClassName = ClassNameStr.Mid(Index + 1);
+			CleanClassName.RemoveFromEnd(TEXT("_C"));
+			return *CleanClassName;
+		}
+		return ClassName;
+	};
 
-	int32 Index;
-	const FString BaseClassStr(BaseClass.ToString());
-	if (BaseClassStr.FindLastChar(TCHAR('.'), Index))
-	{
-		FString CleanClassName = BaseClassStr.Mid(Index + 1);
-		CleanClassName.RemoveFromEnd(TEXT("_C"));
-		return *CleanClassName;
-	}
-
-	return BaseClass;
+	return BaseClass.IsNone() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
 }
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
