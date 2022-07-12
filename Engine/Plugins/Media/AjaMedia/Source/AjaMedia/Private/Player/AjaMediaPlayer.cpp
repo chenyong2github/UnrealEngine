@@ -572,7 +572,13 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 
 		if (bAjaWriteOutputRawDataCmdEnable)
 		{
-			MediaIOCoreFileWriter::WriteRawFile(OutputFilename, reinterpret_cast<uint8*>(InVideoFrame.VideoBuffer), InVideoFrame.Stride * InVideoFrame.Height);
+			MediaIOCoreFileWriter::WriteRawFile(
+				OutputFilename, 
+				reinterpret_cast<uint8*>(InVideoFrame.VideoBuffer), 
+				InVideoFrame.Stride * InVideoFrame.Height,
+				false // bAppend
+			);
+
 			bAjaWriteOutputRawDataCmdEnable = false;
 		}
 
