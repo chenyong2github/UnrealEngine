@@ -26,6 +26,8 @@ namespace UE
 			TArray<int32> TidsForTile(FVector2i TileIndexIn) const;
 
 			static FVector2i ClassifyTrianglesToUDIM(const FDynamicMeshUVOverlay* UVOverlay, TArray<int32> Tids);
+			static FVector2i ClassifyBoundingBoxToUDIM(const FDynamicMeshUVOverlay* UVOverlay, const FAxisAlignedBox2d& BoundingBox);
+			static FVector2i ClassifyPointToUDIM(const FVector2f& UVPoint);
 
 		protected:
 
