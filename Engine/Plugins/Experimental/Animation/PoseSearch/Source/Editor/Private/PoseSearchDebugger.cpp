@@ -281,7 +281,7 @@ namespace DebuggerDatabaseColumns
 		virtual FText GetLabel() const = 0;
 
 		using FRowDataRef = TSharedRef<FDebuggerDatabaseRowData>;
-		using FSortPredicate = TFunctionRef<bool(const FRowDataRef&, const FRowDataRef&)>;
+		using FSortPredicate = TFunction<bool(const FRowDataRef&, const FRowDataRef&)>;
 
 		virtual FSortPredicate GetSortPredicate() const = 0;
 
