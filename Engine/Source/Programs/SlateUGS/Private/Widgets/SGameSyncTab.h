@@ -24,7 +24,7 @@ public:
 	void SetSyncLogLocation(const FString& LogFileName);
 
 	void SetStreamPathText(FText StreamPath);
-	// void SetChangelistText(FText Changelist); // Todo: Display the LAST SYNC'd changelist
+	void SetChangelistText(FText Changelist);
 	void SetProjectPathText(FText ProjectPath);
 
 private:
@@ -37,7 +37,9 @@ private:
 	TSharedPtr<SLogWidget> SyncLog;
 
 	TSharedPtr<STextBlock> StreamPathText;
+	TSharedPtr<STextBlock> ChangelistText;
 	TSharedPtr<STextBlock> ProjectPathText;
+	TSharedPtr<STextBlock> SyncProgressText;
 
 	static constexpr float HordeBuildRowHorizontalPadding = 10.0f;
 	static constexpr float HordeBuildRowVerticalPadding = 2.5f;

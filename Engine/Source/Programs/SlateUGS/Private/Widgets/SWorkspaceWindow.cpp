@@ -8,6 +8,7 @@
 #include "UGSTab.h"
 #include "HordeBuildRowInfo.h"
 #include "SGameSyncTab.h"
+#include "SErrorWindow.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
@@ -15,7 +16,10 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 {
 	Tab = InArgs._Tab;
 
-	this->ChildSlot
+	SWindow::Construct(SWindow::FArguments()
+	.Title(LOCTEXT("WindowTitle", "Open Project"))
+	.SizingRule(ESizingRule::FixedSize)
+	.ClientSize(FVector2D(600, 300))
 	[
 		SNew(SBox)
 		.Padding(10.0f, 10.0f)
@@ -200,7 +204,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 				]
 			]
 		]
-	];
+	]);
 }
 
 FReply SWorkspaceWindow::OnOkClicked()
@@ -212,40 +216,9 @@ FReply SWorkspaceWindow::OnOkClicked()
 	}
 	else
 	{
-		// Todo: factor out into an error window widget class (check if one already exists)
-		TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("ErrorWindowTitle", "Error Opening Project"))
-		.SizingRule(ESizingRule::Autosized)
-		.MaxWidth(400.0f)
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			.Padding(10.0f, 10.0f)
-			[
-				SNew(STextBlock)
-				.AutoWrapText(true)
-				.Text(LOCTEXT("ErrorText", "Error opening .uproject file, try again")) // Todo: detect the actual reason for error and report it here
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			.Padding(0.0f, 10.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("ErrorWindowOkayButtonText", "Ok"))
-				.OnClicked_Lambda([&Window]() 
-				{
-					Window->RequestDestroyWindow();
-					return FReply::Handled(); 
-				})
-			]
-		];
-
-		FSlateApplication::Get().AddModalWindow(Window, FSlateApplication::Get().GetActiveModalWindow(), false); // Todo: Figure out parent window for modal window
-		// Todo: loading screen widget for detect settings
+		// Todo: report other errors (no workspace associated with the file)
+		FText Error = FText::FromString("Project file does not exist, try again");
+		FSlateApplication::Get().AddModalWindow(SNew(SErrorWindow).ErrorText(Error), SharedThis(this), false);
 	}
 
 	return FReply::Handled();

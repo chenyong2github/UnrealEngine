@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWindow.h"
 
 class UGSTab;
 
-class SWorkspaceWindow : public SCompoundWidget
+class SWorkspaceWindow : public SWindow
 {
 public:
 	SLATE_BEGIN_ARGS(SWorkspaceWindow) {}
-		SLATE_ARGUMENT(UGSTab*, Tab) 
+		SLATE_ARGUMENT(UGSTab*, Tab)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

@@ -67,15 +67,8 @@ void SEmptyTab::Construct(const FArguments& InArgs)
 
 FReply SEmptyTab::OnOpenProjectClicked()
 {
-	TSharedRef<SWindow> Window = SNew(SWindow)
-	.Title(LOCTEXT("WindowTitle", "Open Project"))
-	.SizingRule(ESizingRule::Autosized)
-	[
-		SNew(SWorkspaceWindow).Tab(Tab)
-	];
-
 	FSlateApplication& SlateApplication = FSlateApplication::Get();
-	SlateApplication.AddModalWindow(Window, Tab->GetTabArgs().GetOwnerWindow(), false);
+	SlateApplication.AddModalWindow(SNew(SWorkspaceWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false);
 
 	return FReply::Handled();
 }

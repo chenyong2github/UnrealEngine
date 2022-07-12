@@ -289,6 +289,24 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						]
 					]
 					+SVerticalBox::Slot()
+					.Padding(10.0f, 12.5f)
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.Padding(5.0f, 0.0f)
+						.HAlign(HAlign_Right)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ChangelistText", "CHANGELIST"))
+						]
+						+SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						[
+							SAssignNew(ChangelistText, STextBlock)
+							.Text(LOCTEXT("ChangelistTextValue", "No changelist found"))
+						]
+					]
+					+SVerticalBox::Slot()
 					.Padding(10.0f, 25.0f)
 					[
 						SNew(SHorizontalBox)
@@ -315,14 +333,15 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					SNew(SHorizontalBox) // Todo: Only display this widget when syncing
 					.Visibility_Lambda([this] { return Tab->IsSyncing() ? EVisibility::Visible : EVisibility::Hidden; })
 					+SHorizontalBox::Slot()
-					.Padding(5.0f, 10.0f)
+					.Padding(5.0f, 25.0f)
 					.AutoWidth()
 					[
-						SNew(STextBlock)
+						SAssignNew(SyncProgressText, STextBlock)
 						.Text(LOCTEXT("SyncProgress", "Syncing Files"))
+						.Text_Lambda([this] { return FText::FromString(Tab->GetSyncProgress()); })
 					]
 					+SHorizontalBox::Slot()
-					.Padding(0.0f, 5.0f, 10.0f, 5.0f)
+					.Padding(0.0f, 12.5f, 12.5f, 5.0f)
 					.AutoWidth()
 					[
 						SNew(SThrobber)
@@ -395,12 +414,14 @@ void SGameSyncTab::SetSyncLogLocation(const FString& LogFileName)
 
 void SGameSyncTab::SetStreamPathText(FText StreamPath)
 {
-	fprintf(stderr, "Setting stream path to: %s\n", TCHAR_TO_ANSI(*StreamPath.ToString()));
 	StreamPathText->SetText(StreamPath);
+}
+void SGameSyncTab::SetChangelistText(FText Changelist)
+{
+	ChangelistText->SetText(Changelist);
 }
 void SGameSyncTab::SetProjectPathText(FText ProjectPath)
 {
-	fprintf(stderr, "Setting project path to: %s\n", TCHAR_TO_ANSI(*ProjectPath.ToString()));
 	ProjectPathText->SetText(ProjectPath);
 }
 

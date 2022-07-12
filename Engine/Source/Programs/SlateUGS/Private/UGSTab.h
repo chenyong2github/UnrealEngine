@@ -24,6 +24,7 @@ public:
 	bool OnWorkspaceChosen(const FString& Project);
 	void OnSyncLatest();
 	bool IsSyncing() const;
+	FString GetSyncProgress() const;
 private:
 
 	void OnWorkspaceSyncComplete(
