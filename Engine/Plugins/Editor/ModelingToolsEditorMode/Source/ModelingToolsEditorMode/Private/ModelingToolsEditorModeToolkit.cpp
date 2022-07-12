@@ -648,6 +648,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRevolveBoundaryTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginCombineMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDuplicateMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPatternTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
