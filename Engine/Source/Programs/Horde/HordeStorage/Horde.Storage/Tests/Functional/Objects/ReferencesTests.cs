@@ -1250,6 +1250,13 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
+                // verify that head checks find the object
+                using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+                HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+                getResponse.EnsureSuccessStatusCode();
+            }
+
+            {
                 // delete the blob 
                 await Service.DeleteObject(TestNamespace, blobHash);
             }
@@ -1276,8 +1283,26 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.IsNotNull(problem);
                 Assert.AreEqual($"Object {blobHash} in {TestNamespace} not found", problem.Title);
             }
+
+            {
+                // verify that head checks fail
+                using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+                HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+                Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
+            }
+
+            {
+                // verify that the exists check correctly returns a missing blob
+                HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+                existsResponse.EnsureSuccessStatusCode();
+
+                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                Assert.AreEqual(1, response.Missing.Count);
+				Assert.AreEqual(key, response.Missing[0].Key);
+				Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
+            }
         }
-        
+
         [TestMethod]
         public async Task DeleteObject()
         {

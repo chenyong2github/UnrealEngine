@@ -493,7 +493,11 @@ namespace Horde.Storage.Controllers
             {
                 return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
-            catch (ObjectNotFoundException e)
+            catch (BlobNotFoundException e)
+            {
+                return NotFound(new ProblemDetails { Title = $"Blob {e.Blob} in namespace {ns} did not exist" });
+            }
+			catch (ObjectNotFoundException e)
             {
                 return NotFound(new ProblemDetails {Title = $"Object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist"});
             }

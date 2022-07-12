@@ -186,14 +186,16 @@ namespace Horde.Storage.Implementation
         public async IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb)
         {
             List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
-            List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
+            List<Task<(BlobIdentifier, bool)>> pendingBlobExistsChecks = new();
+			List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
+            List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
-            // Resolve all the attachments
-            await foreach (Attachment attachment in GetAttachments(ns, cb))
+			// Resolve all the attachments
+			await foreach (Attachment attachment in GetAttachments(ns, cb))
             {
                 if (attachment is BlobAttachment blobAttachment)
                 {
-                    yield return blobAttachment.Identifier;
+                    pendingBlobExistsChecks.Add(CheckBlobExists(ns, blobAttachment.Identifier));
                 }
                 else if (attachment is ContentIdAttachment contentIdAttachment)
                 {
@@ -202,8 +204,8 @@ namespace Horde.Storage.Implementation
                 }
                 else if (attachment is ObjectAttachment objectAttachment)
                 {
-                    // a object just references the same blob, traversing the object attachment is done in GetAttachments
-                    yield return objectAttachment.Identifier;
+					// a object just references the same blob, traversing the object attachment is done in GetAttachments
+					pendingBlobExistsChecks.Add(CheckBlobExists(ns, objectAttachment.Identifier));
                 }
                 else
                 {
@@ -219,7 +221,7 @@ namespace Horde.Storage.Implementation
                 {
                     foreach (BlobIdentifier b in resolvedBlobs)
                     {
-                        yield return b;
+                        pendingBlobExistsChecks.Add(CheckBlobExists(ns, b));
                     }
                 }
                 else
@@ -228,12 +230,31 @@ namespace Horde.Storage.Implementation
                 }
             }
 
-            // if there were any content ids we did not recognize we throw a partial reference exception
-            if (unresolvedContentIdReferences.Count != 0)
+			// return any verified blobs
+            foreach (Task<(BlobIdentifier, bool)> pendingBlobExistsTask in pendingBlobExistsChecks)
+            {
+                (BlobIdentifier blob, bool exists) = await pendingBlobExistsTask;
+                if (exists)
+                {
+                    yield return blob;
+                }
+                else
+                {
+                    unresolvedBlobReferences.Add(blob);
+                }
+            }
+
+			// if there were any content ids we did not recognize we throw a partial reference exception
+			if (unresolvedContentIdReferences.Count != 0)
             {
                 throw new PartialReferenceResolveException(unresolvedContentIdReferences);
             }
-        }
+            // if there were any blobs missing we throw a partial reference exception
+            if (unresolvedBlobReferences.Count != 0)
+            {
+                throw new ReferenceIsMissingBlobsException(unresolvedBlobReferences);
+            }
+		}
 
         private async Task<CbObject> ParseCompactBinaryAttachment(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
@@ -251,7 +272,12 @@ namespace Horde.Storage.Implementation
             BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, contentId);
             return (contentId, resolvedBlobs);
         }
-    }
+
+        private async Task<(BlobIdentifier, bool)> CheckBlobExists(NamespaceId ns, BlobIdentifier blob)
+        {
+            return (blob, await _blobStore.Exists(ns, blob));
+        }
+	}
 
     public class PartialReferenceResolveException : Exception
     {
