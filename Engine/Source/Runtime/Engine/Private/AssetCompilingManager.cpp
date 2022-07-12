@@ -22,7 +22,7 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "ObjectCacheContext.h"
 #include "AsyncCompilationHelpers.h"
 #include "Experimental/Misc/ExecutionResource.h"
-#include "SkeletalMeshCompiler.h"
+#include "SkinnedAssetCompiler.h"
 #include "Algo/TopologicalSort.h"
 #include "Algo/Find.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -267,7 +267,7 @@ FAssetCompilingManager::FAssetCompilingManager()
 	AssetCompilingManagerImpl::EnsureInitializedCVars();
 
 	RegisterManager(&FStaticMeshCompilingManager::Get());
-	RegisterManager(&FSkeletalMeshCompilingManager::Get());
+	RegisterManager(&FSkinnedAssetCompilingManager::Get());
 	RegisterManager(&FTextureCompilingManager::Get());
 	RegisterManager(&FActorDeferredScriptManager::Get());
 	RegisterManager(&FSoundWaveCompilingManager::Get());

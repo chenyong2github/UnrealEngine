@@ -19,7 +19,6 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Animation/PreviewAssetAttachComponent.h"
 #include "BoneContainer.h"
-#include "Interfaces/Interface_AsyncCompilation.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "EngineTypes.h"
 #include "Engine/Engine.h"
@@ -126,130 +125,15 @@ enum class ESkeletalMeshAsyncProperties : uint64
 
 ENUM_CLASS_FLAGS(ESkeletalMeshAsyncProperties);
 
-class FSkeletalMeshCompilationContext
-{
-public:
-	FSkeletalMeshCompilationContext() = default;
-	// Non-copyable
-	FSkeletalMeshCompilationContext(const FSkeletalMeshCompilationContext&) = delete;
-	FSkeletalMeshCompilationContext& operator=(const FSkeletalMeshCompilationContext&) = delete;
-	// Movable
-	FSkeletalMeshCompilationContext(FSkeletalMeshCompilationContext&&) = default;
-	FSkeletalMeshCompilationContext& operator=(FSkeletalMeshCompilationContext&&) = default;
-	
-	//True if this compilation context is start from a serialize save
-	bool bIsSerializeSaving = false;
-};
 
-class FSkeletalMeshPostLoadContext : public FSkeletalMeshCompilationContext
-{
-public:
-	bool bHasCachedDerivedData = false;
-};
-
-class FSkeletalMeshBuildContext : public FSkeletalMeshCompilationContext
-{
-public:
-	TUniquePtr<FSkinnedMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
-};
-
+using FSkeletalMeshCompilationContext UE_DEPRECATED(5.1, "Use FSkinnedAssetCompilationContext instead.") = FSkinnedAssetCompilationContext;
+using FSkeletalMeshPostLoadContext UE_DEPRECATED(5.1, "Use FSkinnedAssetPostLoadContext instead.") = FSkinnedAssetPostLoadContext;
+using FSkeletalMeshBuildContext UE_DEPRECATED(5.1, "Use FSkinnedAssetBuildContext instead.") = FSkinnedAssetBuildContext;
 #if WITH_EDITOR
-
-// Any thread implicated in the build must have a valid scope to be granted access to protected properties without causing any stalls.
-class FSkeletalMeshAsyncBuildScope
-{
-public:
-	ENGINE_API FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh);
-	ENGINE_API ~FSkeletalMeshAsyncBuildScope();
-	ENGINE_API static bool ShouldWaitOnLockedProperties(const USkeletalMesh* SkeletalMesh);
-
-private:
-	const USkeletalMesh* PreviousScope = nullptr;
-	// Only the thread(s) compiling this Skeletal mesh will have full access to protected properties without causing any stalls.
-	static thread_local const USkeletalMesh* SkeletalMeshBeingAsyncCompiled;
-};
-
-/**
- * Worker used to perform async static mesh compilation.
- */
-class FSkeletalMeshAsyncBuildWorker : public FNonAbandonableTask
-{
-public:
-	USkeletalMesh* SkeletalMesh;
-	TOptional<FSkeletalMeshPostLoadContext> PostLoadContext;
-	TOptional<FSkeletalMeshBuildContext> BuildContext;
-
-	/** Initialization constructor. */
-	FSkeletalMeshAsyncBuildWorker(
-		USkeletalMesh* InSkeletalMesh,
-		FSkeletalMeshBuildContext&& InBuildContext)
-		: SkeletalMesh(InSkeletalMesh)
-		, BuildContext(MoveTemp(InBuildContext))
-	{
-	}
-
-	/** Initialization constructor. */
-	FSkeletalMeshAsyncBuildWorker(
-		USkeletalMesh* InSkeletalMesh,
-		FSkeletalMeshPostLoadContext&& InPostLoadContext)
-		: SkeletalMesh(InSkeletalMesh)
-		, PostLoadContext(MoveTemp(InPostLoadContext))
-	{
-	}
-
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FSkeletalMeshAsyncBuildWorker, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
-	void DoWork();
-};
-
-struct FSkeletalMeshAsyncBuildTask : public FAsyncTask<FSkeletalMeshAsyncBuildWorker>
-{
-	FSkeletalMeshAsyncBuildTask(
-		USkeletalMesh* InSkeletalMesh,
-		FSkeletalMeshPostLoadContext&& InPostLoadContext)
-		: FAsyncTask<FSkeletalMeshAsyncBuildWorker>(InSkeletalMesh, MoveTemp(InPostLoadContext))
-		, SkeletalMesh(InSkeletalMesh)
-	{
-	}
-
-	FSkeletalMeshAsyncBuildTask(
-		USkeletalMesh* InSkeletalMesh,
-		FSkeletalMeshBuildContext&& InBuildContext)
-		: FAsyncTask<FSkeletalMeshAsyncBuildWorker>(InSkeletalMesh, MoveTemp(InBuildContext))
-		, SkeletalMesh(InSkeletalMesh)
-	{
-	}
-
-	const USkeletalMesh* SkeletalMesh;
-};
-
-#endif // #if WITH_EDITOR
-
-UENUM()
-enum class ESkinCacheUsage : uint8
-{
-	// Auto will defer to child or global behavior based on context. If Support Ray Tracing is enabled on the mesh, will imply Enabled
-	Auto		= 0,
-
-	// Mesh will not use the skin cache. If Support Ray Tracing is enabled on the mesh, will imply Enabled
-	Disabled	= uint8(-1),
-
-	// Mesh will use the skin cache
-	Enabled		= 1,
-};
-
-UENUM()
-enum class ESkinCacheDefaultBehavior : uint8
-{
-	// All skeletal meshes are excluded from the skin cache. Each must opt in individually. If Support Ray Tracing is enabled on a mesh, will force inclusive behavior on that mesh
-	Exclusive = 0,
-
-	// All skeletal meshes are included into the skin cache. Each must opt out individually
-	Inclusive = 1,
-};
+using FSkeletalMeshAsyncBuildScope UE_DEPRECATED(5.1, "Use FSkinnedAssetAsyncBuildScope instead.") = FSkinnedAssetAsyncBuildScope;
+using FSkeletalMeshAsyncBuildWorker UE_DEPRECATED(5.1, "Use FSkinnedAssetAsyncBuildWorker instead.") = FSkinnedAssetAsyncBuildWorker;
+using FSkeletalMeshAsyncBuildTask UE_DEPRECATED(5.1, "Use FSkinnedAssetAsyncBuildTask instead.") = FSkinnedAssetAsyncBuildTask;
+#endif
 
 struct UE_DEPRECATED(5.0, "FBoneMirrorInfo is deprecated. Please use UMirrorDataTable for mirroring support.") FBoneMirrorInfo;
 USTRUCT()
@@ -336,187 +220,6 @@ struct ENGINE_API FSkeletalMeshClothBuildParams
 	// Physics asset to extract collisions from, note this will only extract spheres and Sphyls, as that is what the simulation supports.
 	UPROPERTY(EditAnywhere, Category = Collision)
 	TSoftObjectPtr<UPhysicsAsset> PhysicsAsset;
-};
-
-USTRUCT()
-struct FSectionReference
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Index of the section we reference. **/
-	UPROPERTY(EditAnywhere, Category = SectionReference)
-	int32 SectionIndex;
-
-	FSectionReference()
-		: SectionIndex(INDEX_NONE)
-	{
-	}
-
-	FSectionReference(const int32& InSectionIndex)
-		: SectionIndex(InSectionIndex)
-	{
-	}
-
-	bool operator==(const FSectionReference& Other) const
-	{
-		return SectionIndex == Other.SectionIndex;
-	}
-
-#if WITH_EDITOR
-	/** return true if it has a valid section index for LodModel parameter **/
-	ENGINE_API bool IsValidToEvaluate(const FSkeletalMeshLODModel& LodModel) const;
-
-	const struct FSkelMeshSection* GetMeshLodSection(const FSkeletalMeshLODModel& LodModel) const;
-	int32 GetMeshLodSectionIndex(const FSkeletalMeshLODModel& LodModel) const;
-#endif
-
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << SectionIndex;
-		return true;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FSectionReference& B)
-	{
-		B.Serialize(Ar);
-		return Ar;
-	}
-};
-
-/** Struct containing information for a particular LOD level, such as materials and info for when to use it. */
-USTRUCT()
-struct FSkeletalMeshLODInfo
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** 
-	 * ScreenSize to display this LOD.
-	 * The screen size is based around the projected diameter of the bounding
-	 * sphere of the model. i.e. 0.5 means half the screen's maximum dimension.
-	 */
-	UPROPERTY(EditAnywhere, Category=SkeletalMeshLODInfo)
-	FPerPlatformFloat ScreenSize;
-
-	/**	Used to avoid 'flickering' when on LOD boundary. Only taken into account when moving from complex->simple. */
-	UPROPERTY(EditAnywhere, Category=SkeletalMeshLODInfo, meta=(DisplayName="LOD Hysteresis"))
-	float LODHysteresis;
-
-	/** Mapping table from this LOD's materials to the USkeletalMesh materials array.
-	 * section index is the key
-	 * remapped material index is the value, can be INDEX_NONE for no remapping
-	 */
-	UPROPERTY()
-	TArray<int32> LODMaterialMap;
-
-#if WITH_EDITORONLY_DATA
-	/** Per-section control over whether to enable shadow casting. */
-	UPROPERTY()
-	TArray<bool> bEnableShadowCasting_DEPRECATED;
-
-	/** This has been removed in editor. We could re-apply this in import time or by mesh reduction utilities*/
-	UPROPERTY()
-	TArray<FName> RemovedBones_DEPRECATED;
-#endif
-
-	/** build settings to apply when building render data. */
-	UPROPERTY(EditAnywhere, Category = BuildSettings)
-	FSkeletalMeshBuildSettings BuildSettings;
-
-	/** Reduction settings to apply when building render data. */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	FSkeletalMeshOptimizationSettings ReductionSettings;
-
-	/** Bones which should be removed from the skeleton for the LOD level */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TArray<FBoneReference> BonesToRemove;
-
-	/** Bones which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TArray<FBoneReference> BonesToPrioritize;
-
-	/** Sections which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TArray<FSectionReference> SectionsToPrioritize;
-
-	/** How much to consideration to give BonesToPrioritize and SectionsToPrioritize.  The weight is an additional vertex simplification penalty where 0 means nothing. */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings, meta = (UIMin = "0.0", ClampMin = "0.0"))
-	float WeightOfPrioritization;
-
-	/** Pose which should be used to reskin vertex influences for which the bones will be removed in this LOD level, uses ref-pose by default */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TObjectPtr<UAnimSequence> BakePose;
-
-	/** This is used when you are sharing the LOD settings, but you'd like to override the BasePose. This precedes prior to BakePose*/
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TObjectPtr<UAnimSequence> BakePoseOverride;
-
-	/** The filename of the file tha was used to import this LOD if it was not auto generated. */
-	UPROPERTY(VisibleAnywhere, Category= SkeletalMeshLODInfo, AdvancedDisplay)
-	FString SourceImportFilename;
-
-	/**
-	 * How this LOD uses the skin cache feature. Auto will defer to the default project global option. If Support Ray Tracing is enabled on the mesh, will imply Enabled
-	 */
-	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
-	ESkinCacheUsage SkinCacheUsage = ESkinCacheUsage::Auto;
-
-	/** The Morph target position error tolerance in microns. Larger values result in better compression and lower memory footprint, but also lower quality. */
-	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo, meta = (UIMin = "0.01", ClampMin = "0.01", UIMax = "10000.0", ClampMax = "10000.0"))
-	float MorphTargetPositionErrorTolerance = 20.0f;
-
-	/** Whether to disable morph targets for this LOD. */
-	UPROPERTY()
-	uint8 bHasBeenSimplified:1;
-
-	UPROPERTY()
-	uint8 bHasPerLODVertexColors : 1;
-
-	/** Keeps this LODs data on the CPU so it can be used for things such as sampling in FX. */
-	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
-	uint8 bAllowCPUAccess : 1;
-
-	/**
-	Mesh supports uniformly distributed sampling in constant time.
-	Memory cost is 8 bytes per triangle.
-	Example usage is uniform spawning of particles.
-	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SkeletalMeshLODInfo, meta=(EditCondition="bAllowCPUAccess"))
-	uint8 bSupportUniformlyDistributedSampling : 1;
-
-#if WITH_EDITORONLY_DATA
-	/*
-	 * This boolean specify if the LOD was imported with the base mesh or not.
-	 */
-	UPROPERTY()
-	uint8 bImportWithBaseMesh:1;
-
-	//Temporary build GUID data
-	//We use this GUID to store the LOD Key so we can know if the LOD needs to be rebuilt
-	//This GUID is set when we Cache the render data (build function)
-	FGuid BuildGUID;
-
-	ENGINE_API FGuid ComputeDeriveDataCacheKey(const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings);
-#endif
-
-	FSkeletalMeshLODInfo()
-		: ScreenSize(1.0)
-		, LODHysteresis(0.0f)
-		, WeightOfPrioritization(1.f)
-		, BakePose(nullptr)
-		, BakePoseOverride(nullptr)
-		, bHasBeenSimplified(false)
-		, bHasPerLODVertexColors(false)
-		, bAllowCPUAccess(false)
-		, bSupportUniformlyDistributedSampling(false)
-#if WITH_EDITORONLY_DATA
-		, bImportWithBaseMesh(false)
-#endif
-	{
-#if WITH_EDITORONLY_DATA
-		BuildGUID.Invalidate();
-#endif
-	}
-
 };
 
 /**
@@ -636,70 +339,6 @@ enum class EClothLODBiasMode : uint8
 	// Store all cloth deformer mappings at the expense of memory usage, to allow raytracing of the cloth elements at any higher LOD.
 	// Use this mode when the RayTracing LODBias console variable is in use.
 	MappingsToAnyLOD,
-};
-
-//~ Begin Material Interface for USkeletalMesh - contains a material and a shadow casting flag
-USTRUCT(BlueprintType)
-struct FSkeletalMaterial
-{
-	GENERATED_USTRUCT_BODY()
-
-	FSkeletalMaterial()
-		: MaterialInterface( NULL )
-		, MaterialSlotName( NAME_None )
-#if WITH_EDITORONLY_DATA
-		, bEnableShadowCasting_DEPRECATED(true)
-		, bRecomputeTangent_DEPRECATED(false)
-		, ImportedMaterialSlotName( NAME_None )
-#endif
-	{
-
-	}
-
-	FSkeletalMaterial( class UMaterialInterface* InMaterialInterface
-						, bool bInEnableShadowCasting = true
-						, bool bInRecomputeTangent = false
-						, FName InMaterialSlotName = NAME_None
-						, FName InImportedMaterialSlotName = NAME_None)
-		: MaterialInterface( InMaterialInterface )
-		, MaterialSlotName(InMaterialSlotName)
-#if WITH_EDITORONLY_DATA
-		, bEnableShadowCasting_DEPRECATED(bInEnableShadowCasting)
-		, bRecomputeTangent_DEPRECATED(bInRecomputeTangent)
-		, ImportedMaterialSlotName(InImportedMaterialSlotName)
-#endif //WITH_EDITORONLY_DATA
-	{
-
-	}
-
-	friend FArchive& operator<<( FArchive& Ar, FSkeletalMaterial& Elem );
-#if WITH_EDITORONLY_DATA
-	static void DeclareCustomVersions(FArchive& Ar);
-#endif
-
-	ENGINE_API friend bool operator==( const FSkeletalMaterial& LHS, const FSkeletalMaterial& RHS );
-	ENGINE_API friend bool operator==( const FSkeletalMaterial& LHS, const UMaterialInterface& RHS );
-	ENGINE_API friend bool operator==( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS );
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletalMesh)
-	TObjectPtr<class UMaterialInterface> 	MaterialInterface;
-	
-	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SkeletalMesh)
-	FName						MaterialSlotName;
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	bool						bEnableShadowCasting_DEPRECATED;
-	UPROPERTY()
-	bool						bRecomputeTangent_DEPRECATED;
-	/*This name should be use when we re-import a skeletal mesh so we can order the Materials array like it should be*/
-	UPROPERTY(VisibleAnywhere, Category = SkeletalMesh)
-	FName						ImportedMaterialSlotName;
-#endif //WITH_EDITORONLY_DATA
-
-	/** Data used for texture streaming relative to each UV channels. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
-	FMeshUVChannelInfo			UVChannelData;
 };
 
 #if WITH_EDITOR
@@ -962,7 +601,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	virtual const USkeleton* GetSkeleton() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Skeleton, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Skeleton, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return Skeleton;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -990,7 +629,7 @@ private:
 
 	const FBoxSphereBounds& GetExtendedBounds() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return ExtendedBounds;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1055,7 +694,7 @@ public:
 	/** Get bound extension values in the positive direction of XYZ **/
 	const FVector& GetPositiveBoundsExtension() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return PositiveBoundsExtension;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1067,7 +706,7 @@ public:
 	/** Get bound extension values in the negative direction of XYZ **/
 	const FVector& GetNegativeBoundsExtension() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return NegativeBoundsExtension;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1128,7 +767,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	virtual const TArray<FSkeletalMaterial>& GetMaterials() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Materials, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Materials, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return Materials;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1168,7 +807,7 @@ public:
     UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	const TArray<struct FBoneMirrorInfo>& GetSkelMirrorTable() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorTable, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorTable, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkelMirrorTable;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1259,7 +898,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual const FPerPlatformInt& GetMinLod() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MinLod, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MinLod, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MinLod;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1288,7 +927,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual const FPerPlatformBool& GetDisableBelowMinLodStripping() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DisableBelowMinLodStripping, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DisableBelowMinLodStripping, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return DisableBelowMinLodStripping;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1316,7 +955,7 @@ public:
 
 	bool GetOverrideLODStreamingSettings() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverrideLODStreamingSettings, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::OverrideLODStreamingSettings, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bOverrideLODStreamingSettings;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1343,7 +982,7 @@ public:
 
 	const FPerPlatformBool& GetSupportLODStreaming() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SupportLODStreaming, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SupportLODStreaming, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bSupportLODStreaming;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1370,7 +1009,7 @@ public:
 
 	const FPerPlatformInt& GetMaxNumStreamedLODs() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MaxNumStreamedLODs, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MaxNumStreamedLODs, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MaxNumStreamedLODs;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1397,7 +1036,7 @@ public:
 
 	const FPerPlatformInt& GetMaxNumOptionalLODs() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MaxNumOptionalLODs, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MaxNumOptionalLODs, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MaxNumOptionalLODs;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1452,7 +1091,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	const USkeletalMeshLODSettings* GetLODSettings() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODSettings, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODSettings, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 		return LODSettings;
@@ -1500,7 +1139,7 @@ public:
 	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	TEnumAsByte<EAxis::Type> GetSkelMirrorAxis() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorAxis, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorAxis, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkelMirrorAxis;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1528,7 +1167,7 @@ public:
     UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	TEnumAsByte<EAxis::Type> GetSkelMirrorFlipAxis() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorFlipAxis, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorFlipAxis, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkelMirrorFlipAxis;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1564,7 +1203,7 @@ public:
 
 	bool GetHasBeenSimplified() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasBeenSimplified, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasBeenSimplified, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bHasBeenSimplified;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1593,7 +1232,7 @@ public:
 	/** Return whether or not the mesh has vertex colors. USkinnedAsset interface. */
 	virtual bool GetHasVertexColors() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasVertexColors, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasVertexColors, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bHasVertexColors != 0;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1640,7 +1279,7 @@ public:
 
 	bool GetEnablePerPolyCollision() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::EnablePerPolyCollision, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::EnablePerPolyCollision, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bEnablePerPolyCollision != 0;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1669,7 +1308,7 @@ public:
 	
 	FGuid GetVertexColorGuid() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::VertexColorGuid, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::VertexColorGuid, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return VertexColorGuid;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1810,7 +1449,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	const TArray<class UNodeMappingContainer*>& GetNodeMappingData() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::NodeMappingData, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::NodeMappingData, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return NodeMappingData;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1909,7 +1548,7 @@ public:
 
 	bool GetHasCustomDefaultEditorCamera() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasCustomDefaultEditorCamera, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasCustomDefaultEditorCamera, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bHasCustomDefaultEditorCamera;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1937,7 +1576,7 @@ public:
 
 	const FVector& GetDefaultEditorCameraLocation() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraLocation, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraLocation, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return DefaultEditorCameraLocation;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1965,7 +1604,7 @@ public:
 
 	const FRotator& GetDefaultEditorCameraRotation() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraRotation, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraRotation, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return DefaultEditorCameraRotation;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1993,7 +1632,7 @@ public:
 
 	const FVector& GetDefaultEditorCameraLookAt() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraLookAt, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraLookAt, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return DefaultEditorCameraLookAt;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2021,7 +1660,7 @@ public:
 
 	float GetDefaultEditorCameraOrthoZoom() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraOrthoZoom, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultEditorCameraOrthoZoom, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return DefaultEditorCameraOrthoZoom;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2051,7 +1690,7 @@ public:
 
 	const FPreviewAssetAttachContainer& GetPreviewAttachedAssetContainer() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::PreviewAttachedAssetContainer, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::PreviewAttachedAssetContainer, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return PreviewAttachedAssetContainer;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2074,7 +1713,7 @@ public:
 
 	bool GetRequiresLODScreenSizeConversion() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RequiresLODScreenSizeConversion, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RequiresLODScreenSizeConversion, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bRequiresLODScreenSizeConversion;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2097,7 +1736,7 @@ public:
 
 	bool GetRequiresLODHysteresisConversion() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RequiresLODHysteresisConversion, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RequiresLODHysteresisConversion, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bRequiresLODHysteresisConversion;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2123,7 +1762,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual bool GetSupportRayTracing() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::bSupportRayTracing, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::bSupportRayTracing, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bSupportRayTracing;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2147,7 +1786,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual int32 GetRayTracingMinLOD() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RayTracingMinLOD, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RayTracingMinLOD, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RayTracingMinLOD;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2171,7 +1810,7 @@ public:
 
 	EClothLODBiasMode GetClothLODBiasMode() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ClothLODBiasMode, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ClothLODBiasMode, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return ClothLODBiasMode;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2209,7 +1848,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	virtual const TArray<UMorphTarget*>& GetMorphTargets() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MorphTargets;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2257,7 +1896,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual const FReferenceSkeleton& GetRefSkeleton() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefSkeleton, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefSkeleton, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RefSkeleton;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2292,7 +1931,7 @@ public:
 
 	const TMap<FName, int32>& GetMorphTargetIndexMap() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargetIndexMap, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargetIndexMap, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MorphTargetIndexMap;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2329,7 +1968,7 @@ public:
 	/** USkinnedAsset interface. */
 	virtual const TArray<FMatrix44f>& GetRefBasesInvMatrix() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefBasesInvMatrix, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefBasesInvMatrix, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RefBasesInvMatrix;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2359,7 +1998,7 @@ public:
 
 	float GetFloorOffset() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::FloorOffset, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::FloorOffset, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return FloorOffset;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2395,7 +2034,7 @@ public:
 
 	const TArray<FTransform>& GetRetargetBasePose() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RetargetBasePose, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RetargetBasePose, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RetargetBasePose;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2431,7 +2070,7 @@ public:
 
 	TSubclassOf<UAnimInstance> GetPostProcessAnimBlueprint() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::PostProcessAnimBlueprint, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::PostProcessAnimBlueprint, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return PostProcessAnimBlueprint;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2458,20 +2097,17 @@ public:
 	void RemoveLegacyClothingSections();
 
 	/*
-	* Handle some common preparation steps between async post load and async build
+	* Handle some common preparation steps between async post load and async build. USkinnedAsset interface.
 	*/
-	void PrepareForAsyncCompilation();
+	virtual void PrepareForAsyncCompilation() override;
 
-	/** Returns false if there is currently an async task running */
-	bool IsAsyncTaskComplete() const;
+	/** Returns false if there is currently an async task running. USkinnedAsset interface. */
+	virtual bool IsAsyncTaskComplete() const override;
 
 	/** Try to cancel any pending async tasks.
 	 *  Returns true if there is no more async tasks pending, false otherwise.
 	 */
 	bool TryCancelAsyncTasks();
-
-	/** Holds the pointer to an async task if one exists. */
-	TUniquePtr<FSkeletalMeshAsyncBuildTask> AsyncTask;
 #endif // WITH_EDITOR
 
 	/**
@@ -2508,7 +2144,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	const TArray<UClothingAssetBase*>& GetMeshClothingAssets() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MeshClothingAssets, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MeshClothingAssets, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MeshClothingAssets;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2558,7 +2194,7 @@ public:
 
 	const FSkeletalMeshSamplingInfo& GetSamplingInfo() const 
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SamplingInfo, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SamplingInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SamplingInfo;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -2632,7 +2268,7 @@ private:
 
 	const TArray<FMatrix>& GetCachedComposedRefPoseMatrices() const
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::CachedComposedRefPoseMatrices, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::CachedComposedRefPoseMatrices, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return CachedComposedRefPoseMatrices;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3002,27 +2638,27 @@ private:
 
 #if WITH_EDITOR
 	/** Generate SkeletalMeshRenderData from ImportedModel */
-	void CacheDerivedData(FSkeletalMeshCompilationContext* ContextPtr);
+	void CacheDerivedData(FSkinnedAssetCompilationContext* ContextPtr);
 
 	/**
-	 * Initial step for the building process - Can't be done in parallel.
+	 * Initial step for the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	void BeginBuildInternal(FSkeletalMeshBuildContext& Context);
+	virtual void BeginBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
-	 * Thread-safe part.
+	 * Thread-safe part. USkinnedAsset Interface.
 	 */
-	void ExecuteBuildInternal(FSkeletalMeshBuildContext& Context);
+	virtual void ExecuteBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
-	 * Complete the building process - Can't be done in parallel.
+	 * Complete the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	void FinishBuildInternal(FSkeletalMeshBuildContext& Context);
+	virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
 	 * Copy build/load context result data to the skeletalmesh member on the game thread - Can't be done in parallel.
 	 */
-	void ApplyFinishBuildInternalData(FSkeletalMeshCompilationContext* ContextPtr);
+	void ApplyFinishBuildInternalData(FSkinnedAssetCompilationContext* ContextPtr);
 	
 #endif
 
@@ -3063,10 +2699,6 @@ private:
 
 #if WITH_EDITOR
 public:
-	/** IInterface_AsyncCompilation begin*/
-	virtual bool IsCompiling() const override;
-	/** IInterface_AsyncCompilation end*/
-
 	/** Delegates for asset editor events */
 
 	FDelegateHandle RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate);
@@ -3080,31 +2712,14 @@ private:
 	// INodeMappingProviderInterface
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutTransforms) const override;
 
-	enum class EAsyncPropertyLockType
-	{
-		None = 0,
-		ReadOnly = 1,
-		WriteOnly = 2,
-		ReadWrite = 3
-	};
+	/**
+	 * Wait for the asset to finish compilation to protect internal skinned asset data from race conditions during async build.
+	 * This should be called before accessing all async accessible properties.
+	 */
+	void WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite) const;
 
-	FRIEND_ENUM_CLASS_FLAGS(EAsyncPropertyLockType);
-
-#if WITH_EDITOR
-	/** Used as a bit-field indicating which properties are read by async compilation. */
-	std::atomic<uint64> AccessedProperties;
-	/** Used as a bit-field indicating which properties are written to by async compilation. */
-	std::atomic<uint64> ModifiedProperties;
-	
-	void AcquireAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties = ESkeletalMeshAsyncProperties::All, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite);
-	void ReleaseAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties = ESkeletalMeshAsyncProperties::All, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite);
-	void WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite) const;
-#else
-	FORCEINLINE void AcquireAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties = ESkeletalMeshAsyncProperties::All, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite) {};
-	FORCEINLINE void ReleaseAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties = ESkeletalMeshAsyncProperties::All, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite) {};
-	FORCEINLINE void WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType = EAsyncPropertyLockType::ReadWrite) const {}
-#endif
-
+	/** Convert async property from enum value to string. USkinnedAsset interface. */
+	virtual FString GetAsyncPropertyName(uint64 Property) const override;
 
 public:
 	/*
@@ -3164,7 +2779,7 @@ public:
 	 */
 	virtual const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return LODInfo;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3186,7 +2801,7 @@ public:
 	 */	
 	virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3207,7 +2822,7 @@ public:
 	 */
 	virtual bool IsValidLODIndex(int32 Index) const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return LODInfo.IsValidIndex(Index);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3217,7 +2832,7 @@ public:
 	 */
 	virtual int32 GetLODNum() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return LODInfo.Num();
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3229,7 +2844,7 @@ public:
 public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const 
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkinWeightProfiles; 
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3252,7 +2867,7 @@ public:
 	}
 	int32 GetNumSkinWeightProfiles() const 
 	{ 
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkinWeightProfiles.Num(); 
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3277,7 +2892,7 @@ public:
 	// USkinnedAsset interface
 	virtual bool GetUseLegacyMeshDerivedDataKey() const override
 	{
-		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::UseLegacyMeshDerivedDataKey, EAsyncPropertyLockType::ReadOnly);
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::UseLegacyMeshDerivedDataKey, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return UseLegacyMeshDerivedDataKey;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -3300,23 +2915,20 @@ protected:
 	TArray<FSkinWeightProfileInfo> SkinWeightProfiles;
 
 private:
-	friend class FSkeletalMeshCompilingManager;
-	friend class FSkeletalMeshAsyncBuildWorker;
+	/**
+	 * Initial step for the Post Load process - Can't be done in parallel. USkinnedAsset Interface.
+	 */
+	virtual void BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 
 	/**
-	 * Initial step for the Post Load process - Can't be done in parallel.
+	 * Thread-safe part of the Post Load. USkinnedAsset interface.
 	 */
-	void BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context);
+	virtual void ExecutePostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 
 	/**
-	 * Thread-safe part of the Post Load
+	 * Complete the postload process - Can't be done in parallel. USkinnedAsset interface.
 	 */
-	void ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Context);
-
-	/**
-	 * Complete the postload process - Can't be done in parallel.
-	 */
-	void FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context);
+	virtual void FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 };
 
 struct FSkeletalMeshBuildParameters

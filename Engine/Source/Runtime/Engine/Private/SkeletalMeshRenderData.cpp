@@ -215,7 +215,7 @@ FString FSkeletalMeshRenderData::GetDerivedDataKey(const ITargetPlatform* Target
 	return Owner->BuildDerivedDataKey(TargetPlatform);
 }
 
-void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner, FSkeletalMeshCompilationContext* ContextPtr)
+void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner, FSkinnedAssetCompilationContext* ContextPtr)
 {
 	check(Owner);
 	// Disable ContextPtr check because only USkeletalMesh supports it.

@@ -55,7 +55,7 @@ public:
 	ENGINE_API ~FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
-	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner, class FSkeletalMeshCompilationContext* ContextPtr);
+	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner, class FSkinnedAssetCompilationContext* ContextPtr);
 	FString GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner);
 
 	ENGINE_API void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);

@@ -13,6 +13,8 @@
 #include "ReferenceSkeleton.h"
 #include "PerPlatformProperties.h"
 #include "SkeletalMeshTypes.h"
+#include "SkinnedAssetAsyncCompileUtils.h"
+#include "SkinnedAssetCommon.h"
 #include "SkinnedAsset.generated.h"
 
 class USkeleton;
@@ -21,6 +23,16 @@ class UPhysicsAsset;
 class ITargetPlatform;
 struct FSkeletalMaterial;
 struct FSkeletalMeshLODInfo;
+
+enum class ESkinnedAssetAsyncPropertyLockType
+{
+	None = 0,
+	ReadOnly = 1,
+	WriteOnly = 2,
+	ReadWrite = 3
+};
+ENUM_CLASS_FLAGS(ESkinnedAssetAsyncPropertyLockType);
+
 
 UCLASS(hidecategories = Object, config = Engine, editinlinenew, abstract)
 class ENGINE_API USkinnedAsset : public UStreamableRenderAsset, public IInterface_AsyncCompilation
@@ -93,7 +105,7 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetLODInfoArray, static const TArray<FSkeletalMeshLODInfo> Dummy; return Dummy;);
 
 	/** Get the data to use for rendering. */
-	virtual FORCEINLINE class FSkeletalMeshRenderData* GetResourceForRendering() const
+	virtual class FSkeletalMeshRenderData* GetResourceForRendering() const
 	PURE_VIRTUAL(USkinnedAsset::GetResourceForRendering, return nullptr;);
 
 	virtual int32 GetDefaultMinLod() const
@@ -173,8 +185,8 @@ public:
 	virtual uint32 GetVertexBufferFlags() const
 	{ return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None; }
 
+	//~ Begin UObject Interface
 	/**
-	* UObject Interface
 	* This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
 	* ParticleSystemComponent will return the name of the ParticleSystem)  The idea here is that in many places
 	* you have a component of interest but what you really want is some characteristic that you can use to track
@@ -183,9 +195,12 @@ public:
 	virtual FString GetDetailedInfoInternal() const override
 	{ return GetPathName(nullptr); }
 
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+
 #if WITH_EDITOR
 	/** IInterface_AsyncCompilation begin*/
-	virtual bool IsCompiling() const override { return false; }
+	virtual bool IsCompiling() const override;
 	/** IInterface_AsyncCompilation end*/
 
 	virtual FString BuildDerivedDataKey(const ITargetPlatform* TargetPlatform)
@@ -217,5 +232,55 @@ public:
 	virtual class FSkeletalMeshModel* GetImportedModel() const
 	PURE_VIRTUAL(USkinnedAsset::GetImportedModel, return nullptr;);
 #endif // WITH_EDITORONLY_DATA
+
+protected:	
+	/** Lock properties that should not be modified/accessed during async build. */
+	void AcquireAsyncProperty(uint64 AsyncProperties = MAX_uint64, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite);
+	/** Release properties that should not be modified/accessed during async build. */
+	void ReleaseAsyncProperty(uint64 AsyncProperties = MAX_uint64, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite);
+
+	/**
+	 * Wait for the asset to finish compilation to protect internal skinned asset data from race conditions during async build.
+	 * A derived class may want to define its async properties as enums and cast them to uint64 when calling this function.
+	 */
+	void WaitUntilAsyncPropertyReleasedInternal(uint64 AsyncProperties, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite) const;
+
+#if WITH_EDITOR
+	/** Initial step for the building process - Can't be done in parallel. */
+	virtual void BeginBuildInternal(FSkinnedAssetBuildContext& Context) {}
+	/** Thread-safe part. */
+	virtual void ExecuteBuildInternal(FSkinnedAssetBuildContext& Context) {}
+	/** Complete the building process - Can't be done in parallel. */
+	virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) {}
+
+	/** Holds the pointer to an async task if one exists. */
+	TUniquePtr<FSkinnedAssetAsyncBuildTask> AsyncTask;
+#endif // WITH_EDITOR
+
+private:
+	/** Initial step for the Post Load process - Can't be done in parallel. */
+	virtual void BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context) {}
+	/** Thread-safe part of the Post Load */
+	virtual void ExecutePostLoadInternal(FSkinnedAssetPostLoadContext& Context) {}
+	/** Complete the postload process - Can't be done in parallel. */
+	virtual void FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context) {}
+
+	/** Convert async property from enum value to string. */
+	virtual FString GetAsyncPropertyName(uint64 Property) const { return TEXT(""); }
+
+#if WITH_EDITOR
+	/** Handle some common preparation steps between async post load and async build */
+	virtual void PrepareForAsyncCompilation() {}
+	/** Returns false if there is currently an async task running */
+	virtual bool IsAsyncTaskComplete() const { return true; }
+
+	/** Used as a bit-field indicating which properties are read by async compilation. */
+	std::atomic<uint64> AccessedProperties;
+	/** Used as a bit-field indicating which properties are written to by async compilation. */
+	std::atomic<uint64> ModifiedProperties;
+#endif // WITH_EDITOR
+
+	friend class FSkinnedAssetCompilingManager;
+	friend class FSkinnedAssetAsyncBuildWorker;
 };
 

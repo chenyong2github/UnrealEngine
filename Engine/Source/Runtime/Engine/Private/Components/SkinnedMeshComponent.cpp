@@ -16,7 +16,6 @@
 #include "SkeletalRenderGPUSkin.h"
 #include "SkeletalRenderStatic.h"
 #include "Animation/AnimStats.h"
-#include "SkeletalMeshCompiler.h"
 #include "SkeletalMeshDeformerHelpers.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "PhysicsEngine/PhysicsAsset.h"

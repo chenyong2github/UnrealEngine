@@ -68,7 +68,7 @@
 #include "IMeshBuilderModule.h"
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
-#include "SkeletalMeshCompiler.h"
+#include "SkinnedAssetCompiler.h"
 #include "MeshUtilities.h"
 #include "Engine/SkeletalMeshEditorData.h"
 #include "DerivedDataCacheInterface.h"
@@ -360,61 +360,6 @@ void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeleta
 	}
 }
 
-
-/*-----------------------------------------------------------------------------
-	FSectionReference
------------------------------------------------------------------------------*/
-
-bool FSectionReference::IsValidToEvaluate(const FSkeletalMeshLODModel& LodModel) const
-{
-	return GetMeshLodSection(LodModel) != nullptr;
-}
-
-const FSkelMeshSection* FSectionReference::GetMeshLodSection(const FSkeletalMeshLODModel& LodModel) const
-{
-	for (int32 LodModelSectionIndex = 0; LodModelSectionIndex < LodModel.Sections.Num(); ++LodModelSectionIndex)
-	{
-		const FSkelMeshSection& Section = LodModel.Sections[LodModelSectionIndex];
-		if (Section.ChunkedParentSectionIndex == INDEX_NONE && SectionIndex == Section.OriginalDataSectionIndex)
-		{
-			return &Section;
-		}
-	}
-	return nullptr;
-}
-
-int32 FSectionReference::GetMeshLodSectionIndex(const FSkeletalMeshLODModel& LodModel) const
-{
-	for (int32 LodModelSectionIndex = 0; LodModelSectionIndex < LodModel.Sections.Num(); ++LodModelSectionIndex)
-	{
-		const FSkelMeshSection& Section = LodModel.Sections[LodModelSectionIndex];
-		if (Section.ChunkedParentSectionIndex == INDEX_NONE && SectionIndex == Section.OriginalDataSectionIndex)
-		{
-			return LodModelSectionIndex;
-		}
-	}
-	return INDEX_NONE;
-}
-
-
-/*-----------------------------------------------------------------------------
-	FSkeletalMeshAsyncBuildWorker
------------------------------------------------------------------------------*/
-
-
-void FSkeletalMeshAsyncBuildWorker::DoWork()
-{
-	if (PostLoadContext.IsSet())
-	{
-		SkeletalMesh->ExecutePostLoadInternal(*PostLoadContext);
-	}
-
-	if (BuildContext.IsSet())
-	{
-		SkeletalMesh->ExecuteBuildInternal(*BuildContext);
-	}
-}
-
 const FString& GetSkeletalMeshDerivedDataVersion()
 {
 	static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().SkeletalMeshDerivedDataVersion).ToString();
@@ -451,7 +396,6 @@ namespace SkeletalMeshImpl
 /*-----------------------------------------------------------------------------
 	USkeletalMesh
 -----------------------------------------------------------------------------*/
-ENUM_CLASS_FLAGS(USkeletalMesh::EAsyncPropertyLockType);
 
 USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -501,7 +445,7 @@ void USkeletalMesh::PostInitProperties()
 
 FBoxSphereBounds USkeletalMesh::GetBounds() const
 {
-	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, EAsyncPropertyLockType::ReadOnly);
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ExtendedBounds, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return ExtendedBounds;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -509,7 +453,7 @@ FBoxSphereBounds USkeletalMesh::GetBounds() const
 
 FBoxSphereBounds USkeletalMesh::GetImportedBounds() const
 {
-	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ImportedBounds, EAsyncPropertyLockType::ReadOnly);
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ImportedBounds, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return ImportedBounds;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1539,7 +1483,7 @@ void CachePlatform(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform, F
 {
 	//Cache the platform, dcc should be valid so it will be fast
 	check(TargetPlatform);
-	FSkeletalMeshBuildContext Context;
+	FSkinnedAssetBuildContext Context;
 	Context.bIsSerializeSaving = bIsSerializeSaving;
 	PlatformRenderData->Cache(TargetPlatform, Mesh, &Context);
 }
@@ -1595,7 +1539,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 		// the protection put in place to automatically finish compilation if a locked property is accessed will not work. 
 		// We have no choice but to force finish the compilation here to avoid potential race conditions between 
 		// async compilation and the serialization.
-		FSkeletalMeshCompilingManager::Get().FinishCompilation({ this });
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({ this });
 	}
 #endif
 
@@ -1885,89 +1829,6 @@ void USkeletalMesh::FlushRenderState()
 
 #if WITH_EDITOR
 
-thread_local const USkeletalMesh* FSkeletalMeshAsyncBuildScope::SkeletalMeshBeingAsyncCompiled = nullptr;
-
-FSkeletalMeshAsyncBuildScope::FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh)
-{
-	PreviousScope = SkeletalMeshBeingAsyncCompiled;
-	SkeletalMeshBeingAsyncCompiled = SkeletalMesh;
-}
-
-FSkeletalMeshAsyncBuildScope::~FSkeletalMeshAsyncBuildScope()
-{
-	check(SkeletalMeshBeingAsyncCompiled);
-	SkeletalMeshBeingAsyncCompiled = PreviousScope;
-}
-
-bool FSkeletalMeshAsyncBuildScope::ShouldWaitOnLockedProperties(const USkeletalMesh* SkeletalMesh)
-{
-	return SkeletalMeshBeingAsyncCompiled != SkeletalMesh;
-}
-
-void USkeletalMesh::WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType) const
-{
-	// We need to protect internal skeletal mesh data from race conditions during async build
-	if (IsCompiling())
-	{
-		if (FSkeletalMeshAsyncBuildScope::ShouldWaitOnLockedProperties(this))
-		{
-			bool bIsLocked = true;
-			// We can remove the lock if we're accessing in read-only and there is no write-lock
-			if ((LockType & EAsyncPropertyLockType::ReadOnly) == EAsyncPropertyLockType::ReadOnly)
-			{
-				// Maintain the lock if the write-lock bit is non-zero
-				bIsLocked &= (ModifiedProperties & (uint64)AsyncProperties) != 0;
-			}
-
-			if (bIsLocked)
-			{
-				FString PropertyName = StaticEnum<ESkeletalMeshAsyncProperties>()->GetNameByValue((int64)AsyncProperties).ToString();
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("SkeletalMeshCompilationStall %s"), *PropertyName));
-
-				if (IsInGameThread())
-				{
-					UE_LOG(
-						LogSkeletalMesh,
-						Verbose,
-						TEXT("Accessing property %s of the SkeletalMesh while it is still being built asynchronously will force it to be compiled before continuing. "
-							"For better performance, consider making the caller async aware so it can wait until the static mesh is ready to access this property."
-							"To better understand where those calls are coming from, you can use Editor.AsyncAssetDumpStallStacks on the console."),
-						*PropertyName
-					);
-
-					FSkeletalMeshCompilingManager::Get().FinishCompilation({ const_cast<USkeletalMesh*>(this) });
-				}
-				else
-				{
-					// Trying to access a property from another thread that cannot force finish the compilation is invalid
-					ensureMsgf(
-						false,
-						TEXT("Accessing property %s of the SkeletalMesh while it is still being built asynchronously is only supported on the game-thread. "
-							"To avoid any race-condition, consider finishing the compilation before pushing tasks to other threads or making higher-level game-thread code async aware so it "
-							"schedules the task only when the static mesh's compilation is finished. If this is a blocker, you can disable async static mesh from the editor experimental settings."),
-						*PropertyName
-					);
-				}
-			}
-		}
-		// If we're accessing this property from the async build thread, make sure the property is still protected from access from other threads.
-		else
-		{
-			bool bIsLocked = true;
-			if ((LockType & EAsyncPropertyLockType::ReadOnly) == EAsyncPropertyLockType::ReadOnly)
-			{
-				bIsLocked &= (AccessedProperties & (uint64)AsyncProperties) != 0;
-			}
-
-			if ((LockType & EAsyncPropertyLockType::WriteOnly) == EAsyncPropertyLockType::WriteOnly)
-			{
-				bIsLocked &= (ModifiedProperties & (uint64)AsyncProperties) != 0;
-			}
-			ensureMsgf(bIsLocked, TEXT("Property %s has not been locked properly for use by async build"), *StaticEnum<ESkeletalMeshAsyncProperties>()->GetNameByValue((int64)AsyncProperties).ToString());
-		}
-	}
-}
-
 void USkeletalMesh::PrepareForAsyncCompilation()
 {
 	// Make sure statics are initialized before calling from multiple threads
@@ -1996,7 +1857,7 @@ void USkeletalMesh::PrepareForAsyncCompilation()
 	// from the game thread.
 
 	// Not touched during async build and can cause stalls when the content browser refresh its tiles.
-	ReleaseAsyncProperty(ESkeletalMeshAsyncProperties::ThumbnailInfo);
+	ReleaseAsyncProperty((uint64)ESkeletalMeshAsyncProperties::ThumbnailInfo);
 }
 
 void USkeletalMesh::Build()
@@ -2005,25 +1866,25 @@ void USkeletalMesh::Build()
 
 	if (IsCompiling())
 	{
-		FSkeletalMeshCompilingManager::Get().FinishCompilation({this});
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({this});
 	}
 
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
-	FSkeletalMeshBuildContext Context;
+	FSkinnedAssetBuildContext Context;
 	BeginBuildInternal(Context);
 	
 	// Inline reduction is not thread-safe, prevent async build until this is fixed.
-	if (FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	if (FSkinnedAssetCompilingManager::Get().IsAsyncCompilationAllowed(this))
 	{
 		PrepareForAsyncCompilation();
 
-		FQueuedThreadPool* SkeletalMeshThreadPool = FSkeletalMeshCompilingManager::Get().GetThreadPool();
-		EQueuedWorkPriority BasePriority = FSkeletalMeshCompilingManager::Get().GetBasePriority(this);
+		FQueuedThreadPool* SkeletalMeshThreadPool = FSkinnedAssetCompilingManager::Get().GetThreadPool();
+		EQueuedWorkPriority BasePriority = FSkinnedAssetCompilingManager::Get().GetBasePriority(this);
 		check(AsyncTask == nullptr);
-		AsyncTask = MakeUnique<FSkeletalMeshAsyncBuildTask>(this, MoveTemp(Context));
+		AsyncTask = MakeUnique<FSkinnedAssetAsyncBuildTask>(this, MoveTemp(Context));
 		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
-		FSkeletalMeshCompilingManager::Get().AddSkeletalMeshes({ this });
+		FSkinnedAssetCompilingManager::Get().AddSkinnedAssets({ this });
 	}
 	else
 	{
@@ -2032,7 +1893,7 @@ void USkeletalMesh::Build()
 	}
 }
 
-void USkeletalMesh::BeginBuildInternal(FSkeletalMeshBuildContext& Context)
+void USkeletalMesh::BeginBuildInternal(FSkinnedAssetBuildContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::BeginBuildInternal);
 
@@ -2060,12 +1921,12 @@ void USkeletalMesh::BeginBuildInternal(FSkeletalMeshBuildContext& Context)
 	AcquireAsyncProperty();
 }
 
-void USkeletalMesh::ExecuteBuildInternal(FSkeletalMeshBuildContext& Context)
+void USkeletalMesh::ExecuteBuildInternal(FSkinnedAssetBuildContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::ExecuteBuildInternal);
 
 	// This scope allows us to use any locked properties without causing stalls
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
 	// rebuild render data from imported model
 	CacheDerivedData(&Context);
@@ -2080,14 +1941,14 @@ void USkeletalMesh::ExecuteBuildInternal(FSkeletalMeshBuildContext& Context)
 	UpdateGenerateUpToData();
 }
 
-void USkeletalMesh::ApplyFinishBuildInternalData(FSkeletalMeshCompilationContext* ContextPtr)
+void USkeletalMesh::ApplyFinishBuildInternalData(FSkinnedAssetCompilationContext* ContextPtr)
 {
 	//We cannot execute this code outside of the game thread
 	checkf(IsInGameThread(), TEXT("Cannot execute function USkeletalMesh::ApplyFinishBuildInternalData asynchronously. Asset: %s"), *this->GetFullName());
 	check(ContextPtr);
 }
 
-void USkeletalMesh::FinishBuildInternal(FSkeletalMeshBuildContext& Context)
+void USkeletalMesh::FinishBuildInternal(FSkinnedAssetBuildContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::FinishBuildInternal);
 
@@ -2740,32 +2601,6 @@ bool USkeletalMesh::IsAsyncTaskComplete() const
 	return AsyncTask == nullptr || AsyncTask->IsWorkDone();
 }
 
-void USkeletalMesh::AcquireAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType)
-{
-	if ((LockType & EAsyncPropertyLockType::ReadOnly) == EAsyncPropertyLockType::ReadOnly)
-	{
-		AccessedProperties |= (uint64)AsyncProperties;
-	}
-	
-	if ((LockType & EAsyncPropertyLockType::WriteOnly) == EAsyncPropertyLockType::WriteOnly)
-	{
-		ModifiedProperties |= (uint64)AsyncProperties;
-	}
-}
-
-void USkeletalMesh::ReleaseAsyncProperty(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType)
-{
-	if ((LockType & EAsyncPropertyLockType::ReadOnly) == EAsyncPropertyLockType::ReadOnly)
-	{
-		AccessedProperties &= ~(uint64)AsyncProperties;
-	}
-
-	if ((LockType & EAsyncPropertyLockType::WriteOnly) == EAsyncPropertyLockType::WriteOnly)
-	{
-		ModifiedProperties &= ~(uint64)AsyncProperties;
-	}
-}
-
 bool USkeletalMesh::TryCancelAsyncTasks()
 {
 	if (AsyncTask)
@@ -3057,7 +2892,7 @@ bool USkeletalMesh::IsPostLoadThreadSafe() const
 	return false;	// PostLoad is not thread safe because of the call to InitMorphTargets, which can call VerifySmartName() that can mutate a shared map in the skeleton.
 }
 
-void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
+void USkeletalMesh::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context)
 {
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BeginPostLoadInternal);
@@ -3068,7 +2903,7 @@ void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
 	AcquireAsyncProperty();
 
 	// This scope allows us to use any locked properties without causing stalls
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
 	// Make sure the cloth assets have finished loading
 	// TODO: Remove all UObject PostLoad dependencies.
@@ -3240,41 +3075,15 @@ void USkeletalMesh::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
-
-#if WITH_EDITOR
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
-#endif
-
-	FSkeletalMeshPostLoadContext Context;
-	BeginPostLoadInternal(Context);
-
-#if WITH_EDITOR
-	if (FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
-	{
-		PrepareForAsyncCompilation();
-
-		FQueuedThreadPool* SkeletalMeshThreadPool = FSkeletalMeshCompilingManager::Get().GetThreadPool();
-		EQueuedWorkPriority BasePriority = FSkeletalMeshCompilingManager::Get().GetBasePriority(this);
-
-		AsyncTask = MakeUnique<FSkeletalMeshAsyncBuildTask>(this, MoveTemp(Context));
-		AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
-		FSkeletalMeshCompilingManager::Get().AddSkeletalMeshes({ this });
-	}
-	else
-#endif
-	{
-		ExecutePostLoadInternal(Context);
-		FinishPostLoadInternal(Context);
-	}
 }
 
-void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Context)
+void USkeletalMesh::ExecutePostLoadInternal(FSkinnedAssetPostLoadContext& Context)
 {
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::ExecutePostLoadInternal);
 
 	// This scope allows us to use any locked properties without causing stalls
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
@@ -3303,7 +3112,7 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 #endif // WITH_EDITOR
 }
 
-void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
+void USkeletalMesh::FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::FinishPostLoadInternal);
 	
@@ -3312,7 +3121,7 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 	ClearInternalFlags(EInternalObjectFlags::Async);
 
 	// This scope allows us to use any locked properties without causing stalls
-	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
 	if (Context.bHasCachedDerivedData)
 	{
@@ -4156,16 +3965,6 @@ void USkeletalMesh::MoveMaterialFlagsToSections()
 
 #if WITH_EDITOR
 
-/** IInterface_AsyncCompilation implementation begin*/
-
-bool USkeletalMesh::IsCompiling() const
-{
-	return AsyncTask != nullptr || AccessedProperties.load(std::memory_order_relaxed) != 0;
-}
-
-/** IInterface_AsyncCompilation implementation end*/
-
-
 FDelegateHandle USkeletalMesh::RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate)
 {
 	return OnClothingChange.Add(InDelegate);
@@ -4194,97 +3993,6 @@ bool USkeletalMesh::AreAllFlagsIdentical( const TArray<bool>& BoolArray ) const
 	}
 
 	return true;
-}
-
-bool operator== ( const FSkeletalMaterial& LHS, const FSkeletalMaterial& RHS )
-{
-	return ( LHS.MaterialInterface == RHS.MaterialInterface );
-}
-
-bool operator== ( const FSkeletalMaterial& LHS, const UMaterialInterface& RHS )
-{
-	return ( LHS.MaterialInterface == &RHS );
-}
-
-bool operator== ( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS )
-{
-	return ( RHS.MaterialInterface == &LHS );
-}
-
-FArchive& operator<<(FArchive& Ar, FMeshUVChannelInfo& ChannelData)
-{
-	Ar << ChannelData.bInitialized;
-	Ar << ChannelData.bOverrideDensities;
-
-	for (int32 CoordIndex = 0; CoordIndex < TEXSTREAM_MAX_NUM_UVCHANNELS; ++CoordIndex)
-	{
-		Ar << ChannelData.LocalUVDensities[CoordIndex];
-	}
-
-	return Ar;
-}
-
-#if WITH_EDITORONLY_DATA
-void FSkeletalMaterial::DeclareCustomVersions(FArchive& Ar)
-{
-	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
-	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
-}
-#endif
-
-FArchive& operator<<(FArchive& Ar, FSkeletalMaterial& Elem)
-{
-	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
-	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
-
-	Ar << Elem.MaterialInterface;
-
-	//Use the automatic serialization instead of this custom operator
-	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::RefactorMeshEditorMaterials)
-	{
-		Ar << Elem.MaterialSlotName;
-
-		bool bSerializeImportedMaterialSlotName = !Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData();
-		if (Ar.CustomVer(FCoreObjectVersion::GUID) >= FCoreObjectVersion::SkeletalMaterialEditorDataStripping)
-		{
-			Ar << bSerializeImportedMaterialSlotName;
-		}
-		else if (!FPlatformProperties::HasEditorOnlyData())
-		{
-			bSerializeImportedMaterialSlotName = false;
-		}
-		if (bSerializeImportedMaterialSlotName)
-		{
-#if WITH_EDITORONLY_DATA
-			Ar << Elem.ImportedMaterialSlotName;
-#else
-			FName UnusedImportedMaterialSlotName;
-			Ar << UnusedImportedMaterialSlotName;
-#endif
-		}
-	}
-#if WITH_EDITORONLY_DATA
-	else
-	{
-		if (Ar.UEVer() >= VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING)
-		{
-			Ar << Elem.bEnableShadowCasting_DEPRECATED;
-		}
-
-		Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
-		if (Ar.CustomVer(FRecomputeTangentCustomVersion::GUID) >= FRecomputeTangentCustomVersion::RuntimeRecomputeTangent)
-		{
-			Ar << Elem.bRecomputeTangent_DEPRECATED;
-		}
-	}
-#endif
-	
-	if (!Ar.IsLoading() || Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::TextureStreamingMeshUVChannelData)
-	{
-		Ar << Elem.UVChannelData;
-	}
-
-	return Ar;
 }
 
 TArray<USkeletalMeshSocket*> USkeletalMesh::GetActiveSocketList() const
@@ -4423,7 +4131,7 @@ namespace InternalSkeletalMeshHelper
 	}
 } //namespace InternalSkeletalMeshHelper
 
-void USkeletalMesh::CacheDerivedData(FSkeletalMeshCompilationContext* ContextPtr)
+void USkeletalMesh::CacheDerivedData(FSkinnedAssetCompilationContext* ContextPtr)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::CacheDerivedData);
 	check(ContextPtr);
@@ -5510,120 +5218,7 @@ FText USkeletalMesh::GetSourceFileLabelFromIndex(int32 SourceFileIndex)
 	return RealSourceFileIndex == 0 ? NSSkeletalMeshSourceFileLabels::GeoAndSkinningText() : RealSourceFileIndex == 1 ? NSSkeletalMeshSourceFileLabels::GeometryText() : NSSkeletalMeshSourceFileLabels::SkinningText();
 }
 
-static void SerializeReductionSettingsForDDC(FArchive& Ar, FSkeletalMeshOptimizationSettings& ReductionSettings)
-{
-	check(Ar.IsSaving());
-	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bRemapMorphTargets);
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bRecalcNormals);
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bEnforceBoneBoundaries);
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bMergeCoincidentVertBones);
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockEdges);
-	FArchive_Serialize_BitfieldBool(Ar, ReductionSettings.bLockColorBounaries);
-	Ar << ReductionSettings.TerminationCriterion;
-	Ar << ReductionSettings.NumOfTrianglesPercentage;
-	Ar << ReductionSettings.NumOfVertPercentage;
-	Ar << ReductionSettings.MaxNumOfTriangles;
-	Ar << ReductionSettings.MaxNumOfVerts;
-
-	// Keep old DDC keys if these are not set
-	if (ReductionSettings.MaxNumOfTrianglesPercentage != MAX_uint32 || 
-		ReductionSettings.MaxNumOfVertsPercentage != MAX_uint32)
-	{
-		uint32 AvoidCachePoisoningFromOldBug = 0;
-		Ar << AvoidCachePoisoningFromOldBug;
-		Ar << ReductionSettings.MaxNumOfTrianglesPercentage;
-		Ar << ReductionSettings.MaxNumOfVertsPercentage;
-	}
-
-	Ar << ReductionSettings.MaxDeviationPercentage;
-	Ar << ReductionSettings.ReductionMethod;
-	Ar << ReductionSettings.SilhouetteImportance;
-	Ar << ReductionSettings.TextureImportance;
-	Ar << ReductionSettings.ShadingImportance;
-	Ar << ReductionSettings.SkinningImportance;
-	Ar << ReductionSettings.WeldingThreshold;
-	Ar << ReductionSettings.NormalsThreshold;
-	Ar << ReductionSettings.MaxBonesPerVertex;
-	Ar << ReductionSettings.VolumeImportance;
-	Ar << ReductionSettings.BaseLOD;
-}
-
-static void SerializeBuildSettingsForDDC(FArchive& Ar, FSkeletalMeshBuildSettings& BuildSettings)
-{
-	check(Ar.IsSaving());
-	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRecomputeNormals);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRecomputeTangents);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseMikkTSpace);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bComputeWeightedNormals);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRemoveDegenerates);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseFullPrecisionUVs);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseBackwardsCompatibleF16TruncUVs);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionTangentBasis);
-	Ar << BuildSettings.ThresholdPosition;
-	Ar << BuildSettings.ThresholdTangentNormal;
-	Ar << BuildSettings.ThresholdUV;
-	Ar << BuildSettings.MorphThresholdPosition;
-}
-
-
-FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGroupSettings* SkeletalMeshLODGroupSettings)
-{
-	const bool bIs16BitfloatBufferSupported = GVertexElementTypeSupport.IsSupported(VET_Half2);
-
-	// Serialize the LOD info members, the BuildSettings and the ReductionSettings into a temporary array.
-	TArray<uint8> TempBytes;
-	TempBytes.Reserve(64);
-	//The archive is flagged as persistent so that machines of different endianness produce identical binary results.
-	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
-
-	Ar << BonesToRemove;
-	Ar << BonesToPrioritize;
-	Ar << SectionsToPrioritize;
-	Ar << WeightOfPrioritization;
-	Ar << MorphTargetPositionErrorTolerance;
-
-	//TODO: Ask the derivedata key of the UObject reference by FSoftObjectPath. So if someone change the UObject, this LODs will get dirty
-	//and will be rebuild.
-	if (BakePose != nullptr)
-	{
-		FString BakePosePath = BakePose->GetFullName();
-		Ar << BakePosePath;
-	}
-	if (BakePoseOverride != nullptr)
-	{
-		FString BakePoseOverridePath = BakePoseOverride->GetFullName();
-		Ar << BakePoseOverridePath;
-	}
-	FArchive_Serialize_BitfieldBool(Ar, bAllowCPUAccess);
-	FArchive_Serialize_BitfieldBool(Ar, bSupportUniformlyDistributedSampling);
-
-	//Use the LOD settings asset if there is one
-	FSkeletalMeshOptimizationSettings RealReductionSettings = ReductionSettings;
-	if (SkeletalMeshLODGroupSettings != nullptr)
-	{
-		RealReductionSettings = SkeletalMeshLODGroupSettings->GetReductionSettings();
-	}
-
-	if (!BuildSettings.bUseFullPrecisionUVs && !bIs16BitfloatBufferSupported)
-	{
-		BuildSettings.bUseFullPrecisionUVs = true;
-	}
-	SerializeBuildSettingsForDDC(Ar, BuildSettings);
-	SerializeReductionSettingsForDDC(Ar, RealReductionSettings);
-
-	FSHA1 Sha;
-	Sha.Update(TempBytes.GetData(), TempBytes.Num() * TempBytes.GetTypeSize());
-	Sha.Final();
-	// Retrieve the hash and use it to construct a pseudo-GUID.
-	uint32 Hash[5];
-	Sha.GetHash((uint8*)Hash);
-	FGuid Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-	return Guid;
-}
-
-#endif //WITH_EDITOR
+#endif //WITH_EDITORONLY_DATA
 
 
 TArray<FString> USkeletalMesh::K2_GetAllMorphTargetNames() const
@@ -5726,6 +5321,17 @@ void USkeletalMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable
 		}
 	}
 #endif
+}
+
+void USkeletalMesh::WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, ESkinnedAssetAsyncPropertyLockType LockType) const
+{
+	// Cast strongly-typed enum to uint64
+	WaitUntilAsyncPropertyReleasedInternal((uint64)AsyncProperties, LockType);
+}
+
+FString USkeletalMesh::GetAsyncPropertyName(uint64 Property) const
+{
+	return StaticEnum<ESkeletalMeshAsyncProperties>()->GetNameByValue(Property).ToString();
 }
 
 /*-----------------------------------------------------------------------------

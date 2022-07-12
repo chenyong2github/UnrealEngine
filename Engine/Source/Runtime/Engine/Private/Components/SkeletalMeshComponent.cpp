@@ -25,7 +25,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "SkeletalRender.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "SkeletalMeshCompiler.h"
+#include "SkinnedAssetCompiler.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalDebugRendering.h"
 
@@ -2522,7 +2522,7 @@ void USkeletalMeshComponent::DispatchParallelEvaluationTasks(FActorComponentTick
 	// We can only finish compilation on the game-thread, so wait here before spawning eval tasks.
 	if (GetSkeletalMesh() && GetSkeletalMesh()->IsCompiling())
 	{
-		FSkeletalMeshCompilingManager::Get().FinishCompilation({ GetSkeletalMesh() });
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({ GetSkeletalMesh() });
 	}
 #endif
 
