@@ -10,6 +10,8 @@
 #undef PF_MAX
 #endif
 
+enum class EPixelFormatCapabilities : uint32;
+
 enum EPixelFormat : uint8
 {
 	PF_Unknown              =0,
@@ -210,3 +212,75 @@ FORCEINLINE bool IsHDR(EPixelFormat PixelFormat)
 {
 	return PixelFormat == PF_FloatRGBA || PixelFormat == PF_BC6H || PixelFormat == PF_R16F || PixelFormat == PF_R32_FLOAT || PixelFormat == PF_A32B32G32R32F;
 }
+
+/** 
+* Information about a pixel format. The majority of this structure is valid after static init, however RHI does keep
+* some state in here that is initialized by that module and should not be used by general use programs that don't
+* have RHI (so noted in comments).
+*/
+struct FPixelFormatInfo
+{
+	FPixelFormatInfo() = delete;
+	FPixelFormatInfo(
+		EPixelFormat InUnrealFormat,
+		const TCHAR* InName,
+		int32 InBlockSizeX,
+		int32 InBlockSizeY,
+		int32 InBlockSizeZ,
+		int32 InBlockBytes,
+		int32 InNumComponents,
+		bool  InSupported);
+
+	const TCHAR*				Name;
+	EPixelFormat				UnrealFormat;
+	int32						BlockSizeX;
+	int32						BlockSizeY;
+	int32						BlockSizeZ;
+	int32						BlockBytes;
+	int32						NumComponents;
+
+	/** Per platform cabilities for the format (initialized by RHI module - invalid otherwise) */
+	EPixelFormatCapabilities	Capabilities{ 0 };
+
+	/** Platform specific converted format (initialized by RHI module - invalid otherwise) */
+	uint32						PlatformFormat{ 0 };
+
+	/** Whether the texture format is supported on the current platform/ rendering combination */
+	uint8						Supported : 1;
+	uint8						bIs24BitUnormDepthStencil : 1;	// If false, 32 bit float is assumed (initialized by RHI module - invalid otherwise)
+	
+	/** 
+	* Get 2D/3D image/texture size in bytes. This is for storage of the encoded image data, and does not adjust
+	* for any GPU alignment/padding constraints. It is also not valid for tiled or packed mip tails (i.e. cooked mips 
+	* for consoles). Only use these when you know you're working with bog standard textures/images in block based pixel formats.
+	*/
+	CORE_API uint64 Get2DImageSizeInBytes(uint32 InWidth, uint32 InHeight) const;
+	CORE_API uint64 Get2DTextureMipSizeInBytes(uint32 InTextureWidth, uint32 InTextureHeight, uint32 InMipIndex) const;
+	CORE_API uint64 Get2DTextureSizeInBytes(uint32 InTextureWidth, uint32 InTextureHeight, uint32 InMipCount) const;
+	CORE_API uint64 Get3DImageSizeInBytes(uint32 InWidth, uint32 InHeight, uint32 InDepth) const;
+	CORE_API uint64 Get3DTextureMipSizeInBytes(uint32 InTextureWidth, uint32 InTextureHeight, uint32 InTextureDepth, uint32 InMipIndex) const;
+	CORE_API uint64 Get3DTextureSizeInBytes(uint32 InTextureWidth, uint32 InTextureHeight, uint32 InTextureDepth, uint32 InMipCount) const;
+	
+	/**
+	* Get the number of compressed blocks necessary to hold the given dimensions.
+	*/
+	CORE_API uint64 GetBlockCountForWidth(uint32 InWidth) const;
+	CORE_API uint64 GetBlockCountForHeight(uint32 InHeight) const;
+};
+
+
+/**
+ * enum to string
+ * Note this is not the FPixelFormatInfo::Name
+ * @return e.g. "PF_B8G8R8A8"
+ */
+CORE_API const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat);
+/**
+ * string to enum (not case sensitive)
+ * Note this is not the FPixelFormatInfo::Name
+ * @param InPixelFormatStr e.g. "PF_B8G8R8A8", must not not be 0
+ */
+CORE_API EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr);
+
+
+extern CORE_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.

@@ -348,6 +348,8 @@ enum EConstructTextureFlags
 /**
  * Calculates the amount of memory used for a single mip-map of a texture 3D.
  *
+ * Use GPixelFormats[Format].Get3DTextureMipSizeInBytes() instead.
+ * 
  * @param TextureSizeX		Number of horizontal texels (for the base mip-level)
  * @param TextureSizeY		Number of vertical texels (for the base mip-level)
  * @param TextureSizeZ		Number of slices (for the base mip-level)
@@ -359,6 +361,8 @@ RENDERCORE_API SIZE_T CalcTextureMipMapSize3D( uint32 TextureSizeX, uint32 Textu
 /**
  * Calculates the extent of a mip.
  *
+ * Incorrectly forces min mip size to be block dimensions: UE-159189
+ * 
  * @param TextureSizeX		Number of horizontal texels (for the base mip-level)
  * @param TextureSizeY		Number of vertical texels (for the base mip-level)
  * @param TextureSizeZ		Number of depth texels (for the base mip-level)
@@ -373,6 +377,8 @@ RENDERCORE_API void CalcMipMapExtent3D( uint32 TextureSizeX, uint32 TextureSizeY
 /**
  * Calculates the extent of a mip.
  *
+ * Incorrectly forces min mip size to be block dimensions: UE-159189
+ * 
  * @param TextureSizeX		Number of horizontal texels (for the base mip-level)
  * @param TextureSizeY		Number of vertical texels (for the base mip-level)
  * @param Format	Texture format
@@ -387,6 +393,7 @@ RENDERCORE_API FIntPoint CalcMipMapExtent( uint32 TextureSizeX, uint32 TextureSi
  * @param Format			Texture format
  * @param MipIndex			The index of the mip-map to compute the size of.
  */
+UE_DEPRECATED(5.1, "See GPixelFormats in PixelFormat.h for analogous functions")
 RENDERCORE_API SIZE_T CalcTextureMipWidthInBlocks(uint32 TextureSizeX, EPixelFormat Format, uint32 MipIndex);
 
 /**
@@ -396,10 +403,13 @@ RENDERCORE_API SIZE_T CalcTextureMipWidthInBlocks(uint32 TextureSizeX, EPixelFor
  * @param Format			Texture format
  * @param MipIndex			The index of the mip-map to compute the size of.
  */
+UE_DEPRECATED(5.1, "See GPixelFormats in PixelFormat.h for analogous functions")
 RENDERCORE_API SIZE_T CalcTextureMipHeightInBlocks(uint32 TextureSizeY, EPixelFormat Format, uint32 MipIndex);
 
 /**
  * Calculates the amount of memory used for a single mip-map of a texture.
+ * 
+ * Use GPixelFormats[Format].Get2DTextureMipSizeInBytes() instead.
  *
  * @param TextureSizeX		Number of horizontal texels (for the base mip-level)
  * @param TextureSizeY		Number of vertical texels (for the base mip-level)
@@ -411,6 +421,8 @@ RENDERCORE_API SIZE_T CalcTextureMipMapSize( uint32 TextureSizeX, uint32 Texture
 /**
  * Calculates the amount of memory used for a texture.
  *
+ * Use GPixelFormats[Format].Get2DTextureSizeInBytes() instead.
+ * 
  * @param SizeX		Number of horizontal texels (for the base mip-level)
  * @param SizeY		Number of vertical texels (for the base mip-level)
  * @param Format	Texture format
@@ -421,6 +433,8 @@ RENDERCORE_API SIZE_T CalcTextureSize( uint32 SizeX, uint32 SizeY, EPixelFormat 
 /**
  * Calculates the amount of memory used for a texture.
  *
+ * Use GPixelFormats[Format].Get3DTextureSizeInBytes() instead.
+ * 
  * @param SizeX		Number of horizontal texels (for the base mip-level)
  * @param SizeY		Number of vertical texels (for the base mip-level)
  * @param SizeY		Number of depth texels (for the base mip-level)
@@ -439,19 +453,6 @@ RENDERCORE_API SIZE_T CalcTextureSize3D( uint32 SizeX, uint32 SizeY, uint32 Size
  * @param DestStride   - The stride of the destination buffer.
  */
 RENDERCORE_API void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat Format,uint32 SourceStride,uint32 DestStride);
-
-/**
- * enum to string
- *
- * @return e.g. "PF_B8G8R8A8"
- */
-RENDERCORE_API const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat);
-/**
- * string to enum (not case sensitive)
- *
- * @param InPixelFormatStr e.g. "PF_B8G8R8A8", must not not be 0
- */
-RENDERCORE_API EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr);
 
 /**
  *  Returns the valid channels for this pixel format

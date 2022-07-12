@@ -69,8 +69,8 @@ void FSlateTexture2DRHIRef::InitDynamicRHI()
 			uint8* DestTextureData = (uint8*)RHILockTexture2D(ShaderResource, 0, RLM_WriteOnly, Stride, false);
 			const uint8* SourceTextureData = TextureData->GetRawBytes().GetData();
 
-			const uint32 BlocksX = CalcTextureMipWidthInBlocks(Width, PixelFormat, 0);
-			const uint32 BlocksY = CalcTextureMipWidthInBlocks(Height, PixelFormat, 0);
+			const uint32 BlocksX = GPixelFormats[PixelFormat].GetBlockCountForWidth(Width);
+			const uint32 BlocksY = GPixelFormats[PixelFormat].GetBlockCountForHeight(Height);
 			const uint32 DataStride = BlocksX * GPixelFormats[PixelFormat].BlockBytes;
 
 			if (Stride == DataStride)

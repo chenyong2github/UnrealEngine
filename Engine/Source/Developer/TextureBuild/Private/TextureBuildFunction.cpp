@@ -30,19 +30,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 // by generating a new version.
 static const FGuid TextureDerivedDataVersion(TEXT("19ffd7ab-ea5c-4a18-b6f4-6b0b5eedd606"));
 
-#ifndef CASE_ENUM_TO_TEXT
-#define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
-#endif
-
-static const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat)
-{
-	switch (InPixelFormat)
-	{
-		FOREACH_ENUM_EPIXELFORMAT(CASE_ENUM_TO_TEXT)
-	default:
-		return TEXT("PF_Unknown");
-	}
-}
 
 static void ReadCbField(FCbFieldView Field, bool& OutValue) { OutValue = Field.AsBool(OutValue); }
 static void ReadCbField(FCbFieldView Field, int32& OutValue) { OutValue = Field.AsInt32(OutValue); }

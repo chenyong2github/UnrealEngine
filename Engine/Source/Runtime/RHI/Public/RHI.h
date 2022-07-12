@@ -843,41 +843,6 @@ enum class EPixelFormatCapabilities : uint32
 };
 ENUM_CLASS_FLAGS(EPixelFormatCapabilities);
 
-/** Information about a pixel format. */
-struct FPixelFormatInfo
-{
-	FPixelFormatInfo() = delete;
-	FPixelFormatInfo(
-		EPixelFormat InUnrealFormat,
-		const TCHAR* InName,
-		int32 InBlockSizeX,
-		int32 InBlockSizeY,
-		int32 InBlockSizeZ,
-		int32 InBlockBytes,
-		int32 InNumComponents,
-		bool  InSupported);
-
-	const TCHAR*				Name;
-	EPixelFormat				UnrealFormat;
-	int32						BlockSizeX;
-	int32						BlockSizeY;
-	int32						BlockSizeZ;
-	int32						BlockBytes;
-	int32						NumComponents;
-
-	/** Per platform cabilities for the format */
-	EPixelFormatCapabilities	Capabilities{ EPixelFormatCapabilities::None };
-
-	/** Platform specific converted format */
-	uint32						PlatformFormat{ 0 };
-
-	/** Whether the texture format is supported on the current platform/ rendering combination	*/
-	uint8						Supported : 1;
-	uint8						bIs24BitUnormDepthStencil : 1;	// If false, 32 bit float is assumed
-};
-
-extern RHI_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.
-
 /** Initialize the 'best guess' pixel format capabilities. Platform formats and support must be filled out before calling this. */
 extern RHI_API void RHIInitDefaultPixelFormatCapabilities();
 
@@ -896,10 +861,10 @@ inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
 	return RHIPixelFormatHasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVStore);
 }
 
-//
-//	CalculateImageBytes
-//
-
+/**
+* Returns the memory required to store an image in the given pixel format (EPixelFormat). Use
+* GPixelFormats[Format].Get2D/3DImageSizeInBytes instead, unless you need PF_A1.
+*/
 extern RHI_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format);
 
 /** Called once per frame only from within an RHI. */
