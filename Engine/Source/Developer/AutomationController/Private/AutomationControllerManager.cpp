@@ -984,9 +984,9 @@ void FAutomationControllerManager::ProcessResults()
 				FPlatformProcess::LaunchURL(*DeveloperReportUrl, nullptr, nullptr);
 			}
 		}
-	}
 
-	UE_LOG(LogAutomationController, Display, TEXT("Report can be opened in the editor at '%s'"), ReportExportPath.IsEmpty() ? *FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir()) : *ReportExportPath);
+		UE_LOG(LogAutomationController, Display, TEXT("Report can be opened in the editor at '%s'"), ReportExportPath.IsEmpty() ? *FPaths::ConvertRelativePathToFull(FPaths::AutomationReportsDir()) : *ReportExportPath);
+	}
 
 	// Then clean our array for the next pass.
 	JsonTestPassResults.ClearAllEntries();
