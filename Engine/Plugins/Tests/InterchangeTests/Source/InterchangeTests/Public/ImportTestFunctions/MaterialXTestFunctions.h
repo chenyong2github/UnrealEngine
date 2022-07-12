@@ -3,12 +3,11 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
 
 #include "MaterialXTestFunctions.generated.h"
 
 class UMaterialInterface;
-struct FInterchangeTestFunctionResult;
-
 
 UCLASS()
 class INTERCHANGETESTS_API UMaterialXTestFunctions : public UImportTestFunctionsBase
