@@ -247,18 +247,18 @@ FString UGSTab::GetSyncProgress() const
 	return Workspace->GetCurrentProgress().Key;
 }
 
+// This is getting called on a thread, lock our stuff up
 void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
 {
-	WorkspaceSettings->CurrentChangeNumber = Workspace->GetCurrentChangeNumber();
-	WorkspaceSettings->LastBuiltChangeNumber = Workspace->GetLastBuiltChangeNumber();
-	WorkspaceSettings->LastSyncResult = SyncResult;
-	WorkspaceSettings->LastSyncResultMessage = StatusMessage;
+	FScopeLock Lock(&CriticalSection);
 
-	WorkspaceSettings->LastSyncTime = WorkspaceContext->StartTime;
+	WorkspaceSettings->CurrentChangeNumber     = Workspace->GetCurrentChangeNumber();
+	WorkspaceSettings->LastBuiltChangeNumber   = Workspace->GetLastBuiltChangeNumber();
+	WorkspaceSettings->LastSyncResult          = SyncResult;
+	WorkspaceSettings->LastSyncResultMessage   = StatusMessage;
+	WorkspaceSettings->LastSyncTime            = WorkspaceContext->StartTime;
 	// TODO check this is valid, may be off
 	WorkspaceSettings->LastSyncDurationSeconds = (FDateTime::UtcNow() - WorkspaceContext->StartTime).GetSeconds();
-
-	GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(Workspace->GetCurrentChangeNumber())));
 
 	UserSettings->Save();
 }

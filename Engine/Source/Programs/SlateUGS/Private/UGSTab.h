@@ -35,6 +35,8 @@ private:
 	// Core functions
 	void SetupWorkspace();
 
+	FCriticalSection CriticalSection;
+
 	// Slate Data
 	FSpawnTabArgs TabArgs;
 	TSharedRef<SDockTab> TabWidget;
