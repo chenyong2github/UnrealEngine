@@ -24,6 +24,11 @@ public:
 	FOnlineAccountIdHandle FindOrAddHandle(const FUniqueNetIdRef& IdValue)
 	{
 		FOnlineAccountIdHandle Handle;
+		if (!ensure(IdValue->IsValid()))
+		{
+			return Handle;
+		}
+
 		// Take a read lock and check if we already have a handle
 		{
 			FReadScopeLock ReadLock(Lock);
@@ -54,7 +59,7 @@ public:
 	}
 
 	// Returns a copy as it's not thread safe to return a pointer/ref to an element of an array that can be relocated by another thread.
-	FUniqueNetIdRef GetIdValue(const FOnlineAccountIdHandle Handle) const
+	FUniqueNetIdPtr GetIdValue(const FOnlineAccountIdHandle Handle) const
 	{
 		if (Handle.GetOnlineServicesType() == OnlineServicesType
 			&& Handle.IsValid()
@@ -63,15 +68,12 @@ public:
 			FReadScopeLock ReadLock(Lock);
 			return IdValues[Handle.GetHandle() - 1];
 		}
-		return FUniqueNetIdString::EmptyId();
+		return FUniqueNetIdPtr();
 	}
 
 	FUniqueNetIdRef GetIdValueChecked(const FOnlineAccountIdHandle Handle) const
 	{
-		check(Handle.GetOnlineServicesType() == OnlineServicesType
-			&& Handle.IsValid()
-			&& IdValues.IsValidIndex(Handle.GetHandle() - 1));
-		return GetIdValue(Handle);
+		return GetIdValue(Handle).ToSharedRef();
 	}
 
 	// Begin IOnlineAccountIdRegistry

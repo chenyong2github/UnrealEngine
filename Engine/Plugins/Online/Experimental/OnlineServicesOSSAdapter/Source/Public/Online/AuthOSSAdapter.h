@@ -6,10 +6,33 @@
 
 #include "OnlineSubsystemTypes.h"
 
+class IOnlineSubsystem;
 class IOnlineIdentity;
 using IOnlineIdentityPtr = TSharedPtr<IOnlineIdentity>;
 
 namespace UE::Online {
+
+class FOnlineServicesOSSAdapter;
+
+struct FAccountInfoOSSAdapter final : public FAccountInfo
+{
+	FUniqueNetIdPtr UniqueNetId;
+	int32 LocalUserNum = INDEX_NONE;
+};
+
+class FAccountInfoRegistryOSSAdapter final : public FAccountInfoRegistry
+{
+public:
+	using Super = FAccountInfoRegistry;
+
+	virtual ~FAccountInfoRegistryOSSAdapter() = default;
+
+	TSharedPtr<FAccountInfoOSSAdapter> Find(FPlatformUserId PlatformUserId) const;
+	TSharedPtr<FAccountInfoOSSAdapter> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+
+	void Register(const TSharedRef<FAccountInfoOSSAdapter>&UserAuthData);
+	void Unregister(FOnlineAccountIdHandle AccountId);
+};
 
 class FAuthOSSAdapter : public FAuthCommon
 {
@@ -25,18 +48,40 @@ public:
 	// IAuth
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthToken> GenerateAuthToken(FAuthGenerateAuthToken::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthCode> GenerateAuthCode(FAuthGenerateAuthCode::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> QueryExternalServerAuthTicket(FAuthQueryExternalServerAuthTicket::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> QueryExternalAuthToken(FAuthQueryExternalAuthToken::Params&& Params) override;
 
-	FUniqueNetIdRef GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const;
-	FOnlineAccountIdHandle GetAccountIdHandle(FUniqueNetIdRef UniqueNetId) const;
+	FUniqueNetIdPtr GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const;
+	FOnlineAccountIdHandle GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const;
 	int32 GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const;
 
+protected:
+	virtual const FAccountInfoRegistry& GetAccountInfoRegistry() const override;
+
+	const FOnlineServicesOSSAdapter& GetOnlineServicesOSSAdapter() const;
+	FOnlineServicesOSSAdapter& GetOnlineServicesOSSAdapter();
+	const IOnlineSubsystem& GetSubsystem() const;
 	IOnlineIdentityPtr GetIdentityInterface() const;
 
-protected:
+	struct FHandleLoginStatusChangedImpl
+	{
+		static constexpr TCHAR Name[] = TEXT("HandleLoginStatusChangedImpl");
+
+		struct Params
+		{
+			FPlatformUserId PlatformUserId;
+			FOnlineAccountIdHandle AccountId;
+			ELoginStatus NewLoginStatus;
+		};
+
+		struct Result
+		{
+		};
+	};
+
+	TOnlineAsyncOpHandle<FHandleLoginStatusChangedImpl> HandleLoginStatusChangedImplOp(FHandleLoginStatusChangedImpl::Params&& Params);
+
+	FAccountInfoRegistryOSSAdapter AccountInfoRegistryOSSAdapter;
 	FDelegateHandle OnLoginStatusChangedHandle[MAX_LOCAL_PLAYERS];
 };
 
