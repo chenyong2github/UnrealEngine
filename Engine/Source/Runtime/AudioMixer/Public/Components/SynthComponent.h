@@ -56,7 +56,7 @@ class AUDIOMIXER_API USynthSound : public USoundWaveProcedural
 
 protected:
 	UPROPERTY()
-	TObjectPtr<USynthComponent> OwningSynthComponent;
+	TWeakObjectPtr<USynthComponent> OwningSynthComponent = nullptr;
 
 	TArray<float> FloatBuffer;
 	bool bAudioMixer;
@@ -64,7 +64,7 @@ protected:
 public:
 	USynthComponent* GetOwningSynthComponent()
 	{
-		return OwningSynthComponent;
+		return OwningSynthComponent.Get();
 	}
 };
 
