@@ -104,6 +104,9 @@ public:
 	/** Set by the ULinkerLoad that created this instance, tracks what import/export this was used in place of. */
 	FPackageIndex PackageIndex;
 
+	/** Also set by the ULinkerLoad that created this instance; keeps track of the type of the original object whose load is being deferred. */
+	TWeakObjectPtr<const UClass> DeferredObjectType;
+
 	/**
 	 * Attempts to find and store the referencing container object (along with  
 	 * the specified property), so that we can replace the reference at a 

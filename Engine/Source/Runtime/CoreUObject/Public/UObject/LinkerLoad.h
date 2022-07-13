@@ -1132,11 +1132,12 @@ public:
 	 * NOTE: For now, this will only produce UClass placeholders, as that is the 
 	 *       only type we've identified needing.
 	 * 
+	 * @param  Property		 The property for which you want to defer loading the value.
 	 * @param  ObjectType    The expected type of the object you want to defer loading of.
 	 * @param  ObjectPath    The full object/package path for the expected object.
 	 * @return A FLinkerPlaceholderBase UObject that can be used in place of the import dependency.
 	 */
-	UObject* RequestPlaceholderValue(UClass* ObjectType, const TCHAR* ObjectPath);
+	UObject* RequestPlaceholderValue(const FProperty* Property, const UClass* ObjectType, const TCHAR* ObjectPath);
 
 private:
 	/**

@@ -533,7 +533,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 
 			if (bDeferAssetImports)
 			{
-				Result = Linker->RequestPlaceholderValue(ObjectClass, Text);
+				Result = Linker->RequestPlaceholderValue(Property, ObjectClass, Text);
 			}
 			
 			if (Result == nullptr)
