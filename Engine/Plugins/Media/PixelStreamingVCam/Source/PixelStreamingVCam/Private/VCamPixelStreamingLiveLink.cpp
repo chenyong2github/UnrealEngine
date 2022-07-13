@@ -7,6 +7,13 @@
 
 #define LOCTEXT_NAMESPACE "PixelStreamingLiveLinkSource"
 
+UPixelStreamingLiveLinkSourceSettings::UPixelStreamingLiveLinkSourceSettings()
+	: ULiveLinkSourceSettings()
+{
+	// Override the default evaluation mode to latest
+	Mode = ELiveLinkSourceMode::Latest;
+}
+
 FPixelStreamingLiveLinkSource::FPixelStreamingLiveLinkSource()
 	: LiveLinkClient(nullptr)
 {
@@ -80,6 +87,25 @@ void FPixelStreamingLiveLinkSource::PushTransformForSubject(FName SubjectName, F
 		FLiveLinkFrameDataStruct FrameDataStruct(FLiveLinkTransformFrameData::StaticStruct());
 		FLiveLinkTransformFrameData* TransformFrameData = FrameDataStruct.Cast<FLiveLinkTransformFrameData>();
 		TransformFrameData->Transform = Transform;
+		LiveLinkClient->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(FrameDataStruct));
+	}
+}
+
+void FPixelStreamingLiveLinkSource::PushTransformForSubject(FName SubjectName, FTransform Transform,
+	double Timestamp) const
+{
+	if (LiveLinkClient)
+	{
+		const FLiveLinkSubjectKey SubjectKey(SourceGuid, SubjectName);
+		FLiveLinkFrameDataStruct FrameDataStruct(FLiveLinkTransformFrameData::StaticStruct());
+		FLiveLinkTransformFrameData* TransformFrameData = FrameDataStruct.Cast<FLiveLinkTransformFrameData>();
+		TransformFrameData->Transform = Transform;
+
+		// Timestamp is currently assumed to be elapsed seconds at a fixed rate of 60 frames per second
+		// this will be adjusted as actual rate information is supported
+		const int32 NumberOfFrames = FMath::FloorToInt32(Timestamp * 60.0);
+		TransformFrameData->MetaData.SceneTime = FQualifiedFrameTime(NumberOfFrames, FFrameRate(60,1));
+		
 		LiveLinkClient->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(FrameDataStruct));
 	}
 }

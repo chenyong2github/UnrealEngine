@@ -153,7 +153,7 @@ void UVCamPixelStreamingSession::Activate()
 
 			if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource)
 			{
-				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix));
+				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
 			}
 
 			/**
