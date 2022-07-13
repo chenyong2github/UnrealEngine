@@ -386,7 +386,7 @@ void AGameMode::Tick(float DeltaSeconds)
 	}
 	if (GetMatchState() == MatchState::InProgress)
 	{
-		// Check to see if we should start the match
+		// Check to see if we should end the match
 		if (ReadyToEndMatch())
 		{
 			UE_LOG(LogGameMode, Log, TEXT("GameMode returned ReadyToEndMatch"));
