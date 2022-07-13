@@ -2021,8 +2021,7 @@ namespace ChaosTest
 		EXPECT_NEAR(OutPosition.Z, 14.63, 1e-1);
 	}
 
-	// Regression test: Disabled until fixed
-	GTEST_TEST(GJKTests, DISABLED_GJK_LargeScaledBoxBoxTest)
+	GTEST_TEST(GJKTests, GJK_LargeScaledBoxBoxTest)
 	{
 
 		TArray<FConvex::FVec3Type> ConvexParticles;

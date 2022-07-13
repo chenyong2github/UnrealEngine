@@ -125,14 +125,17 @@ namespace Chaos
 		CalculateQueryMargins(A, B, ThicknessA, ThicknessB);
 		ThicknessA += InThicknessA;
 
-		const FReal InflationReal = ThicknessA + ThicknessB + static_cast<FReal>(1e-3);
+		FReal EpsilonScale = FMath::Max<FReal>(A.TGeometryA::BoundingBox().Extents().Max(), B.TGeometryB::BoundingBox().Extents().Max());
+		EpsilonScale = FMath::Min<FReal>(EpsilonScale, 1e5);
+		
+		const FReal InflationReal = ThicknessA + ThicknessB + 1e-6 * EpsilonScale;
 		const VectorRegister4Float Inflation = VectorSet1(static_cast<FRealSingle>(InflationReal));
 		const VectorRegister4Float Inflation2 = VectorMultiply(Inflation, Inflation);
 
 		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 		do
 		{
-			if (!ensure(NumIterations++ < 32))	//todo: take this out
+ 			if (!ensure(NumIterations++ < 32))	//todo: take this out
 			{
 				break;	//if taking too long just stop. This should never happen
 			}

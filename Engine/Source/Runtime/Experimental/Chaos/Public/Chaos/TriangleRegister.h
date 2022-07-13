@@ -43,6 +43,19 @@ namespace Chaos
 		FORCEINLINE FReal GetMargin() const { return 0; }
 		FORCEINLINE FReal GetRadius() const { return 0; }
 
+		FORCEINLINE const FAABB3 BoundingBox() const
+		{
+			VectorRegister4Float MinSimd = VectorMin(VectorMin(A, B), C);
+			VectorRegister4Float MaxSimd = VectorMax(VectorMax(A, B), C);
+			
+			alignas(32) FReal AlignedArray[4];
+			VectorStoreAligned(MinSimd, AlignedArray);
+			const FVec3  Min(static_cast<FReal>(AlignedArray[0]), static_cast<FReal>(AlignedArray[1]), static_cast<FReal>(AlignedArray[2]));
+			VectorStoreAligned(MaxSimd, AlignedArray);
+			const FVec3  Max(static_cast<FReal>(AlignedArray[0]), static_cast<FReal>(AlignedArray[1]), static_cast<FReal>(AlignedArray[2]));
+			return FAABB3(Min, Max);
+		}
+
 
 	private:
 
