@@ -90,4 +90,4 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlTreeNode::SetColumnWidth
 }
 
 
-#undef LOCTEXT_NAMESPACE /*RemoteControlPanelNode*/
+#undef LOCTEXT_NAMESPACE

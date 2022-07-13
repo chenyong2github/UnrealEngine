@@ -137,7 +137,8 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlField::RefreshValue()
 				ChildWidgets.Add(SNew(SRenderPagesRemoteControlFieldChildNode, ChildNode, ColumnSizeData));
 			}
 
-			//TODO:  still causes the value widgets (like the color wheel) to disconnect when this function is called,  maybe Node->CreateNodeWidgets() should be cached
+			//TODO:  still causes the value widgets (like the color wheel) to disconnect when this function is called,  have to somehow prevent this disconnection from happening,
+			//       skipping this line all-together causes the value widgets to not respond anymore to user input,  same happens when trying to cache and reuse the output of Node->CreateNodeWidgets()
 			ChildSlot.AttachWidget(MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(Node->CreateNodeWidgets())));
 		}
 		else
@@ -218,4 +219,4 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlFieldChildNode::Construc
 }
 
 
-#undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/
+#undef LOCTEXT_NAMESPACE

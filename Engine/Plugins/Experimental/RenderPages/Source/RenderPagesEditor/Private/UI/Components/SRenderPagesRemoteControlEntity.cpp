@@ -50,7 +50,7 @@ TSharedRef<SWidget> UE::RenderPages::Private::SRenderPagesRemoteControlEntity::C
 		[
 			SNew(SInlineEditableTextBlock)
 			.Text(FText::FromName(CachedLabel))
-			.IsReadOnly_Lambda([this]() { return true; /*!bEditMode.Get();*/ })
+			.IsReadOnly(true)
 		];
 
 	Args.ValueWidget = ValueWidget;

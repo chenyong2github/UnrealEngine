@@ -28,7 +28,7 @@ void UE::RenderPages::Private::FRenderPageQueue::Tick(float DeltaTime)
 		{
 			return;
 		}
-		DelayFramesOrSeconds(DelayRemainingFutureReturningDelay.Get());
+		QueueDelay(DelayRemainingFutureReturningDelay.Get());
 		DelayRemainingFutureReturningDelay = TFuture<FRenderPageQueueDelay>();
 	}
 
@@ -110,7 +110,7 @@ bool UE::RenderPages::Private::FRenderPageQueue::ExecuteNextEntry()
 
 		if (Entry.ActionReturningDelay.IsBound())
 		{
-			DelayFramesOrSeconds(Entry.ActionReturningDelay.Execute());
+			QueueDelay(Entry.ActionReturningDelay.Execute());
 		}
 
 		if (Entry.ActionReturningDelayFuture.IsBound())

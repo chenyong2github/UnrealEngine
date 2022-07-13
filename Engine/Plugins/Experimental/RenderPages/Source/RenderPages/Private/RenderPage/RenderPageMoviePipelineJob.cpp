@@ -310,19 +310,21 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 		{
 			RenderJob->Entries.Add(Page, Entry);
 
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob, Page]()
 			{
 				RenderJob->PreviousFrameLimitSettings = UE::RenderPages::Private::FRenderPagesUtils::DisableFpsLimit();
 				RenderJob->PreviousPageProps = UE::RenderPages::IRenderPagesModule::Get().GetManager().ApplyPagePropValues(RenderJob->PageCollection, Page.Get());
-				return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1 + Page->GetWaitFramesBeforeRendering());
 			}));
+			
+			RenderJob->Queue->DelayFrames(1 + Page->GetWaitFramesBeforeRendering());
 
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob]() -> UE::RenderPages::Private::FRenderPageQueueDelay
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
 			{
 				UE::RenderPages::Private::FRenderPagesUtils::RestoreFpsLimit(RenderJob->PreviousFrameLimitSettings);
 				RenderJob->PreviousFrameLimitSettings = FRenderPagePreviousEngineFpsSettings();
-				return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
 			}));
+			
+			RenderJob->Queue->DelayFrames(1);
 
 			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelayFuture::CreateLambda([Entry]()-> TSharedFuture<void>
 			{

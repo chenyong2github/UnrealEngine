@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 #include "Containers/List.h"
-#include "TickableEditorObject.h"
+#include "Tickable.h"
 
 
 namespace UE::RenderPages::Private
@@ -20,7 +20,7 @@ namespace UE::RenderPages::Private
 		static FRenderPageQueueDelay Seconds(const double Seconds) { return FRenderPageQueueDelay(Seconds); }
 		static FRenderPageQueueDelay FramesOrSeconds(const int64 Frames, const double Seconds) { return FRenderPageQueueDelay(Frames, Seconds); }
 
-	public:
+	private:
 		FRenderPageQueueDelay()
 		{}
 
@@ -108,17 +108,17 @@ namespace UE::RenderPages::Private
 		/** Queues the given action. */
 		void Add(const FRenderPageQueueEntry& Entry) { QueuedEntries.AddTail(Entry); }
 
-		/** Delays the given number of frames. */
-		void DelayFrames(const int64 Frames) { QueuedDelays.AddTail(FRenderPageQueueDelay(Frames)); }
+		/** Queues the given delay. */
+		void Delay(const FRenderPageQueueDelay& Delay) { Add(FRenderPageQueueActionReturningDelay::CreateLambda([Delay]() -> FRenderPageQueueDelay { return Delay; })); }
 
-		/** Delays the given number of seconds. */
-		void DelaySeconds(const double Seconds) { QueuedDelays.AddTail(FRenderPageQueueDelay(Seconds)); }
+		/** Queues the given delay, which will wait for the given number of frames. */
+		void DelayFrames(const int64 Frames) { Delay(FRenderPageQueueDelay::Frames(Frames)); }
 
-		/** Delays the given number of frames or seconds, whatever takes the longest. */
-		void DelayFramesOrSeconds(const int64 Frames, const double Seconds) { QueuedDelays.AddTail(FRenderPageQueueDelay(Frames, Seconds)); }
+		/** Queues the given delay, which will wait for the given number of seconds. */
+		void DelaySeconds(const double Seconds) { Delay(FRenderPageQueueDelay::Seconds(Seconds)); }
 
-		/** Delays the given number of frames or seconds, whatever takes the longest. */
-		void DelayFramesOrSeconds(const FRenderPageQueueDelay& Delay) { QueuedDelays.AddTail(Delay); }
+		/** Queues the given delay, which will wait for the given number of frames or seconds, whatever takes the longest. */
+		void DelayFramesOrSeconds(const int64 Frames, const double Seconds) { Delay(FRenderPageQueueDelay::FramesOrSeconds(Frames, Seconds)); }
 
 		/** Starts the execution of this queue. */
 		void Start();
@@ -138,6 +138,9 @@ namespace UE::RenderPages::Private
 
 		/** Executes the next entry (action), returns true if it found and executed an entry, returns false if there were no queued up entries. */
 		bool ExecuteNextEntry();
+
+		/** Adds the delay to the queued delays. */
+		void QueueDelay(const FRenderPageQueueDelay& Delay) { QueuedDelays.AddTail(Delay); }
 
 	protected:
 		/** The queued up entries (actions). */
