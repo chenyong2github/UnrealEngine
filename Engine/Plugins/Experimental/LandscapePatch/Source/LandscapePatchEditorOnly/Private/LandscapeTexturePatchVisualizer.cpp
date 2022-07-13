@@ -4,25 +4,34 @@
 
 #include "Landscape.h"
 #include "LandscapeTexturePatchBase.h"
+#include "LandscapeTexturePatch.h"
 
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 
 void FLandscapeTexturePatchVisualizer::DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	const ULandscapeTexturePatchBase* Patch = Cast<ULandscapeTexturePatchBase>(Component);
-	if (!ensure(Patch))
-	{
-		return;
-	}
-	
-	FTransform PatchToWorld = Patch->GetPatchToWorldTransform();
-	
 	FColor Color = FColor::Red;
 	float Thickness = 3;
 	float DepthBias = 1;
 	bool bScreenSpace = 1;
 
-	DrawRectangle(PDI, PatchToWorld.GetTranslation(), PatchToWorld.GetUnitAxis(EAxis::X), PatchToWorld.GetUnitAxis(EAxis::Y),
-		Color, Patch->GetUnscaledCoverage().X * PatchToWorld.GetScale3D().X, Patch->GetUnscaledCoverage().Y * PatchToWorld.GetScale3D().Y, SDPG_Foreground,
-		Thickness, DepthBias, bScreenSpace);
+	if (const ULandscapeTexturePatch* Patch = Cast<ULandscapeTexturePatch>(Component))
+	{
+		FTransform PatchToWorld = Patch->GetPatchToWorldTransform();
+		DrawRectangle(PDI, PatchToWorld.GetTranslation(), PatchToWorld.GetUnitAxis(EAxis::X), PatchToWorld.GetUnitAxis(EAxis::Y),
+			Color, Patch->GetUnscaledCoverage().X * PatchToWorld.GetScale3D().X, Patch->GetUnscaledCoverage().Y * PatchToWorld.GetScale3D().Y, SDPG_Foreground,
+			Thickness, DepthBias, bScreenSpace);
+	}
+	// TODO: Should be removed once we delete ULandscapeTexturePatchBase and ULandscapeTextureHeightPatch
+	else if (const ULandscapeTexturePatchBase* HeightPatch = Cast<ULandscapeTexturePatchBase>(Component))
+	{
+		FTransform PatchToWorld = HeightPatch->GetPatchToWorldTransform();
+		DrawRectangle(PDI, PatchToWorld.GetTranslation(), PatchToWorld.GetUnitAxis(EAxis::X), PatchToWorld.GetUnitAxis(EAxis::Y),
+			Color, HeightPatch->GetUnscaledCoverage().X * PatchToWorld.GetScale3D().X, HeightPatch->GetUnscaledCoverage().Y * PatchToWorld.GetScale3D().Y, SDPG_Foreground,
+			Thickness, DepthBias, bScreenSpace);
+	}
+	else
+	{
+		ensure(false);
+	}
 }

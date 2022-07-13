@@ -33,6 +33,8 @@ public:
 		UTextureRenderTarget2D* InCombinedResult,
 		const FName& InWeightmapLayerName) { return InCombinedResult; }
 
+	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const { return false; }
+
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void RequestLandscapeUpdate();
 
@@ -47,7 +49,7 @@ public:
 	 * @return false if the patch is marked as disabled and therefore can't affect the landscape.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
-	bool IsEnabled() { return bIsEnabled; }
+	bool IsEnabled() const { return bIsEnabled; }
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	FTransform GetLandscapeHeightmapCoordsToWorld() const;

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 
 #include "Engine/TextureRenderTarget2D.h"
-
-#include "LandscapeTextureHeightPatchPS.h" // FApplyLandscapeTextureHeightPatchPS::FParameters, FApplyLandscapeTextureHeightPatchPS::EBlendMode
+#include "LandscapeTexturePatchPS.h" // FApplyLandscapeTextureHeightPatchPS::FParameters, FApplyLandscapeTextureHeightPatchPS::EBlendMode
+#include "LandscapeTexturePatch.h" // ELandscapeTextureHeightPatchEncoding, ELandscapeTextureHeightPatchZeroHeightMeaning, FLandscapeTexturePatchEncodingSettings
 #include "LandscapeTexturePatchBase.h"
 #include "MatrixTypes.h"
 
@@ -63,66 +63,6 @@ enum class ELandscapeTextureHeightPatchFalloffMode : uint8
 	RoundedRectangle,
 };
 
-UENUM(BlueprintType)
-enum class ELandscapeTextureHeightPatchEncoding : uint8
-{
-	// Values in texture should be interpreted as being floats in the range [0,1]. User specifies what
-	// value corresponds to height 0 (i.e. height when landscape is "cleared"), and the size of the 
-	// range in world units.
-	ZeroToOne,
-
-	// Values in texture are direct world-space heights.
-	WorldUnits,
-
-	// Values in texture are stored the same way they are in landscape actors: as 16 bit integers packed 
-	// into two bytes, mapping to [-256, 256 - 1/128] before applying landscape scale.
-	NativePackedHeight
-
-	//~ Note that currently ZeroToOne and WorldUnits actually work the same way- we subtract the center point (0 for WorldUnits),
-	//~ then scale in some way (1.0 for WorldUnits). However, having separate options here allows us to initialize defaults
-	//~ appropriately when setting the encoding mode.
-};
-
-UENUM(BlueprintType)
-enum class ELandscapeTextureHeightPatchZeroHeightMeaning : uint8
-{
-	// Zero height corresponds to the patch vertical position relative to the landscape. This moves
-	// the results up and down as the patch moves up and down.
-	PatchZ,
-
-	// Zero height corresponds to Z = 0 in the local space of the landscape, regardless of the patch vertical
-	// position. For instance, if landscape transform has z=-100 in world, then writing height 0 will correspond
-	// to z=-100 in world coordinates, regardless of patch Z. 
-	LandscapeZ,
-
-	// Zero height corresponds to the height of the world origin relative to landscape. In other words, writing
-	// height 0 will correspond to world z = 0 regardless of patch Z or landscape transform (as long as landscape
-	// transform still has Z up in world coordinates).
-	WorldZero
-};
-
-//~ A struct in case we find that we need other encoding settings.
-USTRUCT(BlueprintType)
-struct LANDSCAPEPATCH_API FLandscapeTexturePatchEncodingSettings
-{
-	GENERATED_BODY()
-public:
-	/**
-	 * The value in the patch data that corresponds to 0 landscape height (which is in line with patch Z when
-	 * "Use Patch Z As Reference" is true, and at landscape zero/mid value when false).
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	double ZeroInEncoding = 0;
-
-	/**
-	 * The scale that should be aplied to the data stored in the patch relative to the zero in the encoding, in world coordinates.
-	 * For instance if the encoding is [0,1], and 0.5 correponds to 0, a WorldSpaceEncoding Scale of 100 means that the resulting
-	 * values will lie in the range [-50, 50] in world space, which would be [-0.5, 0.5] in the landscape local heights if the Z
-	 * scale is 100.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	double WorldSpaceEncodingScale = 1;
-};
 
 /**
  * A texture-based height patch
@@ -352,7 +292,7 @@ private:
 	// These are used to convert render targets whose formats are not the usual two-channel 16bit values that
 	// we store in an internal texture. We convert these render targets to the native landscape height representation
 	// and store that in an internal texture.
-	UE::Landscape::FConvertToNativeLandscapePatchParams GetConversionParams();
+	FLandscapeHeightPatchConvertToNativeParams GetConversionParams();
 	void ConvertInternalRenderTargetToNativeTexture(bool bBlock);
 	void ConvertInternalRenderTargetBackFromNativeTexture(bool bLoading = false);
 

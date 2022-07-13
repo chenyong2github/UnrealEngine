@@ -32,6 +32,8 @@ bool ULandscapeTexturePatchBase::GetTextureResolution(FVector2D& SizeOut) const
 {
 	switch (SourceMode)
 	{
+	case ELandscapeTexturePatchSourceMode::None:
+		return false;
 	case ELandscapeTexturePatchSourceMode::InternalTexture:
 		if (IsValid(InternalTexture))
 		{

@@ -7,6 +7,24 @@
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 
+#include "LandscapeTexturePatchPS.generated.h"
+
+// Values needed to convert a patch stored in some source encoding into the native (two byte int) encoding and back
+USTRUCT()
+struct FLandscapeHeightPatchConvertToNativeParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float ZeroInEncoding;
+
+	UPROPERTY()
+	float HeightScale;
+
+	UPROPERTY()
+	float HeightOffset;
+};
+
 namespace UE::Landscape
 {
 
@@ -70,8 +88,9 @@ public:
 		// Amount of the patch edge to not apply in UV space. Generally set to 0.5/Dimensions to avoid applying
 		// the edge half-pixels.
 		SHADER_PARAMETER(FVector2f, InEdgeUVDeadBorder)
-		// In patch texture space, the size of the margin across which the alpha falls from 1 to 0
+		// In world units, the size of the margin across which the alpha falls from 1 to 0
 		SHADER_PARAMETER(float, InFalloffWorldMargin)
+		// Size of the patch in world units (used for falloff)
 		SHADER_PARAMETER(FVector2f, InPatchWorldDimensions)
 		SHADER_PARAMETER(uint32, InBlendMode)
 		// Some combination of the flags (see constants above).
@@ -108,14 +127,6 @@ public:
 	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
 };
 
-// Values needed to convert a patch stored in some source encoding into the native (two byte int) encoding and back
-struct FConvertToNativeLandscapePatchParams
-{
-	float ZeroInEncoding;
-	float HeightScale;
-	float HeightOffset;
-};
-
 /**
  * Shader that converts a texture stored in some other encoding (where height is in the R channel) to the 
  * landscape "native" encoding, where height is stored as a 16 bit int split across the R and G channels.
@@ -140,7 +151,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
-		FRDGTextureRef DestinationTexture, const FConvertToNativeLandscapePatchParams& Params);
+		FRDGTextureRef DestinationTexture, const FLandscapeHeightPatchConvertToNativeParams& Params);
 };
 
 /**
@@ -165,7 +176,92 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
-		FRDGTextureRef DestinationTexture, const FConvertToNativeLandscapePatchParams& Params);
+		FRDGTextureRef DestinationTexture, const FLandscapeHeightPatchConvertToNativeParams& Params);
+};
+
+class LANDSCAPEPATCH_API FApplyLandscapeTextureWeightPatchPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FApplyLandscapeTextureWeightPatchPS);
+	SHADER_USE_PARAMETER_STRUCT(FApplyLandscapeTextureWeightPatchPS, FGlobalShader);
+
+public:
+
+	enum class EBlendMode : uint8
+	{
+		/** Desired height is alpha blended with the current. */
+		AlphaBlend,
+
+		/** Desired height is multiplied by alpha and added to current (and clamped). */
+		Additive,
+
+		/** Like AlphaBlend, but patch is limited to only lowering the landscape. */
+		Min,
+
+		/** Like AlphaBlend, but patch is limited to only raising the landscape. */
+		Max
+	};
+
+	// Flags that get packed into a bitfield because we're not allowed to use bool shader parameters:
+	enum class EFlags : uint8
+	{
+		None = 0,
+
+		// When false, falloff is circular.
+		RectangularFalloff = 1 << 0,
+
+		// When true, the texture alpha channel is considered for blending (in addition to falloff, if nonzero)
+		ApplyPatchAlpha = 1 << 1,
+	};
+
+	// TODO: We could consider exposing an additional global alpha setting that we can use to pass in the given
+	// edit layer alpha value... On the other hand, we currently don't bother doing this in any existing blueprint
+	// brushes, and it would be hard to support in a way that doesn't require each blueprint brush to respect it
+	// individually... Not clear whether this is something worth doing yet.
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceWeightmap)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InWeightPatch)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InWeightPatchSampler)
+		SHADER_PARAMETER(FMatrix44f, InWeightmapToPatch)
+		// Amount of the patch edge to not apply in UV space. Generally set to 0.5/Dimensions to avoid applying
+		// the edge half-pixels.
+		SHADER_PARAMETER(FVector2f, InEdgeUVDeadBorder)
+		// In world units, the size of the margin across which the alpha falls from 1 to 0
+		SHADER_PARAMETER(float, InFalloffWorldMargin)
+		// Size of the patch in world units (used for falloff)
+		SHADER_PARAMETER(FVector2f, InPatchWorldDimensions)
+		SHADER_PARAMETER(uint32, InBlendMode)
+		// Some combination of the flags (see constants above).
+		SHADER_PARAMETER(uint32, InFlags)
+
+		RENDER_TARGET_BINDING_SLOTS() // Holds our output
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds);
+};
+
+ENUM_CLASS_FLAGS(FApplyLandscapeTextureWeightPatchPS::EFlags);
+
+class LANDSCAPEPATCH_API FReinitializeLandscapePatchPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FReinitializeLandscapePatchPS);
+	SHADER_USE_PARAMETER_STRUCT(FReinitializeLandscapePatchPS, FGlobalShader);
+
+public:
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSource)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InSourceSampler)
+		SHADER_PARAMETER(FMatrix44f, InPatchToSource)
+
+		RENDER_TARGET_BINDING_SLOTS() // Holds our output
+		END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+	static void AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters);
 };
 
 /**

@@ -5,38 +5,13 @@
 #include "CoreMinimal.h"
 
 #include "LandscapePatchComponent.h"
+#include "LandscapeTexturePatch.h" // ELandscapeTexturePatchSourceMode
 
 #include "LandscapeTexturePatchBase.generated.h"
 
 class UTexture;
 class UTexture2D;
 class UTextureRenderTarget2D;
-
-/**
- * Determines how the patch stores its information, which affects its memory usage in editor (not in runtime,
- * since patches are baked directly into landscape and removed for runtime).
- */
-UENUM(BlueprintType)
-enum class ELandscapeTexturePatchSourceMode : uint8
-{
-	/**
-	 * The data will be read from an internally-stored UTexture2D. In this mode, the patch can't be written-to via 
-	 * blueprints, but it avoids storing the extra render target needed for TextureBackedRenderTarget.
-	 */
-	 InternalTexture,
-
-	 /**
-	 * The patch data will be read from an internally-stored render target, which can be written to via Blueprints
-	 * and which gets serialized to an internally stored UTexture2D when needed. Uses double the memory of InternalTexture.
-	 */
-	TextureBackedRenderTarget,
-
-	 /**
-	  * The data will be read from a UTexture asset (which can be a render target). Allows multiple patches
-	  * to share the same texture.
-	  */
-	  TextureAsset
-};
 
 /**
  * A texture-based landscape patch. Base class for height patches (and, to be implemented, for weight patches).

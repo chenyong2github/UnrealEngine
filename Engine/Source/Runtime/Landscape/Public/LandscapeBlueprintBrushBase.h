@@ -64,7 +64,7 @@ public:
 
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
-	bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
+	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 	bool IsVisible() const { return bIsVisible; }
 	bool IsLayerUpdatePending() const;
 

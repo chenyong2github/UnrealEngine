@@ -3,6 +3,7 @@
 #include "LandscapePatchEditorOnlyModule.h"
 
 #include "Editor/UnrealEdEngine.h"
+#include "LandscapeTexturePatch.h"
 #include "LandscapeTexturePatchBase.h"
 #include "LandscapeTexturePatchCustomization.h"
 #include "LandscapeTexturePatchVisualizer.h"
@@ -17,6 +18,7 @@ void FLandscapePatchEditorOnlyModule::StartupModule()
 	{
 		TSharedPtr<FLandscapeTexturePatchVisualizer> Visualizer = MakeShared<FLandscapeTexturePatchVisualizer>();
 		GUnrealEd->RegisterComponentVisualizer(ULandscapeTexturePatchBase::StaticClass()->GetFName(), Visualizer);
+		GUnrealEd->RegisterComponentVisualizer(ULandscapeTexturePatch::StaticClass()->GetFName(), Visualizer);
 		// This call should maybe be inside the RegisterComponentVisualizer call above, but since it's not,
 		// we'll put it here.
 		Visualizer->OnRegister();

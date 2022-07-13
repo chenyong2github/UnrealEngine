@@ -72,7 +72,7 @@ void ULandscapeTextureHeightPatch::ConvertInternalRenderTargetBackFromNativeText
 	// If we're in a different format, we need to "un-bake" the height from the texture.
 	if (InternalRenderTarget->RenderTargetFormat != ETextureRenderTargetFormat::RTF_RGBA8)
 	{
-		FConvertToNativeLandscapePatchParams ConversionParams = GetConversionParams();
+		FLandscapeHeightPatchConvertToNativeParams ConversionParams = GetConversionParams();
 		if (bLoading)
 		{
 			ConversionParams.HeightScale = SavedConversionHeightScale;
@@ -142,7 +142,7 @@ void ULandscapeTextureHeightPatch::ConvertInternalRenderTargetToNativeTexture(bo
 		FTextureResource* Source = InternalRenderTarget->GetResource();
 		FTextureResource* Destination = NativeEncodingRenderTarget->GetResource();
 
-		FConvertToNativeLandscapePatchParams ConversionParams = GetConversionParams();
+		FLandscapeHeightPatchConvertToNativeParams ConversionParams = GetConversionParams();
 		SavedConversionHeightScale = ConversionParams.HeightScale;
 
 		ENQUEUE_RENDER_COMMAND(LandscapeTextureHeightPatchRTToTexture)(
@@ -176,11 +176,11 @@ void ULandscapeTextureHeightPatch::ConvertInternalRenderTargetToNativeTexture(bo
 	}
 }
 
-UE::Landscape::FConvertToNativeLandscapePatchParams ULandscapeTextureHeightPatch::GetConversionParams()
+FLandscapeHeightPatchConvertToNativeParams ULandscapeTextureHeightPatch::GetConversionParams()
 {
 	// When doing conversions, we bake into a height in the same way that we do when applying the patch.
 
-	UE::Landscape::FConvertToNativeLandscapePatchParams ConversionParams;
+	FLandscapeHeightPatchConvertToNativeParams ConversionParams;
 	ConversionParams.ZeroInEncoding = EncodingSettings.ZeroInEncoding;
 
 	double LandscapeHeightScale = Landscape.IsValid() ? Landscape->GetTransform().GetScale3D().Z : 1;
@@ -462,8 +462,8 @@ UTextureRenderTarget2D* ULandscapeTextureHeightPatch::Render_Native(bool bIsHeig
 {
 	using namespace UE::Landscape;
 
-	if (!ensure(PatchManager.IsValid()) || 
-		(SourceMode == ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget && (!IsValid(InternalRenderTarget)))
+	if (!ensure(PatchManager.IsValid()) || SourceMode == ELandscapeTexturePatchSourceMode::None
+		|| (SourceMode == ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget && (!IsValid(InternalRenderTarget)))
 		|| (SourceMode == ELandscapeTexturePatchSourceMode::TextureAsset && (!IsValid(TextureAsset) 
 			|| !ensureMsgf(TextureAsset->VirtualTextureStreaming == 0, TEXT("ULandscapeTextureHeightPatch: Virtual textures are not supported"))))
 		|| (SourceMode == ELandscapeTexturePatchSourceMode::InternalTexture && (!IsValid(InternalTexture))))

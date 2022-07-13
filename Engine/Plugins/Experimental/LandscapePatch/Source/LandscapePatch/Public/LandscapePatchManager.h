@@ -51,8 +51,12 @@ public:
 
 	bool RemovePatch(TObjectPtr<ULandscapePatchComponent> Patch);
 
-	// UObject
+	
 #if WITH_EDITOR
+	// ALandscapeBlueprintBrushBase
+	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const override;
+
+	// UObject
 	virtual void PostEditUndo() override;
 #endif
 	virtual bool IsEditorOnly() const override { return true; }

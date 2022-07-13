@@ -196,6 +196,24 @@ bool ALandscapePatchManager::RemovePatch(TObjectPtr<ULandscapePatchComponent> Pa
 }
 
 #if WITH_EDITOR
+bool ALandscapePatchManager::IsAffectingWeightmapLayer(const FName& InLayerName) const
+{
+	for (const TSoftObjectPtr<ULandscapePatchComponent>& Component : PatchComponents)
+	{
+		if (Component.IsPending())
+		{
+			Component.LoadSynchronous();
+		}
+
+		if (Component.IsValid() && Component->IsEnabled() && Component->IsAffectingWeightmapLayer(InLayerName))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void ALandscapePatchManager::PostEditUndo()
 {
 	RequestLandscapeUpdate();
