@@ -4,7 +4,7 @@
 
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSessionDatabase.h"
-#include "ScopedSessionDatabase.h"
+#include "Util/ScopedSessionDatabase.h"
 
 namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 {

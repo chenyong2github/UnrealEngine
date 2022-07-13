@@ -7,7 +7,8 @@
 #include "HistoryEdition/DependencyGraphBuilder.h"
 #include "HistoryTestUtil.h"
 #include "RenameEditAndDeleteMapsFlow.h"
-#include "ScopedSessionDatabase.h"
+#include "Util/ActivityBuilder.h"
+#include "Util/ScopedSessionDatabase.h"
 
 #include "Misc/AutomationTest.h"
 
@@ -346,7 +347,6 @@ namespace UE::ConcertSyncTests::PackageEditedDependencyTest
 	};
 	
 	TArray<FActivityID> FillDatabase(FScopedSessionDatabase& SessionDatabase);
-	FConcertExportedObject CreateActorMetaData(FName OuterLevelPath, FName ActorName);
 	
 	/**
 	 * This tests that EActivityDependencyReason::PackageEdited dependencies are discovered correctly.
@@ -469,7 +469,7 @@ namespace UE::ConcertSyncTests::PackageEditedDependencyTest
 	{
 		const FName FooLevel = TEXT("/Game/Foo");
 		const FName BarLevel = TEXT("/Game/Bar");
-		FTestActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
+		FActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
 		
 		ActivityBuilder.CreateActor(FooLevel, _1_CreateActor, TEXT("FirstActor"));
 		ActivityBuilder.SaveMap(FooLevel, _2_SaveFoo);
@@ -487,16 +487,6 @@ namespace UE::ConcertSyncTests::PackageEditedDependencyTest
 		ActivityBuilder.SaveMap(FooLevel, _15_SaveFoo);
 		
 		return ActivityBuilder.GetActivities();
-	}
-	
-	FConcertExportedObject CreateActorMetaData(FName OuterLevelPath, FName ActorName)
-	{
-		FConcertExportedObject Result;
-		Result.ObjectId.ObjectName = ActorName;
-		Result.ObjectId.ObjectPackageName = OuterLevelPath;
-		Result.ObjectId.ObjectOuterPathName = *FString::Printf(TEXT("%s:PersistentLevel"), *OuterLevelPath.ToString());
-		Result.ObjectId.ObjectClassPathName = TEXT("/Script/Engine.StaticMeshActor");
-		return Result;
 	}
 }
 
@@ -570,7 +560,7 @@ namespace UE::ConcertSyncTests::RenamingDependencyEdgeCases
 	{
 		const FName FooLevel = TEXT("/Game/Foo");
 		const FName BarLevel = TEXT("/Game/Bar");
-		FTestActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
+		FActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
 
 		ActivityBuilder.NewMap(FooLevel, _1_AddFoo);
 		ActivityBuilder.NewMap(BarLevel, _2_AddBar);
@@ -637,7 +627,7 @@ namespace UE::ConcertSyncTests::TransactionDependencyEdgeCases
 	{
 		const FName FooLevel = TEXT("/Game/Foo");
 		const FName BarLevel = TEXT("/Game/Bar");
-		FTestActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
+		FActivityBuilder ActivityBuilder(SessionDatabase, ActivityCount);
 
 		ActivityBuilder.NewMap(FooLevel, _1_AddFoo);
 		ActivityBuilder.CreateActor(FooLevel, _2_CreateActor, TEXT("FirstActor"));
