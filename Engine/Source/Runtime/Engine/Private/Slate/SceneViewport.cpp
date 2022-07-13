@@ -1392,7 +1392,7 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 				else
 				{
 					FDisplayMetrics DisplayMetrics;
-					FSlateApplication::Get().GetInitialDisplayMetrics(DisplayMetrics);
+					FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
 
 					if (DisplayMetrics.MonitorInfo.Num() > 0)
 					{
