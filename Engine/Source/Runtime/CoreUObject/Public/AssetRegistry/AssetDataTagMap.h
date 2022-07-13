@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "Containers/SortedMap.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "UObject/TopLevelAssetPath.h"
 
+class FAssetRegistryState;
 class FAssetTagValueRef;
 class FAssetDataTagMapSharedView;
 struct FAssetRegistrySerializationOptions;
+
+namespace FixedTagPrivate { class FMarshalledText; }
+namespace FixedTagPrivate { class FStoreBuilder; }
 
 /**
  * Helper class for condensing strings of these types into  1 - 3 FNames
@@ -111,12 +116,18 @@ namespace FixedTagPrivate
 		uint32 StoreIndex;
 		FValueId Id;
 
-		FString						AsString() const;
+		FString						AsDisplayString() const;
+		FString						AsStorageString() const;
 		FName						AsName() const;
 		FAssetRegistryExportPath	AsExportPath() const;
 		bool						AsText(FText& Out) const;
+		bool						AsMarshalledText(FMarshalledText& Out) const;
 		bool						Equals(FStringView Str) const;
 		bool						Contains(const TCHAR* Str) const;
+
+	private:
+		template <bool bForStorage>
+		FString						AsString() const;
 	};
 
 	// Handle to a tag map owned by a managed FStore
@@ -237,13 +248,22 @@ public:
 
 	FString						GetValue() const { return AsString(); }
 
-	// Get FTexts as unlocalized complex strings. For internal use only, to make new FAssetDataTagMapSharedView.
-	FString						ToLoose() const;
-
 	bool						Equals(FStringView Str) const;
 
 	UE_DEPRECATED(4.27, "Use AsString(), AsName(), AsExportPath() or AsText() instead. ")
 	operator FString () const { return AsString(); }
+
+private:
+	/** Return whether this's value is a MarshalledFText, and copy it into out parameter if so */
+	bool						TryGetAsMarshalledText(FixedTagPrivate::FMarshalledText& Out) const;
+	/**
+	 * Copy this's value (whether loose or fixed) into the loose format.
+	 * The returned loose value is in StorageFormat (e.g. complex strings) rather than display format.
+	 */
+	FString						ToLoose() const;
+
+	friend class FixedTagPrivate::FStoreBuilder;
+	friend FAssetRegistryState;
 };
 
 inline bool operator==(FAssetTagValueRef A, FStringView B) { return  A.Equals(B); }

@@ -18,6 +18,27 @@ namespace FixedTagPrivate
 		FName Object;
 	};
 
+	/**
+	 * The AssetRegistry's representation of an FText AssetData Tag value.
+	 * It can be stored and copied without being interpreted as an FText.
+	 */
+	class COREUOBJECT_API FMarshalledText
+	{
+	public:
+		FMarshalledText() = default;
+		explicit FMarshalledText(const FString& InString);
+		explicit FMarshalledText(FString&& InString);
+		explicit FMarshalledText(const FText& InText);
+		explicit FMarshalledText(FText&& InText);
+
+		const FString& GetAsComplexString() const;
+		FText GetAsText() const;
+		int32 CompareToCaseIgnored(const FMarshalledText& Other) const;
+
+	private:
+		FString String;
+	};
+
 	/// Stores a fixed set of values and all the key-values maps used for lookup
 	struct FStore
 	{
@@ -34,7 +55,7 @@ namespace FixedTagPrivate
 		TArrayView<FName> Names;
 		TArrayView<FNumberlessExportPath> NumberlessExportPaths;
 		TArrayView<FAssetRegistryExportPath> ExportPaths;
-		TArrayView<FText> Texts;
+		TArrayView<FMarshalledText> Texts;
 
 		const uint32 Index;
 		void* Data = nullptr;
@@ -86,7 +107,7 @@ namespace FixedTagPrivate
 		TArray<FName> Names;
 		TArray<FNumberlessExportPath> NumberlessExportPaths;
 		TArray<FAssetRegistryExportPath> ExportPaths;
-		TArray<FText> Texts;
+		TArray<FMarshalledText> Texts;
 	};
 
 	uint32 HashCaseSensitive(const TCHAR* Str, int32 Len);
@@ -160,6 +181,16 @@ namespace FixedTagPrivate
 			{
 				return HashCombineQuick(HashCombineQuick(GetKeyHash(Key.ClassPath.GetPackageName()), GetKeyHash(Key.ClassPath.GetAssetName())), GetKeyHash(Key.Package), GetKeyHash(Key.Object));
 			}
+
+			static bool Matches(const FMarshalledText& A, const FMarshalledText& B)
+			{
+				return Matches(A.GetAsComplexString(), B.GetAsComplexString());
+			}
+
+			static uint32 GetKeyHash(const FMarshalledText& Key)
+			{
+				return GetKeyHash(Key.GetAsComplexString());
+			}
 		};
 
 		struct FStringIndexer
@@ -181,7 +212,7 @@ namespace FixedTagPrivate
 		TMap<FName, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> NameIndices;
 		TMap<FNumberlessExportPath, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> NumberlessExportPathIndices;
 		TMap<FAssetRegistryExportPath, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> ExportPathIndices;
-		TMap<FString, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> TextIndices;
+		TMap<FMarshalledText, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> TextIndices;
 
 		TArray<FNumberedPair> NumberedPairs;
 		TArray<FNumberedPair> NumberlessPairs; // Stored as numbered for convenience
