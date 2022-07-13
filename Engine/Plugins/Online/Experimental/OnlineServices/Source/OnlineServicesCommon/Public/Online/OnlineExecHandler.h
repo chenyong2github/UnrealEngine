@@ -70,6 +70,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value);
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, bool& Value);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array);
 template <typename T, typename U> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map);
+template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSet<T>& Set);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedPtr<T>& Ptr);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedRef<T>& Ref);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional);
@@ -271,6 +272,32 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map)
 	return true;
 }
 
+template <typename T>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSet<T>& Set)
+{
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
+	{
+		TArray<FString> TokenArray;
+		Token.ParseIntoArray(TokenArray, TEXT(","));
+		Set.Reserve(TokenArray.Num());
+		for (const FString& ArrayToken : TokenArray)
+		{
+			T Key;
+
+			const TCHAR* ArrayTokenKeyTCHAR = *ArrayToken;
+			if (ParseOnlineExecParams(ArrayTokenKeyTCHAR, Key))
+			{
+				Set.Emplace(MoveTemp(Key));
+			}
+		}
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}
 
 template <typename T>
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedPtr<T>& Ptr)

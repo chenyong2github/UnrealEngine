@@ -5,43 +5,14 @@
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/CoreOnline.h"
 #include "Online/OnlineMeta.h"
+#include "Online/Schema.h"
 #include "Misc/TVariant.h"
 
 namespace UE::Online {
 
-using FLobbySchemaId = FName;
-using FLobbyAttributeId = FName;
-
-class FLobbyVariant
-{
-public:
-	using FVariantType = TVariant<FString, int64, double, bool>;
-	FLobbyVariant() = default;
-	FLobbyVariant(const FLobbyVariant& InOther) : VariantData(InOther.VariantData) {}
-	FLobbyVariant(FLobbyVariant&& InOther) : VariantData(MoveTemp(InOther.VariantData)) {}
-	FLobbyVariant& operator=(FLobbyVariant&&) = default;
-	FLobbyVariant& operator=(const FLobbyVariant&) = default;
-
-	template<typename ValueType>
-	FLobbyVariant(const ValueType& InData) { Set(MoveTempIfPossible(InData)); }
-	void Set(const TCHAR* AsString) { VariantData.Emplace<FString>(AsString); }
-	void Set(const FString& AsString) { VariantData.Emplace<FString>(AsString); }
-	void Set(FString&& AsString) { VariantData.Emplace<FString>(MoveTemp(AsString)); }
-	void Set(int64 AsInt) { VariantData.Emplace<int64>(AsInt); }
-	void Set(double AsDouble) { VariantData.Emplace<double>(AsDouble); }
-	void Set(bool bAsBool) { VariantData.Emplace<bool>(bAsBool); }
-	ONLINESERVICESINTERFACE_API int64 GetInt64() const;
-	ONLINESERVICESINTERFACE_API double GetDouble() const;
-	ONLINESERVICESINTERFACE_API bool GetBoolean() const;
-	ONLINESERVICESINTERFACE_API FString GetString() const;
-
-	ONLINESERVICESINTERFACE_API bool operator==(const FLobbyVariant& Other) const;
-	bool operator!=(const FLobbyVariant& Other) const { return !(*this == Other); }
-public:
-	FVariantType VariantData;
-};
-ONLINESERVICESINTERFACE_API const FString LexToString(const FLobbyVariant& Variant);
-ONLINESERVICESINTERFACE_API void LexFromString(FLobbyVariant& Variant, const TCHAR* InStr);
+using FLobbySchemaId = FSchemaId;
+using FLobbyAttributeId = FSchemaAttributeId;
+using FLobbyVariant = FSchemaVariant;
 
 enum class ELobbyJoinPolicy : uint8
 {

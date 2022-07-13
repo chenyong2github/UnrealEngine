@@ -305,6 +305,16 @@ FString ToLogString(const FOnlineSessionIdHandle& Id)
 	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
 }
 
+FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id)
+{
+	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
+}
+
+FString ToLogString(const FOnlineVerifiedAuthSessionIdHandle& Id)
+{
+	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
+}
+
 }	/* UE::Online */
 
 FString FUniqueNetIdWrapper::ToDebugString() const

@@ -198,6 +198,8 @@ namespace OnlineIdHandleTags
 	struct FAccount {};
 	struct FSession {};
 	struct FLobby {};
+	struct FVerifiedAuthTicket {};
+	struct FVerifiedAuthSession {};
 }
 
 enum class EOnlineServices : uint8
@@ -292,10 +294,14 @@ private:
 using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
 using FOnlineLobbyIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
 using FOnlineSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSession>;
+using FOnlineVerifiedAuthTicketIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthTicket>;
+using FOnlineVerifiedAuthSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthSession>;
 
 COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Id);
+COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id);
+COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthSessionIdHandle& Id);
 
 template<typename IdType>
 inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)

@@ -9,6 +9,27 @@ namespace UE::Online {
 
 class FOnlineServicesCommon;
 
+class ONLINESERVICESCOMMON_API FAccountInfoRegistry
+{
+public:
+	virtual ~FAccountInfoRegistry() = default;
+
+	TSharedPtr<FAccountInfo> Find(FPlatformUserId PlatformUserId) const;
+	TSharedPtr<FAccountInfo> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+
+	TArray<TSharedRef<FAccountInfo>> GetAllAccountInfo(TFunction<bool(const TSharedRef<FAccountInfo>&)> Predicate) const;
+
+protected:
+	virtual void DoRegister(const TSharedRef<FAccountInfo>& AccountInfo);
+	virtual void DoUnregister(const TSharedRef<FAccountInfo>& AccountInfo);
+
+	mutable FRWLock IndexLock;
+
+private:
+	TMap<FPlatformUserId, TSharedRef<FAccountInfo>> AuthDataByPlatformUserId;
+	TMap<FOnlineAccountIdHandle, TSharedRef<FAccountInfo>> AuthDataByOnlineAccountIdHandle;
+};
+
 class ONLINESERVICESCOMMON_API FAuthCommon : public TOnlineComponent<IAuth>
 {
 public:
@@ -22,15 +43,27 @@ public:
 	// IAuth
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthToken> GenerateAuthToken(FAuthGenerateAuthToken::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAuthToken> GetAuthToken(FAuthGetAuthToken::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthCode> GenerateAuthCode(FAuthGenerateAuthCode::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
-	virtual TOnlineEvent<void(const FLoginStatusChanged&)> OnLoginStatusChanged() override;
+	virtual TOnlineAsyncOpHandle<FAuthModifyAccountAttributes> ModifyAccountAttributes(FAuthModifyAccountAttributes::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> QueryExternalServerAuthTicket(FAuthQueryExternalServerAuthTicket::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> QueryExternalAuthToken(FAuthQueryExternalAuthToken::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthQueryVerifiedAuthTicket> QueryVerifiedAuthTicket(FAuthQueryVerifiedAuthTicket::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthCancelVerifiedAuthTicket> CancelVerifiedAuthTicket(FAuthCancelVerifiedAuthTicket::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthBeginVerifiedAuthSession> BeginVerifiedAuthSession(FAuthBeginVerifiedAuthSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAuthEndVerifiedAuthSession> EndVerifiedAuthSession(FAuthEndVerifiedAuthSession::Params&& Params) override;
+	virtual TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> GetLocalOnlineUserByOnlineAccountId(FAuthGetLocalOnlineUserByOnlineAccountId::Params&& Params) const override;
+	virtual TOnlineResult<FAuthGetLocalOnlineUserByPlatformUserId> GetLocalOnlineUserByPlatformUserId(FAuthGetLocalOnlineUserByPlatformUserId::Params&& Params) const override;
+	virtual TOnlineResult<FAuthGetAllLocalOnlineUsers> GetAllLocalOnlineUsers(FAuthGetAllLocalOnlineUsers::Params&& Params) const override;
+	virtual TOnlineEvent<void(const FAuthLoginStatusChanged&)> OnLoginStatusChanged() override;
+	virtual TOnlineEvent<void(const FAuthPendingAuthExpiration&)> OnPendingAuthExpiration() override;
+	virtual TOnlineEvent<void(const FAuthAccountAttributesChanged&)> OnAccountAttributesChanged() override;
+	virtual bool IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const override;
 
 protected:
-	TOnlineEventCallable<void(const FLoginStatusChanged&)> OnLoginStatusChangedEvent;
+	virtual const FAccountInfoRegistry& GetAccountInfoRegistry() const = 0;
+
+	TOnlineEventCallable<void(const FAuthLoginStatusChanged&)> OnAuthLoginStatusChangedEvent;
+	TOnlineEventCallable<void(const FAuthPendingAuthExpiration&)> OnAuthPendingAuthExpirationEvent;
+	TOnlineEventCallable<void(const FAuthAccountAttributesChanged&)> OnAuthAccountAttributesChangedEvent;
 };
 
 /* UE::Online */ }
