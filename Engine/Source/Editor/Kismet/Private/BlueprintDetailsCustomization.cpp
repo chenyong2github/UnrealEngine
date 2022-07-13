@@ -2744,7 +2744,7 @@ void FBlueprintVarActionDetails::OnFinishedChangingVariable(const FPropertyChang
 		return;
 	}
 
-	ImportNamespacesForPropertyValue(InModifiedObjectInstance->GetClass(), InPropertyChangedEvent.MemberProperty, InModifiedObjectInstance);
+	ImportNamespacesForPropertyValue(InPropertyChangedEvent.MemberProperty, InModifiedObjectInstance);
 }
 
 void FBlueprintVarActionDetails::OnFinishedChangingLocalVariable(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode)
@@ -2791,11 +2791,11 @@ void FBlueprintVarActionDetails::OnFinishedChangingLocalVariable(const FProperty
 			}
 		}
 
-		ImportNamespacesForPropertyValue(InStructData->GetStruct(), DirectProperty, InStructData->GetStructMemory());
+		ImportNamespacesForPropertyValue(DirectProperty, InStructData->GetStructMemory());
 	}
 }
 
-void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer)
+void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const FProperty* InProperty, const void* InContainer)
 {
 	// Auto-import any namespace(s) associated with the property's value into the current editor context.
 	TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
@@ -2805,7 +2805,7 @@ void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct*
 		if (BlueprintEditor.IsValid())
 		{
 			FBlueprintEditor::FImportNamespaceExParameters Params;
-			FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InStruct, InProperty, InContainer, Params.NamespacesToImport);
+			FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InProperty, InContainer, Params.NamespacesToImport);
 			BlueprintEditor->ImportNamespaceEx(Params);
 		}
 	}

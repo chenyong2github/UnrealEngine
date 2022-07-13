@@ -152,20 +152,9 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& 
 	return GetAssetNamespace(AssetData);
 }
 
-void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
+void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
 {
-	if (!InStruct || !InProperty || !InContainer)
-	{
-		return;
-	}
-
-	const UStruct* PropertyOwner = InProperty->GetOwnerStruct();
-	if (!PropertyOwner)
-	{
-		return;
-	}
-
-	if (!ensureMsgf(InStruct == PropertyOwner, TEXT("Property %s is a member of struct %s which does not match the given struct %s"), *InProperty->GetName(), *PropertyOwner->GetName(), *InStruct->GetName()))
+	if (!InProperty || !InContainer)
 	{
 		return;
 	}
@@ -178,7 +167,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 		{
 			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				GetPropertyValueNamespaces(StructProperty->Struct, *It, ValuePtr, OutNamespaces);
+				GetPropertyValueNamespaces(*It, ValuePtr, OutNamespaces);
 			}
 		}
 		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
@@ -186,7 +175,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			FScriptArrayHelper ArrayHelper(ArrayProperty, ValuePtr);
 			for (int32 ValueIdx = 0; ValueIdx < ArrayHelper.Num(); ++ValueIdx)
 			{
-				GetPropertyValueNamespaces(InStruct, ArrayProperty->Inner, ArrayHelper.GetRawPtr(ValueIdx), OutNamespaces);
+				GetPropertyValueNamespaces(ArrayProperty->Inner, ArrayHelper.GetRawPtr(ValueIdx), OutNamespaces);
 			}
 		}
 		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
@@ -194,7 +183,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			FScriptSetHelper SetHelper(SetProperty, ValuePtr);
 			for (FScriptSetHelper::FIterator SetIt = SetHelper.CreateIterator(); SetIt; ++SetIt)
 			{
-				GetPropertyValueNamespaces(InStruct, SetProperty->ElementProp, SetHelper.GetElementPtr(*SetIt), OutNamespaces);
+				GetPropertyValueNamespaces(SetProperty->ElementProp, SetHelper.GetElementPtr(*SetIt), OutNamespaces);
 			}
 		}
 		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
@@ -203,8 +192,8 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			for (FScriptMapHelper::FIterator MapIt = MapHelper.CreateIterator(); MapIt; ++MapIt)
 			{
 				const uint8* MapValuePtr = MapHelper.GetPairPtr(*MapIt);
-				GetPropertyValueNamespaces(InStruct, MapProperty->KeyProp, MapValuePtr, OutNamespaces);
-				GetPropertyValueNamespaces(InStruct, MapProperty->ValueProp, MapValuePtr, OutNamespaces);
+				GetPropertyValueNamespaces(MapProperty->KeyProp, MapValuePtr, OutNamespaces);
+				GetPropertyValueNamespaces(MapProperty->ValueProp, MapValuePtr, OutNamespaces);
 			}
 		}
 		else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(InProperty))

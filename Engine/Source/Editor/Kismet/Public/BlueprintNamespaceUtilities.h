@@ -48,12 +48,17 @@ public:
 	/**
 	 * Analyzes a property value to determine explicitly-assigned namespace identifiers from any object references, or otherwise returns the default namespace for each occurrence (default).
 	 * 
-	 * @param InStruct		A reference to the container's struct/object type.
 	 * @param InProperty	The property for which we will analyze the value.
 	 * @param InContainer	The source address of the struct/object containing the property's value.
 	 * @param OutNamespaces	Zero or more unique namespace identifier(s) referenced by the property value. An entry with an empty string equates to the default global namespace.
 	 */
-	static void GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces);
+	static void GetPropertyValueNamespaces(const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces);
+
+	UE_DEPRECATED(5.1, "Please use the updated version that removes the InStruct parameter (no longer needed).")
+	static void GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
+	{
+		GetPropertyValueNamespaces(InProperty, InContainer, OutNamespaces);
+	}
 
 	/**
 	 * Gathers the set of global namespaces that are implicitly imported by all Blueprint assets.

@@ -1037,12 +1037,12 @@ void SKismetInspector::ImportNamespacesForPropertyValue(const FProperty* InPrope
 				// For example, a details customization may select an unrelated object
 				// and then customize each row with an external object reference. In
 				// those cases, the customization would need to handle this explicitly.
-				if (SelectedType != InProperty->GetOwnerStruct())
+				if (!InProperty->IsIn(SelectedType))
 				{
 					continue;
 				}
 
-				FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(SelectedType, InProperty, SelectedObject, AssociatedNamespaces);
+				FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InProperty, SelectedObject, AssociatedNamespaces);
 			}
 		}
 

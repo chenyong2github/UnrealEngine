@@ -164,11 +164,10 @@ private:
 	/**
 	 * Auto-import any namespaces associated with a variable's value into the current editor context
 	 *
-	 * @param InStruct					A reference to the container's type
-	 * @param InProperty				A reference to the variable property; owner is expected to match the container's type
+	 * @param InProperty				A reference to the variable property
 	 * @param InContainer				A pointer to the data container (e.g. struct or object) where the property's value is stored
 	 */
-	void ImportNamespacesForPropertyValue(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer);
+	void ImportNamespacesForPropertyValue(const FProperty* InProperty, const void* InContainer);
 
 	/** Callback to decide if the category drop down menu should be enabled */
 	bool GetVariableCategoryChangeEnabled() const;
