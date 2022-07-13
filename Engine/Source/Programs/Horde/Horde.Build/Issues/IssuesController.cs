@@ -122,6 +122,8 @@ namespace Horde.Build.Issues
 					{
 						IssueSeverity streamSeverity = IssueSeverity.Unspecified;
 
+						HashSet<WorkflowId> openWorkflowIds = new HashSet<WorkflowId>();
+
 						List<FindIssueSpanResponse> spanResponses = new List<FindIssueSpanResponse>();
 						if (issueIdToSpans.TryGetValue(issue.Id, out List<IIssueSpan>? spansForIssue))
 						{
@@ -140,6 +142,16 @@ namespace Horde.Build.Issues
 							foreach (IIssueSpan span in spansForIssue)
 							{
 								spanResponses.Add(new FindIssueSpanResponse(span, span.LastFailure.Annotations.WorkflowId));
+							}
+
+							// Find which workflows are affected
+							foreach (IIssueSpan span in spansForIssue)
+							{
+								WorkflowId? workflowId = span.LastFailure.Annotations.WorkflowId;
+								if (workflowId != null && span.NextSuccess == null && span.StreamId == streamId)
+								{
+									openWorkflowIds.Add(workflowId.Value);
+								}
 							}
 						}
 					
@@ -169,7 +181,7 @@ namespace Horde.Build.Issues
 						}
 
 
-						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, quarantinedBy, streamSeverity, spanResponses);
+						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, quarantinedBy, streamSeverity, spanResponses, openWorkflowIds.ToList());
 						responses.Add(PropertyFilter.Apply(response, filter));
 					}
 				}

@@ -762,6 +762,10 @@ namespace Horde.Build.Issues
 		/// </summary>
 		public DateTime? QuarantineTimeUtc { get; set; }
 
+		/// <summary>
+		/// Workflows for which this issue is open
+		/// </summary>
+		public List<WorkflowId> OpenWorkflows { get; set; }
 
 		/// <summary>
 		/// Constructs a new issue
@@ -773,7 +777,8 @@ namespace Horde.Build.Issues
 		/// <param name="quarantinedBy">User that quarantined the issue</param>
 		/// <param name="streamSeverity">The current severity in the stream</param>
 		/// <param name="spans">Spans for this issue</param>
-		public FindIssueResponse(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IUser? quarantinedBy, IssueSeverity? streamSeverity, List<FindIssueSpanResponse> spans)
+		/// <param name="openWorkflows">List of workflows for which this issue is open</param>
+		public FindIssueResponse(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IUser? quarantinedBy, IssueSeverity? streamSeverity, List<FindIssueSpanResponse> spans, List<WorkflowId> openWorkflows)
 		{
 			Id = issue.Id;
 			CreatedAt = issue.CreatedAt;
@@ -807,6 +812,7 @@ namespace Horde.Build.Issues
 				QuarantinedBy = new GetThinUserInfoResponse(quarantinedBy);
 				QuarantineTimeUtc = issue.QuarantineTimeUtc;
 			}
+			OpenWorkflows = openWorkflows;
 		}
 	}
 
