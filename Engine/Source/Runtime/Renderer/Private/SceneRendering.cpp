@@ -4132,6 +4132,8 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 		for (FSceneRenderer* SceneRenderer : SceneRenderers)
 		{
 			SceneRenderer->GPUSceneDynamicContext.Release();
+			SceneRenderer->MeshCollector.DeleteTemporaryProxies();
+			SceneRenderer->RayTracingCollector.DeleteTemporaryProxies();
 		}
 
 		// Mem stack mark is stored on first scene renderer

@@ -2402,11 +2402,18 @@ protected:
 
 	~FMeshElementCollector()
 	{
+		DeleteTemporaryProxies();
+	}
+
+	void DeleteTemporaryProxies()
+	{
 		check(!ParallelTasks.Num()); // We should have blocked on this already
 		for (int32 ProxyIndex = 0; ProxyIndex < TemporaryProxies.Num(); ProxyIndex++)
 		{
 			delete TemporaryProxies[ProxyIndex];
 		}
+
+		TemporaryProxies.Empty();
 	}
 
 	void SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId)
