@@ -237,8 +237,8 @@ HttpRequest(const FRemoteDesc& RemoteDesc,
 			EHttpContentType   PayloadContentType,
 			FBufferView		   Payload)
 {
-	const FTlsClientSettings* TlsSettings = nullptr;
-	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, TlsSettings);
+	FTlsClientSettings TlsSettings = RemoteDesc.GetTlsClientSettings();
+	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, RemoteDesc.bTlsEnable ? &TlsSettings : nullptr);
 
 	FHttpRequest Request;
 
@@ -495,7 +495,8 @@ FHttpConnection::Open()
 #if UNSYNC_USE_TLS
 		FTlsClientSettings ClientSettings;
 		ClientSettings.bVerifyCertificate = bTlsVerifyCertificate;
-		if (!TlsSubject.empty())
+
+		if (bTlsVerifyCertificate && !TlsSubject.empty())
 		{
 			ClientSettings.Subject = TlsSubject.c_str();
 		}

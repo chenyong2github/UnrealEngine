@@ -301,22 +301,26 @@ LogError(const FError& E)
 			break;
 	}
 
+	const wchar_t* ContextStr = E.Context.empty() ? nullptr : E.Context.c_str();
+
 	if (ErrorDescStr)
 	{
 		LogPrintf(ELogLevel::Error,
-				  L"%hs code: %d (%hs). Context: %ls\n",
+				  L"%hs code: %d (%hs).%ls%ls\n",
 				  ErrorKindStr,
 				  E.Code,
 				  ErrorDescStr,
-				  E.Context.empty() ? L"<none>" : E.Context.c_str());
+				  ContextStr ? L" Context: " : L"",
+				  E.Context.empty() ? L"" : E.Context.c_str());
 	}
 	else
 	{
 		LogPrintf(ELogLevel::Error,
-				  L"%hs code: %d. Context: %ls\n",
+				  L"%hs code: %d.%ls%ls\n",
 				  ErrorKindStr,
 				  E.Code,
-				  E.Context.empty() ? L"<none>" : E.Context.c_str());
+				  ContextStr ? L" Context: " : L"",
+				  E.Context.empty() ? L"" : E.Context.c_str());
 	}
 }
 
