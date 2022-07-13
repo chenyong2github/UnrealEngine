@@ -7,6 +7,7 @@
 #include "Widgets/Input/SEditableText.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Styling/UMGCoreStyle.h"
+#include "Materials/MaterialInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

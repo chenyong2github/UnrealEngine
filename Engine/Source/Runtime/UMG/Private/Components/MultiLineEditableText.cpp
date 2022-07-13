@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Styling/UMGCoreStyle.h"
+#include "Materials/MaterialInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

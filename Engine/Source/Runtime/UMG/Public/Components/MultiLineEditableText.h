@@ -11,6 +11,7 @@
 #include "Widgets/Text/ISlateEditableTextWidget.h"
 #include "MultiLineEditableText.generated.h"
 
+class UMaterialInterface;
 class SMultiLineEditableText;
 
 /**

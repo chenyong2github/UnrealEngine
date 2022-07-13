@@ -14,6 +14,7 @@
 #include "EditableText.generated.h"
 
 class SEditableText;
+class UMaterialInterface;
 class USlateBrushAsset;
 class USlateWidgetStyleAsset;
 
