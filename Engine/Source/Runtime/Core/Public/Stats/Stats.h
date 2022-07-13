@@ -59,19 +59,9 @@ public:
 	 * Pushes the specified stat onto the hierarchy for this thread. Starts
 	 * the timing of the cycles used
 	 */
-	FORCEINLINE_STATS FScopeCycleCounter( TStatId StatId, EStatFlags StatFlags, bool bAlways = false
-#if CPUPROFILERTRACE_ENABLED
-		// Optional verbose description added for CPU profiler, without affecting the stat name.  Should be invariant
-		// across frames, to avoid bloating memory in the name map used in the CPU profiler.
-		, const TCHAR* OptionalVerboseDescription = nullptr
-#endif
-	)
+	FORCEINLINE_STATS FScopeCycleCounter( TStatId StatId, EStatFlags StatFlags, bool bAlways = false)
 	{
-		Start( StatId, StatFlags, bAlways
-#if CPUPROFILERTRACE_ENABLED
-			, OptionalVerboseDescription
-#endif
-			);
+		Start( StatId, StatFlags, bAlways);
 	}
 
 	FORCEINLINE_STATS FScopeCycleCounter(TStatId StatId, bool bAlways = false)
@@ -255,10 +245,6 @@ FORCEINLINE void StatsMasterEnableSubtract(int32 Value = 1)
 	FScopeCycleCounter StatNamedEventsScope_##Stat(bCondition ? ANSI_TO_PROFILING(#Stat) : nullptr); \
 	SCOPE_CYCLE_COUNTER_TO_TRACE(#Stat, Stat, bCondition);
 
-#define SCOPE_CYCLE_COUNTER_VERBOSE(Stat, VerboseDescription) \
-	FScopeCycleCounter StatNamedEventsScope_##Stat(TStatId(ANSI_TO_PROFILING(#Stat))); \
-	SCOPE_CYCLE_COUNTER_TO_TRACE(#Stat, Stat, true);
-
 #define RETURN_QUICK_DECLARE_CYCLE_STAT(StatId,GroupId) return TStatId(ANSI_TO_PROFILING(#StatId));
 
 #define GET_STATID(Stat) (TStatId(ANSI_TO_PROFILING(#Stat)))
@@ -299,9 +285,6 @@ public:
 #define CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat,bCondition) \
 	FLightweightStatScope LightweightStatScope_##Stat(bCondition ? TEXT(#Stat) : nullptr);
 
-#define SCOPE_CYCLE_COUNTER_VERBOSE(Stat,VerboseDescription) \
-	FLightweightStatScope LightweightStatScope_##Stat(TEXT(#Stat));
-
 #define RETURN_QUICK_DECLARE_CYCLE_STAT(StatId,GroupId) return TStatId();
 #define GET_STATID(Stat) (TStatId())
 
@@ -310,7 +293,6 @@ public:
 #define QUICK_SCOPE_CYCLE_COUNTER(Stat)
 #define DECLARE_SCOPE_CYCLE_COUNTER(CounterName,StatId,GroupId)
 #define CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat,bCondition)
-#define SCOPE_CYCLE_COUNTER_VERBOSE(Stat,VerboseDescription)
 #define RETURN_QUICK_DECLARE_CYCLE_STAT(StatId,GroupId) return TStatId();
 #define GET_STATID(Stat) (TStatId())
 

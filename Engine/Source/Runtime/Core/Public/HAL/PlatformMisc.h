@@ -36,6 +36,39 @@
 
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+class FScopedNamedEventConditional
+{
+public:
+	FScopedNamedEventConditional(const struct FColor& Color, const TCHAR* Text, bool bCondition)
+		: bStarted(bCondition)
+	{
+		if (bCondition)
+		{
+			FPlatformMisc::BeginNamedEvent(Color, Text);
+		}
+	}
+
+	FScopedNamedEventConditional(const struct FColor& Color, const ANSICHAR* Text, bool bCondition)
+		: bStarted(bCondition)
+	{
+		if (bCondition)
+		{
+			FPlatformMisc::BeginNamedEvent(Color, Text);
+		}
+	}
+
+	~FScopedNamedEventConditional()
+	{
+		if (bStarted)
+		{
+			FPlatformMisc::EndNamedEvent();
+		}
+	}
+
+private:
+	bool bStarted;
+};
+
 class CORE_API FScopedNamedEvent
 {
 public:
@@ -136,6 +169,10 @@ public:
 	FScopedNamedEvent ANONYMOUS_VARIABLE(NamedEvent_)(Color, *FString::Printf(Format, __VA_ARGS__));\
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(Format, __VA_ARGS__));
 
+#define SCOPED_NAMED_EVENT_TCHAR_CONDITIONAL(Text, Color, bCondition)\
+	FScopedNamedEventConditional ANONYMOUS_VARIABLE(NamedEvent_)(Color, Text, (bCondition));\
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_CONDITIONAL(Text, (bCondition));
+
 #define SCOPED_PROFILER_COLOR(Color)			 FScopedProfilerColor    ANONYMOUS_VARIABLE(ProfilerColor_##Name##_)(Color);
 
 
@@ -174,6 +211,7 @@ public:
 #define SCOPED_NAMED_EVENT_TCHAR(...)
 #define SCOPED_NAMED_EVENT_TEXT(...)
 #define SCOPED_NAMED_EVENT_F(...)
+#define SCOPED_NAMED_EVENT_TCHAR_CONDITIONAL(...)
 #define SCOPED_PROFILER_COLOR(...)
 
 #endif

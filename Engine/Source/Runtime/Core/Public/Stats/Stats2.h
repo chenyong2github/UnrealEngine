@@ -1580,13 +1580,7 @@ public:
 	 * Pushes the specified stat onto the hierarchy for this thread. Starts
 	 * the timing of the cycles used
 	 */
-	FORCEINLINE_STATS void Start(TStatId InStatId, EStatFlags InStatFlags, bool bAlways = false
-#if CPUPROFILERTRACE_ENABLED
-		// Optional verbose description added for CPU profiler, without affecting the stat name.  Should be invariant
-		// across frames, to avoid bloating memory in the name map used in the CPU profiler.
-		, const TCHAR* OptionalVerboseDescription = nullptr
-#endif
-		)
+	FORCEINLINE_STATS void Start(TStatId InStatId, EStatFlags InStatFlags, bool bAlways = false)
 	{
 		FMinimalName StatMinimalName = InStatId.GetMinimalName(EMemoryOrder::Relaxed);
 		if (StatMinimalName.IsNone())
@@ -1608,37 +1602,7 @@ public:
 #if CPUPROFILERTRACE_ENABLED
 			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 			{
-				// We only support ANSI strings, since the CPU profiler internally uses that in its event type.  We could
-				// in the future add a separate wide string profiler event, but it involves duplicating a fair amount of
-				// code, so this works for now.
-				if (OptionalVerboseDescription && FCString::IsPureAnsi(OptionalVerboseDescription))
-				{
-					TArray<ANSICHAR, TNonRelocatableInlineAllocator<256>> VerboseNameANSI;
-
-					const char* StatDescriptionANSI = InStatId.GetStatDescriptionANSI();
-					int32 StatLen = FCStringAnsi::Strlen(StatDescriptionANSI);
-					int32 DescriptionLen = FCString::Strlen(OptionalVerboseDescription);
-
-					VerboseNameANSI.AddUninitialized(StatLen + DescriptionLen + 4);		// 3 character separator plus null terminator
-					char* Buffer = VerboseNameANSI.GetData();
-					char* BufferEnd = Buffer + VerboseNameANSI.Num();
-
-					FMemory::Memcpy(Buffer, StatDescriptionANSI, StatLen*sizeof(ANSICHAR));	Buffer += StatLen;
-					FMemory::Memcpy(Buffer, " - ", 3*sizeof(ANSICHAR));						Buffer += 3;
-					for (const TCHAR* DescriptionLetter = OptionalVerboseDescription; *DescriptionLetter; DescriptionLetter++, Buffer++)
-					{
-						*Buffer = (ANSICHAR)*DescriptionLetter;
-					}
-					check(Buffer + 1 == BufferEnd);
-
-					*Buffer = 0;		// null terminate
-
-					FCpuProfilerTrace::OutputBeginDynamicEvent(VerboseNameANSI.GetData());
-				}
-				else
-				{
-					FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
-				}
+				FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
 				EmittedEvent |= TraceEvent;
 			}
 #endif
@@ -2055,14 +2019,6 @@ struct FStat_##StatName\
 
 #define CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat,bCondition) \
 	FScopeCycleCounter CycleCount_##Stat(bCondition ? GET_STATID(Stat) : TStatId(), GET_STATFLAGS(Stat));
-
-#if CPUPROFILERTRACE_ENABLED
-#define SCOPE_CYCLE_COUNTER_VERBOSE(Stat,VerboseDescription) \
-	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat), GET_STATFLAGS(Stat), false, VerboseDescription);
-#else
-#define SCOPE_CYCLE_COUNTER_VERBOSE(Stat,VerboseDescription) \
-	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat), GET_STATFLAGS(Stat));
-#endif
 
 #define SCOPE_SECONDS_ACCUMULATOR(Stat) \
 	FSimpleScopeSecondsStat SecondsAccum_##Stat(GET_STATID(Stat));

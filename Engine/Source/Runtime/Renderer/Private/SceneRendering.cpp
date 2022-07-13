@@ -4281,7 +4281,8 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, SceneRenderer);
 
-		SCOPE_CYCLE_COUNTER_VERBOSE(STAT_TotalSceneRenderingTime, ViewFamily.ProfileDescription.IsEmpty() ? nullptr : *ViewFamily.ProfileDescription);
+		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
+		SCOPED_NAMED_EVENT_TCHAR_CONDITIONAL(*ViewFamily.ProfileDescription, FColor::Red, !ViewFamily.ProfileDescription.IsEmpty());
 		const uint64 FamilyRenderStart = FPlatformTime::Cycles64();
 
 #if WITH_DEBUG_VIEW_MODES
