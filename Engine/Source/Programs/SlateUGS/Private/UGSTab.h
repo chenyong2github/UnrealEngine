@@ -44,6 +44,9 @@ private:
 	// Allows the queuing of functions from threads to be run on the main thread
 	void QueueMessageForMainThread(TFunction<void()> Function);
 
+	bool ShouldIncludeInReviewedList(const TSet<int>& PromotedChangeNumbers, int ChangeNumber) const;
+	void UpdateGameTabBuildList();
+
 	// Core functions
 	void SetupWorkspace();
 
