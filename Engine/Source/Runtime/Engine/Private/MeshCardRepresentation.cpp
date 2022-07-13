@@ -64,24 +64,6 @@ static TAutoConsoleVariable<float> CVarCardRepresentationNormalTreshold(
 	TEXT("Normal treshold when surface elements should be clustered together."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarCardRepresentationMaxSurfelDistanceXY(
-	TEXT("r.MeshCardRepresentation.DistanceTresholdXY"),
-	4,
-	TEXT("Max distance (in surfels) when surface elements should be clustered together along XY."),
-	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarCardRepresentationSeedIterations(
-	TEXT("r.MeshCardRepresentation.SeedIterations"),
-	3,
-	TEXT("Max number of clustering iterations."),
-	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarCardRepresentationGrowIterations(
-	TEXT("r.MeshCardRepresentation.GrowIterations"),
-	3,
-	TEXT("Max number of grow iterations."),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarCardRepresentationDebug(
 	TEXT("r.MeshCardRepresentation.Debug"),
 	0,
@@ -104,21 +86,6 @@ float MeshCardRepresentation::GetNormalTreshold()
 	return FMath::Clamp(CVarCardRepresentationNormalTreshold.GetValueOnAnyThread(), 0.0f, 1.0f);
 }
 
-int32 MeshCardRepresentation::GetMaxSurfelDistanceXY()
-{
-	return FMath::Max(CVarCardRepresentationMaxSurfelDistanceXY.GetValueOnAnyThread(), 0);
-}
-
-int32 MeshCardRepresentation::GetSeedIterations()
-{
-	return FMath::Clamp(CVarCardRepresentationSeedIterations.GetValueOnAnyThread(), 1, 16);
-}
-
-int32 MeshCardRepresentation::GetGrowIterations()
-{
-	return FMath::Clamp(CVarCardRepresentationGrowIterations.GetValueOnAnyThread(), 0, 16);
-}
-
 bool MeshCardRepresentation::IsDebugMode()
 {
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
@@ -138,21 +105,18 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("3F695875-02C1-459D-8923-222B68165285")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("A3695875-02C2-159E-8923-2F7B6816A281")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {
 	const float MinDensity = MeshCardRepresentation::GetMinDensity();
 	const float NormalTreshold = MeshCardRepresentation::GetNormalTreshold();
-	const float MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
-	const int32 SeedIterations = MeshCardRepresentation::GetSeedIterations();
-	const int32 GrowIterations = MeshCardRepresentation::GetGrowIterations();
 	const bool bDebugMode = MeshCardRepresentation::IsDebugMode();
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("CARD"),
-		*FString::Printf(TEXT("%s_%s%s%.3f_%.3f_%.3f_%d_%d_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, bDebugMode ? TEXT("_DEBUG_") : TEXT(""),
-			MinDensity, NormalTreshold, MaxSurfelDistanceXY, SeedIterations, GrowIterations, MaxLumenMeshCards),
+		*FString::Printf(TEXT("%s_%s%s%.3f_%.3f_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, bDebugMode ? TEXT("_DEBUG_") : TEXT(""),
+			MinDensity, NormalTreshold, MaxLumenMeshCards),
 		TEXT(""));
 }
 

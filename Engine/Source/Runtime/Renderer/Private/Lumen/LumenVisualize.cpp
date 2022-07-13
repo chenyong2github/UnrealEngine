@@ -258,11 +258,11 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementIndex(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenCardPlacementOrientation = -1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementOrientation(
-	TEXT("r.Lumen.Visualize.CardPlacementOrientation"),
-	GVisualizeLumenCardPlacementOrientation,
-	TEXT("Visualize only a single orientation per mesh."),
+int32 GVisualizeLumenCardPlacementDirection = -1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementDirection(
+	TEXT("r.Lumen.Visualize.CardPlacementDirection"),
+	GVisualizeLumenCardPlacementDirection,
+	TEXT("Visualize only a single card direction."),
 	ECVF_RenderThreadSafe
 );
 
@@ -1213,7 +1213,7 @@ void VisualizeCardGeneration(FSceneRenderingBulkObjectAllocator& Allocator, cons
 
 								if (Card.bVisible
 									&& (Card.IndexInMeshCards == GVisualizeLumenCardPlacementIndex || GVisualizeLumenCardPlacementIndex < 0)
-									&& (Card.AxisAlignedDirectionIndex == GVisualizeLumenCardPlacementOrientation || GVisualizeLumenCardPlacementOrientation < 0)
+									&& (Card.AxisAlignedDirectionIndex == GVisualizeLumenCardPlacementDirection || GVisualizeLumenCardPlacementDirection < 0)
 									&& Card.IndexInBuildData < DebugData.Clusters.Num())
 								{
 									const FLumenCardBuildDebugData::FSurfelCluster& Cluster = DebugData.Clusters[Card.IndexInBuildData];
@@ -1231,8 +1231,6 @@ void VisualizeCardGeneration(FSceneRenderingBulkObjectAllocator& Allocator, cons
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Used, FLinearColor::Gray, ViewPDI);
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Idle, FLinearColor::Blue, ViewPDI);
-									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed, FLinearColor::Yellow, ViewPDI, 10.0f);
-									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed2, FLinearColor::Red, ViewPDI, 8.0f);
 
 									for (const FLumenCardBuildDebugData::FRay& Ray : Cluster.Rays)
 									{

@@ -253,7 +253,7 @@ FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheResampleLighting(
 
 static TAutoConsoleVariable<float> GLumenSceneSurfaceCacheCaptureMeshTargetScreenSize(
 	TEXT("r.LumenScene.SurfaceCache.Capture.MeshTargetScreenSize"),
-	0.1f,
+	0.15f,
 	TEXT("Controls which LOD level will be used to capture static meshes into surface cache."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 		{
@@ -849,7 +849,7 @@ void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 	ViewLocation += FVector(FaceLocalExtent.Z * CardWorldOBB.AxisZ);
 
 	const float NearPlane = 0.0f;
-	const float FarPlane = NearPlane + FaceLocalExtent.Z * 2.0f;
+	const float FarPlane = FaceLocalExtent.Z * 2.0f;
 
 	const float ZScale = 1.0f / (FarPlane - NearPlane);
 	const float ZOffset = -NearPlane;

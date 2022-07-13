@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenMeshCards.cpp
-=============================================================================*/
-
 #include "LumenMeshCards.h"
 #include "RendererPrivate.h"
 #include "MeshCardRepresentation.h"
@@ -54,18 +50,6 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergedCardMinSurfaceArea(
 	{
 		FGlobalComponentRecreateRenderStateContext Context;
 	}),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenMeshCardsMaxLOD = 1;
-FAutoConsoleVariableRef CVarLumenMeshCardsMaxLOD(
-	TEXT("r.LumenScene.SurfaceCache.MeshCardsMaxLOD"),
-	GLumenMeshCardsMaxLOD,
-	TEXT("Max LOD level for the card representation. 0 - lowest quality."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-		{
-			FGlobalComponentRecreateRenderStateContext Context;
-		}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -194,8 +178,9 @@ public:
 		uint32 Packed3W = 0;
 		Packed3W = uint8(ResLevelBias.X) & 0xFF;
 		Packed3W |= (uint8(ResLevelBias.Y) & 0xFF) << 8;
-		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 16) : 0;
-		Packed3W |= Card.bHeightfield && Card.IsAllocated() ? (1 << 17) : 0;
+		Packed3W |= (uint8(Card.AxisAlignedDirectionIndex) & 0xF) << 16;
+		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 24) : 0;
+		Packed3W |= Card.bHeightfield && Card.IsAllocated() ? (1 << 25) : 0;
 
 		OutData[3] = FVector4f(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
 		OutData[3].W = *((float*)&Packed3W);
@@ -512,29 +497,24 @@ public:
 	{
 		MergedBounds += InstanceBox.TransformBy(InstanceToMerged);
 
-		const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
-
 		for (const FLumenCardBuildData& CardBuildData : MeshCardsBuildData.CardBuildData)
 		{
-			if (CardBuildData.LODLevel == LODLevel)
+			const FVector3f AxisX = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisX));
+			const FVector3f AxisY = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisY));
+			const FVector3f AxisZ = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisZ));
+			const FVector3f Extent = CardBuildData.OBB.Extent * FVector3f(AxisX.Length(), AxisY.Length(), AxisZ.Length());
+
+			const float InstanceCardArea = Extent.X * Extent.Y;
+			const FVector3f CardDirection = AxisZ.GetUnsafeNormal();
+
+			for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
 			{
-				const FVector3f AxisX = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisX));
-				const FVector3f AxisY = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisY));
-				const FVector3f AxisZ = FVector4f(InstanceToMerged.TransformVector((FVector)CardBuildData.OBB.AxisZ));
-				const FVector3f Extent = CardBuildData.OBB.Extent * FVector3f(AxisX.Length(), AxisY.Length(), AxisZ.Length());
+				const FVector3f AxisDirection = LumenMeshCards::GetAxisAlignedDirection(AxisAlignedDirectionIndex);
+				const float AxisProjection = CardDirection.Dot(AxisDirection);
 
-				const float InstanceCardArea = Extent.X * Extent.Y;
-				const FVector3f CardDirection = AxisZ.GetUnsafeNormal();
-
-				for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+				if (AxisProjection > 0.0f)
 				{
-					const FVector3f AxisDirection = LumenMeshCards::GetAxisAlignedDirection(AxisAlignedDirectionIndex);
-					const float AxisProjection = CardDirection.Dot(AxisDirection);
-
-					if (AxisProjection > 0.0f)
-					{
-						InstanceCardAreaPerDirection[AxisAlignedDirectionIndex] += AxisProjection * InstanceCardArea;
-					}
+					InstanceCardAreaPerDirection[AxisAlignedDirectionIndex] += AxisProjection * InstanceCardArea;
 				}
 			}
 		}
@@ -553,7 +533,6 @@ void BuildMeshCardsDataForHeightfield(const FLumenPrimitiveGroup& PrimitiveGroup
 	// Make sure that the card isn't placed directly on the geometry
 	const FVector BoundsMargin = FVector(CVarLumenSurfaceCacheHeightfieldCaptureMargin.GetValueOnRenderThread()) / MeshCardsLocalToWorld.GetScaleVector();
 
-	MeshCardsBuildData.MaxLODLevel = 0;
 	MeshCardsBuildData.Bounds = Proxy->GetLocalBounds().GetBox().ExpandBy(BoundsMargin);
 
 	// Add a single top down card
@@ -572,7 +551,6 @@ void BuildMeshCardsDataForHeightfield(const FLumenPrimitiveGroup& PrimitiveGroup
 		CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard((FVector3f)MeshCardsBuildData.Bounds.GetExtent()).GetAbs();
 
 		CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
-		CardBuildData.LODLevel = 0;
 	}
 }
 
@@ -607,7 +585,6 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 
 	const FMatrix WorldToMeshCardsLocal = MeshCardsLocalToWorld.Inverse();
 
-	MeshCardsBuildData.MaxLODLevel = 0;
 	MeshCardsBuildData.Bounds.Init();
 
 	FLumenMergedMeshCards MergedMeshCards;
@@ -665,7 +642,6 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 		const FVector SafeExtent = FVector::Max(MergedMeshCards.MergedBounds.GetExtent() + 1.0f, FVector(5.0f));
 		const FBox SafeMergedBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
 
-		MeshCardsBuildData.MaxLODLevel = 0;
 		MeshCardsBuildData.Bounds = SafeMergedBounds;
 
 		MeshCardsBuildData.CardBuildData.SetNum(AxisAlignedDirectionsToSpawnCards.Num());
@@ -686,7 +662,6 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 			CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard((FVector3f)SafeMergedBounds.GetExtent() + FVector3f(1.0f)).GetAbs();
 
 			CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
-			CardBuildData.LODLevel = 0;
 		}
 	}
 }
@@ -770,7 +745,7 @@ bool IsMatrixOrthogonal(const FMatrix& Matrix)
 	return false;
 }
 
-bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f LocalToWorldScale, const int32 LODLevel, float MinFaceSurfaceArea, int32 CardIndex)
+bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f LocalToWorldScale, float MinFaceSurfaceArea, int32 CardIndex)
 {
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	if (GLumenMeshCardsDebugSingleCard >= 0)
@@ -782,9 +757,8 @@ bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f 
 	const FVector3f ScaledBoundsSize = 2.0f * CardBuildData.OBB.Extent * LocalToWorldScale;
 	const float SurfaceArea = ScaledBoundsSize.X * ScaledBoundsSize.Y;
 	const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || SurfaceArea > MinFaceSurfaceArea);
-	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
-	return bCardPassedCulling && bCardPassedLODTest;
+	return bCardPassedCulling;
 }
 
 void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, FLumenPrimitiveGroup& PrimitiveGroup)
@@ -797,7 +771,6 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 	const FVector3f FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
 	const float MinFaceSurfaceArea = LumenMeshCards::GetCardMinSurfaceArea(PrimitiveGroup.bEmissiveLightSource);
-	const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
 
 	if (LargestFaceArea > MinFaceSurfaceArea
 		&& IsMatrixOrthogonal(LocalToWorld)) // #lumen_todo: implement card capture for non orthogonal local to world transforms
@@ -810,7 +783,7 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 		{
 			const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndexInBuildData];
 
-			if (MeshCardCullTest(CardBuildData, LocalToWorldScale, LODLevel, MinFaceSurfaceArea, CardIndexInBuildData))
+			if (MeshCardCullTest(CardBuildData, LocalToWorldScale, MinFaceSurfaceArea, CardIndexInBuildData))
 			{
 				++NumCards;
 			}
@@ -850,7 +823,7 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 			{	
 				const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndexInBuildData];
 
-				if (MeshCardCullTest(CardBuildData, LocalToWorldScale, LODLevel, MinFaceSurfaceArea, CardIndexInBuildData))
+				if (MeshCardCullTest(CardBuildData, LocalToWorldScale, MinFaceSurfaceArea, CardIndexInBuildData))
 				{
 					const int32 CardInsertIndex = FirstCardIndex + LocalCardIndex;
 

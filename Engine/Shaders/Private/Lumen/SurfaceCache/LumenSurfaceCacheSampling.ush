@@ -18,9 +18,6 @@ Texture2D NormalAtlas;
 Texture2D EmissiveAtlas;
 Texture2D DepthAtlas;
 
-// Make blends between cards sharper
-#define CARD_NORMAL_WEIGHT_CUTOFF 0.25f
-
 #if ENABLE_VISUALIZE_MODE == 1
 	#define VISUALIZE_MODE_DISABLE 0
 	#define VISUALIZE_MODE_LUMEN_SCENE 1
@@ -218,6 +215,7 @@ void SampleLumenCard(
 	float SampleRadius,
 	float SurfaceCacheBias,
 	uint CardIndex,
+	float3 AxisWeights,
 	bool bHiResSurface,
 	bool bHeightfield,
 	uint AtlasId,
@@ -240,9 +238,18 @@ void SampleLumenCard(
 					float NormalWeight = 1.0f;
 					if (!bHeightfield)
 					{
-						const float3x3 LocalToMeshCards = transpose(LumenCardData.MeshCardsToLocalRotation);
-						NormalWeight = saturate(dot(MeshCardsSpaceNormal, LocalToMeshCards[2].xyz));
-						NormalWeight = (NormalWeight - CARD_NORMAL_WEIGHT_CUTOFF) / (1.0f - CARD_NORMAL_WEIGHT_CUTOFF);
+						if (LumenCardData.AxisAlignedDirection < 2)
+						{
+							NormalWeight = AxisWeights.x;
+						}
+						else if (LumenCardData.AxisAlignedDirection < 4)
+						{
+							NormalWeight = AxisWeights.y;
+						}
+						else
+						{
+							NormalWeight = AxisWeights.z;
+						}
 					}
 
 					if (NormalWeight > 0.0f)
@@ -452,15 +459,15 @@ FSurfaceCacheSample SampleLumenMeshCards(
 		float3 AxisWeights = MeshCardsSpaceNormal * MeshCardsSpaceNormal;
 
 		// Pick cards by angle
-		if (AxisWeights.x > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
+		if (AxisWeights.x > 0.0f)
 		{
 			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.x < 0.0f ? 0 : 1];
 		}
-		if (AxisWeights.y > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
+		if (AxisWeights.y > 0.0f)
 		{
 			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.y < 0.0f ? 2 : 3];
 		}
-		if (AxisWeights.z > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
+		if (AxisWeights.z > 0.0f)
 		{
 			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.z < 0.0f ? 4 : 5];
 		}
@@ -509,6 +516,7 @@ FSurfaceCacheSample SampleLumenMeshCards(
 					SampleRadius,
 					SurfaceCacheBias,
 					CardIndex,
+					AxisWeights,
 					bHiResSurface,
 					MeshCardsData.bHeightfield,
 					AtlasId,

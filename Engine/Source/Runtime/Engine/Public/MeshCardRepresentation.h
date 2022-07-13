@@ -27,9 +27,6 @@ namespace MeshCardRepresentation
 	// Generation config
 	extern ENGINE_API float GetMinDensity();
 	extern ENGINE_API float GetNormalTreshold();
-	extern ENGINE_API int32 GetMaxSurfelDistanceXY();
-	extern ENGINE_API int32 GetSeedIterations();
-	extern ENGINE_API int32 GetGrowIterations();
 
 	// Debugging
 	extern ENGINE_API bool IsDebugMode();
@@ -141,14 +138,12 @@ class FLumenCardBuildData
 {
 public:
 	FLumenCardOBB OBB;
-	uint8 LODLevel;
 	uint8 AxisAlignedDirectionIndex;
 
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
 		Ar << Data.OBB;
-		Ar << Data.LODLevel;
 		Ar << Data.AxisAlignedDirectionIndex;
 		return Ar;
 	}
@@ -162,8 +157,6 @@ public:
 		Valid,
 		Invalid,
 
-		Seed,
-		Seed2,
 		Idle,
 		Cluster,
 		Used
@@ -180,6 +173,8 @@ public:
 	{
 		FVector3f Position;
 		FVector3f Normal;
+		float Coverage = 0.0f;
+		float Visibility = 1.0f;
 		int32 SourceSurfelIndex = -1;
 		ESurfelType Type;
 	};
@@ -208,7 +203,6 @@ class FMeshCardsBuildData
 {
 public:
 	FBox Bounds;
-	int32 MaxLODLevel;
 	TArray<FLumenCardBuildData> CardBuildData;
 
 	// Temporary debug visualization data, don't serialize
@@ -218,7 +212,6 @@ public:
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
 		Ar << Data.Bounds;
-		Ar << Data.MaxLODLevel;
 		Ar << Data.CardBuildData;
 		return Ar;
 	}
