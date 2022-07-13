@@ -90,6 +90,8 @@ struct FEOSAsyncTraits<void(*)(TEOSHandle, const TEOSParameters*, void*, const T
  * bound, and we can safely consume the CallbackInfo. Note that the CallbackInfo is only valid for the
  * duration of the callback, so it is not safe to bind a continuation _after_ calling the EOS method.
  */
+// Warning: This signature will crash if the async method returns immediately.
+// The callback object is deleted inside the callback before EOS_Async returns the future back to the user.
 template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn>
 decltype(auto) EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
 {
@@ -153,7 +155,7 @@ EOSEventRegistrationPtr EOS_RegisterComponentEventHandler(
 	EOSNotfyUnregisterFunction NotfyUnregisterFunction,
 	ComponentHandlerFunction HandlerFunction);
 
-namespace detail {
+namespace Private {
 
 template<typename Function> struct TEOSCallbackTraitsBase;
 
@@ -206,14 +208,15 @@ public:
 		, NotfyUnregisterFunction(NotfyUnregisterFunction)
 		, HandlerFunction(HandlerFunction)
 	{
+		using EventDataType = typename TEOSCallbackTraits<ComponentHandlerFunction>::EventDataType;
 		typename TEOSNotifyRegisterTraits<EOSNotfyRegisterFunction>::OptionsType Options = { };
 		Options.ApiVersion = ApiVersion;
 		NotificationId = NotfyRegisterFunction(ClientHandle, &Options, this,
-		[](const typename TEOSCallbackTraits<ComponentHandlerFunction>::EventDataType* Data)
+		static_cast<void(EOS_CALL*)(const EventDataType* Data)>([](const EventDataType* Data)
 		{
 			ThisClass* This = reinterpret_cast<ThisClass*>(Data->ClientData);
 			(This->HandlerClass->*This->HandlerFunction)(Data);
-		});
+		}));
 	}
 
 	virtual ~EOSEventRegistrationImpl()
@@ -235,7 +238,7 @@ private:
 	ComponentHandlerFunction HandlerFunction;
 };
 
-/* detail */ }
+/* Private */ }
 
 template <
 	typename ComponentHandlerClass,
@@ -252,7 +255,7 @@ EOSEventRegistrationPtr EOS_RegisterComponentEventHandler(
 	ComponentHandlerFunction HandlerFunction)
 {
 	return MakeUnique<
-		detail::EOSEventRegistrationImpl<
+		Private::EOSEventRegistrationImpl<
 			ComponentHandlerClass,
 			EOSHandle,
 			EOSNotfyRegisterFunction,
