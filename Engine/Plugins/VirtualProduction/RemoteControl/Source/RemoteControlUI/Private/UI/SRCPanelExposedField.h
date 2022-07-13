@@ -92,7 +92,7 @@ private:
 	/** Holds the panel's cached widgets. */
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 	/** Holds the zeroed Default Value of the ExposedField */
-	TUniquePtr<uint8> DefaultValue;
+	TUniquePtr<uint8[]> DefaultValue;
 	/** Holds the shared reference of reset button for this field. */
 	TSharedPtr<SWidget> ResetButtonWidget;
 };
