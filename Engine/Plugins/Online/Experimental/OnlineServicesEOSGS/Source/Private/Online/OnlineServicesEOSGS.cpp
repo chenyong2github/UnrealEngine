@@ -68,6 +68,18 @@ void FOnlineServicesEOSGS::Initialize()
 	Super::Initialize();
 }
 
+void FOnlineServicesEOSGS::Shutdown()
+{
+	Super::Shutdown();
+#if WITH_ENGINE
+	if (SocketSubsystem)
+	{
+		SocketSubsystem->Shutdown();
+		SocketSubsystem = nullptr;
+	}
+#endif
+}
+
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOSGS::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
 	if (Params.LobbyId.IsValid())

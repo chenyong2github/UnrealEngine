@@ -27,6 +27,7 @@ public:
 
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
+	virtual void Shutdown() override;
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
 	virtual EOnlineServices GetServicesProvider() const override { return EOnlineServices::Epic; }
 
