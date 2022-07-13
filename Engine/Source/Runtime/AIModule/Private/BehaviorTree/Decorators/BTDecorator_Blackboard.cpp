@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
-#include "UObject/Package.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_NativeEnum.h"
 #include "BehaviorTree/BTCompositeNode.h"
@@ -124,7 +123,7 @@ static void CacheOperationEnums()
 
 void UBTDecorator_Blackboard::BuildDescription()
 {
-	UBlackboardData* BlackboardAsset = GetBlackboardAsset();
+	const UBlackboardData* BlackboardAsset = GetBlackboardAsset();
 	const FBlackboardEntry* EntryInfo = BlackboardAsset ? BlackboardAsset->GetKey(BlackboardKey.GetSelectedKeyID()) : NULL;
 
 	FString BlackboardDesc = "invalid";
@@ -134,6 +133,8 @@ void UBTDecorator_Blackboard::BuildDescription()
 		// while "post edit property" triggers for every each of them
 		if (EntryInfo->KeyType && EntryInfo->KeyType->GetClass() == BlackboardKey.SelectedKeyType)
 		{
+			RefreshEnumBasedDecorator(*EntryInfo);
+
 			const FString KeyName = EntryInfo->EntryName.ToString();
 			CacheOperationEnums();		
 
@@ -170,18 +171,48 @@ void UBTDecorator_Blackboard::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 
 	const FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
-	if (ChangedPropName == GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, BlackboardKey.SelectedKeyName))
+
+	const FName SelectedKeyName = GET_MEMBER_NAME_CHECKED(FBlackboardKeySelector, SelectedKeyName);
+	const FName IntValueName = GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, IntValue);
+	const FName StringValueName = GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, StringValue);
+
+	const bool bIsEnumKey = BlackboardKey.SelectedKeyType == UBlackboardKeyType_Enum::StaticClass()
+		|| BlackboardKey.SelectedKeyType == UBlackboardKeyType_NativeEnum::StaticClass();
+	
+	if (bIsEnumKey && (ChangedPropName == SelectedKeyName || ChangedPropName == IntValueName || ChangedPropName == StringValueName))
 	{
-		if (BlackboardKey.SelectedKeyType == UBlackboardKeyType_Enum::StaticClass() ||
-			BlackboardKey.SelectedKeyType == UBlackboardKeyType_NativeEnum::StaticClass())
+		const UBlackboardData* BlackboardAsset = GetBlackboardAsset();
+		const FBlackboardEntry* EntryInfo = BlackboardAsset ? BlackboardAsset->GetKey(BlackboardKey.GetSelectedKeyID()) : nullptr;
+
+		const UEnum* EnumType = (BlackboardKey.SelectedKeyType == UBlackboardKeyType_Enum::StaticClass())
+									? ((UBlackboardKeyType_Enum*)(EntryInfo->KeyType))->EnumType
+									: ((UBlackboardKeyType_NativeEnum*)(EntryInfo->KeyType))->EnumType;
+
+		if (ChangedPropName == SelectedKeyName)
 		{
-			IntValue = 0;
+			// Set both properties to match the first valid value or invalidate them
+			if (EnumType != nullptr && EnumType->NumEnums())
+			{
+				IntValue = EnumType->GetValueByIndex(0);
+				StringValue = EnumType->GetNameStringByIndex(0);
+			}
+			else
+			{
+				IntValue = INDEX_NONE;
+				StringValue.Reset();
+			}
+		}
+		else if (ChangedPropName == IntValueName)
+		{
+			StringValue = (EnumType != nullptr) ? EnumType->GetNameStringByValue(IntValue) : TEXT("");
+		}
+		else if (ChangedPropName == StringValueName)
+		{
+			IntValue = (EnumType != nullptr) ? EnumType->GetValueByNameString(StringValue) : INDEX_NONE;
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
-
-	UBlackboardKeyType* KeyCDO = BlackboardKey.SelectedKeyType ? BlackboardKey.SelectedKeyType->GetDefaultObject<UBlackboardKeyType>() : NULL;
+	const UBlackboardKeyType* KeyCDO = BlackboardKey.SelectedKeyType ? BlackboardKey.SelectedKeyType->GetDefaultObject<UBlackboardKeyType>() : NULL;
 	if (ChangedPropName == GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, BasicOperation))
 	{
 		if (KeyCDO && KeyCDO->GetTestOperation() == EBlackboardKeyOperation::Basic)
@@ -204,15 +235,56 @@ void UBTDecorator_Blackboard::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		}
 	}
 
-#endif // WITH_EDITORONLY_DATA
-
-	BuildDescription();
-}
-
-void UBTDecorator_Blackboard::InitializeFromAsset(UBehaviorTree& Asset)
-{
-	Super::InitializeFromAsset(Asset);
 	BuildDescription();
 }
 
 #endif	// WITH_EDITOR
+
+void UBTDecorator_Blackboard::InitializeFromAsset(UBehaviorTree& Asset)
+{
+	Super::InitializeFromAsset(Asset);
+
+#if WITH_EDITOR
+	// BuildDescription will take care of refreshing enum based decorator
+	BuildDescription();
+#else
+	const UBlackboardData* BlackboardAsset = GetBlackboardAsset();
+	if (const FBlackboardEntry* EntryInfo = BlackboardAsset ? BlackboardAsset->GetKey(BlackboardKey.GetSelectedKeyID()) : nullptr)
+	{
+		RefreshEnumBasedDecorator(*EntryInfo);
+	}
+#endif // WITH_EDITOR
+}
+
+void UBTDecorator_Blackboard::RefreshEnumBasedDecorator(const FBlackboardEntry& Entry)
+{
+	if (BlackboardKey.SelectedKeyType != UBlackboardKeyType_Enum::StaticClass() &&
+		BlackboardKey.SelectedKeyType != UBlackboardKeyType_NativeEnum::StaticClass())
+	{
+		return;
+	}
+
+	const UEnum* Enum = (BlackboardKey.SelectedKeyType == UBlackboardKeyType_Enum::StaticClass())
+							? ((UBlackboardKeyType_Enum*)(Entry.KeyType))->EnumType
+							: ((UBlackboardKeyType_NativeEnum*)(Entry.KeyType))->EnumType;
+	if (Enum == nullptr)
+	{
+		return;
+	}
+
+	// Enum implementation relies on 'StringValue' to store enum name but also
+	// synchronizes 'IntValue' as the enumeration value for runtime evaluation
+	if (!StringValue.IsEmpty())
+	{
+		// Pass string as FName to use fast search path whenever possible 
+		const FName Name = *StringValue;
+		IntValue = Enum->GetValueByName(Name);
+	}
+	else if (IntValue >= 0 && IntValue < Enum->NumEnums())
+	{
+		// Previous implementation was using only 'IntValue' to store the enumeration
+		// index so we need to extract associated name and update `IntValue` to store the value.
+		StringValue = Enum->GetNameByIndex(IntValue).ToString();
+		IntValue = Enum->GetValueByIndex(IntValue);
+	}
+}

@@ -12,6 +12,7 @@
 class FBlackboardDecoratorDetails;
 class UBehaviorTree;
 class UBlackboardComponent;
+struct FBlackboardEntry;
 
 /**
  *  Decorator for accessing blackboard values
@@ -81,14 +82,21 @@ protected:
 #endif
 
 #if WITH_EDITOR
-
+public:
 	/** describe decorator and cache it */
 	virtual void BuildDescription();
-
+protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
-#endif
+	/**
+	 * decorator using enum based key requires to synchronize 'StringValue' used for storage with 'IntValue' used for runtime evaluation.
+	 * @note using custom serialization version was not possible since we require blackboard and used types (e.g. UserDefinedEnumerations)
+	 * to be loaded and keys to be resolved (i.e. InitializeFromAsset).
+	 */
+	void RefreshEnumBasedDecorator(const FBlackboardEntry& Entry);
 
 	/** take blackboard value and evaluate decorator's condition */
 	bool EvaluateOnBlackboard(const UBlackboardComponent& BlackboardComp) const;

@@ -9,6 +9,7 @@
 #include "BehaviorTreeDecoratorGraphNode_Decorator.h"
 #include "EdGraphSchema_BehaviorTreeDecorator.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditor"
 
@@ -368,6 +369,11 @@ void UBehaviorTreeGraphNode_CompositeDecorator::BuildDescription()
 				bPendingNotOp = false;
 			}
 
+			// Composite decorator based on blackboard might need to rebuild inner decorators description before aggregating it
+			if (UBTDecorator_Blackboard* Decorator = Cast<UBTDecorator_Blackboard>(NodeInstances[TestOp.Number]))
+			{
+				Decorator->BuildDescription();
+			}
 			Description += NodeInstances[TestOp.Number]->GetStaticDescription();
 			UpdateLogicOpStack(OpStack, Description, Indent);
 		}

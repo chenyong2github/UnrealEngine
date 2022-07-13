@@ -1,32 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
-#include "UObject/Package.h"
+#include "BehaviorTree/BTNode.h"
 #include "UObject/UnrealType.h"
+
+#if WITH_EDITOR
+#include "Misc/MessageDialog.h"
+#include <limits>
+#endif // WITH_EDITOR
 
 const UBlackboardKeyType_Enum::FDataType UBlackboardKeyType_Enum::InvalidValue = UBlackboardKeyType_Enum::FDataType(0);
 
 UBlackboardKeyType_Enum::UBlackboardKeyType_Enum(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	ValueSize = sizeof(uint8);
+	ValueSize = sizeof(FDataType);
 	SupportedOp = EBlackboardKeyOperation::Arithmetic;
 }
 
-uint8 UBlackboardKeyType_Enum::GetValue(const UBlackboardKeyType_Enum* KeyOb, const uint8* RawData)
+UBlackboardKeyType_Enum::FDataType UBlackboardKeyType_Enum::GetValue(const UBlackboardKeyType_Enum* KeyOb, const uint8* RawData)
 {
-	return GetValueFromMemory<uint8>(RawData);
+	return GetValueFromMemory<FDataType>(RawData);
 }
 
-bool UBlackboardKeyType_Enum::SetValue(UBlackboardKeyType_Enum* KeyOb, uint8* RawData, uint8 Value)
+bool UBlackboardKeyType_Enum::SetValue(UBlackboardKeyType_Enum* KeyOb, uint8* RawData, const FDataType Value)
 {
-	return SetValueInMemory<uint8>(RawData, Value);
+	return SetValueInMemory<FDataType>(RawData, Value);
 }
 
 EBlackboardCompare::Type UBlackboardKeyType_Enum::CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
 	const UBlackboardKeyType* OtherKeyOb, const uint8* OtherMemoryBlock) const
 {
-	const uint8 MyValue = GetValue(this, MemoryBlock);
-	const uint8 OtherValue = GetValue((UBlackboardKeyType_Enum*)OtherKeyOb, OtherMemoryBlock);
+	const FDataType MyValue = GetValue(this, MemoryBlock);
+	const FDataType OtherValue = GetValue((UBlackboardKeyType_Enum*)OtherKeyOb, OtherMemoryBlock);
 
 	return (MyValue > OtherValue) ? EBlackboardCompare::Greater :
 		(MyValue < OtherValue) ? EBlackboardCompare::Less :
@@ -51,7 +56,7 @@ bool UBlackboardKeyType_Enum::IsAllowedByFilter(UBlackboardKeyType* FilterOb) co
 
 bool UBlackboardKeyType_Enum::TestArithmeticOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EArithmeticKeyOperation::Type Op, int32 OtherIntValue, float OtherFloatValue) const
 {
-	const uint8 Value = GetValue(this, MemoryBlock);
+	const FDataType Value = GetValue(this, MemoryBlock);
 	switch (Op)
 	{
 	case EArithmeticKeyOperation::Equal:			return (Value == OtherIntValue);
@@ -80,8 +85,42 @@ void UBlackboardKeyType_Enum::PostEditChangeProperty(struct FPropertyChangedEven
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackboardKeyType_Enum, EnumName))
 	{
 		EnumType = UClass::TryFindTypeSlow<UEnum>(EnumName, EFindFirstObjectOptions::ExactClass);
+
+		if (EnumType != nullptr && !ValidateEnum(*EnumType))
+		{
+			EnumType = nullptr;
+		}
 	}
 
 	bIsEnumNameValid = EnumType && !EnumName.IsEmpty();
 }
-#endif
+
+bool UBlackboardKeyType_Enum::ValidateEnum(const UEnum& EnumType)
+{
+	bool bAllValid = true;
+
+	// Do not test the max value (if present) since it is an internal value and users don't have access to it
+	const int32 NumEnums = EnumType.ContainsExistingMax() ? EnumType.NumEnums() - 1 : EnumType.NumEnums();
+	for (int32 i = 0; i < NumEnums; i++)
+	{
+		const int64 Value = EnumType.GetValueByIndex(i);
+		if (Value < std::numeric_limits<FDataType>::min() || Value > std::numeric_limits<FDataType>::max())
+		{
+			UE_LOG(LogBehaviorTree, Error, TEXT("'%s' value %d is outside the range of supported key values for enum [%d, %d].")
+				, *EnumType.GenerateFullEnumName(*EnumType.GetDisplayNameTextByIndex(i).ToString())
+				, Value, std::numeric_limits<FDataType>::min(), std::numeric_limits<FDataType>::max());
+			bAllValid = false;
+		}
+	}
+
+	if (!bAllValid)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok,
+			NSLOCTEXT("BehaviorTree"
+				, "Unsupported enumeration"
+				, "Specified enumeration contains one or more values outside supported value range for enum keys and can not be used in the Blackboard. See log for details."));
+	}
+
+	return bAllValid;
+}
+#endif // WITH_EDITOR

@@ -30,6 +30,7 @@
 #include "IDocumentation.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditor"
 
@@ -605,6 +606,27 @@ EVisibility SGraphNode_BehaviorTree::GetDebuggerSearchFailedMarkerVisibility() c
 {
 	UBehaviorTreeGraphNode_Decorator* MyNode = Cast<UBehaviorTreeGraphNode_Decorator>(GraphNode);
 	return MyNode && MyNode->bDebuggerMarkSearchFailed ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+}
+
+void SGraphNode_BehaviorTree::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	// Implementing interface pure virtual method but nothing to do here
+}
+
+void SGraphNode_BehaviorTree::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	if (const UBehaviorTreeGraphNode_Decorator* DecoratorNode = Cast<UBehaviorTreeGraphNode_Decorator>(GraphNode))
+	{
+		if (UBTDecorator_Blackboard* Decorator = Cast<UBTDecorator_Blackboard>(DecoratorNode->NodeInstance))
+		{
+			Decorator->BuildDescription();
+		}
+	}
+	
+	if (UBehaviorTreeGraphNode_CompositeDecorator* DecoratorNode = Cast<UBehaviorTreeGraphNode_CompositeDecorator>(GraphNode))
+	{
+		DecoratorNode->BuildDescription();
+	}
 }
 
 void SGraphNode_BehaviorTree::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

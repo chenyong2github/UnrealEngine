@@ -73,8 +73,7 @@ void FBlackboardDecoratorDetails::CustomizeDetails( IDetailLayoutBuilder& Detail
 
 #endif // WITH_EDITORONLY_DATA
 
-	IntValueProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, IntValue));
-	IDetailPropertyRow& IntValueRow = BBCategory.AddProperty(IntValueProperty);
+	IDetailPropertyRow& IntValueRow = BBCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, IntValue)));
 	IntValueRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FBlackboardDecoratorDetails::GetIntValueVisibility)));
 	IntValueRow.IsEnabled(PropertyEditCheck);
 
@@ -82,17 +81,18 @@ void FBlackboardDecoratorDetails::CustomizeDetails( IDetailLayoutBuilder& Detail
 	FloatValueRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FBlackboardDecoratorDetails::GetFloatValueVisibility)));
 	FloatValueRow.IsEnabled(PropertyEditCheck);
 
-	IDetailPropertyRow& StringValueRow = BBCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, StringValue)));
+	StringValueProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, StringValue));
+	IDetailPropertyRow& StringValueRow = BBCategory.AddProperty(StringValueProperty);
 	StringValueRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FBlackboardDecoratorDetails::GetStringValueVisibility)));
 	StringValueRow.IsEnabled(PropertyEditCheck);
 
-	IDetailPropertyRow& EnumValueRow = BBCategory.AddProperty(IntValueProperty);
+	IDetailPropertyRow& EnumValueRow = BBCategory.AddProperty(StringValueProperty);
 	EnumValueRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FBlackboardDecoratorDetails::GetEnumValueVisibility)));
 	EnumValueRow.IsEnabled(PropertyEditCheck);
 	EnumValueRow.CustomWidget()
 		.NameContent()
 		[
-			IntValueProperty->CreatePropertyNameWidget()
+			StringValueProperty->CreatePropertyNameWidget()
 		]
 		.ValueContent()
 		[
@@ -129,10 +129,11 @@ void FBlackboardDecoratorDetails::CacheBlackboardData(IDetailLayoutBuilder& Deta
 void FBlackboardDecoratorDetails::OnKeyIDChanged()
 {
 	CachedOperationType = EBlackboardKeyOperation::Basic;
-	CachedKeyType = NULL;
+	CachedCustomObjectType = nullptr;
+	CachedKeyType = nullptr;
 
 	UBlackboardData* Blackboard = CachedBlackboardAsset.Get();
-	if (Blackboard == NULL)
+	if (Blackboard == nullptr)
 	{
 		return;
 	}
@@ -146,11 +147,6 @@ void FBlackboardDecoratorDetails::OnKeyIDChanged()
 		{
 			CachedKeyType = KeyEntry->KeyType->GetClass();
 			CachedOperationType = KeyEntry->KeyType->GetTestOperation();
-		}
-		else
-		{
-			CachedKeyType = nullptr;
-			CachedOperationType = 0;
 		}
 	}
 
@@ -170,16 +166,34 @@ void FBlackboardDecoratorDetails::OnKeyIDChanged()
 	if (SelectedEnumType)
 	{
 		CachedCustomObjectType = SelectedEnumType;
-		EnumPropValues.Reset();
+		RefreshEnumPropertyValues();
+	}
+}
 
-		if (CachedCustomObjectType)
+void FBlackboardDecoratorDetails::RefreshEnumPropertyValues()
+{
+	EnumPropValues.Reset();
+
+	if (CachedCustomObjectType)
+	{
+		for (int32 i = 0; i < CachedCustomObjectType->NumEnums() - 1; i++)
 		{
-			for (int32 i = 0; i < CachedCustomObjectType->NumEnums() - 1; i++)
-			{
-				FString DisplayedName = CachedCustomObjectType->GetDisplayNameTextByIndex(i).ToString();
-				EnumPropValues.Add(DisplayedName);
-			}
+			FString DisplayedName = CachedCustomObjectType->GetDisplayNameTextByIndex(i).ToString();
+			EnumPropValues.Add(DisplayedName);
 		}
+	}
+}
+
+void FBlackboardDecoratorDetails::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	// Implementing interface pure virtual method but nothing to do here
+}
+
+void FBlackboardDecoratorDetails::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	if (Changed != nullptr && CachedCustomObjectType == Changed)
+	{
+		RefreshEnumPropertyValues();
 	}
 }
 
@@ -199,21 +213,29 @@ TSharedRef<SWidget> FBlackboardDecoratorDetails::OnGetEnumValueContent() const
 FText FBlackboardDecoratorDetails::GetCurrentEnumValueDesc() const
 {
 	FPropertyAccess::Result Result = FPropertyAccess::Fail;
-	int32 CurrentIntValue = INDEX_NONE;
+	int32 EnumIndex = INDEX_NONE;
 
 	if (CachedCustomObjectType)
 	{	
-		Result = IntValueProperty->GetValue(CurrentIntValue);
+		// Always use string value to recompute matching index since enumeration
+		// can be modified while Editing (i.e. UserDefinedEnumeration)
+		FString CurrentStringValue;
+		Result = StringValueProperty->GetValue(CurrentStringValue);
+		EnumIndex = CachedCustomObjectType->GetIndexByNameString(CurrentStringValue);
 	}
 
-	return (Result == FPropertyAccess::Success && EnumPropValues.IsValidIndex(CurrentIntValue))
-		? FText::FromString(EnumPropValues[CurrentIntValue])
+	return (Result == FPropertyAccess::Success && EnumPropValues.IsValidIndex(EnumIndex))
+		? FText::FromString(EnumPropValues[EnumIndex])
 		: FText::GetEmpty();
 }
 
 void FBlackboardDecoratorDetails::OnEnumValueComboChange(int32 Index)
 {
-	IntValueProperty->SetValue(Index);
+	if (CachedCustomObjectType)
+	{
+		const FString NewStringValue = CachedCustomObjectType->GetNameStringByIndex(Index);
+		StringValueProperty->SetValue(NewStringValue);
+	}
 }
 
 EVisibility FBlackboardDecoratorDetails::GetIntValueVisibility() const

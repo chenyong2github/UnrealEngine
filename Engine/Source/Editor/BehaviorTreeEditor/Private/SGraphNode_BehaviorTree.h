@@ -12,13 +12,14 @@
 #include "SGraphNode.h"
 #include "SGraphPin.h"
 #include "SGraphNodeAI.h"
+#include "Kismet2/EnumEditorUtils.h"
 
 class SHorizontalBox;
 class SToolTip;
 class SVerticalBox;
 class UBehaviorTreeGraphNode;
 
-class SGraphNode_BehaviorTree : public SGraphNodeAI
+class SGraphNode_BehaviorTree : public SGraphNodeAI, public FEnumEditorUtils::INotifyOnEnumChanged
 {
 public:
 	SLATE_BEGIN_ARGS(SGraphNode_BehaviorTree){}
@@ -61,6 +62,10 @@ public:
 	FVector2D GetCachedPosition() const { return CachedPosition; }
 
 protected:
+	/** INotifyOnEnumChanged interface */
+	virtual void PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
+	virtual void PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
+
 	uint32 bSuppressDebuggerColor : 1;
 	uint32 bSuppressDebuggerTriggers : 1;
 	
