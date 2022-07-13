@@ -11,6 +11,13 @@ public class ReplicationSystemTest : ModuleRules
 		// For LaunchEngineLoop.cpp include
 		PrivateIncludePaths.Add("Runtime/Launch/Private");
 
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"DerivedDataCache",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -19,7 +26,6 @@ public class ReplicationSystemTest : ModuleRules
  				"AutomationWorker",
                 "Core",
 				"Projects",
-				"DerivedDataCache",
 				"Engine",
 				"HeadMountedDisplay",
 				"InstallBundleManager",
