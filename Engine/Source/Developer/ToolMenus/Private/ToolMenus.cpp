@@ -97,7 +97,7 @@ public:
 		{
 			NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuLegacy;
 		}
-		else if (Block.SubMenuData.ConstructMenu.NewToolMenuWidget.IsBound())
+		else if (Block.SubMenuData.ConstructMenu.NewToolMenuWidget.IsBound() || Block.SubMenuData.ConstructMenu.OnGetContent.IsBound())
 		{
 			// Full replacement of the widget shown when submenu is opened
 			FOnGetContent OnGetContent = UToolMenus::Get()->ConvertWidgetChoice(Block.SubMenuData.ConstructMenu, MenuData->Context);
@@ -110,17 +110,6 @@ public:
 					Block.Icon.Get()
 				);
 			}
-			bSubMenuAdded = true;
-		}
-		else if (Block.SubMenuData.ConstructMenu.OnGetContent.IsBound())
-		{
-			// Full replacement of the widget shown when submenu is opened
-			MenuBuilder.AddWrapperSubMenu(
-				Block.Label.Get(),
-				Block.ToolTip.Get(),
-				Block.SubMenuData.ConstructMenu.OnGetContent,
-				Block.Icon.Get()
-			);
 			bSubMenuAdded = true;
 		}
 		else if (BlockNameOverride == NAME_None)
