@@ -1591,6 +1591,141 @@ namespace UnrealBuildTool
 			VCProjectFileContent.AppendLine("  </PropertyGroup>");
 		}
 
+		// Helper class to generate NMake build commands and arguments
+		public class BuildCommandBuilder
+		{
+			public bool bEditorDependsOnShaderCompileWorker = true;
+			public bool bBuildLiveCodingConsole;
+			public bool bAddFastPDBToProjects;
+
+			public bool bIsForeignProject;
+			public bool bUsePrecompiled;
+			public bool bIsTestMode;
+			public bool bIsFromMSBuild;
+
+			public PlatformProjectGenerator? ProjectGenerator;
+			
+			public FileReference BuildScript { get; }
+			public FileReference RebuildScript { get; }
+			public FileReference CleanScript { get; }
+			
+			private readonly string? BuildToolOverride;
+
+			private readonly string UProjectPath;
+
+			private readonly UnrealTargetConfiguration Configuration;
+			private readonly UnrealTargetPlatform Platform;
+			private readonly ProjectTarget ProjectTarget;
+
+			public BuildCommandBuilder(UnrealTargetConfiguration InConfiguration, UnrealTargetPlatform InPlatform,
+				ProjectTarget InProjectTarget, string InUProjectPath, string? InBuildToolOverride = null)
+			{
+				Configuration = InConfiguration;
+				Platform = InPlatform;
+				ProjectTarget = InProjectTarget;
+				UProjectPath = InUProjectPath;
+				BuildToolOverride = InBuildToolOverride;
+				
+				DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "BatchFiles");
+				BuildScript = FileReference.Combine(BatchFilesDirectory, "Build.bat");
+				RebuildScript = FileReference.Combine(BatchFilesDirectory, "Rebuild.bat");
+				CleanScript = FileReference.Combine(BatchFilesDirectory, "Clean.bat");
+			}
+			
+			public string GetBuildArguments()
+			{
+				TargetRules TargetRulesObject = ProjectTarget.TargetRules!;
+				string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
+
+				StringBuilder BuildArguments = new StringBuilder();
+				
+				BuildArguments.AppendFormat("{0} {1} {2}", TargetName, Platform.ToString(), Configuration.ToString());
+				if (bIsForeignProject)
+				{
+					BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
+				}
+
+				if (bIsTestMode)
+				{
+					BuildArguments.Append(" -Mode=Test");
+				}
+
+				List<string> ExtraTargets = new List<string>();
+				if (!bUsePrecompiled)
+				{
+					if (TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !Unreal.IsEngineInstalled())
+					{
+						ExtraTargets.Add("ShaderCompileWorker Win64 Development");
+					}
+					if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !Unreal.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
+					{
+						ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole ? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
+					}
+				}
+
+				if (ExtraTargets.Count > 0)
+				{
+					BuildArguments.Replace("\"", "\\\"");
+					BuildArguments.Insert(0, "-Target=\"");
+					BuildArguments.Append("\"");
+					foreach (string ExtraTarget in ExtraTargets)
+					{
+						BuildArguments.AppendFormat(" -Target=\"{0} -Quiet\"", ExtraTarget);
+					}
+				}
+
+				if (bUsePrecompiled)
+				{
+					BuildArguments.Append(" -UsePrecompiled");
+				}
+
+				// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
+				BuildArguments.Append(" -WaitMutex");
+
+				if (bIsFromMSBuild)
+				{
+					BuildArguments.Append(" -FromMsBuild");
+				}
+
+				if (bAddFastPDBToProjects)
+				{
+					// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
+					BuildArguments.Append(" -FastPDB");
+				}
+
+				if (BuildToolOverride != null)
+				{
+					BuildArguments.AppendFormat(" {0}", BuildToolOverride);
+				}
+
+				if (ProjectGenerator != null)
+				{
+					BuildArguments.Append(ProjectGenerator.GetExtraBuildArguments(Platform, Configuration));
+				}
+
+				return BuildArguments.ToString();
+			}
+		}
+
+		private BuildCommandBuilder CreateArgumentsBuilder(ProjectConfigAndTargetCombination Combination, string UProjectPath, PlatformProjectGenerator? ProjGenerator)
+		{
+			BuildCommandBuilder Builder = new BuildCommandBuilder(Combination.Configuration, Combination.Platform!.Value,
+				Combination.ProjectTarget!, UProjectPath, BuildToolOverride)
+			{
+				ProjectGenerator = ProjGenerator,
+				bIsTestMode = Combination.TestMode,
+				bEditorDependsOnShaderCompileWorker = Settings.bEditorDependsOnShaderCompileWorker,
+				bBuildLiveCodingConsole = Settings.bBuildLiveCodingConsole,
+				bAddFastPDBToProjects = Settings.bAddFastPDBToProjects,
+				bIsForeignProject = IsForeignProject,
+				bUsePrecompiled = bUsePrecompiled,
+				// Always include a flag to format log messages for MSBuild
+				bIsFromMSBuild = true
+			};
+
+			return Builder;
+		}
+		
 		// Anonymous function that writes project configuration data
 		private void WriteConfiguration(string ProjectName, ProjectConfigAndTargetCombination Combination, StringBuilder VCProjectFileContent, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder? VCUserFileContent, ILogger Logger)
 		{
@@ -1730,76 +1865,13 @@ namespace UnrealBuildTool
 					//	..\..\Build\BatchFiles\Build.bat <TARGETNAME> <PLATFORM> <CONFIGURATION>
 					//	ie ..\..\Build\BatchFiles\Build.bat BlankProgram Win64 Debug
 
-					StringBuilder BuildArguments = new StringBuilder();
-
-					BuildArguments.AppendFormat("{0} {1} {2}", TargetName, UBTPlatformName, UBTConfigurationName);
-					if (IsForeignProject)
-					{
-						BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
-					}
-
-					if (Combination.TestMode)
-					{
-						BuildArguments.Append(" -Mode=Test");
-					}
-
-					List<string> ExtraTargets = new List<string>();
-					if (!bUsePrecompiled)
-					{
-						if (TargetRulesObject.Type == TargetType.Editor && Settings.bEditorDependsOnShaderCompileWorker && !Unreal.IsEngineInstalled())
-						{
-							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
-						}
-						if (TargetRulesObject.bWithLiveCoding && Settings.bBuildLiveCodingConsole && !Unreal.IsEngineInstalled() && TargetRulesObject.Name != "LiveCodingConsole")
-						{
-							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole ? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
-						}
-					}
-
-					if (ExtraTargets.Count > 0)
-					{
-						BuildArguments.Replace("\"", "\\\"");
-						BuildArguments.Insert(0, "-Target=\"");
-						BuildArguments.Append("\"");
-						foreach (string ExtraTarget in ExtraTargets)
-						{
-							BuildArguments.AppendFormat(" -Target=\"{0} -Quiet\"", ExtraTarget);
-						}
-					}
-
-					if (bUsePrecompiled)
-					{
-						BuildArguments.Append(" -UsePrecompiled");
-					}
-
-					// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
-					BuildArguments.Append(" -WaitMutex");
-
-					// Always include a flag to format log messages for MSBuild
-					BuildArguments.Append(" -FromMsBuild");
-
-					if (Settings.bAddFastPDBToProjects)
-					{
-						// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
-						BuildArguments.Append(" -FastPDB");
-					}
-
-					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "BatchFiles");
-
-					if (BuildToolOverride != null)
-					{
-						BuildArguments.AppendFormat(" {0}", BuildToolOverride);
-					}
-
-					if (ProjGenerator != null)
-					{
-						BuildArguments.Append(ProjGenerator.GetExtraBuildArguments(Platform, Configuration));
-					}
+					BuildCommandBuilder Builder = CreateArgumentsBuilder(Combination, UProjectPath, ProjGenerator);
+					string BuildArguments = Builder.GetBuildArguments();
 
 					// NMake Build command line
-					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0} {1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Build.bat"))), BuildArguments.ToString());
-					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))), BuildArguments.ToString());
-					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0} {1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Clean.bat"))), BuildArguments.ToString());
+					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0} {1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(Builder.BuildScript)), BuildArguments);
+					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(Builder.RebuildScript)), BuildArguments);
+					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0} {1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(Builder.CleanScript)), BuildArguments);
 					VCProjectFileContent.AppendLine("    <NMakeOutput>{0}</NMakeOutput>", NormalizeProjectPath(NMakePath.FullName));
 					VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>", GetCppStandardCompileArgument(TargetRulesObject.CppStandard));
 
