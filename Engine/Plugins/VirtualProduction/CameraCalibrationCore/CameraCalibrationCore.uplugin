@@ -24,6 +24,16 @@
 			"Name": "CameraCalibrationCoreEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "CameraCalibrationCoreMovieScene",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "CameraCalibrationCoreSequencer",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
