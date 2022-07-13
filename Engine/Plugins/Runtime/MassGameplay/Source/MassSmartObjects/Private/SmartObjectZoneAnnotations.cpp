@@ -2,7 +2,6 @@
 
 #include "SmartObjectZoneAnnotations.h"
 #include "MassSmartObjectSettings.h"
-//#include "SmartObjectCollection.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectSubsystem.h"
 #include "ZoneGraphAnnotationSubsystem.h"
@@ -172,12 +171,12 @@ void USmartObjectZoneAnnotations::TickAnnotation(const float DeltaTime, FZoneGra
 		Data.bInitialTaggingCompleted = true;
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	MarkRenderStateDirty();
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 }
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy)
 {
 	UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
@@ -220,7 +219,7 @@ void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* Debu
 		}
 	}
 }
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 #if WITH_EDITORONLY_DATA
 void USmartObjectZoneAnnotations::Serialize(FArchive& Ar)

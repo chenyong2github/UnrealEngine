@@ -8,9 +8,9 @@
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphQuery.h"
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 #include "Engine/Canvas.h"
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -71,7 +71,7 @@ void UZoneGraphDisturbanceAnnotation::TickAnnotation(const float DeltaTime, FZon
 		UpdateAnnotationTags(AnnotationTagContainer);
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	if (bEnableDebugDrawing)
 	{
 		FVector ViewLocation = FVector::ZeroVector;
@@ -85,7 +85,7 @@ void UZoneGraphDisturbanceAnnotation::TickAnnotation(const float DeltaTime, FZon
 			MarkRenderStateDirty();
 		}
 	}
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 }
 
@@ -656,7 +656,7 @@ FZoneGraphTagMask UZoneGraphDisturbanceAnnotation::GetAnnotationTags() const
 	return AnnotationTags;
 }
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy)
 {
 	const UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
@@ -851,13 +851,13 @@ void UZoneGraphDisturbanceAnnotation::DebugDrawCanvas(UCanvas* Canvas, APlayerCo
 
 	Canvas->SetDrawColor(OldDrawColor);
 }
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 
 //////////////////////////////////////////////////////////////////////////
 // UZoneGraphDisturbanceAnnotationTest
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 FBox UZoneGraphDisturbanceAnnotationTest::CalcBounds(const FTransform& LocalToWorld) const
 {
 	const FVector Size(DangerRadius);
@@ -876,7 +876,7 @@ void UZoneGraphDisturbanceAnnotationTest::DebugDraw(FDebugRenderSceneProxy* Debu
 	DebugProxy->Boxes.Emplace(FBox(Position - CenterSize, Position + CenterSize), FColor::Red);
 	DebugProxy->Boxes.Emplace(FBox(Position - DangerSize, Position + DangerSize), FColor::Red);
 }
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 void UZoneGraphDisturbanceAnnotationTest::Trigger()
 {

@@ -179,12 +179,12 @@ protected:
 	void UpdateDangerLanes();
 	void UpdateAnnotationTags(FZoneGraphAnnotationTagContainer& AnnotationTagContainer);
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
 	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) override;
 
 	FVector LastDebugDrawLocation = FVector::ZeroVector; 
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	void CalculateEscapeGraph(FZoneGraphDataEscapeGraph& EscapeGraph);
 
@@ -238,11 +238,11 @@ class ZONEGRAPHANNOTATIONS_API UZoneGraphDisturbanceAnnotationTest : public UZon
 
 public:
 	
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual FBox CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual void DebugDraw(FDebugRenderSceneProxy* DebugProxy) override;
 
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	virtual void Trigger() override;
 

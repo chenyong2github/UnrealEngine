@@ -10,9 +10,9 @@
 #include "MassNavigationTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 #include "Engine/Canvas.h"
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 void UZoneGraphCrowdLaneAnnotations::PostSubsystemsInitialized()
 {
@@ -84,15 +84,15 @@ void UZoneGraphCrowdLaneAnnotations::TickAnnotation(const float DeltaTime, FZone
 	}
 	StateChangeEvents.Reset();
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	if (bEnableDebugDrawing)
 	{
 		MarkRenderStateDirty();
 	}
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 }
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 void UZoneGraphCrowdLaneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy)
 {
 	UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
@@ -308,4 +308,4 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 	Canvas->SetDrawColor(OldDrawColor);
 }
 
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING

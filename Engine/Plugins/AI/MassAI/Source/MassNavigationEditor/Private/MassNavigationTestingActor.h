@@ -14,7 +14,7 @@ class UZoneGraphTestingComponent;
 class UZoneGraphSubsystem;
 class AMassNavigationTestingActor;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 class MASSNAVIGATIONEDITOR_API FMassNavigationTestingSceneProxy final : public FDebugRenderSceneProxy
 {
 public:
@@ -24,7 +24,7 @@ public:
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 	virtual uint32 GetMemoryFootprint(void) const override;
 };
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 /** Component for testing MassMovement functionality. */
 UCLASS(ClassGroup = Debug)

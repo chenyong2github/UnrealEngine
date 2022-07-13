@@ -41,10 +41,10 @@ protected:
 	virtual void HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events) override;
 	virtual void TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer) override;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
 	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) override;
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	/** Annotation Tag to mark a closed lane. */
 	UPROPERTY(EditAnywhere, Category = CrowdLane)

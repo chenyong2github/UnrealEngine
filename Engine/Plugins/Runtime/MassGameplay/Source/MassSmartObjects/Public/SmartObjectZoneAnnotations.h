@@ -105,9 +105,9 @@ protected:
 	virtual void PostZoneGraphDataAdded(const AZoneGraphData& ZoneGraphData) override;
 	virtual void PreZoneGraphDataRemoved(const AZoneGraphData& ZoneGraphData) override;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
-#endif
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	/** Filter specifying which lanes the behavior is applied to. */
 	UPROPERTY(EditAnywhere, Category = SmartObject)

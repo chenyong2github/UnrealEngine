@@ -8,7 +8,7 @@
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphData.h"
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#if UE_ENABLE_DEBUG_DRAWING
 
 //////////////////////////////////////////////////////////////////////////
 // FMassNavigationTestingSceneProxy
@@ -39,7 +39,7 @@ uint32 FMassNavigationTestingSceneProxy::GetMemoryFootprint(void) const
 	return sizeof(*this) + FDebugRenderSceneProxy::GetAllocatedSize();
 }
 
-#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 //////////////////////////////////////////////////////////////////////////
 // UMassNavigationTestingComponent
