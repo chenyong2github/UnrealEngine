@@ -77,12 +77,12 @@ FString GenerateRandomUserId(const FAuthNullConfig& Config, FPlatformUserId Plat
 TSharedRef<FAccountInfoNull> CreateAccountInfo(const FAuthNullConfig& Config, FPlatformUserId PlatformUserId)
 {
 	const FString DisplayId = GenerateRandomUserId(Config, PlatformUserId);
-	return MakeShared<FAccountInfoNull>(FAccountInfoNull{
+	return MakeShared<FAccountInfoNull>(FAccountInfoNull{ {
 		FOnlineAccountIdRegistryNull::Get().Create(DisplayId, PlatformUserId),
 		PlatformUserId,
 		ELoginStatus::LoggedIn,
 		{ { AccountAttributeData::DisplayName, DisplayId } }
-		});
+		} });
 }
 
 /* anonymous*/ }
