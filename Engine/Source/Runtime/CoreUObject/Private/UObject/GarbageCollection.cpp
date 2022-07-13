@@ -2519,7 +2519,11 @@ void FGCArrayPool::DumpGarbageReferencers(TArray<FGCArrayStruct*>& AllArrays)
 					NumGarbageReferences++;
 				}
 			}
-			ArrayStruct->GarbageReferences.Reset();
+			if (ArrayStruct->GarbageReferences.Num())
+			{
+				FCoreUObjectDelegates::GetGarbageCollectReportGarbageReferencers().Broadcast(ArrayStruct->GarbageReferences);
+				ArrayStruct->GarbageReferences.Reset();
+			}
 		}
 		UE_CLOG(NumGarbageReferences > 0, LogGarbage, Log, TEXT("Found %d garbage references in %f ms."), NumGarbageReferences, (FPlatformTime::Seconds() - StartTime) * 1000);
 	}
@@ -2549,7 +2553,11 @@ void FGCArrayPool::DumpGarbageReferencers(TArray<FGCArrayStruct*>& AllArrays)
 					TotalGarbageReferences++;
 				}
 			}
-			ArrayStruct->GarbageReferences.Reset();
+			if (ArrayStruct->GarbageReferences.Num())
+			{
+				FCoreUObjectDelegates::GetGarbageCollectReportGarbageReferencers().Broadcast(ArrayStruct->GarbageReferences);
+				ArrayStruct->GarbageReferences.Reset();
+			}
 		}
 		UE_CLOG(TotalGarbageReferences > 0, LogGarbage, Log, TEXT("Reported %d/%d garbage references in %f ms."), ReportedGarbageReferences, TotalGarbageReferences, (FPlatformTime::Seconds() - StartTime) * 1000);
 	}

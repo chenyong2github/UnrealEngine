@@ -176,6 +176,14 @@ FSimpleMulticastDelegate& FCoreUObjectDelegates::GetPostGarbageCollect()
 	return Delegate;
 }
 
+#if !UE_BUILD_SHIPPING
+FCoreUObjectDelegates::FOnReportGarbageReferencers& FCoreUObjectDelegates::GetGarbageCollectReportGarbageReferencers()
+{
+	static FCoreUObjectDelegates::FOnReportGarbageReferencers Delegate;
+	return Delegate;
+}
+#endif
+
 FCoreUObjectInternalDelegates::FPackageRename& FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate()
 {
 	static FPackageRename Delegate;
