@@ -39,7 +39,9 @@ FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, 
 	}
 	else
 	{
-		Name = FText::FromString(FName::NameToDisplayString(WidgetAssetData.AssetName.ToString(), false));
+		FString AssetName = WidgetAssetData.AssetName.ToString();
+		AssetName.RemoveFromEnd(TEXT("_C"), ESearchCase::CaseSensitive);
+		Name = FText::FromString(FName::NameToDisplayString(AssetName, false));
 
 		// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
 		if (InWidgetAssetData.IsValid())

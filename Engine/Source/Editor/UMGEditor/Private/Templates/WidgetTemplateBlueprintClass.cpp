@@ -10,13 +10,28 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Styling/SlateIconFinder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UMGEditor"
 
-FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass)
+FWidgetTemplateBlueprintClass::FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass, bool bInIsBlueprintGeneratedClass)
 	: FWidgetTemplateClass(InWidgetAssetData, InUserWidgetClass)
+	, bIsBlueprintGeneratedClass(bInIsBlueprintGeneratedClass)
 {
+	// Blueprints get the class type actions for their parent native class - this avoids us having to load the blueprint
+	if (bIsBlueprintGeneratedClass && !InUserWidgetClass && InWidgetAssetData.IsValid())
+	{
+		FString ParentClassName;
+		if (!WidgetAssetData.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+		{
+			WidgetAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
+		}
+		if (!ParentClassName.IsEmpty())
+		{
+			CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
+		}
+	}
 }
 
 FWidgetTemplateBlueprintClass::~FWidgetTemplateBlueprintClass()
@@ -38,6 +53,10 @@ FText FWidgetTemplateBlueprintClass::GetCategory() const
 		{
 			return FoundPaletteCategoryText;
 		}
+		else if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
+		{
+			return CachedParentClass->GetDefaultObject<UWidget>()->GetPaletteCategory();
+		}
 		else
 		{
 			auto DefaultUserWidget = UUserWidget::StaticClass()->GetDefaultObject<UUserWidget>();
@@ -48,12 +67,20 @@ FText FWidgetTemplateBlueprintClass::GetCategory() const
 
 UWidget* FWidgetTemplateBlueprintClass::Create(UWidgetTree* Tree)
 {
-	// Load the blueprint asset if needed
+	// Load the blueprint asset or blueprint generated class if needed
 	if (!WidgetClass.Get())
 	{
 		FString AssetPath = WidgetAssetData.ObjectPath.ToString();
-		UWidgetBlueprint* LoadedWidget = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
-		WidgetClass = *LoadedWidget->GeneratedClass;
+
+		if (bIsBlueprintGeneratedClass)
+		{
+			WidgetClass = LoadObject<UBlueprintGeneratedClass>(nullptr, *AssetPath);
+		}
+		else
+		{
+			UWidgetBlueprint* LoadedWidget = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
+			WidgetClass = *LoadedWidget->GeneratedClass;
+		}
 	}
 
 	return FWidgetTemplateClass::CreateNamed(Tree, FName(*FBlueprintEditorUtils::GetClassNameWithoutSuffix(WidgetClass.Get())));
@@ -61,7 +88,14 @@ UWidget* FWidgetTemplateBlueprintClass::Create(UWidgetTree* Tree)
 
 const FSlateBrush* FWidgetTemplateBlueprintClass::GetIcon() const
 {
-	return FSlateIconFinder::FindIconBrushForClass(UUserWidget::StaticClass());
+	if (CachedParentClass.IsValid() && CachedParentClass->IsChildOf(UWidget::StaticClass()) && !CachedParentClass->IsChildOf(UUserWidget::StaticClass()))
+	{
+		return FSlateIconFinder::FindIconBrushForClass(CachedParentClass.Get());
+	}
+	else
+	{
+		return FSlateIconFinder::FindIconBrushForClass(UUserWidget::StaticClass());
+	}
 	
 }
 

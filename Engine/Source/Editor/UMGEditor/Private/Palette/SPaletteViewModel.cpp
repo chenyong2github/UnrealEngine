@@ -14,6 +14,7 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "EditorClassUtils.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "DragDrop/WidgetTemplateDragDropOp.h"
 
 #include "Templates/WidgetTemplateClass.h"
@@ -340,6 +341,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 	static const FString InvalidCategoryName("InvalidCategoryName");
 
 	TMap<FName, TSubclassOf<UUserWidget>> LoadedWidgetBlueprintClassesByName;
+	TMap<FName, TSubclassOf<UBlueprintGeneratedClass>> LoadedGeneratedBlueprintClassesByName;
 
 	auto ActiveWidgetBlueprintClass = GetBlueprint()->GeneratedClass;
 	FName ActiveWidgetBlueprintClassName = ActiveWidgetBlueprintClass->GetFName();
@@ -457,10 +459,16 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 				LoadedWidgetBlueprintClassesByName.Add(WidgetClass->ClassGeneratedBy->GetFName()) = WidgetClass;
 			}
 		}
+		else if (Cast<UBlueprintGeneratedClass>(WidgetClass))
+		{
+			// Note: Don't check IsChildOf above, since superstruct of BPGC is the C++ class
+			LoadedGeneratedBlueprintClassesByName.Add(WidgetClass->GetFName()) = WidgetClass;
+			TSharedPtr<FWidgetTemplateClass> Template = MakeShareable(new FWidgetTemplateClass(WidgetClass));
+			AddWidgetTemplate(Template);
+		}
 		else
 		{
 			TSharedPtr<FWidgetTemplateClass> Template = MakeShareable(new FWidgetTemplateClass(WidgetClass));
-
 			AddWidgetTemplate(Template);
 		}
 
@@ -563,11 +571,42 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			}
 
 			uint32 BPFlags = WidgetBPAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
-			if ((BPFlags & (CLASS_Abstract | CLASS_Deprecated | CLASS_HideDropDown)) == 0)
+			if ((BPFlags & (CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists)) == 0)
 			{
 				auto Template = MakeShareable(new FWidgetTemplateBlueprintClass(WidgetBPAssetData, WidgetBPClass));
 
 				AddWidgetTemplate(Template);
+			}
+		}
+	}
+
+
+	TArray<FAssetData> AllGeneratedBPsAssetData;
+	AssetRegistryModule.Get().GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetClassPathName(), AllGeneratedBPsAssetData, true);
+
+	// Search generated class assets if using palette filtering, only do this with palette filtering since otherwise searching all generated BP's would be expensive
+	if (bUseEditorConfigPaletteFiltering)
+	{
+		for (FAssetData& GeneratedBPAssetData : AllGeneratedBPsAssetData)
+		{
+			// Excludes the blueprint you're currently in
+			if (GeneratedBPAssetData.AssetName == ActiveWidgetBlueprintName)
+			{
+				continue;
+			}
+
+			if (!FilterAssetData(GeneratedBPAssetData) 
+				&& AllowedPaletteWidgets.PassesFilter(GeneratedBPAssetData.ObjectPath) 
+				&& !LoadedGeneratedBlueprintClassesByName.Contains(GeneratedBPAssetData.AssetName))
+			{
+				uint32 BPFlags = GeneratedBPAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
+				if ((BPFlags & (CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract | CLASS_NewerVersionExists)) == 0)
+				{
+					bool bIsBlueprintGeneratedClass = true;
+					auto Template = MakeShareable(new FWidgetTemplateBlueprintClass(GeneratedBPAssetData, nullptr, bIsBlueprintGeneratedClass));
+
+					AddWidgetTemplate(Template);
+				}
 			}
 		}
 	}

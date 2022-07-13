@@ -23,8 +23,9 @@ public:
 	* Constructor
 	* @param InWidgetAssetData The FAssetData for the widget blueprint asset
 	* @param InUserWidgetClass The user-created widget class that will be created by this template
+	* @param bCacheParentClass True means we will search for parent class and cache, this is a slow operation, but useful for BPGCs.
 	*/
-	FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass = nullptr);
+	FWidgetTemplateBlueprintClass(const FAssetData& InWidgetAssetData, TSubclassOf<UUserWidget> InUserWidgetClass = nullptr, bool bInIsBlueprintGeneratedClass = false);
 
 	/** Destructor */
 	virtual ~FWidgetTemplateBlueprintClass();
@@ -47,4 +48,10 @@ public:
 	/** Returns true if the supplied class is supported by this template */
 	static bool Supports(UClass* InClass);
 
+protected:
+	/** Parent Class of this widget template, may not be valid */
+	TWeakObjectPtr<UClass> CachedParentClass;
+
+	/** True if this template is for a cooked BP generated class */
+	bool bIsBlueprintGeneratedClass;
 };
