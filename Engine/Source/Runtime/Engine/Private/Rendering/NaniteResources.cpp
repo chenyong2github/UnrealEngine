@@ -34,6 +34,7 @@
 #include "DerivedDataValueId.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataCacheRecord.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
 #if RHI_RAYTRACING
@@ -997,6 +998,19 @@ FSceneProxy::FMeshInfo::FMeshInfo(const UStaticMeshComponent* InComponent)
 	{
 		SetGlobalVolumeLightmap(true);
 	}
+#if WITH_EDITOR
+	else if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, 0))
+	{
+		const FMeshMapBuildData* MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(InComponent, 0);
+		if (MeshMapBuildData)
+		{
+			SetLightMap(MeshMapBuildData->LightMap);
+			SetShadowMap(MeshMapBuildData->ShadowMap);
+			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
+		}
+	}
+#endif
 	else if (InComponent->LODData.Num() > 0)
 	{
 		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[0];

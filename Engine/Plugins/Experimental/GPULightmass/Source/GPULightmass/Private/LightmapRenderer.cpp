@@ -784,6 +784,18 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		CalculateDistributionPrefixSumForAllLightmaps();
 	}
 
+	if (LODIndex == INDEX_NONE)
+	{
+		for (int32 NonEmptyLODIndex = 0; NonEmptyLODIndex < MAX_STATIC_MESH_LODS; NonEmptyLODIndex++)
+		{
+			if (CachedRayTracingScene->RayTracingGeometryInstancesPerLOD[NonEmptyLODIndex].Num() > 0)
+			{
+				LODIndex = NonEmptyLODIndex;
+				break;
+			}
+		}
+	}
+	
 	if (CachedRayTracingScene->RayTracingGeometryInstancesPerLOD[LODIndex].Num() == 0)
 	{
 		return false;

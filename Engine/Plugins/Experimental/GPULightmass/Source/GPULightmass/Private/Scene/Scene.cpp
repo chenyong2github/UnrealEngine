@@ -2218,14 +2218,17 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								ULevel* StorageLevel = LightingScenario ? LightingScenario : StaticMeshComponent->GetOwner()->GetLevel();
 								UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 
-								FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODIndex];
+								// Nanite meshes have only LOD0 technically, but that has some weird interaction with ClampedMinLOD
+								// Allocate for LOD0 only in that case
+								int32 LODLevelToStoreLODInfo = StaticMeshComponent->GetStaticMesh()->HasValidNaniteData() ? 0 : LODIndex;
+								FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODLevelToStoreLODInfo];
 
 								// Detect duplicated MapBuildDataId
 								if (Registry->GetMeshBuildDataDuringBuild(ComponentLODInfo.MapBuildDataId))
 								{
 									ComponentLODInfo.MapBuildDataId.Invalidate();
 
-									if (LODIndex > 0)
+									if (LODLevelToStoreLODInfo > 0)
 									{
 										// Non-zero LODs derive their MapBuildDataId from LOD0. In this case also regenerate LOD0 GUID
 										StaticMeshComponent->LODData[0].MapBuildDataId.Invalidate();
@@ -2233,7 +2236,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									}
 								}
 
-								if (ComponentLODInfo.CreateMapBuildDataId(LODIndex))
+								if (ComponentLODInfo.CreateMapBuildDataId(LODLevelToStoreLODInfo))
 								{
 									StaticMeshComponent->MarkPackageDirty();
 								}
@@ -2506,14 +2509,17 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						ULevel* StorageLevel = LightingScenario ? LightingScenario : InstanceGroup.ComponentUObject->GetOwner()->GetLevel();
 						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 
-						FStaticMeshComponentLODInfo& ComponentLODInfo = InstanceGroup.ComponentUObject->LODData[LODIndex];
+						// Nanite meshes have only LOD0 technically, but that has some weird interaction with ClampedMinLOD
+						// Allocate for LOD0 only in that case
+						int32 LODLevelToStoreLODInfo = InstanceGroup.ComponentUObject->GetStaticMesh()->HasValidNaniteData() ? 0 : LODIndex;
+						FStaticMeshComponentLODInfo& ComponentLODInfo = InstanceGroup.ComponentUObject->LODData[LODLevelToStoreLODInfo];
 						
 						// Detect duplicated MapBuildDataId
 						if (Registry->GetMeshBuildDataDuringBuild(ComponentLODInfo.MapBuildDataId))
 						{
 							ComponentLODInfo.MapBuildDataId.Invalidate();
 
-							if (LODIndex > 0)
+							if (LODLevelToStoreLODInfo > 0)
 							{
 								// Non-zero LODs derive their MapBuildDataId from LOD0. In this case also regenerate LOD0 GUID
 								InstanceGroup.ComponentUObject->LODData[0].MapBuildDataId.Invalidate();
@@ -2521,7 +2527,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							}
 						}
 
-						if (ComponentLODInfo.CreateMapBuildDataId(LODIndex))
+						if (ComponentLODInfo.CreateMapBuildDataId(LODLevelToStoreLODInfo))
 						{
 							InstanceGroup.ComponentUObject->MarkPackageDirty();
 						}
