@@ -197,6 +197,10 @@ void FAnimNode_LinkedAnimGraph::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_LinkedAnimGraph::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
+#if WITH_EDITORONLY_DATA
+	SourceInstance = const_cast<UAnimInstance*>(InAnimInstance);
+#endif
+	
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 
 	if(*InstanceClass)
@@ -472,13 +476,16 @@ void FAnimNode_LinkedAnimGraph::RequestBlend(const IAnimClassInterface* PriorAni
 }
 
 #if WITH_EDITOR
-void FAnimNode_LinkedAnimGraph::HandleAnimInstanceReplaced(UAnimInstance* InNewInstance, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+void FAnimNode_LinkedAnimGraph::HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	if (UAnimInstance* ThisTargetInstance = GetTargetInstance<UAnimInstance>())
+	static IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
+	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
-		// If we have a target, unlink & re-link
-		DynamicUnlink(InNewInstance);
-		DynamicLink(InNewInstance);
+		UAnimInstance* SourceAnimInstance = CastChecked<UAnimInstance>(InSourceObject);
+	
+		InitializeProperties(SourceAnimInstance, GetTargetClass());
+		DynamicUnlink(SourceAnimInstance);
+		DynamicLink(SourceAnimInstance);
 	}
 }
 #endif

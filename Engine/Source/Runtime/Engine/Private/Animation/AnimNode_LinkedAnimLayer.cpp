@@ -34,6 +34,10 @@ void FAnimNode_LinkedAnimLayer::InitializeSourceProperties(const UAnimInstance* 
 
 void FAnimNode_LinkedAnimLayer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
+#if WITH_EDITORONLY_DATA
+	SourceInstance = const_cast<UAnimInstance*>(InAnimInstance);
+#endif
+	
 	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
 	
 	// Initialize source properties here as they do not change
@@ -141,16 +145,19 @@ void FAnimNode_LinkedAnimLayer::InitializeProperties(const UObject* InSourceInst
 }
 
 #if WITH_EDITOR
-void FAnimNode_LinkedAnimLayer::HandleAnimInstanceReplaced(UAnimInstance* InNewInstance, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+
+void FAnimNode_LinkedAnimLayer::HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	UAnimInstance* CurrentTargetInstance = GetTargetInstance<UAnimInstance>();
-	if(CurrentTargetInstance && (Interface.Get() == nullptr || InstanceClass.Get() == nullptr))
+	static IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
+	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
-		InitializeSelfLayer(CurrentTargetInstance);
-	}
-	else
-	{
-		Super::HandleAnimInstanceReplaced(InNewInstance, OldToNewInstanceMap);
+		UAnimInstance* SourceAnimInstance = CastChecked<UAnimInstance>(InSourceObject);
+		InitializeProperties(SourceAnimInstance, Interface.Get() != nullptr ? Interface.Get() : InSourceObject->GetClass());
+		DynamicUnlink(SourceAnimInstance);
+		DynamicLink(SourceAnimInstance);
+
+		FAnimationInitializeContext Context(&SourceAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>());
+		InitializeSubGraph_AnyThread(Context);
 	}
 }
 

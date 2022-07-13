@@ -120,6 +120,13 @@ UAnimInstance::UAnimInstance(const FObjectInitializer& ObjectInitializer)
 	bReceiveNotifiesFromLinkedInstances = false;
 	bPropagateNotifiesToLinkedInstances = false;
 	bUseMainInstanceMontageEvaluationData = false;
+
+#if WITH_EDITOR
+	if(!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnObjectsReinstanced.AddUObject(this, &UAnimInstance::HandleObjectsReinstanced);
+	}
+#endif // WITH_EDITOR	
 }
 
 // this is only used by montage marker based sync
@@ -3800,38 +3807,38 @@ void UAnimInstance::QueueRootMotionBlend(const FTransform& RootTransform, const 
 }
 
 #if WITH_EDITOR
-void UAnimInstance::HandleAnimInstanceReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+void UAnimInstance::HandleObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	static IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
+	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
-		TArray<UObject*> Values;
-		OldToNewInstanceMap.GenerateValueArray(Values);
-		if(Values.Contains(this))
-		{
-			// Re-link graphs & layers if they are targets of a re-instance.
-			// As this gets called post-CPFUO and references are already replaced we need to only do this for 'new'
-			// instances that have just been replaced
-			for(const FStructProperty* LinkedGraphProperty : AnimBlueprintClass->GetLinkedAnimGraphNodeProperties())
-			{
-				FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedGraphProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
-				LinkedAnimGraph->HandleAnimInstanceReplaced(this, OldToNewInstanceMap);
-			}
+		bool bThisObjectWasReinstanced = false;
 
-			for(const FStructProperty* LinkedLayerProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
+		for(const TPair<UObject*, UObject*>& ObjectPair : OldToNewInstanceMap)
+		{
+			if(ObjectPair.Value == this)
 			{
-				FAnimNode_LinkedAnimLayer* LinkedAnimLayer = LinkedLayerProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
-				LinkedAnimLayer->HandleAnimInstanceReplaced(this, OldToNewInstanceMap);
+				bThisObjectWasReinstanced = true;
+				break;
+			}
+		}
+		
+		if(bThisObjectWasReinstanced)
+		{
+			RecalcRequiredBones();
+			
+			// Reinit proxy
+			FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+			Proxy.Initialize(this);
+			Proxy.InitializeCachedClassData();
+			Proxy.InitializeRootNode_WithRoot(Proxy.RootNode);
+	
+			if(USkeletalMeshComponent* Mesh = GetSkelMeshComponent())
+			{
+				Mesh->ClearMotionVector();
 			}
 		}
 	}
-	
-	RecalcRequiredBones();
-	
-	// Reinit proxy
-	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
-	Proxy.Initialize(this);
-	Proxy.InitializeCachedClassData();
-	Proxy.InitializeRootNode_WithRoot(Proxy.RootNode);
 }
 #endif
 

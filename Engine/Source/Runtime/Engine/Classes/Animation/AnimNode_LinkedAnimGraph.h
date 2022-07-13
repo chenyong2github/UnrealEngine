@@ -120,7 +120,7 @@ protected:
 	}
 
 #if WITH_EDITOR
-	virtual void HandleAnimInstanceReplaced(UAnimInstance* InNewInstance, const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
 #endif	// #if WITH_EDITOR
 
 	/** Link up pose links dynamically with linked instance */

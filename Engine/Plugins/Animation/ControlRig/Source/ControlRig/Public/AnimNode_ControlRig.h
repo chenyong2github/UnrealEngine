@@ -18,6 +18,7 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	GENERATED_BODY()
 
 	FAnimNode_ControlRig();
+	~FAnimNode_ControlRig();
 
 	virtual UControlRig* GetControlRig() const override { return ControlRig; }
 	virtual TSubclassOf<UControlRig> GetControlRigClass() const override { return ControlRigClass; }
@@ -35,7 +36,12 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 
 	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
 	virtual void PropagateInputProperties(const UObject* InSourceInstance) override;
-
+	
+private:
+	void HandleOnInitialized_AnyThread(UControlRig*, const EControlRigState, const FName&);
+#if WITH_EDITOR
+	virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
+#endif
 private:
 
 	/** Cached ControlRig */

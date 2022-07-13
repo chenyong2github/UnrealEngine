@@ -2583,7 +2583,9 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		}
 	}
 
-
+	// Inform listeners of object reinstancing
+	FCoreUObjectDelegates::OnObjectsReinstanced.Broadcast(OldToNewInstanceMap);
+	
 	if(SelectedActors)
 	{
 		SelectedActors->EndBatchSelectOperation();

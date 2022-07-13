@@ -1619,6 +1619,7 @@ protected:
 	}
 
 	friend struct FAnimNode_LinkedAnimGraph;
+	friend struct FAnimNode_LinkedAnimLayer;
 	friend struct FAnimInstanceProxy;
 	
 	/** Return whether this AnimNotifyState should be triggered */
@@ -1641,7 +1642,7 @@ public:
 
 #if WITH_EDITOR
 	// Helper function to handle reinstancing in editor
-	virtual void HandleAnimInstanceReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	virtual void HandleObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 
 	/** Returns true if this anim instance is actively being debugged, false otherwise */
 	bool IsBeingDebugged() const;

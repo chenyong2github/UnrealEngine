@@ -2641,10 +2641,22 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectTransacted, UObject*, const class FTransactionObjectEvent&);
 	static FOnObjectTransacted OnObjectTransacted;
 
-	/** Called when UObjects have been replaced to allow others a chance to fix their references */
+	/**
+	 * Called when UObjects have been replaced to allow others a chance to fix their references
+	 * Note that this is called after properties are copied from old to new instances but before references to replacement
+	 * objects are fixed up in other objects (i.e. other objects can still be pointing to old data)
+	 */
 	using FReplacementObjectMap = TMap<UObject*, UObject*>; // Alias for use in the macro
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReplaced, const FReplacementObjectMap&);
 	static FOnObjectsReplaced OnObjectsReplaced;
+
+	/**
+	 * Called when UObjects have been re-instanced to allow others a chance to fix their references
+	 * Note that this is called after references to replacement objects are fixed up in other objects (i.e. all object
+	 * references should be self-consistent).
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReinstanced, const FReplacementObjectMap&);
+	static FOnObjectsReinstanced OnObjectsReinstanced;
 
 	/**
 	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.

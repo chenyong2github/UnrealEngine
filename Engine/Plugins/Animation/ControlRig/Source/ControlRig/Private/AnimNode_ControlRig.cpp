@@ -26,6 +26,19 @@ FAnimNode_ControlRig::FAnimNode_ControlRig()
 {
 }
 
+FAnimNode_ControlRig::~FAnimNode_ControlRig()
+{
+	if(ControlRig)
+	{
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+	}
+}
+
+void FAnimNode_ControlRig::HandleOnInitialized_AnyThread(UControlRig*, const EControlRigState, const FName&)
+{
+	RefPoseSetterHash.Reset();
+}
+
 void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -36,7 +49,7 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 		ControlRig->Initialize(true);
 		ControlRig->RequestInit();
 		RefPoseSetterHash.Reset();
-		ControlRig->OnInitialized_AnyThread().AddLambda([this](class UControlRig*, const EControlRigState, const FName&) { RefPoseSetterHash.Reset(); });
+		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FAnimNode_ControlRig::HandleOnInitialized_AnyThread);
 
 		UpdateControlRigRefPoseIfNeeded(InProxy);
 	}
@@ -580,3 +593,18 @@ void FAnimNode_ControlRig::PropagateInputProperties(const UObject* InSourceInsta
 		}
 	}
 }
+
+#if WITH_EDITOR
+
+void FAnimNode_ControlRig::HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	Super::HandleObjectsReinstanced_Impl(InSourceObject, InTargetObject, OldToNewInstanceMap);
+	
+	if(ControlRig)
+	{
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FAnimNode_ControlRig::HandleOnInitialized_AnyThread);
+	}
+}
+
+#endif

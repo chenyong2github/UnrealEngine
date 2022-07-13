@@ -2548,12 +2548,7 @@ private:
 	 * Cooking does not guarantee skeleton containing all names
 	 */
 	bool AreRequiredCurvesUpToDate() const;
-	
-#if WITH_EDITOR
-	// Handle reinstancing in editor
-	void HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
-#endif
-	
+
 public:
 	void ConditionallyDispatchQueuedAnimEvents();
 
