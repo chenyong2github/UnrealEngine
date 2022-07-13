@@ -25,7 +25,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.85";
+        private static string VersionString = "4.86";
 
         public static string Get() { return VersionString; }
     };
@@ -763,7 +763,7 @@ namespace PerfReportTool
 					bAutoColorizeTable, 
 					addMinMaxColumns, 
 					tableInfo.hideStatPrefix,
-					GetIntArg("maxSummaryTableStringLength", -1), 
+					GetIntArg("maxSummaryTableStringLength", Int32.MaxValue), 
 					reportXML.columnFormatInfoList, 
 					weightByColumnName, 
 					summaryTitle );
