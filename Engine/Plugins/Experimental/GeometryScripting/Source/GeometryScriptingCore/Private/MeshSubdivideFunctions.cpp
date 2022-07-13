@@ -158,8 +158,9 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 	} 
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
-	{
-		FAdaptiveTessellate Tessellator(&EditMesh);
+	{	
+		FDynamicMesh3 TessellatedMesh;
+		FAdaptiveTessellate Tessellator(&EditMesh, &TessellatedMesh);
 
 		TSharedPtr<TArray<int>> List = IndexList.List;
 		TUniquePtr<FTessellationPattern> Pattern; 
@@ -226,6 +227,10 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 		if (Tessellator.Compute() == false)
 		{
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ApplyAdapativeTessellate_Failed", "ApplyAdapativeTessellate: Tessellation failed")); 
+		}
+		else 
+		{
+			EditMesh = MoveTemp(TessellatedMesh);
 		}
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
