@@ -227,22 +227,22 @@ public:
 	FArchiveFileReaderGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InSize, uint32 InBufferSize = PLATFORM_FILE_READER_BUFFER_SIZE, uint32 InFlags = FILEREAD_None );
 	~FArchiveFileReaderGeneric();
 
-	virtual void Seek( int64 InPos ) final;
-	virtual int64 Tell() final
+	virtual void Seek( int64 InPos ) override final;
+	virtual int64 Tell() override final
 	{
 		return Pos;
 	}
-	virtual int64 TotalSize() final
+	virtual int64 TotalSize() override final
 	{
 		return Size;
 	}
-	virtual bool Close() final;
-	virtual void Serialize( void* V, int64 Length ) final;
+	virtual bool Close() override final;
+	virtual void Serialize( void* V, int64 Length ) override final;
 	virtual FString GetArchiveName() const override
 	{
 		return Filename;
 	}
-	virtual void FlushCache() final;
+	virtual void FlushCache() override final;
 
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
 
@@ -304,15 +304,15 @@ public:
 	FArchiveFileWriterGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InPos, uint32 InBufferSize = PLATFORM_FILE_WRITER_BUFFER_SIZE, uint32 InFlags = FILEWRITE_None);
 	~FArchiveFileWriterGeneric();
 
-	virtual void Seek( int64 InPos ) final;
-	virtual int64 Tell() final
+	virtual void Seek( int64 InPos ) override final;
+	virtual int64 Tell() override final
 	{
 		return Pos;
 	}
 	virtual int64 TotalSize() override;
-	virtual bool Close() final;
-	virtual void Serialize( void* V, int64 Length ) final;
-	virtual void Flush() final;
+	virtual bool Close() override final;
+	virtual void Serialize( void* V, int64 Length ) override final;
+	virtual void Flush() override final;
 	virtual FString GetArchiveName() const override
 	{
 		return Filename;
