@@ -540,9 +540,9 @@ public:
 	int32 BuildVertexBuffers();
 
 	// UModel transactions.
-	ENGINE_API void ModifySelectedSurfs( bool UpdateMaster );
-	void ModifyAllSurfs( bool UpdateMaster );
-	ENGINE_API void ModifySurf( int32 InIndex, bool UpdateMaster );
+	ENGINE_API void ModifySelectedSurfs( bool UpdateBrushes );
+	void ModifyAllSurfs( bool UpdateBrushes );
+	ENGINE_API void ModifySurf( int32 InIndex, bool UpdateBrushes );
 	ENGINE_API bool HasSelectedSurfaces() const;
 #endif
 
