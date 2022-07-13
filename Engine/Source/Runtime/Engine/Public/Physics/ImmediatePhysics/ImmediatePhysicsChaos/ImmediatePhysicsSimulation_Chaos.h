@@ -105,6 +105,7 @@ namespace ImmediatePhysics_Chaos
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
+		void UpdateStatCounters();
 		void DebugDrawStaticParticles();
 		void DebugDrawKinematicParticles();
 		void DebugDrawDynamicParticles();

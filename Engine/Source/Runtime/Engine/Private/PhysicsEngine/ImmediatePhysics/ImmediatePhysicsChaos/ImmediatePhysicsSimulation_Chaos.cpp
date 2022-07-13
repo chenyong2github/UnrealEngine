@@ -31,6 +31,13 @@
 DECLARE_CYCLE_STAT(TEXT("FSimulation::Simulate_Chaos"), STAT_ImmediateSimulate_Chaos, STATGROUP_ImmediatePhysics);
 DECLARE_CYCLE_STAT(TEXT("FSimulation::Simulate_Chaos::InertiaConditioning"), STAT_ImmediateSimulate_Chaos_InertiaConditioning, STATGROUP_ImmediatePhysics);
 
+// Stat Counters
+DECLARE_DWORD_COUNTER_STAT(TEXT("FSimulation::NumBodies"), STAT_ImmediateSimulate_ChaosCounter_NumBodies, STATGROUP_ImmediatePhysicsCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("FSimulation::NumDynamicBodies"), STAT_ImmediateSimulate_ChaosCounter_NumDynamicBodies, STATGROUP_ImmediatePhysicsCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("FSimulation::NumKinematicBodies"), STAT_ImmediateSimulate_ChaosCounter_NumKinematicBodies, STATGROUP_ImmediatePhysicsCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("FSimulation::NumContacts"), STAT_ImmediateSimulate_ChaosCounter_NumContacts, STATGROUP_ImmediatePhysicsCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("FSimulation::NumJoints"), STAT_ImmediateSimulate_ChaosCounter_NumJoints, STATGROUP_ImmediatePhysicsCounters);
+
 //////////////////////////////////////////////////////////////////////////
 // @todo(ccaulfield): remove when finished
 //
@@ -983,6 +990,8 @@ namespace ImmediatePhysics_Chaos
 		Implementation->Evolution.SetSimulationSpace(Implementation->SimulationSpace);
 		Implementation->Evolution.Advance(StepTime, NumSteps, RewindTime);
 
+		UpdateStatCounters();
+
 #if CHAOS_DEBUG_DRAW
 		if (bChaosImmediate_DebugDrawOnSimulate)
 		{
@@ -1054,6 +1063,15 @@ namespace ImmediatePhysics_Chaos
 				}
 			}
 		}
+	}
+
+	void FSimulation::UpdateStatCounters()
+	{
+		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumBodies, Implementation->Particles.GetNonDisabledView().Num());
+		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumDynamicBodies, Implementation->Particles.GetNonDisabledDynamicView().Num());
+		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumKinematicBodies, Implementation->Particles.GetActiveKinematicParticlesView().Num());
+		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumContacts, Implementation->Collisions.NumConstraints());
+		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumJoints, Implementation->Joints.NumConstraints());
 	}
 
 	void FSimulation::DebugDrawStaticParticles()
