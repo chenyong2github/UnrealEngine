@@ -279,6 +279,7 @@ namespace TraceServices
 		if (Task == nullptr)
 		{
 			UE_LOG(LogTraceServices, Log, TEXT("TaskFinished(TaskId %d, Timestamp %.6f) skipped"), TaskId, Timestamp);
+			return;
 		}
 
 		TaskFinished(*Task, Timestamp);
