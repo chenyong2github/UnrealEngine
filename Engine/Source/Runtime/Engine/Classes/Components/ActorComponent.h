@@ -272,6 +272,9 @@ private:
 	/** Indicates that InitializeComponent has been called, but UninitializeComponent has not yet */
 	uint8 bHasBeenInitialized:1;
 
+	/** Indicates that ReadyForReplication has been called  */
+	uint8 bIsReadyForReplication:1;
+
 	/** Indicates that BeginPlay has been called, but EndPlay has not yet */
 	uint8 bHasBegunPlay:1;
 
@@ -353,6 +356,9 @@ public:
 
 	/** Indicates that InitializeComponent has been called, but UninitializeComponent has not yet */
 	bool HasBeenInitialized() const { return bHasBeenInitialized; }
+
+	/** Indicates that ReadyForReplication has been called */
+	bool IsReadyForReplication() const { return bIsReadyForReplication; }
 
 	/** Indicates that BeginPlay has been called, but EndPlay has not yet */
 	bool HasBegunPlay() const { return bHasBegunPlay; }
@@ -683,6 +689,15 @@ public:
 	 * Requires component to be registered, and bWantsInitializeComponent to be true.
 	 */
 	virtual void InitializeComponent();
+
+	/**
+	 * ReadyForReplication gets called on replicated components when their owning actor is officially ready for replication.
+	 * Called after InitializeComponent but before BeginPlay. From there it will only be set false when the component is destroyed.
+	 * This is where you want to register your replicated subobjects if you already possess some. 
+	 * A component can get replicated before HasBegunPlay() is true if inside a tick or in BeginPlay() an RPC is called on him.
+	 * Requires component to be registered, initialized and set to replicate.
+	 */
+	virtual void ReadyForReplication();
 
 	/**
 	 * Begins Play for the component. 

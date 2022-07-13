@@ -548,26 +548,35 @@ void AActor::AddComponentForReplication(UActorComponent* Component)
 		return;
 	}
 
+	if (Component->bWantsInitializeComponent && !Component->HasBeenInitialized())
+	{
+		return;
+	}
+
 	const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(Component);
 
-	if (NetCondition != COND_Never)
+	FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(Component);
+	if (!ComponentInfo)
 	{
-		FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(Component);
-		if (!ComponentInfo)
-		{
-			ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
-		}
-		else
-		{
-			// Always set the condition because this component could be registering SubObjects ahead of time and already in the list with COND_Never
-			ComponentInfo->NetCondition = NetCondition;
-		}
+		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
+	}
+	else
+	{
+		// Always set the condition because this component could be registering SubObjects ahead of time and already in the list with COND_Never
+		ComponentInfo->NetCondition = NetCondition;
+	}
+
+	if (!Component->IsReadyForReplication())
+	{
+		Component->ReadyForReplication();
+	}
 
 #if UE_WITH_IRIS
+    if (NetCondition != COND_Never)
+    {
 		Component->BeginReplication();
+    }
 #endif
-
-	}
 }
 
 void AActor::RemoveReplicatedComponent(UActorComponent* Component)
@@ -624,7 +633,8 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 {
 	check(IsValid(OwnerComponent));
 	check(IsValid(SubObject));
-	ensureMsgf(NetCondition != COND_Custom, TEXT("Custom netconditions do not work with SubObjects. %s - %s will not be replicated."), *GetName(), *SubObject->GetName());
+	ensureMsgf(OwnerComponent->GetIsReplicated(), TEXT("Only components with replication enabled can register subobjects. %s::%s has replication disabled."), *GetName(), *SubObject->GetName());
+	ensureMsgf(NetCondition != COND_Custom, TEXT("Custom netconditions do not work with SubObjects. %s::%s will not be replicated."), *GetName(), *SubObject->GetName());
 
 	FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(OwnerComponent);
 	if (ComponentInfo)

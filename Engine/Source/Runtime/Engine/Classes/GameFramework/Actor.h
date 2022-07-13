@@ -2893,6 +2893,9 @@ public:
 	/** Will reregister all components on this actor. Does a lot of work - should only really be used in editor, generally use UpdateComponentTransforms or MarkComponentsRenderStateDirty. */
 	virtual void ReregisterAllComponents();
 
+	/** Finish initializing the component and register tick functions and beginplay if it's the proper time to do so. */
+	void HandleRegisterComponentWithWorld(UActorComponent* Component);
+
 	/**
 	 * Incrementally registers components associated with this actor, used during level streaming
 	 *

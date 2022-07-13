@@ -57,9 +57,9 @@ UGameplayTasksComponent::UGameplayTasksComponent(const FObjectInitializer& Objec
 	TopActivePriority = 0;
 }
 
-void UGameplayTasksComponent::BeginPlay()
+void UGameplayTasksComponent::ReadyForReplication()
 {
-	Super::BeginPlay();
+	Super::ReadyForReplication();
 
 	REDIRECT_TO_VLOG(GetOwner());
 	
@@ -789,7 +789,7 @@ bool UGameplayTasksComponent::AddSimulatedTask(UGameplayTask* NewTask)
 		SimulatedTasks.Add(NewTask);
 		SetSimulatedTasksNetDirty();
 
-		if (IsUsingRegisteredSubObjectList())
+		if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 		{
 			AddReplicatedSubObject(NewTask, COND_SkipOwner);
 		}
@@ -815,7 +815,7 @@ void UGameplayTasksComponent::RemoveSimulatedTask(UGameplayTask* NewTask)
 
 void UGameplayTasksComponent::SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks)
 {
-	if (IsUsingRegisteredSubObjectList())
+	if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 	{
 		// Unregister all current tasks
 		for (UGameplayTask* OldGameplayTask : SimulatedTasks)

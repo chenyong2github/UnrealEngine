@@ -1597,6 +1597,7 @@ public:
 	virtual void PostNetReceive() override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void ReadyForReplication() override;
 	virtual void BeginPlay() override;
 
 protected:

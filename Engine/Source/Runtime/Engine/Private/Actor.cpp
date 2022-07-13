@@ -3272,13 +3272,19 @@ void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 
 
 	const ELifetimeCondition NetCondition = Component->GetIsReplicated() ? AllowActorComponentToReplicate(Component) : COND_Never;
+	
+	if (Component->GetIsReplicated() && ActorHasBegunPlay != EActorBeginPlayState::HasNotBegunPlay && !Component->IsReadyForReplication())
+	{
+		Component->ReadyForReplication();
+	}
 
 	if (FReplicatedComponentInfo* RepComponentInfo = ReplicatedComponentsInfo.FindByKey(Component))
 	{
 		// Even if not replicated anymore just set the condition to Never because we want to keep the subobject list intact in case the component switches back to replicated later.
 		RepComponentInfo->NetCondition = NetCondition;
 	}
-	else if (NetCondition != COND_Never)
+	// Keep track of subobjects for replicated components even if Allow returns Never. The condition might get changed later on and we want to start tracking subobjects immediately.
+	else if (Component->GetIsReplicated())
 	{
 		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
 	}
@@ -3325,19 +3331,25 @@ void AActor::UpdateAllReplicatedComponents()
 			if (ActorHasBegunPlay != EActorBeginPlayState::HasNotBegunPlay)
 			{
 				const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(Component);
-				if (NetCondition != COND_Never)
+				const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo(Component));
+				ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+
+				if (!Component->IsReadyForReplication())
 				{
-					const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo(Component));
-					ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+					Component->ReadyForReplication();
+				}
+
 #if UE_WITH_IRIS
+	            if (NetCondition != COND_Never)
+				{
 					// Begin replication and set NetCondition, if component already is replicated the NetCondition will be updated
 					Component->BeginReplication();
 				}
 				else
 				{
 					Component->EndReplication();
+                }
 #endif
-				}
 			}
 		}
 	}
@@ -4036,10 +4048,12 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 		{
 			const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
 
-			if (NetCondition != COND_Never)
+			const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo(ReplicatedComponent));
+			ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+
+			if (!ReplicatedComponent->IsReadyForReplication())
 			{
-				const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo(ReplicatedComponent));
-				ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+				ReplicatedComponent->ReadyForReplication();
 			}
 		}
 
@@ -5398,6 +5412,39 @@ void AActor::UninitializeComponents()
 		if (ActorComp->HasBeenInitialized())
 		{
 			ActorComp->UninitializeComponent();
+		}
+	}
+}
+
+void AActor::HandleRegisterComponentWithWorld(UActorComponent* Component)
+{
+	const bool bOwnerBeginPlayStarted = HasActorBegunPlay() || IsActorBeginningPlay();
+
+	if (!Component->HasBeenInitialized() && Component->bWantsInitializeComponent && IsActorInitialized())
+	{
+		Component->InitializeComponent();
+
+		if (bOwnerBeginPlayStarted)
+		{
+			AddComponentForReplication(Component);
+		}
+	}
+
+	if (bOwnerBeginPlayStarted)
+	{
+		Component->RegisterAllComponentTickFunctions(true);
+
+		if (!Component->HasBegunPlay())
+		{
+#if UE_WITH_IRIS
+		    if (Component->GetIsReplicated())
+		    {
+		    	UpdateReplicatedComponent(Component);
+		    }
+#endif // UE_WITH_IRIS
+
+			Component->BeginPlay();
+			ensureMsgf(Component->HasBegunPlay(), TEXT("Failed to route BeginPlay (%s)"), *Component->GetFullName());
 		}
 	}
 }

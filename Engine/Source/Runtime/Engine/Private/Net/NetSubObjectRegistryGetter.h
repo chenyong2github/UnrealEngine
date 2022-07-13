@@ -14,7 +14,6 @@ namespace UE::Net
 class FSubObjectRegistryGetter final
 {
 public:
-	using FReplicatedComponentInfo = UE::Net::FReplicatedComponentInfo;
 
 	FSubObjectRegistryGetter() = delete;
 	~FSubObjectRegistryGetter() = delete;
@@ -37,7 +36,7 @@ public:
 		return InActor->ReplicatedComponentsInfo;
 	}
 
-	static const FReplicatedComponentInfo* GetReplicatedComponentInfoForComponent(AActor* InActor, UActorComponent* InActorComp)
+	static const UE::Net::FReplicatedComponentInfo* GetReplicatedComponentInfoForComponent(AActor* InActor, UActorComponent* InActorComp)
 	{
 		return InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 	}
@@ -46,6 +45,25 @@ public:
 	{
 		UE::Net::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 		return ComponentInfo ? ComponentInfo->SubObjects.IsSubObjectInRegistry(InSubObject) : false;
+	}
+
+	/** Look for the subobject in the subobject list of the actor or any of its replicated components. */
+	static bool IsSubObjectInAnyRegistry(AActor* InActor, UObject* InSubObject)
+	{
+		if (InActor->ReplicatedSubObjects.IsSubObjectInRegistry(InSubObject))
+		{
+			return true;
+		}
+
+		for (const UE::Net::FReplicatedComponentInfo& ComponentInfo : InActor->ReplicatedComponentsInfo)
+		{
+			if (ComponentInfo.Component == InSubObject || ComponentInfo.SubObjects.IsSubObjectInRegistry(InSubObject))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 };
 

@@ -232,6 +232,11 @@ void UAbilitySystemComponent::BeginPlay()
 
 	// Cache net role here as well since for map-placed actors on clients, the Role may not be set correctly yet in OnRegister.
 	CacheIsNetSimulated();
+}
+
+void UAbilitySystemComponent::ReadyForReplication()
+{
+	Super::ReadyForReplication();
 
 	// Register the spawned attributes to the replicated sub object list.
 	if (IsUsingRegisteredSubObjectList())
@@ -2854,7 +2859,7 @@ void UAbilitySystemComponent::AddSpawnedAttribute(UAttributeSet* Attribute)
 
 	if (SpawnedAttributes.Find(Attribute) == INDEX_NONE)
 	{
-		if (IsUsingRegisteredSubObjectList() && HasBegunPlay())
+		if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 		{
 			AddReplicatedSubObject(Attribute);
 		}
@@ -2868,7 +2873,7 @@ void UAbilitySystemComponent::RemoveSpawnedAttribute(UAttributeSet* Attribute)
 {
 	if (SpawnedAttributes.RemoveSingle(Attribute) > 0)
 	{
-		if (IsUsingRegisteredSubObjectList() )
+		if (IsUsingRegisteredSubObjectList())
 		{
 			RemoveReplicatedSubObject(Attribute);
 		}
