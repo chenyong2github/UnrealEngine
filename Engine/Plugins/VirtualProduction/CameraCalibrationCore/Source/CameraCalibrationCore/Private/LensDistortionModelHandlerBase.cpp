@@ -221,8 +221,47 @@ bool ULensDistortionModelHandlerBase::DrawDistortionDisplacementMap(UTextureRend
 	return true;
 }
 
+bool ULensDistortionModelHandlerBase::IsDisplacementMapMaterialReady(UMaterialInstanceDynamic* MID)
+{
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	if (FMaterialResource* MaterialResource = MID->GetMaterialResource(FeatureLevel))
+	{
+		if (MaterialResource->IsGameThreadShaderMapComplete())
+		{
+			return true;
+		}
+
+		MaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::ForceLocal);
+
+		return MaterialResource->IsGameThreadShaderMapComplete();
+	}
+
+	return false;
+}
+
 void ULensDistortionModelHandlerBase::ProcessCurrentDistortion()
 {
+	bool bAreMaterialsReady = true;
+	if (!UndistortionDisplacementMapMID || !DistortionDisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+
+	if (UndistortionDisplacementMapMID && !IsDisplacementMapMaterialReady(UndistortionDisplacementMapMID))
+	{
+		bAreMaterialsReady = false;
+	}
+
+	if (DistortionDisplacementMapMID && !IsDisplacementMapMaterialReady(DistortionDisplacementMapMID))
+	{
+		bAreMaterialsReady = false;
+	}
+
+	if (!bAreMaterialsReady)
+	{
+		return;
+	}
+
 	if(bIsDirty)
 	{
 		bIsDirty = false;

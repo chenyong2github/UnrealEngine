@@ -134,6 +134,10 @@ protected:
 	/** Convert the generic distortion parameter array into the specific structure of parameters used by the supported lens model */
 	virtual void InterpretDistortionParameters() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InterpretDistortionParameters);
 
+private:
+	/** Tests whether the input material's shaders have been compiled, indicating the material can be used for drawing */
+	bool IsDisplacementMapMaterialReady(UMaterialInstanceDynamic* MID);
+
 protected:
 	/** Lens Model describing how to interpret the distortion parameters */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Distortion")
