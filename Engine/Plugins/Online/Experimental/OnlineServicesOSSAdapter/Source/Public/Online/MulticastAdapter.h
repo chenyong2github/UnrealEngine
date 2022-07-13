@@ -59,7 +59,7 @@ public:
 
 			if (bUnbind)
 			{
-				SharedAnchor.Reset();
+				// Calling remove will invalidate the closure data and destruct SharedAnchor.
 				Delegate.Remove(Handle);
 			}
 		});

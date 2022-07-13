@@ -22,14 +22,6 @@ static const FString LobbyMemberChangesKeyName = TEXT("LobbyMemberChanges");
 
 static const int32 MaxAttributeSize = 1000;
 
-template <typename DataType, typename OpType>
-const DataType& GetOpDataChecked(const TOnlineAsyncOp<OpType>& Op, const FString& Key)
-{
-	const DataType* Data = Op.Data.template Get<DataType>(Key);
-	check(Data);
-	return *Data;
-}
-
 FLobbiesEOSGS::FLobbiesEOSGS(FOnlineServicesEOSGS& InServices)
 	: FLobbiesCommon(InServices)
 {

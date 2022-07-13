@@ -127,8 +127,8 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 		{
 			IAuthPtr Auth = Services.GetAuthInterface();
 
-			FAuthGetAccountByAccountId::Params GetAccountByAccountIParams { OpParams.LocalUserId };
-			TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams { OpParams.LocalUserId };
+			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 			if (Result.IsOk())
 			{
@@ -550,7 +550,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 			{
 				IAuthPtr Auth = Services.GetAuthInterface();
 
-				TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId({ OpParams.LocalUserId });
+				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId({ OpParams.LocalUserId });
 
 				if (Result.IsOk())
 				{
@@ -788,7 +788,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 	// We check if the user is logged in
 	IAuthPtr Auth = Services.GetAuthInterface();
-	TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId({ OpParams.LocalUserId });
+	TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId({ OpParams.LocalUserId });
 
 	if (Result.IsOk())
 	{

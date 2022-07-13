@@ -304,8 +304,8 @@ namespace UE::Online {
 		{
 			IAuthPtr Auth = Services.GetAuthInterface();
 
-			FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ Params.LocalUserId };
-			TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
+			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 			if (Result.IsOk())
 			{
@@ -327,8 +327,8 @@ namespace UE::Online {
 
 		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 		{
-			FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ LocalUserId };
-			TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
+			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 			if (Result.IsOk())
 			{
@@ -352,8 +352,8 @@ namespace UE::Online {
 			{
 				IAuthPtr Auth = Services.GetAuthInterface();
 
-				FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ Params.LocalUserId };
-				TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+				FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
+				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 				if (Result.IsOk())
 				{
@@ -393,8 +393,8 @@ namespace UE::Online {
 		// User login check
 		IAuthPtr Auth = Services.GetAuthInterface();
 
-		FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ Params.LocalUserId };
-		TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+		FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
+		TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 		if (Result.IsOk())
 		{
@@ -491,8 +491,8 @@ namespace UE::Online {
 
 		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 		{
-			FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ LocalUserId };
-			TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
+			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 			if (Result.IsOk())
 			{
@@ -517,8 +517,8 @@ namespace UE::Online {
 			{
 				IAuthPtr Auth = Services.GetAuthInterface();
 
-				FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ Params.LocalUserId };
-				TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+				FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
+				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 				if (Result.IsOk())
 				{
@@ -543,8 +543,8 @@ namespace UE::Online {
 
 		for (const FOnlineAccountIdHandle& LocalUserId : Params.LocalUsers)
 		{
-			FAuthGetAccountByAccountId::Params GetAccountByAccountIParams{ LocalUserId };
-			TOnlineResult<FAuthGetAccountByAccountId> Result = Auth->GetAccountByAccountId(MoveTemp(GetAccountByAccountIParams));
+			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
+			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
 
 			if (Result.IsOk())
 			{

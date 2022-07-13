@@ -35,8 +35,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileOSSAdapter::EnumerateFile
 
 	Op->Then([this](TOnlineAsyncOp<FUserFileEnumerateFiles>& Op)
 	{
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return MakeFulfilledPromise<void>().GetFuture();
@@ -69,8 +69,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileOSSAdapter::EnumerateFile
 	})
 	.Then([this](TOnlineAsyncOp<FUserFileEnumerateFiles>& Op)
 	{
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return;
@@ -96,8 +96,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileOSSAdapter::EnumerateFile
 
 TOnlineResult<FUserFileGetEnumeratedFiles> FUserFileOSSAdapter::GetEnumeratedFiles(FUserFileGetEnumeratedFiles::Params&& Params)
 {
-	const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
-	if (!LocalUserId->IsValid())
+	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+	if (!LocalUserId)
 	{
 		return TOnlineResult<FUserFileGetEnumeratedFiles>(Errors::InvalidUser());
 	}
@@ -129,8 +129,8 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileOSSAdapter::ReadFile(FUserFileR
 	{
 		const FUserFileReadFile::Params& Params = Op.GetParams();
 
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return MakeFulfilledPromise<void>().GetFuture();
@@ -180,8 +180,8 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileOSSAdapter::ReadFile(FUserFileR
 	{
 		const FUserFileReadFile::Params& Params = Op.GetParams();
 
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return;
@@ -217,8 +217,8 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileOSSAdapter::WriteFile(FUserFil
 	{
 		const FUserFileWriteFile::Params& Params = Op.GetParams();
 
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return MakeFulfilledPromise<void>().GetFuture();
@@ -281,8 +281,8 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileOSSAdapter::DeleteFile(FUserF
 	{
 		const FUserFileDeleteFile::Params& Params = Op.GetParams();
 
-		const FUniqueNetIdRef LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return MakeFulfilledPromise<void>().GetFuture();

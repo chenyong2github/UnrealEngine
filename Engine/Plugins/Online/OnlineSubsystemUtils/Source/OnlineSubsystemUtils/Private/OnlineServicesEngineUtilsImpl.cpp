@@ -149,7 +149,7 @@ void FOnlineServicesEngineUtils::GetPIELogins(TArray<FAuthLogin::Params>& Logins
 		UE::Online::FAuthLogin::Params LoginParameters;
 		LoginParameters.CredentialsId = PIELoginCredentials.Id;
 		LoginParameters.CredentialsToken.Set<FString>(PIELoginCredentials.Token);
-		LoginParameters.CredentialsType = PIELoginCredentials.Type;
+		LoginParameters.CredentialsType = *PIELoginCredentials.Type;
 		Logins.Emplace(MoveTemp(LoginParameters));
 	}
 }

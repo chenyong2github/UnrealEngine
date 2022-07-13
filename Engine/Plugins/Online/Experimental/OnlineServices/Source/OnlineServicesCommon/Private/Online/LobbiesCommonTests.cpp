@@ -1187,7 +1187,7 @@ struct FFunctionalTestLoginUser
 	{
 		IAuth* AuthInterface = nullptr;
 		FPlatformUserId PlatformUserId;
-		FString Type;
+		FName Type;
 		FString Id;
 		FString Token;
 	};
@@ -1266,9 +1266,9 @@ TFuture<TOnlineResult<FFunctionalTestLogoutUser>> FunctionalTestLogoutUser(FFunc
 		return MakeFulfilledPromise<TOnlineResult<FFunctionalTestLogoutUser>>(Errors::MissingInterface()).GetFuture();
 	}
 
-	FAuthGetAccountByPlatformUserId::Params GetAccountParams;
+	FAuthGetLocalOnlineUserByPlatformUserId::Params GetAccountParams;
 	GetAccountParams.PlatformUserId = Params.PlatformUserId;
-	TOnlineResult<FAuthGetAccountByPlatformUserId> Result = Params.AuthInterface->GetAccountByPlatformUserId(MoveTemp(GetAccountParams));
+	TOnlineResult<FAuthGetLocalOnlineUserByPlatformUserId> Result = Params.AuthInterface->GetLocalOnlineUserByPlatformUserId(MoveTemp(GetAccountParams));
 	if (Result.IsError())
 	{
 		// Ignore errors for now. This function should ignore logged out users.
@@ -1292,7 +1292,7 @@ TFuture<TOnlineResult<FFunctionalTestLogoutUser>> FunctionalTestLogoutUser(FFunc
 	TFuture<TOnlineResult<FFunctionalTestLogoutUser>> Future = Promise->GetFuture();
 
 	FAuthLogout::Params LogoutParams;
-	LogoutParams.LocalUserId = AccountInfo->UserId;
+	LogoutParams.LocalUserId = AccountInfo->AccountId;
 
 	Params.AuthInterface->Logout(MoveTemp(LogoutParams))
 	.OnComplete([Promise, PlatformUserId = Params.PlatformUserId](const TOnlineResult<FAuthLogout>& LogoutResult)
@@ -1395,14 +1395,6 @@ private:
 
 } // Private
 
-template <typename DataType, typename OpType>
-const DataType& GetOpDataChecked(const TOnlineAsyncOp<OpType>& Op, const FString& Key)
-{
-	const DataType* Data = Op.Data.template Get<DataType>(Key);
-	check(Data);
-	return *Data;
-}
-
 struct FFunctionalTestConfig
 {
 	FString TestAccount1Type;
@@ -1456,8 +1448,8 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 	Op->Data.Set(LobbyEventCaptureKeyName, MakeShared<FLobbyEventCapture>(LobbyEvents));
 
 	Op->Then(Private::ConsumeStepResult<Private::FFunctionalTestLogoutAllUsers>(*Op, &Private::FunctionalTestLogoutAllUsers, Private::FFunctionalTestLogoutAllUsers::Params{&AuthInterface}))
-	.Then(Private::CaptureStepResult<Private::FFunctionalTestLoginUser>(*Op, User1KeyName, &Private::FunctionalTestLoginUser, Private::FFunctionalTestLoginUser::Params{&AuthInterface, FPlatformMisc::GetPlatformUserForUserIndex(0), TestConfig->TestAccount1Type, TestConfig->TestAccount1Id, TestConfig->TestAccount1Token}))
-	.Then(Private::CaptureStepResult<Private::FFunctionalTestLoginUser>(*Op, User2KeyName, &Private::FunctionalTestLoginUser, Private::FFunctionalTestLoginUser::Params{&AuthInterface, FPlatformMisc::GetPlatformUserForUserIndex(1), TestConfig->TestAccount2Type, TestConfig->TestAccount2Id, TestConfig->TestAccount2Token}))
+	.Then(Private::CaptureStepResult<Private::FFunctionalTestLoginUser>(*Op, User1KeyName, &Private::FunctionalTestLoginUser, Private::FFunctionalTestLoginUser::Params{&AuthInterface, FPlatformMisc::GetPlatformUserForUserIndex(0), *TestConfig->TestAccount1Type, TestConfig->TestAccount1Id, TestConfig->TestAccount1Token}))
+	.Then(Private::CaptureStepResult<Private::FFunctionalTestLoginUser>(*Op, User2KeyName, &Private::FunctionalTestLoginUser, Private::FFunctionalTestLoginUser::Params{&AuthInterface, FPlatformMisc::GetPlatformUserForUserIndex(1), *TestConfig->TestAccount2Type, TestConfig->TestAccount2Id, TestConfig->TestAccount2Token}))
 
 	//----------------------------------------------------------------------------------------------
 	// Test 1:
@@ -1476,13 +1468,13 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 
 		// Create a lobby
 		FCreateLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LocalName = TEXT("test");
 		Params.SchemaName = TEXT("test");
 		Params.MaxMembers = 2;
 		Params.JoinPolicy = ELobbyJoinPolicy::InvitationOnly;
 		Params.Attributes.Add(TEXT("test_attribute_key"), TEXT("test_attribute_value"));
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {{TEXT("test_attribute_key"), TEXT("test_attribute_value")}}});
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->AccountId, {{TEXT("test_attribute_key"), TEXT("test_attribute_value")}}});
 		return Params;
 	})
 	.Then(Private::CaptureOperationStepResult<FCreateLobby>(*Op, CreateLobbyKeyName, Private::FBindOperation<FCreateLobby>(&LobbiesCommon, &FLobbiesCommon::CreateLobby)))
@@ -1507,7 +1499,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
 
-		const TSharedRef<const FLobbyMember>* MemberData = CreateResult.Lobby->Members.Find(User1Info.AccountInfo->UserId);
+		const TSharedRef<const FLobbyMember>* MemberData = CreateResult.Lobby->Members.Find(User1Info.AccountInfo->AccountId);
 		if (CreateResult.Lobby->Members.Num() == 1 && MemberData != nullptr)
 		{
 			if (!(**MemberData).Attributes.OrderIndependentCompareEqual(
@@ -1530,7 +1522,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FModifyLobbyAttributes::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		Params.MutatedAttributes = {{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}};
 		return Params;
@@ -1563,7 +1555,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FModifyLobbyMemberAttributes::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		Params.MutatedAttributes = {{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}};
 		return Params;
@@ -1578,7 +1570,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		if (EventCapture->LobbyMemberAttributesChanged.Num() == 1)
 		{
 			const FLobbyMemberAttributesChanged& Notification = EventCapture->LobbyMemberAttributesChanged[0].Notification;
-			if (const TSharedRef<const FLobbyMember>* MemberData = Notification.Lobby->Members.Find(User1Info.AccountInfo->UserId))
+			if (const TSharedRef<const FLobbyMember>* MemberData = Notification.Lobby->Members.Find(User1Info.AccountInfo->AccountId))
 			{
 				if (!Notification.ChangedAttributes.Difference(TSet<FLobbyAttributeId>{TEXT("test_attribute_key")}).IsEmpty() ||
 					!(**MemberData).Attributes.OrderIndependentCompareEqual(TMap<FLobbyAttributeId, FLobbyVariant>{{TEXT("test_attribute_key"), TEXT("mutated_test_attribute_value")}}))
@@ -1605,7 +1597,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FLeaveLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})
@@ -1639,13 +1631,13 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const Private::FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<Private::FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
 
 		FCreateLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LocalName = TEXT("test");
 		Params.SchemaName = TEXT("test");
 		Params.MaxMembers = 2;
 		Params.JoinPolicy = ELobbyJoinPolicy::InvitationOnly;
 		//Params.Attributes;
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {}});
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->AccountId, {}});
 		return Params;
 	})
 	.Then(Private::CaptureOperationStepResult<FCreateLobby>(*Op, CreateLobbyKeyName, Private::FBindOperation<FCreateLobby>(&LobbiesCommon, &FLobbiesCommon::CreateLobby)))
@@ -1670,9 +1662,9 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FInviteLobbyMember::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
-		Params.TargetUserId = User2Info.AccountInfo->UserId;
+		Params.TargetUserId = User2Info.AccountInfo->AccountId;
 		return Params;
 	})
 	.Then(Private::ConsumeOperationStepResult<FInviteLobbyMember>(*Op, Private::FBindOperation<FInviteLobbyMember>(&LobbiesCommon, &FLobbiesCommon::InviteLobbyMember)))
@@ -1680,7 +1672,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 	{
 		const Private::FFunctionalTestLoginUser::Result& User2Info = GetOpDataChecked<Private::FFunctionalTestLoginUser::Result>(InAsyncOp, User2KeyName);
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
-		return Private::AwaitInvitation(*LobbyEventsPtr, User2Info.AccountInfo->UserId, CreateLobbyResult.Lobby->LobbyId, TestConfig->InvitationWaitSeconds);
+		return Private::AwaitInvitation(*LobbyEventsPtr, User2Info.AccountInfo->AccountId, CreateLobbyResult.Lobby->LobbyId, TestConfig->InvitationWaitSeconds);
 	})
 	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp, TDefaultErrorResultInternal<FOnlineLobbyIdHandle>&& Result)
 	{
@@ -1698,10 +1690,10 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FJoinLobby::Params Params;
-		Params.LocalUserId = User2Info.AccountInfo->UserId;
+		Params.LocalUserId = User2Info.AccountInfo->AccountId;
 		Params.LocalName = TEXT("test");
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User2Info.AccountInfo->UserId, {}});
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User2Info.AccountInfo->AccountId, {}});
 		return Params;
 	})
 	.Then(Private::ConsumeOperationStepResult<FJoinLobby>(*Op, Private::FBindOperation<FJoinLobby>(&LobbiesCommon, &FLobbiesCommon::JoinLobby)))
@@ -1723,7 +1715,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FLeaveLobby::Params Params;
-		Params.LocalUserId = User2Info.AccountInfo->UserId;
+		Params.LocalUserId = User2Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})
@@ -1746,7 +1738,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FLeaveLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})
@@ -1788,13 +1780,13 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		InAsyncOp.Data.Set(SearchKeyName, TSharedRef<FSearchParams>(SearchParams));
 
 		FCreateLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LocalName = TEXT("test");
 		Params.SchemaName = TEXT("test");
 		Params.MaxMembers = 2;
 		Params.JoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
 		Params.Attributes = {{ TEXT("LobbyCreateTime"), SearchParams->LobbyCreateTime }};
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {}});
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->AccountId, {}});
 		return Params;
 	})
 	.Then(Private::CaptureOperationStepResult<FCreateLobby>(*Op, CreateLobbyKeyName, Private::FBindOperation<FCreateLobby>(&LobbiesCommon, &FLobbiesCommon::CreateLobby)))
@@ -1823,7 +1815,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 
 		// Search for lobby from create. Searching by attribute will also limit results by bucket id.
 		FFindLobbies::Params Params;
-		Params.LocalUserId = User2Info.AccountInfo->UserId;
+		Params.LocalUserId = User2Info.AccountInfo->AccountId;
 		Params.Filters = {{TEXT("LobbyCreateTime"), ELobbyComparisonOp::Equals, SearchParams->LobbyCreateTime}};
 		return Params;
 	})
@@ -1844,10 +1836,10 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		}
 
 		FJoinLobby::Params Params;
-		Params.LocalUserId = User2Info.AccountInfo->UserId;
+		Params.LocalUserId = User2Info.AccountInfo->AccountId;
 		Params.LocalName = TEXT("test");
 		Params.LobbyId = FindResults.Lobbies[0]->LobbyId;
-		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User2Info.AccountInfo->UserId, {}});
+		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User2Info.AccountInfo->AccountId, {}});
 		return Params;
 	})
 	.Then(Private::ConsumeOperationStepResult<FJoinLobby>(*Op, Private::FBindOperation<FJoinLobby>(&LobbiesCommon, &FLobbiesCommon::JoinLobby)))
@@ -1869,7 +1861,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FLeaveLobby::Params Params;
-		Params.LocalUserId = User2Info.AccountInfo->UserId;
+		Params.LocalUserId = User2Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})
@@ -1892,7 +1884,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 
 		FLeaveLobby::Params Params;
-		Params.LocalUserId = User1Info.AccountInfo->UserId;
+		Params.LocalUserId = User1Info.AccountInfo->AccountId;
 		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
 		return Params;
 	})

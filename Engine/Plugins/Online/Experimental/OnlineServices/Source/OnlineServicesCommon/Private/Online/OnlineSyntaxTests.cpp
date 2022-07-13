@@ -442,21 +442,38 @@ void TestToLogStringSyntax()
 	using UE::Online::ToLogString;
 
 	ToLogString(FString());
+	ToLogString(UE::Online::FAccountInfo());
+	ToLogString(UE::Online::FExternalAuthToken());
+	ToLogString(UE::Online::FExternalServerAuthTicket());
+	ToLogString(UE::Online::FVerifiedAuthSession());
+	ToLogString(UE::Online::FVerifiedAuthTicket());
 	ToLogString(UE::Online::FAuthLogin::Params());
-	//ToLogString(UE::Online::FAuthLogin::Result()); default constructing a TSharedPtr will crash
+	ToLogString(UE::Online::FAuthLogin::Result({MakeShared<UE::Online::FAccountInfo>()}));
 	ToLogString(UE::Online::FAuthLogout::Params());
 	ToLogString(UE::Online::FAuthLogout::Result());
-	ToLogString(UE::Online::FAuthGenerateAuthToken::Params());
-	ToLogString(UE::Online::FAuthGenerateAuthToken::Result());
-	ToLogString(UE::Online::FAuthGetAuthToken::Params());
-	ToLogString(UE::Online::FAuthGetAuthToken::Result());
-	ToLogString(UE::Online::FAuthGenerateAuthCode::Params());
-	ToLogString(UE::Online::FAuthGenerateAuthCode::Result());
-	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Params());
-	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Result());
-	ToLogString(UE::Online::FAuthGetAccountByAccountId::Params());
-	ToLogString(UE::Online::FAuthGetAccountByAccountId::Result());
-	ToLogString(UE::Online::FLoginStatusChanged());
+	ToLogString(UE::Online::FAuthModifyAccountAttributes::Params());
+	ToLogString(UE::Online::FAuthModifyAccountAttributes::Result());
+	ToLogString(UE::Online::FAuthQueryExternalServerAuthTicket::Params());
+	ToLogString(UE::Online::FAuthQueryExternalServerAuthTicket::Result());
+	ToLogString(UE::Online::FAuthQueryExternalAuthToken::Params());
+	ToLogString(UE::Online::FAuthQueryExternalAuthToken::Result());
+	ToLogString(UE::Online::FAuthQueryVerifiedAuthTicket::Params());
+	ToLogString(UE::Online::FAuthQueryVerifiedAuthTicket::Result());
+	ToLogString(UE::Online::FAuthCancelVerifiedAuthTicket::Params());
+	ToLogString(UE::Online::FAuthCancelVerifiedAuthTicket::Result());
+	ToLogString(UE::Online::FAuthBeginVerifiedAuthSession::Params());
+	ToLogString(UE::Online::FAuthBeginVerifiedAuthSession::Result());
+	ToLogString(UE::Online::FAuthEndVerifiedAuthSession::Params());
+	ToLogString(UE::Online::FAuthEndVerifiedAuthSession::Result());
+	ToLogString(UE::Online::FAuthGetLocalOnlineUserByOnlineAccountId::Params());
+	ToLogString(UE::Online::FAuthGetLocalOnlineUserByOnlineAccountId::Result({MakeShared<UE::Online::FAccountInfo>()}));
+	ToLogString(UE::Online::FAuthGetLocalOnlineUserByPlatformUserId::Params());
+	ToLogString(UE::Online::FAuthGetLocalOnlineUserByPlatformUserId::Result({MakeShared<UE::Online::FAccountInfo>()}));
+	ToLogString(UE::Online::FAuthGetAllLocalOnlineUsers::Params());
+	ToLogString(UE::Online::FAuthGetAllLocalOnlineUsers::Result());
+	ToLogString(UE::Online::FAuthLoginStatusChanged({MakeShared<UE::Online::FAccountInfo>()}));
+	ToLogString(UE::Online::FAuthPendingAuthExpiration({MakeShared<UE::Online::FAccountInfo>()}));
+	ToLogString(UE::Online::FAuthAccountAttributesChanged({MakeShared<UE::Online::FAccountInfo>()}));
 }
 
 /* unnamed namespace */ }

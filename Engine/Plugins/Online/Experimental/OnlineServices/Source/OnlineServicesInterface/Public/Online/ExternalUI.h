@@ -9,7 +9,7 @@
 namespace UE::Online {
 
 class FOnlineError;
-class FAccountInfo;
+struct FAccountInfo;
 
 struct FExternalUIShowLoginUI
 {

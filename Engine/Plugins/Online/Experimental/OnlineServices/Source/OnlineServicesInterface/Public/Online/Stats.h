@@ -5,13 +5,11 @@
 #include "Online/CoreOnline.h"
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineMeta.h"
-
-// TODO: Include Online/SchemaVariant.h instead when it's ready
-#include "Online/Lobbies.h"
+#include "Online/Schema.h"
 
 namespace UE::Online {
 
-using FStatValue = FLobbyVariant;
+using FStatValue = FSchemaVariant;
 
 struct FUserStats
 {

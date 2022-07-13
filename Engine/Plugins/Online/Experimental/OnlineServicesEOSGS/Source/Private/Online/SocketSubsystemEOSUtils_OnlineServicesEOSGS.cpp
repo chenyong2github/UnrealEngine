@@ -27,14 +27,14 @@ EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineServicesEOS::GetLocalUserId()
 	IAuthPtr AuthEOS = ServicesEOSGS.GetAuthInterface();
 	check(AuthEOS);
 
-	FAuthGetAccountByPlatformUserId::Params AuthParams;
+	FAuthGetLocalOnlineUserByPlatformUserId::Params AuthParams;
 	AuthParams.PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(0);
-	TOnlineResult<FAuthGetAccountByPlatformUserId> AuthResult = AuthEOS->GetAccountByPlatformUserId(MoveTemp(AuthParams));
+	TOnlineResult<FAuthGetLocalOnlineUserByPlatformUserId> AuthResult = AuthEOS->GetLocalOnlineUserByPlatformUserId(MoveTemp(AuthParams));
 	if (AuthResult.IsOk())
 	{
-		UE::Online::FAuthGetAccountByPlatformUserId::Result OkValue = AuthResult.GetOkValue();
+		UE::Online::FAuthGetLocalOnlineUserByPlatformUserId::Result OkValue = AuthResult.GetOkValue();
 
-		Result = GetProductUserIdChecked(OkValue.AccountInfo->UserId);
+		Result = GetProductUserIdChecked(OkValue.AccountInfo->AccountId);
 	}
 	else
 	{
@@ -51,18 +51,18 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 	IAuthPtr AuthEOS = ServicesEOSGS.GetAuthInterface();
 	check(AuthEOS);
 
-	FAuthGetAccountByPlatformUserId::Params AuthParams;
+	FAuthGetLocalOnlineUserByPlatformUserId::Params AuthParams;
 	AuthParams.PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(0);
-	TOnlineResult<FAuthGetAccountByPlatformUserId> AuthResult = AuthEOS->GetAccountByPlatformUserId(MoveTemp(AuthParams));
+	TOnlineResult<FAuthGetLocalOnlineUserByPlatformUserId> AuthResult = AuthEOS->GetLocalOnlineUserByPlatformUserId(MoveTemp(AuthParams));
 	if (AuthResult.IsOk())
 	{
-		FAuthGetAccountByPlatformUserId::Result* AuthOkValue = AuthResult.TryGetOkValue();
+		FAuthGetLocalOnlineUserByPlatformUserId::Result* AuthOkValue = AuthResult.TryGetOkValue();
 
 		ILobbiesPtr LobbiesEOS = ServicesEOSGS.GetLobbiesInterface();
 		check(LobbiesEOS);
 
 		FGetJoinedLobbies::Params LobbiesParams;
-		LobbiesParams.LocalUserId = AuthOkValue->AccountInfo->UserId;
+		LobbiesParams.LocalUserId = AuthOkValue->AccountInfo->AccountId;
 		TOnlineResult<FGetJoinedLobbies> LobbiesResult = LobbiesEOS->GetJoinedLobbies(MoveTemp(LobbiesParams));
 		if (LobbiesResult.IsOk())
 		{

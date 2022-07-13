@@ -8,13 +8,16 @@
 namespace UE::Online {
 
 template <typename T> FString ToLogString(const TArray<T>& Array);
+template <typename T> FString ToLogString(const TSet<T>& Set);
 template <typename K, typename V> FString ToLogString(const TMap<K, V>& Map);
+template <typename T, typename U> FString ToLogString(const TPair<T, U>& Pair);
 template <typename T, ESPMode Mode> FString ToLogString(const TSharedPtr<T, Mode>& Ptr);
 template <typename T, ESPMode Mode> FString ToLogString(const TSharedRef<T, Mode>& Ref);
 template <typename T> FString ToLogString(const TOptional<T> Optional);
 template <typename... Ts> FString ToLogString(const TVariant<Ts...>& Variant);
 template <typename T, ESPMode Mode> FString ToLogString(const TSharedRef<T, Mode>& Ref);
 inline FString ToLogString(const FString& String);
+inline FString ToLogString(const FName& Name);
 inline FString ToLogString(uint8 Value);
 inline FString ToLogString(int8 Value);
 inline FString ToLogString(uint16 Value);
@@ -23,9 +26,9 @@ inline FString ToLogString(uint32 Value);
 inline FString ToLogString(int32 Value);
 inline FString ToLogString(uint64 Value);
 inline FString ToLogString(int64 Value);
+inline FString ToLogString(bool Value);
 inline FString ToLogString(float Value);
 inline FString ToLogString(double Value);
-inline FString ToLogString(bool Value);
 template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 
@@ -36,6 +39,28 @@ FString ToLogString(const TArray<T>& Array)
 	LogString += TEXT("[ ");
 	bool bFirst = true;
 	for (const T& Value : Array)
+	{
+		if (bFirst)
+		{
+			bFirst = false;
+		}
+		else
+		{
+			LogString += TEXT(", ");
+		}
+		LogString += ToLogString(Value);
+	}
+	LogString += TEXT(" ]");
+	return LogString;
+}
+
+template <typename T>
+FString ToLogString(const TSet<T>& Set)
+{
+	FString LogString;
+	LogString += TEXT("[ ");
+	bool bFirst = true;
+	for (const T& Value : Set)
 	{
 		if (bFirst)
 		{
@@ -72,6 +97,18 @@ FString ToLogString(const TMap<K, V>& Map)
 		LogString += ToLogString(Pair.Value);
 	}
 	LogString += TEXT(" }");
+	return LogString;
+}
+
+template <typename T, typename U>
+FString ToLogString(const TPair<T, U>& Pair)
+{
+	FString LogString;
+	LogString += TEXT("[ ");
+	LogString += ToLogString(Pair.template Get<0>());
+	LogString += TEXT(", ");
+	LogString += ToLogString(Pair.template Get<1>());
+	LogString += TEXT(" ]");
 	return LogString;
 }
 
@@ -119,6 +156,11 @@ FString ToLogString(const TVariant<Ts...>& Variant)
 inline FString ToLogString(const FString& String)
 {
 	return String;
+}
+
+inline FString ToLogString(const FName& Name)
+{
+	return Name.ToString();
 }
 
 inline FString ToLogString(uint8 Value)
@@ -210,6 +252,14 @@ std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToL
 	LogString += TEXT(" }");
 
 	return LogString;
+}
+
+template <typename DataType, typename OpType>
+const DataType& GetOpDataChecked(const TOnlineAsyncOp<OpType>& Op, const FString& Key)
+{
+	const DataType* Data = Op.Data.template Get<DataType>(Key);
+	check(Data);
+	return *Data;
 }
 
 /* UE::Online */ }

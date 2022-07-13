@@ -69,7 +69,7 @@ TOnlineAsyncOpHandle<FExternalUIShowLoginUI> FExternalUIOSSAdapter::ShowLoginUI(
 									FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueId.ToSharedRef());
 									FExternalUIShowLoginUI::Result Result = { MakeShared<FAccountInfo>() };
 									Result.AccountInfo->PlatformUserId = PinnedOp->GetParams().PlatformUserId;
-									Result.AccountInfo->UserId = Handle;
+									Result.AccountInfo->AccountId = Handle;
 									Result.AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
 
 									PinnedOp->SetResult(MoveTemp(Result));

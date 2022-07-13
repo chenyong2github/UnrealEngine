@@ -85,13 +85,13 @@ FOnlineError FStatsOSSAdapter::ConvertUpdateUsersStatsV2toV1(const TArray<FUserS
 {
 	for (const FUserStats& UserStats : UpdateUsersStats)
 	{
-		const FUniqueNetIdRef UserId = Auth->GetUniqueNetId(UserStats.UserId);
-		if (!UserId->IsValid())
+		const FUniqueNetIdPtr UserId = Auth->GetUniqueNetId(UserStats.UserId);
+		if (!UserId)
 		{
 			return Errors::InvalidUser();
 		}
 
-		FOnlineStatsUserUpdatedStats OnlineStatsUserUpdatedStats(UserId);
+		FOnlineStatsUserUpdatedStats OnlineStatsUserUpdatedStats(UserId.ToSharedRef());
 		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
 		{
 			FOnlineStatUpdate OnlineStatUpdate;
@@ -111,8 +111,8 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsOSSAdapter::UpdateStats(FUpdateStats::P
 
 	Op->Then([this](TOnlineAsyncOp<FUpdateStats>& Op)
 	{
-		const FUniqueNetIdRef LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
-		if (!LocalUserId->IsValid())
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return;
@@ -126,7 +126,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsOSSAdapter::UpdateStats(FUpdateStats::P
 			return;
 		}
 
-		StatsInterface->UpdateStats(LocalUserId, UpdateUserStatsV1, *MakeDelegateAdapter(this, [WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError) mutable
+		StatsInterface->UpdateStats(LocalUserId.ToSharedRef(), UpdateUserStatsV1, *MakeDelegateAdapter(this, [WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError) mutable
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FUpdateStats>> PinnedOp = WeakOp.Pin())
 			{
@@ -151,16 +151,16 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsOSSAdapter::QueryStats(FQueryStats::Para
 
 	Op->Then([this](TOnlineAsyncOp<FQueryStats>& Op)
 	{
-		const FUniqueNetIdRef LocalUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
-		const FUniqueNetIdRef TargetUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().TargetUserId);
+		const FUniqueNetIdPtr LocalUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr TargetUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().TargetUserId);
 
-		if (!LocalUniqueNetId->IsValid() || TargetUniqueNetId->IsValid())
+		if (!LocalUniqueNetId || !TargetUniqueNetId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return;
 		}
 
-		StatsInterface->QueryStats(LocalUniqueNetId, TargetUniqueNetId, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError, const TSharedPtr<const FOnlineStatsUserStats>& QueriedStats) mutable
+		StatsInterface->QueryStats(LocalUniqueNetId.ToSharedRef(), TargetUniqueNetId.ToSharedRef(), *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError, const TSharedPtr<const FOnlineStatsUserStats>& QueriedStats) mutable
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FQueryStats>> PinnedOp = WeakOp.Pin())
 			{
@@ -175,7 +175,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsOSSAdapter::QueryStats(FQueryStats::Para
 				{
 					FStatValue StatValue;
 					ConvertStatValueV1ToStatValueV2(StatPair.Value, StatValue);
-					Result.Stats.Emplace(StatPair.Key, StatValue);
+					Result.Stats.Emplace(StatPair.Key, MoveTemp(StatValue));
 				}
 
 				PinnedOp->SetResult(MoveTemp(Result));
@@ -193,21 +193,27 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsOSSAdapter::BatchQueryStats(FBatchQ
 
 	Op->Then([this](TOnlineAsyncOp<FBatchQueryStats>& Op)
 	{
-		const FUniqueNetIdRef LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
+		{
+			Op.SetError(Errors::InvalidUser());
+			return;
+		}
+
 		TArray<FUniqueNetIdRef> NetIds;
 		for (const FOnlineAccountIdHandle& TargetUserId : Op.GetParams().TargetUserIds)
 		{
-			const FUniqueNetIdRef UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
-			if (!UniqueNetId->IsValid())
+			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+			if (!UniqueNetId)
 			{
 				Op.SetError(Errors::InvalidUser());
 				return;
 			}
 
-			NetIds.Add(UniqueNetId);
+			NetIds.Add(UniqueNetId.ToSharedRef());
 		}
 
-		StatsInterface->QueryStats(LocalUserId, NetIds, Op.GetParams().StatNames, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError, const TArray<TSharedRef<const FOnlineStatsUserStats>>& UsersStatsResult) mutable
+		StatsInterface->QueryStats(LocalUserId.ToSharedRef(), NetIds, Op.GetParams().StatNames, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError, const TArray<TSharedRef<const FOnlineStatsUserStats>>& UsersStatsResult) mutable
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FBatchQueryStats>> PinnedOp = WeakOp.Pin())
 			{
@@ -227,7 +233,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsOSSAdapter::BatchQueryStats(FBatchQ
 					{
 						FStatValue StatValue;
 						ConvertStatValueV1ToStatValueV2(StatPair.Value, StatValue);
-						UserStats.Stats.Emplace(StatPair.Key, StatValue);
+						UserStats.Stats.Emplace(StatPair.Key, MoveTemp(StatValue));
 					}
 				}
 
@@ -247,8 +253,14 @@ TOnlineAsyncOpHandle<FResetStats> FStatsOSSAdapter::ResetStats(FResetStats::Para
 
 	Op->Then([this](TOnlineAsyncOp<FResetStats>& Op)
 	{
-		const FUniqueNetIdRef LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
-		StatsInterface->ResetStats(LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
+		{
+			Op.SetError(Errors::InvalidUser());
+			return;
+		}
+
+		StatsInterface->ResetStats(LocalUserId.ToSharedRef());
 		Op.SetResult({});
 	})
 	.Enqueue(GetSerialQueue());

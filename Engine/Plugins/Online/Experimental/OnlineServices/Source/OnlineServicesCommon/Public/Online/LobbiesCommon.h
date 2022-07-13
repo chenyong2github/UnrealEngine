@@ -9,7 +9,6 @@
 namespace UE::Online {
 
 class FOnlineServicesCommon;
-class FAccountInfo;
 
 class ONLINESERVICESCOMMON_API FLobbiesCommon : public TOnlineComponent<ILobbies>
 {

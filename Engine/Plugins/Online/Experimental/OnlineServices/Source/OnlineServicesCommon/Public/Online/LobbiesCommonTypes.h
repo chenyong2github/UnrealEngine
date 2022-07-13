@@ -10,7 +10,6 @@ namespace UE::Online {
 #define LOBBIES_FUNCTIONAL_TEST_ENABLED !UE_BUILD_SHIPPING
 
 class FOnlineServicesCommon;
-class FAccountInfo;
 
 struct FLobbyConfig
 {

@@ -146,9 +146,9 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceOSSAdapter::QueryPresence(FQueryPr
 
 	Op->Then([this](TOnlineAsyncOp<FQueryPresence>& Op, TPromise<TOnlineResult<FQueryPresence>>&& Result)
 	{
-		const FUniqueNetIdRef UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
 
-		if (UniqueNetId->IsValid())
+		if (UniqueNetId)
 		{
 			PresenceInt->QueryPresence(*UniqueNetId, *MakeDelegateAdapter(this, [this, ResultPromise = MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
 			{
@@ -179,11 +179,24 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceOSSAdapter::BatchQueryPresenc
 
 	Op->Then([this](TOnlineAsyncOp<FBatchQueryPresence>& Op, TPromise<TOnlineResult<FBatchQueryPresence>>&& Result)
 	{
-		const FUniqueNetIdRef LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		if (!LocalUserId)
+		{
+			Op.SetError(Errors::InvalidUser());
+			return;
+		}
+
 		TArray<FUniqueNetIdRef> NetIds;
 		for (const FOnlineAccountIdHandle& TargetUserId : Op.GetParams().TargetUserIds)
 		{
-			NetIds.Add(Auth->GetUniqueNetId(TargetUserId));
+			const FUniqueNetIdPtr TargetUserNetId = Auth->GetUniqueNetId(TargetUserId);
+			if (!TargetUserNetId)
+			{
+				Op.SetError(Errors::InvalidParams());
+				return;
+			}
+
+			NetIds.Add(TargetUserNetId.ToSharedRef());
 		}
 
 		PresenceInt->QueryPresence(*LocalUserId, NetIds, *MakeDelegateAdapter(this, [this, ResultPromise=MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
