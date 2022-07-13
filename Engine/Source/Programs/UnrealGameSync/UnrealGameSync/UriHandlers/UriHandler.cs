@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.Configuration;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealGameSync
 {
@@ -296,10 +297,10 @@ namespace UnrealGameSync
 
 		public static string CurrentProcessFilePath
 		{
-			get { return Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName); }
+			get { return Path.ChangeExtension(Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName), ".exe"); }
 		}
 
-		static List<RegistrySetting> GetRegistrySettings()
+		static List<RegistrySetting> GetGlobalRegistrySettings()
 		{
 			string applicationPath = CurrentProcessFilePath;
 
@@ -311,14 +312,30 @@ namespace UnrealGameSync
 			return keys;
 		}
 
+		static List<RegistrySetting> GetUserRegistrySettings()
+		{
+			string applicationPath = CurrentProcessFilePath;
+
+			List<RegistrySetting> keys = new List<RegistrySetting>();
+			keys.Add(new RegistrySetting(Registry.CurrentUser, "Software\\Classes\\UGS", null, "URL:UGS Protocol"));
+			keys.Add(new RegistrySetting(Registry.CurrentUser, "Software\\Classes\\UGS", "URL Protocol", ""));
+			keys.Add(new RegistrySetting(Registry.CurrentUser, "Software\\Classes\\UGS\\DefaultIcon", null, String.Format("\"{0}\",0", applicationPath)));
+			keys.Add(new RegistrySetting(Registry.CurrentUser, "Software\\Classes\\UGS\\shell\\open\\command", null, String.Format("\"{0}\" -uri=\"%1\"", applicationPath)));
+			return keys;
+		}
+
 		public static ProtocolHandlerState GetState()
+		{
+			return GetState(GetGlobalRegistrySettings());
+		}
+
+		private static ProtocolHandlerState GetState(IEnumerable<RegistrySetting> keys)
 		{
 			try
 			{
 				bool hasAny = false;
 				bool hasAll = true;
 
-				List<RegistrySetting> keys = GetRegistrySettings();
 				foreach (IGrouping<RegistryKey, RegistrySetting> rootKeyGroup in keys.GroupBy(x => x.RootKey))
 				{
 					foreach (IGrouping<string, RegistrySetting> keyNameGroup in rootKeyGroup.GroupBy(x => x.KeyName))
@@ -355,24 +372,24 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				List<RegistrySetting> keys = GetRegistrySettings();
-				foreach (IGrouping<RegistryKey, RegistrySetting> rootKeyGroup in keys.GroupBy(x => x.RootKey))
-				{
-					foreach (IGrouping<string, RegistrySetting> keyNameGroup in rootKeyGroup.GroupBy(x => x.KeyName))
-					{
-						using (RegistryKey registryKey = rootKeyGroup.Key.CreateSubKey(keyNameGroup.Key))
-						{
-							foreach (RegistrySetting setting in keyNameGroup)
-							{
-								registryKey.SetValue(setting.ValueName, setting.Value);
-							}
-						}
-					}
-				}
+				ApplyRegistrySettings(GetGlobalRegistrySettings());
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show(String.Format("Unable to register protocol handler: {0}", ex));
+			}
+		}
+
+		public static void InstallQuiet(ILogger logger)
+		{
+			try
+			{
+				ApplyRegistrySettings(GetUserRegistrySettings());
+				logger.LogInformation("Installed protocol handler to user hive");
+			}
+			catch (Exception ex)
+			{
+				logger.LogWarning(ex, "Unable to install protocol handler");
 			}
 		}
 
@@ -403,6 +420,23 @@ namespace UnrealGameSync
 				process.StartInfo.UseShellExecute = true;
 				process.Start();
 				process.WaitForExit();
+			}
+		}
+
+		private static void ApplyRegistrySettings(IEnumerable<RegistrySetting> settings)
+		{
+			foreach (IGrouping<RegistryKey, RegistrySetting> rootKeyGroup in settings.GroupBy(x => x.RootKey))
+			{
+				foreach (IGrouping<string, RegistrySetting> keyNameGroup in rootKeyGroup.GroupBy(x => x.KeyName))
+				{
+					using (RegistryKey registryKey = rootKeyGroup.Key.CreateSubKey(keyNameGroup.Key))
+					{
+						foreach (RegistrySetting setting in keyNameGroup)
+						{
+							registryKey.SetValue(setting.ValueName, setting.Value);
+						}
+					}
+				}
 			}
 		}
 	}

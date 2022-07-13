@@ -372,7 +372,7 @@ namespace UnrealGameSync
 			this.EnableProtocolHandlerCheckBox.Name = "EnableProtocolHandlerCheckBox";
 			this.EnableProtocolHandlerCheckBox.Size = new System.Drawing.Size(197, 19);
 			this.EnableProtocolHandlerCheckBox.TabIndex = 0;
-			this.EnableProtocolHandlerCheckBox.Text = "Enable \"ugs://\" protocol handler";
+			this.EnableProtocolHandlerCheckBox.Text = "Enable \"ugs://\" protocol handler for all users";
 			this.EnableProtocolHandlerCheckBox.UseVisualStyleBackColor = true;
 			// 
 			// flowLayoutPanel1
