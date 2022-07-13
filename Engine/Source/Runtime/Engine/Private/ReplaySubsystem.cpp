@@ -121,12 +121,6 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		return;
 	}
 
-	if (IsRecording())
-	{
-		UE_LOG(LogDemo, Warning, TEXT("UReplaySubsystem::RecordReplay: A replay is already being recorded, cannot begin recording another one."));
-		return;
-	}
-
 	FURL DemoURL;
 	FString DemoName = Name;
 
