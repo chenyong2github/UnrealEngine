@@ -55,9 +55,8 @@ protected:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override final;
 
 	/* Method that derived class should override to create the scene proxy and customize a custom delegate helper (if any) */
-	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() PURE_VIRTUAL(UDebugDrawComponent::CreateSceneProxyInternal, return nullptr;);
+	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() { return nullptr; }
 
-#if UE_ENABLE_DEBUG_DRAWING
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 
@@ -65,5 +64,4 @@ protected:
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() { return DebugDrawDelegateHelper; }
 
 	FDebugDrawDelegateHelper DebugDrawDelegateHelper;
-#endif
 };
