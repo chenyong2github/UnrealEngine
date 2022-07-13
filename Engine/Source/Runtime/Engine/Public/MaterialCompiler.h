@@ -229,7 +229,7 @@ public:
 	inline bool IsVertexInterpolatorBypass() const
 	{
 		const EMaterialCompilerType Type = GetCompilerType();
-		return Type == EMaterialCompilerType::MaterialProxy || Type == EMaterialCompilerType::Lightmass;
+		return Type == EMaterialCompilerType::Lightmass;
 	}
 
 	virtual EMaterialValueType GetType(int32 Code) = 0;
