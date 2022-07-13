@@ -26,7 +26,6 @@ namespace UnrealBuildTool.Rules
 			// Niagara support for gameplay cue notifies.
 			{
 				PrivateDependencyModuleNames.Add("Niagara");
-				PublicDefinitions.Add("WITH_NIAGARA=1");
 			}
 
 			if (Target.bBuildEditor == true)
