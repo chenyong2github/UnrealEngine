@@ -498,7 +498,7 @@ private:
 };
 
 
-/** Stores per-connection copies of a master actor list. Skips and removes elements from per connection list that are fully dormant */
+/** Stores per-connection copies of a main actor list. Skips and removes elements from per connection list that are fully dormant */
 UCLASS()
 class REPLICATIONGRAPH_API UReplicationGraphNode_DormancyNode : public UReplicationGraphNode_ActorList
 {

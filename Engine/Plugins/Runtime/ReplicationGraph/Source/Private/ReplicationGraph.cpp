@@ -4515,7 +4515,7 @@ UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode
 	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = CreateChildNode<UReplicationGraphNode_ConnectionDormancyNode>();
 	ConnectionNodes.Add(RepGraphConnection) = ConnectionNode;
 
-	// Copy our master lists to the connection node
+	// Copy our main lists to the connection node
 	ConnectionNode->DeepCopyActorListsFrom(this);
 
 	ConnectionNode->InitConnectionNode(RepGraphConnection, Params.ReplicationFrameNum);
