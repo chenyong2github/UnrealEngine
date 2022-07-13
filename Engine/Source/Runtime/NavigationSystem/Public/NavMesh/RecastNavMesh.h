@@ -921,6 +921,8 @@ public:
 	/** RecastNavMesh instances are dynamically spawned and should not be coppied */
 	virtual bool ShouldExport() override { return false; }
 #endif
+
+	virtual void LoadBeforeGeneratorRebuild() override;
 	
 	virtual void CleanUp() override;
 

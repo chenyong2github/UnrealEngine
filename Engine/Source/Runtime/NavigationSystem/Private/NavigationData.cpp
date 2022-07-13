@@ -526,6 +526,10 @@ void ANavigationData::ConditionalConstructGenerator()
 
 void ANavigationData::RebuildAll()
 {
+	const double LoadTime = FPlatformTime::Seconds();
+	LoadBeforeGeneratorRebuild();
+	UE_LOG(LogNavigationDataBuild, Display, TEXT("   %s load time: %.2fs"), ANSI_TO_TCHAR(__FUNCTION__), (FPlatformTime::Seconds() - LoadTime));
+	
 	ConditionalConstructGenerator(); //recreate generator
 	
 	if (NavDataGenerator.IsValid())
@@ -537,7 +541,9 @@ void ANavigationData::RebuildAll()
 		}
 #endif // WITH_EDITOR
 
+		const double BuildTime = FPlatformTime::Seconds();
 		NavDataGenerator->RebuildAll();
+		UE_LOG(LogNavigationDataBuild, Display, TEXT("   %s NavDataGenerator->RebuildAll() time: %.2fs"), ANSI_TO_TCHAR(__FUNCTION__), (FPlatformTime::Seconds() - BuildTime));
 	}
 }
 

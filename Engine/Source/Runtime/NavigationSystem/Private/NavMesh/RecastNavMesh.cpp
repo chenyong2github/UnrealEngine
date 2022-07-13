@@ -25,6 +25,10 @@
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionEditorLoaderAdapter.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #endif
 
 #if WITH_RECAST
@@ -546,6 +550,34 @@ void ARecastNavMesh::UpdateNavMeshDrawing()
 		RenderingComp->MarkRenderStateDirty();
 	}
 #endif // UE_BUILD_SHIPPING
+}
+
+void ARecastNavMesh::LoadBeforeGeneratorRebuild()
+{
+#if WITH_EDITOR
+	// If it's not a world partitioned navmesh but it's in a partitioned world, we need to make sure the navigable world is loaded before building the navmesh.
+	if (!bIsWorldPartitioned)
+	{
+		UWorld* World = GetWorld();
+		if (World && World->IsPartitionedWorld())
+		{
+			const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+			if (NavSys)
+			{
+				UWorldPartition* WorldPartition = World->GetWorldPartition();
+				check(WorldPartition);
+				
+				const FBox Bounds = NavSys->GetNavigableWorldBounds();
+				UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = WorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, Bounds, TEXT("Navigable World"));
+				EditorLoaderAdapter->GetLoaderAdapter()->SetUserCreated(false);
+				EditorLoaderAdapter->GetLoaderAdapter()->Load();
+
+				// Make sure level instances are loaded.
+				World->BlockTillLevelStreamingCompleted();
+			}
+		}
+	}
+#endif //WITH_EDITOR
 }
 
 void ARecastNavMesh::CleanUp()

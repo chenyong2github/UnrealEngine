@@ -621,6 +621,9 @@ protected:
 public:
 	/** Creates new generator in case navigation supports it */
 	virtual void ConditionalConstructGenerator();
+
+	/** Any loading before NavDataGenerator->RebuildAll() */
+	virtual void LoadBeforeGeneratorRebuild() {}
 	
 	/** Triggers rebuild in case navigation supports it */
 	virtual void RebuildAll();
