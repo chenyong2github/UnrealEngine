@@ -55,7 +55,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 			Section.AddMenuEntry(
 				"SourceControlSubMenu",
 				LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
-				LOCTEXT("SourceControlSubMenuToolTip", "Disabled because one or more selected items are not external packages."),
+				LOCTEXT("SourceControlSubMenuDisabledToolTip", "Disabled because one or more selected items are not external packages."),
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.Off"),
 				FUIAction(
 					FExecuteAction(),
