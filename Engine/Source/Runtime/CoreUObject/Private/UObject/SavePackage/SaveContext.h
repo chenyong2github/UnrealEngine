@@ -33,20 +33,27 @@ struct FTaggedExport
 	uint32 bNotAlwaysLoadedForEditorGame : 1;
 	/**
 	 * Indicate that this export should have a public hash even if it isn't marked as RF_Public
-	 * This will artificially mark the object RF_Public in the linker tables so the iostore generates the public hash 
+	 * This will artificially mark the object RF_Public in the linker tables so the iostore generates the public hash
 	 */
 	uint32 bGeneratePublicHash : 1;
+	/**
+	 * Indicate if the object that directly referenced this export was optional
+	 * Used to determine mandatory objects in the game save realm
+	 */
+	uint32 bFromOptionalReference : 1;
 
 	FTaggedExport()
 		: Obj(nullptr)
 		, bNotAlwaysLoadedForEditorGame(false)
 		, bGeneratePublicHash(false)
+		, bFromOptionalReference(false)
 	{}
 
-	FTaggedExport(UObject* InObj, bool bInNotAlwaysLoadedForEditorGame = true)
+	FTaggedExport(UObject* InObj, bool bInNotAlwaysLoadedForEditorGame = true, bool bInFromOptionalReference = false)
 		: Obj(InObj)
 		, bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
 		, bGeneratePublicHash(false)
+		, bFromOptionalReference(bInFromOptionalReference)
 	{}
 
 	inline bool operator == (const FTaggedExport& Other) const
@@ -115,9 +122,9 @@ struct FHarvestedRealm
 		Imports.Add(InObject);
 	}
 
-	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
+	void AddExport(FTaggedExport InTagObj)
 	{
-		Exports.Add(FTaggedExport(InObj, bNotAlwaysLoadedForEditorGame));
+		Exports.Add(MoveTemp(InTagObj));
 	}
 
 	void AddExcluded(UObject* InObject)
@@ -706,9 +713,9 @@ public:
 		GetHarvestedRealm().AddImport(InObject);
 	}
 
-	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
+	void AddExport(FTaggedExport InTagObj)
 	{
-		GetHarvestedRealm().AddExport(InObj, bNotAlwaysLoadedForEditorGame);
+		GetHarvestedRealm().AddExport(MoveTemp(InTagObj));
 	}
 
 	void AddExcluded(UObject* InObject)

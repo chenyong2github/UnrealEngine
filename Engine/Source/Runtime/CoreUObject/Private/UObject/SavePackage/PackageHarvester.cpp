@@ -182,6 +182,7 @@ FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
 	this->SetIsPersistent(true);
 	ArIsObjectReferenceCollector = true;
 	ArShouldSkipBulkData = true;
+	ArIgnoreClassGeneratedByRef = SaveContext.IsCooking();
 
 	this->SetPortFlags(SaveContext.GetPortFlags());
 	this->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
@@ -652,7 +653,9 @@ ESaveRealm FPackageHarvester::GetObjectHarvestingRealm(UObject* InObject, EIlleg
 
 void FPackageHarvester::HarvestExport(UObject* InObject, ESaveRealm InContext)
 {
-	SaveContext.GetHarvestedRealm(InContext).AddExport(InObject, !DoesObjectNeedLoadForEditorGame(InObject));
+	bool bFromOptionalRef = CurrentExportDependencies.CurrentExport && CurrentExportDependencies.CurrentExport->GetClass()->HasAnyClassFlags(CLASS_Optional);
+	SaveContext.GetHarvestedRealm(InContext)
+		.AddExport(FTaggedExport(InObject, !DoesObjectNeedLoadForEditorGame(InObject), bFromOptionalRef));
 	SaveContext.GetHarvestedRealm(InContext).GetNamesReferencedFromPackageHeader().Add(InObject->GetFName().GetDisplayIndex());
 	ExportsToProcess.Enqueue({ InObject, InContext });
 }

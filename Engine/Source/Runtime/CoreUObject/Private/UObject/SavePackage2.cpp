@@ -351,7 +351,8 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	if (!SaveContext.IsSaveAutoOptional() &&
 		SaveContext.IsSaveOptional() &&
 		SaveContext.IsCooking() &&
-		SaveContext.GetHarvestedRealm(ESaveRealm::Optional).GetExports().Num())
+		SaveContext.GetHarvestedRealm(ESaveRealm::Optional).GetExports().Num() &&
+		SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetExports().Num())
 	{
 		bool bHasNonOptionalSelfReference = false;
 		FHarvestedRealm& OptionalContext = SaveContext.GetHarvestedRealm(ESaveRealm::Optional);
@@ -369,8 +370,8 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 					// Flag the package itself to be an import
 					bHasNonOptionalSelfReference = true;
 				}
-				// if not found in the game context, record an illegal reference
-				else
+				// if not found in the game context and the reference directly came from an optional object, record an illegal reference
+				else if (It->bFromOptionalReference)
 				{
 					SaveContext.RecordIllegalReference(nullptr, It->Obj, EIllegalRefReason::ReferenceFromOptionalToMissingGameExport);
 				}
