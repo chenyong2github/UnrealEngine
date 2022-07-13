@@ -1572,8 +1572,11 @@ void SBlueprintDiff::GenerateDifferencesList()
 	}
 
 	bool bHasComponents = false;
-	UClass* BlueprintClass = PanelOld.Blueprint->GeneratedClass;
-	if (BlueprintClass->IsChildOf<AActor>())
+	UClass* BlueprintClassOld = PanelOld.Blueprint->GeneratedClass;
+	UClass* BlueprintClassNew = PanelNew.Blueprint->GeneratedClass;
+	const bool bIsOldClassActor = BlueprintClassOld && BlueprintClassOld->IsChildOf<AActor>();
+	const bool bIsNewClassActor = BlueprintClassNew && BlueprintClassNew->IsChildOf<AActor>();
+	if (bIsOldClassActor || bIsNewClassActor)
 	{
 		bHasComponents = true;
 	}
