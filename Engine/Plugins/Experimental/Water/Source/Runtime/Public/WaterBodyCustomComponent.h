@@ -20,6 +20,7 @@ public:
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Transition; }
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents(bool bInOnlyEnabledComponents = true) const override;
 	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
+	virtual bool CanEverAffectWaterMesh() const { return false; }
 
 protected:
 	/** AWaterBody Interface */

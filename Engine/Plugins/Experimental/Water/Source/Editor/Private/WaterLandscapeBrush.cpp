@@ -182,7 +182,7 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 		}
 
 		// Force rebuild the mesh if a water body actor has been added or removed (islands don't affect the water mesh so it's not necessary for them): 
-		bRebuildWaterMesh = WaterBrushActor->CanAffectWaterMesh();
+		bRebuildWaterMesh = WaterBrushActor->CanEverAffectWaterMesh();
 		bForceUpdateBrush = true;
 	}
 

@@ -93,7 +93,7 @@ public:
 	virtual bool AffectsLandscape() const;
 	virtual bool AffectsWaterMesh() const;
 	virtual bool AffectsWaterInfo() const;
-	virtual bool CanAffectWaterMesh() const { return false; }
+	virtual bool CanEverAffectWaterMesh() const { return true; }
 
 	void UpdateAll(bool bShapeOrPositionChanged);
 
@@ -340,6 +340,9 @@ public:
 	/** Set the navigation area class */
 	void SetNavAreaClass(TSubclassOf<UNavAreaBase> NewWaterNavAreaClass) { WaterNavAreaClass = NewWaterNavAreaClass; }
 
+	
+	UE_DEPRECATED(5.1, "Renamed to CanEverAffectWaterMesh")
+	virtual bool CanAffectWaterMesh() const { return true; }
 protected:
 	//~ Begin UActorComponent interface.
 	virtual bool IsHLODRelevant() const override;

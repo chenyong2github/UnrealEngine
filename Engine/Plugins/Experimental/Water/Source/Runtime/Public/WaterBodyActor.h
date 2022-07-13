@@ -46,7 +46,7 @@ public:
 	//~ Begin IWaterBrushActorInterface interface
 	virtual bool AffectsLandscape() const override { return WaterBodyComponent->AffectsLandscape(); }
 	virtual bool AffectsWaterMesh() const override { return WaterBodyComponent->AffectsWaterMesh(); }
-	virtual bool CanAffectWaterMesh() const override { return WaterBodyComponent->CanAffectWaterMesh(); }
+	virtual bool CanEverAffectWaterMesh() const override { return WaterBodyComponent->CanEverAffectWaterMesh(); }
 
 #if WITH_EDITOR
 	virtual const FWaterCurveSettings& GetWaterCurveSettings() const override { return WaterBodyComponent->GetWaterCurveSettings(); }

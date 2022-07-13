@@ -40,7 +40,10 @@ class WATER_API IWaterBrushActorInterface
 	/**
 	 * Returns true if this water actor could potentially be affecting (i.e. being rendered by) a AWaterZoneActor :
 	 */
-	virtual bool CanAffectWaterMesh() const = 0;
+	virtual bool CanEverAffectWaterMesh() const = 0;
+
+	UE_DEPRECATED(5.1, "Renamed to CanEverAffectWaterMesh")
+	virtual bool CanAffectWaterMesh() const { return CanEverAffectWaterMesh(); };
 
 #if WITH_EDITOR
 	/** 
