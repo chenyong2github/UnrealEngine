@@ -27,6 +27,7 @@
 #include "Misc/PreloadableFile.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "ShaderCompiler.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
