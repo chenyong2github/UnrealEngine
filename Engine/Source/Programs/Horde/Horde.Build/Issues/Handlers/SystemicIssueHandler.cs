@@ -44,6 +44,7 @@ namespace Horde.Build.Issues.Handlers
 		/// <inheritdoc/>
 		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
+			suspects.Clear();
 		}
 
 		/// <inheritdoc/>
