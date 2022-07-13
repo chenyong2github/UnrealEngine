@@ -8,7 +8,7 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-
+#include "MassProcessingTypes.h"
 
 struct FMassDebuggerQueryData;
 
@@ -69,6 +69,7 @@ public:
 protected:
 	void AddBitSet(const SMassBitSet::FArguments& InArgs, TSharedRef<SWrapBox>& ButtonBox, const TBitSet& BitSet, const FSlateBrush* Brush)
 	{
+#if WITH_MASSENTITY_DEBUG
 		TArray<FName> TypeNames;
 		BitSet.DebugGetIndividualNames(TypeNames);
 
@@ -86,6 +87,7 @@ protected:
 				]
 			];
 		}
+#endif // WITH_MASSENTITY_DEBUG
 	}
 };
 
