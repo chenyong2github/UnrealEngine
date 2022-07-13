@@ -8,10 +8,12 @@
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/StructOnScope.h"
+#include "Templates/SubclassOf.h"
 #include "UserDefinedStruct.generated.h"
 
 class UUserDefinedStruct;
 class UUserDefinedStructEditorData;
+class UStructCookedMetaData;
 
 UENUM()
 enum EUserDefinedStructureStatus
@@ -86,6 +88,8 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void PostLoad() override;
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	// End of UObject interface.
 
 	/** Creates a new guid if needed */
@@ -124,4 +128,17 @@ public:
 
 	/** Inspects properties and default values, setting appropriate StructFlags */
 	void UpdateStructFlags();
+
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual TSubclassOf<UStructCookedMetaData> GetCookedMetaDataClass() const;
+
+private:
+	UStructCookedMetaData* NewCookedMetaData();
+	const UStructCookedMetaData* FindCookedMetaData();
+	void PurgeCookedMetaData();
+
+	UPROPERTY()
+	TObjectPtr<UStructCookedMetaData> CachedCookedMetaDataPtr;
+#endif // WITH_EDITORONLY_DATA
 };

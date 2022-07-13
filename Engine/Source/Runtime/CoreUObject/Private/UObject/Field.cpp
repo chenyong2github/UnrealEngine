@@ -941,6 +941,21 @@ const TMap<FName, FString>* FField::GetMetaDataMap() const
 	return MetaDataMap;
 }
 
+void FField::AppendMetaData(const TMap<FName, FString>& MetaDataMapToAppend)
+{
+	if (MetaDataMapToAppend.Num() > 0)
+	{
+		if (MetaDataMap)
+		{
+			MetaDataMap->Append(MetaDataMapToAppend);
+		}
+		else
+		{
+			MetaDataMap = new TMap<FName, FString>(MetaDataMapToAppend);
+		}
+	}
+}
+
 void FField::CopyMetaData(const FField* InSourceField, FField* InDestField)
 {
 	check(InSourceField);

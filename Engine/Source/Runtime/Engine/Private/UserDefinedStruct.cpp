@@ -5,6 +5,8 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/ObjectSaveContext.h"
+#include "CookedMetaData.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Misc/SecureHash.h"
 #include "UObject/PropertyPortFlags.h"
@@ -161,7 +163,43 @@ void UUserDefinedStruct::PostLoad()
 {
 	Super::PostLoad();
 
+	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		if (const UStructCookedMetaData* CookedMetaData = FindCookedMetaData())
+		{
+			CookedMetaData->ApplyMetaData(this);
+			PurgeCookedMetaData();
+		}
+	}
+
 	ValidateGuid();
+}
+
+void UUserDefinedStruct::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
+{
+	Super::PreSaveRoot(ObjectSaveContext);
+
+	if (ObjectSaveContext.IsCooking() && (ObjectSaveContext.GetSaveFlags() & SAVE_Optional))
+	{
+		UStructCookedMetaData* CookedMetaData = NewCookedMetaData();
+		CookedMetaData->CacheMetaData(this);
+
+		if (!CookedMetaData->HasMetaData())
+		{
+			PurgeCookedMetaData();
+		}
+	}
+	else
+	{
+		PurgeCookedMetaData();
+	}
+}
+
+void UUserDefinedStruct::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+	Super::PostSaveRoot(ObjectSaveContext);
+
+	PurgeCookedMetaData();
 }
 
 void UUserDefinedStruct::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -524,3 +562,36 @@ void UUserDefinedStruct::UpdateStructFlags()
 	}
 
 }
+
+#if WITH_EDITORONLY_DATA
+TSubclassOf<UStructCookedMetaData> UUserDefinedStruct::GetCookedMetaDataClass() const
+{
+	return UStructCookedMetaData::StaticClass();
+}
+
+UStructCookedMetaData* UUserDefinedStruct::NewCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::NewCookedMetaData<UStructCookedMetaData>(this, "CookedStructMetaData", GetCookedMetaDataClass());
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+const UStructCookedMetaData* UUserDefinedStruct::FindCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::FindCookedMetaData<UStructCookedMetaData>(this, TEXT("CookedStructMetaData"));
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+void UUserDefinedStruct::PurgeCookedMetaData()
+{
+	if (CachedCookedMetaDataPtr)
+	{
+		CookedMetaDataUtil::PurgeCookedMetaData<UStructCookedMetaData>(CachedCookedMetaDataPtr);
+	}
+}
+#endif // WITH_EDITORONLY_DATA

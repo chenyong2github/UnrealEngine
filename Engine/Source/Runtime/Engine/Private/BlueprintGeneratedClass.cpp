@@ -8,8 +8,10 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
+#include "CookedMetaData.h"
 #include "Engine/Blueprint.h"
 #include "Components/ActorComponent.h"
 #include "Curves/CurveFloat.h"
@@ -140,17 +142,24 @@ void UBlueprintGeneratedClass::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	UPackage* Package = GetOutermost();
+	if (bCooked)
+	{
+		if (const UClassCookedMetaData* CookedMetaData = FindCookedMetaData())
+		{
+			CookedMetaData->ApplyMetaData(this);
+			PurgeCookedMetaData();
+		}
+	}
 
 #if WITH_EDITOR
 	// Make BPGC from a cooked package standalone so it doesn't get GCed
-	if (GEditor && Package && Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (GEditor && bCooked)
 	{
 		SetFlags(RF_Standalone);
 	}
 #endif //if WITH_EDITOR
 
-	if (Package == nullptr || !Package->bIsCookedForEditor)
+	if (!bCooked)
 	{
 		if (GetAuthoritativeClass() != this)
 		{
@@ -1704,9 +1713,9 @@ UClass* UBlueprintGeneratedClass::RegenerateClass(UClass* ClassToRegenerate, UOb
 	return this;
 }
 
-void UBlueprintGeneratedClass::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+void UBlueprintGeneratedClass::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
 {
-	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+	Super::PreSaveRoot(ObjectSaveContext);
 
 	auto ShouldCookBlueprintPropertyGuids = [this]() -> bool
 	{
@@ -1730,7 +1739,7 @@ void UBlueprintGeneratedClass::BeginCacheForCookedPlatformData(const ITargetPlat
 		return false;
 	};
 
-	if (ShouldCookBlueprintPropertyGuids())
+	if (ObjectSaveContext.IsCooking() && ShouldCookBlueprintPropertyGuids())
 	{
 		CookedPropertyGuids = PropertyGuids;
 
@@ -1752,13 +1761,30 @@ void UBlueprintGeneratedClass::BeginCacheForCookedPlatformData(const ITargetPlat
 	{
 		CookedPropertyGuids.Reset();
 	}
+
+	if (ObjectSaveContext.IsCooking() && (ObjectSaveContext.GetSaveFlags() & SAVE_Optional))
+	{
+		UClassCookedMetaData* CookedMetaData = NewCookedMetaData();
+		CookedMetaData->CacheMetaData(this);
+
+		if (!CookedMetaData->HasMetaData())
+		{
+			PurgeCookedMetaData();
+		}
+	}
+	else
+	{
+		PurgeCookedMetaData();
+	}
 }
 
-void UBlueprintGeneratedClass::ClearAllCachedCookedPlatformData()
+void UBlueprintGeneratedClass::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
 {
-	Super::ClearAllCachedCookedPlatformData();
+	Super::PostSaveRoot(ObjectSaveContext);
 
 	CookedPropertyGuids.Reset();
+
+	PurgeCookedMetaData();
 }
 #endif
 
@@ -2275,6 +2301,37 @@ void UBlueprintGeneratedClass::GetEditorTags(FEditorTags& Tags) const
 
 			AddEditorTag(FBlueprintTags::ImplementedInterfaces, GET_MEMBER_NAME_CHECKED(UBlueprint, ImplementedInterfaces), (const uint8*)&GraphlessImplementedInterfaces);
 		}
+	}
+}
+
+TSubclassOf<UClassCookedMetaData> UBlueprintGeneratedClass::GetCookedMetaDataClass() const
+{
+	return UClassCookedMetaData::StaticClass();
+}
+
+UClassCookedMetaData* UBlueprintGeneratedClass::NewCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::NewCookedMetaData<UClassCookedMetaData>(this, "CookedClassMetaData", GetCookedMetaDataClass());
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+const UClassCookedMetaData* UBlueprintGeneratedClass::FindCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::FindCookedMetaData<UClassCookedMetaData>(this, TEXT("CookedClassMetaData"));
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+void UBlueprintGeneratedClass::PurgeCookedMetaData()
+{
+	if (CachedCookedMetaDataPtr)
+	{
+		CookedMetaDataUtil::PurgeCookedMetaData<UClassCookedMetaData>(CachedCookedMetaDataPtr);
 	}
 }
 #endif //if WITH_EDITORONLY_DATA

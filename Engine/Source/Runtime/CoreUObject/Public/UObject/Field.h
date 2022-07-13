@@ -860,6 +860,9 @@ public:
 	/** Gets all metadata associated with this field */
 	const TMap<FName, FString>* GetMetaDataMap() const;
 
+	/** Append the given metadata to this field */
+	void AppendMetaData(const TMap<FName, FString>& MetaDataMapToAppend);
+
 	/** Copies all metadata from Source Field to Dest Field */
 	static void CopyMetaData(const FField* InSourceField, FField* InDestField);
 

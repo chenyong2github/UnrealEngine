@@ -12,7 +12,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
+#include "Templates/SubclassOf.h"
 #include "UserDefinedEnum.generated.h"
+
+class UEnumCookedMetaData;
 
 /** 
  *	An Enumeration is a list of named values.
@@ -74,8 +77,23 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	//~ End UObject Interface
 
 	FString GenerateNewEnumeratorName();
 #endif	// WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual TSubclassOf<UEnumCookedMetaData> GetCookedMetaDataClass() const;
+
+private:
+	UEnumCookedMetaData* NewCookedMetaData();
+	const UEnumCookedMetaData* FindCookedMetaData();
+	void PurgeCookedMetaData();
+
+	UPROPERTY()
+	TObjectPtr<UEnumCookedMetaData> CachedCookedMetaDataPtr;
+#endif // WITH_EDITORONLY_DATA
 };

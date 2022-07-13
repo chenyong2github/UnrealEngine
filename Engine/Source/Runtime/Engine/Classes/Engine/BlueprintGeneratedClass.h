@@ -19,6 +19,7 @@ class UActorComponent;
 class UDynamicBlueprintBinding;
 class UInheritableComponentHandler;
 class UTimelineTemplate;
+class UClassCookedMetaData;
 
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Persistent Uber Graph Frame memory"), STAT_PersistentUberGraphFrameMemory, STATGROUP_Memory, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("BPComp Instancing Fast Path memory"), STAT_BPCompInstancingFastPathMemory, STATGROUP_Memory, );
@@ -780,8 +781,8 @@ public:
 	virtual bool CanBeClusterRoot() const override;
 #if WITH_EDITOR
 	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual void ClearAllCachedCookedPlatformData() override;
+	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
+	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 #endif	//WITH_EDITOR
 	virtual bool IsAsset() const override;
 	// End UObject interface
@@ -932,5 +933,16 @@ private:
 
 	/** Editor-only asset registry tags on cooked BPGC */
 	FEditorTags CookedEditorTags;
+
+protected:
+	virtual TSubclassOf<UClassCookedMetaData> GetCookedMetaDataClass() const;
+
+private:
+	UClassCookedMetaData* NewCookedMetaData();
+	const UClassCookedMetaData* FindCookedMetaData();
+	void PurgeCookedMetaData();
+
+	UPROPERTY()
+	TObjectPtr<UClassCookedMetaData> CachedCookedMetaDataPtr;
 #endif // WITH_EDITORONLY_DATA
 };

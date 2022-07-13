@@ -2,6 +2,8 @@
 
 #include "Engine/UserDefinedEnum.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
+#include "CookedMetaData.h"
 #if WITH_EDITOR
 #include "Kismet2/EnumEditorUtils.h"
 #include "UObject/MetaData.h"
@@ -76,6 +78,16 @@ void UUserDefinedEnum::PostDuplicate(bool bDuplicateForPIE)
 void UUserDefinedEnum::PostLoad()
 {
 	Super::PostLoad();
+
+	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		if (const UEnumCookedMetaData* CookedMetaData = FindCookedMetaData())
+		{
+			CookedMetaData->ApplyMetaData(this);
+			PurgeCookedMetaData();
+		}
+	}
+
 	FEnumEditorUtils::UpdateAfterPathChanged(this);
 	if (NumEnums() > 1 && DisplayNameMap.Num() == 0) // >1 because User Defined Enums always have a "MAX" entry
 	{
@@ -121,6 +133,33 @@ void UUserDefinedEnum::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	FString DescriptionString;
 	FTextStringHelper::WriteToBuffer(/*out*/ DescriptionString, EnumDescription);
 	OutTags.Emplace(GET_MEMBER_NAME_CHECKED(UUserDefinedEnum, EnumDescription), DescriptionString, FAssetRegistryTag::TT_Hidden);
+}
+
+void UUserDefinedEnum::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext)
+{
+	Super::PreSaveRoot(ObjectSaveContext);
+
+	if (ObjectSaveContext.IsCooking() && (ObjectSaveContext.GetSaveFlags() & SAVE_Optional))
+	{
+		UEnumCookedMetaData* CookedMetaData = NewCookedMetaData();
+		CookedMetaData->CacheMetaData(this);
+
+		if (!CookedMetaData->HasMetaData())
+		{
+			PurgeCookedMetaData();
+		}
+	}
+	else
+	{
+		PurgeCookedMetaData();
+	}
+}
+
+void UUserDefinedEnum::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+	Super::PostSaveRoot(ObjectSaveContext);
+
+	PurgeCookedMetaData();
 }
 
 FString UUserDefinedEnum::GenerateNewEnumeratorName()
@@ -208,3 +247,36 @@ bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm I
 
 	return false;
 }
+
+#if WITH_EDITORONLY_DATA
+TSubclassOf<UEnumCookedMetaData> UUserDefinedEnum::GetCookedMetaDataClass() const
+{
+	return UEnumCookedMetaData::StaticClass();
+}
+
+UEnumCookedMetaData* UUserDefinedEnum::NewCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::NewCookedMetaData<UEnumCookedMetaData>(this, "CookedEnumMetaData", GetCookedMetaDataClass());
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+const UEnumCookedMetaData* UUserDefinedEnum::FindCookedMetaData()
+{
+	if (!CachedCookedMetaDataPtr)
+	{
+		CachedCookedMetaDataPtr = CookedMetaDataUtil::FindCookedMetaData<UEnumCookedMetaData>(this, TEXT("CookedEnumMetaData"));
+	}
+	return CachedCookedMetaDataPtr;
+}
+
+void UUserDefinedEnum::PurgeCookedMetaData()
+{
+	if (CachedCookedMetaDataPtr)
+	{
+		CookedMetaDataUtil::PurgeCookedMetaData<UEnumCookedMetaData>(CachedCookedMetaDataPtr);
+	}
+}
+#endif // WITH_EDITORONLY_DATA
