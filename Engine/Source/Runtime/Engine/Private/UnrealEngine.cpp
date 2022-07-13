@@ -44,6 +44,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "UObject/Package.h"
 #include "UObject/MetaData.h"
 #include "UObject/ObjectMemoryAnalyzer.h"
+#include "UObject/UObjectGlobalsInternal.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
@@ -15532,6 +15533,7 @@ void UEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext)
 			UE_LOG(LogLoad, Warning, TEXT("Renaming leaked objects in case they need to be reloaded."));
 			for (UPackage* Pkg : LeakedPackages)
 			{
+				FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate().Broadcast(Pkg);
 				FName BaseName = FName(Pkg->GetFName(), NAME_NO_NUMBER_INTERNAL);
 				TStringBuilder<NAME_SIZE> Builder;
 				Builder << TEXT("/Leaked");

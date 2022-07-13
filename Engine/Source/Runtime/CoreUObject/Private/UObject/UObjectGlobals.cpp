@@ -66,6 +66,7 @@
 #include "Misc/PackageAccessTracking.h"
 #include "UObject/PropertyWithSetterAndGetter.h"
 #include "UObject/AnyPackagePrivate.h"
+#include "UObject/UObjectGlobalsInternal.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -172,6 +173,12 @@ FSimpleMulticastDelegate& FCoreUObjectDelegates::GetPreGarbageCollectDelegate()
 FSimpleMulticastDelegate& FCoreUObjectDelegates::GetPostGarbageCollect()
 {
 	static FSimpleMulticastDelegate Delegate;
+	return Delegate;
+}
+
+FCoreUObjectInternalDelegates::FPackageRename& FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate()
+{
+	static FPackageRename Delegate;
 	return Delegate;
 }
 

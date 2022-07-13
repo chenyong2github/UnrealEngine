@@ -33,6 +33,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/MetaData.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UObjectGlobalsInternal.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/PlayerController.h"
@@ -3371,6 +3372,7 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 				// Rename the packages that we are streaming out so that we can possibly reload another copy of them
 				for (UPackage* Package : Packages)
 				{
+					FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate().Broadcast(Package);
 					FName NewName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), Package->GetFName());
 					Package->Rename(*NewName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional);
 				}

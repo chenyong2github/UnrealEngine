@@ -25,6 +25,7 @@
 #include "UObject/ObjectResource.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/NameBatchSerialization.h"
+#include "UObject/UObjectGlobalsInternal.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Misc/Paths.h"
@@ -901,7 +902,7 @@ public:
 
 	void RemovePackages(const FUnreachablePackages& UnreachablePackages)
 	{
-		check(IsGarbageCollecting());
+		check(FGCCSyncObject::Get().IsGCLocked() || !IsAsyncLoading());
 
 		const int32 PackageCount = UnreachablePackages.Num();
 		for (UPackage* Package : UnreachablePackages)
@@ -2582,6 +2583,8 @@ public:
 	}
 
 private:
+
+	void OnLeakedPackageRename(UPackage* Package);
 
 	void SuspendWorkers();
 	void ResumeWorkers();
@@ -5481,6 +5484,8 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IAsync
 	ThreadResumedEvent = FPlatformProcess::GetSynchEventFromPool();
 	AsyncLoadingTickCounter = 0;
 
+	FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate().AddRaw(this, &FAsyncLoadingThread2::OnLeakedPackageRename);
+
 	FAsyncLoadingThreadState2::TlsSlot = FPlatformTLS::AllocTlsSlot();
 	FAsyncLoadingThreadState2::Create(GraphAllocator, IoDispatcher);
 
@@ -5502,6 +5507,7 @@ void FAsyncLoadingThread2::ShutdownLoading()
 {
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
+	FCoreUObjectInternalDelegates::GetOnLeakedPackageRenameDelegate().RemoveAll(this);
 
 	delete Thread;
 	Thread = nullptr;
@@ -5914,6 +5920,31 @@ FORCENOINLINE static void FilterUnreachableObjects(
 			}
 		}
 	}
+}
+
+void FAsyncLoadingThread2::OnLeakedPackageRename(UPackage* Package)
+{
+	check(IsInGameThread());
+	
+	if(!FGCCSyncObject::Get().IsGCLocked())
+	{
+		// Flush async loading so that we can be sure nothing is modifying the stores, and that nothing is depending on this package
+		FlushAsyncLoading(); 
+	}
+
+	// Code such as LoadMap or LevelStreaming has renamed a loaded package which was detected as leaking so that we can load another copy of it.
+	// We should not have any loading happening at present, so we can remove these objects from our stores 
+	FUnreachablePublicExports ObjectsToRemove;
+	FUnreachablePackages PackagesToRemove;
+	PackagesToRemove.Add(Package);
+	ForEachObjectWithOuter(Package, [&ObjectsToRemove](UObject* Obj) {
+		if (DO_CHECK || Obj->HasAllFlags(GlobalImportObjectConditionalFlags))
+		{
+			ObjectsToRemove.Emplace(GUObjectArray.ObjectToIndex(Obj), Obj);
+		}
+	});
+
+	RemoveUnreachableObjects(ObjectsToRemove, PackagesToRemove);
 }
 
 void FAsyncLoadingThread2::RemoveUnreachableObjects(const FUnreachablePublicExports& PublicExports, const FUnreachablePackages& Packages)
