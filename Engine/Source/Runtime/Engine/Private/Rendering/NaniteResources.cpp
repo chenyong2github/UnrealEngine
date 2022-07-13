@@ -1007,6 +1007,7 @@ FSceneProxy::FMeshInfo::FMeshInfo(const UStaticMeshComponent* InComponent)
 			SetLightMap(MeshMapBuildData->LightMap);
 			SetShadowMap(MeshMapBuildData->ShadowMap);
 			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			bCanUsePrecomputedLightingParametersFromGPUScene = true;
 			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
 		}
 	}
@@ -1021,6 +1022,7 @@ FSceneProxy::FMeshInfo::FMeshInfo(const UStaticMeshComponent* InComponent)
 			SetLightMap(MeshMapBuildData->LightMap);
 			SetShadowMap(MeshMapBuildData->ShadowMap);
 			SetResourceCluster(MeshMapBuildData->ResourceCluster);
+			bCanUsePrecomputedLightingParametersFromGPUScene = true;
 			IrrelevantLights = MeshMapBuildData->IrrelevantLights;
 		}
 	}
