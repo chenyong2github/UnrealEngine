@@ -3102,16 +3102,19 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 #if WITH_ODSC
 				if (FPlatformProperties::RequiresCookedData())
 				{
-					const FString MaterialName = GetFullPath();
-					const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
-					const FString PipelineName(InTypes.PipelineType->GetName());
-					TArray<FString> ShaderStageNamesToCompile;
-					for (auto* ShaderType : InTypes.PipelineType->GetStages())
+					if (GODSCManager->IsHandlingRequests())
 					{
-						ShaderStageNamesToCompile.Add(ShaderType->GetName());
-					}
+						const FString MaterialName = GetFullPath();
+						const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
+						const FString PipelineName(InTypes.PipelineType->GetName());
+						TArray<FString> ShaderStageNamesToCompile;
+						for (auto* ShaderType : InTypes.PipelineType->GetStages())
+						{
+							ShaderStageNamesToCompile.Add(ShaderType->GetName());
+						}
 
-					GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+					}
 				}
 				else 
 #endif
@@ -3152,14 +3155,16 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 #if WITH_ODSC
 					if (FPlatformProperties::RequiresCookedData())
 					{
+						if (GODSCManager->IsHandlingRequests())
+						{
+							const FString MaterialName = GetFullPath();
+							const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
+							const FString PipelineName;
+							TArray<FString> ShaderStageNamesToCompile;
+							ShaderStageNamesToCompile.Add(ShaderType->GetName());
 
-						const FString MaterialName = GetFullPath();
-						const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
-						const FString PipelineName;
-						TArray<FString> ShaderStageNamesToCompile;
-						ShaderStageNamesToCompile.Add(ShaderType->GetName());
-
-						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+							GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+						}
 					}
 					else
 #endif

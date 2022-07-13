@@ -67,6 +67,10 @@ public:
 	 * @return false if no longer needs ticking
 	 */
 	void AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
+
+	/** Returns true if we would actually add a request when calling AddThreadedShaderPipelineRequest. */
+	inline bool IsHandlingRequests() const { return Thread != nullptr; }
+
 private:
 
 	void OnEnginePreExit();

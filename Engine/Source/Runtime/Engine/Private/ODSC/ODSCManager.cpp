@@ -49,7 +49,7 @@ bool FODSCManager::Tick(float DeltaSeconds)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FODSCManager_Tick);
 
-	if (Thread)
+	if (IsHandlingRequests())
 	{
 		Thread->Wakeup();
 
@@ -72,7 +72,7 @@ bool FODSCManager::Tick(float DeltaSeconds)
 
 void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType)
 {
-	if (Thread)
+	if (IsHandlingRequests())
 	{
 		Thread->AddRequest(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, FeatureLevel, QualityLevel, RecompileCommandType);
 	}
@@ -80,7 +80,7 @@ void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile,
 
 void FODSCManager::AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
 {
-	if (Thread)
+	if (IsHandlingRequests())
 	{
 		Thread->AddShaderPipelineRequest(ShaderPlatform, FeatureLevel, QualityLevel, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames);
 	}
