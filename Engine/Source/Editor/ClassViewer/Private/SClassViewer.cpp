@@ -108,7 +108,7 @@ public:
 	FClassHierarchy();
 	~FClassHierarchy();
 
-	/** Populates the class hierarchy tree, pulling all the loaded and unloaded classes into a master tree. */
+	/** Populates the class hierarchy tree, pulling in all the loaded and unloaded classes. */
 	void PopulateClassHierarchy();
 	void PopulateClassHierarchy(const FAssetData& InAssetData) { PopulateClassHierarchy(); }
 
@@ -766,7 +766,7 @@ public:
 		, _bIsInClassViewer( true )
 		, _bDynamicClassLoading( true )
 		, _HighlightText()
-		, _TextColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))
+		, _Font(FAppStyle::Get().GetFontStyle("NormalFont"))
 		{}
 
 		/** The classname this item contains. */
@@ -779,8 +779,8 @@ public:
 		SLATE_ARGUMENT( bool, bDynamicClassLoading )
 		/** The text this item should highlight, if any. */
 		SLATE_ARGUMENT( FText, HighlightText )
-		/** The color text this item will use. */
-		SLATE_ARGUMENT( FSlateColor, TextColor )
+		/** The font this item will use. */
+		SLATE_ARGUMENT( FSlateFontInfo, Font )
 		/** The node this item is associated with. */
 		SLATE_ARGUMENT( TSharedPtr<FClassViewerNode>, AssociatedNode)
 		/** the delegate for handling double clicks outside of the SClassItem */
@@ -868,8 +868,9 @@ public:
 				[
 					SNew( STextBlock )
 						.Text( FText::FromString(*ClassName.Get()) )
+						.Font(InArgs._Font)
 						.HighlightText(InArgs._HighlightText)
-						.ColorAndOpacity( this, &SClassItem::GetTextColor)
+						.ColorAndOpacity(FSlateColor::UseForeground())
 						.ToolTip(Local::GetToolTip(AssociatedNode))
 						.IsEnabled(!bIsRestricted)
 				]
@@ -886,8 +887,6 @@ public:
 						.OnGetMenuContent(this, &SClassItem::GenerateDropDown)
 				]
 		];
-		
-		TextColor = InArgs._TextColor;
 
 		UE_LOG(LogEditorClassViewer, VeryVerbose, TEXT("CLASS [%s]"), **ClassName);
 
@@ -963,21 +962,6 @@ private:
 		return SNullWidget::NullWidget;
 	}
 
-	/** Returns the text color for the item based on if it is selected or not. */
-	FSlateColor GetTextColor() const
-	{
-		const TSharedPtr< ITypedTableView< TSharedPtr<FString> > > OwnerWidget = OwnerTablePtr.Pin();
-		const TSharedPtr<FString>* MyItem = OwnerWidget->Private_ItemFromWidget( this );
-		const bool bIsSelected = OwnerWidget->Private_IsItemSelected( *MyItem );
-
-		if(bIsSelected)
-		{
-			return FSlateColor::UseForeground();
-		}
-
-		return TextColor;
-	}
-
 private:
 
 	/** The class name for which this item is associated with. */
@@ -991,9 +975,6 @@ private:
 
 	/** true if dynamic class loading is permitted. */
 	bool bDynamicClassLoading;
-
-	/** The text color for this item. */
-	FSlateColor TextColor;
 
 	/** The Class Viewer Node this item is associated with. */
 	TSharedPtr< FClassViewerNode > AssociatedNode;
@@ -1864,7 +1845,7 @@ TSharedRef< ITableRow > SClassViewer::OnGenerateRowForClassViewer( TSharedPtr<FC
 		.ClassName(ClassNameDisplay)
 		.bIsPlaceable(Item->IsClassPlaceable())
 		.HighlightText(SearchBoxTextForHighlight)
-		.TextColor(Item->IsClassPlaceable()? FLinearColor(0.2f, 0.4f, 0.6f, AlphaValue) : FLinearColor(1.0f, 1.0f, 1.0f, AlphaValue))
+		.Font(Item->IsClassPlaceable()? FCoreStyle::Get().GetFontStyle("NormalFontItalic") : FCoreStyle::Get().GetFontStyle("NormalFont"))
 		.AssociatedNode(Item)
 		.bIsInClassViewer( InitOptions.Mode == EClassViewerMode::ClassBrowsing )
 		.bDynamicClassLoading( bEnableClassDynamicLoading )

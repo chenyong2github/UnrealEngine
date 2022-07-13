@@ -112,8 +112,8 @@ private:
 	FText GetItemName() const;
 	/** Get text we are filtering for */
 	FText GetFilterText() const;
-	/** Return color for text of item */
-	FSlateColor GetItemTextColor() const;
+	/** Return font for text of item */
+	FSlateFontInfo GetItemFont() const;
 
 	/** Get current active weight. Returns false if not currently active */
 	bool GetActiveWeight(float& OutWeight) const;

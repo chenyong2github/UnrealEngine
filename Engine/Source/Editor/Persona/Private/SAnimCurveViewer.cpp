@@ -75,7 +75,7 @@ TSharedRef< SWidget > SAnimCurveListRow::GenerateWidgetForColumn( const FName& C
 				[
 					SAssignNew(Item->EditableText, SInlineEditableTextBlock)
 					.OnTextCommitted(AnimCurveViewer.Get(), &SAnimCurveViewer::OnNameCommitted, Item)
-					.ColorAndOpacity(this, &SAnimCurveListRow::GetItemTextColor)
+					.Font(this, &SAnimCurveListRow::GetItemFont)
 					.IsSelected(this, &SAnimCurveListRow::IsSelected)
 					.Text(this, &SAnimCurveListRow::GetItemName)
 					.HighlightText(this, &SAnimCurveListRow::GetFilterText)
@@ -380,14 +380,8 @@ bool SAnimCurveListRow::GetActiveWeight(float& OutWeight) const
 }
 
 
-FSlateColor SAnimCurveListRow::GetItemTextColor() const
+FSlateFontInfo SAnimCurveListRow::GetItemFont() const
 {
-	// If row is selected, show text as black to make it easier to read
-	if (IsSelected())
-	{
-		return FLinearColor(0, 0, 0);
-	}
-
 	// If not selected, show bright if active
 	bool bItemActive = true;
 	if (Item->bAutoFillData)
@@ -398,7 +392,7 @@ FSlateColor SAnimCurveListRow::GetItemTextColor() const
 		bItemActive = (Weight != 0.f);
 	}
 
-	return bItemActive ? FLinearColor(1, 1, 1) : FLinearColor(0.5, 0.5, 0.5);
+	return bItemActive ? FAppStyle::Get().GetFontStyle("NormalFontBoldItalic") : FAppStyle::Get().GetFontStyle("NormalFont");
 }
 
 float SAnimCurveListRow::GetWeight() const 

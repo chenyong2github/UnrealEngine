@@ -34,7 +34,9 @@ TUniquePtr<FStyleFonts> FStyleFonts::Instance = nullptr;
 
 FStyleFonts::FStyleFonts()
 	: Normal(FONT(10, "Regular"))
+	, NormalItalic(FONT(10, "Italic"))
 	, NormalBold(FONT(10, "Bold"))
+	, NormalBoldItalic(FONT(10, "BoldItalic"))
 	, Small(FONT(8,  "Regular"))
 	, SmallBold(FONT(8,  "Bold"))
 	, Large(FONT(14, "Regular"))
@@ -1075,6 +1077,8 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 	Style->Set("NormalFontBold", StyleFonts.NormalBold);
 	Style->Set("SmallFontBold", StyleFonts.SmallBold);
 	Style->Set("Font.Large.Bold", StyleFonts.Small);
+	Style->Set("NormalFontItalic", StyleFonts.NormalItalic);
+	Style->Set("NormalFontBoldItalic", StyleFonts.NormalBoldItalic);
 
 	Style->Set("HeadingMedium", StyleFonts.HeadingMedium);
 	Style->Set("HeadingSmall", StyleFonts.HeadingSmall);
