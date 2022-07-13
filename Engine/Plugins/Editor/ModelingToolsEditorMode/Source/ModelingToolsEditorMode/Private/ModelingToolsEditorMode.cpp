@@ -149,6 +149,7 @@ UModelingToolsEditorMode::UModelingToolsEditorMode()
 }
 
 UModelingToolsEditorMode::UModelingToolsEditorMode(FVTableHelper& Helper)
+	: UBaseLegacyWidgetEdMode(Helper)
 {
 }
 
