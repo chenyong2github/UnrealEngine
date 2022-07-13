@@ -452,6 +452,24 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				.Value(this, &FMediaPlateCustomization::GetMeshHorizontalRange)
 				.OnValueChanged(this, &FMediaPlateCustomization::SetMeshHorizontalRange)
 		];
+
+	// Add sphere vertical arc.
+	DetailGroup.AddWidgetRow()
+		.Visibility(MeshSphereVisibility)
+		.NameContent()
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("VerticalArc", "Vertical Arc"))
+				.ToolTipText(LOCTEXT("VerticalArc_ToolTip",
+				"Sets the vertical arc size of the sphere in degrees.\nFor example 180 for a half circle, 90 for a quarter circle."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SNumericEntryBox<float>)
+				.Value(this, &FMediaPlateCustomization::GetMeshVerticalRange)
+				.OnValueChanged(this, &FMediaPlateCustomization::SetMeshVerticalRange)
+		];
 	
 }
 
@@ -615,19 +633,11 @@ TOptional<float> FMediaPlateCustomization::GetAspectRatio() const
 void FMediaPlateCustomization::SetMeshHorizontalRange(float HorizontalRange)
 {
 	HorizontalRange = FMath::Clamp(HorizontalRange, 0.0f, 360.0f);
-
-	// Loop through all our objects.
-	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	TOptional VerticalRange = GetMeshVerticalRange();
+	if (VerticalRange.IsSet())
 	{
-		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-		if (MediaPlate != nullptr)
-		{
-			if (MediaPlate->GetMeshHorizontalRange() != HorizontalRange)
-			{
-				MediaPlate->SetMeshHorizontalRange(HorizontalRange);
-				SetSphereMesh(MediaPlate);
-			}
-		}
+		FVector2D MeshRange = FVector2D(HorizontalRange, VerticalRange.GetValue());
+		SetMeshRange(MeshRange);
 	}
 }
 
@@ -639,11 +649,54 @@ TOptional<float> FMediaPlateCustomization::GetMeshHorizontalRange() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			return MediaPlate->GetMeshHorizontalRange();
+			return MediaPlate->GetMeshRange().X;
 		}
 	}
 
 	return TOptional<float>();
+}
+
+void FMediaPlateCustomization::SetMeshVerticalRange(float VerticalRange)
+{
+	VerticalRange = FMath::Clamp(VerticalRange, 0.0f, 180.0f);
+	TOptional HorizontalRange = GetMeshHorizontalRange();
+	if (HorizontalRange.IsSet())
+	{
+		FVector2D MeshRange = FVector2D(HorizontalRange.GetValue(), VerticalRange);
+		SetMeshRange(MeshRange);
+	}
+}
+
+TOptional<float> FMediaPlateCustomization::GetMeshVerticalRange() const
+{
+	// Loop through our objects.
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			return MediaPlate->GetMeshRange().Y;
+		}
+	}
+
+	return TOptional<float>();
+}
+
+void FMediaPlateCustomization::SetMeshRange(FVector2D Range)
+{
+	// Loop through all our objects.
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			if (MediaPlate->GetMeshRange() != Range)
+			{
+				MediaPlate->SetMeshRange(Range);
+				SetSphereMesh(MediaPlate);
+			}
+		}
+	}
 }
 
 FString FMediaPlateCustomization::GetMediaSourcePath() const

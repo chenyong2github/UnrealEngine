@@ -14,6 +14,8 @@ class FMediaPlateSphereGenerator : public UE::Geometry::FMeshShapeGenerator
 public:
 	/** Radius */
 	double Radius = 1;
+	/** Range for the vertical arc. 180 degrees for a sphere, etc... */
+	double PhiRange = FMathd::Pi;
 	/** Range for the horizontal arc. 360 degrees for a sphere, etc... */
 	double ThetaRange = FMathd::TwoPi;
 
@@ -26,6 +28,8 @@ public:
 private:
 	/** True if this is a closed mesh, e.g. a sphere. */
 	bool bIsClosed = false;
+	/** True if we have the north and south poles. */
+	bool bHasPoles = false;
 
 	static FVector3d SphericalToCartesian(double r, double theta, double phi)
 	{
@@ -48,7 +52,7 @@ private:
 		};
 		{
 			int32 ThetaDivide = bIsClosed ? NumTheta : NumTheta -1;
-			const double Dphi = FMathd::Pi / double(NumPhi - 1);
+			const double Dphi = PhiRange / double(NumPhi - 1);
 			const double Dtheta = ThetaRange / double(ThetaDivide);
 
 			int32 p,t;
@@ -56,7 +60,19 @@ private:
 			int32 VtxIdx = 0;
 
 			// Add points between the poles
-			for (p = 1, Phi = Dphi; p < NumPhi - 1; ++p, Phi += Dphi) // NB: this skips the poles.
+			int32 pStart = 1;
+			int32 pEnd = NumPhi - 1;
+			double PhiStart = Dphi;
+
+			// If we dont have poles then add another layer top/bottom.
+			if (bHasPoles == false)
+			{
+				pStart--;
+				pEnd++;
+				PhiStart = (FMathd::Pi - PhiRange) * 0.5;
+			}
+
+			for (p = pStart, Phi = PhiStart; p < pEnd; ++p, Phi += Dphi) // NB: this skips the poles.
 			{
 				for (t = 0, Theta = 0; t < NumTheta; ++t, ++VtxIdx, Theta += Dtheta)
 				{
@@ -64,10 +80,14 @@ private:
 					SetVertex(VtxIdx, Normal * Radius, FVector3f(-Normal));
 				}
 			}
-			// add a single point at the North Pole
-			SetVertex(VtxIdx++, FVector3d::UnitZ() * Radius, -FVector3f::UnitZ());
-			// add a single point at the South Pole
-			SetVertex(VtxIdx++, -FVector3d::UnitZ() * Radius, FVector3f::UnitZ());
+
+			if (bHasPoles)
+			{
+				// add a single point at the North Pole
+				SetVertex(VtxIdx++, FVector3d::UnitZ() * Radius, -FVector3f::UnitZ());
+				// add a single point at the South Pole
+				SetVertex(VtxIdx++, -FVector3d::UnitZ() * Radius, FVector3f::UnitZ());
+			}
 		}
 	}
 
@@ -81,7 +101,19 @@ private:
 		int32 UVIdx = 0;
 		int32 p,t;
 		float UVPhi, UVTheta;
-		for ( p = 1, UVPhi = DUVphi; p < NumPhi - 1; ++p, UVPhi += DUVphi)
+		float UVPhiStart = DUVphi;
+		int32 pStart = 1;
+		int32 pEnd = NumPhi - 1;
+
+		// If we dont have poles then add another layer top/bottom.
+		if (bHasPoles == false)
+		{
+			UVPhiStart = 0.0f;
+			pStart--;
+			pEnd++;
+		}
+		
+		for ( p = pStart, UVPhi = UVPhiStart; p < pEnd; ++p, UVPhi += DUVphi)
 		{
 			for (t = 0, UVTheta = 1; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
 			{
@@ -92,17 +124,21 @@ private:
 			UVParentVertex[UVIdx] = (p - 1) * NumTheta; // Wrap around
 			++UVIdx;
 		}
-		int32 NorthPoleVtxIdx = (NumPhi - 2) * NumTheta;
-		for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
+
+		if (bHasPoles)
 		{
-			UVs[UVIdx] = FVector2f(UVTheta, 0.0);
-			UVParentVertex[UVIdx] = NorthPoleVtxIdx;
-		}
-		int32 SouthPoleVtxIdx = NorthPoleVtxIdx + 1;
-		for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
-		{
-			UVs[UVIdx] = FVector2f(UVTheta, 1.0);
-			UVParentVertex[UVIdx] = SouthPoleVtxIdx;
+			int32 NorthPoleVtxIdx = (NumPhi - 2) * NumTheta;
+			for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
+			{
+				UVs[UVIdx] = FVector2f(UVTheta, 0.0);
+				UVParentVertex[UVIdx] = NorthPoleVtxIdx;
+			}
+			int32 SouthPoleVtxIdx = NorthPoleVtxIdx + 1;
+			for (t = 0, UVTheta = 1 + DUVtheta; t < NumTheta; ++t, ++UVIdx, UVTheta += DUVtheta)
+			{
+				UVs[UVIdx] = FVector2f(UVTheta, 1.0);
+				UVParentVertex[UVIdx] = SouthPoleVtxIdx;
+			}
 		}
 	}
 
@@ -122,7 +158,17 @@ private:
 		// Generate equatorial triangles
 		int32 Corners[4] =   { 0, 1,     NumTheta + 1, NumTheta};
 		int32 UVCorners[4] = { 0, 1, NumTheta + 2, NumTheta + 1};
-		for (int32 p = 1; p < NumPhi - 2; ++p)
+		int32 pStart = 1;
+		int32 pEnd = NumPhi - 2;
+
+		// If we dont have poles then add another layer top/bottom.
+		if (bHasPoles == false)
+		{
+			pStart--;
+			pEnd++;
+		}
+
+		for (int32 p = pStart; p < pEnd; ++p)
 		{
 			for (int32 t = 0; t < NumTheta - 1; ++t)
 			{
@@ -214,19 +260,35 @@ public:
 		{
 			ThetaRange = FMathd::TwoPi;
 		}
+
+		// Do we have the poles?
+		bHasPoles = PhiRange >= FMath::DegreesToRadians(179.9f);
+		if (bHasPoles)
+		{
+			PhiRange = FMathd::Pi;
+		}
 		
 		// enforce sane values for vertex counts
 		NumPhi = FMath::Max(NumPhi, 3);
 		NumTheta = FMath::Max(NumTheta, 3);
-		const int32 NumVertices = (NumPhi - 2) * NumTheta + 2;
-		const int32 NumUVs = (NumPhi - 2) * (NumTheta + 1) + (2 * NumTheta);
-		const int32 NumTris = (NumPhi - 2) * (bIsClosed ? NumTheta : (NumTheta - 1)) * 2;
+		int32 NumVertices = (NumPhi - 2) * NumTheta + 2;
+		int32 NumUVs = (NumPhi - 2) * (NumTheta + 1) + (2 * NumTheta);
+		int32 NumTris = (NumPhi - 2) * (bIsClosed ? NumTheta : (NumTheta - 1)) * 2;
+		if (bHasPoles == false)
+		{
+			NumVertices = NumPhi * NumTheta;
+			NumUVs = NumPhi * (NumTheta + 1);
+			NumTris = (NumPhi - 1) * (bIsClosed ? NumTheta : (NumTheta - 1)) * 2;
+		}
 		SetBufferSizes(NumVertices, NumTris, NumUVs, NumVertices);
 
 		GenerateVertices();
 		GenerateUVVertices();
 		OutputEquatorialTriangles();
-		OutputPolarTriangles();
+		if (bHasPoles)
+		{
+			OutputPolarTriangles();
+		}
 		return *this;
 	}
 

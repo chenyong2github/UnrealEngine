@@ -139,7 +139,8 @@ void FMediaPlateCustomizationMesh::GenerateSphereMesh(FDynamicMesh3* OutMesh,
 {
 	FMediaPlateSphereGenerator SphereGen;
 	SphereGen.Radius = 50.0f;
-	SphereGen.ThetaRange = FMath::DegreesToRadians(MediaPlate->GetMeshHorizontalRange());
+	SphereGen.ThetaRange = FMath::DegreesToRadians(MediaPlate->GetMeshRange().X);
+	SphereGen.PhiRange = FMath::DegreesToRadians(MediaPlate->GetMeshRange().Y);
 	SphereGen.NumTheta = 64;
 	SphereGen.NumPhi = 64;
 	SphereGen.bPolygroupPerQuad = false;
@@ -183,10 +184,12 @@ UStaticMesh* FMediaPlateCustomizationMesh::CreateStaticMeshAsset(FDynamicMesh3* 
 FString FMediaPlateCustomizationMesh::GetAssetPath(UMediaPlateComponent* MediaPlate)
 {
 	// Add the horizontal range.
-	FString ID = FString::SanitizeFloat(MediaPlate->GetMeshHorizontalRange());
-	ID.ReplaceCharInline(TCHAR('.'), TCHAR('_'));
+	FString ID_X = FString::SanitizeFloat(MediaPlate->GetMeshRange().X);
+	ID_X.ReplaceCharInline(TCHAR('.'), TCHAR('_'));
+	FString ID_Y = FString::SanitizeFloat(MediaPlate->GetMeshRange().Y);
+	ID_Y.ReplaceCharInline(TCHAR('.'), TCHAR('_'));
 
-	FString AssetPath = FString::Printf(TEXT("/Game/_MediaPlate/Sphere_%s"), *ID);
+	FString AssetPath = FString::Printf(TEXT("/Game/_MediaPlate/Sphere_%s_%s"), *ID_X, *ID_Y);
 
 	return AssetPath;
 }

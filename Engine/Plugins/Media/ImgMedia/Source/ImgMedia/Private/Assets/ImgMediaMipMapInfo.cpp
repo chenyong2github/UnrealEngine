@@ -547,9 +547,9 @@ namespace {
 	class FSphereObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
-		FSphereObjectInfo(UMeshComponent* InMeshComponent, float InLODBias, float InMeshHorizontalRange)
+		FSphereObjectInfo(UMeshComponent* InMeshComponent, float InLODBias, FVector2D InMeshRange)
 			: FImgMediaMipMapObjectInfo(InMeshComponent, InLODBias)
-			, MeshHorizontalRange(InMeshHorizontalRange)
+			, MeshRange(InMeshRange)
 		{
 		}
 
@@ -578,7 +578,9 @@ namespace {
 			auto TransformSphericalUVsToLocationWS = [this, &MeshTransform, DefaultSphereRadius](const FVector2D& InUV) -> FVector
 			{
 				// Convert from latlong UV to spherical coordinates
-				FVector2D TileCornerSpherical = FVector2D(UE_PI * InUV.Y, FMath::DegreesToRadians(MeshHorizontalRange) * (1.0f - InUV.X));
+				FVector2D TileCornerSpherical = FVector2D(
+					FMath::DegreesToRadians(MeshRange.Y) * InUV.Y,
+					FMath::DegreesToRadians(MeshRange.X) * (1.0f - InUV.X));
 				FVector CornersWS = TileCornerSpherical.SphericalToUnitCartesian() * DefaultSphereRadius;
 				return MeshTransform.TransformPosition(CornersWS);
 			};
@@ -654,7 +656,7 @@ namespace {
 		}
 
 	private:
-		float MeshHorizontalRange;
+		FVector2D MeshRange;
 	};
 
 } //end anonymous namespace
@@ -669,7 +671,8 @@ FImgMediaMipMapInfo::~FImgMediaMipMapInfo()
 	ClearAllObjects();
 }
 
-void FImgMediaMipMapInfo::AddObject(AActor* InActor, float LODBias, EMediaTextureVisibleMipsTiles MeshType, float MeshHorizontalRange)
+void FImgMediaMipMapInfo::AddObject(AActor* InActor, float LODBias, EMediaTextureVisibleMipsTiles MeshType,
+	FVector2D MeshRange)
 {
 	if (InActor != nullptr)
 	{
@@ -682,7 +685,7 @@ void FImgMediaMipMapInfo::AddObject(AActor* InActor, float LODBias, EMediaTextur
 				Objects.Add(new FPlaneObjectInfo(MeshComponent, LODBias));
 				break;
 			case EMediaTextureVisibleMipsTiles::Sphere:
-				Objects.Add(new FSphereObjectInfo(MeshComponent, LODBias, MeshHorizontalRange));
+				Objects.Add(new FSphereObjectInfo(MeshComponent, LODBias, MeshRange));
 				break;
 			default:
 				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, LODBias));
@@ -730,7 +733,7 @@ void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMedia
 				AActor* Owner = ObjectInfo->Object.Get();
 				if (Owner != nullptr)
 				{
-					AddObject(Owner,ObjectInfo->MipMapLODBias, ObjectInfo->VisibleMipsTilesCalculations, ObjectInfo->MeshHorizontalRange );
+					AddObject(Owner,ObjectInfo->MipMapLODBias, ObjectInfo->VisibleMipsTilesCalculations, ObjectInfo->MeshRange);
 				}
 			}
 		}

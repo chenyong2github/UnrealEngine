@@ -30,8 +30,8 @@ struct FMediaTextureTrackerObject
 	float MipMapLODBias;
 	/** Specify type of mesh used for visible mips and tiles calculations. */
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
-	/** Horizontal arc size in degrees used for visible tiles calculations, specific to the sphere.*/
-	float MeshHorizontalRange;
+	/** Arc size in degrees used for visible tiles calculations, specific to the sphere.*/
+	FVector2D MeshRange;
 };
 
 /**

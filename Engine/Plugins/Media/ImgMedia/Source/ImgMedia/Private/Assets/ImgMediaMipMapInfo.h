@@ -214,9 +214,11 @@ public:
 	 * @param InActor Object using our img sequence.
 	 * @param LODBias Bias used for mip-level calculations (Note: must be mirrored in a material manually).
 	 * @param MeshType Plane, sphere or none mesh type for mip-tile calculations.
-	 * @param MeshHorizontalRange Arc size in degrees used for visible tiles calculations, specific to the sphere.
+	 * @param MeshRange Arc size in degrees used for visible tiles calculations, specific to the sphere.
 	 */
-	void AddObject(AActor* InActor, float LODBias = 0.0f, EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None, float MeshHorizontalRange = 360.0f);
+	void AddObject(AActor* InActor, float LODBias = 0.0f,
+		EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None,
+		FVector2D MeshRange = FVector2D(360.0f, 180.0f));
 
 	/**
 	 * This object is no longer using our img sequence.

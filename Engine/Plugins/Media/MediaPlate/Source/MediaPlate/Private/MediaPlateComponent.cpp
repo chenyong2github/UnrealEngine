@@ -200,13 +200,13 @@ void UMediaPlateComponent::Stop()
 	StopClockSink();
 }
 
-void UMediaPlateComponent::SetMeshHorizontalRange(float InMeshHorizontalRange)
+void UMediaPlateComponent::SetMeshRange(FVector2D InMeshRange)
 {
-	MeshHorizontalRange = InMeshHorizontalRange;
+	MeshRange = InMeshRange;
 
 	if (MediaTextureTrackerObject != nullptr)
 	{
-		MediaTextureTrackerObject->MeshHorizontalRange = MeshHorizontalRange;
+		MediaTextureTrackerObject->MeshRange = MeshRange;
 	}
 }
 
@@ -217,7 +217,7 @@ void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 	MediaTextureTrackerObject->Object = GetOwner();
 	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
 	MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
-	MediaTextureTrackerObject->MeshHorizontalRange = MeshHorizontalRange;
+	MediaTextureTrackerObject->MeshRange = MeshRange;
 
 	// Add our texture.
 	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();

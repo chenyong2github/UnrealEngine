@@ -107,13 +107,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 
-	/** Set the horizontal arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
+	/** Set the arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
-	void SetMeshHorizontalRange(float InMeshHorizontalRange);
+	void SetMeshRange(FVector2D InMeshRange);
 
-	/** Return the horizontal arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
+	/** Return the arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
-	float GetMeshHorizontalRange() const { return MeshHorizontalRange; }
+	FVector2D GetMeshRange() const { return MeshRange; }
 
 	/**
 	 * Adds our media texture to the media texture tracker.
@@ -141,7 +141,7 @@ public:
 
 private:
 	UPROPERTY()
-	float MeshHorizontalRange = 360.0f;
+	FVector2D MeshRange = FVector2D(360.0f, 180.0f);
 
 	/** Name for our media component. */
 	static FLazyName MediaComponentName;

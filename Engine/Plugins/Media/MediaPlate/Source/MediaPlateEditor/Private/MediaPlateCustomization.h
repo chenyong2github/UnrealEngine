@@ -112,6 +112,21 @@ private:
 	TOptional<float> GetMeshHorizontalRange() const;
 
 	/**
+	 * Call this to set the vertical range of the mesh.
+	 */
+	void SetMeshVerticalRange(float VerticalRange);
+
+	/**
+	 * Call this to get the vertical range of the mesh.
+	 */
+	TOptional<float> GetMeshVerticalRange() const;
+
+	/**
+	 * Call this to set the range of the mesh.
+	 */
+	void SetMeshRange(FVector2D Range);
+
+	/**
 	 * Gets the object path for the media source object.
 	 */
 	FString GetMediaSourcePath() const;
