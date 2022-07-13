@@ -112,6 +112,8 @@ $ bCompileIntelMetricsDiscovery (Boolean): Whether to compile IntelMetricsDiscov
 
 $ bCompilePython (Boolean): Whether to compile in python support
 
+$ bUseIris (Boolean): Whether to use Iris.
+
 $ bForceBuildTargetPlatforms (Boolean): Whether to force compiling the target platform modules, even if they wouldn't normally be built.
 
 $ bForceBuildShaderFormats (Boolean): Whether to force compiling shader format modules, even if they wouldn't normally be built.
