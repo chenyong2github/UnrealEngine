@@ -3,9 +3,15 @@
 #pragma once
 
 #include "MVVM/ViewModelTypeID.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
 
+class UMovieSceneSection;
 class UMovieSceneTrack;
 class ISequencerTrackEditor;
+struct FViewModelChildren;
 
 namespace UE
 {
@@ -22,6 +28,21 @@ public:
 
 	virtual UMovieSceneTrack* GetTrack() const = 0;
 	virtual int32 GetRowIndex() const = 0;
+	virtual FViewModelChildren GetSectionModels() = 0;
+
+	TArray<UMovieSceneSection*> GetSections() 
+	{ 
+		TArray<UMovieSceneSection*> Sections; 
+		for (const TViewModelPtr<FSectionModel>& Item : GetSectionModels().IterateSubList<FSectionModel>())
+		{
+			if (UMovieSceneSection* Section = Item->GetSection())
+			{
+				Sections.Add(Section);
+			}
+		}
+
+		return Sections;
+	}
 
 	virtual TSharedPtr<ISequencerTrackEditor> GetTrackEditor() const = 0;
 };

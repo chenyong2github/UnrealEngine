@@ -79,7 +79,7 @@ int32 FTrackRowModel::GetRowIndex() const
 	return RowIndex;
 }
 
-FViewModelChildren FTrackRowModel::GetSections()
+FViewModelChildren FTrackRowModel::GetSectionModels()
 {
 	return GetChildrenForList(&SectionList);
 }

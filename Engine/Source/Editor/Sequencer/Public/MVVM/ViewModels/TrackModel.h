@@ -63,7 +63,6 @@ public:
 	explicit FTrackModel(UMovieSceneTrack* Track);
 	~FTrackModel();
 
-	FViewModelChildren GetSections();
 	FViewModelChildren GetTopLevelChannels();
 
 public:
@@ -74,6 +73,8 @@ public:
 	/*~ ITrackExtension */
 	UMovieSceneTrack* GetTrack() const override;
 	int32 GetRowIndex() const override;
+	FViewModelChildren GetSectionModels() override;
+
 	TSharedPtr<ISequencerTrackEditor> GetTrackEditor() const override;
 
 	/*~ ISignedObjectEventHandler */

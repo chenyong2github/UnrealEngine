@@ -73,7 +73,7 @@ EViewModelListType FTrackModel::GetTopLevelChannelGroupType()
 	return TopLevelChannelGroup;
 }
 
-FViewModelChildren FTrackModel::GetSections()
+FViewModelChildren FTrackModel::GetSectionModels()
 {
 	return GetChildrenForList(&SectionList);
 }
@@ -287,7 +287,7 @@ void FTrackModel::ForceUpdate()
 
 				// Keep sections on rows alive as well
 				RowModels[RowIndex].OldSections = MakeUnique<FScopedViewModelListHead>(TrackRowModel, EViewModelListType::Recycled);
-				TrackRowModel->GetSections().MoveChildrenTo(RowModels[RowIndex].OldSections->GetChildren());
+				TrackRowModel->GetSectionModels().MoveChildrenTo(RowModels[RowIndex].OldSections->GetChildren());
 			}
 		}
 
@@ -303,7 +303,7 @@ void FTrackModel::ForceUpdate()
 				SectionModel = SectionModelStorage->CreateModelForSection(Section, SectionInterface);
 			}
 
-			RowModels[RowIndex].Row->GetSections().InsertChild(SectionModel, RowModels[RowIndex].SectionsTail);
+			RowModels[RowIndex].Row->GetSectionModels().InsertChild(SectionModel, RowModels[RowIndex].SectionsTail);
 			RowModels[RowIndex].SectionsTail = SectionModel;
 		}
 

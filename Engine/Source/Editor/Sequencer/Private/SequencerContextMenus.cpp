@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerContextMenus.h"
-#include "MVVM/ViewModels/ViewModel.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "SequencerCommonHelpers.h"
@@ -11,7 +10,6 @@
 #include "SSequencerSection.h"
 #include "SequencerSettings.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
-#include "MVVM/ViewModels/ViewModel.h"
 #include "SequencerHotspots.h"
 #include "ScopedTransaction.h"
 #include "MovieSceneToolHelpers.h"
@@ -42,9 +40,11 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "Channels/MovieSceneChannel.h"
+#include "MVVM/Extensions/ITrackExtension.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Algo/AnyOf.h"
@@ -1365,40 +1365,6 @@ void FPasteContextMenu::GatherPasteDestinationsForNode(const UE::Sequencer::TVie
 }
 
 
-TSharedPtr<UE::Sequencer::FTrackModel> GetTrackFromNode(const UE::Sequencer::TViewModelPtr<UE::Sequencer::IOutlinerExtension>& InNode, FString& Scope)
-{
-	using namespace UE::Sequencer;
-
-	if (TSharedPtr<FTrackModel> TrackModel = InNode.ImplicitCast())
-	{
-		return TrackModel;
-	}
-	if (TSharedPtr<FObjectBindingModel> ObjectBindingModel = InNode.ImplicitCast())
-	{
-		return nullptr;
-	}
-
-	TViewModelPtr<IOutlinerExtension> Parent = InNode.AsModel()->FindAncestorOfType<IOutlinerExtension>();
-	if (Parent)
-	{
-		TSharedPtr<FTrackModel> Track = GetTrackFromNode(Parent, Scope);
-		if (Track.IsValid())
-		{
-			FString ThisScope = Track->GetLabel().ToString();
-			if (!Scope.IsEmpty())
-			{
-				ThisScope.AppendChar('.');
-				ThisScope.Append(Scope);
-				Scope = MoveTemp(ThisScope);
-			}
-			return Track;
-		}
-	}
-
-	return nullptr;
-}
-
-
 void FPasteContextMenu::Setup()
 {
 	using namespace UE::Sequencer;
@@ -1425,26 +1391,19 @@ void FPasteContextMenu::Setup()
 		{
 			for (const TViewModelPtr<IOutlinerExtension>& Node : Args.DestinationNodes)
 			{
-				if (!Node.AsModel()->IsA<FChannelModel>() && !Node.AsModel()->IsA<FChannelGroupModel>())
-				{
-					continue;
-				}
-
-				FString Scope;
-				TSharedPtr<FTrackModel> TrackNode = GetTrackFromNode(Node, Scope);
-				if (!TrackNode.IsValid())
+				TViewModelPtr<ITrackExtension> TrackNode = Node.AsModel()->FindAncestorOfType<ITrackExtension>(true);
+				if (!TrackNode)
 				{
 					continue;
 				}
 
 				FPasteDestination& Destination = PasteDestinations[PasteDestinations.AddDefaulted()];
 
-				TArray<UMovieSceneSection*> Sections;
-				for (const TViewModelPtr<FSectionModel>& Section : TrackNode->GetSections().IterateSubList<FSectionModel>())
+				for (UMovieSceneSection* Section : TrackNode->GetSections())
 				{
-					if (Section->GetSection())
+					if (Section)
 					{
-						GatherPasteDestinationsForNode(Node, Section->GetSection(), NAME_None, Destination.Reconcilers);
+						GatherPasteDestinationsForNode(Node, Section, NAME_None, Destination.Reconcilers);
 					}
 				}
 
@@ -1485,23 +1444,13 @@ void FPasteContextMenu::Setup()
 		// Build a list of sections based on selected tracks
 		for (const TViewModelPtr<IOutlinerExtension>& Node : Args.DestinationNodes)
 		{
-			FString Scope;
-			TSharedPtr<FTrackModel> TrackNode = GetTrackFromNode(Node, Scope);
-			if (!TrackNode.IsValid())
+			TViewModelPtr<ITrackExtension> TrackNode = Node.AsModel()->FindAncestorOfType<ITrackExtension>(true);
+			if (!TrackNode)
 			{
 				continue;
 			}
 
-			TArray<UMovieSceneSection*> Sections;
-			for (const TViewModelPtr<FSectionModel>& Section : TrackNode->GetSections().IterateSubList<FSectionModel>())
-			{
-				if (Section->GetSection())
-				{
-					Sections.Add(Section->GetSection());
-				}
-			}
-
-			UMovieSceneSection* Section = MovieSceneHelpers::FindNearestSectionAtTime(Sections, Args.PasteAtTime);
+			UMovieSceneSection* Section = MovieSceneHelpers::FindNearestSectionAtTime(TrackNode->GetSections(), Args.PasteAtTime);
 			TSharedPtr<FSectionModel> SectionModel = Sequencer->GetNodeTree()->GetSectionModel(Section);
 			if (SectionModel)
 			{

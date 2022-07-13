@@ -39,8 +39,6 @@ public:
 
 	void Initialize();
 
-	FViewModelChildren GetSections();
-
 	TSharedPtr<ISequencerTrackEditor> GetTrackEditor() const { return TrackEditor; }
 
 	/*~ FOutlinerItemModel */
@@ -62,6 +60,7 @@ public:
 	/*~ ITrackExtension */
 	UMovieSceneTrack* GetTrack() const override;
 	int32 GetRowIndex() const override;
+	FViewModelChildren GetSectionModels() override;
 
 	/*~ ITrackAreaExtension */
 	FTrackAreaParameters GetTrackAreaParameters() const override;
