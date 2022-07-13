@@ -1129,6 +1129,17 @@ void FModuleManager::FindModulePaths(const TCHAR* NamePattern, TMap<FName, FStri
 
 		// Add the engine directory to the cache - only needs to be cached once as the contents do not change at runtime
 		FindModulePathsInDirectory(FPlatformProcess::GetModulesDirectory(), false, ModulePathsCache);
+
+#if !WITH_EDITOR
+		// DebugGame is a hybrid configuration where the engine is in Development and the game Debug.
+		// As such, it generates two separate module manifests, one for the engine modules (Development) and
+		// one for the game (Debug). We need to load both as otherwise some modules won't be found.
+		// We exclude this code in the editor as it handles the game's libraries separately via PendingGameBinariesDirectories.
+		if (FApp::GetBuildConfiguration() == EBuildConfiguration::DebugGame)
+		{
+			FindModulePathsInDirectory(FPlatformProcess::GetModulesDirectory(), true, ModulePathsCache);
+		}
+#endif
 	}
 
 	// If any entries have been added to the PendingEngineBinariesDirectories or PendingGameBinariesDirectories arrays, add any
