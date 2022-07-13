@@ -231,7 +231,7 @@ void FAnimationBudgetAllocator::QueueSortedComponentIndices(float InDeltaSeconds
 				// Whether or not we will tick
 				bool bShouldTick = ShouldComponentTick(Component, ComponentData);
 
-				// Avoid ticking when root prerequisites dont tick (assumes master pose or copy pose relationship)
+				// Avoid ticking when root prerequisites dont tick (assumes leader pose or copy pose relationship)
 				if(bShouldTick && ComponentData.RootPrerequisite != nullptr)
 				{
 					const int32 PrerequisiteHandle = ComponentData.RootPrerequisite->GetAnimationBudgetHandle();
