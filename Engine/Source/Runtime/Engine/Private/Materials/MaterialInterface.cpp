@@ -701,6 +701,17 @@ bool UMaterialInterface::GetVectorParameterValue(const FHashedMaterialParameterI
 	return false;
 }
 
+bool UMaterialInterface::GetDoubleVectorParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FVector4d& OutValue, bool bOveriddenOnly) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterValue(EMaterialParameterType::DoubleVector, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly)))
+	{
+		OutValue = Result.Value.AsVector4d();
+		return true;
+	}
+	return false;
+}
+
 #if WITH_EDITOR
 bool UMaterialInterface::IsVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const
 {
@@ -717,6 +728,28 @@ bool UMaterialInterface::GetVectorParameterChannelNames(const FHashedMaterialPar
 {
 	FMaterialParameterMetadata Result;
 	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
+	{
+		OutValue = Result.ChannelNames;
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialInterface::IsDoubleVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterValue(EMaterialParameterType::DoubleVector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
+	{
+		OutValue = Result.bUsedAsChannelMask;
+		return true;
+	}
+	return false;
+}
+
+bool UMaterialInterface::GetDoubleVectorParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterValue(EMaterialParameterType::DoubleVector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutValue = Result.ChannelNames;
 		return true;
@@ -843,6 +876,17 @@ bool UMaterialInterface::GetVectorParameterDefaultValue(const FHashedMaterialPar
 	return false;
 }
 
+bool UMaterialInterface::GetDoubleVectorParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, FVector4& OutValue) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterDefaultValue(EMaterialParameterType::DoubleVector, ParameterInfo, Result))
+	{
+		OutValue = Result.Value.AsVector4d();
+		return true;
+	}
+	return false;
+}
+
 bool UMaterialInterface::GetTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue) const
 {
 	FMaterialParameterMetadata Result;
@@ -929,6 +973,11 @@ void UMaterialInterface::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo
 void UMaterialInterface::GetAllVectorParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	GetAllParameterInfoOfType(EMaterialParameterType::Vector, OutParameterInfo, OutParameterIds);
+}
+
+void UMaterialInterface::GetAllDoubleVectorParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+{
+	GetAllParameterInfoOfType(EMaterialParameterType::DoubleVector, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterialInterface::GetAllTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const

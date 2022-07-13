@@ -521,6 +521,7 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		// Temporarily store unsaved parameters
 		TArray<FScalarParameterValue> ScalarParameterValues = FunctionInstanceProxy->ScalarParameterValues;
 		TArray<FVectorParameterValue> VectorParameterValues = FunctionInstanceProxy->VectorParameterValues;
+		TArray<FDoubleVectorParameterValue> DoubleVectorParameterValues = FunctionInstanceProxy->DoubleVectorParameterValues;
 		TArray<FTextureParameterValue> TextureParameterValues = FunctionInstanceProxy->TextureParameterValues;
 		TArray<FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues = FunctionInstanceProxy->RuntimeVirtualTextureParameterValues;
 		TArray<FFontParameterValue> FontParameterValues = FunctionInstanceProxy->FontParameterValues;
@@ -559,6 +560,18 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 			{
 				FunctionInstanceProxy->VectorParameterValues.Add(VectorParameter);
 				FunctionInstanceProxy->VectorParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
+			}
+		}
+
+		FunctionInstanceProxy->GetAllDoubleVectorParameterInfo(OutParameterInfo, Guids);
+		FunctionInstanceProxy->DoubleVectorParameterValues.Empty();
+		for (FDoubleVectorParameterValue& DoubleVectorParameter : DoubleVectorParameterValues)
+		{
+			int32 Index = Guids.Find(DoubleVectorParameter.ExpressionGUID);
+			if (Index != INDEX_NONE)
+			{
+				FunctionInstanceProxy->DoubleVectorParameterValues.Add(DoubleVectorParameter);
+				FunctionInstanceProxy->DoubleVectorParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 

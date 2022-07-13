@@ -462,6 +462,11 @@ void UMaterialInstanceDynamic::CopyInterpParameters(UMaterialInstance* Source)
 			SetVectorParameterValue(it.ParameterInfo.Name, it.ParameterValue);
 		}
 
+		for (auto& it : Source->DoubleVectorParameterValues)
+		{
+			SetDoubleVectorParameterValue(it.ParameterInfo.Name, it.ParameterValue);
+		}
+
 		for (auto& it : Source->TextureParameterValues)
 		{
 			SetTextureParameterValue(it.ParameterInfo.Name, it.ParameterValue);
@@ -482,6 +487,7 @@ void UMaterialInstanceDynamic::CopyParameterOverrides(UMaterialInstance* Materia
 	if (ensureAsRuntimeWarning(MaterialInstance != nullptr))
 	{
 		VectorParameterValues = MaterialInstance->VectorParameterValues;
+		DoubleVectorParameterValues = MaterialInstance->DoubleVectorParameterValues;
 		ScalarParameterValues = MaterialInstance->ScalarParameterValues;
 		TextureParameterValues = MaterialInstance->TextureParameterValues;
 		FontParameterValues = MaterialInstance->FontParameterValues;

@@ -423,6 +423,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewFunctionInstance(class UMateria
 				{
 					ChildInstance->ScalarParameterValues = EditedInstance->ScalarParameterValues;
 					ChildInstance->VectorParameterValues = EditedInstance->VectorParameterValues;
+					ChildInstance->DoubleVectorParameterValues = EditedInstance->DoubleVectorParameterValues;
 					ChildInstance->TextureParameterValues = EditedInstance->TextureParameterValues;
 					ChildInstance->RuntimeVirtualTextureParameterValues = EditedInstance->RuntimeVirtualTextureParameterValues; 
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
@@ -514,6 +515,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewLayerInstance(class UMaterialFu
 				{
 					ChildInstance->ScalarParameterValues = EditedInstance->ScalarParameterValues;
 					ChildInstance->VectorParameterValues = EditedInstance->VectorParameterValues;
+					ChildInstance->DoubleVectorParameterValues = EditedInstance->DoubleVectorParameterValues;
 					ChildInstance->TextureParameterValues = EditedInstance->TextureParameterValues;
 					ChildInstance->RuntimeVirtualTextureParameterValues = EditedInstance->RuntimeVirtualTextureParameterValues;
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
