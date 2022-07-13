@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/NetConnection.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -15,9 +14,18 @@
 
 class FInternetAddr;
 class ISocketSubsystem;
+class FSocket;
+class FIpConnectionHelper;
+
+namespace UE::Net::Private
+{
+	class FNetDriverAddressResolution;
+	class FNetConnectionAddressResolution;
+}
+
 
 /** A state system of the address resolution functionality. */
-enum class EAddressResolutionState : uint8
+enum class UE_DEPRECATED(5.1, "EAddressResolutionState has been moved to a private namespace.") EAddressResolutionState : uint8
 {
 	None = 0,
 	Disabled,
@@ -33,13 +41,17 @@ UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
 {
     GENERATED_UCLASS_BODY()
-	// Variables.
 
+	friend FIpConnectionHelper;
+	friend UE::Net::Private::FNetDriverAddressResolution;
+
+public:
 	/** This is a non-owning pointer to a socket owned elsewhere, IpConnection will not destroy the socket through this pointer. */
-	class FSocket*				Socket;
-	UE_DEPRECATED(4.25, "Address resolution is now handled in the IpNetDriver and no longer done entirely in the IpConnection")
-	class FResolveInfo*			ResolveInfo;
+	UE_DEPRECATED(5.1, "Socket access is now controlled through GetSocket")
+	FSocket*				Socket;
 
+
+public:
 	//~ Begin NetConnection Interface
 	virtual void InitBase(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket = 0, int32 InPacketOverhead = 0) override;
 	virtual void InitRemoteConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, const class FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket = 0, int32 InPacketOverhead = 0) override;
@@ -58,6 +70,18 @@ class ONLINESUBSYSTEMUTILS_API UIpConnection : public UNetConnection
 	 * Since these tasks need to access the socket, this is called before the net driver closes the socket.
 	 */
 	void WaitForSendTasks();
+
+	/**
+	 * Gets the cached socket for this connection.
+	 *
+	 * @return	The cached socket for this connection
+	 */
+	FSocket* GetSocket() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Socket;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 	/**
@@ -100,69 +124,24 @@ private:
 
 private:
 
+	/** Cleanup for the deprecated 'Socket' value */
+	void CleanupDeprecatedSocket();
+
 	/** Handles any SendTo errors on the game thread. */
 	void HandleSocketSendResult(const FSocketSendResult& Result, ISocketSubsystem* SocketSubsystem);
 
 	/** Notifies us that we've encountered an error while receiving a packet. */
 	void HandleSocketRecvError(class UNetDriver* NetDriver, const FString& ErrorString);
 
-	/** An array of sockets tied to every binding address. */
-	TArray<TSharedPtr<FSocket>> BindSockets;
+	/** NetDriver level early address resolution (may pass work on to NetConnection level address resolution) */
+	TPimplPtr<UE::Net::Private::FNetConnectionAddressResolution> Resolver;
 
-	/** Holds a refcount to the actual socket to be used from BindSockets. */
-	TSharedPtr<FSocket> ResolutionSocket;
-
-	/** An array containing the address results GAI returns for the current host value. Given to us from the netdriver. */
-	TArray<TSharedRef<FInternetAddr>> ResolverResults;
-
-	/** The index into the ResolverResults that we're currently attempting */
-	int32 CurrentAddressIndex;
-
-	/** 
-	 *  The connection's current status of where it is in the resolution state machine.
-	 *  If a platform should not use resolution, call DisableAddressResolution() in your constructor
-	 */
-	EAddressResolutionState ResolutionState;
-
-	/**
-	 * Cleans up the socket information in use with resolution. This can get called numerous times.
-	 */
-	void CleanupResolutionSockets();
-
-	/**
-	 * Determines if we can continue processing resolution results or not based on flags and
-	 * current flow.
-	 *
-	 * @return if resolution is allowed to continue processing.
-	 */
-	bool CanContinueResolution() const {
-		return CurrentAddressIndex < ResolverResults.Num() && IsAddressResolutionEnabled() &&
-			ResolutionState != EAddressResolutionState::Error && ResolutionState != EAddressResolutionState::Done;
-	}
-
-	/**
-	 * Checks to see if this netconnection class can use address resolution
-	 *
-	 * @return if address resolution is allowed to continue processing.
-	 */
-	bool IsAddressResolutionEnabled() const {
-		return ResolutionState != EAddressResolutionState::Disabled;
-	}
-
-	/**
-	 * Checks to see if this netconnection class has encountered an error during process resolution
-	 *
-	 * @return If an error has occurred
-	 */
-	bool HasAddressResolutionFailed() const {
-		return ResolutionState == EAddressResolutionState::Error;
-	}
 
 protected:
 	/**
 	 * Disables address resolution by pushing the disabled flag into the status field.
 	 */
-	void DisableAddressResolution() { ResolutionState = EAddressResolutionState::Disabled; }
+	void DisableAddressResolution();
 
 	/**
 	 * Handles a NetConnection timeout. Overridden in order to handle parsing multiple GAI results during resolution.
@@ -170,6 +149,4 @@ protected:
 	 * @param ErrorStr A string containing the current error message for either usage or writing into.
 	 */
 	virtual void HandleConnectionTimeout(const FString& ErrorStr) override;
-
-	friend class FIpConnectionHelper;
 };

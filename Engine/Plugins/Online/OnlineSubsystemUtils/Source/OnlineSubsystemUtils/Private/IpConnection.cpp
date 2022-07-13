@@ -20,6 +20,8 @@ Notes:
 
 #include "Net/Core/Misc/PacketAudit.h"
 #include "Misc/ScopeExit.h"
+#include "NetAddressResolution.h"
+
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -32,7 +34,6 @@ Notes:
 DECLARE_CYCLE_STAT(TEXT("IpConnection InitRemoteConnection"), Stat_IpConnectionInitRemoteConnection, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("IpConnection Socket SendTo"), STAT_IpConnection_SendToSocket, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("IpConnection WaitForSendTasks"), STAT_IpConnection_WaitForSendTasks, STATGROUP_Net);
-DECLARE_CYCLE_STAT(TEXT("IpConnection Address Synthesis"), STAT_IpConnection_AddressSynthesis, STATGROUP_Net);
 
 TAutoConsoleVariable<int32> CVarNetIpConnectionUseSendTasks(
 	TEXT("net.IpConnectionUseSendTasks"),
@@ -45,16 +46,22 @@ TAutoConsoleVariable<int32> CVarNetIpConnectionDisableResolution(
 	TEXT("If enabled, any future ip connections will not use resolution methods."),
 	ECVF_Default | ECVF_Cheat);
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+/**
+ * UIpConnection
+ */
+
 UIpConnection::UIpConnection(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Socket(nullptr),
-	ResolveInfo(nullptr),
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	SocketErrorDisconnectDelay(5.f),
 	SocketError_SendDelayStartTime(0.f),
 	SocketError_RecvDelayStartTime(0.f),
-	CurrentAddressIndex(0),
-	ResolutionState(EAddressResolutionState::None)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Resolver(MakePimpl<UE::Net::Private::FNetConnectionAddressResolution>(Socket))
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
 	// Auto add address resolution disable flags if the cvar is set.
 	if (!!CVarNetIpConnectionDisableResolution.GetValueOnAnyThread())
@@ -62,7 +69,6 @@ UIpConnection::UIpConnection(const FObjectInitializer& ObjectInitializer) :
 		DisableAddressResolution();
 	}
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UIpConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {
@@ -72,9 +78,11 @@ void UIpConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocket, cons
 		(InMaxPacket == 0 || InMaxPacket > MAX_PACKET_SIZE) ? MAX_PACKET_SIZE : InMaxPacket,
 		InPacketOverhead == 0 ? UDP_HEADER_SIZE : InPacketOverhead);
 
-	if (!IsAddressResolutionEnabled())
+	if (!Resolver->IsAddressResolutionEnabled())
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Socket = InSocket;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	if (CVarNetEnableCongestionControl.GetValueOnAnyThread() > 0)
@@ -90,50 +98,17 @@ void UIpConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InS
 		(InMaxPacket == 0 || InMaxPacket > MAX_PACKET_SIZE) ? MAX_PACKET_SIZE : InMaxPacket,
 		InPacketOverhead == 0 ? UDP_HEADER_SIZE : InPacketOverhead);
 
-	// If resolution is disabled, fall back to address synthesis
-	if (!IsAddressResolutionEnabled())
+
+	bool bResolverInit = Resolver->InitLocalConnection(InDriver->GetSocketSubsystem(), InSocket, InURL);
+
+	if (!bResolverInit)
 	{
-		// Figure out IP address from the host URL
-		bool bIsValid = false;
-		// Get numerical address directly.
-		RemoteAddr = InDriver->GetSocketSubsystem()->CreateInternetAddr();
-		RemoteAddr->SetIp(*InURL.Host, bIsValid);
+		Close();
 
-		// If the protocols do not match, attempt to synthesize the address so they do.
-		if ((bIsValid && InSocket->GetProtocol() != RemoteAddr->GetProtocolType()) || !bIsValid)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_IpConnection_AddressSynthesis);
-
-			// We want to use GAI to create the address with the correct protocol.
-			const FAddressInfoResult MapRequest = InDriver->GetSocketSubsystem()->GetAddressInfo(*InURL.Host, nullptr,
-				EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::OnlyUsableAddresses, InSocket->GetProtocol());
-
-			// Set the remote addr provided we have information.
-			if (MapRequest.ReturnCode == SE_NO_ERROR && MapRequest.Results.Num() > 0)
-			{
-				RemoteAddr = MapRequest.Results[0].Address->Clone();
-				bIsValid = true;
-			}
-			else
-			{
-				UE_LOG(LogNet, Warning, TEXT("IpConnection::InitConnection: Address protocols do not match and cannot be synthesized to a similar address, this will likely lead to issues!"));
-			}
-		}
-
-		RemoteAddr->SetPort(InURL.Port);
-
-		// If synthesis failed then we shouldn't continue.
-		if (bIsValid == false)
-		{
-			Close();
-			UE_LOG(LogNet, Verbose, TEXT("IpConnection::InitConnection: Unable to resolve %s"), *InURL.Host);
-			return;
-		}
+		return;
 	}
-	else
-	{
-		ResolutionState = EAddressResolutionState::WaitingForResolves;
-	}
+
+	RemoteAddr = Resolver->GetRemoteAddr();
 
 	// Initialize our send bunch
 	InitSendBuffer();
@@ -143,8 +118,8 @@ void UIpConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* In
 {
 	SCOPE_CYCLE_COUNTER(Stat_IpConnectionInitRemoteConnection);
 
-	// Listeners don't need to perform address resolution, so flag it as disabled.
-	ResolutionState = EAddressResolutionState::Disabled;
+	// Listeners don't need to perform address resolution
+	Resolver->DisableAddressResolution();
 
 	InitBase(InDriver, InSocket, InURL, InState, 
 		// Use the default packet size/overhead unless overridden by a child class
@@ -164,6 +139,8 @@ void UIpConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* In
 
 void UIpConnection::Tick(float DeltaSeconds)
 {
+	using namespace UE::Net::Private;
+
 	if (CVarNetIpConnectionUseSendTasks.GetValueOnGameThread() != 0)
 	{
 		ISocketSubsystem* const SocketSubsystem = Driver->GetSocketSubsystem();
@@ -184,36 +161,16 @@ void UIpConnection::Tick(float DeltaSeconds)
 		}
 	}
 
-	if (ResolutionState == EAddressResolutionState::TryNextAddress)
+
+	ECheckAddressResolutionResult CheckResult = Resolver->CheckAddressResolution();
+
+	if (CheckResult == ECheckAddressResolutionResult::TryFirstAddress || CheckResult == ECheckAddressResolutionResult::TryNextAddress)
 	{
-		if (CurrentAddressIndex >= ResolverResults.Num())
-		{
-			UE_LOG(LogNet, Warning, TEXT("Exhausted the number of resolver results, closing the connection now."));
-			ResolutionState = EAddressResolutionState::Error;
-			return;
-		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Socket = Resolver->GetResolutionSocket().Get();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-		RemoteAddr = ResolverResults[CurrentAddressIndex];
-		Socket = nullptr;
-
-		for (const TSharedPtr<FSocket>& BindSocket : BindSockets)
-		{
-			if (BindSocket->GetProtocol() == RemoteAddr->GetProtocolType())
-			{
-				ResolutionSocket = BindSocket;
-				Socket = ResolutionSocket.Get();
-				break;
-			}
-		}
-
-		if (Socket == nullptr)
-		{
-			UE_LOG(LogNet, Error, TEXT("Unable to find a binding socket for the resolve address result %s"), *RemoteAddr->ToString(true));
-			ResolutionState = EAddressResolutionState::Error;
-			return;
-		}
-		
-		ResolutionState = EAddressResolutionState::Connecting;
+		RemoteAddr = Resolver->GetRemoteAddr();
 
 		// Reset any timers
 		LastReceiveTime = Driver->GetElapsedTime();
@@ -225,7 +182,7 @@ void UIpConnection::Tick(float DeltaSeconds)
 
 		// Resend initial packets again (only need to do this if this connection does not have packethandlers)
 		// Otherwise most packethandlers will do retry (the stateless handshake being one example)
-		if (CurrentAddressIndex != 0 && !Handler.IsValid())
+		if (CheckResult == ECheckAddressResolutionResult::TryNextAddress && !Handler.IsValid())
 		{
 			FWorldContext* WorldContext = GEngine->GetWorldContextFromPendingNetGameNetDriver(Driver);
 			if (WorldContext != nullptr && WorldContext->PendingNetGame != nullptr)
@@ -233,27 +190,23 @@ void UIpConnection::Tick(float DeltaSeconds)
 				WorldContext->PendingNetGame->SendInitialJoin();
 			}
 		}
-
-		++CurrentAddressIndex;
 	}
-	else if (ResolutionState == EAddressResolutionState::Connected)
+	else if (CheckResult == ECheckAddressResolutionResult::Connected)
 	{
-		CleanupResolutionSockets();
 		UIpNetDriver* IpDriver = Cast<UIpNetDriver>(Driver);
 
 		// Set the right object now that we have a connection
-		IpDriver->SetSocketAndLocalAddress(ResolutionSocket);
-
-		ResolutionState = EAddressResolutionState::Done;
+		IpDriver->SetSocketAndLocalAddress(Resolver->GetResolutionSocket());
 	}
-	else if (ResolutionState == EAddressResolutionState::Error)
+	else if (CheckResult == ECheckAddressResolutionResult::Error)
 	{
-		UE_LOG(LogNet, Warning, TEXT("Encountered an error, cleaning up this connection now"));
-		ResolutionState = EAddressResolutionState::Done;
-
 		// Host name resolution just now failed.
 		SetConnectionState(USOCK_Closed);
-		Close();
+		Close(ENetCloseResult::AddressResolutionFailed);
+	}
+	else if (CheckResult == ECheckAddressResolutionResult::FindSocketError)
+	{
+		CleanupDeprecatedSocket();
 	}
 
 	Super::Tick(DeltaSeconds);
@@ -261,30 +214,40 @@ void UIpConnection::Tick(float DeltaSeconds)
 
 void UIpConnection::CleanUp()
 {
-	// Force ourselves into a finishing state such that we clean up any excess network objects.
-	if (IsAddressResolutionEnabled())
-	{
-		ResolutionState = EAddressResolutionState::Done;
-	}
-
-	// Clean up these sockets now, as we'll lose the NetDriver pointer later on
-	CleanupResolutionSockets();
+	using namespace UE::Net::Private;
 
 	Super::CleanUp();
 
 	WaitForSendTasks();
+
+	// Sockets must be cleaned up after send tasks complete, as they can still be in use
+	CleanupDeprecatedSocket();
+	Resolver->CleanupResolutionSockets();
+}
+
+void UIpConnection::CleanupDeprecatedSocket()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (Socket != nullptr && Resolver->IsAddressResolutionEnabled())
+	{
+		Socket = nullptr;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UIpConnection::HandleConnectionTimeout(const FString& ErrorStr)
 {
-	if (CanContinueResolution())
+	using namespace UE::Net::Private;
+
+	const EEAddressResolutionHandleResult HandleResult = Resolver->NotifyTimeout();
+
+	if (HandleResult == EEAddressResolutionHandleResult::CallerShouldHandle)
 	{
-		ResolutionState = EAddressResolutionState::TryNextAddress;
-		bPendingDestroy = false;
+		Super::HandleConnectionTimeout(ErrorStr);
 	}
 	else
 	{
-		Super::HandleConnectionTimeout(ErrorStr);
+		bPendingDestroy = false;
 	}
 }
 
@@ -333,7 +296,7 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 	};
 #endif
 
-	if (IsAddressResolutionEnabled() && (ResolutionState == EAddressResolutionState::WaitingForResolves || ResolutionState == EAddressResolutionState::TryNextAddress))
+	if (Resolver->ShouldBlockSend())
 	{
 		UE_LOG(LogNet, Verbose, TEXT("Skipping send task as we are waiting on the next resolution step"));
 		return;
@@ -378,6 +341,7 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 		if (CountBytes > 0)
 		{
 			const bool bNotifyOnSuccess = (SocketErrorDisconnectDelay > 0.f) && (SocketError_SendDelayStartTime != 0.f);
+			FSocket* CurSocket = GetSocket();
 
 			if (CVarNetIpConnectionUseSendTasks.GetValueOnAnyThread() != 0)
 			{
@@ -393,14 +357,16 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 				
 				LastSendTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Packet = TArray<uint8>(DataToSend, CountBytes), SocketSubsystem, bNotifyOnSuccess]
 				{
-					if (Socket != nullptr)
+					FSocket* CurSocket = GetSocket();
+
+					if (CurSocket != nullptr)
 					{
 						bool bWasSendSuccessful = false;
 						UIpConnection::FSocketSendResult Result;
 
 						{
 							SCOPE_CYCLE_COUNTER(STAT_IpConnection_SendToSocket);
-							bWasSendSuccessful = Socket->SendTo(Packet.GetData(), Packet.Num(), Result.BytesSent, *RemoteAddr);
+							bWasSendSuccessful = CurSocket->SendTo(Packet.GetData(), Packet.Num(), Result.BytesSent, *RemoteAddr);
 						}
 
 						if (!bWasSendSuccessful && SocketSubsystem)
@@ -420,21 +386,21 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 				// Always flush this profiler data now. Technically this could be incorrect if the send in the task fails,
 				// but this keeps the bookkeeping simpler for now.
 				NETWORK_PROFILER(GNetworkProfiler.FlushOutgoingBunches(this));
-				NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(Socket->GetDescription(), DataToSend, CountBytes, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
+				NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, CountBytes, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
 			}
 			else
 			{
 				bool bWasSendSuccessful = false;
 				{
 					SCOPE_CYCLE_COUNTER(STAT_IpConnection_SendToSocket);
-					bWasSendSuccessful = Socket->SendTo(DataToSend, CountBytes, SendResult.BytesSent, *RemoteAddr);
+					bWasSendSuccessful = CurSocket->SendTo(DataToSend, CountBytes, SendResult.BytesSent, *RemoteAddr);
 				}
 
 				if (bWasSendSuccessful)
 				{
 					UNCLOCK_CYCLES(Driver->SendCycles);
 					NETWORK_PROFILER(GNetworkProfiler.FlushOutgoingBunches(this));
-					NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(Socket->GetDescription(), DataToSend, SendResult.BytesSent, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
+					NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, SendResult.BytesSent, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
 
 					if (bNotifyOnSuccess)
 					{
@@ -455,16 +421,17 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 
 void UIpConnection::ReceivedRawPacket(void* Data, int32 Count)
 {
-	UE_CLOG(SocketError_RecvDelayStartTime > 0.0, LogNet, Log, TEXT("UIpConnection::ReceivedRawPacket: Recoverd from socket errors. %s Connection"), *Describe());
+	UE_CLOG(SocketError_RecvDelayStartTime > 0.0, LogNet, Log,
+			TEXT("UIpConnection::ReceivedRawPacket: Recovered from socket errors. %s Connection"), ToCStr(Describe()));
 	
 	// We received data successfully, reset our error counters.
 	SocketError_RecvDelayStartTime = 0.0;
 
 	// Set that we've gotten packet from the server, this begins destruction of the other elements.
-	if (IsAddressResolutionEnabled() && ResolutionState != EAddressResolutionState::Done)
+	if (Resolver->IsAddressResolutionEnabled() && !Resolver->IsAddressResolutionComplete())
 	{
 		// We only want to write this once, because we don't want to waste cycles trying to clean up nothing.
-		ResolutionState = EAddressResolutionState::Connected;
+		Resolver->NotifyAddressResolutionConnected();
 	}
 
 	Super::ReceivedRawPacket(Data, Count);
@@ -481,13 +448,15 @@ float UIpConnection::GetTimeoutValue()
 	}
 #endif
 
-	if (ResolutionState == EAddressResolutionState::Connecting)
+	if (Resolver->IsAddressResolutionConnecting())
 	{
 		UIpNetDriver* IpDriver = Cast<UIpNetDriver>(Driver);
+
 		if (IpDriver == nullptr || IpDriver->GetResolutionTimeoutValue() == 0.0f)
 		{
 			return Driver->InitialConnectTimeout;
 		}
+
 		return IpDriver->GetResolutionTimeoutValue();
 	}
 
@@ -496,6 +465,8 @@ float UIpConnection::GetTimeoutValue()
 
 void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISocketSubsystem* SocketSubsystem)
 {
+	using namespace UE::Net::Private;
+
 	if (Result.Error == SE_NO_ERROR)
 	{
 		UE_CLOG(SocketError_SendDelayStartTime > 0.f, LogNet, Log, TEXT("UIpConnection::HandleSocketSendResult: Recovered from socket errors. %s Connection"), *Describe());
@@ -529,36 +500,35 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 		}
 
 		// Broadcast the error only on the first occurrence
-		if( GetPendingCloseDueToSocketSendFailure() == false )
+		if (!GetPendingCloseDueToSocketSendFailure())
 		{
-			if (CanContinueResolution())
-			{
-				SetPendingCloseDueToSocketSendFailure();
-				SocketError_SendDelayStartTime = 0.f;
-				ResolutionState = EAddressResolutionState::TryNextAddress;
-			}
-			else
-			{
-				ResolutionState = EAddressResolutionState::Error;
+			const EEAddressResolutionHandleResult HandleResult = Resolver->NotifySendError();
 
-				// Request the connection to be disconnected during next tick() since we got a critical socket failure, the actual disconnect is postponed 		
-				// to avoid issues with the call Close() causing issues with reentrant code paths in DataChannel::SendBunch() and FlushNet()
-				SetPendingCloseDueToSocketSendFailure();
+			// Request the connection to be disconnected during next tick() since we got a critical socket failure, the actual disconnect is postponed 		
+			// to avoid issues with the call Close() causing issues with reentrant code paths in DataChannel::SendBunch() and FlushNet()
+			SetPendingCloseDueToSocketSendFailure();
 
-				FString ErrorString = FString::Printf(TEXT("UIpNetConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection will be closed during next Tick()!"),
-					static_cast<int32>(Result.Error),
-					SocketSubsystem->GetSocketError(Result.Error),
-					*Describe());
+			if (HandleResult == EEAddressResolutionHandleResult::CallerShouldHandle)
+			{
+				FString ErrorString = FString::Printf(TEXT("UIpNetConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). ")
+														TEXT("%s Connection will be closed during next Tick()!"),
+														static_cast<int32>(Result.Error), ToCStr(SocketSubsystem->GetSocketError(Result.Error)),
+														ToCStr(Describe()));
 
 				GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionLost, ErrorString);
 			}
-
+			else
+			{
+				SocketError_SendDelayStartTime = 0.f;
+			}
 		}
 	}
 }
 
 void UIpConnection::HandleSocketRecvError(class UNetDriver* NetDriver, const FString& ErrorString)
 {
+	using namespace UE::Net::Private;
+
 	check(NetDriver);
 
 	if (SocketErrorDisconnectDelay > 0.f)
@@ -580,49 +550,25 @@ void UIpConnection::HandleSocketRecvError(class UNetDriver* NetDriver, const FSt
 		}
 	}
 
-	if (CanContinueResolution())
-	{
-		SocketErrorDisconnectDelay = 0.0f;
-		ResolutionState = EAddressResolutionState::TryNextAddress;
-	}
-	else
-	{
-		ResolutionState = EAddressResolutionState::Error;
 
+	const EEAddressResolutionHandleResult HandleResult = Resolver->NotifyReceiveError();
+
+	if (HandleResult == EEAddressResolutionHandleResult::CallerShouldHandle)
+	{
 		// For now, this is only called on clients when the ServerConnection fails.
 		// Because of that, on failure we'll shut down the NetDriver.
 		GEngine->BroadcastNetworkFailure(NetDriver->GetWorld(), NetDriver, ENetworkFailure::ConnectionLost, ErrorString);
 		NetDriver->Shutdown();
 	}
-
+	else
+	{
+		SocketErrorDisconnectDelay = 0.0f;
+	}
 }
 
-void UIpConnection::CleanupResolutionSockets()
+void UIpConnection::DisableAddressResolution()
 {
-	if (Driver == nullptr || Driver->GetSocketSubsystem() == nullptr || !IsAddressResolutionEnabled())
-	{
-		return;
-	}
-
-	const bool bCleanAll = (ResolutionState != EAddressResolutionState::Connected);
-	if (Socket == nullptr && !bCleanAll)
-	{
-		UE_LOG(LogNet, Warning, TEXT("Cannot clean up resolution sockets as our current socket pointer is null!"));
-		return;
-	}
-
-	if (bCleanAll)
-	{
-		if(ResolutionSocket.Get() == Socket)
-		{
-			Socket = nullptr;
-		}
-		
-		ResolutionSocket.Reset();
-	}
-	
-	BindSockets.Reset();
-	ResolverResults.Empty();
+	Resolver->DisableAddressResolution();
 }
 
 FString UIpConnection::LowLevelGetRemoteAddress(bool bAppendPort)
@@ -634,9 +580,9 @@ FString UIpConnection::LowLevelDescribe()
 {
 	TSharedRef<FInternetAddr> LocalAddr = Driver->GetSocketSubsystem()->CreateInternetAddr();
 
-	if (Socket != nullptr)
+	if (FSocket* CurSocket = GetSocket())
 	{
-		Socket->GetAddress(*LocalAddr);
+		CurSocket->GetAddress(*LocalAddr);
 	}
 
 	return FString::Printf

@@ -56,21 +56,17 @@ void UNetConnectionEOS::CleanUp()
 
 void UNetConnectionEOS::DestroyEOSConnection()
 {
-	if (!Socket)
-	{
-		return;
-	}
+	FSocket* CurSocket = GetSocket();
 
-	if (!bHasP2PSession)
+	if (CurSocket != nullptr && bHasP2PSession)
 	{
-		return;
-	}
+		bHasP2PSession = false;
 
-	bHasP2PSession = false;
+		TSharedPtr<FInternetAddrEOS> RemoteAddrEOS = StaticCastSharedPtr<FInternetAddrEOS>(RemoteAddr);
 
-	TSharedPtr<FInternetAddrEOS> RemoteAddrEOS = StaticCastSharedPtr<FInternetAddrEOS>(RemoteAddr);
-	if (RemoteAddrEOS.IsValid())
-	{
-		static_cast<FSocketEOS*>(Socket)->Close(*RemoteAddrEOS);
+		if (RemoteAddrEOS.IsValid())
+		{
+			static_cast<FSocketEOS*>(CurSocket)->Close(*RemoteAddrEOS);
+		}
 	}
 }

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/NetDriver.h"
 #include "HAL/Runnable.h"
@@ -23,6 +22,11 @@ class FInternetAddr;
 class FNetworkNotify;
 class FSocket;
 struct FRecvMulti;
+
+namespace UE::Net::Private
+{
+	class FNetDriverAddressResolution;
+}
 
 
 // CVars
@@ -51,10 +55,6 @@ public:
 	UPROPERTY(Config)
 	uint32 MaxPortCountToTry;
 
-	/** Underlying socket communication */
-	UE_DEPRECATED(4.25, "Socket access is now controlled through the getter/setter combo: GetSocket and SetSocketAndLocalAddress")
-	FSocket* Socket;
-
 	/** If pausing socket receives, the time at which this should end */
 	float PauseReceiveEnd;
 
@@ -77,30 +77,6 @@ public:
 	}
 	//~ End UNetDriver Interface
 
-	/**
-	 * Processes packets not associated with a NetConnection, performing any handshaking and NetConnection creation or remapping, as necessary.
-	 *
-	 * @param Address			The address the packet came from
-	 * @param Data				The packet data (may be modified)
-	 * @param CountBytesRef		The packet size (may be modified)
-	 * @return					If a new NetConnection is created, returns the net connection
-	 */
-	UE_DEPRECATED(4.24, "ProcessConnectionlessPacket has a new API, and will become private soon.")
-	UNetConnection* ProcessConnectionlessPacket(const TSharedRef<FInternetAddr>& Address, uint8* Data, int32& CountBytesRef)
-	{
-		FReceivedPacketView PacketView;
-
-		PacketView.DataView = {Data, CountBytesRef, ECountUnits::Bytes};
-		PacketView.Address = Address;
-		PacketView.Error = SE_NO_ERROR;
-
-		UNetConnection* ReturnVal = ProcessConnectionlessPacket(PacketView, { Data, MAX_PACKET_SIZE } );
-
-		CountBytesRef = PacketView.DataView.NumBytes();
-
-		return ReturnVal;
-	}
-
 private:
 	/**
 	 * Process packets not associated with a NetConnection, performing handshaking and NetConnection creation or remapping as necessary.
@@ -117,14 +93,6 @@ private:
 public:
 	//~ Begin UIpNetDriver Interface.
 
-	/**
-	 * Creates a socket to be used for network communications. Uses the LocalAddr (if set) to determine protocol flags
-	 *
-	 * @return an FSocket if creation succeeded, nullptr if creation failed.
-	 */
-	UE_DEPRECATED(4.25, "Socket creation is now restricted to subclasses and done through CreateSocketForProtocol or CreateAndBindSocket")
-	virtual FSocket* CreateSocket();
-	
 	/**
 	 * Returns the current FSocket to be used with this NetDriver. This is useful in the cases of resolution as it will always point to the Socket that's currently being
 	 * used with the current resolution attempt.
@@ -337,12 +305,6 @@ private:
 	/** The preallocated state/buffers, for efficiently executing RecvMulti */
 	TUniquePtr<FRecvMulti> RecvMultiState;
 
-	/** 
-	 * An array sockets created for every binding address a machine has in use for performing address resolution. 
-	 * This array empties after connections have been spun up.
-	 */
-	TArray<TSharedPtr<FSocket>> BoundSockets;
-
 	/** Underlying socket communication */
 	TSharedPtr<FSocket> SocketPrivate;
 
@@ -371,4 +333,7 @@ private:
 
 	/** Countdown timer for the current IP aggregation tracking period */
 	double NextAggregateIPLogCountdown = 0.0;
+
+	/** NetConnection specific address resolution */
+	TPimplPtr<UE::Net::Private::FNetDriverAddressResolution> Resolver;
 };

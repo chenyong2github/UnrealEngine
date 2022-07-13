@@ -262,13 +262,19 @@ void FSocketSubsystemSteam::RegisterConnection(USteamNetConnection* Connection)
 	FWeakObjectPtr ObjectPtr = Connection;
 	SteamConnections.Add(ObjectPtr);
 
-	if (Connection->GetRemoteAddr().IsValid() && Connection->Socket)
+	if (FSocket* CurSocket = Connection->GetSocket())
 	{
-		FSocketSteam* SteamSocket = (FSocketSteam*)Connection->Socket;
-		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetRemoteAddr());
+		TSharedPtr<const FInternetAddr> CurRemoteAddr = Connection->GetRemoteAddr();
 
-		UE_LOG_ONLINE(Log, TEXT("Adding user %s from RegisterConnection"), *SteamAddr->ToString(true));
-		P2PTouch(SteamSocket->SteamNetworkingPtr, *SteamAddr->SteamId, SteamAddr->SteamChannel);
+		if (CurRemoteAddr.IsValid())
+		{
+			FSocketSteam* SteamSocket = (FSocketSteam*)CurSocket;
+			TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(CurRemoteAddr);
+
+			UE_LOG_ONLINE(Log, TEXT("Adding user %s from RegisterConnection"), *SteamAddr->ToString(true));
+
+			P2PTouch(SteamSocket->SteamNetworkingPtr, *SteamAddr->SteamId, SteamAddr->SteamChannel);
+		}
 	}
 }
 

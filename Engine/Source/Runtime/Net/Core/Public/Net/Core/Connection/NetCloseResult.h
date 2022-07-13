@@ -101,6 +101,9 @@ enum class ENetCloseResult : uint32
 	/** JoinSplit failed */
 	JoinSplitFailure,
 
+	/** Address Rssolution Failed */
+	AddressResolutionFailed,
+
 
 	/** NetConnection Error result types */
 
