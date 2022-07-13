@@ -131,7 +131,7 @@ void FLevelEditorGenericDetails::OnMaterialChanged( UMaterialInterface* NewMater
 			Model->Surfs[SurfaceIndex].Material = NewMaterial;
 			const bool bUpdateTexCoords = false;
 			const bool bOnlyUpdateSurfaceMaterials = true;
-			GEditor->polyUpdateMaster(Model, SurfaceIndex, bUpdateTexCoords, bOnlyUpdateSurfaceMaterials);
+			GEditor->polyUpdateBrush(Model, SurfaceIndex, bUpdateTexCoords, bOnlyUpdateSurfaceMaterials);
 			Model->MarkPackageDirty();
 
 			bModelDirtied = true;

@@ -931,7 +931,7 @@ int FBSPUtils::bspNodeToFPoly
 	FPoly	*EdPoly
 )
 {
-	FPoly MasterEdPoly;
+	FPoly BrushEdPoly;
 
 	FBspNode &Node     	= Model->Nodes[iNode];
 	FBspSurf &Poly     	= Model->Surfs[Node.iSurf];
@@ -947,8 +947,8 @@ int FBSPUtils::bspNodeToFPoly
 	EdPoly->Actor    	= Poly.Actor;
 	EdPoly->iBrushPoly  = Poly.iBrushPoly;
 	
-	if( polyFindMaster(Model,Node.iSurf,MasterEdPoly) )
-		EdPoly->ItemName  = MasterEdPoly.ItemName;
+	if( polyFindBrush(Model,Node.iSurf,BrushEdPoly) )
+		EdPoly->ItemName  = BrushEdPoly.ItemName;
 	else
 		EdPoly->ItemName  = NAME_None;
 
@@ -1922,7 +1922,7 @@ void FBSPUtils::bspRepartition( UWorld* InWorld, int32 iNode )
 }
 
 
-void FBSPUtils::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 ClearBits,bool SelectedOnly, bool UpdateMaster)
+void FBSPUtils::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 ClearBits,bool SelectedOnly, bool UpdateBrush)
 {
 	for( int32 i=0; i<Model->Surfs.Num(); i++ )
 	{
@@ -1932,13 +1932,13 @@ void FBSPUtils::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 C
 			uint32 NewFlags = (Poly.PolyFlags & ~ClearBits) | SetBits;
 			if( NewFlags != Poly.PolyFlags )
 			{
-				Model->ModifySurf( i, UpdateMaster );
+				Model->ModifySurf( i, UpdateBrush );
 				Poly.PolyFlags = NewFlags;
-				if (UpdateMaster)
+				if (UpdateBrush)
 				{
 					const bool bUpdateTexCoords = false;
 					const bool bOnlyRefreshSurfaceMaterials = false;
-					polyUpdateMaster(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+					polyUpdateBrush(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 				}
 			}
 		}
@@ -1947,6 +1947,11 @@ void FBSPUtils::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 C
 
 
 bool FBSPUtils::polyFindMaster(UModel* InModel, int32 iSurf, FPoly &Poly)
+{
+	return polyFindBrush(InModel, iSurf, Poly);
+}
+
+bool FBSPUtils::polyFindBrush(UModel* InModel, int32 iSurf, FPoly &Poly)
 {
 	FBspSurf &Surf = InModel->Surfs[iSurf];
 	if( !Surf.Actor || !Surf.Actor->Brush->Polys->Element.IsValidIndex(Surf.iBrushPoly) )
@@ -1961,7 +1966,12 @@ bool FBSPUtils::polyFindMaster(UModel* InModel, int32 iSurf, FPoly &Poly)
 }
 
 
-void FBSPUtils::polyUpdateMaster
+void FBSPUtils::polyUpdateMaster(UModel* Model, int32 iSurf, bool bUpdateTexCoords,	bool bOnlyRefreshSurfaceMaterials)
+{
+	polyUpdateBrush(Model, iSurf, bUpdateTexCoords,	bOnlyRefreshSurfaceMaterials);
+}
+
+void FBSPUtils::polyUpdateBrush
 (
 	UModel*	Model,
 	int32  	iSurf,
@@ -2002,17 +2012,17 @@ void FBSPUtils::polyUpdateMaster
 
 	for (int32 iEdPoly = Surf.iBrushPoly; iEdPoly < Brush->Polys->Element.Num(); iEdPoly++)
 	{
-		FPoly& MasterEdPoly = Brush->Polys->Element[iEdPoly];
-		if (iEdPoly == Surf.iBrushPoly || MasterEdPoly.iLink == Surf.iBrushPoly)
+		FPoly& BrushEdPoly = Brush->Polys->Element[iEdPoly];
+		if (iEdPoly == Surf.iBrushPoly || BrushEdPoly.iLink == Surf.iBrushPoly)
 		{
-			MasterEdPoly.Material = Surf.Material;
-			MasterEdPoly.PolyFlags = Surf.PolyFlags & ~(PF_NoEdit);
+			BrushEdPoly.Material = Surf.Material;
+			BrushEdPoly.PolyFlags = Surf.PolyFlags & ~(PF_NoEdit);
 
 			if (bUpdateTexCoords)
 			{
-				MasterEdPoly.Base = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Points[Surf.pBase] - ActorLocation) / ActorScale);
-				MasterEdPoly.TextureU = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureU]) * ActorScale);
-				MasterEdPoly.TextureV = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureV]) * ActorScale);
+				BrushEdPoly.Base = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Points[Surf.pBase] - ActorLocation) / ActorScale);
+				BrushEdPoly.TextureU = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureU]) * ActorScale);
+				BrushEdPoly.TextureV = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureV]) * ActorScale);
 			}
 		}
 	}
@@ -2117,7 +2127,7 @@ void FBSPUtils::polyGetOuterEdgeList
 
 	TArray<FEdge> TempEdges;
 
-	// Create a master list of edges.
+	// Create a list of edges.
 	for( int32 poly = 0 ; poly < NewPolyList.Num() ; poly++ )
 	{
 		FPoly* Poly = &NewPolyList[poly];

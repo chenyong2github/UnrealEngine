@@ -270,7 +270,7 @@ bool FModeTool_Texture::InputDelta(FEditorViewportClient* InViewportClient,FView
 
 			const bool bUpdateTexCoords = true;
 			const bool bOnlyRefreshSurfaceMaterials = true;
-			GEditor->polyUpdateMaster(Model, It.GetSurfaceIndex(), bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+			GEditor->polyUpdateBrush(Model, It.GetSurfaceIndex(), bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 		}
 	}
 

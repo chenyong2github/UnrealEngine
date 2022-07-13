@@ -897,7 +897,7 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 				Model->Surfs[SelectedSurfIndex].Material = DroppedObjAsMaterial;
 				const bool bUpdateTexCoords = false;
 				const bool bOnlyRefreshSurfaceMaterials = true;
-				GEditor->polyUpdateMaster(Model, SelectedSurfIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+				GEditor->polyUpdateBrush(Model, SelectedSurfIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 			}
 
 			bResult = true;

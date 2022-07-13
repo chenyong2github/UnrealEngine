@@ -320,19 +320,29 @@ void UEditorEngine::csgRebuild( UWorld* InWorld )
 }
 
 
-void UEditorEngine::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 ClearBits,bool SelectedOnly, bool UpdateMaster)
+void UEditorEngine::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 ClearBits,bool SelectedOnly, bool UpdateBrush)
 {
-	FBSPUtils::polySetAndClearPolyFlags(Model, SetBits, ClearBits, SelectedOnly, UpdateMaster);
+	FBSPUtils::polySetAndClearPolyFlags(Model, SetBits, ClearBits, SelectedOnly, UpdateBrush);
 }
 
 
 bool UEditorEngine::polyFindMaster(UModel* InModel, int32 iSurf, FPoly &Poly)
 {
-	return FBSPUtils::polyFindMaster(InModel, iSurf, Poly);
+	return polyFindBrush(InModel, iSurf, Poly);
+}
+
+bool UEditorEngine::polyFindBrush(UModel* InModel, int32 iSurf, FPoly &Poly)
+{
+	return FBSPUtils::polyFindBrush(InModel, iSurf, Poly);
 }
 
 
-void UEditorEngine::polyUpdateMaster
+void UEditorEngine::polyUpdateMaster(UModel* Model, int32 iSurf, bool bUpdateTexCoords, bool bOnlyRefreshSurfaceMaterials)
+{
+	polyUpdateBrush(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+}
+
+void UEditorEngine::polyUpdateBrush
 (
 	UModel*	Model,
 	int32  	iSurf,
@@ -340,7 +350,7 @@ void UEditorEngine::polyUpdateMaster
 	bool	bOnlyRefreshSurfaceMaterials
 )
 {
-	FBSPUtils::polyUpdateMaster(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+	FBSPUtils::polyUpdateBrush(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 }
 
 
@@ -424,7 +434,7 @@ void UEditorEngine::polySelectMatchingGroups( UModel* Model )
 		FBspSurf *Surf = &Model->Surfs(i);
 		if( Surf->PolyFlags&PF_Selected )
 		{
-			FPoly Poly; polyFindMaster(Model,i,Poly);
+			FPoly Poly; polyFindBrush(Model,i,Poly);
 			GFlags1[Poly.Actor->Layer.GetIndex()]=1;
 		}
 	}
@@ -432,7 +442,7 @@ void UEditorEngine::polySelectMatchingGroups( UModel* Model )
 	{
 		FBspSurf *Surf = &Model->Surfs(i);
 		FPoly Poly;
-		polyFindMaster(Model,i,Poly);
+		polyFindBrush(Model,i,Poly);
 		if
 		(	(GFlags1[Poly.Actor->Layer.GetIndex()]) 
 			&&	(!(Surf->PolyFlags & PF_Selected)) )
@@ -461,7 +471,7 @@ void UEditorEngine::polySelectMatchingItems(UModel *InModel)
 		}
 		if( Surf->PolyFlags&PF_Selected )
 		{
-			FPoly Poly; polyFindMaster(InModel,i,Poly);
+			FPoly Poly; polyFindBrush(InModel,i,Poly);
 			GFlags1[Poly.ItemName.GetIndex()]=1;
 		}
 	}
@@ -470,7 +480,7 @@ void UEditorEngine::polySelectMatchingItems(UModel *InModel)
 		FBspSurf *Surf = &InModel->Surfs(i);
 		if( Surf->Actor )
 		{
-			FPoly Poly; polyFindMaster(InModel,i,Poly);
+			FPoly Poly; polyFindBrush(InModel,i,Poly);
 			if ((GFlags1[Poly.ItemName.GetIndex()]) &&
 				( GFlags2[Surf->Actor->Brush->GetIndex()]) &&
 				(!(Surf->PolyFlags & PF_Selected)))
@@ -1280,7 +1290,7 @@ void UEditorEngine::polyTexPan(UModel *Model,int32 PanU,int32 PanV,int32 Absolut
 
 			const bool bUpdateTexCoords = true;
 			const bool bOnlyRefreshSurfaceMaterials = true;
-			polyUpdateMaster(Model, SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+			polyUpdateBrush(Model, SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 		}
 	}
 }
@@ -1309,7 +1319,7 @@ void UEditorEngine::polyTexScale( UModel* Model, float UU, float UV, float VU, f
 			// Update generating brush poly.
 			const bool bUpdateTexCoords = true;
 			const bool bOnlyRefreshSurfaceMaterials = true;
-			polyUpdateMaster(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+			polyUpdateBrush(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 		}
 	}
 }

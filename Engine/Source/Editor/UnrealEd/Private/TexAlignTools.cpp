@@ -105,7 +105,7 @@ void UTexAligner::Align( UWorld* InWorld, ETexAlign InTexAlignType, UModel* InMo
 	{
 		FBspSurfIdx* Surf = &InitialSurfList[i];
 //		Normal = InModel->Vectors[ Surf->Surf->vNormal ];
-//		GEditor->polyFindMaster( InModel, Surf->Idx, EdPoly );
+//		GEditor->polyFindBrush( InModel, Surf->Idx, EdPoly );
 
 		bool bOK = 1;
 		/*
@@ -125,14 +125,14 @@ void UTexAligner::Align( UWorld* InWorld, ETexAlign InTexAlignType, UModel* InMo
 	for( int32 i = 0 ; i < FinalSurfList.Num() ; i++ )
 	{
 		FBspSurfIdx* Surf = &FinalSurfList[i];
-		GEditor->polyFindMaster( InModel, Surf->Idx, EdPoly );
+		GEditor->polyFindBrush( InModel, Surf->Idx, EdPoly );
 		Normal = (FVector)InModel->Vectors[ Surf->Surf->vNormal ];
 
 		AlignSurf( InTexAlignType == TEXALIGN_None ? (ETexAlign)DefTexAlign : InTexAlignType, InModel, Surf, &EdPoly, &Normal );
 
 		const bool bUpdateTexCoords = true;
 		const bool bOnlyRefreshSurfaceMaterials = true;
-		GEditor->polyUpdateMaster(InModel, Surf->Idx, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+		GEditor->polyUpdateBrush(InModel, Surf->Idx, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 	}
 
 	GEditor->RedrawLevelEditingViewports();

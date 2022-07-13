@@ -1389,14 +1389,20 @@ public:
 	*
 	* returns true if poly not available
 	*/
+	static bool polyFindBrush(UModel* InModel, int32 iSurf, FPoly &Poly);
+
+	UE_DEPRECATED(5.1, "polyFindMaster is deprecated; please use polyFindBrush instead")
 	virtual bool polyFindMaster( UModel* InModel, int32 iSurf, FPoly& Poly );
 
 	/**
-	 * Update a the master brush EdPoly corresponding to a newly-changed
+	 * Update a the brush EdPoly corresponding to a newly-changed
 	 * poly to reflect its new properties.
 	 *
 	 * Doesn't do any transaction tracking.
 	 */
+	static void polyUpdateBrush(UModel* Model, int32 iSurf, bool bUpdateTexCoords, bool bOnlyRefreshSurfaceMaterials);
+
+	UE_DEPRECATED(5.1, "polyUpdateMaster is deprecated; please use polyUpdateBrush instead")
 	virtual void polyUpdateMaster( UModel* Model, int32 iSurf, bool bUpdateTexCoords, bool bOnlyRefreshSurfaceMaterials );
 
 	/**
@@ -1421,7 +1427,7 @@ public:
 	 * Sets and clears all Bsp node flags.  Affects all nodes, even ones that don't
 	 * really exist.
 	 */
-	virtual void polySetAndClearPolyFlags( UModel* Model, uint32 SetBits, uint32 ClearBits, bool SelectedOnly, bool UpdateMaster );
+	virtual void polySetAndClearPolyFlags( UModel* Model, uint32 SetBits, uint32 ClearBits, bool SelectedOnly, bool UpdateBrush );
 
 	// Selection.
 	virtual void SelectActor(AActor* Actor, bool bInSelected, bool bNotify, bool bSelectEvenIfHidden = false, bool bForceRefresh = false) {}

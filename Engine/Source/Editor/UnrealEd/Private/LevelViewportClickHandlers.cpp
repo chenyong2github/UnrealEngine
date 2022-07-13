@@ -633,7 +633,7 @@ namespace LevelViewportClickHandlers
 					Model->Surfs[i].Material = SelectedMaterialInstance;
 					const bool bUpdateTexCoords = false;
 					const bool bOnlyRefreshSurfaceMaterials = true;
-					GEditor->polyUpdateMaster(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+					GEditor->polyUpdateBrush(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 				}
 			}
 		}
@@ -703,13 +703,13 @@ namespace LevelViewportClickHandlers
 				Surf.PolyFlags	= GSaveSurf.PolyFlags;
 				const bool bUpdateTexCoords = true;
 				const bool bOnlyRefreshSurfaceMaterials = true;
-				GEditor->polyUpdateMaster(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+				GEditor->polyUpdateBrush(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 			}
 			else
 			{
 				const bool bUpdateTexCoords = false;
 				const bool bOnlyRefreshSurfaceMaterials = true;
-				GEditor->polyUpdateMaster(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+				GEditor->polyUpdateBrush(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 			}
 		}
 		else if( Click.GetKey() == EKeys::RightMouseButton && !Click.IsControlDown() )

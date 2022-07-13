@@ -1172,7 +1172,7 @@ UObject* ULevelFactory::FactoryCreateText
 							const bool bOnlyRefreshSurfaceMaterials = false;
 							if (GWorld == World)
 							{
-								GEditor->polyUpdateMaster(CurrentLevel->Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+								GEditor->polyUpdateBrush(CurrentLevel->Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 							}
 						}
 					}

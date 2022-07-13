@@ -4510,7 +4510,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 				Model->Surfs[SurfaceIndex].Material = SelectedMaterialInstance;
 				const bool bUpdateTexCoords = false;
 				const bool bOnlyRefreshSurfaceMaterials = true;
-				polyUpdateMaster(Model, SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+				polyUpdateBrush(Model, SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 				Model->MarkPackageDirty();
 
 				bModelDirtied = true;
@@ -4543,7 +4543,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 					It.GetModel()->Surfs[SurfaceIndex].Material = Material;
 					const bool bUpdateTexCoords = false;
 					const bool bOnlyRefreshSurfaceMaterials = true;
-					polyUpdateMaster(It.GetModel(), SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+					polyUpdateBrush(It.GetModel(), SurfaceIndex, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 				}
 			}
 

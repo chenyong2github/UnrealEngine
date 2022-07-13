@@ -1002,7 +1002,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 				FBSPExportData& Data = BrushToMeshMap.FindOrAdd( BrushActor );
 
 				FPoly Poly;
-				GEditor->polyFindMaster(Model, Node.iSurf, Poly);
+				GEditor->polyFindBrush(Model, Node.iSurf, Poly);
 
 				Data.NumVerts += Node.NumVertices;
 				Data.NumFaces += Node.NumVertices-2;
@@ -1024,7 +1024,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 		if( (Surf.PolyFlags & PF_Selected) || !bSelectedOnly || (BrushActor && BrushActor->IsSelected() && Node.NumVertices >= 3) )
 		{
 			FPoly Poly;
-			GEditor->polyFindMaster( Model, Node.iSurf, Poly );
+			GEditor->polyFindBrush( Model, Node.iSurf, Poly );
 
 			FBSPExportData* ExportData = BrushToMeshMap.Find( BrushActor );
 			if( NULL == ExportData )

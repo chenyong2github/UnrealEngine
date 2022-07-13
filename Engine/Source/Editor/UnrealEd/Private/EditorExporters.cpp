@@ -1378,7 +1378,7 @@ static void ExportPolys( UPolys* Polys, int32 &PolyNum, int32 TotalPolys, FFeedb
 			const FVector& Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 			FPoly Poly;
-			GEditor->polyFindMaster( Model, Node->iSurf, Poly );
+			GEditor->polyFindBrush( Model, Node->iSurf, Poly );
 
 			// Triangulate this node and generate an OBJ face from the vertices.
 			for(int32 StartVertexIndex = 1;StartVertexIndex < Node->NumVertices-1;StartVertexIndex++)
@@ -2283,7 +2283,7 @@ void UEditorEngine::RebuildStaticNavigableGeometry(ULevel* Level)
 				const FVector& Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 				FPoly Poly;
-				polyFindMaster( Model, Node->iSurf, Poly );
+				polyFindBrush( Model, Node->iSurf, Poly );
 
 				// Triangulate this node and generate an OBJ face from the vertices.
 				for(int32 StartVertexIndex = 1;StartVertexIndex < Node->NumVertices-1;StartVertexIndex++)
