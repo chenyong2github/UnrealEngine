@@ -751,7 +751,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetHandle Handle)
 				// If the object has pushed based fragments, and not is marked dirty and object is affected by GC we need to make sure that we refresh cached references for all push based fragments
 				const bool bIsPushBasedObject = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasPartialPushBasedDirtiness | EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness);
 				const bool bHasObjectReferences = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasObjectReference);
-				const bool bNeedsRefreshOfCachedObjectReferences = (!(bIsNewInScope | bIsDirtyObject) & bIsGCAffectedObject & bIsPushBasedObject & bHasObjectReferences);
+				const bool bNeedsRefreshOfCachedObjectReferences = ((!(bIsNewInScope | bIsDirtyObject)) & bIsGCAffectedObject & bIsPushBasedObject & bHasObjectReferences);
 				if (bNeedsRefreshOfCachedObjectReferences)
 				{
 					// Only states which has push based dirtiness need to be updated as the other states will be polled in full anyway.

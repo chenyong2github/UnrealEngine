@@ -349,6 +349,7 @@ void FNetBlobManager::FNetObjectAttachmentSendQueue::ProcessQueue(FReplicationCo
 	if (bHasMulticastAttachments)
 	{
 		ConnectionIds = static_cast<uint32*>(FMemory_Alloca(ReplicatingConnections.GetNumBits() * 4));
+		CA_ASSUME(ConnectionIds != nullptr);
 		ReplicatingConnections.ForAllSetBits([ConnectionIds, &ConnectionCount](uint32 Bit) { ConnectionIds[ConnectionCount++] = Bit; });
 	}
 
@@ -375,7 +376,7 @@ void FNetBlobManager::FNetObjectAttachmentSendQueue::ProcessQueue(FReplicationCo
 		{
 			if (bIsMultiPartAttachment)
 			{
-				UE_LOG(LogIris, Warning, TEXT("Splitting multicast net object attachment %s."), ReplicationStateDescriptor->DebugName ? ReplicationStateDescriptor->DebugName->Name : TEXT("Unknown"));
+				UE_LOG(LogIris, Warning, TEXT("Splitting multicast net object attachment %s."), ReplicationStateDescriptor != nullptr && ReplicationStateDescriptor->DebugName ? ReplicationStateDescriptor->DebugName->Name : TEXT("Unknown"));
 			}
 
 			const FNetBlobCreationInfo& BlobCreationInfo = Attachment->GetCreationInfo();

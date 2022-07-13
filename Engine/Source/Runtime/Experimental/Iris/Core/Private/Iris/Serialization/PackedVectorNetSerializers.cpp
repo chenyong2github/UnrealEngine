@@ -597,7 +597,7 @@ void FPackedVectorNetSerializerBase::Quantize(uint32 ScaleBitCount, FNetSerializ
 	const SourceType& Source = *reinterpret_cast<const SourceType*>(Args.Source);
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
 
-	const ScalarType Scale = ScalarType(1 << ScaleBitCount);
+	const ScalarType Scale = ScalarType(IntType(1) << ScaleBitCount);
 	
 	SourceType ScaledValue;
 	// Avoid NaN checks called by FVector operators.
@@ -651,6 +651,7 @@ void FPackedVectorNetSerializerBase::Quantize(uint32 ScaleBitCount, FNetSerializ
 void FPackedVectorNetSerializerBase::Dequantize(uint32 ScaleBitCount, FNetSerializationContext& Context, const FNetDequantizeArgs& Args)
 {
 	using ScalarType = decltype(SourceType::X);
+	using IntType = typename TSignedIntType<sizeof(ScalarType)>::Type;
 
 	const QuantizedType& Source = *reinterpret_cast<const QuantizedType*>(Args.Source);
 	SourceType& Target = *reinterpret_cast<SourceType*>(Args.Target);
@@ -665,7 +666,7 @@ void FPackedVectorNetSerializerBase::Dequantize(uint32 ScaleBitCount, FNetSerial
 
 		if (Source.ComponentBitCountAndExtraInfo & IsScaledValueMask)
 		{
-			const ScalarType InvScale = ScalarType(1)/ScalarType(1 << ScaleBitCount);
+			const ScalarType InvScale = ScalarType(1)/ScalarType(IntType(1) << ScaleBitCount);
 			Target = TempValue*InvScale;
 		}
 		else

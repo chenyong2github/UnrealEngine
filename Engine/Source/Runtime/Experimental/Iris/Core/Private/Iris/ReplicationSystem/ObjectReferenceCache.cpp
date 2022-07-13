@@ -183,6 +183,8 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 		return false;
 	}
 
+	CA_ASSUME(Object != nullptr);
+
 	// Check if we are already know about this object
 	if (FNetHandle* ReferenceHandle = ObjectToNetReferenceHandle.Find(Object))
 	{

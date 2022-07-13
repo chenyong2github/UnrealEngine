@@ -3,7 +3,7 @@
 #include "RepMovementNetSerializer.h"
 
 #if UE_WITH_IRIS
-#include "Engine/EngineTypes.h"
+#include "Engine/ReplicatedState.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetSerializerDelegates.h"
@@ -70,8 +70,8 @@ private:
 	inline static const FRotatorAsByteNetSerializerConfig RotatorAsByteSerializerConfig;
 	inline static const FRotatorAsShortNetSerializerConfig RotatorAsShortSerializerConfig;
 
-	inline static const FNetSerializerConfig* VectorNetQuantizeNetSerializerConfigs[3] = {&QuantizeSerializerConfig, &Quantize10SerializerConfig, &Quantize100SerializerConfig};
-	inline static const FNetSerializer* VectorNetQuantizeNetSerializers[3] = {};
+	inline static const FNetSerializerConfig* VectorNetQuantizeNetSerializerConfigs[4] = {&QuantizeSerializerConfig, &Quantize10SerializerConfig, &Quantize100SerializerConfig, nullptr};
+	inline static const FNetSerializer* VectorNetQuantizeNetSerializers[4] = {};
 
 	inline static const FNetSerializerConfig* RotatorNetSerializerConfigs[2] = {&RotatorAsByteSerializerConfig, &RotatorAsShortSerializerConfig};
 	inline static const FNetSerializer* RotatorNetSerializers[2] = {};
@@ -175,6 +175,12 @@ void FRepMovementNetSerializer::Deserialize(FNetSerializationContext& Context, c
 		TempValue.VelocityQuantizationLevel = (FlagsAndQuantizationLevels >> 2U) & 3U;
 		TempValue.LocationQuantizationLevel = (FlagsAndQuantizationLevels >> 4U) & 3U;
 		TempValue.RotationQuantizationLevel = (FlagsAndQuantizationLevels >> 6U) & 1U;
+
+		if (VectorNetQuantizeNetSerializers[TempValue.VelocityQuantizationLevel] == nullptr || RotatorNetSerializers[TempValue.RotationQuantizationLevel] == nullptr)
+		{
+			Context.SetError(GNetError_InvalidValue);
+			return;
+		}
 	}
 
 	// Angular velocity
