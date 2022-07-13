@@ -6,7 +6,6 @@
 #include "DesktopPlatformModule.h"
 
 #include "UGSTab.h"
-#include "HordeBuildRowInfo.h"
 #include "SGameSyncTab.h"
 #include "SPopupTextWindow.h"
 

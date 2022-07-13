@@ -3,6 +3,8 @@
 #include "UGSTab.h"
 
 #include "UGSLog.h"
+#include "ChangeInfo.h"
+
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
 #include "UGSCore/DetectProjectSettingsTask.h"
@@ -201,6 +203,27 @@ namespace
 		Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == EBuildConfig::Debug || EditorBuildConfig == EBuildConfig::DebugGame)? " -debug" : "");
 		return Variables;
 	}
+
+	static FString FormatUserName(FString UserName)
+	{
+		TStringBuilder<256> NormalUserName;
+		for(int Index = 0; Index < UserName.Len(); Index++)
+		{
+			if(Index == 0 || UserName[Index - 1] == '.')
+			{
+				NormalUserName.AppendChar(FChar::ToUpper(UserName[Index]));
+			}
+			else if(UserName[Index] == '.')
+			{
+				NormalUserName.AppendChar(' ');
+			}
+			else
+			{
+				NormalUserName.AppendChar(FChar::ToLower(UserName[Index]));
+			}
+		}
+		return NormalUserName.ToString();
+	}
 }
 
 bool UGSTab::OnWorkspaceChosen(const FString& Project)
@@ -321,6 +344,7 @@ bool UGSTab::ShouldIncludeInReviewedList(const TSet<int>& PromotedChangeNumbers,
 void UGSTab::UpdateGameTabBuildList()
 {
 	TArray<TSharedRef<FPerforceChangeSummary, ESPMode::ThreadSafe>> Changes = PerforceMonitor->GetChanges();
+	TArray<TSharedPtr<FChangeInfo>> ChangeInfos;
 
 	// do we need to store these for something?
 	TSet<int> PromotedChangeNumbers = PerforceMonitor->GetPromotedChangeNumbers();
@@ -351,15 +375,36 @@ void UGSTab::UpdateGameTabBuildList()
 					DisplayTime = (DisplayTime - DetectSettings->ServerTimeZone).GetDate();
 				}
 
+				TSharedPtr<FEventSummary> Review;
+				EReviewVerdict Status = EReviewVerdict::Unknown;
+				if (EventMonitor->TryGetSummaryForChange(Change.Number, Review) && Review->LastStarReview.IsValid())
+				{
+					if (Review->LastStarReview->Type == EEventType::Starred)
+					{
+						Status = EReviewVerdict::Good;
+					}
+					else
+					{
+						Status = Review->Verdict;
+					}
+				}
+
 				TArray<FString> DescLines;
 
 				// split on \n so we can just take the first line
 				Change.Description.ParseIntoArray(DescLines, TEXT("\n"));
 
-				printf("%s CL %i Author: %s@%s :: %s\n", TCHAR_TO_ANSI(*DisplayTime.ToString()), Change.Number, TCHAR_TO_ANSI(*Change.User), TCHAR_TO_ANSI(*Change.Client), TCHAR_TO_ANSI(*DescLines[0]));
+				ChangeInfos.Add(MakeShareable(new FChangeInfo{
+					Status,
+					FText::FromString(FString::FromInt(Change.Number)),
+					FText::FromString(DisplayTime.ToString()),
+					FText::FromString(FormatUserName(Change.User)),
+					FText::FromString(DescLines[0])}));
 			}
 		}
 	}
+
+	GameSyncTabView->AddHordeBuilds(ChangeInfos);
 }
 
 bool UGSTab::IsSyncing() const
