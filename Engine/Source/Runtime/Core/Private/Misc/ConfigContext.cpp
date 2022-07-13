@@ -655,7 +655,7 @@ bool FConfigContext::GenerateDestIniFile()
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 	// process any commandline overrides
-	FConfigFile::OverrideFromCommandline(ConfigFile, DestIniFilename);
+	FConfigFile::OverrideFromCommandline(ConfigFile, BaseIniName);
 #endif
 
 	bool bForceRegenerate = false;
