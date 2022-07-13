@@ -259,6 +259,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Moving all distortion handling to Lens Component
 		LensComponentDistortion,
 
+		// Updated image media source path resolution logic
+		ImgMediaPathResolutionWithEngineOrProjectTokens,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -9,13 +9,14 @@
 
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 
 /* UImgMediaSource structors
  *****************************************************************************/
 
 UImgMediaSource::UImgMediaSource()
-	: IsPathRelativeToProjectRoot_DEPRECATED(true)
+	: IsPathRelativeToProjectRoot_DEPRECATED(false)
 	, FrameRateOverride(0, 0)
 	, bFillGapsInSequence(true)
 	, MipMapInfo(MakeShared<FImgMediaMipMapInfo, ESPMode::ThreadSafe>())
@@ -238,17 +239,26 @@ void UImgMediaSource::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && !IsPathRelativeToProjectRoot_DEPRECATED)
+#if WITH_EDITOR
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ImgMediaPathResolutionWithEngineOrProjectTokens)
 	{
-		// This is an object that was saved with the old value, so we need to convert the path accordingly
-
-		IsPathRelativeToProjectRoot_DEPRECATED = true;
-
-		if (FPaths::IsRelative(SequencePath.Path))
+		if (Ar.IsLoading() && !IsPathRelativeToProjectRoot_DEPRECATED)
 		{
-			SequencePath.Path = FString::Printf(TEXT("Content/%s"), *SequencePath.Path);
+			// This is an object that was saved with the old value (or before the property was added), so we need to convert the path accordingly
+
+			IsPathRelativeToProjectRoot_DEPRECATED = true;
+
+			if (FPaths::IsRelative(SequencePath.Path))
+			{
+				SequencePath.Path = FString::Printf(TEXT("Content/%s"), *SequencePath.Path);
+
+				SequencePath.Path = UImgMediaSource::SanitizeTokenizedSequencePath(SequencePath.Path);
+			}
 		}
 	}
+#endif
 }
 
 bool UImgMediaSource::IsPathUnderBasePath(const FString& InPath, const FString& InBasePath, FString& OutRelativePath)
