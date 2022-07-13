@@ -61,7 +61,7 @@ struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 	FIntPoint LandscapeBakeResolution = FIntPoint( 1024, 1024 );
 
 	/** If true, will export sub-levels as separate layers (referenced as sublayers). If false, will collapse all sub-levels in a single exported root layer */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers", meta = ( DisplayName = "Export Sublevels as Layers" ) )
     bool bExportSublayers = false;
 
 	/** Names of levels that should be ignored when collecting actors to export (e.g. "Persistent Level", "Level1", "MySubLevel", etc.) */
