@@ -434,14 +434,14 @@ UCameraComponent* MovieSceneHelpers::CameraComponentFromRuntimeObject(UObject* R
 	if (RuntimeObject)
 	{
 		// find camera we want to control
-		UCameraComponent* const CameraComponent = dynamic_cast<UCameraComponent*>(RuntimeObject);
+		UCameraComponent* const CameraComponent = Cast<UCameraComponent>(RuntimeObject);
 		if (CameraComponent)
 		{
 			return CameraComponent;
 		}
 
 		// see if it's an actor that has a camera component
-		AActor* const Actor = dynamic_cast<AActor*>(RuntimeObject);
+		AActor* const Actor = Cast<AActor>(RuntimeObject);
 		if (Actor)
 		{
 			return CameraComponentFromActor(Actor);

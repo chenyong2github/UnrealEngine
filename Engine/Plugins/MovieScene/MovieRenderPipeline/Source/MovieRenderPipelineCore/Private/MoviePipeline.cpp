@@ -47,6 +47,7 @@
 #include "ClothingSimulationInteractor.h"
 #include "ClothingSimulationInterface.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "MovieSceneCommonHelpers.h"
 
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
@@ -1724,7 +1725,7 @@ void UMoviePipeline::GetSidecarCameraData(UMoviePipelineExecutorShot* InShot, in
 		}
 	}
 
-	UCameraComponent* BoundCamera = Cast<UCameraComponent>(PrimaryViewTarget);
+	UCameraComponent* BoundCamera = MovieSceneHelpers::CameraComponentFromRuntimeObject(PrimaryViewTarget);
 	if (BoundCamera)
 	{
 		*OutCameraComponent = BoundCamera;
@@ -1756,7 +1757,7 @@ void UMoviePipeline::GetSidecarCameraViewPoints(UMoviePipelineExecutorShot* InSh
 		TArrayView<TWeakObjectPtr<UObject>> BoundCameras = LevelSequenceActor->GetSequencePlayer()->FindBoundObjects(CameraBindingRef, CameraSequenceRef);
 		if (BoundCameras.Num() > 0)
 		{
-			UCameraComponent* BoundCamera = Cast<UCameraComponent>(BoundCameras[0].Get());
+			UCameraComponent* BoundCamera = MovieSceneHelpers::CameraComponentFromRuntimeObject(BoundCameras[0].Get());
 			if (BoundCamera)
 			{
 				FMinimalViewInfo ViewInfo;
