@@ -42,10 +42,15 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Net/NetPing.h"
 #include "LevelUtils.h"
+#if UE_WITH_IRIS
+#include "Iris/IrisConfig.h"
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/Filtering/NetObjectFilter.h"
+#include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
+#endif // UE_WITH_IRIS
 
 DECLARE_LLM_MEMORY_STAT(TEXT("NetConnection"), STAT_NetConnectionLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetConnection, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetConnectionLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
-
 
 static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime(TEXT("net.PingExcludeFrameTime"), 0,
 	TEXT("If true, game frame times are subtracted from calculated ping to approximate actual network ping"));
@@ -100,7 +105,6 @@ static int32 GNetCloseTimingDebug = 0;
 static FAutoConsoleVariableRef CVarCloseTimingDebug(TEXT("net.CloseTimingDebug"), GNetCloseTimingDebug,
 	TEXT("Logs the last packet send/receive and TickFlush/TickDispatch times, on connection close - for debugging blocked send/recv paths."));
 
-
 extern int32 GNetDormancyValidate;
 extern bool GbNetReuseReplicatorsForDormantObjects;
 
@@ -114,6 +118,7 @@ namespace UE_NetConnectionPrivate
 	struct FValidateLevelVisibilityResult
 	{
 		bool bLevelExists = false;
+		const ULevelStreaming* StreamingLevel;
 		UPackage* Package = nullptr;
 		FLinkerLoad* Linker = nullptr;
 	};
@@ -130,10 +135,10 @@ namespace UE_NetConnectionPrivate
 		Result.Package = FindPackage(nullptr, *PackageNameStr);
 		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
 
-		const ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(World, LevelVisibility.PackageName);
+		Result.StreamingLevel = FLevelUtils::FindStreamingLevel(World, LevelVisibility.PackageName);
 		Result.bLevelExists = Result.Linker ||
 			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString())) ||
-			StreamingLevel != nullptr;
+			Result.StreamingLevel != nullptr;
 
 		return Result;
 	}
@@ -507,6 +512,14 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	UE_NET_TRACE_CONNECTION_CREATED(NetTraceId, GetConnectionId());
 	UE_NET_TRACE_CONNECTION_STATE_UPDATED(NetTraceId, GetConnectionId(), static_cast<uint8>(GetConnectionState()));
+
+#if UE_WITH_IRIS
+	if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+	{
+		ReplicationSystem->AddConnection(GetConnectionId());
+		ReplicationSystem->SetConnectionUserData(GetConnectionId(), this);
+	}
+#endif // UE_WITH_IRIS
 }
 
 /**
@@ -1170,6 +1183,12 @@ void UNetConnection::CleanUp()
 		// Otherwise we'd be able to do the appropriate logic in Add/Remove Client/ServerConnection
 		if (const uint32 MyConnectionId = GetConnectionId())
 		{
+#if UE_WITH_IRIS
+			if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+			{
+				ReplicationSystem->RemoveConnection(MyConnectionId);
+			}
+#endif // UE_WITH_IRIS
 			Driver->FreeConnectionId(MyConnectionId);
 		}
 	}
@@ -1340,7 +1359,24 @@ FNetLevelVisibilityTransactionId UNetConnection::UpdateLevelStreamStatusChangedT
 	if (bShouldBeVisible == false)
 	{
 		ClientVisibleLevelNames.Remove(PackageName);
-		UpdateCachedLevelVisibility(PackageName);
+
+#if UE_WITH_IRIS
+		if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+		{
+			if (const ULevel* Level = LevelObject->GetLoadedLevel())
+			{
+				const UReplicationBridge* ReplicationBridge = ReplicationSystem->GetReplicationBridge();
+				if (UE::Net::FNetObjectGroupHandle GroupHandle = ReplicationBridge->GetLevelGroup(Level); GroupHandle != UE::Net::InvalidNetObjectGroupHandle)
+				{
+					ReplicationSystem->SetGroupFilterStatus(GroupHandle, GetConnectionId(), UE::Net::ENetFilterStatus::Disallow);
+				}
+			}
+		}
+		else
+#endif
+		{
+			UpdateCachedLevelVisibility(PackageName);
+		}
 	}
 
 	return TransactionId;
@@ -1463,6 +1499,24 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			// Any dormant actor that has changes flushed or made before going dormant needs to be updated on the client 
 			// when the streaming level is loaded, so mark them active for this connection
 			UWorld* LevelWorld = nullptr;
+
+#if UE_WITH_IRIS
+			if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+			{
+				// We need to be careful here if the server would load a level after the client, 
+				// for that to work we would need to update group filter status after level is loaded
+				const ULevel* Level = VisibilityResult.StreamingLevel ? VisibilityResult.StreamingLevel->GetLoadedLevel() : nullptr;
+				if (Level)
+				{
+					const UReplicationBridge* ReplicationBridge = ReplicationSystem->GetReplicationBridge();
+					if (UE::Net::FNetObjectGroupHandle GroupHandle = ReplicationBridge->GetLevelGroup(Level); GroupHandle != UE::Net::InvalidNetObjectGroupHandle)
+					{
+						ReplicationSystem->SetGroupFilterStatus(GroupHandle, GetConnectionId(), UE::Net::ENetFilterStatus::Allow);
+					}
+				}
+			}
+			else 
+#endif // UE_WITH_IRIS
 			if (VisibilityResult.Package)
 			{
 				LevelWorld = (UWorld*)FindObjectWithOuter(VisibilityResult.Package, UWorld::StaticClass());
@@ -1517,6 +1571,27 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 		{
 			ReplicationConnectionDriver->NotifyClientVisibleLevelNamesRemove(LevelVisibility.PackageName);
 		}
+
+#if UE_WITH_IRIS
+		if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+		{
+			// See if the level is loaded, if it is disable filtering, if not filter should already be removed
+			if (const ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(GetWorld(), LevelVisibility.PackageName))
+			{
+				if (const ULevel* Level = StreamingLevel->GetLoadedLevel())
+				{
+					// $IRIS: $TODO: Implement forced scope-update for a group/connection to ensure that we treat replicated objects as destroyed if the filter status of a level is disabled/enabled on the same frame
+					// The reason for this is that the client currently destroys the instances rather then managing this through the replication system
+					// If we implement a way to re-instantiate instances on the client we might be able to persist the state
+					const UReplicationBridge* ReplicationBridge = ReplicationSystem->GetReplicationBridge();
+					if (UE::Net::FNetObjectGroupHandle GroupHandle = ReplicationBridge->GetLevelGroup(Level); GroupHandle != UE::Net::InvalidNetObjectGroupHandle)
+					{
+						ReplicationSystem->SetGroupFilterStatus(GroupHandle, GetConnectionId(), UE::Net::ENetFilterStatus::Disallow);
+					}
+				}
+			}
+		}
+#endif // UE_WITH_IRIS
 
 		// Close any channels now that have actors that were apart of the level the client just unloaded
 		for (auto It = ActorChannels.CreateIterator(); It; ++It)
@@ -2777,6 +2852,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 	bool bSkipAck = false;
 
+	bool bHasBunchErrors = false;
+
 	// Track channels that were rejected while processing this packet - used to avoid sending multiple close-channel bunches,
 	// which would cause a disconnect serverside
 	TArray<int32> RejectedChans;
@@ -3355,16 +3432,24 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Driver->InBunches++;
 				Driver->InTotalBunches++;
 
-				// Disconnect if we received a corrupted packet from the client (eg server crash attempt).
-				if (bIsServer && (Bunch.IsCriticalError() || Bunch.IsError()))
+				if (Bunch.IsCriticalError() || Bunch.IsError())
 				{
-					UE_LOG(LogNetTraffic, Error, TEXT("Received corrupted packet data from client %s. Disconnecting."), *LowLevelGetRemoteAddress());
+					bHasBunchErrors = true;
 
-					Close(AddToAndConsumeChainResultPtr(Bunch.ExtendedError, ENetCloseResult::CorruptData));
+					// Disconnect if we received a corrupted packet from the client (eg server crash attempt).
+					if (bIsServer)
+					{
+						UE_LOG(LogNetTraffic, Error, TEXT("Received corrupted packet data with SequenceId: %d from client %s. Disconnecting."), InPacketId, *LowLevelGetRemoteAddress());
 
-					return;
+						Close(AddToAndConsumeChainResultPtr(Bunch.ExtendedError, ENetCloseResult::CorruptData));
+
+						return;
+					}
+					else
+					{
+						UE_LOG(LogNetTraffic, Error, TEXT("Received corrupted packet data with SequenceId: %d from server %s"), InPacketId, *LowLevelGetRemoteAddress());
+					}
 				}
-
 				// In replay, if the bunch generated an error but the channel isn't actually open, clean it up so the channel index remains free
 				if (IsInternalAck() && Bunch.IsError() && Channel && !Channel->OpenedLocally && !Channel->OpenAcked)
 				{
@@ -3441,9 +3526,9 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	// Trace end marker of this incoming data packet.
 	UE_NET_TRACE_PACKET_RECV(NetTraceId, GetConnectionId(), InPacketId, Reader.GetNumBits());
 
-	if (bSkipAck && !IsInternalAck())
+	if ((bHasBunchErrors || bSkipAck) && !IsInternalAck())
 	{
-		// Trace packet as lost on receiving end to indicate bSkipAck in traced data
+		// Trace packet as lost on receiving end to indicate bSkipAck or errors in traced data
 		UE_NET_TRACE_PACKET_DROPPED(NetTraceId, GetConnectionId(), InPacketId, ENetTracePacketType::Incoming);
 	}
 }
@@ -4427,6 +4512,16 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 	PlayerController = PC;
 	OwningActor = PC;
 
+#if UE_WITH_IRIS
+	{
+		// Enable replication
+		if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+		{
+			ReplicationSystem->SetReplicationEnabledForConnection(GetConnectionId(), true);
+		}
+	}
+#endif // UE_WITH_IRIS
+
 	UWorld* World = PlayerController->GetWorld();
 	// if we have already loaded some sublevels, tell the server about them
 	{
@@ -4697,6 +4792,17 @@ void UNetConnection::SetClientLoginState( const EClientLoginState::Type NewState
 	UE_CLOG((Driver == nullptr || !Driver->DDoS.CheckLogRestrictions()), LogNet, Verbose,
 				TEXT("UNetConnection::SetClientLoginState: State changing from %s to %s"),
 				EClientLoginState::ToString(ClientLoginState), EClientLoginState::ToString(NewState));
+
+#if UE_WITH_IRIS
+	if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
+	{
+		if (NewState == EClientLoginState::ReceivedJoin)
+		{
+			// Enable replication
+			ReplicationSystem->SetReplicationEnabledForConnection(GetConnectionId(), true);
+		}
+	}
+#endif // UE_WITH_IRIS
 
 	ClientLoginState = NewState;
 }

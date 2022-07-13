@@ -43,7 +43,6 @@ public:
 	 */
 	static ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const TCHAR* PackageName);
 
-
 	///////////////////////////////////////////////////////////////////////////
 	// Locking/unlocking levels for edit.
 

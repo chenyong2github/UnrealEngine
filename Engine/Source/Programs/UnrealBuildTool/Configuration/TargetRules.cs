@@ -729,6 +729,14 @@ namespace UnrealBuildTool
 		public bool bCompilePython = true;
 
 		/// <summary>
+		/// Whether to use Iris.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-NoUseIris", Value = "false")]
+		[CommandLine("-UseIris", Value = "true")]
+		public bool bUseIris = false;
+
+		/// <summary>
 		/// Whether we are compiling editor code or not. Prefer the more explicit bCompileAgainstEditor instead.
 		/// </summary>
 		public bool bBuildEditor
@@ -2607,6 +2615,11 @@ namespace UnrealBuildTool
 		public bool bCompileISPC
 		{
 			get { return Inner.bCompileISPC; }
+		}
+
+		public bool bUseIris
+		{
+			get { return Inner.bUseIris; }
 		}
 
 		public bool bCompileIntelMetricsDiscovery

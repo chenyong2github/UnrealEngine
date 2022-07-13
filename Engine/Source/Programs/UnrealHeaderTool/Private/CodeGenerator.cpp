@@ -3375,7 +3375,7 @@ void FNativeClassHeaderGenerator::ExportEnum(FOutputDevice& Out, FUnrealEnumDefi
 }
 
 // Exports the header text for the list of structs specified (GENERATED_BODY impls)
-void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef) const
+void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef, EExportClassOutFlags& OutFlags) const
 {
 	ScriptStructDef.AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, true);
 
@@ -3518,9 +3518,38 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 		}
 
+		// Check to see if we are a FastArraySerializer and should try to deduce the FastArraySerializerItemType
+		// To fulfill that requirement the struct should be derived from FFastArraySerializer and have a single replicated TArrayProperty
+		bool bGenerateFastArraySerializerTypeDefinition = false;
+		FString FastArraySerializerTypeDefinition;
+		{
+			const FUnrealStructDefinitionInfo* FastArraySerializerStructDef = GTypeDefinitionInfoMap.FindByName<FUnrealStructDefinitionInfo>(TEXT("FastArraySerializer"));
+			if (FastArraySerializerStructDef && BaseStructDef && BaseStructDef->IsChildOf(*FastArraySerializerStructDef))
+			{
+				uint32 ReplicatedPropertyCount = 0U;
+				const FUnrealPropertyDefinitionInfo* PotentialItemArrayPropertyDefinition = nullptr;
+
+				// Only output bindings for FastArraySerializers that have a single replicated dynamic array
+				for (const TSharedRef<FUnrealPropertyDefinitionInfo>& Property : ScriptStructDef.GetProperties())
+				{
+					if (!EnumHasAnyFlags(Property->GetPropertyFlags(), EPropertyFlags::CPF_RepSkip) && Property->IsDynamicArray())
+					{
+						PotentialItemArrayPropertyDefinition = &Property.Get();
+						++ReplicatedPropertyCount;
+					}
+				}
+
+				if (ReplicatedPropertyCount == 1)
+				{
+					FastArraySerializerTypeDefinition = FString::Printf(TEXT("\tUE_NET_DECLARE_FASTARRAY(%s, %s, %s);\r\n"), *StructNameCPP, *(PotentialItemArrayPropertyDefinition->GetName()), (bRequiredAPI ? *GetAPIString() : TEXT("")));
+					bGenerateFastArraySerializerTypeDefinition = true;
+				}
+			}
+		}
+
 		const FString SuperTypedef = BaseStructDef ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), *BaseStructDef->GetAlternateNameCPP()) : FString();
 
-		FString CombinedLine = FString::Printf(TEXT("%s%s%s%s"), *FriendLine, *StaticClassLine, *RigVMMethodsDeclarations, *SuperTypedef);
+		FString CombinedLine = FString::Printf(TEXT("%s%s%s%s%s"), *FriendLine, *StaticClassLine, *RigVMMethodsDeclarations, *SuperTypedef, *FastArraySerializerTypeDefinition);
 		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(ScriptStructDef.GetMacroDeclaredLineNumber());
 
 		const FString Macroized = Macroize(*MacroName, MoveTemp(CombinedLine));
@@ -3586,6 +3615,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		Out.Logf(TEXT("{\r\n"));
 		Out.Logf(TEXT("\treturn %s::StaticStruct();\r\n"), *StructNameCPP);
 		Out.Logf(TEXT("}\r\n"));
+
+		// Inject implementation needed to support auto bindings of fast arrays
+		if (bGenerateFastArraySerializerTypeDefinition)
+		{
+			OutFlags |= EExportClassOutFlags::NeedsFastArrayHeaders;
+			Out.Logf(TEXT("UE_NET_IMPLEMENT_FASTARRAY(%s);\r\n"), *StructNameCPP);
+		}
 	}
 
 	FString StaticsStructName = ChoppedSingletonName + TEXT("_Statics");
@@ -5423,7 +5459,7 @@ void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FUnrealProper
 	}
 }
 
-bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences)
+bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences, const EExportClassOutFlags& ExportFlags)
 {
 	// Collect the includes if this is from a source file
 	TArray<FString> RelativeIncludes;
@@ -5432,6 +5468,11 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 		FString ModuleRelativeFilename = InSourceFile->GetFilename();
 		ConvertToBuildIncludePath(Module, ModuleRelativeFilename);
 		RelativeIncludes.Add(MoveTemp(ModuleRelativeFilename));
+
+		if (EnumHasAnyFlags(ExportFlags, EExportClassOutFlags::NeedsFastArrayHeaders))
+		{
+			RelativeIncludes.Add(FString(TEXT("Net/Serialization/FastArraySerializerImplementation.h")));
+		}
 
 		bool bAddedStructuredArchiveFromArchiveHeader = false;
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
@@ -5607,7 +5648,7 @@ void FNativeClassHeaderGenerator::GenerateSourceFile(FGeneratedCPP& GeneratedCPP
 						Singletons.Add(ScriptStructDef);
 					}
 					GeneratedFunctionDeclarations.Log(ScriptStructDef->GetExternDecl(true));
-					Generator.ExportGeneratedStructBodyMacros(GeneratedHeaderText, GeneratedCPPText, ReferenceGatherers, SourceFile, *ScriptStructDef);
+					Generator.ExportGeneratedStructBodyMacros(GeneratedHeaderText, GeneratedCPPText, ReferenceGatherers, SourceFile, *ScriptStructDef, GeneratedCPP.ExportFlags);
 					if (ScriptStructDef->HasAnyStructFlags(STRUCT_Native))
 					{
 						ScriptStructRegs.Add(ScriptStructDef);
@@ -5835,7 +5876,7 @@ void FNativeClassHeaderGenerator::WriteSourceFile(FGeneratedCPP& GeneratedCPP)
 			}
 
 			bool bHasChanged = WriteHeader(GeneratedCPP.Header, GeneratedHeaderText, AdditionalHeaders, GeneratedCPP.ForwardDeclarations);
-			WriteSource(Module, GeneratedCPP.Source, GeneratedCPPText, &SourceFile, GeneratedCPP.CrossModuleReferences);
+			WriteSource(Module, GeneratedCPP.Source, GeneratedCPPText, &SourceFile, GeneratedCPP.CrossModuleReferences, GeneratedCPP.ExportFlags);
 
 			SourceFile.SetGeneratedFilename(MoveTemp(GeneratedCPP.Header.GetFilename()));
 			SourceFile.SetHasChanged(bHasChanged);
@@ -6073,7 +6114,7 @@ void FNativeClassHeaderGenerator::Generate(
 					}
 
 					Generator.ExportGeneratedPackageInitCode(GeneratedFileInfo.GetGeneratedBody(), *GeneratedFunctionDeclarations, ExportedSorted, CombinedHash);
-					WriteSource(Module, GeneratedFileInfo, GeneratedFileInfo.GetGeneratedBody(), nullptr, TSet<FString>());
+					WriteSource(Module, GeneratedFileInfo, GeneratedFileInfo.GetGeneratedBody(), nullptr, TSet<FString>(), EExportClassOutFlags::None);
 				}
 			});
 		};

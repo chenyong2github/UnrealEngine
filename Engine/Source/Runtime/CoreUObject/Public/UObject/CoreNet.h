@@ -23,12 +23,15 @@ class INetDeltaBaseState;
 class FNetTraceCollector;
 class UPackageMap;
 
-namespace UE
+namespace UE::Net
 {
-	namespace Net
-	{
-		struct FNetResult;
-	}
+	struct FNetResult;
+
+#if UE_WITH_IRIS
+	class FReplicationFragment;
+	struct FReplicationStateDescriptor;
+	typedef FReplicationFragment* (*CreateAndRegisterReplicationFragmentFunc)(UObject* Owner, const FReplicationStateDescriptor* Descriptor, FFragmentRegistrationContext& Context);
+#endif
 }
 
 
@@ -259,6 +262,9 @@ public:
 	ELifetimeCondition Condition;
 	ELifetimeRepNotifyCondition RepNotifyCondition;
 	bool bIsPushBased;
+#if UE_WITH_IRIS
+	UE::Net::CreateAndRegisterReplicationFragmentFunc CreateAndRegisterReplicationFragmentFunction = nullptr;
+#endif
 
 	FLifetimeProperty()
 		: RepIndex(0)
@@ -294,6 +300,9 @@ public:
 			check(Condition == Other.Condition);
 			check(RepNotifyCondition == Other.RepNotifyCondition);
 			check(bIsPushBased == Other.bIsPushBased);
+#if UE_WITH_IRIS
+			check(CreateAndRegisterReplicationFragmentFunction == Other.CreateAndRegisterReplicationFragmentFunction);
+#endif
 			return true;
 		}
 
@@ -604,6 +613,9 @@ struct FNetDeltaSerializeInfo
 
 	//~ TODO: This feels hacky, and a better alternative might be something like connection specific
 	//~ capabilities.
+
+	/** Whether we are currently initializing base from defaults in which case we should not modify the source **/
+	bool bIsInitializingBaseFromDefault = false;
 
 	/** Whether or not we support FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs */
 	bool bSupportsFastArrayDeltaStructSerialization = false;

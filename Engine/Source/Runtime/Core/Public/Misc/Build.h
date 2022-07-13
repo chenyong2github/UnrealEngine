@@ -452,6 +452,11 @@
 #define WITH_IOSTORE_IN_EDITOR UE_IS_COOKED_EDITOR
 #endif
 
+// Controls whether Iris networking code is compiled in or not; should normally be defined by UBT
+#ifndef UE_WITH_IRIS
+	#define UE_WITH_IRIS 0
+#endif
+
 // Controls whether or not to make a global object to load COnfig.bin as soon as possible
 #ifndef PRELOAD_BINARY_CONFIG
 	#define PRELOAD_BINARY_CONFIG 1

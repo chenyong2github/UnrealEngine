@@ -14,6 +14,14 @@ void FNetworkObjectList::AddInitialObjects(UWorld* const World, UNetDriver* NetD
 		return;
 	}
 
+#if UE_WITH_IRIS
+	if (NetDriver->GetReplicationSystem())
+	{
+		return;
+	}
+#endif // UE_WITH_IRIS
+
+
 	for (FActorIterator Iter(World); Iter; ++Iter)
 	{
 		AActor* Actor = *Iter;
@@ -49,6 +57,13 @@ TSharedPtr<FNetworkObjectInfo>* FNetworkObjectList::FindOrAdd(AActor* const Acto
 	{
 		return nullptr;
 	}
+
+#if UE_WITH_IRIS
+	if (NetDriver && NetDriver->GetReplicationSystem())
+	{
+		return nullptr;
+	}
+#endif // UE_WITH_IRIS
 
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfo = AllNetworkObjects.Find(Actor);
 	

@@ -9,11 +9,18 @@
 #include "Hash/CityHash.h"
 #include "Trace/Trace.h"
 #include "UObject/NameTypes.h"
+#include <atomic>
 
 #define UE_NET_TRACE_VALIDATE 1
 
 struct FNetTraceReporter;
-typedef uint64 FReplicationProtocolIdentifier;
+namespace UE::Net
+{
+	namespace Private
+	{
+		typedef uint64 FReplicationProtocolIdentifier;
+	}
+}
 
 #if UE_NET_TRACE_ENABLED
 
@@ -33,10 +40,10 @@ struct FNetTraceInternal
 	struct FThreadBuffer : public FTlsAutoCleanup
 	{
 		// Map FName to NameId, used to know what FNames we have traced
-		TMap<FName, FNetDebugNameId> DynamicFNameToNameIdMap;
+		TMap<FName, UE::Net::FNetDebugNameId> DynamicFNameToNameIdMap;
 
 		// Map hashed dynamic TCHAR* strings to NameId
-		TMap<uint64, FNetDebugNameId> DynamicNameHashToNameIdMap;
+		TMap<uint64, UE::Net::FNetDebugNameId> DynamicNameHashToNameIdMap;
 	};
 
 	// Get next NameId used to track what we already have traced
@@ -61,7 +68,7 @@ FNetTraceInternal::FThreadBuffer* FNetTraceInternal::CreateThreadBuffer()
 
 uint32 FNetTraceInternal::GetNextNameId()
 {
-	static TAtomic<FNetDebugNameId> NextNameId(1);
+	static std::atomic<UE::Net::FNetDebugNameId> NextNameId(1);
 
 	return NextNameId++;
 }
@@ -130,7 +137,7 @@ void FNetTrace::DestroyTraceCollector(FNetTraceCollector* Collector)
 	}
 }
 
-void FNetTrace::FoldTraceCollector(FNetTraceCollector* DstCollector, const FNetTraceCollector* SrcCollector, bool bIsBunch)
+void FNetTrace::FoldTraceCollector(FNetTraceCollector* DstCollector, const FNetTraceCollector* SrcCollector, uint32 Offset)
 {
 	if (DstCollector && SrcCollector && DstCollector != SrcCollector)
 	{
@@ -140,9 +147,6 @@ void FNetTrace::FoldTraceCollector(FNetTraceCollector* DstCollector, const FNetT
 		// When we fold non-bunch events we inject them at the current level
 		const uint32 Level = DstCollector->CurrentNestingLevel;		
 		
-		const uint32 LastEventStorageIndex = DstCollector->EventCount - 1U;
-		const uint32 Offset = (DstCollector->EventCount && !bIsBunch) ? FMath::Max(DstCollector->Events[LastEventStorageIndex].StartPos, DstCollector->Events[LastEventStorageIndex].EndPos) : 0U;
-
 		// Make sure that the events fit
 		if (SrcCollector->EventCount + DstCollector->EventCount > (uint32)DstCollector->Events.Num())
 		{
@@ -171,7 +175,7 @@ void FNetTrace::FoldTraceCollector(FNetTraceCollector* DstCollector, const FNetT
 
 void FNetTrace::PushStreamOffset(FNetTraceCollector* Collector, uint32 Offset)
 {
-	if (ensure(Collector->OffsetStackLevel < FNetTraceCollector::MaxNestingLevel - 1U))
+	if (ensure(Collector->OffsetStackLevel < (FNetTraceCollector::MaxNestingLevel - 1U)))
 	{
 		const uint32 OffsetStackLevel = Collector->OffsetStackLevel;
 
@@ -192,7 +196,7 @@ void FNetTrace::PopStreamOffset(FNetTraceCollector* Collector)
 uint32 FNetTrace::BeginPacketContentEvent(FNetTraceCollector& Collector, ENetTracePacketContentEventType EventType, uint32 Pos)
 {
 #if UE_NET_TRACE_VALIDATE
-	check(Collector.CurrentNestingLevel < FNetTraceCollector::MaxNestingLevel);
+	check(Collector.CurrentNestingLevel < (FNetTraceCollector::MaxNestingLevel - 1U));
 #endif
 
 	const uint32 EventCount = Collector.EventCount;
@@ -246,7 +250,7 @@ void FNetTrace::EndPacketContentEvent(FNetTraceCollector& Collector, uint32 Even
 	--Collector.CurrentNestingLevel;
 }
 
-void FNetTrace::TracePacketContentEvent(FNetTraceCollector& Collector, FNetDebugNameId InNetTraceNameId, uint32 StartPos, uint32 EndPos, uint32 Verbosity)
+void FNetTrace::TracePacketContentEvent(FNetTraceCollector& Collector, UE::Net::FNetDebugNameId InNetTraceNameId, uint32 StartPos, uint32 EndPos, uint32 Verbosity)
 {
 	if (FNetTrace::GetTraceVerbosity() >= Verbosity)
 	{
@@ -283,7 +287,7 @@ void FNetTrace::DiscardBunch(FNetTraceCollector& Collector)
 	Collector.PendingBunchEventIndex = ~0U;
 }
 
-void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceBunchInfo& BunchInfo)
+void FNetTrace::EndBunch(FNetTraceCollector& DstCollector, UE::Net::FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceBunchInfo& BunchInfo)
 {
 #if UE_NET_TRACE_VALIDATE
 	check(DstCollector.PendingBunchEventIndex != ~0U);
@@ -343,7 +347,7 @@ void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunc
 	if (&DstCollector != BunchCollector)
 	{
 		FNetTrace::BeginBunch(DstCollector);
-		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, true);
+		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, 0U);
 	}
 		
 	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, BunchInfo);
@@ -354,7 +358,7 @@ void FNetTrace::TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunc
 	if (&DstCollector != BunchCollector)
 	{
 		FNetTrace::BeginBunch(DstCollector);
-		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, true);
+		FNetTrace::FoldTraceCollector(&DstCollector, BunchCollector, 0U);
 	}
 		
 	FNetTrace::EndBunch(DstCollector, TraceName(BunchName), StartPos, HeaderBits, BunchBits, BunchInfo);
@@ -426,7 +430,7 @@ void FNetTrace::TracePacket(uint32 GameInstanceId, uint32 ConnectionId, uint32 P
 	}
 }
 
-void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const FNetDebugName* DebugName, uint64 TypeIdentifier, uint32 OwnerId)
+void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const UE::Net::FNetDebugName* DebugName, uint64 TypeIdentifier, uint32 OwnerId)
 {
 	if (!GNetTraceRuntimeVerbosity)
 	{
@@ -490,7 +494,7 @@ void FNetTrace::TraceConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId
 	}
 }
 
-void FNetTrace::TracePacketStatsCounter(uint32 GameInstanceId, uint32 ConnectionId, FNetDebugNameId CounterNameId, uint32 StatValue)
+void FNetTrace::TracePacketStatsCounter(uint32 GameInstanceId, uint32 ConnectionId, UE::Net::FNetDebugNameId CounterNameId, uint32 StatValue)
 {
 	if (GNetTraceRuntimeVerbosity)
 	{
@@ -498,7 +502,7 @@ void FNetTrace::TracePacketStatsCounter(uint32 GameInstanceId, uint32 Connection
 	}
 }
 
-void FNetTrace::TraceFrameStatsCounter(uint32 GameInstanceId, FNetDebugNameId CounterNameId, uint32 StatValue)
+void FNetTrace::TraceFrameStatsCounter(uint32 GameInstanceId, UE::Net::FNetDebugNameId CounterNameId, uint32 StatValue)
 {
 	if (GNetTraceRuntimeVerbosity)
 	{
@@ -506,7 +510,7 @@ void FNetTrace::TraceFrameStatsCounter(uint32 GameInstanceId, FNetDebugNameId Co
 	}
 }
 
-FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
+UE::Net::FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 {
 	if ((GNetTraceRuntimeVerbosity == 0U) | (Name == nullptr))
 	{
@@ -522,13 +526,13 @@ FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 
 	// Hash the name using CityHash64
 	const uint64 HashedName = CityHash64((const char*)Name, FCString::Strlen(Name) * sizeof(TCHAR));
-	if (const FNetDebugNameId* FoundNameId = ThreadBuffer->DynamicNameHashToNameIdMap.Find(HashedName))
+	if (const UE::Net::FNetDebugNameId* FoundNameId = ThreadBuffer->DynamicNameHashToNameIdMap.Find(HashedName))
 	{
 		return *FoundNameId;
 	}
 	else
 	{
-		const FNetDebugNameId NameId = FNetTraceInternal::GetNextNameId();
+		const UE::Net::FNetDebugNameId NameId = FNetTraceInternal::GetNextNameId();
 		ThreadBuffer->DynamicNameHashToNameIdMap.Add(HashedName, NameId);
 
 		FTCHARToUTF8 Converter(Name);
@@ -538,8 +542,10 @@ FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 	}
 }
 
-FNetDebugNameId FNetTrace::TraceName(FName Name)
+UE::Net::FNetDebugNameId FNetTrace::TraceName(FName Name)
 {
+	using namespace UE::Net;
+
 	if ((GNetTraceRuntimeVerbosity == 0U) || Name.IsNone())
 	{
 		return 0U;
@@ -571,7 +577,7 @@ FNetDebugNameId FNetTrace::TraceName(FName Name)
 	}
 }
 
-FNetDebugNameId FNetTrace::TraceName(const FNetDebugName* DebugName)
+UE::Net::FNetDebugNameId FNetTrace::TraceName(const UE::Net::FNetDebugName* DebugName)
 {
 	if ((GNetTraceRuntimeVerbosity == 0U) | (DebugName == nullptr))
 	{
@@ -580,7 +586,7 @@ FNetDebugNameId FNetTrace::TraceName(const FNetDebugName* DebugName)
 
 	if (DebugName->DebugNameId == 0U)
 	{
-		const FNetDebugNameId NameId = TraceName(DebugName->Name);
+		const UE::Net::FNetDebugNameId NameId = TraceName(DebugName->Name);
 		DebugName->DebugNameId = NameId;
 
 		return NameId;

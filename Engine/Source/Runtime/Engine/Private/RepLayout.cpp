@@ -26,6 +26,9 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/UnrealType.h"
+#if UE_WITH_IRIS
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif // UE_WITH_IRIS
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout BuildShadowOffsets"), STAT_RepLayout_BuildShadowOffsets, STATGROUP_Game);
@@ -199,7 +202,15 @@ namespace UE_RepLayout_Private
 	const UEPushModelPrivate::FPushModelPerNetDriverHandle ConditionallyAddPushModelObject(const UObject* const Object, const TSharedRef<const FRepLayout>& InRepLayout)
 	{
 		const int32 NumReplicatedProperties = InRepLayout->GetNumParents();
-		if (UEPushModelPrivate::IsPushModelEnabled() &&
+
+#if UE_WITH_IRIS
+		// Implement shared PushModelids/NetHandles for Iris and PushModel to avoid conflicts when we mix systems - JIRA: UE-158304
+		const bool bShouldUseIrisReplication = UE::Net::ShouldUseIrisReplication();
+#else
+		const bool bShouldUseIrisReplication = false;
+#endif
+
+		if (UEPushModelPrivate::IsPushModelEnabled() && !bShouldUseIrisReplication &&
 			NumReplicatedProperties > 0 &&
 			EnumHasAnyFlags(InRepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport | ERepLayoutFlags::PartialPushSupport))
 		{
@@ -967,25 +978,25 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 #if (WITH_PUSH_MODEL)
 struct FNetPrivatePushIdHelper
 {
-	static void SetNetPushID(UObject* InObject, const UEPushModelPrivate::FNetPushObjectId ObjectId)
+	static void SetNetPushID(UObject* InObject, const UEPushModelPrivate::FNetLegacyPushObjectId ObjectId)
 	{
-		const UEPushModelPrivate::FNetPushObjectId CurrentId = InObject->GetNetPushIdDynamic();
-		if (CurrentId != ObjectId)
+		const UEPushModelPrivate::FNetPushObjectId CurrentId(InObject->GetNetPushIdDynamic());
+		if (CurrentId.GetLegacyPushObjectId() != ObjectId)
 		{
-			if (CurrentId != INDEX_NONE)
+			if (CurrentId.IsValid())
 			{
 				UE_LOG(LogRep, Error, TEXT("SetNetPushID: %s already has a push id. Existing ID = %s, New ID = %s"),
 					*InObject->GetPathName(),
 					*UEPushModelPrivate::ToString(CurrentId),
-					*UEPushModelPrivate::ToString(ObjectId));
+					*UEPushModelPrivate::ToString(UEPushModelPrivate::FNetPushObjectId(ObjectId)));
 
-				if (!UEPushModelPrivate::ValidateObjectIdReassignment(CurrentId, ObjectId))
+				if (!UEPushModelPrivate::ValidateObjectIdReassignment(CurrentId.GetLegacyPushObjectId(), ObjectId))
 				{
 					return;
 				}
 			}
 
-			FObjectNetPushIdHelper::SetNetPushIdDynamic(InObject, ObjectId);
+			FObjectNetPushIdHelper::SetNetPushIdDynamic(InObject, UEPushModelPrivate::FNetPushObjectId(ObjectId).GetValue());
 		}
 	}
 
@@ -7865,6 +7876,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 		// Now that we have our changelists setup, we can send the data.
 		for (int32 i = 0; i < ChangedElements.Num(); ++i)
 		{
+			UE_NET_TRACE_SCOPE(ChangedElement, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
 			const auto& IDIndexPair = ChangedElements[i];
 			uint32 ID = ChangedElements[i].ID;
 			Writer << ID;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/CoreNet.h"
+#include "Delegates/Delegate.h"
 
 /**
  * This class is used to store meta data about properties that is shared between connections,
@@ -77,3 +78,12 @@ public:
 	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
 	uint32 ExternalDataNumBits;
 };
+
+namespace UE::Net::Private
+{
+#if UE_WITH_IRIS
+DECLARE_DELEGATE_ThreeParams(FIrisSetPropertyCustomCondition, const UObject*, const uint16, const bool);
+NETCORE_API void SetIrisSetPropertyCustomConditionDelegate(const FIrisSetPropertyCustomCondition& Delegate);
+#endif
+}
+

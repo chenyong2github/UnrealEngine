@@ -28,6 +28,10 @@ class UGameplayAbility;
 struct FActiveGameplayEffect;
 struct FGameplayEffectModCallbackData;
 struct FGameplayEffectSpec;
+namespace UE::Net
+{
+	struct FGameplayEffectContextHandleAccessorForNetSerializer;
+}
 
 /** Wrappers to convert enum to string. These are fairly slow */
 GAMEPLAYABILITIES_API FString EGameplayModOpToString(int32 Type);
@@ -881,6 +885,8 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContextHandle
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 private:
+	friend UE::Net::FGameplayEffectContextHandleAccessorForNetSerializer;
+
 	TSharedPtr<FGameplayEffectContext> Data;
 };
 

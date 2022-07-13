@@ -58,6 +58,7 @@ enum class EExportClassOutFlags
 {
 	None = 0x0,
 	NeedsPushModelHeaders = 0x1 << 0,
+	NeedsFastArrayHeaders = NeedsPushModelHeaders << 1,
 };
 ENUM_CLASS_FLAGS(EExportClassOutFlags);
 
@@ -385,7 +386,7 @@ private:
 	/**
 	 * Write the body of a source file using a standard format
 	 */
-	static bool WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences);
+	static bool WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences, const EExportClassOutFlags& ExportFlags);
 
 	/**
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
@@ -415,7 +416,7 @@ private:
 	 * @param	Out				output device
 	 * @param	Struct			The struct to export
 	 */
-	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef) const;
+	void ExportGeneratedStructBodyMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealScriptStructDefinitionInfo& ScriptStructDef, EExportClassOutFlags& OutFlags) const;
 
 	/**
 	 * Exports a local mirror of the specified struct; used to get offsets

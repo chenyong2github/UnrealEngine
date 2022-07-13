@@ -5,7 +5,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FResizableCircularQueueTest, "Network.ResizableCircularQueueTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FResizableCircularQueueTest, "Net.ResizableCircularQueueTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
 struct FResizableCircularQueueTestUtil
 {
@@ -19,7 +19,7 @@ struct FResizableCircularQueueTestUtil
 		uint32 ExpectedValue = ExpectedValueAtFront;
 
 		// Peek elements in queue at given offset, peek from back to front
-		for (SIZE_T It = 0; It < Queue.Count(); ++It)
+		for (SIZE_T It = 0, EndIt = Queue.Count(); It < EndIt; ++It)
 		{
 			bSuccess = bSuccess && (ExpectedValue == Queue.PeekAtOffset(It));
 			ExpectedValue += Increment;
@@ -64,18 +64,21 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Push over Capacity
 	{
-		const SIZE_T ElementsToPush = 32;
+		const SIZE_T InitialQueueCapacity = 32;
 
-		FResizableCircularQueueTestUtil::QueueT Q(ElementsToPush);
+		FResizableCircularQueueTestUtil::QueueT Q(InitialQueueCapacity);
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (SIZE_T It=0; It < InitialQueueCapacity; ++It)
 		{
 			Q.Enqueue(It);
 		}
+		Q.Pop();
+		Q.Enqueue(InitialQueueCapacity);
+		Q.Enqueue(InitialQueueCapacity + 1);
 		
-		TestEqual(TEXT("Test Push over Capacity - Size"), Q.Count(), ElementsToPush);
-		TestEqual(TEXT("Test Push over Capacity - Capacity"), Q.AllocatedCapacity(), ElementsToPush);
- 		TestTrue(TEXT("Test Push over Capacity - Expected"), FResizableCircularQueueTestUtil::VerifyQueueIntegrity(Q, 0, 1));
+		TestEqual(TEXT("Test Push over Capacity - Size"), Q.Count(), InitialQueueCapacity+1);
+		TestTrue(TEXT("Test Push over Capacity - Capacity"), Q.AllocatedCapacity() >= InitialQueueCapacity+1);
+ 		TestTrue(TEXT("Test Push over Capacity - Expected"), FResizableCircularQueueTestUtil::VerifyQueueIntegrity(Q, 1, 1));
 	}
 
 	// Test Push and Pop
@@ -133,6 +136,47 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		TestTrue( TEXT("Test Push and pop all - IsEmpty after"), Q.IsEmpty());
 		TestEqual(TEXT("Test Push and pop all - Size after"), Q.Count(), SIZE_T(0));
 		TestEqual(TEXT("Test Push and pop all - Capacity after"), Q.AllocatedCapacity(), ElementsToPush);
+	}
+
+	// Test multi pop of element with non-trivial destructor
+	{
+		struct FStructWithDestructorForResizableCiruclarQueuePopTest
+		{
+			~FStructWithDestructorForResizableCiruclarQueuePopTest()
+			{
+				--Count;
+				check(Count == 0);
+			}
+
+			int Count = 1;
+		};
+
+		using FMyTestQueue = TResizableCircularQueue<FStructWithDestructorForResizableCiruclarQueuePopTest>;
+
+		// Pop zero
+		{
+			FMyTestQueue Q(0);
+			Q.Enqueue(FStructWithDestructorForResizableCiruclarQueuePopTest());
+			Q.Pop(0);
+			TestEqual(TEXT("Pop zero elements leaves one element in the queue."), Q.Count(), SIZE_T(1));
+		}
+
+		// Pop all
+		{
+			FMyTestQueue Q(32);
+			for (; Q.Count() < Q.AllocatedCapacity();)
+			{
+				Q.Enqueue(FStructWithDestructorForResizableCiruclarQueuePopTest());
+			}
+
+			// Want to setup the queue so the head and tail aren't at the "beginning" of the queue
+			Q.Pop(1);
+			TestEqual(TEXT("Pop one element leaves queue at capacity minus one."), Q.Count(), Q.AllocatedCapacity() - SIZE_T(1));
+
+			Q.Enqueue(FStructWithDestructorForResizableCiruclarQueuePopTest());
+			Q.Pop(Q.Count());
+			TestTrue(TEXT("Pop of all elements leaves queue empty."), Q.IsEmpty());
+		}
 	}
 
 	// Test index wrap
@@ -209,6 +253,43 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Test trim empty - Capacity"), Q.AllocatedCapacity(), SIZE_T(0));
 	}
 
+	// Test non-trivial type
+	{
+		struct FNonTrivialStruct
+		{
+			FNonTrivialStruct() : Value(10) {}
+
+			int Value;
+		};
+
+		using FQueue = TResizableCircularQueue<TArray<FNonTrivialStruct>>;
+
+		{
+			FQueue Q;
+			FQueue::ElementT& Array = Q.Enqueue();
+			TestEqual(TEXT("Test enqueue non-trivial element"), Array.Num(), 0);
+		}
+
+		{
+			FQueue Q;
+			FQueue::ElementT Array;
+			Array.SetNum(2);
+			Q.Enqueue(Array);
+			
+			const FQueue::ElementT& ArrayInQ = Q.Peek();
+			TestEqual(TEXT("Test enqueue array with size 2"), ArrayInQ.Num(), 2);
+			TestNotEqual(TEXT("Test enqueue array with size 2 has different allocation"), ArrayInQ.GetData(), static_cast<const FQueue::ElementT&>(Array).GetData());
+		}
+	}
+
+	// Test trivial type with element construction
+	{
+		using FQueue = TResizableCircularQueue<int>;
+
+		FQueue Q(8);
+		int& Value = Q.EnqueueDefaulted_GetRef();
+		TestEqual(TEXT("Test enqueue of initialized primitive type"), Value, 0);
+	}
 
 	check(!HasAnyErrors());
 

@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/CString.h"
+
+namespace UE::Net
+{
 
 /**
  * NetDebugName, carries both string pointer and a debugname id assigned by the persistent debug storage. DebugNameId is used to be able to avoid hashing already seen NetDebugNames
@@ -15,7 +19,13 @@ struct FNetDebugName
 	mutable FNetDebugNameId DebugNameId = 0;
 };
 
-inline const TCHAR* ToCStr(const FNetDebugName* DebugName)
+
+NETCORE_API const FNetDebugName* CreatePersistentNetDebugName(const TCHAR* Name, uint32 NameLen);
+inline const FNetDebugName* CreatePersistentNetDebugName(const TCHAR* Name) { return CreatePersistentNetDebugName(Name, FCString::Strlen(Name)); }
+
+}
+
+inline const TCHAR* ToCStr(const UE::Net::FNetDebugName* DebugName)
 {
 	if (DebugName && DebugName->Name)
 	{
@@ -26,4 +36,5 @@ inline const TCHAR* ToCStr(const FNetDebugName* DebugName)
 		return TEXT("N/A");
 	}
 }
+
 

@@ -44,6 +44,11 @@
 #endif
 #include "ObjectTrace.h"
 
+#if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif // UE_WITH_IRIS
+
 #define LOCTEXT_NAMESPACE "ActorComponent"
 
 DEFINE_LOG_CATEGORY(LogActorComponent);
@@ -1361,6 +1366,13 @@ void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld, FRegisterCompo
 			RegisterAllComponentTickFunctions(true);
 			if (!bHasBegunPlay)
 			{
+#if UE_WITH_IRIS
+				if (bReplicates)
+				{
+					MyOwner->UpdateReplicatedComponent(this);
+				}
+#endif // UE_WITH_IRIS
+
 				BeginPlay();
 				ensureMsgf(bHasBegunPlay, TEXT("Failed to route BeginPlay (%s)"), *GetFullName());
 			}
@@ -2190,6 +2202,26 @@ bool UActorComponent::CanEditChange(const FProperty* InProperty) const
 	return false;
 }
 #endif
+
+#if UE_WITH_IRIS
+void UActorComponent::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	Super::RegisterReplicationFragments(Context, RegistrationFlags);
+
+	// Build descriptors and allocate PropertyReplicationFragments for this object
+	UE::Net::FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
+}
+
+void UActorComponent::BeginReplication()
+{
+	UE::Net::FReplicationSystemUtil::BeginReplicationForActorComponent(GetOwner(), this);
+}
+
+void UActorComponent::EndReplication()
+{
+	UE::Net::FReplicationSystemUtil::EndReplicationForActorComponent(this);
+}
+#endif // UE_WITH_IRIS
 
 bool UActorComponent::IsEditableWhenInherited() const
 {

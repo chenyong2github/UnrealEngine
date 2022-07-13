@@ -46,6 +46,9 @@ class UDEPRECATED_DataLayer;
 class UDataLayerAsset;
 class UDataLayerInstance;
 class AWorldDataLayers;
+#if UE_WITH_IRIS
+struct FActorBeginReplicationParams;
+#endif // UE_WITH_IRIS
 class UActorFolder;
 
 // By default, debug and development builds (even cooked) will keep actor labels. Manually define this if you want to make a local build
@@ -3083,6 +3086,37 @@ public:
 	/** Destroys the constructed components. */
 	void DestroyConstructedComponents();
 
+#if UE_WITH_IRIS
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+
+	/**
+	 * Called for all Actors set to replicate during BeginPlay, It will also be called if SetReplicates(true) is called and the object is not already replicating
+	 */
+	virtual void BeginReplication();
+
+	/**
+	 * Called when we want to end replication for this actor, typically called from EndPlay() for actors that should be replicated during their lifespan
+	 */
+	virtual void EndReplication(EEndPlayReason::Type EndPlayReason);
+protected:
+	/**
+	 * Pushes the owning NetConnection for the actor and all of its children to the replication system.
+	 * This information decides whether properties with owner conditionals are replicated or not.
+	 */
+	void UpdateOwningNetConnection() const;
+
+	/**
+	 * Helper to BeginReplication passing on additional parameters to the ReplicationSystem, typically called from code overriding normal BeginReplication()
+	 * @param Params Additional parameters we want to pass on
+	 */
+	void BeginReplication(const FActorBeginReplicationParams& Params);
+#endif // UE_WITH_IRIS
+
+	/**
+	 * Updates the ReplicatePhysics condition. That information needs to be pushed to the ReplicationSystem.
+	 */
+	void UpdateReplicatePhysicsCondition();
+	
 protected:
 	/**
 	 * Virtual call chain to register all tick functions for the actor class hierarchy

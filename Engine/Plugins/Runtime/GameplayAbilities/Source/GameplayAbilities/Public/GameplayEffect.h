@@ -1744,6 +1744,9 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 	/** Recomputes the start time for all active abilities */
 	void RecomputeStartWorldTimes(const float WorldTime, const float ServerWorldTime);
 
+	/** Called every time data has been modified by the FastArraySerializer */
+	void PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters);
+
 private:
 
 	/**
@@ -1852,7 +1855,7 @@ private:
 	FGameplayTagCountContainer ApplicationImmunityGameplayTagCountContainer;
 
 	/** Active GEs that have immunity queries. This is an acceleration list to avoid searching through the Active GameplayEffect list frequetly. (We only search for the active GE if immunity procs) */
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	TArray<const UGameplayEffect*> ApplicationImmunityQueryEffects;
 
 	FAggregatorRef& FindOrCreateAttributeAggregator(FGameplayAttribute Attribute);

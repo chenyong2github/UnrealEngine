@@ -111,8 +111,9 @@ void UPendingNetGame::SendInitialJoin()
 				EncryptionToken = URL.GetOption(TEXT("EncryptionToken="), TEXT(""));
 			}
 
-			FNetControlMessage<NMT_Hello>::Send(ServerConn, IsLittleEndian, LocalNetworkVersion, EncryptionToken);
-
+			EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+			FNetControlMessage<NMT_Hello>::Send(ServerConn, IsLittleEndian, LocalNetworkVersion, EncryptionToken, LocalNetworkFeatures);
+			
 			ServerConn->FlushNet();
 		}
 	}
@@ -187,18 +188,32 @@ void UPendingNetGame::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 	switch (MessageType)
 	{
 		case NMT_Upgrade:
+		{
 			// Report mismatch.
 			uint32 RemoteNetworkVersion;
 
-			if (FNetControlMessage<NMT_Upgrade>::Receive(Bunch, RemoteNetworkVersion))
+			EEngineNetworkRuntimeFeatures RemoteNetworkFeatures = EEngineNetworkRuntimeFeatures::None;
+
+			if (FNetControlMessage<NMT_Upgrade>::Receive(Bunch, RemoteNetworkVersion, RemoteNetworkFeatures))
 			{
+				TStringBuilder<128> RemoteFeaturesDescription;
+				FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(RemoteNetworkFeatures, RemoteFeaturesDescription);
+
+				TStringBuilder<128> LocalFeaturesDescription;
+				FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(NetDriver->GetNetworkRuntimeFeatures(), LocalFeaturesDescription);
+
+				UE_LOG(LogNet, Error, TEXT("Server is incompatible with the local version of the game: RemoteNetworkVersion=%u, RemoteNetworkFeatures=%s vs LocalNetworkVersion=%u, LocalNetworkFeatures=%s"), 
+					RemoteNetworkVersion, RemoteFeaturesDescription.ToString(),
+					FNetworkVersion::GetLocalNetworkVersion(), LocalFeaturesDescription.ToString()
+				);
+
 				// Upgrade
 				ConnectionError = NSLOCTEXT("Engine", "ClientOutdated", "The match you are trying to join is running an incompatible version of the game.  Please try upgrading your game version.").ToString();
 				GEngine->BroadcastNetworkFailure(NULL, NetDriver, ENetworkFailure::OutdatedClient, ConnectionError);
 			}
 
 			break;
-
+		}
 		case NMT_Failure:
 		{
 			// our connection attempt failed for some reason, for example a synchronization mismatch (bad GUID, etc) or because the server rejected our join attempt (too many players, etc)

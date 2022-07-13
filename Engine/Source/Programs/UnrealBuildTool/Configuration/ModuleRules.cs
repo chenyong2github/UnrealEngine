@@ -1239,6 +1239,40 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Setup this module for Iris support (based on the settings in UEBuildConfiguration)
+		/// </summary>
+		public void SetupIrisSupport(ReadOnlyTargetRules Target, bool bAddAsPublicDependency = false)
+		{
+			if (Target.bUseIris == true)
+			{
+				PublicDefinitions.Add("UE_WITH_IRIS=1");
+
+				if (bAddAsPublicDependency)
+				{
+					PublicDependencyModuleNames.Add("IrisCore");
+				}
+				else
+				{
+					PrivateDependencyModuleNames.Add("IrisCore");
+				}
+			}
+			else
+			{
+				PublicDefinitions.Add("UE_WITH_IRIS=0");
+
+				// If we compile without Iris we have a stub Iris module for UHT dependencies
+				if (bAddAsPublicDependency)
+				{
+					PublicDependencyModuleNames.Add("IrisStub");
+				}
+				else
+				{
+					PrivateDependencyModuleNames.Add("IrisStub");
+				}
+			}
+		}
+
+		/// <summary>
 		/// Setup this module for physics support (based on the settings in UEBuildConfiguration)
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)

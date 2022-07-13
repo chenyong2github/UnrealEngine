@@ -9,6 +9,10 @@
 #include "Engine/Engine.h"
 #include "Engine/DemoNetDriver.h"
 
+#if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/PropertyReplicationFragment.h"
+#endif // UE_WITH_IRIS
+
 DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Warning, All);
 
 ENGINE_API int32 GExperimentalAllowPerInstanceChildActorProperties = 0;
@@ -841,6 +845,17 @@ void UChildActorComponent::BeginPlay()
 		ChildActor->DispatchBeginPlay(bFromLevelStreaming);
 	}
 }
+
+#if UE_WITH_IRIS
+void UChildActorComponent::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	using namespace UE::Net;
+
+	// Fallback on default since archetype used on client and server differs giving different default values
+	Super::RegisterReplicationFragments(Context, RegistrationFlags | UE::Net::EFragmentRegistrationFlags::InitializeDefaultStateFromClassDefaults);
+}
+#endif // UE_WITH_IRIS
+
 
 #if WITH_EDITOR
 void UChildActorComponent::SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode)

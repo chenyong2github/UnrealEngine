@@ -278,6 +278,16 @@ public class Core : ModuleRules
 			PrivateDefinitions.Add("IS_CLIENT_TARGET=0");
 		}
 
+		// Setup definitions to include / exclude Iris modifications to UObject Note: Only the definition is required as we do not depend on Iris in any way.
+		if (Target.bUseIris == true)
+		{
+			PublicDefinitions.Add("UE_WITH_IRIS=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("UE_WITH_IRIS=0");
+		}
+		
 		if (Target.Platform == UnrealTargetPlatform.Win64
 			&& Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{

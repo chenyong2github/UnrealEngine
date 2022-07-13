@@ -4085,14 +4085,20 @@ bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& 
 
 	bool RetVal = FastArrayDeltaSerialize<FActiveGameplayEffect>(GameplayEffects_Internal, DeltaParms, *this);
 
-	// After the array has been replicated, invoke GC events ONLY if the effect is not inhibited
-	// We postpone this check because in the same net update we could receive multiple GEs that affect if one another is inhibited
+	// This section has been moved into new PostReplicatedReceive() method that is invoked after every call to FastArrayDeltaSerialize<> that results in data being modified
 	
-	if (DeltaParms.Writer == nullptr && Owner != nullptr)
+	return RetVal;
+}
+
+void FActiveGameplayEffectsContainer::PostReplicatedReceive(const FFastArraySerializer::FPostReplicatedReceiveParameters& Parameters)
+{
+	// After the array has been replicated, invoke GC events ONLY if the effect is not inhibited
+	// We postpone this check because in the same net update we could receive multiple GEs that affect if one another is inhibited	
+	if (Owner != nullptr)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ActiveGameplayEffectsContainer_NetDeltaSerialize_CheckRepGameplayCues);
 
-		if (!DeltaParms.bOutHasMoreUnmapped) // Do not invoke GCs when we have missing information (like AActor*s in EffectContext)
+		if (!Parameters.bHasMoreUnmappedReferences) // Do not invoke GCs when we have missing information (like AActor*s in EffectContext)
 		{
 			if (Owner->IsReadyForGameplayCues())
 			{
@@ -4100,8 +4106,6 @@ bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& 
 			}
 		}
 	}
-
-	return RetVal;
 }
 
 void FActiveGameplayEffectsContainer::Uninitialize()

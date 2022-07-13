@@ -4950,6 +4950,12 @@ void UObject::GetReplicatedCustomConditionState(FCustomPropertyConditionState& O
 
 }
 
+#if UE_WITH_IRIS
+void UObject::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+}
+#endif // UE_WITH_IRIS
+
 /** Called right before receiving a bunch */
 void UObject::PreNetReceive()
 {

@@ -12,6 +12,12 @@
 #include "GameplayTagsManager.h"
 #include "UObject/UObjectIterator.h"
 
+#if UE_WITH_IRIS
+#include "Serialization/GameplayAbilityTargetDataHandleNetSerializer.h"
+#include "Serialization/GameplayEffectContextHandleNetSerializer.h"
+#include "Serialization/PredictionKeyNetSerializer.h"
+#endif // UE_WITH_IRIS
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -252,6 +258,10 @@ UFunction* UAbilitySystemGlobals::GetGameplayCueFunction(const FGameplayTag& Chi
 void UAbilitySystemGlobals::InitTargetDataScriptStructCache()
 {
 	TargetDataStructCache.InitForType(FGameplayAbilityTargetData::StaticStruct());
+#if UE_WITH_IRIS
+	InitGameplayAbilityTargetDataHandleNetSerializerTypeCache();
+	InitGameplayEffectContextHandleNetSerializerTypeCache();
+#endif // UE_WITH_IRIS
 }
 
 // --------------------------------------------------------------------

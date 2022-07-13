@@ -342,6 +342,10 @@ public:
 	TArray<FForceFeedbackEffectHistoryEntry> ForceFeedbackEffectHistoryEntries;
 #endif
 
+protected:
+#if UE_WITH_IRIS
+	virtual void BeginReplication() override;
+#endif // UE_WITH_IRIS
 	/** The type of async physics data object to use*/
 	UPROPERTY(EditDefaultsOnly, Category=PlayerController)
 	TSubclassOf<UAsyncPhysicsData> AsyncPhysicsDataClass;
@@ -1607,10 +1611,7 @@ public:
 	void IncludeInNetConditionGroup(FName NetGroup);
 
 	/** Remove this player from a netcondition group. */
-	void RemoveFromNetConditionGroup(FName NetGroup)
-	{
-		NetConditionGroups.RemoveSingleSwap(NetGroup);
-	}
+	void RemoveFromNetConditionGroup(FName NetGroup);
 
 	/** Returns true if the player controller is a member of the netcondition group */
 	bool IsMemberOfNetConditionGroup(FName NetGroup) const

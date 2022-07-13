@@ -17,6 +17,9 @@ public:
 	/** Access the NetConditionGroupManager */
 	UE::Net::FNetConditionGroupManager& GetNetConditionGroupManager() { return GroupsManager;  }
 
+	/** Const access the NetConditionGroupManager */
+	const UE::Net::FNetConditionGroupManager& GetNetConditionGroupManager() const { return GroupsManager; }
+
 protected:
 	
 	/** Allow the subsystem on every world type. It's essentially free until it's used but accessed by any world that does netdriver replication. */

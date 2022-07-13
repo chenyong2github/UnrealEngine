@@ -211,6 +211,41 @@ struct TStructOpsTypeTraits< FExampleArray > : public TStructOpsTypeTraitsBase2<
  *		There is nothing special about them other than being unique.
  */
 
+/**
+* Helper to get auto-deduced FastArrayItemType from FastArraySerializer
+*/
+template <typename FastArrayType>
+class TFastArrayTypeHelper
+{
+private:
+	struct CGetFastArrayItemTypeFuncable
+	{
+		template <typename InFastArrayType, typename...>
+		auto Requires(InFastArrayType* FastArray) -> decltype(FastArray->GetFastArrayItemTypePtr());
+	};
+
+	// Helper to always return a Type even if GetFastArrayItemTypePtr is not defined
+	static constexpr auto FastArrayTypePtr = []
+	{
+		if constexpr (TModels<CGetFastArrayItemTypeFuncable, FastArrayType>::Value)
+		{
+			return FastArrayType::GetFastArrayItemTypePtr();
+		}
+		else
+		{
+			return static_cast<int*>(nullptr);
+		}
+	}();
+
+public:
+	using FastArrayItemType = typename TRemovePointer<typename std::decay<decltype(FastArrayTypePtr)>::type>::Type;
+
+	/**
+	 * Returns true if auto detected FastArrayItemType is a valid FastArrayItemType
+	 */
+	static constexpr bool HasValidFastArrayItemType() { return TIsDerivedFrom<FastArrayItemType, FFastArraySerializerItem>::IsDerived; }
+};
+
 /** Custom INetDeltaBaseState used by Fast Array Serialization */
 class FNetFastTArrayBaseState : public INetDeltaBaseState
 {
@@ -633,6 +668,13 @@ private:
 			TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>>& ChangedElements,
 			TArray<int32, TInlineAllocator<8>>& DeletedElements);
 
+		/**
+		 * Variant of BuildChangedAndDeletedBuffersFromDefault used when we initialize from the default state which we are not suppose to modify
+		 */
+		void BuildChangedAndDeletedBuffersFromDefault(
+			TMap<int32, int32>& NewIDToKeyMap,
+			TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>>& ChangedElements);
+
 		/** Writes out a FFastArraySerializerHeader */
 		void WriteDeltaHeader(FFastArraySerializerHeader& Header) const;
 
@@ -662,6 +704,9 @@ private:
 
 		template<typename FastArrayType = SerializerType>
 		inline typename TEnableIf<!TModels<CPostReplicatedReceiveFuncable, FastArrayType, const FFastArraySerializer::FPostReplicatedReceiveParameters>::Value, void>::Type CallPostReplicatedReceiveOrNot() {}
+
+		// Validate that deduced FastArrayItemType is valid and that it is the same as the specified one		
+		static_assert(TIsSame<typename TFastArrayTypeHelper<SerializerType>::FastArrayItemType, Type>::Value, "Auto deduced FastArrayItemType is invalid or differs from the specified type. Make sure that the FastArraySerializer has a single replicated array property.");
 	};
 
 	/**
@@ -802,6 +847,47 @@ bool FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::Cond
 	}
 
 	return true;
+}
+
+template<typename Type, typename SerializerType>
+void FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::BuildChangedAndDeletedBuffersFromDefault(
+	TMap<int32, int32>& NewIDToKeyMap,
+	TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>>& ChangedElements)
+{
+	const int32 NumConsideredItems = CalcNumItemsForConsideration();
+
+	// Verify assumptions, we never expect the default state to have replicated and thus IDCounter and ArrayReplicationKey should be at the defaults
+	check(Parms.bIsInitializingBaseFromDefault);
+	check(ArraySerializer.IDCounter == 0 && ArraySerializer.ArrayReplicationKey == 0);
+
+	// We fake assignment of ID to avoid modifying the default state
+	int32 FakeIDCounter = ArraySerializer.IDCounter;
+	const int32 FakeReplicationKey = 0;
+
+	//-----------------------------------------------------------------
+	// When initializing from default we assume that all items are new
+	//-----------------------------------------------------------------
+	for (int32 i = 0; i < Items.Num(); ++i)
+	{
+		Type& Item = Items[i];
+
+		UE_LOG(LogNetFastTArray, Log, TEXT("    Array[%d] - ID %d. CL %d."), i, Item.ReplicationID, Item.ReplicationKey);
+		if (!ArraySerializer.template ShouldWriteFastArrayItem<Type, SerializerType>(Item, Parms.bIsWritingOnClient))
+		{
+			// On clients, this will skip items that were added predictively.
+			continue;
+		}
+
+		// Item should not have been touched before
+		check(Item.ReplicationID == INDEX_NONE && Item.ReplicationKey == INDEX_NONE);
+
+		const int32 FakeID = FakeIDCounter + i;
+
+		NewIDToKeyMap.Add(FakeID, FakeReplicationKey);
+
+		UE_LOG(LogNetFastTArray, Log, TEXT("       New! Element ID: %d. %s"), FakeID, *Item.GetDebugString());
+		ChangedElements.Add(FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair(i, FakeID));
+	}
 }
 
 template<typename Type, typename SerializerType>
@@ -1323,7 +1409,15 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 
 		TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>> ChangedElements;
 
-		Helper.BuildChangedAndDeletedBuffers(NewMap, OldMap, ChangedElements, Header.DeletedIndices);
+		// When we are initializing from default we use a simplified variant of BuildChangedAndDeletedBuffers that does not modify the source state
+		if (Parms.bIsInitializingBaseFromDefault)
+		{
+			Helper.BuildChangedAndDeletedBuffersFromDefault(NewMap, ChangedElements);
+		}
+		else
+		{
+			Helper.BuildChangedAndDeletedBuffers(NewMap, OldMap, ChangedElements, Header.DeletedIndices);
+		}
 		
 		// Note: we used to early return false here if nothing had changed, but we still need to send
 		// a bunch with the array key / base key, so that clients can look for implicit deletes.
@@ -1647,7 +1741,16 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		};
 
 		TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>> ChangedElements;
-		Helper.BuildChangedAndDeletedBuffers(NewItemMap, OldItemMap, ChangedElements, Header.DeletedIndices);
+
+		// When we are initializing from default we use a simplified variant of BuildChangedAndDeletedBuffers that does not modify the source state
+		if (Parms.bIsInitializingBaseFromDefault)
+		{
+			Helper.BuildChangedAndDeletedBuffersFromDefault(NewItemMap, ChangedElements);
+		}
+		else
+		{
+			Helper.BuildChangedAndDeletedBuffers(NewItemMap, OldItemMap, ChangedElements, Header.DeletedIndices);
+		}
 
 		// Note: we used to early return false here if nothing had changed, but we still need to send
 		// a bunch with the array key / base key, so that clients can look for implicit deletes.
@@ -1710,3 +1813,16 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 
 	return true;
 }
+
+
+/**
+ * Macro injected from UHT to facilitate automatic registration of FastArraySerializers when using iris replication
+ */
+#if UE_WITH_IRIS
+#define UE_NET_DECLARE_FASTARRAY(FastArrayType, FastArrayItemArrayMemberName, Api) \
+	static constexpr auto GetFastArrayItemTypePtr() { return static_cast<decltype(FastArrayType::FastArrayItemArrayMemberName)::ElementType*>(nullptr); }; \
+	Api static UE::Net::CreateAndRegisterReplicationFragmentFunc GetFastArrayCreateReplicationFragmentFunction();
+#else
+#define UE_NET_DECLARE_FASTARRAY(FastArrayType, FastArrayItemArrayMemberName, Api) 	static constexpr auto GetFastArrayItemTypePtr() { return static_cast<decltype(FastArrayType::FastArrayItemArrayMemberName)::ElementType*>(nullptr); };;
+#endif
+

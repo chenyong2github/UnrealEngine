@@ -712,6 +712,12 @@ public:
 
 	void AddDestructionInfo(FActorDestructionInfo* DestructionInfo)
 	{
+#if UE_WITH_IRIS
+		if (Driver && Driver->GetReplicationSystem())
+		{
+			return;
+		}
+#endif // UE_WITH_IRIS
 		if (ReplicationConnectionDriver)
 		{
 			ReplicationConnectionDriver->NotifyAddDestructionInfo(DestructionInfo);
@@ -724,6 +730,12 @@ public:
 
 	void RemoveDestructionInfo(FActorDestructionInfo* DestructionInfo)
 	{
+#if UE_WITH_IRIS
+		if (Driver && Driver->GetReplicationSystem())
+		{
+			return;
+		}
+#endif // UE_WITH_IRIS
 		if (ReplicationConnectionDriver)
 		{
 			ReplicationConnectionDriver->NotifyRemoveDestructionInfo(DestructionInfo);
@@ -736,6 +748,12 @@ public:
 	
 	void ResetDestructionInfos()
 	{
+#if UE_WITH_IRIS
+		if (Driver && Driver->GetReplicationSystem())
+		{
+			return;
+		}
+#endif // UE_WITH_IRIS
 		if (ReplicationConnectionDriver)
 		{
 			ReplicationConnectionDriver->NotifyResetDestructionInfo();

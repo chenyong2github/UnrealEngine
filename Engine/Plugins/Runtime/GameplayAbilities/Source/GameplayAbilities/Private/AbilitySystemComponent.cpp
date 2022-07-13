@@ -2847,7 +2847,7 @@ void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>&
 
 void UAbilitySystemComponent::AddSpawnedAttribute(UAttributeSet* Attribute)
 {
-	if (Attribute == nullptr)
+	if (!IsValid(Attribute))
 	{
 		return;
 	}
@@ -2927,7 +2927,7 @@ void UAbilitySystemComponent::OnRep_SpawnedAttributes(const TArray<UAttributeSet
 		// Find the attributes that got added
 		for (UAttributeSet* NewAttributeSet : SpawnedAttributes)
 		{
-			if (NewAttributeSet)
+			if (IsValid(NewAttributeSet))
 			{
 				const bool bIsAdded = PreviousSpawnedAttributes.Find(NewAttributeSet) == INDEX_NONE;
 				if (bIsAdded)

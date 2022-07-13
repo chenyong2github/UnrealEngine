@@ -44,7 +44,11 @@ namespace LevelStreamingCVars
 	// There are cases where we might have multiple visibility requests (and data) in flight leading to the server 
 	// starting to replicate data based on an older visibility/streamingstatus update which can lead to broken channels
 	// to mitigate this problem we assign a TransactionId to each request/update to make sure that we are acting on the correct data
+#if UE_WITH_IRIS
+	static bool bShouldClientUseMakingInvisibleTransactionRequest = true;
+#else
 	static bool bShouldClientUseMakingInvisibleTransactionRequest = false;
+#endif
 	FAutoConsoleVariableRef CVarShouldClientUseMakingInvisibleTransactionRequest(
 		TEXT("LevelStreaming.ShouldClientUseMakingInvisibleTransactionRequest"),
 		bShouldClientUseMakingInvisibleTransactionRequest,
@@ -52,7 +56,11 @@ namespace LevelStreamingCVars
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
 
+#if UE_WITH_IRIS
+	static bool bShouldServerUseMakingVisibleTransactionRequest = true;
+#else
 	static bool bShouldServerUseMakingVisibleTransactionRequest = false;
+#endif
 	FAutoConsoleVariableRef CVarShouldServerUseMakingVisibleTransactionRequest(
 		TEXT("LevelStreaming.ShouldServerUseMakingVisibleTransactionRequest"),
 		bShouldServerUseMakingVisibleTransactionRequest,

@@ -313,6 +313,23 @@ public:
 	static FOnWorldUnregisteredWithAudioDevice OnWorldUnregisteredWithAudioDevice;
 };
 
+#if UE_WITH_IRIS
+/**
+* Struct that temporarily holds the Iris replication system and bridge.
+*/
+struct FIrisSystemHolder
+{
+	bool IsHolding() const { return ReplicationSystem != nullptr; }
+
+	void Clear()
+	{
+		ReplicationSystem = nullptr;
+	}
+
+	class UReplicationSystem* ReplicationSystem = nullptr;
+};
+#endif // UE_WITH_IRIS
+
 /** class that encapsulates seamless world traveling */
 class FSeamlessTravelHandler
 {
@@ -635,6 +652,10 @@ struct ENGINE_API FActorSpawnParameters
 private:
 
 	friend class UPackageMapClient;
+
+#if UE_WITH_IRIS
+	friend class UActorReplicationBridge;
+#endif // UE_WITH_IRIS
 
 	/* Is the actor remotely owned. This should only be set true by the package map when it is creating an actor on a client that was replicated from the server. */
 	uint8	bRemoteOwned:1;
@@ -1171,6 +1192,10 @@ public:
 
 	/** Returns BlockTillLevelStreamingCompletedEpoch. */
 	int32 GetBlockTillLevelStreamingCompletedEpoch() const { return BlockTillLevelStreamingCompletedEpoch; }
+#if UE_WITH_IRIS
+	/** Store the Iris managers from the GameNetDriver to they can be restored into a different NetDriver later */
+	void StoreIrisAndClearReferences();
+#endif // UE_WITH_IRIS
 
 	/** Prefix we used to rename streaming levels, non empty in PIE and standalone preview */
 	UPROPERTY()
@@ -3712,6 +3737,11 @@ public:
 	bool IsNetMode(ENetMode Mode) const;
 
 private:
+
+#if UE_WITH_IRIS
+	/** Holds the Iris systems during the NetDriver transition that occurs when Forking */
+	FIrisSystemHolder IrisSystemHolder;
+#endif // UE_WITH_IRIS
 
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
 	ENetMode InternalGetNetMode() const;

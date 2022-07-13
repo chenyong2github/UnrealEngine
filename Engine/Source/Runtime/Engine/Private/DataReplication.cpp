@@ -364,6 +364,8 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 	Parms.bSupportsFastArrayDeltaStructSerialization = bSupportsFastArrayDelta;
 	Parms.Connection = Connection;
 	Parms.bInternalAck = Connection->IsInternalAck();
+	// When initializing baselines we should not modify the source data if it originates from the CDO or archetype
+	Parms.bIsInitializingBaseFromDefault = Parms.Object && Parms.Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject);
 
 	return FNetSerializeCB::SendCustomDeltaProperty(*RepLayout, Parms, CustomDeltaIndex);
 }
@@ -1582,6 +1584,11 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 	FNetBitWriter TempBitWriter( Connection->PackageMap, 1024 );
 
+#if UE_NET_TRACE_ENABLED
+	SetTraceCollector(TempBitWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+    ON_SCOPE_EXIT { UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBitWriter)); };
+#endif
+	
 	const bool bIsConnectionInternalAck = Connection->IsInternalAck();
 
 	// Replicate those properties.
@@ -1603,6 +1610,12 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 		TSharedPtr<INetDeltaBaseState> NewState;
 
 		TempBitWriter.Reset();
+#if UE_NET_TRACE_ENABLED
+		if (FNetTraceCollector* TraceCollection = GetTraceCollector(TempBitWriter))
+		{
+			TraceCollection->Reset();
+		}
+#endif
 
 		TSharedPtr<INetDeltaBaseState>& OldState = UsingCustomDeltaStates[CustomDeltaProperty];
 

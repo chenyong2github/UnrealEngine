@@ -1,0 +1,35 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Iris/Serialization/InternalNetSerializationContext.h"
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
+#include "HAL/MemoryBase.h"
+
+namespace UE::Net::Private
+{
+
+void* FInternalNetSerializationContext::Alloc(SIZE_T Size, SIZE_T Alignment)
+{
+	return GMalloc->Malloc(Size, Alignment);
+}
+
+void FInternalNetSerializationContext::Free(void* Ptr)
+{
+	return GMalloc->Free(Ptr);
+}
+
+void* FInternalNetSerializationContext::Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignment)
+{
+	return GMalloc->Realloc(PrevAddress, NewSize, Alignment);
+}
+
+FInternalNetSerializationContext::FInternalNetSerializationContext(UReplicationSystem* ReplicationSystem, FNetTokenStoreState* RemoteTokenStoreState)
+: ReplicationSystem(ReplicationSystem)
+, ObjectReferenceCache(&ReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache())
+, bDowngradeAutonomousProxyRole(0)
+, bInlineObjectReferenceExports(0)
+{
+	ResolveContext.RemoteNetTokenStoreState = RemoteTokenStoreState;
+}
+
+}

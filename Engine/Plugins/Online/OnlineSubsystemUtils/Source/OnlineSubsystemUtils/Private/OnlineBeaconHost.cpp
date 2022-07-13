@@ -169,7 +169,10 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 			uint8 IsLittleEndian = 0;
 			uint32 RemoteNetworkVersion = 0;
 			FString EncryptionToken;
-			if (!FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion, EncryptionToken))
+			EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+			EEngineNetworkRuntimeFeatures RemoteNetworkFeatures = EEngineNetworkRuntimeFeatures::None;
+	
+			if (!FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion, EncryptionToken, RemoteNetworkFeatures))
 			{
 				SendFailurePacket(Connection, ENetCloseResult::BeaconUnableToParsePacket,
 									FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_Hello"))));
@@ -179,13 +182,25 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 
 			// check for net compatibility (in this case sent NMT_Upgrade)
 			uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
-			if (!FNetworkVersion::IsNetworkCompatible(LocalNetworkVersion, RemoteNetworkVersion))
+			const bool bIsCompatible = FNetworkVersion::IsNetworkCompatible(LocalNetworkVersion, RemoteNetworkVersion) && FNetworkVersion::AreNetworkRuntimeFeaturesCompatible(LocalNetworkFeatures, RemoteNetworkFeatures);
+
+			if (!bIsCompatible)
 			{
-				UE_LOG(LogBeacon, Error, TEXT("%s: Client not network compatible (Local=%d, Remote=%d)"), *GetDebugName(Connection), LocalNetworkVersion, RemoteNetworkVersion);
+				TStringBuilder<128> LocalNetFeaturesDescription;
+				TStringBuilder<128> RemoteNetFeaturesDescription;
+
+				FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(LocalNetworkFeatures, LocalNetFeaturesDescription);
+				FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(RemoteNetworkFeatures, RemoteNetFeaturesDescription);
+
+				UE_LOG(LogBeacon, Error, TEXT("Client not network compatible %s: LocalNetVersion=%u, RemoteNetVersion=%u, LocalNetFeatures=%s, RemoteNetFeatures=%s"), 
+					*GetDebugName(Connection), 
+					LocalNetworkVersion, RemoteNetworkVersion,
+					LocalNetFeaturesDescription.ToString(), RemoteNetFeaturesDescription.ToString()
+				);
 				FNetControlMessage<NMT_Upgrade>::Send(Connection, LocalNetworkVersion);
 				return false;
 			}
-
+			
 			// if the client didn't specify an encryption token we're done with Hello
 			if (EncryptionToken.IsEmpty())
 			{

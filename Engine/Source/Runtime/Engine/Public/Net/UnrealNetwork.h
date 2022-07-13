@@ -120,6 +120,12 @@ struct ENGINE_API FDoRepLifetimeParams
 	
 	/** Whether or not this property uses Push Model. See PushModel.h */
 	bool bIsPushBased = false;
+
+#if UE_WITH_IRIS
+	/** Function to create and register a ReplicationFragment for the property */
+	UE::Net::CreateAndRegisterReplicationFragmentFunc CreateAndRegisterReplicationFragmentFunction = nullptr;
+#endif
+
 };
 
 namespace NetworkingPrivate
@@ -219,7 +225,10 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
 	const TCHAR* DoRepPropertyName_##c_##v(TEXT(#v)); \
 	const NetworkingPrivate::FRepPropertyDescriptor PropertyDescriptor_##c_##v(DoRepPropertyName_##c_##v, (int32)c::ENetFields_Private::v, 1); \
-	RegisterReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps, params); \
+\
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS \
+	RegisterReplicatedLifetimeProperty(PropertyDescriptor_##c_##v, OutLifetimeProps, FixupParams<decltype(c::v)>(params)); \
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 }
 
 #define DOREPLIFETIME_WITH_PARAMS_FAST_STATIC_ARRAY(c,v,params) \
@@ -233,7 +242,9 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 #define DOREPLIFETIME_WITH_PARAMS(c,v,params) \
 { \
 	FProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, params); \
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS \
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, FixupParams<decltype(c::v)>(params)); \
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 }
 
 #define DOREPLIFETIME(c,v) DOREPLIFETIME_WITH_PARAMS(c,v,FDoRepLifetimeParams())
@@ -325,6 +336,31 @@ ENGINE_API void RegisterReplicatedLifetimeProperty(
 	const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor,
 	TArray<FLifetimeProperty>& OutLifetimeProps,
 	const FDoRepLifetimeParams& Params);
+
+/*-----------------------------------------------------------------------------
+	Capture additional parameters required to bind FastArrays when using Iris
+-----------------------------------------------------------------------------*/
+struct CGetFastArrayCreateReplicationFragmentFuncable
+{
+	template <typename T, typename...>
+	auto Requires(T* FastArray) -> decltype(FastArray->GetFastArrayCreateReplicationFragmentFunction());
+};
+
+#if UE_WITH_IRIS
+template<typename T>
+inline typename TEnableIf<TModels<CGetFastArrayCreateReplicationFragmentFuncable, T>::Value, const FDoRepLifetimeParams>::Type FixupParams(const FDoRepLifetimeParams& Params)
+{
+	FDoRepLifetimeParams NewParams(Params);
+	NewParams.CreateAndRegisterReplicationFragmentFunction = T::GetFastArrayCreateReplicationFragmentFunction();
+	return NewParams;
+}
+#endif
+
+template<typename T>
+inline typename TEnableIf<!TModels<CGetFastArrayCreateReplicationFragmentFuncable, T>::Value, const FDoRepLifetimeParams&>::Type FixupParams(const FDoRepLifetimeParams& Params)
+{
+	return Params;
+}
 
 /*-----------------------------------------------------------------------------
 	Disable macros.

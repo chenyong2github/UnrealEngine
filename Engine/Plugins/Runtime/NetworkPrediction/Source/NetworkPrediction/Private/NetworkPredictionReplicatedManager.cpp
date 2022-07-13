@@ -12,7 +12,8 @@ ANetworkPredictionReplicatedManager::ANetworkPredictionReplicatedManager()
 {
 	bReplicates = true;
 	NetPriority = 1000.f; // We want this to be super high priority when it replicates
-	NetUpdateFrequency = 0.001f; // Very low frequency: we will use ForceNetUpdate when important data changes
+	// Mute very low update frequency ensure. Was 0.001f .
+	NetUpdateFrequency = 0.125f; // Low frequency: we will use ForceNetUpdate when important data changes
 	bAlwaysRelevant = true;
 }
 

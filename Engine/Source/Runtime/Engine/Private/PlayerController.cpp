@@ -72,6 +72,12 @@
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
+#if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif // UE_WITH_IRIS
+
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
 #define LOCTEXT_NAMESPACE "PlayerController"
@@ -4655,6 +4661,27 @@ void APlayerController::ReceivedSpectatorClass(TSubclassOf<ASpectatorPawn> Spect
 
 void APlayerController::SetPawn(APawn* InPawn)
 {
+#if UE_WITH_IRIS
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		if (const UReplicationSystem* ReplicationSystem = UE::Net::FReplicationSystemUtil::GetReplicationSystem(this))
+		{
+			if (APawn* PrevPawn = GetPawn(); PrevPawn != InPawn)
+			{
+				if (IsValid(PrevPawn))
+				{
+					UE::Net::FReplicationSystemUtil::RemoveDependentActor(this, PrevPawn);
+				}
+
+				if (IsValid(InPawn))
+				{
+					UE::Net::FReplicationSystemUtil::AddDependentActor(this, InPawn);
+				}
+			}
+		}
+	}
+#endif
+
 	if (InPawn == NULL)
 	{
 		// Attempt to move the PC to the current camera location if no pawn was specified
@@ -4742,6 +4769,11 @@ void APlayerController::SetPlayer( UPlayer* InPlayer )
 		if (NetConnection)
 		{
 			NetConnection->OwningActor = this;
+
+#if UE_WITH_IRIS
+			UpdateOwningNetConnection();
+			UE::Net::FReplicationSystemUtil::UpdateSubObjectGroupMemberships(this);
+#endif // UE_WITH_IRIS
 		}
 	}
 
@@ -5847,7 +5879,33 @@ void APlayerController::IncludeInNetConditionGroup(FName NetGroup)
 	checkf(!UE::Net::IsSpecialNetConditionGroup(NetGroup), TEXT("Cannot add a player to special netcondition group %s manually. This group membership is managed by the network engine automatically."), *NetGroup.ToString());
 	checkf(!NetGroup.IsNone(), TEXT("Invalid netcondition group: NONE"));
 	NetConditionGroups.AddUnique(NetGroup);
+
+#if UE_WITH_IRIS
+	UE::Net::FReplicationSystemUtil::UpdateSubObjectGroupMemberships(this);
+#endif
 }
+
+void APlayerController::RemoveFromNetConditionGroup(FName NetGroup)
+{
+	NetConditionGroups.RemoveSingleSwap(NetGroup);
+#if UE_WITH_IRIS
+	UE::Net::FReplicationSystemUtil::RemoveSubObjectGroupMembership(this, NetGroup);
+#endif
+}
+
+
+#if UE_WITH_IRIS
+void APlayerController::BeginReplication()
+{
+	// Always allow the PlayerController to be replicated as it is required for travel.
+	FActorBeginReplicationParams Params;
+	Params.bIncludeInLevelGroupFilter = false;
+	Super::BeginReplication(Params);
+
+	// Enable groups once owner is set!!
+	UE::Net::FReplicationSystemUtil::UpdateSubObjectGroupMemberships(this);
+}
+#endif // UE_WITH_IRIS
 
 UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToWrite() const
 {

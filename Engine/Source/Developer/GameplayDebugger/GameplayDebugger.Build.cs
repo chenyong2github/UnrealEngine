@@ -40,6 +40,8 @@ namespace UnrealBuildTool.Rules
 					});
 			}
 
+			SetupIrisSupport(Target);
+
 			if (Target.bBuildDeveloperTools || (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test))
 			{
 				PrecompileForTargets = PrecompileTargetsType.Any;

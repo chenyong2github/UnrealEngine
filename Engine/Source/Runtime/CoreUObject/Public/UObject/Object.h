@@ -30,6 +30,17 @@ struct FFrame;
 struct FObjectInstancingGraph;
 struct FPropertyChangedChainEvent;
 class UClass;
+#if UE_WITH_IRIS
+namespace UE::Net
+{
+	class FFragmentRegistrationContext;
+	enum class EFragmentRegistrationFlags : uint32;
+	namespace Private
+	{
+		struct FNetHandleLegacyPushModelHelper;
+	}
+}
+#endif // UE_WITH_IRIS
 
 DECLARE_LOG_CATEGORY_EXTERN(LogObj, Log, All);
 
@@ -936,6 +947,16 @@ public:
 
 	/** Called when this object begins replicating to initialize the state of custom property conditions */
 	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const;
+#if UE_WITH_IRIS
+	/**
+	 * RegisterReplicationFragments is called when we an object is added to the ReplicationSystem, it allows an object to register new or existing ReplicationFragments describing data to be replicated and how it should be accessed
+	 * For more information about ReplicationFragments see ReplicationFragment.h
+	 * 
+	 * @param Context Context FFragmentRegistrationContext in which FReplicationFragments could be registered
+	 * @param RegistrationFlags Flags specifying what should be registered in the call
+	 */
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags);
+#endif // UE_WITH_IRIS
 
 	/** IsNameStableForNetworking means an object can be referred to its path name (relative to outer) over the network */
 	virtual bool IsNameStableForNetworking() const;
@@ -1659,7 +1680,7 @@ public:
 private:
 	
 	friend struct FObjectNetPushIdHelper;
-	virtual void SetNetPushIdDynamic(const int32 NewNetPushId)
+	virtual void SetNetPushIdDynamic(const uint64 NewNetPushId)
 	{
 		// This method should only be called on Objects that are networked, and those should
 		// always have this implemented (by UHT).
@@ -1669,9 +1690,9 @@ private:
 public:
 
 	/** Should only ever be used by internal systems. */
-	virtual int32 GetNetPushIdDynamic() const
+	virtual uint64 GetNetPushIdDynamic() const
 	{
-		return INDEX_NONE;
+		return uint64(int64(INDEX_NONE));
 	}
 };
 
@@ -1680,8 +1701,11 @@ struct FObjectNetPushIdHelper
 private:
 	friend struct FNetPrivatePushIdHelper;
 	friend struct FNetObjectManagerPushIdHelper;
+#if UE_WITH_IRIS
+	friend struct UE::Net::Private::FNetHandleLegacyPushModelHelper;
+#endif // UE_WITH_IRIS
 
-	static void SetNetPushIdDynamic(UObject* Object, const int32 NewNetPushId)
+	static void SetNetPushIdDynamic(UObject* Object, const uint64 NewNetPushId)
 	{
 		Object->SetNetPushIdDynamic(NewNetPushId);
 	}

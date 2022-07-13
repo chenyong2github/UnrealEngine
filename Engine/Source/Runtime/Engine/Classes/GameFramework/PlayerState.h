@@ -338,6 +338,10 @@ protected:
 	/** called after receiving player name */
 	virtual void HandleWelcomeMessage();
 
+#if UE_WITH_IRIS
+	virtual void BeginReplication() override;
+#endif
+
 private:
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();

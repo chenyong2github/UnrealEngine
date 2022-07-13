@@ -613,6 +613,11 @@ void APawn::PossessedBy(AController* NewController)
 	Controller = NewController;
 	ForceNetUpdate();
 
+#if UE_WITH_IRIS
+	// The owning connection depends on the Controller having the new value.
+	UpdateOwningNetConnection();
+#endif
+
 	if (Controller->PlayerState != nullptr)
 	{
 		SetPlayerState(Controller->PlayerState);
@@ -649,6 +654,11 @@ void APawn::UnPossessed()
 	SetPlayerState(nullptr);
 	SetOwner(nullptr);
 	Controller = nullptr;
+
+#if UE_WITH_IRIS
+	// The owning connection depends on the Controller having the new value.
+	UpdateOwningNetConnection();
+#endif
 
 	// Unregister input component if we created one
 	DestroyPlayerInputComponent();

@@ -33,6 +33,10 @@
 
 #include "Net/PerfCountersHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#if UE_WITH_IRIS
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
+#endif
 #include "Engine/ScopedMovementUpdate.h"
 
 CSV_DEFINE_CATEGORY(CharacterMovement, true);
@@ -8230,6 +8234,43 @@ void UCharacterMovementComponent::ReplicateMoveToServer(float DeltaTime, const F
 	ClientData->PendingMove = NULL;
 }
 
+#if UE_WITH_IRIS
+namespace UE::Private
+{
+
+static UIrisObjectReferencePackageMap* GetIrisPackageMapToCaptureReferences(UNetConnection* NetConnection, UIrisObjectReferencePackageMap::FObjectReferenceArray* InObjectReferences)
+{
+	using namespace UE::Net;
+
+	if (const UActorReplicationBridge* Bridge = FReplicationSystemUtil::GetActorReplicationBridge(NetConnection))
+	{
+		if (UIrisObjectReferencePackageMap* ObjectReferencePackageMap = Bridge->GetObjectReferencePackageMap())
+		{
+			ObjectReferencePackageMap->InitForWrite(InObjectReferences);
+			return ObjectReferencePackageMap;
+		}
+	}
+
+	return nullptr;
+}
+
+static UIrisObjectReferencePackageMap* GetIrisPackageMapToReadReferences(const UNetConnection* NetConnection, const UIrisObjectReferencePackageMap::FObjectReferenceArray* InObjectReferences)
+{
+	using namespace UE::Net;
+	if (const UActorReplicationBridge* Bridge = FReplicationSystemUtil::GetActorReplicationBridge(NetConnection))
+	{
+		if (UIrisObjectReferencePackageMap* ObjectReferencePackageMap = Bridge->GetObjectReferencePackageMap())
+		{
+			ObjectReferencePackageMap->InitForRead(InObjectReferences);
+			return ObjectReferencePackageMap;
+		}
+	}
+
+	return nullptr;
+}
+
+}
+#endif
 
 void UCharacterMovementComponent::CallServerMovePacked(const FSavedMove_Character* NewMove, const FSavedMove_Character* PendingMove, const FSavedMove_Character* OldMove)
 {
@@ -8241,9 +8282,22 @@ void UCharacterMovementComponent::CallServerMovePacked(const FSavedMove_Characte
 	FBitWriterMark BitWriterReset;
 	BitWriterReset.Pop(ServerMoveBitWriter);
 
-	// Extract the net package map used for serializing object references.
-	UNetConnection* NetConnection = CharacterOwner->GetNetConnection();
-	ServerMoveBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
+	// 'static' to avoid reallocation each invocation
+	static FCharacterServerMovePackedBits PackedBits;
+	UNetConnection* NetConnection = CharacterOwner->GetNetConnection();	
+
+#if UE_WITH_IRIS
+	if (UPackageMap* PackageMap = UE::Private::GetIrisPackageMapToCaptureReferences(NetConnection, &PackedBits.ObjectReferences))
+	{
+		ServerMoveBitWriter.PackageMap = PackageMap;
+	}
+	else
+#endif
+	{
+		// Extract the net package map used for serializing object references.
+		ServerMoveBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
+	}
+
 	if (ServerMoveBitWriter.PackageMap == nullptr)
 	{
 		UE_LOG(LogNetPlayerMovement, Error, TEXT("CallServerMovePacked: Failed to find a NetConnection/PackageMap for data serialization!"));
@@ -8258,8 +8312,6 @@ void UCharacterMovementComponent::CallServerMovePacked(const FSavedMove_Characte
 	}
 
 	// Copy bits to our struct that we can NetSerialize to the server.
-	// 'static' to avoid reallocation each invocation
-	static FCharacterServerMovePackedBits PackedBits;
 	PackedBits.DataBits.SetNumUninitialized(ServerMoveBitWriter.GetNumBits());
 	
 	check(PackedBits.DataBits.Num() >= ServerMoveBitWriter.GetNumBits());
@@ -8947,7 +8999,17 @@ void UCharacterMovementComponent::ServerMovePacked_ServerReceive(const FCharacte
 
 	// Reuse bit reader to avoid allocating memory each time.
 	ServerMoveBitReader.SetData((uint8*)PackedBits.DataBits.GetData(), NumBits);
-	ServerMoveBitReader.PackageMap = PackedBits.GetPackageMap();
+
+#if UE_WITH_IRIS
+	if (UPackageMap* PackageMap = UE::Private::GetIrisPackageMapToReadReferences(CharacterOwner->GetNetConnection(), &PackedBits.ObjectReferences))
+	{
+		ServerMoveBitReader.PackageMap = PackageMap;
+	}
+	else
+#endif
+	{
+		ServerMoveBitReader.PackageMap = PackedBits.GetPackageMap();
+	}
 
 	// Deserialize bits to move data struct.
 	// We had to wait until now and use the temp bit stream because the RPC doesn't know about the virtual overrides on the possibly custom struct that is our data container.
@@ -9735,7 +9797,17 @@ void UCharacterMovementComponent::MoveResponsePacked_ClientReceive(const FCharac
 
 	// Reuse bit reader to avoid allocating memory each time.
 	MoveResponseBitReader.SetData((uint8*)PackedBits.DataBits.GetData(), NumBits);
-	MoveResponseBitReader.PackageMap = PackedBits.GetPackageMap();
+
+#if UE_WITH_IRIS
+	if (UPackageMap* PackageMap = UE::Private::GetIrisPackageMapToReadReferences(CharacterOwner->GetNetConnection(), &PackedBits.ObjectReferences))
+	{
+		MoveResponseBitReader.PackageMap = PackageMap;
+	}
+	else
+#endif
+	{
+		MoveResponseBitReader.PackageMap = PackedBits.GetPackageMap();
+	}
 
 	// Deserialize bits to response data struct.
 	// We had to wait until now and use the temp bit stream because the RPC doesn't know about the virtual overrides on the possibly custom struct that is our data container.
@@ -9760,9 +9832,22 @@ void UCharacterMovementComponent::ServerSendMoveResponse(const FClientAdjustment
 	FBitWriterMark BitWriterReset;
 	BitWriterReset.Pop(MoveResponseBitWriter);
 
+	// 'static' to avoid reallocation each invocation
+	static FCharacterMoveResponsePackedBits PackedBits;
+	UNetConnection* NetConnection = CharacterOwner->GetNetConnection();	
+
 	// Extract the net package map used for serializing object references.
-	UNetConnection* NetConnection = CharacterOwner->GetNetConnection();
-	MoveResponseBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
+#if UE_WITH_IRIS
+	if (UPackageMap* PackageMap = UE::Private::GetIrisPackageMapToCaptureReferences(NetConnection, &PackedBits.ObjectReferences))	
+	{
+		MoveResponseBitWriter.PackageMap = PackageMap;
+	}
+	else
+#endif
+	{
+		MoveResponseBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
+	}
+
 	if (MoveResponseBitWriter.PackageMap == nullptr)
 	{
 		UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerSendMoveResponse: Failed to find a NetConnection/PackageMap for data serialization!"));
@@ -9777,8 +9862,6 @@ void UCharacterMovementComponent::ServerSendMoveResponse(const FClientAdjustment
 	}
 
 	// Copy bits to our struct that we can NetSerialize to the client.
-	// 'static' to avoid reallocation each invocation
-	static FCharacterMoveResponsePackedBits PackedBits;
 	PackedBits.DataBits.SetNumUninitialized(MoveResponseBitWriter.GetNumBits());
 
 	check(PackedBits.DataBits.Num() >= MoveResponseBitWriter.GetNumBits());

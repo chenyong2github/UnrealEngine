@@ -140,6 +140,10 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GPUSkinCache.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 
+#if UE_WITH_IRIS
+#include "Iris/IrisConfig.h"
+#endif
+
 #include "Particles/Spawn/ParticleModuleSpawn.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleLODLevel.h"
@@ -13039,233 +13043,298 @@ UNetDriver* UEngine::FindNamedNetDriver(const UPendingNetGame* InPendingNetGame,
 	return FindNamedNetDriver_Local(GetWorldContextFromPendingNetGameChecked(InPendingNetGame).ActiveNetDrivers, NetDriverName);
 }
 
-UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName NetDriverDefinition)
+namespace UE::Private
 {
-	UNetDriver* ReturnVal = nullptr;
-	FNetDriverDefinition* Definition = nullptr;
-	auto FindNetDriverDefPred =
-		[NetDriverDefinition](const FNetDriverDefinition& CurDef)
+	/**
+	 * Look for a config setting telling if this new NetDriver should be enabled with Iris or not
+	 * To enable iris for a netdriver you need to add the proper configuration in Engine.ini like so:
+	 *		[/Script/Engine.Engine]
+	 *		+IrisNetDriverConfigs=(NetDriverName="MyNetDriver",bEnableIris=true)
+	 *		+IrisNetDriverConfigs=(NetDriverDefinition="MyNetDriverDef",bEnableIris=false)
+	 *		+IrisNetDriverConfigs=(NetDriverWildcardName="SecondaryNetDriver*",bEnableIris=true);
+	 *
+	 * Priority order for the IrisNetDriverConfigs are:
+	 *		1. NetDriverName exact match
+	 *		2. NetDriverName wildcard match
+	 *		3. NetDriverDefinition match
+	 *
+	 */
+	bool IsNetDriverUsingIris(UEngine* Engine, FName InNetDriverDefinition, FName InNetDriverName)
 	{
-		return CurDef.DefName == NetDriverDefinition;
-	};
+#if UE_WITH_IRIS
+		// NetDrivers can only use Iris if the global setting allows it.
+		if (UE::Net::ShouldUseIrisReplication() == false)
+		{
+			return false;
+		}
+
+		FIrisNetDriverConfig* IrisConfig = nullptr;
+
+		// Search for the exact name match
+		if (IrisConfig == nullptr)
+		{
+			IrisConfig = Engine->IrisNetDriverConfigs.FindByPredicate([InNetDriverName](const FIrisNetDriverConfig& Config)
+				{
+					return Config.NetDriverName.IsNone() ? false : Config.NetDriverName == InNetDriverName;
+				});
+		}
+
+		// Search for a wildcard match
+		if (IrisConfig == nullptr)
+		{
+			const FString TempNetDriverName = InNetDriverName.ToString();
+			IrisConfig = Engine->IrisNetDriverConfigs.FindByPredicate([TempNetDriverName](const FIrisNetDriverConfig& Config)
+				{
+					return Config.NetDriverWildcardName.IsEmpty() ? false : TempNetDriverName.MatchesWildcard(Config.NetDriverWildcardName);
+				});
+		}
+
+		// Search for the definition match
+		if (IrisConfig == nullptr)
+		{
+			IrisConfig = Engine->IrisNetDriverConfigs.FindByPredicate([InNetDriverDefinition](const FIrisNetDriverConfig& Config)
+				{
+					return Config.NetDriverDefinition.IsNone() ? false : Config.NetDriverDefinition == InNetDriverDefinition;
+				});
+		}
+
+		return IrisConfig ? IrisConfig->bEnableIris : false;
+#else
+		return false;
+#endif //UE_WITH_IRIS
+	}
+
+	UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName NetDriverDefinition, FName InNetDriverName)
+	{
+		UNetDriver* ReturnVal = nullptr;
+		FNetDriverDefinition* Definition = nullptr;
+		auto FindNetDriverDefPred =
+			[NetDriverDefinition](const FNetDriverDefinition& CurDef)
+		{
+			return CurDef.DefName == NetDriverDefinition;
+		};
 
 #if !UE_BUILD_SHIPPING
-	/**
-	* Commandline override for the net driver.
-	*
-	* Format: (NOTE: Use quotes whenever the ',' character is used)
-	*	Override the main/game net driver (most common usage):
-	*		-NetDriverOverrides=DriverClassName
-	*
-	*	Override a specific/named net driver:
-	*		-NetDriverOverrides="DefName,DriverClassName"
-	*
-	*	Override a specific driver, including fallback driver:
-	*		-NetDriverOverrides="DefName,DriverClassName,DriverClassNameFallback"
-	*
-	*	Override multiple net drivers:
-	*		-NetDriverOverrides="DriverClassName;DefName2,DriverClassName2"
-	*
-	*
-	* Example:
-	*	Use WebSocket for the main game net driver:
-	*		-NetDriverOverrides=/Script/WebSocketNetworking.WebSocketNetDriver
-	*
-	*	Use WebSocket for the main game net driver, and the party beacon net driver
-	*		-NetDriverOverrides="/Script/WebSocketNetworking.WebSocketNetDriver;BeaconNetDriver,/Script/WebSocketNetworking.WebSocketNetDriver"
-	*/
+		/**
+		* Commandline override for the net driver.
+		*
+		* Format: (NOTE: Use quotes whenever the ',' character is used)
+		*	Override the main/game net driver (most common usage):
+		*		-NetDriverOverrides=DriverClassName
+		*
+		*	Override a specific/named net driver:
+		*		-NetDriverOverrides="DefName,DriverClassName"
+		*
+		*	Override a specific driver, including fallback driver:
+		*		-NetDriverOverrides="DefName,DriverClassName,DriverClassNameFallback"
+		*
+		*	Override multiple net drivers:
+		*		-NetDriverOverrides="DriverClassName;DefName2,DriverClassName2"
+		*
+		*
+		* Example:
+		*	Use WebSocket for the main game net driver:
+		*		-NetDriverOverrides=/Script/WebSocketNetworking.WebSocketNetDriver
+		*
+		*	Use WebSocket for the main game net driver, and the party beacon net driver
+		*		-NetDriverOverrides="/Script/WebSocketNetworking.WebSocketNetDriver;BeaconNetDriver,/Script/WebSocketNetworking.WebSocketNetDriver"
+		*/
 
-	static TArray<FNetDriverDefinition> NetDriverOverrides = TArray<FNetDriverDefinition>();
-	FString OverrideCmdLine;
+		static TArray<FNetDriverDefinition> NetDriverOverrides = TArray<FNetDriverDefinition>();
+		FString OverrideCmdLine;
 
-	if (NetDriverOverrides.Num() == 0 && FParse::Value(FCommandLine::Get(), TEXT("NetDriverOverrides="), OverrideCmdLine))
-	{
-		TArray<FString> OverrideEntries;
-		OverrideCmdLine.ParseIntoArray(OverrideEntries, TEXT(";"), false);
-
-		UE_LOG(LogNet, Log, TEXT("NetDriverOverrides:"));
-
-		for (FString& CurOverrideEntry : OverrideEntries)
+		if (NetDriverOverrides.Num() == 0 && FParse::Value(FCommandLine::Get(), TEXT("NetDriverOverrides="), OverrideCmdLine))
 		{
-			TArray<FString> CurEntryParms;
-			CurOverrideEntry.ParseIntoArray(CurEntryParms, TEXT(","), false);
+			TArray<FString> OverrideEntries;
+			OverrideCmdLine.ParseIntoArray(OverrideEntries, TEXT(";"), false);
 
-			if (CurEntryParms.Num() == 0)
+			UE_LOG(LogNet, Log, TEXT("NetDriverOverrides:"));
+
+			for (FString& CurOverrideEntry : OverrideEntries)
 			{
-				continue;
-			}
+				TArray<FString> CurEntryParms;
+				CurOverrideEntry.ParseIntoArray(CurEntryParms, TEXT(","), false);
+
+				if (CurEntryParms.Num() == 0)
+				{
+					continue;
+				}
 
 
-			FString TargetDefName = (CurEntryParms.Num() > 1 ? CurEntryParms[0] : FName(NAME_GameNetDriver).ToString());
-			FString OverrideClass = (CurEntryParms.Num() > 1 ? CurEntryParms[1] : CurEntryParms[0]);
-			FString OverrideFallback;
-			auto FindTargetDefPred =
-				[TargetDefName](const FNetDriverDefinition& CurDef)
-			{
-				return CurDef.DefName == *TargetDefName;
-			};
+				FString TargetDefName = (CurEntryParms.Num() > 1 ? CurEntryParms[0] : FName(NAME_GameNetDriver).ToString());
+				FString OverrideClass = (CurEntryParms.Num() > 1 ? CurEntryParms[1] : CurEntryParms[0]);
+				FString OverrideFallback;
+				auto FindTargetDefPred =
+					[TargetDefName](const FNetDriverDefinition& CurDef)
+				{
+					return CurDef.DefName == *TargetDefName;
+				};
 
-			if (CurEntryParms.Num() > 2)
-			{
-				OverrideFallback = CurEntryParms[2];
-			}
-			else if (FNetDriverDefinition* FallbackDef = Engine->NetDriverDefinitions.FindByPredicate(FindTargetDefPred))
-			{
-				OverrideFallback = FallbackDef->DriverClassNameFallback.ToString();
-			}
-			else
-			{
-				OverrideFallback = TEXT("/Script/OnlineSubsystemUtils.IpNetDriver");
-			}
+				if (CurEntryParms.Num() > 2)
+				{
+					OverrideFallback = CurEntryParms[2];
+				}
+				else if (FNetDriverDefinition* FallbackDef = Engine->NetDriverDefinitions.FindByPredicate(FindTargetDefPred))
+				{
+					OverrideFallback = FallbackDef->DriverClassNameFallback.ToString();
+				}
+				else
+				{
+					OverrideFallback = TEXT("/Script/OnlineSubsystemUtils.IpNetDriver");
+				}
 
-			if (TargetDefName.Len() == 0 || OverrideClass.Len() == 0 || OverrideFallback.Len() == 0)
-			{
-				continue;
-			}
+				if (TargetDefName.Len() == 0 || OverrideClass.Len() == 0 || OverrideFallback.Len() == 0)
+				{
+					continue;
+				}
 
 
-			if (!NetDriverOverrides.ContainsByPredicate(FindTargetDefPred))
-			{
-				FNetDriverDefinition NewDef;
+				if (!NetDriverOverrides.ContainsByPredicate(FindTargetDefPred))
+				{
+					FNetDriverDefinition NewDef;
 
-				NewDef.DefName = *TargetDefName;
-				NewDef.DriverClassName = FName(*OverrideClass);
-				NewDef.DriverClassNameFallback = FName(*OverrideFallback);
+					NewDef.DefName = *TargetDefName;
+					NewDef.DriverClassName = FName(*OverrideClass);
+					NewDef.DriverClassNameFallback = FName(*OverrideFallback);
 
-				NetDriverOverrides.Add(NewDef);
+					NetDriverOverrides.Add(NewDef);
 
-				UE_LOG(LogNet, Log, TEXT("- DefName: %s, DriverClassName: %s, DriverClassNameFallback: %s"), *TargetDefName,
-					*OverrideClass, *OverrideFallback);
+					UE_LOG(LogNet, Log, TEXT("- DefName: %s, DriverClassName: %s, DriverClassNameFallback: %s"), *TargetDefName,
+						*OverrideClass, *OverrideFallback);
+				}
 			}
 		}
-	}
 
 
-	Definition = NetDriverOverrides.FindByPredicate(FindNetDriverDefPred);
+		Definition = NetDriverOverrides.FindByPredicate(FindNetDriverDefPred);
 
-	if (Definition != nullptr)
-	{
-		UE_LOG(LogNet, Log, TEXT("Overriding NetDriver '%s' with class: %s"), *NetDriverDefinition.ToString(),
-			*Definition->DriverClassName.ToString());
-	}
-	else
+		if (Definition != nullptr)
+		{
+			UE_LOG(LogNet, Log, TEXT("Overriding NetDriver '%s' with class: %s"), *NetDriverDefinition.ToString(),
+				*Definition->DriverClassName.ToString());
+		}
+		else
 #endif
-	{
-		Definition = Engine->NetDriverDefinitions.FindByPredicate(FindNetDriverDefPred);
-	}
-
-	if (Definition != nullptr)
-	{
-		UClass* NetDriverClass = StaticLoadClass(UNetDriver::StaticClass(), nullptr, *Definition->DriverClassName.ToString(), nullptr,
-			LOAD_Quiet);
-
-		// if it fails, then fall back to standard fallback
-		if (NetDriverClass == nullptr || !NetDriverClass->GetDefaultObject<UNetDriver>()->IsAvailable())
 		{
-			NetDriverClass = StaticLoadClass(UNetDriver::StaticClass(), nullptr, *Definition->DriverClassNameFallback.ToString(),
-				nullptr, LOAD_None);
+			Definition = Engine->NetDriverDefinitions.FindByPredicate(FindNetDriverDefPred);
 		}
 
-		if (NetDriverClass != nullptr)
+		if (Definition != nullptr)
 		{
-			ReturnVal = NewObject<UNetDriver>(GetTransientPackage(), NetDriverClass);
+			UClass* NetDriverClass = StaticLoadClass(UNetDriver::StaticClass(), nullptr, *Definition->DriverClassName.ToString(), nullptr,
+				LOAD_Quiet);
 
-			check(ReturnVal != nullptr);
+			// if it fails, then fall back to standard fallback
+			if (NetDriverClass == nullptr || !NetDriverClass->GetDefaultObject<UNetDriver>()->IsAvailable())
+			{
+				NetDriverClass = StaticLoadClass(UNetDriver::StaticClass(), nullptr, *Definition->DriverClassNameFallback.ToString(),
+					nullptr, LOAD_None);
+			}
 
-			ReturnVal->SetNetDriverName(ReturnVal->GetFName());
-			ReturnVal->SetNetDriverDefinition(NetDriverDefinition);
+			if (NetDriverClass != nullptr)
+			{
+				ReturnVal = NewObject<UNetDriver>(GetTransientPackage(), NetDriverClass);
 
-			new(Context.ActiveNetDrivers) FNamedNetDriver(ReturnVal, Definition);
+				check(ReturnVal != nullptr);
+
+				const FName DriverName = InNetDriverName.IsNone() ? ReturnVal->GetFName() : InNetDriverName;
+				const bool bInitializeWithIris = IsNetDriverUsingIris(Engine, NetDriverDefinition, DriverName);
+
+				ReturnVal->SetNetDriverName(DriverName);
+				ReturnVal->SetNetDriverDefinition(NetDriverDefinition);
+				ReturnVal->PostCreation(bInitializeWithIris);
+
+				new(Context.ActiveNetDrivers) FNamedNetDriver(ReturnVal, Definition);
+			}
+		}
+
+
+		if (ReturnVal == nullptr)
+		{
+			UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver failed to create driver from definition %s"), *NetDriverDefinition.ToString());
+		}
+
+		return ReturnVal;
+	}
+
+	bool CreateNamedNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName NetDriverName, FName NetDriverDefinition)
+	{
+		UNetDriver* NetDriver = FindNamedNetDriver_Local(Context.ActiveNetDrivers, NetDriverName);
+		if (NetDriver == nullptr)
+		{
+			NetDriver = CreateNetDriver_Local(Engine, Context, NetDriverDefinition, NetDriverName);
+			if (NetDriver)
+			{
+				return true;
+			}
+		}
+
+		if (NetDriver)
+		{
+			UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver %s already exists as %s"), *NetDriverName.ToString(), *NetDriver->GetName());
+		}
+		else
+		{
+			UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver failed to create driver %s from definition %s"), *NetDriverName.ToString(), *NetDriverDefinition.ToString());
+		}
+
+		return false;
+	}
+
+	void DestroyNamedNetDriver_Local(FWorldContext& Context, FName NetDriverName)
+	{
+		for (int32 Index = 0; Index < Context.ActiveNetDrivers.Num(); Index++)
+		{
+			FNamedNetDriver& NamedNetDriver = Context.ActiveNetDrivers[Index];
+			UNetDriver* NetDriver = NamedNetDriver.NetDriver;
+			if (NetDriver && NetDriver->NetDriverName == NetDriverName)
+			{
+				UE_LOG(LogNet, Log, TEXT("DestroyNamedNetDriver %s [%s]"), *NetDriver->GetName(), *NetDriverName.ToString());
+				
+				ensureMsgf(!(NetDriver->IsInTick() && NetDriverName != NAME_PendingNetDriver), TEXT("Attempting to destroy NetDriver %s [%s] while it is ticking."), *NetDriver->GetName(), *NetDriverName.ToString());
+
+				Context.ActiveNetDrivers.RemoveAtSwap(Index);
+				Context.GarbageObjectsToVerify.Add(NetDriver);
+				NetDriver->SetWorld(NULL);
+				NetDriver->Shutdown();
+				NetDriver->LowLevelDestroy();
+				NetDriver->MarkAsGarbage();
+
+				if (UWorld* World = Context.World())
+				{
+					World->ClearNetDriver(NetDriver);
+				}
+
+				break;
+			}
 		}
 	}
-
-
-	if (ReturnVal == nullptr)
-	{
-		UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver failed to create driver from definition %s"), *NetDriverDefinition.ToString());
-	}
-
-	return ReturnVal;
-}
+} // end namespace UE::Private
 
 UNetDriver* UEngine::CreateNetDriver(UWorld *InWorld, FName NetDriverDefinition)
 {
 	LLM_SCOPE(ELLMTag::Networking);
-	return CreateNetDriver_Local(this, GetWorldContextFromWorldChecked(InWorld), NetDriverDefinition);
-}
-
-bool CreateNamedNetDriver_Local(UEngine *Engine, FWorldContext &Context, FName NetDriverName, FName NetDriverDefinition)
-{
-	UNetDriver* NetDriver = FindNamedNetDriver_Local(Context.ActiveNetDrivers, NetDriverName);
-	if (NetDriver == nullptr)
-	{
-		NetDriver = CreateNetDriver_Local(Engine, Context, NetDriverDefinition);
-		if (NetDriver)
-		{
-			NetDriver->SetNetDriverName(NetDriverName);
-			return true;
-		}
-	}
-
-	if (NetDriver)
-	{
-		UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver %s already exists as %s"), *NetDriverName.ToString(), *NetDriver->GetName());
-	}
-	else
-	{
-		UE_LOG(LogNet, Log, TEXT("CreateNamedNetDriver failed to create driver %s from definition %s"), *NetDriverName.ToString(), *NetDriverDefinition.ToString());
-	}
-
-	return false;
+	return UE::Private::CreateNetDriver_Local(this, GetWorldContextFromWorldChecked(InWorld), NetDriverDefinition, NAME_None);
 }
 
 bool UEngine::CreateNamedNetDriver(UWorld *InWorld, FName NetDriverName, FName NetDriverDefinition)
 {
-	return CreateNamedNetDriver_Local( this, GetWorldContextFromWorldChecked(InWorld), NetDriverName, NetDriverDefinition );
+	return UE::Private::CreateNamedNetDriver_Local(this, GetWorldContextFromWorldChecked(InWorld), NetDriverName, NetDriverDefinition);
 }
 
 bool UEngine::CreateNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName, FName NetDriverDefinition)
 {
-	return CreateNamedNetDriver_Local( this, GetWorldContextFromPendingNetGameChecked(PendingNetGame), NetDriverName, NetDriverDefinition);
-}
-
-void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
-{
-	for (int32 Index = 0; Index < Context.ActiveNetDrivers.Num(); Index++)
-	{
-		FNamedNetDriver& NamedNetDriver = Context.ActiveNetDrivers[Index];
-		UNetDriver* NetDriver = NamedNetDriver.NetDriver;
-		if (NetDriver && NetDriver->NetDriverName == NetDriverName)
-		{
-			UE_LOG(LogNet, Log, TEXT("DestroyNamedNetDriver %s [%s]"), *NetDriver->GetName(), *NetDriverName.ToString());
-			
-			ensureMsgf(!(NetDriver->IsInTick() && NetDriverName != NAME_PendingNetDriver), TEXT("Attempting to destroy NetDriver %s [%s] while it is ticking."), *NetDriver->GetName(), *NetDriverName.ToString());
-
-			Context.ActiveNetDrivers.RemoveAtSwap(Index);
-			Context.GarbageObjectsToVerify.Add(NetDriver);
-			NetDriver->SetWorld(NULL);
-			NetDriver->Shutdown();
-			NetDriver->LowLevelDestroy();
-			NetDriver->MarkAsGarbage();
-
-			if (UWorld* World = Context.World())
-			{
-				World->ClearNetDriver(NetDriver);
-			}
-
-			break;
-		}
-	}
+	return UE::Private::CreateNamedNetDriver_Local(this, GetWorldContextFromPendingNetGameChecked(PendingNetGame), NetDriverName, NetDriverDefinition);
 }
 
 void UEngine::DestroyNamedNetDriver(UWorld *InWorld, FName NetDriverName)
 {
-	DestroyNamedNetDriver_Local( GetWorldContextFromWorldChecked(InWorld), NetDriverName);
+	UE::Private::DestroyNamedNetDriver_Local(GetWorldContextFromWorldChecked(InWorld), NetDriverName);
 }
 
 void UEngine::DestroyNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName)
 {
-	DestroyNamedNetDriver_Local( GetWorldContextFromPendingNetGameChecked(PendingNetGame), NetDriverName );
+	UE::Private::DestroyNamedNetDriver_Local(GetWorldContextFromPendingNetGameChecked(PendingNetGame), NetDriverName);
 }
 
 ENetMode UEngine::GetNetMode(const UWorld *World) const
@@ -13824,7 +13893,7 @@ EBrowseReturnVal::Type UEngine::Browse( FWorldContext& WorldContext, FURL URL, F
 				{
 					if (ActiveNetDriver.NetDriver)
 					{
-						DestroyNamedNetDriver_Local(WorldContext, ActiveNetDriver.NetDriver->NetDriverName);
+						UE::Private::DestroyNamedNetDriver_Local(WorldContext, ActiveNetDriver.NetDriver->NetDriverName);
 					}
 				}
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
@@ -13963,7 +14032,7 @@ void UEngine::CancelPending(FWorldContext &Context)
 	if (Context.PendingNetGame && Context.PendingNetGame->NetDriver && Context.PendingNetGame->NetDriver->ServerConnection)
 	{
 		Context.PendingNetGame->NetDriver->ServerConnection->Close();
-		DestroyNamedNetDriver_Local(Context, Context.PendingNetGame->NetDriver->NetDriverName);
+		UE::Private::DestroyNamedNetDriver_Local(Context, Context.PendingNetGame->NetDriver->NetDriverName);
 		Context.PendingNetGame->NetDriver = NULL;
 	}
 

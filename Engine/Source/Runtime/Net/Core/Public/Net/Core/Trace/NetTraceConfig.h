@@ -8,7 +8,7 @@
 class FNetTraceCollector;
 
 #if !defined(UE_NET_TRACE_ENABLED)
-#	if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && UE_TRACE_ENABLED
+#	if !(UE_BUILD_SHIPPING) && UE_TRACE_ENABLED
 #		define UE_NET_TRACE_ENABLED 1
 #	else
 #		define UE_NET_TRACE_ENABLED 0
@@ -28,8 +28,12 @@ namespace ENetTraceVerbosity
 
 #if UE_NET_TRACE_ENABLED
 #	ifndef UE_NET_TRACE_COMPILETIME_VERBOSITY
-#		define UE_NET_TRACE_COMPILETIME_VERBOSITY ENetTraceVerbosity::Verbose
+#		if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#			define UE_NET_TRACE_COMPILETIME_VERBOSITY ENetTraceVerbosity::VeryVerbose
+#		else
+#			define UE_NET_TRACE_COMPILETIME_VERBOSITY ENetTraceVerbosity::Verbose
+#		endif
+#	else
+#		define UE_NET_TRACE_COMPILETIME_VERBOSITY ENetTraceVerbosity::None
 #	endif
-#else
-#	define UE_NET_TRACE_COMPILETIME_VERBOSITY ENetTraceVerbosity::None
 #endif

@@ -60,6 +60,7 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/PropertyConditions/PropertyConditions.h"
 #include "Misc/ScopeExit.h"
+#include "Misc/NetworkVersion.h"
 #include "Net/DataChannel.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/PerfCountersHelpers.h"
@@ -72,6 +73,16 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
+#if UE_WITH_IRIS
+#include "Iris/IrisConfig.h"
+#include "Iris/Core/IrisProfiler.h"
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/ReplicationView.h"
+#include "Iris/ReplicationSystem/Filtering/NetObjectFilter.h"
+#include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif // UE_WITH_IRIS
+
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
 #endif
@@ -424,6 +435,9 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	ProcessQueuedBunchesCurrentFrameMilliseconds(0.0f)
 ,	DDoS()
 ,	LocalAddr(nullptr)
+#if UE_WITH_IRIS
+,	DummyNetworkObjectInfo(MakePimpl<FNetworkObjectInfo>())
+#endif // UE_WITH_IRIS
 ,	NetworkObjects(new FNetworkObjectList)
 ,	LagState(ENetworkLagState::NotLagging)
 ,	DuplicateLevelID(INDEX_NONE)
@@ -567,7 +581,7 @@ void UNetDriver::NotifyGameInstanceUpdated()
 	if (GetWorld() && GetWorld()->WorldType)
 	{
 		FString InstanceName = FString::Printf(TEXT("%s (%s)"), *GetNameSafe(GetWorld()->GetGameInstance()), LexToString(GetWorld()->WorldType.GetValue()));
-		UE_NET_TRACE_UPDATE_INSTANCE(GetUniqueID(), IsServer(), *InstanceName);
+		UE_NET_TRACE_UPDATE_INSTANCE(GetNetTraceId(), IsServer(), *InstanceName);
 	}
 #endif
 }
@@ -586,6 +600,15 @@ void UNetDriver::AddNetworkActor(AActor* Actor)
 {
 	LLM_SCOPE(ELLMTag::Networking);
 	ensureMsgf(Actor == nullptr || !(Actor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(Actor));
+
+#if UE_WITH_IRIS
+	// We currently only want to do this on the server as we want to replicate the actor to the client
+	// but we rely on the old system for actor instantiation
+	if (ReplicationSystem)
+	{
+		return;
+	}
+#endif // UE_WITH_IRIS
 
 	if (!IsDormInitialStartupActor(Actor))
 	{
@@ -616,6 +639,14 @@ FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor
 	ensureMsgf(InActor == nullptr || !(InActor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(InActor));
 
 	bool bWasAdded = false;
+
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		return FindNetworkObjectInfo(InActor);
+	}
+#endif // UE_WITH_IRIS
+
 	if (TSharedPtr<FNetworkObjectInfo>* InfoPtr = GetNetworkObjectList().FindOrAdd(const_cast<AActor*>(InActor), this, &bWasAdded))
 	{
 		if (bWasAdded && ReplicationDriver)
@@ -631,6 +662,21 @@ FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor
 
 FNetworkObjectInfo* UNetDriver::FindNetworkObjectInfo(const AActor* InActor)
 {
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		// Return default initialized NetworkObjectInfo so the presence of a pointer can at least indicate whether the actor is replicated or not.
+		const UE::Net::FNetHandle NetHandle = UE::Net::FReplicationSystemUtil::GetNetHandle(InActor);
+		if (NetHandle.IsValid())
+		{
+			*DummyNetworkObjectInfo = FNetworkObjectInfo();
+			return DummyNetworkObjectInfo.Get();
+		}
+
+		return nullptr;
+	}
+#endif // UE_WITH_IRIS
+
 	return GetNetworkObjectList().Find(InActor).Get();
 }
 
@@ -738,6 +784,14 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 #if WITH_SERVER_CODE
 		int32 Updated = ServerReplicateActors( DeltaSeconds );
 
+#if UE_WITH_IRIS
+		if (ReplicationSystem)
+		{
+			UpdateReplicationViews();
+			ReplicationSystem->PreSendUpdate(DeltaSeconds);
+		}
+#endif // UE_WITH_IRIS
+
 		static int32 LastUpdateCount = 0;
 		// Only log the zero replicated actors once after replicating an actor
 		if ((LastUpdateCount && !Updated) || Updated)
@@ -747,6 +801,16 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 		LastUpdateCount = Updated;
 #endif // WITH_SERVER_CODE
 	}
+#if UE_WITH_IRIS
+	else if (!IsServer() && ServerConnection != nullptr)
+	{
+		if (ReplicationSystem)
+		{
+			UpdateReplicationViews();
+			ReplicationSystem->PreSendUpdate(DeltaSeconds);
+		}
+	}
+#endif // UE_WITH_IRIS
 
 	// Reset queued bunch amortization timer
 	ProcessQueuedBunchesCurrentFrameMilliseconds = 0.0f;
@@ -1189,6 +1253,13 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 		{
 			Connection->Tick(DeltaSeconds);
 		}
+
+#if UE_WITH_IRIS
+		if (ReplicationSystem && (ServerConnection != nullptr || ClientConnections.Num() > 0))
+		{
+			ReplicationSystem->PostSendUpdate();
+		}
+#endif // UE_WITH_IRIS
 	}
 
 	if (ConnectionlessHandler.IsValid())
@@ -1631,9 +1702,12 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 	if (!bInitAsClient)
 	{
 		ConnectionlessHandler.Reset(nullptr);
-		InitDestroyedStartupActors();
-		InitReplicationDriverClass();
-		SetReplicationDriver(UReplicationDriver::CreateReplicationDriver(this, URL, GetWorld()));
+		
+		if (!IsUsingIrisReplication())
+		{
+			InitReplicationDriverClass();
+			SetReplicationDriver(UReplicationDriver::CreateReplicationDriver(this, URL, GetWorld()));
+		}
 
 		DDoS.Init(FMath::Clamp(NetServerMaxTickRate, 1, 1000));
 
@@ -1663,6 +1737,41 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 
 	// If we are not using Iris, we use the UniqueId to identify the NetDriver.
 	NetTraceId = GetUniqueID();
+
+#if UE_WITH_IRIS
+	if (IsUsingIrisReplication() && !ReplicationSystem)
+	{
+		LLM_SCOPE(ELLMTag::Iris);
+
+		if (ensureAlways(InitReplicationBridgeClass()))
+		{
+			const bool bAllowSend = !bInitAsClient;
+
+			UReplicationBridge* ReplicationBridge = NewObject<UActorReplicationBridge>(GetTransientPackage(), ReplicationBridgeClass);
+			if (ReplicationBridge)
+			{
+				ReplicationBridge->SetNetDriver(this);
+
+				// Create ReplicationSystem
+				UReplicationSystem::FReplicationSystemParams Params;
+				Params.ReplicationBridge = ReplicationBridge;
+				Params.bIsServer = !bInitAsClient;
+				Params.bAllowObjectReplication = !bInitAsClient;
+
+				SetReplicationSystem(UE::Net::FReplicationSystemFactory::CreateReplicationSystem(Params));
+			}
+			else
+			{
+				UE_LOG(LogNet, Error, TEXT("Failed to initialize ReplicationSystem"));
+			}
+		}
+	}
+#endif // UE_WITH_IRIS
+
+	if (!bInitAsClient)
+	{
+		InitDestroyedStartupActors();
+	}
 
 	return bSuccess;
 }
@@ -1853,6 +1962,9 @@ void UNetDriver::Shutdown()
 	ConnectionlessHandler.Reset(nullptr);
 
 	SetReplicationDriver(nullptr);
+#if UE_WITH_IRIS
+	SetReplicationSystem(nullptr);
+#endif // UE_WITH_IRIS
 
 	// End NetTrace session for this instance
 	UE_NET_TRACE_END_SESSION(GetNetTraceId());
@@ -1871,6 +1983,18 @@ bool UNetDriver::IsServer() const
 	// Client connections ALWAYS set the server connection object in InitConnect()
 	// @todo ONLINE improve this with a bool
 	return ServerConnection == NULL;
+}
+
+EEngineNetworkRuntimeFeatures UNetDriver::GetNetworkRuntimeFeatures() const
+{
+	EEngineNetworkRuntimeFeatures NetDriverFeatures = EEngineNetworkRuntimeFeatures::None;
+	
+	if (IsUsingIrisReplication())
+	{
+		EnumAddFlags(NetDriverFeatures, EEngineNetworkRuntimeFeatures::IrisEnabled);
+	}
+	
+	return NetDriverFeatures;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -2372,6 +2496,7 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	}
 #endif
 
+	// Init bunch for rpc
 #if UE_NET_TRACE_ENABLED
 	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
@@ -3427,6 +3552,15 @@ FActorDestructionInfo* UNetDriver::CreateDestructionInfo( UNetDriver* NetDriver,
 
 void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel )
 {
+#if UE_WITH_IRIS
+	// For Iris this is handled through a call to AActor::EndReplication
+	// NOTE: The reason for doing this after the removal from the call to RepChangedPropertyTrackerMap.Remove is that Iris currently relies on this to invoke PreReplication which will create a RepChangePropertyTracker
+	if (ReplicationSystem)
+	{
+		return;
+	}
+#endif // UE_WITH_IRIS
+
 	const bool bIsServer = IsServer();
 	
 	if (bIsServer)
@@ -3555,6 +3689,13 @@ void UNetDriver::NotifyStreamingLevelUnload(ULevel* Level)
 				NotifyActorLevelUnloaded(Actor);
 			}
 		}
+
+#if UE_WITH_IRIS
+		if (ReplicationSystem)
+		{
+			ReplicationSystem->NotifyStreamingLevelUnload(Level);
+		}
+#endif // UE_WITH_IRIS
 		
 		TArray<FNetworkGUID> RemovedGUIDs;
 		for (auto It = DestroyedStartupOrDormantActors.CreateIterator(); It; ++It)
@@ -3634,6 +3775,13 @@ void UNetDriver::NotifyActorTearOff(AActor* Actor)
 	{
 		ReplicationDriver->NotifyActorTearOff(Actor);
 	}
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		// Set the actor to be torn-off during the next update of the replication systeem
+		ReplicationSystem->TearOffNextUpdate(UE::Net::FReplicationSystemUtil::GetNetHandle(Actor));
+	}
+#endif // UE_WITH_IRIS
 }
 
 void UNetDriver::ForceNetUpdate(AActor* Actor)
@@ -3644,6 +3792,14 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 		ReplicationDriver->ForceNetUpdate(Actor);
 		return;
 	}
+
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		ReplicationSystem->MarkDirty(UE::Net::FReplicationSystemUtil::GetNetHandle(Actor));
+		return;
+	}
+#endif // UE_WITH_IRIS
 	
 	// Legacy implementation
 	if (FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(Actor))
@@ -3701,7 +3857,16 @@ void UNetDriver::FlushActorDormancy(AActor* Actor, bool bWasDormInitial)
 		ReplicationDriver->FlushNetDormancy(Actor, bWasDormInitial);
 	}
 
-	FlushActorDormancyInternal(Actor);
+#if UE_WITH_IRIS
+	if (ReplicationSystem && ReplicationSystem->IsServer())
+	{
+		UE::Net::FReplicationSystemUtil::FlushNetDormancy(Actor, bWasDormInitial);
+	}
+	else
+#endif // UE_WITH_IRIS
+	{
+		FlushActorDormancyInternal(Actor);
+	}
 }
 
 void UNetDriver::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState)
@@ -3711,7 +3876,16 @@ void UNetDriver::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDorman
 		ReplicationDriver->NotifyActorDormancyChange(Actor, OldDormancyState);
 	}
 
-	FlushActorDormancyInternal(Actor);
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		UE::Net::FReplicationSystemUtil::NotifyActorDormancyChange(Actor, OldDormancyState);
+	}
+	else
+#endif // UE_WITH_IRIS
+	{
+		FlushActorDormancyInternal(Actor);
+	}
 }
 
 void UNetDriver::FlushActorDormancyInternal(AActor *Actor)
@@ -5437,6 +5611,13 @@ void UNetDriver::SetNetDriverDefinition(FName NewNetDriverDefinition)
 	}
 }
 
+void UNetDriver::PostCreation(bool bInitializeWithIris)
+{
+#if UE_WITH_IRIS
+	bIsUsingIris = bInitializeWithIris;
+#endif //UE_WITH_IRIS
+}
+
 #if NET_DEBUG_RELEVANT_ACTORS
 void UNetDriver::PrintDebugRelevantActors()
 {
@@ -5713,6 +5894,23 @@ void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDrive
 {
 	check(NetDriver && Level);
 
+#if UE_WITH_IRIS
+	if (NetDriver->ReplicationSystem)
+	{
+		if (UActorReplicationBridge* Bridge = NetDriver->ReplicationSystem->GetReplicationBridgeAs<UActorReplicationBridge>())
+		{			
+			// Add explicit destruction info for this object
+			UReplicationBridge::FEndReplicationParameters Params;
+			Params.Level = Level;
+			Params.Location = Info.DestroyedPosition;
+			Params.bUseDistanceBasedPrioritization = true;
+
+			Bridge->AddStaticDestructionInfo(Info.PathName.ToString(), Info.ObjOuter.Get(), Params);
+		}
+		return;
+	}
+#endif // UE_WITH_IRIS
+
 	FNetworkGUID NetGUID = NetDriver->GuidCache->AssignNewNetGUIDFromPath_Server( Info.PathName.ToString(), Info.ObjOuter.Get(), Info.ObjClass );
 	if (NetGUID.IsDefault())
 	{
@@ -5889,7 +6087,25 @@ void UNetDriver::SetWorld(class UWorld* InWorld)
 		Notify = InWorld;
 		RegisterTickEvents(InWorld);
 
-		GetNetworkObjectList().AddInitialObjects(InWorld, this);
+
+#if UE_WITH_IRIS
+		if (IsUsingIrisReplication())
+		{
+			if (bSkipBeginReplicationForWorld)
+			{
+				// We skipped, reset the flag in case there is another call.
+				bSkipBeginReplicationForWorld = false;
+			}
+			else
+			{
+				UE::Net::FReplicationSystemUtil::BeginReplicationForActorsInWorld(InWorld);
+			}
+		}
+		else
+#endif // UE_WITH_IRIS
+		{
+			GetNetworkObjectList().AddInitialObjects(InWorld, this);
+		}
 
 		NotifyGameInstanceUpdated();
 	}
@@ -5926,6 +6142,13 @@ void UNetDriver::ResetGameWorldState()
 	{
 		ReplicationDriver->ResetGameWorldState();
 	}
+
+#if UE_WITH_IRIS
+	if (ReplicationSystem)
+	{
+		ReplicationSystem->ResetGameWorldState();
+	}
+#endif // UE_WITH_IRIS
 }
 
 void UNetDriver::CleanPackageMaps()
@@ -6030,6 +6253,15 @@ void UNetDriver::SetReplicationDriver(UReplicationDriver* NewReplicationDriver)
 		}
 	}
 
+#if UE_WITH_IRIS
+	if (IsUsingIrisReplication() && NewReplicationDriver)
+	{
+		checkf(false, TEXT("ReplicationDriver (%s) are not supported with a NetDriver (%s) configured to use Iris"), *NewReplicationDriver->GetName(), *NetDriverName.ToString());
+		NewReplicationDriver->MarkAsGarbage();
+		return;
+	}
+#endif
+
 	ReplicationDriver = NewReplicationDriver;
 	if (ReplicationDriver)
 	{
@@ -6058,6 +6290,169 @@ UNetConnection* UNetDriver::GetConnectionById(uint32 ConnectionId) const
 
 	return nullptr;
 }
+
+#if UE_WITH_IRIS
+bool UNetDriver::InitReplicationBridgeClass()
+{
+	if (ReplicationBridgeClass != nullptr)
+	{
+		return true;
+	}
+
+	if (!ReplicationBridgeClassName.IsEmpty())
+	{
+		ReplicationBridgeClass = LoadClass<UReplicationBridge>(nullptr, *ReplicationBridgeClassName, nullptr, LOAD_None, nullptr);
+		if (ReplicationBridgeClass == nullptr)
+		{
+			UE_LOG(LogNet, Error, TEXT("Failed to load class '%s'"), *ReplicationBridgeClassName);
+			return false;
+		}
+	}
+	else
+	{
+		// Fall back on ActorReplicationBridge
+		ReplicationBridgeClass = UActorReplicationBridge::StaticClass();
+	}
+
+	return ReplicationBridgeClass != nullptr;
+}
+
+void UNetDriver::UpdateGroupFilterStatusForLevel(const ULevel* Level, UE::Net::FNetObjectGroupHandle LevelGroupHandle)
+{
+	using namespace UE::Net;
+
+	if (ReplicationSystem == nullptr || LevelGroupHandle == InvalidNetObjectGroupHandle)
+	{
+		return;
+	}
+
+	const FName WorldPackageName = GetWorldPackage()->GetFName();
+	const FName LevelPackageName = Level->GetOutermost()->GetFName();
+	const bool bIsPersistentLevel = Level->IsPersistentLevel();
+
+	// Build connection mask
+	FNetBitArray ConnectionMask(ReplicationSystem->GetMaxConnectionCount());
+		
+	for (UNetConnection* Connection : ClientConnections)
+	{
+		const bool bIsVisible = (bIsPersistentLevel && WorldPackageName == Connection->GetClientWorldPackageName()) || Connection->ClientVisibleLevelNames.Contains(LevelPackageName);
+		ConnectionMask.SetBitValue(Connection->GetConnectionId(), bIsVisible);
+	}
+
+	// Set group filter status
+	ReplicationSystem->SetGroupFilterStatus(LevelGroupHandle, ConnectionMask, ENetFilterStatus::Allow);
+}
+
+void UNetDriver::SetReplicationSystem(UReplicationSystem* InReplicationSystem)
+{
+	if (ReplicationSystem)
+	{
+		UE::Net::FReplicationSystemFactory::DestroyReplicationSystem(ReplicationSystem);
+	}
+
+	ReplicationSystem = InReplicationSystem;
+
+	if (ReplicationSystem)
+	{
+		// When we run using Iris, we use ReplicationSystemId as our unique identifier
+		NetTraceId = ReplicationSystem->GetId();
+
+		UE::Net::FReplicationSystemUtil::BeginReplicationForActorsInWorld(GetWorld());
+	}
+}
+
+void UNetDriver::ClearIrisSystem()
+{
+	if (ReplicationSystem)
+	{
+		UReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridge();
+		if (ensureAlways(Bridge))
+		{
+			Bridge->SetNetDriver(nullptr);
+		}
+	}
+
+	ReplicationSystem = nullptr;
+}
+
+void UNetDriver::RestoreIrisSystem(UReplicationSystem* InReplicationSystem)
+{
+	check(InReplicationSystem != nullptr);
+	check(InReplicationSystem->GetReplicationBridge() != nullptr);
+	checkf(ReplicationSystem == nullptr, TEXT("Cannot restore IrisSystem in %s since one system is already initialized."), *GetName());
+
+	ReplicationSystem = InReplicationSystem;
+	ReplicationSystem->GetReplicationBridge()->SetNetDriver(this);
+
+	// When we run using Iris, we use ReplicationSystemId as our unique identifier
+	NetTraceId = ReplicationSystem->GetId();
+	
+	// World Actors have already been registered in this IrisSystem, prevent adding them twice when the World gets set.
+	bSkipBeginReplicationForWorld = true;
+}
+
+void UNetDriver::UpdateReplicationViews() const
+{
+	using namespace UE::Net;
+
+	FReplicationView ReplicationView;
+
+	FReplicationView::FView DefaultView;
+	{
+		const APlayerCameraManager* CameraManager = GetDefault<APlayerCameraManager>();
+		DefaultView.FoVRadians = FMath::DegreesToRadians(CameraManager->DefaultFOV);
+	}
+
+	TObjectPtr<UNetConnection> const* Connections = (ServerConnection != nullptr ? &ServerConnection : ClientConnections.GetData());
+	const uint32 ConnectionCount = (ServerConnection != nullptr ? 1U : uint32(ClientConnections.Num()));
+	TArray<const UNetConnection*, TInlineAllocator<4>> SubConnections;
+	for (uint32 ConnIt = 0, ConnEndIt = ConnectionCount; ConnIt != ConnEndIt; ++ConnIt)
+	{
+		ReplicationView.Views.Reset();
+
+		const UNetConnection* Conn = Connections[ConnIt];
+		SubConnections.Reset();
+		SubConnections.Add(Conn);
+		if (Conn->Children.Num() > 0)
+		{
+			SubConnections.Insert(reinterpret_cast<UNetConnection*const*>(Conn->Children.GetData()), Conn->Children.Num(), 1);
+		}
+
+		for (const UNetConnection* SubConn : SubConnections)
+		{
+			const AActor* ViewTarget = Conn->ViewTarget;
+			const APlayerController* ViewingController = Conn->PlayerController;
+			if (ViewTarget == nullptr && ViewingController == nullptr)
+			{
+				continue;
+			}
+
+			FReplicationView::FView View;
+			View.FoVRadians = DefaultView.FoVRadians;
+			if (ViewTarget)
+			{
+				View.Pos = ViewTarget->GetActorLocation();
+				View.Dir = ViewTarget->GetActorRotation().Vector();
+			}
+			if (ViewingController)
+			{
+				FRotator ViewRotation = ViewingController->GetControlRotation();
+				ViewingController->GetPlayerViewPoint(View.Pos, ViewRotation);
+				View.Dir = ViewRotation.Vector();
+
+				if (const APlayerCameraManager* CameraManager = ViewingController->PlayerCameraManager)
+				{
+					View.FoVRadians = FMath::DegreesToRadians(CameraManager->GetFOVAngle());
+				}
+			}
+
+			ReplicationView.Views.Add(View);
+		}
+
+		ReplicationSystem->SetReplicationView(Conn->GetConnectionId(), ReplicationView);
+	}
+}
+#endif // UE_WITH_IRIS
 
 #if NET_DEBUG_RELEVANT_ACTORS
 static void	DumpRelevantActors( UWorld* InWorld )
@@ -6327,6 +6722,37 @@ void UNetDriver::ProcessRemoteFunction(
 			UObject* TargetObj = SubObject ? SubObject : Actor;
 			LocalOutParms = NetDriverInternal::CopyOutParametersToLocalParameters(Function, OutParms, Parameters, TargetObj);
 		}
+
+#if UE_WITH_IRIS
+		if (ReplicationSystem)
+		{
+			if (bIsServerMulticast)
+			{
+				if (ReplicationSystem->SendRPC(Actor, SubObject, Function, Parameters))
+				{
+					return;
+				}
+			}
+			else
+			{
+				if (UNetConnection* Connection = Actor->GetNetConnection())
+				{
+					if (UChildConnection* ChildConnection = Connection->GetUChildConnection())
+					{
+						Connection = ChildConnection->Parent;
+					}
+
+					if (ReplicationSystem->SendRPC(Connection->GetConnectionId(), Actor, SubObject, Function, Parameters))
+					{
+						return;
+					}
+				}
+			}
+
+			// If we are using Iris replication, we should never fall back on normal replication path
+			return;
+		}
+#endif // UE_WITH_IRIS
 
 		// Forward to replication Driver if there is one
 		if (ReplicationDriver && ReplicationDriver->ProcessRemoteFunction(Actor, Function, Parameters, OutParms, Stack, SubObject))

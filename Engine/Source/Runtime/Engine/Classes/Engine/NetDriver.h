@@ -19,6 +19,9 @@
 #include "Net/NetAnalyticsTypes.h"
 #include "Net/NetConnectionIdHandler.h"
 #include "HAL/LowLevelMemTracker.h"
+#if UE_WITH_IRIS
+#include "Templates/PimplPtr.h"
+#endif
 #include "NetDriver.generated.h"
 
 /**
@@ -335,6 +338,16 @@ class FNetAnalyticsAggregator;
 class UNetDriver;
 
 enum class ECreateReplicationChangelistMgrFlags;
+enum class EEngineNetworkRuntimeFeatures : uint16;
+#if UE_WITH_IRIS
+class UReplicationSystem;
+class UReplicationBridge;
+namespace UE::Net
+{
+	typedef uint16 FNetObjectGroupHandle;
+}
+#endif // UE_WITH_IRIS
+
 
 using FConnectionMap = TMap<TSharedRef<const FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrConstKeyMapFuncs<UNetConnection*>>;
 
@@ -712,6 +725,10 @@ public:
 	UPROPERTY(Config)
 	FString ReplicationDriverClassName;
 
+	/** Used to specify the class to use for ReplicationBridge */
+	UPROPERTY(Config)
+	FString ReplicationBridgeClassName;
+
 	/** @todo document */
 	UPROPERTY(Config)
 	int32 MaxDownloadSize;
@@ -825,6 +842,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UClass> ReplicationDriverClass;
 
+	UPROPERTY(transient)
+	TObjectPtr<UClass> ReplicationBridgeClass;
+
 	/** @todo document */
 	FProperty* RoleProperty;
 	
@@ -882,6 +902,9 @@ public:
 
 	/** Set the NetDriver's NetDriverDefintion. */
 	void SetNetDriverDefinition(FName NewNetDriverDefinition);
+
+	/** Callback after the engine created the NetDriver and set our name for the first time */
+	void PostCreation(bool bInitializeWithIris);
 
 	/** Get the NetDriver's NetDriverDefintion. */
 	FName GetNetDriverDefintion() const { return NetDriverDefinition; }
@@ -1281,13 +1304,16 @@ public:
 	 */
 	ENGINE_API virtual void FlushHandler();
 
-
 	/** Initializes the net connection class to use for new connections */
 	ENGINE_API virtual bool InitConnectionClass(void);
 
 	/** Initialized the replication driver class to use for this driver */
 	ENGINE_API virtual bool InitReplicationDriverClass();
 
+#if UE_WITH_IRIS
+	/** Initialized the replication bridge class to use for this driver if using iris replication*/
+	ENGINE_API virtual bool InitReplicationBridgeClass();
+#endif
 	/** Shutdown all connections managed by this net driver */
 	ENGINE_API virtual void Shutdown();
 
@@ -1636,8 +1662,36 @@ public:
 
 	ENGINE_API UReplicationDriver* GetReplicationDriver() const { return ReplicationDriver; }
 
+	/** Returns if this netdriver is initialized to replicate using the Iris replication system or the Legacy replication system. */
+	FORCEINLINE bool IsUsingIrisReplication() const
+	{
+#if UE_WITH_IRIS
+		return bIsUsingIris;
+#else
+		return false;
+#endif //UE_WITH_IRIS
+	}
+
+	/** Returns the bitflag telling which network features are activated for this NetDriver. */
+	ENGINE_API EEngineNetworkRuntimeFeatures GetNetworkRuntimeFeatures() const;
+	
+#if UE_WITH_IRIS
+	/** Remove references to the Iris bridge and system without deleting it */
+	ENGINE_API void ClearIrisSystem();
+
+	/** Set a previously initialized IrisSystem into this NetDriver */
+	ENGINE_API void RestoreIrisSystem(UReplicationSystem* InReplicationSystem);
+#endif // UE_WITH_IRIS
+
 	template<class T>
 	T* GetReplicationDriver() const { return Cast<T>(ReplicationDriver); }
+
+#if UE_WITH_IRIS
+	inline UReplicationSystem* GetReplicationSystem() { return ReplicationSystem; }
+	inline UReplicationSystem* GetReplicationSystem() const { return ReplicationSystem; }
+
+	void UpdateGroupFilterStatusForLevel(const ULevel* Level, UE::Net::FNetObjectGroupHandle LevelGroupHandle);
+#endif // UE_WITH_IRIS
 
 	void RemoveClientConnection(UNetConnection* ClientConnectionToRemove);
 
@@ -1877,8 +1931,27 @@ private:
 	/** Handle to FNetDelegates::OnSyncLoadDetected delegate */
 	FDelegateHandle ReportSyncLoadDelegateHandle;
 
+#if UE_WITH_IRIS
+	void InitIrisSettings(FName NewDriverName);
+	void SetReplicationSystem(UReplicationSystem* ReplicationSystem);
+	void UpdateReplicationViews() const;
+#endif
+
 	UPROPERTY(transient)
 	TObjectPtr<UReplicationDriver> ReplicationDriver;
+
+#if UE_WITH_IRIS
+	UReplicationSystem* ReplicationSystem = nullptr;
+
+	/** When set this will skip registering all the network relevant actors when setting the World */
+	bool bSkipBeginReplicationForWorld = false;
+
+	/** True when the NetDriver has been configured to run with the Iris replication system.*/
+	bool bIsUsingIris = false;
+
+	// For FindOrAddNetworkObjectInfo
+	TPimplPtr<FNetworkObjectInfo> DummyNetworkObjectInfo;
+#endif
 
 	/** Stores the list of objects to replicate into the replay stream. This should be a TUniquePtr, but it appears the generated.cpp file needs the full definition of the pointed-to type. */
 	TSharedPtr<FNetworkObjectList> NetworkObjects;

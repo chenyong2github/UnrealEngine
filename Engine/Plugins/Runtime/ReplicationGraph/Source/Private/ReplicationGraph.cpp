@@ -1784,14 +1784,6 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 	{
 		TGuardValue<bool> Guard(ActorChannel->bHoldQueuedExportBunchesAndGUIDs, true);		// Don't export queued GUIDs in fast path
 		
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && (UE_NET_TRACE_ENABLED)
-		// If we want to trace the actual contents of the shared path, we need to create a temporary collector associated with the shared bunch, collect the shared data and report it every time it is reused
-		// For now we just set the debug name of the the bunch to be able to give some context on what this bunch contains
-		if (OutBunch.DebugString.IsEmpty())
-		{
-			OutBunch.DebugString = FString(TEXT("ReplicateSingleActor_FastShared"));
-		}
-#endif
 		ActorChannel->SendBunch(&OutBunch, false);
 	}
 
@@ -2087,14 +2079,50 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 			// It sucks we have to a temp writer like this, but we don't know how big the payload will be until we serialize it
 			FNetBitWriter TempWriter(nullptr, 0);
+
+#if UE_NET_TRACE_ENABLED
+			// Create trace collector if tracing is enabled for the target bunch
+			FNetTraceCollector* Collector = GetTraceCollector(*FastSharedReplicationBunch);
+			if (Collector)
+			{
+				Collector->Reset();
+			}
+			else
+			{
+				Collector = UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace);
+				SetTraceCollector(*FastSharedReplicationBunch, Collector);
+			}
+
+			// We use the collector from the shared bunch
+			SetTraceCollector(TempWriter, Collector);
+#endif // UE_NET_TRACE_ENABLED
+
 			TSharedPtr<FRepLayout> RepLayout = NetDriver->GetFunctionRepLayout( Function );
 			RepLayout->SendPropertiesForRPC(Function, FastSharedReplicationChannel, TempWriter, Parameters);
 
 			FNetBitWriter TempBlockWriter(nullptr, 0);
+
+#if UE_NET_TRACE_ENABLED
+			// Ugliness to get data reported correctly, we basically fold the data from TempWriter into TempBlockWriter and then to Bunch
+			// Create trace collector if tracing is enabled for the target bunch			
+			SetTraceCollector(TempBlockWriter, Collector ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
+#endif // UE_NET_TRACE_ENABLED
+
 			FastSharedReplicationChannel->WriteFieldHeaderAndPayload( TempBlockWriter, ClassCache, FieldCache, nullptr, TempWriter, true );
 
+#if UE_NET_TRACE_ENABLED
+			// As we have used the collector we need to reset it before injecting the final data
+			if (Collector)
+			{
+				Collector->Reset();
+			}
+			UE_NET_TRACE_OBJECT_SCOPE(FastSharedReplicationChannel->ActorNetGUID, *FastSharedReplicationBunch, Collector, ENetTraceVerbosity::Trace);
+#endif
 			FastSharedReplicationChannel->WriteContentBlockPayload( TargetObj, *FastSharedReplicationBunch, false, TempBlockWriter );
 			
+			// Release temporary collector
+			UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBlockWriter));
+
 			FastSharedReplicationBunch = nullptr;
 			FastSharedReplicationChannel = nullptr;
 			FastSharedReplicationFuncName = NAME_None;

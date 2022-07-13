@@ -32,5 +32,7 @@ public class Lobby : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 		}
+
+		SetupIrisSupport(Target);
 	}
 }

@@ -73,7 +73,7 @@
 #define UE_NET_TRACE_POP_SEND_BUNCH(Collector) UE_NET_TRACE_INTERNAL_POP_SEND_BUNCH(Collector)
 
 /** Append events from SrcCollector to Collector */
-#define UE_NET_TRACE_EVENTS(DstCollector, SrcCollector) UE_NET_TRACE_INTERNAL_EVENTS(DstCollector, SrcCollector)
+#define UE_NET_TRACE_EVENTS(DstCollector, SrcCollector, Stream) UE_NET_TRACE_INTERNAL_EVENTS(DstCollector, SrcCollector, Stream)
 
 /** Mark the end of a bunch */
 #define UE_NET_TRACE_END_BUNCH(Collector, Bunch, ...) UE_NET_TRACE_INTERNAL_END_BUNCH(Collector, Bunch, __VA_ARGS__)				

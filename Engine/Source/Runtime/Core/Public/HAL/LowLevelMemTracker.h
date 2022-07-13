@@ -166,6 +166,9 @@ enum class ELLMTagSet : uint8
 	macro(RealTimeCommunications,				"RealTimeCommunications",		GET_STATFNAME(STAT_RealTimeCommunicationsLLM),				NAME_None,										-1)\
 	macro(FName,								"FName",						GET_STATFNAME(STAT_FNameLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Networking,							"Networking",					GET_STATFNAME(STAT_NetworkingLLM),							GET_STATFNAME(STAT_NetworkingSummaryLLM),		-1)\
+	macro(Iris,									"Iris",							GET_STATFNAME(STAT_IrisLLM),								GET_STATFNAME(STAT_NetworkingSummaryLLM),			ELLMTag::Networking)\
+	macro(IrisState,							"IrisState",					GET_STATFNAME(STAT_IrisStateLLM),							GET_STATFNAME(STAT_NetworkingSummaryLLM),			ELLMTag::Networking)\
+	macro(IrisConnection,						"IrisConnection",				GET_STATFNAME(STAT_IrisStateLLM),							GET_STATFNAME(STAT_NetworkingSummaryLLM),			ELLMTag::Networking)\
 	macro(Meshes,								"Meshes",						GET_STATFNAME(STAT_MeshesLLM),								GET_STATFNAME(STAT_MeshesSummaryLLM),			-1)\
 	macro(Stats,								"Stats",						GET_STATFNAME(STAT_StatsLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Shaders,								"Shaders",						GET_STATFNAME(STAT_ShadersLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
@@ -250,7 +253,7 @@ enum class ELLMTag : LLM_TAG_TYPE
 
 	//------------------------------
 	// Platform tags
-	PlatformTagStart = 108,
+	PlatformTagStart = 111,
 	PlatformTagEnd = 149,
 
 	//------------------------------

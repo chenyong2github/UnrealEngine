@@ -47,6 +47,10 @@ void RegisterReplicatedLifetimeProperty(
 
 		FLifetimeProperty LifetimeProp(RepIndex, Params.Condition, Params.RepNotifyCondition, Params.bIsPushBased);
 
+#if UE_WITH_IRIS
+		LifetimeProp.CreateAndRegisterReplicationFragmentFunction = Params.CreateAndRegisterReplicationFragmentFunction;
+#endif
+
 		if (RegisteredPropertyPtr)
 		{
 			// Disabled properties can be re-enabled via DOREPLIFETIME

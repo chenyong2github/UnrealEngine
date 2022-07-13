@@ -575,6 +575,17 @@ public:
 	/** Allows components to wait on outstanding tasks prior to sending EOF update data. Executed on Game Thread and may await tasks. */
 	virtual void OnPreEndOfFrameSync() {}
 
+#if UE_WITH_IRIS
+	/** Register all replication fragments */
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	
+	/** Called when we want to start replicating this component */
+	virtual void BeginReplication();
+
+	/** Tell component to end replication */
+	virtual void EndReplication();
+#endif // UE_WITH_IRIS
+
 private:
 	/** Cached pointer to owning actor */
 	mutable AActor* OwnerPrivate;

@@ -1646,6 +1646,8 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 {
 	check(!Closing);
 
+	UE_NET_TRACE_SCOPE(ControlChannel, Bunch, Connection->GetInTraceCollector(), ENetTraceVerbosity::Trace);
+
 	// If this is a new client connection inspect the raw packet for endianess
 	if (Connection && bNeedsEndianInspection && !CheckEndianess(Bunch))
 	{
@@ -3449,6 +3451,8 @@ int64 UActorChannel::ReplicateActor()
 #if !UE_BUILD_SHIPPING
 						CSV_CUSTOM_STAT(Replication, DeletedSubobjects, 1, ECsvCustomStatOp::Accumulate);
 #endif
+						UE_NET_TRACE_SCOPE(ContentBlockForSubObjectDelete, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
+						UE_NET_TRACE_OBJECT_SCOPE(LocalReplicator->ObjectNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
 						// Write a deletion content header:
 						WriteContentBlockForSubObjectDelete(Bunch, LocalReplicator->ObjectNetGUID);
@@ -3485,6 +3489,7 @@ int64 UActorChannel::ReplicateActor()
 	int64 NumBitsWrote = 0;
 	if (bWroteSomethingImportant)
 	{
+		// We must exit the collection scope to report data correctly
 		FPacketIdRange PacketRange = SendBunch( &Bunch, 1 );
 
 		if (!bIsNewlyReplicationPaused)
@@ -4113,20 +4118,22 @@ void UActorChannel::WriteContentBlockForSubObjectDelete( FOutBunch & Bunch, FNet
 int32 UActorChannel::WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout, FNetBitWriter& Payload )
 {
 	const int32 StartHeaderBits = Bunch.GetNumBits();
+	
+	// Trace header
+	{
+		UE_NET_TRACE_SCOPE(ContentBlockHeader, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
 
-	WriteContentBlockHeader( Obj, Bunch, bHasRepLayout );
+		WriteContentBlockHeader( Obj, Bunch, bHasRepLayout );
 
-	uint32 NumPayloadBits = Payload.GetNumBits();
+		uint32 NumPayloadBits = Payload.GetNumBits();
 
-	Bunch.SerializeIntPacked( NumPayloadBits );
+		Bunch.SerializeIntPacked( NumPayloadBits );
+	}
 
 	const int32 HeaderNumBits = Bunch.GetNumBits() - StartHeaderBits;
 
-	// Trace header
-	UE_NET_TRACE(ContentBlockHeader, GetTraceCollector(Bunch), StartHeaderBits, Bunch.GetNumBits(), ENetTraceVerbosity::Trace);
-
 	// Inject payload events right after header
-	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload));
+	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload), Bunch);
 
 	Bunch.SerializeBits( Payload.GetData(), Payload.GetNumBits() );
 
@@ -4501,10 +4508,10 @@ int32 UActorChannel::WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FCl
 
 	UE_NET_TRACE(FieldHeader, GetTraceCollector(Bunch), NumOriginalBits, Bunch.GetNumBits(), ENetTraceVerbosity::Trace);
 
-	Bunch.SerializeBits( Payload.GetData(), NumPayloadBits );
-
 	// Inject trace data from payload stream	
-	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload));
+	UE_NET_TRACE_EVENTS(GetTraceCollector(Bunch), GetTraceCollector(Payload), Bunch);
+
+	Bunch.SerializeBits( Payload.GetData(), NumPayloadBits );
 
 	return Bunch.GetNumBits() - NumOriginalBits;
 }

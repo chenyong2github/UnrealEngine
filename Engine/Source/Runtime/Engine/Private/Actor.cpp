@@ -46,6 +46,11 @@
 #include "ObjectTrace.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Engine/AutoDestroySubsystem.h"
+#if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/Conditionals/ReplicationCondition.h"
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif // UE_WITH_IRIS
 #include "LevelUtils.h"
 #include "Components/DecalComponent.h"
 #include "GameFramework/InputSettings.h"
@@ -2055,6 +2060,10 @@ void AActor::SetOwner(AActor* NewOwner)
 		{
 			MarkOwnerRelevantComponentsDirty(this);
 		}
+
+#if UE_WITH_IRIS
+		UpdateOwningNetConnection();
+#endif // UE_WITH_IRIS
 	}
 }
 
@@ -2634,6 +2643,9 @@ void AActor::RouteEndPlay(const EEndPlayReason::Type EndPlayReason)
 			if (UWorld* World = GetWorld())
 			{
 				World->RemoveNetworkActor(this);
+#if UE_WITH_IRIS
+				EndReplication(EndPlayReason);
+#endif // UE_WITH_IRIS
 			}
 		}
 
@@ -2654,6 +2666,10 @@ void AActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		TRACE_OBJECT_LIFETIME_END(this);
 
 		ActorHasBegunPlay = EActorBeginPlayState::HasNotBegunPlay;
+
+#if UE_WITH_IRIS
+		EndReplication(EndPlayReason);
+#endif // UE_WITH_IRIS
 
 		// Dispatch the blueprint events
 		ReceiveEndPlay(EndPlayReason);
@@ -3242,6 +3258,8 @@ bool AActor::OwnsComponent(UActorComponent* Component) const
 void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 {
 	using namespace UE::Net;
+	
+	bool bWasRemovedFromReplicatedComponents = false;
 
 	if (Component->GetIsReplicated())
 	{
@@ -3249,8 +3267,9 @@ void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 	}
 	else
 	{
-		ReplicatedComponents.RemoveSingleSwap(Component);
+		bWasRemovedFromReplicatedComponents = ReplicatedComponents.RemoveSingleSwap(Component) > 0;
 	}
+
 
 	const ELifetimeCondition NetCondition = Component->GetIsReplicated() ? AllowActorComponentToReplicate(Component) : COND_Never;
 
@@ -3263,6 +3282,18 @@ void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 	{
 		ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(Component, NetCondition));
 	}
+
+#if UE_WITH_IRIS
+	if (NetCondition != COND_Never && HasActorBegunPlay())
+	{
+		// Begin replication and set NetCondition, if component already is replicated the NetCondition will be updated
+		Component->BeginReplication();
+	}
+	else if (bWasRemovedFromReplicatedComponents || NetCondition == COND_Never)
+	{
+		Component->EndReplication();
+	}
+#endif // UE_WITH_IRIS
 }
 
 void AActor::UpdateAllReplicatedComponents()
@@ -3275,6 +3306,13 @@ void AActor::UpdateAllReplicatedComponents()
 	for (FReplicatedComponentInfo& RepComponentInfo : ReplicatedComponentsInfo)
 	{
 		RepComponentInfo.NetCondition = COND_Never;
+#if UE_WITH_IRIS
+		// Need to end replication for all components that should no longer replicate
+		if (RepComponentInfo.Component && !RepComponentInfo.Component->GetIsReplicated())
+		{
+			RepComponentInfo.Component->EndReplication();
+		}
+#endif
 	}
 
 	for (UActorComponent* Component : OwnedComponents)
@@ -3291,6 +3329,14 @@ void AActor::UpdateAllReplicatedComponents()
 				{
 					const int32 Index = ReplicatedComponentsInfo.AddUnique(FReplicatedComponentInfo(Component));
 					ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+#if UE_WITH_IRIS
+					// Begin replication and set NetCondition, if component already is replicated the NetCondition will be updated
+					Component->BeginReplication();
+				}
+				else
+				{
+					Component->EndReplication();
+#endif
 				}
 			}
 		}
@@ -3835,6 +3881,20 @@ void AActor::SetReplicates(bool bInReplicates)
 						MyWorld->AddNetworkActor(this);
 					}
 
+#if UE_WITH_IRIS
+					if (HasActorBegunPlay())
+					{
+						if (bNewlyReplicates)
+						{
+							BeginReplication();
+						}
+						else
+						{
+							UpdateOwningNetConnection();
+						}
+					}
+#endif // UE_WITH_IRIS
+
 					ForcePropertyCompare();
 				}
 			}
@@ -3873,6 +3933,20 @@ void AActor::SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllow
 			// We have to do this so the role change above will replicate (turn off shadow state sharing for a frame)
 			// This is because RemoteRole is special since it will change between connections, so we have to special case
 			ForcePropertyCompare();
+
+#if UE_WITH_IRIS
+			// Update autonomous role condition
+			if (UReplicationSystem* ReplicationSystem = UE::Net::FReplicationSystemUtil::GetReplicationSystem(GetNetOwner()))
+			{
+				const UE::Net::FNetHandle NetHandle = UE::Net::FReplicationSystemUtil::GetNetHandle(this);
+				if (NetHandle.IsValid())
+				{
+					const uint32 OwningNetConnectionId = ReplicationSystem->GetOwningNetConnection(NetHandle);
+					const bool bEnableAutonomousCondition = RemoteRole == ROLE_AutonomousProxy;
+					ReplicationSystem->SetReplicationConditionConnectionFilter(NetHandle, UE::Net::EReplicationCondition::RoleAutonomous, OwningNetConnectionId, bEnableAutonomousCondition);
+				}
+			}
+#endif // UE_WITH_IRIS
 		}
 	}
 	else
@@ -3968,6 +4042,10 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 				ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
 			}
 		}
+
+#if UE_WITH_IRIS
+		BeginReplication();
+#endif // UE_WITH_IRIS
 
 		BeginPlay();
 
@@ -5828,7 +5906,14 @@ FRepMovement& AActor::GetReplicatedMovement_Mutable()
 
 void AActor::SetReplicatedMovement(const FRepMovement& InReplicatedMovement)
 {
+	const bool bRepPhysicsDiffers = (GetReplicatedMovement().bRepPhysics != InReplicatedMovement.bRepPhysics);
+	
 	GetReplicatedMovement_Mutable() = InReplicatedMovement;
+
+	if (bRepPhysicsDiffers)
+	{
+		UpdateReplicatePhysicsCondition();
+	}
 }
 
 void AActor::SetInstigator(APawn* InInstigator)

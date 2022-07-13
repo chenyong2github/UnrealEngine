@@ -6,6 +6,10 @@
 #include "GameplayPrediction.generated.h"
 
 class UAbilitySystemComponent;
+namespace UE::Net
+{
+	struct FPredictionKeyNetSerializer;
+}
 
 DECLARE_DELEGATE(FPredictionKeyEvent);
 
@@ -395,6 +399,7 @@ struct GAMEPLAYABILITIES_API FPredictionKey
 	UPTRINT GetPredictiveConnectionKey() const { return PredictiveConnectionKey; }
 
 private:
+	friend UE::Net::FPredictionKeyNetSerializer;
 
 	void GenerateNewPredictionKey();
 

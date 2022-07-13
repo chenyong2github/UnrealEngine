@@ -15,6 +15,18 @@ FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, c
 {}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+namespace UE::Net::Private
+{
+#if UE_WITH_IRIS
+static FIrisSetPropertyCustomCondition IrisSetPropertyCustomConditionDelegate;
+
+void SetIrisSetPropertyCustomConditionDelegate(const FIrisSetPropertyCustomCondition& Delegate)
+{
+	IrisSetPropertyCustomConditionDelegate = Delegate;
+}
+#endif // UE_WITH_IRIS
+}
+
 void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
 {
 	const bool bOldActive = ActiveState.GetActiveState(RepIndex);
@@ -25,7 +37,14 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 	{
 		MARK_PROPERTY_DIRTY_UNSAFE(OwningObject, RepIndex);
 	}
-#endif	
+#endif
+
+#if UE_WITH_IRIS
+	if (bOldActive != bIsActive && UE::Net::Private::IrisSetPropertyCustomConditionDelegate.IsBound())
+	{
+		UE::Net::Private::IrisSetPropertyCustomConditionDelegate.Execute(OwningObject, RepIndex, bIsActive);
+	}
+#endif // UE_WITH_IRIS
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -49,4 +68,3 @@ void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
 	ExternalData.CountBytes(Ar);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
-

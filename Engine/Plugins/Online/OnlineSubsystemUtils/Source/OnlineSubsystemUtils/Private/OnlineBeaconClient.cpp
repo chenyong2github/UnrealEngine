@@ -13,6 +13,7 @@
 #include "Misc/NetworkVersion.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystemUtils.h"
+#include "Containers/StringFwd.h"
 
 #define BEACON_RPC_TIMEOUT 15.0f
 
@@ -260,7 +261,10 @@ void AOnlineBeaconClient::SendInitialJoin()
 			EncryptionData.Identifier.Empty();
 		}
 
-		FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionData.Identifier);
+
+		EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+		FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionData.Identifier, LocalNetworkFeatures);
+		
 
 		NetDriver->ServerConnection->FlushNet();
 	}
@@ -455,9 +459,21 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 			{
 				// Report mismatch.
 				uint32 RemoteNetworkVersion;
+				EEngineNetworkRuntimeFeatures RemoteNetworkFeatures = EEngineNetworkRuntimeFeatures::None;
 
-				if (FNetControlMessage<NMT_Upgrade>::Receive(Bunch, RemoteNetworkVersion))
+				if (FNetControlMessage<NMT_Upgrade>::Receive(Bunch, RemoteNetworkVersion, RemoteNetworkFeatures))
 				{
+					TStringBuilder<128> RemoteFeaturesDescription;
+					FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(RemoteNetworkFeatures, RemoteFeaturesDescription);
+
+					TStringBuilder<128> LocalFeaturesDescription;
+					FNetworkVersion::DescribeNetworkRuntimeFeaturesBitset(NetDriver->GetNetworkRuntimeFeatures(), LocalFeaturesDescription);
+
+					UE_LOG(LogBeacon, Error, TEXT("Beacon is incompatible with the local version of the game: RemoteNetworkVersion=%u, RemoteNetworkFeatures=%s vs LocalNetworkVersion=%u, LocalNetworkFeatures=%s"), 
+						RemoteNetworkVersion, RemoteFeaturesDescription.ToString(),
+						FNetworkVersion::GetLocalNetworkVersion(), LocalFeaturesDescription.ToString()
+					);
+				
 					// Upgrade
 					const FString ConnectionError = NSLOCTEXT("Engine", "ClientOutdated",
 						"The match you are trying to join is running an incompatible version of the game.  Please try upgrading your game version.").ToString();

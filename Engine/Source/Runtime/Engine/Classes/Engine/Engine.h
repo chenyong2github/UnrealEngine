@@ -237,6 +237,43 @@ struct FNetDriverDefinition
 	}
 };
 
+/**
+* Struct used to configure which NetDriver is started with Iris enabled or not
+* Only one attribute out of the NetDriverDefinition, NetDriverName or NetDriverWildcardName should be set along with the bEnableIris property
+*/
+USTRUCT()
+struct FIrisNetDriverConfig 
+{
+	GENERATED_BODY()
+
+	/**
+	 * Name of the net driver definition to configure
+	 * e.g. GameNetDriver, BeaconNetDriver, etc.
+	 */
+	UPROPERTY()
+	FName NetDriverDefinition;
+
+	/**
+	 * Name of the named driver to configure.
+	 * e.g. GameNetDriver, DemoNetDriver, etc.
+	 */
+	UPROPERTY()
+	FName NetDriverName;
+
+	/**
+	 * Wildcard match the netdriver name to configure
+	 * e.g. NetDriverWildcardName="UnitTestNetDriver*" matches with UnitTestNetDriver_1, UnitTestNetDriver_2, etc.
+	 */
+	UPROPERTY()
+	FString NetDriverWildcardName;
+
+	/**
+	 * Configurable property that decides if the NetDriver will use the Iris replication system or not
+	 */
+	UPROPERTY()
+	bool bEnableIris = false;
+};
+
 
 /**
  * Active and named net drivers instantiated from an FNetDriverDefinition
@@ -2937,6 +2974,10 @@ public:
 	UPROPERTY(Config, transient)
 	TArray<FNetDriverDefinition> NetDriverDefinitions;
 
+	/** A list of Iris NetDriverConfigs */
+	UPROPERTY(Config, transient)
+	TArray<FIrisNetDriverConfig> IrisNetDriverConfigs;
+	
 	/** A configurable list of actors that are automatically spawned upon server startup (just prior to InitGame) */
 	UPROPERTY(config)
 	TArray<FString> ServerActors;

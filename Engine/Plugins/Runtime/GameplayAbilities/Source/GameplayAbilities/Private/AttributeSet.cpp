@@ -16,6 +16,10 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/UObjectThreadContext.h"
 
+#if UE_WITH_IRIS
+#include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
+#endif // UE_WITH_IRIS
+
 
 #if ENABLE_VISUAL_LOG
 namespace
@@ -370,6 +374,18 @@ void UAttributeSet::SetNetAddressable()
 {
 	bNetAddressable = true;
 }
+
+#if UE_WITH_IRIS
+void UAttributeSet::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
+{
+	using namespace UE::Net;
+
+	Super::RegisterReplicationFragments(Context, RegistrationFlags);
+
+	// Build descriptors and allocate PropertyReplicationFragments for this object
+	FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(this, Context, RegistrationFlags);
+}
+#endif // UE_WITH_IRIS
 
 void UAttributeSet::InitFromMetaDataTable(const UDataTable* DataTable)
 {

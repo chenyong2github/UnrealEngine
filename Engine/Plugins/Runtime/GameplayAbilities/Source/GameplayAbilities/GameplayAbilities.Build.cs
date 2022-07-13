@@ -46,6 +46,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
 			}
+
+			SetupIrisSupport(Target);
 		}
 	}
 }

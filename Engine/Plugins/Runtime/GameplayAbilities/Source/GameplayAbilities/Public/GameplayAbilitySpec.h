@@ -333,7 +333,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpecContainer : public FFastArraySe
 	TArray<FGameplayAbilitySpec> Items;
 
 	/** Component that owns this list */
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	UAbilitySystemComponent* Owner;
 
 	/** Initializes Owner variable */
