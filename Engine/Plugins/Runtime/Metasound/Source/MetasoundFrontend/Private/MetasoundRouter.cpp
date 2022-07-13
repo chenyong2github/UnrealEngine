@@ -8,100 +8,20 @@
 #include "MetasoundTrace.h"
 #include "HAL/IConsoleManager.h"
 
-// Convenience exec commands to push values to global params.
-static FAutoConsoleCommand GPushFloatCommand(
-	TEXT("au.MetaSound.SetFloat"),
-	TEXT("Use this with au.MetaSound.SetFloat [type] [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray< FString >& Args)
-		{
-			if (Args.Num() < 3)
-			{
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				return;
-			}
-
-			FName DataType = FName(*Args[0]);
-			FName ChannelName = FName(*Args[1]);
-			float ValueToPush = TCString<TCHAR>::Atof(*Args[2]);
-
-			Metasound::FLiteral LiteralParam(ValueToPush);
-
-			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
-		})
-);
-
-static FAutoConsoleCommand GPushBoolCommand(
-	TEXT("au.MetaSound.SetBool"),
-	TEXT("Use this with au.MetaSound.SetBool [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray< FString >& Args)
-		{
-			if (Args.Num() < 2)
-			{
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.SetBool should be called with two args- the address to send to and the value to send."));
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				return;
-			}
-
-			FName DataType = FName(*Args[0]);
-			FName ChannelName = FName(*Args[1]);
-			int32 ValueAsInt = TCString<TCHAR>::Atoi(*Args[2]);
-
-			bool ValueToPush = ValueAsInt != 0;
-
-			Metasound::FLiteral LiteralParam(ValueToPush);
-
-			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
-		})
-);
-
-static FAutoConsoleCommand GPushIntCommand(
-	TEXT("au.MetaSound.SetInt"),
-	TEXT("Use this with au.MetaSound.SetInt [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray< FString >& Args)
-		{
-			if (Args.Num() < 2)
-			{
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				return;
-			}
-
-			FName DataType = FName(*Args[0]);
-			FName ChannelName = FName(*Args[1]);
-			int32 ValueToPush = TCString<TCHAR>::Atoi(*Args[2]);
-
-			Metasound::FLiteral LiteralParam(ValueToPush);
-
-			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
-		})
-);
-
-static FAutoConsoleCommand GPushStringCommand(
-	TEXT("au.MetaSound.SetString"),
-	TEXT("Use this with au.MetaSound.SetString [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
-	FConsoleCommandWithArgsDelegate::CreateStatic(
-		[](const TArray< FString >& Args)
-		{
-			if (Args.Num() < 3)
-			{
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				UE_LOG(LogMetaSound, Warning, TEXT("au.MetaSound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
-				return;
-			}
-
-			FName DataType = FName(*Args[0]);
-			FName ChannelName = FName(*Args[1]);
-
-			Metasound::FLiteral LiteralParam(Args[2]);
-
-			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
-		})
-);
-
 namespace Metasound
 {
+	bool FTransmissionAddress::operator==(const FTransmissionAddress& InOther) const
+	{
+		return IsEqual(InOther);
+	}
+
+	bool FTransmissionAddress::operator!=(const FTransmissionAddress& InOther) const
+	{
+		return !IsEqual(InOther);
+	}
+
+	const FLazyName FSendAddress::AddressType("MetaSoundSendAddress");
+
 	FSendAddress::FSendAddress(const FString& InChannelName)
 	: ChannelName(*InChannelName)
 	, DataType()
@@ -114,6 +34,52 @@ namespace Metasound
 	, DataType(InDataType)
 	, InstanceID(InInstanceID)
 	{
+	}
+
+	FName FSendAddress::GetAddressType() const
+	{
+		return FSendAddress::AddressType;
+	}
+
+	TUniquePtr<FTransmissionAddress> FSendAddress::Clone() const 
+	{
+		return MakeUnique<FSendAddress>(*this);
+	}
+
+	FName FSendAddress::GetDataType() const
+	{
+		return DataType;
+	}
+
+	const FName& FSendAddress::GetChannelName() const
+	{
+		return ChannelName;
+	}
+
+	uint64 FSendAddress::GetInstanceID() const
+	{
+		return InstanceID;
+	}
+
+	FString FSendAddress::ToString() const
+	{
+		return FString::Format(TEXT("SendAddress {0}:{1}[Type={2}]"), {ChannelName.ToString(), InstanceID, DataType.ToString()});
+	}
+
+	uint32 FSendAddress::GetHash() const
+	{
+		uint32 HashedChannel = HashCombineFast(::GetTypeHash(DataType), ::GetTypeHash(ChannelName));
+		HashedChannel = HashCombineFast(HashedChannel, ::GetTypeHash(InstanceID));
+		return HashedChannel;
+	}
+
+	bool FSendAddress::IsEqual(const FTransmissionAddress& InOther) const
+	{
+		if (const FSendAddress* OtherSendAddress = CastAddressType<FSendAddress>(InOther))
+		{
+			return (InstanceID == OtherSendAddress->InstanceID) && (ChannelName == OtherSendAddress->ChannelName) && (DataType == OtherSendAddress->DataType); 
+		}
+		return false;
 	}
 
 	IReceiver::~IReceiver()
@@ -132,33 +98,39 @@ namespace Metasound
 		return Singleton;
 	}
 
-	TUniquePtr<ISender> FDataTransmissionCenter::RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
+	TUniquePtr<ISender> FDataTransmissionCenter::RegisterNewSender(const FTransmissionAddress& InAddress, const FSenderInitParams& InitParams)
 	{
 		return GlobalRouter.RegisterNewSender(InAddress, InitParams);
 	}
 
-	TUniquePtr<IReceiver> FDataTransmissionCenter::RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
+	TUniquePtr<IReceiver> FDataTransmissionCenter::RegisterNewReceiver(const FTransmissionAddress& InAddress, const FReceiverInitParams& InitParams)
 	{
 		return GlobalRouter.RegisterNewReceiver(InAddress, InitParams);
 	}
 
-	bool FDataTransmissionCenter::UnregisterDataChannel(const FSendAddress& InAddress)
+	bool FDataTransmissionCenter::UnregisterDataChannel(const FTransmissionAddress& InAddress)
 	{
 		return GlobalRouter.UnregisterDataChannel(InAddress);
 	}
 
-	bool FDataTransmissionCenter::UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress)
+	bool FDataTransmissionCenter::UnregisterDataChannelIfUnconnected(const FTransmissionAddress& InAddress)
 	{
 		return GlobalRouter.UnregisterDataChannelIfUnconnected(InAddress);
 	}
 
 	bool FDataTransmissionCenter::PushLiteral(FName DataType, FName GlobalChannelName, const FLiteral& InParam)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return GlobalRouter.PushLiteral(DataType, GlobalChannelName, InParam);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	FAddressRouter::FAddressRouter(const FAddressRouter& Other)
+		: DataChannelMap(Other.DataChannelMap)
+	{
+	}
 
-	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::FindDataChannel(const FSendAddress& InAddress)
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::FindDataChannel(const FTransmissionAddress& InAddress)
 	{
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel;
 
@@ -174,7 +146,7 @@ namespace Metasound
 		return Channel;
 	}
 
-	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FSendAddress& InAddress, const FOperatorSettings& InOperatorSettings)
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FTransmissionAddress& InAddress, const FOperatorSettings& InOperatorSettings)
 	{
 		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = FindDataChannel(InAddress);
@@ -194,7 +166,7 @@ namespace Metasound
 		return DataChannel;
 	}
 
-	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
+	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FTransmissionAddress& InAddress, const FSenderInitParams& InitParams)
 	{
 		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
@@ -209,7 +181,22 @@ namespace Metasound
 		}
 	}
 
-	bool FAddressRouter::UnregisterDataChannel(const FSendAddress& InAddress)
+	bool FAddressRouter::PushLiteral(const FName& InDataTypeName, const FName& InChannelName, const FLiteral& InParam)
+	{
+		FSendAddress Address{ InChannelName, InDataTypeName };
+
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel = FindDataChannel(Address);
+		if (Channel.IsValid())
+		{
+			return Channel->PushLiteral(InParam);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool FAddressRouter::UnregisterDataChannel(const FTransmissionAddress& InAddress)
 	{
 		METASOUND_LLM_SCOPE;
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
@@ -230,7 +217,7 @@ namespace Metasound
 		return DataChannelMap.Remove(InAddress) > 0;
 	}
 
-	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FSendAddress& InAddress)
+	bool FAddressRouter::UnregisterDataChannelIfUnconnected(const FTransmissionAddress& InAddress)
 	{
 		METASOUND_LLM_SCOPE;
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
@@ -249,7 +236,7 @@ namespace Metasound
 		return false;
 	}
 
-	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
+	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FTransmissionAddress& InAddress, const FReceiverInitParams& InitParams)
 	{
 		METASOUND_LLM_SCOPE;
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InAddress, InitParams.OperatorSettings);
@@ -262,5 +249,54 @@ namespace Metasound
 		{
 			return TUniquePtr<IReceiver>(nullptr);
 		}
+	}
+
+	FAddressRouter::FTransmissionAddressKey::FTransmissionAddressKey(const FTransmissionAddress& InCopy)
+	: PImpl(InCopy.Clone())
+	{}
+
+	FAddressRouter::FTransmissionAddressKey::FTransmissionAddressKey(const FTransmissionAddressKey& InCopy)
+	: PImpl(InCopy.PImpl->Clone())
+	{}
+
+	FAddressRouter::FTransmissionAddressKey::FTransmissionAddressKey(TUniquePtr<FTransmissionAddress>&& InImpl)
+	: PImpl(MoveTemp(InImpl))
+	{
+	}
+
+	FAddressRouter::FTransmissionAddressKey& FAddressRouter::FTransmissionAddressKey::operator=(const FTransmissionAddress& InOther)
+	{
+		PImpl = InOther.Clone();
+		return *this;
+	}
+
+	FName FAddressRouter::FTransmissionAddressKey::GetAddressType() const
+	{
+		return PImpl->GetAddressType();
+	}
+
+	FName FAddressRouter::FTransmissionAddressKey::GetDataType() const
+	{
+		return PImpl->GetDataType();
+	}
+
+	TUniquePtr<FTransmissionAddress> FAddressRouter::FTransmissionAddressKey::Clone() const
+	{
+		return PImpl->Clone();
+	}
+
+	FString FAddressRouter::FTransmissionAddressKey::ToString() const
+	{
+		return PImpl->ToString();
+	}
+
+	uint32 FAddressRouter::FTransmissionAddressKey::GetHash() const
+	{
+		return GetTypeHash(*PImpl);
+	}
+
+	bool FAddressRouter::FTransmissionAddressKey::IsEqual(const FTransmissionAddress& InOther) const
+	{
+		return InOther == *PImpl;
 	}
 }
