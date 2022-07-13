@@ -376,6 +376,8 @@ namespace
 		
 		// Create the view
 		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, SceneInterface, FEngineShowFlags(ESFIM_Game));
+		FGameTime Time;
+		ViewFamilyInit.SetTime(Time);
 		FSceneViewFamilyContext ViewFamily(ViewFamilyInit);
 
 		FScenePrimitiveRenderingContextScopeHelper ScenePrimitiveRenderingContextScopeHelper(GetRendererModule().BeginScenePrimitiveRendering(GraphBuilder, &ViewFamily));
