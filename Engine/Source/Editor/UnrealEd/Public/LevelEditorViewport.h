@@ -925,6 +925,9 @@ private:
 	/** If this view was controlled by another view this/last frame, don't update itself */
 	bool bWasControlledByOtherViewport;
 
+	/** Whether the user is currently using the rotation / translation widget */
+	bool bCurrentlyEditingThroughMovementWidget;
+
 	/**
 	 * When locked to an actor this view will be positioned in the same location and rotation as the actor.
 	 * If the actor has a camera component the view will also inherit camera settings such as aspect ratio, 

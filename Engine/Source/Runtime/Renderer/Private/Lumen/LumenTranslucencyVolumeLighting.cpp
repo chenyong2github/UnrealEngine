@@ -305,7 +305,8 @@ namespace LumenTranslucencyVolumeRadianceCache
 		Parameters.RadianceProbeResolution = GetProbeResolution();
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GetNumMipmaps() - 1;
-		Parameters.NumProbesToTraceBudget = GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget;
+		const float TraceBudgetScale = View.Family->bCurrentlyBeingEdited ? 10.0f : 1.0f;
+		Parameters.NumProbesToTraceBudget = GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget * TraceBudgetScale;
 		Parameters.RadianceCacheStats = GTranslucencyVolumeRadianceCacheStats;
 		return Parameters;
 	}

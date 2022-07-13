@@ -1566,7 +1566,8 @@ void UpdateRadianceCaches(
 				PassParameters->RWMaxTracesFromMaxUpdateBucket = GraphBuilder.CreateUAV(MaxTracesFromMaxUpdateBucket[RadianceCacheIndex]);
 				PassParameters->PriorityHistogram = GraphBuilder.CreateSRV(PriorityHistogram[RadianceCacheIndex]);
 				PassParameters->ProbeTraceAllocator = GraphBuilder.CreateSRV(ProbeTraceAllocator[RadianceCacheIndex], PF_R32_UINT);
-				PassParameters->NumProbesToTraceBudget = GRadianceCacheForceFullUpdate ? UINT32_MAX : RadianceCacheInputs.NumProbesToTraceBudget;
+				const float TraceBudgetScale = bPropagateGlobalLightingChange ? 4.0f : 1.0f;
+				PassParameters->NumProbesToTraceBudget = GRadianceCacheForceFullUpdate ? UINT32_MAX : RadianceCacheInputs.NumProbesToTraceBudget * TraceBudgetScale;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FSelectMaxPriorityBucketCS>();
 

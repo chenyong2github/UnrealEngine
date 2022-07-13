@@ -1747,6 +1747,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, DropPreviewMouseX(0)
 	, DropPreviewMouseY(0)
 	, bWasControlledByOtherViewport(false)
+	, bCurrentlyEditingThroughMovementWidget(false)
 	, bEditorCameraCut(false)
 	, bWasEditorCameraCut(false)
 	, bApplyCameraSpeedScaleByDistance(true)
@@ -2321,6 +2322,7 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 		bEditorCameraCut = false;
 	}
 	bWasEditorCameraCut = bEditorCameraCut;
+	bCurrentlyEditingThroughMovementWidget = false;
 
 	// Gives FindViewComponentForActor a chance to refresh once every Tick.
 	ViewComponentForActorCache.Reset();
@@ -2698,6 +2700,8 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 					}
 
 					ApplyDeltaToRotateWidget( Rot );
+
+					bCurrentlyEditingThroughMovementWidget = true;
 				}
 				else
 				{
@@ -4542,6 +4546,7 @@ void FLevelEditorViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFa
 	FEditorViewportClient::SetupViewForRendering( ViewFamily, View );
 
 	ViewFamily.bDrawBaseInfo = bDrawBaseInfo;
+	ViewFamily.bCurrentlyBeingEdited = bCurrentlyEditingThroughMovementWidget;
 
 	// Don't use fading or color scaling while we're in light complexity mode, since it may change the colors!
 	if(!ViewFamily.EngineShowFlags.LightComplexity)

@@ -1825,6 +1825,9 @@ public:
 	/** Indicates whether, or not, the base attachment volume should be drawn. */
 	bool bDrawBaseInfo;
 
+	/** Whether the scene is currently being edited, which can be used to speed up lighting propagation. */
+	bool bCurrentlyBeingEdited;
+
 	/**
 	 * Indicates whether the shader world space position should be forced to 0. Also sets the view vector to (0,0,1) for all pixels.
 	 * This is used in the texture streaming build when computing material tex coords scale.

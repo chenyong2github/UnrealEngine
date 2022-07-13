@@ -2376,7 +2376,7 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 {
 	FLumenGlobalLightingState& GlobalLightingState = LumenSceneData.GlobalLightingState;
 
-	bool bModifySceneStateVersion = false;
+	bool bPropagateGlobalLightingChange = false;
 	const FLightSceneInfo* DirectionalLightSceneInfo = nullptr;
 
 	for (const FLightSceneInfo* LightSceneInfo : Scene->DirectionalLights)
@@ -2390,15 +2390,14 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 		}
 	}
 
-	if (DirectionalLightSceneInfo && GlobalLightingState.bDirectionalLightValid)
 	{
-		const float OldMax = GlobalLightingState.DirectionalLightColor.GetMax();
-		const float NewMax = DirectionalLightSceneInfo->Proxy->GetColor().GetMax();
-		const float Ratio = OldMax / FMath::Max(NewMax, .00001f);
+		const float OldMax = GlobalLightingState.bDirectionalLightValid ? GlobalLightingState.DirectionalLightColor.GetMax() : 0.0f;
+		const float NewMax = DirectionalLightSceneInfo ? DirectionalLightSceneInfo->Proxy->GetColor().GetMax() : 0.0f;
+		const float Ratio = FMath::Max(OldMax, .00001f) / FMath::Max(NewMax, .00001f);
 
 		if (Ratio > 4.0f || Ratio < .25f)
 		{
-			bModifySceneStateVersion = true;
+			bPropagateGlobalLightingChange = true;
 		}
 	}
 
@@ -2415,15 +2414,14 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 
 	const FSkyLightSceneProxy* SkyLightProxy = Scene->SkyLight;
 
-	if (SkyLightProxy && GlobalLightingState.bSkyLightValid)
 	{
-		const float OldMax = GlobalLightingState.SkyLightColor.GetMax();
-		const float NewMax = SkyLightProxy->GetEffectiveLightColor().GetMax();
-		const float Ratio = OldMax / FMath::Max(NewMax, .00001f);
+		const float OldMax = GlobalLightingState.bSkyLightValid ? GlobalLightingState.SkyLightColor.GetMax() : 0.0f;
+		const float NewMax = SkyLightProxy ? SkyLightProxy->GetEffectiveLightColor().GetMax() : 0.0f;
+		const float Ratio = FMath::Max(OldMax, .00001f) / FMath::Max(NewMax, .00001f);
 
 		if (Ratio > 4.0f || Ratio < .25f)
 		{
-			bModifySceneStateVersion = true;
+			bPropagateGlobalLightingChange = true;
 		}
 	}
 
@@ -2438,7 +2436,7 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 		GlobalLightingState.bSkyLightValid = false;
 	}
 
-	return bModifySceneStateVersion;
+	return bPropagateGlobalLightingChange;
 }
 
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)

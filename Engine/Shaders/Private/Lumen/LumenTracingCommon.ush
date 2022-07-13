@@ -653,7 +653,7 @@ void RayTraceSingleMeshSDF(
 			DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
 		#endif
 
-		float Coverage = DFObjectData.bMostlyTwoSided ? 0.0f : 1.0f;
+		float Coverage = DFObjectData.bMostlyTwoSided && bDitheredTransparency ? 0.0f : 1.0f;
 		float ExpandSurfaceScale = lerp(MeshSDFNotCoveredExpandSurfaceScale, 1.0f, Coverage);
 
 		bool bRayStartInsideGeometry = false;

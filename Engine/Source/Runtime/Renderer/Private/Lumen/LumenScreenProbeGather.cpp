@@ -524,7 +524,8 @@ namespace LumenScreenProbeGatherRadianceCache
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
 		const float LightingUpdateSpeed = FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 4.0f);
-		Parameters.NumProbesToTraceBudget = FMath::RoundToInt(GRadianceCacheNumProbesToTraceBudget * LightingUpdateSpeed);
+		const float EditingBudgetScale = View.Family->bCurrentlyBeingEdited ? 10.0f : 1.0f;
+		Parameters.NumProbesToTraceBudget = FMath::RoundToInt(GRadianceCacheNumProbesToTraceBudget * LightingUpdateSpeed * EditingBudgetScale);
 		Parameters.RadianceCacheStats = GRadianceCacheStats;
 		return Parameters;
 	}
@@ -1473,7 +1474,8 @@ void UpdateHistoryScreenProbeGather(
 						PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
 
 						const float MaxFramesAccumulatedScale = 1.0f / FMath::Sqrt(FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 8.0f));
-						PassParameters->MaxFramesAccumulated = FMath::RoundToInt(GLumenScreenProbeTemporalMaxFramesAccumulated * MaxFramesAccumulatedScale);
+						const float EditingScale = View.Family->bCurrentlyBeingEdited ? .5f : 1.0f;
+						PassParameters->MaxFramesAccumulated = FMath::RoundToInt(GLumenScreenProbeTemporalMaxFramesAccumulated * MaxFramesAccumulatedScale * EditingScale);
 						PassParameters->HistoryNormalCosThreshold = FMath::Cos(GLumenScreenProbeTemporalHistoryNormalThreshold * (float)PI / 180.0f);
 						PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
 

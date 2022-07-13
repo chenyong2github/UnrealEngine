@@ -2826,6 +2826,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	}
 
 	bDrawBaseInfo = true;
+	bCurrentlyBeingEdited = false;
 	bNullifyWorldSpacePosition = false;
 #endif
 	LandscapeLODOverride = -1;
