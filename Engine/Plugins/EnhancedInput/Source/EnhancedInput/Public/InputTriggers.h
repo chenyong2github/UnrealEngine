@@ -122,7 +122,7 @@ public:
 	/* Decides whether this trigger ticks every frame or not.
 	 * This WILL affect performance and should only be used in specific custom triggers.
 	 */
-	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Trigger Settings")
+	UPROPERTY(Config, BlueprintReadOnly, Category = "Trigger Settings")
 	bool bShouldAlwaysTick = false;
 
 	/*
