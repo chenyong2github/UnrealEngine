@@ -5580,7 +5580,7 @@ UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 UChannel* UNetDriver::InternalCreateChannelByName(const FName& ChName)
 {
 	LLM_SCOPE_BYTAG(NetChannel);
-	return NewObject<UChannel>(GetTransientPackage(), ChannelDefinitionMap[ChName].ChannelClass);
+	return NewObject<UChannel>(this, ChannelDefinitionMap[ChName].ChannelClass);
 }
 
 void UNetDriver::ReleaseToChannelPool(UChannel* Channel)
