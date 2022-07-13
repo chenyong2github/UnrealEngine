@@ -341,6 +341,8 @@ public:
 
 			// We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
 			TargetNumTris = FMath::Max( TargetNumTris, 2u );
+			// Clamp to a minimum of 4 vertices, ReductionSettings.PercentVertices can be zero which makes TargetNumVerts also zero
+			TargetNumVerts = FMath::Max(TargetNumVerts, 4u);
 
 			if( TargetNumVerts < NumVerts || TargetNumTris < NumTris )
 			{
