@@ -65,18 +65,10 @@ public:
 	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
 	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
 	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
-	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
-	virtual void Cleanup() override;
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject interface
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif	
 	//~ End UObject interface
 
 	/** Returns a const reference to input data used to evaluate the lens file */
@@ -92,7 +84,7 @@ protected:
 	UE_DEPRECATED(5.1, "This function has been deprecated. Nodal Offset is now applied by the LensComponent")
 	void ApplyNodalOffset(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent);
 
-	/** Update distortion state */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Distortion is now applied by the LensComponent")
 	void ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
 
 	UE_DEPRECATED(5.1, "The use of this callback by this class has been deprecated and it is no longer registered. You can register your own delegate with FWorldDelegates::OnWorldPostActorTick")
@@ -123,39 +115,29 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	FLensFilePicker LensFilePicker;
 
-	/** Whether to use the cropped filmback setting to drive the filmback of the attached camera component */
-	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
-	bool bUseCroppedFilmback = false;
-
-	/** 
-	 * If a LensFile is being evaluated, the filmback saved in that LensFile will drive the attached camera component to ensure correct calibration.
-	 * If bUseCroppedFilmback is true, this value will be applied to the camera component and used to evaluate the LensFile instead.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
-	FCameraFilmbackSettings CroppedFilmback;
-
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
 	UPROPERTY()
 	bool bApplyNodalOffset_DEPRECATED = true;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use the corresponding setting in the LensComponent instead.")
+	UPROPERTY()
+	bool bUseCroppedFilmback_DEPRECATED = false;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use the corresponding setting in the LensComponent instead.")
+	UPROPERTY()
+	FCameraFilmbackSettings CroppedFilmback_DEPRECATED;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use the corresponding setting in the LensComponent instead.")
+	UPROPERTY()
+	bool bScaleOverscan_DEPRECATED = false;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use the corresponding setting in the LensComponent instead.")
+	UPROPERTY()
+	float OverscanMultiplier_DEPRECATED = 1.0f;
 #endif //WITH_EDITORONLY_DATA
 
-	/** Whether to scale the computed overscan by the overscan percentage */
-	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration")
-	bool bScaleOverscan = false;
-
-	/** The percentage of the computed overscan that should be applied to the target camera */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Calibration", meta = (EditCondition = "bScaleOverscan", ClampMin = "0.0", ClampMax = "2.0"))
-	float OverscanMultiplier = 1.0f;
-
 protected:
-	/** Cached distortion handler associated with attached camera component */
-	UPROPERTY(Transient)
-	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-
-	/** Unique identifier representing the source of distortion data */
-	UPROPERTY(DuplicateTransient)
-	FGuid DistortionProducerID;
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
@@ -165,6 +147,14 @@ protected:
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
 	UPROPERTY()
 	FVector OriginalCameraLocation_DEPRECATED;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer evaluated distortion.")
+	UPROPERTY(Transient)
+	ULensDistortionModelHandlerBase* LensDistortionHandler_DEPRECATED = nullptr;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer evaluated distortion.")
+	UPROPERTY(DuplicateTransient)
+	FGuid DistortionProducerID_DEPRECATED;
 #endif //WITH_EDITORONLY_DATA
 
 	/** Used to control which data from LiveLink is actually applied to camera */
@@ -182,8 +172,5 @@ protected:
 	FLensFileEvalData LensFileEvalData;
 
 private:
-	//Last values used to detect changes made by the user and update our original caches
-	FCameraFilmbackSettings LastFilmback;
-
 	double LastLensTableVerificationTimestamp = 0.0;
 };

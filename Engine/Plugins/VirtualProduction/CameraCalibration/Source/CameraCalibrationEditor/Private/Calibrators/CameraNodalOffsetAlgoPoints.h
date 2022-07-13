@@ -97,6 +97,9 @@ protected:
 		// True if the cached camera pose included a nodal offset
 		bool bWasNodalOffsetApplied;
 
+		// True if distortion was evaluated (using this LensFile) 
+		bool bWasDistortionEvaluated;
+
 		// The data used to evaluate the lens data in the camera for this sample
 		FLensFileEvalData LensFileEvalData;
 
@@ -231,9 +234,6 @@ protected:
 
 	/** Returns true if the input component is in the set of active calibration components */
 	bool IsCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent) const;
-
-	/** Check whether the input camera has a lens component that is currently applying a nodal offset to the camera pose */
-	bool DoesCameraPoseIncludeNodalOffset(const ACameraActor* Camera) const;
 
 	/** Update any calibration components in the set of active components if they were replaced by an in-editor event */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);

@@ -6,9 +6,12 @@
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/Engine.h"
+#include "LensComponent.h"
 #include "LensDistortionModelHandlerBase.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogCompositingCaptureBase, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ACompositingCaptureBase::ACompositingCaptureBase()
 {
 	// Create the SceneCapture component and assign its parent to be the RootComponent (the ComposurePostProcessingPassProxy)
@@ -17,6 +20,32 @@ ACompositingCaptureBase::ACompositingCaptureBase()
 
 	// The SceneCaptureComponent2D default constructor disables TAA, but CG Compositing Elements enable it by default
 	SceneCaptureComponent2D->ShowFlags.TemporalAA = true;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void ACompositingCaptureBase::PostInitProperties()
+{
+	Super::PostInitProperties();
+	EObjectFlags ExcludeFlags = RF_ArchetypeObject | RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects | RF_WasLoaded;
+	if (!HasAnyFlags(ExcludeFlags))
+	{
+		ACameraActor* TargetCamera = FindTargetCamera();
+
+		if (TargetCamera)
+		{
+			ULensComponent* CurrentLensComponent = Cast<ULensComponent>(LensComponentPicker.GetComponent(TargetCamera));
+			if (!CurrentLensComponent)
+			{
+				TInlineComponentArray<ULensComponent*> LensComponents;
+				TargetCamera->GetComponents(LensComponents);
+
+				if (LensComponents.Num() > 0)
+				{
+					SetLens(LensComponents[0]);
+				}
+			}
+		}
+	}
 }
 
 void ACompositingCaptureBase::UpdateDistortion()
@@ -27,24 +56,21 @@ void ACompositingCaptureBase::UpdateDistortion()
 	{
 		return;
 	}
-	
+
  	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCamera->GetCameraComponent()))
 	{
-		DistortionSource.TargetCameraComponent = CineCameraComponent;
-
 		// Query the camera calibration subsystem for a handler associated with the TargetCamera and matching the user selection
 		ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-		if (SubSystem)
-		{
-			LensDistortionHandler = SubSystem->FindDistortionModelHandler(DistortionSource);
 
-			// Get the focal length of the target camera (before any overscan could have been applied) to prevent double overscan
-			const bool bCouldBeDistorted = SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
-			if (!bCouldBeDistorted)
-			{
-				OriginalFocalLength = CineCameraComponent->CurrentFocalLength;
-			}
+		ULensComponent* LensComponent = Cast<ULensComponent>(LensComponentPicker.GetComponent(TargetCamera));
+		if (LensComponent && LensComponent->GetOwner() == TargetCamera)
+		{
+			OriginalFocalLength = LensComponent->GetOriginalFocalLength();
+			LensDistortionHandler = LensComponent->GetLensDistortionHandler();
+		}
+		else
+		{
+			OriginalFocalLength = CineCameraComponent->CurrentFocalLength;
 		}
 
 		if (LensDistortionHandler)
@@ -65,7 +91,7 @@ void ACompositingCaptureBase::UpdateDistortion()
 			// If distortion should be applied, add/update the distortion MID to the scene capture's post process materials. Otherwise, remove it.
 			if (SceneCaptureComponent2D)
 			{
-				if (bApplyDistortion)
+				if (bApplyDistortion && LensComponent->WasDistortionEvaluated())
 				{
 					OverscanFactor = LensDistortionHandler->GetOverscanFactor();
 					SceneCaptureComponent2D->AddOrUpdateBlendable(NewDistortionMID);
@@ -95,29 +121,8 @@ void ACompositingCaptureBase::PostEditChangeProperty(struct FPropertyChangedEven
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ACompositingCaptureBase, TargetCameraActor)))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(ACompositingCaptureBase, TargetCameraActor))
 	{
-		if (TargetCameraActor)
-		{
-			if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraActor->GetCameraComponent()))
-			{
-				DistortionSource.TargetCameraComponent = CineCameraComponent;
-
-				ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-				if (SubSystem)
-				{
-					LensDistortionHandler = SubSystem->FindDistortionModelHandler(DistortionSource);
-				}
-
-				if (LensDistortionHandler == nullptr)
-				{
-					DistortionSource.DistortionProducerID.Invalidate();
-					DistortionSource.HandlerDisplayName.Empty();
-				}
-			}
-		}
-
 		// If there is no target camera, remove the last distortion post-process MID from the scene capture
 		if (TargetCameraActor == nullptr)
 		{
@@ -131,6 +136,20 @@ void ACompositingCaptureBase::PostEditChangeProperty(struct FPropertyChangedEven
 			return;
 		}
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ACompositingCaptureBase, LensComponentPicker))
+	{
+		if (ACameraActor* TargetCamera = FindTargetCamera())
+		{
+			ULensComponent* LensComponent = Cast<ULensComponent>(LensComponentPicker.GetComponent(TargetCamera));
+			if (LensComponent && LensComponent->GetOwner() != TargetCamera)
+			{
+				UE_LOG(LogCompositingCaptureBase, Warning, TEXT("Lens Component '%s' is not attached to the target Camera Actor '%s' for the CG layer '%s'.")
+					, *LensComponent->GetReadableName()
+					, *TargetCamera->GetActorLabel(false)
+					, *this->GetActorLabel(false));
+			}
+		}
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -142,30 +161,32 @@ void ACompositingCaptureBase::SetApplyDistortion(bool bInApplyDistortion)
 	UpdateDistortion();
 }
 
+void ACompositingCaptureBase::SetLens(ULensComponent* InLens)
+{
+	if (InLens)
+	{
+		LensComponentPicker.OtherActor = InLens->GetOwner();
+		LensComponentPicker.PathToComponent = InLens->GetPathName(InLens->GetOwner());
+	}
+}
+
 void ACompositingCaptureBase::SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler)
 {
-	if (InDistortionHandler)
-	{
-		DistortionSource.DistortionProducerID = InDistortionHandler->GetDistortionProducerID();
-		DistortionSource.HandlerDisplayName = InDistortionHandler->GetDisplayName();
-	}
-	else
-	{
-		DistortionSource.DistortionProducerID = FGuid();
-		DistortionSource.HandlerDisplayName = FString();
-	}
-
-	UpdateDistortion();
+	// This function has been deprecated.
 }
 
 ULensDistortionModelHandlerBase* ACompositingCaptureBase::GetDistortionHandler()
 {
-	UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
+	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
-	if (!SubSystem)
+	if (ACameraActor* TargetCamera = FindTargetCamera())
 	{
-		return nullptr;
+		ULensComponent* LensComponent = Cast<ULensComponent>(LensComponentPicker.GetComponent(TargetCamera));
+		if (LensComponent && LensComponent->GetOwner() == TargetCamera)
+		{
+			LensDistortionHandler = LensComponent->GetLensDistortionHandler();
+		}
 	}
 
-	return SubSystem->FindDistortionModelHandler(DistortionSource);
+	return LensDistortionHandler;
 }

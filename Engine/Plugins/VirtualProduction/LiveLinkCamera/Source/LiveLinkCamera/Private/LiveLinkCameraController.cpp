@@ -17,71 +17,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkCameraController, Log, All);
 
-namespace LiveLinkCameraControllerUtils
-{
-	/** 
-	 * Finds indices of neighbor focus points for a given focus value and verify if both have only one zoom point 
-	 * Copied from private LensTablesUtils.
-	 */
-	template<typename Type>
-	bool HasSingleZoomPointInvolved(float InFocus, TConstArrayView<Type> Container)
-	{
-		if (Container.Num() <= 0)
-		{
-			return false;
-		}
-
-		int32 FirstFocusPointIndex = INDEX_NONE;
-		int32 SecondFocusPointIndex = INDEX_NONE;
-		for (int32 Index = 0; Index < Container.Num(); ++Index)
-		{
-			const Type& Point = Container[Index];
-			if (Point.Focus > InFocus)
-			{
-				SecondFocusPointIndex = Index;
-				FirstFocusPointIndex = FMath::Max(Index - 1, 0);
-				break;
-			}
-			else if (FMath::IsNearlyEqual(Point.Focus, InFocus))
-			{
-				//We found a point exactly matching the desired one
-				SecondFocusPointIndex = Index;
-				FirstFocusPointIndex = Index;
-				break;
-			}
-		}
-
-		//We haven't found a point, default to last one
-		if (FirstFocusPointIndex == INDEX_NONE || SecondFocusPointIndex == INDEX_NONE)
-		{
-			SecondFocusPointIndex = Container.Num() - 1;
-			FirstFocusPointIndex = Container.Num() - 1;
-		}
-
-		return Container[FirstFocusPointIndex].GetNumPoints() <= 1 && Container[SecondFocusPointIndex].GetNumPoints() <= 1;
-	}
-}
-
 ULiveLinkCameraController::ULiveLinkCameraController()
 {
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
 }
 
 void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData)
 {
 	// Invalidate the lens file evaluation data
 	LensFileEvalData.Invalidate();
-
-	if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(GetAttachedComponent()))
-	{
-		if (AActor* Camera = Cast<AActor>(GetOuterActor()))
-		{
-			LensFileEvalData.Camera.UniqueId = Camera->GetUniqueID();
-		}
-	}
 
 	const FLiveLinkCameraStaticData* StaticData = SubjectData.StaticData.Cast<FLiveLinkCameraStaticData>();
 	const FLiveLinkCameraFrameData* FrameData = SubjectData.FrameData.Cast<FLiveLinkCameraFrameData>();
@@ -133,81 +76,25 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 				ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 				LensFileEvalData.LensFile = SelectedLensFile;
 
-				// If we're using a lens file, use its sensor dimensions unless Live Link is streaming different values
-				if (SelectedLensFile)
-				{
-					if (bUseCroppedFilmback)
-					{
-						LensFileEvalData.Distortion.Filmback.X = CroppedFilmback.SensorWidth;
-					}
-					else if ((StaticData->FilmBackWidth > 0.0f) && UpdateFlags.bApplyFilmBack) 
-					{ 
-						LensFileEvalData.Distortion.Filmback.X = StaticData->FilmBackWidth;
-					}
-					else
-					{
-						LensFileEvalData.Distortion.Filmback.X = SelectedLensFile->LensInfo.SensorDimensions.X;
-					}
-
-					if (bUseCroppedFilmback)
-					{
-						LensFileEvalData.Distortion.Filmback.Y = CroppedFilmback.SensorHeight;
-					}
-					else if ((StaticData->FilmBackHeight > 0.0f) && UpdateFlags.bApplyFilmBack)
-					{
-						LensFileEvalData.Distortion.Filmback.Y = StaticData->FilmBackHeight;
-					}
-					else
-					{
-						LensFileEvalData.Distortion.Filmback.Y = SelectedLensFile->LensInfo.SensorDimensions.Y;
-					}
-
-					CineCameraComponent->Filmback.SensorWidth = LensFileEvalData.Distortion.Filmback.X;
-					CineCameraComponent->Filmback.SensorHeight = LensFileEvalData.Distortion.Filmback.Y;
-				}
-				else
-				{
-					if (StaticData->FilmBackWidth > 0.0f && UpdateFlags.bApplyFilmBack) 
-					{ 
-						CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; 
-					}
-
-					if (StaticData->FilmBackHeight > 0.0f && UpdateFlags.bApplyFilmBack) 
-					{ 
-						CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; 
-					}
+				if (StaticData->FilmBackWidth > 0.0f && UpdateFlags.bApplyFilmBack) 
+				{ 
+					CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; 
 				}
 
-				// If the filmback changed and there is a lens file selected, warn the user if it is incompatible with it
-				if (LastFilmback != CineCameraComponent->Filmback)
-				{
-					if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
-					{
-						UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
-							, *SelectedLensFile->GetName()
-							, *CineCameraComponent->GetOwner()->GetName()
-							, *this->GetName());
-					}
+				if (StaticData->FilmBackHeight > 0.0f && UpdateFlags.bApplyFilmBack) 
+				{ 
+					CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; 
 				}
 
 				//Verify different Lens Tables based on streamed FIZ at some intervals
-				static const double TableVerificationInterval = 10;
-				if ((FPlatformTime::Seconds() - LastLensTableVerificationTimestamp) >= TableVerificationInterval)
-				{
-					LastLensTableVerificationTimestamp = FPlatformTime::Seconds();
-					VerifyFIZWithLensFileTables(SelectedLensFile, StaticData);
-				}
+ 				static const double TableVerificationInterval = 10;
+ 				if ((FPlatformTime::Seconds() - LastLensTableVerificationTimestamp) >= TableVerificationInterval)
+ 				{
+ 					LastLensTableVerificationTimestamp = FPlatformTime::Seconds();
+ 					VerifyFIZWithLensFileTables(SelectedLensFile, StaticData);
+ 				}
 
 				ApplyFIZ(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
-				ApplyDistortion(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
-
-				LastFilmback = CineCameraComponent->Filmback;
-
-				UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-				if (SubSystem)
-				{
-					SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
-				}
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -235,113 +122,10 @@ TSubclassOf<UActorComponent> ULiveLinkCameraController::GetDesiredComponentClass
 	return UCameraComponent::StaticClass();
 }
 
-void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorComponent)
-{
-	Super::SetAttachedComponent(ActorComponent);
-
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-	{	
-		// Initialize the most recent filmback and component transform to the current values of the camera to properly detect changes to this property
-		LastFilmback = CineCameraComponent->Filmback;
-
-		ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
-		if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
-		{
-			UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
-				, *SelectedLensFile->GetName()
-				, *CineCameraComponent->GetOwner()->GetName()
-				, *this->GetName());
-		}
-	}
-}
-
-void ULiveLinkCameraController::Cleanup()
-{
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-	{
-		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
-		{
-			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, LensDistortionHandler);
-		}
-	}
-}
-
-void ULiveLinkCameraController::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
-}
-
-void ULiveLinkCameraController::PostEditImport()
-{
-	Super::PostEditImport();
-
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
-}
-
 void ULiveLinkCameraController::SetApplyNodalOffset(bool bInApplyNodalOffset)
 {
 	// The use of this function has been deprecated.
 }
-
-#if WITH_EDITOR
-bool ULiveLinkCameraController::CanEditChange(const FProperty* InProperty) const
-{
-	const FName PropertyName = InProperty->GetFName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, bUseCroppedFilmback))
-	{
-		if (LensFilePicker.GetLensFile())
-		{
-			return true;
-		}
-		return false;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, CroppedFilmback))
-	{
-		if (LensFilePicker.GetLensFile() && bUseCroppedFilmback)
-		{
-			return true;
-		}
-		return false;
-	}
-
-	return Super::CanEditChange(InProperty);
-}
-
-void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, bUseDefaultLensFile))
-	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-		{
-			ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
-			if (SelectedLensFile)
-			{
-				if (SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
-				{
-					UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
-						, *SelectedLensFile->GetName()
-						, *CineCameraComponent->GetName()
-						, *this->GetName());
-				}
-			}
-		}
-
-		//When LensFile is changed, force update Table verification
-		LastLensTableVerificationTimestamp = 0;
-	}
-}
-#endif
 
 void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData)
 {
@@ -388,46 +172,6 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			CineCameraComponent->LensSettings.MinFStop = FMath::Min(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->CurrentAperture);
 			CineCameraComponent->LensSettings.MaxFStop = FMath::Max(CineCameraComponent->LensSettings.MaxFStop, CineCameraComponent->CurrentAperture);
 		}
-		
-		if (UpdateFlags.bApplyFocalLength)
-		{
-			//To evaluate focal length, we need F/Z pair. If F or Z is not streamed, we use the default value (0)
-			
-			const float FocusValue = LensFileEvalData.Input.Focus;
-			bool bHasValidFocalLength = false;
-			const float ZoomValue = LensFileEvalData.Input.Zoom;
-			FFocalLengthInfo FocalLengthInfo;
-			if (LensFile->EvaluateFocalLength(FocusValue, ZoomValue, FocalLengthInfo))
-			{
-				if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
-				{
-					// This is how field of view, filmback, and focal length are related:
-					//
-					// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
-					// => FocalLength = Fx*FilmbackX
-					// 
-					// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
-					// => FilmbackY = FocalLength / Fy
-
-					// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
-					const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
-					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
-
-					// Update the minimum and maximum focal length of the camera (if needed)
-					CineCameraComponent->LensSettings.MinFocalLength = FMath::Max(FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, NewFocalLength), 0.01);
-					CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, NewFocalLength), 0.01);
-
-					CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
-					bHasValidFocalLength = true;
-				}
-			}
-
-			//If FocalLength could not be applied and it's streamed in, use LiveLink input directly without affecting filmback
-			if (StaticData->bIsFocalLengthSupported && bHasValidFocalLength == false)
-			{
-				CineCameraComponent->SetCurrentFocalLength(ZoomValue);
-			}
-		}
 	}
 	else
 	{
@@ -445,28 +189,38 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 				const float NewAperture = FMath::Lerp(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->LensSettings.MaxFStop, FrameData->Aperture);
 				CineCameraComponent->CurrentAperture = NewAperture;
 			}
-			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
-			{
-				const float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
-				CineCameraComponent->SetCurrentFocalLength(NewZoom);
-			}
 		}
 		else
 		{
 			if (StaticData->bIsFocusDistanceSupported && UpdateFlags.bApplyFocusDistance)
 			{
-				CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance;
+				if (FrameData->FocusDistance > 1.0f)
+				{
+					CineCameraComponent->FocusSettings.ManualFocusDistance = FrameData->FocusDistance;
+				}
 			}
 
 			if (StaticData->bIsApertureSupported && UpdateFlags.bApplyAperture)
 			{
-				CineCameraComponent->CurrentAperture = FrameData->Aperture;
+				if (FrameData->Aperture > 1.0f)
+				{
+					CineCameraComponent->CurrentAperture = FrameData->Aperture;
+				}
 			}
+		}
+	}
 
-			if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
-			{
-				CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength);
-			}
+	// Handle Focal Length
+	if (StaticData->bIsFocalLengthSupported && UpdateFlags.bApplyFocalLength)
+	{
+		if (bUseCameraRange)
+		{
+			const float NewZoom = FMath::Lerp(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->LensSettings.MaxFocalLength, FrameData->FocalLength);
+			CineCameraComponent->SetCurrentFocalLength(NewZoom);
+		}
+		else if (FrameData->FocalLength > 1.0f)
+		{
+			CineCameraComponent->SetCurrentFocalLength(FrameData->FocalLength);
 		}
 	}
 }
@@ -478,35 +232,7 @@ void ULiveLinkCameraController::ApplyNodalOffset(ULensFile* SelectedLensFile, UC
 
 void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData)
 {
-	//Even if no FIZ was streamed in, we evaluate LensFile for distortion using default values (0.0f) like we do when applying FIZ
-	if (LensFile)
-	{
-		UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-		const FString HandlerDisplayName = FString::Format(TEXT("{0} (Lens File)"), { LensFile->GetFName().ToString() });
-
-		FDistortionHandlerPicker DistortionHandlerPicker = { CineCameraComponent, DistortionProducerID, HandlerDisplayName };
-		LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionHandlerPicker, LensFile->LensInfo.LensModel);
-
-		if (LensDistortionHandler)
-		{
-			//Go through the lens file to get distortion data based on FIZ
-			//Our handler's displacement map will get updated
-			LensFileEvalData.Distortion.bWasEvaluated = true;
-
-			//Evaluate distortion using filmback not including SensorHeight modification based on Fy
-			LensFile->EvaluateDistortionData(LensFileEvalData.Input.Focus
-											, LensFileEvalData.Input.Zoom
-											, LensFileEvalData.Distortion.Filmback
-											, LensDistortionHandler);
-
-			// Adjust overscan by the overscan multiplier
-			if (bScaleOverscan)
-			{
-				const float ScaledOverscanFactor = ((LensDistortionHandler->GetOverscanFactor() - 1.0f) * OverscanMultiplier) + 1.0f;
-				LensDistortionHandler->SetOverscanFactor(ScaledOverscanFactor);
-			}
-		}
-	}
+	// The use of this function has been deprecated.
 }
 
 void ULiveLinkCameraController::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
@@ -539,92 +265,6 @@ void ULiveLinkCameraController::VerifyFIZWithLensFileTables(ULensFile* LensFile,
 			{
 				static const FName NAME_InvalidIrisMappingWhenNotStreamed = "LiveLinkCamera_IrisNotStreamedInvalidMapping";
 				FLiveLinkLog::WarningOnce(NAME_InvalidIrisMappingWhenNotStreamed, FakedSubjectKey, TEXT("Problem applying Iris for subject '%s' using LensFile '%s'. Iris wasn't streamed in and more than one iris mapping was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-			}
-		}
-
-		if (UpdateFlags.bApplyFocalLength)
-		{
-			if (StaticData->bIsFocusDistanceSupported == false)
-			{
-				// If the LiveLink source is not streaming focus, we will default to evaluate at 0.0f.
-				// In this case, it is expected that there is only one mapping, so warn the user if this is not the case.
-				const int32 FocalLengthFocusPointCount = LensFile->FocalLengthTable.GetFocusPointNum();
-				if (FocalLengthFocusPointCount > 0 && FocalLengthFocusPointCount != 1)
-				{
-					static const FName NAME_InvalidFocalLengthMappingWhenNoFocusStreamed = "LiveLinkCamera_FocusNotStreamedInvalidFocalLengthMapping";
-					FLiveLinkLog::WarningOnce(NAME_InvalidFocalLengthMappingWhenNoFocusStreamed, FakedSubjectKey, TEXT("Problem applying FocalLength using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one focal length focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-				}
-			}
-
-			if (StaticData->bIsFocalLengthSupported == false)
-			{
-				// If the LiveLink source is not streaming zoom, but the lens file has a valid mapping,
-				// evaluate the mapping at 0.0f. In this case, it is expected that the mapping will have 
-				// exactly one value in it, so warn the user if this is not the case.
-				if (LensFile->FocalLengthTable.GetFocusPointNum() > 0)
-				{
-					//Find FocusPoints involved for streamed Focus value. If there are, make sure there is only one zoom point in both of them or warn the user
-					if (LiveLinkCameraControllerUtils::HasSingleZoomPointInvolved(LensFileEvalData.Input.Focus, LensFile->FocalLengthTable.GetFocusPoints()) == false)
-					{
-						static const FName NAME_InvalidFocalLengthMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidFocalLengthMapping";
-						FLiveLinkLog::WarningOnce(NAME_InvalidFocalLengthMappingWhenNotStreamed, FakedSubjectKey, TEXT("Problem applying FocalLength using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one focal length zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-					}
-				}
-			}
-		}
-
-		//Verify distortion and image center tables 
-		{
-			if (StaticData->bIsFocusDistanceSupported == false)
-			{
-				//No focus : Look for single focus point in tables
-				if (LensFile->DataMode == ELensDataMode::Parameters && LensFile->DistortionTable.GetFocusPointNum() > 0 && LensFile->DistortionTable.GetFocusPointNum() != 1)
-				{
-					static const FName NAME_InvalidDistortionMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidDistortionMapping";
-					FLiveLinkLog::WarningOnce(NAME_InvalidDistortionMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating Distortion data using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one Distortion focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-				}
-
-				if (LensFile->ImageCenterTable.GetFocusPointNum() > 0 && LensFile->ImageCenterTable.GetFocusPointNum() != 1)
-				{
-					static const FName NAME_InvalidImageCenterMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidImageCenterMapping";
-					FLiveLinkLog::WarningOnce(NAME_InvalidImageCenterMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating ImageCenter data using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one ImageCenter focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-				}
-
-				if (LensFile->DataMode == ELensDataMode::STMap && LensFile->STMapTable.GetFocusPointNum() > 0 && LensFile->STMapTable.GetFocusPointNum() != 1)
-				{
-					static const FName NAME_InvalidSTMapMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidSTMapMapping";
-					FLiveLinkLog::WarningOnce(NAME_InvalidSTMapMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating STMap data using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one STMap focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-				}
-			}
-
-			if(StaticData->bIsFocalLengthSupported == false)
-			{
-				//Zoom not supported -> Look for one zoom point in involved focus points
-				{
-					//Find FocusPoints involved for streamed Focus value. If there are, make sure there is only one zoom point in both of them or warn the user
-					if (LensFile->DataMode == ELensDataMode::Parameters
-						&& LensFile->DistortionTable.GetFocusPointNum() > 0 
-						&& LiveLinkCameraControllerUtils::HasSingleZoomPointInvolved<FDistortionFocusPoint>(LensFileEvalData.Input.Focus, LensFile->DistortionTable.GetFocusPoints()) == false)
-					{
-						static const FName NAME_InvalidDistortionMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidDistortionMapping";
-						FLiveLinkLog::WarningOnce(NAME_InvalidDistortionMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating Distortion data using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one Distortion zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-					}
-
-					if (LensFile->DataMode == ELensDataMode::STMap
-						&& LensFile->STMapTable.GetFocusPointNum() > 0
-						&& LiveLinkCameraControllerUtils::HasSingleZoomPointInvolved<FSTMapFocusPoint>(LensFileEvalData.Input.Focus, LensFile->STMapTable.GetFocusPoints()) == false)
-					{
-						static const FName NAME_InvalidSTMapMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidSTMapMapping";
-						FLiveLinkLog::WarningOnce(NAME_InvalidSTMapMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating STMap data using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one STMap zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-					}
-
-					if (LensFile->ImageCenterTable.GetFocusPointNum() > 0
-						&& LiveLinkCameraControllerUtils::HasSingleZoomPointInvolved<FImageCenterFocusPoint>(LensFileEvalData.Input.Focus, LensFile->ImageCenterTable.GetFocusPoints()) == false)
-					{
-						static const FName NAME_InvalidImageCenterMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidImageCenterMapping";
-						FLiveLinkLog::WarningOnce(NAME_InvalidImageCenterMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating ImageCenter data using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one ImageCenter zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-					}
-				}
 			}
 		}
 	}
@@ -672,7 +312,7 @@ void ULiveLinkCameraController::PostLoad()
 	const int32 UE5MainVersion = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	if (UE5MainVersion < FUE5MainStreamObjectVersion::LensComponentNodalOffset)
 	{
-		// LensFile evaluation for nodal offset has moved to the Lens component. In order for existing camera actors to continue functioning as before,
+		// LensFile and distortion evaluation for nodal offset has moved to the Lens component. In order for existing camera actors to continue functioning as before,
 		// we have to migrate some properties from the camera controller to the lens component. If the owning actor does not have already have a lens 
 		// component then we will instance a new one.
 		AActor* const CameraActor = GetOuterActor();
@@ -698,6 +338,20 @@ void ULiveLinkCameraController::PostLoad()
 					{
 						LensComponent->SetApplyNodalOffsetOnTick(bApplyNodalOffset_DEPRECATED);
 					}
+
+					// Copy the overscan multiplier settings to the lens component
+					if (bScaleOverscan_DEPRECATED)
+					{
+						LensComponent->SetOverscanMultiplier(OverscanMultiplier_DEPRECATED);
+					}
+
+					// Copy the cropped filmback settings
+					if (bUseCroppedFilmback_DEPRECATED)
+					{
+						LensComponent->SetFilmbackOverrideSetting(EFilmbackOverrideSource::CroppedFilmbackSetting);
+						LensComponent->SetCroppedFilmback(CroppedFilmback_DEPRECATED);
+					}
+
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
@@ -711,9 +365,23 @@ void ULiveLinkCameraController::PostLoad()
 					CameraActor->AddInstanceComponent(LensComponent);
 					LensComponent->RegisterComponent();
 
-					LensComponent->SetLensFile(LensFilePicker);
+					LensComponent->SetLensFilePicker(LensFilePicker);
+
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					LensComponent->SetApplyNodalOffsetOnTick(bApplyNodalOffset_DEPRECATED);
+
+					// Copy the overscan multiplier settings to the lens component
+					if (bScaleOverscan_DEPRECATED)
+					{
+						LensComponent->SetOverscanMultiplier(OverscanMultiplier_DEPRECATED);
+					}
+
+					// Copy the cropped filmback settings
+					if (bUseCroppedFilmback_DEPRECATED)
+					{
+						LensComponent->SetFilmbackOverrideSetting(EFilmbackOverrideSource::CroppedFilmbackSetting);
+						LensComponent->SetCroppedFilmback(CroppedFilmback_DEPRECATED);
+					}
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}

@@ -17,34 +17,39 @@ class LIVELINKLENS_API ULiveLinkLensController : public ULiveLinkControllerBase
 	GENERATED_BODY()
 
 public:
-	ULiveLinkLensController();
-
 	//~ Begin ULiveLinkControllerBase interface
+	virtual void OnEvaluateRegistered() override;
 	virtual void Tick(float DeltaTime, const FLiveLinkSubjectFrameData& SubjectData) override;
 	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
 	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
-	virtual void Cleanup() override;
+	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
 	//~ End ULiveLinkControllerBase interface
 
-	//~ Begin UObject Interface
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostEditImport() override;
-	//~ End UObject Interface
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
+
+private:
+	/** Sets the evaluation mode of the attached LensComponent to use LiveLink and enable applying distortion */
+	void SetupLensComponent();
 
 protected:
-	/** Cached distortion handler associated with attached camera component */
-	UPROPERTY(Transient)
-	ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
 
-	/** Unique identifier representing the source of distortion data */
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property has been deprecated. Distortion is handled directly by controlled Lens Component.")
+ 	UPROPERTY(Transient)
+ 	ULensDistortionModelHandlerBase* LensDistortionHandler_DEPRECATED = nullptr;
+
+	UE_DEPRECATED(5.1, "This property has been deprecated and is no longer used.")
 	UPROPERTY(DuplicateTransient)
-	FGuid DistortionProducerID;
+	FGuid DistortionProducerID_DEPRECATED;
 
-	/** Whether to scale the computed overscan by the overscan percentage */
-	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration")
-	bool bScaleOverscan = false;
+	UE_DEPRECATED(5.1, "This property has been deprecated. Overscan multipliers should now be applied from a Lens Component.")
+	UPROPERTY()
+	bool bScaleOverscan_DEPRECATED = false;
 
-	/** The percentage of the computed overscan that should be applied to the target camera */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Calibration", meta = (EditCondition = "bScaleOverscan", ClampMin = "0.0", ClampMax = "2.0"))
-	float OverscanMultiplier = 1.0f;
+	UE_DEPRECATED(5.1, "This property has been deprecated. Overscan multipliers should now be applied from a Lens Component.")
+	UPROPERTY()
+	float OverscanMultiplier_DEPRECATED = 1.0f;
+#endif //WITH_EDITORONLY_DATA
 };

@@ -19,8 +19,7 @@
 
 class UCineCameraComponent;
 
-/** Utility struct to store the original and overscanned focal lengths of a camera */
-struct FCachedFocalLength
+struct UE_DEPRECATED(5.1, "This struct has been deprecated.") FCachedFocalLength
 {
 public:
 	float OriginalFocalLength = 0.0f;
@@ -49,22 +48,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	ULensFile* GetLensFile(const FLensFilePicker& Picker) const;
 
-	/** Return all handlers associated with the input camera component */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks distortion handlers. Query for a handler from a specific Lens Component belonging to the input camera.")
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	TArray<ULensDistortionModelHandlerBase*> GetDistortionModelHandlers(UCineCameraComponent* Component);
 
-	/** 
-	 * Return the handler associated with the input distortion source, if one exists 
-	 * If bUpdatePicker is true, the input picker reference will be updated so that its properties match those of the found handler
-	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks distortion handlers. Query for a handler from a specific Lens Component belonging to the input camera.")
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	ULensDistortionModelHandlerBase* FindDistortionModelHandler(UPARAM(ref)FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker = true) const;
 
-	/** Return the handler associated with the input distortion source, if one exists that also matches the input model. If none exist, create a new handler and return it. */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks distortion handlers. Query for a handler from a specific Lens Component belonging to the input camera.")
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(UPARAM(ref)FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	/** Disassociate the input handler from the input camera component in the subsystem's handler map */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks distortion handlers. Query for a handler from a specific Lens Component belonging to the input camera.")
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	void UnregisterDistortionModelHandler(UCineCameraComponent* Component, ULensDistortionModelHandlerBase* Handler);
 
@@ -120,10 +118,10 @@ public:
 	/** Remove a Lens Model from the registered model map */
 	void UnregisterDistortionModel(TSubclassOf<ULensModel> LensModel);
 
-	/** Update the original focal length of the input camera componet */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks original focal length for distortion.")
 	void UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength);
 
-	/** Update the overscanned focal length of the input camera component */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks overscanned focal length for distortion.")
 	void UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength);
 
 	/** Register a new overlay material name and path that can be queried from camera calibration tools */
@@ -132,10 +130,7 @@ public:
 	/** Unregister an overlay material */
 	void UnregisterOverlayMaterial(const FName& MaterialName);
 
-	/** 
-	 * Get the original focal length of the input camera component, if it exists in the subsystems map. 
-	 * Returns false and does not update the output parameter if the input camera is not in the map. 
-	 */
+	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks original focal length for distortion.")
 	bool GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength);
 
 private:
@@ -164,12 +159,6 @@ private:
 
 	/** Map of actor components to the authoritative lens model that should be used with that component */
 	TMap<FObjectKey, TSubclassOf<ULensModel>> ComponentsWithAuthoritativeModels;
-
-	/** Map of actor components to the authoritative lens model that should be used with that component */
-	TMultiMap<FObjectKey, ULensDistortionModelHandlerBase*> LensDistortionHandlerMap;
-
-	/** Map of camera components to a cached pair of focal lengths for that camera */
-	TMap<FObjectKey, FCachedFocalLength> CachedFocalLengthMap;
 
 private:
 

@@ -5,6 +5,7 @@
 #include "Tickable.h"
 #include "UObject/Object.h"
 
+#include "CineCameraComponent.h"
 #include "CoreTypes.h"
 #include "Engine/Texture.h"
 #include "ICalibratedMapProcessor.h"
@@ -118,7 +119,7 @@ public:
 	/** Update the resolution used for intermediate blending displacement maps and for STMap derived data */
 	void UpdateDisplacementMapResolution(const FIntPoint NewDisplacementMapResolution);
 
-	/** Whether the sensor dimensions in the lens file will be compatible with the sensor dimensions of the input CineCameraComponent */
+	UE_DEPRECATED(5.1, "This function is deprecated. The LensFile checks this internally when it evaluates for distortion.")
 	bool IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const;
 
 	/** Update the input tolerance used when adding points to calibration tables */
@@ -386,5 +387,3 @@ struct FLensFileEvalData
 		NodalOffset.bWasApplied = false;
 	}
 };
-
-

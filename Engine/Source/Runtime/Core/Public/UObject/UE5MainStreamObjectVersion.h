@@ -256,6 +256,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Made ManagedArrayCollection::FValueType::Value always serialize when FValueType is
 		ManagedArrayCollectionAlwaysSerializeValue,
 
+		// Moving all distortion handling to Lens Component
+		LensComponentDistortion,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

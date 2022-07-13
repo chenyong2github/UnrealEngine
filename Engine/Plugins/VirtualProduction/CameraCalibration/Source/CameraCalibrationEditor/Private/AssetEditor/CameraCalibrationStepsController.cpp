@@ -27,6 +27,7 @@
 #include "ICompElementManager.h"
 #include "Input/Events.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "LensComponent.h"
 #include "LensFile.h"
 #include "LiveLinkCameraController.h"
 #include "LiveLinkComponentController.h"
@@ -831,39 +832,6 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 		return;
 	}
 
-	UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-
-	if (!SubSystem)
-	{
-		UE_LOG(LogCameraCalibrationEditor, Error, TEXT("Could not find UCameraCalibrationSubsystem"));
-		return;
-	}
-
-	ACineCameraActor* CineCamera = Cast<ACineCameraActor>(Camera.Get());
-
-	if (!CineCamera)
-	{
-		UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("No cine camera selected when trying to enable distortion."));
-		return;
-	}
-
-	// Pick first valid handler that the subsystem finds in our	camera
-	//
-
-	ULensDistortionModelHandlerBase* DistortionHandler = nullptr;
-
-	for (ULensDistortionModelHandlerBase* Handler : SubSystem->GetDistortionModelHandlers(CineCamera->GetCineCameraComponent()))
-	{
-		if (!Handler)
-		{
-			continue;
-		}
-
-		DistortionHandler = Handler;
-
-		break;
-	}
-
 	for (ACompositingElement* Element : Comp->GetChildElements())
 	{
 		ACompositingCaptureBase* CaptureBase = Cast<ACompositingCaptureBase>(Element);
@@ -875,18 +843,6 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 
 		// Enable distortion on the CG compositing layer
 		CaptureBase->SetApplyDistortion(true);
-
-		// If a distortion handler exists for the target camera, set it on the CG layer. 
-		// If no handlers currently exist, log a warning. At some later time, if a distortion source is created
-		// the CG layer will automatically pick it up and start using it.
-		if (DistortionHandler)
-		{
-			CaptureBase->SetDistortionHandler(DistortionHandler);
-		}
-		else
-		{
-			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
-		}
 	}
 }
 
@@ -1064,21 +1020,37 @@ ULensFile* FCameraCalibrationStepsController::GetLensFile() const
 	return nullptr;
 }
 
+ULensComponent* FCameraCalibrationStepsController::FindLensComponent() const
+{
+	ACineCameraActor* CineCamera = Cast<ACineCameraActor>(GetCamera());
+	const ULensFile* OpenLensFile = GetLensFile();
+	if (CineCamera && OpenLensFile)
+	{
+		TInlineComponentArray<ULensComponent*> LensComponents;
+		CineCamera->GetComponents(LensComponents);
+
+		const FText TitleError = LOCTEXT("CameraCalibrationEditorError", "Lens File Error");
+
+		for (ULensComponent* LensComponent : LensComponents)
+		{
+			if (LensComponent->GetLensFile() == OpenLensFile)
+			{
+				return LensComponent;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 const ULensDistortionModelHandlerBase* FCameraCalibrationStepsController::GetDistortionHandler() const
 {
-	if (!CGLayer.IsValid())
+	if (ULensComponent* LensComponent = FindLensComponent())
 	{
-		return nullptr;
+		return LensComponent->GetLensDistortionHandler();
 	}
 
-	ACompositingCaptureBase* CaptureBase = Cast<ACompositingCaptureBase>(CGLayer.Get());
-
-	if (!CaptureBase)
-	{
-		return nullptr;
-	}
-
-	return CaptureBase->GetDistortionHandler();
+	return nullptr;
 }
 
 bool FCameraCalibrationStepsController::SetMediaSourceUrl(const FString& InMediaSourceUrl)

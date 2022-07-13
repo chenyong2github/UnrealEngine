@@ -711,6 +711,16 @@ bool ULensFile::EvaluateDistortionForSTMaps(float InFocus, float InZoom, FVector
 		return true;
 	}
 
+	if ((LensInfo.SensorDimensions.X < InFilmback.X) || (LensInfo.SensorDimensions.Y < InFilmback.Y))
+	{
+		UE_LOG(LogCameraCalibrationCore, Verbose
+			, TEXT("Can't evaluate LensFile '%s' - The filmback used to generate the calibrated ST Maps is smaller than" \
+				"the filmback of the camera that distortion is being applied to. There is not enough distortion information available in the ST Maps.")
+			, *GetName());
+		SetupNoDistortionOutput(InLensHandler);
+		return false;
+	}
+
 	FDisplacementMapBlendingParams Params;
 
 	TArray<UTextureRenderTarget2D*, TInlineAllocator<4>> UndistortionMapSource;
@@ -978,20 +988,6 @@ void ULensFile::OnDistortionDerivedDataJobCompleted(const FDerivedDistortionData
 
 bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const
 {
-	if (!CineCameraComponent)
-	{ 
-		return false;
-	}
-
-	if (DataMode == ELensDataMode::STMap)
-	{
-		if ((LensInfo.SensorDimensions.X < CineCameraComponent->Filmback.SensorWidth)
-			|| (LensInfo.SensorDimensions.Y < CineCameraComponent->Filmback.SensorHeight))
-		{
-			return false;
-		}
-	}
-
 	return true;
 }
 

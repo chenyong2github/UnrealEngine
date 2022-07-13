@@ -6,6 +6,7 @@
 #include "CameraCalibrationSettings.h"
 #include "CineCameraComponent.h"
 #include "Engine/TimecodeProvider.h"
+#include "LensComponent.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"
 
@@ -42,57 +43,44 @@ ULensFile* UCameraCalibrationSubsystem::GetLensFile(const FLensFilePicker& Picke
 
 TArray<ULensDistortionModelHandlerBase*> UCameraCalibrationSubsystem::GetDistortionModelHandlers(UCineCameraComponent* Component)
 {
+	// This function has been deprecated. The implementation has been changed to provide some backwards compatibility, but code should be updated to not call this function.
 	TArray<ULensDistortionModelHandlerBase*> Handlers;
-	LensDistortionHandlerMap.MultiFind(Component, Handlers);
+
+	if (Component)
+	{
+		AActor* OwningActor = Component->GetOwner();
+
+		TInlineComponentArray<ULensComponent*> LensComponents;
+		OwningActor->GetComponents(LensComponents);
+
+		for (ULensComponent* LensComponent : LensComponents)
+		{
+			Handlers.Add(LensComponent->GetLensDistortionHandler());
+		}
+	}
 
 	return Handlers;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker) const
 {
+	// This function has been deprecated. The implementation has been changed to provide some backwards compatibility, but code should be updated to not call this function.
 	TArray<ULensDistortionModelHandlerBase*> Handlers;
-	LensDistortionHandlerMap.MultiFind(DistortionHandlerPicker.TargetCameraComponent, Handlers);
 
-	if (!DistortionHandlerPicker.DistortionProducerID.IsValid() && DistortionHandlerPicker.HandlerDisplayName.IsEmpty())
+	if (!DistortionHandlerPicker.TargetCameraComponent)
 	{
-		if (Handlers.Num() > 0)
-		{
-			if (bUpdatePicker)
-			{
-				DistortionHandlerPicker.DistortionProducerID = Handlers[0]->GetDistortionProducerID();
-				DistortionHandlerPicker.HandlerDisplayName = Handlers[0]->GetDisplayName();
-			}
-
-			return Handlers[0];
-		}
+		return nullptr;
 	}
 
-	// Look through the available handlers to find the one driven by the distortion source's producer
-	for (ULensDistortionModelHandlerBase* Handler : Handlers)
-	{
-		if (Handler->GetDistortionProducerID() == DistortionHandlerPicker.DistortionProducerID)
-		{
-			// Reassign the input handler picker's display name to that of the found handler
-			if (bUpdatePicker)
-			{
-				DistortionHandlerPicker.HandlerDisplayName = Handler->GetDisplayName();
-			}
-			return Handler;
-		}
-	}
+	AActor* OwningActor = DistortionHandlerPicker.TargetCameraComponent->GetOwner();
 
-	// Look through the available handlers to find one with the same name as the input handler picker's display name
-	for (ULensDistortionModelHandlerBase* Handler : Handlers)
+	TInlineComponentArray<ULensComponent*> LensComponents;
+	OwningActor->GetComponents(LensComponents);
+
+	if (LensComponents.Num() > 0)
 	{
-		if (Handler->GetDisplayName() == DistortionHandlerPicker.HandlerDisplayName)
-		{
-			// Reassign the input handler picker's producer to that of the found handler
-			if (bUpdatePicker)
-			{
-				DistortionHandlerPicker.DistortionProducerID = Handler->GetDistortionProducerID();
-			}
-			return Handler;
-		}
+		return LensComponents[0]->GetLensDistortionHandler();
 	}
 
 	return nullptr;
@@ -100,55 +88,25 @@ ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindDistortionMode
 
 ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass)
 {
-	if (LensModelClass == nullptr)
+	// This function has been deprecated. The implementation has been changed to provide some backwards compatibility, but code should be updated to not call this function.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TArray<ULensDistortionModelHandlerBase*> Handlers = GetDistortionModelHandlers(DistortionHandlerPicker.TargetCameraComponent);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	for (ULensDistortionModelHandlerBase* Handler : Handlers)
 	{
-		return nullptr;
-	}
-
-	// Attempt to find a handler associated with the input distortion source
-	if (ULensDistortionModelHandlerBase* Handler = FindDistortionModelHandler(DistortionHandlerPicker, false))
-	{
-		// If the existing handler supports the input model, simply return it
-		if (Handler->IsModelSupported(LensModelClass))
+		if (Handler->GetLensModelClass() == LensModelClass)
 		{
-			// The display name may have changed, even if the handler already exists, so update the display name of the existing handler to match the distortion source
-			Handler->SetDisplayName(DistortionHandlerPicker.HandlerDisplayName);
 			return Handler;
 		}
-		else
-		{
-			// If the input distortion source has an existing handler, but model does not match the input model, remove the old handler from the map
-			LensDistortionHandlerMap.Remove(DistortionHandlerPicker.TargetCameraComponent, Handler);
-		}
 	}
 
-	// If no handler exists for the input distortion source, create a new one
-	const TSubclassOf<ULensDistortionModelHandlerBase> HandlerClass = ULensModel::GetHandlerClass(LensModelClass);
-	ULensDistortionModelHandlerBase* NewHandler = nullptr;
-	if(HandlerClass)
-	{
-		NewHandler = NewObject<ULensDistortionModelHandlerBase>(DistortionHandlerPicker.TargetCameraComponent, HandlerClass);
-		NewHandler->SetDistortionProducerID(DistortionHandlerPicker.DistortionProducerID);
-		NewHandler->SetDisplayName(DistortionHandlerPicker.HandlerDisplayName);
-		LensDistortionHandlerMap.Add(FObjectKey(DistortionHandlerPicker.TargetCameraComponent), NewHandler);
-
-		if (!CachedFocalLengthMap.Contains(DistortionHandlerPicker.TargetCameraComponent))
-		{
-			FCachedFocalLength CachedFocalLength = { DistortionHandlerPicker.TargetCameraComponent->CurrentFocalLength, 0.0f };
-			CachedFocalLengthMap.Add(DistortionHandlerPicker.TargetCameraComponent, CachedFocalLength);
-		}
-	}
-	else
-	{
-		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Could not create DistortionHandler for LensModel '%s'"), *LensModelClass->GetName());
-	}
-
-	return NewHandler;
+	return nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UCameraCalibrationSubsystem::UnregisterDistortionModelHandler(UCineCameraComponent* Component, ULensDistortionModelHandlerBase* Handler)
 {
-	LensDistortionHandlerMap.Remove(Component, Handler);
+	// This function has been deprecated.
 }
 
 void UCameraCalibrationSubsystem::RegisterDistortionModel(TSubclassOf<ULensModel> LensModel)
@@ -173,34 +131,17 @@ void UCameraCalibrationSubsystem::UnregisterOverlayMaterial(const FName& Materia
 
 void UCameraCalibrationSubsystem::UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength)
 {
-	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
-	if (CachedFocalLength)
-	{
-		// If the input focal length matches the focal length of the camera after overscan was applied, do not update the original (prevents double overscan)
-		if (!FMath::IsNearlyEqual(InFocalLength, CachedFocalLength->OverscanFocalLength))
-		{
-			CachedFocalLength->OriginalFocalLength = InFocalLength;
-		}
-	}
+	// This function has been deprecated.
 }
 
 void UCameraCalibrationSubsystem::UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength)
 {
-	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
-	if (CachedFocalLength)
-	{
-		CachedFocalLength->OverscanFocalLength = InFocalLength;
-	}
+	// This function has been deprecated.
 }
 
 bool UCameraCalibrationSubsystem::GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength)
 {
-	FCachedFocalLength* CachedFocalLength = CachedFocalLengthMap.Find(Component);
-	if (CachedFocalLength)
-	{
-		OutFocalLength = CachedFocalLength->OriginalFocalLength;
-		return true;
-	}
+	// This function has been deprecated.
 	return false;
 }
 

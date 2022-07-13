@@ -18,6 +18,7 @@ class UMediaPlayer;
 class UMediaTexture;
 class UCameraCalibrationStep;
 class UCompositingElementMaterialPass;
+class ULensComponent;
 class ULensDistortionModelHandlerBase;
 class ULensFile;
 class ULiveLinkCameraController;
@@ -93,6 +94,9 @@ public:
 
 	/** Returns the LensFile that this tool is using */
 	ULensFile* GetLensFile() const;
+
+	/** Returns the first LensComponent attached to the CG camera whose LensFile matches the open asset */
+	ULensComponent* FindLensComponent() const;
 
 	/** Returns the distortion handler used to distort the CG being displayed in the simulcam viewport */
 	const ULensDistortionModelHandlerBase* GetDistortionHandler() const;

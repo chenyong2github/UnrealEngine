@@ -5,9 +5,11 @@
 #include "CompositingElement.h"
 
 #include "CameraCalibrationTypes.h"
+
 #include "CompositingCaptureBase.generated.h"
 
 class USceneCaptureComponent2D;
+class ULensComponent;
 class ULensDistortionModelHandlerBase;
 
 
@@ -29,9 +31,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion")
 	bool bApplyDistortion = false;
 
-	/** Structure used to query the camera calibration subsystem for a lens distortion model handler */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Composure|LensDistortion")
-	FDistortionHandlerPicker DistortionSource;
+	/** A component reference (customized) that allows the user to specify a component that this controller should control */
+	UPROPERTY(EditInstanceOnly, Category = "Composure|LensDistortion", meta=(DisplayName="Lens Component", UseComponentPicker, AllowedClasses = "/Script/CameraCalibrationCore.LensComponent", AllowAnyActor))
+	FComponentReference LensComponentPicker;
 
 	/** Value used to augment the FOV of the scene capture to produce a CG image with enough data to distort */
 	UPROPERTY(BlueprintReadOnly, Category = "Composure|LensDistortion")
@@ -45,8 +47,15 @@ protected:
 	UPROPERTY()
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
 
-public:
+#if WITH_EDITORONLY_DATA
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use the LensComponent picker to choose a lens to use for distortion.")
+	UPROPERTY()
+	FDistortionHandlerPicker DistortionSource_DEPRECATED;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif //WITH_EDITORONLY_DATA
 
+public:
 	/** Default constructor */
 	ACompositingCaptureBase();
 
@@ -55,19 +64,22 @@ public:
 	void UpdateDistortion();
 
 	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	
 	//~ End UObject Interface
 
 public:
-
 	/** Sets whether distortion should be applied or not */
 	void SetApplyDistortion(bool bInApplyDistortion);
 
-	/** Sets which distortion handler to use when bInApplyDistortion is enabled */
+	/** Set the Lens Component this CG layer will use to drive distortion on the scene capture */
+	void SetLens(ULensComponent* InLens);
+
+	UE_DEPRECATED(5.1, "This function has been deprecated. Use SetLens() to set a lens component that this CG layer should use to query for distortion.")
 	void SetDistortionHandler(ULensDistortionModelHandlerBase* InDistortionHandler);
 
-	/** Returns the current distortion handler */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Query the lens component used by this CG layer for its distortion handler instead.")
 	ULensDistortionModelHandlerBase* GetDistortionHandler();
 };

@@ -9,10 +9,18 @@
 #include "CameraCalibrationTypes.generated.h"
 
 /** Utility structure for selecting a distortion handler from the camera calibration subsystem */
+struct UE_DEPRECATED(5.1, "This struct has been deprecated.") FDistortionHandlerPicker;
+
 USTRUCT(BlueprintType)
 struct CAMERACALIBRATIONCORE_API FDistortionHandlerPicker
 {
 	GENERATED_BODY()
+
+public:
+	/** Default destructor */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	~FDistortionHandlerPicker() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
 	/** CineCameraComponent with which the desired distortion handler is associated */

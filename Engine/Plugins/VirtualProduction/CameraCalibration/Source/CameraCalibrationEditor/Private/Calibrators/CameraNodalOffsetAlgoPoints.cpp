@@ -586,9 +586,8 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 
 			const FLensFileEvalData* LensFileEvalData = StepsController->GetLensFileEvalData();
 
-			// We require lens evaluation data, and that distortion was evaluated so that 2d correlations are valid
-			// Note: The comp enforces distortion application.
-			if (!LensFileEvalData || !LensFileEvalData->Distortion.bWasEvaluated)
+			// We require lens evaluation data
+			if (!LensFileEvalData)
 			{
 				break;
 			}
@@ -608,9 +607,15 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 			}
 
 			LastCameraData.Pose = CameraComponent->GetComponentToWorld();
-			LastCameraData.bWasNodalOffsetApplied = DoesCameraPoseIncludeNodalOffset(Camera);
 			LastCameraData.UniqueId = Camera->GetUniqueID();
 			LastCameraData.LensFileEvalData = *LensFileEvalData;
+
+			const ULensComponent* LensComponent = StepsController->FindLensComponent();
+			if (LensComponent)
+			{
+				LastCameraData.bWasNodalOffsetApplied = LensComponent->WasNodalOffsetAppliedThisTick();
+				LastCameraData.bWasDistortionEvaluated = LensComponent->WasDistortionEvaluated();
+			}
 
 			const AActor* CameraParentActor = Camera->GetAttachParentActor();
 
@@ -854,22 +859,15 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return false;
 	}
 
-	if (!CalibrationRows.Num())
-	{
-		return true;
-	}
-
 	// Distortion was evaluated
 
-	if (!Row->CameraData.LensFileEvalData.Distortion.bWasEvaluated)
+	if (!Row->CameraData.bWasDistortionEvaluated)
 	{
 		OutErrorMessage = LOCTEXT("DistortionNotEvaluated", "Distortion was not evaluated");
 		return false;
 	}
 
 	// Same LensFile
-
-	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
 
 	if (Row->CameraData.LensFileEvalData.LensFile != LensFile)
 	{
@@ -893,7 +891,13 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return false;
 	}
 
+	if (!CalibrationRows.Num())
+	{
+		return true;
+	}
+
 	// Same camera as before
+	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
 
 	if (FirstRow->CameraData.UniqueId != Row->CameraData.UniqueId)
 	{
@@ -1613,38 +1617,6 @@ void UCameraNodalOffsetAlgoPoints::OnCalibrationComponentSelected(const UCalibra
 bool UCameraNodalOffsetAlgoPoints::IsCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent) const
 {
 	return ActiveCalibratorComponents.Contains(SelectedComponent);
-}
-
-bool UCameraNodalOffsetAlgoPoints::DoesCameraPoseIncludeNodalOffset(const ACameraActor* Camera) const
-{
-	bool bResult = false;
-
-	if (const FCameraCalibrationStepsController* StepsController = NodalOffsetTool->GetCameraCalibrationStepsController())
-	{
-		const ULensFile* LensFile = StepsController->GetLensFile();
-
-		if (LensFile)
-		{
-			TInlineComponentArray<ULensComponent*> LensComponents;
-			Camera->GetComponents(LensComponents);
-
-			for (const ULensComponent* LensComponent : LensComponents)
-			{
-				if (LensComponent->GetLensFile() == LensFile)
-				{
-					bResult = LensComponent->WasNodalOffsetAppliedThisTick();
-				}
-				else if (LensComponent->WasNodalOffsetAppliedThisTick())
-				{
-					UE_LOG(LogCameraCalibrationEditor, VeryVerbose,
-						TEXT("The camera pose includes a nodal offset from a different lens file than the one currently being calibrated." \
-							"If you see this warning, you should disable the application of nodal offset from other lens components before continuing calibration."))
-				}
-			}
-		}
-	}
-
-	return bResult;
 }
 
 bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()

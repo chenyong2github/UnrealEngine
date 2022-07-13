@@ -9,7 +9,6 @@
 #include "CalibrationPointComponent.h"
 #include "CalibrationPointComponentDetails.h"
 #include "CameraCalibrationCoreEditorStyle.h"
-#include "DistortionHandlerPickerDetailCustomization.h"
 #include "Editor.h"
 #include "IPlacementModeModule.h"
 #include "LensFile.h"
@@ -28,11 +27,6 @@ void FCameraCalibrationCoreEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	PropertyEditorModule.RegisterCustomPropertyTypeLayout(
-		FDistortionHandlerPicker::StaticStruct()->GetFName(), 
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDistortionHandlerPickerDetailCustomization::MakeInstance)
-	);
-
 	PropertyEditorModule.RegisterCustomClassLayout(
 		UCalibrationPointComponent::StaticClass()->GetFName(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FCalibrationPointComponentDetails::MakeInstance)
@@ -49,8 +43,6 @@ void FCameraCalibrationCoreEditorModule::ShutdownModule()
 
 		PropertyModule.UnregisterCustomClassLayout(ULensFile::StaticClass()->GetFName());
 		PropertyModule.UnregisterCustomClassLayout(UCalibrationPointComponent::StaticClass()->GetFName());
-
-		PropertyModule.UnregisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName());
 
 		UnregisterPlacementModeItems();
 	}

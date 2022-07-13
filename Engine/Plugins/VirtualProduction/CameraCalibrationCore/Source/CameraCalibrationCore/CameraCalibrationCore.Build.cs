@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DeveloperSettings",
 					"Engine",
+					"LiveLinkComponents",
 					"RenderCore",
 					"RHI",
 					"Slate",
@@ -25,7 +26,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
                 {
-					"LiveLinkComponents",
 					"LiveLinkInterface",
                     "Projects",
 				}

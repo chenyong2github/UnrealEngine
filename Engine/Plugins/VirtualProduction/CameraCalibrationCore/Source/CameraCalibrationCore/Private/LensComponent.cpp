@@ -14,6 +14,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLensComponent, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ULensComponent::ULensComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -22,18 +23,18 @@ ULensComponent::ULensComponent()
 	// We also use a tick prerequisite on LiveLink components, so technically this could also use TG_PrePhysics
 	PrimaryComponentTick.TickGroup = ETickingGroup::TG_DuringPhysics;
 	bTickInEditor = true;
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ULensComponent::OnRegister()
 {
 	Super::OnRegister();
 
 	InitDefaultCamera();
+
+	// The component might already have a serialized LensModel, but might not go through PostLoad (in the case that this is spawned by sequencer)
+	// so attempt to create a distortion handler now for the currently set LensModel. 
+	CreateDistortionHandler();
 
 	// Register a callback to let us know when a new LiveLinkComponent is added to this component's parent actor
 	// This gives us the opportunity to track when the subject representation of that LiveLinkComponent changes
@@ -76,65 +77,96 @@ void ULensComponent::OnUnregister()
 
 void ULensComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	// Get the focus and zoom values needed to evaluate the LensFile this Tick
-	UpdateLensFileEvaluationInputs();
-
-	// Attempt to apply nodal offset, which will only succeed if there is a valid LensFile, evaluation inputs, and component to offset
-	if (bApplyNodalOffsetOnTick)
-	{
-		ApplyNodalOffset();
-	}
-
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
 	{
-		DistortionSource.TargetCameraComponent = CineCameraComponent;
-
-		UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-
-		// Evaluate the selected lens file for distortion data using the current settings of the target camera
-		ULensFile* LensFile = LensFilePicker.GetLensFile();
-		if (bEvaluateLensFileForDistortion && LensFile)
+		// If the camera's focal length has changed since the last time this component ticked, we need to update the original focal length we are using
+		if (CineCameraComponent->CurrentFocalLength != LastFocalLength)
 		{
-			if (!ProducedLensDistortionHandler)
+			OriginalFocalLength = CineCameraComponent->CurrentFocalLength;
+		}
+
+		// Get the focus and zoom values needed to evaluate the LensFile this Tick
+		UpdateLensFileEvaluationInputs(CineCameraComponent);
+
+		// Attempt to apply nodal offset, which will only succeed if there is a valid LensFile, evaluation inputs, and component to offset
+		if (bApplyNodalOffsetOnTick)
+		{
+			ApplyNodalOffset();
+		}
+
+		ULensFile* LensFile = LensFilePicker.GetLensFile();
+
+		UpdateCameraFilmback(CineCameraComponent);
+
+		if (EvaluationMode != EFIZEvaluationMode::UseRecordedValues)
+		{
+			EvaluateFocalLength(CineCameraComponent);
+		}
+
+		// Evaluate Distortion
+		bWasDistortionEvaluated = false;
+		TObjectPtr<ULensDistortionModelHandlerBase> LensDistortionHandler = LensDistortionHandlerMap.FindRef(LensModel);
+
+		if (LensDistortionHandler)
+		{
+			switch (DistortionStateSource)
 			{
-				CreateDistortionHandlerForLensFile();
+			case EDistortionSource::LensFile:
+			{
+				if (!LensFile || !EvalInputs.bIsValid)
+				{
+					break;
+				}
+
+				LensFile->EvaluateDistortionData(EvalInputs.Focus, EvalInputs.Zoom, FVector2D(EvalInputs.Filmback.SensorWidth, EvalInputs.Filmback.SensorHeight), LensDistortionHandler);
+
+				DistortionState = LensDistortionHandler->GetCurrentDistortionState();
+
+				// Adjust overscan by the overscan multiplier
+				if (bScaleOverscan)
+				{
+					const float ScaledOverscanFactor = ((LensDistortionHandler->GetOverscanFactor() - 1.0f) * OverscanMultiplier) + 1.0f;
+					LensDistortionHandler->SetOverscanFactor(ScaledOverscanFactor);
+				}
+
+				bWasDistortionEvaluated = true;
+				break;
 			}
-
-			//Go through the lens file to get distortion data based on FIZ
-			//Our handler's displacement map will get updated
-			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
-
-			if (SubSystem)
+			case EDistortionSource::LiveLinkLensSubject:
 			{
-				SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
+				// This case is used by the customization to make the distortion state properties read-only. Otherwise, behavior is the same as EDistortionSource::Manual.
+				// falls through
 			}
-
-			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, OriginalFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler);
-
-			// Adjust overscan by the overscan multiplier
-			if (bScaleOverscan)
+			case EDistortionSource::Manual:
 			{
-				const float ScaledOverscanFactor = ((ProducedLensDistortionHandler->GetOverscanFactor() - 1.0f) * OverscanMultiplier) + 1.0f;
-				ProducedLensDistortionHandler->SetOverscanFactor(ScaledOverscanFactor);
+				LensDistortionHandler->SetDistortionState(DistortionState);
+
+				//Recompute overscan factor for the distortion state
+				float OverscanFactor = LensDistortionHandler->ComputeOverscanFactor();
+
+				if (bScaleOverscan)
+				{
+					OverscanFactor = ((OverscanFactor - 1.0f) * OverscanMultiplier) + 1.0f;
+				}
+				LensDistortionHandler->SetOverscanFactor(OverscanFactor);
+
+				//Make sure the displacement map is up to date
+				LensDistortionHandler->ProcessCurrentDistortion();
+
+				bWasDistortionEvaluated = true;
+				break;
 			}
-
-			// Track changes to the cine camera's focal length for consumers of distortion data
-			if (SubSystem)
+			default:
 			{
-				SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+				ensureMsgf(false, TEXT("Unhandled EDistortionSource type. Update this switch statement."));
+				break; // Do nothing
+			}
 			}
 		}
 
 		if (bApplyDistortion)
 		{
-			// Get the lens distortion handler for the target camera and distortion source
-			ULensDistortionModelHandlerBase* LensDistortionHandler = nullptr;
-			if (SubSystem)
-			{
-				LensDistortionHandler = SubSystem->FindDistortionModelHandler(DistortionSource);
-			}
-
-			if (LensDistortionHandler)
+			if (LensDistortionHandler && bWasDistortionEvaluated)
 			{
 				// Get the current distortion MID from the lens distortion handler
 				UMaterialInstanceDynamic* NewDistortionMID = LensDistortionHandler->GetDistortionMID();
@@ -149,19 +181,19 @@ void ULensComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				// Cache the latest distortion MID
 				LastDistortionMID = NewDistortionMID;
 
-				SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
+				// If using recorded values, the overscanned FOV will already have been applied
+				if (EvaluationMode != EFIZEvaluationMode::UseRecordedValues)
+				{
+					// Get the overscan factor and use it to modify the target camera's FOV
+					const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
+					const float OverscanSensorWidth = CineCameraComponent->Filmback.SensorWidth * OverscanFactor;
+					const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
+					CineCameraComponent->SetFieldOfView(OverscanFOV);
 
-				// Get the overscan factor and use it to modify the target camera's FOV
-				const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
-				const float OverscanSensorWidth = CineCameraComponent->Filmback.SensorWidth * OverscanFactor;
-				const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
-				CineCameraComponent->SetFieldOfView(OverscanFOV);
-
-				// Update the minimum and maximum focal length of the camera (if needed)
-				CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->CurrentFocalLength);
-				CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, CineCameraComponent->CurrentFocalLength);
-
-				SubSystem->UpdateOverscanFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+					// Update the minimum and maximum focal length of the camera (if needed)
+					CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->CurrentFocalLength);
+					CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, CineCameraComponent->CurrentFocalLength);
+				}
 
 				bIsDistortionSetup = true;
 			}
@@ -170,7 +202,11 @@ void ULensComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				CleanupDistortion(CineCameraComponent);
 			}
 		}
+
+		LastFocalLength = CineCameraComponent->CurrentFocalLength;
 	}
+
+	bWasLiveLinkFIZUpdated = false;
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
@@ -182,11 +218,6 @@ void ULensComponent::DestroyComponent(bool bPromoteChildren /*= false*/)
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
 	{
 		CleanupDistortion(CineCameraComponent);
-
-		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
-		{
-			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, ProducedLensDistortionHandler);
-		}
 	}
 }
 
@@ -195,12 +226,6 @@ void ULensComponent::PostDuplicate(bool bDuplicateForPIE)
 	Super::PostDuplicate(bDuplicateForPIE);
 
 	InitDefaultCamera();
-
-	// When this component is duplicated (e.g. for PIE), the duplicated component needs a new unique ID
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
 }
 
 void ULensComponent::PostEditImport()
@@ -208,17 +233,14 @@ void ULensComponent::PostEditImport()
 	Super::PostEditImport();
 
 	InitDefaultCamera();
-
-	// When this component is duplicated (e.g. copy-paste), the duplicated component needs a new unique ID
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
 }
 
 void ULensComponent::PostLoad()
 {
 	Super::PostLoad();
+
+	// After LensModel has been loaded, create a new handler
+	CreateDistortionHandler();
 
 	if (bIsDistortionSetup)
 	{
@@ -263,71 +285,23 @@ void ULensComponent::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 			}
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, bEvaluateLensFileForDistortion))
-	{
-		if (bEvaluateLensFileForDistortion)
-		{
-			// Create a new distortion handler if one does not yet exist for the selected lens file
-			if (!ProducedLensDistortionHandler)
-			{
-				CreateDistortionHandlerForLensFile();
-			}
-		}
-		else
-		{
-			// Reset the distortion source settings
-			if (DistortionSource.DistortionProducerID == DistortionProducerID)
-			{
-				DistortionSource.HandlerDisplayName.Empty();
-				DistortionSource.DistortionProducerID.Invalidate();
-			}
-
-			// Unregister the produced handler from the subsystem
-			if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
-			{
-				if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
-				{
-					SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, ProducedLensDistortionHandler);
-				}
-			}
-
-			ProducedLensDistortionHandler = nullptr;
-		}
-	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, TargetCameraComponent))
 	{
 		// Clean up distortion on the last target camera
 		if (LastCameraComponent)
 		{
 			CleanupDistortion(LastCameraComponent);
-
-			// Unregister the produced handler (if one exists) from the subsystem for the last camera component
-			if (ProducedLensDistortionHandler)
-			{
-				if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
-				{
-					SubSystem->UnregisterDistortionModelHandler(LastCameraComponent, ProducedLensDistortionHandler);
-				}
-
-				ProducedLensDistortionHandler = nullptr;
-			}
 		}
 
 		LastCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner()));
-		DistortionSource.TargetCameraComponent = LastCameraComponent;
-
-		// Create a new handler for the new target camera component
-		if (bEvaluateLensFileForDistortion)
-		{
-			CreateDistortionHandlerForLensFile();
-		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile))
 	{
-		if (bEvaluateLensFileForDistortion)
-		{
-			CreateDistortionHandlerForLensFile();
-		}
+		SetLensFilePicker(LensFilePicker);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, LensModel))
+	{
+		SetLensModel(LensModel);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -339,6 +313,31 @@ void ULensComponent::OnPostActorTick(UWorld* World, ELevelTick TickType, float D
 	// The use of this callback by this class has been deprecated
 }
 
+void ULensComponent::ReapplyNodalOffset()
+{
+	// Find the TrackedComponent based on the serialized name
+	TInlineComponentArray<USceneComponent*> SceneComponents;
+	GetOwner()->GetComponents(SceneComponents);
+
+	for (USceneComponent* SceneComponent : SceneComponents)
+	{
+		if (SceneComponent->GetName() == TrackedComponentName)
+		{
+			TrackedComponent = SceneComponent;
+			break;
+		}
+	}
+
+	if (TrackedComponent.IsValid())
+	{
+		// Reset the tracked component back to its original relative transform (before nodal offset was originally applied)
+		TrackedComponent->SetRelativeTransform(OriginalTrackedComponentTransform);
+
+		// Now, reapply the nodal offset to the tracked component
+		ApplyNodalOffset();
+	}
+}
+
 void ULensComponent::ApplyNodalOffset()
 {
 	// Verify that we detected a tracked component for us to offset this tick. If there is none, it is likely because no LiveLink transform controller executed this tick.
@@ -348,7 +347,7 @@ void ULensComponent::ApplyNodalOffset()
 	}
 
 	// Verify that the evaluation inputs are valid
-	if (EvaluationMode == EFIZEvaluationMode::DoNotEvaluate)
+	if ((EvaluationMode == EFIZEvaluationMode::DoNotEvaluate) || !EvalInputs.bIsValid) 
 	{
 		return;
 	}
@@ -361,9 +360,10 @@ void ULensComponent::ApplyNodalOffset()
 	}
 
 	FNodalPointOffset Offset;
-	LensFile->EvaluateNodalPointOffset(EvalFocus, EvalZoom, Offset);
+	LensFile->EvaluateNodalPointOffset(EvalInputs.Focus, EvalInputs.Zoom, Offset);
 
-	// TODO: This would be a good time to cache the raw tracking pose before applying the nodal offset
+	// Cache the original transform before applying the offset, so that nodal offset can potentially be re-evaluated in the future
+	OriginalTrackedComponentTransform = TrackedComponent.Get()->GetRelativeTransform();
 
 	TrackedComponent.Get()->AddLocalOffset(Offset.LocationOffset);
 	TrackedComponent.Get()->AddLocalRotation(Offset.RotationOffset);
@@ -398,11 +398,60 @@ void ULensComponent::ApplyNodalOffset(USceneComponent* ComponentToOffset, bool b
 	}
 	else
 	{
-		LensFile->EvaluateNodalPointOffset(EvalFocus, EvalZoom, Offset);
+		if (!EvalInputs.bIsValid)
+		{
+			return;
+		}
+
+		LensFile->EvaluateNodalPointOffset(EvalInputs.Focus, EvalInputs.Zoom, Offset);
 	}
+
+	// Cache the original transform before applying the offset, so that nodal offset can potentially be re-evaluated in the future
+	OriginalTrackedComponentTransform = TrackedComponent.Get()->GetRelativeTransform();
 
 	ComponentToOffset->AddLocalOffset(Offset.LocationOffset);
 	ComponentToOffset->AddLocalRotation(Offset.RotationOffset);
+}
+
+void ULensComponent::EvaluateFocalLength(UCineCameraComponent* CineCameraComponent)
+{
+	FFocalLengthInfo FocalLengthInfo;
+	ULensFile* LensFile = LensFilePicker.GetLensFile();
+	if (LensFile && EvalInputs.bIsValid && LensFile->EvaluateFocalLength(EvalInputs.Focus, EvalInputs.Zoom, FocalLengthInfo))
+	{
+		// TODO: EvaluateFocalLength should do this scaling internally
+		const FVector2D FxFyScale = FVector2D(LensFile->LensInfo.SensorDimensions.X / EvalInputs.Filmback.SensorWidth, LensFile->LensInfo.SensorDimensions.Y / EvalInputs.Filmback.SensorHeight);
+		FocalLengthInfo.FxFy = FocalLengthInfo.FxFy * FxFyScale;
+
+		if ((FocalLengthInfo.FxFy.X > UE_KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy.Y > UE_KINDA_SMALL_NUMBER))
+		{
+			// This is how field of view, filmback, and focal length are related:
+			//
+			// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
+			// => FocalLength = Fx*FilmbackX
+			// 
+			// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
+			// => FilmbackY = FocalLength / Fy
+
+			// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
+			const float NewFocalLength = FocalLengthInfo.FxFy.X * EvalInputs.Filmback.SensorWidth;
+
+			// TODO: Consider adding an advanced setting to control whether or not sensor height should be modified (if Fx/Fy don't have a fixed aspect ratio)
+
+			// Update the minimum and maximum focal length of the camera (if needed)
+			CineCameraComponent->LensSettings.MinFocalLength = FMath::Max(FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, NewFocalLength), 0.01);
+			CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, NewFocalLength), 0.01);
+
+			CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
+
+			OriginalFocalLength = NewFocalLength;
+		}
+	}
+}
+
+FLensFilePicker ULensComponent::GetLensFilePicker() const
+{
+	return LensFilePicker;
 }
 
 ULensFile* ULensComponent::GetLensFile() const
@@ -410,9 +459,32 @@ ULensFile* ULensComponent::GetLensFile() const
 	return LensFilePicker.GetLensFile();
 }
 
-void ULensComponent::SetLensFile(FLensFilePicker LensFile)
+void ULensComponent::SetLensFilePicker(FLensFilePicker LensFile)
 {
 	LensFilePicker = LensFile;
+
+	if (DistortionStateSource == EDistortionSource::LensFile)
+	{
+		if (ULensFile* const NewLensFile = LensFilePicker.GetLensFile())
+		{
+			SetLensModel(NewLensFile->LensInfo.LensModel);
+		}
+	}
+}
+
+void ULensComponent::SetLensFile(ULensFile* Lens)
+{
+	// Automatically sets this to false so the component can use the newly set LensFile directly
+	LensFilePicker.bUseDefaultLensFile = false;
+	LensFilePicker.LensFile = Lens;
+
+	if (DistortionStateSource == EDistortionSource::LensFile)
+	{
+		if (Lens)
+		{
+			SetLensModel(Lens->LensInfo.LensModel);
+		}
+	}
 }
 
 EFIZEvaluationMode ULensComponent::GetFIZEvaluationMode() const
@@ -423,6 +495,46 @@ EFIZEvaluationMode ULensComponent::GetFIZEvaluationMode() const
 void ULensComponent::SetFIZEvaluationMode(EFIZEvaluationMode Mode)
 {
 	EvaluationMode = Mode;
+}
+
+float ULensComponent::GetOverscanMultiplier() const
+{
+	if (bScaleOverscan)
+	{
+		return OverscanMultiplier;
+	}
+	return 1.0f;
+}
+
+void ULensComponent::SetOverscanMultiplier(float Multiplier)
+{
+	bScaleOverscan = true;
+	OverscanMultiplier = Multiplier;
+}
+
+EFilmbackOverrideSource ULensComponent::GetFilmbackOverrideSetting() const
+{
+	return FilmbackOverride;
+}
+
+void ULensComponent::SetFilmbackOverrideSetting(EFilmbackOverrideSource Setting)
+{
+	FilmbackOverride = Setting;
+}
+
+FCameraFilmbackSettings ULensComponent::GetCroppedFilmback() const
+{
+	return CroppedFilmback;
+}
+
+void ULensComponent::SetCroppedFilmback(FCameraFilmbackSettings Filmback)
+{
+	CroppedFilmback = Filmback;
+}
+
+const FLensFileEvaluationInputs& ULensComponent::GetLensFileEvaluationInputs() const 
+{
+	return EvalInputs;
 }
 
 bool ULensComponent::ShouldApplyNodalOffsetOnTick() const
@@ -440,10 +552,84 @@ bool ULensComponent::WasNodalOffsetAppliedThisTick() const
 	return bWasNodalOffsetAppliedThisTick;
 }
 
+bool ULensComponent::WasDistortionEvaluated() const
+{
+	return bWasDistortionEvaluated;
+}
+
+float ULensComponent::GetOriginalFocalLength() const 
+{
+	return OriginalFocalLength;
+}
+
+TSubclassOf<ULensModel> ULensComponent::GetLensModel() const
+{
+	return LensModel;
+}
+
+void ULensComponent::SetLensModel(TSubclassOf<ULensModel> Model)
+{
+	LensModel = Model;
+
+	if (LensModel)
+	{
+		const uint32 NumDistortionParameters = LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
+		DistortionState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
+
+		CreateDistortionHandler();
+	}
+}
+
+FLensDistortionState ULensComponent::GetDistortionState() const
+{
+	return DistortionState;
+}
+
+void ULensComponent::SetDistortionState(FLensDistortionState State)
+{
+	DistortionState = State;
+}
+
+EDistortionSource ULensComponent::GetDistortionSource() const
+{
+	return DistortionStateSource;
+}
+
+void ULensComponent::SetDistortionSource(EDistortionSource Source)
+{
+	DistortionStateSource = Source;
+}
+
+bool ULensComponent::ShouldApplyDistortion() const
+{
+	return bApplyDistortion;
+}
+
+void ULensComponent::SetApplyDistortion(bool bApply)
+{
+	bApplyDistortion = bApply;
+}
+
+ULensDistortionModelHandlerBase* ULensComponent::GetLensDistortionHandler() const
+{
+	return LensDistortionHandlerMap.FindRef(LensModel);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FDistortionHandlerPicker ULensComponent::GetDistortionHandlerPicker() const
+{
+#if WITH_EDITOR
+	return DistortionSource_DEPRECATED;
+#else
+	return FDistortionHandlerPicker();
+#endif //WITH_EDITOR
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 void ULensComponent::InitDefaultCamera()
 {
-	UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner()));
-	if (!CineCameraComponent)
+	UCineCameraComponent* TargetCamera = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner()));
+	if (!TargetCamera)
 	{
 		// Find all CineCameraComponents on the same actor as this component and set the first one to be the target
 		TInlineComponentArray<UCineCameraComponent*> CineCameraComponents;
@@ -474,36 +660,22 @@ void ULensComponent::CleanupDistortion(UCineCameraComponent* const CineCameraCom
 		// Update the minimum and maximum focal length of the camera (if needed)
 		CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->CurrentFocalLength);
 		CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, CineCameraComponent->CurrentFocalLength);
-
-		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-		if (SubSystem)
-		{
-			SubSystem->UpdateOverscanFocalLength(CineCameraComponent, 0.0f);
-		}
 	}
 
 	bIsDistortionSetup = false;
 }
 
-void ULensComponent::CreateDistortionHandlerForLensFile()
+void ULensComponent::CreateDistortionHandler()
 {
-	if (DistortionSource.TargetCameraComponent == nullptr)
+	if (LensModel)
 	{
-		return;
-	}
-
-	ULensFile* const LensFile = LensFilePicker.GetLensFile();
-
-	// Set the distortion source settings to match this component and the selected lens file
-	if (LensFile)
-	{
-		DistortionSource.HandlerDisplayName = FString::Format(TEXT("{0} (Lens File) (Lens Distortion Component)"), { LensFile->GetFName().ToString() });
-		DistortionSource.DistortionProducerID = DistortionProducerID;
-
-		UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
-		if (SubSystem)
+		TObjectPtr<ULensDistortionModelHandlerBase>& Handler = LensDistortionHandlerMap.FindOrAdd(LensModel);
+		if (!Handler)
 		{
-			ProducedLensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionSource, LensFile->LensInfo.LensModel);
+			if (const TSubclassOf<ULensDistortionModelHandlerBase> HandlerClass = ULensModel::GetHandlerClass(LensModel))
+			{
+				Handler = NewObject<ULensDistortionModelHandlerBase>(this, HandlerClass);
+			}
 		}
 	}
 }
@@ -557,7 +729,10 @@ void ULensComponent::UpdateTrackedComponent(const ULiveLinkComponentController* 
 			if (bIsLocationRotationSupported)
 			{
 				TrackedComponent = Cast<USceneComponent>(TransformController->GetAttachedComponent());
-
+				if (TrackedComponent.IsValid())
+				{
+					TrackedComponentName = TrackedComponent.Get()->GetName();
+				}
 				// At this point, we know that the tracked component's transform was just set by LiveLink, and therefore has no nodal offset applied
 				bWasNodalOffsetAppliedThisTick = false;
 			}
@@ -588,28 +763,67 @@ void ULensComponent::UpdateLiveLinkFIZ(const ULiveLinkComponentController* const
 	{
 		LiveLinkFIZ.Input.Focus = FrameData->FocusDistance;
 		LiveLinkFIZ.Input.Zoom = FrameData->FocalLength;
+
+		bWasLiveLinkFIZUpdated = true;
 	}
 }
 
-void ULensComponent::UpdateLensFileEvaluationInputs()
+void ULensComponent::UpdateLensFileEvaluationInputs(UCineCameraComponent* CineCameraComponent)
 {
+	EvalInputs.bIsValid = false;
+
 	// Query for the focus and zoom inputs to use to evaluate the LensFile. The source of these inputs will depend on the evaluation mode.
 	if (EvaluationMode == EFIZEvaluationMode::UseLiveLink)
 	{
-		EvalFocus = LiveLinkFIZ.Input.Focus;
-		EvalZoom = LiveLinkFIZ.Input.Zoom;
+		if (bWasLiveLinkFIZUpdated)
+		{
+			EvalInputs.Focus = LiveLinkFIZ.Input.Focus;
+			EvalInputs.Zoom = LiveLinkFIZ.Input.Zoom;
+			EvalInputs.bIsValid = true;
+		}
 	}
 	else if (EvaluationMode == EFIZEvaluationMode::UseCameraSettings)
 	{
-		if (const UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
-		{
-			EvalFocus = CineCameraComponent->CurrentFocusDistance;
-			EvalZoom = CineCameraComponent->CurrentFocalLength;
-		}
+		EvalInputs.Focus = CineCameraComponent->CurrentFocusDistance;
+		// The camera's focal length might have been altered by applying an overscan FOV. However, the LensFile needs to be evaluated with the non-overscanned value
+		EvalInputs.Zoom = OriginalFocalLength;
+		EvalInputs.bIsValid = true;
 	}
 	else if (EvaluationMode == EFIZEvaluationMode::UseRecordedValues)
 	{
-		// Do nothing, the values for EvalFocus and EvalZoom are already loaded from the recorded sequence
+		// Do nothing, the values for EvalInputs.Focus and EvalInputs.Zoom are already loaded from the recorded sequence
+		EvalInputs.bIsValid = true;
 	}
 }
 
+void ULensComponent::UpdateCameraFilmback(UCineCameraComponent* CineCameraComponent)
+{	
+	switch (FilmbackOverride)
+	{
+		case EFilmbackOverrideSource::LensFile:
+		{	
+			if (ULensFile* LensFile = LensFilePicker.GetLensFile())
+			{
+				CineCameraComponent->Filmback.SensorWidth = LensFile->LensInfo.SensorDimensions.X;
+				CineCameraComponent->Filmback.SensorHeight = LensFile->LensInfo.SensorDimensions.Y;
+			}
+			break;
+		}
+		case EFilmbackOverrideSource::CroppedFilmbackSetting:
+		{
+			CineCameraComponent->Filmback = CroppedFilmback;
+			break;
+		}
+		case EFilmbackOverrideSource::DoNotOverride:
+		{
+			break; // Do Nothing
+		}
+		default:
+		{
+			ensureMsgf(false, TEXT("Unhandled EFilmbackOverrideSource type. Update this switch statement."));
+			break; 
+		}
+	}
+
+	EvalInputs.Filmback = CineCameraComponent->Filmback;
+}

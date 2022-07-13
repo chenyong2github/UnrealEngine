@@ -3,18 +3,29 @@
 #include "LiveLinkLensController.h"
 
 #include "CameraCalibrationSubsystem.h"
-#include "CineCameraComponent.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
+#include "LensComponent.h"
 #include "LiveLinkLensRole.h"
 #include "LiveLinkLensTypes.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
-
-ULiveLinkLensController::ULiveLinkLensController() 
+void ULiveLinkLensController::OnEvaluateRegistered()
 {
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	Super::OnEvaluateRegistered();
+	SetupLensComponent();
+}
+
+void ULiveLinkLensController::SetAttachedComponent(UActorComponent* ActorComponent)
+{
+	Super::SetAttachedComponent(ActorComponent);
+	SetupLensComponent();
+}
+
+void ULiveLinkLensController::SetupLensComponent()
+{
+	if (ULensComponent* const LensComponent = Cast<ULensComponent>(GetAttachedComponent()))
 	{
-		DistortionProducerID = FGuid::NewGuid();
+		LensComponent->SetDistortionSource(EDistortionSource::LiveLinkLensSubject);
 	}
 }
 
@@ -25,45 +36,20 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 
 	if (StaticData && FrameData)
 	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
+		if (ULensComponent* const LensComponent = Cast<ULensComponent>(GetAttachedComponent()))
 		{
 			UCameraCalibrationSubsystem* const SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 			const TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
+			LensComponent->SetLensModel(LensModel);
 
-			const FName SubjectName = SelectedSubject.Subject.Name;
-			const FText RoleName = SelectedSubject.Role->GetDefaultObject<ULiveLinkRole>()->GetDisplayName();
-			const FString HandlerDisplayName = FString::Format(TEXT("'{0}' LiveLink Subject ({1} Role)"), { SubjectName.ToString(), RoleName.ToString() });
+			// Update the lens distortion handler with the latest frame of data from the LiveLink source
+			FLensDistortionState DistortionState;
 
-			FDistortionHandlerPicker DistortionHandlerPicker = { CineCameraComponent, DistortionProducerID, HandlerDisplayName };
-			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionHandlerPicker, LensModel);
-			
-			if (LensDistortionHandler)
-			{
-				// Update the lens distortion handler with the latest frame of data from the LiveLink source
-				FLensDistortionState DistortionState;
+			DistortionState.DistortionInfo.Parameters = FrameData->DistortionParameters;
+			DistortionState.FocalLengthInfo.FxFy = FrameData->FxFy;
+			DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
 
-				DistortionState.DistortionInfo.Parameters = FrameData->DistortionParameters;
-				DistortionState.FocalLengthInfo.FxFy = FrameData->FxFy;
-				DistortionState.ImageCenter.PrincipalPoint = FrameData->PrincipalPoint;
-
-				//Update the distortion state based on incoming LL data.
-				LensDistortionHandler->SetDistortionState(DistortionState);
-
-				//Recompute overscan factor for the distortion state
-				float OverscanFactor = LensDistortionHandler->ComputeOverscanFactor();
-
-				if (bScaleOverscan)
-				{
-					OverscanFactor = ((OverscanFactor - 1.0f) * OverscanMultiplier) + 1.0f;
-				}
-				LensDistortionHandler->SetOverscanFactor(OverscanFactor);
-
-				//Make sure the displacement map is up to date
-				LensDistortionHandler->ProcessCurrentDistortion();
-			}
-
-			// Track changes to the cine camera's focal length for consumers of distortion data
-			SubSystem->UpdateOriginalFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
+			LensComponent->SetDistortionState(DistortionState);
 		}
 	}
 }
@@ -75,39 +61,73 @@ bool ULiveLinkLensController::IsRoleSupported(const TSubclassOf<ULiveLinkRole>& 
 
 TSubclassOf<UActorComponent> ULiveLinkLensController::GetDesiredComponentClass() const
 {
-	return UCineCameraComponent::StaticClass();
+	return ULensComponent::StaticClass();
 }
 
-void ULiveLinkLensController::Cleanup()
+
+void ULiveLinkLensController::PostLoad()
 {
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	const int32 UE5MainVersion = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	if (UE5MainVersion < FUE5MainStreamObjectVersion::LensComponentDistortion)
 	{
-		if (UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>())
+		// Distortion evaluation has moved to the Lens component. In order for existing camera actors to continue functioning as before,
+		// we have to migrate some properties from the lens controller to the lens component. If the owning actor does not have already have a lens 
+		// component then we will instance a new one.
+		AActor* const CameraActor = GetOuterActor();
+		CameraActor->ConditionalPostLoad();
+		if (CameraActor->GetWorld())
 		{
-			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, LensDistortionHandler);
+			TInlineComponentArray<ULensComponent*> LensComponents;
+			CameraActor->GetComponents(LensComponents);
+
+			// Loop through any existing lens components to find one whose distortion source was this lens controller
+			bool bFoundMatchingLensComponent = false;
+			for (ULensComponent* LensComponent : LensComponents)
+			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				FDistortionHandlerPicker DeprecatedPicker = LensComponent->GetDistortionHandlerPicker();
+				if (DeprecatedPicker.DistortionProducerID == DistortionProducerID_DEPRECATED)
+				{
+					bFoundMatchingLensComponent = true;
+
+					// Preserve the previous "bApplyDistortion" setting from the existing component
+					const bool bPreviousDistortionSetting = LensComponent->ShouldApplyDistortion();
+					SetAttachedComponent(LensComponent);
+					LensComponent->SetApplyDistortion(bPreviousDistortionSetting);
+					
+					// Copy the overscan multiplier settings to the lens component
+					if (bScaleOverscan_DEPRECATED)
+					{
+						LensComponent->SetOverscanMultiplier(OverscanMultiplier_DEPRECATED);
+					}
+				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
+
+			// If no matching existing lens components were found, create a new one and initialize it with the correct LensFile
+			if (!bFoundMatchingLensComponent)
+			{
+				ULensComponent* LensComponent = NewObject<ULensComponent>(CameraActor, MakeUniqueObjectName(this, ULensComponent::StaticClass(), TEXT("Lens")));
+				CameraActor->AddInstanceComponent(LensComponent);
+				LensComponent->RegisterComponent();
+
+				SetAttachedComponent(LensComponent);
+
+				// If there was no existing lens component, then the camera would not have had distortion (from this controller) applied to it
+				LensComponent->SetApplyDistortion(false);
+
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				// Copy the overscan multiplier settings to the lens component
+				if (bScaleOverscan_DEPRECATED)
+				{
+					LensComponent->SetOverscanMultiplier(OverscanMultiplier_DEPRECATED);
+				}
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
 		}
 	}
-}
-
-void ULiveLinkLensController::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	// When this controller is duplicated (e.g. for PIE), the duplicated controller needs a new unique ID
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
-}
-
-void ULiveLinkLensController::PostEditImport()
-{
-	Super::PostEditImport();
-
-	// PostDuplicate is not called on components during actor duplication, such as alt-drag and copy-paste, so PostEditImport covers those duplication cases
-	// When this controller is duplicated in those cases, the duplicated controller needs a new unique ID
-	if (!DistortionProducerID.IsValid())
-	{
-		DistortionProducerID = FGuid::NewGuid();
-	}
+#endif //WITH_EDITOR
 }
