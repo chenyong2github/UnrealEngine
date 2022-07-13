@@ -247,7 +247,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	struct IPooledRenderTarget* PooledRenderTarget = nullptr;
 	/** Location within the texture to write */
-	FIntVector pPageLocation;
+	FIntVector pPageLocation = FIntVector::ZeroValue;
 };
 
 /**
