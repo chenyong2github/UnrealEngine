@@ -12,6 +12,7 @@ class UTickableTransformConstraint;
 class UTransformableControlHandle;
 class UTransformableComponentHandle;
 struct FMovieSceneFloatChannel;
+struct FMovieSceneDoubleChannel;
 struct FMovieSceneConstraintChannel;
 class UMovieSceneControlRigParameterSection;
 struct FFrameNumber;
@@ -76,15 +77,12 @@ private:
 	/** END COMPONENT SECTION */
 
 	/** @todo documentation. */
-	static void GetFramesToCompensate(
-		const FMovieSceneConstraintChannel& InActiveChannel,
-		const bool InValue,
-		const FFrameNumber& InTime,
-		const TArrayView<FMovieSceneFloatChannel*>& InChannels,
-		TArray<FFrameNumber>& OutFramesAfter);
-
-	/** @todo documentation. */
 	static TArrayView<FMovieSceneFloatChannel*> GetTransformFloatChannels(
+		const UTransformableHandle* InHandle,
+		const TSharedPtr<ISequencer>& InSequencer);
+
+	/** @todo documentation.  TransformComponents use doubles */
+	static TArrayView<FMovieSceneDoubleChannel*> GetTransformDoubleChannels(
 		const UTransformableHandle* InHandle,
 		const TSharedPtr<ISequencer>& InSequencer);
 

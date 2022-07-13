@@ -14,12 +14,14 @@
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Algo/AnyOf.h"
+#include "TransformConstraint.h"
+#include "TransformableHandle.h"
 
 #if WITH_EDITOR
 
 struct F3DTransformChannelEditorData
 {
-	F3DTransformChannelEditorData(EMovieSceneTransformChannel Mask)
+	F3DTransformChannelEditorData(EMovieSceneTransformChannel Mask,int SortOrderStart)
 	{
 		FText LocationGroup = NSLOCTEXT("MovieSceneTransformSection", "Location", "Location");
 		FText RotationGroup = NSLOCTEXT("MovieSceneTransformSection", "Rotation", "Rotation");
@@ -28,57 +30,57 @@ struct F3DTransformChannelEditorData
 			MetaData[0].SetIdentifiers("Location.X", FCommonChannelData::ChannelX, LocationGroup);
 			MetaData[0].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationX);
 			MetaData[0].Color = FCommonChannelData::RedChannelColor;
-			MetaData[0].SortOrder = 0;
+			MetaData[0].SortOrder = SortOrderStart;
 			MetaData[0].bCanCollapseToTrack = false;
 
 			MetaData[1].SetIdentifiers("Location.Y", FCommonChannelData::ChannelY, LocationGroup);
 			MetaData[1].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationY);
 			MetaData[1].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[1].SortOrder = 1;
+			MetaData[1].SortOrder = SortOrderStart + 1;
 			MetaData[1].bCanCollapseToTrack = false;
 
 			MetaData[2].SetIdentifiers("Location.Z", FCommonChannelData::ChannelZ, LocationGroup);
 			MetaData[2].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::TranslationZ);
 			MetaData[2].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[2].SortOrder = 2;
+			MetaData[2].SortOrder = SortOrderStart + 2;
 			MetaData[2].bCanCollapseToTrack = false;
 		}
 		{
 			MetaData[3].SetIdentifiers("Rotation.X", NSLOCTEXT("MovieSceneTransformSection", "RotationX", "Roll"), RotationGroup);
 			MetaData[3].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationX);
 			MetaData[3].Color = FCommonChannelData::RedChannelColor;
-			MetaData[3].SortOrder = 3;
+			MetaData[3].SortOrder = SortOrderStart + 3;
 			MetaData[3].bCanCollapseToTrack = false;
 
 			MetaData[4].SetIdentifiers("Rotation.Y", NSLOCTEXT("MovieSceneTransformSection", "RotationY", "Pitch"), RotationGroup);
 			MetaData[4].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationY);
 			MetaData[4].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[4].SortOrder = 4;
+			MetaData[4].SortOrder = SortOrderStart + 4;
 			MetaData[4].bCanCollapseToTrack = false;
 
 			MetaData[5].SetIdentifiers("Rotation.Z", NSLOCTEXT("MovieSceneTransformSection", "RotationZ", "Yaw"), RotationGroup);
 			MetaData[5].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::RotationZ);
 			MetaData[5].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[5].SortOrder = 5;
+			MetaData[5].SortOrder = SortOrderStart + 5;
 			MetaData[5].bCanCollapseToTrack = false;
 		}
 		{
 			MetaData[6].SetIdentifiers("Scale.X", FCommonChannelData::ChannelX, ScaleGroup);
 			MetaData[6].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleX);
 			MetaData[6].Color = FCommonChannelData::RedChannelColor;
-			MetaData[6].SortOrder = 6;
+			MetaData[6].SortOrder = SortOrderStart + 6;
 			MetaData[6].bCanCollapseToTrack = false;
 
 			MetaData[7].SetIdentifiers("Scale.Y", FCommonChannelData::ChannelY, ScaleGroup);
 			MetaData[7].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleY);
 			MetaData[7].Color = FCommonChannelData::GreenChannelColor;
-			MetaData[7].SortOrder = 7;
+			MetaData[7].SortOrder = SortOrderStart + 7;
 			MetaData[7].bCanCollapseToTrack = false;
 
 			MetaData[8].SetIdentifiers("Scale.Z", FCommonChannelData::ChannelZ, ScaleGroup);
 			MetaData[8].bEnabled = EnumHasAllFlags(Mask, EMovieSceneTransformChannel::ScaleZ);
 			MetaData[8].Color = FCommonChannelData::BlueChannelColor;
-			MetaData[8].SortOrder = 8;
+			MetaData[8].SortOrder = SortOrderStart + 8;
 			MetaData[8].bCanCollapseToTrack = false;
 		}
 		{
@@ -297,6 +299,11 @@ void FMovieScene3DTransformKeyStruct::PropagateChanges(const FPropertyChangedEve
 	KeyStructInterop.Apply(Time);
 }
 
+namespace UE::MovieScene
+{
+	static constexpr uint32 ConstraintTypeMask = 1 << 31;
+}
+
 
 /* UMovieScene3DTransformSection interface
  *****************************************************************************/
@@ -419,8 +426,32 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 	);
 }
 
+void UMovieScene3DTransformSection::PopulateConstraintEntities(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	check(Constraints);
+
+	using namespace UE::MovieScene;
+
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+
+	// Add explicitly typed entities for each constraint
+	// Encode the top bit of the entity ID to mean it is a constraint
+	// We can check this in ImportEntityImpl to import the correct constraint
+	for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints->ConstraintsChannels.Num(); ++ConstraintIndex)
+	{
+		// Entity IDs for constraints are their index within the array, masked with the top bit set
+		const uint32 EntityID = ConstraintIndex | ConstraintTypeMask;
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, this, EntityID, MetaDataIndex);
+	}
+}
+
+
 bool UMovieScene3DTransformSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
+	if (Constraints)
+	{
+		PopulateConstraintEntities(EffectiveRange, InMetaData, OutFieldBuilder);
+	}
 	if (OverrideRegistry)
 	{
 		return OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, *this);
@@ -429,9 +460,48 @@ bool UMovieScene3DTransformSection::PopulateEvaluationFieldImpl(const TRange<FFr
 	return false;
 }
 
+void UMovieScene3DTransformSection::ImportConstraintEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes*          BuiltInComponentTypes = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TrackComponents       = FMovieSceneTracksComponentTypes::Get();
+
+	// Constraints must always operate on a USceneComponent. Putting one on a generic FTransform property has no effect (or is not possible).
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+	if (ObjectBindingID.IsValid())
+	{
+		// Mask out the top bit to get the constraint index we encoded into the EntityID.
+		const int32 ConstraintIndex = static_cast<int32>(Params.EntityID & ~ConstraintTypeMask);
+
+		checkf(Constraints->ConstraintsChannels.IsValidIndex(ConstraintIndex), TEXT("Encoded constraint (%d) index is not valid within array size %d. Data must have been manipulated without re-compilaition."), ConstraintIndex, Constraints->ConstraintsChannels.Num());
+
+		if (Constraints->ConstraintsChannels[ConstraintIndex].Constraint.IsValid())
+		{
+			FName ConstraintName = Constraints->ConstraintsChannels[ConstraintIndex].Constraint->GetFName();
+
+			FConstraintComponentData ComponentData;
+			ComponentData.ConstraintName = ConstraintName;
+			ComponentData.Channel = &(Constraints->ConstraintsChannels[ConstraintIndex].ActiveChannel);
+			OutImportedEntity->AddBuilder(
+				FEntityBuilder()
+				.Add(BuiltInComponentTypes->SceneComponentBinding, ObjectBindingID)
+				//.Add(TrackComponents->ConstraintName, ConstraintName)
+				.Add(TrackComponents->ConstraintChannel,ComponentData)
+			);
+		}
+	}
+}
+
 void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
+
+	if ((Params.EntityID & ConstraintTypeMask) != 0  && Constraints) 
+	{
+		ImportConstraintEntity(EntityLinker, Params, OutImportedEntity);
+		return;
+	}
 
 	FBuiltInComponentTypes*   BuiltInComponentTypes = FBuiltInComponentTypes::Get();
 	UMovieScenePropertyTrack* Track                 = GetTypedOuter<UMovieScenePropertyTrack>();
@@ -531,9 +601,46 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
 
+	//Constraints go on top
+	int32 NumConstraints = 0;
+	if(Constraints)
+	{ 
+		for (FConstraintAndActiveChannel& ConstraintChannel : Constraints->ConstraintsChannels)
+		{
+#if WITH_EDITOR
+			if (ConstraintChannel.Constraint.IsValid())
+			{
+				FText ConstraintGroup = NSLOCTEXT("MovieSceneTransformSection", "Constraints", "Constraints");
+				const FName& ConstraintName = ConstraintChannel.Constraint->GetFName();
+				ConstraintChannel.ActiveChannel.ExtraLabel = [WeakConstraint = MakeWeakObjectPtr(ConstraintChannel.Constraint.Get())]
+				{
+					if (WeakConstraint.IsValid())
+					{
+						FString ParentStr; WeakConstraint->GetLabel().Split(TEXT("."), &ParentStr, nullptr);
+						if (!ParentStr.IsEmpty())
+						{
+							return ParentStr;
+						}
+					}
+					static const FString DummyStr;
+					return DummyStr;
+				};
+				const FText DisplayText = FText::FromString(ConstraintChannel.Constraint->GetTypeLabel());
+				FMovieSceneChannelMetaData MetaData(ConstraintName, DisplayText, ConstraintGroup, true /*bInEnabled*/);
+				MetaData.SortOrder = NumConstraints++;
+				MetaData.bCanCollapseToTrack = false;
+				Channels.Add(ConstraintChannel.ActiveChannel, MetaData, TMovieSceneExternalValue<bool>());
+			}
+#else
+			Channels.Add(ConstraintChannel.ActiveChannel);
+#endif
+			
+		}
+	}
+
 #if WITH_EDITOR
 
-	F3DTransformChannelEditorData EditorData(TransformMask.GetChannels());
+	F3DTransformChannelEditorData EditorData(TransformMask.GetChannels(), NumConstraints);
 
 	Channels.Add(Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
 	Channels.Add(Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
@@ -705,3 +812,72 @@ void UMovieScene3DTransformSection::SetBlendType(EMovieSceneBlendType InBlendTyp
 		}
 	}
 }
+
+bool UMovieScene3DTransformSection::HasConstraintChannel(const FName& InConstraintName) const
+{
+	if (Constraints)
+	{
+		return Constraints->ConstraintsChannels.ContainsByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+			{
+				return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+			});
+	}
+	return false;
+}
+
+FConstraintAndActiveChannel* UMovieScene3DTransformSection::GetConstraintChannel(const FName& InConstraintName)
+{
+	if (Constraints)
+	{
+		const int32 Index = Constraints->ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+			{
+				return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+			});
+		return (Index != INDEX_NONE) ? &(Constraints->ConstraintsChannels[Index]) : nullptr;
+	}
+	return nullptr;
+}
+
+void UMovieScene3DTransformSection::SetUpConstraintRemovedHandle()
+{
+	if (Constraints)
+	{
+		if (Constraints->ConstraintsChannels.Num() > 0 && !Constraints->OnConstraintRemovedHandle.IsValid())
+		{
+			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(GetWorld());
+			Constraints->OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
+			{
+				Modify();
+				const int32 NumRemoved = Constraints->ConstraintsChannels.RemoveAll([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+					{
+						return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+					});
+				if (NumRemoved > 0)
+				{
+					CacheChannelProxy();
+				}
+			});
+		}
+	}
+}
+
+void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* InConstraint)
+{
+	if (!Constraints)
+	{
+		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Transactional);
+	}
+	if (!HasConstraintChannel(InConstraint->GetFName()))
+	{
+		Modify();
+
+		const int32 NewIndex = Constraints->ConstraintsChannels.Add(FConstraintAndActiveChannel(InConstraint));
+
+		FMovieSceneConstraintChannel* ExistingChannel = &Constraints->ConstraintsChannels[NewIndex].ActiveChannel;
+		ExistingChannel->SetDefault(false);
+
+		SetUpConstraintRemovedHandle();
+		CacheChannelProxy();
+	}
+}
+

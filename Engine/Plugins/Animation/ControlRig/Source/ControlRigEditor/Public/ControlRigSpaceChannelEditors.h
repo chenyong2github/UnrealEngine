@@ -61,9 +61,9 @@ struct FControlRigSpaceChannelHelpers
 	static TArray<FKeyBarCurveModel::FBarRange> FindRanges(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Section);
 
 	// evaluates the tangent by central difference at a specific time. (return the closest key tangent if within an acceptable tolerance) 
-	static void EvaluateTangentAtThisTime(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* Section, FName ControlName, FFrameNumber Time, TArray<FMovieSceneTangentData>& OutTangents);
+	static void EvaluateTangentAtThisTime(int32 ChannelIndex, int32 NumChannels, bool bFloatChannels, UMovieSceneSection* Section,  FFrameNumber Time, TArray<FMovieSceneTangentData>& OutTangents);
 	// set the tangent at a specific time. (if there's a key to set at this time)
-	static void SetTangentsAtThisTime(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* Section, FName ControlName, FFrameNumber Time, const TArray<FMovieSceneTangentData>& InTangents);
+	static void SetTangentsAtThisTime(int32 ChannelIndex, int32 NumChannels,bool bFloatChannels, UMovieSceneSection* Section, FFrameNumber Time, const TArray<FMovieSceneTangentData>& InTangents);
 	// retrieve the control and the channel infos for that ControlRig/Section.
 	static TPair<FRigControlElement*, FChannelMapInfo*> GetControlAndChannelInfo(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* Section, FName ControlName);
 	// retrieve the number of float channels based on the control type.

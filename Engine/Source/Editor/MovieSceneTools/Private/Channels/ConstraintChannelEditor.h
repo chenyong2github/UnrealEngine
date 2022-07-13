@@ -4,8 +4,15 @@
 
 #include "SequencerChannelTraits.h"
 #include "SequencerChannelInterface.h"
+#include "KeyBarCurveModel.h"
 
 struct FMovieSceneConstraintChannel;
+
+/** Should concillidate this with the FCosntraintChannelHelper once that moves out of the control rig module*/
+struct FConstraintChannelEditor
+{
+	static TArray<FKeyBarCurveModel::FBarRange> GetBarRanges(FMovieSceneConstraintChannel* Channel, const UMovieSceneSection* Owner);
+};
 
 /** Key drawing overrides */
 void DrawKeys(
@@ -38,3 +45,7 @@ TSharedRef<SWidget> CreateKeyEditor(
 	const FGuid& InObjectBindingID,
 	TWeakPtr<FTrackInstancePropertyBindings> PropertyBindings,
 	TWeakPtr<ISequencer> Sequencer);
+
+/** Curve editor models */
+inline bool SupportsCurveEditorModels(const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& Channel) { return true; }
+TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& Channel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer);

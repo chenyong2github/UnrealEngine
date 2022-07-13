@@ -251,6 +251,138 @@ FSpaceChannelAndSection FControlRigSpaceChannelHelpers::FindSpaceChannelAndSecti
 	return SpaceChannelAndSection;
 }
 
+template<typename ChannelType>
+void EvaluateTangentAtThisTimeImpl(int32 ChannelIndex, int32 NumChannels,
+	UMovieSceneSection* Section,
+	FFrameNumber Time,
+	TArray<FMovieSceneTangentData>& OutTangents)
+{
+	using ChannelValueType = typename ChannelType::ChannelValueType;
+
+	// NOTE this might be moved to FMovieSceneFloatChannel
+	auto EvaluateTangent = [](const ChannelType* InChannel, FFrameNumber InTime)
+	{
+		const TMovieSceneChannelData<const ChannelValueType> ChannelInterface = InChannel->GetData();
+		const TArrayView<const FFrameNumber> Times = ChannelInterface.GetTimes();
+
+		// Need at least two keys to evaluate a derivative
+		if (Times.Num() < 2)
+		{
+			static const FMovieSceneTangentData DefaultTangent;
+			return DefaultTangent;
+		}
+
+		const TArrayView<const ChannelValueType> Values = ChannelInterface.GetValues();
+
+		// look around to get the closest key tangent if fairly close
+		const int32 Tolerance = static_cast<int32>(InChannel->GetTickResolution().AsDecimal() * 0.01);
+		// NOTE FindKey might return Times.Num() (see AlgoImpl::LowerBoundInternal)
+		const int32 ExistingIndex = ChannelInterface.FindKey(InTime, Tolerance);
+		if (Times.IsValidIndex(ExistingIndex) && Values.IsValidIndex(ExistingIndex))
+		{
+			const FFrameNumber& Time = Times[ExistingIndex];
+			const int32 DiffToKey = InTime.Value - Time.Value;
+
+			// if the closest key is within a threshold, we use it's tangent directly instead of computing one
+			if (FMath::Abs(DiffToKey) <= Tolerance)
+			{
+				const ChannelValueType Value = Values[ExistingIndex];
+				if (DiffToKey == 0)
+				{
+					return Value.Tangent;
+				}
+
+				FMovieSceneTangentData Tangent = Value.Tangent;
+				if (DiffToKey < 0) // pretty close to the next key
+				{
+					Tangent.LeaveTangent = 0.f;
+				}
+				else // pretty close to the previous key
+				{
+					Tangent.ArriveTangent = 0.f;
+				}
+				return Tangent;
+			}
+		}
+
+		// compute tangent using central difference
+		// NOTE we may wanna compute a backward / forward difference instead
+		const int32 Delta = static_cast<int32>(InChannel->GetTickResolution().AsDecimal() * 0.1);
+
+		float PrevValue = 0.f; InChannel->Evaluate(InTime - Delta, PrevValue);
+		float NextValue = 0.f; InChannel->Evaluate(InTime + Delta, NextValue);
+		const float TangentValue = (NextValue - PrevValue) / (2.f * Delta);
+
+		FMovieSceneTangentData TangentData;
+		TangentData.ArriveTangent = TangentValue;
+		TangentData.LeaveTangent = TangentValue;
+
+		return TangentData;
+	};
+
+
+	// compute and store tangents
+	OutTangents.SetNum(NumChannels);
+
+	const TArrayView<ChannelType*> Channels = Section->GetChannelProxy().GetChannels<ChannelType>();
+	for (int32 Index = 0; Index < NumChannels; ++Index, ++ChannelIndex)
+	{
+		OutTangents[Index] = EvaluateTangent(Channels[ChannelIndex], Time);
+	}
+}
+
+// NOTE we may pass an enum to tell which tangent we wanna set (arrive, leave, both)
+template<typename ChannelType>
+void SetTangentsAtThisTimeImpl(int32 ChannelIndex,
+	int32 NumChannels,
+	UMovieSceneSection* Section,
+	FFrameNumber Time,
+	const TArray<FMovieSceneTangentData>& InTangents)
+{
+	using ChannelValueType = typename ChannelType::ChannelValueType;
+
+	const TArrayView<ChannelType*> Channels = Section->GetChannelProxy().GetChannels<ChannelType>();
+
+	for (int32 Index = 0; Index < NumChannels; ++Index, ++ChannelIndex)
+	{
+		TMovieSceneChannelData<ChannelValueType> ChannelInterface = Channels[ChannelIndex]->GetData();
+		TArrayView<ChannelValueType> Values = ChannelInterface.GetValues();
+		const int32 KeyIndex = ChannelInterface.FindKey(Time);
+		if (KeyIndex != INDEX_NONE)
+		{
+			ChannelValueType& Value = Values[KeyIndex];
+			Value.Tangent.ArriveTangent = InTangents[Index].ArriveTangent;
+			Value.Tangent.LeaveTangent = InTangents[Index].LeaveTangent;
+			Value.TangentMode = RCTM_Break;
+		}
+	}
+}
+
+void FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(int32 ChannelIndex, int32 NumChannels, bool bFloatChannels, UMovieSceneSection* Section, FFrameNumber Time, TArray<FMovieSceneTangentData>& OutTangents)
+{
+	if (bFloatChannels)
+	{
+		EvaluateTangentAtThisTimeImpl<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Time, OutTangents);
+	}
+	else
+	{
+		EvaluateTangentAtThisTimeImpl<FMovieSceneDoubleChannel>(ChannelIndex, NumChannels, Section, Time, OutTangents);
+	}
+}
+
+void FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(int32 ChannelIndex, int32 NumChannels, bool bFloatChannels, UMovieSceneSection* Section, FFrameNumber Time, const TArray<FMovieSceneTangentData>& InTangents)
+{
+	if (bFloatChannels)
+	{
+		SetTangentsAtThisTimeImpl<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Time, InTangents);
+	}
+	else
+	{
+		SetTangentsAtThisTimeImpl<FMovieSceneDoubleChannel>(ChannelIndex, NumChannels, Section, Time, InTangents);
+	}
+}
+
+
 /*
 *  Situations to handle\
 *  0) New space sames as current space do nothing
@@ -353,10 +485,24 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 
 		// store tangents to keep the animation when switching 
 		TArray<FMovieSceneTangentData> Tangents;
+		int32 ChannelIndex = 0, NumChannels = 0;
 		UMovieSceneControlRigParameterSection* ControlRigSection = Cast<UMovieSceneControlRigParameterSection>(SectionToKey);
 		if (ControlRigSection)
 		{
-			EvaluateTangentAtThisTime(ControlRig, ControlRigSection, ControlKey.Name, Time, Tangents);
+			FChannelMapInfo* pChannelIndex = nullptr;
+			FRigControlElement* ControlElement = nullptr;
+			Tie(ControlElement, pChannelIndex) = GetControlAndChannelInfo(ControlRig, ControlRigSection, ControlKey.Name);
+
+			if (pChannelIndex && ControlElement)
+			{
+				// get the number of float channels to treat
+				NumChannels = GetNumFloatChannels(ControlElement->Settings.ControlType);
+				if (NumChannels > 0)
+				{
+					ChannelIndex = pChannelIndex->ChannelIndex;
+					EvaluateTangentAtThisTime(ChannelIndex, NumChannels, true,ControlRigSection, Time, Tangents);
+				}
+			}
 		}
 		
 		// if current Value not the same as the previous add new space key
@@ -417,10 +563,9 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context);
 
 			// need to update the tangents here to keep the arriving animation
-			if (ControlRigSection)
+			if (ControlRigSection  && NumChannels > 0)
 			{
-				// ControlRigSection->Modify(); ?
-				SetTangentsAtThisTime(ControlRig, ControlRigSection, ControlKey.Name, GlobalTime.GetFrame(), Tangents);
+				SetTangentsAtThisTime(ChannelIndex, NumChannels,true, ControlRigSection,GlobalTime.GetFrame(), Tangents);
 			}
 		}
 
@@ -445,10 +590,9 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			// need to update the tangents here to keep the leaving animation
 			if (bSetPreviousKey && FramesIndex == 0)
 			{
-				if (ControlRigSection)
+				if (ControlRigSection && NumChannels > 0)
 				{
-					// ControlRigSection->Modify(); ?
-					SetTangentsAtThisTime(ControlRig, ControlRigSection, ControlKey.Name, GlobalTime.GetFrame(), Tangents);
+					SetTangentsAtThisTime(ChannelIndex, NumChannels, true,  ControlRigSection, GlobalTime.GetFrame(), Tangents);
 				}
 			}
 
@@ -1396,141 +1540,6 @@ int32 FControlRigSpaceChannelHelpers::GetNumFloatChannels(const ERigControlType 
 		break;
 	}
 	return 0;
-}
-
-void FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(	UControlRig* ControlRig,
-																UMovieSceneControlRigParameterSection* Section,
-																FName ControlName,
-																FFrameNumber Time,
-																TArray<FMovieSceneTangentData>& OutTangents)
-{
-	// NOTE this might be moved to FMovieSceneFloatChannel
-	auto EvaluateTangent = [](const FMovieSceneFloatChannel* InChannel, FFrameNumber InTime)
-	{
-		const TMovieSceneChannelData<const FMovieSceneFloatValue> ChannelInterface = InChannel->GetData();
-		const TArrayView<const FFrameNumber> Times = ChannelInterface.GetTimes();
-
-		// Need at least two keys to evaluate a derivative
-		if (Times.Num() < 2)
-		{
-			static const FMovieSceneTangentData DefaultTangent;
-			return DefaultTangent;
-		}
-
-		const TArrayView<const FMovieSceneFloatValue> Values = ChannelInterface.GetValues();
-		
-		// look around to get the closest key tangent if fairly close
-		const int32 Tolerance = static_cast<int32>(InChannel->GetTickResolution().AsDecimal() * 0.01);
-		// NOTE FindKey might return Times.Num() (see AlgoImpl::LowerBoundInternal)
-		const int32 ExistingIndex = ChannelInterface.FindKey(InTime, Tolerance);
-		if (Times.IsValidIndex(ExistingIndex) && Values.IsValidIndex(ExistingIndex))
-		{
-			const FFrameNumber& Time = Times[ExistingIndex];
-			const int32 DiffToKey = InTime.Value - Time.Value;
-
-			// if the closest key is within a threshold, we use it's tangent directly instead of computing one
-			if (FMath::Abs(DiffToKey) <= Tolerance)
-			{
-				const FMovieSceneFloatValue Value = Values[ExistingIndex];
-				if (DiffToKey == 0)
-				{
-					return Value.Tangent;				
-				}
-
-				FMovieSceneTangentData Tangent = Value.Tangent;
-				if (DiffToKey < 0) // pretty close to the next key
-				{
-				 	Tangent.LeaveTangent = 0.f;
-				}
-				else // pretty close to the previous key
-				{
-					Tangent.ArriveTangent = 0.f;
-				}
-				return Tangent;
-			}
-		}
-
-		// compute tangent using central difference
-		// NOTE we may wanna compute a backward / forward difference instead
-		const int32 Delta = static_cast<int32>(InChannel->GetTickResolution().AsDecimal() * 0.1);
-
-		float PrevValue = 0.f; InChannel->Evaluate(InTime-Delta, PrevValue);
-		float NextValue = 0.f; InChannel->Evaluate(InTime+Delta, NextValue);
-		const float TangentValue = (NextValue - PrevValue) / (2.f*Delta);
-		
-		FMovieSceneTangentData TangentData;
-		TangentData.ArriveTangent = TangentValue;
-		TangentData.LeaveTangent = TangentValue;
-	
-		return TangentData;
-	};
-	
-	FChannelMapInfo* pChannelIndex = nullptr;
-	FRigControlElement* ControlElement = nullptr;
-	Tie(ControlElement, pChannelIndex) = GetControlAndChannelInfo(ControlRig, Section, ControlName);
-	
-	if (!pChannelIndex || !ControlElement)
-	{
-		return;
-	}
-
-	// get the number of float channels to treat
-	const int NumChannels = GetNumFloatChannels(ControlElement->Settings.ControlType);
-	if (!NumChannels)
-	{
-		return;
-	}
-
-	// compute and store tangents
-	OutTangents.SetNum(NumChannels);
-
-	const TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	int32 ChannelIndex = pChannelIndex->ChannelIndex;
-	for (int32 Index = 0; Index < NumChannels; ++Index, ++ChannelIndex)
-	{
-		OutTangents[Index] = EvaluateTangent(FloatChannels[ChannelIndex], Time);
-	}
-}
-
-// NOTE we may pass an enum to tell which tangent we wanna set (arrive, leave, both)
-void FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(	UControlRig* ControlRig,
-															UMovieSceneControlRigParameterSection* Section,
-															FName ControlName,
-															FFrameNumber Time,
-															const TArray<FMovieSceneTangentData>& InTangents)
-{
-	FChannelMapInfo* pChannelIndex = nullptr;
-    FRigControlElement* ControlElement = nullptr;
-    Tie(ControlElement, pChannelIndex) = GetControlAndChannelInfo(ControlRig, Section, ControlName);
-    
-    if (!pChannelIndex || !ControlElement)
-    {
-    	return;
-    }
-
-	// get the number of float channels to treat
-	const int32 NumChannels = GetNumFloatChannels(ControlElement->Settings.ControlType);
-	if (!NumChannels || InTangents.Num() != NumChannels)
-	{
-		return;
-	}
-
-	const TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	int32 ChannelIndex = pChannelIndex->ChannelIndex;
-
-	for (int32 Index = 0; Index < NumChannels; ++Index, ++ChannelIndex)
-	{
-		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelInterface = FloatChannels[ChannelIndex]->GetData();
-		TArrayView<FMovieSceneFloatValue> Values = ChannelInterface.GetValues();
-		const int32 KeyIndex = ChannelInterface.FindKey(Time);
-		if (KeyIndex != INDEX_NONE)
-		{
-			FMovieSceneFloatValue& Value = Values[KeyIndex];
-			Value.Tangent.ArriveTangent = InTangents[Index].ArriveTangent;
-			Value.Tangent.LeaveTangent = InTangents[Index].LeaveTangent;
-			Value.TangentMode = RCTM_Break;	
-		}
-	}
 }
 
 void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Owner,const FGeometry& AllottedGeometry, FSequencerSectionPainter& Painter)

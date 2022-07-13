@@ -83,6 +83,8 @@
 #include "Channels/MovieSceneAudioTriggerChannel.h"
 #include "ConstraintChannel.h"
 #include "Channels/ConstraintChannelEditor.h"
+#include "Channels/ConstraintChannelCurveModel.h"
+#include "Channels/SCurveEditorKeyBarView.h"
 #include "Sections/MovieSceneEventSection.h"
 
 #include "MovieSceneEventUtils.h"
@@ -206,6 +208,13 @@ void FMovieSceneToolsModule::StartupModule()
 				return SNew(SCurveEditorEventChannelView, WeakCurveEditor);
 			}
 		));
+
+		FConstraintChannelCurveModel::ViewID = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
+			[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
+			{
+				return SNew(SCurveEditorKeyBarView, WeakCurveEditor);
+			}
+		));
 	}
 
 	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
@@ -250,6 +259,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
 		CurveEditorModule->UnregisterView(FEventChannelCurveModel::EventView);
+		CurveEditorModule->UnregisterView(FConstraintChannelCurveModel::ViewID);
 	}
 
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))

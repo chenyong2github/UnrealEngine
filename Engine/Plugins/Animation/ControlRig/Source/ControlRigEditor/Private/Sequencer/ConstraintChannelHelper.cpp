@@ -18,14 +18,19 @@
 
 #include "Tools/BakingHelper.h"
 #include "Tools/ConstraintBaker.h"
+#include "ScopedTransaction.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 
 bool FConstraintChannelHelper::bDoNotCompensate = false;
 
+#define LOCTEXT_NAMESPACE "Constraints"
+
 namespace
 {
-	bool CanAddKey(const FConstraintAndActiveChannel* Channel, const FFrameNumber& InTime, bool& ActiveValue)
+	bool CanAddKey(const FMovieSceneBoolChannel& ActiveChannel, const FFrameNumber& InTime, bool& ActiveValue)
 	{
-		const TMovieSceneChannelData<const bool> ChannelData = Channel->ActiveChannel.GetData();
+		const TMovieSceneChannelData<const bool> ChannelData = ActiveChannel.GetData();
 		const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
 		if (Times.IsEmpty())
 		{
@@ -154,7 +159,7 @@ void FConstraintChannelHelper::AddConstraintKey(UTickableTransformConstraint* In
 			const FFrameNumber Time = FrameTime.GetFrame();
 
 			bool Value = false;
-			CanAddKey(Channel, Time, Value);
+			CanAddKey(Channel->ActiveChannel, Time, Value);
 			
 			TMovieSceneChannelData<bool> ChannelData = Channel->ActiveChannel.GetData();
 			ChannelData.AddKey(Time, InConstraint->Active);
@@ -261,16 +266,78 @@ TArrayView<FMovieSceneFloatChannel*> FConstraintChannelHelper::GetTransformFloat
 		const int32 ChannelStartIndex = pChannelIndex->ChannelIndex;
 		return FloatChannels.Slice(ChannelStartIndex, NumChannels);
 	}
-	
-	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InHandle))
-	{
-		const UMovieScene3DTransformSection* Section = GetTransformSection(ComponentHandle, InSequencer);
-		return Section ? Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>() : EmptyChannelsView;
-	}
-	
 	return EmptyChannelsView;
 }
 
+TArrayView<FMovieSceneDoubleChannel*> FConstraintChannelHelper::GetTransformDoubleChannels(
+	const UTransformableHandle* InHandle,
+	const TSharedPtr<ISequencer>& InSequencer)
+{
+	// InHandle and InSequencer are assumed to be valid at this stage so no need to check
+
+	static const TArrayView<FMovieSceneDoubleChannel*> EmptyChannelsView;
+	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InHandle))
+	{
+		const UMovieScene3DTransformSection* Section = GetTransformSection(ComponentHandle, InSequencer);
+		return Section ? Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>() : EmptyChannelsView;
+	}
+
+	return EmptyChannelsView;
+}
+
+template<typename ChannelType>
+void GetFramesToCompensate(
+	const FMovieSceneConstraintChannel& InActiveChannel,
+	const bool InActiveValueToBeSet,
+	const FFrameNumber& InTime,
+	const TArrayView<ChannelType*>& InChannels,
+	TArray<FFrameNumber>& OutFramesAfter)
+{
+	using ChannelValueType = typename ChannelType::ChannelValueType;
+
+	const bool bHasKeys = (InActiveChannel.GetNumKeys() > 0);
+	
+	OutFramesAfter.Reset();
+
+	// add the current frame
+	OutFramesAfter.Add(InTime);
+
+	// add the next frames that need transform compensation 
+	for (const ChannelType* InChannel: InChannels)
+	{
+		const TMovieSceneChannelData<const ChannelValueType> ChannelData = InChannel->GetData();
+		const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
+		if (!Times.IsEmpty())
+		{
+			// look for the first next key frame for this channel 
+			const int32 NextTimeIndex = Algo::UpperBound(Times, InTime);
+			if (Times.IsValidIndex(NextTimeIndex))
+			{
+				// store the time while the state is different
+				for (int32 Index = NextTimeIndex; Index < Times.Num(); ++Index)
+				{
+					if (!bHasKeys)
+					{
+						OutFramesAfter.Add(Times[Index]);
+					}
+					else
+					{
+						bool NextValue = false; InActiveChannel.Evaluate(Times[Index], NextValue);
+						if (NextValue == InActiveValueToBeSet)
+						{
+							break;
+						}
+						OutFramesAfter.Add(Times[Index]);
+					}
+				}
+			}
+		}
+	}
+
+	// uniqueness
+	OutFramesAfter.Sort();
+	OutFramesAfter.SetNum(Algo::Unique(OutFramesAfter));
+}
 namespace
 {
 
@@ -513,6 +580,8 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 	
 	if (UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, InSequencer))
 	{
+		FScopedTransaction Transaction(LOCTEXT("KeyConstraintaKehy", "Key Constraint Key"));
+		Section->Modify();
 		// add the channel
 		Section->AddConstraintChannel(InConstraint, true);
 
@@ -524,8 +593,9 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 			const FFrameNumber Time = FrameTime.GetFrame();
 
 			bool ActiveValueToBeSet = false;
-			if (CanAddKey(Channel, Time, ActiveValueToBeSet))
+			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
 			{
+
 				TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
 				
 				// set constraint as dynamic
@@ -537,7 +607,7 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				// store the frames to compensate
 				const TArrayView<FMovieSceneFloatChannel*> Channels = GetTransformFloatChannels(ControlHandle, InSequencer);
 				TArray<FFrameNumber> FramesToCompensate;
-				GetFramesToCompensate(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+				GetFramesToCompensate<FMovieSceneFloatChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
 
 				// store child and space transforms for these frames
 				FCompensationEvaluator Evaluator(InConstraint);
@@ -546,24 +616,42 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				
 				// store tangents at this time
 				TArray<FMovieSceneTangentData> Tangents;
-				FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(ControlRig, Section, ControlName, Time, Tangents);
+				int32 ChannelIndex = 0, NumChannels = 0;
+
+				FChannelMapInfo* pChannelIndex = nullptr;
+				FRigControlElement* ControlElement = nullptr;
+				Tie(ControlElement, pChannelIndex) = FControlRigSpaceChannelHelpers::GetControlAndChannelInfo(ControlRig, Section, ControlName);
+
+				if (pChannelIndex && ControlElement)
+				{
+					// get the number of float channels to treat
+					NumChannels = FControlRigSpaceChannelHelpers::GetNumFloatChannels(ControlElement->Settings.ControlType);
+					if (NumChannels > 0)
+					{
+						ChannelIndex = pChannelIndex->ChannelIndex;
+						FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(ChannelIndex, NumChannels, true,Section, Time, Tangents);
+					}
+				}
+				
 
 				const EMovieSceneTransformChannel ChannelsToKey = FConstraintBaker::GetChannelsToKey(InConstraint);
 				
 				// add child's transform key at Time-1 to keep animation
 				{
-					const FFrameNumber TimeMinusOne(Time -1);
-					
-					FBakingHelper::AddTransformKeys(ControlRig, ControlName, {TimeMinusOne},
-					 	{ChildLocals[0]}, ChannelsToKey, TickResolution, true);
-					
+					const FFrameNumber TimeMinusOne(Time - 1);
+
+					FBakingHelper::AddTransformKeys(ControlRig, ControlName, { TimeMinusOne },
+						{ ChildLocals[0] }, ChannelsToKey, TickResolution, true);
+
 					// set tangents at Time-1
-					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ControlRig, Section, ControlName, TimeMinusOne, Tangents);
+					if (NumChannels > 0)
+					{
+						FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ChannelIndex, NumChannels, true, Section, TimeMinusOne, Tangents);
+					}
 				}
 
 				// add active key
 				{
-					Section->Modify();
 					TMovieSceneChannelData<bool> ChannelData = Channel->ActiveChannel.GetData();
 					ChannelData.AddKey(Time, ActiveValueToBeSet);
 				}
@@ -574,11 +662,14 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 					ChildLocals.RemoveAt(0);
 
 					// add keys
-					FBakingHelper::AddTransformKeys( ControlRig, ControlHandle->ControlName, FramesToCompensate,
-					 	ChildLocals, ChannelsToKey, TickResolution, true);
-					
+					FBakingHelper::AddTransformKeys(ControlRig, ControlHandle->ControlName, FramesToCompensate,
+						ChildLocals, ChannelsToKey, TickResolution, true);
+
 					// set tangents at Time
-					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ControlRig, Section, ControlName, Time, Tangents);
+					if (NumChannels > 0 )
+					{
+						FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ChannelIndex, NumChannels, true, Section, Time, Tangents);
+					}
 				}
 			}
 		}
@@ -594,57 +685,93 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 	{
 		return;
 	}
-}
-
-void FConstraintChannelHelper::GetFramesToCompensate(
-	const FMovieSceneConstraintChannel& InActiveChannel,
-	const bool InActiveValueToBeSet,
-	const FFrameNumber& InTime,
-	const TArrayView<FMovieSceneFloatChannel*>& InChannels,
-	TArray<FFrameNumber>& OutFramesAfter)
-{
-	const bool bHasKeys = (InActiveChannel.GetNumKeys() > 0);
-	
-	OutFramesAfter.Reset();
-
-	// add the current frame
-	OutFramesAfter.Add(InTime);
-
-	// add the next frames that need transform compensation 
-	for (const FMovieSceneFloatChannel* InChannel: InChannels)
+	AActor* Actor = ComponentHandle->Component->GetOwner();
+	if (!Actor)
 	{
-		const TMovieSceneChannelData<const FMovieSceneFloatValue> ChannelData = InChannel->GetData();
-		const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
-		if (!Times.IsEmpty())
+		return;
+	}
+
+	const FTransform LocalTransform = ComponentHandle->GetLocalTransform();
+	const FGuid Guid = InSequencer->GetHandleToObject(Actor, true);
+	if (!Guid.IsValid())
+	{
+		return;
+	}
+
+	if (UMovieScene3DTransformSection* Section = FBakingHelper::GetTransformSection(InSequencer.Get(), Guid, LocalTransform))
+	{
+		FScopedTransaction Transaction(LOCTEXT("KeyConstraintaKehy", "Key Constraint Key"));
+		Section->Modify();
+		// add the channel
+		Section->AddConstraintChannel(InConstraint);
+
+		// add key if needed
+		if (FConstraintAndActiveChannel* Channel = Section->GetConstraintChannel(InConstraint->GetFName()))
 		{
-			// look for the first next key frame for this channel 
-			const int32 NextTimeIndex = Algo::UpperBound(Times, InTime);
-			if (Times.IsValidIndex(NextTimeIndex))
+			const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+			const FFrameTime FrameTime = InSequencer->GetLocalTime().ConvertTo(TickResolution);
+			const FFrameNumber Time = FrameTime.GetFrame();
+
+			bool ActiveValueToBeSet = false;
+			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
 			{
-				// store the time while the state is different
-				for (int32 Index = NextTimeIndex; Index < Times.Num(); ++Index)
+	
+				Section->Modify();
+
+				//new for compensatio
+
+				TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+
+				// set constraint as dynamic
+				InConstraint->bDynamicOffset = true;
+
+				// store the frames to compensate
+				const TArrayView<FMovieSceneDoubleChannel*> Channels = GetTransformDoubleChannels(ComponentHandle, InSequencer);
+				TArray<FFrameNumber> FramesToCompensate;
+				GetFramesToCompensate<FMovieSceneDoubleChannel>(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
+
+				// store child and space transforms for these frames
+				FCompensationEvaluator Evaluator(InConstraint);
+				Evaluator.ComputeLocalTransforms(Actor->GetWorld(), InSequencer, FramesToCompensate, ActiveValueToBeSet);
+				TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+
+				// store tangents at this time
+				TArray<FMovieSceneTangentData> Tangents;
+				const int32 ChannelIndex = 0;
+				const int32 NumChannels = 9;
+				FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(ChannelIndex, NumChannels, false, Section, Time, Tangents);
+
+				const EMovieSceneTransformChannel ChannelsToKey = FConstraintBaker::GetChannelsToKey(InConstraint);
+
+				// add child's transform key at Time-1 to keep animation
 				{
-					if (!bHasKeys)
-					{
-						OutFramesAfter.Add(Times[Index]);
-					}
-					else
-					{
-						bool NextValue = false; InActiveChannel.Evaluate(Times[Index], NextValue);
-						if (NextValue == InActiveValueToBeSet)
-						{
-							break;
-						}
-						OutFramesAfter.Add(Times[Index]);
-					}
+					const FFrameNumber TimeMinusOne(Time - 1);
+
+					FBakingHelper::AddTransformKeys(Section, { TimeMinusOne }, { ChildLocals[0] }, ChannelsToKey);
+
+					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ChannelIndex, NumChannels, false,Section, TimeMinusOne, Tangents);
+				}
+
+				// add active key
+				{
+					TMovieSceneChannelData<bool> ChannelData = Channel->ActiveChannel.GetData();
+					ChannelData.AddKey(Time, ActiveValueToBeSet);
+				}
+
+				// compensate
+				{
+					// we need to remove the first transforms as we store NumFrames+1 transforms
+					ChildLocals.RemoveAt(0);
+
+					// add keys
+					FBakingHelper::AddTransformKeys(Section, FramesToCompensate, ChildLocals, ChannelsToKey);
+
+					// set tangents at Time
+					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ChannelIndex,NumChannels, false, Section, Time, Tangents);
 				}
 			}
 		}
 	}
-
-	// uniqueness
-	OutFramesAfter.Sort();
-	OutFramesAfter.SetNum(Algo::Unique(OutFramesAfter));
 }
 
 void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstraint, const bool bAllTimes)
@@ -754,3 +881,5 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 		InSequencer->ForceEvaluate();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

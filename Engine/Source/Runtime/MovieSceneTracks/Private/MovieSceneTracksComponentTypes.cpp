@@ -556,6 +556,8 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[1], TEXT("Quaternion Rotation Channel 1"));
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[2], TEXT("Quaternion Rotation Channel 2"));
 
+	ComponentRegistry->NewComponentType(&ConstraintChannel, TEXT("Constraint Channel"));
+
 	ComponentRegistry->NewComponentType(&AttachParent, TEXT("Attach Parent"));
 	ComponentRegistry->NewComponentType(&AttachComponent, TEXT("Attachment Component"));
 	ComponentRegistry->NewComponentType(&AttachParentBinding, TEXT("Attach Parent Binding"));
@@ -735,6 +737,11 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(QuaternionRotationChannel[Index], BuiltInComponents->DoubleResult[Index + 3]);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(QuaternionRotationChannel[Index], BuiltInComponents->EvalTime);
 	}
+
+	// -------------------------------------------------------------------------------------------
+	// Set up constraint components
+	ComponentRegistry->Factories.DuplicateChildComponent(ConstraintChannel);
+	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ConstraintChannel, BuiltInComponents->EvalTime);
 
 	// --------------------------------------------------------------------------------------------
 	// Set up attachment components

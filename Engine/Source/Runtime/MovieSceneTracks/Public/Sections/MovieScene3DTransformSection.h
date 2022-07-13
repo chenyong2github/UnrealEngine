@@ -14,6 +14,8 @@
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "TransformData.h"
 #include "Misc/LargeWorldCoordinates.h"
+#include "ConstraintsManager.h"
+#include "ConstraintChannel.h"
 #include "MovieScene3DTransformSection.generated.h"
 
 #if WITH_EDITORONLY_DATA
@@ -209,6 +211,24 @@ private:
 };
 
 /**
+* This object contains information needed for constraint channels on the transform section
+*/
+UCLASS()
+class MOVIESCENETRACKS_API UMovieScene3dTransformSectionConstraints : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Constraint Channels*/
+	UPROPERTY()
+	TArray<FConstraintAndActiveChannel> ConstraintsChannels;
+
+	FDelegateHandle OnConstraintRemovedHandle;
+};
+
+
+/**
  * A 3D transform section
  */
 UCLASS(MinimalAPI)
@@ -265,6 +285,8 @@ private:
 
 	template<typename BaseBuilderType>
 	void BuildEntity(BaseBuilderType& InBaseBuilder, UMovieSceneEntitySystemLinker* Linker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+	void PopulateConstraintEntities(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
+	void ImportConstraintEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
 
 private:
 
@@ -291,11 +313,34 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMovieSceneSectionChannelOverrideRegistry> OverrideRegistry;
 
+	/** Optional pointer to constraint channels*/
+	UPROPERTY()
+	TObjectPtr<UMovieScene3dTransformSectionConstraints> Constraints;
+
 	/** Whether to use a quaternion linear interpolation between keys. This finds the 'shortest' rotation between keyed orientations. */
 	UPROPERTY(EditAnywhere, DisplayName = "Use Quaternion Interpolation", Category = "Rotation")
 	bool bUseQuaternionInterpolation;
 
 public:
+
+	/*
+	* If it has that constraint with that Name
+	*/
+	MOVIESCENETRACKS_API bool HasConstraintChannel(const FName& InConstraintName) const;
+
+	/*
+	* Get constraint with that name
+	*/
+	MOVIESCENETRACKS_API FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
+
+	/*
+	*  Add Cosntraint channel
+	*/
+	MOVIESCENETRACKS_API void AddConstraintChannel(UTickableConstraint* InConstraint);
+
+private:
+
+	void SetUpConstraintRemovedHandle();
 
 #if WITH_EDITORONLY_DATA
 

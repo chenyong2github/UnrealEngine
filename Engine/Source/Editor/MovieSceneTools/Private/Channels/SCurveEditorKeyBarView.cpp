@@ -120,7 +120,11 @@ void SCurveEditorKeyBarView::DrawLabels(const FGeometry& AllottedGeometry, FSlat
 			{
 				const FKeyBarCurveModel::FBarRange& Range = Ranges[Index];
 				const double LowerSeconds = Range.Range.GetLowerBoundValue();
-				const double UpperSeconds = Range.Range.GetUpperBoundValue();
+				double UpperSeconds = Range.Range.GetUpperBoundValue();
+				if (LowerSeconds == UpperSeconds)
+				{
+					UpperSeconds = InputMax;
+				}
 				const bool bOutsideUpper = (Index != Ranges.Num() - 1) && UpperSeconds < InputMin;
 				if (LowerSeconds > InputMax || bOutsideUpper) //out of range
 				{
@@ -146,12 +150,29 @@ void SCurveEditorKeyBarView::DrawLabels(const FGeometry& AllottedGeometry, FSlat
 				// draw background box
 				if (CurveColor != FLinearColor::White)
 				{
-					const double LowerSecondsForBox = Index == 0 ? InputMin : FMath::Max<double>(InputMin, LowerSeconds);
-					const double BoxPos = CurveSpace.SecondsToScreen(LowerSecondsForBox);	
-					const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(
-						LocalSize,
-						FSlateLayoutTransform(FVector2D(BoxPos, LaneTop))
-					);
+					FPaintGeometry BoxGeometry;
+					if (Range.bRangeIsInfinite)
+					{
+						const double LowerSecondsForBox = Index == 0 ? InputMin : FMath::Max<double>(InputMin, LowerSeconds);
+						const double BoxPos = CurveSpace.SecondsToScreen(LowerSecondsForBox);
+						BoxGeometry = AllottedGeometry.ToPaintGeometry(
+							LocalSize,
+							FSlateLayoutTransform(FVector2D(BoxPos, LaneTop))
+						);
+					}
+					else
+					{
+						const double LowerSecondsForBox = FMath::Max<double>(InputMin, LowerSeconds);
+						const double UpperSecondsForBox = FMath::Min<double>(InputMax, UpperSeconds);
+						const double BoxPos = CurveSpace.SecondsToScreen(LowerSecondsForBox);
+						const double BoxEnd = CurveSpace.SecondsToScreen(UpperSecondsForBox);
+						const FVector2D OurLocalSize(BoxEnd - BoxPos, LocalSize.Y);
+
+						BoxGeometry = AllottedGeometry.ToPaintGeometry(
+							OurLocalSize,
+							FSlateLayoutTransform(FVector2D(BoxPos, LaneTop))
+						);
+					}
 				
 					FSlateDrawElement::MakeBox(OutDrawElements, BaseLayerId + CurveViewConstants::ELayerOffset::Background, BoxGeometry, WhiteBrush, DrawEffects, CurveColor);
 				}

@@ -73,6 +73,18 @@ struct FMovieSceneDataLayerComponentData
 	TObjectPtr<const UMovieSceneDataLayerSection> Section = nullptr;
 };
 
+/** Component data for the constraint system */
+USTRUCT()
+struct FConstraintComponentData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName ConstraintName;
+
+	FMovieSceneBoolChannel* Channel;
+};
+
 namespace UE
 {
 namespace MovieScene
@@ -482,6 +494,8 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TPropertyComponents<FEulerTransformPropertyTraits> EulerTransform;
 	TPropertyComponents<FComponentTransformPropertyTraits> ComponentTransform;
 	TComponentTypeID<FSourceDoubleChannel> QuaternionRotationChannel[3];
+
+	TComponentTypeID<FConstraintComponentData> ConstraintChannel;
 
 	TComponentTypeID<USceneComponent*> AttachParent;
 	TComponentTypeID<FAttachmentComponent> AttachComponent;

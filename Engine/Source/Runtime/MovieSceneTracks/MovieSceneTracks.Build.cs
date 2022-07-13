@@ -22,6 +22,8 @@ public class MovieSceneTracks : ModuleRules
 				"TimeManagement",
 				"AnimationCore",
 				"AudioExtensions",
+				"Constraints",
+
 			});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

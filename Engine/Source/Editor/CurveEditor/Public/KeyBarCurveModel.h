@@ -44,6 +44,8 @@ public:
 	*/
 	struct CURVEEDITOR_API FBarRange
 	{
+		/* Spaces have ifinite ranges, Constraints don't*/
+		bool bRangeIsInfinite = true;
 		TRange<double> Range;
 		FName  Name;
 		FLinearColor Color;

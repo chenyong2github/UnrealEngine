@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstraintChannelEditor.h"
-
+#include "Channels/ConstraintChannelCurveModel.h"
 #include "ConstraintChannel.h"
 
 #include "KeyBarCurveModel.h"
@@ -165,6 +165,44 @@ private:
 
 }
 
+TArray<FKeyBarCurveModel::FBarRange> FConstraintChannelEditor::GetBarRanges(
+	FMovieSceneConstraintChannel* Channel,
+	const UMovieSceneSection* Owner)
+{
+	TArray<FKeyBarCurveModel::FBarRange> Ranges;
+
+	TArray<IndexRange> IndexRanges = GetIndexRanges(Channel);
+	if (IndexRanges.IsEmpty())
+	{
+		return Ranges;
+	}
+
+	// convert to bar range
+	const TMovieSceneChannelData<const bool> ChannelData = Channel->GetData();
+	const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
+	const FConstraintChannelLabelBuilder LabelBuilder(Owner, Channel);
+	const FText& Label = LabelBuilder.Label;
+	for (const IndexRange& ActiveRange : IndexRanges)
+	{
+		FKeyBarCurveModel::FBarRange BarRange;
+		FFrameRate TickResolution = Owner->GetTypedOuter<UMovieScene>()->GetTickResolution();
+		double LowerValue = Times[ActiveRange.GetLowerBoundValue()] / TickResolution;
+		double UpperValue = Times[ActiveRange.GetUpperBoundValue()] / TickResolution;
+
+		BarRange.Range.SetLowerBound(TRangeBound<double>(LowerValue));
+		BarRange.Range.SetUpperBound(TRangeBound<double>(UpperValue));
+
+		BarRange.Name = FName(*Label.ToString());
+		BarRange.Color = FLinearColor(.2, .5, .1);
+		static FLinearColor ZebraTint = FLinearColor::White.CopyWithNewOpacity(0.01f);
+		BarRange.Color = BarRange.Color * (1.f - ZebraTint.A) + ZebraTint * ZebraTint.A;
+		BarRange.bRangeIsInfinite = false;
+		Ranges.Add(BarRange);
+	}
+
+	return Ranges;
+}
+
 void DrawExtra(
 	FMovieSceneConstraintChannel* Channel,
 	const UMovieSceneSection* Owner,
@@ -175,39 +213,13 @@ void DrawExtra(
 	{
 		return;
 	}
+	TArray<FKeyBarCurveModel::FBarRange> Ranges = FConstraintChannelEditor::GetBarRanges(Channel,Owner);
 
-	// get index range
-	TArray<IndexRange> IndexRanges = GetIndexRanges(Channel);
-	if (IndexRanges.IsEmpty())
+	if (Ranges.IsEmpty())
 	{
 		return;
 	}
-
-	// convert to bar range
-	TArray<FKeyBarCurveModel::FBarRange> Ranges;
-	const TMovieSceneChannelData<const bool> ChannelData = Channel->GetData();
-	const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
-
-	// const bool IsFirstValueTrue = IndexRanges[0].GetLowerBoundValue() == 0;
 	
-	for (const IndexRange& ActiveRange: IndexRanges)
-	{
-		FKeyBarCurveModel::FBarRange BarRange;
-		FFrameRate TickResolution = Owner->GetTypedOuter<UMovieScene>()->GetTickResolution();
-		double LowerValue = Times[ActiveRange.GetLowerBoundValue()] / TickResolution;
-		double UpperValue = Times[ActiveRange.GetUpperBoundValue()] / TickResolution;
-	
-		BarRange.Range.SetLowerBound(TRangeBound<double>(LowerValue));
-		BarRange.Range.SetUpperBound(TRangeBound<double>(UpperValue));
-	
-		BarRange.Name = "Constraint";
-		BarRange.Color = FLinearColor(.2, .5, .1);
-		static FLinearColor ZebraTint = FLinearColor::White.CopyWithNewOpacity(0.01f);
-		BarRange.Color = BarRange.Color * (1.f - ZebraTint.A) + ZebraTint * ZebraTint.A;
-		
-		Ranges.Add(BarRange);
-	}
-
 	// draw bars + labels
 	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 	static constexpr ESlateDrawEffect DrawEffects = ESlateDrawEffect::None;
@@ -233,7 +245,7 @@ void DrawExtra(
 		const FKeyBarCurveModel::FBarRange& Range = Ranges[Index];
 
 		// draw bar
-		double LowerSeconds = /*(Index == 0 && IsFirstValueTrue) ? InputMin : */Range.Range.GetLowerBoundValue();
+		double LowerSeconds = Range.Range.GetLowerBoundValue();
 		double UpperSeconds = Range.Range.GetUpperBoundValue();
 		if (UpperSeconds == Range.Range.GetLowerBoundValue())
 		{
@@ -299,4 +311,9 @@ TSharedRef<SWidget> CreateKeyEditor(
 	TWeakPtr<ISequencer> InSequencer)
 {
 	return SNullWidget::NullWidget;
+}
+
+TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneConstraintChannel>& Channel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer)
+{
+	return MakeUnique<FConstraintChannelCurveModel>(Channel, OwningSection, InSequencer);
 }
