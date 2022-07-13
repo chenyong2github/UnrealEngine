@@ -1821,12 +1821,12 @@ public:
 	// Override the LOD of landscape in this viewport
 	int8 LandscapeLODOverride;
 
+	/** Whether the scene is currently being edited, which can be used to speed up lighting propagation. */
+	bool bCurrentlyBeingEdited;
+
 #if WITH_EDITOR
 	/** Indicates whether, or not, the base attachment volume should be drawn. */
 	bool bDrawBaseInfo;
-
-	/** Whether the scene is currently being edited, which can be used to speed up lighting propagation. */
-	bool bCurrentlyBeingEdited;
 
 	/**
 	 * Indicates whether the shader world space position should be forced to 0. Also sets the view vector to (0,0,1) for all pixels.

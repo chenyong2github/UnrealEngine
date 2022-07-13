@@ -2803,6 +2803,8 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	bUsedDebugViewVSDSHS = DebugViewShaderMode != DVSM_None && AllowDebugViewVSDSHS(GetShaderPlatform());
 #endif
 
+	bCurrentlyBeingEdited = false;
+
 #if !WITH_EDITOR
 	check(!EngineShowFlags.StationaryLightOverlap);
 #else
@@ -2826,7 +2828,6 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	}
 
 	bDrawBaseInfo = true;
-	bCurrentlyBeingEdited = false;
 	bNullifyWorldSpacePosition = false;
 #endif
 	LandscapeLODOverride = -1;
