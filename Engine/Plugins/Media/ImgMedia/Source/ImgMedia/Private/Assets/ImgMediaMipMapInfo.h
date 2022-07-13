@@ -268,18 +268,11 @@ public:
 	TMap<int32, FImgMediaTileSelection> GetVisibleTiles();
 	
 	/**
-	 * Get information on objects that are using our textures.
-	 * 
-	 * @return Array of objects.
-	 */
-	const TArray<FImgMediaMipMapObjectInfo*>& GetObjects() const { return Objects; }
-
-	/**
 	 * Check if any scene objects are using our img sequence.
 	 *
 	 * @return True if any object is active.
 	 */
-	bool HasObjects() const { return Objects.Num() > 0; }
+	bool HasObjects() const;
 
 	//~ FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
@@ -287,10 +280,6 @@ public:
 	virtual bool IsTickableInEditor() const override { return true; }
 
 protected:
-	/**
-	 * Performs mipmap calculations and caches the data.
-	 */
-	void UpdateMipLevelCache();
 
 	/** Array of objects that are using our img sequence. */
 	TArray<FImgMediaMipMapObjectInfo*> Objects;
@@ -303,6 +292,9 @@ protected:
 	
 	/** Protects info variables. */
 	FCriticalSection InfoCriticalSection;
+
+	/** Protects tracked objects. */
+	mutable FCriticalSection ObjectsCriticalSection;
 
 	/** Desired mipmap level at this current time. */
 	TMap<int32, FImgMediaTileSelection> CachedVisibleTiles;
