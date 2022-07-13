@@ -13,6 +13,7 @@
 #include "Containers/CircularQueue.h"
 #include "SocketTypes.h"
 #include "SocketSubsystem.h"
+#include "Templates/PimplPtr.h"
 #include "IpNetDriver.generated.h"
 
 
