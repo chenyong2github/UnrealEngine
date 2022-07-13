@@ -164,7 +164,7 @@ namespace UnrealGameSync
 		public static FileReference GetEditorReceiptFile(ProjectInfo projectInfo, ConfigFile projectConfig, BuildConfig config)
 		{
 			FileReference targetFile = GetEditorTargetFile(projectInfo, projectConfig);
-			return GetReceiptFile(projectInfo, targetFile, config.ToString());
+			return GetReceiptFile(projectInfo, projectConfig, targetFile, config.ToString());
 		}
 
 		private static List<FileReference> FindTargets(DirectoryReference engineOrProjectDir)
@@ -243,12 +243,26 @@ namespace UnrealGameSync
 			return receipt;
 		}
 
-		public static FileReference GetReceiptFile(ProjectInfo projectInfo, FileReference targetFile, string configuration)
+		private static bool UseSharedEditorReceipt(ProjectInfo projectInfo, ConfigFile projectConfig)
+		{
+			string? setting;
+			if (TryGetProjectSetting(projectConfig, projectInfo.ProjectIdentifier, "UseSharedEditor", out setting))
+			{
+				bool value;
+				if (bool.TryParse(setting, out value))
+				{
+					return value;
+				}
+			}
+			return false;
+		}
+
+		public static FileReference GetReceiptFile(ProjectInfo projectInfo, ConfigFile projectConfig, FileReference targetFile, string configuration)
 		{
 			string targetName = targetFile.GetFileNameWithoutAnyExtensions();
 
 			DirectoryReference? projectDir = projectInfo.ProjectDir;
-			if (projectDir != null)
+			if (projectDir != null && (targetFile.IsUnderDirectory(projectDir) || !UseSharedEditorReceipt(projectInfo, projectConfig)))
 			{
 				return GetReceiptFile(projectDir, targetName, configuration);
 			}

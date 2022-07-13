@@ -1002,7 +1002,7 @@ namespace UnrealGameSync
 					FileReference targetFile = ConfigUtils.GetEditorTargetFile(_workspace.Project, _workspace.ProjectConfigFile);
 					foreach (BuildConfig config in Enum.GetValues(typeof(BuildConfig)).OfType<BuildConfig>())
 					{
-						FileReference receiptFile = ConfigUtils.GetReceiptFile(_workspace.Project, targetFile, config.ToString());
+						FileReference receiptFile = ConfigUtils.GetReceiptFile(_workspace.Project, _workspace.ProjectConfigFile, targetFile, config.ToString());
 						if (FileReference.Exists(receiptFile))
 						{
 							try { FileReference.Delete(receiptFile); } catch (Exception) { }
@@ -3038,7 +3038,24 @@ namespace UnrealGameSync
 				BuildConfig editorBuildConfig = GetEditorBuildConfig();
 
 				FileReference receiptFile = ConfigUtils.GetEditorReceiptFile(_workspace.Project, _workspace.ProjectConfigFile, editorBuildConfig);
-				if (ConfigUtils.TryReadEditorReceipt(_workspace.Project, receiptFile, out TargetReceipt? receipt) && receipt.Launch != null && File.Exists(receipt.Launch))
+
+				if (!FileReference.Exists(receiptFile))
+				{
+					ShowEditorLaunchError($"{receiptFile} not found");
+				}
+				else if (!ConfigUtils.TryReadEditorReceipt(_workspace.Project, receiptFile, out TargetReceipt? receipt))
+				{
+					ShowEditorLaunchError($"Unable to read {receiptFile}");
+				}
+				else if (receipt.Launch == null)
+				{
+					ShowEditorLaunchError($"No launch target in {receiptFile}");
+				}
+				else if (!File.Exists(receipt.Launch))
+				{
+					ShowEditorLaunchError($"{receipt.Launch} not found");
+				}
+				else 
 				{
 					if (_settings.EditorArgumentsPrompt && !ModifyEditorArguments())
 					{
@@ -3067,17 +3084,18 @@ namespace UnrealGameSync
 						ShowErrorDialog("Unable to spawn {0} {1}", receipt.Launch, launchArguments.ToString());
 					}
 				}
-				else
-				{
-					if (MessageBox.Show("The editor needs to be built before you can run it. Build it now?", "Editor out of date", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
-					{
-						_owner.ShowAndActivate();
+			}
+		}
 
-						WorkspaceUpdateOptions options = WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.RunAfterSync;
-						WorkspaceUpdateContext context = new WorkspaceUpdateContext(_workspace.CurrentChangeNumber, options, _settings.CompiledEditorBuildConfig, null, _projectSettings.BuildSteps, null);
-						StartWorkspaceUpdate(context, null);
-					}
-				}
+		private void ShowEditorLaunchError(string message)
+		{
+			if (MessageBox.Show($"The editor needs to be built before you can run it. Build it now?\r\n\r\n({message})", "Editor out of date", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
+			{
+				_owner.ShowAndActivate();
+
+				WorkspaceUpdateOptions options = WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.RunAfterSync;
+				WorkspaceUpdateContext context = new WorkspaceUpdateContext(_workspace.CurrentChangeNumber, options, _settings.CompiledEditorBuildConfig, null, _projectSettings.BuildSteps, null);
+				StartWorkspaceUpdate(context, null);
 			}
 		}
 

@@ -1189,7 +1189,7 @@ namespace UnrealGameSync
 
 				FileReference editorTargetFile = ConfigUtils.GetEditorTargetFile(project, Context.ProjectConfigFile);
 				string editorTargetName = editorTargetFile.GetFileNameWithoutAnyExtensions();
-				FileReference editorReceiptFile = ConfigUtils.GetReceiptFile(project, editorTargetFile, Context.EditorConfig.ToString());
+				FileReference editorReceiptFile = ConfigUtils.GetReceiptFile(project, Context.ProjectConfigFile, editorTargetFile, Context.EditorConfig.ToString());
 
 				// Get the build steps
 				bool usingPrecompiledEditor = Context.ArchiveTypeToArchive.TryGetValue(IArchiveInfo.EditorArchiveType, out Tuple<IArchiveInfo, string>? archiveInfo) && archiveInfo != null;
