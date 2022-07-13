@@ -1166,10 +1166,9 @@ void UPatternTool::EmitResults()
 					FActorSpawnParameters SpawnInfo;
 					SpawnInfo.Template = SourceActor;
 					AStaticMeshActor* NewActor = GetTargetWorld()->SpawnActor<AStaticMeshActor>(SpawnInfo);
-					NewActor->SetActorTransform(WorldTransform);
-					//NewActor->GetStaticMeshComponent()->SetStaticMesh(SetStaticMesh);
 					if (NewActor != nullptr)
 					{
+						NewActor->SetActorTransform(WorldTransform);
 						NewActors.Add(NewActor);
 					}
 				}
