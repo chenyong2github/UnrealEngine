@@ -156,10 +156,11 @@ namespace
 		DefaultBuildSteps.Add(FBuildStep(FGuid(0x274B89C3, 0x9DC64465, 0xA50840AB, 0xC4593CC2), 11, TEXT("Compile UnrealMultiUserSlateServer"), TEXT("Compiling UnrealMultiUserSlateServer..."), 1, TEXT("UnrealMultiUserSlateServer"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
 
 		TMap<FGuid,FCustomConfigObject> DefaultBuildStepObjects;
-		for(const FBuildStep& DefaultBuildStep : DefaultBuildSteps)
+		for (const FBuildStep& DefaultBuildStep : DefaultBuildSteps)
 		{
 			DefaultBuildStepObjects.Add(DefaultBuildStep.UniqueId, DefaultBuildStep.ToConfigObject());
 		}
+
 		return DefaultBuildStepObjects;
 	}
 
@@ -173,7 +174,7 @@ namespace
 	{
 		FString ExeFileName = TEXT("UnrealEditor");
 
-		if(Config != EBuildConfig::DebugGame && Config != EBuildConfig::Development)
+		if (Config != EBuildConfig::DebugGame && Config != EBuildConfig::Development)
 		{
 	#if PLATFORM_WINDOWS
 			ExeFileName = FString::Printf(TEXT("UnrealEditor-%s-%s.exe"), HostPlatform, *::ToString(Config));
@@ -325,11 +326,11 @@ void UGSTab::UpdateGameTabBuildList()
 	TSet<int> PromotedChangeNumbers = PerforceMonitor->GetPromotedChangeNumbers();
 
 	TArray<FString> ExcludeChanges;
-    TSharedPtr<FCustomConfigFile, ESPMode::ThreadSafe> ProjectConfigFile = Workspace->GetProjectConfigFile();
-    if (ProjectConfigFile.IsValid())
-    {
-        ProjectConfigFile->TryGetValues(TEXT("Options.ExcludeChanges"), ExcludeChanges);
-    }
+	TSharedPtr<FCustomConfigFile, ESPMode::ThreadSafe> ProjectConfigFile = Workspace->GetProjectConfigFile();
+	if (ProjectConfigFile.IsValid())
+	{
+		ProjectConfigFile->TryGetValues(TEXT("Options.ExcludeChanges"), ExcludeChanges);
+	}
 
 	bool bFirstChange = true;
 	bool bOnlyShowReviewed = false;
@@ -338,8 +339,8 @@ void UGSTab::UpdateGameTabBuildList()
 	for (int ChangeIdx = 0; ChangeIdx < Changes.Num(); ChangeIdx++)
 	{
 		const FPerforceChangeSummary& Change = Changes[ChangeIdx].Get();
-        if (ShouldShowChange(Change, ExcludeChanges) || PromotedChangeNumbers.Contains(Change.Number))
-        {
+		if (ShouldShowChange(Change, ExcludeChanges) || PromotedChangeNumbers.Contains(Change.Number))
+		{
 			if (!bOnlyShowReviewed || (!EventMonitor->IsUnderInvestigation(Change.Number) && (ShouldIncludeInReviewedList(PromotedChangeNumbers, Change.Number) || bFirstChange)))
 			{
 				bFirstChange = false;
@@ -414,7 +415,7 @@ void UGSTab::SetupWorkspace()
 		DetectSettings.ToSharedRef(),
 		LOCTEXT("OpeningProjectTitle", "Opening Project"),
 		LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
-	if(Result->Failed())
+	if (Result->Failed())
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, Result->GetMessage());
 		return;
@@ -431,13 +432,13 @@ void UGSTab::SetupWorkspace()
 
 	// Check if the project we've got open in this workspace is the one we're actually synced to
 	int CurrentChangeNumber = -1;
-	if(WorkspaceSettings->CurrentProjectIdentifier == DetectSettings->NewSelectedProjectIdentifier)
+	if (WorkspaceSettings->CurrentProjectIdentifier == DetectSettings->NewSelectedProjectIdentifier)
 	{
 		CurrentChangeNumber = WorkspaceSettings->CurrentChangeNumber;
 	}
 
 	FString ClientKey = DetectSettings->BranchClientPath.Replace(*FString::Printf(TEXT("//%s/"), *PerforceClient->ClientName), TEXT(""));
-	if(ClientKey.EndsWith(TEXT("/")))
+	if (ClientKey.EndsWith(TEXT("/")))
 	{
 		ClientKey = ClientKey.Left(ClientKey.Len() - 1);
 	}
@@ -472,23 +473,23 @@ void UGSTab::SetupWorkspace()
 
 	// Options on what to do with workspace when updating it
 	Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
-	if(UserSettings->bAutoResolveConflicts)
+	if (UserSettings->bAutoResolveConflicts)
 	{
 		Options |= EWorkspaceUpdateOptions::AutoResolveChanges;
 	}
-	if(UserSettings->bUseIncrementalBuilds)
+	if (UserSettings->bUseIncrementalBuilds)
 	{
 		Options |= EWorkspaceUpdateOptions::UseIncrementalBuilds;
 	}
-	if(UserSettings->bBuildAfterSync)
+	if (UserSettings->bBuildAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::Build;
 	}
-	if(UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
+	if (UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::RunAfterSync;
 	}
-	if(UserSettings->bOpenSolutionAfterSync)
+	if (UserSettings->bOpenSolutionAfterSync)
 	{
 		Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
 	}
