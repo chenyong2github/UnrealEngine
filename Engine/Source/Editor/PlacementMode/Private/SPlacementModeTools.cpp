@@ -477,7 +477,6 @@ FReply SPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyGeometry, co
 		bIsPressed = false;
 
 		AActor* NewActor = nullptr;
-		FTransform TempTransform;
 		UActorFactory* Factory = Item->Factory;
 		if (!Item->Factory)
 		{
@@ -489,7 +488,7 @@ FReply SPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyGeometry, co
 				FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
 			}
 		}
-		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, &TempTransform);
+		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, nullptr);
 		if (NewActor && GCurrentLevelEditingViewportClient)
 		{
   			GEditor->MoveActorInFrontOfCamera(*NewActor, 
