@@ -123,11 +123,8 @@ void FSoftObjectPath::SetPath(FWideStringView Path)
 	}
 	else if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%.*s'%s! You must pass in fully qualified package names"), Path.Len(), Path.GetData(), *GetObjectBeingSerializedForSoftObjectPath()))
 	{
-		if (Path[0] != '/')
-		{
-			// Possibly an ExportText path. Trim the ClassName.
-			Path = FPackageName::ExportTextPathToObjectPath(Path);
-		}
+		// Possibly an ExportText path. Trim the ClassName.
+		Path = FPackageName::ExportTextPathToObjectPath(Path);
 
 		int32 ColonIndex;
 		if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))
@@ -172,11 +169,8 @@ void FSoftObjectPath::SetPath(FName PathName)
 
 		if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%s'%s! You must pass in fully qualified package names"), Path.GetData(), *GetObjectBeingSerializedForSoftObjectPath()))
 		{
-			if (Path[0] != '/')
-			{
-				// Possibly an ExportText path. Trim the ClassName.
-				Path = FPackageName::ExportTextPathToObjectPath(Path);
-			}
+			// Possibly an ExportText path. Trim the ClassName.
+			Path = FPackageName::ExportTextPathToObjectPath(Path);
 
 			int32 ColonIndex;
 			if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))

@@ -2209,7 +2209,7 @@ bool ParseExportTextPathImpl(const T& InExportTextPath, T* OutClassName, T* OutO
 		if (OutObjectPath)
 		{
 			*OutObjectPath = InExportTextPath.Mid(Index + 1);
-			OutObjectPath->RemoveSuffix(InExportTextPath.EndsWith('\''));
+			OutObjectPath->RemoveSuffix(OutObjectPath->EndsWith('\''));
 		}
 
 		return true;
