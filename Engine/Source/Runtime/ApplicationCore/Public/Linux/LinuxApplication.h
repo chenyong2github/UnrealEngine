@@ -255,8 +255,8 @@ private:
 		/** Tracks whether the "button" was previously pressed so we don't generate extra events */
 		bool AnalogOverThreshold[10];
 
-		/** The player index of the controller, because the joystick index includes devices that are not controllers. */
-		int32 ControllerIndex;
+		/** The input device Id of the controller that can be used to find the matching ULocalPlayer */
+		FInputDeviceId DeviceId;
 
 		/** Store axis values from events here to be handled once per frame. */
 		TMap<FGamepadKeyNames::Type, float> AxisEvents;
@@ -272,7 +272,7 @@ private:
 
 		SDLControllerState()
 			:	Controller(nullptr)
-			,	ControllerIndex(-1)
+			,	DeviceId(INPUTDEVICEID_NONE)
 			,	Haptic(nullptr)
 			,	EffectId(-1)
 			,	bEffectRunning(false)
