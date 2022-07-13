@@ -331,9 +331,13 @@ void FControlFlowTask_ConcurrentFlows::Execute()
 
 void FControlFlowTask_ConcurrentFlows::Cancel()
 {
-	if (ensureAlwaysMsgf(ConcurrentFlows.IsValid(), TEXT("Did you call execute flow on a subflow? Do not do this! You only need to call ExecuteFlow once per FControlFlowStatics::Create!")))
+	if (ConcurrentFlows.IsValid())
 	{
 		ConcurrentFlows->CancelAll();
+	}
+	else
+	{
+		HandleConcurrentFlowsCancelled();
 	}
 }
 
