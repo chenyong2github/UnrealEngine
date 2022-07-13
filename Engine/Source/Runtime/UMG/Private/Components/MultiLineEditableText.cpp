@@ -270,6 +270,41 @@ void UMultiLineEditableText::SetWidgetStyle(const FTextBlockStyle& InWidgetStyle
 	}
 }
 
+const FSlateFontInfo& UMultiLineEditableText::GetFont() const
+{
+	return WidgetStyle.Font;
+}
+
+void UMultiLineEditableText::SetFont(FSlateFontInfo InFontInfo)
+{
+	WidgetStyle.SetFont(InFontInfo);
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetTextStyle(&WidgetStyle);
+	}
+}
+
+void UMultiLineEditableText::SetFontMaterial(UMaterialInterface* InMaterial)
+{
+	WidgetStyle.SetFontMaterial(InMaterial);
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetTextStyle(&WidgetStyle);
+	}
+}
+
+void UMultiLineEditableText::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
+{
+	WidgetStyle.SetFontOutlineMaterial(InMaterial);
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetTextStyle(&WidgetStyle);
+	}
+}
+
 void UMultiLineEditableText::HandleOnTextChanged(const FText& InText)
 {
 	OnTextChanged.Broadcast(InText);

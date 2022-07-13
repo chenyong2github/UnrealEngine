@@ -95,6 +95,17 @@ FText SEditableText::GetText() const
 void SEditableText::SetFont( const TAttribute< FSlateFontInfo >& InNewFont )
 {
 	Font = InNewFont;
+
+	Invalidate(EInvalidateWidgetReason::Layout);
+}
+
+void SEditableText::SetTextStyle( const FEditableTextStyle& InNewTextStyle )
+{
+	Font = InNewTextStyle.Font;
+	ColorAndOpacity = InNewTextStyle.ColorAndOpacity;
+	BackgroundImageSelected = &InNewTextStyle.BackgroundImageSelected;
+
+	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
 void SEditableText::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

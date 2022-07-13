@@ -239,6 +239,13 @@ public:
 	void SetFont( const TAttribute< FSlateFontInfo >& InNewFont );
 
 	/**
+	 * Sets the text style used to draw the text
+	 *
+	 * @param  NewTextStyle	The new text style to use
+	 */
+	void SetTextStyle( const FEditableTextStyle& InNewTextStyle );
+
+	/**
 	 * Sets the minimum width that a text block should be.
 	 *
 	 * @param  InMinDesiredWidth	The minimum width

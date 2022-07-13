@@ -152,6 +152,18 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
 
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	const FSlateFontInfo& GetFont() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFont(FSlateFontInfo InFontInfo);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFontMaterial(UMaterialInterface* InMaterial);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
+
 	//~ Begin UTextLayoutWidget Interface
 	virtual void SetJustification(ETextJustify::Type InJustification) override;
 	//~ End UTextLayoutWidget Interface

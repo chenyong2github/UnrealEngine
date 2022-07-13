@@ -225,6 +225,18 @@ public:
 
 	void SetKeyboardType(EVirtualKeyboardType::Type Type);
 
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	const FSlateFontInfo& GetFont() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFont(FSlateFontInfo InFontInfo);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFontMaterial(UMaterialInterface* InMaterial);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
+
 public:
 	
 	//~ Begin UWidget Interface

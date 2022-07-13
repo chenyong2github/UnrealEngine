@@ -327,6 +327,41 @@ void UEditableText::SetKeyboardType(EVirtualKeyboardType::Type Type)
 	KeyboardType = Type;
 }
 
+const FSlateFontInfo& UEditableText::GetFont() const
+{
+	return WidgetStyle.Font;
+}
+
+void UEditableText::SetFont(FSlateFontInfo InFontInfo)
+{
+	WidgetStyle.SetFont(InFontInfo);
+
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetTextStyle(WidgetStyle);
+	}
+}
+
+void UEditableText::SetFontMaterial(UMaterialInterface* InMaterial)
+{
+	WidgetStyle.SetFontMaterial(InMaterial);
+
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetTextStyle(WidgetStyle);
+	}
+}
+
+void UEditableText::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
+{
+	WidgetStyle.SetFontOutlineMaterial(InMaterial);
+
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetTextStyle(WidgetStyle);
+	}
+}
+
 void UEditableText::HandleOnTextChanged(const FText& InText)
 {
 	OnTextChanged.Broadcast(InText);
