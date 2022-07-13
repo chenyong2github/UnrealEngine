@@ -25,9 +25,11 @@ namespace TraceServices
 		void TaskCreated(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
 		void TaskLaunched(TaskTrace::FId TaskId, const TCHAR* DebugName, bool bTracked, int32 ThreadToExecuteOn, double Timestamp, uint32 ThreadId);
 		void TaskScheduled(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
+		void TaskScheduled(FTaskInfo& Task, double Timestamp, uint32 ThreadId);
 		void SubsequentAdded(TaskTrace::FId TaskId, TaskTrace::FId SubsequentId, double Timestamp, uint32 ThreadId);
 		void TaskStarted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
 		void TaskFinished(TaskTrace::FId TaskId, double Timestamp);
+		void TaskFinished(FTaskInfo& Task, double Timestamp);
 		void TaskCompleted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
 		void TaskDestroyed(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
 
@@ -56,8 +58,10 @@ namespace TraceServices
 
 		void CreateCounters();
 
-		// registers a minimal event with a name, task id, when and where it happened
+		// registers an event with a name, task id, when and where it happened
 		bool TryRegisterEvent(const TCHAR* EventName, TaskTrace::FId TaskId, double FTaskInfo::* TimestampPtr, double TimestampValue, uint32 FTaskInfo::* ThreadIdPtr = nullptr, uint32 ThreadIdValue = 0);
+		// registers an event for the given task
+		bool TryRegisterEvent(const TCHAR* EventName, FTaskInfo& Task, double FTaskInfo::* TimestampPtr, double TimestampValue, uint32 FTaskInfo::* ThreadIdPtr = nullptr, uint32 ThreadIdValue = 0);
 		// registers a relation with another task, when and where it was established
 		void AddRelative(const TCHAR* RelativeType, TaskTrace::FId TaskId, TArray<FTaskInfo::FRelationInfo> FTaskInfo::* RelationsPtr, TaskTrace::FId RelativeId, double Timestamp, uint32 ThreadId);
 
