@@ -453,3 +453,31 @@ float2 PlanckianIsothermal( float Temp, float Tint )
 
 	return float2(x,y);
 }
+
+float3 WhiteBalance(float3 LinearColor, float WhiteTemp, float WhiteTint, bool bIsTemperatureWhiteBalance, const float3x3 WCS_2_XYZ, const float3x3 XYZ_2_WCS)
+{
+	float2 SrcWhiteDaylight = D_IlluminantChromaticity(WhiteTemp);
+	float2 SrcWhitePlankian = PlanckianLocusChromaticity(WhiteTemp);
+
+	float2 SrcWhite = WhiteTemp < 4000 ? SrcWhitePlankian : SrcWhiteDaylight;
+	float2 D65White = float2(0.31270, 0.32900);
+
+	{
+		// Offset along isotherm
+		float2 Isothermal = PlanckianIsothermal(WhiteTemp, WhiteTint) - SrcWhitePlankian;
+		SrcWhite += Isothermal;
+	}
+
+	if (!bIsTemperatureWhiteBalance)
+	{
+		float2 Temp = SrcWhite;
+		SrcWhite = D65White;
+		D65White = Temp;
+	}
+
+	float3x3 WhiteBalanceMat = ChromaticAdaptation(SrcWhite, D65White);
+	WhiteBalanceMat = mul( XYZ_2_WCS, mul( WhiteBalanceMat, WCS_2_XYZ ) );
+
+	return mul(WhiteBalanceMat, LinearColor);
+}
+
