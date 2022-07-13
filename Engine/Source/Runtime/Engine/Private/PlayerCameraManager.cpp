@@ -746,6 +746,20 @@ bool APlayerCameraManager::AddCameraModifierToList(UCameraModifier* NewModifier)
 	return false;
 }
 
+void APlayerCameraManager::CleanUpAnimCamera(const bool bDestroy)
+{
+	// clean up the temp camera actor
+	if (AnimCameraActor != nullptr)
+	{
+		if (bDestroy)
+		{
+			AnimCameraActor->Destroy();
+		}
+		AnimCameraActor->SetOwner(nullptr);
+		AnimCameraActor = nullptr;
+	}
+}
+
 bool APlayerCameraManager::RemoveCameraModifier(UCameraModifier* ModifierToRemove)
 {
 	if (ModifierToRemove)
@@ -822,19 +836,17 @@ void APlayerCameraManager::PostInitializeComponents()
 
 void APlayerCameraManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// clean up the temp camera actor
-	if (AnimCameraActor)
-	{
-		if (EndPlayReason == EEndPlayReason::Destroyed)
-		{
-			AnimCameraActor->Destroy();
-		}
-		AnimCameraActor->SetOwner(nullptr);
-		AnimCameraActor = nullptr;
-	}
 	ActiveAnims.Empty();
 	ModifierList.Empty();
+	CleanUpAnimCamera(EndPlayReason == EEndPlayReason::Destroyed);
 	Super::EndPlay(EndPlayReason);
+}
+
+void APlayerCameraManager::Destroyed()
+{
+	CleanUpAnimCamera(true);
+
+	Super::Destroyed();
 }
 
 void APlayerCameraManager::InitializeFor(APlayerController* PC)

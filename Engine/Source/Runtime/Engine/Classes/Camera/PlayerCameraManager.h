@@ -557,6 +557,7 @@ public:
 	virtual bool ShouldTickIfViewportsOnly() const override;
 	virtual void PostInitializeComponents() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Destroyed() override;
 	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End AActor Interface
@@ -629,6 +630,8 @@ public:
 protected:
 	/** Internal. Places the given modifier in the ModifierList at the appropriate priority. */
 	virtual bool AddCameraModifierToList(UCameraModifier* NewModifier);
+
+	virtual void CleanUpAnimCamera(const bool bDestroy);
 
 public:	
 	/**
