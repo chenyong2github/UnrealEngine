@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EnhancedActionKeyMapping.h"
+#include "EnhancedInputSubsystemInterface.h"
 #include "VCamTypes.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamOutputProviderBase.h"
@@ -263,6 +265,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void RegisterObjectForInput(UObject* Object);
 
+	/**
+	 * Returns a list of all player mappable keys that have been registered
+	 */
+	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
+	TArray<FEnhancedActionKeyMapping> GetPlayerMappableKeys() const;
+
+	/**
+	 * Replace any currently applied mappings to this key mapping with the given new one.
+	 * Requests a rebuild of the player mappings.
+	 * This function will automatically switch between Editor based and Player based input systems as needed
+	 *
+	 * @return The number of mappings that have been replaced
+	 */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta=(AutoCreateRefTerm = "Options"))
+	int32 AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options = FModifyContextOptions()) const;
+
 private:
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 
@@ -325,6 +343,12 @@ private:
 
 	// When another component replaces us, get a notification so we can clean up
 	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);
+
+	/*
+	 * Gets the input interface for the currently active input method.
+	 * Will switch between editor and player based input as needed
+	 */
+	IEnhancedInputSubsystemInterface* GetEnhancedInputSubsystemInterface() const;
 
 	double LastEvaluationTime;
 

@@ -159,6 +159,17 @@ void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementCompo
 	DestroyComponent();
 }
 
+IEnhancedInputSubsystemInterface* UVCamComponent::GetEnhancedInputSubsystemInterface() const
+{
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		return GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>();
+	}
+#endif
+	return nullptr;
+}
+
 bool UVCamComponent::CanUpdate() const
 {
 	UWorld* World = GetWorld();
@@ -377,21 +388,18 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 {
-	// Currently only handles the editor subsystem but made as a function so we can add game input at a later date 
-#if WITH_EDITOR
-	if (GEditor)
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
 	{
-		if (UEnhancedInputEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
+		int32 InputPriority;
+		const UInputMappingContext* IMC = Modifier->GetInputMappingContext(InputPriority);
+		if (IsValid(IMC))
 		{
-			int32 InputPriority;
-			const UInputMappingContext* IMC = Modifier->GetInputMappingContext(InputPriority);
-			if (IsValid(IMC) && !Subsystem->HasMappingContext(IMC))
+			if (!EnhancedInputSubsystemInterface->HasMappingContext(IMC))
 			{
-				Subsystem->AddMappingContext(IMC, InputPriority);
+				EnhancedInputSubsystemInterface->AddMappingContext(IMC, InputPriority);
 			}
 		}
 	}
-#endif
 }
 
 
@@ -844,8 +852,28 @@ void UVCamComponent::RegisterObjectForInput(UObject* Object)
 {
 	if (IsValid(InputComponent) && IsValid(Object))
 	{
-		UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent, this);
+		UInputDelegateBinding::BindInputDelegates(Object->GetClass(), InputComponent, Object);
 	}
+}
+
+TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
+{
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		return EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
+	}
+	return {};
+}
+
+int32 UVCamComponent::AddPlayerMappedKey(const FName MappingName, const FKey NewKey,
+	const FModifyContextOptions& Options) const
+{
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		return EnhancedInputSubsystemInterface->AddPlayerMappedKey(MappingName, NewKey, Options);
+	}
+
+	return 0;
 }
 
 void UVCamComponent::CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent)
