@@ -13,7 +13,7 @@
 #include "Iris/ReplicationSystem/PropertyReplicationFragment.h"
 #endif // UE_WITH_IRIS
 
-DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Warning, All);
+DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Log, All);
 
 ENGINE_API int32 GExperimentalAllowPerInstanceChildActorProperties = 0;
 
@@ -645,6 +645,7 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 			// If we're in a replay scrub and this is a startup actor and the class exists, assume the reference will be restored later
 			if (World->IsPlayingReplay() && World->GetDemoNetDriver()->IsRestoringStartupActors() && MyOwner && MyOwner->IsNetStartupActor() && ChildActorClass)
 			{
+				UE_LOG(LogChildActorComponent, Display, TEXT("Not creating child actor due to replay! Comp:%s ChildActor:%s"), *GetPathName(), *GetPathNameSafe(ChildActor));
 				return;
 			}
 
@@ -755,6 +756,18 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 
 void UChildActorComponent::DestroyChildActor()
 {
+	UWorld* LocalWorld = GetWorld();
+	if (LocalWorld != nullptr)
+	{
+		AActor* MyOwner = GetOwner();
+		// If we're in a replay scrub and this is a startup actor and the class exists, assume the reference will be restored later
+		if (LocalWorld->IsPlayingReplay() && LocalWorld->GetDemoNetDriver()->IsRestoringStartupActors() && MyOwner && MyOwner->IsNetStartupActor() && ChildActorClass)
+		{
+			UE_LOG(LogChildActorComponent, Display, TEXT("Not creating destroying actor due to replay! Comp:%s ChildActor:%s"), *GetPathName(), *GetPathNameSafe(ChildActor));
+			return;
+		}
+	}
+
 	// If we own an Actor, kill it now unless we don't have authority on it, for that we rely on the server
 	// If the level is being removed then don't destroy the child actor so re-adding it doesn't
 	// need to create a new actor

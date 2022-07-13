@@ -3703,49 +3703,52 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 	// If we've gotten this far, it means we should have something to process.
 	check(ReadPacketsHelper.Packets.Num() > 0);
 
-	for (ULevel* Level : ReplayHelper.LevelsPendingFastForward)
 	{
-		// Track the appropriate level, and mark it as ready.
-		FReplayHelper::FLevelStatus& LevelStatus = ReplayHelper.GetLevelStatus(ReplayHelper.GetLevelPackageName(*Level));
-		LevelIndices.Add(LevelStatus.LevelIndex);
-		LevelStatus.bIsReady = true;
-
-		TSet<TWeakObjectPtr<AActor>> LevelActors;
-		for (AActor* Actor : Level->Actors)
+		TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
+		for (ULevel* Level : ReplayHelper.LevelsPendingFastForward)
 		{
-			if (Actor == nullptr || !Actor->IsNetStartupActor())
+			// Track the appropriate level, and mark it as ready.
+			FReplayHelper::FLevelStatus& LevelStatus = ReplayHelper.GetLevelStatus(ReplayHelper.GetLevelPackageName(*Level));
+			LevelIndices.Add(LevelStatus.LevelIndex);
+			LevelStatus.bIsReady = true;
+
+			TSet<TWeakObjectPtr<AActor>> LevelActors;
+			for (AActor* Actor : Level->Actors)
 			{
-				continue;
-			}
-			else if (ReplayHelper.PlaybackDeletedNetStartupActors.Contains(Actor->GetFullName()))
-			{
-				// Put this actor on the rollback list so we can undelete it during future scrubbing,
-				// then delete it.
-				QueueNetStartupActorForRollbackViaDeletion(Actor);
-				World->DestroyActor(Actor, true);
-			}
-			else
-			{
-				if (RollbackNetStartupActors.Contains(Actor->GetFullName()))
+				if (Actor == nullptr || !Actor->IsNetStartupActor())
 				{
+					continue;
+				}
+				else if (ReplayHelper.PlaybackDeletedNetStartupActors.Contains(Actor->GetFullName()))
+				{
+					// Put this actor on the rollback list so we can undelete it during future scrubbing,
+					// then delete it.
+					QueueNetStartupActorForRollbackViaDeletion(Actor);
 					World->DestroyActor(Actor, true);
 				}
 				else
 				{
-					StartupActors.Add(Actor);
+					if (RollbackNetStartupActors.Contains(Actor->GetFullName()))
+					{
+						World->DestroyActor(Actor, true);
+					}
+					else
+					{
+						StartupActors.Add(Actor);
+					}
 				}
 			}
+
+			TArray<AActor*> SpawnedActors;
+			RespawnNecessaryNetStartupActors(SpawnedActors, Level);
+
+			for (AActor* Actor : SpawnedActors)
+			{
+				StartupActors.Add(Actor);
+			}
+
+			LocalLevels.Add(Level);
 		}
-
-		TArray<AActor*> SpawnedActors;
-		RespawnNecessaryNetStartupActors(SpawnedActors, Level);
-
-		for (AActor* Actor : SpawnedActors)
-		{
-			StartupActors.Add(Actor);
-		}
-
-		LocalLevels.Add(Level);
 	}
 
 	ReplayHelper.LevelsPendingFastForward.Reset();
@@ -4098,12 +4101,16 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	PlaybackPackets.Empty();
 	ReplayHelper.PlaybackFrames.Empty();
 
-	// Destroy startup actors that need to rollback via being destroyed and re-created
-	for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
 	{
-		if (RollbackNetStartupActors.Contains(ActorIt->GetFullName()))
+		TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
+
+		// Destroy startup actors that need to rollback via being destroyed and re-created
+		for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
 		{
-			World->DestroyActor(*ActorIt, true);
+			if (RollbackNetStartupActors.Contains(ActorIt->GetFullName()))
+			{
+				World->DestroyActor(*ActorIt, true);
+			}
 		}
 	}
 
@@ -4351,6 +4358,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	
 	if (World != nullptr)
 	{
+		TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
 		// Destroy startup actors that shouldn't exist past this checkpoint
 		for (FActorIterator ActorIt( World ); ActorIt; ++ActorIt)
 		{
