@@ -17,6 +17,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "ActionMappingDetails"
 
@@ -26,6 +27,26 @@ FActionMappingsNodeBuilderEx::FActionMappingsNodeBuilderEx(IDetailLayoutBuilder*
 	: DetailLayoutBuilder(InDetailLayoutBuilder)
 	, ActionMappingsPropertyHandle(InPropertyHandle)
 {
+	// Support for updating references to renamed input actions
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	if (!AssetRegistry.OnAssetAdded().IsBoundToObject(this))
+	{
+		AssetRegistry.OnAssetRenamed().AddRaw(this, &FActionMappingsNodeBuilderEx::OnAssetRenamed);
+	}
+}
+
+FActionMappingsNodeBuilderEx::~FActionMappingsNodeBuilderEx()
+{
+	// Unregister settings panel listeners
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(FName("AssetRegistry")))
+	{
+		IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+		if (AssetRegistry)
+		{
+			AssetRegistry->OnAssetRenamed().RemoveAll(this);
+		}
+	}
 }
 
 void FActionMappingsNodeBuilderEx::Tick(float DeltaTime)
@@ -340,6 +361,16 @@ FText FActionMappingsNodeBuilderEx::GetAddNewActionTooltip() const
 	}
 }
 
+void FActionMappingsNodeBuilderEx::OnAssetRenamed(const FAssetData& AssetData, const FString& OldName)
+{
+	// If this is an Input Action asset, then we need to check for any references to it and replace them
+	if (AssetData.GetClass() == UInputAction::StaticClass())
+	{
+		const FName OldPackageName = *FPackageName::ObjectPathToPackageName(OldName);
+		ActionsBeingRenamed.Add(AssetData.PackageName, OldPackageName);
+	}
+}
+
 void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
 	RebuildGroupedMappings();
@@ -500,6 +531,12 @@ void FActionMappingsNodeBuilderEx::RemoveActionMappingGroupButton_OnClick(const 
 
 bool FActionMappingsNodeBuilderEx::GroupsRequireRebuild() const
 {
+	// If any input actions have been renamed, then we need to update the details
+	if (!ActionsBeingRenamed.IsEmpty())
+	{
+		return true;
+	}
+	
 	for (int32 GroupIndex = 0; GroupIndex < GroupedMappings.Num(); ++GroupIndex)
 	{
 		const FMappingSet& MappingSet = GroupedMappings[GroupIndex];
@@ -519,6 +556,7 @@ bool FActionMappingsNodeBuilderEx::GroupsRequireRebuild() const
 void FActionMappingsNodeBuilderEx::RebuildGroupedMappings()
 {
 	GroupedMappings.Empty();
+	ActionsBeingRenamed.Empty();
 
 	TSharedPtr<IPropertyHandleArray> ActionMappingsArrayHandle = ActionMappingsPropertyHandle->AsArray();
 

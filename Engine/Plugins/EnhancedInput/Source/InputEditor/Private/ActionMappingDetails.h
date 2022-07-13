@@ -33,6 +33,7 @@ class FActionMappingsNodeBuilderEx : public IDetailCustomNodeBuilder, public TSh
 {
 public:
 	FActionMappingsNodeBuilderEx(IDetailLayoutBuilder* InDetailLayoutBuilder, const TSharedPtr<IPropertyHandle>& InPropertyHandle);
+	virtual ~FActionMappingsNodeBuilderEx();
 
 	/** IDetailCustomNodeBuilder interface */
 	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRebuildChildren) override { OnRebuildChildren = InOnRebuildChildren; }
@@ -67,6 +68,12 @@ private:
 	/** The tooltip attribute for the "Adds Action Mapping" button */
 	FText GetAddNewActionTooltip() const;
 
+	/**
+	 * Called by the asset registry when an asset is renamed. Replaces any references to the old Input Action with
+	 * the new one
+	 */
+	void OnAssetRenamed(const FAssetData& AssetData, const FString& OldName);
+
 private:
 	/** Called to rebuild the children of the detail tree */
 	FSimpleDelegate OnRebuildChildren;
@@ -80,4 +87,7 @@ private:
 	TArray<FMappingSet> GroupedMappings;
 
 	TArray<TPair<const UInputAction*, bool>> DelayedGroupExpansionStates;
+
+	/** A map of Input Action's that have been renamed. This map is a map of the New Name to the Old Name. */
+	TMap<FName, FName> ActionsBeingRenamed;
 };
