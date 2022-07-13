@@ -907,7 +907,7 @@ namespace Chaos
 		const FReal Dt,
 		FCollisionContext& Context)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
+		//SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_NarrowPhase);
 
 		if (!IsValid())

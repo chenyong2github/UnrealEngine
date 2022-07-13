@@ -890,7 +890,7 @@ namespace Chaos
 
 	void FPBDJointConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Joints_Gather);
+		//SCOPE_CYCLE_COUNTER(STAT_Joints_Gather);
 		check(!ConstraintStates[ConstraintIndex].bDisabled);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
