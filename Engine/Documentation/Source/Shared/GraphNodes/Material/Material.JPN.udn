@@ -557,7 +557,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#crossproduct
 [/EXCERPT:UMaterialExpressionCrossProduct]
 
 [EXCERPT:UMaterialExpressionDivide]
-Divide 表現式は、2 つの入力値を受け取り、1 番目の値を 2 番目の値で割った結果を出力します。除算はチャンネルごとに計算されます。つまり、最初の R チャンネルが 2 番目のチャンネルによって、最初の G チャンネルが 2 番目のチャンネルによって除算される形です。約数が single float 値でない限り、両方の入力値は同等でなければなりｍさえん。 
+Divide 表現式は、2 つの入力値を受け取り、1 番目の値を 2 番目の値で割った結果を出力します。除算はチャンネルごとに計算されます。つまり、最初の R チャンネルが 2 番目のチャンネルによって、最初の G チャンネルが 2 番目のチャンネルによって除算される形です。約数が single float 値でない限り、両方の入力値は同等でなければなりません。
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Math#divide
