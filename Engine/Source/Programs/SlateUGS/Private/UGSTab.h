@@ -7,8 +7,13 @@
 #include "Widgets/SWorkspaceWindow.h"
 
 #include "UGSCore/Workspace.h"
-#include "UGSCore/DetectProjectSettingsTask.h"
-#include "UGSCore/UserSettings.h"
+
+struct FUserWorkspaceSettings;
+struct FUserProjectSettings;
+struct FUserSettings;
+class FDetectProjectSettingsTask;
+class FPerforceMonitor;
+class FEventMonitor;
 
 class UGSTab
 {
@@ -19,6 +24,8 @@ public:
 
 	void SetTabArgs(FSpawnTabArgs InTabArgs);
 	FSpawnTabArgs GetTabArgs() const;
+
+	void Tick();
 
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
@@ -33,6 +40,9 @@ private:
 		TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
 		EWorkspaceUpdateResult SyncResult,
 		const FString& StatusMessage);
+
+	// Allows the queuing of functions from threads to be run on the main thread
+	void QueueMessageForMainThread(TFunction<void()> Function);
 
 	// Core functions
 	void SetupWorkspace();
@@ -55,4 +65,12 @@ private:
 	TSharedPtr<FDetectProjectSettingsTask> DetectSettings;
 	TArray<FString> CombinedSyncFilter;
 	TSharedPtr<FUserSettings> UserSettings;
+
+	// Monitoring threads
+	TSharedPtr<FPerforceMonitor> PerforceMonitor;
+	TSharedPtr<FEventMonitor> EventMonitor;
+
+	// Queue for handling callbacks from multiple threads that need to be called on the main thread
+	TArray<TFunction<void()>> MessageQueue;
+	std::atomic<bool> bHasQueuedMessages;
 };

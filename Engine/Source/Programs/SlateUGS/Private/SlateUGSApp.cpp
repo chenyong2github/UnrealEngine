@@ -55,6 +55,7 @@ int RunSlateUGS(const TCHAR* CommandLine)
 			FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
 			FSlateApplication::Get().PumpMessages();
 			FSlateApplication::Get().Tick();
+			TabManager.Tick();
 			FPlatformProcess::Sleep(0.01f);
 
 			GFrameCounter++;

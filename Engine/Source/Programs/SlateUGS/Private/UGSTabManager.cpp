@@ -36,6 +36,14 @@ void UGSTabManager::ConstructTabs()
 	FGlobalTabmanager::Get()->RestoreFrom(Layout, nullptr);
 }
 
+void UGSTabManager::Tick()
+{
+	for (UGSTab& Tab : Tabs)
+	{
+		Tab.Tick();
+	}
+}
+
 TSharedRef<SDockTab> UGSTabManager::SpawnTab(int Index, const FSpawnTabArgs& Args)
 {
 	Tabs[Index].SetTabArgs(Args);

@@ -5,6 +5,11 @@
 #include "UGSLog.h"
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
+#include "UGSCore/DetectProjectSettingsTask.h"
+#include "UGSCore/UserSettings.h"
+#include "UGSCore/PerforceMonitor.h"
+#include "UGSCore/EventMonitor.h"
+
 #include "Widgets/SModalTaskWindow.h"
 #include "Widgets/SLogWidget.h"
 
@@ -13,7 +18,8 @@
 UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   TabWidget(SNew(SDockTab)),
 				   EmptyTabView(SNew(SEmptyTab).Tab(this)),
-				   GameSyncTabView(SNew(SGameSyncTab).Tab(this))
+				   GameSyncTabView(SNew(SGameSyncTab).Tab(this)),
+				   bHasQueuedMessages(false)
 {
 	TabWidget->SetContent(EmptyTabView);
 	TabWidget->SetLabel(FText(LOCTEXT("TabName", "Select a Project")));
@@ -237,6 +243,30 @@ void UGSTab::OnSyncLatest()
 	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
 }
 
+void UGSTab::QueueMessageForMainThread(TFunction<void()> Function)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	MessageQueue.Add(Function);
+	bHasQueuedMessages = true;
+}
+
+void UGSTab::Tick()
+{
+	if (bHasQueuedMessages)
+	{
+		bHasQueuedMessages = false;
+
+		FScopeLock Lock(&CriticalSection);
+		for (const TFunction<void()>& MessageFunction : MessageQueue)
+		{
+			MessageFunction();
+		}
+
+		MessageQueue.Empty();
+	}
+}
+
 bool UGSTab::IsSyncing() const
 {
 	return Workspace->IsBusy();
@@ -269,6 +299,11 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode
 	WorkspaceSettings->LastSyncTime            = WorkspaceContext->StartTime;
 	// TODO check this is valid, may be off
 	WorkspaceSettings->LastSyncDurationSeconds = (FDateTime::UtcNow() - WorkspaceContext->StartTime).GetSeconds();
+
+	// Queue up setting the changelist text on the main thread
+	QueueMessageForMainThread([this] {
+		GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(WorkspaceSettings->CurrentChangeNumber)));
+	});
 
 	UserSettings->Save();
 }
@@ -363,6 +398,41 @@ void UGSTab::SetupWorkspace()
 	{
 		Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
 	}
+
+	// Setup our Perforce and Event monitoring threads
+	FString BranchClientPath = DetectSettings->BranchDirectoryName;
+	FString SelectedClientFileName = DetectSettings->NewSelectedClientFileName;
+	FString SelectedProjectIdentifier = DetectSettings->NewSelectedProjectIdentifier;
+
+	// TODO create callback functions that will be queued for the main thread to generate and update the main table view
+	PerforceMonitor = MakeShared<FPerforceMonitor>(PerforceClient.ToSharedRef(), BranchClientPath, SelectedClientFileName, SelectedProjectIdentifier, ProjectLogBaseName + ".p4.log");
+	PerforceMonitor->OnUpdate = [this]{ //printf("PerforceMonitor->OnUpdate\n"); }; //MessageQueue.Add([this]{ UpdateBuildList(); }); };
+		TArray<TSharedRef<FPerforceChangeSummary, ESPMode::ThreadSafe>> Changes = PerforceMonitor->GetChanges();
+
+		for(int ChangeIdx = 0; ChangeIdx < Changes.Num(); ChangeIdx++)
+		{
+			const FPerforceChangeSummary& Change = Changes[ChangeIdx].Get();
+			TArray<FString> DescLines;
+
+			// split on \n so we can just take the first line
+			Change.Description.ParseIntoArray(DescLines, TEXT("\n"));
+
+			printf("CL %i Author: %s@%s :: %s\n", Change.Number, TCHAR_TO_ANSI(*Change.User), TCHAR_TO_ANSI(*Change.Client), TCHAR_TO_ANSI(*DescLines[0]));
+		}
+	};
+
+	//PerforceMonitor->OnUpdateMetadata = [this]{ printf("PerforceMonitor->OnUpdateMetadata\n"); }; //MessageQueue.Add([this]{ UpdateBuildMetadata(); }); };
+	PerforceMonitor->OnStreamChange = [this]{ printf("PerforceMonitor->OnStreamChange\n"); }; // MessageQueue.Add([this]{ Owner->StreamChanged(this); }); };
+
+	/* TODO figure out if this is even working, and if so how to correctly use this
+	FString SqlConnectionString;
+	EventMonitor = MakeShared<FEventMonitor>(SqlConnectionString, FPerforceUtils::GetClientOrDepotDirectoryName(*SelectedProjectIdentifier), PerforceClient->UserName, ProjectLogBaseName + ".review.log");
+	EventMonitor->OnUpdatesReady = [this]{ printf("EventMonitor->OnUpdatesReady\n"); }; //MessageQueue.Add([this]{ UpdateReviews(); }); };
+	*/
+
+	// Start the threads
+	PerforceMonitor->Start();
+	EventMonitor->Start();
 }
 
 #undef LOCTEXT_NAMESPACE

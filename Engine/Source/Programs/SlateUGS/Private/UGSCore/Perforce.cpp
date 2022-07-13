@@ -1366,17 +1366,6 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 
 	FProcHandle P4Proc = FPlatformProcess::CreateProc(*GPerforceExe.PerforceExe, *FullCommandLine, false, false, false, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
-	/*
-	FString P4Output;
-    FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-    while (FPlatformProcess::IsProcRunning(P4Proc) || !LatestOutput.IsEmpty())
-    {
-        P4Output += LatestOutput;
-        LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-        FPlatformProcess::Sleep(0);
-    }
-	*/
-
 	size_t BufferPos = 0;
 	size_t BufferEnd = 0;
 	TArray<uint8> Buffer;
@@ -1389,19 +1378,11 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 		// Check that we don't have an abort event
 		if (AbortEvent->Wait(FTimespan::Zero()))
 		{
-			abort();
+			return false;
 			//throw FAbortException();
 		}
 
-		// Prepare space in the output buffer for the piped data
-		//size_t BytesToRead = 512;
-		//if(Buffer.Num() < BufferEnd + BytesToRead)
-		//{
-			//Buffer.AddUninitialized((BufferEnd + BytesToRead) - Buffer.Num());
-		//}
-
 		// Read data from the child process
-		//size_t BytesRead = Process.Read(Buffer.GetData() + BufferEnd, BytesToRead);
 		TArray<uint8> TempBuffer;
 		bool bRead = FPlatformProcess::ReadPipeToArray(ReadPipe, TempBuffer);
 		size_t BytesRead = TempBuffer.Num();
@@ -1418,7 +1399,7 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 			}
 			else if(AbortEvent->Wait(FTimespan::FromMilliseconds(50)))
 			{
-				abort();
+				return false;
 				//throw FAbortException();
 			}
 		}
@@ -1458,84 +1439,6 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 
 	checkf(BufferPos == BufferEnd, TEXT("%d bytes of incomplete record data received from P4"), BufferEnd - BufferPos);
 	return FPlatformProcess::GetProcReturnCode(P4Proc, &ExitCode) == 0;
-
-	/*
-	FChildProcess Process;
-	if(!Process.Start(PerforceExe, *FString::Printf(TEXT("-G %s"), *CommandLine), nullptr, EChildProcessOptions::OutputPipe, EChildProcessPriority::Normal))
-	{
-		return false;
-	}
-
-	size_t BufferPos = 0;
-	size_t BufferEnd = 0;
-	TArray<uint8> Buffer;
-	TMap<FString, FString> Record;
-	for(;;)
-	{
-		// Determine if the process has exited. Do this before reading, so we'll only exit the loop if no data is read AND the process has exited.
-		bool bHasExited = Process.HasExited();
-
-		// Check that we don't have an abort event
-		if(AbortEvent->Wait(FTimespan::Zero()))
-		{
-			throw FAbortException();
-		}
-
-		// Prepare space in the output buffer for the piped data
-		size_t BytesToRead = 512;
-		if(Buffer.Num() < BufferEnd + BytesToRead)
-		{
-			Buffer.AddUninitialized((BufferEnd + BytesToRead) - Buffer.Num());
-		}
-
-		// Read data from the child process
-		size_t BytesRead = Process.Read(Buffer.GetData() + BufferEnd, BytesToRead);
-		if(BytesRead == 0)
-		{
-			// If it exited, quit. Otherwise sleep until data is available.
-			if(bHasExited)
-			{
-				break;
-			}
-			else if(AbortEvent->Wait(FTimespan::FromMilliseconds(50)))
-			{
-				throw FAbortException();
-			}
-		}
-		else
-		{
-			// Add the read bytes to the buffer
-			BufferEnd += BytesRead;
-
-			// Process all the records in the buffer that we can
-			const uint8* RecordPos = Buffer.GetData() + BufferPos;
-			const uint8* RecordMaxPos = Buffer.GetData() + BufferEnd;
-			for(;;)
-			{
-				const uint8* RecordEnd = ReadBinaryRecord(RecordPos, RecordMaxPos, &Record);
-				if(RecordEnd == nullptr)
-				{
-					break;
-				}
-				HandleOutput(Record);
-				RecordPos = RecordEnd;
-			}
-			BufferPos = RecordPos - Buffer.GetData();
-
-			// Shrink the buffer down if we've got spare space
-			if(BufferPos > 64)
-			{
-				BufferEnd -= BufferPos;
-				memmove(Buffer.GetData(), Buffer.GetData() + BufferPos, BufferEnd);
-				BufferPos = 0;
-			}
-		}
-	}
-	checkf(BufferPos == BufferEnd, TEXT("%d bytes of incomplete record data received from P4"), BufferEnd - BufferPos);
-	return Process.GetExitCode() == 0;
-	*/
-
-	return false;
 }
 
 //// FPerforceUtils ////
