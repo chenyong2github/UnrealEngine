@@ -146,6 +146,11 @@ namespace EpicGames.Core
 		public static EventId Systemic { get; } = new EventId(700);
 
 		/// <summary>
+		/// A systemic event relating to Perforce
+		/// </summary>
+		public static EventId Systemic_Perforce { get; } = new EventId(701);
+
+		/// <summary>
 		/// A systemic event from XGE
 		/// </summary>
 		public static EventId Systemic_Xge { get; } = new EventId(710);
