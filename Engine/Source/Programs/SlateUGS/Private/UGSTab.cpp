@@ -432,7 +432,7 @@ void UGSTab::SetupWorkspace()
 
 	// Start the threads
 	PerforceMonitor->Start();
-	EventMonitor->Start();
+	// EventMonitor->Start();
 }
 
 #undef LOCTEXT_NAMESPACE
