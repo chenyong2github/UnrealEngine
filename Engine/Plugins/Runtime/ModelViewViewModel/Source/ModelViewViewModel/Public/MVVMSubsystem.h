@@ -36,17 +36,22 @@ public:
 	bool DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree, const UWidget* ViewWidget) const;
 
 	/**
-	 * Returns the list of all the bindings that are available for the Class.
-	 * The class must implement the UNotifyFieldValueChanged interface.
+	 * @return The list of all the bindings that are available for the Class.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> Class, TSubclassOf<UObject> Accessor) const;
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(const UClass* Class, const UClass* Accessor) const;
 
 	/**
-	 * Returns the list of all the bindings that are available from the SriptStuct.
+	 * @return The list of all the bindings that are available from the SriptStuct.
 	 * @note When FMVVMAvailableBinding::HasNotify is false, a notification can still be triggered by the owner of the struct. The struct changed but which property of the struct changed is unknown.
 	 */
 	TArray<FMVVMAvailableBinding> GetAvailableBindingsForStruct(const UScriptStruct* Struct) const;
+
+	/**
+	 * @return the available binding from the binding.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	FMVVMAvailableBinding GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const

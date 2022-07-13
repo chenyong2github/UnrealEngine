@@ -3,7 +3,6 @@
 #include "Bindings/MVVMCompiledBindingLibraryCompiler.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "Bindings/MVVMFieldPathHelper.h"
 #include "Engine/Engine.h"
 #include "MVVMSubsystem.h"
 #include "Types/MVVMObjectVariant.h"
@@ -182,31 +181,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> FCompile
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TSubclassOf<UObject> InSourceClass, FStringView InFieldPath, bool bInRead)
-{
-	Impl->bCompiled = false;
-
-	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
-	if (GeneratedField.HasError())
-	{
-		return MakeError(GeneratedField.StealError());
-	}
-
-	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
-}
-
-
 TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
-	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InFieldPath, bInRead);
-	if (GeneratedField.HasError())
-	{
-		return MakeError(GeneratedField.StealError());
-	}
-
-	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
+	return AddFieldPathImpl(InFieldPath, bInRead);
 }
 
 
@@ -335,30 +314,25 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddObjectFieldPath(TSubclassOf<UObject> InSourceClass, FStringView InFieldPath, UClass* ExpectedType, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddObjectFieldPath(TArrayView<const UE::MVVM::FMVVMConstFieldVariant> FieldPath, UClass* ExpectedType, bool bInRead)
 {
 	Impl->bCompiled = false;
 
 	check(ExpectedType);
 
-	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
-	if (GeneratedField.HasError())
-	{
-		return MakeError(GeneratedField.StealError());
-	}
-	if (GeneratedField.GetValue().Num() == 0)
+	if (FieldPath.Num() == 0)
 	{
 		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 
 	const FObjectPropertyBase* ObjectPropertyBase = nullptr;
-	if (GeneratedField.GetValue().Last().IsProperty())
+	if (FieldPath.Last().IsProperty())
 	{
-		ObjectPropertyBase = CastField<const FObjectPropertyBase>(GeneratedField.GetValue().Last().GetProperty());
+		ObjectPropertyBase = CastField<const FObjectPropertyBase>(FieldPath.Last().GetProperty());
 	}
-	else if (GeneratedField.GetValue().Last().IsFunction())
+	else if (FieldPath.Last().IsFunction())
 	{
-		ObjectPropertyBase = CastField<const FObjectPropertyBase>(BindingHelper::GetReturnProperty(GeneratedField.GetValue().Last().GetFunction()));
+		ObjectPropertyBase = CastField<const FObjectPropertyBase>(BindingHelper::GetReturnProperty(FieldPath.Last().GetFunction()));
 	}
 
 	if (ObjectPropertyBase == nullptr)
@@ -370,7 +344,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 
-	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
+	return AddFieldPathImpl(FieldPath, bInRead);
 }
 
 

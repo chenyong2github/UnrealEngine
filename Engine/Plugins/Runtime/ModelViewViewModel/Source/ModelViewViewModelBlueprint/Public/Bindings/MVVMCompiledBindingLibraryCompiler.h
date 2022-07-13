@@ -157,15 +157,12 @@ public:
 public:
 	/** */
 	TValueOrError<FFieldIdHandle, FString> AddFieldId(TSubclassOf<UObject> SourceClass, FName FieldName);
-
-	/** */
-	TValueOrError<FFieldPathHandle, FString> AddFieldPath(TSubclassOf<UObject> SourceClass, FStringView FieldPath, bool bRead);
 	
 	/** */
 	TValueOrError<FFieldPathHandle, FString> AddFieldPath(TArrayView<const UE::MVVM::FMVVMConstFieldVariant> FieldPath, bool bRead);
 
 	/** */
-	TValueOrError<FFieldPathHandle, FString> AddObjectFieldPath(TSubclassOf<UObject> SourceClass, FStringView FieldPath, UClass* ExpectedType, bool bRead);
+	TValueOrError<FFieldPathHandle, FString> AddObjectFieldPath(TArrayView<const UE::MVVM::FMVVMConstFieldVariant> FieldPath, UClass* ExpectedType, bool bRead);
 
 	/** */
 	TValueOrError<FFieldPathHandle, FString> AddConversionFunctionFieldPath(TSubclassOf<UObject> SourceClass, const UFunction* Function);

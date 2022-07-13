@@ -60,6 +60,9 @@ private:
 	void CreateSourceLists(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView);
 	void CreateFunctionsDeclaration(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView);
 
+	bool PreCompileBindingSources(UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView);
+	bool CompileBindingSources(const FCompiledBindingLibraryCompiler::FCompileResult& CompileResult, UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView, UMVVMViewClass* ViewExtension);
+
 	bool PreCompileSourceCreators(UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView);
 	bool CompileSourceCreators(const FCompiledBindingLibraryCompiler::FCompileResult& CompileResult, UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView, UMVVMViewClass* ViewExtension);
 
@@ -70,7 +73,7 @@ private:
 
 	void AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* BlueprintView, const FString& Message) const;
 
-	FBindingSourceContext CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const;
+	TValueOrError<FBindingSourceContext, FString> CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath);
 	TArray<FMVVMConstFieldVariant> CreateBindingDestinationPath(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const;
 
 	FString PropertyPathToString(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath) const;
@@ -86,6 +89,7 @@ private:
 		FString CategoryName;
 		FString BlueprintSetter;
 		FMVVMConstFieldVariant Field;
+
 		bool bExposeOnSpawn = false;
 	};
 	TArray<FCompilerSourceContext> SourceContexts;
@@ -132,16 +136,23 @@ private:
 
 	struct FBindingSourceContext
 	{
+		int32 BindingIndex = INDEX_NONE;
+		bool bIsForwardBinding = false;
+
 		UClass* SourceClass = nullptr;
-		FName FieldId;
-		// ViewModel.Field.SubProperty.SubProperty
-		// or Widget.Field.SubProperty
-		// or Field.SubProperty (if the widget is the userwidget)
 		// if its the destination then the Field is not necessary
+		FFieldNotificationId FieldId;
+		// Viewmodel.Field.SubProperty.SubProperty
+		// or Widget.Field.SubProperty
+		// or Field.SubProperty (if the widget is the UserWidget)
 		TArray<UE::MVVM::FMVVMConstFieldVariant> PropertyPath;
+
+		// The source if it's a property
 		int32 CompilerSourceContextIndex = INDEX_NONE;
+		// The source is the UserWidget itself
 		bool bIsRootWidget = false;
 	};
+	TArray<FBindingSourceContext> BindingSourceContexts;
 
 	TMap<FName, UWidget*> WidgetNameToWidgetPointerMap;
 	FWidgetBlueprintCompilerContext& WidgetBlueprintCompilerContext;

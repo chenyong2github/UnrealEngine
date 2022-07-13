@@ -3,7 +3,11 @@
 #include "Bindings/MVVMFieldPathHelper.h"
 
 #include "Bindings/MVVMBindingHelper.h"
+#include "Engine/Engine.h"
+#include "FieldNotification/IFieldValueChanged.h"
 #include "Misc/MemStack.h"
+#include "MVVMSubsystem.h"
+#include "Types/MVVMAvailableBinding.h"
 
 namespace UE::MVVM::FieldPathHelper
 {
@@ -80,9 +84,9 @@ TValueOrError<FMVVMConstFieldVariant, FString> TransformWithAccessor(UStruct* Cu
 } // namespace
 
 
-TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TSubclassOf<UObject> InFrom, FStringView InFieldPath, bool bForReading)
+TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(const UClass* InFrom, FStringView InFieldPath, bool bForReading)
 {
-	if (InFrom.Get() == nullptr)
+	if (InFrom == nullptr)
 	{
 		return MakeError(TEXT("The source class is invalid."));
 	}
@@ -98,7 +102,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TSu
 	FMemMark Mark(FMemStack::Get());
 	TArray<FMVVMConstFieldVariant, TMemStackAllocator<>> Result;
 
-	UStruct* CurrentContainer = InFrom.Get();
+	const UStruct* CurrentContainer = InFrom;
 
 	// Split the string into property or function names
 	//ie. myvar.myfunction.myvar
@@ -231,6 +235,123 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TAr
 		}
 
 		Result.Add(Field);
+	}
+
+	return MakeValue(MoveTemp(Result));
+}
+
+
+TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UClass* InAccessor, TArrayView<const FMVVMConstFieldVariant> InFieldPath)
+{
+	if (InAccessor == nullptr)
+	{
+		return MakeError(TEXT("The Accessor is null."));
+	}
+	if (InFieldPath.Num() == 0)
+	{
+		return MakeError(TEXT("The FieldPath is empty."));
+	}
+
+	FParsedBindingInfo Result;
+	FParsedBindingInfo::FFieldVariantArray LocalFullPath;
+	bool bLookForNotifyFieldId = false;
+	UStruct* CurrentContainerType = InFieldPath[0].GetOwner();
+	if (!InAccessor->IsChildOf(CurrentContainerType))
+	{
+		return MakeError(TEXT("FieldPath that doesn't start with the accessor is not supported."));
+	}
+
+	for (int32 Index = 0; Index < InFieldPath.Num(); ++Index)
+	{
+		bool bLastField = Index == InFieldPath.Num() - 1;
+		FMVVMConstFieldVariant Field = InFieldPath[Index];
+
+		if (Field.IsEmpty())
+		{
+			return MakeError(FString::Printf(TEXT("The field '%d' does not exist."), Index));
+		}
+
+		if (CurrentContainerType == nullptr)
+		{
+			return MakeError(FString::Printf(TEXT("The field '%s' does not exist."), *Field.GetName().ToString()));
+		}
+
+		const bool bIsChild = Field.GetOwner()->IsChildOf(CurrentContainerType);
+		const bool bIsDownCast = CurrentContainerType->IsChildOf(Field.GetOwner());
+		if (!(bIsChild || bIsDownCast))
+		{
+			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), *Field.GetName().ToString(), *CurrentContainerType->GetName()));
+		}
+
+		const FProperty* FieldProperty = nullptr;
+		if (Field.IsProperty())
+		{
+			FieldProperty = Field.GetProperty();
+		}
+		else if (Field.IsFunction() && Field.GetFunction())
+		{
+			FieldProperty = BindingHelper::GetReturnProperty(Field.GetFunction());
+		}
+
+		if (FieldProperty == nullptr)
+		{
+			return MakeError(FString::Printf(TEXT("The field '%s' has an invalid property."), *Field.GetName().ToString()));
+		}
+
+
+		LocalFullPath.Add(Field);
+
+		// Is field a viewmodel
+		bool bSaveNotifyFieldInterfacePath = false;
+		if (!bLastField)
+		{
+			if (const FObjectPropertyBase* FieldObjectProperty = CastField<const FObjectPropertyBase>(FieldProperty))
+			{
+				if (FieldObjectProperty->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+				{
+					Result.NotifyFieldClass = FieldObjectProperty->PropertyClass;
+					Result.NotifyFieldId = FFieldNotificationId();
+					Result.NotifyFieldInterfacePath = LocalFullPath;
+					Result.ViewModelIndex = Index;
+					bSaveNotifyFieldInterfacePath = true;
+					bLookForNotifyFieldId = true;
+				}
+			}
+		}
+
+		if (!bSaveNotifyFieldInterfacePath)
+		{
+			if (bLookForNotifyFieldId && Result.NotifyFieldClass.Get() != nullptr)
+			{
+				FMVVMBindingName BindingName = FMVVMBindingName(Field.GetName());
+				FMVVMAvailableBinding AvailableBinding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBinding(Result.NotifyFieldClass.Get(), BindingName, InAccessor);
+				if (AvailableBinding.IsValid())
+				{
+					Result.NotifyFieldId = FFieldNotificationId(AvailableBinding.GetBindingName().ToName());
+				}
+			}
+			bLookForNotifyFieldId = false;
+		}
+
+		if (!bLastField)
+		{
+			TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(FieldProperty);
+			if (FoundContainer.HasError())
+			{
+				return MakeError(FoundContainer.StealError());
+			}
+			CurrentContainerType = FoundContainer.GetValue();
+		}
+	}
+
+	if (Result.ViewModelIndex > 0)
+	{
+		TValueOrError<TArray<FMVVMConstFieldVariant>, FString> FinalPath = GenerateFieldPathList(Result.NotifyFieldInterfacePath, true);
+		if (FinalPath.HasError())
+		{
+			return MakeError(FinalPath.StealError());
+		}
+		Result.NotifyFieldInterfacePath = FinalPath.StealValue();
 	}
 
 	return MakeValue(MoveTemp(Result));
