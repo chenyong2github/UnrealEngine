@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StorageServerConnection.h"
-#include "IPAddress.h"
-#include "SocketSubsystem.h"
-#include "Sockets.h"
-#include "Misc/App.h"
-#include "Misc/Paths.h"
-#include "Misc/SecureHash.h"
+
 #include "IO/IoDispatcher.h"
-#include "Misc/StringBuilder.h"
-#include "Misc/ScopeExit.h"
+#include "IPAddress.h"
+#include "Misc/App.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinarySerialization.h"
+#include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "HAL/FileManager.h"
+#include "SocketSubsystem.h"
+#include "Sockets.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -416,6 +414,12 @@ int64 FStorageServerResponse::SerializeChunkTo(FMutableMemoryView Memory, uint64
 	
 	UE_LOG(LogStorageServerConnection, Fatal, TEXT("Received unknown chunk type from storage server"));
 	return 0;
+}
+
+FCbObject FStorageServerResponse::GetResponseObject()
+{
+	FCbField Payload = LoadCompactBinary(*this);
+	return Payload.AsObject();
 }
 
 FStorageServerConnection::FStorageServerConnection()
