@@ -22,6 +22,8 @@ UWorldPartitionBuilderCommandlet::UWorldPartitionBuilderCommandlet(const FObject
 
 int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
+	FPackageSourceControlHelper PackageHelper;
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionBuilderCommandlet::Main);
 
 	UE_SCOPED_TIMER(TEXT("Execution"), LogWorldPartitionBuilderCommandlet, Display);

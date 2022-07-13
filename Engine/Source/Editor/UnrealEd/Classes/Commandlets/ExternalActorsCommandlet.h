@@ -20,6 +20,4 @@ public:
 
 protected:
 	UWorld* LoadWorld(const FString& LevelToLoad);
-
-	FPackageSourceControlHelper PackageHelper;
 };

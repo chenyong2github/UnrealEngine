@@ -690,6 +690,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet, Display);
 
+	FPackageSourceControlHelper PackageHelper;
+
 	TArray<FString> Tokens, Switches;
 	TMap<FString, FString> Arguments;
 	ParseCommandLine(*Params, Tokens, Switches, Arguments);
@@ -792,7 +794,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			FString ExternalObjectsFilePath = FPackageName::LongPackageNameToFilename(ExternalObjectsPath);
 			if (IFileManager::Get().DirectoryExists(*ExternalObjectsFilePath))
 			{
-				bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalObjectsFilePath, [this](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+				bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalObjectsFilePath, [this, &PackageHelper](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 				{
 					if (!bIsDirectory)
 					{

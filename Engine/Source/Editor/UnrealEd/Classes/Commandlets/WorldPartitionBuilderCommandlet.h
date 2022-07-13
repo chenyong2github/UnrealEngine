@@ -9,7 +9,7 @@
 class UWorldPartitionBuilder;
 
 UCLASS(Config=Engine)
-class UWorldPartitionBuilderCommandlet : public UCommandlet, public FPackageSourceControlHelper
+class UWorldPartitionBuilderCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 

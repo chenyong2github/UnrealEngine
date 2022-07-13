@@ -36,6 +36,8 @@ UWorld* UExternalActorsCommandlet::LoadWorld(const FString& LevelToLoad)
 
 int32 UExternalActorsCommandlet::Main(const FString& Params)
 {
+	FPackageSourceControlHelper PackageHelper;
+
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);
 

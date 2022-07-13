@@ -244,6 +244,8 @@ int32 UDataLayerToAssetCommandlet::Main(const FString& Params)
 
 	UE_SCOPED_TIMER(TEXT("Data Layer Conversion"), LogDataLayerToAssetCommandlet, Display);
 
+	FPackageSourceControlHelper PackageHelper;
+
 	ON_SCOPE_EXIT
 	{
 		if (MainWorld != nullptr)
@@ -265,7 +267,7 @@ int32 UDataLayerToAssetCommandlet::Main(const FString& Params)
 
 	TStrongObjectPtr<UDataLayerToAssetCommandletContext> Context(NewObject<UDataLayerToAssetCommandletContext>());
 
-	if (!BuildConversionInfos(Context))
+	if (!BuildConversionInfos(Context, PackageHelper))
 	{
 		return EReturnCode::DataLayerConversionError;
 	}
@@ -282,7 +284,7 @@ int32 UDataLayerToAssetCommandlet::Main(const FString& Params)
 		return EReturnCode::DataLayerConversionError;
 	}
 
-	if (!RemapActorDataLayersToAssets(Context))
+	if (!RemapActorDataLayersToAssets(Context, PackageHelper))
 	{
 		return EReturnCode::ActorDataLayerRemappingError;
 	}
@@ -292,12 +294,12 @@ int32 UDataLayerToAssetCommandlet::Main(const FString& Params)
 		return EReturnCode::ProjectSpecificConversionError;
 	}
 
-	if (!DeletePreviousConversionsData(Context))
+	if (!DeletePreviousConversionsData(Context, PackageHelper))
 	{
 		return EReturnCode::DataLayerConversionError;
 	}
 
-	if (!CommitConversion(Context))
+	if (!CommitConversion(Context, PackageHelper))
 	{
 		return EReturnCode::DataLayerConversionError;
 	}
@@ -337,7 +339,7 @@ bool UDataLayerToAssetCommandlet::InitializeFromCommandLine(TArray<FString>& Tok
 	return true;
 }
 
-bool UDataLayerToAssetCommandlet::BuildConversionInfos(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext)
+bool UDataLayerToAssetCommandlet::BuildConversionInfos(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, FPackageSourceControlHelper& PackageHelper)
 {
 	UE_SCOPED_TIMER(TEXT("Retrieving Already Converted Data Layers"), LogDataLayerToAssetCommandlet, Display);
 
@@ -371,7 +373,7 @@ bool UDataLayerToAssetCommandlet::BuildConversionInfos(TStrongObjectPtr<UDataLay
 	{
 		if (const UDeprecatedDataLayerInstance* DataLayerToConvert = Cast<UDeprecatedDataLayerInstance>(DataLayerInstance))
 		{
-			if (!CreateConversionFromDataLayer(CommandletContext, DataLayerToConvert))
+			if (!CreateConversionFromDataLayer(CommandletContext, DataLayerToConvert, PackageHelper))
 			{
 				ErrorCount++;
 			}
@@ -381,7 +383,7 @@ bool UDataLayerToAssetCommandlet::BuildConversionInfos(TStrongObjectPtr<UDataLay
 	return ErrorCount == 0;
 }
 
-bool UDataLayerToAssetCommandlet::CreateConversionFromDataLayer(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, const UDeprecatedDataLayerInstance* DataLayer)
+bool UDataLayerToAssetCommandlet::CreateConversionFromDataLayer(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, const UDeprecatedDataLayerInstance* DataLayer, FPackageSourceControlHelper &PackageHelper)
 {
 	if(TObjectPtr<UDataLayerAsset> DataLayerAsset = GetOrCreateDataLayerAssetForConversion(CommandletContext, FName(DataLayer->GetDataLayerShortName())))
 	{
@@ -470,13 +472,13 @@ bool UDataLayerToAssetCommandlet::ResolvePreviousConversionsToCurrent(TStrongObj
 	return ErrorCount == 0;
 }
 
-bool UDataLayerToAssetCommandlet::RemapActorDataLayersToAssets(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext)
+bool UDataLayerToAssetCommandlet::RemapActorDataLayersToAssets(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, FPackageSourceControlHelper& PackageHelper)
 {
 	UE_SCOPED_TIMER(TEXT("Remapping Actors Data Layers"), LogDataLayerToAssetCommandlet, Display);
 	UE_LOG(LogDataLayerToAssetCommandlet, Log, TEXT("Starting Actor Data Layer Remapping To Data Layer Asset. This can take a while."));
 
 	uint32 ErrorCount = 0;
-	FWorldPartitionHelpers::ForEachActorWithLoading(MainWorld->GetWorldPartition(), [&ErrorCount, &CommandletContext, this](const FWorldPartitionActorDesc* ActorDesc)
+	FWorldPartitionHelpers::ForEachActorWithLoading(MainWorld->GetWorldPartition(), [&ErrorCount, &CommandletContext, this, &PackageHelper](const FWorldPartitionActorDesc* ActorDesc)
 	{
 		uint32 ActorConversionErrors = 0;
 		if (AActor* Actor = ActorDesc->GetActor())
@@ -696,7 +698,7 @@ bool UDataLayerToAssetCommandlet::RebuildDataLayerHierarchies(TStrongObjectPtr<U
 	return ErrorCount == 0;
 }
 
-bool UDataLayerToAssetCommandlet::DeletePreviousConversionsData(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext)
+bool UDataLayerToAssetCommandlet::DeletePreviousConversionsData(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, FPackageSourceControlHelper& PackageHelper)
 {
 	UE_SCOPED_TIMER(TEXT("Delete Conflicting Assets"), LogDataLayerToAssetCommandlet, Display);
 
@@ -724,7 +726,7 @@ bool UDataLayerToAssetCommandlet::DeletePreviousConversionsData(TStrongObjectPtr
 	return ErrorCount == 0;
 }
 
-bool UDataLayerToAssetCommandlet::CommitConversion(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext)
+bool UDataLayerToAssetCommandlet::CommitConversion(TStrongObjectPtr<UDataLayerToAssetCommandletContext>& CommandletContext, FPackageSourceControlHelper& PackageHelper)
 {
 	uint32 ErrorCount = 0;
 	AWorldDataLayers* WorldDataLayers = MainWorld->GetWorldDataLayers();

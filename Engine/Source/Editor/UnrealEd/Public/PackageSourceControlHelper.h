@@ -6,7 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "SourceControlHelpers.h"
 
-class UNREALED_API FPackageSourceControlHelper
+//This class should not be used as a base class because it can force a connection to the SCM through FScopedSourceControl. Connection errors can result in failing automation processes that are unrelated. 
+//The same can happen if the class is used as a member of another class. It should only be used as a local variable in a method so the connection is only attempted if required. 
+class UNREALED_API FPackageSourceControlHelper final
 {
 public:
 	bool UseSourceControl() const;

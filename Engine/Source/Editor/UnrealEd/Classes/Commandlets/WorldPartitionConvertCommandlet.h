@@ -87,7 +87,6 @@ protected:
 	FString LevelConfigFilename;
 	TArray<UPackage*> PackagesToSave;
 	TArray<UPackage*> PackagesToDelete;
-	FPackageSourceControlHelper PackageHelper;
 
 	bool bOnlyMergeSubLevels;
 	bool bDeleteSourceLevels;
