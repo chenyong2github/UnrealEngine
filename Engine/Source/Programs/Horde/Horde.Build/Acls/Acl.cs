@@ -286,6 +286,11 @@ namespace Horde.Build.Acls
         /// </summary>
         ViewIssue,
 
+		/// <summary>
+		/// Mark an issue as fixed via the p4fix endpoint
+		/// </summary>
+		IssueFixViaPerforce,
+
         #endregion
 
         //// TEMPLATES ////

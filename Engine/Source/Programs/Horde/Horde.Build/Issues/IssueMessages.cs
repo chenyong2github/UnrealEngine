@@ -931,6 +931,21 @@ namespace Horde.Build.Issues
 		}
 	}
 
+	/// <summary>
+	/// Marks an issue as fixed by another user. Designed for use from a Perforce trigger.
+	/// </summary>
+	public class MarkFixedViaPerforceRequest
+	{
+		/// <summary>
+		/// Name of the user that fixed the issue
+		/// </summary>
+		public string UserName { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Change that fixed the issue
+		/// </summary>
+		public int FixChange { get; set; }
+	}
 
 	/// <summary>
 	/// Request an issue to be created on external issue tracking system
