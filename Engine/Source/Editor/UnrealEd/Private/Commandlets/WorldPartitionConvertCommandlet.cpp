@@ -433,7 +433,7 @@ void UWorldPartitionConvertCommandlet::FixupSoftObjectPaths(UPackage* OuterPacka
 				return *this;
 			}
 
-			FString OriginalValue = Value.ToString();
+			const FString OriginalValue = Value.ToString();
 
 			auto GetSourceString = [this]()
 			{
@@ -462,14 +462,6 @@ void UWorldPartitionConvertCommandlet::FixupSoftObjectPaths(UPackage* OuterPacka
 						FString NewPath = *RemappedValue + ':' + Value.GetSubPathString();
 						Value.SetPath(NewPath);
 					}
-				}
-
-				FString NewValue = Value.ToString();
-				if (NewValue == OriginalValue)
-				{
-					Value.Reset();
-					UE_LOG(LogWorldPartitionConvertCommandlet, Warning, TEXT("Error remapping SoftObjectPath %s"), *OriginalValue);
-					UE_LOG(LogWorldPartitionConvertCommandlet, Warning, TEXT("  Source: %s"), *GetSourceString());
 				}
 			}
 
