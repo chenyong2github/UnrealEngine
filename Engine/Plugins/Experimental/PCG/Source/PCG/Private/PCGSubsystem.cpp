@@ -126,6 +126,23 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 	}
 }
 
+FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
+{
+	TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
+
+	auto CleanupTask = [ComponentPtr, bRemoveComponents]() {
+		check(ComponentPtr.Get() != nullptr);
+		if (UPCGComponent* Component = ComponentPtr.Get())
+		{
+			Component->CleanupInternal(bRemoveComponents);
+		}
+
+		return true;
+	};
+
+	return GraphExecutor->ScheduleGeneric(CleanupTask, Dependencies);
+}
+
 FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies)
 {
 	if (SourceComponent)
@@ -474,23 +491,6 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 		return InvalidPCGTaskId;
 	}
-}
-
-FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
-{
-	TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
-
-	auto CleanupTask = [ComponentPtr, bRemoveComponents]() {
-		check(ComponentPtr.Get() != nullptr);
-		if (UPCGComponent* Component = ComponentPtr.Get())
-		{
-			Component->CleanupInternal(bRemoveComponents);
-		}
-
-		return true;
-	};
-
-	return GraphExecutor->ScheduleGeneric(CleanupTask, Dependencies);
 }
 
 void UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave)
