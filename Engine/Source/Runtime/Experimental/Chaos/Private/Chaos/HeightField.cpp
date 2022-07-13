@@ -1065,7 +1065,7 @@ namespace Chaos
 		FReal RayExitTime;
 		if(CachedBounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, RayEntryTime, RayExitTime))
 		{
-			CurrentLength = RayExitTime + UE_SMALL_NUMBER; // to account for precision errors 
+			CurrentLength = RayExitTime + 1e-2; // to account for precision errors 
 			FVec3 NextStart = StartPoint + (Dir * RayEntryTime);
 
 			const FVec2 Scale2D(GeomData.Scale[0],GeomData.Scale[1]);

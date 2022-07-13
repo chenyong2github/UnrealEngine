@@ -299,7 +299,7 @@ private:
 
 					const FVec3 DirLocal = ActorTM.InverseTransformVectorNoScale(Dir);
 					const FVec3 StartLocal = ActorTM.InverseTransformPositionNoScale(StartPoint);
-					bHit = Geom->Raycast(StartLocal, DirLocal, CurData->CurrentLength, /*Thickness=*/0.f, Distance, LocalPosition, LocalNormal, FaceIdx);
+					bHit = Geom->Raycast(StartLocal, DirLocal, CurData->CurrentLength, /*Thickness=*/0.0, Distance, LocalPosition, LocalNormal, FaceIdx);
 					if (bHit)
 					{
 						WorldPosition = ActorTM.TransformPositionNoScale(LocalPosition);

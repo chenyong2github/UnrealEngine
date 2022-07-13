@@ -355,6 +355,28 @@ namespace ChaosTest {
 		
 	}
 
+	void RaycastOnFlatHeightField()
+	{
+		int32 Rows = 64;
+		int32 Columns = 64;
+		FVec3 Scale(100.0, 100.0, 100.0);
+		TArray<FReal> Heights;
+		Heights.AddZeroed(Rows * Columns);
+
+		TArray<FReal> HeightsCopy = Heights;
+		FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+		const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+		FReal TOI;
+		FVec3 Position, Normal;
+		int32 FaceIdx = 0;
+	
+		const FVec3 Start(8224.6524537283822, 2631.7542424011549, 2265.2052028112184);
+		const FVec3 Dir(-0.92887444870972680, -0.11019885226781448, -0.35362193299208372);
+		EXPECT_TRUE(Heightfield.Raycast(Start, Dir, 2097152.0000000000, 0, TOI, Position, Normal, FaceIdx));
+		EXPECT_TRUE(Heightfield.Raycast(Start, Dir, 2097152.0000000000, UE_KINDA_SMALL_NUMBER, TOI, Position, Normal, FaceIdx));
+	}
+
 	void EditHeights()
 	{
 		const int32 Columns = 10;
@@ -901,6 +923,7 @@ namespace ChaosTest {
 	TEST(ChaosTests, Heightfield)
 	{
 		ChaosTest::Raycast();
+		ChaosTest::RaycastOnFlatHeightField();
 		ChaosTest::SweepTest();
 		ChaosTest::OverlapTest();
 		EditHeights();
