@@ -43,9 +43,11 @@ namespace UE::VertexDeltaModel
 		virtual void CreateTrainingGroundTruthActor(UWorld* World) override;
 		virtual void CreateTestGroundTruthActor(UWorld* World) override;
 		virtual void OnInputAssetsChanged() override;
-		virtual int32 GetNumFrames() const override;
-		virtual double GetTimeAtFrame(int32 FrameNumber) const override;
-		virtual int32 GetFrameAtTime(double TimeInSeconds) const override;
+		virtual int32 GetNumTrainingFrames() const override;
+		virtual double GetTrainingTimeAtFrame(int32 FrameNumber) const override;
+		virtual int32 GetTrainingFrameAtTime(double TimeInSeconds) const override;
+		virtual double GetTestTimeAtFrame(int32 FrameNumber) const override;
+		virtual int32 GetTestFrameAtTime(double TimeInSeconds) const override;
 		virtual void UpdateIsReadyForTrainingState() override;
 		virtual ETrainingResult Train() override;
 		FString GetTrainedNetworkOnnxFile() const override;

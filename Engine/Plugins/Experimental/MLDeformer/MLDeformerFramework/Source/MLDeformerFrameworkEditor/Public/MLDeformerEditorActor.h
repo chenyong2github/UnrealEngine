@@ -43,6 +43,7 @@ namespace UE::MLDeformer
 		virtual FBox GetBoundingBox() const;
 		virtual void Pause(bool bPaused);
 		virtual bool IsGroundTruthActor() const;
+		virtual bool HasVisualMesh() const;
 
 		AActor* GetActor() const { return Actor; }
 		int32 GetTypeID() const { return TypeID; }

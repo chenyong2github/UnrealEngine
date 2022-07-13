@@ -41,14 +41,24 @@ bool UMLDeformerTrainingModel::SetCurrentSampleIndex(int32 Index)
 	return SampleFrame(Index);
 }
 
+bool UMLDeformerTrainingModel::GetNeedsResampling() const
+{
+	return EditorModel->GetResamplingInputOutputsNeeded();
+}
+
+void UMLDeformerTrainingModel::SetNeedsResampling(bool bNeedsResampling)
+{
+	EditorModel->SetResamplingInputOutputsNeeded(bNeedsResampling);
+}
+
 bool UMLDeformerTrainingModel::SampleFrame(int32 Index)
 {
 	using namespace UE::MLDeformer;
 
 	// Make sure we have a valid frame number.
-	if (Index < 0 || Index >= EditorModel->GetNumFrames())
+	if (Index < 0 || Index >= EditorModel->GetNumTrainingFrames())
 	{
-		UE_LOG(LogMLDeformer, Warning, TEXT("Sample index must range from %d to %d, but a value of %d was provided."), 0, EditorModel->GetNumFrames()-1, Index);
+		UE_LOG(LogMLDeformer, Warning, TEXT("Sample index must range from %d to %d, but a value of %d was provided."), 0, EditorModel->GetNumTrainingFrames()-1, Index);
 		return false;
 	}
 

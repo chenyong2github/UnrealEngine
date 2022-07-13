@@ -630,7 +630,10 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 		FGPUSkinCache::Release(SkinCacheEntry);
 	}
 
-	if (MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate))
+	// We need to clear the external morph buffers when the weights are zero.
+	const bool bExternalMorphsNeedClear = !DynamicData->ExternalMorphWeightData.MorphSets.IsEmpty() && !DynamicData->ExternalMorphWeightData.HasActiveMorphs();
+
+	if ((MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate)) || bExternalMorphsNeedClear)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_ClearMorphBuffer);
 		if (MorphVertexBuffer.GetUAV())

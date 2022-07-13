@@ -23,17 +23,27 @@ class UAnimSequence;
 class UMaterial;
 class UGeometryCache;
 class UNeuralNetwork;
+class UMorphTarget;
+class FMorphTargetVertexInfoBuffers;
 
 /** Training process return codes. */
 UENUM()
 enum class ETrainingResult : uint8
 {
-	Success = 0,	/** The training successfully finished. */
-	Aborted,		/** The user has aborted the training process. */
-	AbortedCantUse,	/** The user has aborted the training process and we can't use the resulting network. */
-	FailOnData,		/** The input or output data to the network has issues, which means we cannot train. */
-	FailPythonError,/** The python script has some error (see output log). */
-	FailMissingPythonClass,	/** No training model class was implemented in Python, including a valid train function. */
+	/** The training successfully finished. */
+	Success = 0,
+
+	/** The user has aborted the training process. */
+	Aborted,
+
+	/** The user has aborted the training process and we can't use the resulting network. */
+	AbortedCantUse,
+
+	/** The input or output data to the network has issues, which means we cannot train. */
+	FailOnData,
+
+	/** The python script has some error (see output log). */
+	FailPythonError
 };
 
 namespace UE::MLDeformer
@@ -60,10 +70,8 @@ namespace UE::MLDeformer
 		virtual ~FMLDeformerEditorModel();
 
 		// Required overrides.
-		virtual int32 GetNumFrames() const PURE_VIRTUAL(FMLDeformerEditorModel::GetNumFrames, return 0;);
+		virtual int32 GetNumTrainingFrames() const PURE_VIRTUAL(FMLDeformerEditorModel::GetNumTrainingFrames, return 0;);
 		virtual ETrainingResult Train() PURE_VIRTUAL(FMLDeformerEditorModel::Train, return ETrainingResult::Success;);
-		virtual double GetTimeAtFrame(int32 FrameNumber) const PURE_VIRTUAL(FMLDeformerEditorModel::GetTimeAtFrame, return 0.0;);
-		virtual int32 GetFrameAtTime(double TimeInSeconds) const PURE_VIRTUAL(FMLDeformerEditorModel::GetFrameAtTime, return 0;);
 
 		// Optional overrides.
 		virtual void Init(const InitSettings& Settings);
@@ -72,6 +80,11 @@ namespace UE::MLDeformer
 		virtual void ClearWorld();
 		virtual FMLDeformerEditorActor* CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const;
 		virtual FMLDeformerSampler* CreateSampler() const;
+		virtual double GetTrainingTimeAtFrame(int32 FrameNumber) const;
+		virtual int32 GetTrainingFrameAtTime(double TimeInSeconds) const;
+		virtual double GetTestTimeAtFrame(int32 FrameNumber) const;
+		virtual int32 GetTestFrameAtTime(double TimeInSeconds) const;
+		virtual int32 GetNumTestFrames() const;
 		virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
 		virtual void CreateTrainingLinearSkinnedActor(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 		virtual void CreateTestLinearSkinnedActor(UWorld* World);
@@ -87,15 +100,18 @@ namespace UE::MLDeformer
 		virtual void HandleDefaultPropertyChanges(FPropertyChangedEvent& PropertyChangedEvent);
 		virtual void OnPlayButtonPressed();
 		virtual void OnPreTraining() {}
-		virtual void OnPostTraining(ETrainingResult TrainingResult);
-		virtual void OnTrainingAborted() {}
+		virtual void OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted);
+		virtual void OnTrainingAborted(bool bUsePartiallyTrainedData) {}
 		virtual bool IsPlayingAnim() const;
-		virtual double CalcTimelinePosition() const;
+		virtual double CalcTrainingTimelinePosition() const;
+		virtual double CalcTestTimelinePosition() const;
 		virtual void OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing);
 		virtual void UpdateTestAnimPlaySpeed();
-		virtual void ClampCurrentFrameIndex();
+		virtual void ClampCurrentTrainingFrameIndex();
+		virtual void ClampCurrentTestFrameIndex();
 		virtual int32 GetNumFramesForTraining() const;
 		virtual void SetTrainingFrame(int32 FrameNumber);
+		virtual void SetTestFrame(int32 FrameNumber);
 		virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
 		virtual void UpdateIsReadyForTrainingState() { bIsReadyForTraining = false; }
 		virtual FText GetOverlayText() const;
@@ -124,8 +140,8 @@ namespace UE::MLDeformer
 		FMLDeformerEditorActor* FindEditorActor(int32 ActorTypeID) const;
 		bool IsReadyForTraining() const { return bIsReadyForTraining; }
 		FMLDeformerSampler* GetSampler() const { return Sampler; }
-		void SetDataNormalized(bool IsNormalized) { bIsDataNormalized = IsNormalized; }
-		bool IsDataNormalized() const { return bIsDataNormalized; }
+		void SetResamplingInputOutputsNeeded(bool bNeeded) { bNeedToResampleInputOutputs = bNeeded; }
+		bool GetResamplingInputOutputsNeeded() const { return bNeedToResampleInputOutputs; }
 
 		FText GetBaseAssetChangedErrorText() const;
 		FText GetVertexMapChangedErrorText() const;
@@ -149,6 +165,28 @@ namespace UE::MLDeformer
 	protected:
 		void DeleteEditorActors();
 		bool IsEditorReadyForTrainingBasicChecks();
+
+		/** Zero all deltas with a length equal to, or smaller than the threshold value. */
+		void ZeroDeltasByThreshold(TArray<FVector3f>& Deltas, float Threshold);
+
+		/**
+		 * Generate engine morph targets from a set of deltas.
+		 * @param OutMorphTargets The output array with generated morph targets. This array will be reset, and then filled with generated morph targets.
+		 * @param Deltas The per vertex deltas for all morph targets, as one big buffer. Each morph target has 'GetNumBaseMeshVerts()' number of deltas.
+		 * @param NamePrefix The morph target name prefix. If set to "MorphTarget_" the names will be "MorphTarget_000", "MorphTarget_001", "MorphTarget_002", etc.
+		 * @param LOD The LOD index to generate the morphs for.
+		 * @param DeltaThreshold Only include deltas with a length larger than this threshold in the morph targets.
+		 */
+		void CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix = TEXT("MorphTarget_"), int32 LOD = 0, float DeltaThreshold = 0.01f);
+
+		/** 
+		 * Compress morph targets into GPU based morph buffers.
+		 * @param OutMorphBuffers The output compressed GPU based morph buffers. If this buffer is already initialized it will be released first.
+		 * @param MorphTargets The morph targets to compress into GPU friendly buffers.
+		 * @param LOD The LOD index to generate the morphs for.
+		 * @param MorphErrorTolerance The error tolerance for the delta compression, in cm. Higher values compress better but can result in artifacts.
+		 */
+		void CompressEngineMorphTargets(FMorphTargetVertexInfoBuffers& OutMorphBuffers, const TArray<UMorphTarget*>& MorphTargets, int32 LOD = 0, float MorphErrorTolerance = 0.01f);
 
 	protected:
 		/** The runtime model associated with this editor model. */
@@ -184,8 +222,8 @@ namespace UE::MLDeformer
 		 */
 		bool bIsReadyForTraining = false;	
 
-		/** Did we already normalize the data needed for training? */
-		bool bIsDataNormalized = false;
+		/** Do we need to resample all input/output data? */
+		bool bNeedToResampleInputOutputs = true;
 	};
 
 	template<class TrainingModelClass>
@@ -197,7 +235,7 @@ namespace UE::MLDeformer
 		if (TrainingModels.IsEmpty())
 		{
 			// We didn't define a derived class in Python.
-			return ETrainingResult::FailMissingPythonClass;
+			return ETrainingResult::FailPythonError;
 		}
 
 		// Perform the training.

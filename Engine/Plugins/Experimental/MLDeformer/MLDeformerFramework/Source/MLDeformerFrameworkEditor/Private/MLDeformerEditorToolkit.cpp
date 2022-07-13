@@ -11,6 +11,7 @@
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerEditorStyle.h"
 #include "MLDeformerVizSettings.h"
+#include "MLDeformerSampler.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -103,7 +104,8 @@ namespace UE::MLDeformer
 		if (ActiveModel)
 		{
 			ActiveModel->UpdateIsReadyForTrainingState();
-			ActiveModel->SetTrainingFrame(ActiveModel->GetModel()->GetVizSettings()->GetFrameNumber());
+			ActiveModel->SetTrainingFrame(ActiveModel->GetModel()->GetVizSettings()->GetTrainingFrameNumber());
+			ActiveModel->SetTestFrame(ActiveModel->GetModel()->GetVizSettings()->GetTestingFrameNumber());
 		}
 
 		if (DeformerModel)
@@ -363,15 +365,14 @@ namespace UE::MLDeformer
 						const double StartTime = FPlatformTime::Seconds();
 						const ETrainingResult TrainingResult = ActiveModel->Train();
 						const double TrainingDuration = FPlatformTime::Seconds() - StartTime;
-						const bool bMarkDirty = HandleTrainingResult(TrainingResult, TrainingDuration);
+						bool bUsePartiallyTrained = true;	// Will get modified by the HandleTrainingResult function below.
+						const bool bMarkDirty = HandleTrainingResult(TrainingResult, TrainingDuration, bUsePartiallyTrained);
+						ActiveModel->OnPostTraining(TrainingResult, bUsePartiallyTrained);
 
-						// Reinit the input assets, but restore the frame number.
-						const int32 FrameNumber = Model->GetVizSettings()->GetFrameNumber();
-						ActiveModel->OnInputAssetsChanged();
-						ActiveModel->SetTrainingFrame(FrameNumber);
+						const bool NeedsResamplingBackup = ActiveModel->GetResamplingInputOutputsNeeded();
+						ActiveModel->SetResamplingInputOutputsNeeded(NeedsResamplingBackup);
 						ActiveModel->RefreshMLDeformerComponents();
 						ActiveModel->SetHeatMapMaterialEnabled(Model->GetVizSettings()->GetShowHeatMap());
-						ActiveModel->OnPostTraining(TrainingResult);
 
 						if (bMarkDirty)
 						{
@@ -414,8 +415,10 @@ namespace UE::MLDeformer
 		ToolbarBuilder.EndSection();
 	}
 
-	bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration)
+	bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained)
 	{
+		bOutUsePartiallyTrained = true;
+
 		FText WindowTitle(LOCTEXT("TrainingResultsWindowTitle", "Training Results"));
 		FText WindowMessage;
 
@@ -444,6 +447,7 @@ namespace UE::MLDeformer
 			// Training fully finished.
 			case ETrainingResult::Success:
 			{
+				ActiveModel->SetResamplingInputOutputsNeeded(false);
 				if (!ActiveModel->LoadTrainedNetwork())
 				{
 					GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
@@ -483,7 +487,7 @@ namespace UE::MLDeformer
 				}
 				else
 				{
-					ActiveModel->OnTrainingAborted();
+					bOutUsePartiallyTrained = false;
 					ShowNotification(LOCTEXT("TrainingAborted", "Training aborted!"), SNotificationItem::ECompletionState::CS_None, true);
 				}
 			}
@@ -510,14 +514,6 @@ namespace UE::MLDeformer
 			{
 				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
 				WindowMessage = LOCTEXT("TrainingPythonError", "Training failed!\nThere is a python error, please check the output log.");
-			}
-			break;
-
-			// Unknown failure, probably something in the python code.
-			case ETrainingResult::FailMissingPythonClass:
-			{
-				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
-				WindowMessage = LOCTEXT("TrainingMissingPythonClass", "Training failed!\nThe python script doesn't contain a MLDeformerTrainingModel derived class with train function inside.");
 			}
 			break;
 
@@ -604,18 +600,9 @@ namespace UE::MLDeformer
 		if (ActiveModel)
 		{
 			ActiveModel->SetDefaultDeformerGraphIfNeeded();
-
 			ActiveModel->CreateActors(InPersonaPreviewScene);
 			ActiveModel->UpdateActorVisibility();
-
-			UMLDeformerVizSettings* VizSettings = ActiveModel->GetModel()->GetVizSettings();
-			const int32 FrameNumber = VizSettings->GetFrameNumber();
-			ActiveModel->OnInputAssetsChanged();	// This resets FrameNumber to 0
-			VizSettings->FrameNumber = FrameNumber;
-
-			ActiveModel->SetTrainingFrame(FrameNumber);
-			ActiveModel->SampleDeltas();
-
+			ActiveModel->OnInputAssetsChanged();
 			ActiveModel->CreateHeatMapAssets();
 			ActiveModel->SetHeatMapMaterialEnabled(ActiveModel->GetModel()->GetVizSettings()->GetShowHeatMap());
 		}
@@ -655,9 +642,17 @@ namespace UE::MLDeformer
 
 				if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 				{
-					ActiveModel->ClampCurrentFrameIndex();
-					const int32 CurrentFrameNumber = ActiveModel->GetModel()->GetVizSettings()->GetFrameNumber();
+					ActiveModel->ClampCurrentTrainingFrameIndex();
+					const int32 CurrentFrameNumber = ActiveModel->GetModel()->GetVizSettings()->GetTrainingFrameNumber();
 					ActiveModel->SetTrainingFrame(CurrentFrameNumber);
+					ActiveModel->GetSampler()->SetVertexDeltaSpace(EVertexDeltaSpace::PostSkinning);
+					ActiveModel->SampleDeltas();
+				}
+				else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+				{
+					ActiveModel->ClampCurrentTestFrameIndex();
+					const int32 CurrentFrameNumber = ActiveModel->GetModel()->GetVizSettings()->GetTestingFrameNumber();
+					ActiveModel->SetTestFrame(CurrentFrameNumber);
 				}
 
 				if (GetVizSettingsDetailsView())
@@ -742,7 +737,15 @@ namespace UE::MLDeformer
 	{
 		if (ActiveModel)
 		{
-			return ActiveModel->CalcTimelinePosition();
+			const UMLDeformerVizSettings* VizSettings = ActiveModel->GetModel()->GetVizSettings();
+			if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+			{
+				return ActiveModel->CalcTrainingTimelinePosition();
+			}
+			else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+			{
+				return ActiveModel->CalcTestTimelinePosition();
+			}
 		}
 
 		return 0.0;
@@ -779,7 +782,7 @@ namespace UE::MLDeformer
 			SetTimeSliderRange(0.0, Duration);
 		}
 
-		ActiveModel->ClampCurrentFrameIndex();
+		ActiveModel->ClampCurrentTrainingFrameIndex();
 	}
 
 	void FMLDeformerEditorToolkit::SetTimeSliderRange(double StartTime, double EndTime)

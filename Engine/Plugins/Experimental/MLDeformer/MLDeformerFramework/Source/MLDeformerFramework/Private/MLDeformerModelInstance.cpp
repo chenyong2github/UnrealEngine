@@ -98,6 +98,32 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 				UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *InputErrorString);
 			}
 		}
+
+		// Check if the neural network is on the right device, if not, we can't continue.
+		if (Model->IsNeuralNetworkOnGPU())
+		{
+			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
+			{
+				const FString DeviceErrorString = "The neural network is expected to run and output on the GPU, but it isn't.";
+				ErrorText += DeviceErrorString + "\n";
+				if (LogIssues)
+				{
+					UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *DeviceErrorString);
+				}
+			}
+		}
+		else
+		{
+			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::CPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::CPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
+			{
+				const FString DeviceErrorString = "The neural network is expected to run fully on the CPU, but it isn't.";
+				ErrorText += DeviceErrorString + "\n";
+				if (LogIssues)
+				{
+					UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *(Model->GetDeformerAsset()->GetName()), *DeviceErrorString);
+				}
+			}
+		}
 	}
 
 	return ErrorText;
@@ -197,7 +223,7 @@ int64 UMLDeformerModelInstance::SetCurveValues(float* OutputBuffer, int64 Output
 	return Index;
 }
 
-void UMLDeformerModelInstance::SetNeuralNetworkInputValues(float* InputData, int64 NumInputFloats)
+int64 UMLDeformerModelInstance::SetNeuralNetworkInputValues(float* InputData, int64 NumInputFloats)
 {
 	check(SkeletalMeshComponent);
 
@@ -205,17 +231,30 @@ void UMLDeformerModelInstance::SetNeuralNetworkInputValues(float* InputData, int
 	int64 BufferOffset = 0;
 	BufferOffset = SetBoneTransforms(InputData, NumInputFloats, BufferOffset);
 	BufferOffset = SetCurveValues(InputData, NumInputFloats, BufferOffset);
-	check(BufferOffset == NumInputFloats);
+	return BufferOffset;
 }
 
 bool UMLDeformerModelInstance::IsValidForDataProvider() const
 {
 	const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
-	if (NeuralNetwork == nullptr || 
-		!NeuralNetwork->IsLoaded() || 
-		NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || 
-		NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
+	if (NeuralNetwork == nullptr || !NeuralNetwork->IsLoaded())
 	{
+		return false;
+	}
+
+	// We expect to run on the GPU when using a data provider for the deformer graph system (Optimus).
+	if (Model->IsNeuralNetworkOnGPU())
+	{
+		// Make sure we're actually running the network on the GPU.
+		// Inputs are expected to come from the CPU though.
+		if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		// We don't support CPU neural networks on default, when using the deformer graph, as we want the neural network output on the GPU.
 		return false;
 	}
 
@@ -224,36 +263,52 @@ bool UMLDeformerModelInstance::IsValidForDataProvider() const
 		GetNeuralNetworkInferenceHandle() != -1;
 }
 
-void UMLDeformerModelInstance::Tick(float DeltaTime)
+void UMLDeformerModelInstance::RunNeuralNetwork(float ModelWeight)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::RunNeuralNetwork)
+
+	UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
+	if (Model->IsNeuralNetworkOnGPU())
+	{
+		// NOTE: Inputs still come from the CPU.
+		check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU && NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU && NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
+		ENQUEUE_RENDER_COMMAND(RunNeuralNetwork)
+			(
+				[NeuralNetwork, Handle = NeuralNetworkInferenceHandle](FRHICommandListImmediate& RHICmdList)
+				{
+					// Output deltas will be available on GPU for DeformerGraph via UMLDeformerDataProvider.
+					FRDGBuilder GraphBuilder(RHICmdList);
+					NeuralNetwork->Run(GraphBuilder, Handle);
+					GraphBuilder.Execute();
+				}
+		);
+	}
+	else
+	{
+		// Run on the CPU.
+		check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::CPU && NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU && NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::CPU);
+		NeuralNetwork->Run(NeuralNetworkInferenceHandle);
+	}
+}
+
+bool UMLDeformerModelInstance::SetupNeuralNetworkForFrame()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::SetupNeuralNetworkForFrame)
+
 	// Some safety checks.
-	if (Model == nullptr || 
-		SkeletalMeshComponent == nullptr || 
-		SkeletalMeshComponent->SkeletalMesh == nullptr || 
+	if (Model == nullptr ||
+		SkeletalMeshComponent == nullptr ||
+		SkeletalMeshComponent->SkeletalMesh == nullptr ||
 		!bIsCompatible)
 	{
-		return;
+		return false;
 	}
 
 	// Get the network and make sure it's loaded.
 	UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
 	if (NeuralNetwork == nullptr || !NeuralNetwork->IsLoaded())
 	{
-		return;
-	}
-
-	// If we're not on the GPU we can't continue really.
-	// This is needed as the deformer graph system needs it on the GPU.
-	// Some platforms might not support GPU yet.
-	// Only the inputs are on the CPU.
-	check(NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU);
-	if (!bAllowCPU)
-	{
-		if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU ||
-			NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
-		{
-			return;
-		}
+		return false;
 	}
 
 	// Allocate an inference context if none has already been allocated.
@@ -262,7 +317,7 @@ void UMLDeformerModelInstance::Tick(float DeltaTime)
 		NeuralNetworkInferenceHandle = NeuralNetwork->CreateInferenceContext();
 		if (NeuralNetworkInferenceHandle == -1)
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -271,27 +326,24 @@ void UMLDeformerModelInstance::Tick(float DeltaTime)
 	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs();
 	if (NumNeuralNetInputs != NumDeformerAssetInputs)
 	{
-		return;
+		return false;
 	}
 
 	// Update and write the input values directly into the input tensor.
 	float* InputDataPointer = static_cast<float*>(NeuralNetwork->GetInputDataPointerMutableForContext(NeuralNetworkInferenceHandle));
-	SetNeuralNetworkInputValues(InputDataPointer, NumNeuralNetInputs);
+	const int64 NumFloatsWritten = SetNeuralNetworkInputValues(InputDataPointer, NumNeuralNetInputs);
+	check(NumFloatsWritten == NumNeuralNetInputs);
 
-	// Run the neural network.
-	if (NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU)
+	return true;
+}
+
+
+void UMLDeformerModelInstance::Tick(float DeltaTime, float ModelWeight)
+{
+	if (!SetupNeuralNetworkForFrame())
 	{
-		ENQUEUE_RENDER_COMMAND(RunNeuralNetwork)(
-			[NeuralNetwork, Handle = NeuralNetworkInferenceHandle](FRHICommandListImmediate& RHICmdList)
-		{
-				// Output deltas will be available on GPU for DeformerGraph via UMLDeformerDataProvider.
-				FRDGBuilder GraphBuilder(RHICmdList);
-				NeuralNetwork->Run(GraphBuilder, Handle);
-				GraphBuilder.Execute();
-		});
+		return;
 	}
-	else
-	{
-		NeuralNetwork->Run();
-	}
+
+	RunNeuralNetwork(ModelWeight);
 }

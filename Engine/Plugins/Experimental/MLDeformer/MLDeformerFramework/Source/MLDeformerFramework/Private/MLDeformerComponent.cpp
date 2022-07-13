@@ -35,6 +35,7 @@ void UMLDeformerComponent::Init()
 		ModelInstance = Model->CreateModelInstance(this);
 		ModelInstance->SetModel(Model);
 		ModelInstance->Init(SkelMeshComponent);
+		Model->PostMLDeformerComponentInit(ModelInstance);
 	}
 	else
 	{
@@ -45,6 +46,8 @@ void UMLDeformerComponent::Init()
 
 void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USkeletalMeshComponent* InSkelMeshComponent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerComponent::SetupComponent)
+
 	if (InSkelMeshComponent)
 	{		
 		AddTickPrerequisiteComponent(InSkelMeshComponent);
@@ -125,7 +128,8 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 			SkelMeshComponent && 
 			SkelMeshComponent->GetPredictedLODLevel() == 0)
 		{
-			ModelInstance->Tick(DeltaTime);
+			TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerComponent::TickComponent)
+			ModelInstance->Tick(DeltaTime, Weight);
 		}
 	}
 }

@@ -38,6 +38,21 @@ namespace UE::VertexDeltaModel
 		return true;
 	}
 
+	bool FVertexDeltaEditorModelActor::HasVisualMesh() const
+	{
+		if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh)
+		{
+			return true;
+		}
+
+		if (GeomCacheComponent && GeomCacheComponent->GetGeometryCache())
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	void FVertexDeltaEditorModelActor::SetPlayPosition(float TimeInSeconds, bool bAutoPause)
 	{
 		if (SkeletalMeshComponent)

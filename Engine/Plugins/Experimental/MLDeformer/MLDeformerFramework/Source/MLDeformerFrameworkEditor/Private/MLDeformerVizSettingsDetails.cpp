@@ -155,12 +155,15 @@ namespace UE::MLDeformer
 		LiveSettingsCategory->SetCategoryVisibility(bShowTestData);
 		LiveSettingsCategory->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, Weight), UMLDeformerVizSettings::StaticClass());
 		LiveSettingsCategory->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed), UMLDeformerVizSettings::StaticClass());
+		LiveSettingsCategory->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestingFrameNumber), UMLDeformerVizSettings::StaticClass());
 
 		IDetailGroup& HeatMapGroup = LiveSettingsCategory->AddGroup("HeatMap", LOCTEXT("HeatMap", "Heat Map"), false, true);
 		HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap), UMLDeformerVizSettings::StaticClass()));
 		HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapMode), UMLDeformerVizSettings::StaticClass()));
 		HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapMax), UMLDeformerVizSettings::StaticClass()));
 		HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, GroundTruthLerp), UMLDeformerVizSettings::StaticClass()));
+
+		AddAdditionalSettings();
 
 		IDetailGroup& VisGroup = LiveSettingsCategory->AddGroup("Visibility", LOCTEXT("VisibilityLabel", "Visibility"), false, true);
 		VisGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLinearSkinnedActor), UMLDeformerVizSettings::StaticClass()));
@@ -170,7 +173,7 @@ namespace UE::MLDeformer
 
 		// Training data.
 		TrainingMeshesCategoryBuilder->SetCategoryVisibility(bShowTrainingData);
-		TrainingMeshesCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, FrameNumber), UMLDeformerVizSettings::StaticClass());
+		TrainingMeshesCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TrainingFrameNumber), UMLDeformerVizSettings::StaticClass());
 		TrainingMeshesCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawDeltas), UMLDeformerVizSettings::StaticClass());
 		TrainingMeshesCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bXRayDeltas), UMLDeformerVizSettings::StaticClass());
 	}

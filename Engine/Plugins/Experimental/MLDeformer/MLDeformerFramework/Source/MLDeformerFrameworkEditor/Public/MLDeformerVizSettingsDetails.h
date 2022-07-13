@@ -40,6 +40,7 @@ namespace UE::MLDeformer
 		virtual void AddTestSequenceErrors() {}
 		virtual void AddDeformerGraphErrors() {}
 		virtual void AddGroundTruth() {}
+		virtual void AddAdditionalSettings() {}
 
 	protected:
 		/** Associated detail layout builder. */

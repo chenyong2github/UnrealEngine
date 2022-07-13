@@ -41,8 +41,20 @@ public:
 	 * Update the deformer instance.
 	 * If you use a neural network, this should provide inputs to the neural network.
 	 * @param DeltaTime The delta time since the last frame, in seconds.
+	 * @param ModelWeight The weight of the model, between 0 and 1, where 0 means it has no influence, and 1 means it is fully active.
 	 */
-	virtual void Tick(float DeltaTime);
+	virtual void Tick(float DeltaTime, float ModelWeight);
+
+	/**
+	 * Update the neural network input values directly inside its input tensor.
+	 * This will copy over the bone transforms (and possibly morph and curve weights) into this flat array.
+	 * @param InputData The buffer of floats to write the input values to.
+	 * @param NumInputFloats The number of floats of the InputData buffer. Do not write more than this number of floats to the InputData buffer.
+	 * @return Returns the new buffer element index. For example if there were 2 bones and 3 curves, and each bone takes 6 inputs and each curve takes one 
+	 * input, then after calling this base class method, it will return 15 (2*6 + 3*1). You could call this base class method and then write data after that, starting
+	 * from the offset that is returned.
+	 */
+	virtual int64 SetNeuralNetworkInputValues(float* InputData, int64 NumInputFloats);
 
 	/**
 	 * Check whether the deformer is compatible with a given skeletal mesh component.
@@ -61,6 +73,24 @@ public:
 	 * @return Returns true if the data provider in would be in a valid state, otherwise false is returned.
 	 */
 	virtual bool IsValidForDataProvider() const;
+
+	/**
+	 * Setup the neural network for this frame.
+	 * This has to perform compatibility checks, valid pointer checks, and call the SetNeuralNetworkInputValues.
+	 * After this method is executed, the neural network should be ready to execute.
+	 * The UMLDeformerModelInstance::Tick method internally calls both the SetupNeuralNetworkForFrame and RunNeuralNetwork methods.
+	 * @return Returns true when the setup is done correctly and the neural network is ready to be executed. Otherwise false is returned, which 
+	 * can happen when the NeuralNetwork pointer is invalid, when the model is not set, when the network is not compatible, etc.
+	 */
+	virtual bool SetupNeuralNetworkForFrame();
+
+	/**
+	 * Run the neural network.
+	 * This already assumes that compatibility checks are done, and that the network inputs are set etc.
+	 * Internally this will execute the UNeuralNetwork::Run() method, either on GPU or CPU.
+	 * @param ModelWeight The weight of the model, must be between 0 and 1.
+	 */
+	virtual void RunNeuralNetwork(float ModelWeight);
 
 	/**
 	 * Get the current component space bone transforms that we grabbed from the skeletal mesh component.
@@ -101,28 +131,7 @@ public:
 	 */
 	int32 GetNeuralNetworkInferenceHandle() const { return NeuralNetworkInferenceHandle; }
 
-	/**
-	 * Is running neural network inference on the CPU allowed for this instance?
-	 * @return Returns true if allowed, or false if only GPU is allowed.
-	 */
-	bool IsCPUInferenceAllowed() const { return bAllowCPU; }
-
-	/**
-	 * Specify whether running neural network inference on the CPU is allowed, or if it is only GPU.
-	 * This can be used by some automated tests that will need to run inference on the CPU to check the output results.
-	 * @param bAllowed Set to true when CPU inference is allowed, or false if only GPU inference is allowed.
-	 */
-	void SetCPUInferenceAllowed(bool bAllowed) { bAllowCPU = bAllowed; }
-
 protected:
-	/**
-	 * Update the neural network input values directly inside its input tensor.
-	 * This will copy over the bone transforms (and possibly morph and curve weights) into this flat array.
-	 * @param InputData The buffer of floats to write the input values to.
-	 * @param NumInputFloats The number of floats of the InputData buffer. Do not write more than this number of floats to the InputData buffer.
-	 */
-	void SetNeuralNetworkInputValues(float* InputData, int64 NumInputFloats);
-
 	/**
 	 * Set the bone transformations inside a given output buffer, starting from a given StartIndex.
 	 * @param OutputBuffer The buffer we need to write the transformations to.
@@ -169,9 +178,6 @@ protected:
 
 	/** Inference handle for neural network inference. */
 	int32 NeuralNetworkInferenceHandle = -1;
-
-	/** Allow running inference on the CPU? */
-	bool bAllowCPU = false;
 
 	/** Are the deformer asset and the used skeletal mesh component compatible? */
 	bool bIsCompatible = false;

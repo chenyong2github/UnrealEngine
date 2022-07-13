@@ -74,7 +74,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		EditorModel->ClampCurrentFrameIndex();
+		EditorModel->ClampCurrentTrainingFrameIndex();
 		EditorModel->Tick(ViewportClient, DeltaTime);
 	}
 

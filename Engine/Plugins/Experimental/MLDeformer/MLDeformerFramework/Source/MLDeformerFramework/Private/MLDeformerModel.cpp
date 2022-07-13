@@ -54,7 +54,7 @@ UMLDeformerModelInstance* UMLDeformerModel::CreateModelInstance(UMLDeformerCompo
 
 void UMLDeformerModel::Init(UMLDeformerAsset* InDeformerAsset) 
 { 
-	check(InDeformerAsset); 
+	check(InDeformerAsset);
 	DeformerAsset = InDeformerAsset; 
 	if (InputInfo == nullptr)
 	{
@@ -64,6 +64,7 @@ void UMLDeformerModel::Init(UMLDeformerAsset* InDeformerAsset)
 
 void UMLDeformerModel::Serialize(FArchive& Archive)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModel::Serialize)
 	#if WITH_EDITOR
 		if (Archive.IsSaving() && Archive.IsPersistent())
 		{
@@ -82,6 +83,8 @@ UMLDeformerAsset* UMLDeformerModel::GetDeformerAsset() const
 
 void UMLDeformerModel::PostLoad()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModel::PostLoad)
+
 	Super::PostLoad();
 
 	InitGPUData();
@@ -100,11 +103,18 @@ void UMLDeformerModel::PostLoad()
 
 	if (NeuralNetwork)
 	{
-		NeuralNetwork->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);
-		if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || 
-			NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
+		// If we run the neural network on the GPU.
+		if (IsNeuralNetworkOnGPU())
 		{
-			UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *GetName());
+			NeuralNetwork->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);
+			if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU || NeuralNetwork->GetInputDeviceType() != ENeuralDeviceType::CPU)
+			{
+				UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *GetDeformerAsset()->GetName());
+			}
+		}
+		else // We run our neural network on the CPU.
+		{
+			NeuralNetwork->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
 		}
 	}
 }
@@ -145,6 +155,19 @@ void UMLDeformerModel::InitGPUData()
 	BeginReleaseResource(&VertexMapBuffer);
 	VertexMapBuffer.Init(VertexMap);
 	BeginInitResource(&VertexMapBuffer);
+}
+
+void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray)
+{
+	check(FloatArray.Num() % 3 == 0);
+	const int32 NumVerts = FloatArray.Num() / 3;
+	OutVectorArray.Reset();
+	OutVectorArray.SetNumUninitialized(NumVerts);
+	for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
+	{
+		const int32 FloatBufferOffset = VertexIndex * 3;
+		OutVectorArray[VertexIndex] = FVector3f(FloatArray[FloatBufferOffset + 0], FloatArray[FloatBufferOffset + 1], FloatArray[FloatBufferOffset + 2]);
+	}
 }
 
 #if WITH_EDITOR

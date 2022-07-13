@@ -48,6 +48,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Training Data")
 	bool SetCurrentSampleIndex(int32 Index);
 
+	UFUNCTION(BlueprintCallable, Category = "Training Data")
+	bool GetNeedsResampling() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Training Data")
+	void SetNeedsResampling(bool bNeedsResampling);
+
 protected:
 	/** Sample a given frame. This updates the sample deltas, curves, and bone rotations. */
     virtual bool SampleFrame(int32 Index);

@@ -2,14 +2,14 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "MLDeformerFramework",
+	"FriendlyName": "ML Deformer Framework",
 	"Description": "Machine Learning Mesh Deformer Framework",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
-	"DocsURL": "",
-	"MarketplaceURL": "",
-	"SupportURL": "",
+	"DocsURL": "https://docs.unrealengine.com/5.0/en-US/using-the-machine-learning-deformer-in-unreal-engine/",
+	"MarketplaceURL": "https://www.unrealengine.com/marketplace/en-US/product/ml-deformer",
+	"SupportURL": "https://forums.unrealengine.com/",
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": true,
@@ -37,6 +37,10 @@
 		},
 		{
 			"Name": "NeuralNetworkInference",
+			"Enabled": true
+		},
+		{
+			"Name": "GeometryCache",
 			"Enabled": true
 		}
 	]

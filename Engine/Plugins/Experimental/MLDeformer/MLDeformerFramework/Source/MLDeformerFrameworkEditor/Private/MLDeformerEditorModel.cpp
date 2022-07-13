@@ -8,6 +8,7 @@
 #include "MLDeformerModelRegistry.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerEditorActor.h"
+#include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerSampler.h"
@@ -279,6 +280,35 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	{
+		// Force the training sequence to use Step interpolation and sample raw animation data.
+		// We do this in the Tick, as this is reset to false in the engine sometimes.
+		UAnimSequence* TrainingAnimSequence = Model->GetAnimSequence();
+		if (TrainingAnimSequence)
+		{
+			TrainingAnimSequence->bUseRawDataOnly = true;
+			TrainingAnimSequence->Interpolation = EAnimInterpolationType::Step;
+		}
+
+		// Do the same for the test anim sequence.
+		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		{
+			UAnimSequence* TestAnimSequence = VizSettings->GetTestAnimSequence();
+			if (TestAnimSequence)
+			{
+				TestAnimSequence->bUseRawDataOnly = true;
+
+				// Enable step interpolation when doing showing a heatmap vs ground truth.
+				if (VizSettings->HasTestGroundTruth() && VizSettings->GetShowHeatMap() && VizSettings->GetHeatMapMode() == EMLDeformerHeatMapMode::GroundTruth)
+				{
+					TestAnimSequence->Interpolation = EAnimInterpolationType::Step;
+				}
+				else
+				{
+					TestAnimSequence->Interpolation = EAnimInterpolationType::Linear;
+				}
+			}
+		}
+
 		UpdateActorTransforms();
 		UpdateLabels();
 		CheckTrainingDataFrameChanged();
@@ -357,14 +387,26 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::UpdateActorVisibility()
 	{
-		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		const bool bShowTrainingData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData);
 		const bool bShowTestData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData);
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
 			if (EditorActor)
 			{
-				const bool bIsVisible = (EditorActor->IsTestActor() && bShowTestData) || (EditorActor->IsTrainingActor() && bShowTrainingData);
+				bool bIsVisible = (EditorActor->IsTestActor() && bShowTestData) || (EditorActor->IsTrainingActor() && bShowTrainingData);
+				if (EditorActor->GetTypeID() == ActorID_Test_Base)
+				{
+					bIsVisible &= VizSettings->GetDrawLinearSkinnedActor();
+				}
+				else if (EditorActor->GetTypeID() == ActorID_Test_MLDeformed)
+				{
+					bIsVisible &= VizSettings->GetDrawMLDeformedActor();
+				}
+				else if (EditorActor->GetTypeID() == ActorID_Test_GroundTruth)
+				{
+					bIsVisible &= VizSettings->GetDrawGroundTruthActor();
+				}
 				EditorActor->SetVisibility(bIsVisible);
 			}
 		}
@@ -382,20 +424,23 @@ namespace UE::MLDeformer
 
 		// Update the training base actor.
 		UDebugSkelMeshComponent* SkeletalMeshComponent = FindEditorActor(ActorID_Train_Base)->GetSkeletalMeshComponent();
-		check(SkeletalMeshComponent);
-		SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
-		if (GetEditor()->GetPersonaToolkitPointer())
-		{
-			GetEditor()->GetPersonaToolkit()->GetPreviewScene()->SetPreviewMesh(Model->GetSkeletalMesh());
-		}
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		UAnimSequence* TestAnimSequence = VizSettings->GetTestAnimSequence();
 		const float TestAnimSpeed = VizSettings->GetAnimPlaySpeed();
-		SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		SkeletalMeshComponent->SetAnimation(TrainingAnimSequence);
-		SkeletalMeshComponent->SetPosition(0.0f);
-		SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
-		SkeletalMeshComponent->Play(false);
+		{
+			check(SkeletalMeshComponent);
+			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
+			if (GetEditor()->GetPersonaToolkitPointer())
+			{
+				GetEditor()->GetPersonaToolkit()->GetPreviewScene()->SetPreviewMesh(Model->GetSkeletalMesh());
+			}
+			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			const float CurrentPlayTime = SkeletalMeshComponent->GetPosition();
+			SkeletalMeshComponent->SetAnimation(TrainingAnimSequence);
+			SkeletalMeshComponent->SetPosition(CurrentPlayTime);
+			SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
+			SkeletalMeshComponent->Play(false);
+		}
 
 		// Update the test base model.
 		SkeletalMeshComponent = FindEditorActor(ActorID_Test_Base)->GetSkeletalMeshComponent();
@@ -403,8 +448,9 @@ namespace UE::MLDeformer
 		{
 			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
 			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			const float CurrentPlayTime = SkeletalMeshComponent->GetPosition();
 			SkeletalMeshComponent->SetAnimation(TestAnimSequence);
-			SkeletalMeshComponent->SetPosition(0.0f);
+			SkeletalMeshComponent->SetPosition(CurrentPlayTime);
 			SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
 			SkeletalMeshComponent->Play(true);
 		}
@@ -415,13 +461,14 @@ namespace UE::MLDeformer
 		{
 			SkeletalMeshComponent->SetSkeletalMesh(Model->GetSkeletalMesh());
 			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			const float CurrentPlayTime = SkeletalMeshComponent->GetPosition();
 			SkeletalMeshComponent->SetAnimation(TestAnimSequence);
-			SkeletalMeshComponent->SetPosition(0.0f);
+			SkeletalMeshComponent->SetPosition(CurrentPlayTime);
 			SkeletalMeshComponent->SetPlayRate(TestAnimSpeed);
 			SkeletalMeshComponent->Play(true);
 		}
 
-		bIsDataNormalized = false;
+		SetResamplingInputOutputsNeeded(true);
 	}
 
 	void FMLDeformerEditorModel::OnPostInputAssetChanged()
@@ -432,7 +479,13 @@ namespace UE::MLDeformer
 		UpdateDeformerGraph();
 		RefreshMLDeformerComponents();
 		UpdateIsReadyForTrainingState();
-		SetTrainingFrame(0);
+
+		const int32 TrainingFrame = GetTrainingFrameAtTime(CalcTrainingTimelinePosition());
+		SetTrainingFrame(TrainingFrame);
+
+		const int32 TestFrame = GetTestFrameAtTime(CalcTestTimelinePosition());
+		SetTestFrame(TestFrame);
+
 		UpdateEditorInputInfo();
 		CheckTrainingDataFrameChanged();
 	}
@@ -440,45 +493,82 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing)
 	{
 		float PlayOffset = static_cast<float>(NewScrubTime);
-		const int32 TargetFrame = GetFrameAtTime(NewScrubTime);
 
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 		{
+			const int32 TargetFrame = GetTrainingFrameAtTime(NewScrubTime);
 			for (FMLDeformerEditorActor* EditorActor : EditorActors)
 			{
 				if (EditorActor && EditorActor->IsTrainingActor())
 				{
 					if (Model->HasTrainingGroundTruth())
 					{
-						PlayOffset = GetTimeAtFrame(TargetFrame);
+						PlayOffset = GetTrainingTimeAtFrame(TargetFrame);
 					}
 					EditorActor->SetPlayPosition(PlayOffset);
 				}
 			}
-			VizSettings->FrameNumber = TargetFrame;
+			VizSettings->TrainingFrameNumber = TargetFrame;
 		}
 		else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
 		{
+			const int32 TargetFrame = GetTestFrameAtTime(NewScrubTime);
 			for (FMLDeformerEditorActor* EditorActor : EditorActors)
 			{
 				if (EditorActor && EditorActor->IsTestActor())
 				{
 					if (Model->GetVizSettings()->HasTestGroundTruth())
 					{
-						PlayOffset = GetTimeAtFrame(TargetFrame);
+						PlayOffset = GetTestTimeAtFrame(TargetFrame);
 					}
 					EditorActor->SetPlayPosition(PlayOffset);
 				}
 			}
+			VizSettings->TestingFrameNumber = TargetFrame;
 		}
+	}
+
+	double FMLDeformerEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
+	{
+		return Model->GetAnimSequence() ? Model->GetAnimSequence()->GetTimeAtFrame(FrameNumber) : 0.0;
+	}
+
+	int32 FMLDeformerEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
+	{
+		return Model->GetAnimSequence() ? Model->GetAnimSequence()->GetFrameAtTime(TimeInSeconds) : 0;
+	}
+
+	double FMLDeformerEditorModel::GetTestTimeAtFrame(int32 FrameNumber) const
+	{
+		return Model->GetVizSettings()->GetTestAnimSequence() ? Model->GetVizSettings()->GetTestAnimSequence()->GetTimeAtFrame(FrameNumber) : 0.0;
+	}
+
+	int32 FMLDeformerEditorModel::GetTestFrameAtTime(double TimeInSeconds) const
+	{
+		return Model->GetVizSettings()->GetTestAnimSequence() ? Model->GetVizSettings()->GetTestAnimSequence()->GetFrameAtTime(TimeInSeconds) : 0;
 	}
 
 	void FMLDeformerEditorModel::SetTrainingFrame(int32 FrameNumber)
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		VizSettings->FrameNumber = FrameNumber;
-		OnTimeSliderScrubPositionChanged(GetTimeAtFrame(FrameNumber), false);
+		VizSettings->TrainingFrameNumber = FrameNumber;
+		ClampCurrentTrainingFrameIndex();
+		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+		{
+			OnTimeSliderScrubPositionChanged(GetTrainingTimeAtFrame(FrameNumber), false);
+		}
+	}
+
+	void FMLDeformerEditorModel::SetTestFrame(int32 FrameNumber)
+	{
+		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		VizSettings->TestingFrameNumber = FrameNumber;
+		ClampCurrentTestFrameIndex();
+		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+		{
+			OnTimeSliderScrubPositionChanged(GetTestTimeAtFrame(FrameNumber), false);
+		}
 	}
 
 	void FMLDeformerEditorModel::HandleDefaultPropertyChanges(FPropertyChangedEvent& PropertyChangedEvent)
@@ -533,11 +623,17 @@ namespace UE::MLDeformer
 		{
 			UpdateTestAnimPlaySpeed();
 		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, FrameNumber))
+		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TrainingFrameNumber))
 		{
-			ClampCurrentFrameIndex();
-			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetFrameNumber();
-			OnTimeSliderScrubPositionChanged(GetTimeAtFrame(CurrentFrameNumber), false);
+			ClampCurrentTrainingFrameIndex();
+			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTrainingFrameNumber();
+			OnTimeSliderScrubPositionChanged(GetTrainingTimeAtFrame(CurrentFrameNumber), false);
+		}
+		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestingFrameNumber))
+		{
+			ClampCurrentTestFrameIndex();
+			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTestingFrameNumber();
+			OnTimeSliderScrubPositionChanged(GetTestTimeAtFrame(CurrentFrameNumber), false);
 		}
 		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap))
 		{
@@ -572,6 +668,7 @@ namespace UE::MLDeformer
 		
 		FMLDeformerEditorActor* BaseTestActor = FindEditorActor(ActorID_Test_Base);
 		const bool bMustPause = (BaseTestActor && BaseTestActor->GetSkeletalMeshComponent()) ? !BaseTestActor->GetSkeletalMeshComponent()->bPauseAnims : false;
+
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
 			if (EditorActor && EditorActor->IsTestActor())
@@ -599,21 +696,38 @@ namespace UE::MLDeformer
 		return false;
 	}
 
-	double FMLDeformerEditorModel::CalcTimelinePosition() const
+	double FMLDeformerEditorModel::CalcTrainingTimelinePosition() const
 	{
-		// Get the base editor actor, depending on the mode we're in.
-		FMLDeformerEditorActor* EditorActor = nullptr;
-		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+		FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Train_GroundTruth);
+		if (EditorActor && EditorActor->HasVisualMesh())
 		{
-			EditorActor = FindEditorActor(ActorID_Test_Base);
-		}
-		else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
-		{
-			EditorActor = FindEditorActor(ActorID_Train_Base);
+			return EditorActor->GetPlayPosition();
 		}
 
-		return EditorActor ? EditorActor->GetPlayPosition() : 0.0;
+		EditorActor = FindEditorActor(ActorID_Train_Base);
+		if (EditorActor && EditorActor->HasVisualMesh())
+		{
+			return EditorActor->GetPlayPosition();
+		}
+
+		return 0.0;
+	}
+
+	double FMLDeformerEditorModel::CalcTestTimelinePosition() const
+	{
+		FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Test_GroundTruth);
+		if (EditorActor && EditorActor->HasVisualMesh())
+		{
+			return EditorActor->GetPlayPosition();
+		}
+
+		EditorActor = FindEditorActor(ActorID_Test_Base);
+		if (EditorActor && EditorActor->HasVisualMesh())
+		{
+			return EditorActor->GetPlayPosition();
+		}
+
+		return 0.0;
 	}
 
 	void FMLDeformerEditorModel::UpdateTestAnimPlaySpeed()
@@ -629,22 +743,45 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::ClampCurrentFrameIndex()
+	void FMLDeformerEditorModel::ClampCurrentTrainingFrameIndex()
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		if (GetNumFrames() > 0)
+		if (GetNumTrainingFrames() > 0)
 		{
-			VizSettings->FrameNumber = FMath::Min(VizSettings->FrameNumber, static_cast<uint32>(GetNumFrames() - 1));
+			VizSettings->TrainingFrameNumber = FMath::Min(VizSettings->TrainingFrameNumber, static_cast<uint32>(GetNumTrainingFrames() - 1));
 		}
 		else
 		{
-			VizSettings->FrameNumber = 0;
+			VizSettings->TrainingFrameNumber = 0;
 		}
+	}
+
+	void FMLDeformerEditorModel::ClampCurrentTestFrameIndex()
+	{
+		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		if (GetNumTestFrames() > 0)
+		{
+			VizSettings->TestingFrameNumber = FMath::Min(VizSettings->TestingFrameNumber, static_cast<uint32>(GetNumTestFrames() - 1));
+		}
+		else
+		{
+			VizSettings->TestingFrameNumber = 0;
+		}
+	}
+
+	int32 FMLDeformerEditorModel::GetNumTestFrames() const
+	{
+		const UAnimSequence* Sequence = Model->GetVizSettings()->GetTestAnimSequence();
+		if (Sequence)
+		{
+			return Sequence->GetNumberOfSampledKeys();
+		}
+		return 0;
 	}
 
 	int32 FMLDeformerEditorModel::GetNumFramesForTraining() const 
 	{ 
-		return FMath::Min(GetNumFrames(), Model->GetTrainingFrameLimit());
+		return FMath::Min(GetNumTrainingFrames(), Model->GetTrainingFrameLimit());
 	}
 
 	FText FMLDeformerEditorModel::GetBaseAssetChangedErrorText() const
@@ -1073,7 +1210,7 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::SampleDeltas()
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		ClampCurrentFrameIndex();
+		ClampCurrentTrainingFrameIndex();
 
 		// If we have no Persona toolkit yet, then it is not yet safe to init the sampler.
 		if (Editor->GetPersonaToolkitPointer() != nullptr)
@@ -1084,15 +1221,15 @@ namespace UE::MLDeformer
 		if (Sampler->IsInitialized())
 		{
 			Sampler->SetVertexDeltaSpace(EVertexDeltaSpace::PostSkinning);
-			Sampler->Sample(VizSettings->FrameNumber);
+			Sampler->Sample(VizSettings->TrainingFrameNumber);
 		}
 	}
 
 	void FMLDeformerEditorModel::CheckTrainingDataFrameChanged()
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		ClampCurrentFrameIndex();
-		if (CurrentTrainingFrame != VizSettings->FrameNumber)
+		ClampCurrentTrainingFrameIndex();
+		if (CurrentTrainingFrame != VizSettings->TrainingFrameNumber)
 		{
 			OnTrainingDataFrameChanged();
 		}
@@ -1103,9 +1240,9 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 
 		// If the current frame number changed, re-sample the deltas if needed.
-		if (CurrentTrainingFrame != VizSettings->FrameNumber)
+		if (CurrentTrainingFrame != VizSettings->TrainingFrameNumber)
 		{
-			CurrentTrainingFrame = VizSettings->FrameNumber;
+			CurrentTrainingFrame = VizSettings->TrainingFrameNumber;
 			if (VizSettings->GetDrawVertexDeltas() && VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 			{
 				SampleDeltas();
@@ -1250,7 +1387,7 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::OnPostTraining(ETrainingResult TrainingResult)
+	void FMLDeformerEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
 	{
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
@@ -1262,13 +1399,9 @@ namespace UE::MLDeformer
 			}
 		}
 
-		if (TrainingResult == ETrainingResult::Success || TrainingResult == ETrainingResult::Aborted)
-		{
-			// The InitAssets call resets the normalized flag, so set it back to true.
-			// This is safe as we finished training, which means we already normalized data.
-			// If we aborted we still have normalized the data. Only when we have AbortedCantUse then we canceled the normalization process.
-			bIsDataNormalized = true;
-		}
+		Sampler->SetVertexDeltaSpace(EVertexDeltaSpace::PostSkinning);
+		SampleDeltas();
+		Model->InitGPUData();
 	}
 
 	FMLDeformerEditorActor* FMLDeformerEditorModel::GetTimelineEditorActor() const
@@ -1287,14 +1420,25 @@ namespace UE::MLDeformer
 
 	UNeuralNetwork* FMLDeformerEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
 	{
-		FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
+		const FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
 		if (FPaths::FileExists(OnnxFile))
 		{
 			UE_LOG(LogMLDeformer, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
 			UNeuralNetwork* Result = NewObject<UNeuralNetwork>(Model, UNeuralNetwork::StaticClass());		
 			if (Result->Load(OnnxFile))
 			{
-				Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
+				if (Model->IsNeuralNetworkOnGPU())
+				{
+					Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
+					if (Result->GetDeviceType() != ENeuralDeviceType::GPU || Result->GetOutputDeviceType() != ENeuralDeviceType::GPU || Result->GetInputDeviceType() != ENeuralDeviceType::CPU)
+					{
+						UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *Model->GetDeformerAsset()->GetName());
+					}
+				}
+				else
+				{
+					Result->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
+				}
 				UE_LOG(LogMLDeformer, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
 				return Result;
 			}
@@ -1317,7 +1461,7 @@ namespace UE::MLDeformer
 		if (!Model->HasTrainingGroundTruth() ||
 			Model->GetAnimSequence() == nullptr ||
 			Model->GetSkeletalMesh() == nullptr ||
-			GetNumFrames() == 0)
+			GetNumTrainingFrames() == 0)
 		{
 			return false;
 		}
@@ -1359,6 +1503,114 @@ namespace UE::MLDeformer
 		{
 			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
 		}
+	}
+
+	void FMLDeformerEditorModel::ZeroDeltasByThreshold(TArray<FVector3f>& Deltas, float Threshold)
+	{
+		for (int32 VertexIndex = 0; VertexIndex < Deltas.Num(); ++VertexIndex)
+		{
+			if (Deltas[VertexIndex].Length() <= Threshold)
+			{
+				Deltas[VertexIndex] = FVector3f::ZeroVector;
+			}
+		}
+	}
+
+	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold)
+	{
+		OutMorphTargets.Reset();
+
+		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
+		check(Deltas.Num() % NumBaseMeshVerts == 0);
+		const int32 NumMorphTargets = Deltas.Num() / NumBaseMeshVerts;
+		check((Deltas.Num() / NumMorphTargets) == NumBaseMeshVerts);
+		check(!Model->GetVertexMap().IsEmpty());
+
+		USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
+		FSkeletalMeshRenderData* RenderData = SkelMesh->GetResourceForRendering();
+		check(RenderData);
+		check(!RenderData->LODRenderData.IsEmpty());
+		const int32 NumRenderVertices = RenderData->LODRenderData[LOD].GetNumVertices();
+
+		// Initialize an engine morph target for each model morph target.
+		UE_LOG(LogMLDeformer, Display, TEXT("Initializing %d engine morph targets of %d vertices each"), NumMorphTargets, Deltas.Num() / NumMorphTargets);
+		for (int32 BlendShapeIndex = 0; BlendShapeIndex < NumMorphTargets; ++BlendShapeIndex)
+		{
+			const FName MorphName = *FString::Printf(TEXT("%s%.3d"), *NamePrefix, BlendShapeIndex);
+			UMorphTarget* MorphTarget = NewObject<UMorphTarget>(SkelMesh, MorphName);
+			MorphTarget->BaseSkelMesh = SkelMesh;
+			OutMorphTargets.Add(MorphTarget);
+
+			// Create a new LOD model for this morph.
+			TArray<FMorphTargetLODModel>& MorphLODs = MorphTarget->GetMorphLODModels();
+			MorphLODs.AddDefaulted();
+			FMorphTargetLODModel& MorphLODModel = MorphLODs.Last();
+
+			// Initialize the morph target LOD level.
+			MorphLODModel.Reset();
+			MorphLODModel.bGeneratedByEngine = true;
+			MorphLODModel.NumBaseMeshVerts = NumRenderVertices;
+			MorphLODModel.NumVertices = NumRenderVertices;
+
+			// Init sections.
+			const int32 NumSections = RenderData->LODRenderData[LOD].RenderSections.Num();
+			MorphLODModel.SectionIndices.AddUninitialized(NumSections);
+			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+			{
+				MorphLODModel.SectionIndices[SectionIndex] = SectionIndex;
+			}
+
+			// Init deltas for this morph target.
+			MorphLODModel.Vertices.Reserve(NumRenderVertices);
+			for (int32 VertexIndex = 0; VertexIndex < NumRenderVertices; ++VertexIndex)
+			{
+				const int32 ImportedVertexNumber = Model->VertexMap[VertexIndex];
+				if (ImportedVertexNumber != INDEX_NONE)
+				{
+					const FVector3f Delta = Deltas[ImportedVertexNumber + BlendShapeIndex * NumBaseMeshVerts];
+					if (Delta.Length() > DeltaThreshold)
+					{
+						MorphLODModel.Vertices.AddDefaulted();
+						FMorphTargetDelta& MorphTargetDelta = MorphLODModel.Vertices.Last();
+						MorphTargetDelta.PositionDelta = Delta;
+						MorphTargetDelta.SourceIdx = VertexIndex;
+						MorphTargetDelta.TangentZDelta = FVector3f::ZeroVector;
+					}
+				}
+			}
+
+			MorphLODModel.Vertices.Shrink();
+		}
+	}
+
+	void FMLDeformerEditorModel::CompressEngineMorphTargets(FMorphTargetVertexInfoBuffers& OutMorphBuffers, const TArray<UMorphTarget*>& MorphTargets, int32 LOD, float MorphErrorTolerance)
+	{
+		USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
+		FSkeletalMeshRenderData* RenderData = SkelMesh->GetResourceForRendering();
+		check(RenderData);
+		check(!RenderData->LODRenderData.IsEmpty());
+		const int32 NumRenderVertices = RenderData->LODRenderData[LOD].GetNumVertices();
+
+		// Release any existing morph buffer data.
+		if (OutMorphBuffers.IsRHIIntialized() && OutMorphBuffers.IsInitialized())
+		{
+			ReleaseResourceAndFlush(&OutMorphBuffers);
+		}
+
+		// Don't empty the array of morph target data when we init the RHI buffers, as we need them to serialize later on.
+		OutMorphBuffers = FMorphTargetVertexInfoBuffers();
+		OutMorphBuffers.SetEmptyMorphCPUDataOnInitRHI(false);
+
+		// Initialize the compressed morph target buffers.
+		OutMorphBuffers.InitMorphResources
+		(
+			GMaxRHIShaderPlatform,
+			TArray<FSkelMeshRenderSection>(),	// Empty array, as we don't need tangents, since we recalculate them in the shader.
+			MorphTargets,
+			NumRenderVertices,
+			LOD,
+			MorphErrorTolerance
+		);
 	}
 
 	FString FMLDeformerEditorModel::GetHeatMapMaterialPath() const

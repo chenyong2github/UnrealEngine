@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerEditorActor.h"
+#include "MLDeformerModule.h"
 #include "MLDeformerEditorStyle.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -34,6 +35,16 @@ namespace UE::MLDeformer
 		}
 
 		return true;
+	}
+
+	bool FMLDeformerEditorActor::HasVisualMesh() const
+	{
+		if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh)
+		{
+			return true;
+		}
+
+		return false;
 	}
 
 	UTextRenderComponent* FMLDeformerEditorActor::CreateLabelComponent(AActor* InActor, FLinearColor Color, const FText& Text) const

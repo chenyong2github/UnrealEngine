@@ -34,7 +34,9 @@ namespace UnrealBuildTool.Rules
 					"AnimGraph",
 					"ToolWidgets",
 					"GeometryCache",
-					"NeuralNetworkInference"
+					"NeuralNetworkInference",
+					"RenderCore",
+					"RHI"
 				}
 			);
 

@@ -66,6 +66,8 @@ public:
 	virtual UMLDeformerInputInfo* CreateInputInfo();
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component);
 	virtual FString GetDisplayName() const PURE_VIRTUAL(UMLDeformerModel::GetDisplayName, return FString(););
+	virtual void PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance) {}
+	virtual bool IsNeuralNetworkOnGPU() const { return true; }	// GPU neural network.
 #if WITH_EDITORONLY_DATA
 	virtual bool HasTrainingGroundTruth() const { return false; }
 	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) {}
@@ -129,6 +131,7 @@ protected:
 	FMLDeformerModelOnPostEditProperty PostEditPropertyEvent;
 
 	void SetInputInfo(UMLDeformerInputInfo* Input) { InputInfo = Input; }
+	void FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray);
 
 public:
 	/** Cached number of skeltal mesh vertices. */
@@ -141,7 +144,7 @@ public:
 
 	/** Describes what inputs we should train the neural network on. */
 	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
-	EMLDeformerTrainingInputFilter TrainingInputs = EMLDeformerTrainingInputFilter::BonesAndCurves;
+	EMLDeformerTrainingInputFilter TrainingInputs = EMLDeformerTrainingInputFilter::BonesOnly;
 
 	/** 
 	 * The information about the neural network inputs. This contains things such as bone names and curve names.

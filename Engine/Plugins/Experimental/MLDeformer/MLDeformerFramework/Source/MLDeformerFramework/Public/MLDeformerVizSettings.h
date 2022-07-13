@@ -57,7 +57,8 @@ public:
 	bool GetDrawLabels() const { return bDrawLabels; }
 	float GetLabelScale() const { return LabelScale; }
 	EMLDeformerVizMode GetVisualizationMode() const { return VisualizationMode; }
-	int32 GetFrameNumber() const { return FrameNumber; }
+	int32 GetTrainingFrameNumber() const { return TrainingFrameNumber; }
+	int32 GetTestingFrameNumber() const { return TestingFrameNumber; }
 	float GetAnimPlaySpeed() const { return AnimPlaySpeed; }
 	const UAnimSequence* GetTestAnimSequence() const { return TestAnimSequence; }
 	UAnimSequence* GetTestAnimSequence() { return TestAnimSequence; }
@@ -95,7 +96,7 @@ public:
 
 	/** The frame number of the training data to visualize. */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (ClampMin = "0"))
-	uint32 FrameNumber = 0;
+	uint32 TrainingFrameNumber = 0;
 
 	/** Draw the text labels above each actor? */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings")
@@ -113,6 +114,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Shared Settings", meta = (ClampMin = "0", ForceUnits="cm"))
 	float MeshSpacing = 125.0f;
 
+	/** The frame number of the test data to visualize. */
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0"))
+	uint32 TestingFrameNumber = 0;
+
 	/** Show the heat map? This will visualize the active areas of the deformer. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bShowHeatMap = false;
@@ -126,7 +131,7 @@ public:
 	float HeatMapMax = 1.0f;
 
 	/** Lerp from ML deformed model to ground truth model when in heat map mode. */
-	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth && bShowHeatMap", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float GroundTruthLerp = 0.0f;
 
 	/** Draw the linear skinned actor? */

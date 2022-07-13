@@ -99,7 +99,7 @@ namespace UE::MLDeformer
 		void ShowNotification(const FText& Message, SNotificationItem::ECompletionState State, bool PlaySound) const;
 		FText GetOverlayText() const;
 		void OnSwitchedVisualizationMode();
-		bool HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration);
+		bool HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained);
 		void OnModelChanged(int Index);
 		void OnVizModeChanged(EMLDeformerVizMode Mode);
 		FText GetActiveModelName() const;
@@ -113,25 +113,25 @@ namespace UE::MLDeformer
 
 	private:
 		/** The persona toolkit. */	
-		TSharedPtr<IPersonaToolkit> PersonaToolkit;
+		TSharedPtr<IPersonaToolkit> PersonaToolkit = nullptr;
 
 		/** Model details view. */
-		TSharedPtr<IDetailsView> ModelDetailsView;
+		TSharedPtr<IDetailsView> ModelDetailsView = nullptr;
 
 		/** Model viz settings details view. */
-		TSharedPtr<IDetailsView> VizSettingsDetailsView;
+		TSharedPtr<IDetailsView> VizSettingsDetailsView = nullptr;
 
 		/** The timeline slider widget. */
-		TSharedPtr<SSimpleTimeSlider> TimeSlider;
+		TSharedPtr<SSimpleTimeSlider> TimeSlider = nullptr;
 
 		/** The currently active editor model. */
-		TSharedPtr<FMLDeformerEditorModel> ActiveModel;
+		TSharedPtr<FMLDeformerEditorModel> ActiveModel = nullptr;
 
 		// Persona viewport.
-		TSharedPtr<IPersonaViewport> PersonaViewport;
+		TSharedPtr<IPersonaViewport> PersonaViewport = nullptr;
 
 		/** The ML Deformer Asset. */
-		TObjectPtr<UMLDeformerAsset> DeformerAsset;
+		TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 
 		/** Has the asset editor been initialized? */
 		bool bIsInitialized = false;

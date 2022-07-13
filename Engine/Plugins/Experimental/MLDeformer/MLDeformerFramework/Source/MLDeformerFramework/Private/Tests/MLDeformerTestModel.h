@@ -30,5 +30,5 @@ class UTestModelInstance
 	GENERATED_BODY()
 
 public:
-	void Tick(float DeltaTime) {}
+	void Tick(float DeltaTime, float ModelWeight) override { }
 };

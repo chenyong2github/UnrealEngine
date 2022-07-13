@@ -56,7 +56,7 @@ bool ULegacyVertexDeltaTrainingModel::ComputeVertexDeltaStatistics(uint32 LODInd
 
 	FLegacyVertexDeltaEditorModel* VertexDeltaEditorModel = GetVertexDeltaEditorModel();
 	ULegacyVertexDeltaModel* VertexDeltaModel = VertexDeltaEditorModel->GetVertexDeltaModel();
-	if (VertexDeltaEditorModel->IsDataNormalized())
+	if (!VertexDeltaEditorModel->GetResamplingInputOutputsNeeded())
 	{
 		return true;
 	}
@@ -94,7 +94,7 @@ bool ULegacyVertexDeltaTrainingModel::ComputeVertexDeltaStatistics(uint32 LODInd
 	if (Count > 0.0f)
 	{
 		VertexDeltaModel->VertexDeltaScale = FVector::OneVector * Scale.GetMax();
-		VertexDeltaEditorModel->SetDataNormalized(true);
+		VertexDeltaEditorModel->SetResamplingInputOutputsNeeded(true);
 	}
 
 	return true;

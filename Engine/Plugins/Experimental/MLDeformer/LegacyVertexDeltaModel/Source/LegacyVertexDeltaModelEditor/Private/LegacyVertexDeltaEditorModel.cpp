@@ -73,7 +73,7 @@ namespace UE::LegacyVertexDeltaModel
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
-				bIsDataNormalized = false;
+				SetResamplingInputOutputsNeeded(true);
 				SampleDeltas();
 			}
 		}
@@ -188,7 +188,7 @@ namespace UE::LegacyVertexDeltaModel
 		return Cast<ULegacyVertexDeltaModelVizSettings>(GetVertexDeltaModel()->GetVizSettings());
 	}
 
-	double FLegacyVertexDeltaEditorModel::GetTimeAtFrame(int32 FrameNumber) const
+	double FLegacyVertexDeltaEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
 	{
 		const FLegacyVertexDeltaEditorModelActor* EditorActor = static_cast<FLegacyVertexDeltaEditorModelActor*>(GetTimelineEditorActor());
 		if (EditorActor && EditorActor->GetGeometryCacheComponent())
@@ -198,7 +198,7 @@ namespace UE::LegacyVertexDeltaModel
 		return 0.0;
 	}
 
-	int32 FLegacyVertexDeltaEditorModel::GetFrameAtTime(double TimeInSeconds) const
+	int32 FLegacyVertexDeltaEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
 	{
 		const FLegacyVertexDeltaEditorModelActor* EditorActor = static_cast<FLegacyVertexDeltaEditorModelActor*>(GetTimelineEditorActor());
 		if (EditorActor && EditorActor->GetGeometryCacheComponent())
@@ -208,7 +208,7 @@ namespace UE::LegacyVertexDeltaModel
 		return 0;
 	}
 
-	int32 FLegacyVertexDeltaEditorModel::GetNumFrames() const
+	int32 FLegacyVertexDeltaEditorModel::GetNumTrainingFrames() const
 	{
 		const UGeometryCache* GeometryCache = GetVertexDeltaModel()->GetGeometryCache();
 		if (GeometryCache == nullptr)
@@ -278,12 +278,15 @@ namespace UE::LegacyVertexDeltaModel
 		VertexDeltaScaleBackup = GetVertexDeltaModel()->GetVertexDeltaScale();
 	}
 
-	void FLegacyVertexDeltaEditorModel::OnTrainingAborted()
+	void FLegacyVertexDeltaEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
 	{
 		// Restore the vertex delta mean and scale, as we aborted, and they could have changed when training
 		// on a smaller subset of frames/samples. If we don't do this, the mesh will deform incorrectly.
-		GetVertexDeltaModel()->VertexDeltaMean = VertexDeltaMeanBackup;
-		GetVertexDeltaModel()->VertexDeltaScale = VertexDeltaScaleBackup;
+		if (TrainingResult == ETrainingResult::Aborted && !bUsePartiallyTrainedWhenAborted)
+		{
+			GetVertexDeltaModel()->VertexDeltaMean = VertexDeltaMeanBackup;
+			GetVertexDeltaModel()->VertexDeltaScale = VertexDeltaScaleBackup;
+		}
 	}
 
 	FString FLegacyVertexDeltaEditorModel::GetTrainedNetworkOnnxFile() const

@@ -23,6 +23,7 @@ namespace UE::VertexDeltaModel
 		// FMLDeformerEditorActor overrides.
 		virtual void SetVisibility(bool bIsVisible) override;
 		virtual bool IsVisible() const override;
+		virtual bool HasVisualMesh() const override;
 		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause=true) override;
 		virtual float GetPlayPosition() const override;
 		virtual void SetPlaySpeed(float PlaySpeed) override;
