@@ -228,7 +228,7 @@ void FTransaction::FObjectRecord::Load(FTransaction* Owner)
 			// When objects are created outside the transaction system we can end up
 			// finding them but not having any data for them, so don't serialize 
 			// when that happens:
-			if (SerializedObject.Data.Num() > 0)
+			if (SerializedObject.SerializedData.Num() > 0)
 			{
 				FReader Reader(Owner, SerializedObject, bWantsBinarySerialization);
 				SerializeContents(Reader, Oper);
@@ -338,174 +338,7 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 
 void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObject, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff )
 {
-	auto AreObjectPointersIdentical = [&OldSerializedObject, &NewSerializedObject](const FName InPropertyName)
-	{
-		TArray<int32, TInlineAllocator<8>> OldSerializedObjectIndices;
-		OldSerializedObject.SerializedObjectIndices.MultiFind(InPropertyName, OldSerializedObjectIndices, true);
-
-		TArray<int32, TInlineAllocator<8>> NewSerializedObjectIndices;
-		NewSerializedObject.SerializedObjectIndices.MultiFind(InPropertyName, NewSerializedObjectIndices, true);
-
-		bool bAreObjectPointersIdentical = OldSerializedObjectIndices.Num() == NewSerializedObjectIndices.Num();
-		for (int32 ObjIndex = 0; ObjIndex < OldSerializedObjectIndices.Num() && bAreObjectPointersIdentical; ++ObjIndex)
-		{
-			const FPersistentObjectRef& OldObjectRef = OldSerializedObject.ReferencedObjects.IsValidIndex(OldSerializedObjectIndices[ObjIndex]) ? OldSerializedObject.ReferencedObjects[OldSerializedObjectIndices[ObjIndex]] : FPersistentObjectRef();
-			const FPersistentObjectRef& NewObjectRef = NewSerializedObject.ReferencedObjects.IsValidIndex(NewSerializedObjectIndices[ObjIndex]) ? NewSerializedObject.ReferencedObjects[NewSerializedObjectIndices[ObjIndex]] : FPersistentObjectRef();
-			bAreObjectPointersIdentical = OldObjectRef == NewObjectRef;
-		}
-		return bAreObjectPointersIdentical;
-	};
-
-	auto AreNamesIdentical = [&OldSerializedObject, &NewSerializedObject](const FName InPropertyName)
-	{
-		TArray<int32, TInlineAllocator<8>> OldSerializedNameIndices;
-		OldSerializedObject.SerializedNameIndices.MultiFind(InPropertyName, OldSerializedNameIndices, true);
-
-		TArray<int32, TInlineAllocator<8>> NewSerializedNameIndices;
-		NewSerializedObject.SerializedNameIndices.MultiFind(InPropertyName, NewSerializedNameIndices, true);
-
-		bool bAreNamesIdentical = OldSerializedNameIndices.Num() == NewSerializedNameIndices.Num();
-		for (int32 ObjIndex = 0; ObjIndex < OldSerializedNameIndices.Num() && bAreNamesIdentical; ++ObjIndex)
-		{
-			const FName& OldName = OldSerializedObject.ReferencedNames.IsValidIndex(OldSerializedNameIndices[ObjIndex]) ? OldSerializedObject.ReferencedNames[OldSerializedNameIndices[ObjIndex]] : FName();
-			const FName& NewName = NewSerializedObject.ReferencedNames.IsValidIndex(NewSerializedNameIndices[ObjIndex]) ? NewSerializedObject.ReferencedNames[NewSerializedNameIndices[ObjIndex]] : FName();
-			bAreNamesIdentical = OldName == NewName;
-		}
-		return bAreNamesIdentical;
-	};
-
-	if (bFullDiff)
-	{
-		OutDeltaChange.bHasNameChange |= OldSerializedObject.ObjectName != NewSerializedObject.ObjectName;
-		OutDeltaChange.bHasOuterChange |= OldSerializedObject.ObjectOuterPathName != NewSerializedObject.ObjectOuterPathName;
-		OutDeltaChange.bHasExternalPackageChange |= OldSerializedObject.ObjectExternalPackageName != NewSerializedObject.ObjectExternalPackageName;
-		OutDeltaChange.bHasPendingKillChange |= OldSerializedObject.bIsPendingKill != NewSerializedObject.bIsPendingKill;
-
-		if (!AreObjectPointersIdentical(NAME_None))
-		{
-			OutDeltaChange.bHasNonPropertyChanges = true;
-		}
-
-		if (!AreNamesIdentical(NAME_None))
-		{
-			OutDeltaChange.bHasNonPropertyChanges = true;
-		}
-	}
-
-	if (OldSerializedObject.SerializedProperties.Num() > 0 || NewSerializedObject.SerializedProperties.Num() > 0)
-	{
-		int64 StartOfOldPropertyBlock = INT64_MAX;
-		int64 StartOfNewPropertyBlock = INT64_MAX;
-		int64 EndOfOldPropertyBlock = -1;
-		int64 EndOfNewPropertyBlock = -1;
-
-		for (const TPair<FName, FSerializedProperty>& NewNamePropertyPair : NewSerializedObject.SerializedProperties)
-		{
-			const FSerializedProperty* OldSerializedProperty = OldSerializedObject.SerializedProperties.Find(NewNamePropertyPair.Key);
-			if (!OldSerializedProperty)
-			{
-				if (bFullDiff)
-				{
-					// Missing property, assume that the property changed
-					OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
-				}
-				continue;
-			}
-
-			// Update the tracking for the start/end of the property block within the serialized data
-			StartOfOldPropertyBlock = FMath::Min(StartOfOldPropertyBlock, OldSerializedProperty->DataOffset);
-			StartOfNewPropertyBlock = FMath::Min(StartOfNewPropertyBlock, NewNamePropertyPair.Value.DataOffset);
-			EndOfOldPropertyBlock = FMath::Max(EndOfOldPropertyBlock, OldSerializedProperty->DataOffset + OldSerializedProperty->DataSize);
-			EndOfNewPropertyBlock = FMath::Max(EndOfNewPropertyBlock, NewNamePropertyPair.Value.DataOffset + NewNamePropertyPair.Value.DataSize);
-
-			// Binary compare the serialized data to see if something has changed for this property
-			bool bIsPropertyIdentical = OldSerializedProperty->DataSize == NewNamePropertyPair.Value.DataSize;
-			if (bIsPropertyIdentical && NewNamePropertyPair.Value.DataSize > 0)
-			{
-				bIsPropertyIdentical = FMemory::Memcmp(&OldSerializedObject.Data[OldSerializedProperty->DataOffset], &NewSerializedObject.Data[NewNamePropertyPair.Value.DataOffset], NewNamePropertyPair.Value.DataSize) == 0;
-			}
-			if (bIsPropertyIdentical)
-			{
-				bIsPropertyIdentical = AreObjectPointersIdentical(NewNamePropertyPair.Key);
-			}
-			if (bIsPropertyIdentical)
-			{
-				bIsPropertyIdentical = AreNamesIdentical(NewNamePropertyPair.Key);
-			}
-
-			if (!bIsPropertyIdentical)
-			{
-				OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
-			}
-		}
-
-		for (const TPair<FName, FSerializedProperty>& OldNamePropertyPair : OldSerializedObject.SerializedProperties)
-		{
-			const FSerializedProperty* NewSerializedProperty = NewSerializedObject.SerializedProperties.Find(OldNamePropertyPair.Key);
-			if (!NewSerializedProperty)
-			{
-				if (bFullDiff)
-				{
-					// Missing property, assume that the property changed
-					OutDeltaChange.ChangedProperties.AddUnique(OldNamePropertyPair.Key);
-				}
-				continue;
-			}
-		}
-
-		if (bFullDiff)
-		{
-			// Compare the data before the property block to see if something else in the object has changed
-			if (!OutDeltaChange.bHasNonPropertyChanges)
-			{
-				const int64 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
-				const int64 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
-
-				bool bIsHeaderIdentical = OldHeaderSize == CurrentHeaderSize;
-				if (bIsHeaderIdentical && CurrentHeaderSize > 0)
-				{
-					bIsHeaderIdentical = FMemory::Memcmp(&OldSerializedObject.Data[0], &NewSerializedObject.Data[0], CurrentHeaderSize) == 0;
-				}
-
-				if (!bIsHeaderIdentical)
-				{
-					OutDeltaChange.bHasNonPropertyChanges = true;
-				}
-			}
-
-			// Compare the data after the property block to see if something else in the object has changed
-			if (!OutDeltaChange.bHasNonPropertyChanges)
-			{
-				const int64 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max<int64>(EndOfOldPropertyBlock, 0);
-				const int64 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max<int64>(EndOfNewPropertyBlock, 0);
-
-				bool bIsFooterIdentical = OldFooterSize == CurrentFooterSize;
-				if (bIsFooterIdentical && CurrentFooterSize > 0)
-				{
-					bIsFooterIdentical = FMemory::Memcmp(&OldSerializedObject.Data[EndOfOldPropertyBlock], &NewSerializedObject.Data[EndOfNewPropertyBlock], CurrentFooterSize) == 0;
-				}
-
-				if (!bIsFooterIdentical)
-				{
-					OutDeltaChange.bHasNonPropertyChanges = true;
-				}
-			}
-		}
-	}
-	else if (bFullDiff)
-	{
-		// No properties, so just compare the whole blob
-		bool bIsBlobIdentical = OldSerializedObject.Data.Num() == NewSerializedObject.Data.Num();
-		if (bIsBlobIdentical && NewSerializedObject.Data.Num() > 0)
-		{
-			bIsBlobIdentical = FMemory::Memcmp(&OldSerializedObject.Data[0], &NewSerializedObject.Data[0], NewSerializedObject.Data.Num()) == 0;
-		}
-
-		if (!bIsBlobIdentical)
-		{
-			OutDeltaChange.bHasNonPropertyChanges = true;
-		}
-	}
+	UE::Transaction::DiffUtil::GenerateObjectDiff(OldSerializedObject, NewSerializedObject, OutDeltaChange, bFullDiff);
 }
 
 int32 FTransaction::GetRecordCount() const
@@ -607,152 +440,22 @@ FArchive& operator<<( FArchive& Ar, FTransaction::FObjectRecord& R )
 {
 	FMemMark Mark(FMemStack::Get());
 	Ar << R.Object;
-	Ar << R.SerializedObject.Data;
+	Ar << R.SerializedObject.SerializedData;
 	Ar << R.SerializedObject.ReferencedObjects;
 	Ar << R.SerializedObject.ReferencedNames;
 	Mark.Pop();
 	return Ar;
 }
 
-FTransaction::FPersistentObjectRef::FPersistentObjectRef(UObject* InObject)
-{
-	RootObject = InObject;
-	{
-		auto UseOuter = [](const UObject* Obj)
-		{
-			if (Obj == nullptr)
-			{
-				return false;
-			}
-
-			const bool bIsCDO = Obj->HasAllFlags(RF_ClassDefaultObject);
-			const UObject* CDO = bIsCDO ? Obj : nullptr;
-			const bool bIsClassCDO = (CDO != nullptr) ? (CDO->GetClass()->ClassDefaultObject == CDO) : false;
-			if (!bIsClassCDO && CDO)
-			{
-				// Likely a trashed CDO, try to recover
-				// Only known cause of this is ambiguous use of DSOs
-				CDO = CDO->GetClass()->ClassDefaultObject;
-			}
-			const UActorComponent* AsComponent = Cast<UActorComponent>(Obj);
-			const bool bIsDSO = Obj->HasAnyFlags(RF_DefaultSubObject);
-			const bool bIsSCSComponent = AsComponent && AsComponent->IsCreatedByConstructionScript();
-			return (bIsCDO && bIsClassCDO) || bIsDSO || bIsSCSComponent;
-		};
-
-		while (UseOuter(RootObject))
-		{
-			SubObjectHierarchyIDs.Add(RootObject->GetFName());
-			RootObject = RootObject->GetOuter();
-		}
-	}
-	check(RootObject);
-
-	if (SubObjectHierarchyIDs.Num() > 0)
-	{
-		ReferenceType = EReferenceType::SubObject;
-		Algo::Reverse(SubObjectHierarchyIDs);
-	}
-	else
-	{
-		ReferenceType = EReferenceType::RootObject;
-	}
-
-	// Make sure that when we look up the object we find the same thing:
-	checkSlow(Get() == InObject);
-}
-
-UObject* FTransaction::FPersistentObjectRef::Get() const
-{
-	if (ReferenceType == EReferenceType::SubObject)
-	{
-		check(SubObjectHierarchyIDs.Num() > 0);
-
-		UObject* CurrentObject = nullptr;
-
-		// Do we have a valid cached pointer?
-		if (!CachedRootObject.IsExplicitlyNull() && SubObjectHierarchyIDs.Num() == CachedSubObjectHierarchy.Num())
-		{
-			// Root object is a pointer test
-			{
-				CurrentObject = CachedRootObject.GetEvenIfUnreachable();
-				if (CurrentObject != RootObject)
-				{
-					CurrentObject = nullptr;
-				}
-			}
-
-			// All other sub-objects are a name test
-			for (int32 SubObjectIndex = 0; CurrentObject && SubObjectIndex < SubObjectHierarchyIDs.Num(); ++SubObjectIndex)
-			{
-				CurrentObject = CachedSubObjectHierarchy[SubObjectIndex].GetEvenIfUnreachable();
-				if (CurrentObject && CurrentObject->GetFName() != SubObjectHierarchyIDs[SubObjectIndex])
-				{
-					CurrentObject = nullptr;
-				}
-			}
-		}
-		if (CurrentObject)
-		{
-			return CurrentObject;
-		}
-
-		// Cached pointer is invalid
-		CachedRootObject.Reset();
-		CachedSubObjectHierarchy.Reset();
-
-		// Try to find and cache the subobject
-		CachedRootObject = RootObject;
-		CurrentObject = RootObject;
-		for (int32 SubObjectIndex = 0; CurrentObject && SubObjectIndex < SubObjectHierarchyIDs.Num(); ++SubObjectIndex)
-		{
-			CurrentObject = StaticFindObjectFast(UObject::StaticClass(), CurrentObject, SubObjectHierarchyIDs[SubObjectIndex]);
-			CachedSubObjectHierarchy.Add(CurrentObject);
-		}
-		if (CurrentObject)
-		{
-			check(!CachedRootObject.IsExplicitlyNull() && SubObjectHierarchyIDs.Num() == CachedSubObjectHierarchy.Num());
-			return CurrentObject;
-		}
-
-		// Cached pointer is invalid
-		CachedRootObject.Reset();
-		CachedSubObjectHierarchy.Reset();
-
-		return nullptr;
-	}
-
-	return RootObject;
-}
-
-void FTransaction::FPersistentObjectRef::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(RootObject);
-
-	if (ReferenceType == EReferenceType::SubObject)
-	{
-		// We can't refresh the resolved pointers during ARO, as it's not safe to call FindObject to update the cache if stale
-		// Instead we'll just ARO whatever we may have cached, as this may result in the resolved pointers being updated anyway
-		// Note: This is needed as sub-objects may be subject to GC while inside the transaction buffer, as the references from their root 
-		// object may have been removed (eg, a component on an actor will no longer be referenced by the actor after a delete operation)
-		for (TWeakObjectPtr<UObject>& CachedSubObject : CachedSubObjectHierarchy)
-		{
-			UObject* CachedSubObjectPtr = CachedSubObject.GetEvenIfUnreachable();
-			Collector.AddReferencedObject(CachedSubObjectPtr);
-			CachedSubObject = CachedSubObjectPtr;
-		}
-	}
-}
-
 void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	Object.AddReferencedObjects(Collector);
+	Object.AddStructReferencedObjects(Collector);
 
 	auto AddSerializedObjectReferences = [&Collector](FSerializedObject& InSerializedObject)
 	{
 		for (FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
 		{
-			ReferencedObject.AddReferencedObjects(Collector);
+			ReferencedObject.AddStructReferencedObjects(Collector);
 		}
 
 		if (InSerializedObject.ObjectAnnotation.IsValid())
@@ -832,7 +535,7 @@ void FTransaction::AddReferencedObjects( FReferenceCollector& Collector )
 
 	for (TTuple<FPersistentObjectRef, FObjectRecords>& ObjectRecordsPair : ObjectRecordsMap)
 	{
-		ObjectRecordsPair.Key.AddReferencedObjects(Collector);
+		ObjectRecordsPair.Key.AddStructReferencedObjects(Collector);
 	}
 }
 
@@ -1116,7 +819,7 @@ SIZE_T FTransaction::DataSize() const
 	SIZE_T Result=0;
 	for( int32 i=0; i<Records.Num(); i++ )
 	{
-		Result += Records[i].SerializedObject.Data.Num();
+		Result += Records[i].SerializedObject.SerializedData.Num();
 	}
 	return Result;
 }
