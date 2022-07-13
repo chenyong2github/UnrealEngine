@@ -194,9 +194,6 @@ void FTrackModel::ForceUpdate()
 	}
 	else if (NumRows == 1)
 	{
-		// Reset expansion state if this track can no longer be expanded
-		SetExpansion(false);
-
 		// Keep sections alive by retaining the previous list temporarily
 		TSharedPtr<FViewModel> SectionsTail;
 
@@ -230,6 +227,12 @@ void FTrackModel::ForceUpdate()
 		for (TSharedPtr<FSectionModel> Section : TViewModelListIterator<FSectionModel>(&SectionList))
 		{
 			LayoutBuilder.RefreshLayout(Section);
+		}
+
+		if (OutlinerChildren.IsEmpty())
+		{
+			// Reset expansion state if this track can no longer be expanded
+			SetExpansion(false);
 		}
 	}
 	else
