@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+// IWYU pragma: begin_exports
 #if PLATFORM_WINDOWS
 #include "Windows/DesktopPlatformWindows.h"
 #elif PLATFORM_MAC
@@ -13,5 +14,6 @@
 #else
 #include "DesktopPlatformStub.h"
 #endif
+// IWYU pragma: end_exports
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDesktopPlatform, Log, All);

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Unix/UnixSystemIncludes.h"
+#include "Unix/UnixSystemIncludes.h" // IWYU pragma: export
 #include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformTLS.h"
 
