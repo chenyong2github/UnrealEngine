@@ -50,7 +50,7 @@
 #ifndef __DVAPI_VULKAN_H_
 #define __DVAPI_VULKAN_H_
 
-#include <vulkan\vulkan.h>
+#include <vulkan/vulkan.h>
 #include "DVPAPI.h"
 
 DVPAPI_INTERFACE
@@ -124,3 +124,4 @@ dvpMapBufferEndVk(DVPBufferHandle gpuBufferHandle,
                   VkQueue queue);
 
 #endif
+

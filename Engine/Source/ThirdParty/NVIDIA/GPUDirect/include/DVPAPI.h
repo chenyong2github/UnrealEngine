@@ -100,7 +100,7 @@
 #endif
 
 #define DVP_MAJOR_VERSION  2
-#define DVP_MINOR_VERSION  10
+#define DVP_MINOR_VERSION  15
 
 typedef uint64_t DVPBufferHandle;
 typedef uint64_t DVPSyncObjectHandle;
@@ -196,6 +196,7 @@ typedef enum
 // Possible external memory handle types
 typedef enum
 {
+    DVP_OPAQUE_FD,
     DVP_OPAQUE_WIN32,
     DVP_OPAQUE_WIN32_KMT
 } DVPExternalHandleTypes;
