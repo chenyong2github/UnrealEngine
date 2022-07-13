@@ -30,6 +30,9 @@
 #include "ISceneOutlinerHierarchy.h"
 #include "SceneOutlinerDragDrop.h"
 
+#include "SceneOutlinerSCCHandler.h"
+#include "SceneOutlinerTreeItemSCC.h"
+
 class FMenuBuilder;
 class UToolMenu;
 class ISceneOutlinerColumn;
@@ -907,6 +910,13 @@ private:
 	const FSceneOutlinerConfig* GetConstConfig() const;
 
 	void SaveConfig();
+
+	TSharedPtr<FSceneOutlinerSCCHandler> SourceControlHandler;
+
+public:
+	virtual TSharedPtr<FSceneOutlinerTreeItemSCC> GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem) override;
+
+	void AddSourceControlMenuOptions(UToolMenu* Menu);
 };
 
 struct SCENEOUTLINER_API FSceneOutlinerMenuHelper

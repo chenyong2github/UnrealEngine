@@ -548,14 +548,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 					if (Context->NumSelectedItems > 0 && Context->SceneOutliner.IsValid())
 					{
 						SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
-						TMap<FName, TSharedPtr<ISceneOutlinerColumn>> OutlinerColumns = SceneOutliner->GetColumns();
-						TSharedPtr<ISceneOutlinerColumn> * ColumnLookup = OutlinerColumns.Find("Source Control");
-						if (ColumnLookup != nullptr && ColumnLookup->IsValid())
-						{
-							TSharedPtr<FSceneOutlinerActorSCCColumn> SCCColumn = StaticCastSharedPtr<FSceneOutlinerActorSCCColumn>(*ColumnLookup);
-							TArray<FSceneOutlinerTreeItemPtr> SelectedItems = SceneOutliner->GetTree().GetSelectedItems();
-							SCCColumn->AddSourceControlMenuOptions(InMenu, SelectedItems);
-						}
+						SceneOutliner->AddSourceControlMenuOptions(InMenu);
 					}
 				}
 			}));

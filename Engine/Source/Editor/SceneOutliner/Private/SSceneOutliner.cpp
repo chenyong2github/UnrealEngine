@@ -298,6 +298,8 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 	// Register to be notified when properties are edited
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &SSceneOutliner::OnAssetReloaded);
+
+	SourceControlHandler = TSharedPtr<FSceneOutlinerSCCHandler>(new FSceneOutlinerSCCHandler());
 }
 
 void SSceneOutliner::HandleHiddenColumnsChanged()
@@ -1757,6 +1759,8 @@ bool SSceneOutliner::IsItemExpanded(const FSceneOutlinerTreeItemPtr& Item) const
 
 TSharedRef< ITableRow > SSceneOutliner::OnGenerateRowForOutlinerTree( FSceneOutlinerTreeItemPtr Item, const TSharedRef< STableViewBase >& OwnerTable )
 {
+	SourceControlHandler->AddItem(Item);
+
 	return SNew( SSceneOutlinerTreeRow, OutlinerTreeView.ToSharedRef(), SharedThis(this) ).Item( Item );
 }
 
@@ -2372,6 +2376,17 @@ void FSceneOutlinerMenuHelper::AddMenuEntryCleanupFolders(FToolMenuSection& InSe
 			InLevel->CleanupDeletedAndUnreferencedActorFolders();
 		}));
 	}
+}
+
+TSharedPtr<FSceneOutlinerTreeItemSCC> SSceneOutliner::GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem)
+{
+	return SourceControlHandler->GetItemSourceControl(InItem);
+}
+
+void SSceneOutliner::AddSourceControlMenuOptions(UToolMenu* Menu)
+{
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems = GetTree().GetSelectedItems();
+	SourceControlHandler->AddSourceControlMenuOptions(Menu, SelectedItems);
 }
 
 #undef LOCTEXT_NAMESPACE

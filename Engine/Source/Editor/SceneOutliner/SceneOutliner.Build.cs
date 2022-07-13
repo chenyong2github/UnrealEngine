@@ -25,7 +25,6 @@ public class SceneOutliner : ModuleRules
 				"ToolMenus",
 				"SourceControl",
 				"EditorConfig",
-				"SourceControl",
 				"SourceControlWindows",
 			}
 		);

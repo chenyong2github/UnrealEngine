@@ -147,6 +147,9 @@ public:
 
 	/** Get the active SceneOutlinerMode */
 	const ISceneOutlinerMode* GetMode() const { return Mode; }
+
+	/** Get the associated source control object for the specified item. */
+	virtual TSharedPtr<FSceneOutlinerTreeItemSCC> GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem) = 0;
 protected:
 	ISceneOutlinerMode* Mode;
 };
