@@ -18,7 +18,7 @@ void SPopupTextWindow::Construct(const FArguments& InArgs)
 	SWindow::Construct(SWindow::FArguments()
 	.Title(InArgs._TitleText)
 	.SizingRule(ESizingRule::Autosized)
-	.MaxWidth(600)
+	.MaxWidth(800)
 	.MaxHeight(600)
 	[
 		SNew(SVerticalBox)

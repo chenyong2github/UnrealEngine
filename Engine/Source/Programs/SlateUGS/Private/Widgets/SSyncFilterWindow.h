@@ -17,6 +17,7 @@ public:
 
 private:
 	FReply OnShowCombinedFilterClicked();
+	FReply OnCustomViewSyntaxClicked();
 	FReply OnOkClicked();
 	FReply OnCancelClicked();
 
