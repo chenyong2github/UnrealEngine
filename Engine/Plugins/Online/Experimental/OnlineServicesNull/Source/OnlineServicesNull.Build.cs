@@ -18,6 +18,12 @@ public class OnlineServicesNull : ModuleRules
 			}
 		);
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[] { 
+				"ApplicationCore",
+			}
+		);
+
 		if (Target.bCompileAgainstEngine)
 		{
 			PublicDependencyModuleNames.AddRange(

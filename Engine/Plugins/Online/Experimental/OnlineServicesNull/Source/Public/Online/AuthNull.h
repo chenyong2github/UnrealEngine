@@ -7,6 +7,8 @@
 
 namespace UE::Online {
 
+class FOnlineServicesNull;
+
 class FOnlineAccountIdString
 {
 public:
@@ -22,9 +24,9 @@ public:
 
 	FOnlineAccountIdHandle Find(FString UserId) const;
 	FOnlineAccountIdHandle Find(FPlatformUserId UserId) const;
-	FOnlineAccountIdHandle Find(int32 UserId) const;
+	FOnlineAccountIdHandle Find(int32 UserIndex) const;
 
-	FOnlineAccountIdHandle Create(FString UserId, FPlatformUserId LocalUserIndex = PLATFORMUSERID_NONE);
+	FOnlineAccountIdHandle Create(FString UserId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
 
 	// Begin IOnlineAccountIdRegistry
 	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
@@ -39,12 +41,32 @@ private:
 
 	// how much of these are actually necessary?
 	TArray<FOnlineAccountIdString> Ids;
-	TMap<FString, FOnlineAccountIdString> StringToId; 
-	TMap<int32, FOnlineAccountIdString> LocalUserMap;
+	TMap<FString, FOnlineAccountIdString> StringToId;
+	TMap<FPlatformUserId, FOnlineAccountIdString> LocalUserMap;
 
 };
 
-class FOnlineServicesNull;
+struct FAccountInfoNull final : public FAccountInfo
+{
+};
+
+
+// Auth NULL is implemented in a way similar to console platforms where there is not an explicit
+// login / logout from online services. On those platforms the user account is picked either before
+// the game has started or as a part of selecting an input device.
+class ONLINESERVICESNULL_API FAccountInfoRegistryNULL final : public FAccountInfoRegistry
+{
+public:
+	using Super = FAccountInfoRegistry;
+
+	virtual ~FAccountInfoRegistryNULL() = default;
+
+	TSharedPtr<FAccountInfoNull> Find(FPlatformUserId PlatformUserId) const;
+	TSharedPtr<FAccountInfoNull> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+
+	void Register(const TSharedRef<FAccountInfoNull>&UserAuthData);
+	void Unregister(FOnlineAccountIdHandle AccountId);
+};
 
 class ONLINESERVICESNULL_API FAuthNull : public FAuthCommon
 {
@@ -54,22 +76,15 @@ public:
 	FAuthNull(FOnlineServicesNull& InOwningSubsystem);
 	virtual void Initialize() override;
 	virtual void PreShutdown() override;
-	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) override;
-	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
-
-	bool IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const;
 
 protected:
-	FString GenerateRandomUserId(int32 LocalUserNum);
-	TResult<FOnlineAccountIdHandle, FOnlineError> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
+	virtual const FAccountInfoRegistry& GetAccountInfoRegistry() const override;
 
-	class FAccountInfoNull : public FAccountInfo
-	{
-	};
+	void InitializeUsers();
+	void UninitializeUsers();
+	void OnInputDeviceConnectionChange(EInputDeviceConnectionState NewConnectionState, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId);
 
-	TMap<FOnlineAccountIdHandle, TSharedRef<FAccountInfoNull>> AccountInfos;
+	FAccountInfoRegistryNULL AccountInfoRegistryNULL;
 };
 
 /* UE::Online */ }
