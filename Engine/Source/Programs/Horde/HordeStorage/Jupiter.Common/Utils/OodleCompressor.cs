@@ -196,6 +196,16 @@ namespace Jupiter.Utils
             long result = OodleLZ_Compress(compressor, rawBuf, rawBuf.LongLength, compBuf, compressionLevel, 0, null, null, 0, 0);
             return result;
         }
+        public long CompressedBufferSizeNeeded(OodleLZ_Compressor compressor, long rawLength)
+        {
+            if (!_initialized)
+            {
+                throw new InvalidOperationException("Initialize Oodle before using it");
+            }
+
+            long bufferSizeNeeded = OodleLZ_GetCompressedBufferSizeNeeded(compressor, rawLength);
+            return bufferSizeNeeded;
+        }
 
         public long Decompress(byte[] compBuf, long uncompressedSize, out byte[] rawBuf)
         {

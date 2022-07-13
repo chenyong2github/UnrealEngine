@@ -1210,43 +1210,63 @@ namespace Horde.Storage.FunctionalTests.References
         }
 
         [TestMethod]
-        public async Task GetMissingBlobRecord()
+        public async Task GetMissingContentIdRecord()
         {
             string blobContents = "This is a blob";
             byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
-            BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
-            IoHashKey key = IoHashKey.FromName("newReferenceObject");
+            BlobIdentifier uncompressedHash = BlobIdentifier.FromBlob(blobData);
+            IoHashKey key = IoHashKey.FromName("compressedObject");
 
-            using HttpContent requestContent = new ByteArrayContent(blobData);
-            requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
-            requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+            CompressedBufferUtils bufferUtils = Server!.Services.GetService<CompressedBufferUtils>()!;
+            byte[] compressedBuffer = bufferUtils.CompressContent(OoodleCompressorMethod.Mermaid, OoodleCompressionLevel.VeryFast, blobData);
+            BlobIdentifier compressedHash = BlobIdentifier.FromBlob(compressedBuffer);
 
-            HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
-            result.EnsureSuccessStatusCode();
+			CbObject cbObject = CbObject.Build(writer => writer.WriteBinaryAttachment("Attachment", uncompressedHash.AsIoHash()));
+            byte[] cbObjectData = cbObject.GetView().ToArray();
+            BlobIdentifier cbObjectHash = BlobIdentifier.FromBlob(cbObjectData);
 
             {
-                Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
-                // check that no blobs are missing
-                await using MemoryStream ms = new MemoryStream();
-                await result.Content.CopyToAsync(ms);
-                byte[] roundTrippedBuffer = ms.ToArray();
-                CbObject cb = new CbObject(roundTrippedBuffer);
-                CbField needsField = cb["needs"];
-                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
-                Assert.AreEqual(0, missingBlobs.Count);
+                // upload compressed blob
+                using HttpContent requestContent = new ByteArrayContent(compressedBuffer);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompressedBuffer);
+
+                HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/compressed-blobs/{TestNamespace}/{uncompressedHash}", UriKind.Relative), requestContent);
+                result.EnsureSuccessStatusCode();
             }
 
-            {
+			{
+				// upload ref
+                using HttpContent requestContent = new ByteArrayContent(cbObjectData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, cbObjectHash.ToString());
+
+                HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
+                result.EnsureSuccessStatusCode();
+
+                {
+                    Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
+                    // check that no blobs are missing
+                    await using MemoryStream ms = new MemoryStream();
+                    await result.Content.CopyToAsync(ms);
+                    byte[] roundTrippedBuffer = ms.ToArray();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField needsField = cb["needs"];
+                    List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
+                    Assert.AreEqual(0, missingBlobs.Count);
+                }
+            }
+
+			{
                 // verify we can fetch the blob properly
-                HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
+                HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
                 await using MemoryStream ms = new MemoryStream();
                 await getResponse.Content.CopyToAsync(ms);
 
                 byte[] roundTrippedBuffer = ms.ToArray();
 
-                CollectionAssert.AreEqual(blobData, roundTrippedBuffer);
-                Assert.AreEqual(blobHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
+                CollectionAssert.AreEqual(cbObjectData, roundTrippedBuffer);
+                Assert.AreEqual(cbObjectHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
             }
 
             {
@@ -1257,31 +1277,23 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             {
-                // delete the blob 
-                await Service.DeleteObject(TestNamespace, blobHash);
+                // verify that the exists check doesnt find any issue
+                HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+                existsResponse.EnsureSuccessStatusCode();
+
+                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                Assert.AreEqual(0, response.Missing.Count);
+            }
+
+			{
+                // delete the blob referenced by the compressed buffer
+                await Service.DeleteObject(TestNamespace, compressedHash);
             }
 
             {
                 // the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
                 HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
                 getResponse.EnsureSuccessStatusCode();
-            }
-
-            {
-                // the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
-                HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
-                getResponse.EnsureSuccessStatusCode();
-            }
-
-            {
-                // we should now see a 404 as the blob is missing
-                HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
-                Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
-                Assert.AreEqual("application/problem+json", getResponse.Content.Headers.ContentType!.MediaType);
-                string s = await getResponse.Content.ReadAsStringAsync();
-                ProblemDetails? problem = JsonConvert.DeserializeObject<ProblemDetails>(s);
-                Assert.IsNotNull(problem);
-                Assert.AreEqual($"Object {blobHash} in {TestNamespace} not found", problem.Title);
             }
 
             {
@@ -1303,7 +1315,213 @@ namespace Horde.Storage.FunctionalTests.References
             }
         }
 
-        [TestMethod]
+
+		[TestMethod]
+		public async Task GetMissingCompressedBufferAttachment()
+		{
+            CbObject cbObjectAttachment = CbObject.Build(writer => writer.WriteString("ValueField", "This field has a value"));
+            byte[] cbAttachmentData = cbObjectAttachment.GetView().ToArray();
+            BlobIdentifier cbAttachmentHash = BlobIdentifier.FromBlob(cbAttachmentData);
+			IoHashKey key = IoHashKey.FromName("compressedAttachedObject");
+
+			CbObject cbObject = CbObject.Build(writer => writer.WriteObjectAttachment("Attachment", cbAttachmentHash.AsIoHash()));
+			byte[] cbObjectData = cbObject.GetView().ToArray();
+			BlobIdentifier cbObjectHash = BlobIdentifier.FromBlob(cbObjectData);
+
+			{
+				// upload compressed blob
+				using HttpContent requestContent = new ByteArrayContent(cbAttachmentData);
+				requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+				HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/objects/{TestNamespace}/{cbAttachmentHash}", UriKind.Relative), requestContent);
+				result.EnsureSuccessStatusCode();
+			}
+
+			{
+				// upload ref
+				using HttpContent requestContent = new ByteArrayContent(cbObjectData);
+				requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+				requestContent.Headers.Add(CommonHeaders.HashHeaderName, cbObjectHash.ToString());
+
+				HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
+				result.EnsureSuccessStatusCode();
+
+				{
+					Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
+					// check that no blobs are missing
+					await using MemoryStream ms = new MemoryStream();
+					await result.Content.CopyToAsync(ms);
+					byte[] roundTrippedBuffer = ms.ToArray();
+					CbObject cb = new CbObject(roundTrippedBuffer);
+					CbField needsField = cb["needs"];
+					List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
+					Assert.AreEqual(0, missingBlobs.Count);
+				}
+			}
+
+			{
+				// verify we can fetch the blob properly
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
+				getResponse.EnsureSuccessStatusCode();
+				await using MemoryStream ms = new MemoryStream();
+				await getResponse.Content.CopyToAsync(ms);
+
+				byte[] roundTrippedBuffer = ms.ToArray();
+
+				CollectionAssert.AreEqual(cbObjectData, roundTrippedBuffer);
+				Assert.AreEqual(cbObjectHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
+			}
+
+			{
+				// verify that head checks find the object
+				using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+				HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+				getResponse.EnsureSuccessStatusCode();
+			}
+
+			{
+				// verify that the exists check doesnt find any issue
+				HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+				existsResponse.EnsureSuccessStatusCode();
+
+				ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+				Assert.AreEqual(0, response.Missing.Count);
+			}
+
+			{
+				// delete the blob referenced by the compressed buffer
+				await Service.DeleteObject(TestNamespace, cbAttachmentHash);
+			}
+
+			{
+				// the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
+				getResponse.EnsureSuccessStatusCode();
+			}
+
+			{
+				// verify that head checks fail
+				using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+				HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+				Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
+			}
+
+			{
+				// verify that the exists check correctly returns a missing blob
+				HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+				existsResponse.EnsureSuccessStatusCode();
+
+				ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+				Assert.AreEqual(1, response.Missing.Count);
+				Assert.AreEqual(key, response.Missing[0].Key);
+				Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
+			}
+		}
+
+		[TestMethod]
+		public async Task GetMissingBlobRecord()
+		{
+			string blobContents = "This is a blob";
+			byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
+			BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
+			IoHashKey key = IoHashKey.FromName("newReferenceObject");
+
+			using HttpContent requestContent = new ByteArrayContent(blobData);
+			requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+			requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+			HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
+			result.EnsureSuccessStatusCode();
+
+			{
+				Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
+				// check that no blobs are missing
+				await using MemoryStream ms = new MemoryStream();
+				await result.Content.CopyToAsync(ms);
+				byte[] roundTrippedBuffer = ms.ToArray();
+				CbObject cb = new CbObject(roundTrippedBuffer);
+				CbField needsField = cb["needs"];
+				List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
+				Assert.AreEqual(0, missingBlobs.Count);
+			}
+
+			{
+				// verify we can fetch the blob properly
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
+				getResponse.EnsureSuccessStatusCode();
+				await using MemoryStream ms = new MemoryStream();
+				await getResponse.Content.CopyToAsync(ms);
+
+				byte[] roundTrippedBuffer = ms.ToArray();
+
+				CollectionAssert.AreEqual(blobData, roundTrippedBuffer);
+				Assert.AreEqual(blobHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
+			}
+
+			{
+				// verify that head checks find the object
+				using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+				HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+				getResponse.EnsureSuccessStatusCode();
+			}
+
+			{
+				// verify that the exists check doesnt find any issue
+				HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+				existsResponse.EnsureSuccessStatusCode();
+
+				ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+				Assert.AreEqual(0, response.Missing.Count);
+			}
+
+			{
+				// delete the blob 
+				await Service.DeleteObject(TestNamespace, blobHash);
+			}
+
+			{
+				// the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative));
+				getResponse.EnsureSuccessStatusCode();
+			}
+
+			{
+				// the compact binary object still exists, so this returns a success (trying to resolve the attachment will fail)
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.json", UriKind.Relative));
+				getResponse.EnsureSuccessStatusCode();
+			}
+
+			{
+				// we should now see a 404 as the blob is missing
+				HttpResponseMessage getResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.raw", UriKind.Relative));
+				Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
+				Assert.AreEqual("application/problem+json", getResponse.Content.Headers.ContentType!.MediaType);
+				string s = await getResponse.Content.ReadAsStringAsync();
+				ProblemDetails? problem = JsonConvert.DeserializeObject<ProblemDetails>(s);
+				Assert.IsNotNull(problem);
+				Assert.AreEqual($"Object {blobHash} in {TestNamespace} not found", problem.Title);
+			}
+
+			{
+				// verify that head checks fail
+				using HttpRequestMessage headRequest = new HttpRequestMessage(HttpMethod.Head, new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}", UriKind.Relative));
+				HttpResponseMessage getResponse = await Client.SendAsync(headRequest);
+				Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
+			}
+
+			{
+				// verify that the exists check correctly returns a missing blob
+				HttpResponseMessage existsResponse = await Client.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
+				existsResponse.EnsureSuccessStatusCode();
+
+				ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+				Assert.AreEqual(1, response.Missing.Count);
+				Assert.AreEqual(key, response.Missing[0].Key);
+				Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
+			}
+		}
+
+		[TestMethod]
         public async Task DeleteObject()
         {
             const string ObjectContents = "This is treated as a opaque blob";
