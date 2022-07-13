@@ -37,6 +37,7 @@ if [ $IS_DOTNET_INSTALLED -eq 0 ]; then
 	[ $(uname -m) == "arm64" ] && ARCH=arm64 
 	
 	export UE_DOTNET_DIR=$CUR_DIR/../../../Binaries/ThirdParty/DotNet/6.0.200/mac-$ARCH
+	chmod u+x "$UE_DOTNET_DIR/dotnet"
 	echo $UE_DOTNET_DIR
 	export PATH=$UE_DOTNET_DIR:$PATH
 	export DOTNET_ROOT=$UE_DOTNET_DIR

@@ -81,10 +81,10 @@ namespace UnrealBuildBase
 
 		static private string DotnetVersionDirectory = "6.0.200";
 			
-		static private string FindRelativeDotnetDirectory()
+		static private string FindRelativeDotnetDirectory(RuntimePlatform.Type HostPlatform)
 		{
 			string HostDotNetDirectoryName;
-			switch (RuntimePlatform.Current)
+			switch (HostPlatform)
 			{
 				case RuntimePlatform.Type.Windows: HostDotNetDirectoryName = "windows"; break;
 				case RuntimePlatform.Type.Mac:
@@ -102,6 +102,8 @@ namespace UnrealBuildBase
 
 			return Path.Combine("Binaries", "ThirdParty", "DotNet", DotnetVersionDirectory, HostDotNetDirectoryName);
 		}
+
+		static private string FindRelativeDotnetDirectory() => FindRelativeDotnetDirectory(RuntimePlatform.Current);
 
 		/// <summary>
 		/// Relative path to the dotnet executable from EngineDir
@@ -151,6 +153,16 @@ namespace UnrealBuildBase
 		/// Whether we're running with engine installed
 		/// </summary>
 		static private bool? bIsEngineInstalled;
+
+		/// <summary>
+		/// Returns where another platform's Dotnet is located
+		/// </summary>
+		/// <param name="HostPlatform"></param>
+		/// <returns></returns>
+		static public DirectoryReference FindDotnetDirectoryForPlatform(RuntimePlatform.Type HostPlatform)
+		{
+			return DirectoryReference.Combine(EngineDirectory, FindRelativeDotnetDirectory(HostPlatform));
+		}
 
 		/// <summary>
 		/// Returns true if UnrealBuildTool is running using installed Engine components

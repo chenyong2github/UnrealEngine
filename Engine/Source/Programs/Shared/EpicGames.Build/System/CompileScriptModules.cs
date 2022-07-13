@@ -298,7 +298,9 @@ namespace UnrealBuildBase
 
 					if (BuildRecord != null && BuildRecord.ProjectPath != null)
 					{
-						LoadedBuildRecords.Add(FileReference.FromString(Path.GetFullPath(BuildRecord.ProjectPath, JsonFile.Directory.FullName)), (BuildRecord, JsonFile));
+						// Path.Combine, etc don't work so well with improper dir separators (a build record made on Windows will fail on Linux with the \ characters)
+						string Combined = Path.Combine(JsonFile.Directory.FullName, BuildRecord.ProjectPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar));
+						LoadedBuildRecords.Add(FileReference.FromString(Path.GetFullPath(Combined)), (BuildRecord, JsonFile));
 					}
 					else
                     {
