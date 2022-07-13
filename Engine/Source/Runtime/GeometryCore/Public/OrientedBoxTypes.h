@@ -79,18 +79,6 @@ struct TOrientedBox3
 	/** @return an axis of the box */
 	TVector<RealType> GetAxis(int AxisIndex) const { return Frame.GetAxis(AxisIndex); }
 
-	/** @return maximum extent of box */
-	inline RealType MaxExtent() const
-	{
-		return Extents.MaxAbs();
-	}
-
-	/** @return minimum extent of box */
-	inline RealType MinExtent() const
-	{
-		return Extents.MinAbs();
-	}
-
 	/** @return vector from minimum-corner to maximum-corner of box */
 	inline TVector<RealType> Diagonal() const
 	{
@@ -100,13 +88,14 @@ struct TOrientedBox3
 	/** @return volume of box */
 	inline RealType Volume() const
 	{
-		return (RealType)8 * (Extents.X) * (Extents.Y) * (Extents.Z);
+		return (RealType)8 * FMath::Max(0, Extents.X) * FMath::Max(0, Extents.Y) * FMath::Max(0, Extents.Z);
 	}
 
 	/** @return surface area of box */
 	inline RealType SurfaceArea() const
 	{
-		return (RealType)8 * ( Extents.X * Extents.Y + Extents.X * Extents.Z + Extents.Y * Extents.Z);
+		TVector<RealType> ClampExtents(FMath::Max(0, Extents.X), FMath::Max(0, Extents.Y), FMath::Max(0, Extents.Z));
+		return (RealType)8 * (ClampExtents.X * ClampExtents.Y + ClampExtents.X * ClampExtents.Z + ClampExtents.Y * ClampExtents.Z);
 	}
 
 	/** @return true if box contains point */
@@ -313,18 +302,6 @@ struct TOrientedBox2
 	/** @return an axis of the box */
 	inline TVector2<RealType> GetAxis(int AxisIndex) const { return AxisIndex == 0 ? AxisX() : AxisY(); }
 
-	/** @return maximum extent of box */
-	inline RealType MaxExtent() const
-	{
-		return Extents.MaxAbs();
-	}
-
-	/** @return minimum extent of box */
-	inline RealType MinExtent() const
-	{
-		return Extents.MinAbs();
-	}
-
 	/** @return vector from minimum-corner to maximum-corner of box */
 	inline TVector2<RealType> Diagonal() const
 	{
@@ -334,13 +311,13 @@ struct TOrientedBox2
 	/** @return area of box */
 	inline RealType Area() const
 	{
-		return (RealType)4 * (Extents.X) * (Extents.Y);
+		return (RealType)4 * FMath::Max(0, Extents.X) * FMath::Max(0, Extents.Y);
 	}
 
 	/** @return perimeter of box */
 	inline RealType Perimeter() const
 	{
-		return (RealType)4 * (Extents.X + Extents.Y);
+		return (RealType)4 * (FMath::Max(0, Extents.X) + FMath::Max(0, Extents.Y));
 	}
 
 	/** @return Point transformed to the local space of the box (Origin at box center, Axes aligned to box) */
@@ -357,12 +334,11 @@ struct TOrientedBox2
 	}
 
 	/** @return true if box contains point */
-	inline bool Contains(const TVector<RealType>& Point) const
+	inline bool Contains(const TVector2<RealType>& Point) const
 	{
-		TVector<RealType> LocalPoint = ToLocalPoint(Point);
+		TVector2<RealType> LocalPoint = ToLocalSpace(Point);
 		return (TMathUtil<RealType>::Abs(LocalPoint.X) <= Extents.X) &&
-			(TMathUtil<RealType>::Abs(LocalPoint.Y) <= Extents.Y) &&
-			(TMathUtil<RealType>::Abs(LocalPoint.Z) <= Extents.Z);
+			(TMathUtil<RealType>::Abs(LocalPoint.Y) <= Extents.Y);
 	}
 
 

@@ -25,6 +25,18 @@ class GEOMETRYCORE_API TConvexHull2
 public:
 
 	/**
+	 * Generate convex hull for a simple polygon
+	 * If input has fewer than 3 points, will return false
+	 * If input is not a simple polygon (e.g. if it has self-intersections), may not find a correct hull
+	 * 
+	 * @param NumPolygonPoints	Number of points in the polygon
+	 * @param GetPointFunc		Function providing array-style access into the polygon points
+	 * @param bIsKnownCCW		If true, will save some processing time by assuming input is wound counter-clockwise
+	 * @return true if a hull was generated
+	 */
+	bool SolveSimplePolygon(int32 NumPolygonPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, bool bIsKnownCCW = false);
+
+	/**
 	 * Generate convex hull as long as input is not degenerate
 	 * If input is degenerate, this will return false, and caller can call GetDimension()
 	 * to determine whether the points were collinear, or all the same point
@@ -104,6 +116,17 @@ public:
 	{
 		ensure(IsSolutionAvailable());
 		return Hull;
+	}
+
+	/** @return the line spanned by a collinear input.  Only meaningful if GetDimension() == 1 */
+	TLine2<RealType> GetLine(TArrayView<const TVector2<RealType>> Points) const
+	{
+		ensure(Dimension == 1);
+		if (ensure(Hull.Num() > 1))
+		{
+			return TLine2<RealType>::FromPoints(Points[Hull[0]], Points[Hull[1]]);
+		}
+		return TLine2<RealType>(); // not enough points to compute a valid line, return default
 	}
 
 protected:

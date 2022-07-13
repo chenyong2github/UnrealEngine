@@ -7,11 +7,111 @@
 
 #include "CompGeom/ExactPredicates.h"
 #include "Algo/Unique.h"
+#include "Algo/Reverse.h"
 
 namespace UE
 {
 namespace Geometry
 {
+
+namespace
+{
+	inline int32 IncModM(int32 Idx, int32 Mod)
+	{
+		int32 Inc = Idx + 1;
+		return Inc < Mod ? Inc : 0;
+	}
+}
+
+template<typename RealType>
+bool TConvexHull2<RealType>::SolveSimplePolygon(int32 N, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, bool bIsKnownCCW)
+{
+	Dimension = 0;
+	NumUniquePoints = 0;
+
+	if (N == 0)
+	{
+		Hull.Empty();
+		return false;
+	}
+	Hull.Reset(N);
+
+
+	// Find the (lowest) leftmost point (guaranteed to be on the hull)
+	int32 LeftmostPtIdx = 0;
+	TVector2<RealType> Leftmost = GetPointFunc(0);
+	// If orientation is not already known to be CCW, we use area sign to decide orientation
+	RealType OrientSign = 1;
+
+	{
+		auto AddEdgeArea2 = [&GetPointFunc](TVector2<RealType> V1, TVector2<RealType> V2)
+		{
+			return V1.X * V2.Y - V1.Y * V2.X;
+		};
+		RealType AreaSum2 = bIsKnownCCW ? 0 : AddEdgeArea2(GetPointFunc(N - 1), Leftmost);
+		TVector2<RealType> LastPt = Leftmost; // LastPt only for computing AreaSum to check winding direction
+		for (int32 Idx = 1; Idx < N; ++Idx)
+		{
+			TVector2<RealType> Pt = GetPointFunc(Idx);
+			if (Pt.X < Leftmost.X || (Pt.X == Leftmost.X && Pt.Y < Leftmost.Y))
+			{
+				Leftmost = Pt;
+				LeftmostPtIdx = Idx;
+			}
+			if (!bIsKnownCCW)
+			{
+				AreaSum2 += AddEdgeArea2(LastPt, Pt);
+				LastPt = Pt;
+			}
+		}
+		if (!bIsKnownCCW && AreaSum2 < 0)
+		{
+			OrientSign = -1;
+		}
+	}
+
+	Hull.Add(LeftmostPtIdx);
+	TVector2<RealType> PrevPt = Leftmost;
+	int32 CurIdx = IncModM(LeftmostPtIdx, N);
+	int32 EndIdx = LeftmostPtIdx;
+	TVector2<RealType> CurPt = GetPointFunc(CurIdx);
+	for (int32 NextIdx = IncModM(CurIdx, N); CurIdx != EndIdx; NextIdx = IncModM(NextIdx, N))
+	{
+		TVector2<RealType> NextPt = GetPointFunc(NextIdx);
+		if (ExactPredicates::Orient2<RealType>(PrevPt, CurPt, NextPt)*OrientSign <= 0)
+		{
+			// Go backwards until we're out of points or we find a locally-convex point
+			while (Hull.Num() > 1)
+			{
+				CurPt = PrevPt;
+				CurIdx = Hull.Pop(false);
+				int32 PrevIdx = Hull.Last();
+				PrevPt = GetPointFunc(PrevIdx);
+				
+				if (ExactPredicates::Orient2<RealType>(PrevPt, CurPt, NextPt)*OrientSign > 0)
+				{
+					Hull.Push(CurIdx);
+					PrevPt = CurPt;
+					break;
+				}
+			}
+		}
+		else // CurPt is locally convex with Prev,Next; go ahead and add it
+		{
+			Hull.Push(CurIdx);
+			PrevPt = CurPt;
+		}
+		CurIdx = NextIdx;
+		CurPt = NextPt;
+	}
+	if (OrientSign < 0)
+	{
+		Algo::Reverse(Hull);
+	}
+	bool bFoundValid = Hull.Num() >= 3;
+	Dimension = bFoundValid ? 2 : 0;
+	return bFoundValid;
+}
 
 
 template<class RealType>

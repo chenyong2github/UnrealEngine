@@ -598,7 +598,15 @@ struct TAxisAlignedBox2
 	{
 	}
 
-	TAxisAlignedBox2(const TArray<TVector2<RealType>>& Pts)
+	TAxisAlignedBox2(const TArray<TVector2<RealType>>& Pts) :
+		TAxisAlignedBox2(Empty())
+	{
+		*this = Empty();
+		Contain(Pts);
+	}
+
+	TAxisAlignedBox2(TArrayView<const TVector2<RealType>> Pts) :
+		TAxisAlignedBox2(Empty())
 	{
 		*this = Empty();
 		Contain(Pts);
@@ -690,6 +698,14 @@ struct TAxisAlignedBox2
 		}
 	}
 
+	void Contain(TArrayView<const TVector2<RealType>> Pts)
+	{
+		for (const TVector2<RealType>& Pt : Pts)
+		{
+			Contain(Pt);
+		}
+	}
+
 	bool Contains(const TVector2<RealType>& V) const
 	{
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Max.X >= V.X) && (Max.Y >= V.Y);
@@ -740,6 +756,11 @@ struct TAxisAlignedBox2
 	inline RealType Area() const
 	{
 		return Width() * Height();
+	}
+
+	inline RealType Perimeter() const
+	{
+		return (Width() + Height()) * 2;
 	}
 
 	RealType DiagonalLength() const
