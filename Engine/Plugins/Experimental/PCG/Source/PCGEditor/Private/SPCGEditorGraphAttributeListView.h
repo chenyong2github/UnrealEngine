@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
@@ -50,8 +51,15 @@ private:
 	void OnDebugObjectChanged(UPCGComponent* InPCGComponent);
 	void OnInspectedNodeChanged(UPCGNode* InPCGNode);
 
-	void RebuildAttributeList(UPCGComponent* InPCGComponent);
-	void RebuildAttributeList();
+	void OnGenerateUpdated(UPCGComponent* InPCGComponent);
+	
+	void RefreshAttributeList();
+	void RefreshDataComboBox();
+
+	TSharedRef<SWidget> OnGenerateDataWidget(TSharedPtr<FName> InItem) const;
+	void OnSelectionChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
+	FText OnGenerateSelectedDataText() const;
+	int32 GetSelectedDataIndex() const;
 
 	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
@@ -64,4 +72,7 @@ private:
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;
 	TArray<PCGListviewItemPtr> ListViewItems;
+
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> DataComboBox;
+	TArray<TSharedPtr<FName>> DataComboBoxItems;
 };
