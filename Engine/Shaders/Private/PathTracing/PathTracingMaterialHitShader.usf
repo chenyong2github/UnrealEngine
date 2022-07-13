@@ -343,7 +343,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	else
 #endif
 	{
+		// Redirect translucent blending mode to thin translucent
+#if MATERIALBLENDING_TRANSLUCENT
+		Payload.ShadingModelID = SHADINGMODELID_THIN_TRANSLUCENT;
+#else
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+#endif
 	}
 	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
 	Payload.WorldNormal = normalize(MaterialParameters.WorldNormal);
@@ -356,6 +361,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.Metallic = 0;
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	Payload.Ior = 1;
+
+#if !MATERIAL_TWOSIDED
+	if (!Payload.IsFrontFace() && !Payload.IsMaterialTransmissive())
+	{
+		// Overloaded semantics for opacity
+		Payload.Opacity = -1;
+	}
+#endif
 
 #endif
 
