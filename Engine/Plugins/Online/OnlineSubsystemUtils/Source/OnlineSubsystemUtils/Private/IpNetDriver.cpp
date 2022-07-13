@@ -30,10 +30,6 @@ Notes:
 #include <limits>
 #include "NetAddressResolution.h"
 
-/** For backwards compatibility with the engine stateless connect code */
-#ifndef STATELESSCONNECT_HAS_RANDOM_SEQUENCE
-	#define STATELESSCONNECT_HAS_RANDOM_SEQUENCE 0
-#endif
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -1418,7 +1414,6 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 
 			ReturnVal->InitRemoteConnection(this, SocketPrivate.Get(), World ? World->URL : FURL(), *Address, USOCK_Open);
 
-#if STATELESSCONNECT_HAS_RANDOM_SEQUENCE
 			// Set the initial packet sequence from the handshake data
 			if (StatelessConnect.IsValid())
 			{
@@ -1429,7 +1424,6 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 
 				ReturnVal->InitSequence(ClientSequence, ServerSequence);
 			}
-#endif
 
 			if (ReturnVal->Handler.IsValid())
 			{
