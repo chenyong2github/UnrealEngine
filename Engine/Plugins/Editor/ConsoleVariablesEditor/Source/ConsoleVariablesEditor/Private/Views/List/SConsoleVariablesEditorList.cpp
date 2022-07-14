@@ -1113,7 +1113,7 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bSkipExecutionOfCa
 		{
 			CommandInfo = MakeShared<FConsoleVariablesEditorCommandInfo>(SavedCommand.CommandName);
 
-			FConsoleVariablesEditorModule::Get().AddConsoleObjectCommandInfoToMasterReference(
+			FConsoleVariablesEditorModule::Get().AddConsoleObjectCommandInfoToMainReference(
 				CommandInfo.ToSharedRef());
 		}
 		

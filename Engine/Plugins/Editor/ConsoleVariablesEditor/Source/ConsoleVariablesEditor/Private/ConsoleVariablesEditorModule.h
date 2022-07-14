@@ -38,9 +38,9 @@ public:
 	/** Find all console variables and cache their startup values */
 	void QueryAndBeginTrackingConsoleVariables();
 
-	void AddConsoleObjectCommandInfoToMasterReference(TSharedRef<FConsoleVariablesEditorCommandInfo> InCommandInfo)
+	void AddConsoleObjectCommandInfoToMainReference(TSharedRef<FConsoleVariablesEditorCommandInfo> InCommandInfo)
 	{
-		ConsoleObjectsMasterReference.Add(InCommandInfo);
+		ConsoleObjectsMainReference.Add(InCommandInfo);
 	}
 
 	/** Find a tracked console variable by the command string with optional case sensitivity. */
@@ -119,7 +119,7 @@ private:
 	TObjectPtr<UConsoleVariablesAsset> EditingGlobalSearchAsset = nullptr;
 
 	/** All tracked variables and their default, startup, and current values */
-	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMasterReference;
+	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMainReference;
 
 	/**
 	 * A list of CommandName/ValueAsString pairs of commands received from MU.
