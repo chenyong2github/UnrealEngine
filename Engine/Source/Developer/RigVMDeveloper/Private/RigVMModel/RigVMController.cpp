@@ -16783,7 +16783,6 @@ bool URigVMController::ShouldPinOwnArgument(URigVMPin* InPin)
 	URigVMFunctionReturnNode* ReturnNode = ContainedGraph->GetReturnNode();
 
 	auto IsPinUsingArgument = [](URigVMPin* TestPin)
-	TMap<URigVMPin*, TRigVMTypeIndex> TypesBeforeRecomputing;
 	{
 		// If any subpins that are struct members are connected, then it should own an argument
 		TArray<URigVMPin*> ToProcessPins = TestPin->GetSubPins();
