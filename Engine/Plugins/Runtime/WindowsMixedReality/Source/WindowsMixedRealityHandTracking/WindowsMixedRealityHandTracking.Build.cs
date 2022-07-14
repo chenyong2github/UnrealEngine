@@ -28,7 +28,8 @@ namespace UnrealBuildTool.Rules
                     "LiveLinkInterface",
 					"Slate",
 					"SlateCore",
-					"WindowsMixedRealityHMD"
+					"WindowsMixedRealityHMD",
+					"ApplicationCore"
 				}
 			);
 
