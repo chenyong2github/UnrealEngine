@@ -192,74 +192,100 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 	TRigVMTypeIndex Index = GetTypeIndex(InType);
 	if(Index == INDEX_NONE)
 	{
-		FRigVMTemplateArgumentType ElementType;
-		ElementType.CPPType = NAME_None;
-		if(InType.IsArray())
+		FRigVMTemplateArgumentType ElementType = InType;
+		while(ElementType.IsArray())
 		{
-			ElementType = InType;
 			ElementType.ConvertToBaseElement();
 		}
-		FRigVMTemplateArgumentType ArrayType = InType;
-		ArrayType.ConvertToArray();
-
+		
+		const UObject* CPPTypeObject = ElementType.CPPTypeObject;
+		if(CPPTypeObject != nullptr)
 		{
-			FTypeInfo Info;
-			Info.Type = InType;
-			Info.bIsArray = InType.IsArray();
-			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InType.CPPTypeObject))
+			if(const UClass* Class = Cast<UClass>(CPPTypeObject))
 			{
-				Info.bIsExecute = ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+				if(!IsAllowedType(Class))
+				{
+					return Index;
+				}	
+			}
+			else if(const UEnum* Enum = Cast<UEnum>(CPPTypeObject))
+			{
+				if(!IsAllowedType(Enum))
+				{
+					return Index;
+				}
+			}
+			else if(const UStruct* Struct = Cast<UStruct>(CPPTypeObject))
+			{
+				if(!IsAllowedType(Struct))
+				{					
+					return Index;
+				}
+			}
+		}
+
+		bool bIsExecute = false;
+		if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+		{
+			bIsExecute = ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+		}
+
+		TArray<TRigVMTypeIndex> Indices;
+		Indices.Reserve(3);
+		for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
+		{
+			if (bIsExecute && ArrayDimension>0)
+			{
+				continue;
+			}
+			
+			FRigVMTemplateArgumentType CurType = ElementType;
+			for (int32 j=0; j<ArrayDimension; ++j)
+			{
+				CurType.ConvertToArray();
 			}
 
-			if(!ElementType.CPPType.IsNone())
-			{
-				Info.BaseTypeIndex = GetTypeIndex(ElementType);
-			}
-			Info.ArrayTypeIndex = GetTypeIndex(ArrayType);
+			FTypeInfo Info;
+			Info.Type = CurType;
+			Info.bIsArray = ArrayDimension > 0;
+			Info.bIsExecute = bIsExecute;
 			
 			Index = Types.Add(Info);
 #if UE_RIGVM_DEBUG_TYPEINDEX
 			Index.Name = Info.Type.CPPType;
 #endif
-		}
+			TypeToIndex.Add(CurType, Index);
 
-		TypeToIndex.Add(InType, Index);
+			Indices.Add(Index);
 
-		// add the type to the category map
-		static constexpr TCHAR ArrayArrayPrefix[] = TEXT("TArray<TArray<");
-		const int32 ArrayDimension = Types[Index].bIsArray ?
-			(InType.CPPType.ToString().StartsWith(ArrayArrayPrefix) ? 2 : 1) : 0;
-		const UObject* CPPTypeObject = Types[Index].Type.CPPTypeObject;
-
-		// simple types
-		if(CPPTypeObject == nullptr)
-		{
-			switch(ArrayDimension)
+			// Add to category
+			// simple types
+			if(CPPTypeObject == nullptr)
 			{
-				default:
-				case 0:
+				switch(ArrayDimension)
 				{
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleSimpleValue, Index);
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
-					break;
-				}
-				case 1:
-				{
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArraySimpleValue, Index);
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
-					break;
-				}
-				case 2:
-				{
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArraySimpleValue, Index);
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
-					break;
+					default:
+					case 0:
+					{
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleSimpleValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
+						break;
+					}
+					case 1:
+					{
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArraySimpleValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
+						break;
+					}
+					case 2:
+					{
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArraySimpleValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
+						break;
+					}
 				}
 			}
-		}
-		else if(const UClass* Class = Cast<UClass>(CPPTypeObject))
-		{
-			if(IsAllowedType(Class))
+			else if(const UClass* Class = Cast<UClass>(CPPTypeObject))
 			{
 				switch(ArrayDimension)
 				{
@@ -283,11 +309,8 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 						break;
 					}
 				}
-			}	
-		}
-		else if(const UEnum* Enum = Cast<UEnum>(CPPTypeObject))
-		{
-			if(IsAllowedType(Enum))
+			}
+			else if(const UEnum* Enum = Cast<UEnum>(CPPTypeObject))
 			{
 				switch(ArrayDimension)
 				{
@@ -312,112 +335,92 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 					}
 				}
 			}
-		}
-		else if(const UStruct* Struct = Cast<UStruct>(CPPTypeObject))
-		{
-			if(IsAllowedType(Struct))
+			else if(const UStruct* Struct = Cast<UStruct>(CPPTypeObject))
 			{
-				if(GetMathTypes().Contains(CPPTypeObject))
+				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 				{
+					if(ArrayDimension == 0)
+					{
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_Execute, Index);
+					}
+				}
+				else
+				{
+					if(GetMathTypes().Contains(CPPTypeObject))
+					{
+						switch(ArrayDimension)
+						{
+							default:
+							case 0:
+							{
+								RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue, Index);
+								break;
+							}
+							case 1:
+							{
+								RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayMathStructValue, Index);
+								break;
+							}
+							case 2:
+							{
+								RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayMathStructValue, Index);
+								break;
+							}
+						}
+					}
+					
 					switch(ArrayDimension)
 					{
 						default:
 						case 0:
 						{
-							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
 							break;
 						}
 						case 1:
 						{
-							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayMathStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
 							break;
 						}
 						case 2:
 						{
-							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayMathStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
 							break;
 						}
 					}
 				}
-				
-				switch(ArrayDimension)
-				{
-					default:
-					case 0:
-					{
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
-						break;
-					}
-					case 1:
-					{
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
-						break;
-					}
-					case 2:
-					{
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
-						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
-						break;
-					}
-				}
-			}
-			else if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-			{
-				if(!Types[Index].bIsArray)
-				{
-					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_Execute, Index);
-				}
 			}
 		}
 
-		// register the opposing type
-		if(!Types[Index].bIsArray)
+		if (!bIsExecute)
 		{
-			Types[Index].ArrayTypeIndex = FindOrAddType(ArrayType);
-			if(Types[Index].ArrayTypeIndex != INDEX_NONE)
-			{
-				Types[Types[Index].ArrayTypeIndex].BaseTypeIndex = Index;
-			}
-		}
-		else
-		{
-			Types[Index].BaseTypeIndex = FindOrAddType(ElementType);
-			if(Types[Index].BaseTypeIndex != INDEX_NONE)
-			{
-				Types[Types[Index].BaseTypeIndex].ArrayTypeIndex = Index;
+			Types[Indices[1]].BaseTypeIndex = Indices[0];
+			Types[Indices[2]].BaseTypeIndex = Indices[1];
 
-				// also automatically do the two dimensional array
-				if(GetArrayDimensionsForType(Index) == 1)
-				{
-					Types[Index].ArrayTypeIndex = FindOrAddType(ArrayType);
-					if(Types[Index].ArrayTypeIndex != INDEX_NONE)
-					{
-						Types[Types[Index].ArrayTypeIndex].BaseTypeIndex = Index;
-					}
-				}
-			}
+			Types[Indices[0]].ArrayTypeIndex = Indices[1];
+			Types[Indices[1]].ArrayTypeIndex = Indices[2];
 		}
 
 		// if the type is a structure
 		// then add all of its sub property types
-		if(!Types[Index].bIsArray)
+		if(const UStruct* Struct = Cast<UStruct>(CPPTypeObject))
 		{
-			if(const UStruct* Struct = Cast<UStruct>(Types[Index].Type.CPPTypeObject))
+			for (TFieldIterator<FProperty> It(Struct); It; ++It)
 			{
-				for (TFieldIterator<FProperty> It(Struct); It; ++It)
+				FProperty* Property = *It;
+				if(IsAllowedType(Property))
 				{
-					FProperty* Property = *It;
-					if(IsAllowedType(Property, true))
-					{
-						// by creating a template argument for the child property
-						// the type will be added by calling ::FindOrAddType recursively.
-						FRigVMTemplateArgument DummyArgument(Property);
-					}
+					// by creating a template argument for the child property
+					// the type will be added by calling ::FindOrAddType recursively.
+					FRigVMTemplateArgument DummyArgument(Property);
 				}
-			}
+			}			
 		}
+
+		return GetTypeIndex(InType);
 	}
 	
 	return Index;
@@ -602,19 +605,8 @@ TRigVMTypeIndex FRigVMRegistry::GetBaseTypeFromArrayTypeIndex(TRigVMTypeIndex In
 	return INDEX_NONE;
 }
 
-bool FRigVMRegistry::IsAllowedType(const FProperty* InProperty, bool bCheckFlags)
+bool FRigVMRegistry::IsAllowedType(const FProperty* InProperty)
 {
-	if(bCheckFlags)
-	{
-		if(!InProperty->HasAnyPropertyFlags(
-			CPF_BlueprintVisible |
-			CPF_BlueprintReadOnly |
-			CPF_Edit))
-		{
-			return false;
-		}
-	}
-
 	if(InProperty->IsA<FBoolProperty>() ||
 		InProperty->IsA<FUInt32Property>() ||
 		InProperty->IsA<FInt8Property>() ||
@@ -632,7 +624,7 @@ bool FRigVMRegistry::IsAllowedType(const FProperty* InProperty, bool bCheckFlags
 
 	if(const FArrayProperty* ArrayProperty  = CastField<FArrayProperty>(InProperty))
 	{
-		return IsAllowedType(ArrayProperty->Inner, false);
+		return IsAllowedType(ArrayProperty->Inner);
 	}
 	if(const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
@@ -669,14 +661,6 @@ bool FRigVMRegistry::IsAllowedType(const UStruct* InStruct)
 		return false;
 	}
 	if(InStruct->IsChildOf(FRigVMStruct::StaticStruct()))
-	{
-		return false;
-	}
-	if(InStruct->IsChildOf(FRigVMUnknownType::StaticStruct()))
-	{
-		return false;
-	}
-	if(InStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 	{
 		return false;
 	}

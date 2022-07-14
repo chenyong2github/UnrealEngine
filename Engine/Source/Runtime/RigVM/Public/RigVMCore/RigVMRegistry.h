@@ -224,7 +224,7 @@ private:
 		return RF_Public;
 	}
 
-	static bool IsAllowedType(const FProperty* InProperty, bool bCheckFlags = true);
+	static bool IsAllowedType(const FProperty* InProperty);
 	static bool IsAllowedType(const UEnum* InEnum);
 	static bool IsAllowedType(const UStruct* InStruct);
 	static bool IsAllowedType(const UClass* InClass);

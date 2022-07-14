@@ -17112,7 +17112,7 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 	check(Graph);
 
 	// Save all template pin types, in case we need them after initializing
-	TMap<URigVMPin*, int32> TypesBeforeRecomputing;
+	TMap<URigVMPin*, TRigVMTypeIndex> TypesBeforeRecomputing;
 	for (URigVMNode* Node : Graph->GetNodes())
 	{
 		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
@@ -17230,7 +17230,7 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 						if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
 						{
 							URigVMPin* RootPin = EdgePin->GetRootPin();
-							if (int32* TypeIndex = TypesBeforeRecomputing.Find(RootPin))
+							if (TRigVMTypeIndex* TypeIndex = TypesBeforeRecomputing.Find(RootPin))
 							{
 								if (TemplateNode->FilteredSupportsType(RootPin, *TypeIndex))
 								{
