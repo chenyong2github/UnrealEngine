@@ -77,7 +77,6 @@ public:
 	virtual TOnlineAsyncOpHandle<FStartMatchmaking> StartMatchmaking(FStartMatchmaking::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FQuerySessionInvites> QuerySessionInvites(FQuerySessionInvites::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRegisterPlayers> RegisterPlayers(FRegisterPlayers::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUnregisterPlayers> UnregisterPlayers(FUnregisterPlayers::Params&& Params) override;
@@ -85,8 +84,8 @@ public:
 	virtual TOnlineEvent<void(const FSessionJoined&)> OnSessionJoined() override;
 	virtual TOnlineEvent<void(const FSessionLeft&)> OnSessionLeft() override;
 	virtual TOnlineEvent<void(const FSessionUpdated&)> OnSessionUpdated() override;
-	virtual TOnlineEvent<void(const FInviteReceived&)> OnInviteReceived() override;
-	virtual TOnlineEvent<void(const FInviteAccepted&)> OnInviteAccepted() override;
+	virtual TOnlineEvent<void(const FSessionInviteReceived&)> OnSessionInviteReceived() override;
+	virtual TOnlineEvent<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested() override;
 
 protected:
 	FOnlineError CheckCreateSessionParams(const FCreateSession::Params& Params);
@@ -109,8 +108,8 @@ protected:
 		TOnlineEventCallable<void(const FSessionJoined&)> OnSessionJoined;
 		TOnlineEventCallable<void(const FSessionLeft&)> OnSessionLeft;
 		TOnlineEventCallable<void(const FSessionUpdated&)> OnSessionUpdated;
-		TOnlineEventCallable<void(const FInviteReceived&)> OnInviteReceived;
-		TOnlineEventCallable<void(const FInviteAccepted&)> OnInviteAccepted;
+		TOnlineEventCallable<void(const FSessionInviteReceived&)> OnSessionInviteReceived;
+		TOnlineEventCallable<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested;
 	} SessionEvents;
 
 	TMap<FName, TSharedRef<FSession>> SessionsByName;

@@ -92,7 +92,7 @@ FSessionsNull::FSessionsNull(FOnlineServicesNull& InServices)
 {
 	if (!LANSessionManager.IsValid())
 	{
-		LANSessionManager = MakeShareable(new FLANSession());
+		LANSessionManager = MakeShared<FLANSession>();
 	}
 }
 
@@ -365,16 +365,15 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsNull::JoinSession(FJoinSession::Para
 			return;
 		}
 
-		TSharedRef<FSessionNull> NewSessionNullRef = MakeShared<FSessionNull>(FSessionNull(*OpParams.Session));
+		TSharedRef<FSessionNull> NewSessionNullRef = MakeShared<FSessionNull>(*OpParams.Session);
 		FSessionSettings NewSessionNullSettings = NewSessionNullRef->SessionSettings;
-
-		FSessionJoined SessionJoinedEvent;
-		SessionJoinedEvent.Session = NewSessionNullRef;
 
 		// TODO: This will move to AddSessionMember
 		TArray<FOnlineAccountIdHandle> LocalUserIds;
 		LocalUserIds.Reserve(OpParams.LocalUsers.Num());
 		OpParams.LocalUsers.GenerateKeyArray(LocalUserIds);
+
+		TArray<FOnlineAccountIdHandle> JoinedUsers;
 
 		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 		{
@@ -397,8 +396,10 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsNull::JoinSession(FJoinSession::Para
 				}
 			}
 
-			SessionJoinedEvent.LocalUserIds.Add(LocalUserId);
+			JoinedUsers.Add(LocalUserId);
 		}
+
+		FSessionJoined SessionJoinedEvent = { MoveTemp(JoinedUsers), NewSessionNullRef };
 
 		NewSessionNullSettings.SessionMembers.Append(OpParams.LocalUsers);
 

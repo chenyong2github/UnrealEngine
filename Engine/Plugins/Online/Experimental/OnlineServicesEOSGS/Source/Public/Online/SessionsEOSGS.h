@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Online/SessionsCommon.h"
+#include "Online/OnlineServicesEOSGSTypes.h"
 #include "IPAddress.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
 #include "eos_sessions_types.h"
+#include "eos_ui_types.h"
 
 namespace UE::Online {
 
@@ -32,7 +34,7 @@ struct FSessionSearchHandleEOSGS : FNoncopyable
 	{
 	}
 
-	virtual ~FSessionSearchHandleEOSGS()
+	~FSessionSearchHandleEOSGS()
 	{
 		EOS_SessionSearch_Release(SearchHandle);
 	}
@@ -47,7 +49,7 @@ struct FSessionDetailsHandleEOSGS : FNoncopyable
 	{
 	}
 
-	virtual ~FSessionDetailsHandleEOSGS()
+	~FSessionDetailsHandleEOSGS()
 	{
 		EOS_SessionDetails_Release(SessionDetailsHandle);
 	}
@@ -94,6 +96,7 @@ public:
 
 	// TOnlineComponent
 	void Initialize() override;
+	void Shutdown() override;
 
 	// ISessions
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
@@ -101,8 +104,16 @@ public:
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
 
 protected:
+	void RegisterEventHandlers();
+	void UnregisterEventHandlers();
+	void HandleSessionInviteReceived(const EOS_Sessions_SessionInviteReceivedCallbackInfo* Data);
+	void HandleSessionInviteAccepted(const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data);
+	void HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcceptedCallbackInfo* Data);
+
 	void SetPermissionLevel(EOS_HSessionModification& SessionModHandle, const ESessionJoinPolicy& JoinPolicy);
 	void SetBucketId(EOS_HSessionModification& SessionModHandle, const FString& NewBucketId);
 	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const uint32& NewMaxPlayers);
@@ -121,10 +132,29 @@ protected:
 
 	static FOnlineSessionIdHandle CreateSessionId(const FString& SessionId);
 
+	/**
+	 * Builds a session invite from an invite id, using the class' Sessions Handle
+	 */
+	TResult<TSharedRef<const FSessionInvite>, FOnlineError> BuildSessionInvite(FOnlineAccountIdHandle RecipientId, FOnlineAccountIdHandle SenderId, const FString& InInviteId) const;
+
+	/**
+	* Builds a session from an invite id, using the class' Sessions Handle
+	 */
+	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromInvite(const FString& InInviteId) const;
+
+	/**
+	 * Builds a session from a UI event id, using the class' Sessions Handle
+	 */
+	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const;
+
 protected:
 	FOnlineServicesEOSGS& Services;
 
 	EOS_HSessions SessionsHandle = nullptr;
+
+	EOSEventRegistrationPtr OnSessionInviteReceivedEventRegistration;
+	EOSEventRegistrationPtr OnSessionInviteAcceptedEventRegistration;
+	EOSEventRegistrationPtr OnJoinSessionAcceptedEventRegistration;
 
 	TMap<FName, TSharedRef<FSessionEOSGS>> SessionsByName;
 	TMap<FOnlineSessionIdHandle, TSharedRef<FSessionEOSGS>> SessionsById;

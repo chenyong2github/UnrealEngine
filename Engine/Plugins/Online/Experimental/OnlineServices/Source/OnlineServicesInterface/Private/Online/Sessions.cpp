@@ -324,4 +324,31 @@ FSession::FSession(const FSession& InSession)
 
 }
 
+const TCHAR* LexToString(EUISessionJoinRequestedSource UISessionJoinRequestedSource)
+{
+	switch (UISessionJoinRequestedSource)
+	{
+	case EUISessionJoinRequestedSource::FromInvitation:	return TEXT("FromInvitation");
+	default:											checkNoEntry(); // Intentional fallthrough
+	case EUISessionJoinRequestedSource::Unspecified:	return TEXT("Unspecified");
+	}
+}
+
+void LexFromString(EUISessionJoinRequestedSource& OutUISessionJoinRequestedSource, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("FromInvitation")) == 0)
+	{
+		OutUISessionJoinRequestedSource = EUISessionJoinRequestedSource::FromInvitation;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Unspecified")) == 0)
+	{
+		OutUISessionJoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
+	}
+	else
+	{
+		checkNoEntry();
+		OutUISessionJoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
+	}
+}
+
 /* UE::Online */ }

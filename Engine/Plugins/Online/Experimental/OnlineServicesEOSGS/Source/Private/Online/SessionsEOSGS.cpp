@@ -51,7 +51,7 @@ FSessionEOSGS::FSessionEOSGS(const FSession& InSession)
 }
 
 FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
-	: SessionDetailsHandle(MakeShareable<FSessionDetailsHandleEOSGS>(new FSessionDetailsHandleEOSGS(InSessionDetailsHandle)))
+	: SessionDetailsHandle(MakeShared<FSessionDetailsHandleEOSGS>(InSessionDetailsHandle))
 {
 	EOS_SessionDetails_CopyInfoOptions CopyInfoOptions = { };
 	CopyInfoOptions.ApiVersion = EOS_SESSIONDETAILS_COPYINFO_API_LATEST;
@@ -78,7 +78,7 @@ const FSessionEOSGS& FSessionEOSGS::Cast(const FSession& InSession)
 {
 	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Epic);
 
-	return *static_cast<const FSessionEOSGS*>(&InSession);
+	return static_cast<const FSessionEOSGS&>(InSession);
 }
 
 /** FSessionsEOSGS */
@@ -95,6 +95,121 @@ void FSessionsEOSGS::Initialize()
 
 	SessionsHandle = EOS_Platform_GetSessionsInterface(static_cast<FOnlineServicesEOSGS&>(GetServices()).GetEOSPlatformHandle());
 	check(SessionsHandle);
+
+	RegisterEventHandlers();
+}
+
+void FSessionsEOSGS::Shutdown()
+{
+	Super::Shutdown();
+
+	UnregisterEventHandlers();
+}
+
+void FSessionsEOSGS::RegisterEventHandlers()
+{
+	// Register for session invites received events
+	OnSessionInviteReceivedEventRegistration = EOS_RegisterComponentEventHandler(
+		this,
+		SessionsHandle,
+		EOS_SESSIONS_ADDNOTIFYSESSIONINVITERECEIVED_API_LATEST,
+		&EOS_Sessions_AddNotifySessionInviteReceived,
+		&EOS_Sessions_RemoveNotifySessionInviteReceived,
+		&FSessionsEOSGS::HandleSessionInviteReceived);
+
+	static_assert(EOS_SESSIONS_ADDNOTIFYSESSIONINVITERECEIVED_API_LATEST == 1, "EOS_Sessions_AddNotifySessionInviteReceivedOptions updated, check new fields");
+
+	// Register for session invites accepted events
+	OnSessionInviteAcceptedEventRegistration = EOS_RegisterComponentEventHandler(
+		this,
+		SessionsHandle,
+		EOS_SESSIONS_ADDNOTIFYSESSIONINVITEACCEPTED_API_LATEST,
+		&EOS_Sessions_AddNotifySessionInviteAccepted,
+		&EOS_Sessions_RemoveNotifySessionInviteAccepted,
+		&FSessionsEOSGS::HandleSessionInviteAccepted);
+
+	static_assert(EOS_SESSIONS_ADDNOTIFYSESSIONINVITEACCEPTED_API_LATEST == 1, "EOS_Sessions_AddNotifySessionInviteAcceptedOptions updated, check new fields");
+
+	// Register for join session accepted events
+	OnJoinSessionAcceptedEventRegistration = EOS_RegisterComponentEventHandler(
+		this,
+		SessionsHandle,
+		EOS_SESSIONS_ADDNOTIFYJOINSESSIONACCEPTED_API_LATEST,
+		&EOS_Sessions_AddNotifyJoinSessionAccepted,
+		&EOS_Sessions_RemoveNotifyJoinSessionAccepted,
+		&FSessionsEOSGS::HandleJoinSessionAccepted);
+
+	static_assert(EOS_SESSIONS_ADDNOTIFYJOINSESSIONACCEPTED_API_LATEST == 1, "EOS_Sessions_AddNotifyJoinSessionAcceptedOptions updated, check new fields");
+}
+
+void FSessionsEOSGS::UnregisterEventHandlers()
+{
+	OnSessionInviteReceivedEventRegistration = nullptr;
+	OnSessionInviteAcceptedEventRegistration = nullptr;
+	OnJoinSessionAcceptedEventRegistration = nullptr;
+}
+
+void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInviteReceivedCallbackInfo* Data)
+{
+	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	if (LocalUserId.IsValid())
+	{
+		Services.Get<FAuthEOSGS>()->ResolveAccountIds(LocalUserId, { Data->LocalUserId, Data->TargetUserId })
+			.Next([this, WeakThis = AsWeak(), LocalUserId, InviteId = FString(Data->InviteId)](TArray<FOnlineAccountIdHandle> ResolvedAccountIds)
+		{
+			if (const TSharedPtr<ISessions> StrongThis = WeakThis.Pin())
+			{
+				// First and second place in the array will be occupied by the receiver and the sender, respectively, since the same order is kept in the array of resolved ids
+				const FOnlineAccountIdHandle& ReceiverId = ResolvedAccountIds[0];
+				const FOnlineAccountIdHandle& SenderId = ResolvedAccountIds[1];
+
+				TResult<TSharedRef<const FSessionInvite>, FOnlineError> SessionInviteResult = BuildSessionInvite(ReceiverId, SenderId, InviteId);
+
+				if (SessionInviteResult.IsOk())
+				{
+					FSessionInviteReceived Event = { LocalUserId, SessionInviteResult.GetOkValue() };
+
+					SessionEvents.OnSessionInviteReceived.Broadcast(Event);
+				}
+
+				// We won't broadcast the event if there was an error retrieving the session information
+			}
+		});
+	}
+}
+
+void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data)
+{
+	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	if (LocalUserId.IsValid())
+	{
+		FUISessionJoinRequested Event{
+			LocalUserId,
+			BuildSessionFromInvite(FString(Data->InviteId)),
+			EUISessionJoinRequestedSource::FromInvitation
+		};
+
+		SessionEvents.OnUISessionJoinRequested.Broadcast(Event);
+
+		// The game can react to the OnUISessionJoinRequested event by starting the JoinSession process
+	}
+}
+
+void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcceptedCallbackInfo* Data)
+{
+	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	if (LocalUserId.IsValid())
+	{
+		FUISessionJoinRequested Event {
+			LocalUserId,
+			BuildSessionFromUIEvent(Data->UiEventId),
+			EUISessionJoinRequestedSource::Unspecified
+		};
+
+		SessionEvents.OnUISessionJoinRequested.Broadcast(Event);
+
+		// The game can react to the OnUISessionJoinRequested event by starting the JoinSession process
+	}
 }
 
 TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSession::Params&& Params)
@@ -837,7 +952,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 				return;
 			}
 
-			CurrentSessionSearchHandleEOSGS = MakeShareable(new FSessionSearchHandleEOSGS(SearchHandle));
+			CurrentSessionSearchHandleEOSGS = MakeShared<FSessionSearchHandleEOSGS>(SearchHandle);
 
 			// We write the search attributes
 			WriteSessionSearchHandle(*CurrentSessionSearchHandleEOSGS, OpParams);
@@ -986,6 +1101,10 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
 		{
 			FoundSession->Get().CurrentState = ESessionState::Valid;
+
+			FSessionJoined Event = { { OpParams.LocalUserId }, *FoundSession };
+
+			SessionEvents.OnSessionJoined.Broadcast(Event);
 		}
 
 		// A successful join allows the client to server travel, after which RegisterPlayers will be called by the engine
@@ -993,6 +1112,150 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		// TODO: Support multiple local users joining the session
 	})
 	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TResult<TSharedRef<const FSessionInvite>, FOnlineError> FSessionsEOSGS::BuildSessionInvite(FOnlineAccountIdHandle RecipientId, FOnlineAccountIdHandle SenderId, const FString& InInviteId) const
+{
+	TResult<TSharedRef<const FSession>, FOnlineError> SessionInviteResult = BuildSessionFromInvite(InInviteId);
+
+	if (SessionInviteResult.IsOk())
+	{
+		FSessionInvite SessionInvite {
+			RecipientId,
+			SenderId,
+			InInviteId,
+			SessionInviteResult.GetOkValue()
+		};
+
+		return TResult<TSharedRef<const FSessionInvite>, FOnlineError>(MakeShared<FSessionInvite>(MoveTemp(SessionInvite)));
+	}
+	else
+	{
+		return TResult<TSharedRef<const FSessionInvite>, FOnlineError>(SessionInviteResult.GetErrorValue());
+	}
+}
+
+TResult<TSharedRef<const FSession>, FOnlineError> FSessionsEOSGS::BuildSessionFromInvite(const FString& InInviteId) const
+{
+	EOS_Sessions_CopySessionHandleByInviteIdOptions CopySessionHandleByInviteIdOptions = { };
+	CopySessionHandleByInviteIdOptions.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYINVITEID_API_LATEST;
+	static_assert(EOS_SESSIONS_COPYSESSIONHANDLEBYINVITEID_API_LATEST == 1, "EOS_Sessions_CopySessionHandleByInviteIdOptions updated, check new fields");
+
+	FTCHARToUTF8 InviteIdUtf8(InInviteId);
+	CopySessionHandleByInviteIdOptions.InviteId = InviteIdUtf8.Get();
+
+	EOS_HSessionDetails SessionDetailsHandle;
+	EOS_EResult CopySessionHandleByInviteIdResult = EOS_Sessions_CopySessionHandleByInviteId(SessionsHandle, &CopySessionHandleByInviteIdOptions, &SessionDetailsHandle);
+	if (CopySessionHandleByInviteIdResult == EOS_EResult::EOS_Success)
+	{
+		return TResult<TSharedRef<const FSession>, FOnlineError>(MakeShared<FSessionEOSGS>(SessionDetailsHandle));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromInvite] EOS_Sessions_CopySessionHandleByInviteId failed with result [%s]"), *LexToString(CopySessionHandleByInviteIdResult));
+
+		return TResult<TSharedRef<const FSession>, FOnlineError>(FromEOSError(CopySessionHandleByInviteIdResult));
+	}
+}
+
+TResult<TSharedRef<const FSession>, FOnlineError> FSessionsEOSGS::BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const
+{
+	EOS_Sessions_CopySessionHandleByUiEventIdOptions CopySessionHandleByUiEventIdOptions = { };
+	CopySessionHandleByUiEventIdOptions.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYUIEVENTID_API_LATEST;
+	static_assert(EOS_SESSIONS_COPYSESSIONHANDLEBYUIEVENTID_API_LATEST == 1, "EOS_Sessions_CopySessionHandleByUiEventIdOptions updated, check new fields");
+
+	CopySessionHandleByUiEventIdOptions.UiEventId = UIEventId;
+
+	EOS_HSessionDetails SessionDetailsHandle;
+	EOS_EResult CopySessionHandleByUiEventIdResult = EOS_Sessions_CopySessionHandleByUiEventId(SessionsHandle, &CopySessionHandleByUiEventIdOptions, &SessionDetailsHandle);
+	if (CopySessionHandleByUiEventIdResult == EOS_EResult::EOS_Success)
+	{
+		return TResult<TSharedRef<const FSession>, FOnlineError>(MakeShared<FSessionEOSGS>(SessionDetailsHandle));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromUIEvent] EOS_Sessions_CopySessionHandleByUiEventId failed with result [%s]"), *LexToString(CopySessionHandleByUiEventIdResult));
+
+		return TResult<TSharedRef<const FSession>, FOnlineError>(FromEOSError(CopySessionHandleByUiEventIdResult));
+	}
+}
+
+TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSendSessionInvite::Params&& Params)
+{
+	TOnlineAsyncOpRef<FSendSessionInvite> Op = GetOp<FSendSessionInvite>(MoveTemp(Params));
+
+	// TODO: Param checks
+	Op->Then([this](TOnlineAsyncOp<FSendSessionInvite>& Op, TPromise<const EOS_Sessions_SendInviteCallbackInfo*>&& Promise)
+	{
+		const FSendSessionInvite::Params& OpParams = Op.GetParams();
+
+		// TODO: State checks
+
+		EOS_Sessions_SendInviteOptions SendInviteOptions = { };
+		SendInviteOptions.ApiVersion = EOS_SESSIONS_SENDINVITE_API_LATEST;
+		static_assert(EOS_SESSIONS_SENDINVITE_API_LATEST == 1, "EOS_Sessions_SendInviteOptions updated, check new fields");
+
+		SendInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+		
+		const FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
+		SendInviteOptions.SessionName = SessionNameUtf8.Get();
+
+		SendInviteOptions.TargetUserId = GetProductUserIdChecked(OpParams.TargetUsers[0]); // TODO: Multiple user invitations using WhenAll like JoinLobbyImpl
+
+		EOS_Async<EOS_Sessions_SendInviteCallbackInfo>(EOS_Sessions_SendInvite, SessionsHandle, SendInviteOptions, MoveTemp(Promise));
+		return;
+	})
+	.Then([this](TOnlineAsyncOp<FSendSessionInvite>& Op, const EOS_Sessions_SendInviteCallbackInfo* Result)
+	{
+		if (Result->ResultCode != EOS_EResult::EOS_Success)
+		{
+			Op.SetError(FromEOSError(Result->ResultCode));
+			return;
+		}
+
+		Op.SetResult(FSendSessionInvite::Result{ });
+	})
+	.Enqueue(GetSerialQueue()); // TODO: Use the parallel queue instead when possible
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(FRejectSessionInvite::Params&& Params)
+{
+	TOnlineAsyncOpRef<FRejectSessionInvite> Op = GetOp<FRejectSessionInvite>(MoveTemp(Params));
+
+	// TODO: Param checks
+	Op->Then([this](TOnlineAsyncOp<FRejectSessionInvite>& Op, TPromise<const EOS_Sessions_RejectInviteCallbackInfo*>&& Promise)
+	{
+		const FRejectSessionInvite::Params& OpParams = Op.GetParams();
+
+		// TODO: State checks
+
+		EOS_Sessions_RejectInviteOptions RejectInviteOptions = { };
+		RejectInviteOptions.ApiVersion = EOS_SESSIONS_REJECTINVITE_API_LATEST;
+		static_assert(EOS_SESSIONS_REJECTINVITE_API_LATEST == 1, "EOS_Sessions_RejectInviteOptions updated, check new fields");
+
+		RejectInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+
+		const FTCHARToUTF8 InviteIdUtf8(OpParams.SessionInvite->InviteId);
+		RejectInviteOptions.InviteId = InviteIdUtf8.Get();
+
+		EOS_Async<EOS_Sessions_RejectInviteCallbackInfo>(EOS_Sessions_RejectInvite, SessionsHandle, RejectInviteOptions, MoveTemp(Promise));
+		return;
+	})
+	.Then([this](TOnlineAsyncOp<FRejectSessionInvite>& Op, const EOS_Sessions_RejectInviteCallbackInfo* Result)
+	{
+		if (Result->ResultCode != EOS_EResult::EOS_Success)
+		{
+			Op.SetError(FromEOSError(Result->ResultCode));
+			return;
+		}
+
+		Op.SetResult(FRejectSessionInvite::Result{ });
+	})
+	.Enqueue(GetSerialQueue()); // TODO: Use the parallel queue instead when possible
 
 	return Op->GetHandle();
 }

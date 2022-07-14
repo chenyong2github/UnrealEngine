@@ -222,14 +222,19 @@ struct ONLINESERVICESINTERFACE_API FSession
 
 struct FSessionInvite
 {
-	/* The user which sent the invite*/
-	FOnlineAccountIdHandle HostUserId;
+	/* The user which the invite got sent to */
+	FOnlineAccountIdHandle RecipientId;
 
-	/* The invite id, needed for rejecting the invite */
-	FName InviteId;
+	/* The user which sent the invite */
+	FOnlineAccountIdHandle SenderId;
 
-	/* The session the invite is for */
-	TSharedRef<FSession> Session;
+	/* The invite id, needed for retrieving session information and rejecting the invite */
+	FString InviteId;
+
+	/* Pointer to the session information */
+	TSharedRef<const FSession> Session;
+
+	// TODO: Default constructor will be deleted after we cache invites
 };
 
 struct FGetAllSessions
@@ -428,7 +433,7 @@ struct FJoinSession
 		FName SessionName;
 
 		/* A reference to the session to be joined. */
-		TSharedRef<const FSession> Session;
+		TSharedRef<const FSession> Session; // TODO: FOnlineSessionIdHandle to be used after we cache search results
 
 		/* Information for all local users who will join the session (includes the session creator)*/
 		FSessionMembersMap LocalUsers;
@@ -464,23 +469,6 @@ struct FSendSessionInvite
 	};
 };
 
-struct FQuerySessionInvites
-{
-	static constexpr TCHAR Name[] = TEXT("QuerySessionInvites");
-
-	struct Params
-	{
-		/* The local user agent which started the query*/
-		FOnlineAccountIdHandle LocalUserId;
-	};
-
-	struct Result
-	{
-		/* Array of session invite objects built from the information returned in the query */
-		TArray<FSessionInvite> SessionInvites;
-	};
-};
-
 struct FRejectSessionInvite
 {
 	static constexpr TCHAR Name[] = TEXT("RejectSessionInvite");
@@ -491,7 +479,7 @@ struct FRejectSessionInvite
 		FOnlineAccountIdHandle LocalUserId;
 
 		/* The invite to be rejected */
-		FSessionInvite SessionInvite;
+		TSharedRef<const FSessionInvite> SessionInvite; // TODO: FOnlineSessionInviteIdHandle to be used after we cache invites
 	};
 
 	struct Result
@@ -550,6 +538,8 @@ struct FSessionJoined
 
 	/* A shared reference to the session joined. */
 	TSharedRef<const FSession> Session;
+
+	FSessionJoined() = delete; // cannot default construct due to TSharedRef
 };
 
 struct FSessionLeft
@@ -565,24 +555,44 @@ struct FSessionUpdated
 
 	/* Updated session settings */
 	FSessionSettingsUpdate UpdatedSettings;
+
+	FSessionUpdated() = delete; // cannot default construct due to TSharedRef
 };
 
-struct FInviteReceived
+struct FSessionInviteReceived
 {
-	/* The local user which accepted the invite */
+	/* The local user which received the invite */
 	FOnlineAccountIdHandle LocalUserId;
 
-	/* Reference to the invite information */
-	TSharedRef<FSessionInvite> SessionInvite;
+	/** The session invite the local user was sent, or the online error if there was a failure retrieving the session for it*/
+	TSharedRef<const FSessionInvite> SessionInvite;
+
+	FSessionInviteReceived() = delete; // cannot default construct due to TSharedRef
 };
 
-struct FInviteAccepted
+/** Session join requested source */
+enum class EUISessionJoinRequestedSource : uint8
 {
-	/* The local user which accepted the invite */
+	/** Unspecified by the online service */
+	Unspecified,
+	/** From an invitation */
+	FromInvitation,
+};
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(EUISessionJoinRequestedSource UISessionJoinRequestedSource);
+ONLINESERVICESINTERFACE_API void LexFromString(EUISessionJoinRequestedSource& OutUISessionJoinRequestedSource, const TCHAR* InStr);
+
+struct FUISessionJoinRequested
+{
+	/** The local user associated with the join request. */
 	FOnlineAccountIdHandle LocalUserId;
 
-	/* Reference to the invite information */
-	TSharedRef<FSessionInvite> SessionInvite;
+	/** The session the local user requested to join, or the online error if there was a failure retrieving it */
+	TResult<TSharedRef<const FSession>, FOnlineError> Result;
+
+	/** Join request source */
+	EUISessionJoinRequestedSource JoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
+
+	FUISessionJoinRequested() = delete; // cannot default construct due to TSharedRef
 };
 
 class ISessions
@@ -669,14 +679,6 @@ public:
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) = 0;
 
 	/**
-	 * Queries all session invites for a given user.
-	 *
-	 * @param Parameters for the QuerySessionInvites call
-	 * @return
-	 */
-	virtual TOnlineAsyncOpHandle<FQuerySessionInvites> QuerySessionInvites(FQuerySessionInvites::Params&& Params) = 0;
-
-	/**
 	 * Rejects a given session invite for a user.
 	 *
 	 * @param Parameters for the RejectSessionInvite call
@@ -732,15 +734,15 @@ public:
 	 *
 	 * @return
 	 */
-	virtual TOnlineEvent<void(const FInviteReceived&)> OnInviteReceived() = 0;
+	virtual TOnlineEvent<void(const FSessionInviteReceived&)> OnSessionInviteReceived() = 0;
 
 	/**
-	 * Get the event that is triggered when a session invite is accepted.
-	 * This event will trigger as a result of accepting a platform session invite.
+	 * Get the event that is triggered when a session is joined via UI.
+	 * This event will trigger as a result of joining a session via the platform UI.
 	 *
 	 * @return
 	 */
-	virtual TOnlineEvent<void(const FInviteAccepted&)> OnInviteAccepted() = 0;
+	virtual TOnlineEvent<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested() = 0;
 };
 
 namespace Meta {
@@ -816,7 +818,7 @@ BEGIN_ONLINE_STRUCT_META(FSession)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionInvite)
-	ONLINE_STRUCT_FIELD(FSessionInvite, HostUserId),
+	ONLINE_STRUCT_FIELD(FSessionInvite, SenderId),
 	ONLINE_STRUCT_FIELD(FSessionInvite, InviteId),
 	ONLINE_STRUCT_FIELD(FSessionInvite, Session)
 END_ONLINE_STRUCT_META()
@@ -917,14 +919,6 @@ BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Result)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FQuerySessionInvites::Params)
-	ONLINE_STRUCT_FIELD(FQuerySessionInvites::Params, LocalUserId)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FQuerySessionInvites::Result)
-	ONLINE_STRUCT_FIELD(FQuerySessionInvites::Result, SessionInvites)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Params)

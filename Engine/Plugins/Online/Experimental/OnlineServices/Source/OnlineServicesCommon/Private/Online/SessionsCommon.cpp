@@ -32,7 +32,6 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::StartMatchmaking);
 		RegisterCommand(&FSessionsCommon::JoinSession);
 		RegisterCommand(&FSessionsCommon::SendSessionInvite);
-		RegisterCommand(&FSessionsCommon::QuerySessionInvites);
 		RegisterCommand(&FSessionsCommon::RejectSessionInvite);
 		RegisterCommand(&FSessionsCommon::RegisterPlayers);
 		RegisterCommand(&FSessionsCommon::UnregisterPlayers);
@@ -119,13 +118,6 @@ namespace UE::Online {
 	TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsCommon::SendSessionInvite(FSendSessionInvite::Params&& Params)
 	{
 		TOnlineAsyncOpRef<FSendSessionInvite> Operation = GetOp<FSendSessionInvite>(MoveTemp(Params));
-		Operation->SetError(Errors::NotImplemented());
-		return Operation->GetHandle();
-	}
-
-	TOnlineAsyncOpHandle<FQuerySessionInvites> FSessionsCommon::QuerySessionInvites(FQuerySessionInvites::Params&& Params)
-	{
-		TOnlineAsyncOpRef<FQuerySessionInvites> Operation = GetOp<FQuerySessionInvites>(MoveTemp(Params));
 		Operation->SetError(Errors::NotImplemented());
 		return Operation->GetHandle();
 	}
@@ -269,14 +261,14 @@ namespace UE::Online {
 		return SessionEvents.OnSessionUpdated;
 	}
 
-	TOnlineEvent<void(const FInviteReceived&)> FSessionsCommon::OnInviteReceived()
+	TOnlineEvent<void(const FSessionInviteReceived&)> FSessionsCommon::OnSessionInviteReceived()
 	{
-		return SessionEvents.OnInviteReceived;
+		return SessionEvents.OnSessionInviteReceived;
 	}
 
-	TOnlineEvent<void(const FInviteAccepted&)> FSessionsCommon::OnInviteAccepted()
+	TOnlineEvent<void(const FUISessionJoinRequested&)> FSessionsCommon::OnUISessionJoinRequested()
 	{
-		return SessionEvents.OnInviteAccepted;
+		return SessionEvents.OnUISessionJoinRequested;
 	}
 
 	FOnlineError FSessionsCommon::CheckCreateSessionParams(const FCreateSession::Params& Params)
