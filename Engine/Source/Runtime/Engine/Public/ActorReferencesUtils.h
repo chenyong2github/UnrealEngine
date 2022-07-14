@@ -12,10 +12,10 @@ namespace ActorsReferencesUtils
 	/**
 	 * Gather direct references to external actors from the root object.
 	 */
-	ENGINE_API TArray<AActor*> GetExternalActorReferences(UObject* Root);
+	ENGINE_API TArray<AActor*> GetExternalActorReferences(UObject* Root, bool bRecursive = false);
 
 	/**
 	 * Gather direct references to actors from the root object.
 	 */
-	ENGINE_API TArray<AActor*> GetActorReferences(UObject* Root, EObjectFlags RequiredFlags = RF_NoFlags);
+	ENGINE_API TArray<AActor*> GetActorReferences(UObject* Root, EObjectFlags RequiredFlags = RF_NoFlags, bool bRecursive = false);
 }

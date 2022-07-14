@@ -7,10 +7,11 @@
 class FArchiveGatherExternalActorRefs : public FArchiveUObject
 {
 public:
-	FArchiveGatherExternalActorRefs(UObject* InRoot, TSet<AActor*>& InActorReferences, EObjectFlags InRequiredFlags)
+	FArchiveGatherExternalActorRefs(UObject* InRoot, TSet<AActor*>& InActorReferences, EObjectFlags InRequiredFlags, bool bInRecursive)
 		: Root(InRoot)
 		, ActorReferences(InActorReferences)
 		, RequiredFlags(InRequiredFlags)
+		, bRecursive(bInRecursive)
 	{
 		// Don't gather transient actor references
 		SetIsPersistent(true);
@@ -38,7 +39,7 @@ public:
 			{
 				HandleObjectReference(Obj);
 
-				if (Obj->IsInOuter(Root))
+				if (bRecursive || Obj->IsInOuter(Root))
 				{
 					Obj->Serialize(*this);
 				}
@@ -78,16 +79,17 @@ private:
 	TSet<AActor*>& ActorReferences;
 	TSet<UObject*> SubObjects;
 	EObjectFlags RequiredFlags;
+	bool bRecursive;
 };
 
-TArray<AActor*> ActorsReferencesUtils::GetExternalActorReferences(UObject* Root)
+TArray<AActor*> ActorsReferencesUtils::GetExternalActorReferences(UObject* Root, bool bRecursive)
 {
-	return GetActorReferences(Root, RF_HasExternalPackage);
+	return GetActorReferences(Root, RF_HasExternalPackage, bRecursive);
 }
 
-TArray<AActor*> ActorsReferencesUtils::GetActorReferences(UObject* Root, EObjectFlags RequiredFlags)
+TArray<AActor*> ActorsReferencesUtils::GetActorReferences(UObject* Root, EObjectFlags RequiredFlags, bool bRecursive)
 {
 	TSet<AActor*> Result;
-	FArchiveGatherExternalActorRefs Ar(Root, Result, RequiredFlags);
+	FArchiveGatherExternalActorRefs Ar(Root, Result, RequiredFlags, bRecursive);
 	return Result.Array();
 }

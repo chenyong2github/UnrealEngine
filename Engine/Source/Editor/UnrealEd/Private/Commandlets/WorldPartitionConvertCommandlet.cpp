@@ -1204,14 +1204,14 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				LevelScriptActorReferences.Add(LevelScriptActor);
 
 				ULevelScriptBlueprint* LevelScriptBlueprint = SubLevel->GetLevelScriptBlueprint(true);
-				LevelScriptActorReferences.Append(ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint));
+				LevelScriptActorReferences.Append(ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint, RF_NoFlags, true));
 
 				for(AActor* Actor: SubLevel->Actors)
 				{
 					if(IsValid(Actor))
 					{
 						TSet<AActor*> ActorReferences;
-						ActorReferences.Append(ActorsReferencesUtils::GetActorReferences(Actor));
+						ActorReferences.Append(ActorsReferencesUtils::GetActorReferences(Actor, RF_NoFlags, true));
 
 						for (AActor* ActorReference : ActorReferences)
 						{
