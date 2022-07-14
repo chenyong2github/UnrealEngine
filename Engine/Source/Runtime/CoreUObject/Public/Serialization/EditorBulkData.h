@@ -445,6 +445,15 @@ private:
 		return EnumHasAnyFlags(InFlags, EFlags::StoredInPackageTrailer);
 	}
 
+	/** 
+	 * Returns true when the bulkdata has an attachment to it's package file on disk, meaning that it is safe for us to load
+	 * the payload from the file directly as we know where the payload is on disk 
+	 */
+	bool IsAttachedToPackageFile() const
+	{
+		return AttachedAr != nullptr;
+	}
+
 	void Register(UObject* Owner, const TCHAR* LogCallerName, bool bAllowUpdateId);
 	/** Used when we need to clear the registration for our bulkdataId because its ownership is transferring elsewhere. */
 	void Unregister();
@@ -475,12 +484,12 @@ private:
 	FText GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const;
 
 	/**
-	 * A utility for validating that a package trailer builder was created correctly. If something incorrect is encountered we will assert
+	 * A utility for validating that a package trailer builder was created correctly. If a problem is encountered we will assert
 	 * to prevent a corrupted package from being saved.
-	 * The main thing we check is that the payload was added as in the correct list for the correct payload storage type based on the flags 
-	 * we have for the payload.
-	 * Note that it is not expected that we will ever encounter these problems (so asserting is acceptable) and the checks could be considered
-	 * a little over cautious. We should consider just removing this check in 5.2 onwards.
+	 * The main thing we check is that the payload was added to the correct list for the correct payload storage type based on
+	 * the flags we have for the payload.
+	 * Note that it is not expected that we will ever encounter these problems (so asserting is acceptable) and the checks could
+	 * be considered a little over cautious. We should consider just removing this check in 5.2 onwards.
 	 * 
 	 * @param LinkerSave	The linker containing the package trailer builder
 	 * @param Id			The hash of the payload we want to verify

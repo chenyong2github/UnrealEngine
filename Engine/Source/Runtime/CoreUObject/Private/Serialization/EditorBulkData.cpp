@@ -44,7 +44,7 @@ TRACE_DECLARE_INT_COUNTER(EditorBulkData_PayloadDataPulled, TEXT("EditorBulkData
 
 namespace UE::Serialization
 {
-/** This console variable should only exist for testing */
+/** This is an experimental code path and is not expected to be used in production! */
 static TAutoConsoleVariable<bool> CVarShouldLoadFromSidecar(
 	TEXT("Serialization.LoadFromSidecar"),
 	false,
@@ -118,11 +118,11 @@ static void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPacka
 	{
 		TCHAR SystemErrorMsg[2048] = { 0 };
 		FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
-		UE_LOG(LogSerialization, Error, TEXT("Could not open the file '%s' for reading due to system error: '%s' (%d))"), *PackagePath.GetDebugNameWithExtension(PackageSegment), SystemErrorMsg, SystemError);
+		UE_LOG(LogSerialization, Error, TEXT("Could not open the file '%s' for reading due to system error: '%s' (%d))"), *PackagePath.GetLocalFullPath(PackageSegment), SystemErrorMsg, SystemError);
 	}
 	else
 	{
-		UE_LOG(LogSerialization, Error, TEXT("Could not open (%s) to read FEditorBulkData with an unknown error"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
+		UE_LOG(LogSerialization, Error, TEXT("Could not open (%s) to read FEditorBulkData with an unknown error"), *PackagePath.GetLocalFullPath(PackageSegment));
 	}
 }
 
@@ -443,9 +443,10 @@ FEditorBulkData& FEditorBulkData::operator=(const FEditorBulkData& Other)
 
 FEditorBulkData::~FEditorBulkData()
 {
-	if (AttachedAr != nullptr)
+	if (IsAttachedToPackageFile())
 	{
 		AttachedAr->DetachBulkData(this, false);
+		AttachedAr = nullptr;
 	}
 
 	OnExitMemory();
@@ -665,8 +666,9 @@ void FEditorBulkData::CreateFromBulkData(FBulkData& InBulkData, const FGuid& InG
 	Reset();
 
 #if UE_ALLOW_LINKERLOADER_ATTACHMENT
+	check(!IsAttachedToPackageFile());
 	AttachedAr = InBulkData.AttachedAr;
-	if (AttachedAr != nullptr)
+	if (IsAttachedToPackageFile())
 	{
 		AttachedAr->AttachBulkData(this);
 	}
@@ -1017,6 +1019,12 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				if (!PackagePath.IsEmpty() && CacheableArchive != nullptr)
 				{
 #if UE_ALLOW_LINKERLOADER_ATTACHMENT
+					if (IsAttachedToPackageFile())
+					{
+						// TODO: Remove this when doing UE-159339
+						AttachedAr->DetachBulkData(this, false);
+					}
+
 					AttachedAr = CacheableArchive;
 					AttachedAr->AttachBulkData(this);
 #endif //VBD_ALLOW_LINKERLOADER_ATTACHMENT
@@ -1114,9 +1122,47 @@ FCompressedBuffer FEditorBulkData::LoadFromDisk() const
 	{
 		return LoadFromSidecarFile();
 	}
+	else if (!IsAttachedToPackageFile())
+	{
+		if (IsReferencingOldBulkData())
+		{
+			UE_LOG(LogSerialization, Error, 
+				TEXT("Cannot attempt to load the payload '%s' from '%s' as the package is no longer attached to the file on disk and the payload is in an old style bulkdata structure"), 
+				*LexToString(PayloadContentId), 
+				*PackagePath.GetLocalFullPath(EPackageSegment::Header));
+
+			return FCompressedBuffer();
+		}
+
+		if (!IsStoredInPackageTrailer())
+		{
+			UE_LOG(LogSerialization, Error, 
+				TEXT("Cannot attempt to load the payload '%s' from '%s' as the package is no longer attached to the file on disk and the payload is not stored in a package trailer"),
+				*LexToString(PayloadContentId),
+				*PackagePath.GetLocalFullPath(EPackageSegment::Header));
+
+			return FCompressedBuffer();
+		}
+
+		FCompressedBuffer CompressedPayload = LoadFromPackageTrailer();
+		if (!CompressedPayload.IsNull())
+		{
+			return CompressedPayload;
+		}
+		else
+		{
+			UE_LOG(LogSerialization, Error,
+				TEXT("Cannot attempt to load the payload '%s' from '%s' as the package is no longer attached to the file on disk and the payload was not found in the package trailer"),
+				*LexToString(PayloadContentId),
+				*PackagePath.GetLocalFullPath(EPackageSegment::Header));
+
+			return FCompressedBuffer();
+		}
+		
+	}
 	else
 	{
-		if (CVarShouldLoadFromTrailer.GetValueOnAnyThread())
+		if (CVarShouldLoadFromTrailer.GetValueOnAnyThread() && IsStoredInPackageTrailer())
 		{
 			return LoadFromPackageTrailer();
 		}
@@ -1131,7 +1177,7 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageFile() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromPackageFile);
 
-	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the package file: '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
+	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the package file '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
 
 	// Open a reader to the file
 	TUniquePtr<FArchive> BulkArchive;
@@ -1149,8 +1195,7 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageFile() const
 		// Workspace Domain file. This was only possible if PackageSegment == Header; we checked that when serializing to the EditorDomain
 		// In that case, we need to use OpenReadExternalResource to access the Workspace Domain file
 		// In the cases where *this was loaded from the WorkspaceDomain, OpenReadExternalResource and OpenReadPackage are identical.
-		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
-			PackagePath.GetPackageName());
+		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
 	}
 
 	if (!BulkArchive.IsValid())
@@ -1159,7 +1204,7 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageFile() const
 		return FCompressedBuffer();
 	}
 
-	checkf(OffsetInFile != INDEX_NONE, TEXT("Attempting to load '%s' from disk with an invalid OffsetInFile!"), *PackagePath.GetDebugNameWithExtension(EPackageSegment::Header));
+	checkf(OffsetInFile != INDEX_NONE, TEXT("Attempting to load from the package file '%s' with an invalid OffsetInFile!"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
 	// Move the correct location of the data in the file
 	BulkArchive->Seek(OffsetInFile);
 
@@ -1174,7 +1219,7 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageTrailer() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::LoadFromPackageTrailer);
 
-	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load payload from the package trailer: '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
+	UE_LOG(LogSerialization, Verbose, TEXT("Attempting to load a payload via the package trailer from file '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
 
 	// TODO: Could just get the trailer from the owning FLinkerLoad if still attached
 
@@ -1194,8 +1239,7 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageTrailer() const
 		// Workspace Domain file. This was only possible if PackageSegment == Header; we checked that when serializing to the EditorDomain
 		// In that case, we need to use OpenReadExternalResource to access the Workspace Domain file
 		// In the cases where *this was loaded from the WorkspaceDomain, OpenReadExternalResource and OpenReadPackage are identical.
-		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
-			PackagePath.GetPackageName());
+		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
 	}
 
 	if (!BulkArchive.IsValid())
@@ -1207,15 +1251,21 @@ FCompressedBuffer FEditorBulkData::LoadFromPackageTrailer() const
 	BulkArchive->Seek(BulkArchive->TotalSize());
 
 	FPackageTrailer Trailer;
-	
 	if (Trailer.TryLoadBackwards(*BulkArchive))
 	{
-		return Trailer.LoadLocalPayload(PayloadContentId, *BulkArchive);
+		FCompressedBuffer CompressedPayload = Trailer.LoadLocalPayload(PayloadContentId, *BulkArchive);
+
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Could not find the payload '%s' in the package trailer of file '%s'"),
+			*LexToString(PayloadContentId ), 
+			*PackagePath.GetLocalFullPath(EPackageSegment::Header));
+
+		return CompressedPayload;
 	}
 	else
 	{
+		UE_LOG(LogSerialization, Error, TEXT("Could not read the package trailer from file '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::Header));
 		return FCompressedBuffer();
-	}	
+	}
 }
 
 FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Verbosity) const
@@ -1230,7 +1280,7 @@ FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Ve
 
 		if (Version != FTocEntry::PayloadSidecarFileVersion)
 		{
-			UE_CLOG(Verbosity > ErrorVerbosity::None, LogSerialization, Error, TEXT("Unknown version (%u) found in '%s'"), Version, *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_CLOG(Verbosity > ErrorVerbosity::None, LogSerialization, Error, TEXT("Unknown payload sidecar version (%u) found in '%s'"), Version, *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			return FCompressedBuffer();
 		}
 
@@ -1258,12 +1308,16 @@ FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Ve
 			}
 			else if(Verbosity > ErrorVerbosity::None)
 			{
-				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), *LexToString(PayloadContentId), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), 
+					*LexToString(PayloadContentId), 
+					*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			}
 		}
 		else if(Verbosity > ErrorVerbosity::None)
 		{
-			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), *LexToString(PayloadContentId), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), 
+				*LexToString(PayloadContentId), 
+				*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 		}
 	}
 	else if(Verbosity > ErrorVerbosity::None)
@@ -1412,8 +1466,11 @@ FCompressedBuffer FEditorBulkData::PullData() const
 
 bool FEditorBulkData::CanUnloadData() const
 {
-	// We cannot unload the data if are unable to reload it from a file
-	return IsDataVirtualized() || (PackagePath.IsEmpty() == false && AttachedAr != nullptr);
+	// Technically if we have a valid path but are detached we can still try  to load 
+	// the payload from disk via ::LoadFromPackageTrailer but we are not guaranteed success
+	// because the package file may have changed to one without the payload in it at all.
+	// Due to this we do not allow the payload to be unloaded if we are detached.
+	return IsDataVirtualized() || (!PackagePath.IsEmpty() && IsAttachedToPackageFile());
 }
 
 bool FEditorBulkData::IsMemoryOnlyPayload() const
@@ -1426,9 +1483,10 @@ void FEditorBulkData::Reset()
 	// Unregister rather than allowing the Registry to keep our record, since we are changing the payload
 	Unregister();
 	// Note that we do not reset the BulkDataId
-	if (AttachedAr != nullptr)
+	if (IsAttachedToPackageFile())
 	{
 		AttachedAr->DetachBulkData(this, false);
+		AttachedAr = nullptr;
 	}
 
 	PayloadContentId.Reset();
@@ -1453,9 +1511,16 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::DetachFromDisk);
 
-	check(Ar);
-	check(Ar == AttachedAr || AttachedAr == nullptr || AttachedAr->IsProxyOf(Ar));
+	check(Ar != nullptr);
+	check(Ar == AttachedAr || !IsAttachedToPackageFile() || AttachedAr->IsProxyOf(Ar));
 
+	// If bEnsurePayloadIsLoaded is true, then we should assume that a change to the 
+	// package file is imminent and we should load the payload into memory if possible.
+	// If it is false then either we are not expecting a change to the package file or
+	// we are not expected that the payload will be used again and can unload the 
+	// payload. If the payload is requested later we will try to load it off disk via
+	// the package trailer, but there is no guarantee that it will be present in the
+	// package file.
 	if (!IsDataVirtualized() && !PackagePath.IsEmpty())
 	{
 		if (Payload.IsNull() && bEnsurePayloadIsLoaded)
@@ -1465,10 +1530,8 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 			Payload = CompressedPayload.Decompress();
 		}
 
-		PackagePath.Empty();
 		OffsetInFile = INDEX_NONE;
 
-		EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain | EFlags::LegacyFileIsCompressed);
 		if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
 		{
 			if (bEnsurePayloadIsLoaded)
@@ -1635,12 +1698,11 @@ void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InP
 	// Unregister before calling DetachBulkData; DetachFromDisk calls OnExitMemory which is incorrect since
 	// we are changing data rather than leaving memory
 	Unregister();
-	if (AttachedAr != nullptr)
+	if (IsAttachedToPackageFile())
 	{
 		AttachedAr->DetachBulkData(this, false);
+		AttachedAr = nullptr;
 	}
-
-	check(AttachedAr == nullptr);
 
 	// We only take the payload if it has a length to avoid potentially holding onto a
 	// 0 byte allocation in the FSharedBuffer
@@ -1708,7 +1770,7 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
 
 		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to load payload '%s"), *LexToString(PayloadContentId));
-		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Payload '%s' loaded from '%s' is corrupt! Check the file on disk."),
+		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Payload '%s' loaded from package '%s' is corrupt! Check the package file on disk."),
 			*LexToString(PayloadContentId),
 			*PackagePath.GetDebugName());
 
@@ -2057,7 +2119,7 @@ FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) c
 	else if(!PackagePath.IsEmpty())
 	{
 		// We don't know where we are saving to, but we do know the package where the payload came from.
-		const FText PackageName = FText::FromString(PackagePath.GetPackageName());
+		const FText PackageName = FText::FromString(PackagePath.GetDebugName());
 
 		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadFromPkg", "Attempting to save bulkdata {0} with an invalid payload from package '{1}'. The package probably needs to be reverted/recreated to fix this."),
 								GuidID, PackageName);
