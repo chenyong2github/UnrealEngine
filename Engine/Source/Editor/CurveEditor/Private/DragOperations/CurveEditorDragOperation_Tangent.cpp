@@ -203,7 +203,10 @@ void FCurveEditorDragOperation_Tangent::OnEndDrag(FVector2D InitialPosition, FVe
 	{
 		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
 		{
-			Curve->SetKeyAttributes(KeyData.Handles, KeyData.LastDraggedAttributes, EPropertyChangeType::ValueSet);
+			if (KeyData.LastDraggedAttributes.IsSet())
+			{
+				Curve->SetKeyAttributes(KeyData.Handles, KeyData.LastDraggedAttributes.GetValue(), EPropertyChangeType::ValueSet);
+			}
 		}
 	}
 	
