@@ -2824,7 +2824,7 @@ extern bool IsLightBehindSurface(const FVector4f& TrianglePoint, const FVector4f
  */
 extern TBitArray<> CullBackfacingLights(bool bTwoSidedMaterial, const FVector4f& TrianglePoint, const FVector4f& TriangleNormal, const TArray<FLight*>& Lights);
 
-#include "LightingSystem.inl"
+#include "LightingSystem.inl" // IWYU pragma: export
 
 } //namespace Lightmass
 

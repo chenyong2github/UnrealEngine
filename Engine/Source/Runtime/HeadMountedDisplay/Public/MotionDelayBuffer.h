@@ -119,4 +119,4 @@ private:
 };
 
 // Templatized implementation
-#include "MotionDelayBuffer.inl"
+#include "MotionDelayBuffer.inl" // IWYU pragma: export

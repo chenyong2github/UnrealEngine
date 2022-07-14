@@ -4299,5 +4299,5 @@ private:
 
 // Conditionally inlined
 #if KISMET_MATH_INLINE_ENABLED
-#include "KismetMathLibrary.inl"
+#include "KismetMathLibrary.inl" // IWYU pragma: export
 #endif

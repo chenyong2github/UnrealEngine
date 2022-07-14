@@ -271,4 +271,4 @@ protected:
 	FVector2D DecoratorPosition;
 };
 
-#include "Input/DragAndDrop.inl"
+#include "Input/DragAndDrop.inl" // IWYU pragma: export

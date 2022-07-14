@@ -623,7 +623,7 @@ static inline void Inverse4x4( double* dst, const FArg* src )
 	}
 }
 
-#include "Math/Matrix.inl"
+#include "Math/Matrix.inl" // IWYU pragma: export
 
 #ifdef _MSC_VER
 #pragma warning (pop)

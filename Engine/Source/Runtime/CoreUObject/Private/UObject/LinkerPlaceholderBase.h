@@ -367,7 +367,7 @@ private:
 };
 
 // Templatized implementation
-#include "UObject/LinkerPlaceholderBase.inl"
+#include "UObject/LinkerPlaceholderBase.inl" // IWYU pragma: export
 
 /*******************************************************************************
  * TLinkerImportPlaceholder<> Specializations

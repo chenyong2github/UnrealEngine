@@ -252,10 +252,11 @@ struct TSlateDeprecatedTAttribute
 	bool IdenticalTo(const TAttribute<ObjectType>& InOther) const { return false; }
 };
 
-
+// IWYU pragma: begin_exports
 #include "Types/Attributes/SlateAttributeDefinition.inl"
 #include "Types/Attributes/SlateAttributeBase.inl"
 
 #include "Types/Attributes/SlateAttributeContained.inl"
 #include "Types/Attributes/SlateAttributeManaged.inl"
 #include "Types/Attributes/SlateAttributeMember.inl"
+// IWYU pragma: end_exports

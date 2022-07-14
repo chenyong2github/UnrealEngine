@@ -65,4 +65,4 @@ protected:
 
 };
 
-#include "Tools/ToolCompatible.inl"
+#include "Tools/ToolCompatible.inl" // IWYU pragma: export

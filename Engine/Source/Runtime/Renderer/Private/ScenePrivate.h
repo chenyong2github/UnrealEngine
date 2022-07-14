@@ -3534,5 +3534,5 @@ inline bool ShouldIncludeDomainInMeshPass(EMaterialDomain Domain)
 	return Domain != MD_Volume;
 }
 
-#include "BasePassRendering.inl"
+#include "BasePassRendering.inl" // IWYU pragma: export
 

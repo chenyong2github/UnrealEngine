@@ -5904,4 +5904,4 @@ private:
 
 #undef RHICOMMAND_CALLSTACK
 
-#include "RHICommandList.inl"
+#include "RHICommandList.inl" // IWYU pragma: export

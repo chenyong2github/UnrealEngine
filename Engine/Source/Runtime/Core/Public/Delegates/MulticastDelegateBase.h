@@ -6,8 +6,8 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Array.h"
 #include "Math/UnrealMathUtility.h"
-#include "Delegates/IDelegateInstance.h"
-#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h" // IWYU pragma: export
+#include "Delegates/DelegateBase.h" // IWYU pragma: export
 
 #if !defined(NUM_MULTICAST_DELEGATE_INLINE_ENTRIES) || NUM_MULTICAST_DELEGATE_INLINE_ENTRIES == 0
 	typedef FHeapAllocator FMulticastInvocationListAllocatorType;

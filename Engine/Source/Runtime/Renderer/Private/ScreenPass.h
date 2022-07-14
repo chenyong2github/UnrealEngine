@@ -670,4 +670,4 @@ void AddDownsampleDepthPass(
 	FScreenPassRenderTarget Output,
 	EDownsampleDepthFilter DownsampleDepthFilter);
 
-#include "ScreenPass.inl"
+#include "ScreenPass.inl" // IWYU pragma: export

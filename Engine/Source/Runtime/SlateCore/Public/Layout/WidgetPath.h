@@ -286,4 +286,4 @@ public:
 	TWeakPtr< SWindow > Window;
 };
 
-#include "Layout/WidgetPath.inl"
+#include "Layout/WidgetPath.inl" // IWYU pragma: export

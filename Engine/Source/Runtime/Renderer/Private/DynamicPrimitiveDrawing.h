@@ -75,5 +75,5 @@ private:
 	FBatchedElements& GetElements(uint8 DepthPriorityGroup) const;
 };
 
-#include "DynamicPrimitiveDrawing.inl"
+#include "DynamicPrimitiveDrawing.inl" // IWYU pragma: export
 

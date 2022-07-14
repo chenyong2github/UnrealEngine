@@ -498,4 +498,4 @@ namespace Chaos
 	};
 }
 
-#include "Chaos/Joint/JointSolverConstraints.inl"
+#include "Chaos/Joint/JointSolverConstraints.inl" // IWYU pragma: export

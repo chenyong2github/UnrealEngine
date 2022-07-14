@@ -580,4 +580,4 @@ private:
 	TMap<FGuid, FOpParameters>	BinaryOperators;
 };
 
-#include "Misc/ExpressionParserTypes.inl"
+#include "Misc/ExpressionParserTypes.inl" // IWYU pragma: export
