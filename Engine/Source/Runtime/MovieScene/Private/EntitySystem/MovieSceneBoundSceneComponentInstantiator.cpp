@@ -25,6 +25,7 @@ UMovieSceneBoundSceneComponentInstantiator::UMovieSceneBoundSceneComponentInstan
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentProducer(GetClass(), Components->BoundObject);
+		DefineComponentProducer(GetClass(), Components->SymbolicTags.CreatesEntities);
 	}
 }
 
