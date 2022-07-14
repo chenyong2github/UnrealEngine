@@ -2199,9 +2199,9 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 			return false;
 		}
 
-		if ( const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->GetSkeletalMesh())
+		if ( const USkinnedAsset* SkinnedAsset = SkinnedMeshComponent->GetSkinnedAsset())
 		{
-			FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+			FSkeletalMeshRenderData* RenderData = SkinnedAsset->GetResourceForRendering();
 			if ( !RenderData )
 			{
 				return false;
@@ -2213,7 +2213,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				return false;
 			}
 
-			int32 NumLODs = SkeletalMesh->GetLODNum();
+			int32 NumLODs = SkinnedAsset->GetLODNum();
 			const bool bHasLODs = NumLODs > 1;
 
 			FString MeshName;
@@ -2244,7 +2244,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 						continue;
 					}
 
-					const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo( LODIndex );
+					const FSkeletalMeshLODInfo* LODInfo = SkinnedAsset->GetLODInfo( LODIndex );
 
 					const TArray<FSkelMeshRenderSection>& Sections = LodRenderData[ LODIndex ].RenderSections;
 					int32 NumSections = Sections.Num();

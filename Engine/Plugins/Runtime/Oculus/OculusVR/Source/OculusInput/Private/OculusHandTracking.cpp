@@ -593,7 +593,7 @@ TArray<FOculusCapsuleCollider> FOculusHandTracking::InitializeHandPhysics(const 
 		FVector CapsulePointOne = OvrBoneVectorToFVector(OvrBoneCapsule.Points[1], WorldToMeters);
 		FVector Delta = (CapsulePointOne - CapsulePointZero);
 
-		FName BoneName = HandComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(OvrBoneCapsule.BoneIndex);
+		FName BoneName = HandComponent->GetSkinnedAsset()->GetRefSkeleton().GetBoneName(OvrBoneCapsule.BoneIndex);
 
 		float CapsuleHeight = Delta.Size();
 		float CapsuleRadius = OvrBoneCapsule.Radius * WorldToMeters;

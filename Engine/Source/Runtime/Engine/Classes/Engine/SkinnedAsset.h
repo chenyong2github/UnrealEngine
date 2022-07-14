@@ -71,8 +71,12 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetShadowPhysicsAsset, return nullptr;);
 
 	/** Return the component orientation of a bone or socket. */
+	virtual FMatrix GetComposedRefPoseMatrix(FName InBoneName) const
+	PURE_VIRTUAL(USkinnedAsset::GetComposedRefPoseMatrix, return FMatrix::Identity;);
+
+	/** Return the component orientation of a bone or socket. */
 	virtual FMatrix GetComposedRefPoseMatrix(int32 InBoneIndex) const
-	PURE_VIRTUAL(USkinnedAsset::GetShadowPhysicsAsset, return FMatrix::Identity;);
+	PURE_VIRTUAL(USkinnedAsset::GetComposedRefPoseMatrix, return FMatrix::Identity;);
 
 	/**
 	 * Returns the UV channel data for a given material index. Used by the texture streamer.

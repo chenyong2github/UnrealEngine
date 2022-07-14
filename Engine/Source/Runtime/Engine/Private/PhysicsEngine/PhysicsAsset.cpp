@@ -401,7 +401,7 @@ FBox UPhysicsAsset::CalcAABB(const USkinnedMeshComponent* MeshComp, const FTrans
 	}
 	else
 	{
-		UE_LOG(LogPhysics, Log,  TEXT("UPhysicsAsset::CalcAABB : Non-uniform scale factor. You will not be able to collide with it.  Turn off collision and wrap it with a blocking volume.  MeshComp: %s  SkelMesh: %s"), *MeshComp->GetFullName(), MeshComp->GetSkeletalMesh() ? *MeshComp->GetSkeletalMesh()->GetFullName() : TEXT("NULL") );
+		UE_LOG(LogPhysics, Log,  TEXT("UPhysicsAsset::CalcAABB : Non-uniform scale factor. You will not be able to collide with it.  Turn off collision and wrap it with a blocking volume.  MeshComp: %s  SkelMesh: %s"), *MeshComp->GetFullName(), MeshComp->GetSkinnedAsset() ? *MeshComp->GetSkinnedAsset()->GetFullName() : TEXT("NULL") );
 	}
 
 	if(!Box.IsValid)

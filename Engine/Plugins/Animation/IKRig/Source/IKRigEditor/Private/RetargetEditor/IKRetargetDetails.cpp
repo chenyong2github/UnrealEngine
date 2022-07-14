@@ -35,13 +35,13 @@ FEulerTransform UIKRetargetBoneDetails::GetTransform(EIKRetargetTransformType Tr
 	// ensure we have a valid skeletal mesh
 	const bool bEditingSource = EditorController->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
 	UDebugSkelMeshComponent* Mesh = bEditingSource ? Controller->SourceSkelMeshComponent : Controller->TargetSkelMeshComponent;
-	if (!(Mesh && Mesh->SkeletalMesh))
+	if (!(Mesh && Mesh->GetSkeletalMesh()))
 	{
 		return FEulerTransform::Identity;
 	}
 
 	// ensure bone is valid
-	const FReferenceSkeleton& RefSkeleton = Mesh->SkeletalMesh->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Mesh->GetSkeletalMesh()->GetRefSkeleton();
 	const int32 BoneIndex = RefSkeleton.FindBoneIndex(SelectedBone);
 	if (BoneIndex == INDEX_NONE)
 	{
@@ -380,13 +380,13 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 	// ensure we have a valid skeletal mesh
 	const bool bEditingSource = EditorController->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
 	UDebugSkelMeshComponent* Mesh = bEditingSource ? EditorController->SourceSkelMeshComponent : EditorController->TargetSkelMeshComponent;
-	if (!(Mesh && Mesh->SkeletalMesh))
+	if (!(Mesh && Mesh->GetSkeletalMesh()))
 	{
 		return;
 	}
 
 	// ensure bone is valid
-	const FReferenceSkeleton& RefSkeleton = Mesh->SkeletalMesh->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Mesh->GetSkeletalMesh()->GetRefSkeleton();
 	const int32 BoneIndex = RefSkeleton.FindBoneIndex(SelectedBone);
 	if (BoneIndex == INDEX_NONE)
 	{

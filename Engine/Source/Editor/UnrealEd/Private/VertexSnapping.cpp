@@ -242,7 +242,7 @@ static TSharedPtr<FVertexIterator> MakeVertexIterator( UPrimitiveComponent* Comp
 	}
 
 	USkinnedMeshComponent* SkinnedComponent = Cast<USkinnedMeshComponent>( Component );
-	if( SkinnedComponent && SkinnedComponent->GetSkeletalMesh() && SkinnedComponent->MeshObject )
+	if( SkinnedComponent && SkinnedComponent->GetSkinnedAsset() && SkinnedComponent->MeshObject )
 	{
 		return MakeShareable( new FSkeletalMeshVertexIterator( SkinnedComponent ) );
 	}

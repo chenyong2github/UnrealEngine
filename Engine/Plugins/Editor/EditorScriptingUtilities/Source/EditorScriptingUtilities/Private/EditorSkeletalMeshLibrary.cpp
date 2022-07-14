@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorSkeletalMeshLibrary.h"
-#include "Components/SkinnedMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Editor.h"
 #include "EditorScriptingUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -91,12 +91,12 @@ bool UDEPRECATED_EditorSkeletalMeshLibrary::RemoveLODs(USkeletalMesh* SkeletalMe
 	}
 
 	// Now iterate over all skeletal mesh components to add them to the UpdateContext
-	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 	{
-		USkinnedMeshComponent* SkinComp = *It;
-		if (SkinComp->GetSkeletalMesh() == SkeletalMesh)
+		USkeletalMeshComponent* SkelComp = *It;
+		if (SkelComp->GetSkeletalMesh() == SkeletalMesh)
 		{
-			UpdateContext.AssociatedComponents.Add(SkinComp);
+			UpdateContext.AssociatedComponents.Add(SkelComp);
 		}
 	}
 

@@ -122,7 +122,7 @@ void UDestructibleComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 	// We are handling the physics move below, so don't handle it at higher levels
 	Super::OnUpdateTransform(UpdateTransformFlags | EUpdateTransformFlags::SkipPhysicsUpdate, Teleport);
 
-	if (GetSkeletalMesh() == NULL)
+	if (GetSkinnedAsset() == NULL)
 	{
 		return;
 	}
@@ -147,7 +147,7 @@ void UDestructibleComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if( !MeshScale3D.IsUniform() )
 	{
-		UE_LOG(LogPhysics, Log, TEXT("UDestructibleComponent::SendPhysicsTransform : Non-uniform scale factor (%s) can cause physics to mismatch for %s  SkelMesh: %s"), *MeshScale3D.ToString(), *GetFullName(), GetSkeletalMesh() ? *GetSkeletalMesh()->GetFullName() : TEXT("NULL"));
+		UE_LOG(LogPhysics, Log, TEXT("UDestructibleComponent::SendPhysicsTransform : Non-uniform scale factor (%s) can cause physics to mismatch for %s  SkelMesh: %s"), *MeshScale3D.ToString(), *GetFullName(), GetSkinnedAsset() ? *GetSkinnedAsset()->GetFullName() : TEXT("NULL"));
 	}
 #endif
 }
@@ -173,7 +173,7 @@ void UDestructibleComponent::OnDestroyPhysicsState()
 
 UBodySetup* UDestructibleComponent::GetBodySetup()
 {
-	if (GetSkeletalMesh() != NULL)
+	if (GetSkinnedAsset() != NULL)
 	{
 		UDestructibleMesh* TheDestructibleMesh = GetDestructibleMesh();
 
@@ -269,7 +269,7 @@ void UDestructibleComponent::SetDestructibleMesh(class UDestructibleMesh* NewMes
 
 class UDestructibleMesh* UDestructibleComponent::GetDestructibleMesh()
 {
-	return Cast<UDestructibleMesh>(GetSkeletalMesh());
+	return Cast<UDestructibleMesh>(GetSkinnedAsset());
 }
 
 void UDestructibleComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose)
@@ -506,12 +506,12 @@ void UDestructibleComponent::SetMaterial(int32 ElementIndex, UMaterialInterface*
 	}
 	
 	// Update physical properties for individual bone instances as well
-	if (GetSkeletalMesh())
+	if (GetSkinnedAsset())
 	{
-		int32 NumBones = GetSkeletalMesh()->GetRefSkeleton().GetRawBoneNum();
+		int32 NumBones = GetSkinnedAsset()->GetRefSkeleton().GetRawBoneNum();
 		for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
 		{
-			FName BoneName = GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIdx);
+			FName BoneName = GetSkinnedAsset()->GetRefSkeleton().GetBoneName(BoneIdx);
 			FBodyInstance* Instance = GetBodyInstance(BoneName);
 			if (Instance)
 			{

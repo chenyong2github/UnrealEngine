@@ -1325,15 +1325,15 @@ FVector UChaosVehicleMovementComponent::LocateBoneOffset(const FName InBoneName,
 	{
 		if (USkinnedMeshComponent* Mesh = Cast<USkinnedMeshComponent>(GetMesh()))
 		{
-			if (ensureMsgf(Mesh->GetSkeletalMesh(), TEXT("Expected skeletal mesh when locating bone offset. Asset might be missing references.")))
+			if (ensureMsgf(Mesh->GetSkinnedAsset(), TEXT("Expected skinned asset when locating bone offset. Asset might be missing references.")))
 			{
-				const FVector BonePosition = Mesh->GetSkeletalMesh()->GetComposedRefPoseMatrix(InBoneName).GetOrigin() * Mesh->GetRelativeScale3D();
+				const FVector BonePosition = Mesh->GetSkinnedAsset()->GetComposedRefPoseMatrix(InBoneName).GetOrigin() * Mesh->GetRelativeScale3D();
 				//BonePosition is local for the root BONE of the skeletal mesh - however, we are using the Root BODY which may have its own transform, so we need to return the position local to the root BODY
 				FMatrix RootBodyMTX = FMatrix::Identity;
 
 				if (Mesh->GetBodyInstance() && Mesh->GetBodyInstance()->BodySetup.IsValid())
 				{
-					RootBodyMTX = Mesh->GetSkeletalMesh()->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
+					RootBodyMTX = Mesh->GetSkinnedAsset()->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
 				}
 				const FVector LocalBonePosition = RootBodyMTX.InverseTransformPosition(BonePosition);
 				Offset += LocalBonePosition;

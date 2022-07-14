@@ -1496,7 +1496,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 {
 	auto IsValidComponent = [&](const USkeletalMeshComponent* Component)
 	{
-		return IsValid(Component) && IsValid(Component->SkeletalMesh) &&
+		return IsValid(Component) && IsValid(Component->GetSkeletalMesh()) &&
 			(ComponentTags.IsEmpty()
 			|| ComponentTags.ContainsByPredicate([&](const FName& Tag) { return Tag == NAME_None || Component->ComponentHasTag(Tag); }));
 	};

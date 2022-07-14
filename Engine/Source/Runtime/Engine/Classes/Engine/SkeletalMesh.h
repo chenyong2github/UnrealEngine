@@ -2476,10 +2476,10 @@ public:
 	FMatrix GetRefPoseMatrix( int32 BoneIndex ) const;
 
 	/** 
-	 *	Get the component orientation of a bone or socket. Transforms by parent bones.
+	 * Get the component orientation of a bone or socket. Transforms by parent bones.
+	 * USkinnedAsset interface.
 	 */
-	FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const;
-	/** USkinnedAsset interface. */
+	virtual FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const override;
 	virtual FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const override;
 
 	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")

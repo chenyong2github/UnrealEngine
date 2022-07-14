@@ -124,7 +124,7 @@ public:
 	FSkinWeightProfileManager(UWorld* InWorld);
 	virtual ~FSkinWeightProfileManager() {}
 
-	void RequestSkinWeightProfile(FName InProfileName, USkeletalMesh* Mesh, UObject* Requester, FRequestFinished& Callback, int32 LODIndex = INDEX_NONE);
+	void RequestSkinWeightProfile(FName InProfileName, USkinnedAsset* SkinnedAsset, UObject* Requester, FRequestFinished& Callback, int32 LODIndex = INDEX_NONE);
 	void CancelSkinWeightProfileRequest(UObject* Requester);
 	
 	void DoTick(float DeltaTime, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);

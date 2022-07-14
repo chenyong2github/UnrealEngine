@@ -502,9 +502,9 @@ namespace CollisionResponseConsoleCommands
 		}
 		else if (const USkinnedMeshComponent* SkinnedMeshComp = Cast<USkinnedMeshComponent>(Comp))
 		{
-			if (SkinnedMeshComp->GetSkeletalMesh())
+			if (SkinnedMeshComp->GetSkinnedAsset())
 			{
-				AssetName = SkinnedMeshComp->GetSkeletalMesh()->GetPathName();
+				AssetName = SkinnedMeshComp->GetSkinnedAsset()->GetPathName();
 			}
 		}
 

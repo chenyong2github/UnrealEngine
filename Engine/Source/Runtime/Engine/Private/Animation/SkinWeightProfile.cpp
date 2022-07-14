@@ -24,11 +24,11 @@
 class ENGINE_API FSkinnedMeshComponentUpdateSkinWeightsContext
 {
 public:
-	FSkinnedMeshComponentUpdateSkinWeightsContext(USkeletalMesh* InSkeletalMesh)
+	FSkinnedMeshComponentUpdateSkinWeightsContext(USkinnedAsset* InSkinnedAsset)
 	{
 		for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
 		{
-			if (It->GetSkeletalMesh() == InSkeletalMesh)
+			if (It->GetSkinnedAsset() == InSkinnedAsset)
 			{
 				checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
 

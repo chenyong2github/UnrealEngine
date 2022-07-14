@@ -112,10 +112,10 @@ void FSkinWeightProfileManager::OnShutdown()
 	WorldManagers.Empty();
 }
 
-void FSkinWeightProfileManager::RequestSkinWeightProfile(FName InProfileName, USkeletalMesh* Mesh, UObject* Requester, FRequestFinished& Callback, int32 LODIndex /*= INDEX_NONE*/)
+void FSkinWeightProfileManager::RequestSkinWeightProfile(FName InProfileName, USkinnedAsset* SkinnedAsset, UObject* Requester, FRequestFinished& Callback, int32 LODIndex /*= INDEX_NONE*/)
 {
 	// Make sure we have an actual skeletal mesh
- 	if (Mesh)
+	if (USkeletalMesh* const Mesh = Cast<USkeletalMesh>(SkinnedAsset))
 	{
 		// Setup a request structure
 		FSetProfileRequest ProfileRequest;

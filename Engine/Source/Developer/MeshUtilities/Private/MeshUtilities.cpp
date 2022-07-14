@@ -319,7 +319,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 		FRawMeshTracker& RawMeshTracker = OutRawMeshTrackers[OverallLODIndex];
 		const int32 BaseVertexIndex = RawMesh.VertexPositions.Num();
 
-		FSkeletalMeshLODInfo& SrcLODInfo = *(InSkinnedMeshComponent->GetSkeletalMesh()->GetLODInfo(LODIndexRead));
+		FSkeletalMeshLODInfo& SrcLODInfo = *(InSkinnedMeshComponent->GetSkinnedAsset()->GetLODInfo(LODIndexRead));
 
 		// Get the CPU skinned verts for this LOD
 		TArray<FFinalSkinVertex> FinalVertices;
@@ -389,7 +389,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 				// use the remapping of material indices if there is a valid value
 				if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
-					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->GetSkeletalMesh()->GetMaterials().Num() - 1);
+					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->GetSkinnedAsset()->GetMaterials().Num() - 1);
 				}
 
 				// copy face info

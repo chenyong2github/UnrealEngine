@@ -558,7 +558,7 @@ namespace UsdStageImporterImpl
 			// We do not need to recreate the anim instance afterwards as InitAnim is called on component registration anyway.
 			for ( TObjectIterator<USkeletalMeshComponent> It; It; ++It )
 			{
-				if ( It->SkeletalMesh == ExistingAsset )
+				if ( It->GetSkeletalMesh() == ExistingAsset)
 				{
 					It->ClearAnimScriptInstance();
 				}
