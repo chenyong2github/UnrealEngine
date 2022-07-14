@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TurnkeyEditorSupport.h"
+#include "Internationalization/Text.h"
 #include "ITurnkeyIOModule.h"
 #include "Misc/AssertionMacros.h"
 

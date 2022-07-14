@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/IFilter.h"
 #include "Widgets/Views/STreeView.h"
 
 /** Handles filtering and expanding a TreeView using an IFilter implementation. */

@@ -6,6 +6,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/AnalysisService.h"
 #include "Containers/HashTable.h"
+#include "Common/SlabAllocator.h"
 #include "Common/StringStore.h"
 #include "Trace/Analysis.h"
 

@@ -7,7 +7,10 @@
 #include "Common/Utils.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Model/ThreadsPrivate.h"
+#include "Model/MonotonicTimeline.h"
 #include "Serialization/MemoryWriter.h"
+#include "TraceServices/Model/TimingProfiler.h"
+#include "TraceServices/Utils.h"
 
 #define CPUPROFILER_DEBUG_LOGF(Format, ...) //{ if (ThreadState.ThreadId == 2) FPlatformMisc::LowLevelOutputDebugStringf(Format, __VA_ARGS__); }
 #define CPUPROFILER_DEBUG_BEGIN_EVENT(Time, Event) { ++TotalScopeCount; }

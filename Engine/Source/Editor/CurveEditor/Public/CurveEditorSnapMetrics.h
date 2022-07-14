@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Input/Events.h"
 #include "Misc/FrameRate.h"
 #include "Math/Axis.h"
 #include "Math/Vector2D.h"

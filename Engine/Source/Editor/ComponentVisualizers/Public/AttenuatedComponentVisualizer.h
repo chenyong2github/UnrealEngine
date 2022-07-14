@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/Attenuation.h"
 #include "ComponentVisualizer.h"
 #include "ShowFlags.h"
 #include "SceneView.h"
