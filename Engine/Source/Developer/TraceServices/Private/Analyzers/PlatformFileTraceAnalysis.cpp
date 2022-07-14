@@ -6,6 +6,7 @@
 #include "Common/Utils.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Model/FileActivity.h"
+#include "TraceServices/Utils.h"
 
 #define DEBUG_PLATFORMFILETRACE 0
 

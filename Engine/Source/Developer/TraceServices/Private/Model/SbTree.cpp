@@ -4,6 +4,7 @@
 
 #include "Misc/FileHelper.h"
 #include "TraceServices/Containers/Allocators.h"
+#include "Model/AllocationsProvider.h"
 
 #include <limits>
 

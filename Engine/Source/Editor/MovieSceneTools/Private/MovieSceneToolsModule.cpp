@@ -100,6 +100,7 @@
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
 #include "EditorAnimUtils.h"
+#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
 

@@ -16,6 +16,7 @@
 #include "SlateOptMacros.h"
 
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBorder.h"

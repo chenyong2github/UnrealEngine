@@ -16,6 +16,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SToolTip.h"
 
 #include "IDetailsView.h"
 #include "UObject/StructOnScope.h"

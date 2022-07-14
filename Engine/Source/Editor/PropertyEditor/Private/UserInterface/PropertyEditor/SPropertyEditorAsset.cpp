@@ -33,6 +33,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "FileHelpers.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
+#include "AssetThumbnail.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 

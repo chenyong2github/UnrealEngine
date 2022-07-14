@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class FCompilerResultsLog;
+class UAnimGraphNode_Base;
 
 // Interface passed to start/end compilation delegates
 class ANIMGRAPH_API IAnimBlueprintCompilationBracketContext

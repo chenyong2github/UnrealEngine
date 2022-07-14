@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Modules/ModuleInterface.h"
+
 /**
  * Interface for the OverlayEditor module
  */

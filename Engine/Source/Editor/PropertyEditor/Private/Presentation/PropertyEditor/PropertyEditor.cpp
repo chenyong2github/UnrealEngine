@@ -23,6 +23,7 @@
 #include "ActorTreeItem.h"
 #include "PropertyHandleImpl.h"
 #include "IPropertyUtilities.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
