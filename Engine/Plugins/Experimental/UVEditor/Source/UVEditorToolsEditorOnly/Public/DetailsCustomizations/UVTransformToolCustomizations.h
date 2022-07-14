@@ -9,7 +9,7 @@
 
 class IPropertyHandle;
 class FPropertyRestriction;
-class UUVEditorTransformTool;
+class IUVEditorTransformToolQuickAction;
 
 // Customization for UUVEditorUVTransformProperties
 class FUVEditorUVTransformToolDetails : public IDetailCustomization
@@ -19,12 +19,48 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 protected:
-	TWeakObjectPtr<UUVEditorTransformTool> TargetTool;
 	void BuildQuickTranslateMenu(IDetailLayoutBuilder& DetailBuilder);
 	void BuildQuickRotateMenu(IDetailLayoutBuilder& DetailBuilder);
-
-	FReply OnQuickTranslate(float TranslationValue, const FVector2D& Direction);
-	FReply OnQuickRotate(float RotationValue);
 };
 
+// Customization for UUVEditorUVQuickTransformProperties
+class FUVEditorUVQuickTransformToolDetails : public FUVEditorUVTransformToolDetails
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+};
 
+// Customization for UUVEditorUVDistributeProperties
+class FUVEditorUVDistributeToolDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+protected:
+
+	TSharedPtr<IPropertyHandle> DistributeModeHandle;
+	TSharedPtr<IPropertyHandle> EnableManualDistancesHandle;
+
+	TSharedPtr<IPropertyHandle> OrigManualExtentHandle;
+	TSharedPtr<IPropertyHandle> OrigManualSpacingHandle;
+
+	void BuildDistributeModeButtons(IDetailLayoutBuilder& DetailBuilder);
+
+};
+
+// Customization for UUVEditorUVAlignProperties
+class FUVEditorUVAlignToolDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+protected:
+
+	TSharedPtr<IPropertyHandle> AlignDirectionHandle;
+
+	void BuildAlignModeButtons(IDetailLayoutBuilder& DetailBuilder);
+
+};

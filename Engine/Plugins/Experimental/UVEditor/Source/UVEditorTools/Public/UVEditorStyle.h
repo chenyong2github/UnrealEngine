@@ -8,7 +8,7 @@
 /**
  * Slate style set for UV Editor
  */
-class UVEDITOR_API FUVEditorStyle
+class UVEDITORTOOLS_API FUVEditorStyle
 	: public FSlateStyleSet
 {
 public:

@@ -71,19 +71,23 @@ void UUVEditorTransformTool::Setup()
 
 	UInteractiveTool::Setup();
 
-	Settings = NewObject<UUVEditorUVTransformProperties>(this);
+	switch(ToolMode.Get(EUVEditorUVTransformType::Transform))
+	{
+		case EUVEditorUVTransformType::Transform:
+			Settings = NewObject<UUVEditorUVTransformProperties>(this);
+			break;
+		case EUVEditorUVTransformType::Align:
+			Settings = NewObject<UUVEditorUVAlignProperties>(this);
+			break;
+		case EUVEditorUVTransformType::Distribute:
+			Settings = NewObject<UUVEditorUVDistributeProperties>(this);
+			break;
+		default:
+			ensure(false);
+	}
 	Settings->RestoreProperties(this);
-	Settings->TransformType = ToolMode.Get(EUVEditorUVTransformType::Transform);
 	//Settings->bUDIMCVAREnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	AddToolPropertySource(Settings);
-
-	if (ToolMode.Get(EUVEditorUVTransformType::Transform) == EUVEditorUVTransformType::Transform)
-	{
-		QuickTransformSettings = NewObject<UUVEditorUVQuickTransformProperties>(this);
-		QuickTransformSettings->RestoreProperties(this);
-		QuickTransformSettings->Tool = this;
-		AddToolPropertySource(QuickTransformSettings);
-	}
 
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	UVToolSelectionAPI = ContextStore->FindContext<UUVToolSelectionAPI>();
@@ -91,30 +95,44 @@ void UUVEditorTransformTool::Setup()
 	UUVToolSelectionAPI::FHighlightOptions HighlightOptions;
 	HighlightOptions.bBaseHighlightOnPreviews = true;
 	HighlightOptions.bAutoUpdateUnwrap = true;
-	UVToolSelectionAPI->SetSelectionMechanicMode(UUVToolSelectionAPI::EUVEditorSelectionMode::Triangle);
 	UVToolSelectionAPI->SetHighlightOptions(HighlightOptions);
 	UVToolSelectionAPI->SetHighlightVisible(true, false, true);
-
-	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, TSet<int32>* Selection)
+	
+	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, const FUVToolSelection* Selection)
 	{
 		TObjectPtr<UUVEditorUVTransformOperatorFactory> Factory = NewObject<UUVEditorUVTransformOperatorFactory>();
 		Factory->TargetTransform = Target.AppliedPreview->PreviewMesh->GetTransform();
 		Factory->Settings = Settings;
-		Factory->OriginalMesh = Target.AppliedCanonical;
+		Factory->TransformType = ToolMode.Get(EUVEditorUVTransformType::Transform);
+		Factory->OriginalMesh = Target.UnwrapCanonical;
 		Factory->GetSelectedUVChannel = [&Target]() { return Target.UVLayerIndex; };
 		if (Selection)
 		{
-			Factory->Selection.Emplace(*Selection);
+			// If we have a selection, it's in the unwrapped mesh. We need both triangles, which are 1:1 between them,
+			// and vertices, which are not, in the applied mesh to pass to the factory.
+			FUVToolSelection UnwrapVertexSelection;
+			if (Selection->Type == FUVToolSelection::EType::Vertex)
+			{
+				UnwrapVertexSelection = *Selection;
+			}
+			else
+			{
+				UnwrapVertexSelection = Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Vertex);
+			}				
+			Factory->VertexSelection.Emplace(UnwrapVertexSelection.SelectedIDs);
+			Factory->TriangleSelection.Emplace(UnwrapVertexSelection.GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Triangle).SelectedIDs);
 		}
 
-		Target.AppliedPreview->ChangeOpFactory(Factory);
-		Target.AppliedPreview->OnMeshUpdated.AddWeakLambda(this, [this, &Target](UMeshOpPreviewWithBackgroundCompute* Preview) {
-			Target.UpdateUnwrapPreviewFromAppliedPreview();
+		Target.UnwrapPreview->ChangeOpFactory(Factory);
+		Target.UnwrapPreview->OnMeshUpdated.AddWeakLambda(this, [this, &Target](UMeshOpPreviewWithBackgroundCompute* Preview) {
+			Target.UpdateUnwrapPreviewOverlayFromPositions();
+			Target.UpdateAppliedPreviewFromUnwrapPreview();
+			
 
 			this->UVToolSelectionAPI->RebuildUnwrapHighlight(Preview->PreviewMesh->GetTransform());
 			});
 
-		Target.AppliedPreview->InvalidateResult();
+		Target.UnwrapPreview->InvalidateResult();
 		return Factory;
 	};
 
@@ -123,10 +141,7 @@ void UUVEditorTransformTool::Setup()
 		Factories.Reserve(UVToolSelectionAPI->GetSelections().Num());
 		for (FUVToolSelection Selection : UVToolSelectionAPI->GetSelections())
 		{
-			if (ensure(Selection.Type == FUVToolSelection::EType::Triangle))
-			{
-				Factories.Add(SetupOpFactory(*Selection.Target, &Selection.SelectedIDs));
-			}
+			Factories.Add(SetupOpFactory(*Selection.Target, &Selection));
 		}
 	}
 	else
@@ -151,7 +166,7 @@ void UUVEditorTransformTool::Shutdown(EToolShutdownType ShutdownType)
 	Settings->SaveProperties(this);
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->AppliedPreview->OnMeshUpdated.RemoveAll(this);
+		Target->UnwrapPreview->OnMeshUpdated.RemoveAll(this);
 	}
 
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -197,7 +212,7 @@ void UUVEditorTransformTool::Shutdown(EToolShutdownType ShutdownType)
 
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->AppliedPreview->ClearOpFactory();
+		Target->UnwrapPreview->ClearOpFactory();
 	}
 
 	for (int32 FactoryIndex = 0; FactoryIndex < Factories.Num(); ++FactoryIndex)
@@ -213,26 +228,7 @@ void UUVEditorTransformTool::OnTick(float DeltaTime)
 {
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->AppliedPreview->Tick(DeltaTime);
-	}
-}
-
-void UUVEditorTransformTool::InitiateQuickTranslate(float Offset, const FVector2D& Direction)
-{
-	Settings->QuickTranslation += Direction * Offset;
-	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
-	{
-		Target->AppliedPreview->InvalidateResult();
-	}
-}
-
-
-void UUVEditorTransformTool::InitiateQuickRotation(float Rotation)
-{
-	Settings->QuickRotation += Rotation;
-	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
-	{
-		Target->AppliedPreview->InvalidateResult();
+		Target->UnwrapPreview->Tick(DeltaTime);
 	}
 }
 
@@ -240,7 +236,7 @@ void UUVEditorTransformTool::OnPropertyModified(UObject* PropertySet, FProperty*
 {
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		Target->AppliedPreview->InvalidateResult();
+		Target->UnwrapPreview->InvalidateResult();
 	}
 }
 
@@ -248,7 +244,7 @@ bool UUVEditorTransformTool::CanAccept() const
 {
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
-		if (!Target->AppliedPreview->HaveValidResult())
+		if (!Target->UnwrapPreview->HaveValidResult())
 		{
 			return false;
 		}
@@ -284,7 +280,7 @@ void UUVEditorTransformTool::RecordAnalytics()
 		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 		{
 			// Note: This would log -1 if the result was invalid, but checking CanAccept above ensures results are valid
-			PerAssetValidResultComputeTimes.Add(Target->AppliedPreview->GetValidResultComputeTime());
+			PerAssetValidResultComputeTimes.Add(Target->UnwrapPreview->GetValidResultComputeTime());
 		}
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.PerAsset.ComputeTimeSeconds"), PerAssetValidResultComputeTimes));
 	}

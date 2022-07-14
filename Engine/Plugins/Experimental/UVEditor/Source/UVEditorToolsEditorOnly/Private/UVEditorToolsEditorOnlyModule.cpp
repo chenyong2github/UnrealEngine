@@ -10,6 +10,7 @@
 
 #include "Operators/UVEditorRecomputeUVsOp.h"
 #include "UVEditorTransformTool.h"
+#include "Operators/UVEditorUVTransformOp.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorToolsEditorOnlyModule"
 
@@ -55,8 +56,25 @@ void FUVEditorToolsEditorOnlyModule::OnPostEngineInit()
 	ClassesToUnregisterOnShutdown.Add(UUVEditorRecomputeUVsToolProperties::StaticClass()->GetFName());
 
 	// Transform
-	PropertyModule.RegisterCustomClassLayout("UVEditorUVQuickTransformProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVTransformToolDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(UUVEditorUVTransformProperties::StaticClass()->GetFName(),
+		                                     FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVTransformToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UUVEditorUVTransformProperties::StaticClass()->GetFName());
+
+	// Quick Transform
+	PropertyModule.RegisterCustomClassLayout(UUVEditorUVQuickTransformProperties::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVQuickTransformToolDetails::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UUVEditorUVQuickTransformProperties::StaticClass()->GetFName());
+
+	// Align
+	PropertyModule.RegisterCustomClassLayout(UUVEditorUVAlignProperties::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVAlignToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UUVEditorUVAlignProperties::StaticClass()->GetFName());
+
+	// Distribute
+	PropertyModule.RegisterCustomClassLayout(UUVEditorUVDistributeProperties::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVDistributeToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UUVEditorUVDistributeProperties::StaticClass()->GetFName());
+
 
 }
 

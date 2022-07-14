@@ -8,6 +8,7 @@
 #include "InteractiveToolBuilder.h"
 #include "UVEditorToolAnalyticsUtils.h"
 #include "Selection/UVToolSelectionAPI.h"
+#include "Operators/UVEditorUVTransformOp.h"
 
 #include "UVEditorTransformTool.generated.h"
 
@@ -63,28 +64,6 @@ protected:
 };
 
 /**
- * UV Quick Transform Settings
- */
-UCLASS()
-class UVEDITORTOOLS_API UUVEditorUVQuickTransformProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty, DisplayName = "Translation"))
-	float QuickTranslateOffset = 0.0;
-
-	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty, DisplayName = "Rotation"))
-	float QuickRotationOffset = 0.0;
-
-	// parent ref required for details customization
-	UPROPERTY(meta = (TransientToolProperty))
-	TWeakObjectPtr<UUVEditorTransformTool> Tool;
-
-};
-
-
-/**
  * 
  */
 UCLASS()
@@ -117,9 +96,6 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
-	void InitiateQuickTranslate(float Offset, const FVector2D& Direction);
-	void InitiateQuickRotation(float Rotation);
-
 protected:	
 
 	TOptional<EUVEditorUVTransformType> ToolMode;
@@ -128,10 +104,7 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorUVQuickTransformProperties> QuickTransformSettings = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UUVEditorUVTransformProperties> Settings = nullptr;
+	TObjectPtr<UUVEditorUVTransformPropertiesBase> Settings = nullptr;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorUVTransformOperatorFactory>> Factories;

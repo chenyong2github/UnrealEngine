@@ -12,10 +12,58 @@
 
 using namespace UE::Geometry;
 
+namespace TransformOpLocals
+{
+	FVector2f UnwrapPositionToUV(const FVector3d& Position)
+	{
+		return FUVEditorUXSettings::ExternalUVToInternalUV(FUVEditorUXSettings::VertPositionToUV(Position));
+	}
+
+	FVector3d UVToUnwrapPosition(const FVector2f& UV)
+	{
+		return FUVEditorUXSettings::UVToVertPosition(FUVEditorUXSettings::InternalUVToExternalUV(UV));
+	}
+}
+
 void FUVEditorUVTransformBaseOp::SetTransform(const FTransformSRT3d& Transform)
 {
 	ResultTransform = Transform;
 }
+
+void FUVEditorUVTransformBaseOp::SetSelection(const TSet<int32>& TriangleSelectionIn, const TSet<int32>& VertexSelectionIn)
+{
+		TriangleSelection = TriangleSelectionIn;
+		VertexSelection = VertexSelectionIn;
+}
+
+void FUVEditorUVTransformBaseOp::SortComponentsByBoundingBox()
+{
+	SpatiallyOrderedComponentIndex.SetNum(UVComponents->Num());
+	for (int32 Index = 0; Index < UVComponents->Num(); ++Index)
+	{
+		SpatiallyOrderedComponentIndex[Index] = Index;
+	}
+	TArrayView<int32> IndexView(SpatiallyOrderedComponentIndex.GetData(), SpatiallyOrderedComponentIndex.Num());
+	TArrayView<FAxisAlignedBox2d> BBView(PerComponentBoundingBoxes.GetData(), PerComponentBoundingBoxes.Num());
+
+	auto BBIndexSort = [&BBView](const int32& A, const int32& B)
+	{
+		FVector2D CenterDiff = BBView[A].Center() - BBView[B].Center();
+
+		if (CenterDiff.X < 0)
+		{
+			return true;
+		}
+		else if (FMath::IsNearlyZero(CenterDiff.X) && CenterDiff.Y < 0)
+		{
+			return true;
+		}
+		return false;
+	};
+
+	IndexView.StableSort(BBIndexSort);
+}
+
 
 void FUVEditorUVTransformBaseOp::RebuildBoundingBoxes()
 {	
@@ -25,31 +73,25 @@ void FUVEditorUVTransformBaseOp::RebuildBoundingBoxes()
 
 	ParallelFor(NumComponents, [&](int32 k)
 		{
-			FVector2d TriangleUV[3];
+			FVector3d VertexPos[3];
 			PerComponentBoundingBoxes[k] = FAxisAlignedBox2d::Empty();
-			const TArray<int>& Triangles = (*UVComponents)[k].Indices;
-			for (int tid : Triangles)
-			{
-				FIndex3i TriElements = ActiveUVLayer->GetTriangle(tid);
-				if (!TriElements.Contains(FDynamicMesh3::InvalidID))
-				{
-					for (int j = 0; j < 3; ++j)
-					{
-						TriangleUV[j] = FVector2d(FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(TriElements[j])));
-						PerComponentBoundingBoxes[k].Contain(TriangleUV[j]);
-					}
-				}
+			const TArray<int>& Vertices = (*UVComponents)[k].Indices;
+			for (int32 Vid : Vertices)
+			{				
+				PerComponentBoundingBoxes[k].Contain((FVector2d)TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid)));
 			}
 		});
+
 	for (int32 Cid = 0; Cid < NumComponents; ++Cid)
 	{
 		OverallBoundingBox.Contain(PerComponentBoundingBoxes[Cid]);
 	}
+
 }
 
 void FUVEditorUVTransformBaseOp::CollectTransformElements()
 {
-	if (Selection.IsSet())
+	if (VertexSelection.IsSet())
 	{
 		TransformingElements = TSet<int32>();
 	}
@@ -58,18 +100,14 @@ void FUVEditorUVTransformBaseOp::CollectTransformElements()
 
 	for (int32 k = 0; k < NumComponents; ++k)
 	{
-		const TArray<int>& Triangles = (*UVComponents)[k].Indices;
-		for (int tid : Triangles)
+		const TArray<int>& Vertices = (*UVComponents)[k].Indices;
+		for (int Vid : Vertices)
 		{
-			FIndex3i Elements = ActiveUVLayer->GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			if (VertexSelection.IsSet() && VertexSelection.GetValue().Contains(Vid))
 			{
-				if (TransformingElements.IsSet())
-				{
-					TransformingElements.GetValue().Add(Elements[j]);
-				}
-				ElementToComponent.Add(Elements[j], k);
+				TransformingElements.GetValue().Add(Vid);
 			}
+			ElementToComponent.Add(Vid, k);
 		}
 	}
 }
@@ -80,6 +118,9 @@ FVector2f FUVEditorUVTransformBaseOp::GetAlignmentPointFromBoundingBoxAndDirecti
 
 	switch (Direction)
 	{
+	case EUVEditorAlignDirectionBackend::None:
+		AlignmentPoint = FVector2f(0,0);
+		break;
 	case EUVEditorAlignDirectionBackend::Top:
 		AlignmentPoint = FVector2f(BoundingBox.Center().X, BoundingBox.Max.Y);
 		break;
@@ -113,6 +154,9 @@ FVector2f FUVEditorUVTransformBaseOp::GetAlignmentPointFromUDIMAndDirection(EUVE
 
 	switch (Direction)
 	{
+	case EUVEditorAlignDirectionBackend::None:
+		AlignmentPoint = FVector2f(0, 0);
+		break;
 	case EUVEditorAlignDirectionBackend::Top:
 		AlignmentPoint = FVector2f(UDIMLowerCorner.X + 0.5f, UDIMLowerCorner.Y + 1.0f);
 		break;
@@ -161,17 +205,38 @@ void FUVEditorUVTransformBaseOp::CalculateResult(FProgressCancel* Progress)
 
 	auto UVIslandPredicate = [this](int32 Triangle0, int32 Triangle1)
 	{
-		return ActiveUVLayer->AreTrianglesConnected(Triangle0, Triangle1);
+		return GroupingMode != EUVEditorAlignDistributeGroupingModeBackend::IndividualVertices;
 	};
 
 	UVComponents = MakeShared<FMeshConnectedComponents>(ResultMesh.Get());
-	if (Selection.IsSet())
+	if(GroupingMode == EUVEditorAlignDistributeGroupingModeBackend::EnclosingBoundingBox)
 	{
-		UVComponents->FindConnectedTriangles(Selection.GetValue().Array(), UVIslandPredicate);
+		// If we're using the enclosing bounding box, we'll just "fake" one big component and proceed as normal.
+		UVComponents->Components.Add( new FMeshConnectedComponents::FComponent());
+		if (VertexSelection.IsSet())
+		{
+			UVComponents->Components[0].Indices = VertexSelection.GetValue().Array();
+		}
+		else
+		{
+			UVComponents->Components[0].Indices.Reserve(ResultMesh.Get()->VertexCount());
+			for (int32 Vid : ResultMesh.Get()->VertexIndicesItr())
+			{
+				UVComponents->Components[0].Indices.Add(Vid);
+			}
+		}
+
 	}
 	else
 	{
-		UVComponents->FindConnectedTriangles(UVIslandPredicate);
+		if (VertexSelection.IsSet())
+		{
+			UVComponents->FindConnectedVertices(VertexSelection.GetValue().Array(), UVIslandPredicate);
+		}
+		else
+		{
+			UVComponents->FindConnectedVertices(UVIslandPredicate);
+		}
 	}
 
 	if (Progress && Progress->Cancelled())
@@ -221,24 +286,24 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 	auto ScaleFunc = [this](int32 Vid)
 	{
 		FVector2f ScalePivot = GetPivotFromMode(Vid, PivotMode);
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV - ScalePivot);
 		UV[0] *= Scale[0];
 		UV[1] *= Scale[1];
 		UV = (UV + ScalePivot);
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	auto BaseRotFunc = [this](int32 Vid, float RotationIn, const FVector2f& Pivot)
 	{
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		FVector2f UV_Rotated;
 		double RotationInRadians = RotationIn / 180.0 * UE_PI;
 		UV = (UV - Pivot);
 		UV_Rotated[0] = UV[0] * FMath::Cos(RotationInRadians) - UV[1] * FMath::Sin(RotationInRadians);
 		UV_Rotated[1] = UV[0] * FMath::Sin(RotationInRadians) + UV[1] * FMath::Cos(RotationInRadians);
 		UV = (UV_Rotated + Pivot);
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	auto QuickRotFunc = [this, &BaseRotFunc](int32 Vid)
@@ -255,9 +320,9 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 
 	auto QuickTranslateFunc = [this](int32 Vid)
 	{
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + FVector2f(QuickTranslation));
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	auto TranslateFunc = [this](int32 Vid)
@@ -267,9 +332,9 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		{
 			RotationPivot = GetPivotFromMode(Vid, PivotMode);
 		}				
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + FVector2f(Translation) - RotationPivot);
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	auto ApplyTransformFunc = [this, &Progress](TFunction<void(int32 Vid)> TransformFunc)
@@ -290,7 +355,7 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		}
 		else
 		{
-			for (int ElementID : ActiveUVLayer->ElementIndicesItr())
+			for (int ElementID : ResultMesh->VertexIndicesItr())
 			{
 				TransformFunc(ElementID);
 
@@ -335,15 +400,17 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 
 	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + Translation);
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	auto TranslationFromAlignmentPoints = [this](const FVector2f& PointTo, const FVector2f& PointFrom)
 	{
 		switch (AlignDirection)
 		{
+		case EUVEditorAlignDirectionBackend::None:
+			return FVector2f(0, 0);
 		case EUVEditorAlignDirectionBackend::Top:
 			return FVector2f(0, PointTo.Y - PointFrom.Y);
 		case EUVEditorAlignDirectionBackend::Bottom:
@@ -353,52 +420,74 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 		case EUVEditorAlignDirectionBackend::Right:
 			return FVector2f(PointTo.X - PointFrom.X, 0);
 		case EUVEditorAlignDirectionBackend::CenterVertically:
-			return FVector2f(PointTo.X - PointFrom.X, 0);
-		case EUVEditorAlignDirectionBackend::CenterHorizontally:
 			return FVector2f(0, PointTo.Y - PointFrom.Y);
+		case EUVEditorAlignDirectionBackend::CenterHorizontally:
+			return FVector2f(PointTo.X - PointFrom.X, 0);			
 		default:
 			ensure(false);
 			return FVector2f(0, 0);
 		}
 	};
 
-	TArray<FVector2f> PerComponentTranslation;
-	PerComponentTranslation.SetNum(NumComponents);
-	for (int32 Cid = 0; Cid < NumComponents; ++Cid)
+	auto ComponentToUDIM = [this](int32 ComponentID)
 	{
-		FVector2f ComponentAlignmentPoint = GetAlignmentPointFromBoundingBoxAndDirection(AlignDirection, PerComponentBoundingBoxes[Cid]);
-		switch (AlignAnchor)
+		return FDynamicMeshUDIMClassifier::ClassifyBoundingBoxToUDIM(ActiveUVLayer, PerComponentBoundingBoxes[ComponentID]);
+	};
+	auto UVElementToUDIM = [this](int32 Vid)
+	{
+		return FDynamicMeshUDIMClassifier::ClassifyPointToUDIM(TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid)));
+	};
+	auto ComponentToPoint = [this](int32 ComponentID)
+	{
+		return GetAlignmentPointFromBoundingBoxAndDirection(AlignDirection, PerComponentBoundingBoxes[ComponentID]);
+	};
+	auto UVElementToPoint = [this](int32 Vid)
+	{
+		return TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
+	};
+
+
+	auto GetNeededTranslateOffset = [this, TranslationFromAlignmentPoints](int32 PointID, EUVEditorAlignAnchorBackend AlignAnchorMode,
+		TFunction<FVector2i(int32 ID)> PointIDToUDIM, TFunction<FVector2f(int32 ID)> PointIDToPoint)
+	{
+		FVector2f PointToAlign = PointIDToPoint(PointID);
+		switch (AlignAnchorMode)
 		{
 		case EUVEditorAlignAnchorBackend::UDIMTile:
 		{
-			FVector2i UDIM = FDynamicMeshUDIMClassifier::ClassifyTrianglesToUDIM(ActiveUVLayer, UVComponents->Components[Cid].Indices);
+			FVector2i UDIM = PointIDToUDIM(PointID);
 			FVector2f TileAlignmentPoint = GetAlignmentPointFromUDIMAndDirection(AlignDirection, UDIM);
-			PerComponentTranslation[Cid] = TranslationFromAlignmentPoints(TileAlignmentPoint, ComponentAlignmentPoint);
+			return TranslationFromAlignmentPoints(TileAlignmentPoint, PointToAlign);
 		}
-			break;
+		break;
 		case EUVEditorAlignAnchorBackend::BoundingBox:
-		{		
+		{
 			FVector2f BoundingBoxAlignmentPoint = GetAlignmentPointFromBoundingBoxAndDirection(AlignDirection, OverallBoundingBox);
-			PerComponentTranslation[Cid] = TranslationFromAlignmentPoints(BoundingBoxAlignmentPoint, ComponentAlignmentPoint);
+			return TranslationFromAlignmentPoints(BoundingBoxAlignmentPoint, PointToAlign);
 		}
 		break;
 		case EUVEditorAlignAnchorBackend::Manual:
 		{
-			PerComponentTranslation[Cid] = TranslationFromAlignmentPoints((FVector2f)ManualAnchor, ComponentAlignmentPoint);
+			return TranslationFromAlignmentPoints((FVector2f)ManualAnchor, PointToAlign);
 		}
 		break;
 		default:
 			ensure(false);
-			PerComponentTranslation[Cid] = FVector2f();
+			return FVector2f();
 			break;
 		}
-	}
+	};
 
 	if (TransformingElements.IsSet())
 	{
 		for (int ElementID : TransformingElements.GetValue())
 		{
-			TranslateFunc(PerComponentTranslation[*ElementToComponent.Find(ElementID)], ElementID);
+			int32* ComponentID = ElementToComponent.Find(ElementID);
+			if (ensure(ComponentID))
+			{
+				FVector2f TranslateOffset = GetNeededTranslateOffset(*ComponentID, AlignAnchor, ComponentToUDIM, ComponentToPoint);
+				TranslateFunc(TranslateOffset, ElementID);
+			}
 			if (Progress && Progress->Cancelled())
 			{
 				return;
@@ -409,7 +498,13 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 	{
 		for (int ElementID : ActiveUVLayer->ElementIndicesItr())
 		{
-			TranslateFunc(PerComponentTranslation[*ElementToComponent.Find(ElementID)], ElementID);
+
+			int32* ComponentID = ElementToComponent.Find(ElementID);
+			if (ensure(ComponentID))
+			{
+				FVector2f TranslateOffset = GetNeededTranslateOffset(*ComponentID, AlignAnchor, ComponentToUDIM, ComponentToPoint);
+				TranslateFunc(TranslateOffset, ElementID);
+			}
 			if (Progress && Progress->Cancelled())
 			{
 				return;
@@ -425,6 +520,7 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 {
 	int32 NumComponents = UVComponents->Num();
 	RebuildBoundingBoxes();
+	SortComponentsByBoundingBox();
 	TArray<FVector2f> PerComponentTranslation;
 	
 
@@ -438,12 +534,20 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 			TotalDistance += bVertical ? PerComponentBoundingBoxes[Cid].Height() : PerComponentBoundingBoxes[Cid].Width();
 		}
 		float BoundingBoxDistance = bVertical ? OverallBoundingBox.Height() : OverallBoundingBox.Width();
-		float GapSpace = (BoundingBoxDistance - TotalDistance) / (NumComponents-1);
-		float PerComponentSpace = BoundingBoxDistance / (NumComponents);
+		if (bEnableManualDistances)
+		{
+			BoundingBoxDistance = ManualExtent;
+		}
+		float GapSpace = FMath::Max(0, (BoundingBoxDistance - TotalDistance) / (NumComponents - 1));
+		if(bEnableManualDistances && bEqualizeSpacing)
+		{
+			GapSpace = ManualSpacing;
+		}
+		float PerComponentSpace = BoundingBoxDistance / (NumComponents - 1);
 
 		float NextPosition = 0.0f;
 		FVector2f OverallAlignmentPoint = GetAlignmentPointFromBoundingBoxAndDirection(EdgeDirection, OverallBoundingBox);
-		for (int32 Cid = 0; Cid < NumComponents; ++Cid)
+		for (int32 Cid: SpatiallyOrderedComponentIndex)
 		{
 			FVector2f ComponentAlignmentPoint = GetAlignmentPointFromBoundingBoxAndDirection(EdgeDirection, PerComponentBoundingBoxes[Cid]);
 			if (bVertical)
@@ -467,41 +571,117 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 		return PerComponentTranslation;
 	};
 
+	auto ComputeMinimallyRemoveOverlap = [this, NumComponents]()
+	{
+		FVector2D Center = OverallBoundingBox.Center();
+
+		// Create a local copy so we can move things around...
+		TArray<FAxisAlignedBox2d> ComponentBoundingBoxes = PerComponentBoundingBoxes;
+		// This could be tunable, if we think it needs to be, or perhaps based off bounding box size somehow?
+		double StepAmount = 0.01;
+
+		if (bEnableManualDistances)
+		{
+			for (int32 Cid = 0; Cid < NumComponents; ++Cid)
+			{
+				ComponentBoundingBoxes[Cid].Expand(ManualSpacing / 2.0);
+			}
+		}
+
+		bool bAnyBoxesIntersecting = false;
+		// The following loop will iteratively move all overlapping bounding boxes away from each other and from the center.
+		// This will eventually terminate, by "exploding" all boxes away from the center point in the worst case. If a box
+		// doesn't overlap, it won't move
+		// TODO: Implement a closer fit version that looks at real overlaps between island elements instead of just bounding boxes
+		// TODO: Implement an improvement that uses clustering to prevent far away islands from moving too much away from a global center
+		do
+		{
+			bAnyBoxesIntersecting = false;
+			for (int32 Cid = 0; Cid < NumComponents; ++Cid) 
+			{
+				FVector2D Adjustment = FVector2D::Zero();
+				bool bIsOverlapping = false;
+				for (int32 CidOverlap = 0; CidOverlap < NumComponents; ++CidOverlap)
+				{
+					if (Cid == CidOverlap)
+					{
+						continue;
+					}
+					// Move away from overlapping boxes
+					if (ComponentBoundingBoxes[Cid].Intersects(ComponentBoundingBoxes[CidOverlap]))
+					{
+						FVector2D Offset = (ComponentBoundingBoxes[Cid].Center() - ComponentBoundingBoxes[CidOverlap].Center());
+						Offset.Normalize();
+						if(Offset.IsNearlyZero())
+						{
+							// Edge case where two bounding boxes have identically overlapping center points.
+							// We need to break them up so they don't move in concert
+							// Our "emergency" separation vector places the components deterministically
+							// around a circle so they all follow different paths.
+							Offset.X = FMath::Cos((2 * UE_PI / NumComponents) * Cid);
+							Offset.Y = FMath::Sin((2 * UE_PI / NumComponents) * Cid);							
+						}
+						Adjustment = Adjustment + (Offset * StepAmount);
+						bIsOverlapping = true;
+					}
+				}
+				ComponentBoundingBoxes[Cid].Min += Adjustment;
+				ComponentBoundingBoxes[Cid].Max += Adjustment;
+				bAnyBoxesIntersecting |= bIsOverlapping;
+			}
+		} while (bAnyBoxesIntersecting);
+
+		// Once all bounding boxes have been moved, record their movement to the translation array return value
+		TArray<FVector2f> PerComponentTranslation;
+		PerComponentTranslation.SetNum(NumComponents);
+		for (int32 Cid = 0; Cid < NumComponents; ++Cid)
+		{
+			PerComponentTranslation[Cid] = (FVector2f)(ComponentBoundingBoxes[Cid].Center() - PerComponentBoundingBoxes[Cid].Center());
+		}
+		return PerComponentTranslation;
+	};
+
 	switch (DistributeMode)
 	{
-	case EUVEditorDistributeModeBackend::TopEdges:
-		PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Top, -1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::BottomEdges:
-		PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Bottom, 1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::LeftEdges:
-		PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Left, 1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::RightEdges:
-		PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Right, -1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::CentersVertically:
-		PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::CenterVertically, 1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::CentersHorizontally:
-		PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::CenterHorizontally, 1.0f, false);
-		break;
-	case EUVEditorDistributeModeBackend::HorizontalSpace:
-		PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Left, 1.0f, true);
-		break;
-	case EUVEditorDistributeModeBackend::VerticalSpace:
-		PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Bottom, 1.0f, true);
-		break;
-	default:
-		ensure(false);
+		case EUVEditorDistributeModeBackend::None:
+			PerComponentTranslation.Init(FVector2f::ZeroVector, NumComponents);
+			break;
+		case EUVEditorDistributeModeBackend::TopEdges:
+			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Top, -1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::BottomEdges:
+			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Bottom, 1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::LeftEdges:
+			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Left, 1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::RightEdges:
+			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Right, -1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::CentersVertically:
+			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::CenterVertically, 1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::CentersHorizontally:
+			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::CenterHorizontally, 1.0f, false);
+			break;
+		case EUVEditorDistributeModeBackend::HorizontalSpace:
+			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Left, 1.0f, true);
+			break;
+		case EUVEditorDistributeModeBackend::VerticalSpace:
+			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::Bottom, 1.0f, true);
+			break;
+		case EUVEditorDistributeModeBackend::MinimallyRemoveOverlap:
+			PerComponentTranslation = ComputeMinimallyRemoveOverlap();
+			break;
+		default:
+			ensure(false);
 	}
 
 	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
-		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		UV = (UV + Translation);
-		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+		ResultMesh->SetVertex(Vid, TransformOpLocals::UVToUnwrapPosition(UV));
 	};
 
 	if (TransformingElements.IsSet())
@@ -532,24 +712,29 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 
 TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOperator()
 {
-	switch (Settings->TransformType)
+	switch (TransformType)
 	{
 	case EUVEditorUVTransformType::Transform:
 	{
+		UUVEditorUVTransformProperties* OpSettings = CastChecked<UUVEditorUVTransformProperties>(Settings.Get());
+
 		TUniquePtr<FUVEditorUVTransformOp> Op = MakeUnique<FUVEditorUVTransformOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		Op->Selection = Selection;
+		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		{
+			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 
-		Op->Scale = Settings->Scale;
-		Op->Rotation = Settings->Rotation;
-		Op->Translation = Settings->Translation;
+		Op->Scale = OpSettings->Scale;
+		Op->Rotation = OpSettings->Rotation;
+		Op->Translation = OpSettings->Translation;
 
-		Op->QuickTranslation = Settings->QuickTranslation;
-		Op->QuickRotation = Settings->QuickRotation;
+		Op->QuickTranslation = OpSettings->QuickTranslation;
+		Op->QuickRotation = OpSettings->QuickRotation;
 
-		switch (Settings->TranslationMode)
+		switch (OpSettings->TranslationMode)
 		{
 		case EUVEditorTranslationMode::Relative:
 			Op->TranslationMode = EUVEditorTranslationModeBackend::Relative;
@@ -557,9 +742,11 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		case EUVEditorTranslationMode::Absolute:
 			Op->TranslationMode = EUVEditorTranslationModeBackend::Absolute;
 			break;
+		default:
+			ensure(false);
 		}
 
-		switch (Settings->PivotMode)
+		switch (OpSettings->PivotMode)
 		{
 		case EUVEditorPivotType::Origin:
 			Op->PivotMode = EUVEditorPivotTypeBackend::Origin;
@@ -573,22 +760,29 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		case EUVEditorPivotType::Manual:
 			Op->PivotMode = EUVEditorPivotTypeBackend::Manual;
 			break;
+		default:
+			ensure(false);
 		}
-		Op->ManualPivot = Settings->ManualPivot;
-
+		Op->ManualPivot = OpSettings->ManualPivot;
+		Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::IndividualBoundingBoxes;
 
 		return Op;
 	}
 	break;
 	case EUVEditorUVTransformType::Align:
 	{
+		UUVEditorUVAlignProperties* OpSettings = CastChecked<UUVEditorUVAlignProperties>(Settings.Get());
+
 		TUniquePtr<FUVEditorUVAlignOp> Op = MakeUnique<FUVEditorUVAlignOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		Op->Selection = Selection;
+		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		{
+			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 
-		switch (Settings->AlignAnchor)
+		switch (OpSettings->AlignAnchor)
 		{
 		//case EUVEditorAlignAnchor::FirstItem:
 		//	Op->AlignAnchor = EUVEditorAlignAnchorBackend::FirstItem;
@@ -602,10 +796,15 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		case EUVEditorAlignAnchor::Manual:
 			Op->AlignAnchor = EUVEditorAlignAnchorBackend::Manual;
 			break;
+		default:
+			ensure(false);
 		}
 
-		switch (Settings->AlignDirection)
+		switch (OpSettings->AlignDirection)
 		{
+		case EUVEditorAlignDirection::None:
+			Op->AlignDirection = EUVEditorAlignDirectionBackend::None;
+			break;
 		case EUVEditorAlignDirection::Top:
 			Op->AlignDirection = EUVEditorAlignDirectionBackend::Top;
 			break;
@@ -624,23 +823,48 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		case EUVEditorAlignDirection::CenterHorizontally:
 			Op->AlignDirection = EUVEditorAlignDirectionBackend::CenterHorizontally;
 			break;
+		default:
+			ensure(false);
 		}
 
-		Op->ManualAnchor = Settings->ManualAnchor;
+		switch (OpSettings->Grouping)
+		{
+		case EUVEditorAlignDistributeGroupingMode::IndividualBoundingBoxes:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::IndividualBoundingBoxes;
+			break;
+		case EUVEditorAlignDistributeGroupingMode::EnclosingBoundingBox:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::EnclosingBoundingBox;
+			break;
+		case EUVEditorAlignDistributeGroupingMode::IndividualVertices:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::IndividualVertices;
+			break;
+		default:
+			ensure(false);
+		}
+
+		Op->ManualAnchor = OpSettings->ManualAnchor;
 
 		return Op;
 	}
 	break;
 	case EUVEditorUVTransformType::Distribute:
 	{
+		UUVEditorUVDistributeProperties* OpSettings = CastChecked<UUVEditorUVDistributeProperties>(Settings.Get());
+
 		TUniquePtr<FUVEditorUVDistributeOp> Op = MakeUnique<FUVEditorUVDistributeOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		Op->Selection = Selection;
+		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		{
+			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 
-		switch (Settings->DistributeMode)
+		switch (OpSettings->DistributeMode)
 		{
+		case EUVEditorDistributeMode::None:
+			Op->DistributeMode = EUVEditorDistributeModeBackend::None;
+			break;
 		case EUVEditorDistributeMode::LeftEdges:
 			Op->DistributeMode = EUVEditorDistributeModeBackend::LeftEdges;
 			break;
@@ -665,7 +889,31 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		case EUVEditorDistributeMode::HorizontalSpace:
 			Op->DistributeMode = EUVEditorDistributeModeBackend::HorizontalSpace;
 			break;
+		case EUVEditorDistributeMode::MinimallyRemoveOverlap:
+			Op->DistributeMode = EUVEditorDistributeModeBackend::MinimallyRemoveOverlap;
+			break;
+		default:
+			ensure(false);
 		}
+
+		switch (OpSettings->Grouping)
+		{
+		case EUVEditorAlignDistributeGroupingMode::IndividualBoundingBoxes:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::IndividualBoundingBoxes;
+			break;
+		case EUVEditorAlignDistributeGroupingMode::EnclosingBoundingBox:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::EnclosingBoundingBox;
+			break;
+		case EUVEditorAlignDistributeGroupingMode::IndividualVertices:
+			Op->GroupingMode = EUVEditorAlignDistributeGroupingModeBackend::IndividualVertices;
+			break;
+		default:
+			ensure(false);
+		}
+
+		Op->bEnableManualDistances = OpSettings->bEnableManualDistances;
+		Op->ManualExtent = OpSettings->ManualExtent;
+		Op->ManualSpacing = OpSettings->ManualSpacing;
 
 		return Op;
 	}

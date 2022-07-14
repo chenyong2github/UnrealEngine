@@ -52,6 +52,25 @@ FUVEditorStyle::FUVEditorStyle()
 	Set("UVEditor.IslandSelection", new IMAGE_BRUSH_SVG("SelectionIslands", ToolbarIconSize));
 	Set("UVEditor.FullMeshSelection", new IMAGE_BRUSH_SVG("SelectionMulti", ToolbarIconSize));
 
+	// Distribute
+	Set("UVEditor.DistributeSpaceVertically", new IMAGE_BRUSH_SVG("DistributeModeSpaceVertically", ToolbarIconSize));
+	Set("UVEditor.DistributeSpaceHorizontally", new IMAGE_BRUSH_SVG("DistributeModeSpaceHorizontally", ToolbarIconSize));
+	Set("UVEditor.DistributeTopEdges", new IMAGE_BRUSH_SVG("DistributeModeTopEdges", ToolbarIconSize));
+	Set("UVEditor.DistributeBottomEdges", new IMAGE_BRUSH_SVG("DistributeModeBottomEdges", ToolbarIconSize));
+	Set("UVEditor.DistributeLeftEdges", new IMAGE_BRUSH_SVG("DistributeModeLeftEdges", ToolbarIconSize));
+	Set("UVEditor.DistributeRightEdges", new IMAGE_BRUSH_SVG("DistributeModeRightEdges", ToolbarIconSize));
+	Set("UVEditor.DistributeCentersHorizontally", new IMAGE_BRUSH_SVG("DistributeModeCentersHorizontally", ToolbarIconSize));
+	Set("UVEditor.DistributeCentersVertically", new IMAGE_BRUSH_SVG("DistributeModeCentersVertically", ToolbarIconSize));
+	Set("UVEditor.DistributeRemoveOverlap", new IMAGE_BRUSH_SVG("DistributeModeRemoveOverlap", ToolbarIconSize));
+
+	// Align
+	Set("UVEditor.AlignDirectionBottomEdges", new IMAGE_BRUSH_SVG("DistributeModeBottomEdges", ToolbarIconSize));
+	Set("UVEditor.AlignDirectionTopEdges", new IMAGE_BRUSH_SVG("DistributeModeTopEdges", ToolbarIconSize));
+	Set("UVEditor.AlignDirectionLeftEdges", new IMAGE_BRUSH_SVG("DistributeModeLeftEdges", ToolbarIconSize));
+	Set("UVEditor.AlignDirectionRightEdges", new IMAGE_BRUSH_SVG("DistributeModeRightEdges", ToolbarIconSize));
+	Set("UVEditor.AlignDirectionCentersHorizontally", new IMAGE_BRUSH_SVG("DistributeModeCentersVertically", ToolbarIconSize));
+	Set("UVEditor.AlignDirectionCentersVertically", new IMAGE_BRUSH_SVG("DistributeModeCentersHorizontally", ToolbarIconSize));
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 

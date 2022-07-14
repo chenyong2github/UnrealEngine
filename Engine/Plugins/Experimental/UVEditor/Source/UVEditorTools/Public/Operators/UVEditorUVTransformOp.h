@@ -7,6 +7,7 @@
 #include "ModelingOperators.h"
 #include "InteractiveTool.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "Selection/UVToolSelection.h"
 
 #include "UVEditorUVTransformOp.generated.h"
 
@@ -58,6 +59,7 @@ enum class EUVEditorTranslationMode
 UENUM()
 enum class EUVEditorAlignDirection
 {
+	None,
 	Top,
 	Bottom,
 	Left,
@@ -80,8 +82,9 @@ enum class EUVEditorAlignAnchor
 };
 
 UENUM()
-enum class EUVEditorDistributeMode
+enum class EUVEditorDistributeMode : uint16
 {
+	None,
 	VerticalSpace,
 	HorizontalSpace,
 	TopEdges,
@@ -89,7 +92,29 @@ enum class EUVEditorDistributeMode
 	LeftEdges,
 	RightEdges,
 	CentersVertically,
-	CentersHorizontally
+	CentersHorizontally,
+	MinimallyRemoveOverlap
+};
+
+UENUM()
+enum class EUVEditorAlignDistributeGroupingMode : uint8
+{
+	/** Treat selection as individual connected components, moving each according to their bounding boxes.*/
+	IndividualBoundingBoxes,
+	/** Treat selection as a single unit, moving everything together and preserving relative positions.*/
+	EnclosingBoundingBox,
+	/** Treat selection as isolated UV vertices, moving each UV independently of each other.*/
+	IndividualVertices
+};
+
+/**
+ * UV Transform Settings
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorUVTransformPropertiesBase : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
 };
 
 
@@ -97,71 +122,125 @@ enum class EUVEditorDistributeMode
  * UV Transform Settings
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorUVTransformProperties : public UInteractiveToolPropertySet
+class UVEDITORTOOLS_API UUVEditorUVTransformProperties : public UUVEditorUVTransformPropertiesBase
 {
 	GENERATED_BODY()
 
 public:
-	/** Type of Transform applied to input UVs */
-	UPROPERTY()
-	EUVEditorUVTransformType TransformType = EUVEditorUVTransformType::Transform;
-
 	/** Scale applied to UVs, potentially non-uniform */
-	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Scaling", DuplicateTransient, meta = (TransientToolProperty, DisplayName = "Scale",
-		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Scaling", DuplicateTransient, meta = (TransientToolProperty, DisplayName = "Scale"))
 	FVector2D Scale = FVector2D(1.0, 1.0); 
 
 	/** Rotation applied to UVs after scaling, specified in degrees */
-	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Rotation", meta = (TransientToolProperty, DisplayName = "Rotation",
-		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Rotation", meta = (TransientToolProperty, DisplayName = "Rotation"))
 	float Rotation = 0.0;
 
 	/** Translation applied to UVs, and after scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation",
-		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation"))
 	FVector2D Translation = FVector2D(0, 0);
 
 	/** Translation applied to UVs, and after scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation Mode",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation Mode"))
 	EUVEditorTranslationMode TranslationMode = EUVEditorTranslationMode::Relative;
 
 	/** Transformation origin mode used for scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Transform Origin", meta = (TransientToolProperty, DisplayName = "Mode",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Transform Origin", meta = (TransientToolProperty, DisplayName = "Mode"))
 	EUVEditorPivotType PivotMode = EUVEditorPivotType::BoundingBoxCenter;
 
 	/** Manual Transformation origin point */
 	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Transform Origin", meta = (TransientToolProperty, DisplayName = "Coords",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Transform && PivotMode == EUVEditorPivotType::Manual", EditConditionHides, HideEditConditionToggle = true))
+		EditCondition = "PivotMode == EUVEditorPivotType::Manual", EditConditionHides, HideEditConditionToggle = true))
 	FVector2D ManualPivot = FVector2D(0, 0);
 
-	UPROPERTY(meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty, DisplayName = "Translation"))
+	float QuickTranslateOffset = 0.0;
+
+	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty, DisplayName = "Rotation"))
+	float QuickRotationOffset = 0.0;
+
+	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty))
 	FVector2D QuickTranslation;
 
-	UPROPERTY(meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Quick Transform", meta = (TransientToolProperty))
 	float QuickRotation;
+};
 
+/**
+ * UV Quick Transform Only Settings
+ * 
+ * We are using a subclass here to "trick" the details customization system, allowing us to reuse a lot of the logic
+ * without having to build new operators or new customizations.
+ * 
+ * See FUVEditorUVTransformToolDetails and FUVEditorUVQuickTransformToolDetails, where we provide two customizations
+ * which present different views of the "same" properties - one with all settings and one with simply the quick transform settings.
+ * This is designed to be used in the future where we want to provide a quick translate "tool" when no other tools are running.
+ * 
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorUVQuickTransformProperties : public UUVEditorUVTransformProperties
+{
+	GENERATED_BODY()
+};
+
+/**
+ * UV Align Settings
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorUVAlignProperties : public UUVEditorUVTransformPropertiesBase
+{
+	GENERATED_BODY()
+
+public:	
 
 	/** Controls what geometry the alignment is to be relative to when performed. */
-	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Anchor",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Align", EditConditionHides, HideEditConditionToggle = true))
+	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Anchor"))
 	EUVEditorAlignAnchor AlignAnchor = EUVEditorAlignAnchor::BoundingBox;
 
 	/** Manual anchor location for relative alignment */
 	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Anchor Coords",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Align && AlignAnchor == EUVEditorAlignAnchor::Manual", EditConditionHides, HideEditConditionToggle = true))
+		EditCondition = "AlignAnchor == EUVEditorAlignAnchor::Manual", EditConditionHides, HideEditConditionToggle = true))
 	FVector2D ManualAnchor = FVector2D(0, 0);
 
 	/** Controls what side of the island bounding boxes are being aligned */
-	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Direction",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Align", EditConditionHides, HideEditConditionToggle = true))
-	EUVEditorAlignDirection AlignDirection = EUVEditorAlignDirection::Top;
+	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Direction"))
+	EUVEditorAlignDirection AlignDirection = EUVEditorAlignDirection::None;
 
+	/** Controls how alignment considers grouping selected objects with respect to the alignment behavior.*/
+	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Grouping Mode"))
+	EUVEditorAlignDistributeGroupingMode Grouping = EUVEditorAlignDistributeGroupingMode::IndividualBoundingBoxes;
+
+};
+
+/**
+ * UV Distribute Settings
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVEditorUVDistributeProperties : public UUVEditorUVTransformPropertiesBase
+{
+	GENERATED_BODY()
+public:
 	/** Controls the distribution behavior */
-	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Distribution Mode",
-		EditCondition = "TransformType == EUVEditorUVTransformType::Distribute", EditConditionHides, HideEditConditionToggle = true))
-	EUVEditorDistributeMode DistributeMode = EUVEditorDistributeMode::TopEdges;
+	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (TransientToolProperty, DisplayName = "Distribution Mode"))
+	EUVEditorDistributeMode DistributeMode = EUVEditorDistributeMode::None;
+
+	/** Controls how distribution considers grouping selected objects with respect to the distribution behavior.*/
+	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Grouping Mode"))
+	EUVEditorAlignDistributeGroupingMode Grouping = EUVEditorAlignDistributeGroupingMode::IndividualBoundingBoxes;
+
+	/** If true, enable overriding distances used in the distribution behavior with manually entered values.*/
+	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Manual Distances"))
+	bool bEnableManualDistances;
+
+	/** For Edge and Center distribution modes, specify the desired overall distance within which to evenly place the edges or centers. */
+	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Manual Extent",
+		EditCondition = "bEnableManualDistances", EditConditionHides, HideEditConditionToggle = true))
+	float ManualExtent;
+
+	/** For Spacing and Remove Overlap distribution modes, specify the desired distance between objects. */
+	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Manual Spacing",
+		EditCondition = "bEnableManualDistances", EditConditionHides, HideEditConditionToggle = true))
+	float ManualSpacing;
+
 };
 
 
@@ -197,6 +276,7 @@ namespace Geometry
 
 	enum class EUVEditorAlignDirectionBackend
 	{
+		None,
 		Top,
 		Bottom,
 		Left,
@@ -215,6 +295,7 @@ namespace Geometry
 
 	enum class EUVEditorDistributeModeBackend
 	{
+		None,
 		LeftEdges,
 		RightEdges,
 		TopEdges,
@@ -222,7 +303,15 @@ namespace Geometry
 		CentersVertically,
 		CentersHorizontally,
 		VerticalSpace,
-		HorizontalSpace
+		HorizontalSpace,
+		MinimallyRemoveOverlap
+	};
+
+	enum class EUVEditorAlignDistributeGroupingModeBackend
+	{
+		IndividualBoundingBoxes,
+		EnclosingBoundingBox,
+		IndividualVertices
 	};
 
 class UVEDITORTOOLS_API FUVEditorUVTransformBaseOp : public FDynamicMeshOperator
@@ -232,10 +321,11 @@ public:
 
 	// inputs
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-	TOptional<TSet<int32>> Selection;
 	int UVLayerIndex = 0;
+	EUVEditorAlignDistributeGroupingModeBackend GroupingMode;
 
 	void SetTransform(const FTransformSRT3d& Transform);
+	void SetSelection(const TSet<int32>& TriangleSelection, const TSet<int32>& VertexSelection);
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
@@ -246,6 +336,7 @@ protected:
 	FVector2f GetAlignmentPointFromUDIMAndDirection(EUVEditorAlignDirectionBackend Direction, FVector2i UDIMTile);
 	void RebuildBoundingBoxes();
 	void CollectTransformElements();
+	void SortComponentsByBoundingBox();
 
 	TMap<int32, int32> ElementToComponent;
 	FDynamicMeshUVOverlay* ActiveUVLayer;
@@ -253,6 +344,10 @@ protected:
 	TArray<FAxisAlignedBox2d> PerComponentBoundingBoxes;
 	TOptional< TSet<int32> > TransformingElements;
 	TSharedPtr<FMeshConnectedComponents> UVComponents;
+	TArray<int32> SpatiallyOrderedComponentIndex;
+
+	TOptional<TSet<int32>> TriangleSelection;
+	TOptional<TSet<int32>> VertexSelection;
 };
 
 
@@ -286,7 +381,7 @@ public:
 	virtual ~FUVEditorUVAlignOp() {}
 
 	EUVEditorAlignAnchorBackend AlignAnchor = EUVEditorAlignAnchorBackend::BoundingBox;
-	EUVEditorAlignDirectionBackend AlignDirection = EUVEditorAlignDirectionBackend::Top;
+	EUVEditorAlignDirectionBackend AlignDirection = EUVEditorAlignDirectionBackend::None;
 	FVector2D ManualAnchor = FVector2D(0, 0);
 
 protected:
@@ -301,7 +396,10 @@ class UVEDITORTOOLS_API FUVEditorUVDistributeOp : public FUVEditorUVTransformBas
 public:
 	virtual ~FUVEditorUVDistributeOp() {}
 
-	EUVEditorDistributeModeBackend DistributeMode = EUVEditorDistributeModeBackend::TopEdges;
+	EUVEditorDistributeModeBackend DistributeMode = EUVEditorDistributeModeBackend::None;
+	bool bEnableManualDistances;
+	float ManualExtent;
+	float ManualSpacing;
 
 protected:
 	virtual void HandleTransformationOp(FProgressCancel* Progress) override;
@@ -327,10 +425,13 @@ public:
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
-	UPROPERTY()
-	TObjectPtr<UUVEditorUVTransformProperties> Settings;
+	EUVEditorUVTransformType TransformType;
 
-	TOptional<TSet<int32>> Selection;
+	UPROPERTY()
+	TObjectPtr<UUVEditorUVTransformPropertiesBase> Settings;
+
+	TOptional<TSet<int32>> TriangleSelection;
+	TOptional<TSet<int32>> VertexSelection;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
