@@ -318,7 +318,7 @@ TArray<FBindWidgetListEntryPtr> BuildSourceDataList(TSharedPtr<FWidgetBlueprintE
 		else if (WidgetProperty->PropertyClass->IsChildOf(UWidgetAnimation::StaticClass()))
 		{
 			bool bIsOptional = false;
-			if (FWidgetBlueprintEditorUtils::IsBindWidgetProperty(WidgetProperty, bIsOptional))
+			if (FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(WidgetProperty, bIsOptional))
 			{
 				TSharedRef<FBindWidgetListEntry> Ref = MakeShared<FBindWidgetListEntry>();
 				Ref->Property = WidgetProperty;
