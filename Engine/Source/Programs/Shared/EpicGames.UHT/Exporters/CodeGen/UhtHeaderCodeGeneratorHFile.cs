@@ -42,7 +42,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append(HeaderCopyright);
 				builder.Append("#include \"UObject/ObjectMacros.h\"\r\n");
 				builder.Append("#include \"UObject/ScriptMacros.h\"\r\n");
-				if (headerInfo._needsPushModelHeaders)
+				if (headerInfo.NeedsPushModelHeaders)
 				{
 					builder.Append("#include \"Net/Core/PushModel/PushModelMacros.h\"\r\n");
 				}
@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				builder.Append("#undef CURRENT_FILE_ID\r\n");
-				builder.Append("#define CURRENT_FILE_ID ").Append(headerInfo._fileId).Append("\r\n\r\n\r\n");
+				builder.Append("#define CURRENT_FILE_ID ").Append(headerInfo.FileId).Append("\r\n\r\n\r\n");
 
 				foreach (UhtField field in this.HeaderFile.References.ExportTypes)
 				{
@@ -245,7 +245,22 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 					if (scriptStruct.SuperScriptStruct != null)
 					{
-						builder.Append("\ttypedef ").Append(scriptStruct.SuperScriptStruct.SourceName).Append(" Super;\\\\r\n");
+						builder.Append("\ttypedef ").Append(scriptStruct.SuperScriptStruct.SourceName).Append(" Super; \\\r\n");
+					}
+					UhtProperty? FastArrayProperty = this.ObjectInfos[scriptStruct.ObjectTypeIndex].FastArrayProperty;
+					if (FastArrayProperty != null)
+					{
+						builder
+							.Append("\tUE_NET_DECLARE_FASTARRAY(")
+							.Append(scriptStruct.SourceName)
+							.Append(", ")
+							.Append(FastArrayProperty.SourceName)
+							.Append(", ");
+						if (!scriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.RequiredAPI))
+						{
+							builder.Append(this.PackageApi);
+						}
+						builder.Append("); \\\r\n");
 					}
 				}
 
@@ -321,7 +336,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private StringBuilder AppendClass(StringBuilder builder, UhtClass classObj)
 		{
 			string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? this.PackageApi : "NO_API ";
-			UhtClass? nativeInterface = this.ObjectInfos[classObj.ObjectTypeIndex]._nativeInterface;
+			UhtClass? nativeInterface = this.ObjectInfos[classObj.ObjectTypeIndex].NativeInterface;
 
 			// Write the spare declarations
 			AppendSparseDeclarations(builder, classObj);
@@ -1007,7 +1022,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			builder.Append("\tstatic void StaticRegisterNatives").Append(classObj.SourceName).Append("(); \\\r\n");
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
-				builder.Append("\tfriend struct ").Append(this.ObjectInfos[classObj.ObjectTypeIndex]._registeredSingletonName).Append("_Statics; \\\r\n");
+				builder.Append("\tfriend struct ").Append(this.ObjectInfos[classObj.ObjectTypeIndex].RegisteredSingletonName).Append("_Statics; \\\r\n");
 			}
 			builder.Append("public: \\\r\n");
 

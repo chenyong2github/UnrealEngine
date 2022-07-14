@@ -55,7 +55,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					if (headerFile.HeaderFileType == UhtHeaderFileType.Classes)
 					{
-						builder.Append("#include \"").Append(this.HeaderInfos[headerFile.HeaderFileTypeIndex]._includePath).Append("\"\r\n");
+						builder.Append("#include \"").Append(this.HeaderInfos[headerFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
 					}
 				}
 

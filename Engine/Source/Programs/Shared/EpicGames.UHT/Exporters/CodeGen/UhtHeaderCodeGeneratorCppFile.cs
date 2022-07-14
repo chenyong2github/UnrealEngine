@@ -37,7 +37,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.Append(HeaderCopyright);
 				builder.Append(RequiredCPPIncludes);
-				builder.Append("#include \"").Append(headerInfo._includePath).Append("\"\r\n");
+				builder.Append("#include \"").Append(headerInfo.IncludePath).Append("\"\r\n");
+				if (headerInfo.NeedsFastArrayHeaders)
+				{
+					builder.Append("#include \"Net/Serialization/FastArraySerializerImplementation.h\"\r\n");
+				}
 
 				bool addedStructuredArchiveFromArchiveHeader = false;
 				bool addedArchiveUObjectFromStructuredArchiveHeader = false;
@@ -51,7 +55,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						{
 							if (addedIncludes.Add(classObj.ClassWithin.HeaderFile))
 							{
-								builder.Append("#include \"").Append(this.HeaderInfos[classObj.ClassWithin.HeaderFile.HeaderFileTypeIndex]._includePath).Append("\"\r\n");
+								builder.Append("#include \"").Append(this.HeaderInfos[classObj.ClassWithin.HeaderFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
 							}
 						}
 
@@ -133,7 +137,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				if (hasRegisteredEnums || hasRegisteredScriptStructs || hasRegisteredClasses)
 				{
-					string name = $"Z_CompiledInDeferFile_{headerInfo._fileId}";
+					string name = $"Z_CompiledInDeferFile_{headerInfo.FileId}";
 					string staticsName = $"{name}_Statics";
 
 					builder.Append("\tstruct ").Append(staticsName).Append("\r\n");
@@ -179,7 +183,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								{
 									builder.Append("#if WITH_EDITORONLY_DATA\r\n");
 								}
-								uint hash = this.ObjectInfos[enumObj.ObjectTypeIndex]._hash;
+								uint hash = this.ObjectInfos[enumObj.ObjectTypeIndex].Hash;
 								builder
 									.Append("\t\t{ ")
 									.Append(enumObj.SourceName)
@@ -211,7 +215,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							{
 								if (scriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.Native))
 								{
-									uint hash = this.ObjectInfos[scriptStruct.ObjectTypeIndex]._hash;
+									uint hash = this.ObjectInfos[scriptStruct.ObjectTypeIndex].Hash;
 									builder
 										.Append("\t\t{ ")
 										.Append(scriptStruct.SourceName)
@@ -240,7 +244,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							{
 								if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
 								{
-									uint hash = this.ObjectInfos[classObj.ObjectTypeIndex]._hash;
+									uint hash = this.ObjectInfos[classObj.ObjectTypeIndex].Hash;
 									builder
 										.Append("\t\t{ Z_Construct_UClass_")
 										.Append(classObj.SourceName)
@@ -298,7 +302,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 
 					// Save the hash of the generated body 
-					this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex]._bodyHash = UhtHash.GenenerateTextHash(generatedBody.Span[generatedBodyStart..generatedBodyEnd]);
+					this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].BodyHash = UhtHash.GenenerateTextHash(generatedBody.Span[generatedBodyStart..generatedBodyEnd]);
 				}
 			}
 		}
@@ -416,7 +420,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				{
 					using UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart);
-					this.ObjectInfos[enumObj.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
+					this.ObjectInfos[enumObj.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}
 			return builder;
@@ -519,6 +523,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("{\r\n");
 				builder.Append("\treturn ").Append(scriptStruct.SourceName).Append("::StaticStruct();\r\n");
 				builder.Append("}\r\n");
+
+				// Inject implementation needed to support auto bindings of fast arrays
+				if (this.ObjectInfos[scriptStruct.ObjectTypeIndex].FastArrayProperty != null)
+				{
+					builder.Append("UE_NET_IMPLEMENT_FASTARRAY(").Append(scriptStruct.SourceName).Append(");\r\n");
+				}
 			}
 
 			// Everything from this point on will be part of the definition hash
@@ -608,7 +618,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
-				this.ObjectInfos[scriptStruct.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
+				this.ObjectInfos[scriptStruct.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
 
 			// if this struct has RigVM methods we need to implement both the 
@@ -773,7 +783,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
-				this.ObjectInfos[function.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
+				this.ObjectInfos[function.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
 			return builder;
 		}
@@ -1430,7 +1440,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				uint baseClassHash = 0;
 				if (classObj.SuperClass != null && !classObj.SuperClass.ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
 				{
-					baseClassHash = this.ObjectInfos[classObj.SuperClass.ObjectTypeIndex]._hash;
+					baseClassHash = this.ObjectInfos[classObj.SuperClass.ObjectTypeIndex].Hash;
 				}
 				hashBuilder.Append($"\r\n// {baseClassHash}\r\n");
 
@@ -1472,7 +1482,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				// Calculate generated class initialization code hash so that we know when it changes after hot-reload
 				{
 					using UhtBorrowBuffer borrowBuffer = new(hashBuilder);
-					this.ObjectInfos[classObj.ObjectTypeIndex]._hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
+					this.ObjectInfos[classObj.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}
 
@@ -1768,7 +1778,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			public uint GetTypeHash(UhtObject obj)
 			{
-				return this._codeGenerator._objectInfos[obj.ObjectTypeIndex]._hash;
+				return this._codeGenerator.ObjectInfos[obj.ObjectTypeIndex].Hash;
 			}
 		}
 	}

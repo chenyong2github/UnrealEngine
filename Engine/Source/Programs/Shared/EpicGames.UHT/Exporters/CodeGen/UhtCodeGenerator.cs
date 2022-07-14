@@ -26,48 +26,53 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public struct PackageInfo
 		{
-			public string _strippedName;
-			public string _api;
+			public string StrippedName { get; set; }
+			public string Api { get; set; }
 		}
-		public PackageInfo[] _packageInfos;
+		public PackageInfo[] PackageInfos { get; set; }
 
 		public struct HeaderInfo
 		{
-			public Task? _task;
-			public string _includePath;
-			public string _fileId;
-			public uint _bodyHash;
-			public bool _needsPushModelHeaders;
+			public Task? Task { get; set; }
+			public string IncludePath { get; set; }
+			public string FileId { get; set; }
+			public uint BodyHash { get; set; }
+			public bool NeedsPushModelHeaders { get; set; }
+			public bool NeedsFastArrayHeaders { get; set; }
 		}
-		public HeaderInfo[] _headerInfos;
+		public HeaderInfo[] HeaderInfos { get; set; }
 
 		public struct ObjectInfo
 		{
-			public string _registeredSingletonName;
-			public string _unregisteredSingletonName;
-			public string _regsiteredCrossReference;
-			public string _unregsiteredCrossReference;
-			public string _regsiteredExternalDecl;
-			public string _unregisteredExternalDecl;
-			public UhtClass? _nativeInterface;
-			public uint _hash;
+			public string RegisteredSingletonName { get; set; }
+			public string UnregisteredSingletonName { get; set; }
+			public string RegsiteredCrossReference { get; set; }
+			public string UnregsiteredCrossReference { get; set; }
+			public string RegsiteredExternalDecl { get; set; }
+			public string UnregisteredExternalDecl { get; set; }
+			public UhtClass? NativeInterface { get; set; }
+			public UhtProperty? FastArrayProperty { get; set; }
+			public uint Hash { get; set; }
 		}
-		public ObjectInfo[] _objectInfos;
+		public ObjectInfo[] ObjectInfos { get; set; }
 
 		public readonly IUhtExportFactory Factory;
 		public UhtSession Session => Factory.Session;
+		public UhtScriptStruct? FastArraySerializer { get; set; } = null;
 
 		private UhtCodeGenerator(IUhtExportFactory factory)
 		{
 			this.Factory = factory;
-			this._headerInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
-			this._objectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
-			this._packageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
+			this.HeaderInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
+			this.ObjectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
+			this.PackageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
 		}
 
 		private void Generate()
 		{
 			List<Task?> prereqs = new();
+
+			this.FastArraySerializer = Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.ScriptStruct, "FFastArraySerializer") as UhtScriptStruct;
 
 			// Perform some startup initialization to compute things we need over and over again
 			if (this.Session.GoWide)
@@ -98,11 +103,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (headerFile != referenced)
 						{
-							prereqs.Add(this._headerInfos[referenced.HeaderFileTypeIndex]._task);
+							prereqs.Add(this.HeaderInfos[referenced.HeaderFileTypeIndex].Task);
 						}
 					}
 
-					this._headerInfos[headerFile.HeaderFileTypeIndex]._task = Factory.CreateTask(prereqs,
+					this.HeaderInfos[headerFile.HeaderFileTypeIndex].Task = Factory.CreateTask(prereqs,
 						(IUhtExportFactory factory) =>
 						{
 							new UhtHeaderCodeGeneratorHFile(this, package, headerFile).Generate(factory);
@@ -121,7 +126,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				prereqs.Clear();
 				foreach (UhtHeaderFile headerFile in package.Children)
 				{
-					prereqs.Add(this._headerInfos[headerFile.HeaderFileTypeIndex]._task);
+					prereqs.Add(this.HeaderInfos[headerFile.HeaderFileTypeIndex].Task);
 					if (!writeHeader)
 					{
 						foreach (UhtType type in headerFile.Children)
@@ -177,7 +182,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				return "nullptr";
 			}
-			return registered ? this._objectInfos[obj.ObjectTypeIndex]._registeredSingletonName : this._objectInfos[obj.ObjectTypeIndex]._unregisteredSingletonName;
+			return registered ? this.ObjectInfos[obj.ObjectTypeIndex].RegisteredSingletonName : this.ObjectInfos[obj.ObjectTypeIndex].UnregisteredSingletonName;
 		}
 
 		/// <summary>
@@ -199,7 +204,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>External declaration</returns>
 		public string GetExternalDecl(int objectIndex, bool registered)
 		{
-			return registered ? this._objectInfos[objectIndex]._regsiteredExternalDecl : this._objectInfos[objectIndex]._unregisteredExternalDecl;
+			return registered ? this.ObjectInfos[objectIndex].RegsiteredExternalDecl : this.ObjectInfos[objectIndex].UnregisteredExternalDecl;
 		}
 
 		/// <summary>
@@ -221,7 +226,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Cross reference</returns>
 		public string GetCrossReference(int objectIndex, bool registered)
 		{
-			return registered ? this._objectInfos[objectIndex]._regsiteredCrossReference : this._objectInfos[objectIndex]._unregsiteredCrossReference;
+			return registered ? this.ObjectInfos[objectIndex].RegsiteredCrossReference : this.ObjectInfos[objectIndex].UnregsiteredCrossReference;
 		}
 		#endregion
 
@@ -230,17 +235,17 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		{
 			StringBuilder builder = new();
 
-			ref PackageInfo packageInfo = ref this._packageInfos[package.PackageTypeIndex];
-			packageInfo._strippedName = package.SourceName.Replace('/', '_');
-			packageInfo._api = $"{package.ShortName.ToString().ToUpper()}_API ";
+			ref PackageInfo packageInfo = ref this.PackageInfos[package.PackageTypeIndex];
+			packageInfo.StrippedName = package.SourceName.Replace('/', '_');
+			packageInfo.Api = $"{package.ShortName.ToString().ToUpper()}_API ";
 
 			// Construct the names used commonly during export
-			ref ObjectInfo objectInfo = ref this._objectInfos[package.ObjectTypeIndex];
+			ref ObjectInfo objectInfo = ref this.ObjectInfos[package.ObjectTypeIndex];
 			builder.Append("Z_Construct_UPackage_");
-			builder.Append(packageInfo._strippedName);
-			objectInfo._unregisteredSingletonName = objectInfo._registeredSingletonName = builder.ToString();
-			objectInfo._unregisteredExternalDecl = objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}_API UPackage* {objectInfo._registeredSingletonName}();\r\n"; //COMPATIBILITY-TODO remove the extra _API
-			objectInfo._unregsiteredCrossReference = objectInfo._regsiteredCrossReference = $"\tUPackage* {objectInfo._registeredSingletonName}();\r\n";
+			builder.Append(packageInfo.StrippedName);
+			objectInfo.UnregisteredSingletonName = objectInfo.RegisteredSingletonName = builder.ToString();
+			objectInfo.UnregisteredExternalDecl = objectInfo.RegsiteredExternalDecl = $"\t{packageInfo.Api}_API UPackage* {objectInfo.RegisteredSingletonName}();\r\n"; //COMPATIBILITY-TODO remove the extra _API
+			objectInfo.UnregsiteredCrossReference = objectInfo.RegsiteredCrossReference = $"\tUPackage* {objectInfo.RegisteredSingletonName}();\r\n";
 
 			foreach (UhtHeaderFile headerFile in package.Children)
 			{
@@ -250,9 +255,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void InitHeaderInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, UhtHeaderFile headerFile)
 		{
-			ref HeaderInfo headerInfo = ref this._headerInfos[headerFile.HeaderFileTypeIndex];
+			ref HeaderInfo headerInfo = ref this.HeaderInfos[headerFile.HeaderFileTypeIndex];
 
-			headerInfo._includePath = Path.GetRelativePath(package.Module.IncludeBase, headerFile.FilePath).Replace('\\', '/');
+			headerInfo.IncludePath = Path.GetRelativePath(package.Module.IncludeBase, headerFile.FilePath).Replace('\\', '/');
 
 			// Convert the file path to a C identifier
 			string filePath = headerFile.FilePath;
@@ -293,7 +298,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				outFilePath[index + 4] = UhtFCString.IsAlnum(filePath[index]) ? filePath[index] : '_';
 			}
-			headerInfo._fileId = new string(outFilePath);
+			headerInfo.FileId = new string(outFilePath);
 
 			foreach (UhtObject obj in headerFile.Children)
 			{
@@ -303,7 +308,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void InitObjectInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, ref HeaderInfo headerInfo, UhtObject obj)
 		{
-			ref ObjectInfo objectInfo = ref this._objectInfos[obj.ObjectTypeIndex];
+			ref ObjectInfo objectInfo = ref this.ObjectInfos[obj.ObjectTypeIndex];
 
 			builder.Clear();
 
@@ -320,13 +325,40 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 				if (classObj.ClassExportFlags.HasExactFlags(UhtClassExportFlags.HasReplciatedProperties, UhtClassExportFlags.SelfHasReplicatedProperties))
 				{
-					headerInfo._needsPushModelHeaders = true;
+					headerInfo.NeedsPushModelHeaders = true;
 				}
 				if (classObj.ClassType == UhtClassType.NativeInterface)
 				{
 					if (classObj.AlternateObject != null)
 					{
-						this._objectInfos[classObj.AlternateObject.ObjectTypeIndex]._nativeInterface = classObj;
+						this.ObjectInfos[classObj.AlternateObject.ObjectTypeIndex].NativeInterface = classObj;
+					}
+				}
+			}
+			else if (obj is UhtScriptStruct scriptStruct)
+			{
+				// Check to see if we are a FastArraySerializer and should try to deduce the FastArraySerializerItemType
+				// To fulfill that requirement the struct should be derived from FFastArraySerializer and have a single replicated TArrayProperty
+				if (scriptStruct.IsChildOf(FastArraySerializer))
+				{
+					foreach (UhtType child in scriptStruct.Children)
+					{
+						if (child is UhtProperty property)
+						{
+							if (!property.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip) && property is UhtArrayProperty)
+							{
+								if (objectInfo.FastArrayProperty != null)
+								{
+									objectInfo.FastArrayProperty = null;
+									break;
+								}
+								objectInfo.FastArrayProperty = property;
+							}
+						}
+					}
+					if (objectInfo.FastArrayProperty != null)
+					{
+						headerInfo.NeedsFastArrayHeaders = true;
 					}
 				}
 			}
@@ -338,22 +370,22 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			if (isNonIntrinsicClass)
 			{
-				objectInfo._registeredSingletonName = builder.ToString();
+				objectInfo.RegisteredSingletonName = builder.ToString();
 				builder.Append("_NoRegister");
-				objectInfo._unregisteredSingletonName = builder.ToString();
+				objectInfo.UnregisteredSingletonName = builder.ToString();
 
-				objectInfo._unregisteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._unregisteredSingletonName}();\r\n";
-				objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._registeredSingletonName}();\r\n";
+				objectInfo.UnregisteredExternalDecl = $"\t{packageInfo.Api}U{engineClassName}* {objectInfo.UnregisteredSingletonName}();\r\n";
+				objectInfo.RegsiteredExternalDecl = $"\t{packageInfo.Api}U{engineClassName}* {objectInfo.RegisteredSingletonName}();\r\n";
 			}
 			else
 			{
-				objectInfo._unregisteredSingletonName = objectInfo._registeredSingletonName = builder.ToString();
-				objectInfo._unregisteredExternalDecl = objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._registeredSingletonName}();\r\n";
+				objectInfo.UnregisteredSingletonName = objectInfo.RegisteredSingletonName = builder.ToString();
+				objectInfo.UnregisteredExternalDecl = objectInfo.RegsiteredExternalDecl = $"\t{packageInfo.Api}U{engineClassName}* {objectInfo.RegisteredSingletonName}();\r\n";
 			}
 
 			//COMPATIBILITY-TODO - The cross reference string should match the extern decl string always.  But currently, it is different for packages.
-			objectInfo._unregsiteredCrossReference = objectInfo._unregisteredExternalDecl;
-			objectInfo._regsiteredCrossReference = objectInfo._regsiteredExternalDecl;
+			objectInfo.UnregsiteredCrossReference = objectInfo.UnregisteredExternalDecl;
+			objectInfo.RegsiteredCrossReference = objectInfo.RegsiteredExternalDecl;
 
 			// Init the children
 			foreach (UhtType child in obj.Children)

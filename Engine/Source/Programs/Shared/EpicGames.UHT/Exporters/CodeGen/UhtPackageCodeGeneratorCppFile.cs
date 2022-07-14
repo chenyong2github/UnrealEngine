@@ -49,7 +49,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 					singletons.AddRange(headerFile.References.Singletons);
 
-					uint bodyHash = this.HeaderInfos[headerFile.HeaderFileTypeIndex]._bodyHash;
+					uint bodyHash = this.HeaderInfos[headerFile.HeaderFileTypeIndex].BodyHash;
 					if (bodiesHash == 0)
 					{
 						// Don't combine in the first case because it keeps GUID backwards compatibility
@@ -68,7 +68,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 				uint declarationsHash = UhtHash.GenenerateTextHash(declarations.ToString());
 
-				string strippedName = this.PackageInfos[this.Package.PackageTypeIndex]._strippedName;
+				string strippedName = this.PackageInfos[this.Package.PackageTypeIndex].StrippedName;
 				string singletonName = this.PackageSingletonName;
 				singletons.Sort((UhtField lhs, UhtField rhs) =>
 				{
@@ -79,8 +79,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						return !lhsIsDel ? -1 : 1;
 					}
 					return StringComparerUE.OrdinalIgnoreCase.Compare(
-						this.ObjectInfos[lhs.ObjectTypeIndex]._registeredSingletonName,
-						this.ObjectInfos[rhs.ObjectTypeIndex]._registeredSingletonName);
+						this.ObjectInfos[lhs.ObjectTypeIndex].RegisteredSingletonName,
+						this.ObjectInfos[rhs.ObjectTypeIndex].RegisteredSingletonName);
 				});
 
 				builder.Append(HeaderCopyright);
@@ -102,7 +102,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				foreach (UhtObject obj in singletons)
 				{
 					ref UhtCodeGenerator.ObjectInfo info = ref this.ObjectInfos[obj.ObjectTypeIndex];
-					builder.Append(info._regsiteredExternalDecl);
+					builder.Append(info.RegsiteredExternalDecl);
 				}
 
 				builder.AppendMetaDataDef(this.Package, null, MetaDataParamsName, 3);
@@ -118,7 +118,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("\t\t\tstatic UObject* (*const SingletonFuncArray[])() = {\r\n");
 					foreach (UhtField field in singletons)
 					{
-						builder.Append("\t\t\t\t(UObject* (*)())").Append(this.ObjectInfos[field.ObjectTypeIndex]._registeredSingletonName).Append(",\r\n");
+						builder.Append("\t\t\t\t(UObject* (*)())").Append(this.ObjectInfos[field.ObjectTypeIndex].RegisteredSingletonName).Append(",\r\n");
 					}
 					builder.Append("\t\t\t};\r\n");
 				}

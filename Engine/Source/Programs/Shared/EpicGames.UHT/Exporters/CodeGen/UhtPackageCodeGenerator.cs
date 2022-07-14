@@ -28,11 +28,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public bool SaveExportedHeaders => this.Package.Module.SaveExportedHeaders;
 
 		public Utils.UhtSession Session => this.CodeGenerator.Session;
-		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator._packageInfos;
-		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => this.CodeGenerator._headerInfos;
-		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => this.CodeGenerator._objectInfos;
-		public string PackageApi => this.PackageInfos[this.Package.PackageTypeIndex]._api;
-		public string PackageSingletonName => this.ObjectInfos[this.Package.ObjectTypeIndex]._registeredSingletonName;
+		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator.PackageInfos;
+		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => this.CodeGenerator.HeaderInfos;
+		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => this.CodeGenerator.ObjectInfos;
+		public string PackageApi => this.PackageInfos[this.Package.PackageTypeIndex].Api;
+		public string PackageSingletonName => this.ObjectInfos[this.Package.ObjectTypeIndex].RegisteredSingletonName;
 
 		public UhtPackageCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package)
 		{

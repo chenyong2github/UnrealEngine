@@ -35,7 +35,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#endregion
 
 		public readonly UhtHeaderFile HeaderFile;
-		public string FileId => this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex]._fileId;
+		public string FileId => this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].FileId;
 
 		public UhtHeaderCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package, UhtHeaderFile headerFile)
 			: base(codeGenerator, package)
