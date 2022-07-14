@@ -2276,7 +2276,7 @@ void UMaterialInstance::CacheGivenTypesForCooking(EShaderPlatform ShaderPlatform
 			QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 		}
 
-		FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, nullptr, FeatureLevel, QualityLevel);
+		FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, this, FeatureLevel, QualityLevel);
 		check(CurrentResource);
 
 		// Prepare the resource for compilation, but don't compile the completed shader map.
