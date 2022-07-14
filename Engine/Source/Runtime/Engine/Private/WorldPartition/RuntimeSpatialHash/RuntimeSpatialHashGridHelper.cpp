@@ -41,8 +41,8 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 
 	if (WorldBounds.IsValid)
 	{
-		const FVector2D DistMin = FMath::Abs(FVector2D(WorldBounds.Min - Origin));
-		const FVector2D DistMax = FMath::Abs(FVector2D(WorldBounds.Max - Origin));
+		const FVector2D DistMin = FVector2D(WorldBounds.Min - Origin).GetAbs();
+		const FVector2D DistMax = FVector2D(WorldBounds.Max - Origin).GetAbs();
 		const double WorldBoundsMaxExtent = FMath::Max(DistMin.GetMax(), DistMax.GetMax());
 
 		if (WorldBoundsMaxExtent > 0)
