@@ -54,7 +54,12 @@ bool UPCGComponent::IsPartitioned() const
 	return bIsPartitioned && CanPartition();
 }
 
-void UPCGComponent::SetGraph(UPCGGraph* InGraph)
+void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
+{
+	SetGraphLocal(InGraph);
+}
+
+void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
 {
 	if(Graph == InGraph)
 	{
@@ -75,9 +80,9 @@ void UPCGComponent::SetGraph(UPCGGraph* InGraph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
-
-	OnGraphChanged(Graph, true, false);
 #endif
+
+	OnGraphChanged(Graph, true, true);
 }
 
 void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
@@ -158,7 +163,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 	InputType = NewInputType;
 	Seed = Original->Seed;
-	SetGraph(Original->Graph);
+	SetGraphLocal(Original->Graph);
 
 	GenerationTrigger = Original->GenerationTrigger;
 
@@ -694,6 +699,55 @@ void UPCGComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural)
+{
+	OnGraphChanged(InGraph, bIsStructural, true);
+}
+
+void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh)
+{
+	if (InGraph != Graph)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	// In editor, since we've changed the graph, we might have changed the tracked actor tags as well
+	if (!GIsPlayInEditorWorld)
+	{
+		TeardownTrackingCallbacks();
+		SetupTrackingCallbacks();
+		RefreshTrackingData();
+		DirtyCacheForAllTrackedTags();
+		UpdateTrackedLandscape();
+
+		DirtyGenerated();
+		if (InGraph && bShouldRefresh)
+		{
+			Refresh();
+		}
+		else if (!InGraph)
+		{
+			// With no graph, we clean up
+			CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
+		}
+
+		InspectionCache.Empty();
+		return;
+	}
+#endif
+
+	// Otherwise, if we are in PIE or runtime, force generate if we have a graph (and were generated). Or cleanup if we have no graph
+	if (InGraph && bGenerated)
+	{
+		GenerateLocal(/*bForce=*/true);
+	}
+	else if (!InGraph)
+	{
+		CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
+	}
+}
+
 #if WITH_EDITOR
 void UPCGComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
@@ -1187,34 +1241,6 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 			DirtyGenerated();
 			Refresh();
 		}
-	}
-}
-
-void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural)
-{
-	OnGraphChanged(InGraph, bIsStructural, true);
-}
-
-void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh)
-{
-	if (InGraph == Graph)
-	{
-		// Since we've changed the graph, we might have changed the tracked actor tags as well
-		TeardownTrackingCallbacks();
-		SetupTrackingCallbacks();
-		RefreshTrackingData();
-		DirtyCacheForAllTrackedTags();
-		UpdateTrackedLandscape();
-
-		DirtyGenerated();
-		if (bShouldRefresh)
-		{
-			Refresh();
-		}
-
-#if WITH_EDITOR
-		InspectionCache.Empty();	
-#endif
 	}
 }
 
