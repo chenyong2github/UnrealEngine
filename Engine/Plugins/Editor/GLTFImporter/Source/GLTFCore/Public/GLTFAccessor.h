@@ -13,14 +13,20 @@ namespace GLTF
 		const uint32 ByteLength;
 		const uint8* Data;
 
-		FBuffer(uint32 InByteLength)
+		explicit FBuffer(uint32 InByteLength)
 		    : ByteLength(InByteLength)
 		    , Data(nullptr)
 		{
 		}
 
+		bool IsValid() const
+		{
+			return Data != nullptr;
+		}
+
 		const uint8* DataAt(uint32 Offset) const
 		{
+			checkSlow(Data);
 			return Data + Offset;
 		}
 	};
@@ -33,13 +39,18 @@ namespace GLTF
 		// if zero then accessor elements are tightly packed, i.e., effective stride equals the size of the element
 		const uint32 ByteStride;  // range 4..252
 
-		FBufferView(const FBuffer& InBuffer, uint32 InOffset, uint32 InLength, uint32 InStride)
+		explicit FBufferView(const FBuffer& InBuffer, uint32 InOffset, uint32 InLength, uint32 InStride)
 		    : Buffer(InBuffer)
 		    , ByteOffset(InOffset)
 		    , ByteLength(InLength)
 		    , ByteStride(InStride)
 		{
 			// check that view fits completely inside the buffer
+		}
+
+		bool IsValid() const
+		{
+			return Buffer.IsValid();
 		}
 
 		const uint8* DataAt(uint32 Offset) const

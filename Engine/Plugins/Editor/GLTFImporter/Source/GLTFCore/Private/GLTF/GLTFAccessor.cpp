@@ -248,7 +248,7 @@ namespace GLTF
 
 	bool FValidAccessor::IsValid() const
 	{
-		return true;
+		return BufferView.IsValid();
 	}
 
 	FMD5Hash FValidAccessor::GetHash() const
