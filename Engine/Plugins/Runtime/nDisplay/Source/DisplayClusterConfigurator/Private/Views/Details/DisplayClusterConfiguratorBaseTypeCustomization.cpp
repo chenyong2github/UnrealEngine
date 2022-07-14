@@ -23,6 +23,11 @@ void FDisplayClusterConfiguratorBaseTypeCustomization::CustomizeHeader(TSharedRe
 	check(InPropertyHandle->IsValidHandle());
 
 	PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+	if (PropertyUtilities == nullptr)
+	{
+		// Can be null if PropertyEditorModule.CreateSingleProperty is what triggers this customization.
+		return;
+	}
 	EditingObjects = PropertyUtilities.Pin()->GetSelectedObjects();
 
 	if (EditingObjects.Num())
