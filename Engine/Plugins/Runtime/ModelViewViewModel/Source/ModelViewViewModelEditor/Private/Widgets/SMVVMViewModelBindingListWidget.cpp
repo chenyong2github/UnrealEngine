@@ -119,23 +119,22 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 
 	OnDoubleClicked = InArgs._OnDoubleClicked;
 
-	PropertyViewer = SNew(SPropertyViewer)
+	ChildSlot
+	[
+		SAssignNew(PropertyViewer, SPropertyViewer)
+		.FieldIterator(FieldIterator.Get())
 		.PropertyVisibility(SPropertyViewer::EPropertyVisibility::Hidden)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
-		.FieldIterator(FieldIterator.Get())
-		.bShowSearchBox(false)
+		.bShowSearchBox(InArgs._ShowSearchBox)
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
-		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked);
-
-	ChildSlot
-	[
-		PropertyViewer.ToSharedRef()
+		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked)
 	];
 }
 
 void SSourceBindingList::Clear()
 {
+	Sources.Reset();
 	if (PropertyViewer)
 	{
 		PropertyViewer->RemoveAll();
@@ -150,6 +149,16 @@ void SSourceBindingList::AddSource(UClass* Class, FName Name, FGuid Guid)
 	Source.ViewModelId = Guid;
 
 	AddSources(MakeArrayView(&Source, 1));
+} 
+
+void SSourceBindingList::AddWidgetBlueprint(const UWidgetBlueprint* InWidgetBlueprint)
+{
+	FBindingSource Source;
+	Source.Class = InWidgetBlueprint->GeneratedClass;
+	Source.Name = InWidgetBlueprint->GetFName();
+	Source.DisplayName = FText::FromString(InWidgetBlueprint->GetName());
+
+	AddSources(MakeArrayView(&Source, 1 ));
 }
 
 void SSourceBindingList::AddWidgets(TArrayView<const UWidget*> InWidgets)

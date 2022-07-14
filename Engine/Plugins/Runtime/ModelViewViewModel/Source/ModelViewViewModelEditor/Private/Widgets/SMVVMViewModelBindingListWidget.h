@@ -53,10 +53,9 @@ namespace UE::MVVM
 
 		DECLARE_DELEGATE_OneParam(FOnDoubleClicked, const FMVVMBlueprintPropertyPath&);
 	
-		SLATE_BEGIN_ARGS(SSourceBindingList) : 
-			_FieldVisibilityFlags(EFieldVisibility::All)
-			{}
-			SLATE_ARGUMENT(EFieldVisibility, FieldVisibilityFlags)
+		SLATE_BEGIN_ARGS(SSourceBindingList) {}
+			SLATE_ARGUMENT_DEFAULT(bool, ShowSearchBox) = false;
+			SLATE_ARGUMENT_DEFAULT(EFieldVisibility, FieldVisibilityFlags) = EFieldVisibility::All;
 			SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked)
 		SLATE_END_ARGS()
 
@@ -67,6 +66,7 @@ namespace UE::MVVM
 		void AddSource(UClass* Class, FName Name, FGuid Guid);
 		void AddSources(TArrayView<const FBindingSource> InSources);
 
+		void AddWidgetBlueprint(const UWidgetBlueprint* WidgetBlueprint);
 		void AddWidgets(TArrayView<const UWidget*> Widgets);
 		void AddViewModels(TArrayView<const FMVVMBlueprintViewModelContext> ViewModels);
 
