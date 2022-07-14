@@ -126,7 +126,7 @@ public:
 	/** Get the actuator with the given ID if this agent has it. */
 	UMLAdapterActuator* GetActuator(const uint32 ActuatorID) 
 	{ 
-		UMLAdapterActuator** FoundActuator = Actuators.FindByPredicate([ActuatorID](const UMLAdapterActuator* Actuator) { return (Actuator->GetElementID() == ActuatorID); });
+		UE_TRANSITIONAL_OBJECT_PTR(UMLAdapterActuator)* FoundActuator = Actuators.FindByPredicate([ActuatorID](const UMLAdapterActuator* Actuator) { return (Actuator->GetElementID() == ActuatorID); });
 		return FoundActuator ? *FoundActuator : nullptr;
 	}
 

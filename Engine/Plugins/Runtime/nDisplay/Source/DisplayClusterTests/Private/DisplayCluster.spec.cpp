@@ -359,7 +359,7 @@ void FDisplayClusterSpec::Define()
 			{
 				if (TestTrue("Instance has entry corresponding to CDO key", InstancedRootCluster->Nodes.Contains(Pair.Key)))
 				{
-					TestNotNull("Instance has valid entry corresponding to CDO key", InstancedRootCluster->Nodes[Pair.Key]);
+					TestNotNull("Instance has valid entry corresponding to CDO key", ToRawPtr(InstancedRootCluster->Nodes[Pair.Key]));
 				}
 			}
 		});
