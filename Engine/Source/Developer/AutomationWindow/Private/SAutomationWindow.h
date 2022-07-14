@@ -543,7 +543,7 @@ private:
 	}
 
 #if WITH_EDITOR
-	void OnAssetRegistryFileLoadProgress(const IAssetRegistry::FFileLoadProgressUpdateData& ProgressUpdateData);
+	void OnAssetRegistryFilesLoaded();
 #endif
 
 private:
