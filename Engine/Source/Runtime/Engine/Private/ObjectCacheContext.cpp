@@ -566,24 +566,26 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 
 TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshComponents(USkeletalMesh* InSkeletalMesh)
 {
-	if (!SkeletalMeshToComponents.IsSet())
+	return GetSkinnedMeshComponents(Cast<USkinnedAsset>(InSkeletalMesh));
+}
+
+TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset)
+{
+	if (!SkinnedAssetToComponents.IsSet())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ComputeSkeletalMeshToComponents);
 
-		TMap<TObjectKey<USkeletalMesh>, TSet<USkinnedMeshComponent*>> TempMap;
+		TMap<TObjectKey<USkinnedAsset>, TSet<USkinnedMeshComponent*>> TempMap;
 		TempMap.Reserve(8192);
 		for (USkinnedMeshComponent* Component : GetSkinnedMeshComponents())
 		{
-			if (USkeletalMeshComponent* const SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Component))
-			{
-				TempMap.FindOrAdd(SkeletalMeshComponent->GetSkeletalMesh()).Add(Component);
-			}
+			TempMap.FindOrAdd(Component->GetSkinnedAsset()).Add(Component);
 		}
-		SkeletalMeshToComponents = MoveTemp(TempMap);
+		SkinnedAssetToComponents = MoveTemp(TempMap);
 	}
 
 	static TSet<USkinnedMeshComponent*> EmptySet;
-	TSet<USkinnedMeshComponent*>* Set = SkeletalMeshToComponents.GetValue().Find(InSkeletalMesh);
+	TSet<USkinnedMeshComponent*>* Set = SkinnedAssetToComponents.GetValue().Find(InSkinnedAsset);
 	const TSet<USkinnedMeshComponent*>& Result = Set ? *Set : EmptySet;
 
 	return TObjectCacheIterator<USkinnedMeshComponent>(Result.Array());

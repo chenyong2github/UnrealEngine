@@ -16,6 +16,7 @@ class UMaterialInterface;
 class UStaticMesh;
 class UTexture;
 class USkeletalMesh;
+class USkinnedAsset;
 
 /**
  *  Class to abstract implementation details of the containers used inside the
@@ -68,6 +69,8 @@ public:
 	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitiveComponents();
 	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents();
 	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents();
+	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset);
+	UE_DEPRECATED(5.1, "Use GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset) instead")
 	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkeletalMesh* InSkeletalMesh);
 	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents(UStaticMesh* InStaticMesh);
 	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByTexture(UTexture* InTexture);
@@ -84,7 +87,7 @@ private:
 	TOptional<TMap<TObjectKey<UTexture>, TSet<UMaterialInterface*>>> TextureToMaterials;
 	TOptional<TMap<TObjectKey<UMaterialInterface>, TSet<UPrimitiveComponent*>>> MaterialToPrimitives;
 	TOptional<TMap<TObjectKey<UStaticMesh>, TSet<UStaticMeshComponent*>>> StaticMeshToComponents;
-	TOptional<TMap<TObjectKey<USkeletalMesh>, TSet<USkinnedMeshComponent*>>> SkeletalMeshToComponents;
+	TOptional<TMap<TObjectKey<USkinnedAsset>, TSet<USkinnedMeshComponent*>>> SkinnedAssetToComponents;
 	TOptional<TArray<USkinnedMeshComponent*>> SkinnedMeshComponents;
 	TOptional<TArray<UStaticMeshComponent*>> StaticMeshComponents;
 	TOptional<TArray<UPrimitiveComponent*>> PrimitiveComponents;
