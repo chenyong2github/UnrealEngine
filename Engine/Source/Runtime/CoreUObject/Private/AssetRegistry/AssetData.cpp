@@ -7,7 +7,11 @@
 #include "AssetRegistry/ARFilter.h"
 #include "Containers/Set.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/PathViews.h"
 #include "Misc/ScopeRWLock.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/CustomVersion.h"
 #include "String/Find.h"
 #include "UObject/PropertyPortFlags.h"
@@ -21,9 +25,9 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetData);
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);
 FCustomVersionRegistration GRegisterAssetRegistryVersion(FAssetRegistryVersion::GUID, FAssetRegistryVersion::LatestVersion, TEXT("AssetRegistry"));
 
-namespace UE { namespace AssetData { namespace Private {
-
 const FName GAssetBundleDataName("AssetBundleData");
+
+namespace UE { namespace AssetData { namespace Private {
 
 static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const TCHAR* Text, const FAssetData& Context)
 {
@@ -238,6 +242,111 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << ChunkIDs;
 	}
 	Ar << PackageFlags;
+}
+
+void FAssetData::NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const
+{
+	// Note we use single-letter field names to reduce network bandwidth
+	Writer.BeginObject();
+	if (bWritePackageName)
+	{
+		Writer << "O" << ObjectPath;
+		Writer << "P" << PackagePath;
+		Writer << "Q" << PackageName;
+	}
+	Writer << "N" << AssetName;
+	Writer << "C" << AssetClassPath.ToString();
+	if (TagsAndValues.Num() != 0 || TaggedAssetBundles)
+	{
+		Writer.BeginArray("T");
+		TagsAndValues.ForEach([&Writer](const TPair<FName, FAssetTagValueRef>& Pair)
+			{
+				Writer.BeginObject();
+				Writer << "K" << Pair.Key;
+				Writer << "V" << Pair.Value.GetStorageString();
+				Writer.EndObject();
+			});
+		if (TaggedAssetBundles)
+		{
+			FString ValueText;
+			TaggedAssetBundles->ExportTextItem(ValueText, FAssetBundleData(), nullptr, PPF_None, nullptr);
+
+			Writer.BeginObject();
+			Writer << "K" << GAssetBundleDataName;
+			Writer << "V" << ValueText;
+			Writer.EndObject();
+		}
+		Writer.EndArray();
+	}
+	if (!ChunkIDs.IsEmpty())
+	{
+		Writer << "I" << ChunkIDs;
+	}
+	Writer.EndObject();
+}
+
+bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName InPackageName)
+{
+	bool bOk = true;
+	FCbObjectView Object = Field.AsObjectView();
+	bOk &= !Field.HasError();
+
+	bool bHasAssetName = LoadFromCompactBinary(Object["N"], AssetName);
+	bOk &= bHasAssetName;
+	if (bReadPackageName)
+	{
+		bOk = LoadFromCompactBinary(Object["O"], ObjectPath) & bOk;
+		bOk = LoadFromCompactBinary(Object["P"], PackagePath) & bOk;
+		bOk = LoadFromCompactBinary(Object["Q"], PackageName) & bOk;
+	}
+	else
+	{
+		if (bHasAssetName)
+		{
+			WriteToString<256> PackageNameStr(InPackageName);
+			ObjectPath = FName(WriteToString<256>(PackageNameStr.ToView(), TEXT("."), AssetName));
+			PackagePath = FName(FPathViews::GetPath(PackageNameStr.ToView()));
+		}
+		else
+		{
+			ObjectPath = NAME_None;
+			PackagePath = NAME_None;
+		}
+		PackageName = InPackageName;
+	}
+	FString ClassPath;
+	if (LoadFromCompactBinary(Object["C"], ClassPath))
+	{
+		bOk = AssetClassPath.TrySetPath(ClassPath) & bOk;
+	}
+	else
+	{
+		AssetClassPath.Reset();
+		bOk = false;
+	}
+
+	FCbFieldView TagsField = Object["T"];
+	FCbArrayView TagsArray = TagsField.AsArrayView();
+	if (!TagsField.HasError()) // Ok if it does not exist
+	{
+		FAssetDataTagMap Tags;
+		Tags.Reserve(TagsArray.Num());
+		for (FCbFieldView TagField : TagsArray)
+		{
+			FName TagName;
+			bOk = LoadFromCompactBinary(TagField["K"], TagName) & bOk;
+			FString& TagValue = Tags.FindOrAdd(TagName);
+			bOk = LoadFromCompactBinary(TagField["V"], TagValue) & bOk;
+		}
+		SetTagsAndAssetBundles(MoveTemp(Tags));
+	}
+	else
+	{
+		SetTagsAndAssetBundles(FAssetDataTagMap());
+	}
+
+	LoadFromCompactBinary(Object["I"], ChunkIDs); // Ok if it does not exist
+	return bOk;
 }
 
 void FAssetData::SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&))

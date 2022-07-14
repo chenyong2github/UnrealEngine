@@ -279,7 +279,7 @@ void FWorkerConnectMessage::Write(FCbWriter& Writer) const
 	Writer << "RemoteIndex" << RemoteIndex;
 }
 
-bool FWorkerConnectMessage::TryRead(FCbObjectView Object)
+bool FWorkerConnectMessage::TryRead(FCbObject&& Object)
 {
 	RemoteIndex = Object["RemoteIndex"].AsInt32(-1);
 	return RemoteIndex >= 0;
@@ -390,7 +390,7 @@ void FCookDirector::TickWorkerConnects()
 			continue;
 		}
 		FWorkerConnectMessage Message;
-		if (!Message.TryRead(Messages[0].Object))
+		if (!Message.TryRead(MoveTemp(Messages[0].Object)))
 		{
 			UE_LOG(LogCook, Warning, TEXT("Pending connection sent an invalid Connection Message. Connection will be ignored."));
 			continue;

@@ -2,6 +2,7 @@
 
 #include "CookWorkerServer.h"
 
+#include "Commandlets/AssetRegistryGenerator.h"
 #include "CompactBinaryTCP.h"
 #include "CookDirector.h"
 #include "CookPackageData.h"
@@ -11,6 +12,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Math/NumericLimits.h"
 #include "Misc/AssertionMacros.h"
+#include "PackageResultsMessage.h"
 #include "PackageTracker.h"
 #include "UnrealEdMisc.h"
 
@@ -416,13 +418,34 @@ void FCookWorkerServer::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 		else if (Message.MessageType == FPackageResultsMessage::MessageType)
 		{
 			FPackageResultsMessage ResultsMessage;
-			if (!ResultsMessage.TryRead(Message.Object))
+			if (!ResultsMessage.TryRead(MoveTemp(Message.Object)))
 			{
 				LogInvalidMessage(TEXT("FPackageResultsMessage"));
 			}
 			else
 			{
 				RecordResults(ResultsMessage);
+			}
+		}
+	}
+}
+
+void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& PackageData, const ITargetPlatform* TargetPlatform, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages)
+{
+	for (UE::CompactBinaryTCP::FMarshalledMessage& Message : Messages)
+	{
+		if (Message.MessageType == FAssetRegistryPackageMessage::MessageType)
+		{
+			FAssetRegistryPackageMessage ARMessage;
+			if (!ARMessage.TryRead(MoveTemp(Message.Object), PackageData, TargetPlatform))
+			{
+				LogInvalidMessage(TEXT("FAssetRegistryPackageMessage"));
+			}
+			else
+			{
+				FAssetRegistryGenerator* RegistryGenerator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
+				check(RegistryGenerator); // The TargetPlatform came from OrderedSessionPlatforms, and the RegistryGenerator should exist for any of those platforms
+				RegistryGenerator->UpdateAssetRegistryPackageData(PackageData, MoveTemp(ARMessage));
 			}
 		}
 	}
@@ -435,7 +458,7 @@ void FCookWorkerServer::SendMessage(const UE::CompactBinaryTCP::IMessage& Messag
 
 void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 {
-	for (FPackageResult& Result : Message.Results)
+	for (FPackageRemoteResult& Result : Message.Results)
 	{
 		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(Result.PackageName);
 		if (!PackageData)
@@ -466,11 +489,10 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 			for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
 			{
 				ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
-				FPackagePlatformResult& PlatformResult = Result.Platforms[PlatformIndex];
+				FPackageRemoteResult::FPlatformResult& PlatformResult = Result.Platforms[PlatformIndex];
 				PackageData->SetPlatformCooked(TargetPlatform, PlatformResult.bSuccessful);
 				// MPCOOKTODO: Call CommitRemotePackage on the PackageWriter
-				// MPCOOKTODO: Add the AssetRegistry information here
-				// MPCOOKTODO: Copy the Hash
+				HandleReceivedPackagePlatformMessages(*PackageData, TargetPlatform, MoveTemp(PlatformResult.Messages));
 			}
 			if (Result.bReferencedOnlyByEditorOnlyData)
 			{
@@ -501,7 +523,7 @@ void FAssignPackagesMessage::Write(FCbWriter& Writer) const
 	Writer << "P" << PackageDatas;
 }
 
-bool FAssignPackagesMessage::TryRead(FCbObjectView Object)
+bool FAssignPackagesMessage::TryRead(FCbObject&& Object)
 {
 	return LoadFromCompactBinary(Object["P"], PackageDatas);
 }
@@ -515,12 +537,12 @@ FAbortPackagesMessage::FAbortPackagesMessage(TArray<FName>&& InPackageNames)
 
 void FAbortPackagesMessage::Write(FCbWriter& Writer) const
 {
-	WriteArrayOfNames(Writer, "PackageNames", PackageNames);
+	Writer << "PackageNames" <<  PackageNames;
 }
 
-bool FAbortPackagesMessage::TryRead(FCbObjectView Object)
+bool FAbortPackagesMessage::TryRead(FCbObject&& Object)
 {
-	return TryReadArrayOfNames(Object, "PackageNames", PackageNames);
+	return LoadFromCompactBinary(Object["PackageNames"], PackageNames);
 }
 
 FGuid FAbortPackagesMessage::MessageType(TEXT("D769F1BFF2F34978868D70E3CAEE94E7"));
@@ -535,7 +557,7 @@ void FAbortWorkerMessage::Write(FCbWriter& Writer) const
 	Writer << "Type" << (uint8)Type;
 }
 
-bool FAbortWorkerMessage::TryRead(FCbObjectView Object)
+bool FAbortWorkerMessage::TryRead(FCbObject&& Object)
 {
 	Type = static_cast<EType>(Object["Type"].AsUInt8((uint8)EType::Abort));
 	return true;
@@ -576,7 +598,7 @@ void FInitialConfigMessage::Write(FCbWriter& Writer) const
 	Writer << "CookOnTheFlyOptions" << CookOnTheFlyOptions;
 }
 
-bool FInitialConfigMessage::TryRead(FCbObjectView Object)
+bool FInitialConfigMessage::TryRead(FCbObject&& Object)
 {
 	bool bOk = true;
 	int32 LocalCookMode;
@@ -625,104 +647,5 @@ bool FInitialConfigMessage::TryRead(FCbObjectView Object)
 }
 
 FGuid FInitialConfigMessage::MessageType(TEXT("340CDCB927304CEB9C0A66B5F707FC2B"));
-
-void FPackageResultsMessage::Write(FCbWriter& Writer) const
-{
-	Writer.BeginArray("R");
-	for (const FPackageResult& Result : Results)
-	{
-		Writer.BeginObject();
-		{
-			Writer << "N" << Result.PackageName;
-			Writer << "S" << (uint8) Result.SuppressCookReason;
-			Writer << "E" << Result.bReferencedOnlyByEditorOnlyData;
-			Writer.BeginArray("P");
-			for (const FPackagePlatformResult& PlatformResult : Result.Platforms)
-			{
-				Writer.BeginObject();
-				Writer << "S" << PlatformResult.bSuccessful;
-				Writer << "G" << PlatformResult.PackageGuid;
-				Writer << "D" << PlatformResult.TargetDomainDependencies;
-				Writer.EndObject();
-			}
-			Writer.EndArray();
-		}
-		Writer.EndObject();
-	}
-	Writer.EndArray();
-}
-
-bool FPackageResultsMessage::TryRead(FCbObjectView Object)
-{
-	Results.Reset();
-	for (FCbFieldView ResultField : Object["R"])
-	{
-		FCbObjectView ResultObject = ResultField.AsObjectView();
-		FPackageResult& Result = Results.Emplace_GetRef();
-		LoadFromCompactBinary(ResultObject["N"], Result.PackageName);
-		if (Result.PackageName.IsNone())
-		{
-			return false;
-		}
-		int32 LocalSuppressCookReason = ResultObject["S"].AsUInt8(MAX_uint8);
-		if (LocalSuppressCookReason == MAX_uint8)
-		{
-			return false;
-		}
-		Result.SuppressCookReason = static_cast<ESuppressCookReason>(LocalSuppressCookReason);
-		Result.bReferencedOnlyByEditorOnlyData = ResultObject["E"].AsBool();
-		Result.Platforms.Reset();
-		for (FCbFieldView PlatformField : ResultObject["P"])
-		{
-			FPackagePlatformResult& PlatformResult = Result.Platforms.Emplace_GetRef();
-			FCbObjectView PlatformObject = PlatformField.AsObjectView();
-
-			PlatformResult.bSuccessful = PlatformObject["S"].AsBool();
-			PlatformResult.PackageGuid = PlatformObject["G"].AsUuid();
-
-			FCbObjectView TargetDepsView = PlatformObject["D"].AsObjectView();
-			if (TargetDepsView.GetSize() > 0)
-			{
-				FUniqueBuffer TargetDepsCopy = FUniqueBuffer::Alloc(TargetDepsView.GetSize());
-				TargetDepsView.CopyTo(TargetDepsCopy.GetView());
-				PlatformResult.TargetDomainDependencies = FCbObject(TargetDepsCopy.MoveToShared());
-			}
-		}
-	}
-	return true;
-}
-
-FGuid FPackageResultsMessage::MessageType(TEXT("4631C6C0F6DC4CEFB2B09D3FB0B524DB"));
-
-void WriteArrayOfNames(FCbWriter& Writer, const char* ArrayName, TConstArrayView<FName> Names)
-{
-	Writer.BeginArray(ArrayName);
-	for (FName Name : Names)
-	{
-		Writer.AddString(WriteToString<FName::StringBufferSize>(Name).ToView());
-	}
-	Writer.EndArray();
-}
-
-bool TryReadArrayOfNames(FCbObjectView Object, const char* ArrayName, TArray<FName>& OutNames)
-{
-	FCbFieldView ArrayField = Object["ArrayName"];
-	FCbArrayView ArrayView = ArrayField.AsArrayView();
-	if (ArrayField.HasError())
-	{
-		return false;
-	}
-	OutNames.Reserve(OutNames.Num() + ArrayView.Num());
-	for (FCbFieldView ElementView : ArrayView)
-	{
-		FUtf8StringView StringView = ElementView.AsString();
-		if (ElementView.HasError())
-		{
-			return false;
-		}
-		OutNames.Add(FName(StringView));
-	}
-	return true;
-}
 
 }

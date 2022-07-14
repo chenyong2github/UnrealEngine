@@ -25,8 +25,11 @@
 #include "UObject/TopLevelAssetPath.h"
 
 struct FCustomVersion;
+class FCbWriter;
+class FCbFieldView;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogAssetData, Log, All);
+COREUOBJECT_API extern const FName GAssetBundleDataName;
 
 /** Version used for serializing asset registry caches, both runtime and editor */
 struct COREUOBJECT_API FAssetRegistryVersion
@@ -540,6 +543,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
 			});
 	}
+
+	COREUOBJECT_API void NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const;
+	COREUOBJECT_API bool TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName InPackageName);
 private:
 	/**
 	 * The actual implementation of SerializeForCache.

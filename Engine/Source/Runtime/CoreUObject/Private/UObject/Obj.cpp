@@ -1871,8 +1871,6 @@ FString GetConfigFilename( UObject* SourceObject )
 
 namespace UE { namespace Object { namespace Private {
 
-const FName GAssetBundleDataName("AssetBundleData");
-
 // Thread local state to avoid UObject::GetAssetRegistryTags() API change
 thread_local FAssetBundleData const** TGetAssetRegistryTags_OutBundles = nullptr;
 

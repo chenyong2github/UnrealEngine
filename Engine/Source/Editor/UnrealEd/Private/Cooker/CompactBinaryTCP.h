@@ -44,7 +44,7 @@ public:
 	/** Marshall the message to a CompactBinaryObject. */
 	virtual void Write(FCbWriter& Writer) const = 0;
 	/** Unmarshall the message from a CompactBinaryObject. */
-	virtual bool TryRead(FCbObjectView Object) = 0;
+	virtual bool TryRead(FCbObject&& Object) = 0;
 	/** Return the Guid that identifies the message to the remote connection. */
 	virtual FGuid GetMessageType() const = 0;
 };

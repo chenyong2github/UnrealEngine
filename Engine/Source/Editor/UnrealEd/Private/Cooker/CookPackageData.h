@@ -17,6 +17,7 @@
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
+#include "PackageResultsMessage.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
@@ -488,6 +489,8 @@ public:
 	/** Marshall this PackageData to a ConstructData that can be used later or on a remote machine to reconstruct it. */
 	FConstructPackageData CreateConstructData();
 
+	FPackageRemoteResult& GetOrAddPackageRemoteResult();
+	TUniquePtr<FPackageRemoteResult>& GetPackageRemoteResult();
 private:
 	friend struct UE::Cook::FPackageDatas;
 
@@ -558,6 +561,7 @@ private:
 	void OnPackageDataFirstRequested(FInstigator&& InInstigator);
 
 	TUniquePtr<FGeneratorPackage> GeneratorPackage;
+	TUniquePtr<FPackageRemoteResult> PackageRemoteResult;
 	FGeneratorPackage* GeneratedOwner;
 	/** Data for each platform that has been interacted with by *this. */
 	TSortedMap<const ITargetPlatform*, FPlatformData> PlatformDatas;

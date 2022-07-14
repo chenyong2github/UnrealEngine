@@ -8,6 +8,8 @@
 #include "AssetRegistry/CookTagList.h"
 #include "CollectionManagerModule.h"
 #include "CollectionManagerTypes.h"
+#include "Cooker/CookPackageData.h"
+#include "Cooker/CookWorkerClient.h"
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "Commandlets/IChunkDataGenerator.h"
 #include "Engine/AssetManager.h"
@@ -1090,6 +1092,22 @@ void FAssetRegistryGenerator::UpdateKeptPackages()
 	}
 }
 
+static void AppendCookTagsToTagMap(TArray<TPair<FName, FString>>&& InTags, FAssetDataTagMap& OutTags)
+{
+	for (TPair<FName, FString>& Tag : InTags)
+	{
+		// Don't add empty tags
+		if (!Tag.Key.IsNone() && !Tag.Value.IsEmpty())
+		{
+			// Prepend Cook_
+			// Do the accumulation in a stack buffer to avoid a bit of work, but we still
+			// eat the FName generation.
+			FName TagName(WriteToString<256>(TEXTVIEW("Cook_"), Tag.Key));
+			OutTags.Add(TagName, MoveTemp(Tag.Value));
+		}
+	}
+}
+
 static void AddCookTagsToState(TMap<FSoftObjectPath, TArray<TPair<FName, FString>>>&& InCookTags, FAssetRegistryState& InState)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AddCookTagToState)
@@ -1103,21 +1121,9 @@ static void AddCookTagsToState(TMap<FSoftObjectPath, TArray<TPair<FName, FString
 		const FAssetData* AssetData = InState.GetAssetByObjectPath(FName(WriteToString<256>(ObjectToTags.Key)));
 
 		// Migrate to FAssetDataTagMap
-		FAssetDataTagMap NewTags;				
-		for (TPair<FName, FString>& Tag : ObjectToTags.Value)
-		{			
-			// Don't add empty tags
-			if (!Tag.Key.IsNone() && !Tag.Value.IsEmpty())
-			{
-				// Prepend Cook_
-				// Do the accumulation in a stack buffer to avoid a bit of work, but we still
-				// eat the FName generation.
-				FName TagName(WriteToString<256>(TEXTVIEW("Cook_"), Tag.Key));
-				NewTags.Add(TagName, MoveTemp(Tag.Value));
-				TagCount++;
-			}
-		}
-
+		FAssetDataTagMap NewTags;
+		AppendCookTagsToTagMap(MoveTemp(ObjectToTags.Value), NewTags);
+		TagCount += NewTags.Num();
 		InState.AddTagsToAssetData(ObjectToTags.Key, MoveTemp(NewTags));
 	} // end for each object
 
@@ -2577,6 +2583,129 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 	const bool bUpdated = UpdateAssetPackageFlags(PackageName, NewPackageFlags);
 	UE_CLOG(!bUpdated && bSaveSucceeded, LogAssetRegistryGenerator, Warning,
 		TEXT("Trying to update asset package flags in package '%s' that does not exist"), *PackageName.ToString());
+}
+
+void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message)
+{
+	const FName PackageName = PackageData.GetPackageName();
+	PreviousPackagesToUpdate.Remove(PackageName);
+
+	for (FAssetData& AssetData : Message.AssetDatas)
+	{
+		AssetData.PackageFlags = Message.PackageFlags;
+
+		// MPCOOKTODO: We are setting the AssetData onto this->State rather than into the global assetregistry,
+		// because the AR does not currently support updating an AssetData and it is better for performance to
+		// edit this->State. This will not work as is, because FAssetRegistryGenerator::UpdateAssetDatas later
+		// clobbers this->State with AssetDatas from the global AssetRegistry. Changing that for SingleProcess
+		// director cooks is something we want to do anyways because its confusing as is. Make that change so
+		// we don't clobber this function's results, or change this function to write to the global asset registry.
+		const FAssetData* ExistingAssetData = State.GetAssetByObjectPath(AssetData.ObjectPath);
+		if (!ExistingAssetData)
+		{
+			FAssetData* const NewAssetData = new FAssetData(MoveTemp(AssetData));
+			State.AddAssetData(NewAssetData);
+		}
+		else
+		{
+			State.UpdateAssetData(const_cast<FAssetData*>(ExistingAssetData), MoveTemp(AssetData));
+		}
+	}
+	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
+	AssetPackageData->DiskSize = Message.DiskSize;
+}
+
+namespace UE::Cook
+{
+
+FAssetRegistryReporterRemote::FAssetRegistryReporterRemote(FCookWorkerClient& InClient, const ITargetPlatform* InTargetPlatform)
+	: Client(InClient)
+	, TargetPlatform(InTargetPlatform)
+{
+}
+
+void FAssetRegistryReporterRemote::UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList)
+{
+	uint32 NewPackageFlags = 0;
+	int64 DiskSize = -1;
+	bool bSaveSucceeded = SavePackageResult.IsSuccessful();
+	if (bSaveSucceeded)
+	{
+		NewPackageFlags = SavePackageResult.SerializedPackageFlags;
+		DiskSize = SavePackageResult.TotalFileSize;
+	}
+	else
+	{
+		// Set the package flags to zero to indicate that the package failed to save
+		NewPackageFlags = 0;
+		// Set DiskSize (previous value was disksize in the WorkspaceDomain) to -1 to indicate the cooked file does not exist
+		DiskSize = -1;
+	}
+
+	FAssetRegistryPackageMessage Message;
+	Message.PackageFlags = NewPackageFlags;
+	Message.DiskSize = DiskSize;
+	IAssetRegistry::Get()->GetAssetsByPackageName(PackageData.GetPackageName(), Message.AssetDatas);
+	for (FAssetData& AssetData : Message.AssetDatas)
+	{
+		TArray<FCookTagList::FTagNameValuePair>* ExtraCookTags = InArchiveCookTagList.ObjectToTags.Find(FSoftObjectPath(AssetData.ObjectPath));
+		if (ExtraCookTags)
+		{
+			FAssetDataTagMap NewTags = AssetData.TagsAndValues.CopyMap();
+			AppendCookTagsToTagMap(MoveTemp(*ExtraCookTags), NewTags);
+			AssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(NewTags));
+		}
+	}
+
+	PackageData.GetOrAddPackageRemoteResult().AddMessage(PackageData, TargetPlatform, Message);
+}
+
+void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const
+{
+	Writer.BeginArray("A");
+	for (const FAssetData& AssetData : AssetDatas)
+	{
+		check(AssetData.PackageName == PackageData.GetPackageName() && !AssetData.AssetName.IsNone()); // We replicate only regular Assets of the form PackageName.AssetName
+		AssetData.NetworkWrite(Writer, false /* bWritePackageName */);
+
+	}
+	Writer.EndArray();
+	Writer << "F" << PackageFlags;
+	Writer << "S" << DiskSize;
+}
+
+bool FAssetRegistryPackageMessage::TryRead(FCbObject&& Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform)
+{
+	FCbFieldView AssetDatasField = Object["A"];
+	FCbArrayView AssetDatasArray = AssetDatasField.AsArrayView();
+	if (AssetDatasField.HasError())
+	{
+		return false;
+	}
+	AssetDatas.Reset(AssetDatasArray.Num());
+	for (FCbFieldView ElementField : AssetDatasArray)
+	{
+		FAssetData& AssetData = AssetDatas.Emplace_GetRef();
+		if (!AssetData.TryNetworkRead(ElementField, false /* bReadPackageName */, PackageData.GetPackageName()))
+		{
+			return false;
+		}
+	}
+
+	if (!LoadFromCompactBinary(Object["F"], PackageFlags))
+	{
+		return false;
+	}
+	if (!LoadFromCompactBinary(Object["S"], DiskSize))
+	{
+		return false;
+	}
+	return true;
+}
+
+FGuid FAssetRegistryPackageMessage::MessageType(TEXT("0588DCCEBF1742399EC1E011FC97E4DC"));
+
 }
 
 bool FAssetRegistryGenerator::UpdateAssetPackageFlags(const FName& PackageName, const uint32 PackageFlags)

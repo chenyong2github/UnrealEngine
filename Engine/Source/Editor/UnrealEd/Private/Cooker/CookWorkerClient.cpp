@@ -10,6 +10,7 @@
 #include "CookWorkerServer.h"
 #include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
+#include "PackageResultsMessage.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "WorkerRequestsRemote.h"
@@ -117,22 +118,66 @@ void FCookWorkerClient::DoneWithInitialSettings()
 
 void FCookWorkerClient::ReportDemoteToIdle(FPackageData& PackageData, ESuppressCookReason Reason)
 {
-	FPackageResult& Result = PendingResults.Emplace_GetRef();
+	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
 	Result.PackageName = PackageData.GetPackageName();
 	Result.SuppressCookReason = Reason;
 }
 
 void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 {
-	FPackageResult& Result = PendingResults.Emplace_GetRef();
-	Result.PackageName = PackageData.GetPackageName();
-	Result.SuppressCookReason = ESuppressCookReason::InvalidSuppressCookReason;
-	for (ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
+	TUniquePtr<FPackageRemoteResult> MovedResult = MoveTemp(PackageData.GetPackageRemoteResult());
+	FPackageRemoteResult* Result;
+	if (MovedResult)
 	{
-		FPackagePlatformResult& PlatformResult = Result.Platforms.Emplace_GetRef();
+		Result = &PendingResults.Emplace_GetRef(MoveTemp(*MovedResult));
+	} 
+	else
+	{
+		Result = &PendingResults.Emplace_GetRef();
+	}
+
+	Result->PackageName = PackageData.GetPackageName();
+	Result->SuppressCookReason = ESuppressCookReason::InvalidSuppressCookReason;
+
+	// Sort the platforms to match the OrderedSessionPlatforms order, and add any missing platforms
+	int32 NumPlatforms = OrderedSessionPlatforms.Num();
+	bool bAlreadySorted = true;
+	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
+	{
+		if (OrderedSessionPlatforms[PlatformIndex] != Result->Platforms[PlatformIndex].Platform)
+		{
+			bAlreadySorted = false;
+			break;
+		}
+	}
+	if (!bAlreadySorted)
+	{
+		TArray<FPackageRemoteResult::FPlatformResult, TInlineAllocator<1>> SortedPlatforms;
+		SortedPlatforms.SetNum(NumPlatforms);
+		for (FPackageRemoteResult::FPlatformResult& ExistingResult : Result->Platforms)
+		{
+			int32 PlatformIndex = OrderedSessionPlatforms.IndexOfByKey(ExistingResult.Platform);
+			check(PlatformIndex != INDEX_NONE && SortedPlatforms[PlatformIndex].Platform == nullptr); // Only platforms in the session platforms should have been added, and there should not be duplicates
+			SortedPlatforms[PlatformIndex] = MoveTemp(ExistingResult);
+		}
+		for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
+		{
+			FPackageRemoteResult::FPlatformResult& Sorted = SortedPlatforms[PlatformIndex];
+			if (!Sorted.Platform)
+			{
+				Sorted.Platform = OrderedSessionPlatforms[PlatformIndex];
+				Sorted.bSuccessful = false;
+			}
+		}
+		Swap(Result->Platforms, SortedPlatforms);
+	}
+
+	for (int32 PlatformIndex = 0; PlatformIndex < NumPlatforms; ++PlatformIndex)
+	{
+		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
+		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->Platforms[PlatformIndex];
 		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-		PlatformResult.bSuccessful = PackagePlatformData.bCookSucceeded;
-		// MPCOOKTODO: Accumulate results for saved information so we can add the other information about the Platform
+		PlatformResults.bSuccessful = PackagePlatformData.bCookSucceeded;
 	}
 }
 
@@ -291,7 +336,7 @@ void FCookWorkerClient::PollReceiveConfigMessage()
 	}
 	check(!InitialConfigMessage);
 	InitialConfigMessage = MakeUnique<FInitialConfigMessage>();
-	if (!InitialConfigMessage->TryRead(Messages[0].Object))
+	if (!InitialConfigMessage->TryRead(MoveTemp(Messages[0].Object)))
 	{
 		UE_LOG(LogCook, Warning, TEXT("CookWorker initialization failure: Director sent an invalid InitialConfigMessage."));
 		SendToState(EConnectStatus::LostConnection);
@@ -354,7 +399,7 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 		if (Message.MessageType == FAbortWorkerMessage::MessageType)
 		{
 			FAbortWorkerMessage AbortMessage;
-			AbortMessage.TryRead(Message.Object);
+			AbortMessage.TryRead(MoveTemp(Message.Object));
 			if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
 			{
 				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
@@ -374,7 +419,7 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 		else if (Message.MessageType == FAssignPackagesMessage::MessageType)
 		{
 			FAssignPackagesMessage AssignPackagesMessage;
-			if (!AssignPackagesMessage.TryRead(Message.Object))
+			if (!AssignPackagesMessage.TryRead(MoveTemp(Message.Object)))
 			{
 				LogInvalidMessage(TEXT("FAssignPackagesMessage"));
 			}

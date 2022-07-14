@@ -6,6 +6,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
+#include "Cooker/PackageResultsMessage.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
@@ -19,6 +20,9 @@ class IChunkDataGenerator;
 class UChunkDependencyInfo;
 struct FChunkDependencyTreeNode;
 struct FCookTagList;
+namespace UE::Cook { class FAssetRegistryPackageMessage; }
+namespace UE::Cook { class FCookWorkerClient; }
+namespace UE::Cook { struct FPackageData; }
 
 /**
  * Helper class for generating streaming install manifests
@@ -200,6 +204,7 @@ public:
 	 * @param SavePackageResult The metadata to associate with the given package name
 	 */
 	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList);
+	void UpdateAssetRegistryPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message);
 
 	/**
 	 * Check config to see whether chunk assignments use the AssetManager. If so, run the once-per-process construction
@@ -420,3 +425,66 @@ private:
 	 */
 	const FAssetData* CreateOrFindAssetData(UObject& Object);
 };
+
+namespace UE::Cook
+{
+
+class IAssetRegistryReporter
+{
+public:
+	virtual ~IAssetRegistryReporter() {}
+
+	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) = 0;
+
+};
+
+class FAssetRegistryReporterLocal : public IAssetRegistryReporter
+{
+public:
+	FAssetRegistryReporterLocal(FAssetRegistryGenerator& InGenerator)
+		: Generator(InGenerator)
+	{
+	}
+
+	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) override
+	{
+		Generator.UpdateAssetRegistryPackageData(Package, SavePackageResult, MoveTemp(InArchiveCookTagList));
+	}
+
+private:
+	FAssetRegistryGenerator& Generator;
+};
+
+class FAssetRegistryReporterRemote : public IAssetRegistryReporter
+{
+public:
+	FAssetRegistryReporterRemote(FCookWorkerClient& InClient, const ITargetPlatform* InTargetPlatform);
+
+	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) override;
+
+private:
+	FCookWorkerClient& Client;
+	const ITargetPlatform* TargetPlatform = nullptr;
+};
+
+class FAssetRegistryPackageMessage : public IPackageMessage
+{
+public:
+	virtual void Write(FCbWriter& Writer, const FPackageData& PackageData, const ITargetPlatform* TargetPlatform) const override;
+	virtual bool TryRead(FCbObject&& Object, FPackageData& PackageData, const ITargetPlatform* TargetPlatform) override;
+	virtual FGuid GetMessageType() const override { return MessageType; }
+
+	TArray<FAssetData> AssetDatas;
+	uint32 PackageFlags = 0;
+	int64 DiskSize = -1;
+
+public:
+	static FGuid MessageType;
+};
+
+
+
+}

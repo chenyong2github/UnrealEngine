@@ -96,6 +96,7 @@ private:
 	void ShutdownRemoteProcess();
 	/** Helper for PumpReceiveMessages: dispatch the messages received from the socket. */
 	void HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages);
+	void HandleReceivedPackagePlatformMessages(FPackageData& PackageData, const ITargetPlatform* TargetPlatform, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages);
 	/** Add results from the client to the local CookOnTheFlyServer. */
 	void RecordResults(FPackageResultsMessage& Message);
 	void LogInvalidMessage(const TCHAR* MessageTypeName);
@@ -125,7 +126,7 @@ public:
 	FAssignPackagesMessage(TArray<FConstructPackageData>&& InPackageDatas);
 
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
+	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -141,7 +142,7 @@ public:
 	FAbortPackagesMessage(TArray<FName>&& InPackageNames);
 
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
+	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -164,7 +165,7 @@ public:
 	};
 	FAbortWorkerMessage(EType InType = EType::Abort);
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
+	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
@@ -177,7 +178,7 @@ struct FInitialConfigMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
+	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 	void ReadFromLocal(const UCookOnTheFlyServer& COTFS, const TArray<ITargetPlatform*>& InOrderedSessionPlatforms,
@@ -204,43 +205,5 @@ private:
 	ECookInitializationFlags CookInitializationFlags = ECookInitializationFlags::None;
 	bool bZenStore = false;
 };
-
-/** Helper struct for FPackageResultsMessage: holds per-package-per-platform data. */
-struct FPackagePlatformResult
-{
-	FGuid PackageGuid;
-	FCbObject TargetDomainDependencies;
-	bool bSuccessful = true;
-};
-
-/** Helper struct for FPackageResultsMessage: holds per-package data. */
-struct FPackageResult
-{
-	FName PackageName;
-	/** If failure reason is InvalidSuppressCookReason, it was saved. Otherwise, holds the suppression reason */
-	ESuppressCookReason SuppressCookReason;
-	bool bReferencedOnlyByEditorOnlyData = false;
-	// The elements of Platforms correspond to the TargetPlatforms present in OrderedSessionPlatforms
-	TArray<FPackagePlatformResult, TInlineAllocator<1>> Platforms;
-};
-
-/** Message from Client to Server giving the results for saved or refused-to-cook packages. */
-struct FPackageResultsMessage : public UE::CompactBinaryTCP::IMessage
-{
-public:
-	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
-	virtual FGuid GetMessageType() const override { return MessageType; }
-
-public:
-	TArray<FPackageResult> Results;
-
-	static FGuid MessageType;
-};
-
-/** IMessage helper: write as strings to compact binary. */
-void WriteArrayOfNames(FCbWriter& Writer, const char* ArrayName, TConstArrayView<FName> Names);
-/** IMessage helper: read FNames as strings from compact binary. */
-bool TryReadArrayOfNames(FCbObjectView Object, const char* ArrayName, TArray<FName>& OutNames);
 
 }

@@ -11,7 +11,7 @@
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
 namespace UE::Cook { struct FInitialConfigMessage; }
-namespace UE::Cook { struct FPackageResult; }
+namespace UE::Cook { struct FPackageRemoteResult; }
 
 namespace UE::Cook
 {
@@ -97,7 +97,7 @@ private:
 	TSharedPtr<FInternetAddr> DirectorAddr;
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
-	TArray<FPackageResult> PendingResults;
+	TArray<FPackageRemoteResult> PendingResults;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
 	FString DirectorURI;

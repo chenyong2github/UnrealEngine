@@ -12,6 +12,7 @@
 #include "CompactBinaryTCP.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookRequestCluster.h"
+#include "Cooker/CookWorkerClient.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Containers/StringView.h"
 #include "EditorDomain/EditorDomain.h"
@@ -757,6 +758,7 @@ void FPackageData::OnEnterSave()
 	check(!HasPrepareSaveFailed());
 	CheckObjectCacheEmpty();
 	CheckCookedPlatformDataEmpty();
+	check(!PackageRemoteResult);
 }
 
 void FPackageData::OnExitSave()
@@ -765,6 +767,22 @@ void FPackageData::OnExitSave()
 	ClearObjectCache();
 	SetHasPrepareSaveFailed(false);
 	SetIsPrepareSaveRequiresGC(false);
+	PackageRemoteResult.Reset();
+}
+
+FPackageRemoteResult& FPackageData::GetOrAddPackageRemoteResult()
+{
+	check(GetState() == EPackageState::Save);
+	if (!PackageRemoteResult)
+	{
+		PackageRemoteResult = MakeUnique<FPackageRemoteResult>();
+	}
+	return *PackageRemoteResult;
+}
+
+TUniquePtr<FPackageRemoteResult>& FPackageData::GetPackageRemoteResult()
+{
+	return PackageRemoteResult;
 }
 
 void FPackageData::OnEnterInProgress()

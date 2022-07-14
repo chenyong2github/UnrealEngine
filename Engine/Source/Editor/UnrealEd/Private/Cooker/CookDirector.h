@@ -13,7 +13,7 @@
 #include "Misc/Guid.h"
 #include "Templates/UniquePtr.h"
 
-class FCbObjectView;
+class FCbObject;
 class FCbWriter;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FCookWorkerServer; }
@@ -126,7 +126,7 @@ struct FWorkerConnectMessage : public UE::CompactBinaryTCP::IMessage
 {
 public:
 	virtual void Write(FCbWriter& Writer) const override;
-	virtual bool TryRead(FCbObjectView Object) override;
+	virtual bool TryRead(FCbObject&& Object) override;
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:

@@ -2471,10 +2471,8 @@ void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::
 
 void UCookOnTheFlyServer::PromoteToSaveComplete(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags)
 {
-	if (PackageData.IsInProgress())
-	{
-		WorkerRequests->ReportPromoteToSaveComplete(PackageData);
-	}
+	check(PackageData.IsInProgress());
+	WorkerRequests->ReportPromoteToSaveComplete(PackageData);
 	PackageData.SendToState(UE::Cook::EPackageState::Idle, SendFlags);
 }
 
@@ -5478,10 +5476,9 @@ void FSaveCookedPackageContext::FinishPlatform()
 
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 
-	FAssetRegistryGenerator& Generator = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 	if (bPlatformSetupSuccessful)
 	{
-		FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
+		TOptional<FAssetPackageData> AssetPackageData = COTFS.AssetRegistry->GetAssetPackageDataCopy(Package->GetFName());
 		check(AssetPackageData);
 
 		// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
@@ -5525,7 +5522,8 @@ void FSaveCookedPackageContext::FinishPlatform()
 	// Update asset registry
 	if (COTFS.IsDirectorCookByTheBook())
 	{
-		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
+		IAssetRegistryReporter& Reporter = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryReporter);
+		Reporter.UpdateAssetRegistryPackageData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
 	}
 
 	// If not retrying, mark the package as cooked, either successfully or with failure
@@ -7140,17 +7138,28 @@ void UCookOnTheFlyServer::RefreshPlatformAssetRegistries(const TArrayView<const 
 		FName PlatformName = FName(*TargetPlatform->PlatformName());
 
 		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
-		FAssetRegistryGenerator* RegistryGenerator = PlatformData->RegistryGenerator.Get();
-		if (!RegistryGenerator)
+		UE::Cook::IAssetRegistryReporter* RegistryReporter = PlatformData->RegistryReporter.Get();
+		if (!RegistryReporter)
 		{
-			RegistryGenerator = new FAssetRegistryGenerator(TargetPlatform);
-			PlatformData->RegistryGenerator = TUniquePtr<FAssetRegistryGenerator>(RegistryGenerator);
+			if (!IsCookWorkerMode())
+			{
+				PlatformData->RegistryGenerator = MakeUnique<FAssetRegistryGenerator>(TargetPlatform);
+				PlatformData->RegistryReporter = MakeUnique<UE::Cook::FAssetRegistryReporterLocal>(*PlatformData->RegistryGenerator);
+			}
+			else
+			{
+				PlatformData->RegistryReporter = MakeUnique<UE::Cook::FAssetRegistryReporterRemote>(*CookWorkerClient, TargetPlatform);
+			}
+			RegistryReporter = PlatformData->RegistryReporter.Get();
 		}
 
-		// if we are cooking DLC, we will just spend a lot of time removing the shipped packages from the AR,
-		// so we don't bother copying them over. can easily save 10 seconds on a large project
-		bool bInitalizeFromExisting = !IsCookingDLC();
-		RegistryGenerator->Initialize(CookByTheBookOptions->StartupPackages, bInitalizeFromExisting);
+		if (PlatformData->RegistryGenerator)
+		{
+			// if we are cooking DLC, we will just spend a lot of time removing the shipped packages from the AR,
+			// so we don't bother copying them over. can easily save 10 seconds on a large project
+			bool bInitalizeFromExisting = !IsCookingDLC();
+			PlatformData->RegistryGenerator->Initialize(CookByTheBookOptions->StartupPackages, bInitalizeFromExisting);
+		}
 	}
 }
 
@@ -7859,6 +7868,7 @@ void UCookOnTheFlyServer::BeginCookFinishShaderCodeLibrary(FBeginCookContext& Be
 
 void UCookOnTheFlyServer::RegisterShaderChunkDataGenerator()
 {
+	check(!IsCookWorkerMode());
 	// add shader library and PSO cache chunkers
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	FString LibraryName = GetProjectShaderLibraryName();
@@ -8267,6 +8277,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				// Add the package hashes to the relevant AssetPackageDatas.
 				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
 				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);
+				// MPCOOKTODO: Need to replicate AllPackageHashes from CookWorkers
 				TMap<FName, TRefCountPtr<FPackageHashes>>& AllPackageHashes = SaveContext.PackageWriter->GetPackageHashes();
 				for (TPair<FName, TRefCountPtr<FPackageHashes>>& HashSet : AllPackageHashes)
 				{
@@ -8937,6 +8948,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(FBeginCookContext& BeginContext)
 			PackageWriter.Initialize(CookInfo);
 			if (!PlatformContext.bWorkerOnSharedSandbox)
 			{
+				check(!IsCookWorkerMode());
 				// Clean the Manifest directory even on iterative builds; it is written from scratch each time
 				// But only do this if we own the output directory
 				PlatformData->RegistryGenerator->CleanManifestDirectories();
@@ -10761,6 +10773,8 @@ void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString
 
 void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()
 {
+	check(!IsCookWorkerMode());
+
 	// Get the list of localization targets to chunk, and remove any targets that we've been asked not to stage
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	TArray<FString> LocalizationTargetsToChunk = PackagingSettings->LocalizationTargetsToChunk;

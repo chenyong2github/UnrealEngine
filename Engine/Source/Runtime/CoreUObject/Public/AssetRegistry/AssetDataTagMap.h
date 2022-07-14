@@ -247,6 +247,8 @@ public:
 	bool						TryGetAsText(FText& Out) const; // @return false if value isn't a localized string
 
 	FString						GetValue() const { return AsString(); }
+	/** Coerce the type to a Complex String capable of representing the type */
+	FString						GetStorageString() const { return ToLoose(); }
 
 	bool						Equals(FStringView Str) const;
 
