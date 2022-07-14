@@ -760,7 +760,7 @@ void DrawVisualization(
 	#else
 		// TODO: Permutation with hit proxy support to keep this clean?
 		// For now, bind a valid SRV
-		PassParameters->MaterialHitProxyTable	= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+		PassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	#endif
 		PassParameters->DebugOutput				= GraphBuilder.CreateUAV(DebugOutput);
 
@@ -875,6 +875,10 @@ void RenderDebugViewMode(
 	PassParameters->MaterialEditorTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialEditorSRV();
 #if WITH_EDITOR
 	PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+#else
+	// TODO: Permutation with hit proxy support to keep this clean?
+	// For now, bind a valid SRV
+	PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 #endif
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputColorTexture, ERenderTargetLoadAction::ELoad, 0);
 
