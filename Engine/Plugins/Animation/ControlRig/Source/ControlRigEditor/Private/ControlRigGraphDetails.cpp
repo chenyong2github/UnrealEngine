@@ -177,9 +177,14 @@ public:
 		
 		if (ControlRigEditorPtr.IsValid())
 		{
-			if (ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter().IsValid())
+			TArray<TSharedPtr<IPinTypeSelectorFilter>> Filters;
+			ControlRigEditorPtr.Pin()->GetPinTypeSelectorFilters(Filters);
+			for(const TSharedPtr<IPinTypeSelectorFilter>& Filter : Filters)
 			{
-				return ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter()->ShouldShowPinTypeTreeItem(InItem);				
+				if(!Filter->ShouldShowPinTypeTreeItem(InItem))
+				{
+					return false;
+				}
 			}
 		}
 
@@ -200,10 +205,10 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 	ETypeTreeFilter TypeTreeFilter = ETypeTreeFilter::None;
 	TypeTreeFilter |= ETypeTreeFilter::AllowExec;
 
-	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+	TArray<TSharedPtr<IPinTypeSelectorFilter>> CustomPinTypeFilters;
 	if (ControlRigEditorPtr.IsValid())
 	{
-		CustomPinTypeFilter = MakeShared<FControlRigArgumentPinTypeSelectorFilter>(ControlRigEditorPtr, GraphPtr);
+		CustomPinTypeFilters.Add(MakeShared<FControlRigArgumentPinTypeSelectorFilter>(ControlRigEditorPtr, GraphPtr));
 	}
 	
 	NodeRow
@@ -257,7 +262,7 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 				.TypeTreeFilter(TypeTreeFilter)
 				.bAllowArrays(!ShouldPinBeReadOnly())
 				.IsEnabled(!ShouldPinBeReadOnly(true))
-				.CustomFilter(CustomPinTypeFilter)
+				.CustomFilters(CustomPinTypeFilters)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 			+ SHorizontalBox::Slot()

@@ -82,7 +82,8 @@ public:
 		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 		SLATE_ARGUMENT( ESelectorType, SelectorType )
 		SLATE_ATTRIBUTE(bool, ReadOnly)
-		SLATE_ARGUMENT(TSharedPtr<class IPinTypeSelectorFilter>, CustomFilter)
+		SLATE_ARGUMENT_DEPRECATED(TSharedPtr<class IPinTypeSelectorFilter>, CustomFilter, 5.1, "Please use CustomFilters instead")
+		SLATE_ARGUMENT(TArray<TSharedPtr<class IPinTypeSelectorFilter>>, CustomFilters)
 	SLATE_END_ARGS()
 public:
 	void Construct(const FArguments& InArgs, FGetPinTypeTree GetPinTypeTreeFunc);
@@ -166,7 +167,7 @@ protected:
 	TWeakPtr<SMenuOwner> PinTypeSelectorMenuOwner;
 
 	/** An interface to optionally apply a custom filter to the available pin type items for display. */
-	TSharedPtr<class IPinTypeSelectorFilter> CustomFilter;
+	TArray<TSharedPtr<class IPinTypeSelectorFilter>> CustomFilters;
 
 	/** Array checkbox support functions */
 	ECheckBoxState IsArrayChecked() const;
