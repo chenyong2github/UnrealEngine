@@ -1435,8 +1435,11 @@ namespace EpicGames.UHT.Types
 						{
 							again = false;
 
+							// Remove any irrelevant whitespace
+							dim = dim.Trim();
+
 							// Remove any outer brackets
-							if (dim[0] == '(')
+							if (dim.Length > 0 && dim[0] == '(')
 							{
 								for (int index = 1, depth = 1; index < dim.Length; ++index)
 								{
@@ -1506,7 +1509,7 @@ namespace EpicGames.UHT.Types
 							UhtEnum? enumObj = this.Session.FindRegularEnumValue(dim.ToString());
 							if (enumObj == null)
 							{
-								enumObj = this.Session.FindType(this.Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, this.ArrayDimensions) as UhtEnum;
+								enumObj = this.Session.FindType(this.Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, dim.ToString()) as UhtEnum;
 							}
 							if (enumObj != null)
 							{

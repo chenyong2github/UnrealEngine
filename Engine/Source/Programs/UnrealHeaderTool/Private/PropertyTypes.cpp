@@ -2556,9 +2556,12 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 					TEXT("(unsigned int)"),
 					TEXT("(signed int)")
 				};
+				
+				// Remove any irrelevant whitespace
+				Temp.TrimStartAndEndInline();
 
 				// Remove any brackets
-				if (Temp[0] == TEXT('('))
+				if (Temp.Len() > 0 && Temp[0] == TEXT('('))
 				{
 					int32 TempLen = Temp.Len();
 					int32 ClosingParen = FindMatchingClosingParenthesis(Temp);
@@ -2586,7 +2589,7 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 				if (!EnumDef)
 				{
 					// If the enum wasn't declared in this scope, then try to find it anywhere we can
-					EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(PropDef.GetArrayDimensions());
+					EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(*Temp);
 				}
 
 				if (EnumDef)
