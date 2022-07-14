@@ -832,7 +832,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 							SkeletalMeshComponent->TickAnimation(0.f, false);
 
 							SkeletalMeshComponent->RefreshBoneTransforms();
-							SkeletalMeshComponent->RefreshSlaveComponents();
+							SkeletalMeshComponent->RefreshFollowerComponents();
 							SkeletalMeshComponent->UpdateComponentToWorld();
 							SkeletalMeshComponent->FinalizeBoneTransform();
 							SkeletalMeshComponent->MarkRenderTransformDirty();

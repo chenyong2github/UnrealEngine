@@ -419,14 +419,14 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 	TArray<FMatrix44f>& CurrBones = CurrBoneRefToLocals();
 	TArray<FTransform3f>& CurrTransforms = CurrComponentTransforms();
 
-	if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
+	if (USkinnedMeshComponent* LeaderComponent = SkelComp->LeaderPoseComponent.Get())
 	{
-		const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
-		const int32 NumBones = MasterBoneMap.Num();
+		const TArray<int32>& LeaderBoneMap = SkelComp->GetLeaderBoneMap();
+		const int32 NumBones = LeaderBoneMap.Num();
 
 		if (NumBones == 0)
 		{
-			// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+			// This case indicates an invalid leader pose component (e.g. no skeletal mesh)
 			CurrBones.Empty(SkelMesh->GetRefSkeleton().GetNum());
 			CurrBones.AddDefaulted(SkelMesh->GetRefSkeleton().GetNum());
 			CurrTransforms.Empty(SkelMesh->GetRefSkeleton().GetNum());
@@ -437,21 +437,21 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 			CurrBones.SetNumUninitialized(NumBones);
 			CurrTransforms.SetNumUninitialized(NumBones);
 
-			const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+			const TArray<FTransform>& LeaderTransforms = LeaderComponent->GetComponentSpaceTransforms();
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
-				bool bFoundMaster = false;
-				if (MasterBoneMap.IsValidIndex(BoneIndex))
+				bool bFoundLeader = false;
+				if (LeaderBoneMap.IsValidIndex(BoneIndex))
 				{
-					const int32 MasterIndex = MasterBoneMap[BoneIndex];
-					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+					const int32 LeaderIndex = LeaderBoneMap[BoneIndex];
+					if (LeaderIndex != INDEX_NONE && LeaderIndex < LeaderTransforms.Num())
 					{
-						bFoundMaster = true;
-						CurrTransforms[BoneIndex] = (FTransform3f)MasterTransforms[MasterIndex];
+						bFoundLeader = true;
+						CurrTransforms[BoneIndex] = (FTransform3f)LeaderTransforms[LeaderIndex];
 					}
 				}
 
-				if ( !bFoundMaster )
+				if ( !bFoundLeader)
 				{
 					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
 					FTransform3f BoneTransform = (FTransform3f)SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
@@ -1229,32 +1229,32 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 	// If we have a component pull transforms from component otherwise grab from skel mesh
 	if (SkelComp)
 	{
-		if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
+		if (USkinnedMeshComponent* LeaderComponent = SkelComp->LeaderPoseComponent.Get())
 		{
 			const FReferenceSkeleton* ReferenceSkeleton = nullptr;
-			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
-			const int32 NumBones = MasterBoneMap.Num();
+			const TArray<int32>& LeaderBoneMap = SkelComp->GetLeaderBoneMap();
+			const int32 NumBones = LeaderBoneMap.Num();
 
 			TArray<FTransform> TempBoneTransforms;
 			TempBoneTransforms.Reserve(SamplingBoneCount);
 
 			if (NumBones == 0)
 			{
-				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
+				// This case indicates an invalid leader pose component (e.g. no skeletal mesh)
 				TempBoneTransforms.AddDefaulted(SamplingBoneCount);
 			}
 			else
 			{
 				ReferenceSkeleton = &SkelMesh->GetRefSkeleton();
-				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
+				const TArray<FTransform>& LeaderTransforms = LeaderComponent->GetComponentSpaceTransforms();
 				for (int32 BoneIndex=0; BoneIndex < NumBones; ++BoneIndex)
 				{
-					if (MasterBoneMap.IsValidIndex(BoneIndex))
+					if (LeaderBoneMap.IsValidIndex(BoneIndex))
 					{
-						const int32 MasterIndex = MasterBoneMap[BoneIndex];
-						if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
+						const int32 LeaderIndex = LeaderBoneMap[BoneIndex];
+						if (LeaderIndex != INDEX_NONE && LeaderIndex < LeaderTransforms.Num())
 						{
-							TempBoneTransforms.Add(MasterTransforms[MasterIndex]);
+							TempBoneTransforms.Add(LeaderTransforms[LeaderIndex]);
 							continue;
 						}
 					}

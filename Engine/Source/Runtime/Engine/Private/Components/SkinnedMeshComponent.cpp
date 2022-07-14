@@ -394,9 +394,9 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bUpdateDeformerAtNextTick = false;
 
 	bCanEverAffectNavigation = false;
-	MasterBoneMapCacheCount = 0;
+	LeaderBoneMapCacheCount = 0;
 	bSyncAttachParentLOD = true;
-	bIgnoreMasterPoseComponentLOD = false;
+	bIgnoreLeaderPoseComponentLOD = false;
 
 	CurrentBoneTransformRevisionNumber = 0;
 
@@ -508,7 +508,7 @@ void USkinnedMeshComponent::Serialize(FArchive& Ar)
 		// add all native variables - mostly bigger chunks 
 		ComponentSpaceTransformsArray[0].CountBytes(Ar);
 		ComponentSpaceTransformsArray[1].CountBytes(Ar);
-		MasterBoneMap.CountBytes(Ar);
+		LeaderBoneMap.CountBytes(Ar);
 	}
 }
 
@@ -524,10 +524,10 @@ void USkinnedMeshComponent::OnRegister()
 
 	AnimUpdateRateParams = FAnimUpdateRateManager::GetUpdateRateParameters(this);
 
-	if (MasterPoseComponent.IsValid())
+	if (LeaderPoseComponent.IsValid())
 	{
 		// we have to make sure it updates the mastesr pose
-		SetMasterPoseComponent(MasterPoseComponent.Get(), true);
+		SetLeaderPoseComponent(LeaderPoseComponent.Get(), true);
 	}
 	else
 	{
@@ -768,9 +768,9 @@ bool USkinnedMeshComponent::RequiresGameThreadEndOfFrameRecreate() const
 	}
 #endif
 
-	// When we are a master/slave, we cannot recreate render state in parallel as this could 
+	// When we are a leader/follower, we cannot recreate render state in parallel as this could 
 	// happen concurrently with our dependent component(s)
-	return MasterPoseComponent.Get() != nullptr || SlavePoseComponents.Num() > 0;
+	return LeaderPoseComponent.Get() != nullptr || FollowerPoseComponents.Num() > 0;
 }
 
 FString USkinnedMeshComponent::GetDetailedInfoInternal() const
@@ -1010,9 +1010,9 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	if( ShouldUpdateTransform(bLODHasChanged) )
 	{
 		// Do not update bones if we are taking bone transforms from another SkelMeshComp
-		if( MasterPoseComponent.IsValid() )
+		if( LeaderPoseComponent.IsValid() )
 		{
-			UpdateSlaveComponent();
+			UpdateFollowerComponent();
 		}
 		else 
 		{
@@ -1048,8 +1048,7 @@ UObject const* USkinnedMeshComponent::AdditionalStatObject() const
 	return GetSkeletalMesh();
 }
 
-
-void USkinnedMeshComponent::UpdateSlaveComponent()
+void USkinnedMeshComponent::UpdateFollowerComponent()
 {
 	MarkRenderDynamicDataDirty();
 }
@@ -1200,12 +1199,12 @@ void USkinnedMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCo
 
 bool USkinnedMeshComponent::ShouldUpdateBoneVisibility() const
 {
-	// do not update if it has MasterPoseComponent
-	return !MasterPoseComponent.IsValid();
+	// do not update if it has LeaderPoseComponent
+	return !LeaderPoseComponent.IsValid();
 }
 void USkinnedMeshComponent::RebuildVisibilityArray()
 {
-	// BoneVisibility needs update if MasterComponent == NULL
+	// BoneVisibility needs update if LeaderComponent == NULL
 	// if MaterComponent, it should follow MaterPoseComponent
 	if ( ShouldUpdateBoneVisibility())
 	{
@@ -1297,21 +1296,21 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffse
 	AActor* Owner = GetOwner();
 	FVector DrawScale = LocalToWorld.GetScale3D();	
 
-	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
 	UPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();
-	UPhysicsAsset * const MasterPhysicsAsset = (MasterPoseComponentInst != nullptr)? MasterPoseComponentInst->GetPhysicsAsset() : nullptr;
+	UPhysicsAsset * const LeaderPhysicsAsset = (LeaderPoseComponentInst != nullptr)? LeaderPoseComponentInst->GetPhysicsAsset() : nullptr;
 
 	// Can only use the PhysicsAsset to calculate the bounding box if we are not non-uniformly scaling the mesh.
 	const USkeletalMesh* SkeletalMeshConst = GetSkeletalMesh();
 	const bool bCanUsePhysicsAsset = DrawScale.IsUniform() && (GetSkeletalMesh() != NULL)
 		// either space base exists or child component
-		&& ( (GetNumComponentSpaceTransforms() == SkeletalMeshConst->GetRefSkeleton().GetNum()) || (MasterPhysicsAsset) );
+		&& ( (GetNumComponentSpaceTransforms() == SkeletalMeshConst->GetRefSkeleton().GetNum()) || (LeaderPhysicsAsset) );
 
 	const bool bDetailModeAllowsRendering = (DetailMode <= GetCachedScalabilityCVars().DetailMode);
 	const bool bIsVisible = ( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow));
 
 	const bool bHasPhysBodies = PhysicsAsset && PhysicsAsset->SkeletalBodySetups.Num();
-	const bool bMasterHasPhysBodies = MasterPhysicsAsset && MasterPhysicsAsset->SkeletalBodySetups.Num();
+	const bool bLeaderHasPhysBodies = LeaderPhysicsAsset && LeaderPhysicsAsset->SkeletalBodySetups.Num();
 
 	// if not visible, or we were told to use fixed bounds, use skelmesh bounds
 	if ( (!bIsVisible || bComponentUseFixedSkelBounds) && GetSkeletalMesh())
@@ -1320,16 +1319,16 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffse
 		RootAdjustedBounds.Origin += FVector(RootOffset); // Adjust bounds by root bone translation
 		NewBounds = RootAdjustedBounds.TransformBy(LocalToWorld);
 	}
-	else if(MasterPoseComponentInst && MasterPoseComponentInst->GetSkeletalMesh() && MasterPoseComponentInst->bComponentUseFixedSkelBounds)
+	else if(LeaderPoseComponentInst && LeaderPoseComponentInst->GetSkeletalMesh() && LeaderPoseComponentInst->bComponentUseFixedSkelBounds)
 	{
-		FBoxSphereBounds RootAdjustedBounds = MasterPoseComponentInst->GetSkeletalMesh()->GetBounds();
+		FBoxSphereBounds RootAdjustedBounds = LeaderPoseComponentInst->GetSkeletalMesh()->GetBounds();
 		RootAdjustedBounds.Origin += FVector(RootOffset); // Adjust bounds by root bone translation
 		NewBounds = RootAdjustedBounds.TransformBy(LocalToWorld);
 	}
-	// Use MasterPoseComponent's PhysicsAsset if told to
-	else if (MasterPoseComponentInst && bCanUsePhysicsAsset && bUseBoundsFromMasterPoseComponent)
+	// Use LeaderPoseComponent's PhysicsAsset if told to
+	else if (LeaderPoseComponentInst && bCanUsePhysicsAsset && bUseBoundsFromLeaderPoseComponent)
 	{
-		NewBounds = MasterPoseComponentInst->CalcBounds(LocalToWorld);
+		NewBounds = LeaderPoseComponentInst->CalcBounds(LocalToWorld);
 	}
 #if WITH_EDITOR
 	// For AnimSet Viewer, use 'bounds preview' physics asset if present.
@@ -1343,10 +1342,10 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffse
 	{
 		NewBounds = FBoxSphereBounds(PhysicsAsset->CalcAABB(this, LocalToWorld));
 	}
-	// Use MasterPoseComponent's PhysicsAsset, if we don't have one and it does
-	else if(MasterPoseComponentInst && bCanUsePhysicsAsset && bMasterHasPhysBodies)
+	// Use LeaderPoseComponent's PhysicsAsset, if we don't have one and it does
+	else if(LeaderPoseComponentInst && bCanUsePhysicsAsset && bLeaderHasPhysBodies)
 	{
-		NewBounds = FBoxSphereBounds(MasterPhysicsAsset->CalcAABB(this, LocalToWorld));
+		NewBounds = FBoxSphereBounds(LeaderPhysicsAsset->CalcAABB(this, LocalToWorld));
 	}
 	// Fallback is to use the one from the skeletal mesh. Usually pretty bad in terms of Accuracy of where the SkelMesh Bounds are located (i.e. usually bigger than it needs to be)
 	else if(GetSkeletalMesh())
@@ -1372,17 +1371,17 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffse
 
 void USkinnedMeshComponent::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const
 {
-	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
 
 	if (GetSkeletalMesh())
 	{
 		// Get the Pre-skinned bounds from the skeletal mesh. Note that these bounds are the "ExtendedBounds", so they can be tweaked on the SkeletalMesh   
 		OutBounds = GetSkeletalMesh()->GetBounds();
 	}
-	else if(MasterPoseComponentInst && MasterPoseComponentInst->GetSkeletalMesh())
+	else if(LeaderPoseComponentInst && LeaderPoseComponentInst->GetSkeletalMesh())
 	{
-		// Get the bounds from the master pose if ther is no skeletal mesh
-		OutBounds = MasterPoseComponentInst->GetSkeletalMesh()->GetBounds();
+		// Get the bounds from the leader pose if ther is no skeletal mesh
+		OutBounds = LeaderPoseComponentInst->GetSkeletalMesh()->GetBounds();
 	}
 	else
 	{
@@ -1400,29 +1399,29 @@ FMatrix USkinnedMeshComponent::GetBoneMatrix(int32 BoneIdx) const
 		return FMatrix::Identity;
 	}
 
-	// Handle case of use a MasterPoseComponent - get bone matrix from there.
-	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
-	if(MasterPoseComponentInst)
+	// Handle case of use a LeaderPoseComponent - get bone matrix from there.
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
+	if(LeaderPoseComponentInst)
 	{
-		if(BoneIdx < MasterBoneMap.Num())
+		if(BoneIdx < LeaderBoneMap.Num())
 		{
-			int32 ParentBoneIndex = MasterBoneMap[BoneIdx];
+			int32 ParentBoneIndex = LeaderBoneMap[BoneIdx];
 
-			// If ParentBoneIndex is valid, grab matrix from MasterPoseComponent.
+			// If ParentBoneIndex is valid, grab matrix from LeaderPoseComponent.
 			if(	ParentBoneIndex != INDEX_NONE && 
-				ParentBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
+				ParentBoneIndex < LeaderPoseComponentInst->GetNumComponentSpaceTransforms())
 			{
-				return MasterPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex].ToMatrixWithScale() * GetComponentTransform().ToMatrixWithScale();
+				return LeaderPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex].ToMatrixWithScale() * GetComponentTransform().ToMatrixWithScale();
 			}
 			else
 			{
-				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneMatrix : ParentBoneIndex(%d:%s) out of range of MasterPoseComponent->SpaceBases for %s(%s)"), BoneIdx, *GetNameSafe(MasterPoseComponentInst->GetSkeletalMesh()), *GetNameSafe(GetSkeletalMesh()), *GetPathName());
+				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneMatrix : ParentBoneIndex(%d:%s) out of range of LeaderPoseComponent->SpaceBases for %s(%s)"), BoneIdx, *GetNameSafe(LeaderPoseComponentInst->GetSkeletalMesh()), *GetNameSafe(GetSkeletalMesh()), *GetPathName());
 				return FMatrix::Identity;
 			}
 		}
 		else
 		{
-			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("GetBoneMatrix : BoneIndex(%d) out of range of MasterBoneMap for %s (%s)"), BoneIdx, *this->GetFName().ToString(), GetSkeletalMesh() ? *GetSkeletalMesh()->GetFName().ToString() : TEXT("NULL") );
+			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("GetBoneMatrix : BoneIndex(%d) out of range of LeaderBoneMap for %s (%s)"), BoneIdx, *this->GetFName().ToString(), GetSkeletalMesh() ? *GetSkeletalMesh()->GetFName().ToString() : TEXT("NULL") );
 			return FMatrix::Identity;
 		}
 	}
@@ -1455,56 +1454,56 @@ FTransform USkinnedMeshComponent::GetBoneTransform(int32 BoneIdx) const
 
 FTransform USkinnedMeshComponent::GetBoneTransform(int32 BoneIdx, const FTransform& LocalToWorld) const
 {
-	// Handle case of use a MasterPoseComponent - get bone matrix from there.
-	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
-	if(MasterPoseComponentInst)
+	// Handle case of use a LeaderPoseComponent - get bone matrix from there.
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
+	if(LeaderPoseComponentInst)
 	{
-		if (!MasterPoseComponentInst->IsRegistered())
+		if (!LeaderPoseComponentInst->IsRegistered())
 		{
-			// We aren't going to get anything valid from the master pose if it
+			// We aren't going to get anything valid from the leader pose if it
 			// isn't valid so for now return identity
 			return FTransform::Identity;
 		}
-		if(BoneIdx < MasterBoneMap.Num())
+		if(BoneIdx < LeaderBoneMap.Num())
 		{
-			const int32 MasterBoneIndex = MasterBoneMap[BoneIdx];
-			const int32 NumMasterTransforms = MasterPoseComponentInst->GetNumComponentSpaceTransforms();
+			const int32 LeaderBoneIndex = LeaderBoneMap[BoneIdx];
+			const int32 NumLeaderTransforms = LeaderPoseComponentInst->GetNumComponentSpaceTransforms();
 
-			// If MasterBoneIndex is valid, grab matrix from MasterPoseComponent.
-			if(MasterBoneIndex >= 0 && MasterBoneIndex < NumMasterTransforms)
+			// If LeaderBoneIndex is valid, grab matrix from LeaderPoseComponent.
+			if(LeaderBoneIndex >= 0 && LeaderBoneIndex < NumLeaderTransforms)
 			{
-				return MasterPoseComponentInst->GetComponentSpaceTransforms()[MasterBoneIndex] * LocalToWorld;
+				return LeaderPoseComponentInst->GetComponentSpaceTransforms()[LeaderBoneIndex] * LocalToWorld;
 			}
 			else
 			{
 				// Is this a missing bone we have cached?
-				FMissingMasterBoneCacheEntry MissingBoneInfo;
-				const FMissingMasterBoneCacheEntry* MissingBoneInfoPtr = MissingMasterBoneMap.Find(BoneIdx);
+				FMissingLeaderBoneCacheEntry MissingBoneInfo;
+				const FMissingLeaderBoneCacheEntry* MissingBoneInfoPtr = MissingLeaderBoneMap.Find(BoneIdx);
 				if(MissingBoneInfoPtr != nullptr)
 				{
-					const int32 MissingMasterBoneIndex = MissingBoneInfoPtr->CommonAncestorBoneIndex;
-					if(MissingMasterBoneIndex >= 0 && MissingMasterBoneIndex < NumMasterTransforms)
+					const int32 MissingLeaderBoneIndex = MissingBoneInfoPtr->CommonAncestorBoneIndex;
+					if(MissingLeaderBoneIndex >= 0 && MissingLeaderBoneIndex < NumLeaderTransforms)
 					{
-						return MissingBoneInfoPtr->RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfoPtr->CommonAncestorBoneIndex] * LocalToWorld;
+						return MissingBoneInfoPtr->RelativeTransform * LeaderPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfoPtr->CommonAncestorBoneIndex] * LocalToWorld;
 					}
 				}
 				// Otherwise we might be able to generate the missing transform on the fly (although this is expensive)
-				else if(GetMissingMasterBoneRelativeTransform(BoneIdx, MissingBoneInfo))
+				else if(GetMissingLeaderBoneRelativeTransform(BoneIdx, MissingBoneInfo))
 				{
-					const int32 MissingMasterBoneIndex = MissingBoneInfo.CommonAncestorBoneIndex;
-					if (MissingMasterBoneIndex >= 0 && MissingMasterBoneIndex < NumMasterTransforms)
+					const int32 MissingLeaderBoneIndex = MissingBoneInfo.CommonAncestorBoneIndex;
+					if (MissingLeaderBoneIndex >= 0 && MissingLeaderBoneIndex < NumLeaderTransforms)
 					{
-						return MissingBoneInfo.RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfo.CommonAncestorBoneIndex] * LocalToWorld;
+						return MissingBoneInfo.RelativeTransform * LeaderPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfo.CommonAncestorBoneIndex] * LocalToWorld;
 					}
 				}
 
-				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneTransform : ParentBoneIndex(%d) out of range of MasterPoseComponent->SpaceBases for %s"), BoneIdx, *this->GetFName().ToString() );
+				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneTransform : ParentBoneIndex(%d) out of range of LeaderPoseComponent->SpaceBases for %s"), BoneIdx, *this->GetFName().ToString() );
 				return FTransform::Identity;
 			}
 		}
 		else
 		{
-			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("GetBoneTransform : BoneIndex(%d) out of range of MasterBoneMap for %s"), BoneIdx, *this->GetFName().ToString() );
+			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("GetBoneTransform : BoneIndex(%d) out of range of LeaderBoneMap for %s"), BoneIdx, *this->GetFName().ToString() );
 			return FTransform::Identity;
 		}
 	}
@@ -1759,18 +1758,18 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		GetSkeletalMesh() = InSkelMesh;
 		SetPredictedLODLevel(0);
 
-		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
-		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
+		//FollowerPoseComponents is an array of weak obj ptrs, so it can contain null elements
+		for (auto Iter = FollowerPoseComponents.CreateIterator(); Iter; ++Iter)
 		{
 			TWeakObjectPtr<USkinnedMeshComponent> Comp = (*Iter);
 			if (Comp.IsValid() == false)
 			{
-				SlavePoseComponents.RemoveAt(Iter.GetIndex());
+				FollowerPoseComponents.RemoveAt(Iter.GetIndex());
 				--Iter;
 			}
 			else
 			{
-				Comp->UpdateMasterBoneMap();
+				Comp->UpdateLeaderBoneMap();
 			}
 		}
 
@@ -1778,7 +1777,7 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		if (IsRegistered())
 		{
 			AllocateTransformData();
-			UpdateMasterBoneMap();
+			UpdateLeaderBoneMap();
 			InvalidateCachedBounds();
 			// clear morphtarget cache
 			ActiveMorphTargets.Empty();			
@@ -1826,7 +1825,7 @@ bool USkinnedMeshComponent::AllocateTransformData()
 	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/TransformData"));
 
 	// Allocate transforms if not present.
-	if (GetSkeletalMesh() != NULL && MasterPoseComponent == NULL )
+	if (GetSkeletalMesh() != NULL && LeaderPoseComponent == NULL )
 	{
 		if(GetNumComponentSpaceTransforms() != GetSkeletalMesh()->GetRefSkeleton().GetNum() )
 		{
@@ -1890,64 +1889,64 @@ void USkinnedMeshComponent::SetPhysicsAsset(class UPhysicsAsset* InPhysicsAsset,
 	PhysicsAssetOverride = InPhysicsAsset;
 }
 
-void USkinnedMeshComponent::SetMasterPoseComponent(class USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate)
+void USkinnedMeshComponent::SetLeaderPoseComponent(class USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate)
 {
 	// Early out if we're already setup.
-	if (!bForceUpdate && NewMasterBoneComponent == MasterPoseComponent)
+	if (!bForceUpdate && NewLeaderBoneComponent == LeaderPoseComponent)
 	{
 		return;
 	}
 
-	USkinnedMeshComponent* OldMasterPoseComponent = MasterPoseComponent.Get();
-	USkinnedMeshComponent* ValidNewMasterPose = NewMasterBoneComponent;
+	USkinnedMeshComponent* OldLeaderPoseComponent = LeaderPoseComponent.Get();
+	USkinnedMeshComponent* ValidNewLeaderPose = NewLeaderBoneComponent;
 
-	// now add to slave components list, 
-	if (ValidNewMasterPose)
+	// now add to follower components list, 
+	if (ValidNewLeaderPose)
 	{
-		// verify if my current master pose is valid
-		// we can't have chain of master poses, so 
-		// we'll find the root master pose component
-		USkinnedMeshComponent* Iterator = ValidNewMasterPose;
-		while (Iterator->MasterPoseComponent.IsValid())
+		// verify if my current Leader pose is valid
+		// we can't have chain of Leader poses, so 
+		// we'll find the root Leader pose component
+		USkinnedMeshComponent* Iterator = ValidNewLeaderPose;
+		while (Iterator->LeaderPoseComponent.IsValid())
 		{
-			ValidNewMasterPose = Iterator->MasterPoseComponent.Get();
-			Iterator = ValidNewMasterPose;
+			ValidNewLeaderPose = Iterator->LeaderPoseComponent.Get();
+			Iterator = ValidNewLeaderPose;
 
 			// we have cycling, where in this chain, if it comes back to me, then reject it
 			if (Iterator == this)
 			{
 				ensureAlwaysMsgf(false,
-					TEXT("SetMasterPoseComponent detected loop (the input master pose chain point to itself. (%s <- %s)). Aborting... "),
-					*GetNameSafe(NewMasterBoneComponent), *GetNameSafe(this));
-				ValidNewMasterPose = nullptr;
+					TEXT("SetLeaderPoseComponent detected loop (the input Leader pose chain point to itself. (%s <- %s)). Aborting... "),
+					*GetNameSafe(NewLeaderBoneComponent), *GetNameSafe(this));
+				ValidNewLeaderPose = nullptr;
 				break;
 			}
 		}
 
-		// if we have valid master pose, compare with input data and we warn users
-		if (ValidNewMasterPose)
+		// if we have valid Leader pose, compare with input data and we warn users
+		if (ValidNewLeaderPose)
 		{
-			// Output if master is not same as input, which means it has changed. 
-			UE_CLOG(ValidNewMasterPose == NewMasterBoneComponent, LogSkinnedMeshComp, Verbose,
-				TEXT("MasterPoseComponent chain is detected (%s). We re-route to top-most MasterPoseComponent (%s)"),
-				*GetNameSafe(ValidNewMasterPose), *GetNameSafe(NewMasterBoneComponent));
+			// Output if Leader is not same as input, which means it has changed. 
+			UE_CLOG(ValidNewLeaderPose == NewLeaderBoneComponent, LogSkinnedMeshComp, Verbose,
+				TEXT("LeaderPoseComponent chain is detected (%s). We re-route to top-most LeaderPoseComponent (%s)"),
+				*GetNameSafe(ValidNewLeaderPose), *GetNameSafe(NewLeaderBoneComponent));
 		}
 	}
 
-	// now we have valid master pose, set it
-	MasterPoseComponent = ValidNewMasterPose;
-	if (ValidNewMasterPose)
+	// now we have valid Leader pose, set it
+	LeaderPoseComponent = ValidNewLeaderPose;
+	if (ValidNewLeaderPose)
 	{
 		bool bAddNew = true;
 		// make sure no empty element is there, this is weak obj ptr, so it will go away unless there is 
-		// other reference, this is intentional as master to slave reference is weak
-		for (auto Iter = ValidNewMasterPose->SlavePoseComponents.CreateIterator(); Iter; ++Iter)
+		// other reference, this is intentional as Leader to follower reference is weak
+		for (auto Iter = ValidNewLeaderPose->FollowerPoseComponents.CreateIterator(); Iter; ++Iter)
 		{
 			TWeakObjectPtr<USkinnedMeshComponent> Comp = (*Iter);
 			if (Comp.IsValid() == false)
 			{
 				// remove
-				ValidNewMasterPose->SlavePoseComponents.RemoveAt(Iter.GetIndex());
+				ValidNewLeaderPose->FollowerPoseComponents.RemoveAt(Iter.GetIndex());
 				--Iter;
 			}
 			// if it has same as me, ignore to add
@@ -1959,76 +1958,76 @@ void USkinnedMeshComponent::SetMasterPoseComponent(class USkinnedMeshComponent* 
 
 		if (bAddNew)
 		{
-			ValidNewMasterPose->AddSlavePoseComponent(this);
+			ValidNewLeaderPose->AddFollowerPoseComponent(this);
 		}
 
-		// set up tick dependency between master & slave components
-		PrimaryComponentTick.AddPrerequisite(ValidNewMasterPose, ValidNewMasterPose->PrimaryComponentTick);
+		// set up tick dependency between leader & follower components
+		PrimaryComponentTick.AddPrerequisite(ValidNewLeaderPose, ValidNewLeaderPose->PrimaryComponentTick);
 	}
 
-	if ((OldMasterPoseComponent != nullptr) && (OldMasterPoseComponent != ValidNewMasterPose))
+	if ((OldLeaderPoseComponent != nullptr) && (OldLeaderPoseComponent != ValidNewLeaderPose))
 	{
-		OldMasterPoseComponent->RemoveSlavePoseComponent(this);
+		OldLeaderPoseComponent->RemoveFollowerPoseComponent(this);
 
-		// Only remove tick dependency if the old master pose comp isn't our attach parent. We should always have a tick dependency with our parent (see USceneComponent::AttachToComponent)
-		if (GetAttachParent() != OldMasterPoseComponent)
+		// Only remove tick dependency if the old leader pose comp isn't our attach parent. We should always have a tick dependency with our parent (see USceneComponent::AttachToComponent)
+		if (GetAttachParent() != OldLeaderPoseComponent)
 		{
-			// remove tick dependency between master & slave components
-			PrimaryComponentTick.RemovePrerequisite(OldMasterPoseComponent, OldMasterPoseComponent->PrimaryComponentTick);
+			// remove tick dependency between leader & follower components
+			PrimaryComponentTick.RemovePrerequisite(OldLeaderPoseComponent, OldLeaderPoseComponent->PrimaryComponentTick);
 		}
 	}
 
 	AllocateTransformData();
 	RecreatePhysicsState();
-	UpdateMasterBoneMap();
+	UpdateLeaderBoneMap();
 
-	// Update Slave in case Master has already been ticked, and we won't get an update for another frame.
-	if (ValidNewMasterPose)
+	// Update Follower in case Leader has already been ticked, and we won't get an update for another frame.
+	if (ValidNewLeaderPose)
 	{
-		// if I have master, but I also have slaves, they won't work anymore
-		// we have to reroute the slaves to new master
-		if (SlavePoseComponents.Num() > 0)
+		// if I have leader, but I also have followers, they won't work anymore
+		// we have to reroute the followers to new leader
+		if (FollowerPoseComponents.Num() > 0)
 		{
 			UE_LOG(LogSkinnedMeshComp, Verbose,
-				TEXT("MasterPoseComponent chain is detected (%s). We re-route all children to new MasterPoseComponent (%s)"),
-				*GetNameSafe(this), *GetNameSafe(ValidNewMasterPose));
+				TEXT("LeaderPoseComponent chain is detected (%s). We re-route all children to new LeaderPoseComponent (%s)"),
+				*GetNameSafe(this), *GetNameSafe(ValidNewLeaderPose));
 
-			// Walk through array in reverse, as changing the Slaves' MasterPoseComponent will remove them from our SlavePoseComponents array.
-			const int32 NumSlaves = SlavePoseComponents.Num();
-			for (int32 SlaveIndex = NumSlaves - 1; SlaveIndex >= 0; SlaveIndex--)
+			// Walk through array in reverse, as changing the Followers' LeaderPoseComponent will remove them from our FollowerPoseComponents array.
+			const int32 NumFollowers = FollowerPoseComponents.Num();
+			for (int32 FollowerIndex = NumFollowers - 1; FollowerIndex >= 0; FollowerIndex--)
 			{
-				if (USkinnedMeshComponent* SlaveComp = SlavePoseComponents[SlaveIndex].Get())
+				if (USkinnedMeshComponent* FollowerComp = FollowerPoseComponents[FollowerIndex].Get())
 				{
-					SlaveComp->SetMasterPoseComponent(ValidNewMasterPose);
+					FollowerComp->SetLeaderPoseComponent(ValidNewLeaderPose);
 				}
 			}
 		}
 
-		UpdateSlaveComponent();
+		UpdateFollowerComponent();
 	}
 }
 
-const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& USkinnedMeshComponent::GetSlavePoseComponents() const
+const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& USkinnedMeshComponent::GetFollowerPoseComponents() const
 {
-	return SlavePoseComponents;
+	return FollowerPoseComponents;
 }
 
-void USkinnedMeshComponent::AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
+void USkinnedMeshComponent::AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	SlavePoseComponents.AddUnique(SkinnedMeshComponent);
+	FollowerPoseComponents.AddUnique(SkinnedMeshComponent);
 }
 
-void USkinnedMeshComponent::RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
+void USkinnedMeshComponent::RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	SlavePoseComponents.Remove(SkinnedMeshComponent);
+	FollowerPoseComponents.Remove(SkinnedMeshComponent);
 }
 
 void USkinnedMeshComponent::InvalidateCachedBounds()
 {
 	bCachedLocalBoundsUpToDate = false;
 	bCachedWorldSpaceBoundsUpToDate = false;
-	// Also invalidate all slave components.
-	for (const TWeakObjectPtr<USkinnedMeshComponent>& SkinnedMeshComp : SlavePoseComponents)
+	// Also invalidate all follower components.
+	for (const TWeakObjectPtr<USkinnedMeshComponent>& SkinnedMeshComp : FollowerPoseComponents)
 	{
 		if (USkinnedMeshComponent* SkinnedMeshCompPtr = SkinnedMeshComp.Get())
 		{
@@ -2051,13 +2050,13 @@ void USkinnedMeshComponent::InvalidateCachedBounds()
 	}
 }
 
-void USkinnedMeshComponent::RefreshSlaveComponents()
+void USkinnedMeshComponent::RefreshFollowerComponents()
 {
-	for (const TWeakObjectPtr<USkinnedMeshComponent>& MeshComp : SlavePoseComponents)
+	for (const TWeakObjectPtr<USkinnedMeshComponent>& MeshComp : FollowerPoseComponents)
 	{
 		if (USkinnedMeshComponent* MeshCompPtr = MeshComp.Get())
 		{
-			// Update any children of the slave components if they are using sockets
+			// Update any children of the follower components if they are using sockets
 			MeshCompPtr->UpdateChildTransforms(EUpdateTransformFlags::OnlyUpdateIfUsingSocket);
 
 			MeshCompPtr->MarkRenderDynamicDataDirty();
@@ -2124,11 +2123,11 @@ UMorphTarget* USkinnedMeshComponent::FindMorphTarget( FName MorphTargetName ) co
 	return NULL;
 }
 
-bool USkinnedMeshComponent::GetMissingMasterBoneRelativeTransform(int32 InBoneIndex, FMissingMasterBoneCacheEntry& OutInfo) const
+bool USkinnedMeshComponent::GetMissingLeaderBoneRelativeTransform(int32 InBoneIndex, FMissingLeaderBoneCacheEntry& OutInfo) const
 {
-	const FReferenceSkeleton& SlaveRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
-	check(SlaveRefSkeleton.IsValidIndex(InBoneIndex));
-	const TArray<FTransform>& BoneSpaceRefPoseTransforms = SlaveRefSkeleton.GetRefBonePose();
+	const FReferenceSkeleton& FollowerRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
+	check(FollowerRefSkeleton.IsValidIndex(InBoneIndex));
+	const TArray<FTransform>& BoneSpaceRefPoseTransforms = FollowerRefSkeleton.GetRefBonePose();
 
 	OutInfo.CommonAncestorBoneIndex = INDEX_NONE;
 	OutInfo.RelativeTransform = FTransform::Identity;
@@ -2136,14 +2135,14 @@ bool USkinnedMeshComponent::GetMissingMasterBoneRelativeTransform(int32 InBoneIn
 	FTransform RelativeTransform = BoneSpaceRefPoseTransforms[InBoneIndex];
 
 	// we need to find a common base component-space transform in this skeletal mesh as it
-	// isnt present in the master, so run up the hierarchy
+	// isnt present in the leader, so run up the hierarchy
 	int32 CommonAncestorBoneIndex = InBoneIndex;
 	while(CommonAncestorBoneIndex != INDEX_NONE)
 	{
-		CommonAncestorBoneIndex = SlaveRefSkeleton.GetParentIndex(CommonAncestorBoneIndex);
+		CommonAncestorBoneIndex = FollowerRefSkeleton.GetParentIndex(CommonAncestorBoneIndex);
 		if(CommonAncestorBoneIndex != INDEX_NONE)
 		{
-			OutInfo.CommonAncestorBoneIndex = MasterBoneMap[CommonAncestorBoneIndex];
+			OutInfo.CommonAncestorBoneIndex = LeaderBoneMap[CommonAncestorBoneIndex];
 			if(OutInfo.CommonAncestorBoneIndex != INDEX_NONE)
 			{
 				OutInfo.RelativeTransform = RelativeTransform;
@@ -2157,50 +2156,50 @@ bool USkinnedMeshComponent::GetMissingMasterBoneRelativeTransform(int32 InBoneIn
 	return false;
 }
 
-void USkinnedMeshComponent::UpdateMasterBoneMap()
+void USkinnedMeshComponent::UpdateLeaderBoneMap()
 {
-	MasterBoneMap.Reset();
-	MissingMasterBoneMap.Reset();
+	LeaderBoneMap.Reset();
+	MissingLeaderBoneMap.Reset();
 
 	if (GetSkeletalMesh())
 	{
-		if (USkinnedMeshComponent* MasterPoseComponentPtr = MasterPoseComponent.Get())
+		if (USkinnedMeshComponent* LeaderPoseComponentPtr = LeaderPoseComponent.Get())
 		{
-			if (USkeletalMesh* MasterMesh = MasterPoseComponentPtr->GetSkeletalMesh())
+			if (USkeletalMesh* LeaderMesh = LeaderPoseComponentPtr->GetSkeletalMesh())
 			{
-				const FReferenceSkeleton& SlaveRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
-				const FReferenceSkeleton& MasterRefSkeleton = MasterMesh->GetRefSkeleton();
+				const FReferenceSkeleton& FollowerRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
+				const FReferenceSkeleton& LeaderRefSkeleton = LeaderMesh->GetRefSkeleton();
 
-				MasterBoneMap.AddUninitialized(SlaveRefSkeleton.GetNum());
-				if (GetSkeletalMesh() == MasterMesh)
+				LeaderBoneMap.AddUninitialized(FollowerRefSkeleton.GetNum());
+				if (GetSkeletalMesh() == LeaderMesh)
 				{
 					// if the meshes are the same, the indices must match exactly so we don't need to look them up
-					for (int32 BoneIndex = 0; BoneIndex < MasterBoneMap.Num(); BoneIndex++)
+					for (int32 BoneIndex = 0; BoneIndex < LeaderBoneMap.Num(); BoneIndex++)
 					{
-						MasterBoneMap[BoneIndex] = BoneIndex;
+						LeaderBoneMap[BoneIndex] = BoneIndex;
 					}
 				}
 				else
 				{
-					for (int32 BoneIndex = 0; BoneIndex < MasterBoneMap.Num(); BoneIndex++)
+					for (int32 BoneIndex = 0; BoneIndex < LeaderBoneMap.Num(); BoneIndex++)
 					{
-						const FName BoneName = SlaveRefSkeleton.GetBoneName(BoneIndex);
-						MasterBoneMap[BoneIndex] = MasterRefSkeleton.FindBoneIndex(BoneName);
+						const FName BoneName = FollowerRefSkeleton.GetBoneName(BoneIndex);
+						LeaderBoneMap[BoneIndex] = LeaderRefSkeleton.FindBoneIndex(BoneName);
 					}
 
-					// Cache bones for any SOCKET bones that are missing in the master.
+					// Cache bones for any SOCKET bones that are missing in the leader.
 					// We assume that sockets will be potentially called more often, so we
 					// leave out missing BONE transforms here to try to balance memory & performance.
 					for(USkeletalMeshSocket* Socket : GetSkeletalMesh()->GetActiveSocketList())
 					{
-						int32 BoneIndex = SlaveRefSkeleton.FindBoneIndex(Socket->BoneName);
-						int32 MasterBoneIndex = MasterRefSkeleton.FindBoneIndex(Socket->BoneName);
-						if(BoneIndex != INDEX_NONE && MasterBoneIndex == INDEX_NONE)
+						int32 BoneIndex = FollowerRefSkeleton.FindBoneIndex(Socket->BoneName);
+						int32 LeaderBoneIndex = LeaderRefSkeleton.FindBoneIndex(Socket->BoneName);
+						if(BoneIndex != INDEX_NONE && LeaderBoneIndex == INDEX_NONE)
 						{
-							FMissingMasterBoneCacheEntry MissingBoneInfo;
-							if(GetMissingMasterBoneRelativeTransform(BoneIndex, MissingBoneInfo))
+							FMissingLeaderBoneCacheEntry MissingBoneInfo;
+							if(GetMissingLeaderBoneRelativeTransform(BoneIndex, MissingBoneInfo))
 							{
-								MissingMasterBoneMap.Add(BoneIndex, MissingBoneInfo);
+								MissingLeaderBoneMap.Add(BoneIndex, MissingBoneInfo);
 							}
 						}
 					}
@@ -2209,7 +2208,7 @@ void USkinnedMeshComponent::UpdateMasterBoneMap()
 		}
 	}
 
-	MasterBoneMapCacheCount += 1;
+	LeaderBoneMapCacheCount += 1;
 }
 
 FTransform USkinnedMeshComponent::GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace) const
@@ -2411,17 +2410,17 @@ FQuat USkinnedMeshComponent::GetBoneQuaternion(FName BoneName, EBoneSpaces::Type
 	FTransform BoneTransform;
 	if( Space == EBoneSpaces::ComponentSpace )
 	{
-		const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
-		if(MasterPoseComponentInst)
+		const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
+		if(LeaderPoseComponentInst)
 		{
-			if(BoneIndex < MasterBoneMap.Num())
+			if(BoneIndex < LeaderBoneMap.Num())
 			{
-				int32 ParentBoneIndex = MasterBoneMap[BoneIndex];
-				// If ParentBoneIndex is valid, grab matrix from MasterPoseComponent.
+				int32 ParentBoneIndex = LeaderBoneMap[BoneIndex];
+				// If ParentBoneIndex is valid, grab matrix from LeaderPoseComponent.
 				if(	ParentBoneIndex != INDEX_NONE && 
-					ParentBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
+					ParentBoneIndex < LeaderPoseComponentInst->GetNumComponentSpaceTransforms())
 				{
-					BoneTransform = MasterPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex];
+					BoneTransform = LeaderPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex];
 				}
 				else
 				{
@@ -2461,17 +2460,17 @@ FVector USkinnedMeshComponent::GetBoneLocation(FName BoneName, EBoneSpaces::Type
 	{
 	case EBoneSpaces::ComponentSpace:
 	{
-		const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
-		if(MasterPoseComponentInst)
+		const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
+		if(LeaderPoseComponentInst)
 		{
-			if(BoneIndex < MasterBoneMap.Num())
+			if(BoneIndex < LeaderBoneMap.Num())
 			{
-				int32 ParentBoneIndex = MasterBoneMap[BoneIndex];
-				// If ParentBoneIndex is valid, grab transform from MasterPoseComponent.
+				int32 ParentBoneIndex = LeaderBoneMap[BoneIndex];
+				// If ParentBoneIndex is valid, grab transform from LeaderPoseComponent.
 				if(	ParentBoneIndex != INDEX_NONE && 
-					ParentBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
+					ParentBoneIndex < LeaderPoseComponentInst->GetNumComponentSpaceTransforms())
 				{
-					return MasterPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex].GetLocation();
+					return LeaderPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex].GetLocation();
 				}
 			}
 
@@ -2641,7 +2640,7 @@ FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* Bone
 		float BestDistSquared = UE_BIG_NUMBER;
 		int32 BestIndex = -1;
 
-		const USkinnedMeshComponent* BaseComponent = MasterPoseComponent.IsValid() ? MasterPoseComponent.Get() : this;
+		const USkinnedMeshComponent* BaseComponent = LeaderPoseComponent.IsValid() ? LeaderPoseComponent.Get() : this;
 		const TArray<FTransform>& CompSpaceTransforms = BaseComponent->GetComponentSpaceTransforms();
 
 		for (int32 i = 0; i < BaseComponent->GetNumComponentSpaceTransforms(); i++)
@@ -3104,9 +3103,9 @@ bool USkinnedMeshComponent::IsBoneHidden( int32 BoneIndex ) const
 			return EditableBoneVisibilityStates[ BoneIndex ] != BVS_Visible;
 		}
 	}
-	else if (USkinnedMeshComponent* MasterPoseComponentPtr = MasterPoseComponent.Get())
+	else if (USkinnedMeshComponent* LeaderPoseComponentPtr = LeaderPoseComponent.Get())
 	{
-		return MasterPoseComponentPtr->IsBoneHidden( BoneIndex );
+		return LeaderPoseComponentPtr->IsBoneHidden( BoneIndex );
 	}
 
 	return false;
@@ -3262,12 +3261,12 @@ bool USkinnedMeshComponent::UpdateLODStatus()
 	return UpdateLODStatus_Internal(INDEX_NONE);
 }
 
-bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponentPredictedLODLevel, bool bRequestedByMasterPoseComponent)
+bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InLeaderPoseComponentPredictedLODLevel, bool bRequestedByLeaderPoseComponent)
 {
-	// Don't update LOD status for slave component unless it explicitly ignores its master component's LOD or if update is recursively requested by its master.
-	// This is because when UpdateLODStatus is called on master component, it updates the slave component LOD,
-	// therefore if slave component also calls UpdateLODStatus, it could overturn the result and cause LOD to be out of sync from its master.
-	if (MasterPoseComponent.IsValid() && !bIgnoreMasterPoseComponentLOD && !bRequestedByMasterPoseComponent)
+	// Don't update LOD status for follower component unless it explicitly ignores its leader component's LOD or if update is recursively requested by its leader.
+	// This is because when UpdateLODStatus is called on leader component, it updates the follower component LOD,
+	// therefore if follower component also calls UpdateLODStatus, it could overturn the result and cause LOD to be out of sync from its leader.
+	if (LeaderPoseComponent.IsValid() && !bIgnoreLeaderPoseComponentLOD && !bRequestedByLeaderPoseComponent)
 	{
 		return false;
 	}
@@ -3302,10 +3301,10 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 		}
 		else
 		{
-			// Match LOD of MasterPoseComponent if it exists.
-			if (InMasterPoseComponentPredictedLODLevel != INDEX_NONE && !bIgnoreMasterPoseComponentLOD)
+			// Match LOD of LeaderPoseComponent if it exists.
+			if (InLeaderPoseComponentPredictedLODLevel != INDEX_NONE && !bIgnoreLeaderPoseComponentLOD)
 			{
-				NewPredictedLODLevel = FMath::Clamp(InMasterPoseComponentPredictedLODLevel, 0, MaxLODIndex);
+				NewPredictedLODLevel = FMath::Clamp(InLeaderPoseComponentPredictedLODLevel, 0, MaxLODIndex);
 			}
 			else if (bSyncAttachParentLOD && GetAttachParent() && GetAttachParent()->IsA(USkinnedMeshComponent::StaticClass()))
 			{
@@ -3384,13 +3383,13 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 	PredictedLODLevel = NewPredictedLODLevel;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	// also update slave component LOD status, as we may need to recalc required bones if this changes
+	// also update follower component LOD status, as we may need to recalc required bones if this changes
 	// independently of our LOD
-	for (const TWeakObjectPtr<USkinnedMeshComponent>& SlaveComponent : SlavePoseComponents)
+	for (const TWeakObjectPtr<USkinnedMeshComponent>& FollowerComponent : FollowerPoseComponents)
 	{
-		if (USkinnedMeshComponent* SlaveComponentPtr = SlaveComponent.Get())
+		if (USkinnedMeshComponent* FollowerComponentPtr = FollowerComponent.Get())
 		{
-			bLODChanged |= SlaveComponentPtr->UpdateLODStatus_Internal(NewPredictedLODLevel, /*bRequestedByMasterPoseComponent=*/true);
+			bLODChanged |= FollowerComponentPtr->UpdateLODStatus_Internal(NewPredictedLODLevel, /*bRequestedByLeaderPoseComponent=*/true);
 		}
 	}
 
@@ -3472,7 +3471,7 @@ void USkinnedMeshComponent::GetCPUSkinnedVertices(TArray<FFinalSkinVertex>& OutV
 	// Component state should be left unchanged at the end of this call.
 	USkinnedMeshComponent* MutableThis = const_cast<USkinnedMeshComponent*>(this);
 
-	USkinnedMeshComponent* PoseComponent = MutableThis->MasterPoseComponent.Get() ? MutableThis->MasterPoseComponent.Get() : MutableThis;
+	USkinnedMeshComponent* PoseComponent = MutableThis->LeaderPoseComponent.Get() ? MutableThis->LeaderPoseComponent.Get() : MutableThis;
 
 	int32 CachedForcedLOD = PoseComponent->GetForcedLOD();
 	PoseComponent->SetForcedLOD(InLODIndex + 1);
@@ -3554,16 +3553,16 @@ void USkinnedMeshComponent::BeginDestroy()
 		RefPoseOverride = nullptr;
 	}
 
-	// Disconnect slave components from this component if present.
+	// Disconnect follower components from this component if present.
 	// They will currently have no transforms allocated so will be
 	// in an invalid state when this component is destroyed
 	// Walk backwards as we'll be removing from this array
-	const int32 NumSlaveComponents = SlavePoseComponents.Num();
-	for(int32 SlaveIndex = NumSlaveComponents - 1; SlaveIndex >= 0; --SlaveIndex)
+	const int32 NumFollowerComponents = FollowerPoseComponents.Num();
+	for(int32 FollowerIndex = NumFollowerComponents - 1; FollowerIndex >= 0; --FollowerIndex)
 	{
-		if(USkinnedMeshComponent* Slave = SlavePoseComponents[SlaveIndex].Get())
+		if(USkinnedMeshComponent* Follower = FollowerPoseComponents[FollowerIndex].Get())
 		{
-			Slave->SetMasterPoseComponent(nullptr);
+			Follower->SetLeaderPoseComponent(nullptr);
 		}
 	}
 }
@@ -4308,8 +4307,8 @@ void GetTypedSkinnedTangentBasis(
 	OutTangentY = FVector3f::ZeroVector;
 	OutTangentZ = FVector3f::ZeroVector;
 
-	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
-	const USkinnedMeshComponent* BaseComponent = MasterPoseComponentInst ? MasterPoseComponentInst : SkinnedComp;
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = SkinnedComp->LeaderPoseComponent.Get();
+	const USkinnedMeshComponent* BaseComponent = LeaderPoseComponentInst ? LeaderPoseComponentInst : SkinnedComp;
 
 	// Do soft skinning for this vertex.
 	const int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
@@ -4348,8 +4347,8 @@ FVector3f GetTypedSkinnedVertexPosition(
 {
 	FVector3f SkinnedPos(0, 0, 0);
 
-	const USkinnedMeshComponent* const MasterPoseComponentInst = SkinnedComp->MasterPoseComponent.Get();
-	const USkinnedMeshComponent* BaseComponent = MasterPoseComponentInst ? MasterPoseComponentInst : SkinnedComp;
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = SkinnedComp->LeaderPoseComponent.Get();
+	const USkinnedMeshComponent* BaseComponent = LeaderPoseComponentInst ? LeaderPoseComponentInst : SkinnedComp;
 
 	// Do soft skinning for this vertex.
 	int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
@@ -4371,11 +4370,11 @@ FVector3f GetTypedSkinnedVertexPosition(
 		const int32 MeshBoneIndex = Section.BoneMap[BoneMapIndex];
 		int32 TransformBoneIndex = MeshBoneIndex;
 
-		if (MasterPoseComponentInst)
+		if (LeaderPoseComponentInst)
 		{
-			const TArray<int32>& MasterBoneMap = SkinnedComp->GetMasterBoneMap();
-			check(MasterBoneMap.Num() == SkinnedComp->GetSkeletalMesh()->GetRefSkeleton().GetNum());
-			TransformBoneIndex = MasterBoneMap[MeshBoneIndex];
+			const TArray<int32>& LeaderBoneMap = SkinnedComp->GetLeaderBoneMap();
+			check(LeaderBoneMap.Num() == SkinnedComp->GetSkeletalMesh()->GetRefSkeleton().GetNum());
+			TransformBoneIndex = LeaderBoneMap[MeshBoneIndex];
 		}
 
 		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;

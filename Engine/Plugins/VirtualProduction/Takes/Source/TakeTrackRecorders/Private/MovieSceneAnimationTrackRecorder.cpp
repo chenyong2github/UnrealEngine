@@ -52,9 +52,9 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 		ComponentTransform = SkeletalMeshComponent->GetComponentToWorld().GetRelativeTransform(Actor->GetTransform());
 		FString AnimationAssetName = Actor->GetActorLabel();
 
-		if (ULevelSequence* MasterLevelSequence = OwningTakeRecorderSource->GetMasterLevelSequence())
+		if (ULevelSequence* LeaderLevelSequence = OwningTakeRecorderSource->GetMasterLevelSequence())
 		{
-			UTakeMetaData* AssetMetaData = MasterLevelSequence->FindMetaData<UTakeMetaData>();
+			UTakeMetaData* AssetMetaData = LeaderLevelSequence->FindMetaData<UTakeMetaData>();
 
 			AnimationAssetName = AssetMetaData->GenerateAssetPath(AnimSettings->AnimationAssetName);
 
@@ -144,11 +144,11 @@ void UMovieSceneAnimationTrackRecorder::CreateTrackImpl()
 			USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
 			// add all frames
 
-			const USkinnedMeshComponent* const MasterPoseComponentInst = SkeletalMeshComponent->MasterPoseComponent.Get();
+			const USkinnedMeshComponent* const LeaderPoseComponentInst = SkeletalMeshComponent->LeaderPoseComponent.Get();
 			const TArray<FTransform>* SpaceBases;
-			if (MasterPoseComponentInst)
+			if (LeaderPoseComponentInst)
 			{
-				SpaceBases = &MasterPoseComponentInst->GetComponentSpaceTransforms();
+				SpaceBases = &LeaderPoseComponentInst->GetComponentSpaceTransforms();
 			}
 			else
 			{
@@ -157,7 +157,7 @@ void UMovieSceneAnimationTrackRecorder::CreateTrackImpl()
 			for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 			{
 				// verify if this bone exists in skeleton
-				const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->MasterPoseComponent != nullptr ? SkeletalMeshComponent->MasterPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
+				const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->LeaderPoseComponent != nullptr ? SkeletalMeshComponent->LeaderPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
 				if (BoneTreeIndex != INDEX_NONE)
 				{
 					// add tracks for the bone existing

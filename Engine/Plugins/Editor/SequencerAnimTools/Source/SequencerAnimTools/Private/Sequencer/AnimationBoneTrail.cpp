@@ -34,7 +34,7 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 		return;
 	}
 
-	SkeletalMeshComponent->MasterPoseComponent = nullptr;
+	SkeletalMeshComponent->LeaderPoseComponent = nullptr;
 
 	CachedAnimSequence->SetSkeleton(SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton());
 

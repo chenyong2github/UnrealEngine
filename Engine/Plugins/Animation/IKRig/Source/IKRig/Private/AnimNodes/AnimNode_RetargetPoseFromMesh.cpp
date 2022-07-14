@@ -325,12 +325,12 @@ void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshC
 
 TObjectPtr<USkeletalMeshComponent> FAnimNode_RetargetPoseFromMesh::GetComponentToCopyPoseFrom() const
 {
-	// if our source is running under master-pose, then get bone data from there
+	// if our source is running under leader-pose, then get bone data from there
 	if (SourceMeshComponent.IsValid())
 	{
-		if(USkeletalMeshComponent* MasterPoseComponent = Cast<USkeletalMeshComponent>(SourceMeshComponent->MasterPoseComponent.Get()))
+		if(USkeletalMeshComponent* LeaderPoseComponent = Cast<USkeletalMeshComponent>(SourceMeshComponent->LeaderPoseComponent.Get()))
 		{
-			return MasterPoseComponent;
+			return LeaderPoseComponent;
 		}
 	}
 	

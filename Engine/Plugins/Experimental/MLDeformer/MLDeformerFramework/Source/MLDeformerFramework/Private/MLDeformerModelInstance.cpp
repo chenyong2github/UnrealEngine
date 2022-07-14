@@ -131,20 +131,20 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 
 void UMLDeformerModelInstance::UpdateBoneTransforms()
 {
-	const USkinnedMeshComponent* MasterPoseComponent = SkeletalMeshComponent->MasterPoseComponent.Get();
-	if (MasterPoseComponent)
+	const USkinnedMeshComponent* LeaderPoseComponent = SkeletalMeshComponent->LeaderPoseComponent.Get();
+	if (LeaderPoseComponent)
 	{
-		const TArray<FTransform>& MasterTransforms = MasterPoseComponent->GetComponentSpaceTransforms();
-		USkeletalMesh* Mesh = MasterPoseComponent->GetSkeletalMesh();
+		const TArray<FTransform>& LeaderTransforms = LeaderPoseComponent->GetComponentSpaceTransforms();
+		USkeletalMesh* Mesh = LeaderPoseComponent->GetSkeletalMesh();
 		const int32 NumTrainingBones = AssetBonesToSkelMeshMappings.Num();
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
 		{
 			const int32 ComponentBoneIndex = AssetBonesToSkelMeshMappings[Index];
-			const FTransform& ComponentSpaceTransform = MasterTransforms[ComponentBoneIndex];
+			const FTransform& ComponentSpaceTransform = LeaderTransforms[ComponentBoneIndex];
 			const int32 ParentIndex = Mesh->GetRefSkeleton().GetParentIndex(ComponentBoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				TrainingBoneTransforms[Index] = ComponentSpaceTransform.GetRelativeTransform(MasterTransforms[ParentIndex]);
+				TrainingBoneTransforms[Index] = ComponentSpaceTransform.GetRelativeTransform(LeaderTransforms[ParentIndex]);
 			}
 			else
 			{

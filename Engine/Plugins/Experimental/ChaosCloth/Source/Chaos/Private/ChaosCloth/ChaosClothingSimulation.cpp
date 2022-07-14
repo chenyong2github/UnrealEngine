@@ -672,7 +672,7 @@ void FClothingSimulation::GetSimulationData(
 		}
 
 		// Get the reference bone index for this cloth
-		const int32 ReferenceBoneIndex = InOverrideComponent ? InOwnerComponent->GetMasterBoneMap()[Cloth->GetReferenceBoneIndex()] : Cloth->GetReferenceBoneIndex();
+		const int32 ReferenceBoneIndex = InOverrideComponent ? InOwnerComponent->GetLeaderBoneMap()[Cloth->GetReferenceBoneIndex()] : Cloth->GetReferenceBoneIndex();
 		if (!ComponentSpaceTransforms.IsValidIndex(ReferenceBoneIndex))
 		{
 			UE_CLOG(!bHasInvalidReferenceBoneTransforms, LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component %s as bone transforms are invalid."), *InOwnerComponent->GetName());

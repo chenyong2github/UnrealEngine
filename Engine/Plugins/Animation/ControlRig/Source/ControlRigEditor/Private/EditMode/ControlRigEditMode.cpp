@@ -4172,7 +4172,7 @@ void FControlRigEditMode::TickManipulatableObjects(float DeltaTime)
 					// have to TickAnimation() to ensure that PreUpdate() is called on all anim instances
 					SkeletalMeshToUpdate->TickAnimation(0.0f, false);
 					SkeletalMeshToUpdate->RefreshBoneTransforms();
-					SkeletalMeshToUpdate->RefreshSlaveComponents();
+					SkeletalMeshToUpdate->RefreshFollowerComponents	();
 					SkeletalMeshToUpdate->UpdateComponentToWorld();
 					SkeletalMeshToUpdate->FinalizeBoneTransform();
 					SkeletalMeshToUpdate->MarkRenderTransformDirty();

@@ -451,8 +451,8 @@ void USkeletalMeshComponent::FinalizeAnimationUpdate()
 	// New bone positions need to be sent to render thread
 	MarkRenderDynamicDataDirty();
 
-	// If we have any Slave Components, they need to be refreshed as well.
-	RefreshSlaveComponents();
+	// If we have any Follower Components, they need to be refreshed as well.
+	RefreshFollowerComponents();
 }
 
 void USkeletalMeshComponent::CompleteParallelBlendPhysics()

@@ -66,7 +66,7 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	float WorldAlpha;
 
 #if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(5.1, "MasterAlpha has been deprecated. Please, use WorldAlpha.")
+	UE_DEPRECATED(5.1, "This property has been deprecated. Please, use WorldAlpha.")
 	UPROPERTY()
 	float MasterAlpha;
 #endif // WITH_EDITORONLY_DATA

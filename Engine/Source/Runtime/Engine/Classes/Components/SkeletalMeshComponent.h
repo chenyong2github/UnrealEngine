@@ -644,8 +644,8 @@ private:
 	UPROPERTY()
 	uint8 bDisableAnimCurves_DEPRECATED : 1;
 
-	/** Whether or not we're taking cloth sim information from our master component */
-	uint8 bBindClothToMasterComponent:1;
+	/** Whether or not we're taking cloth sim information from our leader component */
+	uint8 bBindClothToLeaderComponent:1;
 
 	/** Flag denoting whether or not the clothing transform needs to update */
 	uint8 bPendingClothTransformUpdate:1;
@@ -753,9 +753,15 @@ public:
 	UPROPERTY()
 	uint8 bEnableLineCheckWithBounds:1;
 
-	/** If true, propagates calls to ApplyAnimationCurvesToComponent for slave components, only needed if slave components do not tick themselves */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MasterPoseComponent)
+	/** If true, propagates calls to ApplyAnimationCurvesToComponent for follower components, only needed if follower components do not tick themselves */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LeaderPoseComponent)
+	uint8 bPropagateCurvesToFollowers : 1;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use bPropagateCurvesToFollowers instead")
+	UPROPERTY()
 	uint8 bPropagateCurvesToSlaves : 1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Whether to skip UpdateKinematicBonesToAnim() when interpolating. Kinematic bones are updated to the target interpolation pose only on ticks when they are evaluated. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Optimization)
@@ -1197,23 +1203,31 @@ public:
 	void ResetClothTeleportMode();
 
 	/** 
-	 * If this component has a valid MasterPoseComponent then this function makes cloth items on the slave component
-	 * take the transforms of the cloth items on the master component instead of simulating separately.
-	 * @Note This will FORCE any cloth actor on the master component to simulate in local space. Also
+	 * If this component has a valid LeaderPoseComponent then this function makes cloth items on the follower component
+	 * take the transforms of the cloth items on the leader component instead of simulating separately.
+	 * @Note This will FORCE any cloth actor on the leader component to simulate in local space. Also
 	 * The meshes used in the components must be identical for the cloth to bind correctly
 	 */
-	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true"))
-	void BindClothToMasterPoseComponent();
+	UFUNCTION(BlueprintCallable, Category = "Clothing", meta = (UnsafeDuringActorConstruction = "true"))
+	void BindClothToLeaderPoseComponent();
+
+	UE_DEPRECATED(5.1, "BindClothToMasterPoseComponent has been deprecated. Please use BindClothToLeaderPoseComponent instead.")
+	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true", DeprecatedFunction, DeprecationMessage = "BindClothToMasterPoseComponent has been deprecated. Please use BindClothToLeaderPoseComponent instead."))
+	void BindClothToMasterPoseComponent() { BindClothToLeaderPoseComponent(); }
 
 	/** 
-	 * If this component has a valid MasterPoseComponent and has previously had its cloth bound to the
+	 * If this component has a valid LeaderPoseComponent and has previously had its cloth bound to the
 	 * MCP, this function will unbind the cloth and resume simulation.
-	 * @param bRestoreSimulationSpace if true and the master pose cloth was originally simulating in world
-	 * space, we will restore this setting. This will cause the master component to reset which may be
+	 * @param bRestoreSimulationSpace if true and the leader pose cloth was originally simulating in world
+	 * space, we will restore this setting. This will cause the leader component to reset which may be
 	 * undesirable.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true"))
-	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true);
+	void UnbindClothFromLeaderPoseComponent(bool bRestoreSimulationSpace = true);
+
+	UE_DEPRECATED(5.1, "UnbindClothFromMasterPoseComponent has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead.")
+	UFUNCTION(BlueprintCallable, Category = "Clothing", meta = (UnsafeDuringActorConstruction = "true", DeprecatedFunction, DeprecationMessage = "UnbindClothFromMasterPoseComponent has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead."))
+	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true) { UnbindClothFromLeaderPoseComponent(bRestoreSimulationSpace); }
 
 	/**
 	 * Sets whether or not to allow rigid body animation nodes for this component
@@ -1241,7 +1255,7 @@ public:
 #if WITH_EDITOR
 	/**
 	 * return true if currently updating in editor is true
-	 * this is non BP because this is only used for slave component to detect master component ticking state
+	 * this is non BP because this is only used for follower component to detect leader component ticking state
 	 */
 	bool GetUpdateAnimationInEditor() const 
 	{		
@@ -1409,7 +1423,10 @@ public:
 	/** Checked whether we have already ticked the pose this frame */
 	bool PoseTickedThisFrame() const;
 
-	bool IsClothBoundToMasterComponent() const { return bBindClothToMasterComponent; }
+	bool IsClothBoundToLeaderComponent() const { return bBindClothToLeaderComponent; }
+	
+	UE_DEPRECATED(5.1, "IsClothBoundToMasterComponent has been deprecated. Please, use IsClothBoundToLeaderComponent instead.")
+	bool IsClothBoundToMasterComponent() const { return IsClothBoundToLeaderComponent(); }
 
 	/** Get the current clothing simulation (read only) */
 	const IClothingSimulation* GetClothingSimulation() const;
@@ -1836,7 +1853,9 @@ protected:
 	virtual void DispatchParallelTickPose( FActorComponentTickFunction* TickFunction ) override;
 public:
 	virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion) override;
-	virtual void UpdateSlaveComponent() override;
+	virtual void UpdateFollowerComponent() override;
+	UE_DEPRECATED(5.1, "UpdateSlaveComponent has been deprecated. Please use UpdateFollowerComponent instead.")
+	virtual void UpdateSlaveComponent() override { UpdateFollowerComponent(); };
 	virtual bool ShouldUpdateTransform(bool bLODHasChanged) const override;
 	virtual bool ShouldTickPose() const override;
 	virtual bool AllocateTransformData() override;
@@ -2362,8 +2381,8 @@ protected:
 
 private:
 	/** Override USkinnedMeshComponent */
-	virtual void AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) override;
-	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) override;
+	virtual void AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) override;
+	virtual void RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) override;
 
 	// Returns whether we need to run the Pre Cloth Tick or not
 	bool ShouldRunEndPhysicsTick() const;

@@ -746,7 +746,7 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FMovieSceneBindin
 						SkeletalMeshComponent->TickAnimation(0.f, false);
 
 						SkeletalMeshComponent->RefreshBoneTransforms();
-						SkeletalMeshComponent->RefreshSlaveComponents();
+						SkeletalMeshComponent->RefreshFollowerComponents();
 						SkeletalMeshComponent->UpdateComponentToWorld();
 						SkeletalMeshComponent->FinalizeBoneTransform();
 						SkeletalMeshComponent->MarkRenderTransformDirty();

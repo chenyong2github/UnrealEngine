@@ -135,7 +135,7 @@ void UPoseableMeshComponent::SetBoneTransformByName(FName BoneName, const FTrans
 		return;
 	}
 
-	check(!MasterPoseComponent.IsValid()); //Shouldn't call set bone functions when we are using MasterPoseComponent
+	check(!LeaderPoseComponent.IsValid()); //Shouldn't call set bone functions when we are using LeaderPoseComponent
 
 	int32 BoneIndex = GetBoneIndex(BoneName);
 	if(BoneIndex >=0 && BoneIndex < BoneSpaceTransforms.Num())
@@ -221,7 +221,7 @@ FTransform UPoseableMeshComponent::GetBoneTransformByName(FName BoneName, EBoneS
 		return FTransform();
 	}
 
-	USkinnedMeshComponent* MPCPtr = MasterPoseComponent.Get();
+	USkinnedMeshComponent* MPCPtr = LeaderPoseComponent.Get();
 	if (MPCPtr)
 	{
 		if (USkeletalMeshComponent* SMC = Cast<USkeletalMeshComponent>(MPCPtr))
@@ -230,11 +230,11 @@ FTransform UPoseableMeshComponent::GetBoneTransformByName(FName BoneName, EBoneS
 			{
 				return GetBoneTransformByNameHelper(BoneName, BoneSpace, AnimInstance->GetRequiredBones(), SMC);
 			}
-			FString Message = FString::Printf(TEXT("Cannot return valid bone transform. Master Pose Component has no anim instance"));
+			FString Message = FString::Printf(TEXT("Cannot return valid bone transform. Leader Pose Component has no anim instance"));
 			FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Warning);
 			return FTransform();
 		}
-		FString Message = FString::Printf(TEXT("Cannot return valid bone transform. Master Pose Component is not of type USkeletalMeshComponent"));
+		FString Message = FString::Printf(TEXT("Cannot return valid bone transform. Leader Pose Component is not of type USkeletalMeshComponent"));
 		FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Warning);
 		return FTransform();
 	}

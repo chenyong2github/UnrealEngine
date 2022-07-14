@@ -3839,7 +3839,7 @@ static void TickFrame(const FFrameNumber& FrameNumber,float DeltaTime, UMovieSce
 		SkelMeshComp->TickAnimation(DeltaTime, false);
 
 		SkelMeshComp->RefreshBoneTransforms();
-		SkelMeshComp->RefreshSlaveComponents();
+		SkelMeshComp->RefreshFollowerComponents();
 		SkelMeshComp->UpdateComponentToWorld();
 		SkelMeshComp->FinalizeBoneTransform();
 		SkelMeshComp->MarkRenderTransformDirty();
@@ -4327,7 +4327,7 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 						{
 							MeshComp->TickAnimation(0.03f, false);
 							MeshComp->RefreshBoneTransforms();
-							MeshComp->RefreshSlaveComponents();
+							MeshComp->RefreshFollowerComponents();
 							MeshComp->UpdateComponentToWorld();
 							MeshComp->FinalizeBoneTransform();
 							MeshComp->MarkRenderTransformDirty();

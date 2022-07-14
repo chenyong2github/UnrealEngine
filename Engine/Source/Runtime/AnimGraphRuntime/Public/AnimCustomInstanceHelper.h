@@ -272,7 +272,7 @@ public:
 
 			// Update space bases to reset it back to ref pose
 			InSkeletalMeshComponent->RefreshBoneTransforms();
-			InSkeletalMeshComponent->RefreshSlaveComponents();
+			InSkeletalMeshComponent->RefreshFollowerComponents();
 			InSkeletalMeshComponent->UpdateComponentToWorld();
 		}
 

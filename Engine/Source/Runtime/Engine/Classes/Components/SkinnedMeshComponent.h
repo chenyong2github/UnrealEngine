@@ -256,16 +256,22 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 	TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
 	//
-	// MasterPoseComponent.
+	// LeaderPoseComponent.
 	//
 	
 	/**
 	 *	If set, this SkeletalMeshComponent will not use its SpaceBase for bone transform, but will
-	 *	use the component space transforms from the MasterPoseComponent. This is used when constructing a character using multiple skeletal meshes sharing the same
+	 *	use the component space transforms from the LeaderPoseComponent. This is used when constructing a character using multiple skeletal meshes sharing the same
 	 *	skeleton within the same Actor.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category="Mesh")
+	UPROPERTY(BlueprintReadOnly, Category = "Mesh")
+	TWeakObjectPtr<USkinnedMeshComponent> LeaderPoseComponent;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use LeaderPoseComponent instead")
+	UPROPERTY()
 	TWeakObjectPtr<USkinnedMeshComponent> MasterPoseComponent;
+#endif // WITH_EDITORONLY_DATA
 
 	/**
 	 * How this Component's LOD uses the skin cache feature. Auto will defer to the asset's (SkeletalMesh) option. If Ray Tracing is enabled, will imply Enabled
@@ -294,8 +300,8 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 
 	uint32 GetBoneTransformRevisionNumber() const 
 	{
-		const USkinnedMeshComponent* MasterPoseComponentPtr = MasterPoseComponent.Get();
-		return (MasterPoseComponentPtr ? MasterPoseComponentPtr->CurrentBoneTransformRevisionNumber : CurrentBoneTransformRevisionNumber);
+		const USkinnedMeshComponent* LeaderPoseComponentPtr = LeaderPoseComponent.Get();
+		return (LeaderPoseComponentPtr ? LeaderPoseComponentPtr->CurrentBoneTransformRevisionNumber : CurrentBoneTransformRevisionNumber);
 	}
 
 	/* this update renderer with new revision number twice so to clear bone velocity for motion blur or temporal AA */
@@ -330,49 +336,49 @@ protected:
 	/** current bone transform revision number */
 	uint32 CurrentBoneTransformRevisionNumber;
 
-	/** Incremented every time the master bone map changes. Used to keep in sync with any duplicate data needed by other threads */
-	int32 MasterBoneMapCacheCount;
+	/** Incremented every time the leader bone map changes. Used to keep in sync with any duplicate data needed by other threads */
+	int32 LeaderBoneMapCacheCount;
 
 	/** 
-	 * If set, this component has slave pose components that are associated with this 
+	 * If set, this component has follower pose components that are associated with this 
 	 * Note this is weak object ptr, so it will go away unless you have other strong reference
 	 */
-	TArray< TWeakObjectPtr<USkinnedMeshComponent> > SlavePoseComponents;
+	TArray< TWeakObjectPtr<USkinnedMeshComponent> > FollowerPoseComponents;
 
 	/**
-	 *	Mapping between bone indices in this component and the parent one. Each element is the index of the bone in the MasterPoseComponent.
+	 *	Mapping between bone indices in this component and the parent one. Each element is the index of the bone in the LeaderPoseComponent.
 	 *	Size should be the same as USkeletalMesh.RefSkeleton size (ie number of bones in this skeleton).
 	 */
-	TArray<int32> MasterBoneMap;
+	TArray<int32> LeaderBoneMap;
 
-	/** Cached relative transform for slave bones that are missing in the master */
-	struct FMissingMasterBoneCacheEntry
+	/** Cached relative transform for follower bones that are missing in the leader */
+	struct FMissingLeaderBoneCacheEntry
 	{
-		FMissingMasterBoneCacheEntry()
+		FMissingLeaderBoneCacheEntry()
 			: RelativeTransform(FTransform::Identity)
 			, CommonAncestorBoneIndex(INDEX_NONE)
 		{}
 
-		FMissingMasterBoneCacheEntry(const FTransform& InRelativeTransform, int32 InCommonAncestorBoneIndex)
+		FMissingLeaderBoneCacheEntry(const FTransform& InRelativeTransform, int32 InCommonAncestorBoneIndex)
 			: RelativeTransform(InRelativeTransform)
 			, CommonAncestorBoneIndex(InCommonAncestorBoneIndex)
 		{}
 
 		/** 
 		 * Relative transform of the missing bone's ref pose, based on the earliest common ancestor 
-		 * this will be equivalent to the component space transform of the bone had it existed in the master. 
+		 * this will be equivalent to the component space transform of the bone had it existed in the leader. 
 		 */
 		FTransform RelativeTransform;
 
-		/** The index of the earliest common ancestor of the master mesh. Index is the bone index in *this* mesh. */
+		/** The index of the earliest common ancestor of the leader mesh. Index is the bone index in *this* mesh. */
 		int32 CommonAncestorBoneIndex;
 	};
 
 	/**  
 	 * Map of missing bone indices->transforms so that calls to GetBoneTransform() succeed when bones are not
-	 * present in a master mesh when using master-pose. Index key is the bone index of *this* mesh.
+	 * present in a leader mesh when using leader-pose. Index key is the bone index of *this* mesh.
 	 */
-	TMap<int32, FMissingMasterBoneCacheEntry> MissingMasterBoneMap;
+	TMap<int32, FMissingLeaderBoneCacheEntry> MissingLeaderBoneMap;
 
 	/**
 	*	Mapping for socket overrides, key is the Source socket name and the value is the override socket name
@@ -409,7 +415,10 @@ public:
 
 	USkinnedAsset* GetSkinnedAsset() const;
 
-	const TArray<int32>& GetMasterBoneMap() const { return MasterBoneMap; }
+	const TArray<int32>& GetLeaderBoneMap() const { return LeaderBoneMap; }
+
+	UE_DEPRECATED(5.1, "GetMasterBoneMap has been deprecated. Please use the GetLeaderBoneMap.")
+	const TArray<int32>& GetMasterBoneMap() const { return GetLeaderBoneMap(); }
 
 	const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const { return ExternalMorphWeightData[LOD]; }
 	FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) { return ExternalMorphWeightData[LOD]; }
@@ -561,12 +570,18 @@ public:
 	uint8 bOverrideMinLod:1;
 
 	/** 
-	 * When true, we will just using the bounds from our MasterPoseComponent.  This is useful for when we have a Mesh Parented
+	 * When true, we will just using the bounds from our LeaderPoseComponent.  This is useful for when we have a Mesh Parented
 	 * to the main SkelMesh (e.g. outline mesh or a full body overdraw effect that is toggled) that is always going to be the same
 	 * bounds as parent.  We want to do no calculations in that case.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = SkeletalMesh)
-	uint8 bUseBoundsFromMasterPoseComponent:1;
+	uint8 bUseBoundsFromLeaderPoseComponent : 1;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use bUseBoundsFromLeaderPoseComponent instead")
+	UPROPERTY()
+	uint8 bUseBoundsFromMasterPoseComponent : 1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Forces the mesh to draw in wireframe mode. */
 	UPROPERTY()
@@ -653,9 +668,15 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Optimization)
 	uint8 bRenderStatic:1;
 
-	/** Flag that when set will ensure UpdateLODStatus will not take the MasterPoseComponent's current LOD in consideration when determining the correct LOD level (this requires MasterPoseComponent's LOD to always be >= determined LOD otherwise bone transforms could be missing */
+	/** Flag that when set will ensure UpdateLODStatus will not take the LeaderPoseComponent's current LOD in consideration when determining the correct LOD level (this requires LeaderPoseComponent's LOD to always be >= determined LOD otherwise bone transforms could be missing */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = LOD)
+	uint8 bIgnoreLeaderPoseComponentLOD : 1;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use bIgnoreLeaderPoseComponentLOD instead")
+	UPROPERTY()
 	uint8 bIgnoreMasterPoseComponentLOD : 1;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	/** Are we using double buffered ComponentSpaceTransforms */
@@ -913,7 +934,6 @@ public:
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
-	//~ End UObject Interface
 
 protected:
 	//~ Begin UActorComponent Interface
@@ -1059,7 +1079,7 @@ public:
 
 	FORCEINLINE	const USkinnedMeshComponent* GetBaseComponent()const
 	{
-		return MasterPoseComponent.IsValid() ? MasterPoseComponent.Get() : this;
+		return LeaderPoseComponent.IsValid() ? LeaderPoseComponent.Get() : this;
 	}
 
 	/**
@@ -1178,8 +1198,8 @@ protected:
 	 */
 	virtual void DispatchParallelTickPose(FActorComponentTickFunction* TickFunction) {}
 
-	/** Helper function for UpdateLODStatus, called with a valid index for InMasterPoseComponentPredictedLODLevel when updating LOD status for slave components */
-	bool UpdateLODStatus_Internal(int32 InMasterPoseComponentPredictedLODLevel, bool bRequestedByMasterPoseComponent = false);
+	/** Helper function for UpdateLODStatus, called with a valid index for InLeaderPoseComponentPredictedLODLevel when updating LOD status for follower components */
+	bool UpdateLODStatus_Internal(int32 InLeaderPoseComponentPredictedLODLevel, bool bRequestedByLeaderPoseComponent = false);
 
 public:
 	/**
@@ -1198,10 +1218,13 @@ public:
 	FOnTickPose OnTickPose;
 
 	/** 
-	 * Update Slave Component. This gets called when MasterPoseComponent!=NULL
+	 * Update Follower Component. This gets called when LeaderPoseComponent!=NULL
 	 * 
 	 */
-	virtual void UpdateSlaveComponent();
+	virtual void UpdateFollowerComponent();
+
+	UE_DEPRECATED(5.1, "UpdateSlaveComponent has been deprecated. Please use UpdateFollowerComponent instead.")
+	virtual void UpdateSlaveComponent() { UpdateFollowerComponent(); }
 
 	/** 
 	 * Update the PredictedLODLevel and MaxDistanceFactor in the component from its MeshObject. 
@@ -1355,7 +1378,7 @@ protected:
 	/** Update Mesh Bound information based on input
 	 * 
 	 * @param RootOffset	: Root Bone offset from mesh location
-	 *						  If MasterPoseComponent exists, it will applied to MasterPoseComponent's bound
+	 *						  If LeaderPoseComponent exists, it will applied to LeaderPoseComponent's bound
 	 * @param UsePhysicsAsset	: Whether or not to use PhysicsAsset for calculating bound of mesh
 	 */
 	FBoxSphereBounds CalcMeshBound(const FVector3f& RootOffset, bool UsePhysicsAsset, const FTransform& Transform) const;
@@ -1379,33 +1402,54 @@ private:
 	
 public:
 	/**
-	 * Set MasterPoseComponent for this component
+	 * Set LeaderPoseComponent for this component
 	 *
-	 * @param NewMasterBoneComponent New MasterPoseComponent
+	 * @param NewLeaderBoneComponent New LeaderPoseComponent
 	 */
-	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false);
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false);
 
-	/** Return current active list of slave components */
-	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetSlavePoseComponents() const;
+	UE_DEPRECATED(5.1, "SetMasterPoseComponent has been deprecated. Please use SetLeaderPoseComponent instead.")
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh", meta = (DeprecatedFunction, DeprecationMessage = "SetMasterPoseComponent has been deprecated. Please use SetLeaderPoseComponent instead."))
+	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false) { SetLeaderPoseComponent(NewMasterBoneComponent, bForceUpdate); }
+
+	/** Return current active list of follower components */
+	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetFollowerPoseComponents() const;
+
+	UE_DEPRECATED(5.1, "GetSlavePoseComponents has been deprecated. Please use GetFollowerPoseComponents instead.")
+	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetSlavePoseComponents() const { return GetFollowerPoseComponents(); }
+
 protected:
-	/** Add a slave component to the SlavePoseComponents array */
-	virtual void AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
-	/** Remove a slave component from the SlavePoseComponents array */
-	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
+	/** Add a follower component to the FollowerPoseComponents array */
+	virtual void AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
+
+	UE_DEPRECATED(5.1, "AddSlavePoseComponent has been deprecated. Please use AddFollowerPoseComponent instead.")
+	virtual void AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { AddFollowerPoseComponent(SkinnedMeshComponent); }
+
+	/** Remove a follower component from the FollowerPoseComponents array */
+	virtual void RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
+
+	UE_DEPRECATED(5.1, "RemoveSlavePoseComponent has been deprecated. Please use RemoveFollowerPoseComponent instead.")
+	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { RemoveFollowerPoseComponent(SkinnedMeshComponent); }
 
 public:
 	/** 
-	 * Refresh Slave Components if exists
+	 * Refresh Follower Components if exists
 	 * 
 	 * This isn't necessary in any other case except in editor where you need to mark them as dirty for rendering
 	 */
-	void RefreshSlaveComponents();
+	void RefreshFollowerComponents();
+
+	UE_DEPRECATED(5.1, "RefreshSlaveComponents has been deprecated. Please use RefreshFollowerComponents instead.")
+	void RefreshSlaveComponents() { RefreshFollowerComponents(); }
 
 	/**
-	 * Update MasterBoneMap for MasterPoseComponent and this component
+	 * Update LeaderBoneMap for LeaderPoseComponent and this component
 	 */
-	void UpdateMasterBoneMap();
+	void UpdateLeaderBoneMap();
+
+	UE_DEPRECATED(5.1, "UpdateMasterBoneMap has been deprecated. Please use UpdateLeaderBoneMap instead.")
+	void UpdateMasterBoneMap() { UpdateLeaderBoneMap(); }
 
 	/**
 	 * @param InSocketName	The name of the socket to find
@@ -1668,10 +1712,10 @@ private:
 	virtual void RefreshMorphTargets() {};
 
 	/**  
-	 * When bones are not resent in a master mesh when using master-pose, we call this to evaluate 
+	 * When bones are not resent in a leader mesh when using leader-pose, we call this to evaluate 
 	 * relative transforms.
 	 */
-	bool GetMissingMasterBoneRelativeTransform(int32 InBoneIndex, FMissingMasterBoneCacheEntry& OutInfo) const;
+	bool GetMissingLeaderBoneRelativeTransform(int32 InBoneIndex, FMissingLeaderBoneCacheEntry& OutInfo) const;
 
 	// BEGIN ILODSyncComponent
 	virtual int32 GetDesiredSyncLOD() const override;

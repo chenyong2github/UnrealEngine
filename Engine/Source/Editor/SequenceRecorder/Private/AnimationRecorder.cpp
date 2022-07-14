@@ -193,25 +193,25 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	return false;
 }
 
-/** Helper function to get space bases depending on master pose component */
+/** Helper function to get space bases depending on leader pose component */
 void FAnimationRecorder::GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms)
 {
-	const USkinnedMeshComponent* const MasterPoseComponentInst = Component->MasterPoseComponent.Get();
-	if(MasterPoseComponentInst)
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = Component->LeaderPoseComponent.Get();
+	if(LeaderPoseComponentInst)
 	{
-		const TArray<FTransform>& SpaceBases = MasterPoseComponentInst->GetComponentSpaceTransforms();
+		const TArray<FTransform>& SpaceBases = LeaderPoseComponentInst->GetComponentSpaceTransforms();
 		BoneTransforms.Reset(BoneTransforms.Num());
 		BoneTransforms.AddUninitialized(SpaceBases.Num());
 		for(int32 BoneIndex = 0; BoneIndex < SpaceBases.Num(); BoneIndex++)
 		{
-			if(BoneIndex < Component->GetMasterBoneMap().Num())
+			if(BoneIndex < Component->GetLeaderBoneMap().Num())
 			{
-				int32 MasterBoneIndex = Component->GetMasterBoneMap()[BoneIndex];
+				int32 LeaderBoneIndex = Component->GetLeaderBoneMap()[BoneIndex];
 
-				// If ParentBoneIndex is valid, grab matrix from MasterPoseComponent.
-				if(MasterBoneIndex != INDEX_NONE && MasterBoneIndex < SpaceBases.Num())
+				// If ParentBoneIndex is valid, grab matrix from LeaderPoseComponent.
+				if(LeaderBoneIndex != INDEX_NONE && LeaderBoneIndex < SpaceBases.Num())
 				{
-					BoneTransforms[BoneIndex] = SpaceBases[MasterBoneIndex];
+					BoneTransforms[BoneIndex] = SpaceBases[LeaderBoneIndex];
 				}
 				else
 				{
@@ -270,7 +270,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	for (int32 BoneIndex=0; BoneIndex <PreviousSpacesBases.Num(); ++BoneIndex)
 	{
 		// verify if this bone exists in skeleton
-		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(Component->MasterPoseComponent != nullptr ? Component->MasterPoseComponent->GetSkeletalMesh() : Component->GetSkeletalMesh(), BoneIndex);
+		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(Component->LeaderPoseComponent != nullptr ? Component->LeaderPoseComponent->GetSkeletalMesh() : Component->GetSkeletalMesh(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -628,11 +628,11 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	
 	USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
 
-	const USkinnedMeshComponent* const MasterPoseComponentInst = SkeletalMeshComponent->MasterPoseComponent.Get();
+	const USkinnedMeshComponent* const LeaderPoseComponentInst = SkeletalMeshComponent->LeaderPoseComponent.Get();
 	const TArray<FTransform>* SpaceBases;
-	if (MasterPoseComponentInst)
+	if (LeaderPoseComponentInst)
 	{
-		SpaceBases = &MasterPoseComponentInst->GetComponentSpaceTransforms();
+		SpaceBases = &LeaderPoseComponentInst->GetComponentSpaceTransforms();
 	}
 	else
 	{
@@ -652,7 +652,7 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	{
 		for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 		{
-			const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->MasterPoseComponent != nullptr ? SkeletalMeshComponent->MasterPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
+			const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->LeaderPoseComponent != nullptr ? SkeletalMeshComponent->LeaderPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
@@ -673,7 +673,7 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 	{
 		// verify if this bone exists in skeleton
-		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->MasterPoseComponent != nullptr ? SkeletalMeshComponent->MasterPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
+		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkeletalMeshComponent->LeaderPoseComponent != nullptr ? SkeletalMeshComponent->LeaderPoseComponent->GetSkeletalMesh() : SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -826,7 +826,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 	if (ensure(AnimationObject))
 	{
 		IAnimationDataController& Controller = AnimationObject->GetController();
-		USkeletalMesh* SkeletalMesh = Component->MasterPoseComponent != nullptr ? ToRawPtr(Component->MasterPoseComponent->GetSkeletalMesh()) : ToRawPtr(Component->GetSkeletalMesh());
+		USkeletalMesh* SkeletalMesh = Component->LeaderPoseComponent != nullptr ? ToRawPtr(Component->LeaderPoseComponent->GetSkeletalMesh()) : ToRawPtr(Component->GetSkeletalMesh());
 
 		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
 

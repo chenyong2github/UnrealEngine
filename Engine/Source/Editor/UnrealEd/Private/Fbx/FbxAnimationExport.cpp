@@ -717,7 +717,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 					SkeletalMeshComponent->TickAnimation(TickRate, false);
 
 					SkeletalMeshComponent->RefreshBoneTransforms();
-					SkeletalMeshComponent->RefreshSlaveComponents();
+					SkeletalMeshComponent->RefreshFollowerComponents();
 					SkeletalMeshComponent->UpdateComponentToWorld();
 					SkeletalMeshComponent->FinalizeBoneTransform();
 					SkeletalMeshComponent->MarkRenderTransformDirty();

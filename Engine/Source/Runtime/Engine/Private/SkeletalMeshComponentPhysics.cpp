@@ -1560,7 +1560,7 @@ bool USkeletalMeshComponent::UpdateOverlapsImpl(const TOverlapArrayView* Pending
 bool USkeletalMeshComponent::ShouldCreatePhysicsState() const
 {
 	bool bShouldCreatePhysicsState = Super::ShouldCreatePhysicsState();
-	bShouldCreatePhysicsState &= (MasterPoseComponent.IsValid() == false);
+	bShouldCreatePhysicsState &= (LeaderPoseComponent.IsValid() == false);
 	
 	return bShouldCreatePhysicsState;
 }
@@ -2458,7 +2458,7 @@ bool USkeletalMeshComponent::GetClosestPointOnPhysicsAsset(const FVector& WorldP
 	if(PhysicsAsset && RefSkeleton)
 	{
 		const TArray<FTransform>& BoneTransforms = GetComponentSpaceTransforms();
-		const bool bHasMasterPoseComponent = MasterPoseComponent.IsValid();
+		const bool bHasLeaderPoseComponent = LeaderPoseComponent.IsValid();
 		const FVector ComponentPosition = GetComponentTransform().InverseTransformPosition(WorldPosition);
 	
 		float CurrentClosestDistance = FLT_MAX;
@@ -2472,7 +2472,7 @@ bool USkeletalMeshComponent::GetClosestPointOnPhysicsAsset(const FVector& WorldP
 			const int32 BoneIndex = RefSkeleton->FindBoneIndex(BoneName);
 			if(BoneIndex != INDEX_NONE)
 			{
-				const FTransform BoneTM = bHasMasterPoseComponent ? GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex];
+				const FTransform BoneTM = bHasLeaderPoseComponent ? GetBoneTransform(BoneIndex) : BoneTransforms[BoneIndex];
 				const float Dist = bApproximate ? (BoneTM.GetLocation() - ComponentPosition).SizeSquared() : BodySetupInstance->GetShortestDistanceToPoint(ComponentPosition, BoneTM);
 
 				if (Dist < CurrentClosestDistance)
@@ -2490,7 +2490,7 @@ bool USkeletalMeshComponent::GetClosestPointOnPhysicsAsset(const FVector& WorldP
 		{
 			bSuccess = true;
 
-			const FTransform BoneTM = bHasMasterPoseComponent ? GetBoneTransform(CurrentClosestBoneIndex) : (BoneTransforms[CurrentClosestBoneIndex] * GetComponentTransform());
+			const FTransform BoneTM = bHasLeaderPoseComponent ? GetBoneTransform(CurrentClosestBoneIndex) : (BoneTransforms[CurrentClosestBoneIndex] * GetComponentTransform());
 			ClosestPointOnPhysicsAsset.Distance = CurrentClosestBodySetup->GetClosestPointAndNormal(WorldPosition, BoneTM, ClosestPointOnPhysicsAsset.ClosestWorldPosition, ClosestPointOnPhysicsAsset.Normal);
 			ClosestPointOnPhysicsAsset.BoneName = CurrentClosestBodySetup->BoneName;
 		}

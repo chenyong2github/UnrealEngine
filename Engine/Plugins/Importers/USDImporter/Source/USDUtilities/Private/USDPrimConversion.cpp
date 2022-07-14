@@ -2924,7 +2924,7 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 			Component.TickAnimation( 0.f, false );
 			Component.UpdateLODStatus();
 			Component.RefreshBoneTransforms();
-			Component.RefreshSlaveComponents();
+			Component.RefreshFollowerComponents();
 			Component.UpdateComponentToWorld();
 			Component.FinalizeBoneTransform();
 			Component.MarkRenderTransformDirty();

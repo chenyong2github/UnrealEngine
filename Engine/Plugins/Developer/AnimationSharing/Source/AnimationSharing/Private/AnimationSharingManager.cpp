@@ -433,7 +433,7 @@ void UAnimationSharingManager::RegisterActorWithSkeleton(AActor* InActor, const 
 
 				Component->SetComponentTickEnabled(false);
 				Component->PrimaryComponentTick.bCanEverTick = false;
-				Component->bIgnoreMasterPoseComponentLOD = true;
+				Component->bIgnoreLeaderPoseComponentLOD = true;
 
 				ActorData.ComponentIndices.Add(Data->PerComponentData.Num() - 1);
 
@@ -483,7 +483,7 @@ void UAnimationSharingManager::UnregisterActor(AActor* InActor)
 
 			for (int32 ComponentIndex : ActorData.ComponentIndices)
 			{
-				SkeletonData->PerComponentData[ComponentIndex].Component->SetMasterPoseComponent(nullptr, true);
+				SkeletonData->PerComponentData[ComponentIndex].Component->SetLeaderPoseComponent(nullptr, true);
 				SkeletonData->PerComponentData[ComponentIndex].Component->PrimaryComponentTick.bCanEverTick = true;
 				SkeletonData->PerComponentData[ComponentIndex].Component->SetComponentTickEnabled(true);
 				SkeletonData->RemoveComponent(ComponentIndex);
@@ -596,7 +596,7 @@ void UAnimationSharingManager::UnregisterAllActors()
 				FPerActorData& ActorData = Data->PerActorData[ActorIndex];
 				for (int32 ComponentIndex : ActorData.ComponentIndices)
 				{
-					Data->PerComponentData[ComponentIndex].Component->SetMasterPoseComponent(nullptr, true);
+					Data->PerComponentData[ComponentIndex].Component->SetLeaderPoseComponent(nullptr, true);
 					Data->PerComponentData[ComponentIndex].Component->PrimaryComponentTick.bCanEverTick = true;
 					Data->PerComponentData[ComponentIndex].Component->SetComponentTickEnabled(true);
 					Data->PerComponentData[ComponentIndex].Component->bRecentlyRendered = false;
@@ -701,7 +701,7 @@ void UAnimSharingInstance::BeginDestroy()
 	{
 		for (uint32 ComponentIndex : ActorData.ComponentIndices)
 		{
-			PerComponentData[ComponentIndex].Component->SetMasterPoseComponent(nullptr, true);
+			PerComponentData[ComponentIndex].Component->SetLeaderPoseComponent(nullptr, true);
 		}
 	}
 
@@ -909,7 +909,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 					Component->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 					Component->SetForcedLOD(1);
 					Component->SetVisibility(GMasterComponentsVisible == 1);
-					Component->bPropagateCurvesToSlaves = StateEntry.bRequiresCurves;
+					Component->bPropagateCurvesToFollowers = StateEntry.bRequiresCurves;
 
 					if (AnimBPClass != nullptr && AnimSequence != nullptr && !StateEntry.bOnDemand)
 					{
@@ -1095,7 +1095,7 @@ void UAnimSharingInstance::TickDebugInformation()
 
 				GEngine->AddOnScreenDebugMessage(1337, 1, FColor::White, OnScreenString);
 
-				const USkinnedMeshComponent* Component = PerComponentData[ActorData.ComponentIndices[0]].Component->MasterPoseComponent.Get();
+				const USkinnedMeshComponent* Component = PerComponentData[ActorData.ComponentIndices[0]].Component->LeaderPoseComponent.Get();
 #if UE_BUILD_DEVELOPMENT
 				if (Component != nullptr)
 				{
@@ -1740,7 +1740,7 @@ void UAnimSharingInstance::SetMasterComponentForActor(uint32 ActorIndex, USkelet
 	
 	for (uint32 ComponentIndex : ActorData.ComponentIndices)
 	{
-		PerComponentData[ComponentIndex].Component->SetMasterPoseComponent(Component, true);
+		PerComponentData[ComponentIndex].Component->SetLeaderPoseComponent(Component, true);
 	}
 }
 

@@ -2949,7 +2949,7 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBoneTyped(
 	FModuleLocationVertSurfaceInstancePayload* InstancePayload, 
 	int32* OutBoneIndex)
 {
-	const TArray<int32>& MasterBoneMap = InSkelMeshComponent->GetMasterBoneMap();
+	const TArray<int32>& LeaderBoneMap = InSkelMeshComponent->GetLeaderBoneMap();
 	// Get weights on this vertex
 	FSkinWeightVertexBuffer* WeightBuffer = InSkelMeshComponent->GetSkinWeightBuffer(LODIndex);
 	if (WeightBuffer)
@@ -2962,10 +2962,10 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBoneTyped(
 #endif
 		{
 			int32 BoneIndex = Section.BoneMap[WeightBuffer->GetBoneIndex(Section.GetVertexBufferIndex() + VertIndex, InfluenceIndex)];
-			if (InSkelMeshComponent->MasterPoseComponent.IsValid())
+			if (InSkelMeshComponent->LeaderPoseComponent.IsValid())
 			{
-				check(MasterBoneMap.Num() == InSkelMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetNum());
-				BoneIndex = MasterBoneMap[BoneIndex];
+				check(LeaderBoneMap.Num() == InSkelMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetNum());
+				BoneIndex = LeaderBoneMap[BoneIndex];
 			}
 
 			if (!InstancePayload->NumValidAssociatedBoneIndices || InstancePayload->ValidAssociatedBoneIndices.Contains(BoneIndex))

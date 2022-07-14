@@ -20,9 +20,9 @@ void UAnimSharingStateInstance::GetInstancedActors(TArray<class AActor*>& Actors
 		if (StateData.Components.IsValidIndex(ComponentIndex))
 		{
 			USkeletalMeshComponent* Component = StateData.Components[ComponentIndex];
-			const TArray<TWeakObjectPtr<USkinnedMeshComponent>>& SlaveComponents = Component->GetSlavePoseComponents();
+			const TArray<TWeakObjectPtr<USkinnedMeshComponent>>& FollowerComponents = Component->GetFollowerPoseComponents();
 
-			Algo::TransformIf(SlaveComponents, Actors,
+			Algo::TransformIf(FollowerComponents, Actors,
 				[&Actors](const TWeakObjectPtr<USkinnedMeshComponent>& WeakPtr)
 			{
 				// Needs to be valid and unique

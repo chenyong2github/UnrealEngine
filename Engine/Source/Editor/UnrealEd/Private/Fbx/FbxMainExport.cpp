@@ -3278,7 +3278,7 @@ void FFbxExporter::ExportLevelSequenceBaked3DTransformTrack(IAnimTrackAdapter& A
 				ChildSkeletalMeshComponent->TickAnimation(SampleRate, false);
 
 				ChildSkeletalMeshComponent->RefreshBoneTransforms();
-				ChildSkeletalMeshComponent->RefreshSlaveComponents();
+				ChildSkeletalMeshComponent->RefreshFollowerComponents();
 				ChildSkeletalMeshComponent->UpdateComponentToWorld();
 				ChildSkeletalMeshComponent->FinalizeBoneTransform();
 				ChildSkeletalMeshComponent->MarkRenderTransformDirty();

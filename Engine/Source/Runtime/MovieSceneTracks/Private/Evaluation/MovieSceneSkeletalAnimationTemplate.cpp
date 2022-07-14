@@ -157,7 +157,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				Component->TickAnimation(0.f, false);
 
 				Component->RefreshBoneTransforms();
-				Component->RefreshSlaveComponents();
+				Component->RefreshFollowerComponents();
 				Component->UpdateComponentToWorld();
 				Component->FinalizeBoneTransform();
 				Component->MarkRenderTransformDirty();
@@ -362,7 +362,7 @@ namespace MovieScene
 				SkeletalMeshComponent->TickAnimation(0.f, false);
 
 				SkeletalMeshComponent->RefreshBoneTransforms();
-				SkeletalMeshComponent->RefreshSlaveComponents();
+				SkeletalMeshComponent->RefreshFollowerComponents();
 				SkeletalMeshComponent->UpdateComponentToWorld();
 				SkeletalMeshComponent->FinalizeBoneTransform();
 				SkeletalMeshComponent->MarkRenderTransformDirty();

@@ -238,7 +238,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ComputeTeleportRotationThresholdInRadians();
 	ComputeTeleportDistanceThresholdInRadians();
 
-	bBindClothToMasterComponent = false;
+	bBindClothToLeaderComponent = false;
 	bClothingSimulationSuspended = false;
 
 #if WITH_EDITORONLY_DATA
@@ -273,7 +273,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	// By default enable overlaps when blending physics - user can disable if they are sure it's unnecessary
 	bUpdateOverlapsOnAnimationFinalize = true;
 
-	bPropagateCurvesToSlaves = false;
+	bPropagateCurvesToFollowers = false;
 
 	bSkipKinematicUpdateWhenInterpolating = false;
 	bSkipBoundsUpdateWhenInterpolating = false;
@@ -781,8 +781,8 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		const bool bInitializedAnimInstance = InitializeAnimScriptInstance(bForceReinit, !bTickAnimationNow);
 
 		// Make sure we have a valid pose.
-		// We don't allocate transform data when using MasterPoseComponent, so we have nothing to render.
-		if (!MasterPoseComponent.IsValid())
+		// We don't allocate transform data when using LeaderPoseComponent, so we have nothing to render.
+		if (!LeaderPoseComponent.IsValid())
 		{	
 			if (bInitializedAnimInstance || (AnimScriptInstance == nullptr))
 			{ 
@@ -829,11 +829,11 @@ void USkeletalMeshComponent::ApplyEditedComponentSpaceTransforms()
 	MarkRenderTransformDirty();
 	MarkRenderDynamicDataDirty();
 
-	for (auto& SlaveComponent : GetSlavePoseComponents())
+	for (auto& FollowerComponent : GetFollowerPoseComponents())
 	{
-		if (SlaveComponent.IsValid())
+		if (FollowerComponent.IsValid())
 		{
-			SlaveComponent->UpdateSlaveComponent();
+			FollowerComponent->UpdateFollowerComponent();
 		}
 	}
 }
@@ -856,7 +856,7 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 
 			if (AnimScriptInstance)
 			{
-				// If we have any linked instances left we need to clear them out now, we're about to have a new master instance
+				// If we have any linked instances left we need to clear them out now, we're about to have a new leader instance
 				ResetLinkedAnimInstances();
 
 				AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
@@ -1297,11 +1297,11 @@ bool USkeletalMeshComponent::ShouldUpdateTransform(bool bLODHasChanged) const
 			return true;
 		}
 
-		// if master pose is ticking, slave also has to update it
-		if (MasterPoseComponent.IsValid())
+		// if leader pose is ticking, follower also has to update it
+		if (LeaderPoseComponent.IsValid())
 		{
-			const USkeletalMeshComponent* Master = CastChecked<USkeletalMeshComponent>(MasterPoseComponent.Get());
-			if (Master->GetUpdateAnimationInEditor())
+			const USkeletalMeshComponent* Leader = CastChecked<USkeletalMeshComponent>(LeaderPoseComponent.Get());
+			if (Leader->GetUpdateAnimationInEditor())
 			{
 				return true;
 			}
@@ -1483,7 +1483,7 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 		constexpr bool bIsInitialization = false;
 		ClothingSimulation->FillContext(this, DeltaTime, ClothingSimulationContext, bIsInitialization);
 
-		ClothingSimulation->GetSimulationData(CurrentSimulationData, this, Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()));
+		ClothingSimulation->GetSimulationData(CurrentSimulationData, this, Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get()));
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -1997,32 +1997,32 @@ void USkeletalMeshComponent::EvaluateAnimation(const USkeletalMesh* InSkeletalMe
 	}
 }
 
-void USkeletalMeshComponent::UpdateSlaveComponent()
+void USkeletalMeshComponent::UpdateFollowerComponent()
 {
-	check (MasterPoseComponent.IsValid());
+	check (LeaderPoseComponent.IsValid());
 
 	ResetMorphTargetCurves();
 
-	if (USkeletalMeshComponent* MasterSMC = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()))
+	if (USkeletalMeshComponent* LeaderSMC = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get()))
 	{
-		// first set any animation-driven curves from the master SMC
-		if (MasterSMC->AnimScriptInstance)
+		// first set any animation-driven curves from the leader SMC
+		if (LeaderSMC->AnimScriptInstance)
 		{
-			MasterSMC->AnimScriptInstance->RefreshCurves(this);
+			LeaderSMC->AnimScriptInstance->RefreshCurves(this);
 		}
 
 		// we changed order of morphtarget to be overriden by SetMorphTarget from BP
 		// so this has to go first
-		// now propagate BP-driven curves from the master SMC...
+		// now propagate BP-driven curves from the leader SMC...
 		if (GetSkeletalMesh())
 		{
 			check(MorphTargetWeights.Num() == GetSkeletalMesh()->GetMorphTargets().Num());
-			if (MasterSMC->MorphTargetCurves.Num() > 0)
+			if (LeaderSMC->MorphTargetCurves.Num() > 0)
 			{
-				FAnimationRuntime::AppendActiveMorphTargets(GetSkeletalMesh(), MasterSMC->MorphTargetCurves, ActiveMorphTargets, MorphTargetWeights);
+				FAnimationRuntime::AppendActiveMorphTargets(GetSkeletalMesh(), LeaderSMC->MorphTargetCurves, ActiveMorphTargets, MorphTargetWeights);
 			}
 
-			// if slave also has it, add it here. 
+			// if follower also has it, add it here. 
 			if (MorphTargetCurves.Num() > 0)
 			{
 				FAnimationRuntime::AppendActiveMorphTargets(GetSkeletalMesh(), MorphTargetCurves, ActiveMorphTargets, MorphTargetWeights);
@@ -2031,7 +2031,7 @@ void USkeletalMeshComponent::UpdateSlaveComponent()
 
 	}
  
-	Super::UpdateSlaveComponent();
+	Super::UpdateFollowerComponent();
 }
 
 #if WITH_EDITOR
@@ -2205,11 +2205,11 @@ void USkeletalMeshComponent::UpdateClothSimulationContext(float InDeltaTime)
 
 void USkeletalMeshComponent::HandleExistingParallelClothSimulation()
 {
-	if (bBindClothToMasterComponent)
+	if (bBindClothToLeaderComponent)
 	{
-		if (USkeletalMeshComponent* MasterComp = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()))
+		if (USkeletalMeshComponent* LeaderComp = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get()))
 		{
-			MasterComp->HandleExistingParallelClothSimulation();
+			LeaderComp->HandleExistingParallelClothSimulation();
 		}
 	}
 
@@ -2232,12 +2232,12 @@ void USkeletalMeshComponent::WritebackClothingSimulationData()
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 
 		USkinnedMeshComponent* OverrideComponent = nullptr;
-		if(MasterPoseComponent.IsValid())
+		if(LeaderPoseComponent.IsValid())
 		{
-			OverrideComponent = MasterPoseComponent.Get();
+			OverrideComponent = LeaderPoseComponent.Get();
 
 			// Check if our bone map is actually valid, if not there is no clothing data to build
-			if(MasterBoneMap.Num() == 0)
+			if(LeaderBoneMap.Num() == 0)
 			{
 				CurrentSimulationData.Reset();
 				return;
@@ -2822,10 +2822,10 @@ void USkeletalMeshComponent::ApplyAnimationCurvesToComponent(const TMap<FName, f
 		FAnimationRuntime::AppendActiveMorphTargets(GetSkeletalMesh(), *InAnimationMorphCurves, ActiveMorphTargets, MorphTargetWeights);
 	}
 
-	/** Push through curves to slave components */
-	if (bPropagateCurvesToSlaves && bContainsMorphCurves && bContainsMaterialCurves && SlavePoseComponents.Num() > 0)
+	/** Push through curves to follower components */
+	if (bPropagateCurvesToFollowers && bContainsMorphCurves && bContainsMaterialCurves && FollowerPoseComponents.Num() > 0)
 	{
-		for (TWeakObjectPtr<USkinnedMeshComponent> MeshComponent : SlavePoseComponents)
+		for (TWeakObjectPtr<USkinnedMeshComponent> MeshComponent : FollowerPoseComponents)
 		{
 			if (USkeletalMeshComponent* SKComponent = Cast<USkeletalMeshComponent>(MeshComponent.Get()))
 			{
@@ -2869,17 +2869,17 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 	{
 		FVector RootBoneOffset = RootBoneTranslation;
 
-		// if to use MasterPoseComponent's fixed skel bounds, 
-		// send MasterPoseComponent's Root Bone Translation
-		if (MasterPoseComponent.IsValid())
+		// if to use LeaderPoseComponent's fixed skel bounds, 
+		// send LeaderPoseComponent's Root Bone Translation
+		if (LeaderPoseComponent.IsValid())
 		{
-			const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
-			check(MasterPoseComponentInst);
-			if (MasterPoseComponentInst->GetSkeletalMesh() &&
-				MasterPoseComponentInst->bComponentUseFixedSkelBounds &&
-				MasterPoseComponentInst->IsA((USkeletalMeshComponent::StaticClass())))
+			const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
+			check(LeaderPoseComponentInst);
+			if (LeaderPoseComponentInst->GetSkeletalMesh() &&
+				LeaderPoseComponentInst->bComponentUseFixedSkelBounds &&
+				LeaderPoseComponentInst->IsA((USkeletalMeshComponent::StaticClass())))
 			{
-				const USkeletalMeshComponent* BaseComponent = CastChecked<USkeletalMeshComponent>(MasterPoseComponentInst);
+				const USkeletalMeshComponent* BaseComponent = CastChecked<USkeletalMeshComponent>(LeaderPoseComponentInst);
 				RootBoneOffset = BaseComponent->RootBoneTranslation; // Adjust bounds by root bone translation
 			}
 		}
@@ -3226,7 +3226,7 @@ void USkeletalMeshComponent::HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOpti
 		return;
 	}
 
-	if (MasterPoseComponent.IsValid())
+	if (LeaderPoseComponent.IsValid())
 	{
 		return;
 	}
@@ -3260,7 +3260,7 @@ void USkeletalMeshComponent::UnHideBone( int32 BoneIndex )
 		return;
 	}
 
-	if (MasterPoseComponent.IsValid())
+	if (LeaderPoseComponent.IsValid())
 	{
 		return;
 	}
@@ -3911,11 +3911,11 @@ void USkeletalMeshComponent::RefreshMorphTargets()
 			PostProcessAnimInstance->RefreshCurves(this);
 		}
 	}
-	else if (USkeletalMeshComponent* MasterSMC = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()))
+	else if (USkeletalMeshComponent* LeaderSMC = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get()))
 	{
-		if (MasterSMC->AnimScriptInstance)
+		if (LeaderSMC->AnimScriptInstance)
 		{
-			MasterSMC->AnimScriptInstance->RefreshCurves(this);
+			LeaderSMC->AnimScriptInstance->RefreshCurves(this);
 		}
 	}
 	
@@ -4069,37 +4069,37 @@ bool USkeletalMeshComponent::IsClothingSimulationSuspended() const
 	return bClothingSimulationSuspended;
 }
 
-void USkeletalMeshComponent::BindClothToMasterPoseComponent()
+void USkeletalMeshComponent::BindClothToLeaderPoseComponent()
 {
-	if(USkeletalMeshComponent* MasterComp = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()))
+	if(USkeletalMeshComponent* LeaderComp = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get()))
 	{
-		if(GetSkeletalMesh() != MasterComp->GetSkeletalMesh())
+		if(GetSkeletalMesh() != LeaderComp->GetSkeletalMesh())
 		{
 			// Not the same mesh, can't bind
 			return;
 		}
 
-		if(ClothingSimulation && MasterComp->ClothingSimulation)
+		if(ClothingSimulation && LeaderComp->ClothingSimulation)
 		{
 			bDisableClothSimulation = true;
 
-			// When we extract positions from now we'll just take the master components positions
-			bBindClothToMasterComponent = true;
+			// When we extract positions from now we'll just take the Leader components positions
+			bBindClothToLeaderComponent = true;
 		}
 	}
 }
 
-void USkeletalMeshComponent::UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace)
+void USkeletalMeshComponent::UnbindClothFromLeaderPoseComponent(bool bRestoreSimulationSpace)
 {
-	USkeletalMeshComponent* MasterComp = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get());
-	if(MasterComp && bBindClothToMasterComponent)
+	USkeletalMeshComponent* LeaderComp = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get());
+	if(LeaderComp && bBindClothToLeaderComponent)
 	{
 		if(ClothingSimulation)
 		{
 			bDisableClothSimulation = false;
 		}
 
-		bBindClothToMasterComponent = false;
+		bBindClothToLeaderComponent = false;
 	}
 }
 
@@ -4290,9 +4290,9 @@ bool USkeletalMeshComponent::MoveComponentImpl(const FVector& Delta, const FQuat
 	return bSuccess;
 }
 
-void USkeletalMeshComponent::AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
+void USkeletalMeshComponent::AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	Super::AddSlavePoseComponent(SkinnedMeshComponent);
+	Super::AddFollowerPoseComponent(SkinnedMeshComponent);
 
 	if(USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SkinnedMeshComponent))
 	{
@@ -4302,9 +4302,9 @@ void USkeletalMeshComponent::AddSlavePoseComponent(USkinnedMeshComponent* Skinne
 	bRequiredBonesUpToDate = false;
 }
 
-void USkeletalMeshComponent::RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
+void USkeletalMeshComponent::RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	Super::RemoveSlavePoseComponent(SkinnedMeshComponent);
+	Super::RemoveFollowerPoseComponent(SkinnedMeshComponent);
 
 	if(USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SkinnedMeshComponent))
 	{
