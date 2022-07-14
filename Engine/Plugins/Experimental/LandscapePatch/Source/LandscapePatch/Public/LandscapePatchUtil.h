@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+class FRHICommandListImmediate;
+class FTextureResource;
+
 namespace UE {
 namespace Landscape {
 namespace PatchUtil {
