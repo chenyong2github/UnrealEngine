@@ -775,6 +775,23 @@ void SReferenceViewer::OnUpdateFilterBar()
 				{
 					FilterWidget->SetAssetTypeFilterCheckState(AssetClassPath, ECheckBoxState::Checked);
 				}
+				// If the current AssetClassPath does not have a filter in the filter bar, we walk through its ancestor classes to see if any of those have a filter
+				else
+				{
+					TArray<FTopLevelAssetPath> AncestorClassNames;
+					
+					FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked< FAssetRegistryModule >( TEXT("AssetRegistry") );
+					AssetRegistryModule.Get().GetAncestorClassNames(AssetClassPath, AncestorClassNames);
+					
+					for (const FTopLevelAssetPath& AssetClassAncestor : AncestorClassNames)
+					{
+						if (FilterWidget->DoesAssetTypeFilterExist(AssetClassAncestor))
+						{
+							FilterWidget->SetAssetTypeFilterCheckState(AssetClassAncestor, ECheckBoxState::Checked);
+							break;
+						}
+					}
+				}
 			}
 
 			GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
