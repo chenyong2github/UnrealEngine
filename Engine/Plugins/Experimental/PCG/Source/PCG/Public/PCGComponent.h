@@ -84,9 +84,6 @@ public:
 	bool CanPartition() const;
 
 	UPCGGraph* GetGraph() const { return Graph; }
-	void SetGraphLocal(UPCGGraph* InGraph);
-
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void SetGraph(UPCGGraph* InGraph);
 
 	void AddToManagedResources(UPCGManagedResource* InResource);
@@ -213,14 +210,14 @@ private:
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 
-	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh);
-	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural);
-
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
+
+	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh);
+	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural);
 
 	void SetupActorCallbacks();
 	void TeardownActorCallbacks();

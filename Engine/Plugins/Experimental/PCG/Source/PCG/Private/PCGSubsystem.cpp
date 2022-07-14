@@ -180,9 +180,6 @@ TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleComponent(UPCGComponent* Origi
 		{
 			if (UPCGComponent* LocalComponent = PartitionActor->GetLocalComponent(OriginalComponent))
 			{
-				// Ensure that the PCG actor match our original
-				LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
-
 				TaskIds.Add(ScheduleComponent(LocalComponent, Dependencies));
 			}
 		}

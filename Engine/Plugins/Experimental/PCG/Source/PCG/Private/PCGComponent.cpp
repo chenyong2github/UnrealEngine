@@ -54,12 +54,7 @@ bool UPCGComponent::IsPartitioned() const
 	return bIsPartitioned && CanPartition();
 }
 
-void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
-{
-	SetGraphLocal(InGraph);
-}
-
-void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
+void UPCGComponent::SetGraph(UPCGGraph* InGraph)
 {
 	if(Graph == InGraph)
 	{
@@ -80,9 +75,9 @@ void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
-#endif
 
-	OnGraphChanged(Graph, true, true);
+	OnGraphChanged(Graph, true, false);
+#endif
 }
 
 void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
@@ -163,7 +158,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 	InputType = NewInputType;
 	Seed = Original->Seed;
-	SetGraphLocal(Original->Graph);
+	SetGraph(Original->Graph);
 
 	GenerationTrigger = Original->GenerationTrigger;
 
@@ -1202,15 +1197,9 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural)
 
 void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh)
 {
-	if (InGraph != Graph)
+	if (InGraph == Graph)
 	{
-		return;
-	}
-
-#if WITH_EDITOR
-	// In editor, since we've changed the graph, we might have changed the tracked actor tags as well
-	if (!GIsPlayInEditorWorld)
-	{
+		// Since we've changed the graph, we might have changed the tracked actor tags as well
 		TeardownTrackingCallbacks();
 		SetupTrackingCallbacks();
 		RefreshTrackingData();
@@ -1218,29 +1207,14 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool 
 		UpdateTrackedLandscape();
 
 		DirtyGenerated();
-		if (InGraph && bShouldRefresh)
+		if (bShouldRefresh)
 		{
 			Refresh();
 		}
-		else if (!InGraph)
-		{
-			// With no graph, we clean up
-			CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
-		}
 
-		InspectionCache.Empty();
-		return;
-	}
+#if WITH_EDITOR
+		InspectionCache.Empty();	
 #endif
-
-	// Otherwise, if we are in PIE or runtime, force generate if we have a graph (and were generated). Or cleanup if we have no graph
-	if (InGraph && bGenerated)
-	{
-		GenerateLocal(/*bForce=*/true);
-	}
-	else if (!InGraph)
-	{
-		CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/ false);
 	}
 }
 
