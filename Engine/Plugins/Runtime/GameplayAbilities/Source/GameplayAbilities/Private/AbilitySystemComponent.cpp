@@ -241,6 +241,14 @@ void UAbilitySystemComponent::ReadyForReplication()
 	// Register the spawned attributes to the replicated sub object list.
 	if (IsUsingRegisteredSubObjectList())
 	{
+		for (UGameplayAbility* ReplicatedAbility : GetReplicatedInstancedAbilities_Mutable())
+		{
+			if (ReplicatedAbility)
+			{
+				AddReplicatedSubObject(ReplicatedAbility);
+			}
+		}
+
 		for (UAttributeSet* ReplicatedAttribute : SpawnedAttributes)
 		{
 			if (ReplicatedAttribute)
@@ -2951,7 +2959,7 @@ void UAbilitySystemComponent::AddReplicatedInstancedAbility(UGameplayAbility* Ga
 	{
 		ReplicatedAbilities.Add(GameplayAbility);
 		
-		if (IsUsingRegisteredSubObjectList())
+		if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 		{
 			AddReplicatedSubObject(GameplayAbility);
 		}
@@ -2961,7 +2969,7 @@ void UAbilitySystemComponent::AddReplicatedInstancedAbility(UGameplayAbility* Ga
 void UAbilitySystemComponent::RemoveReplicatedInstancedAbility(UGameplayAbility* GameplayAbility)
 {
 	const bool bWasRemoved = GetReplicatedInstancedAbilities_Mutable().RemoveSingle(GameplayAbility) > 0;
-	if (bWasRemoved && IsUsingRegisteredSubObjectList())
+	if (bWasRemoved && IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 	{
 		RemoveReplicatedSubObject(GameplayAbility);
 	}
@@ -2971,7 +2979,7 @@ void UAbilitySystemComponent::RemoveAllReplicatedInstancedAbilities()
 {
 	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
 
-	if (IsUsingRegisteredSubObjectList())
+	if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 	{
 		for (UGameplayAbility* ReplicatedAbility : ReplicatedAbilities)
 		{
