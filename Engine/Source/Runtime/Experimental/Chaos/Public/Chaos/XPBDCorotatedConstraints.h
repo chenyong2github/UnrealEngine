@@ -235,7 +235,7 @@ namespace Chaos::Softs
 			//PMatrix<T, 3, 3> DmInvT = ElementDmInv(ElementIndex).GetTransposed();
 			TVec4<TVector<T, 3>> dC2(TVector<T, 3>((T)0.));
 
-			PMatrix<T, 3, 3> JFinvT;
+			PMatrix<T, 3, 3> JFinvT((T)0.);
 			JFinvT.SetAt(0, 0, Fe.GetAt(1, 1) * Fe.GetAt(2, 2) - Fe.GetAt(2, 1) * Fe.GetAt(1, 2));
 			JFinvT.SetAt(0, 1, Fe.GetAt(2, 0) * Fe.GetAt(1, 2) - Fe.GetAt(1, 0) * Fe.GetAt(2, 2));
 			JFinvT.SetAt(0, 2, Fe.GetAt(1, 0) * Fe.GetAt(2, 1) - Fe.GetAt(2, 0) * Fe.GetAt(1, 1));
