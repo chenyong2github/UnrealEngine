@@ -394,7 +394,7 @@ void FSectionEasingAreaHotspot::HandleMouseSelection(FHotspotSelectionManager& S
 
 bool FSectionEasingAreaHotspot::Contains(UMovieSceneSection* InSection) const
 {
-	return Easings.ContainsByPredicate([=](const FEasingAreaHandle& InHandle){ return InHandle.WeakSectionModel.Pin()->GetSection() == InSection; });
+	return Easings.ContainsByPredicate([=](const FEasingAreaHandle& InHandle){ return InHandle.WeakSectionModel.IsValid() && InHandle.WeakSectionModel.Pin()->GetSection() == InSection; });
 }
 
 } // namespace Sequencer
