@@ -1559,6 +1559,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 	void OnPauserCompleted()
 	{
 		check(IsInGameThread());
+		ensure(NumExpectedPausers != INDEX_NONE);
 		++NumObservedPausers;
 
 		if (NumObservedPausers == NumExpectedPausers)
@@ -1591,7 +1592,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 
 		if (NumExpectedPausers == NumObservedPausers)
 		{
-			if(!bRequestedGC && StateProperties.Destination.MaxState == EGameFeaturePluginState::Loaded)
+			if (!bRequestedGC && StateProperties.Destination.MaxState == EGameFeaturePluginState::Loaded)
 			{
 				// If we aren't going farther than Loaded, GC now
 				// otherwise we will defer until closer to our destination state
