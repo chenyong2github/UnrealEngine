@@ -2086,6 +2086,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 				BestPoseCost = PoseCost;
 				BestPoseIdx = PoseIdx;
 			}
+
+			#if UE_POSE_SEARCH_TRACE_ENABLED
+			SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+			#endif
 		}
 	}
 
@@ -2173,6 +2177,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 				BestPoseCost = PoseCost;
 				BestPoseIdx = PoseIdx;
 			}
+
+			#if UE_POSE_SEARCH_TRACE_ENABLED
+			SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+			#endif
 		}
 	}
 

@@ -2142,32 +2142,17 @@ const FTraceMotionMatchingStateMessage* FDebuggerViewModel::GetMotionMatchingSta
 
 const UPoseSearchDatabase* FDebuggerViewModel::GetPoseSearchDatabase() const
 {
-	if (!ActiveMotionMatchingState)
+	if (ActiveMotionMatchingState)
 	{
-		return nullptr;
+		if (const UPoseSearchDatabase* Database = ActiveMotionMatchingState->GetPoseSearchDatabase())
+		{
+			if (Database->Schema && Database->Schema->IsValid())
+			{
+				return Database;
+			}
+		}
 	}
-
-	const uint64 DatabaseId = ActiveMotionMatchingState->DatabaseId;
-	if (DatabaseId == 0)
-	{
-	    return nullptr;
-	}
-	
-	UObject* DatabaseObject = FObjectTrace::GetObjectFromId(DatabaseId);
-	// @TODO: Load the object if unloaded
-	if (DatabaseObject == nullptr)
-	{
-		return nullptr;
-	}
-	check(DatabaseObject->IsA<UPoseSearchDatabase>());
-
-	UPoseSearchDatabase* Database = Cast<UPoseSearchDatabase>(DatabaseObject);
-	const UPoseSearchSchema* Schema = Database->Schema;
-	if (Schema == nullptr || !Schema->IsValid())
-	{
-		return nullptr;
-	}
-	return Database;
+	return nullptr;
 }
 
 const FPoseSearchDatabaseSequence* FDebuggerViewModel::GetAnimSequence(int32 SequenceIdx) const
@@ -2175,8 +2160,7 @@ const FPoseSearchDatabaseSequence* FDebuggerViewModel::GetAnimSequence(int32 Seq
 	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
 	if (Database && Database->Sequences.IsValidIndex(SequenceIdx))
 	{
-		const FPoseSearchDatabaseSequence* DatabaseSequence = &Database->Sequences[SequenceIdx];
-		if (DatabaseSequence)
+		if (const FPoseSearchDatabaseSequence* DatabaseSequence = &Database->Sequences[SequenceIdx])
 		{
 			return DatabaseSequence;
 		}
@@ -2189,8 +2173,7 @@ const FPoseSearchDatabaseBlendSpace* FDebuggerViewModel::GetBlendSpace(int32 Ble
 	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
 	if (Database && Database->BlendSpaces.IsValidIndex(BlendSpaceIdx))
 	{
-		const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = &Database->BlendSpaces[BlendSpaceIdx];
-		if (DatabaseBlendSpace)
+		if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = &Database->BlendSpaces[BlendSpaceIdx])
 		{
 			return DatabaseBlendSpace;
 		}

@@ -19,11 +19,13 @@
 #include "GameplayTagContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "PoseSearch/KDTree.h"
-
+#include "ObjectTrace.h"
 #include "PoseSearch.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 
+// Enable this if object tracing is enabled, mimics animation tracing
+#define UE_POSE_SEARCH_TRACE_ENABLED OBJECT_TRACE_ENABLED
 
 //////////////////////////////////////////////////////////////////////////
 // Forward declarations
@@ -1322,6 +1324,52 @@ private:
 
 	// @todo: make it a fixed size array (or hash map if we end up having many CachedEntry) to avoid allocations
 	TArray<CachedEntry> CachedEntries;
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+
+public:
+	struct PoseCandidate
+	{
+		float Cost = 0.f;
+		int32 PoseIdx = 0;
+		const UPoseSearchDatabase* Database = nullptr;
+
+		bool operator<(const PoseCandidate& Other) const { return Cost > Other.Cost; }
+	};
+
+	struct BestPoseCandidates : private TArray<PoseCandidate>
+	{
+		typedef TArray<PoseCandidate> Super;
+		using Super::IsEmpty;
+
+		int32 MaxPoseCandidates = 100;
+
+		void Add(float Cost, int32 PoseIdx, const UPoseSearchDatabase* Database)
+		{
+			if (Num() < MaxPoseCandidates || Cost < HeapTop().Cost)
+			{
+				while (Num() >= MaxPoseCandidates)
+				{
+					ElementType Unused;
+					Pop(Unused);
+				}
+
+				FSearchContext::PoseCandidate PoseCandidate;
+				PoseCandidate.Cost = Cost;
+				PoseCandidate.PoseIdx = PoseIdx;
+				PoseCandidate.Database = Database;
+				HeapPush(PoseCandidate);
+			}
+		}
+
+		void Pop(PoseCandidate& OutItem)
+		{
+			HeapPop(OutItem, false);
+		}
+	};
+	
+	BestPoseCandidates BestCandidates;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////

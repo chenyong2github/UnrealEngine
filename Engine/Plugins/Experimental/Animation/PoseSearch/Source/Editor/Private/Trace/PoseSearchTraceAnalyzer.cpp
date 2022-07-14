@@ -9,7 +9,8 @@
 
 namespace UE { namespace PoseSearch {
 
-FTraceAnalyzer::FTraceAnalyzer(TraceServices::IAnalysisSession& InSession, FTraceProvider& InTraceProvider) : Session(InSession), TraceProvider(InTraceProvider)
+FTraceAnalyzer::FTraceAnalyzer(TraceServices::IAnalysisSession& InSession, FTraceProvider& InTraceProvider)
+: Session(InSession), TraceProvider(InTraceProvider)
 {
 }
 
@@ -31,51 +32,18 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	LLM_SCOPE_BYNAME(TEXT("Insights/PoseSearch::FTraceAnalyzer"));
 
 	TraceServices::FAnalysisSessionEditScope Scope(Session);
-	const FEventData& EventData = Context.EventData;
 
-	// Gather event data values
-	const double Time = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
-	const uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
-	const uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
-	const uint64 SkeletalMeshComponentId = EventData.GetValue<uint64>("SkeletalMeshComponentId");
-	const int32 NodeId = EventData.GetValue<int32>("NodeId");
-
-	switch (RouteId)
+	if (RouteId == RouteId_MotionMatchingState)
 	{
-		case RouteId_MotionMatchingState:
-			{
-				FTraceMotionMatchingStateMessage Message;
-				Message.DatabaseId = EventData.GetValue<uint64>("DatabaseId");
-				Message.Flags = static_cast<FTraceMotionMatchingState::EFlags>(EventData.GetValue<uint32>("Flags"));
-				Message.DbPoseIdx = EventData.GetValue<int32>("DbPoseIdx");
-				Message.ContinuingPoseIdx = EventData.GetValue<int32>("ContinuingPoseIdx");
-				Message.ElapsedPoseJumpTime = EventData.GetValue<float>("ElapsedPoseJumpTime");
-				Message.QueryVector = EventData.GetArrayView<float>("QueryVector");
-                Message.QueryVectorNormalized = EventData.GetArrayView<float>("QueryVectorNormalized");
-
-				Message.AssetPlayerTime = EventData.GetValue<float>("AssetPlayerTime");
-				Message.DeltaTime = EventData.GetValue<float>("DeltaTime");
-				Message.SimLinearVelocity = EventData.GetValue<float>("SimLinearVelocity");
-				Message.SimAngularVelocity = EventData.GetValue<float>("SimAngularVelocity");
-				Message.AnimLinearVelocity = EventData.GetValue<float>("AnimLinearVelocity");
-				Message.AnimAngularVelocity = EventData.GetValue<float>("AnimAngularVelocity");
-				Message.DatabaseSequenceFilter = EventData.GetArrayView<bool>("DatabaseSequenceFilter");
-				Message.DatabaseBlendSpaceFilter = EventData.GetArrayView<bool>("DatabaseBlendSpaceFilter");
-
-				// Common data
-				Message.NodeId = NodeId;
-				Message.AnimInstanceId = AnimInstanceId;
-				Message.SkeletalMeshComponentId = SkeletalMeshComponentId;
-				Message.FrameCounter = FrameCounter;
-
-				TraceProvider.AppendMotionMatchingState(Message, Time);
-				break;
-			}
-		default:
-			{
-				// Should not happen
-				checkNoEntry();
-			}
+		FTraceMotionMatchingStateMessage Message;
+		FMemoryReaderView Archive(Context.EventData.GetArrayView<uint8>("Data"));
+		Archive << Message;
+		TraceProvider.AppendMotionMatchingState(Message, Context.EventTime.AsSeconds(Message.Cycle));
+	}
+	else
+	{
+		// Should not happen
+		checkNoEntry();
 	}
 
 	return true;

@@ -10,36 +10,12 @@
 
 namespace UE { namespace PoseSearch {
 
-// Message types for appending / reading to the timeline
-/** Base message type for common data */
-struct FTraceMessage
-{
-	uint64 AnimInstanceId;
-	uint64 SkeletalMeshComponentId;
-	int32 NodeId;
-	uint16 FrameCounter;
-};
 
 /** Motion matching state message container */
-struct FTraceMotionMatchingStateMessage : FTraceMessage
+struct FTraceMotionMatchingStateMessage : FTraceMotionMatchingState, FTraceMessage
 {
-	FTraceMotionMatchingState::EFlags Flags;
-	float ElapsedPoseJumpTime = -1.0f;
-	TArray<float> QueryVector;
-	TArray<float> QueryVectorNormalized;
-	int32 DbPoseIdx = INDEX_NONE;
-	uint64 DatabaseId = INDEX_NONE;
-	int32 ContinuingPoseIdx = INDEX_NONE;
-	float AssetPlayerTime = 0.0f;
-	float DeltaTime = 0.0f;
-	float SimLinearVelocity = 0.0f;
-	float SimAngularVelocity = 0.0f;
-	float AnimLinearVelocity = 0.0f;
-	float AnimAngularVelocity = 0.0f;
-	TArray<bool> DatabaseSequenceFilter;
-	TArray<bool> DatabaseBlendSpaceFilter;
 };
-
+FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateMessage& State);
 
 /**
  * Provider to the widgets for pose search functionality, largely mimicking FAnimationProvider
