@@ -985,6 +985,7 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 	ActiveTemplateStates.Add(true);
 
 	RootTemplateInstance.Initialize(NewSequence, *this, CompiledDataManager);
+	RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 
 	RootToLocalTransform = FMovieSceneSequenceTransform();
 	RootToLocalLoopCounter = FMovieSceneWarpCounter();
