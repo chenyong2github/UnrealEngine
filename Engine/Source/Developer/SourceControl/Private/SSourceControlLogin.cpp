@@ -47,7 +47,7 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBox)
-		.WidthOverride(480.f)
+		.MinDesiredWidth(480.f)
 		[
 			SNew(SBorder)
 			.Padding(0)
