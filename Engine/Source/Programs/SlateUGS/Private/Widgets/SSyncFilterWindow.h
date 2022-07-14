@@ -3,6 +3,11 @@
 #pragma once
 
 #include "Widgets/SWindow.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+
+#include "UGSCore/Workspace.h"
+
+#include "SCheckBoxList.h"
 
 class UGSTab;
 
@@ -18,8 +23,19 @@ public:
 private:
 	FReply OnShowCombinedFilterClicked();
 	FReply OnCustomViewSyntaxClicked();
-	FReply OnOkClicked();
+	FReply OnSaveClicked();
 	FReply OnCancelClicked();
 
+	void ConstructSyncFilters();
+	void ConstructCustomSyncViewTextBoxes();
+
 	UGSTab* Tab;
+	TArray<FWorkspaceSyncCategory> WorkspaceCategoriesCurrent;
+	TArray<FWorkspaceSyncCategory> WorkspaceCategoriesAll;
+
+	TSharedPtr<SCheckBoxList> SyncFiltersCurrent;
+	TSharedPtr<SCheckBoxList> SyncFiltersAll;
+	TSharedPtr<SMultiLineEditableTextBox> CustomSyncViewCurrent;
+	TSharedPtr<SMultiLineEditableTextBox> CustomSyncViewAll;
+
 };

@@ -15,6 +15,12 @@ class FDetectProjectSettingsTask;
 class FPerforceMonitor;
 class FEventMonitor;
 
+enum SyncCategoryType
+{
+	CurrentWorkspace,
+	AllWorkspaces
+};
+
 class UGSTab
 {
 public:
@@ -30,10 +36,19 @@ public:
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
 	void OnSyncLatest();
+	void OnSyncFilterWindowSaved(
+		const TArray<FString>& SyncViewCurrent,
+		const TArray<FGuid>& SyncExcludedCategoriesCurrent,
+		const TArray<FString>& SyncViewAll,
+		const TArray<FGuid>& SyncExcludedCategoriesAll);
+
+	// Accessors
 	bool IsSyncing() const;
 	FString GetSyncProgress() const;
-	const TArray<FString>& GetSyncFilters() const; // Todo: is return type okay?
-	const TArray<FString>& GetCombinedSyncFilter() const; // Todo: is return type okay?
+	const TArray<FString>& GetSyncFilters() const;
+	const TArray<FString>& GetCombinedSyncFilter() const;
+	TArray<FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
+	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
 private:
 
 	void OnWorkspaceSyncComplete(

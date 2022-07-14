@@ -269,6 +269,21 @@ void UGSTab::OnSyncLatest()
 	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
 }
 
+void UGSTab::OnSyncFilterWindowSaved(
+	const TArray<FString>& SyncViewCurrent,
+	const TArray<FGuid>& SyncExcludedCategoriesCurrent,
+	const TArray<FString>& SyncViewAll,
+	const TArray<FGuid>& SyncExcludedCategoriesAll)
+{
+	WorkspaceSettings->SyncView = SyncViewCurrent;
+	WorkspaceSettings->SyncExcludedCategories = SyncExcludedCategoriesCurrent;
+
+	UserSettings->SyncView = SyncViewAll;
+	UserSettings->SyncExcludedCategories = SyncExcludedCategoriesAll;
+
+	UserSettings->Save();
+}
+
 void UGSTab::QueueMessageForMainThread(TFunction<void()> Function)
 {
 	FScopeLock Lock(&CriticalSection);
@@ -417,9 +432,36 @@ FString UGSTab::GetSyncProgress() const
 	return Workspace->GetCurrentProgress().Key;
 }
 
-const TArray<FString>& UGSTab::GetSyncFilters() const
+TArray<FWorkspaceSyncCategory> UGSTab::GetSyncCategories(SyncCategoryType CategoryType) const
 {
-	return WorkspaceSettings->SyncView;
+	TArray<FWorkspaceSyncCategory> SyncCategories;
+	TMap<FGuid, FWorkspaceSyncCategory> Categories = Workspace->GetSyncCategories();
+	TArray<FGuid> SyncExcludedCategories;
+
+	if (CategoryType == SyncCategoryType::CurrentWorkspace)
+	{
+		SyncExcludedCategories = WorkspaceSettings->SyncExcludedCategories;
+	}
+	else
+	{
+		SyncExcludedCategories = UserSettings->SyncExcludedCategories;
+	}
+
+	for (const FGuid& Guid : SyncExcludedCategories)
+	{
+		Categories[Guid].bEnable = false;
+	}
+	Categories.GenerateValueArray(SyncCategories);
+	return SyncCategories;
+}
+
+TArray<FString> UGSTab::GetSyncViews(SyncCategoryType CategoryType) const
+{
+	if (CategoryType == SyncCategoryType::CurrentWorkspace)
+	{
+		return WorkspaceSettings->SyncView;
+	}
+	return UserSettings->SyncView;
 }
 
 const TArray<FString>& UGSTab::GetCombinedSyncFilter() const

@@ -200,13 +200,14 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SSimpleButton)
-						.Text(LOCTEXT("OpenPerforce", "OpenPerforce"))
+						.Text(LOCTEXT("OpenPerforce", "Open Perforce"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Blueprints")) // Todo: shouldn't use this icon (repurposing)
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
 						SNew(SSimpleButton)
+						.Text(LOCTEXT("CleanSolution", "Clean Solution"))
 						.Icon(FAppStyle::Get().GetBrush("GraphEditor.Clean")) // Todo: shouldn't use this icon (repurposing)
 					]
 					+SHorizontalBox::Slot()
