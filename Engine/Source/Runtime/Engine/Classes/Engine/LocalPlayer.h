@@ -223,7 +223,7 @@ private:
 	/** Event called when platform user id changes */
 	FOnPlatformUserIdChanged OnPlatformUserIdChangedEvent;
 
-	FSubsystemCollection<ULocalPlayerSubsystem> SubsystemCollection;
+	FObjectSubsystemCollection<ULocalPlayerSubsystem> SubsystemCollection;
 
 public:
 	// UObject interface

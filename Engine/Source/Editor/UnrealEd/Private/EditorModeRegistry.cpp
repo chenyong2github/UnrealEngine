@@ -128,9 +128,14 @@ void FEditorModeRegistry::UnregisterMode(FEditorModeID ModeID)
 	// First off delete the factory
 	if (ModeFactories.Remove(ModeID) > 0 && bInitialized)
 	{
-		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-		AssetEditorSubsystem->OnEditorModeUnregistered().Broadcast(ModeID);
-		AssetEditorSubsystem->OnEditorModesChanged().Broadcast();
+		if (GEditor)
+		{
+			if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+			{
+				AssetEditorSubsystem->OnEditorModeUnregistered().Broadcast(ModeID);
+				AssetEditorSubsystem->OnEditorModesChanged().Broadcast();
+			}
+		}
 	}
 }
 

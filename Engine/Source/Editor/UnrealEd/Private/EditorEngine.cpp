@@ -901,7 +901,7 @@ void UEditorEngine::HandleSettingChanged( FName Name )
 
 void UEditorEngine::InitializeObjectReferences()
 {
-	EditorSubsystemCollection->Initialize(this);
+	EditorSubsystemCollection.Initialize(this);
 
 	Super::InitializeObjectReferences();
 
@@ -1257,6 +1257,8 @@ void UEditorEngine::PreExit()
 				World->CleanupWorld();
 			}
 		}
+
+		EditorSubsystemCollection.Deinitialize();
 	}
 
 	Super::PreExit();
@@ -1277,8 +1279,6 @@ void UEditorEngine::FinishDestroy()
 			ToolMenus->ShouldDisplayExtensionPoints.Unbind();
 			ToolMenus->UnregisterStringCommandHandler("Command");
 		}
-
-		EditorSubsystemCollection->Deinitialize();
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);
@@ -1353,6 +1353,9 @@ void UEditorEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	{
 		Collector.AddReferencedObject(This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, This);
 	}
+
+	// Keep Editor subsystems alive
+	This->EditorSubsystemCollection.AddReferencedObjects(This, Collector);
 
 	Super::AddReferencedObjects( This, Collector );
 }

@@ -3264,7 +3264,7 @@ public:
 	UEditorSubsystem* GetEditorSubsystemBase(TSubclassOf<UEditorSubsystem> SubsystemClass) const
 	{
 		checkSlow(this != nullptr);
-		return EditorSubsystemCollection->GetSubsystem<UEditorSubsystem>(SubsystemClass);
+		return EditorSubsystemCollection.GetSubsystem<UEditorSubsystem>(SubsystemClass);
 	}
 
 	/**
@@ -3274,7 +3274,7 @@ public:
 	TSubsystemClass* GetEditorSubsystem() const
 	{
 		checkSlow(this != nullptr);
-		return EditorSubsystemCollection->GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+		return EditorSubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
 	}
 
 	/**
@@ -3285,15 +3285,11 @@ public:
 	template <typename TSubsystemClass>
 	const TArray<TSubsystemClass*>& GetEditorSubsystemArray() const
 	{
-		return EditorSubsystemCollection->GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+		return EditorSubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
 	}
 
 private:
-	// TUniqueObj is used here to work around a hot reload issue caused by FSubsystemCollection inheriting FGCObject.
-	// When hot reload occurs, the CDO for this type can be reconstructed over the same object at the same address without
-	// destroying it first, which breaks FGCObject.
-	// TUniquePtr makes sure the object is allocated on the heap, giving it a unique address.
-	TUniqueObj<FSubsystemCollection<UEditorSubsystem>> EditorSubsystemCollection;
+	FObjectSubsystemCollection<UEditorSubsystem> EditorSubsystemCollection;
 
 	// DEPRECATED VARIABLES ONLY
 public:

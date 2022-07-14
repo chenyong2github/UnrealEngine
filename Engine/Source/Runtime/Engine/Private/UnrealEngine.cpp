@@ -1831,7 +1831,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Subsystems.
 	FURL::StaticInit();
-	EngineSubsystemCollection->Initialize(this);
+	EngineSubsystemCollection.Initialize(this);
 
 #if !UE_BUILD_SHIPPING
 	// Check for overrides to the default map on the command line
@@ -2199,7 +2199,7 @@ void UEngine::PreExit()
 	NextDynamicResolutionState.Reset();
 #endif
 
-	EngineSubsystemCollection->Deinitialize();
+	EngineSubsystemCollection.Deinitialize();
 }
 
 void UEngine::ShutdownHMD()
@@ -3364,6 +3364,9 @@ void UEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collect
 	{
 		Context.AddReferencedObjects(Collector, This);
 	}
+
+	// Keep Engine subsystems alive
+	This->EngineSubsystemCollection.AddReferencedObjects(This, Collector);
 
 	Super::AddReferencedObjects(This, Collector);
 }

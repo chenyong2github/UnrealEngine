@@ -64,6 +64,15 @@ void UGameInstance::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+void UGameInstance::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UGameInstance* This = CastChecked<UGameInstance>(InThis);
+		
+	This->SubsystemCollection.AddReferencedObjects(This, Collector);
+
+	UObject::AddReferencedObjects(This, Collector);
+}
+
 UWorld* UGameInstance::GetWorld() const
 {
 	return WorldContext ? WorldContext->World() : NULL;

@@ -186,30 +186,17 @@ void FSubsystemCollectionBase::Deinitialize()
 	}
 
 	// Deinit and clean up existing systems
+	SubsystemArrayMap.Empty();
+	for (auto Iter = SubsystemMap.CreateIterator(); Iter; ++Iter)
 	{
-		// @note Iterate over SubsystemMapWeak to test whether subsystems have already been 
-		// deleted which can happen when Deinitialize() is called from the destructor
-		TMap<UClass*, TWeakObjectPtr<USubsystem>> SubsystemMapWeakCopy;
-		Swap(SubsystemMapWeakCopy, SubsystemMapWeak);
-		for (const TPair<UClass*, TWeakObjectPtr<USubsystem>>& Iter : SubsystemMapWeakCopy)
+		UClass* KeyClass = Iter.Key();
+		USubsystem* Subsystem = Iter.Value();
+		if (Subsystem != nullptr && Subsystem->GetClass() == KeyClass)
 		{
-			UClass* KeyClass = Iter.Key;
-			USubsystem* Subsystem = Iter.Value.GetEvenIfUnreachable();
-			if (Subsystem)
-			{
-				if ((Subsystem->GetClass() == KeyClass) && (Subsystem->InternalOwningSubsystem != nullptr))
-				{
-					Subsystem->Deinitialize();
-					Subsystem->InternalOwningSubsystem = nullptr;
-				}
-			}
-			else
-			{
-				UE_LOG(LogSubsystemCollection, Log, TEXT("Cannot deinitialize %s because it has been deleted"), *KeyClass->GetName());
-			}
+			Subsystem->Deinitialize();
+			Subsystem->InternalOwningSubsystem = nullptr;
 		}
 	}
-	SubsystemArrayMap.Empty();
 	SubsystemMap.Empty();
 	Outer = nullptr;
 }
@@ -230,22 +217,9 @@ USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsyste
 	return Subsystem;
 }
 
-void FSubsystemCollectionBase::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	if (IsGCObjectReferencer())
-	{
-		AddReferencedObjects(nullptr, Collector);
-	}
-}
-
 void FSubsystemCollectionBase::AddReferencedObjects(UObject* Referencer, FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects(SubsystemMap, Referencer);
-}
-
-FString FSubsystemCollectionBase::GetReferencerName() const
-{
-	return TEXT("FSubsystemCollectionBase");
 }
 
 USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
@@ -271,7 +245,6 @@ USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* Subsyste
 			{
 				USubsystem* Subsystem = NewObject<USubsystem>(Outer, SubsystemClass);
 				SubsystemMap.Add(SubsystemClass,Subsystem);
-				SubsystemMapWeak.Add(SubsystemClass, Subsystem);
 				Subsystem->InternalOwningSubsystem = this;
 				Subsystem->Initialize(*this);
 				return Subsystem;
@@ -293,7 +266,6 @@ void FSubsystemCollectionBase::RemoveAndDeinitializeSubsystem(USubsystem* Subsys
 	check(Subsystem == SubsystemFound);
 
 	const UClass* SubsystemClass = Subsystem->GetClass();
-	SubsystemMapWeak.Remove(SubsystemClass);
 
 	for (auto& Pair : SubsystemArrayMap)
 	{

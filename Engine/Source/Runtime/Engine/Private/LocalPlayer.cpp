@@ -1731,6 +1731,8 @@ void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 		}
 	}
 
+	This->SubsystemCollection.AddReferencedObjects(This, Collector);
+
 	UPlayer::AddReferencedObjects(This, Collector);
 }
 

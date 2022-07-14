@@ -725,7 +725,10 @@ void FEditorModeTools::RemoveAllDelegateHandlers()
 	if (GEditor)
 	{
 		GEditor->UnregisterForUndo(this);
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->OnEditorModeUnregistered().RemoveAll(this);
+		}
 	}
 
 	FWorldDelegates::OnWorldCleanup.RemoveAll(this);

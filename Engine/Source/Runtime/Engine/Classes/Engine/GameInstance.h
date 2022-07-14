@@ -218,6 +218,7 @@ public:
 	//~ Begin UObject Interface
 	virtual class UWorld* GetWorld() const final;
 	virtual void FinishDestroy() override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
 
 	/** virtual function to allow custom GameInstances an opportunity to set up what it needs */
@@ -643,5 +644,5 @@ protected:
 
 private:
 
-	FSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection;
+	FObjectSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection;
 };
