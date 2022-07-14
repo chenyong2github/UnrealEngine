@@ -31,9 +31,6 @@ bool FDatasmithMVRNativeTranslator::LoadScene(TSharedRef<IDatasmithScene> InOutS
 		return true;
 	}
 
-	InOutScene->SetHost(TEXT("DatasmithMVRNativeTranslator"));
-	InOutScene->SetProductName(TEXT("DatasmithMVRNativeTranslator"));
-
 	FString MVRFilePathAndName;
 	if (!FindMVRFile(MVRFilePathAndName))
 	{
@@ -41,9 +38,12 @@ bool FDatasmithMVRNativeTranslator::LoadScene(TSharedRef<IDatasmithScene> InOutS
 		return true;
 	}
 
+	InOutScene->SetHost(TEXT("DatasmithMVRNativeTranslator"));
+	InOutScene->SetProductName(TEXT("DatasmithMVRNativeTranslator"));
+
 	UDMXLibrary* DMXLibrary = CreateDMXLibraryFromMVR(MVRFilePathAndName);
 	if (!DMXLibrary)
-	{		
+	{
 		const FString MVRFilename = FPaths::GetCleanFilename(MVRFilePathAndName);
 		UE_LOG(LogDatasmithMVRNativeTranslator, Warning, TEXT("Failed to create DMX Library for %s. See previous errors for more info. Creating native datasmith scene instead."), *MVRFilename);
 		return true;
@@ -89,7 +89,7 @@ bool FDatasmithMVRNativeTranslator::FindMVRFile(FString& OutMVRFilePathAndName) 
 	const FString DatasmithAssetsPath = FPaths::GetPath(DatasmithFilePathAndName) / DatasmithFileName + TEXT("_Assets");
 
 	const FString MVRFilename = FPaths::GetBaseFilename(DatasmithFilePathAndName) + TEXT(".mvr");
-	
+
 	if (FPaths::FileExists(DatasmithPath / MVRFilename))
 	{
 		OutMVRFilePathAndName = DatasmithPath / MVRFilename;
@@ -118,7 +118,7 @@ UDMXLibrary* FDatasmithMVRNativeTranslator::CreateDMXLibraryFromMVR(const FStrin
 	const FString PackageName = TEXT("/Game") / SceneName;
 	UPackage* DMXLibraryAssetPackage = CreatePackage(*PackageName);
 	DMXLibraryAssetPackage->FullyLoad();
-	
+
 	bool bOperationCanceled;
 	UObject* NewDMXLibraryObject = DMXLibraryFromMVRFactory->FactoryCreateFile(UDMXLibrary::StaticClass(), DMXLibraryAssetPackage, *DMXLibraryName, RF_Public | RF_Standalone | RF_Transactional, MVRFilePathAndName, nullptr, GWarn, bOperationCanceled);
 	if (bOperationCanceled)
