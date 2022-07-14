@@ -81,7 +81,6 @@ public:
 
 		if ((BoolTerm != NULL) && (SwitchSelectionTerm != NULL))
 		{
-			UEdGraphNode* TargetNode = NULL;
 			UEdGraphPin* FuncPin = SwitchNode->GetFunctionPin();
 			FBPTerminal* FuncContext = Context.NetMap.FindRef(FuncPin);
 			UEdGraphPin* DefaultPin = SwitchNode->GetDefaultPin();

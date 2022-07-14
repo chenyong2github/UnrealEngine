@@ -118,7 +118,6 @@ public:
 				}
 
 				// Immediately jump to the first pin
-				UEdGraphNode* NextNode = OutputPins[0]->LinkedTo[0]->GetOwningNode();
 				FBlueprintCompiledStatement& NextExecutionState = Context.AppendStatementForNode(Node);
 				NextExecutionState.Type = KCST_UnconditionalGoto;
 				Context.GotoFixupRequestMap.Add(&NextExecutionState, OutputPins[0]);
