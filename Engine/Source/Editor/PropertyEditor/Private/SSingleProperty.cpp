@@ -1,19 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSingleProperty.h"
-#include "UObject/UnrealType.h"
+
 #include "AssetThumbnail.h"
+#include "DetailPropertyRow.h"
 #include "IPropertyUtilities.h"
-#include "PropertyNode.h"
-#include "Widgets/Text/STextBlock.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
+#include "PropertyEditorModule.h"
+#include "PropertyNode.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "SStandaloneCustomizedValueWidget.h"
+#include "Engine/Engine.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 class FSinglePropertyUtilities : public IPropertyUtilities
@@ -148,12 +152,14 @@ void SSingleProperty::SetObject( UObject* InObject )
 	ValueNode = RootPropertyNode->GenerateSingleChild( PropertyName );
 
 	bool bIsAcceptableProperty = false;
+	FProperty* Property = nullptr; 
 	// valid criteria for standalone properties 
 	if( ValueNode.IsValid() )
 	{
-		FProperty* Property = ValueNode->GetProperty();
-	//TODO MaterialLayers: Remove below commenting
+		//TODO MaterialLayers: Remove below commenting
 		bIsAcceptableProperty = true;
+		Property = ValueNode->GetProperty();
+		check(Property);
 		// not an array property (dynamic or static)
 		//bIsAcceptableProperty &= !( Property->IsA( FArrayProperty::StaticClass() ) || (Property->ArrayDim > 1 && ValueNode->GetArrayIndex() == INDEX_NONE) );
 		// not a struct property unless its a built in type like a vector
@@ -186,13 +192,36 @@ void SSingleProperty::SetObject( UObject* InObject )
 			];
 		}
 
-		HorizontalBox->AddSlot()
-		.Padding( 4.0f, 0.0f)
-		.FillWidth(1.0f)
-		.VAlign( VAlign_Center )
-		[
-			SNew( SPropertyValueWidget, PropertyEditor, PropertyUtilities.ToSharedRef() )
-		];
+		// For structs and other properties with a customized header
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		if (const FPropertyTypeLayoutCallback LayoutCallback =
+				PropertyEditorModule.GetPropertyTypeCustomization(
+					Property, *PropertyHandle, FCustomPropertyTypeLayoutMap()
+				); LayoutCallback.IsValid()
+			)
+		{
+			TSharedRef<IPropertyTypeCustomization> CustomizationInstance = LayoutCallback.GetCustomizationInstance();
+			
+			HorizontalBox->AddSlot()
+			.Padding( 4.0f, 0.0f)
+			.FillWidth(1.0f)
+			.VAlign( VAlign_Center )
+			[
+				SNew( SStandaloneCustomizedValueWidget, CustomizationInstance, PropertyHandle.ToSharedRef())
+			];
+		}
+		else // For properties without customization
+		{
+
+			HorizontalBox->AddSlot()
+			.Padding( 4.0f, 0.0f)
+			.FillWidth(1.0f)
+			.VAlign( VAlign_Center )
+			[
+				SNew( SPropertyValueWidget, PropertyEditor, PropertyUtilities.ToSharedRef() )
+			];			
+		}
 
 		if (!PropertyEditor->GetPropertyHandle()->HasMetaData(TEXT("NoResetToDefault")))
 		{
