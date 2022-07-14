@@ -46,7 +46,7 @@ namespace PCGTestsCommon
 
 		UPCGGraph* TestGraph = NewObject<UPCGGraph>(TestPCGComponent, FName(TEXT("Test PCG Graph")), RF_Transient);
 		check(TestGraph);
-		TestPCGComponent->SetGraph(TestGraph);
+		TestPCGComponent->SetGraphLocal(TestGraph);
 #else
 		TestActor = nullptr;
 		TestPCGComponent = nullptr;
