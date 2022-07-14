@@ -21,7 +21,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	}
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.ClientSize(FVector2D(1000.f, 650.f))
-		.Title(NSLOCTEXT("Interchange", "PipelineConfigurationGenericTitle", "Interchange Pipeline Configuration"));
+		.Title(NSLOCTEXT("Interchange", "PipelineConfigurationGenericTitleContent", "Interchange Pipeline Configuration (Import Content)"));
 	TSharedPtr<SInterchangePipelineConfigurationDialog> InterchangePipelineConfigurationDialog;
 
 	Window->SetContent
@@ -29,6 +29,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 		SAssignNew(InterchangePipelineConfigurationDialog, SInterchangePipelineConfigurationDialog)
 		.OwnerWindow(Window)
 		.SourceData(SourceData)
+		.bSceneImport(false)
 		.bReimport(false)
 	);
 
@@ -47,6 +48,43 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	return EInterchangePipelineConfigurationDialogResult::Import;
 }
 
+EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowScenePipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData)
+{
+	//Create and show the graph inspector UI dialog
+	TSharedPtr<SWindow> ParentWindow;
+	if (IMainFrameModule* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>("MainFrame"))
+	{
+		ParentWindow = MainFrame->GetParentWindow();
+	}
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.ClientSize(FVector2D(1000.f, 650.f))
+		.Title(NSLOCTEXT("Interchange", "PipelineConfigurationGenericTitleScene", "Interchange Pipeline Configuration (Import Scene)"));
+	TSharedPtr<SInterchangePipelineConfigurationDialog> InterchangePipelineConfigurationDialog;
+
+	Window->SetContent
+	(
+		SAssignNew(InterchangePipelineConfigurationDialog, SInterchangePipelineConfigurationDialog)
+		.OwnerWindow(Window)
+		.SourceData(SourceData)
+		.bSceneImport(true)
+		.bReimport(false)
+	);
+
+	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+	if (InterchangePipelineConfigurationDialog->IsCanceled())
+	{
+		return EInterchangePipelineConfigurationDialogResult::Cancel;
+	}
+
+	if (InterchangePipelineConfigurationDialog->IsImportAll())
+	{
+		return EInterchangePipelineConfigurationDialogResult::ImportAll;
+	}
+
+	return EInterchangePipelineConfigurationDialogResult::Import;
+}
+
 EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, TWeakObjectPtr<UInterchangeSourceData> SourceData)
 {
 	//Create and show the graph inspector UI dialog
@@ -57,7 +95,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	}
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.ClientSize(FVector2D(1000.f, 650.f))
-		.Title(NSLOCTEXT("Interchange", "PipelineConfigurationGenericTitle", "Interchange Pipeline Configuration"));
+		.Title(NSLOCTEXT("Interchange", "PipelineConfigurationGenericTitleReimportContent", "Interchange Pipeline Configuration (Reimport Content)"));
 	TSharedPtr<SInterchangePipelineConfigurationDialog> InterchangePipelineConfigurationDialog;
 
 	Window->SetContent
@@ -65,6 +103,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 		SAssignNew(InterchangePipelineConfigurationDialog, SInterchangePipelineConfigurationDialog)
 		.OwnerWindow(Window)
 		.SourceData(SourceData)
+		.bSceneImport(false)
 		.bReimport(true)
 		.PipelineStack(PipelineStack)
 	);

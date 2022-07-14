@@ -38,7 +38,7 @@
 
 
 
-namespace InternalInterchangePrivate
+namespace UE::Interchange::Private
 {
 	const FLogCategoryBase* GetLogInterchangePtr()
 	{
@@ -47,6 +47,29 @@ namespace InternalInterchangePrivate
 #else
 		return &LogInterchangeEngine;
 #endif
+	}
+
+	const FInterchangeImportSettings& GetImportSettings(const UInterchangeProjectSettings& InterchangeProjectSettings, EImportType ImportType)
+	{
+		if (ImportType == EImportType::ImportType_Asset)
+		{
+			return InterchangeProjectSettings.ContentImportSettings;
+		}
+		else if (ImportType == EImportType::ImportType_Scene)
+		{
+			return InterchangeProjectSettings.SceneImportSettings;
+		}
+		else
+		{
+			ensure(false);
+			static FInterchangeImportSettings InvalidSettings;
+			return InvalidSettings;
+		}
+	}
+
+	FInterchangeImportSettings& GetMutableImportSettings(UInterchangeProjectSettings& InterchangeProjectSettings, EImportType ImportType)
+	{
+		return const_cast<FInterchangeImportSettings&>(GetImportSettings(InterchangeProjectSettings, ImportType));
 	}
 }
 
@@ -592,7 +615,7 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 			NotificationConfig.bIsHeadless = false;
 			NotificationConfig.bKeepOpenOnFailure = true;
 			NotificationConfig.TitleText = TitleText;
-			NotificationConfig.LogCategory = InternalInterchangePrivate::GetLogInterchangePtr();
+			NotificationConfig.LogCategory = UE::Interchange::Private::GetLogInterchangePtr();
 			NotificationConfig.bCanCancel.Set(true);
 			NotificationConfig.bKeepOpenOnFailure.Set(true);
 
@@ -698,6 +721,34 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		//Import process can be started only in the game thread
 		return TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>{ MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >(), MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >() };
 	}
+
+	if (!SourceData)
+	{
+		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import file, the source data is invalid"));
+		return TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>{ MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >(), MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >() };
+	}
+
+	const bool bImportScene = ImportType == UE::Interchange::EImportType::ImportType_Scene;
+	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
+	const FInterchangeImportSettings& InterchangeImportSettings = UE::Interchange::Private::GetImportSettings(*InterchangeProjectSettings, ImportType);
+	
+	if (InterchangeImportSettings.PipelineStacks.Num() == 0)
+	{
+		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import file, there is no pipeline stack define for %s import type. File path %s"), bImportScene ? TEXT("scene") : TEXT("content"));
+		return TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>{ MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >(), MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >() };
+	}
+	
+	//Set a default pipeline stack if none is valid
+	if (!InterchangeImportSettings.PipelineStacks.Contains(InterchangeImportSettings.DefaultPipelineStack))
+	{
+		UInterchangeProjectSettings* MutableInterchangeProjectSettings = GetMutableDefault<UInterchangeProjectSettings>();
+		FInterchangeImportSettings& MutableInterchangeImportSettings = UE::Interchange::Private::GetMutableImportSettings(*MutableInterchangeProjectSettings, ImportType);
+		TArray<FName> Keys;
+		MutableInterchangeImportSettings.PipelineStacks.GetKeys(Keys);
+		check(Keys.Num() > 0);
+		MutableInterchangeImportSettings.DefaultPipelineStack = Keys[0];
+	}
+
 	UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
 	FString PackageBasePath = ContentPath;
 	if(!ImportAssetParameters.ReimportAsset)
@@ -745,12 +796,13 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		check(AsyncHelper->BaseNodeContainers[SourceDataIndex].IsValid());
 	}
 
-	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
+	
 	UInterchangePipelineConfigurationBase* RegisteredPipelineConfiguration = nullptr;
 
 	//In runtime we do not have any pipeline configurator
 #if WITH_EDITORONLY_DATA
-	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = InterchangeProjectSettings->PipelineConfigurationDialogClass;
+	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = InterchangeImportSettings.PipelineConfigurationDialogClass;
+
 	if (PipelineConfigurationDialogClass.IsValid())
 	{
 		UClass* PipelineConfigurationClass = PipelineConfigurationDialogClass.LoadSynchronous();
@@ -768,27 +820,13 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 #if WITH_EDITORONLY_DATA
 		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
-															&& InterchangeProjectSettings->bShowPipelineStacksConfigurationDialog
+															&& InterchangeImportSettings.bShowPipelineStacksConfigurationDialog
 															&& !bImportAllWithDefault;
 #else
 		const bool bShowPipelineStacksConfigurationDialog = false;
 #endif
 															
-
-
-		auto GetDefaultPipelineStackName = [ImportType, &InterchangeProjectSettings]()->FName
-		{
-			if (ImportType == UE::Interchange::EImportType::ImportType_Scene)
-			{
-				return InterchangeProjectSettings->DefaultScenePipelineStack;
-			}
-			else
-			{
-				return InterchangeProjectSettings->DefaultPipelineStack;
-			}
-		};
-			
-		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = InterchangeProjectSettings->PipelineStacks;
+		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = InterchangeImportSettings.PipelineStacks;
 
 		//If we reimport we want to load the original pipeline and the original pipeline settings
 		if (OriginalAssetImportData && OriginalAssetImportData->Pipelines.Num() > 0)
@@ -861,11 +899,11 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		}
 		else
 		{
-			FName PipelineStackName = GetDefaultPipelineStackName();
+			FName PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
 			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(PipelineStackName) && !bIsUnattended)))
 			{
 				//Show the dialog, a plugin should have register this dialog. We use a plugin to be able to use editor code when doing UI
-				EInterchangePipelineConfigurationDialogResult DialogResult = RegisteredPipelineConfiguration->ScriptedShowPipelineConfigurationDialog(DuplicateSourceData);
+				EInterchangePipelineConfigurationDialogResult DialogResult = bImportScene ? RegisteredPipelineConfiguration->ScriptedShowScenePipelineConfigurationDialog(DuplicateSourceData) : RegisteredPipelineConfiguration->ScriptedShowPipelineConfigurationDialog(DuplicateSourceData);
 				if (DialogResult == EInterchangePipelineConfigurationDialogResult::Cancel)
 				{
 					bImportCancel = true;
@@ -874,15 +912,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					bImportAllWithDefault = true;
 				}
-				PipelineStackName = GetDefaultPipelineStackName();
+				PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
 			}
 			if (!bImportCancel)
 			{
 				if (!DefaultPipelineStacks.Contains(PipelineStackName))
 				{
-					if (DefaultPipelineStacks.Contains(GetDefaultPipelineStackName()))
+					if (DefaultPipelineStacks.Contains(InterchangeImportSettings.DefaultPipelineStack))
 					{
-						PipelineStackName = GetDefaultPipelineStackName();
+						PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
 					}
 					else
 					{
@@ -944,6 +982,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			UInterchangePipelineBase* GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], GetTransientPackage());
 			GeneratedPipeline->bAllowLockedPropertiesEdition = false;
 			AsyncHelper->Pipelines.Add(GeneratedPipeline);
+			AsyncHelper->OriginalPipelines.Add(GeneratedPipeline);
 		}
 	}
 

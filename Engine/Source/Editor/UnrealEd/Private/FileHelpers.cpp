@@ -81,6 +81,7 @@
 #include "PackageSourceControlHelper.h"
 #include "ActorFolder.h"
 #include "InterchangeManager.h"
+#include "InterchangeProjectSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -1442,7 +1443,7 @@ void FEditorFileUtils::Import(const FString& InFilename)
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 
 	UE::Interchange::FScopedSourceData ScopedSourceData(InFilename);
-	const bool bImportThroughInterchange = EditorExperimentalSettings->bEnableInterchangeFramework && UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData());
+	const bool bImportThroughInterchange = (EditorExperimentalSettings->bEnableInterchangeFramework && GetDefault<UInterchangeProjectSettings>()->bUseInterchangeWhenImportingIntoLevel) && UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData());
 
 	USceneImportFactory* SceneFactory = nullptr;
 

@@ -53,6 +53,7 @@ public:
 		: _OnSelectionChangedDelegate()
 	{}
 		SLATE_EVENT(FOnPipelineConfigurationSelectionChanged, OnSelectionChangedDelegate)
+		SLATE_ARGUMENT(bool, bSceneImport)
 		SLATE_ARGUMENT(bool, bReimport)
 		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
 	SLATE_END_ARGS()
@@ -70,6 +71,7 @@ public:
 protected:
 	/** Delegate to invoke when selection changes. */
 	FOnPipelineConfigurationSelectionChanged OnSelectionChangedDelegate;
+	bool bSceneImport = false;
 	bool bReimport = false;
 	TArray<UInterchangePipelineBase*> PipelineStack;
 
@@ -78,7 +80,7 @@ protected:
 
 	/** Open a context menu for the current selection */
 	TSharedPtr<SWidget> OnOpenContextMenu();
-	void SetHasDefaultStack(FName NewDefaultStackValue);
+	void SetAsDefaultStack(FName NewDefaultStackValue);
 	void RecursiveSetExpand(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Node, bool ExpandState);
 	void OnTreeViewSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType);
 };
@@ -100,6 +102,7 @@ public:
 
 		SLATE_ARGUMENT(TWeakPtr<SWindow>, OwnerWindow)
 		SLATE_ARGUMENT(TWeakObjectPtr<UInterchangeSourceData>, SourceData)
+		SLATE_ARGUMENT(bool, bSceneImport)
 		SLATE_ARGUMENT(bool, bReimport)
 		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
 	SLATE_END_ARGS()
@@ -156,6 +159,7 @@ private:
 	TSharedPtr<IDetailsView> PipelineConfigurationDetailsView;
 	TSharedPtr<SCheckBox> UseSameSettingsForAllCheckBox;
 
+	bool bSceneImport = false;
 	bool bReimport = false;
 	bool bCanceled = false;
 	bool bImportAll = false;

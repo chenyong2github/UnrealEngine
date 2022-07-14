@@ -21,5 +21,6 @@ public:
 protected:
 
 	virtual EInterchangePipelineConfigurationDialogResult ShowPipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData) override;
+	virtual EInterchangePipelineConfigurationDialogResult ShowScenePipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData) override;
 	virtual EInterchangePipelineConfigurationDialogResult ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, TWeakObjectPtr<UInterchangeSourceData> SourceData) override;
 };
