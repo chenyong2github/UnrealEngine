@@ -207,4 +207,66 @@ ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhanc
 	// Inherit state from the chorded action
 	const FInputActionInstance* EventData = PlayerInput->FindActionInstanceData(ChordAction);
 	return EventData ? EventData->TriggerStateTracker.GetState() : ETriggerState::None;
+}
+
+UInputTriggerComboAction::UInputTriggerComboAction()
+{
+	bShouldAlwaysTick = true;
+}
+
+ETriggerState UInputTriggerComboAction::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
+{
+	if (const UInputAction* CurrentAction = ComboActions[CurrentComboStepIndex].ComboStepAction)
+	{
+		for (const UInputAction* CancelAction : CancelActions)
+		{
+			if (CancelAction && CancelAction != CurrentAction)
+			{
+				const FInputActionInstance* CancelState = PlayerInput->FindActionInstanceData(CancelAction);
+				if (CancelState && CancelState->GetTriggerEvent() != ETriggerEvent::None)
+				{
+					// Cancel action firing!
+					CurrentComboStepIndex = 0;
+					CurrentAction = ComboActions[CurrentComboStepIndex].ComboStepAction;	// Reset for fallthrough
+				}
+			}
+		}
+
+		// Reset if we take too long to hit the next action
+		if (CurrentComboStepIndex > 0)
+		{
+			CurrentTimeBetweenComboSteps += DeltaTime;
+			if (CurrentTimeBetweenComboSteps >= ComboActions[CurrentComboStepIndex].TimeToPressKey)
+			{
+				CurrentComboStepIndex = 0;
+				CurrentAction = ComboActions[CurrentComboStepIndex].ComboStepAction;	// Reset for fallthrough			
+			}
+		}
+
+		const FInputActionInstance* CurrentState = PlayerInput->FindActionInstanceData(CurrentAction);
+		if (CurrentState && CurrentState->GetTriggerEvent() == ETriggerEvent::Completed) // + possibly Triggered
+		{
+			CurrentComboStepIndex++;
+			CurrentTimeBetweenComboSteps = 0;
+			if (CurrentComboStepIndex >= ComboActions.Num())
+			{
+				CurrentComboStepIndex = 0;
+				return ETriggerState::Triggered;
+			}
+		}
+
+		if (CurrentComboStepIndex > 0)
+		{
+			return ETriggerState::Ongoing;
+		}
+	
+		// Really should account for first combo action being mid-trigger...
+		const FInputActionInstance* InitialState = PlayerInput->FindActionInstanceData(ComboActions[0].ComboStepAction);
+		if (InitialState && InitialState->GetTriggerEvent() > ETriggerEvent::None) // || Cancelled!
+		{
+			return ETriggerState::Ongoing;
+		}
+		CurrentTimeBetweenComboSteps = 0;
+	}
+	return ETriggerState::None;
 };

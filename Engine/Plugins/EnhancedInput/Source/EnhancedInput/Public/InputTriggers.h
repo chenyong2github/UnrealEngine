@@ -8,6 +8,7 @@
 #include "InputTriggers.generated.h"
 
 class UEnhancedPlayerInput;
+class UInputAction;
 
 /**
 * Trigger states are a light weight interpretation of the provided input values used in trigger UpdateState responses.
@@ -393,7 +394,7 @@ public:
 
 	// The action that must be triggering for this trigger's action to trigger
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
-	TObjectPtr<const class UInputAction> ChordAction = nullptr;
+	TObjectPtr<const UInputAction> ChordAction = nullptr;
 };
 
 /** UInputTriggerChordBlocker
@@ -408,6 +409,56 @@ protected:
 	virtual ETriggerType GetTriggerType_Implementation() const override { return ETriggerType::Blocker; }
 };
 
+USTRUCT(BlueprintType)
+struct FInputComboStepData
+{
+	GENERATED_BODY()
 
+	// The action that must be triggering to progress the combo
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
+	TObjectPtr<const UInputAction> ComboStepAction = nullptr;
+
+	// Time to press the key and for it to count towards the combo
+	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
+	float TimeToPressKey = 0.5f;
+};
+
+/**
+ * UInputTriggerComboAction
+ * All actions in the combo array must be pressed within a timeframe to trigger
+*/
+UCLASS(NotBlueprintable, meta = (DisplayName = "Combo", NotInputConfigurable = "true"))
+class ENHANCEDINPUT_API UInputTriggerComboAction : public UInputTrigger
+{
+	GENERATED_BODY()
+
+	UInputTriggerComboAction();
+
+protected:
+	// Implicit, so action cannot fire unless this is firing.
+	virtual ETriggerType GetTriggerType_Implementation() const override { return ETriggerType::Implicit; }
+
+	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
+
+	// Keeps track of what action we're currently at in the combo
+	UPROPERTY(BlueprintReadOnly, Category = "Trigger Settings")
+	int32 CurrentComboStepIndex = 0;
+	
+	// Time elapsed between last combo InputAction trigger and current time
+	UPROPERTY(BlueprintReadOnly, Category = "Trigger Settings")
+	float CurrentTimeBetweenComboSteps = 0.0;
+
+public:
+	/**
+	 * List of input actions that need to be completed to trigger this action.
+	 * Input actions must be triggered in order (starting at index 0) to count towards the completion of the combo.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
+	TArray<FInputComboStepData> ComboActions;
+
+	// Actions that will cancel the combo if they are triggered
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
+    TArray<TObjectPtr<const UInputAction>> CancelActions;
+};
 
 //} // EnhancedInput
