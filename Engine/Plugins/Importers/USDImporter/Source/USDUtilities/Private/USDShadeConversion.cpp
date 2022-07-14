@@ -1080,7 +1080,7 @@ namespace UE
 			};
 
 			/**
-			 * Specialized version of FSetParameterValueVisitor for UE's UsdPreviewSurface master materials.
+			 * Specialized version of FSetParameterValueVisitor for UE's UsdPreviewSurface base materials.
 			 */
 			struct FSetPreviewSurfaceParameterValueVisitor : private FSetParameterValueVisitor
 			{
@@ -1756,7 +1756,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	bool bHasMaterialInfo = false;
 
 	// We assume that all samplers for a material instance that supports UDIMs would be virtual so we'll force all the textures to be virtual.
-	// The idea being that when building a master material, we can't know which textures will be virtual so it's safer to set the samplers as if they were all virtual.
+	// The idea being that when building a base material, we can't know which textures will be virtual so it's safer to set the samplers as if they were all virtual.
 	const bool bForceVirtualTextures = UsdUtils::IsMaterialUsingUDIMs( UsdShadeMaterial );
 
 	pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;

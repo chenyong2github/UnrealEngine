@@ -53,21 +53,21 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		const bool bIsTranslucent = UsdUtils::IsMaterialTranslucent( ShadeMaterial );
 		const bool bNeedsVirtualTextures = UsdUtils::IsMaterialUsingUDIMs( ShadeMaterial );
 
-		FString MasterMaterialName = TEXT("UsdPreviewSurface");
+		FString BaseMaterialName = TEXT("UsdPreviewSurface");
 
 		if ( bIsTranslucent )
 		{
-			MasterMaterialName += TEXT("Translucent");
+			BaseMaterialName += TEXT("Translucent");
 		}
 
 		if ( bNeedsVirtualTextures )
 		{
-			MasterMaterialName += TEXT("VT");
+			BaseMaterialName += TEXT("VT");
 		}
 
-		const FString MasterMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s"), *MasterMaterialName, *MasterMaterialName );
+		const FString BaseMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s"), *BaseMaterialName, *BaseMaterialName );
 
-		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MasterMaterialPath ).TryLoad() ) )
+		if ( UMaterialInterface* BaseMaterial = Cast< UMaterialInterface >( FSoftObjectPath( BaseMaterialPath ).TryLoad() ) )
 		{
 			FName InstanceName = MakeUniqueObjectName( GetTransientPackage(), UMaterialInstance::StaticClass(), *FPaths::GetBaseFilename( PrimPath.GetString() ) );
 			if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
@@ -75,7 +75,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 #if WITH_EDITOR
 				if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags ) )
 				{
-					NewMaterial->SetParentEditorOnly( MasterMaterial );
+					NewMaterial->SetParentEditorOnly( BaseMaterial );
 
 					UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( NewMaterial, TEXT( "USDAssetImportData" ) );
 					ImportData->PrimPath = PrimPath.GetString();
@@ -105,7 +105,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				}
 #endif // WITH_EDITOR
 			}
-			else if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( MasterMaterial, GetTransientPackage(), InstanceName ) )
+			else if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( BaseMaterial, GetTransientPackage(), InstanceName ) )
 			{
 				TMap<FString, int32> Unused;
 				TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;

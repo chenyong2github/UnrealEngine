@@ -813,9 +813,9 @@ namespace UE
 				// Also note that we can't share these bakers with our parent movie scenes in case we're a subsequence, unfortunately, because our
 				// bakers will contain lambdas that write directly to a given prim, and those prims are specific to each layer that we're exporting
 				// (e.g. our parent level sequence will export to different prims than this movie scene will)
-				for ( const UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks() )
+				for ( const UMovieSceneTrack* Track : MovieScene->GetMasterTracks() )
 				{
-					const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>( MasterTrack );
+					const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>( Track );
 					if ( !SubTrack )
 					{
 						continue;
@@ -999,9 +999,9 @@ namespace UE
 						FString Extension;
 						FPaths::Split( UniqueFilePath, Directory, FileName, Extension );
 
-						for ( const UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks() )
+						for ( const UMovieSceneTrack* Track : MovieScene->GetMasterTracks() )
 						{
-							const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>( MasterTrack );
+							const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>( Track );
 							if ( !SubTrack )
 							{
 								continue;

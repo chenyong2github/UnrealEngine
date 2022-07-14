@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",
-					"Projects", // So that we can use the plugin manager to find out our content dir and cook the master materials
+					"Projects", // So that we can use the plugin manager to find out our content dir and cook the base materials
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
