@@ -1127,7 +1127,7 @@ struct FRigVMSetTemplateFilteredPermutationsAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetTemplateFilteredPermutationsAction() {}
-	FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, URigVMLink* InLink, const TArray<int32>& InOldFilteredPermutations);
+	FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, const TArray<int32>& InOldFilteredPermutations);
 	virtual ~FRigVMSetTemplateFilteredPermutationsAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetTemplateFilteredPermutationsAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
@@ -1136,9 +1136,6 @@ public:
 
 	UPROPERTY()
 	FString NodePath;
-
-	UPROPERTY()
-	FString LinkPath;
 
 	UPROPERTY()
 	TArray<int32> OldFilteredPermutations;
@@ -1173,6 +1170,32 @@ public:
 
 	UPROPERTY()
 	TArray<FRigVMTemplatePreferredType> NewPreferredPermutationTypes;
+};
+
+/**
+ * An action setting the filtered permutations on a template node
+ */
+USTRUCT()
+struct FRigVMSetLibraryTemplateAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetLibraryTemplateAction() {}
+	FRigVMSetLibraryTemplateAction(URigVMLibraryNode* InNode, FRigVMTemplate& InNewTemplate);
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetTemplateFilteredPermutationsAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	TArray<uint8> OldTemplateBytes;
+
+	UPROPERTY()
+	TArray<uint8> NewTemplateBytes;
 };
 
 /**
@@ -1275,6 +1298,9 @@ public:
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMBreakLinkAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FSoftObjectPath GraphPath;
 
 	UPROPERTY()
 	FString OutputPinPath;

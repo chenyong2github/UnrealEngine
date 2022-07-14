@@ -167,6 +167,11 @@ TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables
 	return GetExternalVariables(true);
 }
 
+const FRigVMTemplate* URigVMFunctionReferenceNode::GetTemplate() const
+{
+	return GetReferencedNode()->GetTemplate();
+}
+
 TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables(bool bRemapped) const
 {
 	TArray<FRigVMExternalVariable> Variables;

@@ -139,7 +139,7 @@ struct RIGVM_API FRigVMTemplateArgument
 		EArrayType_Invalid
 	};
 
-	enum ETypeCategory
+	enum ETypeCategory : uint8
 	{
 		ETypeCategory_Execute,
 		ETypeCategory_SingleAnyValue,
@@ -169,6 +169,9 @@ struct RIGVM_API FRigVMTemplateArgument
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, TRigVMTypeIndex InType);
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<TRigVMTypeIndex>& InTypeIndices);
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories);
+
+	// Serialize
+	void Serialize(FArchive& Ar);
 
 	// returns the name of the argument
 	const FName& GetName() const { return Name; }
@@ -218,6 +221,7 @@ protected:
 	friend class URigVMController;
 	friend struct FRigVMRegistry;
 	friend struct FRigVMStructUpgradeInfo;
+	friend struct FRigVMSetLibraryTemplateAction;
 };
 
 /**
@@ -235,6 +239,9 @@ public:
 
 	// Default constructor
 	FRigVMTemplate();
+
+	// Serialize
+	void Serialize(FArchive& Ar);
 
 	// returns true if this is a valid template
 	bool IsValid() const;
@@ -301,6 +308,9 @@ public:
 
 	// returns the notation of an argument
 	static FString GetArgumentNotation(const FRigVMTemplateArgument& InArgument);
+
+	// recomputes the notation from its arguments
+	void ComputeNotationFromArguments(const FString& InTemplateName);
 
 	// returns an array of structs in the inheritance order of a given struct
 	static TArray<UStruct*> GetSuperStructs(UStruct* InStruct, bool bIncludeLeaf = true);
@@ -371,5 +381,6 @@ private:
 	friend struct FRigVMRegistry;
 	friend class URigVMController;
 	friend class URigVMLibraryNode;
+	friend struct FRigVMSetLibraryTemplateAction;
 	friend struct FRigVMDispatchFactory;
 };

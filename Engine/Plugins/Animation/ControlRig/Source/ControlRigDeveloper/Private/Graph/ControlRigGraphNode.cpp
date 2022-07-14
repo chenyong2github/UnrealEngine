@@ -314,13 +314,18 @@ void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPin
 	{
 		for(UEdGraphPin* NewPin : InNewPins)
 		{
-			if(OldPin->PinName == NewPin->PinName && OldPin->PinType == NewPin->PinType && OldPin->Direction == NewPin->Direction)
+			if(OldPin->PinName == NewPin->PinName && OldPin->Direction == NewPin->Direction)
 			{
-				// make sure to remove invalid entries from the linked to list
-				OldPin->LinkedTo.Remove(nullptr);
+				if (OldPin->PinType == NewPin->PinType ||
+					OldPin->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject() ||
+					NewPin->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
+				{
+					// make sure to remove invalid entries from the linked to list
+					OldPin->LinkedTo.Remove(nullptr);
 				
-				NewPin->MovePersistentDataFromOldPin(*OldPin);
-				break;
+					NewPin->MovePersistentDataFromOldPin(*OldPin);
+					break;
+				}
 			}
 		}
 	}

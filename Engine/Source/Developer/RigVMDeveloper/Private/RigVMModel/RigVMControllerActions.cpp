@@ -789,7 +789,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 		{
 			InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode), InController);
 			InverseAction.AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, TemplateNode->PreferredPermutationPairs), InController);
-			InverseAction.AddAction(FRigVMSetTemplateFilteredPermutationsAction(TemplateNode, nullptr, {}), InController);
+			InverseAction.AddAction(FRigVMSetTemplateFilteredPermutationsAction(TemplateNode, {}), InController);
 
 			for (URigVMPin* Pin : TemplateNode->GetPins())
 			{
@@ -1366,9 +1366,8 @@ bool FRigVMSetPinDefaultValueAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
-FRigVMSetTemplateFilteredPermutationsAction::FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, URigVMLink* InLink, const TArray<int32>& InOldFilteredPermutations)
+FRigVMSetTemplateFilteredPermutationsAction::FRigVMSetTemplateFilteredPermutationsAction(URigVMTemplateNode* InNode, const TArray<int32>& InOldFilteredPermutations)
 : NodePath(InNode->GetNodePath())
-, LinkPath(InLink ? InLink->GetPinPathRepresentation() : FString())
 , OldFilteredPermutations(InOldFilteredPermutations)
 , NewFilteredPermutations(InNode->GetFilteredPermutationsIndices())
 {
@@ -1469,6 +1468,106 @@ bool FRigVMSetPreferredTemplatePermutationsAction::Redo(URigVMController* InCont
 	return FRigVMBaseAction::Redo(InController);
 }
 
+FRigVMSetLibraryTemplateAction::FRigVMSetLibraryTemplateAction(URigVMLibraryNode* InNode, FRigVMTemplate& InNewTemplate)
+: NodePath(InNode->GetNodePath())
+{
+	FMemoryWriter ArchiveWriterOld(OldTemplateBytes);
+	InNode->Template.Serialize(ArchiveWriterOld);
+	FMemoryWriter ArchiveWriterNew(NewTemplateBytes);
+	InNewTemplate.Serialize(ArchiveWriterNew);	
+}
+
+bool FRigVMSetLibraryTemplateAction::Undo(URigVMController* InController)
+{
+	if(!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InController->GetGraph()->FindNode(NodePath)))
+	{
+		FMemoryReader ArchiveReader(OldTemplateBytes);
+		FRigVMTemplate NewTemplate;
+		NewTemplate.Serialize(ArchiveReader);
+		LibraryNode->Template = NewTemplate;
+
+		// Update type to permutations map for each argument
+		for (FRigVMTemplateArgument& Argument : LibraryNode->Template.Arguments)
+		{
+			Argument.TypeToPermutations.Reset();
+			for (int32 PermutationIndex=0; PermutationIndex<Argument.TypeIndices.Num(); ++PermutationIndex)
+			{
+				const int32& TypeIndex = Argument.TypeIndices[PermutationIndex];
+				if (TArray<int32>* Permutations = Argument.TypeToPermutations.Find(TypeIndex))
+				{
+					Permutations->Add(PermutationIndex);
+				}
+				else
+				{
+					Argument.TypeToPermutations.Add(TypeIndex, {PermutationIndex});
+				}
+			}
+		}
+		
+		InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);
+		if (URigVMTemplateNode* EntryNode = Cast<URigVMTemplateNode>(LibraryNode->GetEntryNode()))
+		{
+			InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, EntryNode);
+		}
+		if (URigVMTemplateNode* ReturnNode = Cast<URigVMTemplateNode>(LibraryNode->GetReturnNode()))
+		{
+			InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, ReturnNode);
+		}
+		
+		return true;
+	}
+	return false;
+}
+
+bool FRigVMSetLibraryTemplateAction::Redo(URigVMController* InController)
+{
+	URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InController->GetGraph()->FindNode(NodePath));
+	if (!LibraryNode)
+	{
+		return false;
+	}
+
+	FMemoryReader ArchiveReader(NewTemplateBytes);
+	FRigVMTemplate NewTemplate;
+	NewTemplate.Serialize(ArchiveReader);
+	LibraryNode->Template = NewTemplate;
+	
+	// Update type to permutations map for each argument
+	for (FRigVMTemplateArgument& Argument : LibraryNode->Template.Arguments)
+	{
+		Argument.TypeToPermutations.Reset();
+		for (int32 PermutationIndex=0; PermutationIndex<Argument.TypeIndices.Num(); ++PermutationIndex)
+		{
+			const int32& TypeIndex = Argument.TypeIndices[PermutationIndex];
+			if (TArray<int32>* Permutations = Argument.TypeToPermutations.Find(TypeIndex))
+			{
+				Permutations->Add(PermutationIndex);
+			}
+			else
+			{
+				Argument.TypeToPermutations.Add(TypeIndex, {PermutationIndex});
+			}
+		}
+	}
+
+	InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);
+	if (URigVMTemplateNode* EntryNode = Cast<URigVMTemplateNode>(LibraryNode->GetEntryNode()))
+	{
+		InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, EntryNode);
+	}
+	if (URigVMTemplateNode* ReturnNode = Cast<URigVMTemplateNode>(LibraryNode->GetReturnNode()))
+	{
+		InController->Notify(ERigVMGraphNotifType::NodeDescriptionChanged, ReturnNode);
+	}
+	
+	return FRigVMBaseAction::Redo(InController);
+}
+
 FRigVMInsertArrayPinAction::FRigVMInsertArrayPinAction(URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue)
 : ArrayPinPath(InArrayPin->GetPinPath())
 , Index(InIndex)
@@ -1547,6 +1646,7 @@ FRigVMBreakLinkAction::FRigVMBreakLinkAction(URigVMPin* InOutputPin, URigVMPin* 
 : OutputPinPath(InOutputPin->GetPinPath())
 , InputPinPath(InInputPin->GetPinPath())
 {
+	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InOutputPin->GetGraph())).GetUniqueID();
 }
 
 bool FRigVMBreakLinkAction::Undo(URigVMController* InController)

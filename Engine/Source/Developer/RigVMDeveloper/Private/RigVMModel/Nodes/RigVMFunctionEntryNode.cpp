@@ -3,6 +3,24 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+const FRigVMTemplate* URigVMFunctionEntryNode::GetTemplate() const
+{
+	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
+	{
+		return LibraryNode->GetTemplate();
+	}
+	return nullptr;
+}
+
+FName URigVMFunctionEntryNode::GetNotation() const
+{
+	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
+	{
+		return LibraryNode->GetNotation();
+	}
+	return NAME_None;
+}
+
 FLinearColor URigVMFunctionEntryNode::GetNodeColor() const
 {
 	if(URigVMGraph* RootGraph = GetRootGraph())
@@ -19,4 +37,19 @@ bool URigVMFunctionEntryNode::IsDefinedAsVarying() const
 { 
 	// todo
 	return true; 
+}
+
+FString URigVMFunctionEntryNode::GetNodeTitle() const
+{
+	return TEXT("Entry");
+}
+
+FText URigVMFunctionEntryNode::GetToolTipText() const
+{
+	return FText::FromName(GetTemplate()->GetNotation());
+}
+
+FText URigVMFunctionEntryNode::GetToolTipTextForPin(const URigVMPin* InPin) const
+{
+	return Super::GetToolTipTextForPin(InPin);
 }

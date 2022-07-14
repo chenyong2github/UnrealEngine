@@ -37,6 +37,11 @@ public:
 		return TypeIndex;
 #endif
 	}
+
+	bool operator==(const FRigVMTemplatePreferredType& Other) const
+	{
+		return Argument == Other.Argument && TypeIndex == Other.TypeIndex;
+	}
 	
 	void UpdateStringFromIndex();
 	void UpdateIndexFromString();
@@ -53,6 +58,7 @@ protected:
 	FString TypeString;
 
 	friend class URigVMTemplateNode;
+	friend class URigVMController;
 };
 
 /**
@@ -79,6 +85,10 @@ public:
 	virtual FName GetMethodName() const;
 	virtual  FText GetToolTipText() const override;
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
+	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
+	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;
+	TArray<URigVMPin*> GetAggregatePins(const ERigVMPinDirection& InDirection) const;
+	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const override;
 
 	// Returns the UStruct for this unit node
 	// (the struct declaring the RIGVM_METHOD)
@@ -127,6 +137,10 @@ public:
 	// returns the filtered types of this pin
 	TArray<TRigVMTypeIndex> GetFilteredTypesForPin(URigVMPin* InPin) const;
 
+	// Tries to reduce the input types to a single type, if all are compatible
+	// Will prioritize the InPreferredType if available
+	bool TryReduceTypesToSingle(TArray<TRigVMTypeIndex>& InOutTypes, const TRigVMTypeIndex InPreferredType = TRigVMTypeIndex()) const;	
+
 	// returns true if updating pin filters with InTypes would result in different filters 
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
@@ -139,13 +153,16 @@ public:
 	void InitializeFilteredPermutations();
 
 	// Initializes the filtered permutations and preferred permutation from the types of the pins
-	void InitializeFilteredPermutationsFromTypes();
+	void InitializeFilteredPermutationsFromTypes(bool bAllowCasting);
 
 	// Converts the preferred types per pin from index to string
 	void ConvertPreferredTypesToString();
 
 	// Converts the preferred types per pin from string to indices
 	void ConvertPreferredTypesToTypeIndex();
+
+	// Returns the preferred type, or an invalid type if non was found
+	TRigVMTypeIndex GetPreferredType(const FName& ArgumentName) const;
 
 protected:
 
@@ -164,7 +181,7 @@ protected:
 	UPROPERTY()
 	FString ResolvedFunctionName;
 
-	// Indicates a preferred permuation using the types of the arguments
+	// Indicates a preferred permutation using the types of the arguments
 	// Each element is in the format "ArgumentName:CPPType"
 	UPROPERTY()
 	TArray<FString> PreferredPermutationTypes_DEPRECATED;
@@ -184,5 +201,6 @@ protected:
 	friend struct FRigVMSetTemplateFilteredPermutationsAction;
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;
 	friend struct FRigVMRemoveNodeAction;
+	friend class FRigVMTemplatesLibraryNode3Test;
 };
 

@@ -693,6 +693,19 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 					PinToAdd->SetCustomPinIcon(CachedImg_CR_Pin_Connected, CachedImg_CR_Pin_Disconnected);
 				}
 				PinToAdd->SetToolTipText(ModelPin->GetToolTipText());
+
+				// If the pin belongs to a template node that does not own an argument for that pin, make it transparent
+				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
+				{
+					if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+					{
+						URigVMPin* RootPin = ModelPin->GetRootPin();
+						if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+						{
+							PinToAdd->SetColorAndOpacity(PinToAdd->GetColorAndOpacity() * FLinearColor(1.0f,1.0f,1.0f,0.2f));
+						}
+					}
+				}
 			}
 		}
 

@@ -31,6 +31,7 @@ public:
 	virtual URigVMFunctionLibrary* GetLibrary() const override;
 	virtual URigVMGraph* GetContainedGraph() const override;
 	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const override;
+	virtual const FRigVMTemplate* GetTemplate() const override;
 	// end URigVMLibraryNode interface
 
 	URigVMLibraryNode* GetReferencedNode() const;

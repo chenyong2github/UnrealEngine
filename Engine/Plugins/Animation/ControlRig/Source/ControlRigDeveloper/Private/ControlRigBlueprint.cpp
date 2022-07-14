@@ -1357,7 +1357,8 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	for (URigVMGraph* GraphToDetach : GraphsToDetach)
 	{
 		URigVMController* Controller = GetOrCreateController(GraphToDetach);
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
+		bool bAllowNonArgumentLinks = GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::LibraryNodeTemplates;
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, bAllowNonArgumentLinks);
 	}
 
 	if(bIsPostLoad)
@@ -1366,11 +1367,66 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	}
 	
 	TArray<URigVMGraph*> GraphsToClean = GetAllModels();
-	
-	for(int32 GraphIndex=0; GraphIndex<GraphsToClean.Num(); GraphIndex++)
+
+	// Sort from leaf graphs to root
+	TArray<URigVMGraph*> SortedGraphsToClean;
+	SortedGraphsToClean.Reserve(GraphsToClean.Num());
+	while (SortedGraphsToClean.Num() < GraphsToClean.Num())
 	{
-		URigVMGraph* GraphToClean = GraphsToClean[GraphIndex];
+		bool bGraphAdded = false;
+		for (URigVMGraph* Graph : GraphsToClean)
+		{
+			if (SortedGraphsToClean.Contains(Graph))
+			{
+				continue;
+			}
+			
+			TArray<URigVMGraph*> ContainedGraphs;
+			for (URigVMNode* Node : Graph->GetNodes())
+			{
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+				{
+					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+					{
+						if (FunctionReferenceNode->GetLibrary() != GetLocalFunctionLibrary())
+						{
+							UPackage* Package = FunctionReferenceNode->GetLibrary()->GetPackage();
+							if (!Package->IsFullyLoaded())
+							{
+								Package->FullyLoad();
+							}
+							continue;
+						}
+					}
+					
+					ContainedGraphs.Add(LibraryNode->GetContainedGraph());					
+				}
+			}
+			
+			bool bAllContained = true;
+			for (URigVMGraph* Contained : ContainedGraphs)
+			{
+				if (!SortedGraphsToClean.Contains(Contained))
+				{
+					bAllContained = false;
+					break;
+				}
+			}
+			if (bAllContained)
+			{
+				SortedGraphsToClean.Add(Graph);
+				bGraphAdded = true;
+			}
+		}
+		ensure(bGraphAdded);
+	}
+	
+	for(int32 GraphIndex=0; GraphIndex<SortedGraphsToClean.Num(); GraphIndex++)
+	{
+		URigVMGraph* GraphToClean = SortedGraphsToClean[GraphIndex];
 		URigVMController* Controller = GetOrCreateController(GraphToClean);
+		TGuardValue<bool> RecomputeGuard(Controller->bSuspendRecomputingOuterTemplateFilters, true);
+		
 		for(URigVMNode* ModelNode : GraphToClean->GetNodes())
 		{
 			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
@@ -1389,16 +1445,21 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 						!TemplateNode->IsSingleton() &&
 						TemplateNode->PreferredPermutationPairs.IsEmpty())
 					{
-						TemplateNode->InitializeFilteredPermutationsFromTypes();
+						TemplateNode->InitializeFilteredPermutationsFromTypes(false);
 					}
 				}
+			}
+
+			if (URigVMLibraryNode* LibraryNode = GraphToClean->GetTypedOuter<URigVMLibraryNode>())
+			{
+				Controller->UpdateLibraryTemplate(LibraryNode, false);
 			}
 		}
 #if WITH_EDITOR
 
 		if(bIsPostLoad)
 		{
-			if (Controller->RecomputeAllTemplateFilteredTypes(false))
+			if (Controller->RecomputeAllTemplateFilteredPermutations(false))
 			{
 				ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
 			}

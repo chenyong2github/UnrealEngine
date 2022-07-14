@@ -125,6 +125,18 @@ void URigVMTemplateNode::ConvertPreferredTypesToTypeIndex()
 	}
 }
 
+TRigVMTypeIndex URigVMTemplateNode::GetPreferredType(const FName& ArgumentName) const
+{
+	for (const FRigVMTemplatePreferredType& PreferredType : PreferredPermutationPairs)
+	{
+		if (PreferredType.Argument == ArgumentName)
+		{
+			return PreferredType.TypeIndex;
+		}
+	}
+	return INDEX_NONE;
+}
+
 UScriptStruct* URigVMTemplateNode::GetScriptStruct() const
 {
 	if(const FRigVMFunction* Function = GetResolvedFunction())
@@ -185,9 +197,8 @@ FText URigVMTemplateNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 			if (const FRigVMTemplateArgument* Arg = Template->FindArgument(RootPin->GetFName()))
 			{
 				FString Tooltip;
-
-				const TArray<int32> PermutationIndices = GetFilteredPermutationsIndices();
-				if(PermutationIndices.Num() == GetTemplate()->NumPermutations())
+				
+				if(FilteredPermutations.Num() == GetTemplate()->NumPermutations())
 				{
 					if(Arg->GetTypeIndices().Num() > 100)
 					{
@@ -198,9 +209,15 @@ FText URigVMTemplateNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 				if(Tooltip.IsEmpty())
 				{
 					FString SupportedTypesJoined;
-					for (int32 Index : PermutationIndices)
+					TArray<TRigVMTypeIndex> TypesPrinted;
+					for (int32 Index=0; Index<Template->NumPermutations(); ++Index)
 					{
 						const TRigVMTypeIndex TypeIndex = Arg->GetTypeIndices()[Index];
+						if (TypesPrinted.Contains(TypeIndex))
+						{
+							continue;
+						}
+						TypesPrinted.Add(TypeIndex);
 						FString Type = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
 						if (!FilteredPermutations.Contains(Index))
 						{
@@ -221,6 +238,99 @@ FText URigVMTemplateNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 		}
 	}
 	return SuperToolTip;
+}
+
+TArray<URigVMPin*> URigVMTemplateNode::GetAggregateInputs() const
+{
+	return GetAggregatePins(ERigVMPinDirection::Input);
+}
+
+TArray<URigVMPin*> URigVMTemplateNode::GetAggregateOutputs() const
+{
+	return GetAggregatePins(ERigVMPinDirection::Output);
+}
+
+TArray<URigVMPin*> URigVMTemplateNode::GetAggregatePins(const ERigVMPinDirection& InDirection) const
+{
+	TArray<URigVMPin*> AggregatePins;
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	if (const FRigVMTemplate* Template = GetTemplate())
+	{
+		if (FilteredPermutations.IsEmpty())
+		{
+			return AggregatePins;
+		}
+
+		auto FindAggregatePins = [&](const int32& PermutationIndex)
+		{
+			TArray<URigVMPin*> Inputs;
+			if (const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
+			{
+				const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
+				if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(StructOnScope->GetStruct()))
+				{
+					for (URigVMPin* Pin : GetPins())
+					{
+						if (Pin->GetDirection() == InDirection)
+						{
+							if (const FProperty* Property = ScriptStruct->FindPropertyByName(Pin->GetFName()))
+							{
+								if (Property->HasMetaData(FRigVMStruct::AggregateMetaName))
+								{
+									Inputs.Add(Pin);
+								}
+							}			
+						}
+					}
+				}
+			}
+			return Inputs;
+		};
+		
+		AggregatePins = FindAggregatePins(FilteredPermutations[0]);
+		for (int32 i=1; i<FilteredPermutations.Num(); ++i)
+		{
+			TArray<URigVMPin*> OtherAggregateInputs = FindAggregatePins(FilteredPermutations[i]);
+			if (OtherAggregateInputs.Num() != AggregatePins.Num() ||
+				OtherAggregateInputs.FilterByPredicate([&](const URigVMPin* OtherPin)
+				{
+					return !AggregatePins.Contains(OtherPin);
+				}).Num() > 0)
+			{
+				return {};
+			}
+		}
+	}
+#endif
+	return AggregatePins;
+}
+
+FName URigVMTemplateNode::GetNextAggregateName(const FName& InLastAggregatePinName) const
+{
+	FName NextName;	
+
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	if (const FRigVMTemplate* Template = GetTemplate())
+	{
+		if (FilteredPermutations.IsEmpty())
+		{
+			return NextName;
+		}
+
+		if (const FRigVMFunction* Permutation = Template->GetPermutation(FilteredPermutations[0]))
+		{
+			const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
+			if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(StructOnScope->GetStruct()))
+			{
+				check(ScriptStruct->IsChildOf(FRigVMStruct::StaticStruct()));
+
+				const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+				return StructMemory->GetNextAggregateName(InLastAggregatePinName);
+			}
+		}
+	}
+#endif
+	return FName();
 }
 
 FName URigVMTemplateNode::GetNotation() const
@@ -282,6 +392,14 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, TRigVMTypeIndex In
 				}
 				return true;
 			}
+			else if (IsA<URigVMFunctionEntryNode>() || IsA<URigVMFunctionReturnNode>())
+			{
+				if(OutTypeIndex)
+				{
+					*OutTypeIndex = InTypeIndex;
+				}
+				return true;
+			}
 		}
 		return false;
 	}
@@ -306,6 +424,15 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, TRigVMTypeIndex In
 				(*OutTypeIndex) = SupportedTypeIndex;
 			}
 			return true;
+		}
+
+		// an entry/return node that does not contain an argument for the pin will always support the connections
+		if (IsA<URigVMFunctionEntryNode>() || IsA<URigVMFunctionReturnNode>())
+		{
+			if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+			{
+				return true;
+			}
 		}
 		return false;
 	}
@@ -449,6 +576,12 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 	{
 		return FString();
 	}
+
+	URigVMPin* Pin = FindPin(InRootPinName.ToString());
+	if (!Pin)
+	{
+		return FString();
+	}
 	
 	TArray<int32> PermutationIndices = InPermutationIndices;
 	if(PermutationIndices.IsEmpty())
@@ -459,92 +592,95 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 	FString DefaultValue;
 	const FRigVMTemplate* Template = GetTemplate();
 	const FRigVMDispatchFactory* Factory = Template->GetDispatchFactory(); 
+	const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
 
-	for(const int32 PermutationIndex : PermutationIndices)
+	if (Argument)
 	{
-		FString NewDefaultValue;
-
-		const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
-		const TRigVMTypeIndex TypeIndex = Argument->GetTypeIndices()[PermutationIndex];
-
-		if(Factory)
+		for(const int32 PermutationIndex : PermutationIndices)
 		{
-			NewDefaultValue = Factory->GetArgumentDefaultValue(Argument->GetName(), TypeIndex);
-		}
-		else if(const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
-		{
-			const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
-			const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+			FString NewDefaultValue;
 
-			const bool bUseQuotes = TypeIndex != RigVMTypeUtils::TypeIndex::FString && TypeIndex != RigVMTypeUtils::TypeIndex::FName;
-			NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
-				Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName, nullptr, bUseQuotes);
-		}
-		else
-		{
-			if (FRigVMRegistry::Get().IsArrayType(TypeIndex))
+			const TRigVMTypeIndex TypeIndex = Argument->GetTypeIndices()[PermutationIndex];
+
+			if(Factory)
 			{
-				NewDefaultValue = TEXT("()");
+				NewDefaultValue = Factory->GetArgumentDefaultValue(Argument->GetName(), TypeIndex);
+			}
+			else if(const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
+			{
+				const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
+				const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+
+				const bool bUseQuotes = TypeIndex != RigVMTypeUtils::TypeIndex::FString && TypeIndex != RigVMTypeUtils::TypeIndex::FName;
+				NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
+					Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName, nullptr, bUseQuotes);
 			}
 			else
 			{
-				const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(TypeIndex);
-				if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+				if (FRigVMRegistry::Get().IsArrayType(TypeIndex))
 				{
-					TArray<uint8, TAlignedHeapAllocator<16>> TempBuffer;
-					TempBuffer.AddUninitialized(ScriptStruct->GetStructureSize());
+					NewDefaultValue = TEXT("()");
+				}
+				else
+				{
+					const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(TypeIndex);
+					if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+					{
+						TArray<uint8, TAlignedHeapAllocator<16>> TempBuffer;
+						TempBuffer.AddUninitialized(ScriptStruct->GetStructureSize());
 
-					// call the struct constructor to initialize the struct
-					ScriptStruct->InitializeDefaultValue(TempBuffer.GetData());
+						// call the struct constructor to initialize the struct
+						ScriptStruct->InitializeDefaultValue(TempBuffer.GetData());
 
-					ScriptStruct->ExportText(NewDefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
-					ScriptStruct->DestroyStruct(TempBuffer.GetData());				
-				}
-				else if (const UEnum* Enum = Cast<UEnum>(Type.CPPTypeObject))
-				{
-					NewDefaultValue = Enum->GetNameStringByValue(0);
-				}
-				else if(const UClass* Class = Cast<UClass>(Type.CPPTypeObject))
-				{
-					// not supporting objects yet
-					ensure(false);
-				}
-				else if (Type.CPPType == RigVMTypeUtils::FloatTypeName)
-				{
-					NewDefaultValue = TEXT("0.000000");				
-				}
-				else if (Type.CPPType == RigVMTypeUtils::DoubleTypeName)
-				{
-					NewDefaultValue = TEXT("0.000000");
-				}
-				else if (Type.CPPType == RigVMTypeUtils::Int32TypeName)
-				{
-					NewDefaultValue = TEXT("0");
-				}
-				else if (Type.CPPType == RigVMTypeUtils::BoolTypeName)
-				{
-					NewDefaultValue = TEXT("False");
-				}
-				else if (Type.CPPType == RigVMTypeUtils::FStringTypeName)
-				{
-					NewDefaultValue = TEXT("");
-				}
-				else if (Type.CPPType == RigVMTypeUtils::FNameTypeName)
-				{
-					NewDefaultValue = TEXT("");
-				}
-			}			
-		}
-
-		if(!NewDefaultValue.IsEmpty())
-		{
-			if(DefaultValue.IsEmpty())
-			{
-				DefaultValue = NewDefaultValue;
+						ScriptStruct->ExportText(NewDefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
+						ScriptStruct->DestroyStruct(TempBuffer.GetData());				
+					}
+					else if (const UEnum* Enum = Cast<UEnum>(Type.CPPTypeObject))
+					{
+						NewDefaultValue = Enum->GetNameStringByValue(0);
+					}
+					else if(const UClass* Class = Cast<UClass>(Type.CPPTypeObject))
+					{
+						// not supporting objects yet
+						ensure(false);
+					}
+					else if (Type.CPPType == RigVMTypeUtils::FloatTypeName)
+					{
+						NewDefaultValue = TEXT("0.000000");				
+					}
+					else if (Type.CPPType == RigVMTypeUtils::DoubleTypeName)
+					{
+						NewDefaultValue = TEXT("0.000000");
+					}
+					else if (Type.CPPType == RigVMTypeUtils::Int32TypeName)
+					{
+						NewDefaultValue = TEXT("0");
+					}
+					else if (Type.CPPType == RigVMTypeUtils::BoolTypeName)
+					{
+						NewDefaultValue = TEXT("False");
+					}
+					else if (Type.CPPType == RigVMTypeUtils::FStringTypeName)
+					{
+						NewDefaultValue = TEXT("");
+					}
+					else if (Type.CPPType == RigVMTypeUtils::FNameTypeName)
+					{
+						NewDefaultValue = TEXT("");
+					}
+				}			
 			}
-			else if(!NewDefaultValue.Equals(DefaultValue))
+
+			if(!NewDefaultValue.IsEmpty())
 			{
-				return FString();
+				if(DefaultValue.IsEmpty())
+				{
+					DefaultValue = NewDefaultValue;
+				}
+				else if(!NewDefaultValue.Equals(DefaultValue))
+				{
+					return FString();
+				}
 			}
 		}
 	}
@@ -596,6 +732,11 @@ TArray<TRigVMTypeIndex> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* In
 		return FilteredTypes;	
 	}
 
+	if (InPin->IsStructMember())
+	{
+		return {InPin->GetTypeIndex()};
+	}
+
 	if (!PreferredPermutationPairs.IsEmpty())
 	{
 		for (const FRigVMTemplatePreferredType& PreferredType : PreferredPermutationPairs)
@@ -607,9 +748,16 @@ TArray<TRigVMTypeIndex> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* In
 				{
 					if (TypeIndex == PreferredType.GetTypeIndex())
 					{
-						return {TypeIndex};						
+						if (InPin->IsArrayElement())
+						{
+							return {FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(TypeIndex)};
+						}
+						else
+						{
+							return {TypeIndex};
+						}
 					}
-				}				
+				}	
 			}
 		}
 	}
@@ -633,6 +781,38 @@ TArray<TRigVMTypeIndex> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* In
 		}
 	}
 	return FilteredTypes;
+}
+
+bool URigVMTemplateNode::TryReduceTypesToSingle(TArray<TRigVMTypeIndex>& InOutTypes, const TRigVMTypeIndex PreferredType) const
+{
+	if (InOutTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	if (InOutTypes.Num() == 1)
+	{
+		return true;
+	}
+	
+	for (int32 i=1; i<InOutTypes.Num(); ++i)
+	{
+		if (!FRigVMRegistry::Get().CanMatchTypes(InOutTypes[0], InOutTypes[i], true))
+		{
+			return false;
+		}
+	}
+
+	if (InOutTypes.Contains(PreferredType))
+	{
+		InOutTypes = {PreferredType};
+	}
+	else
+	{
+		InOutTypes = {InOutTypes[0]};
+	}
+			
+	return true;	
 }
 
 TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin)
@@ -784,6 +964,7 @@ TArray<int32> URigVMTemplateNode::FindPermutationsForTypes(const TArray<FRigVMTe
 			for (int32 ArgIndex = 0; ArgIndex < Args.Num(); ++ArgIndex)
 			{
 				const FRigVMTemplateArgument* Argument = Args[ArgIndex];
+				if (Argument)
 				{
 					if ((bAllowCasting && !Registry.CanMatchTypes(Argument->GetTypeIndices()[i], TypeIndices[ArgIndex], true)) ||
 						(!bAllowCasting && Argument->GetTypeIndices()[i] != TypeIndices[ArgIndex]))
@@ -791,6 +972,10 @@ TArray<int32> URigVMTemplateNode::FindPermutationsForTypes(const TArray<FRigVMTe
 						bAllArgsMatched = false;
 						break;
 					}
+				}
+				else
+				{
+					// The preferred type doesn't own an argument yet. Supports all types.
 				}
 			}
 
@@ -817,8 +1002,7 @@ TArray<FRigVMTemplatePreferredType> URigVMTemplateNode::GetPreferredTypesForPerm
 			}
 			else
 			{
-				ArgTypes.Reset();
-				return ArgTypes;
+				return {};
 			}
 		}
 	}
@@ -919,7 +1103,7 @@ void URigVMTemplateNode::InitializeFilteredPermutations()
 	{
 		if (!PreferredPermutationPairs.IsEmpty())
 		{
-			FilteredPermutations = FindPermutationsForTypes(PreferredPermutationPairs);
+			FilteredPermutations = FindPermutationsForTypes(PreferredPermutationPairs, true);
 		}
 		else
 		{
@@ -932,37 +1116,53 @@ void URigVMTemplateNode::InitializeFilteredPermutations()
 	}	
 }
 
-void URigVMTemplateNode::InitializeFilteredPermutationsFromTypes()
+void URigVMTemplateNode::InitializeFilteredPermutationsFromTypes(bool bAllowCasting)
 {
 	if (IsSingleton())
 	{
 		return;
 	}
 
-	if (const FRigVMTemplate* Template = GetTemplate())
+	if (IsA<URigVMFunctionEntryNode>() || IsA<URigVMFunctionReturnNode>())
 	{
 		TArray<FRigVMTemplatePreferredType> ArgTypes;
-		for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ++ArgIndex)
+		for (URigVMPin* Pin : GetPins())
 		{
-			const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
-			if (URigVMPin* Pin = FindPin(Argument->GetName().ToString()))
+			if (!Pin->IsWildCard())
 			{
-				if (!Pin->IsWildCard())
-				{
-					ArgTypes.Emplace(Argument->GetName(), Pin->GetTypeIndex());
-				}
+				ArgTypes.Emplace(Pin->GetFName(), Pin->GetTypeIndex());
 			}
 		}
+		
+		PreferredPermutationPairs = ArgTypes;
+	}
+	else
+	{
+		if (const FRigVMTemplate* Template = GetTemplate())
+		{
+			TArray<FRigVMTemplatePreferredType> ArgTypes;
+			for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ++ArgIndex)
+			{
+				const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
+				if (URigVMPin* Pin = FindPin(Argument->GetName().ToString()))
+				{
+					if (!Pin->IsWildCard())
+					{
+						ArgTypes.Emplace(Argument->GetName(), Pin->GetTypeIndex());
+					}
+				}
+			}
 
-		const TArray<int32> Permutations = FindPermutationsForTypes(ArgTypes);
-		if (!Permutations.IsEmpty())
-		{
-			FilteredPermutations = Permutations;
-			PreferredPermutationPairs = ArgTypes;
-		}
-		else
-		{
-			InitializeFilteredPermutations();
+			const TArray<int32> Permutations = FindPermutationsForTypes(ArgTypes, bAllowCasting);
+			if (!Permutations.IsEmpty())
+			{
+				FilteredPermutations = Permutations;
+				PreferredPermutationPairs = ArgTypes;
+			}
+			else
+			{
+				InitializeFilteredPermutations();
+			}
 		}
 	}
 }

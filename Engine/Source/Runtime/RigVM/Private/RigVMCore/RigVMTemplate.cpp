@@ -89,6 +89,80 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 	UpdateTypeToPermutations();
 }
 
+void FRigVMTemplateArgument::Serialize(FArchive& Ar)
+{
+	Ar << Index;
+	Ar << Name;
+	Ar << Direction;
+
+#if UE_RIGVM_DEBUG_TYPEINDEX
+	if (Ar.IsSaving())
+	{
+		TArray<int32> TypeIndicesInt;
+		TypeIndicesInt.Reserve(TypeIndices.Num());
+		for (TRigVMTypeIndex& TypeIndex : TypeIndices)
+		{
+			TypeIndicesInt.Add(TypeIndex.GetIndex());
+		}
+		Ar << TypeIndicesInt;
+	}
+	else if (Ar.IsLoading())
+	{
+		TArray<int32> TypeIndicesInt;
+		Ar << TypeIndicesInt;
+		TypeIndices.Reset();
+		TypeIndices.SetNum(TypeIndicesInt.Num());
+		static FRigVMRegistry& Registry = FRigVMRegistry::Get();
+		for (int32 i=0; i<TypeIndicesInt.Num(); ++i)
+		{
+			TypeIndices[i].Index = TypeIndicesInt[i];
+			TypeIndices[i].Name = Registry.GetType(TypeIndices[i]).CPPType;
+		}
+	}
+#else
+	Ar << TypeIndices;
+#endif
+
+	if (Ar.IsLoading())
+	{
+		for (int32 i=0; i<TypeIndices.Num(); ++i)
+		{
+			if (TArray<int32>* Permutations = TypeToPermutations.Find(TypeIndices[i]))
+			{
+				Permutations->Add(i);
+			}
+			else
+			{
+				TypeToPermutations.Add(TypeIndices[i], {i});
+			}
+		}
+	}
+
+	if (Ar.IsSaving())
+	{
+		int32 CategoriesNum = TypeCategories.Num();
+		Ar << CategoriesNum;
+		for (int32 i=0; i<CategoriesNum; ++i)
+		{
+			uint8 CategoryIndex = (int8)TypeCategories[i]; 
+			Ar << CategoryIndex;
+		}
+	}
+	else if (Ar.IsLoading())
+	{
+		int32 CategoriesNum = 0;
+		Ar << CategoriesNum;
+		TypeCategories.SetNumUninitialized(CategoriesNum);
+		
+		for (int32 i=0; i<CategoriesNum; ++i)
+		{
+			uint8 CategoryIndex = INDEX_NONE;
+			Ar << CategoryIndex;
+			TypeCategories[i] = (FRigVMTemplateArgument::ETypeCategory) CategoryIndex;
+		}
+	}	
+}
+
 void FRigVMTemplateArgument::UpdateTypeToPermutations()
 {
 	for(int32 TypeIndex=0;TypeIndex<TypeIndices.Num();TypeIndex++)
@@ -255,6 +329,38 @@ FRigVMTemplate::FRigVMTemplate()
 
 }
 
+void FRigVMTemplate::Serialize(FArchive& Ar)
+{
+	Ar << Index;
+	Ar << Notation;
+	Ar << Permutations;
+
+	if (Ar.IsSaving())
+	{
+		int32 ArgumentsNum = Arguments.Num();
+		Ar << ArgumentsNum;
+
+		for (FRigVMTemplateArgument& Argument : Arguments)
+		{
+			Argument.Serialize(Ar);
+		}
+	}
+	else if(Ar.IsLoading())
+	{
+		int32 ArgumentsNum = 0;
+		Ar << ArgumentsNum;
+
+		Arguments.Reset();
+		Arguments.Reserve(ArgumentsNum);
+		for (int32 i=0; i<ArgumentsNum; ++i)
+		{
+			FRigVMTemplateArgument Argument;
+			Argument.Serialize(Ar);
+			Arguments.Add(Argument);
+		}
+	}	
+}
+
 FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplateName, int32 InFunctionIndex)
 	: Index(INDEX_NONE)
 	, Notation(NAME_None)
@@ -410,6 +516,21 @@ FString FRigVMTemplate::GetArgumentNotation(const FRigVMTemplateArgument& InArgu
 		*InArgument.GetName().ToString());
 }
 
+void FRigVMTemplate::ComputeNotationFromArguments(const FString& InTemplateName)
+{
+	TArray<FString> ArgumentNotations;			
+	for (FRigVMTemplateArgument& Argument : Arguments)
+	{
+		if(FRigVMTemplate::IsValidArgumentForTemplate(Argument))
+		{
+			ArgumentNotations.Add(FRigVMTemplate::GetArgumentNotation(Argument));
+		}
+	}
+
+	const FString NotationStr = FString::Printf(TEXT("%s(%s)"), *InTemplateName, *FString::Join(ArgumentNotations, TEXT(",")));
+	Notation = *NotationStr;
+}
+
 TArray<UStruct*> FRigVMTemplate::GetSuperStructs(UStruct* InStruct, bool bIncludeLeaf)
 {
 	// Create an array of structs, ordered super -> child struct
@@ -430,7 +551,6 @@ TArray<UStruct*> FRigVMTemplate::GetSuperStructs(UStruct* InStruct, bool bInclud
 	{
 		SuperStructs.Remove(SuperStructs.Last());
 	}
-
 	return SuperStructs;
 }
 
@@ -977,7 +1097,7 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 		}
 		else if (const TRigVMTypeIndex* InputType = InputTypes.Find(Argument.Name))
 		{
-			int32 MatchedType = *InputType;
+			TRigVMTypeIndex MatchedType = *InputType;
 			bool bFoundMatch = false;
 			bool bFoundPerfectMatch = false;
 			for (int32 PermutationIndex = 0; PermutationIndex < Argument.TypeIndices.Num(); PermutationIndex++)

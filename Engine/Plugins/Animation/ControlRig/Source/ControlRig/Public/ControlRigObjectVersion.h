@@ -72,6 +72,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added rig hierarchy element metadata
 		HierarchyElementMetadata,
 
+		// Converted library nodes to templates
+		LibraryNodeTemplates,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

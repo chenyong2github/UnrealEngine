@@ -77,7 +77,8 @@ protected:
 	FName Name;
 	int32 Index;
 
-	friend struct FRigVMRegistry; 
+	friend struct FRigVMRegistry;
+	friend struct FRigVMTemplateArgument;
 };
 #else
 typedef int32 TRigVMTypeIndex;

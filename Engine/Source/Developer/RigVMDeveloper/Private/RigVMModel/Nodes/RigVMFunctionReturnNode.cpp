@@ -3,6 +3,24 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/RigVMFunctionLibrary.h"
 
+const FRigVMTemplate* URigVMFunctionReturnNode::GetTemplate() const
+{
+	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
+	{
+		return LibraryNode->GetTemplate();
+	}
+	return nullptr;
+}
+
+FName URigVMFunctionReturnNode::GetNotation() const
+{
+	if (URigVMLibraryNode* LibraryNode = GetTypedOuter<URigVMLibraryNode>())
+	{
+		return LibraryNode->GetNotation();
+	}
+	return NAME_None;
+}
+
 FLinearColor URigVMFunctionReturnNode::GetNodeColor() const
 {
 	if(URigVMGraph* RootGraph = GetRootGraph())
@@ -19,4 +37,19 @@ bool URigVMFunctionReturnNode::IsDefinedAsVarying() const
 { 
 	// todo
 	return true; 
+}
+
+FString URigVMFunctionReturnNode::GetNodeTitle() const
+{
+	return TEXT("Return");
+}
+
+FText URigVMFunctionReturnNode::GetToolTipText() const
+{
+	return FText::FromName(GetTemplate()->GetNotation());
+}
+
+FText URigVMFunctionReturnNode::GetToolTipTextForPin(const URigVMPin* InPin) const
+{
+	return Super::GetToolTipTextForPin(InPin);
 }

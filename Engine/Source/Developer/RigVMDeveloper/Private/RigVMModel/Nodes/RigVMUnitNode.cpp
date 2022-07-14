@@ -185,6 +185,10 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateInputs() const
 			}
 		}
 	}
+	else
+	{
+		return Super::GetAggregateInputs();
+	}
 #endif
 	return AggregateInputs;
 }
@@ -209,6 +213,10 @@ TArray<URigVMPin*> URigVMUnitNode::GetAggregateOutputs() const
 			}
 		}
 	}
+	else
+	{
+		return Super::GetAggregateOutputs();
+	}
 #endif
 	return AggregateOutputs;
 }
@@ -223,6 +231,10 @@ FName URigVMUnitNode::GetNextAggregateName(const FName& InLastAggregatePinName) 
 		const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance();
 		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
 		return StructMemory->GetNextAggregateName(InLastAggregatePinName);
+	}
+	else
+	{
+		return Super::GetNextAggregateName(InLastAggregatePinName);
 	}
 #endif
 	return FName();

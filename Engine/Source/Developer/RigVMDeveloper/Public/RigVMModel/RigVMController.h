@@ -284,7 +284,7 @@ public:
 	// Turns a resolved templated node(s) back into its template.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool UnresolveTemplateNodes(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
-	bool UnresolveTemplateNodes(const TArray<URigVMTemplateNode*>& InNodes, bool bSetupUndoRedo);
+	bool UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes, bool bSetupUndoRedo);
 
 	// Upgrades a set of nodes with each corresponding next known version
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -859,7 +859,7 @@ public:
 	static URigVMBuildData* GetBuildData(bool bCreateIfNeeded = true);
 
 	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
-	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false, bool bSetupOrphanedPins = false);
+	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false, bool bSetupOrphanedPins = false, bool bAllowNonArgumentLinks = false);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
 
 	// Removes nodes which went stale.
@@ -876,8 +876,14 @@ public:
 	bool RemoveUnusedOrphanedPins(URigVMNode* InNode, bool bNotify);
 
 	// Initializes and recomputes the filtered permutations of all template nodes in the graph
-	// Returns true if any pin has change it's type
-	bool RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo);
+	// Returns true if any pin has change it's type or link was broken
+	bool RecomputeAllTemplateFilteredPermutations(bool bSetupUndoRedo);
+
+	// Update the template of a subgraph with the filtered permutations of the interface nodes
+	bool UpdateLibraryTemplate(URigVMLibraryNode* LibraryNode, bool bSetupUndoRedo);
+
+	// Update filtered permutations, and propagate both ways of the link before adding this link
+	bool PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* SecondToResolve, bool bSetupUndoRedo);
 
 	// Try to initialize the filterd permutations from the pin types
 	void InitializeFilteredPermutationsFromTemplateTypes();
@@ -896,6 +902,9 @@ public:
 
 	// A flag that can be used to turn off pin default value validation if necessary
 	bool bValidatePinDefaults;
+
+	// A flag to suspend the recomputation of filtered permutations of outer graphs
+	bool bSuspendRecomputingOuterTemplateFilters;
 
 	const FRigVMByteCode* GetCurrentByteCode() const;
 
@@ -1056,23 +1065,37 @@ private:
 
 	// Get filtered types for a wildcard node. If template node, that means just returning its filtered wildcard types, but if it's another type of node (select, if, rereoute), iterate
 	// its connections to figure out the filtered types
-	TArray<TRigVMTypeIndex> GetWildcardFilteredTypeIndices(URigVMPin* InPin);
+	TArray<TRigVMTypeIndex> GetFilteredTypes(URigVMPin* InPin);
 	
 	// Updates the permutations allowed without having to break any links
 	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* InLinkedPin, bool bSetupUndoRedo);
 	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices, bool bSetupUndoRedo);
 
 	// Changes Pin types if filtered types of a pin are unique
-	bool UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
+	bool UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo, bool bInitializeDefaultValue = true);
 
 	// Reduces the filtered permutations of all templates in the graph to comply with the types filtered by InNode
 	// Returns false if a link had to be broken
 	bool PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
 
-	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
-	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
-	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType,UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
-	bool ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
+	// Adds a preferred type for the pin
+	// Returns false if the pin already has a different type
+	bool AddPreferredType(URigVMTemplateNode* InNode, const FName& InPinName, const int32 InPreferredTypeIndex, bool bSetupUndoRedo);
+
+	// Removes preferred type
+	// Returns true if the preferred type was found and removed
+	bool RemovePreferredType(URigVMTemplateNode* InNode, const FName& InPinName, bool bSetupUndoRedo);
+
+	// Returns true if the pin is connected, and the filtered types is reduced (not infinite like reroute, if, select or array nodes)
+	bool ShouldPinOwnArgument(URigVMPin* InPin);
+
+	// Given a Entry or Return pin and a potential pin to link it to, try to add the first pin as an argument of the library's template
+	bool AddArgumentForPin(URigVMPin* InPin, URigVMPin* InToLinkPin, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
+	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
+	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType,UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
+	bool ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
 
 #if WITH_EDITOR
 	void RewireLinks(URigVMPin* OldPin, URigVMPin* NewPin, bool bAsInput, bool bSetupUndoRedo, TArray<URigVMLink*> InLinks = TArray<URigVMLink*>());
