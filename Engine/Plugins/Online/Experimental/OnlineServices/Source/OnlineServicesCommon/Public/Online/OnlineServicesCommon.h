@@ -41,6 +41,7 @@ public:
 	virtual IFriendsPtr GetFriendsInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;
 	virtual IExternalUIPtr GetExternalUIInterface() override;
+	virtual ILeaderboardsPtr GetLeaderboardsInterface() override;
 	virtual ILobbiesPtr GetLobbiesInterface() override;
 	virtual ISessionsPtr GetSessionsInterface() override;
 	virtual IStatsPtr GetStatsInterface() override;

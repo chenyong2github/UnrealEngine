@@ -22,26 +22,6 @@ enum class EStatModifyMethod : uint8
 const TCHAR* LexToString(EStatModifyMethod Value);
 void LexFromString(EStatModifyMethod& OutValue, const TCHAR* InStr);
 
-enum class EStatLeaderboardUpdateMethod : uint8
-{
-	/** If current leaderboard score is better than the uploaded one, keep the current one */
-	KeepBest,
-	/** Leaderboard score is always replaced with uploaded value */
-	Force
-};
-
-const TCHAR* LexToString(EStatLeaderboardUpdateMethod Value);
-void LexFromString(EStatLeaderboardUpdateMethod& OutValue, const TCHAR* InStr);
-
-enum EStatLeaderboardOrderMethod : uint8
-{
-	Ascending,
-	Descending
-};
-
-const TCHAR* LexToString(EStatLeaderboardOrderMethod Value);
-void LexFromString(EStatLeaderboardOrderMethod& OutValue, const TCHAR* InStr);
-
 enum class EStatUsageFlags : uint8
 {
 	None = 0,
@@ -66,11 +46,6 @@ struct FStatDefinition
 
 	/* How the stat will be modified, only useful when EStatUsageFlags::Achievement is set in UsageFlags */
 	EStatModifyMethod ModifyMethod = EStatModifyMethod::Set;
-
-	/* How the leaderboard score will be updated, only useful when EStatUsageFlags::Leaderboard is set in UsageFlags */
-	EStatLeaderboardUpdateMethod LeaderboardUpdateMethod = EStatLeaderboardUpdateMethod::Force;
-	/* How the leaderboard score will be ordered, only useful when EStatUsageFlags::Leaderboard is set in UsageFlags */
-	EStatLeaderboardOrderMethod LeaderboardOrderMethod = EStatLeaderboardOrderMethod::Descending;
 };
 
 
@@ -82,7 +57,7 @@ public:
 	FStatsCommon(FOnlineServicesCommon& InServices);
 
 	// TOnlineComponent
-	virtual void Initialize() override;
+	virtual void LoadConfig() override;
 	virtual void RegisterCommands() override;
 
 	// IStats
@@ -94,8 +69,6 @@ public:
 #endif // !UE_BUILD_SHIPPING
 
 protected:
-	void ReadStatDefinitionsFromConfig();
-
 	TMap<FString, FStatDefinition> StatDefinitions;
 };
 

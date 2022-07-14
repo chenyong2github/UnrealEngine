@@ -19,6 +19,7 @@ using IUserInfoPtr = TSharedPtr<class IUserInfo>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
+using ILeaderboardsPtr = TSharedPtr<class ILeaderboards>;
 using ILobbiesPtr = TSharedPtr<class ILobbies>;
 using ISessionsPtr = TSharedPtr<class ISessions>;
 using IStatsPtr = TSharedPtr<class IStats>;
@@ -87,6 +88,12 @@ public:
 	 *
 	 */
 	virtual IExternalUIPtr GetExternalUIInterface() = 0;
+
+	/**
+	 * Get the leaderboards implementation
+	 * @return leaderboards implementation, may be null if not implemented for this service
+	 */
+	virtual ILeaderboardsPtr GetLeaderboardsInterface() = 0;
 
 	/**
 	 * Get the lobbies implementation

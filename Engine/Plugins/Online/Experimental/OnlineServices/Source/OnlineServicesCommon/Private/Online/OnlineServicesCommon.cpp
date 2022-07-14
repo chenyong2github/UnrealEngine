@@ -70,6 +70,11 @@ IExternalUIPtr FOnlineServicesCommon::GetExternalUIInterface()
 	return IExternalUIPtr(AsShared(), Get<IExternalUI>());
 }
 
+ILeaderboardsPtr FOnlineServicesCommon::GetLeaderboardsInterface()
+{
+	return ILeaderboardsPtr(AsShared(), Get<ILeaderboards>());
+}
+
 ILobbiesPtr FOnlineServicesCommon::GetLobbiesInterface()
 {
 	return ILobbiesPtr(AsShared(), Get<ILobbies>());

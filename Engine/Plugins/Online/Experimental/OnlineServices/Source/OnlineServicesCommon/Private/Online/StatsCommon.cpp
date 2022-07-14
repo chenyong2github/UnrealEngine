@@ -48,64 +48,6 @@ void LexFromString(EStatModifyMethod& OutValue, const TCHAR* InStr)
 	}
 }
 
-const TCHAR* LexToString(EStatLeaderboardUpdateMethod Value)
-{
-	switch (Value)
-	{
-	case EStatLeaderboardUpdateMethod::Force:
-		return TEXT("Force");
-	default: checkNoEntry(); // Intentional fallthrough
-	case EStatLeaderboardUpdateMethod::KeepBest:
-		return TEXT("KeepBest");
-	}
-}
-
-void LexFromString(EStatLeaderboardUpdateMethod& OutValue, const TCHAR* InStr)
-{
-	if (FCString::Stricmp(InStr, TEXT("KeepBest")) == 0)
-	{
-		OutValue = EStatLeaderboardUpdateMethod::KeepBest;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Force")) == 0)
-	{
-		OutValue = EStatLeaderboardUpdateMethod::Force;
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Can't convert %s to EStatLeaderboardUpdateMethod"), InStr);
-		OutValue = EStatLeaderboardUpdateMethod::KeepBest;
-	}
-}
-
-const TCHAR* LexToString(EStatLeaderboardOrderMethod Value)
-{
-	switch (Value)
-	{
-	case EStatLeaderboardOrderMethod::Ascending:
-		return TEXT("Ascending");
-	default: checkNoEntry(); // Intentional fallthrough
-	case EStatLeaderboardOrderMethod::Descending:
-		return TEXT("Descending");
-	}
-}
-
-void LexFromString(EStatLeaderboardOrderMethod& OutValue, const TCHAR* InStr)
-{
-	if (FCString::Stricmp(InStr, TEXT("Ascending")) == 0)
-	{
-		OutValue = EStatLeaderboardOrderMethod::Ascending;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Descending")) == 0)
-	{
-		OutValue = EStatLeaderboardOrderMethod::Descending;
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Can't convert %s to EStatLeaderboardOrderMethod"), InStr);
-		OutValue = EStatLeaderboardOrderMethod::Descending;
-	}
-}
-
 const TCHAR* LexToString(EStatUsageFlags Value)
 {
 	switch (Value)
@@ -146,14 +88,7 @@ FStatsCommon::FStatsCommon(FOnlineServicesCommon& InServices)
 {
 }
 
-void FStatsCommon::Initialize()
-{
-	ReadStatDefinitionsFromConfig();
-
-	TOnlineComponent<IStats>::Initialize();
-}
-
-void FStatsCommon::ReadStatDefinitionsFromConfig()
+void FStatsCommon::LoadConfig()
 {
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Stats");
 
@@ -188,23 +123,6 @@ void FStatsCommon::ReadStatDefinitionsFromConfig()
 		if (!StatModifyMethod.IsEmpty())
 		{
 			LexFromString(StatDefinition.ModifyMethod, *StatModifyMethod.ToString());
-		}
-
-		if (StatDefinition.UsageFlags & (uint32)EStatUsageFlags::Leaderboard)
-		{
-			FText StatLeaderboardUpdateMethod;
-			GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_LeaderboardUpdateMethod"), StatIdx), StatLeaderboardUpdateMethod, GEngineIni);
-			if (!StatLeaderboardUpdateMethod.IsEmpty())
-			{
-				LexFromString(StatDefinition.LeaderboardUpdateMethod, *StatLeaderboardUpdateMethod.ToString());
-			}
-
-			FText StatLeaderboardOrderMethod;
-			GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_LeaderboardOrderMethod"), StatIdx), StatLeaderboardOrderMethod, GEngineIni);
-			if (!StatLeaderboardOrderMethod.IsEmpty())
-			{
-				LexFromString(StatDefinition.LeaderboardOrderMethod, *StatLeaderboardOrderMethod.ToString());
-			}
 		}
 	}
 }
