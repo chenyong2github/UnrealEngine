@@ -292,7 +292,7 @@ void UInterchangeGenericTexturePipeline::PostImportTextureAssetImport(UObject* C
 		// Verify if the texture is a normal map
 		if (UTexture* Texture = Cast<UTexture>(CreatedAsset))
 		{
-			if (!Texture->IsNormalMap())
+			if (Texture->IsNormalMap())
 			{
 				// This can create 2 build of the texture (we should revisit this at some point)
 				if (FTextureCompilingManager::Get().IsCompilingTexture(Texture))
