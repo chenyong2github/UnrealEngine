@@ -2541,6 +2541,10 @@ void FNiagaraSystemInstance::OnSimulationDestroyed()
 	ensureMsgf(!IsSolo(), TEXT("OnSimulationDestroyed should only happen for systems referencing a simulation from the world manager"));
 	if (SystemSimulation.IsValid())
 	{
+		if (SystemInstanceIndex != INDEX_NONE)
+		{
+			SystemSimulation->SetInstanceState(this, ENiagaraSystemInstanceState::None);
+		}
 		UnbindParameters();
 		SystemSimulation = nullptr;
 	}
