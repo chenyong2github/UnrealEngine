@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Online/OnlineAsyncOp.h"
 #include "Online/OnlineMeta.h"
 #include "Containers/UnrealString.h"
 
