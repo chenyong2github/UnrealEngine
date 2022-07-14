@@ -356,6 +356,9 @@ protected:
 	/** Setup materials */
 	virtual void SetupMaterials();
 
+	/** Setup on click functions */
+	virtual void SetupOnClickFunctions();
+
 	/** Update current gizmo mode based on transform source */
 	virtual void UpdateMode();
 
@@ -406,37 +409,103 @@ protected:
 	/** Get current interaction axis */
 	virtual FVector GetWorldAxis(const FVector& InAxis);
 
-	/** Handle click press for translate and scale axes */
-	virtual void OnClickPressAxis(const FInputDeviceRay& InPressPos);
+	/** Get nearest param along input ray to the current interaction axis */
+	virtual float GetNearestRayParamToInteractionAxis(const FInputDeviceRay& InRay);
 
-	/** Handle click drag for translate and scale axes */
-	virtual void OnClickDragAxis(const FInputDeviceRay& PressPos);
+	/** Return true if input ray intersects current interaction plane and return param along ray in OutHitParam */
+	virtual bool GetRayParamIntersectionWithInteractionPlane(const FInputDeviceRay& InRay, float& OutHitParam);
 
-	/** Handle click release for translate and scale axes */
-	virtual void OnClickReleaseAxis(const FInputDeviceRay& PressPos);
+	/**
+	 * Translate and scale axis click-drag handling methods 
+	 */ 
 
-	/** Handle click press for translate and scale planar */
-	virtual void OnClickPressPlanar(const FInputDeviceRay& InPressPos);
+	/** Handle click press for translate X axis */
+	virtual void OnClickPressTranslateXAxis(const FInputDeviceRay& PressPos);
 
-	/** Handle click drag for translate and scale planar */
-	virtual void OnClickDragPlanar(const FInputDeviceRay& PressPos);
+	/** Handle click press for translate Y axis */
+	virtual void OnClickPressTranslateYAxis(const FInputDeviceRay& PressPos);
 
-	/** Handle click release for translate and scale planar */
-	virtual void OnClickReleasePlanar(const FInputDeviceRay& PressPos);
+	/** Handle click press for translate Z axis */
+	virtual void OnClickPressTranslateZAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale X axis */
+	virtual void OnClickPressScaleXAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale Y axis */
+	virtual void OnClickPressScaleYAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale Z axis */
+	virtual void OnClickPressScaleZAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for translate and scale X axes */
+	virtual void OnClickPressAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for translate axes */
+	virtual void OnClickDragTranslateAxis(const FInputDeviceRay& DragPos);
+
+	/** Handle click drag for scale axes */
+	virtual void OnClickDragScaleAxis(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for translate axes */
+	virtual void OnClickReleaseTranslateAxis(const FInputDeviceRay& ReleasePos);
+
+	/** Handle click release for scale axes */
+	virtual void OnClickReleaseScaleAxis(const FInputDeviceRay& ReleasePos);
+
+	/**
+	 * Translate and scale planar click-drag handling methods
+	 */
+
+	 /** Handle click press for translate XY planar */
+	virtual void OnClickPressTranslateXYPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for translate YZ planar */
+	virtual void OnClickPressTranslateYZPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for translate XZ planar */
+	virtual void OnClickPressTranslateXZPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale XY planar */
+	virtual void OnClickPressScaleXYPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale YZ planar */
+	virtual void OnClickPressScaleYZPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale XZ planar */
+	virtual void OnClickPressScaleXZPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for generic planar */
+	virtual void OnClickPressPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for translate planar */
+	virtual void OnClickDragTranslatePlanar(const FInputDeviceRay& DragPos);
+
+	/** Handle click drag for scale planar */
+	virtual void OnClickDragScalePlanar(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for translate planar */
+	virtual void OnClickReleaseTranslatePlanar(const FInputDeviceRay& ReleasePos);
+
+	/** Handle click release for scale planar */
+	virtual void OnClickReleaseScalePlanar(const FInputDeviceRay& ReleasePos);
 
 	/** Compute translate axis delta based on start/end params */
-	virtual void ComputeAxisTranslateDelta(double InStartParam, double InEndParam, FVector& OutDelta);
+	virtual FVector ComputeAxisTranslateDelta(double InStartParam, double InEndParam);
 
 	/** Compute scale axis delta based on start/end params */
-	virtual void ComputeAxisScaleDelta(double InStartParam, double InEndParam, FVector& OutDelta);
+	virtual FVector ComputeAxisScaleDelta(double InStartParam, double InEndParam);
 
 	/** Compute translate planar delta based on world space start/end points */
-	virtual void ComputePlanarTranslateDelta(const FVector& InStartPoint, const FVector& InEndPoint, FVector& OutDelta);
+	virtual FVector ComputePlanarTranslateDelta(const FVector& InStartPoint, const FVector& InEndPoint);
 
 	/** Compute scale planar delta based on world space start/end points */
-	virtual void ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint, FVector& OutDelta);
+	virtual FVector ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint);
 
-	/** Apply translate delta to transform proxy */
+	/**
+	 * Apply transform delta methods
+	 */
+	 
+	 /** Apply translate delta to transform proxy */
 	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
 
 	/** Apply scale delta to transform proxy */
@@ -473,6 +542,15 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> WhiteMaterial;
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> OpaquePlaneMaterialXY;
+
+	/** Array of function pointers, indexed by gizmo part id, to handle click press behavior */
+	TArray<TFunction<void(UTransformGizmo* TransformGizmo, const FInputDeviceRay& PressPos)> > OnClickPressFunctions;
+
+	/** Array of function pointers, indexed by gizmo part id, to handle click drag behavior */
+	TArray<TFunction<void(UTransformGizmo* TransformGizmo, const FInputDeviceRay& DragPos)> > OnClickDragFunctions;
+
+	/** Array of function pointers, indexed by gizmo part id, to handle click release behavior */
+	TArray<TFunction<void(UTransformGizmo* TransformGizmo, const FInputDeviceRay& ReleasePos)> > OnClickReleaseFunctions;
 
 	/** Scale delta is multiplied by this amount */
 	UPROPERTY()
