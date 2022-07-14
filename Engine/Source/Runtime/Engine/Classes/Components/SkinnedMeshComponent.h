@@ -252,9 +252,17 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 	friend class FSkinnedMeshComponentRecreateRenderStateContext;
 
 	/** The skeletal mesh used by this component. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mesh", meta = (DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh"))
+	UE_DEPRECATED(5.1, "Replaced by SkinnedAsset. Use GetSkinnedAsset()/SetSkinnedAsset() instead.")
+	UPROPERTY(EditAnywhere, BlueprintGetter = GetSkeletalMesh_DEPRECATED, Category = "Mesh|SkeletalAsset", meta = (DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh", DeprecatedProperty, DeprecationMessage = "Use USkeletalMeshComponent::GetSkeletalMesh() or GetSkinnedAsset() instead."))
 	TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
+private:
+	/** The skinned asset used by this component. */
+	UE_DEPRECATED(5.1, "This property isn't deprecated, but getter and setter must be used instead in order to preserve backward compatibility with the SkeletalMesh pointer.")
+	UPROPERTY(BlueprintGetter = GetSkinnedAsset, Category = "Mesh")
+	TObjectPtr<class USkinnedAsset> SkinnedAsset;
+
+public:
 	//
 	// LeaderPoseComponent.
 	//
@@ -404,17 +412,6 @@ protected:
 	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 
 public:
-	TObjectPtr<class USkeletalMesh>& GetSkeletalMesh()
-	{
-		return SkeletalMesh;
-	}
-	const TObjectPtr<class USkeletalMesh>& GetSkeletalMesh() const
-	{
-		return SkeletalMesh;
-	}
-
-	USkinnedAsset* GetSkinnedAsset() const;
-
 	const TArray<int32>& GetLeaderBoneMap() const { return LeaderBoneMap; }
 
 	UE_DEPRECATED(5.1, "GetMasterBoneMap has been deprecated. Please use the GetLeaderBoneMap.")
@@ -868,8 +865,44 @@ public:
 	 * @param NewMesh New mesh to set for this component
 	 * @param bReinitPose Whether we should keep current pose or reinitialize.
 	 */
+	UE_DEPRECATED(5.1, "Use USkeletalMeshComponent::SetSkeletalMesh() or SetSkinnedAsset() instead.")
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
 	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true);
+
+	/**
+	 * Get the SkeletalMesh rendered for this mesh.
+	 * This function is not technically deprecated but shouldn't be used other than for Blueprint backward compatibility purposes.
+	 * It is used to access the correct SkinnedAsset pointer value through the deprecated SkeletalMesh property in blueprints.
+	 * 
+	 * @return the SkeletalMesh set to this mesh.
+	 */
+	UE_DEPRECATED(5.1, "Use USkeletalMeshComponent::GetSkeletalMeshAsset() or GetSkinnedAsset() instead.")
+	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh", DisplayName = "Get Skeletal Mesh", meta = (DeprecatedFunction, DeprecationMessage = "Use USkeletalMeshComponent::GetSkeletalMesh() or GetSkinnedAsset() instead."))
+	class USkeletalMesh* GetSkeletalMesh_DEPRECATED() const;
+
+	/**
+	 * Change the SkinnedAsset that is rendered for this Component. Will re-initialize the animation tree etc.
+	 *
+	 * @param NewSkinnedAsset New mesh to set for this component
+	 * @param bReinitPose Whether we should keep current pose or reinitialize.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetSkinnedAsset(class USkinnedAsset* InSkinnedAsset, bool bReinitPose);
+
+	/**
+	 * Change the SkinnedAsset that is rendered without reinitializing this Component.
+	 *
+	 * @param InSkinnedAsset New mesh to set for this component
+	 */
+	void SetSkinnedAsset(class USkinnedAsset* InSkinnedAsset);
+
+	/**
+	 * Get the SkinnedAsset rendered for this mesh.
+	 *
+	 * @return the SkinnedAsset set to this mesh.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
+	USkinnedAsset* GetSkinnedAsset() const;
 
 	/**
 	 * Change the MeshDeformer that is used for this Component.
@@ -929,6 +962,7 @@ public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual FString GetDetailedInfoInternal() const override;
 #if WITH_EDITOR

@@ -145,6 +145,24 @@ public:
 	virtual TArray<class USkeletalMeshSocket*> GetActiveSocketList() const
 	PURE_VIRTUAL(USkinnedAsset::GetActiveSocketList, static TArray<class USkeletalMeshSocket*> Dummy; return Dummy;);
 
+	/**
+	 * Find a socket object in this SkeletalMesh by name.
+	 * Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const
+	PURE_VIRTUAL(USkinnedAsset::FindSocket, return nullptr;);
+
+	/**
+	 * Find a socket object and associated info in this SkeletalMesh by name.
+	 * Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
+	 * Also returns the index for the socket allowing for future fast access via GetSocketByIndex()
+	 * Also returns the socket transform and the bone index (if any)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const
+	PURE_VIRTUAL(USkinnedAsset::FindSocketInfo, return nullptr;);
+
 	virtual USkeleton* GetSkeleton()
 	PURE_VIRTUAL(USkinnedAsset::GetSkeleton, return nullptr;);
 	virtual const USkeleton* GetSkeleton() const

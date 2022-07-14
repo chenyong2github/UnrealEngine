@@ -489,7 +489,9 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 
 			}
 			// Search for the Root Bone in the Skeleton
-			const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->LeaderPoseComponent != nullptr ? ToRawPtr(SkeletalMeshComponent->LeaderPoseComponent->GetSkeletalMesh()) : ToRawPtr(SkeletalMeshComponent->GetSkeletalMesh());
+			const USkeletalMesh* SkeletalMesh = Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
+				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMesh() : 
+				SkeletalMeshComponent->GetSkeletalMesh();
 			const UAnimSequence* AnimSequence = AnimTrackRecorder->GetAnimSequence();
 			if (AnimSequence && SkeletalMesh && AnimSequence->GetSkeleton())
 			{

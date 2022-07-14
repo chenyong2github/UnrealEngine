@@ -132,7 +132,10 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 		USkeletalMeshComponent* SkeletalMeshComponent = AnimRecorder->GetSkeletalMeshComponent();
 		if (SkeletalMeshComponent)
 		{
-			USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->LeaderPoseComponent != nullptr ? ToRawPtr(SkeletalMeshComponent->LeaderPoseComponent->GetSkeletalMesh()) : ToRawPtr(SkeletalMeshComponent->GetSkeletalMesh());
+			USkeletalMesh* SkeletalMesh =
+				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
+				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMesh() :
+				SkeletalMeshComponent->GetSkeletalMesh();
 			if (AnimSequence && SkeletalMesh)
 			{
 				// find the root bone

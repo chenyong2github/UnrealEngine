@@ -958,7 +958,7 @@ void UActorFactoryPhysicsAsset::PostSpawnActor(UObject* Asset, AActor* NewActor)
 	NewSkelActor->GetSkeletalMeshComponent()->UnregisterComponent();
 
 	// Change properties
-	NewSkelActor->GetSkeletalMeshComponent()->GetSkeletalMesh() = UseSkelMesh;
+	NewSkelActor->GetSkeletalMeshComponent()->SetSkeletalMeshAsset(UseSkelMesh);
 	if (NewSkelActor->GetWorld()->IsPlayInEditor())
 	{
 		NewSkelActor->ReplicatedMesh = UseSkelMesh;
@@ -991,7 +991,7 @@ void UActorFactoryPhysicsAsset::PostCreateBlueprint( UObject* Asset, AActor* CDO
 
 			USkeletalMesh* UseSkelMesh = PhysicsAsset->PreviewSkeletalMesh.Get();
 
-			SkeletalPhysicsActor->GetSkeletalMeshComponent()->GetSkeletalMesh() = UseSkelMesh;
+			SkeletalPhysicsActor->GetSkeletalMeshComponent()->SetSkeletalMeshAsset(UseSkelMesh);
 			SkeletalPhysicsActor->GetSkeletalMeshComponent()->PhysicsAssetOverride = PhysicsAsset;
 		}
 
@@ -1334,7 +1334,7 @@ void UActorFactorySkeletalMesh::PostSpawnActor( UObject* Asset, AActor* NewActor
 	NewSMActor->GetSkeletalMeshComponent()->UnregisterComponent();
 
 	// Change properties
-	NewSMActor->GetSkeletalMeshComponent()->GetSkeletalMesh() = SkeletalMesh;
+	NewSMActor->GetSkeletalMeshComponent()->SetSkeletalMeshAsset(SkeletalMesh);
 	if (NewSMActor->GetWorld()->IsGameWorld())
 	{
 		NewSMActor->ReplicatedMesh = SkeletalMesh;
@@ -1366,7 +1366,7 @@ void UActorFactorySkeletalMesh::PostCreateBlueprint( UObject* Asset, AActor* CDO
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset);
 
 		ASkeletalMeshActor* SkeletalMeshActor = CastChecked<ASkeletalMeshActor>(CDO);
-		SkeletalMeshActor->GetSkeletalMeshComponent()->GetSkeletalMesh() = SkeletalMesh;
+		SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMeshAsset(SkeletalMesh);
 		SkeletalMeshActor->GetSkeletalMeshComponent()->AnimClass = AnimBlueprint ? Cast<UAnimBlueprintGeneratedClass>(AnimBlueprint->GeneratedClass) : nullptr;
 	}
 }

@@ -342,12 +342,12 @@ void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeleta
 			RecreateExistingRenderStateContext = new FSkinnedMeshComponentRecreateRenderStateContext(InSkeletalMesh, false);
 
 			// Now iterate over all skeletal mesh components and unregister them from the world, we will reregister them in the destructor
-			for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
+			for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 			{
-				USkinnedMeshComponent* SkinComp = *It;
-				if (SkinComp->SkeletalMesh == SkeletalMesh)
+				USkeletalMeshComponent* SkelComp = *It;
+				if (SkelComp->GetSkeletalMesh() == SkeletalMesh)
 				{
-					ComponentReregisterContexts.Add(new FComponentReregisterContext(SkinComp));
+					ComponentReregisterContexts.Add(new FComponentReregisterContext(SkelComp));
 				}
 			}
 		}
@@ -1205,7 +1205,7 @@ void RefreshSkelMeshOnPhysicsAssetChange(const USkeletalMesh* InSkeletalMesh)
 		{
 			USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 			// if PhysicsAssetOverride is NULL, it uses SkeletalMesh Physics Asset, so I'll need to update here
-			if  (SkeletalMeshComponent->SkeletalMesh == InSkeletalMesh &&
+			if  (SkeletalMeshComponent->GetSkeletalMesh() == InSkeletalMesh &&
 				 SkeletalMeshComponent->PhysicsAssetOverride == NULL)
 			{
 				// it needs to recreate IF it already has been created
@@ -1333,7 +1333,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
 			USkeletalMeshComponent* MeshComponent = *It;
-			if(MeshComponent && !MeshComponent->IsTemplate() && MeshComponent->SkeletalMesh == this)
+			if(MeshComponent && !MeshComponent->IsTemplate() && MeshComponent->GetSkeletalMesh() == this)
 			{
 				ComponentsToReregister.Add(*It);
 			}
@@ -1391,12 +1391,12 @@ void USkeletalMesh::PostEditUndo()
 	check(IsInGameThread());
 
 	Super::PostEditUndo();
-	for( TObjectIterator<USkinnedMeshComponent> It; It; ++It )
+	for( TObjectIterator<USkeletalMeshComponent> It; It; ++It )
 	{
-		USkinnedMeshComponent* MeshComponent = *It;
+		USkeletalMeshComponent* MeshComponent = *It;
 		if( MeshComponent && 
 			!MeshComponent->IsTemplate() &&
-			MeshComponent->SkeletalMesh == this )
+			MeshComponent->GetSkeletalMesh() == this )
 		{
 			FComponentReregisterContext Context(MeshComponent);
 		}
@@ -3457,7 +3457,7 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 		// reset all morphtarget for all components
 		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
-			if (It->SkeletalMesh == this)
+			if (It->GetSkeletalMesh() == this)
 			{
 				It->RefreshMorphTargets();
 			}
@@ -6816,9 +6816,9 @@ FSkinnedMeshComponentRecreateRenderStateContext::FSkinnedMeshComponentRecreateRe
 	: bRefreshBounds(InRefreshBounds)
 {
 	bool bRequireFlushRenderingCommands = false;
-	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 	{
-		if (It->SkeletalMesh == InSkeletalMesh)
+		if (It->GetSkeletalMesh() == InSkeletalMesh)
 		{
 			checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
 

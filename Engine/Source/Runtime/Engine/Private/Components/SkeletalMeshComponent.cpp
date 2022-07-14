@@ -281,6 +281,11 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	DeferredKinematicUpdateIndex = INDEX_NONE;
 }
 
+USkeletalMesh* USkeletalMeshComponent::GetSkeletalMeshAsset() const
+{
+	return Cast<USkeletalMesh>(GetSkinnedAsset());
+}
+
 void USkeletalMeshComponent::Serialize(FArchive& Ar)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -367,6 +372,13 @@ void USkeletalMeshComponent::PostLoad()
 	{
 		bOverrideMinLod = true;
 	}
+
+#if WITH_EDITORONLY_DATA
+	// Update property alias
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SkeletalMeshAsset = GetSkeletalMeshAsset();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void USkeletalMeshComponent::RegisterComponentTickFunctions(bool bRegister)
@@ -1006,9 +1018,18 @@ void USkeletalMeshComponent::BeginPlay()
 #if WITH_EDITOR
 void USkeletalMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+
+	// Set the skinned asset pointer with the alias pointer (must happen before the call to Super::PostEditChangeProperty)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, SkeletalMeshAsset))
+	{
+		SetSkinnedAsset(SkeletalMeshAsset);
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if ( PropertyThatChanged != nullptr )
 	{
@@ -1039,7 +1060,9 @@ void USkeletalMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 		}
 
 		USkeletalMesh* SkelMesh = GetSkeletalMesh();
-		if(PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED( USkeletalMeshComponent, GetSkeletalMesh()))
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if(PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED( USkeletalMeshComponent, SkeletalMeshAsset))
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			ValidateAnimation();
 
@@ -2875,7 +2898,7 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 		{
 			const USkinnedMeshComponent* const LeaderPoseComponentInst = LeaderPoseComponent.Get();
 			check(LeaderPoseComponentInst);
-			if (LeaderPoseComponentInst->GetSkeletalMesh() &&
+			if (LeaderPoseComponentInst->GetSkinnedAsset() &&
 				LeaderPoseComponentInst->bComponentUseFixedSkelBounds &&
 				LeaderPoseComponentInst->IsA((USkeletalMeshComponent::StaticClass())))
 			{
@@ -2927,6 +2950,13 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 		return;
 	}
 
+	// Update property alias
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SkeletalMeshAsset = InSkelMesh;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+
 	// We may be doing parallel evaluation on the current anim instance
 	// Calling this here with true will block this init till that thread completes
 	// and it is safe to continue
@@ -2938,7 +2968,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 
 	{
 		FRenderStateRecreator RenderStateRecreator(this);
-		Super::SetSkeletalMesh(InSkelMesh, bReinitPose);
+		SetSkinnedAsset(InSkelMesh, bReinitPose);
 		
 #if WITH_EDITOR
 		ValidateAnimation();

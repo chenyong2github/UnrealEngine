@@ -38,7 +38,7 @@ static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearColor Lin
 void UPoseSearchMeshComponent::Initialize(const FTransform& InComponentToWorld)
 {
 	SetComponentToWorld(InComponentToWorld);
-	const FReferenceSkeleton& SkeletalMeshRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& SkeletalMeshRefSkeleton = GetSkinnedAsset()->GetRefSkeleton();
 
 	// set up bone visibility states as this gets skipped since we allocate the component array before registration
 	for (int32 BaseIndex = 0; BaseIndex < 2; ++BaseIndex)
@@ -2495,9 +2495,9 @@ void FDebuggerViewModel::UpdateFromTimeline()
 			USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
 			if (SkeletalMesh)
 			{
-				ActiveComponent->SetSkeletalMesh(SkeletalMesh);
-				SelectedComponent->SetSkeletalMesh(SkeletalMesh);
-				AssetComponent->SetSkeletalMesh(SkeletalMesh);
+				ActiveComponent->SetSkinnedAsset(SkeletalMesh, true);
+				SelectedComponent->SetSkinnedAsset(SkeletalMesh, true);
+				AssetComponent->SetSkinnedAsset(SkeletalMesh, true);
 			}
 			FTransform ComponentWorldTransform;
 			// Active skeleton is simply the traced bone transforms

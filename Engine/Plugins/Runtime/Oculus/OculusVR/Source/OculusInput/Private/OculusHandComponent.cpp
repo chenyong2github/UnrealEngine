@@ -33,7 +33,7 @@ void UOculusHandComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// Use custom mesh if a skeletal mesh is already set, else try to load the runtime mesh
-	if (GetSkeletalMesh())
+	if (GetSkinnedAsset())
 	{
 		bCustomHandMesh = true;
 		bSkeletalMeshInitialized = true;
@@ -51,7 +51,7 @@ void UOculusHandComponent::InitializeSkeletalMesh()
 	{
 		if (UOculusInputFunctionLibrary::GetHandSkeletalMesh(RuntimeSkeletalMesh, SkeletonType, MeshType))
 		{
-			SetSkeletalMesh(RuntimeSkeletalMesh);
+			SetSkinnedAsset(RuntimeSkeletalMesh, true);
 			if (MaterialOverride)
 			{
 				SetMaterial(0, MaterialOverride);
@@ -106,7 +106,7 @@ void UOculusHandComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 			}
 
 			// Update Bone Pose Rotations
-			if (GetSkeletalMesh())
+			if (GetSkinnedAsset())
 			{
 				UpdateBonePose();
 			}
@@ -163,7 +163,7 @@ void UOculusHandComponent::UpdateBonePose()
 			else
 			{
 				// Set Remaing Bone Rotations
-				int32 BoneIndex = GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(BoneElem.Value);
+				int32 BoneIndex = GetSkinnedAsset()->GetRefSkeleton().FindBoneIndex(BoneElem.Value);
 				if (BoneIndex >= 0)
 				{
 					FQuat BoneRotation = UOculusInputFunctionLibrary::GetBoneRotation(SkeletonType, (EBone)BoneElem.Key);
@@ -181,7 +181,7 @@ void UOculusHandComponent::UpdateBonePose()
 		BoneSpaceTransforms[0].SetRotation(RootBoneRotation);
 
 		// Set Remaining Bone Rotations
-		for (uint32 BoneIndex = 1; BoneIndex < (uint32)GetSkeletalMesh()->GetRefSkeleton().GetNum(); BoneIndex++)
+		for (uint32 BoneIndex = 1; BoneIndex < (uint32)GetSkinnedAsset()->GetRefSkeleton().GetNum(); BoneIndex++)
 		{
 			FQuat BoneRotation = UOculusInputFunctionLibrary::GetBoneRotation(SkeletonType, (EBone)BoneIndex);
 			BoneSpaceTransforms[BoneIndex].SetRotation(BoneRotation);

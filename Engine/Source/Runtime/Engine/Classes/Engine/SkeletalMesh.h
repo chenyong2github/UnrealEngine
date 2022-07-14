@@ -2433,8 +2433,7 @@ public:
 	 *	Find a socket object in this SkeletalMesh by name. 
 	 *	Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Animation")
-	USkeletalMeshSocket* FindSocket(FName InSocketName) const;
+	virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const override;
 
 	/**
 	*	Find a socket object in this SkeletalMesh by name.
@@ -2450,8 +2449,7 @@ public:
 	*	Also returns the index for the socket allowing for future fast access via GetSocketByIndex()
 	*	Also rteturns the socket loca transform and the bone index (if any)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const;
+	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override;
 
 	/** Returns the number of sockets available. Both on this mesh and it's skeleton. */
 	UFUNCTION(BlueprintCallable, Category = "Animation")

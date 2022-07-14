@@ -200,7 +200,7 @@ void CollectComponents(TConstArrayView<AActor*> Actors, TConstArrayView<FName> C
 	{
 		if (UPhysicsAsset* PhysicsAsset = Component->GetPhysicsAsset())
 		{
-			USkeletalMesh* MeshAsset = Component->GetSkeletalMesh() ? Component->GetSkeletalMesh().Get() : PhysicsAsset->GetPreviewMesh();
+			USkeletalMesh* MeshAsset = Component->GetSkeletalMesh() ? Component->GetSkeletalMesh() : PhysicsAsset->GetPreviewMesh();
 			if (!MeshAsset || !MeshAsset->GetRefSkeleton().GetNum())
 			{
 				return false;
@@ -220,7 +220,7 @@ void ForEachBodySetup(USkeletalMeshComponent* Component, TBodySetupPredicate Pre
 {
 	if (UPhysicsAsset* PhysicsAsset = Component->GetPhysicsAsset())
 	{
-		USkeletalMesh* SkeletalMesh = Component->GetSkeletalMesh() ? Component->GetSkeletalMesh().Get() : PhysicsAsset->GetPreviewMesh();
+		USkeletalMesh* SkeletalMesh = Component->GetSkeletalMesh() ? Component->GetSkeletalMesh() : PhysicsAsset->GetPreviewMesh();
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 
 		for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
@@ -314,7 +314,7 @@ FTransform CreateElementTransform(const TComponentType* Component, const UBodySe
 template<>
 FTransform CreateElementTransform<USkeletalMeshComponent>(const USkeletalMeshComponent* Component, const UBodySetup* BodySetup)
 {
-	if (USkeletalMesh* SkeletalMesh = Component->GetSkeletalMesh().Get())
+	if (USkeletalMesh* SkeletalMesh = Component->GetSkeletalMesh())
 	{
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 		const int32 BoneCount = RefSkeleton.GetNum();

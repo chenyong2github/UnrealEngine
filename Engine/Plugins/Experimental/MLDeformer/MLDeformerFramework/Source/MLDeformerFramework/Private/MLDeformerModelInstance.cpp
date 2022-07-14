@@ -135,13 +135,13 @@ void UMLDeformerModelInstance::UpdateBoneTransforms()
 	if (LeaderPoseComponent)
 	{
 		const TArray<FTransform>& LeaderTransforms = LeaderPoseComponent->GetComponentSpaceTransforms();
-		USkeletalMesh* Mesh = LeaderPoseComponent->GetSkeletalMesh();
+		USkinnedAsset* SkinnedAsset = LeaderPoseComponent->GetSkinnedAsset();
 		const int32 NumTrainingBones = AssetBonesToSkelMeshMappings.Num();
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
 		{
 			const int32 ComponentBoneIndex = AssetBonesToSkelMeshMappings[Index];
 			const FTransform& ComponentSpaceTransform = LeaderTransforms[ComponentBoneIndex];
-			const int32 ParentIndex = Mesh->GetRefSkeleton().GetParentIndex(ComponentBoneIndex);
+			const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(ComponentBoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
 				TrainingBoneTransforms[Index] = ComponentSpaceTransform.GetRelativeTransform(LeaderTransforms[ParentIndex]);
@@ -298,7 +298,7 @@ bool UMLDeformerModelInstance::SetupNeuralNetworkForFrame()
 	// Some safety checks.
 	if (Model == nullptr ||
 		SkeletalMeshComponent == nullptr ||
-		SkeletalMeshComponent->SkeletalMesh == nullptr ||
+		SkeletalMeshComponent->GetSkeletalMesh() == nullptr ||
 		!bIsCompatible)
 	{
 		return false;
