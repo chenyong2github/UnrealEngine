@@ -26,6 +26,8 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+#pragma optimize("",off)
+
 int32 GLumenSupported = 1;
 FAutoConsoleVariableRef CVarLumenSupported(
 	TEXT("r.Lumen.Supported"),
@@ -390,7 +392,7 @@ bool DoesRuntimePlatformSupportLumen()
 bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily, bool bSkipProjectCheck)
 {
 	return Scene
-		&& Scene->LumenSceneData
+		&& Scene->GetLumenSceneData(*ViewFamily.Views[0])
 		&& ViewFamily.Views.Num() <= MaxLumenViews
 		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform(), bSkipProjectCheck);
 }
@@ -2010,7 +2012,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_BeginUpdateLumenSceneTasks, FColor::Emerald);
 		QUICK_SCOPE_CYCLE_COUNTER(BeginUpdateLumenSceneTasks);
 
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
 		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
@@ -2101,7 +2103,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		if (CardPagesToRender.Num())
 		{
-			UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, FrameTemporaries);
+			UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, *Scene->GetLumenSceneData(Views[0]), FrameTemporaries);
 
 			// Before we update the GPU page table, read from the persistent atlases for the card pages we are reallocating, and write it to the card capture atlas
 			// This is a resample operation, as the original data may have been at a different mip level, or didn't exist at all
@@ -2182,11 +2184,10 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, "LumenCardScene");
 
 void UpdateLumenCardSceneUniformBuffer(
 	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
+	FScene* Scene,
+	const FLumenSceneData& LumenSceneData,
 	FLumenSceneFrameTemporaries& FrameTemporaries)
 {
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
 	FLumenCardScene* UniformParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
 	UniformParameters->NumCards = LumenSceneData.Cards.Num();
 	UniformParameters->NumMeshCards = LumenSceneData.MeshCards.Num();
@@ -2446,21 +2447,53 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 
 	bool bAnyLumenActive = false;
 
-	for (const FViewInfo& View : Views)
+	for (FViewInfo& View : Views)
 	{
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-		bAnyLumenActive = bAnyLumenActive || 
+		bool bLumenActive =
 			((ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 				// Don't update scene lighting for secondary views
 				&& !View.bIsPlanarReflection 
 				&& !View.bIsSceneCapture
 				&& !View.bIsReflectionCapture
 				&& View.ViewState);
+
+		bAnyLumenActive = bAnyLumenActive || bLumenActive;
+
+		// Cache LumenSceneData pointer per view for efficient lookup of the view specific Lumen scene (also nice for debugging)
+		View.ViewLumenSceneData = Scene->FindLumenSceneData(View.ViewState ? View.ViewState->GetViewKey() : 0, View.GPUMask.GetFirstIndex());
+
+#if WITH_MGPU
+		if (bLumenActive)
+		{
+			if (View.ViewLumenSceneData->bViewSpecific)
+			{
+				// Update view specific scene data if the GPU mask changed (copies resources cross GPU so CPU and GPU data are coherent)
+				View.ViewLumenSceneData->UpdateGPUMask(GraphBuilder, FrameTemporaries, View.GPUMask);
+			}
+			else if (View.GPUMask.GetFirstIndex() != 0)
+			{
+				// Otherwise, if this view is on a different GPU, we need to allocate GPU specific scene data (if not already allocated)
+				if (View.ViewLumenSceneData == Scene->DefaultLumenSceneData)
+				{
+					View.ViewLumenSceneData = new FLumenSceneData(Scene->DefaultLumenSceneData->bTrackAllPrimitives);
+
+					View.ViewLumenSceneData->CopyInitialData(*Scene->DefaultLumenSceneData);
+
+					// Key shouldn't already exist in Scene, because "FindLumenSceneData" above should have found it
+					FLumenSceneDataKey ByGPUIndex = { 0, View.GPUMask.GetFirstIndex() };
+					check(Scene->PerViewOrGPULumenSceneData.Find(ByGPUIndex) == nullptr);
+
+					Scene->PerViewOrGPULumenSceneData.Emplace(ByGPUIndex, View.ViewLumenSceneData);
+				}
+			}
+		}
+#endif  // WITH_MGPU
 	}
 
 	if (bAnyLumenActive)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 		TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
 
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScene);
@@ -2867,10 +2900,12 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 		}
 	}
 
-	UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, FrameTemporaries);
+	UpdateLumenCardSceneUniformBuffer(GraphBuilder, Scene, *Scene->GetLumenSceneData(Views[0]), FrameTemporaries);
 
 	// Reset arrays, but keep allocated memory for 1024 elements
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 	LumenSceneData.CardIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
 }
+
+#pragma optimize("",on)

@@ -83,6 +83,14 @@ static FAutoConsoleVariableRef CVarDisplayClusterSortViews(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterLumenPerView = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterLumenPerView(
+	TEXT("DC.LumenPerView"),
+	GDisplayClusterLumenPerView,
+	TEXT("Separate Lumen scene cache allocated for each View.  Setting is permanent for a given view once enabled (disable before startup to avoid this)."),
+	ECVF_RenderThreadSafe
+);
+
 struct FCompareViewFamilyBySizeAndGPU
 {
 	FORCEINLINE bool operator()(const FSceneViewFamilyContext& A, const FSceneViewFamilyContext& B) const
@@ -589,6 +597,12 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 					// Enable per-view virtual shadow map caching
 					View->State->AddVirtualShadowMapCache(MyWorld->Scene);
+
+					// Enable per-view Lumen scene
+					if (GDisplayClusterLumenPerView)
+					{
+						View->State->AddLumenSceneData(MyWorld->Scene);
+					}
 
 					{
 						// Save the location of the view.

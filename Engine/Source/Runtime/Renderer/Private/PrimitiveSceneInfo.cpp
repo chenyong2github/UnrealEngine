@@ -1198,10 +1198,10 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 			// NOTE: does not set Added as this is handled elsewhere.
 			Scene->GPUScene.AddPrimitiveToUpdate(SceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedAll);
 
-			// Force a primitive update in the Lumen scene
-			if (Scene->LumenSceneData)
+			// Force a primitive update in the Lumen scene(s)
+			for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 			{
-				Scene->LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
+				LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
 			}
 		}
 

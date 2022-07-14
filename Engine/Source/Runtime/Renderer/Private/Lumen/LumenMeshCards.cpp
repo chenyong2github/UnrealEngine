@@ -267,7 +267,7 @@ void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTem
 	RDG_EVENT_SCOPE(GraphBuilder, "UpdateCardSceneBuffer");
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(*ViewFamily.Views[0]);
 
 	// CardBuffer
 	{

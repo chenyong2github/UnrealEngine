@@ -213,7 +213,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "CopyCardsToSurfaceCache");
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	// Create rect buffer
 	FRDGBufferRef SurfaceCacheRectBuffer;
@@ -510,7 +510,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "ClearLumenSurfaceCache");
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
 	struct FPassConfig
 	{

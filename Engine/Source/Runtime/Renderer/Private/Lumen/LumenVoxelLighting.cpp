@@ -681,7 +681,7 @@ void VoxelizeVisBuffer(
 {
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 	const uint32 NumDistanceFieldObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	if (NumVoxelizedObjects(DistanceFieldSceneData, LumenSceneData) == 0)
 	{
@@ -908,7 +908,7 @@ void UpdateVoxelVisBuffer(
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 	const uint32 NumDistanceFieldObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 
-	if ((NumVoxelizedObjects(DistanceFieldSceneData, *Scene->LumenSceneData) == 0) || View.ViewState == nullptr)
+	if ((NumVoxelizedObjects(DistanceFieldSceneData, *Scene->GetLumenSceneData(View)) == 0) || View.ViewState == nullptr)
 	{
 		return;
 	}
@@ -922,7 +922,7 @@ void UpdateVoxelVisBuffer(
 		TArray<FRenderBounds>& PrimitiveModifiedBounds = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex].PrimitiveModifiedBounds;
 		if (ClipmapIndex < ClampedNumClipmapLevels)
 		{
-			PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
+			PrimitiveModifiedBounds.Append(Scene->GetLumenSceneData(View)->PrimitiveModifiedBounds);
 		}
 		else
 		{
@@ -970,7 +970,7 @@ void UpdateVoxelVisBuffer(
 		ViewTracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
 		
 		TArray<FRenderBounds>& PrimitiveModifiedBounds = Clipmap.PrimitiveModifiedBounds;
-		PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
+		PrimitiveModifiedBounds.Append(Scene->GetLumenSceneData(View)->PrimitiveModifiedBounds);
 
 		const FBox ClipmapBounds(Clipmap.Center - Clipmap.Extent, Clipmap.Center + Clipmap.Extent);
 		TArray<FClipmapUpdateBounds, SceneRenderingAllocator> UpdateBounds;
@@ -1214,7 +1214,7 @@ void UpdateVoxelVisBuffer(
 			}
 
 			// Height-field voxelization
-			const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+			const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 			if (Lumen::UseHeightfieldTracingForVoxelLighting(LumenSceneData))
 			{
 				// Clear indirect args

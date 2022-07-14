@@ -1030,6 +1030,7 @@ public:
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;
 
 	bool bVirtualShadowMapCacheAdded;
+	bool bLumenSceneDataAdded;
 
 	FVirtualShadowMapArrayCacheManager* ViewVirtualShadowMapCache;
 
@@ -1489,6 +1490,8 @@ public:
 
 	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) override;
 	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(const FScene* InScene) const override;
+
+	virtual void AddLumenSceneData(FSceneInterface* InScene) override;
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */
 	TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
@@ -2635,6 +2638,41 @@ enum class ERayTracingMeshCommandsMode : uint8 {
 
 #endif
 
+struct FLumenSceneDataKey
+{
+	uint32 ViewUniqueId;		// Zero if not view specific
+	uint32 GPUIndex;			// INDEX_NONE if not GPU specific
+
+	friend FORCEINLINE bool operator == (const FLumenSceneDataKey& A, const FLumenSceneDataKey& B)
+	{
+		return A.ViewUniqueId == B.ViewUniqueId && A.GPUIndex == B.GPUIndex;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FLumenSceneDataKey& Key)
+	{
+		return HashCombine(GetTypeHash(Key.ViewUniqueId), GetTypeHash(Key.GPUIndex));
+	}
+};
+
+typedef TMap<FLumenSceneDataKey, FLumenSceneData*> FLumenSceneDataMap;
+
+class FLumenSceneDataIterator
+{
+public:
+	FLumenSceneDataIterator(const FScene* InScene);
+	FLumenSceneDataIterator& operator++();
+
+	FORCEINLINE explicit operator bool() const { return LumenSceneData != nullptr; }
+	FORCEINLINE bool operator !() const { return LumenSceneData == nullptr; }
+	FORCEINLINE FLumenSceneData* operator->() const { return LumenSceneData; }
+	FORCEINLINE FLumenSceneData& operator*() const { return *LumenSceneData; }
+
+private:
+	const FScene* Scene;
+	FLumenSceneData* LumenSceneData;
+	FLumenSceneDataMap::TConstIterator NextSceneData;
+};
+
 /** 
  * Renderer scene which is private to the renderer module.
  * Ordinarily this is the renderer version of a UWorld, but an FScene can be created for previewing in editors which don't have a UWorld as well.
@@ -2880,7 +2918,8 @@ public:
 	/** Distance field object scene data. */
 	FDistanceFieldSceneData DistanceFieldSceneData;
 
-	FLumenSceneData* LumenSceneData;
+	FLumenSceneData* DefaultLumenSceneData;
+	FLumenSceneDataMap PerViewOrGPULumenSceneData;
 
 	/** Map from light id to the cached shadowmap data for that light. */
 	TMap<int32, TArray<FCachedShadowMapData>> CachedShadowMaps;
@@ -3112,6 +3151,31 @@ public:
 
 	FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(FSceneView& View) const;
 	void GetAllVirtualShadowMapCacheManagers(TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator>& OutCacheManagers) const;
+
+	FLumenSceneData* FindLumenSceneData(uint32 ViewKey, uint32 GPUIndex) const;
+	inline FLumenSceneData* GetLumenSceneData(const FViewInfo& View) const
+	{
+		if (View.ViewLumenSceneData)
+		{
+			return View.ViewLumenSceneData;
+		}
+		else
+		{
+			return FindLumenSceneData(View.ViewState ? View.ViewState->GetViewKey() : 0, View.GPUMask.GetFirstIndex());
+		}
+	}
+	inline FLumenSceneData* GetLumenSceneData(const FSceneView& View) const
+	{
+		// Should we assert that this is only called for FViewInfo (meaning inside scene renderer)?
+		if (View.bIsViewInfo)
+		{
+			return GetLumenSceneData((const FViewInfo&)View);
+		}
+		else
+		{
+			return FindLumenSceneData(View.State ? View.State->GetViewKey() : 0, View.GPUMask.GetFirstIndex());
+		}
+	}
 
 	bool HasSkyAtmosphere() const
 	{
@@ -3363,6 +3427,15 @@ public:
 	{
 		return bForceNoPrecomputedLighting;
 	}
+
+	FLumenSceneDataIterator GetLumenSceneDataIterator() const
+	{
+		return FLumenSceneDataIterator(this);
+	}
+
+	void LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive);
+	void LumenUpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
+	void LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
 protected:
 

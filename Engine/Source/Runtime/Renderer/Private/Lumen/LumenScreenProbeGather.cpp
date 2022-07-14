@@ -1709,7 +1709,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 			TranslucencyVolumeRadianceCacheParameters);
 	}
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
 	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, TracingInputs, TranslucencyVolumeRadianceCacheParameters);
 
 	return Outputs;
@@ -1909,7 +1909,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	ScreenProbeParameters.ProbeIndirectArgs = ScreenProbeIndirectArgs;
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
 
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;

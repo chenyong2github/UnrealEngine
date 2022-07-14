@@ -223,10 +223,12 @@ static int32 PartitionUpdateRangesDFO(FParallelUpdateRangesDFO& Ranges, int32 It
 
 void AddModifiedBoundsForLumen(FScene* Scene, FGlobalDFCacheType CacheType, const FBox& Bounds, const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
 {
-	FLumenSceneData& LumenData = *Scene->LumenSceneData;
 	if (UpdateTrackingBounds.LumenBounds.IsValid && UpdateTrackingBounds.LumenBounds.Intersect(Bounds))
 	{
-		LumenData.PrimitiveModifiedBounds.Add(Bounds);
+		for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+		{
+			LumenSceneData->PrimitiveModifiedBounds.Add(Bounds);
+		}
 	}
 }
 

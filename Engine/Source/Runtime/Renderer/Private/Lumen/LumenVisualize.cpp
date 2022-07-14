@@ -651,7 +651,7 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 
 		if (Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily) || Lumen::IsSoftwareRayTracingSupported())
 		{
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
+			FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 			if (GLumenVisualizeVoxels != 0)
 			{
@@ -685,7 +685,7 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 
 	if (GLumenSceneDumpStats)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 		LumenSceneData.DumpStats(
@@ -793,7 +793,7 @@ void VisualizeLumenScene(
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceGlobalSDF>(bTraceGlobalSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
-		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 		PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);
@@ -851,7 +851,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 					CopyInfo);
 			}
 
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
+			FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 			if (VisualizeMode == VISUALIZE_MODE_OVERVIEW)
 			{
@@ -1250,7 +1250,7 @@ void VisualizeCardGeneration(FSceneRenderingBulkObjectAllocator& Allocator, cons
 
 void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
 	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0])
 		|| ShouldRenderLumenReflections(Views[0]);

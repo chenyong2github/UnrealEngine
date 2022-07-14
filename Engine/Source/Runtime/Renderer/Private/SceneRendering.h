@@ -58,6 +58,7 @@ class FRayTracingLocalShaderBindingWriter;
 class FVirtualShadowMapClipmap;
 class FShadowProjectionPassParameters;
 class FSceneTextureShaderParameters;
+class FLumenSceneData;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
@@ -1472,6 +1473,8 @@ public:
 	FShaderPrintData ShaderPrintData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 	FLumenFrontLayerTranslucency LumenFrontLayerTranslucency;
+
+	FLumenSceneData* ViewLumenSceneData;
 
 #if RHI_RAYTRACING
 	bool HasRayTracingScene() const;

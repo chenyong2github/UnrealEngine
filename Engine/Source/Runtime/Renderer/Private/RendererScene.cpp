@@ -386,6 +386,8 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 #endif
 
 	bVirtualShadowMapCacheAdded = false;
+	bLumenSceneDataAdded = false;
+
 	ViewVirtualShadowMapCache = nullptr;
 }
 
@@ -446,6 +448,14 @@ void FScene::RemoveViewState_RenderThread(FSceneViewStateInterface* ViewState)
 			ViewStates.RemoveAt(ViewStateIndex);
 			break;
 		}
+	}
+
+	FLumenSceneDataKey ByViewKey = { ViewState->GetViewKey(), INDEX_NONE };
+	FLumenSceneData* const* Found = PerViewOrGPULumenSceneData.Find(ByViewKey);
+	if (Found)
+	{
+		delete *Found;
+		PerViewOrGPULumenSceneData.Remove(ByViewKey);
 	}
 }
 
@@ -800,6 +810,69 @@ FVirtualShadowMapArrayCacheManager* FScene::GetVirtualShadowMapCache(FSceneView&
 		}
 	}
 	return Result;
+}
+
+void FSceneViewState::AddLumenSceneData(FSceneInterface* InScene)
+{
+	check(InScene);
+	if (!Scene)
+	{
+		Scene = (FScene*)InScene;
+
+		// Modification of scene structure needs to happen on render thread
+		ENQUEUE_RENDER_COMMAND(SceneViewStateAdd)(
+			[RenderScene = Scene, RenderViewState = this](FRHICommandList&)
+			{
+				RenderScene->ViewStates.Add(RenderViewState);
+			});
+	}
+
+	if (Scene == InScene)
+	{
+		// Don't allocate if one already exists
+		if (Scene->DefaultLumenSceneData && !bLumenSceneDataAdded)
+		{
+			bLumenSceneDataAdded = true;
+
+			FLumenSceneData* SceneData = new FLumenSceneData(Scene->DefaultLumenSceneData->bTrackAllPrimitives);
+			SceneData->bViewSpecific = true;
+
+			// Need to add reference to Lumen scene data in render thread
+			ENQUEUE_RENDER_COMMAND(LinkLumenSceneData)(
+				[this, SceneData](FRHICommandListImmediate& RHICmdList)
+				{
+					SceneData->CopyInitialData(*Scene->DefaultLumenSceneData);
+
+					// Key shouldn't already exist in Scene, because the bLumenSceneDataAdded flag should only allow it to be added once.
+					FLumenSceneDataKey ByViewKey = { GetViewKey(), INDEX_NONE };
+					check(Scene->PerViewOrGPULumenSceneData.Find(ByViewKey) == nullptr);
+
+					Scene->PerViewOrGPULumenSceneData.Emplace(ByViewKey, SceneData);
+				});
+		} //-V773
+	}
+}
+
+FLumenSceneData* FScene::FindLumenSceneData(uint32 ViewKey, uint32 GPUIndex) const
+{
+	// First search by ViewKey
+	FLumenSceneDataKey ByViewKey = { ViewKey, INDEX_NONE };
+	FLumenSceneData* const* Found = PerViewOrGPULumenSceneData.Find(ByViewKey);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	// Then search by GPU
+	FLumenSceneDataKey ByGPUIndex = { 0, GPUIndex };
+	Found = PerViewOrGPULumenSceneData.Find(ByGPUIndex);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	// If both fail, return default
+	return DefaultLumenSceneData;
 }
 
 void FScene::GetAllVirtualShadowMapCacheManagers(TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator>& OutCacheManagers) const
@@ -1271,7 +1344,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	IndirectLightingCache(InFeatureLevel)
 ,	VolumetricLightmapSceneData(this)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
-,	LumenSceneData(nullptr)
+,	DefaultLumenSceneData(nullptr)
 ,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	SkyAtmosphere(NULL)
 ,	VolumetricCloud(NULL)
@@ -1353,7 +1426,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	UpdateEarlyZPassMode();
 
-	LumenSceneData = new FLumenSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel], InWorld->WorldType);
+	DefaultLumenSceneData = new FLumenSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel], InWorld->WorldType);
 
 	// We use a default Virtual Shadow Map cache, if one hasn't been allocated for a specific view.  GPU resources for
 	// a cache aren't allocated until the cache is actually used, so this shouldn't waste any GPU memory when not in use.
@@ -1398,11 +1471,17 @@ FScene::~FScene()
 		DefaultVirtualShadowMapCache = nullptr;
 	}
 
-	if (LumenSceneData)
+	if (DefaultLumenSceneData)
 	{
-		delete LumenSceneData;
-		LumenSceneData = nullptr;
+		delete DefaultLumenSceneData;
+		DefaultLumenSceneData = nullptr;
 	}
+
+	for (FLumenSceneDataMap::TConstIterator LumenSceneData(PerViewOrGPULumenSceneData); LumenSceneData; ++LumenSceneData)
+	{
+		delete LumenSceneData.Value();
+	}
+	PerViewOrGPULumenSceneData.Empty();
 
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
@@ -4740,7 +4819,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex, EPrimitiveDirtyState::Removed);
 
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
-				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
+				LumenRemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
 
@@ -5048,7 +5127,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				}
 
 				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
-				LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
+				LumenAddPrimitive(PrimitiveSceneInfo);
 
 				// Flush virtual textures touched by primitive
 				PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
@@ -5128,7 +5207,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedTransform);
 
 			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
-			LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);
+			LumenUpdatePrimitive(PrimitiveSceneInfo);
 		#if RHI_RAYTRACING
 			PrimitiveSceneInfo->UpdateCachedRayTracingInstanceWorldBounds(LocalToWorld);
 		#endif
@@ -5239,15 +5318,15 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
 				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
-				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
-				LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
+				LumenRemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
+				LumenAddPrimitive(PrimitiveSceneInfo);
 			}
 			else
 			{
 				GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedAll);
 
 				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
-				LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);
+				LumenUpdatePrimitive(PrimitiveSceneInfo);
 			}
 
 			bNeedPathTracedInvalidation = bNeedPathTracedInvalidation || IsPrimitiveRelevantToPathTracing(PrimitiveSceneInfo);

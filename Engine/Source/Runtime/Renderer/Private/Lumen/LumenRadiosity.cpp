@@ -1020,7 +1020,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
@@ -1158,7 +1158,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadiosityProbeVisualization(FRDGB
 	const FViewInfo& View = Views[0];
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	if (Views.Num() == 1
 		&& View.ViewState

@@ -3,11 +3,9 @@
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
-FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
+FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
-
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	LumenCardSceneUniformBuffer = FrameTemporaries.LumenCardSceneUniformBuffer;
 
@@ -157,7 +155,7 @@ void GetLumenCardTracingParameters(
 	TracingParameters.SurfaceCacheFeedbackBufferTileJitter = TracingInputs.SurfaceCacheFeedbackBufferTileJitter;
 	TracingParameters.SurfaceCacheFeedbackBufferTileWrapMask = TracingInputs.SurfaceCacheFeedbackBufferTileWrapMask;
 	TracingParameters.SurfaceCacheFeedbackResLevelBias = GLumenSurfaceCacheFeedbackResLevelBias + 0.5f; // +0.5f required for uint to float rounding in shader
-	TracingParameters.SurfaceCacheUpdateFrameIndex = Scene->LumenSceneData->GetSurfaceCacheUpdateFrameIndex();
+	TracingParameters.SurfaceCacheUpdateFrameIndex = Scene->GetLumenSceneData(View)->GetSurfaceCacheUpdateFrameIndex();
 
 	// Lumen surface cache atlas
 	TracingParameters.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;

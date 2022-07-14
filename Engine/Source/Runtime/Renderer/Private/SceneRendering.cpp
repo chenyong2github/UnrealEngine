@@ -1003,6 +1003,9 @@ void FViewInfo::Init()
 	HairStrandsViewData = FHairStrandsViewData();
 
 	GPUSceneViewId = INDEX_NONE;
+
+	// Filled in by FDeferredShadingSceneRenderer::UpdateLumenScene
+	ViewLumenSceneData = nullptr;
 }
 
 void FViewInfo::WaitForTasks(FParallelMeshDrawCommandPass::EWaitThread WaitThread)
@@ -4359,9 +4362,9 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 			ResetAndShrinkModifiedBounds(Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType]);
 		}
 
-		if (Scene->LumenSceneData)
+		for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 		{
-			ResetAndShrinkModifiedBounds(Scene->LumenSceneData->PrimitiveModifiedBounds);
+			ResetAndShrinkModifiedBounds(LumenSceneData->PrimitiveModifiedBounds);
 		}
 
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame

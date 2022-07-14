@@ -247,7 +247,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
 	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FRDGBufferRef DispatchParameters = GraphBuilder.CreateBuffer(
@@ -308,7 +308,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FLumenCardTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));
-			PermutationVector.Set<FLumenCardTraceProbeCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+			PermutationVector.Set<FLumenCardTraceProbeCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 			PermutationVector = FLumenCardTraceProbeCS::RemapPermutation(PermutationVector);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FLumenCardTraceProbeCS>(PermutationVector);
@@ -349,7 +349,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, ViewFamily) && bLastLevel);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceMeshSDFs>(bTraceMeshSDFs);
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
+			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->GetLumenSceneData(View)->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));
 			PermutationVector = FLumenVoxelTraceProbeCS::RemapPermutation(PermutationVector);
@@ -407,7 +407,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 
 	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
 	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FLumenTraceProbeOcclusionCS::FParameters ReferencePassParameters;

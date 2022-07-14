@@ -499,13 +499,18 @@ public:
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FLumenPrimitiveGroupRemoveInfo> PendingRemoveOperations;
 
+	// Multi-view multi-GPU information
+	bool bViewSpecific = false;
+#if WITH_MGPU
+	bool bViewSpecificMaskInitialized = false;
+	FRHIGPUMask ViewSpecificMask;
+#endif
+
 	FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Type WorldType);
+	FLumenSceneData(bool bInTrackAllPrimitives);
 	~FLumenSceneData();
 
-	void AddPrimitive(FPrimitiveSceneInfo* InPrimitive);
-	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex);
-	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 	void ResetAndConsolidate();
 
 	void AddMeshCards(int32 PrimitiveGroupIndex);
@@ -566,6 +571,12 @@ public:
 		const TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests);
 
 	int32 GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const;
+
+	// Copy initial data from default Lumen scene data to a view specific Lumen scene data
+	void CopyInitialData(const FLumenSceneData& SourceSceneData);
+#if WITH_MGPU
+	void UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FRHIGPUMask ViewGPUMask);
+#endif
 
 private:
 

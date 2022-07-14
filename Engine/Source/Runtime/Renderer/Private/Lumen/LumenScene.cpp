@@ -507,6 +507,12 @@ FLumenSceneData::FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Typ
 	bTrackAllPrimitives = (DoesPlatformSupportLumenGI(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && WorldType != EWorldType::EditorPreview;
 }
 
+FLumenSceneData::FLumenSceneData(bool bInTrackAllPrimitives) :
+	bFinalLightingAtlasContentsValid(false)
+{
+	bTrackAllPrimitives = bInTrackAllPrimitives;
+}
+
 FLumenSceneData::~FLumenSceneData()
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -561,53 +567,105 @@ bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox
 	return LargestFaceArea > MinFaceSurfaceArea;
 }
 
-void FLumenSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
+// Add function is a member of FScene, because it needs to add the primitive to all FLumenSceneData at once
+void FScene::LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (bTrackAllPrimitives)
+	if (DefaultLumenSceneData->bTrackAllPrimitives)
 	{
-		PrimitivesToUpdateMeshCards.Add(InPrimitive->GetIndex());
-
 		const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
-		if (TrackPrimitiveForLumenScene(Proxy))
+		bool bTrackPrimitveForLumenScene = TrackPrimitiveForLumenScene(Proxy);
+
+		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 		{
-			ensure(!PendingAddOperations.Contains(InPrimitive));
-			ensure(!PendingUpdateOperations.Contains(InPrimitive));
-			PendingAddOperations.Add(InPrimitive);
+			// We copy this flag over when creating per-view lumen scene data, validate that it's still the same
+			check(LumenSceneData->bTrackAllPrimitives == DefaultLumenSceneData->bTrackAllPrimitives);
+
+			LumenSceneData->PrimitivesToUpdateMeshCards.Add(InPrimitive->GetIndex());
+
+			if (bTrackPrimitveForLumenScene)
+			{
+				ensure(!LumenSceneData->PendingAddOperations.Contains(InPrimitive));
+				ensure(!LumenSceneData->PendingUpdateOperations.Contains(InPrimitive));
+				LumenSceneData->PendingAddOperations.Add(InPrimitive);
+			}
 		}
 	}
 }
 
-void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
+// Update function is a member of FScene, because it needs to update the primitive for all FLumenSceneData at once
+void FScene::LumenUpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (bTrackAllPrimitives
+	if (DefaultLumenSceneData->bTrackAllPrimitives
 		&& TrackPrimitiveForLumenScene(InPrimitive->Proxy)
-		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0
-		&& !PendingUpdateOperations.Contains(InPrimitive)
-		&& !PendingAddOperations.Contains(InPrimitive))
+		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0)
 	{
-		PendingUpdateOperations.Add(InPrimitive);
+		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+		{
+			if (!LumenSceneData->PendingUpdateOperations.Contains(InPrimitive)
+				&& !LumenSceneData->PendingAddOperations.Contains(InPrimitive))
+			{
+				LumenSceneData->PendingUpdateOperations.Add(InPrimitive);
+			}
+		}
 	}
 }
 
-void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex)
+// Remove function is a member of FScene, because it needs to remove the primitive from all FLumenSceneData at once, mainly due to
+// the FLumenPrimitiveGroupRemoveInfo constructor needing access to LumenPrimitiveGroupIndices from FPrimitiveSceneInfo, before it
+// gets reset.
+void FScene::LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
-	if (bTrackAllPrimitives
+	if (DefaultLumenSceneData->bTrackAllPrimitives
 		&& TrackPrimitiveForLumenScene(Proxy))
 	{
-		PendingAddOperations.Remove(InPrimitive);
-		PendingUpdateOperations.Remove(InPrimitive);
-		PendingRemoveOperations.Add(FLumenPrimitiveGroupRemoveInfo(InPrimitive, PrimitiveIndex));
+		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+		{
+			LumenSceneData->PendingAddOperations.Remove(InPrimitive);
+			LumenSceneData->PendingUpdateOperations.Remove(InPrimitive);
+			LumenSceneData->PendingRemoveOperations.Add(FLumenPrimitiveGroupRemoveInfo(InPrimitive, PrimitiveIndex));
+		}
 
 		InPrimitive->LumenPrimitiveGroupIndices.Reset();
 	}
+}
+
+FLumenSceneDataIterator::FLumenSceneDataIterator(const FScene* InScene)
+	: NextSceneData(InScene->PerViewOrGPULumenSceneData)
+{
+	Scene = InScene;
+	LumenSceneData = nullptr;
+
+	if (InScene->DefaultLumenSceneData)
+	{
+		LumenSceneData = InScene->DefaultLumenSceneData;
+	}
+	else
+	{
+		// Call increment operator to search for GPU or view specific Lumen scene data
+		operator++();
+	}
+}
+
+FLumenSceneDataIterator& FLumenSceneDataIterator::operator++()
+{
+	if (NextSceneData)
+	{
+		LumenSceneData = NextSceneData->Value;
+		++NextSceneData;
+	}
+	else
+	{
+		LumenSceneData = nullptr;
+	}
+	return *this;
 }
 
 void FLumenSceneData::ResetAndConsolidate()
@@ -640,9 +698,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLumenScenePrimitives);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScenePrimitives);
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
 	// Remove primitives
+	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RemoveLumenPrimitives);
 		QUICK_SCOPE_CYCLE_COUNTER(RemoveLumenPrimitives);
@@ -650,11 +707,11 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		TSparseUniqueList<int32, SceneRenderingAllocator> PrimitiveGroupsToRemove;
 
 		// Delete primitives
-		for (const FLumenPrimitiveGroupRemoveInfo& RemoveInfo : LumenSceneData.PendingRemoveOperations)
+		for (const FLumenPrimitiveGroupRemoveInfo& RemoveInfo : LumenSceneData->PendingRemoveOperations)
 		{
 			for (int32 PrimitiveGroupIndex : RemoveInfo.LumenPrimitiveGroupIndices)
 			{
-				FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+				FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 
 				for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitiveGroup.Primitives.Num(); ++PrimitiveIndex)
 				{
@@ -672,15 +729,15 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		// Delete empty Primitive Groups
 		for (int32 PrimitiveGroupIndex : PrimitiveGroupsToRemove.Array)
 		{
-			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 
-			LumenSceneData.RemoveMeshCards(PrimitiveGroup);
+			LumenSceneData->RemoveMeshCards(PrimitiveGroup);
 
 			if (PrimitiveGroup.RayTracingGroupMapElementId.IsValid())
 			{
 				if (PrimitiveGroup.Primitives.Num() == 0)
 				{
-					LumenSceneData.RayTracingGroups.RemoveByElementId(PrimitiveGroup.RayTracingGroupMapElementId);
+					LumenSceneData->RayTracingGroups.RemoveByElementId(PrimitiveGroup.RayTracingGroupMapElementId);
 					PrimitiveGroup.RayTracingGroupMapElementId = Experimental::FHashElementId();
 				}
 				else
@@ -698,17 +755,18 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 			if (PrimitiveGroup.Primitives.Num() == 0)
 			{
-				LumenSceneData.PrimitiveGroups.RemoveSpan(PrimitiveGroupIndex, 1);
+				LumenSceneData->PrimitiveGroups.RemoveSpan(PrimitiveGroupIndex, 1);
 			}
 		}
 	}
 
 	// Add primitives
+	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AddLumenPrimitives);
 		QUICK_SCOPE_CYCLE_COUNTER(AddLumenPrimitives);
 
-		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData.PendingAddOperations)
+		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData->PendingAddOperations)
 		{
 			FPrimitiveSceneProxy* SceneProxy = ScenePrimitiveInfo->Proxy;
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneProxy->GetInstanceSceneData();
@@ -747,17 +805,17 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					&& SceneProxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId
 					&& !SceneProxy->IsEmissiveLightSource())
 				{
-					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(SceneProxy->GetRayTracingGroupId(), -1);
-					int32& PrimitiveGroupIndex = LumenSceneData.RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;
+					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData->RayTracingGroups.FindOrAddId(SceneProxy->GetRayTracingGroupId(), -1);
+					int32& PrimitiveGroupIndex = LumenSceneData->RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;
 
 					if (PrimitiveGroupIndex >= 0)
 					{
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 						ensure(PrimitiveGroup.RayTracingGroupMapElementId == RayTracingGroupMapElementId);
 
-						LumenSceneData.RemoveMeshCards(PrimitiveGroup);
+						LumenSceneData->RemoveMeshCards(PrimitiveGroup);
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 
@@ -771,11 +829,11 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					}
 					else
 					{
-						PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
+						PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
 						ensure(ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Num() == 0);
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 						PrimitiveGroup.RayTracingGroupMapElementId = RayTracingGroupMapElementId;
 						PrimitiveGroup.PrimitiveInstanceIndex = -1;
 						PrimitiveGroup.CardResolutionScale = 1.0f;
@@ -828,10 +886,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 							if (SurfaceAreaRatio < GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio)
 							{
-								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
+								const int32 PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 								PrimitiveGroup.PrimitiveInstanceIndex = -1;
 								PrimitiveGroup.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
 								PrimitiveGroup.WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld).ToBox();
@@ -865,13 +923,13 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
-								const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
+								const int32 PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
 
 								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 								const FRenderBounds& RenderBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex);
 
-								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 								PrimitiveGroup.PrimitiveInstanceIndex = InstanceIndex;
 								PrimitiveGroup.CardResolutionScale = 1.0f;
 								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * LocalToWorld).ToBox();
@@ -888,10 +946,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					}
 					else
 					{
-						const int32 PrimitiveGroupIndex = LumenSceneData.PrimitiveGroups.AddSpan(1);
+						const int32 PrimitiveGroupIndex = LumenSceneData->PrimitiveGroups.AddSpan(1);
 						ScenePrimitiveInfo->LumenPrimitiveGroupIndices.Add(PrimitiveGroupIndex);
 
-						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+						FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 						PrimitiveGroup.PrimitiveInstanceIndex = 0;
 						PrimitiveGroup.CardResolutionScale = 1.0f;
 						PrimitiveGroup.WorldSpaceBoundingBox = SceneProxy->GetBounds().GetBox();
@@ -910,11 +968,12 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 	}
 
 	// UpdateLumenPrimitives
+	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLumenPrimitives);
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenPrimitives);
 
-		for (TSet<FPrimitiveSceneInfo*>::TIterator It(LumenSceneData.PendingUpdateOperations); It; ++It)
+		for (TSet<FPrimitiveSceneInfo*>::TIterator It(LumenSceneData->PendingUpdateOperations); It; ++It)
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;
 
@@ -927,7 +986,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 				for (int32 PrimitiveGroupIndex : PrimitiveSceneInfo->LumenPrimitiveGroupIndices)
 				{
-					FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
+					FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
 
 					if (PrimitiveGroup.PrimitiveInstanceIndex >= 0)
 					{
@@ -941,14 +1000,17 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						}
 
 						PrimitiveGroup.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
-						LumenSceneData.UpdateMeshCards(PrimitiveToWorld, PrimitiveGroup.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
+						LumenSceneData->UpdateMeshCards(PrimitiveToWorld, PrimitiveGroup.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
 					}
 				}
 			}
 		}
 	}
 
-	LumenSceneData.ResetAndConsolidate();
+	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+	{
+		LumenSceneData->ResetAndConsolidate();
+	}
 }
 
 void FLumenSceneData::RemoveAllMeshCards()
@@ -1395,6 +1457,147 @@ void FLumenSceneData::UpdateCardMipMapHierarchy(FLumenCard& Card)
 		}
 	}
 }
+
+void FLumenSceneData::CopyInitialData(const FLumenSceneData& SourceSceneData)
+{
+	// bTrackAllPrimitives is assumed to be the same across all FLumenSceneData
+	bTrackAllPrimitives = SourceSceneData.bTrackAllPrimitives;
+
+	PrimitiveGroups = SourceSceneData.PrimitiveGroups;
+	RayTracingGroups = SourceSceneData.RayTracingGroups;
+	LandscapePrimitives = SourceSceneData.LandscapePrimitives;
+	PendingAddOperations = SourceSceneData.PendingAddOperations;
+	PendingUpdateOperations = SourceSceneData.PendingUpdateOperations;
+	PendingRemoveOperations = SourceSceneData.PendingRemoveOperations;
+
+	// Newly created scene data has no mesh cards yet, so clear mesh card indices
+	for (FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
+	{
+		PrimitiveGroup.MeshCardsIndex = -1;
+	}
+}
+
+#if WITH_MGPU
+// When the GPU mask changes for a view specific Lumen scene, we copy all data cross GPU to avoid transient glitches and
+// potentially corrupt data.  Copying is expensive, but the assumption is that the GPU index will only change for debugging
+// or performance tweaks, not during steady rendering.
+void FLumenSceneData::UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FRHIGPUMask ViewGPUMask)
+{
+	check(bViewSpecific == true);
+
+	if (!bViewSpecificMaskInitialized)
+	{
+		ViewSpecificMask = ViewGPUMask;
+		bViewSpecificMaskInitialized = true;
+	}
+	else
+	{
+		if (ViewSpecificMask != ViewGPUMask)
+		{
+			FLumenSceneData* LumenSceneData = this;
+			FRHIGPUMask SourceGPUMask = ViewSpecificMask;
+			FRHIGPUMask DestGPUMask = ViewGPUMask;
+
+			ViewSpecificMask = ViewGPUMask;
+
+			// Since we're copying all GPU state cross-GPU, it should now be coherent, and we can copy the per-GPU page state as well
+			for (uint32 DestGPUIndex : FRHIGPUMask::All())
+			{
+				if (!SourceGPUMask.Contains(DestGPUIndex))
+				{
+					// Copy operator is deleted, need to manually copy item by item
+					const FBinaryHeap<uint32, uint32>& SourceHeap = LastCapturedPageHeap[SourceGPUMask.GetFirstIndex()];
+					FBinaryHeap<uint32, uint32>& DestHeap = LastCapturedPageHeap[DestGPUIndex];
+
+					uint32 IndexSize = SourceHeap.GetIndexSize();
+					for (uint32 Index = 0; Index < IndexSize; Index++)
+					{
+						// We add items to heaps in tandem, so all should have the same indices
+						check(SourceHeap.IsPresent(Index) == DestHeap.IsPresent(Index));
+
+						if (SourceHeap.IsPresent(Index))
+						{
+							DestHeap.Update(SourceHeap.GetKey(Index), Index);
+						}
+					}
+				}
+			}
+
+			// Make array of resources from FLumenSceneFrameTemporaries, since it's on the stack, and can't be passed to the Pass
+			TArray<FRDGTextureRef, TFixedAllocator<9>> FrameTemporaryTextures;
+
+			#define ADD_LUMEN_FRAME_TEMPORARY(NAME) \
+				if (FrameTemporaries.NAME) FrameTemporaryTextures.Add(FrameTemporaries.NAME)
+
+			ADD_LUMEN_FRAME_TEMPORARY(AlbedoAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(OpacityAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(NormalAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(EmissiveAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(DepthAtlas);
+
+			ADD_LUMEN_FRAME_TEMPORARY(DirectLightingAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(IndirectLightingAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(RadiosityNumFramesAccumulatedAtlas);
+			ADD_LUMEN_FRAME_TEMPORARY(FinalLightingAtlas);
+
+			#undef ADD_LUMEN_FRAME_TEMPORARY
+
+			AddPass(GraphBuilder, RDG_EVENT_NAME("LumenCrossGPUTransfer"),
+				[LumenSceneData, FrameTemporaryTextures, SourceGPUMask, DestGPUMask](FRHICommandListImmediate& RHICmdList)
+			{
+				uint32 SourceGPUIndex = SourceGPUMask.GetFirstIndex();
+
+				TArray<FTransferResourceParams> CrossGPUTransferResources;
+				for (uint32 DestGPUIndex : FRHIGPUMask::All())
+				{
+					if (!SourceGPUMask.Contains(DestGPUIndex))
+					{
+						#define TRANSFER_LUMEN_RESOURCE(NAME) \
+							if (LumenSceneData->NAME) CrossGPUTransferResources.Add(FTransferResourceParams(LumenSceneData->NAME->GetRHI(), SourceGPUIndex, DestGPUIndex, false, false))
+
+						TRANSFER_LUMEN_RESOURCE(CardBuffer);
+						TRANSFER_LUMEN_RESOURCE(MeshCardsBuffer);
+						TRANSFER_LUMEN_RESOURCE(HeightfieldBuffer);
+						TRANSFER_LUMEN_RESOURCE(SceneInstanceIndexToMeshCardsIndexBuffer);
+						TRANSFER_LUMEN_RESOURCE(CardPageBuffer);
+
+						TRANSFER_LUMEN_RESOURCE(CardPageLastUsedBuffer);
+						TRANSFER_LUMEN_RESOURCE(CardPageHighResLastUsedBuffer);
+
+						TRANSFER_LUMEN_RESOURCE(AlbedoAtlas);
+						TRANSFER_LUMEN_RESOURCE(OpacityAtlas);
+						TRANSFER_LUMEN_RESOURCE(NormalAtlas);
+						TRANSFER_LUMEN_RESOURCE(EmissiveAtlas);
+						TRANSFER_LUMEN_RESOURCE(DepthAtlas);
+
+						TRANSFER_LUMEN_RESOURCE(DirectLightingAtlas);
+						TRANSFER_LUMEN_RESOURCE(IndirectLightingAtlas);
+						TRANSFER_LUMEN_RESOURCE(RadiosityNumFramesAccumulatedAtlas);
+						TRANSFER_LUMEN_RESOURCE(FinalLightingAtlas);
+
+						TRANSFER_LUMEN_RESOURCE(RadiosityTraceRadianceAtlas);
+						TRANSFER_LUMEN_RESOURCE(RadiosityTraceHitDistanceAtlas);
+						TRANSFER_LUMEN_RESOURCE(RadiosityProbeSHRedAtlas);
+						TRANSFER_LUMEN_RESOURCE(RadiosityProbeSHGreenAtlas);
+						TRANSFER_LUMEN_RESOURCE(RadiosityProbeSHBlueAtlas);
+
+						TRANSFER_LUMEN_RESOURCE(PageTableBuffer);
+
+						#undef TRANSFER_LUMEN_RESOURCE
+
+						for (FRDGTextureRef Texture : FrameTemporaryTextures)
+						{
+							CrossGPUTransferResources.Add(FTransferResourceParams(Texture->GetRHI(), SourceGPUIndex, DestGPUIndex, false, false));
+						}
+					}
+				}
+
+				RHICmdList.TransferResources(CrossGPUTransferResources);
+			});
+		}
+	}
+}
+#endif  // WITH_MGPU
 
 /**
  * Evict all pages on demand, useful for debugging

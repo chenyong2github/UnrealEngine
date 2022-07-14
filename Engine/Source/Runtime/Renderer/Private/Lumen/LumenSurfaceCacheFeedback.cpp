@@ -520,7 +520,7 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 
 	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 		extern int32 GLumenVisualizeIndirectDiffuse;
 		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
@@ -556,7 +556,7 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 
 	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 		if (FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV)
 		{
@@ -574,7 +574,7 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 
 	if (FrameTemporaries.AlbedoAtlas)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 		GraphBuilder.QueueTextureExtraction(FrameTemporaries.DepthAtlas, &LumenSceneData.DepthAtlas);
 		GraphBuilder.QueueTextureExtraction(FrameTemporaries.AlbedoAtlas, &LumenSceneData.AlbedoAtlas);

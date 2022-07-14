@@ -258,7 +258,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 
 	check(GLumenIrradianceFieldGather != 0);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
 
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenIrradianceFieldGather::SetupRadianceCacheInputs();
 

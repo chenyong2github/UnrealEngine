@@ -1990,7 +1990,7 @@ void UpdateRadianceCaches(
 
 				FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
-				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
+				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->GetLumenSceneData(View)->DistantCardIndices.Num() > 0);
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 				auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);
 

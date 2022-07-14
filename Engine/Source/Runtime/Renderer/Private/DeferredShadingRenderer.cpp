@@ -3616,7 +3616,7 @@ void FDeferredShadingSceneRenderer::InitializeRayTracingFlags_RenderThread()
 	// This function may be called twice -- once in CreateSceneRenderers and again in Render.  We deliberately skip the logic
 	// if the flag is already set, because CreateSceneRenderers fills in the correct value for "bShouldUpdateRayTracingScene"
 	// in that case, and we don't want to overwrite it.
-	if (!bAnyRayTracingPassEnabled)
+	if (!bAnyRayTracingPassEnabled && !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{

@@ -158,7 +158,7 @@ void Lumen::CombineLumenSceneLighting(
 	const FLumenCardUpdateContext& CardUpdateContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	FLumenCardCombineLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardCombineLighting>();
 
@@ -181,7 +181,7 @@ void Lumen::CombineLumenSceneLighting(
 		RDG_EVENT_NAME("CombineLighting"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[ViewportSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
+		[ViewportSize = Scene->GetLumenSceneData(View)->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
 	{
 		auto PixelShader = GlobalShaderMap->GetShader<FLumenCardCombineLightingPS>();
 		auto VertexShader = GlobalShaderMap->GetShader<FRasterizeToCardsVS>();
@@ -209,7 +209,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderLumenSceneLighting);
 
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
 	bool bAnyLumenActive = false;
 
@@ -229,7 +229,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 
-		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+		FLumenCardTracingInputs TracingInputs(GraphBuilder, LumenSceneData, FrameTemporaries);
 
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{

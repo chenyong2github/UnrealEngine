@@ -923,7 +923,7 @@ void RenderDirectLightIntoLumenCards(
 	FRDGBufferSRVRef ShadowMaskTilesSRV)
 {
 	const uint32 DrawIndirectArgOffset = (Light.LightIndex * NumViews + ViewIndex) * sizeof(FRHIDrawIndirectParameters);
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	FLumenCardDirectLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardDirectLighting>();
 	{
@@ -1032,7 +1032,7 @@ void SampleShadowMap(
 	FRDGBufferUAVRef ShadowTraceAllocatorUAV,
 	FRDGBufferUAVRef ShadowTracesUAV)
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 	check(Light.bHasShadows);
 
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[Light.LightSceneInfo->Id];
@@ -1118,7 +1118,7 @@ void TraceDistanceFieldShadows(
 	int32 NumViews,
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 	check(Light.bHasShadows);
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
@@ -1549,7 +1549,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		QUICK_SCOPE_CYCLE_COUNTER(RenderDirectLightingForLumenScene);
 
 		const FViewInfo& MainView = Views[0];
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
 

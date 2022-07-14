@@ -262,6 +262,9 @@ public:
 	*/
 	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) {}
 
+	/** Similar to above, but adds Lumen Scene Data */
+	virtual void AddLumenSceneData(FSceneInterface* InScene) {}
+
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}

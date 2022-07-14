@@ -444,7 +444,7 @@ void FillGridParameters(
 			OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
 		}
 
-		bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData);
+		bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View));
 		if (bCullHeightfieldObjects)
 		{
 			// View-culled heightfield objects
@@ -520,7 +520,7 @@ void CombineObjectIndexBuffers(
 )
 {
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	if (bCullMeshSDFObjects && bCullHeightfieldObjects)
 	{
@@ -570,7 +570,7 @@ void CullHeightfieldObjectsForView(
 	FRDGBufferRef& HeightfieldObjectIndexBuffer,
 	FRDGBufferRef& HeightfieldObjectIndirectArguments)
 {
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	// We don't want any heightfield overhead if there are no heightfields in the scene
 	check(Lumen::UseHeightfieldTracing(*View.Family, LumenSceneData));
@@ -616,7 +616,7 @@ void CullMeshSDFObjectsForView(
 	float CardTraceEndDistanceFromCamera,
 	FObjectCullingContext& Context)
 {
-	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 	int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
@@ -733,7 +733,7 @@ void CompactCulledObjectArray(
 
 		FCompactCulledObjectsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FCompactCulledObjectsCS::FCullMeshTypeSDF >(Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0);
-		PermutationVector.Set< FCompactCulledObjectsCS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+		PermutationVector.Set< FCompactCulledObjectsCS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 		auto ComputeShader = View.ShaderMap->GetShader< FCompactCulledObjectsCS >(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -779,7 +779,7 @@ void CullMeshSDFObjectsToProbes(
 		CardTraceEndDistanceFromCamera,
 		Context);
 
-	if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
+	if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)))
 	{
 		FRDGBufferRef HeightfieldIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(1), TEXT("Lumen.CulledObjectIndirectArguments"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeightfieldIndirectArguments), 0);
@@ -836,7 +836,7 @@ void CullMeshSDFObjectsToProbes(
 
 			FMeshSDFObjectCullVS::FPermutationDomain PermutationVectorVS;
 			PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeSDF >(DistanceFieldSceneData.NumObjectsInBuffer > 0);
-			PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+			PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 			auto VertexShader = View.ShaderMap->GetShader< FMeshSDFObjectCullVS >(PermutationVectorVS);
 
 			auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullForProbesPS>();
@@ -915,7 +915,7 @@ void CullObjectsToGrid(
 		{
 			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 		}
-		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
+		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)))
 		{
 			PassParameters->VS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		}
@@ -937,7 +937,7 @@ void CullObjectsToGrid(
 			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data->GetSRV();
 		}
-		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
+		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)))
 		{
 			PassParameters->PS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		}
@@ -962,13 +962,13 @@ void CullObjectsToGrid(
 
 	FMeshSDFObjectCullVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeSDF >(DistanceFieldSceneData.NumObjectsInBuffer > 0);
-	PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+	PermutationVectorVS.Set< FMeshSDFObjectCullVS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 	auto VertexShader = View.ShaderMap->GetShader< FMeshSDFObjectCullVS >(PermutationVectorVS);
 
 	FMeshSDFObjectCullPS::FPermutationDomain PermutationVectorPS;
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullToFroxelGrid >(GridSizeZ > 1);
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeSDF >(DistanceFieldSceneData.NumObjectsInBuffer > 0);
-	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View)));
 	extern int32 GDistanceFieldOffsetDataStructure;
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
 	PermutationVectorPS = FMeshSDFObjectCullPS::RemapPermutation(PermutationVectorPS);
@@ -1074,7 +1074,7 @@ void CullMeshObjectsToViewGrid(
 			Context);
 	}
 
-	bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData);
+	bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View));
 	if (bCullHeightfieldObjects)
 	{
 		CullHeightfieldObjectsForView(
