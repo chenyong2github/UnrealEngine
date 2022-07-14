@@ -460,6 +460,12 @@ public:
 		GRHIVariableRateShadingImageTileMaxWidth = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.width;
 		GRHIVariableRateShadingImageTileMaxHeight = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.height;
 
+		if (FragmentShadingRateProperties.maxFragmentSize.width >= 4 && FragmentShadingRateProperties.maxFragmentSize.height >= 4)
+		{
+			// FYI FVulkanDevice::GetBestMatchedShadingRateExtents does extent filtering
+			GRHISupportsLargerVariableRateShadingSizes = GRHISupportsPipelineVariableRateShading;
+		}
+
 		// todo: We don't currently care much about the other properties here, but at some point in the future we probably will.
 
 		UE_LOG(LogVulkanRHI, Verbose, TEXT("Image-based Variable Rate Shading supported via KHRFragmentShadingRate extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);

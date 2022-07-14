@@ -1457,6 +1457,8 @@ void FD3D12DynamicRHI::Init()
 	if(hr == S_OK && options.VariableShadingRateTier != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
 	{
 		GRHISupportsPipelineVariableRateShading = true;		// We have at least tier 1.
+		GRHISupportsLargerVariableRateShadingSizes = (options.AdditionalShadingRatesSupported != 0);
+
 		if (options.VariableShadingRateTier == D3D12_VARIABLE_SHADING_RATE_TIER_2)
 		{
 			GRHISupportsAttachmentVariableRateShading = true;

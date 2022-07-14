@@ -722,6 +722,9 @@ extern RHI_API FIntVector GRHIMaxDispatchThreadGroupsPerDimension;
 /** Whether or not the RHI can support per-draw Variable Rate Shading. */
 extern RHI_API bool GRHISupportsPipelineVariableRateShading;
 
+/** Whether or not the Variable Rate Shading can be done at larger (2x4 or 4x2 or 4x4) sizes. */
+extern RHI_API bool GRHISupportsLargerVariableRateShadingSizes;
+
 /** Whether or not the RHI can support image-based Variable Rate Shading. */
 extern RHI_API bool GRHISupportsAttachmentVariableRateShading;
 

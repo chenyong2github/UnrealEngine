@@ -20,12 +20,19 @@ static EVRSShadingRate GetShadingRateFromMaterial(EMaterialShadingRate MaterialS
 			return EVRSShadingRate::VRSSR_2x1;
 		case MSR_2x2:
 			return EVRSShadingRate::VRSSR_2x2;
-		case MSR_4x2:
-			return EVRSShadingRate::VRSSR_4x2;
-		case MSR_2x4:
-			return EVRSShadingRate::VRSSR_2x4;						
-		case MSR_4x4:
-			return EVRSShadingRate::VRSSR_4x4;
+		}
+
+		if (GRHISupportsLargerVariableRateShadingSizes)
+		{
+			switch (MaterialShadingRate)
+			{
+			case MSR_4x2:
+				return EVRSShadingRate::VRSSR_4x2;
+			case MSR_2x4:
+				return EVRSShadingRate::VRSSR_2x4;
+			case MSR_4x4:
+				return EVRSShadingRate::VRSSR_4x4;
+			}
 		}
 	}
 	return EVRSShadingRate::VRSSR_1x1;

@@ -1473,6 +1473,7 @@ bool GRHISupportsHDROutput = false;
 bool GRHIVariableRateShadingEnabled = true;
 bool GRHIAttachmentVariableRateShadingEnabled = true;
 bool GRHISupportsPipelineVariableRateShading = false;
+bool GRHISupportsLargerVariableRateShadingSizes = false;
 bool GRHISupportsAttachmentVariableRateShading = false;
 bool GRHISupportsComplexVariableRateShadingCombinerOps = false;
 bool GRHISupportsVariableRateShadingAttachmentArrayTextures = false;
