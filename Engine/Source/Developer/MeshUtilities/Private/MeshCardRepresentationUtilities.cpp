@@ -315,7 +315,9 @@ FSurfelVisibility ComputeSurfelVisibility(
 		SurfelSampleIndex = (SurfelSampleIndex + 1) % SurfelSamplesNum;
 	}
 
-	const bool bInsideGeometry = NumHits > 0 && NumBackFaceHits > RayDirectionsOverHemisphere.Num() * 0.2f;
+	const bool bInsideGeometry =
+		NumHits > 0.8f * RayDirectionsOverHemisphere.Num()
+		&& NumBackFaceHits > 0.2f * RayDirectionsOverHemisphere.Num();
 
 	FSurfelVisibility SurfelVisibility;
 	SurfelVisibility.Visibility = VisibilitySum / RayDirectionsOverHemisphere.Num();
