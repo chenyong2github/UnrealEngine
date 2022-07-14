@@ -5,18 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
-
-#ifndef ONLINE_SUCCESS
-#define ONLINE_SUCCESS 0
-#endif
-
-#ifndef ONLINE_FAIL
-#define ONLINE_FAIL (uint32)-1
-#endif
-
-#ifndef ONLINE_IO_PENDING
-#define ONLINE_IO_PENDING 997
-#endif
+#include "Online/OnlineBase.h"
 
 /**
  * Generates a random nonce (number used once) of the desired length

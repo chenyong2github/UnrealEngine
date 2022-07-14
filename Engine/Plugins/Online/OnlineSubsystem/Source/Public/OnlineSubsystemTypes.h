@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
+#include "Online/OnlineBase.h"
 #include "OnlineSubsystemNames.h"  // can be removed once we have no more temporary FUniqueNetId subtypes
 #include "OnlineSubsystemPackage.h"
 
@@ -24,18 +25,6 @@ extern ONLINESUBSYSTEM_API bool IsUniqueIdLocal(const FUniqueNetId& UniqueId);
 #endif
 
 #define DEDICATED_SERVER_USER_INDEX 0
-
-#ifndef ONLINE_SUCCESS
-#define ONLINE_SUCCESS 0
-#endif
-
-#ifndef ONLINE_FAIL
-#define ONLINE_FAIL (uint32)-1
-#endif
-
-#ifndef ONLINE_IO_PENDING
-#define ONLINE_IO_PENDING 997
-#endif
 
 /**
  * Environment for the current online platform
