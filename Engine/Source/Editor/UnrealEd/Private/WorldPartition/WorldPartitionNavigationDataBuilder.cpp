@@ -51,7 +51,7 @@ bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceC
 
 	// Size of loaded cell. Set as big as your hardware can afford.
 	const uint32 LoadingCellSizeSetting = World->GetWorldSettings()->NavigationDataBuilderLoadingCellSize;
-	IterativeCellSize = (LoadingCellSizeSetting / GridSize) * GridSize;
+	IterativeCellSize = GridSize * FMath::Max(LoadingCellSizeSetting / GridSize, 1u);
 	
 	// Extra padding around loaded cell.
 	// @todo: set value programatically.

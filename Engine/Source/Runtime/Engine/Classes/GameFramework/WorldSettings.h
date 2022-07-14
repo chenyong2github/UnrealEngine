@@ -575,8 +575,9 @@ public:
 	/**
 	 * Loading cell size used when building navigation data iteratively.
 	 * The actual cell size used will be rounded using the NavigationDataChunkGridSize.
+	 * It's recommended to use a value as high as the hardware memory allows to load. 
 	 */
-	UPROPERTY(EditAnywhere, Category = Navigation)
+	UPROPERTY(EditAnywhere, Category = Navigation, meta = (ClampMin = "5000"))
 	uint32 NavigationDataBuilderLoadingCellSize;
 	
 	/** Default size of the grid for placed elements from the editor */
