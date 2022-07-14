@@ -68,6 +68,8 @@ void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker, const TP
 }
 }
 
+bool UCameraAnimationSequenceCameraStandIn::bRegistered(false);
+
 UCameraAnimationSequenceCameraStandIn::UCameraAnimationSequenceCameraStandIn(const FObjectInitializer& ObjInit) 
 	: Super(ObjInit) 
 {
@@ -210,13 +212,25 @@ void UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn()
 {
 	using namespace UE::MovieScene;
 
-	static bool bHasRegistered = false;
-	if (!bHasRegistered)
+	if (ensure(!bRegistered))
 	{
 		FMovieSceneTracksComponentTypes* TracksComponentTypes = FMovieSceneTracksComponentTypes::Get();
 		TracksComponentTypes->Accessors.ComponentTransform.Add(UCameraAnimationSequenceCameraStandIn::StaticClass(), TEXT("Transform"), &GetCameraStandInTransform, &SetCameraStandInTransform);
 
-		bHasRegistered = true;
+		bRegistered = true;
+	}
+}
+
+void UCameraAnimationSequenceCameraStandIn::UnregisterCameraStandIn()
+{
+	using namespace UE::MovieScene;
+
+	if (ensure(bRegistered))
+	{
+		FMovieSceneTracksComponentTypes* TracksComponentTypes = FMovieSceneTracksComponentTypes::Get();
+		TracksComponentTypes->Accessors.ComponentTransform.RemoveAll(UCameraAnimationSequenceCameraStandIn::StaticClass());
+
+		bRegistered = false;
 	}
 }
 

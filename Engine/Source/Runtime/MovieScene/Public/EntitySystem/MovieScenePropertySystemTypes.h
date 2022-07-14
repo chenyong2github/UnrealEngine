@@ -234,6 +234,22 @@ struct TCustomPropertyRegistration : ICustomPropertyRegistration
 		CustomAccessors.Add(TCustomPropertyAccessor<PropertyTraits>{ ClassType, PropertyName, { Getter, Setter } });
 	}
 
+	void Remove(UClass* ClassType, FName PropertyName)
+	{
+		CustomAccessors.RemoveAll([=](const TCustomPropertyAccessor<PropertyTraits>& Accessor)
+				{
+					return Accessor.Class == ClassType && Accessor.PropertyPath == PropertyName;
+				});
+	}
+
+	void RemoveAll(UClass* ClassType)
+	{
+		CustomAccessors.RemoveAll([=](const TCustomPropertyAccessor<PropertyTraits>& Accessor)
+				{
+					return Accessor.Class == ClassType;
+				});
+	}
+
 private:
 
 	/** */

@@ -34,9 +34,6 @@ USequenceCameraShakePattern::USequenceCameraShakePattern(const FObjectInitialize
 {
 	CameraStandIn = CreateDefaultSubobject<UCameraAnimationSequenceCameraStandIn>(TEXT("CameraStandIn"), true);
 	Player = CreateDefaultSubobject<UCameraAnimationSequencePlayer>(TEXT("CameraShakePlayer"), true);
-
-	// Make sure we have our custom accessors registered for our stand-in class.
-	UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn();
 }
 
 void USequenceCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const

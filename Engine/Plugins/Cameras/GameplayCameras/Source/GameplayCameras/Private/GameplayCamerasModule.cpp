@@ -3,6 +3,7 @@
 #include "GameplayCamerasModule.h"
 #include "Camera/CameraModularFeature.h"
 #include "CameraAnimationCameraModifier.h"
+#include "CameraAnimationSequencePlayer.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 
@@ -23,6 +24,8 @@ public:
 		{
 			IModularFeatures::Get().RegisterModularFeature(ICameraModularFeature::GetModularFeatureName(), CameraModularFeature.Get());
 		}
+
+		UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn();
 	}
 
 	virtual void ShutdownModule() override
@@ -32,6 +35,8 @@ public:
 			IModularFeatures::Get().UnregisterModularFeature(ICameraModularFeature::GetModularFeatureName(), CameraModularFeature.Get());
 			CameraModularFeature = nullptr;
 		}
+
+		UCameraAnimationSequenceCameraStandIn::UnregisterCameraStandIn();
 	}
 
 private:

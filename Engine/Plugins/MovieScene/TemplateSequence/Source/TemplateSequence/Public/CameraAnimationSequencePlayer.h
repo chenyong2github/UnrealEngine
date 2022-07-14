@@ -78,11 +78,16 @@ public:
 	/** Register the stand-in class with the sequencer ECS component registry */
 	static void RegisterCameraStandIn();
 
+	/** Unregister the stand-in class with the sequencer ECS component registry */
+	static void UnregisterCameraStandIn();
+
 private:
 	void ResetDefaultValues(const FMinimalViewInfo& ViewInfo);
 	void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker);
 
 private:
+	static bool bRegistered;
+
 	FTransform Transform;
 
 	bool bIsCineCamera = false;

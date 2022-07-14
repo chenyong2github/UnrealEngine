@@ -78,8 +78,6 @@ float UCameraAnimationCameraModifier::EvaluateEasing(ECameraAnimationEasingType 
 UCameraAnimationCameraModifier::UCameraAnimationCameraModifier(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Make sure we have our custom accessors registered for our stand-in class.
-	UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn();
 }
 
 FCameraAnimationHandle UCameraAnimationCameraModifier::PlayCameraAnimation(UCameraAnimationSequence* Sequence, FCameraAnimationParams Params)
