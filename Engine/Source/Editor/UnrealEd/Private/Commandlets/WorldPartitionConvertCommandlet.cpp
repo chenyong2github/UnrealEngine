@@ -1233,6 +1233,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 						{
 							ActorsToConvert.Add(Actor);
 						}
+						else
+						{
+							RemapSoftObjectPaths.Add(FSoftObjectPath(Actor).ToString(), FSoftObjectPath(Actor).ToString());
+						}
 					}
 				}
 			}
