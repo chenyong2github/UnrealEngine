@@ -2053,7 +2053,8 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 		OnAttachmentChanged();
 
 		// Preserve order of previous attachment if valid (in case we're doing a reattach operation inside a loop that might assume the AttachChildren order won't change)
-		if(LastAttachIndex != INDEX_NONE)
+		// Don't do this if updating attachment from replication to avoid overwriting addresses in AttachChildren that may be unmapped
+		if(LastAttachIndex != INDEX_NONE && !bNetUpdateAttachment)
 		{
 			Parent->AttachChildren.Insert(this, LastAttachIndex);
 		}
