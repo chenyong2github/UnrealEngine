@@ -1538,11 +1538,11 @@ const FSlateBrush* FIOSTargetSettingsCustomization::GetProvisionStatus() const
 {
 	if( bProvisionInstalled )
 	{
-		return FAppStyle::GetBrush("Automation.Success");
+		return FAppStyle::GetBrush("Icons.Success");
 	}
 	else
 	{
-		return FAppStyle::GetBrush("Automation.Fail");
+		return FAppStyle::GetBrush("Icons.Error");
 	}
 }
 
@@ -1550,11 +1550,11 @@ const FSlateBrush* FIOSTargetSettingsCustomization::GetCertificateStatus() const
 {
 	if( bCertificateInstalled )
 	{
-		return FAppStyle::GetBrush("Automation.Success");
+		return FAppStyle::GetBrush("Icons.Success");
 	}
 	else
 	{
-		return FAppStyle::GetBrush("Automation.Fail");
+		return FAppStyle::GetBrush("Icons.Error");
 	}
 }
 

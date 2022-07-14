@@ -7,6 +7,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Styling/AppStyle.h"
+#include "AutomationWindowStyle.h"
 
 #define LOCTEXT_NAMESPACE "SAutomationGraphicalResultBox"
 
@@ -166,7 +167,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 			.Padding( FMargin(1,3) )
 			[
 				SNew(STextBlock)
-				.TextStyle( FAppStyle::Get(), "Automation.ReportHeader" )
+				.TextStyle(FAutomationWindowStyle::Get(), "Automation.ReportHeader" )
 				.Text(FText::Format(LOCTEXT("AutomationGraphicalClusterHeader", "{Name}  -  {NumTests} Tests / {NumFails} Fails / {TotalTime} Seconds (Total) / {ParallelTime} Seconds (Parallel)"), ClusterArgs))
 			];
 
