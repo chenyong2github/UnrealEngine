@@ -12,6 +12,7 @@
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"
+#include "ShaderCore.h"
 
 class Error;
 
