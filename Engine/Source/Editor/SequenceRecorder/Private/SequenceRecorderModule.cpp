@@ -173,13 +173,16 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 			LevelEditorModule.OnCaptureSingleFrameAnimSequence().BindStatic(&FSequenceRecorderModule::HandleCaptureSingleFrameAnimSequence);
 
 			// register standalone UI
-			auto RegisterTabSpawner = []()
+			auto RegisterTabSpawner = [this]()
 			{
-				FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequenceRecorderTabName, FOnSpawnTab::CreateStatic(&FSequenceRecorderModule::SpawnSequenceRecorderTab))
+				FTabSpawnerEntry& Entry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequenceRecorderTabName, FOnSpawnTab::CreateStatic(&FSequenceRecorderModule::SpawnSequenceRecorderTab))
 				.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCinematicsCategory())
 				.SetDisplayName(LOCTEXT("SequenceRecorderTabTitle", "Sequence Recorder"))
 				.SetTooltipText(LOCTEXT("SequenceRecorderTooltipText", "Open the Sequence Recorder tab."))
 				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"));
+
+				TabSpawnerEntry = &Entry;
+				TabSpawnerEntry->SetMenuType(ETabSpawnerMenuType::Hidden);
 			};
 			FLevelEditorModule* LocalLevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
 			if (LocalLevelEditorModule && LocalLevelEditorModule->GetLevelEditorTabManager())
@@ -886,7 +889,19 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	FDelegateHandle AudioFactoryHandle;
 
 	TWeakPtr<SDockTab> SequenceRecorderTab;
+public:
+	FTabSpawnerEntry* TabSpawnerEntry;
 };
+
+static FAutoConsoleCommand CVarEnableSequenceRecorder(
+	TEXT("SequenceRecorder"),
+	TEXT("Enables the Sequence Recorder tab"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			FSequenceRecorderModule& SequenceRecorder = FModuleManager::GetModuleChecked<FSequenceRecorderModule>("SequenceRecorder");
+			SequenceRecorder.TabSpawnerEntry->SetMenuType(ETabSpawnerMenuType::Enabled);
+		}),
+	ECVF_Default);
 
 IMPLEMENT_MODULE( FSequenceRecorderModule, SequenceRecorder )
 
