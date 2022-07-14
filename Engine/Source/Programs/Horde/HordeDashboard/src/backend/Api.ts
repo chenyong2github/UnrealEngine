@@ -3010,7 +3010,8 @@ export enum DashboardPreference {
 	ColorError = "ColorError",
 	ColorRunning = "ColorRunning",
 	LocalCache = "LocalCache",
-	LeftAlignLog = "LeftAlignLog"
+	LeftAlignLog = "LeftAlignLog",
+	CompactViews = "CompactViews"
 }
 
 export type DashboardSettings = {

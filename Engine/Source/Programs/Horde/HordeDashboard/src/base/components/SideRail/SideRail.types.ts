@@ -41,6 +41,12 @@ export interface ISideRailLink {
    * - For jump links, just an element ID (no #)
    */
   url: string;
+
+  // url target
+  target?: string;
+
+  /** Whether to use react router for the link */
+  reactRouterLink?: boolean;
 }
 
 export type ISideRailStyleProps = Pick<ISideRailProps, 'theme'>;

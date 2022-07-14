@@ -19,6 +19,9 @@ export type JobLabel = GetLabelResponse & {
 
 const defaultUpdateMS = 5000;
 
+/**
+ * @deprecated This class evolved over time to be a fragile grab bag of methods related to jobs.  
+ */
 export class JobDetails {
 
     constructor(id?: string, logId?: string, stepId?: string, isLogView?: boolean) {
@@ -760,6 +763,7 @@ export class JobDetails {
             }
 
         });
+        
         this.jobdata?.batches?.forEach(b => {
             b.steps.forEach(s => s.reports?.forEach(r => {
                 if (s.id === this.stepId) {

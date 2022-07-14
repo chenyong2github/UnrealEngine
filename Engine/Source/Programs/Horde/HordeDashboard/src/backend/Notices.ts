@@ -13,7 +13,7 @@ class Notices extends PollBase {
     }
 
     clear() {
-        super.clear();
+        super.stop();
     }
 
     async poll(): Promise<void> {

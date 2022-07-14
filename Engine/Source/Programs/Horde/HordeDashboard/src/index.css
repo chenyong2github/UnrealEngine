@@ -75,11 +75,6 @@ code {
   border-width: 0;
 }
 
-
-div[data-automation-key="ViewLogColumn"] {
-  padding: 0
-}
-
 @keyframes red-pulse {
   0% {
     background-color: #CC0000;

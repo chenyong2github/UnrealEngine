@@ -239,11 +239,19 @@ export class Dashboard {
         return this.preferences.get(DashboardPreference.LeftAlignLog) === 'true';
     }
 
+    setCompactViews(value: boolean | undefined) {
+        this.setPreference(DashboardPreference.CompactViews, value ? "true" : "false");
+    }
+
+    get compactViews(): boolean {
+        return this.preferences.get(DashboardPreference.CompactViews) === 'true';
+    }
 
     private hasLoggedLocalCache = false;
 
     get localCache(): boolean {
 
+        /*
         if (this.browser === WebBrowser.Chromium) {
             if (!this.hasLoggedLocalCache) {
                 this.hasLoggedLocalCache = true;
@@ -252,8 +260,16 @@ export class Dashboard {
 
             return true;
         }
+        */
+        
+        const value = this.preferences.get(DashboardPreference.LocalCache) !== 'false';
+        
+        if (value && !this.hasLoggedLocalCache) {
+            this.hasLoggedLocalCache = true;
+            console.log("Local graph and template caching is enabled")
+        }
 
-        return this.preferences.get(DashboardPreference.LocalCache) === 'true';
+        return value;
 
     }
 

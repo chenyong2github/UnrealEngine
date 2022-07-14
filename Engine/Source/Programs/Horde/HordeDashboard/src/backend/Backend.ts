@@ -1226,10 +1226,10 @@ export class Backend {
         });
     }
 
-    getNotification(type: string, jobId: string, labelIdx?: string | null, batchId?: string, stepId?: string | null): Promise<GetNotificationResponse> {
+    getNotification(type: string, jobId: string, labelIdx?: string, batchId?: string, stepId?: string): Promise<GetNotificationResponse> {
 
         let url = `api/v1/jobs/${jobId}`;
-        if (type === "label" && labelIdx != null) {
+        if (type === "label" && labelIdx) {
             url = `${url}/labels/${labelIdx}`;
         }
         else if (type === "step" && batchId && stepId) {
@@ -1244,11 +1244,11 @@ export class Backend {
         });
     }
 
-    updateNotification(request: UpdateNotificationsRequest, type: string, jobId: string, labelIdx?: string | null, batchId?: string, stepId?: string | null): Promise<boolean> {
+    updateNotification(request: UpdateNotificationsRequest, type: string, jobId: string, labelIdx?: string, batchId?: string, stepId?: string | null): Promise<boolean> {
 
         let url = `api/v1/jobs/${jobId}`;
 
-        if (type === "label" && labelIdx != null) {
+        if (type === "label" && labelIdx) {
             url = `${url}/labels/${labelIdx}`;
         }
         else if (type === "step" && batchId && stepId) {

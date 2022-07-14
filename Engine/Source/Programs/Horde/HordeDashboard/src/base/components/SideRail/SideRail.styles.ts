@@ -1,4 +1,5 @@
 import { FontWeights, getFocusOutlineStyle, IStyleFunction } from '@fluentui/react/lib/index';
+import { modeColors } from '../../../styles/Styles';
 import { ISideRailStyleProps, ISideRailStyles } from './SideRail.types';
 
 
@@ -16,20 +17,21 @@ export const getStyles: IStyleFunction<ISideRailStyleProps, ISideRailStyles> = p
       marginBottom: appPaddingSm,
       selectors: {
         '&:last-child': {
-          marginBottom: 0
+          marginBottom: 0,
+          'a:active,a:visited,a:hover' : {color: modeColors.text, textDecoration: "none"}
         }
       }
     },
     sectionTitle: {
       fontSize: theme.fonts.mediumPlus.fontSize,
       fontWeight: FontWeights.semibold,
-      color: theme.palette.neutralSecondary,
+      color: modeColors.text,
       marginTop: 0,
       paddingLeft: 8
     },
     links: {
       margin: 0,
-      padding: 0
+      padding: 0      
     },
     linkWrapper: {
       display: 'flex',
@@ -39,9 +41,9 @@ export const getStyles: IStyleFunction<ISideRailStyleProps, ISideRailStyles> = p
           {
             display: 'block',
             flex: '1',
-            padding: '4px 8px',
-            selectors: {
-              '&:hover': { background: theme.palette.neutralLight }
+            padding: '4px 0px',
+            selectors: {              
+              ':active,:visited,:hover,:focus': { background: theme.palette.neutralLight }
             }
           },
           getFocusOutlineStyle(theme, 1)
@@ -53,7 +55,7 @@ export const getStyles: IStyleFunction<ISideRailStyleProps, ISideRailStyles> = p
         'ul li': [
           {
             fontSize: theme.fonts.medium.fontSize,
-            padding: '4px 8px',
+            padding: '4px 0px',
             selectors: {
               '&:hover': { background: theme.palette.neutralLight }
             }
@@ -68,11 +70,12 @@ export const getStyles: IStyleFunction<ISideRailStyleProps, ISideRailStyles> = p
     jumpLink: {
       color: theme.palette.neutralPrimary,
       borderLeft: '2px solid transparent',
-      paddingLeft: 6, // 8px - 2px border
+      paddingLeft: 0, // 8px - 2px border
       selectors: {
         '&:focus': {
-          color: theme.palette.neutralPrimary
-        }
+          color: modeColors.text
+        }, 
+        '&:active,&:visited,&:hover' : {color: modeColors.text, textDecoration: "none"}
       }
     },
     jumpLinkActive: {

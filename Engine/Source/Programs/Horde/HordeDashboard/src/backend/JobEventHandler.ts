@@ -33,7 +33,7 @@ export class JobEventHandler extends PollBase {
     }
 
     clear() {
-        super.clear();
+        super.stop();
         this.details = undefined;
         this.stepEvents.clear();
     }
