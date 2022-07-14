@@ -5,10 +5,11 @@
 #include "Animation/WidgetMaterialTrackUtilities.h"
 
 #include "EntitySystem/MovieSceneEntityMutations.h"
+
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
 
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 #include "Materials/MaterialInstanceDynamic.h"
 

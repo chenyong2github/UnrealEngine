@@ -23,27 +23,26 @@ namespace MovieScene
 struct FVectorPropertyMetaData
 {
 	uint8 NumChannels = 0;
-	bool bIsDouble = false;
 };
 
 /** Intermediate type for the vector property system that lets us store how many dimensions the vector should have */
 struct FFloatIntermediateVector
 {
-	float X, Y, Z, W;
+	double X, Y, Z, W;
 
 	FFloatIntermediateVector()
 		: X(0), Y(0), Z(0), W(0)
 	{}
 
-	FFloatIntermediateVector(float InX, float InY)
+	FFloatIntermediateVector(double InX, double InY)
 		: X(InX), Y(InY), Z(0), W(0)
 	{}
 
-	FFloatIntermediateVector(float InX, float InY, float InZ)
+	FFloatIntermediateVector(double InX, double InY, double InZ)
 		: X(InX), Y(InY), Z(InZ), W(0)
 	{}
 
-	FFloatIntermediateVector(float InX, float InY, float InZ, float InW)
+	FFloatIntermediateVector(double InX, double InY, double InZ, double InW)
 		: X(InX), Y(InY), Z(InZ), W(InW)
 	{}
 };
@@ -90,13 +89,13 @@ template<> struct TComponentDebugType<EColorPropertyType> { static const ECompon
 /** Intermediate type for the color property system that lets us store what kind of color type we should use */
 struct FIntermediateColor
 {
-	float R, G, B, A;
+	double R, G, B, A;
 
 	FIntermediateColor()
 		: R(0.f), G(0.f), B(0.f), A(0.f)
 	{}
 
-	explicit FIntermediateColor(float InR, float InG, float InB, float InA)
+	explicit FIntermediateColor(double InR, double InG, double InB, double InA)
 		: R(InR), G(InG), B(InB), A(InA)
 	{}
 	explicit FIntermediateColor(const FLinearColor& InColor)
@@ -120,7 +119,7 @@ struct FIntermediateColor
 		A = SpecifiedColor.A;
 	}
 
-	float operator[](int32 Index) const
+	double operator[](int32 Index) const
 	{
 		check(Index >= 0 && Index <= 3);
 		return (&R)[Index];

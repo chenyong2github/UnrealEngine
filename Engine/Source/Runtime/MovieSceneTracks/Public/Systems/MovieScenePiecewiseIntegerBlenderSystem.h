@@ -19,7 +19,7 @@ namespace MovieScene
 		/** Cumulative sum of blend values pre-multiplied with each value's weight. */
 		int32 Total = 0;
 		/** Cumulative sum of weights. */
-		float Weight = 0.f;
+		double Weight = 0.f;
 	};
 
 	/** Struct that maintains accumulation buffers for each blend type */

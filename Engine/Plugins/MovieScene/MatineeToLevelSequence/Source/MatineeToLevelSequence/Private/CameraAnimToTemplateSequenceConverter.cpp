@@ -526,7 +526,7 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 						NewMovieScene->GetPlaybackRange().GetLowerBoundValue() : FFrameNumber(0));
 				Interrogator.Update();
 
-				TArray<float> AnimatedFOVs;
+				TArray<double> AnimatedFOVs;
 				FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 				Interrogator.QueryPropertyValues(TracksComponents->Float, AnimatedFOVs);
 

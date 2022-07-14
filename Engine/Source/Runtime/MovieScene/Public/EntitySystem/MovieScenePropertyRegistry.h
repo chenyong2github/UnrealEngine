@@ -57,7 +57,6 @@ struct FPropertyDefinition
 			uint16 InVariableSizeCompositeOffset, uint16 InSizeofStorageType, uint16 InAlignofStorageType,
 			FComponentTypeID InPropertyType, FComponentTypeID InInitialValueType)
 		: CustomPropertyRegistration(nullptr)
-		, FloatCompositeMask(0)
 		, DoubleCompositeMask(0)
 		, VariableSizeCompositeOffset(InVariableSizeCompositeOffset)
 		, CompositeSize(0)
@@ -87,9 +86,6 @@ struct FPropertyDefinition
 
 	/** Stat ID for this property type */
 	TStatId StatID;
-
-	/** A mask of which composite indices pertain to floats */
-	uint32 FloatCompositeMask = 0;
 
 	/** A mask of which composite indices pertain to doubles */
 	uint32 DoubleCompositeMask = 0;

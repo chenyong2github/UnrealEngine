@@ -4,7 +4,7 @@
 
 #include "Systems/BoolChannelEvaluatorSystem.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieSceneHierarchicalBiasSystem.h"
 #include "Systems/MovieSceneMaterialSystem.h"
 
@@ -17,16 +17,16 @@ namespace UE::MovieScene
 /** Apply scalar material parameters */
 struct FApplyScalarParameters
 {
-	static void ForEachEntity(UObject* BoundMaterial, FName ParameterName, float InScalarValue)
+	static void ForEachEntity(UObject* BoundMaterial, FName ParameterName, double InScalarValue)
 	{
 		// WARNING: BoundMaterial may be nullptr here
 		if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(BoundMaterial))
 		{
-			MID->SetScalarParameterValue(ParameterName, InScalarValue);
+			MID->SetScalarParameterValue(ParameterName, (float)InScalarValue);
 		}
 		else if (UMaterialParameterCollectionInstance* MPCI = Cast<UMaterialParameterCollectionInstance>(BoundMaterial))
 		{
-			MPCI->SetScalarParameterValue(ParameterName, InScalarValue);
+			MPCI->SetScalarParameterValue(ParameterName, (float)InScalarValue);
 		}
 	}
 };
@@ -37,15 +37,15 @@ struct FApplyVectorParameters
 	static void ForEachAllocation(FEntityAllocationIteratorItem Item,
 		TRead<UObject*> BoundMaterials,
 		TReadOneOrMoreOf<FName, FName> VectorOrColorParameterNames,
-		TReadOneOrMoreOf<float, float, float, float> VectorChannels)
+		TReadOneOrMoreOf<double, double, double, double> VectorChannels)
 	{
 		const int32 Num = Item.GetAllocation()->Num();
 		// Use either the vector parameter name, or the color parameter name
 		const FName* ParameterNames = VectorOrColorParameterNames.Get<0>() ? VectorOrColorParameterNames.Get<0>() : VectorOrColorParameterNames.Get<1>();
-		const float* RESTRICT R = VectorChannels.Get<0>();
-		const float* RESTRICT G = VectorChannels.Get<1>();
-		const float* RESTRICT B = VectorChannels.Get<2>();
-		const float* RESTRICT A = VectorChannels.Get<3>();
+		const double* RESTRICT R = VectorChannels.Get<0>();
+		const double* RESTRICT G = VectorChannels.Get<1>();
+		const double* RESTRICT B = VectorChannels.Get<2>();
+		const double* RESTRICT A = VectorChannels.Get<3>();
 		
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
@@ -56,10 +56,10 @@ struct FApplyVectorParameters
 			}
 
 			FLinearColor Color(
-				R ? R[Index] : 0.f,
-				G ? G[Index] : 0.f,
-				B ? B[Index] : 0.f,
-				A ? A[Index] : 1.f
+				R ? (float)R[Index] : 0.f,
+				G ? (float)G[Index] : 0.f,
+				B ? (float)B[Index] : 0.f,
+				A ? (float)A[Index] : 1.f
 			);
 			if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(BoundMaterial))
 			{
@@ -107,14 +107,14 @@ struct FOverlappingMaterialParameterHandler
 		{
 			if (!Output->OutputEntityID)
 			{
-				if (!System->FloatBlenderSystem)
+				if (!System->DoubleBlenderSystem)
 				{
-					System->FloatBlenderSystem = Linker->LinkSystem<UMovieScenePiecewiseFloatBlenderSystem>();
-					Linker->SystemGraph.AddReference(System, System->FloatBlenderSystem);
+					System->DoubleBlenderSystem = Linker->LinkSystem<UMovieScenePiecewiseDoubleBlenderSystem>();
+					Linker->SystemGraph.AddReference(System, System->DoubleBlenderSystem);
 				}
 
 				// Initialize the blend channel ID
-				Output->BlendChannelID = System->FloatBlenderSystem->AllocateBlendChannel();
+				Output->BlendChannelID = System->DoubleBlenderSystem->AllocateBlendChannel();
 
 				// Needs blending
 				Output->OutputEntityID = FEntityBuilder()
@@ -143,9 +143,9 @@ struct FOverlappingMaterialParameterHandler
 				Linker->EntityManager.AddComponent(Output->OutputEntityID, BuiltInComponents->Tags.NeedsUnlink);
 				Output->OutputEntityID = FMovieSceneEntityID();
 
-				if (ensure(System->FloatBlenderSystem))
+				if (ensure(System->DoubleBlenderSystem))
 				{
-					System->FloatBlenderSystem->ReleaseBlendChannel(Output->BlendChannelID);
+					System->DoubleBlenderSystem->ReleaseBlendChannel(Output->BlendChannelID);
 				}
 			}
 
@@ -190,7 +190,7 @@ UMovieSceneMaterialParameterSystem::UMovieSceneMaterialParameterSystem(const FOb
 
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
 
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneHierarchicalBiasSystem::StaticClass());
 	}
 }
@@ -200,7 +200,7 @@ void UMovieSceneMaterialParameterSystem::OnLink()
 	using namespace UE::MovieScene;
 
 	// Always reset the float blender system on link to ensure that recycled systems are correctly initialized.
-	FloatBlenderSystem = nullptr;
+	DoubleBlenderSystem = nullptr;
 
 	FOverlappingMaterialParameterHandler Handler(this);
 
@@ -243,7 +243,7 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 		ScalarParameterTracker.Update(Linker, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName, FEntityComponentFilter());
 
 		FOverlappingMaterialParameterHandler Handler(this);
-		Handler.DefaultComponentMask.Set(BuiltInComponents->FloatResult[0]);
+		Handler.DefaultComponentMask.Set(BuiltInComponents->DoubleResult[0]);
 		ScalarParameterTracker.ProcessInvalidatedOutputs(Linker, Handler);
 	}
 
@@ -258,7 +258,7 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 	if (bHasColors || bHasVectors)
 	{
 		FOverlappingMaterialParameterHandler Handler(this);
-		Handler.DefaultComponentMask.SetAll({ BuiltInComponents->FloatResult[0], BuiltInComponents->FloatResult[1], BuiltInComponents->FloatResult[2], BuiltInComponents->FloatResult[3] });
+		Handler.DefaultComponentMask.SetAll({ BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], BuiltInComponents->DoubleResult[3] });
 		VectorParameterTracker.ProcessInvalidatedOutputs(Linker, Handler);
 	}
 }
@@ -275,7 +275,7 @@ void UMovieSceneMaterialParameterSystem::OnEvaluation(FSystemTaskPrerequisites& 
 		FEntityTaskBuilder()
 		.Read(TracksComponents->BoundMaterial)
 		.Read(TracksComponents->ScalarParameterName)
-		.Read(BuiltInComponents->FloatResult[0])
+		.Read(BuiltInComponents->DoubleResult[0])
 		.FilterNone({ BuiltInComponents->BlendChannelInput })
 		.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
 		.Dispatch_PerEntity<FApplyScalarParameters>(&Linker->EntityManager, InPrerequisites, &Subsequents);
@@ -287,7 +287,7 @@ void UMovieSceneMaterialParameterSystem::OnEvaluation(FSystemTaskPrerequisites& 
 		FEntityTaskBuilder()
 		.Read(TracksComponents->BoundMaterial)
 		.ReadOneOrMoreOf(TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
-		.ReadOneOrMoreOf(BuiltInComponents->FloatResult[0], BuiltInComponents->FloatResult[1], BuiltInComponents->FloatResult[2], BuiltInComponents->FloatResult[3])
+		.ReadOneOrMoreOf(BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], BuiltInComponents->DoubleResult[3])
 		.FilterNone({ BuiltInComponents->BlendChannelInput })
 		.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
 		.Dispatch_PerAllocation<FApplyVectorParameters>(&Linker->EntityManager, InPrerequisites, &Subsequents);

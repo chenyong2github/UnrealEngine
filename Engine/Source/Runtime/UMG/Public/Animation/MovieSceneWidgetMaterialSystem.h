@@ -11,7 +11,7 @@
 #include "MovieSceneWidgetMaterialSystem.generated.h"
 
 class UWidget;
-class UMovieScenePiecewiseFloatBlenderSystem;
+class UMovieScenePiecewiseDoubleBlenderSystem;
 
 namespace UE::MovieScene
 {

@@ -24,13 +24,13 @@ namespace MovieScene
 	struct FHierarchicalEasingChannelContributorData
 	{
 		UE::MovieScene::FInstanceHandle SubSequenceHandle;
-		float EasingResult;
+		double EasingResult;
 	};
 
 	struct FHierarchicalEasingChannelData
 	{
 		TArray<FHierarchicalEasingChannelContributorData, TInlineAllocator<8>> Contributors;
-		float FinalEasingResult;
+		double FinalEasingResult;
 	};
 
 }  // namespace MovieScene
@@ -73,7 +73,7 @@ public:
 	uint16 AllocateEasingChannel(UE::MovieScene::FInstanceHandle SubSequenceHandle);
 	void ReleaseEasingChannel(uint16 EasingChannelID);
 
-	void SetSubSequenceEasing(UE::MovieScene::FInstanceHandle SubSequenceHandle, float EasingResult);
+	void SetSubSequenceEasing(UE::MovieScene::FInstanceHandle SubSequenceHandle, double EasingResult);
 
 private:
 

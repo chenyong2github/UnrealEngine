@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Systems/FloatPerlinNoiseChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
@@ -26,13 +26,14 @@ namespace UE
 				check(InstanceRegistry);
 			}
 
-			void ForEachEntity(FMovieSceneFloatPerlinNoiseChannel FloatPerlinNoiseChannel, FInstanceHandle InstanceHandle, float& OutResult)
+			void ForEachEntity(FMovieSceneFloatPerlinNoiseChannel FloatPerlinNoiseChannel, FInstanceHandle InstanceHandle, double& OutResult)
 			{
 				const FMovieSceneContext& Context = InstanceRegistry->GetContext(InstanceHandle);
 				FFrameTime Time = Context.GetTime();
 				FFrameRate Rate = Context.GetFrameRate();
 
-				OutResult = FloatPerlinNoiseChannel.Evaluate(Rate.AsSeconds(Time));
+				const float NoiseResult = FloatPerlinNoiseChannel.Evaluate(Rate.AsSeconds(Time));
+				OutResult = (double)NoiseResult;
 			}
 		};
 
@@ -53,13 +54,13 @@ UFloatPerlinNoiseChannelEvaluatorSystem::UFloatPerlinNoiseChannelEvaluatorSystem
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Allow writing to all the possible channels
-		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->FloatResult); ++i)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
 		{
-			DefineComponentProducer(UFloatPerlinNoiseChannelEvaluatorSystem::StaticClass(), BuiltInComponents->FloatResult[i]);
+			DefineComponentProducer(UFloatPerlinNoiseChannelEvaluatorSystem::StaticClass(), BuiltInComponents->DoubleResult[i]);
 		}
 
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseFloatBlenderSystem::StaticClass());
+		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseDoubleBlenderSystem::StaticClass());
 	}
 }
 
@@ -70,12 +71,12 @@ void UFloatPerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& In
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
-	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->FloatResult); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
 	{
 		FEntityTaskBuilder()
 			.Read(TrackComponents->FloatPerlinNoiseChannel)
 			.Read(BuiltInComponents->InstanceHandle)
-			.Write(BuiltInComponents->FloatResult[i])
+			.Write(BuiltInComponents->DoubleResult[i])
 			.FilterNone({ BuiltInComponents->Tags.Ignored })
 			.SetStat(GET_STATID(MovieSceneEval_EvaluateFloatPerlinNoiseChannelTask))
 			.Dispatch_PerEntity<FEvaluateFloatPerlinNoiseChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, GetLinker()->GetInstanceRegistry());

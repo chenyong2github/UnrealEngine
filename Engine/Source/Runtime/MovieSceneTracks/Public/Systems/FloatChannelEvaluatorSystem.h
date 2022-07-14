@@ -28,7 +28,6 @@ class MOVIESCENETRACKS_API UFloatChannelEvaluatorSystem : public UMovieSceneEnti
 {
 public:
 
-
 	GENERATED_BODY()
 
 	UFloatChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
@@ -36,7 +35,7 @@ public:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
-	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceFloatChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::FSourceFloatChannelFlags> ChannelFlagsType, TComponentTypeID<float> ResultType);
+	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceFloatChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::FSourceFloatChannelFlags> ChannelFlagsType, TComponentTypeID<double> ResultType);
 
 private:
 
@@ -44,7 +43,7 @@ private:
 	{
 		TComponentTypeID<UE::MovieScene::FSourceFloatChannel> ChannelType;
 		TComponentTypeID<UE::MovieScene::FSourceFloatChannelFlags> ChannelFlagsType;
-		TComponentTypeID<float> ResultType;
+		TComponentTypeID<double> ResultType;
 	};
 
 	static TArray<FChannelType, TInlineAllocator<16>> StaticChannelTypes;

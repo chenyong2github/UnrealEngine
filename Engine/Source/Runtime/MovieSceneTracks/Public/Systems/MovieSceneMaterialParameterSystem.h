@@ -8,7 +8,7 @@
 
 #include "MovieSceneMaterialParameterSystem.generated.h"
 
-class UMovieScenePiecewiseFloatBlenderSystem;
+class UMovieScenePiecewiseDoubleBlenderSystem;
 
 namespace UE::MovieScene
 {
@@ -62,5 +62,5 @@ private:
 public:
 
 	UPROPERTY()
-	TObjectPtr<UMovieScenePiecewiseFloatBlenderSystem> FloatBlenderSystem;
+	TObjectPtr<UMovieScenePiecewiseDoubleBlenderSystem> DoubleBlenderSystem;
 };

@@ -3,7 +3,7 @@
 #include "Animation/MovieSceneMarginPropertySystem.h"
 #include "Animation/MovieSceneUMGComponentTypes.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 
 UMovieSceneMarginPropertySystem::UMovieSceneMarginPropertySystem(const FObjectInitializer& ObjInit)
@@ -15,7 +15,7 @@ UMovieSceneMarginPropertySystem::UMovieSceneMarginPropertySystem(const FObjectIn
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 {
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
 	}
 	}

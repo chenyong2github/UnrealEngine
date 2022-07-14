@@ -126,92 +126,58 @@ struct FAttachmentComponent
 
 struct FFloatPropertyTraits
 {
-	using StorageType  = float;
-	using MetaDataType = TPropertyMetaData<bool>;
+	using StorageType  = double;
+	using CustomAccessorStorageType = float;
+	using MetaDataType = TPropertyMetaData<>;
+	using TraitsType = FFloatPropertyTraits;
 
 	using FloatTraitsImpl = TDirectPropertyTraits<float>;
-	using DoubleTraitsImpl = TDirectPropertyTraits<double>;
 
-	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, const FCustomPropertyAccessor& BaseCustomAccessor, float& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, const FCustomPropertyAccessor& BaseCustomAccessor, double& OutValue)
 	{
-		checkf(!bIsDouble, TEXT("Type mismatch between float and double. Please check for any custom accessors defined on the wrong property type."));
 		const TCustomPropertyAccessor<FFloatPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatPropertyTraits>&>(BaseCustomAccessor);
-		OutValue = (*CustomAccessor.Functions.Getter)(InObject, bIsDouble);
+		const float GetterValue = (*CustomAccessor.Functions.Getter)(InObject);
+		OutValue = (double)GetterValue;
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, uint16 PropertyOffset, float& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, uint16 PropertyOffset, double& OutValue)
 	{
-		if (bIsDouble)
-		{
-			double TempValue;
-			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyOffset, TempValue);
-			OutValue = TempValue;
-		}
-		else
-		{
-			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyOffset, OutValue);
-		}
+		float Value;
+		FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyOffset, Value);
+		OutValue = (double)Value;
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, FTrackInstancePropertyBindings* PropertyBindings, float& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, FTrackInstancePropertyBindings* PropertyBindings, double& OutValue)
 	{
-		if (bIsDouble)
-		{
-			double TempValue;
-			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyBindings, TempValue);
-			OutValue = TempValue;
-		}
-		else
-		{
-			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyBindings, OutValue);
-		}
+		float Value;
+		FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyBindings, Value);
+		OutValue = (double)Value;
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, const FName& PropertyPath, float& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, const FName& PropertyPath, double& OutValue)
 	{
-		if (bIsDouble)
-		{
-			double TempValue;
-			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyPath, TempValue);
-			OutValue = TempValue;
-		}
-		else
-		{
-			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyPath, OutValue);
-		}
+		float Value;
+		FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyPath, Value);
+		OutValue = (double)Value;
 	}
 
-	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, const FCustomPropertyAccessor& BaseCustomAccessor, float InValue)
+	static void SetObjectPropertyValue(UObject* InObject, const FCustomPropertyAccessor& BaseCustomAccessor, double InValue)
 	{
-		checkf(!bIsDouble, TEXT("Type mismatch between float and double. Please check for any custom accessors defined on the wrong vector property type."));
 		const TCustomPropertyAccessor<FFloatPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatPropertyTraits>&>(BaseCustomAccessor);
-		(*CustomAccessor.Functions.Setter)(InObject, bIsDouble, InValue);
+		const float SetterValue = (float)InValue;
+		(*CustomAccessor.Functions.Setter)(InObject, SetterValue);
 	}
-	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, uint16 PropertyOffset, float InValue)
+	static void SetObjectPropertyValue(UObject* InObject, uint16 PropertyOffset, double InValue)
 	{
-		if (bIsDouble)
-		{
-			double TempValue = (float)InValue;
-			DoubleTraitsImpl::SetObjectPropertyValue(InObject, PropertyOffset, TempValue);
-		}
-		else
-		{
-			FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyOffset, InValue);
-		}
+		const float SetterValue = (float)InValue;
+		FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyOffset, SetterValue);
 	}
-	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, FTrackInstancePropertyBindings* PropertyBindings, float InValue)
+	static void SetObjectPropertyValue(UObject* InObject, FTrackInstancePropertyBindings* PropertyBindings, double InValue)
 	{
-		if (bIsDouble)
-		{
-			double TempValue = (float)InValue;
-			DoubleTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, TempValue);
-		}
-		else
-		{
-			FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, InValue);
-		}
+		const float SetterValue = (float)InValue;
+		FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, SetterValue);
 	}
 
-	static float CombineComposites(bool bIsDouble, float InValue)
+	static float CombineComposites(double InValue)
 	{
-		return InValue;
+		return (float)InValue;
 	}
 };
 
@@ -277,9 +243,9 @@ struct FColorPropertyTraits
 		}
 	}
 
-	static FIntermediateColor CombineComposites(EColorPropertyType InType, float InR, float InG, float InB, float InA)
+	static FIntermediateColor CombineComposites(EColorPropertyType InType, double InR, double InG, double InB, double InA)
 	{
-		return FIntermediateColor(InR, InG, InB, InA);
+		return FIntermediateColor((float)InR, (float)InG, (float)InB, (float)InA);
 	}
 };
 
@@ -362,20 +328,11 @@ struct FFloatVectorPropertyTraits
 
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, FFloatIntermediateVector& OutValue)
 	{
-		checkf(!MetaData.bIsDouble, TEXT("Type mismatch between FVectorXf and FVectorXd. Please check for any custom accessors defined on the wrong vector property type."));
 		const TCustomPropertyAccessor<FFloatVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatVectorPropertyTraits>&>(BaseCustomAccessor);
 		OutValue = (*CustomAccessor.Functions.Getter)(InObject, MetaData);
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, FFloatIntermediateVector& OutValue)
 	{
-		if (MetaData.bIsDouble)
-		{
-			FDoubleIntermediateVector TempDoubleValue;
-			FDoubleVectorPropertyTraits::GetObjectPropertyValue(InObject, MetaData, PropertyOffset, TempDoubleValue);
-			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
-			return;
-		}
-
 		switch (MetaData.NumChannels)
 		{
 		case 2: TIndirectPropertyTraits<FVector2f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
@@ -385,14 +342,6 @@ struct FFloatVectorPropertyTraits
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, FFloatIntermediateVector& OutValue)
 	{
-		if (MetaData.bIsDouble)
-		{
-			FDoubleIntermediateVector TempDoubleValue;
-			FDoubleVectorPropertyTraits::GetObjectPropertyValue(InObject, MetaData, PropertyBindings, TempDoubleValue);
-			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
-			return;
-		}
-
 		switch (MetaData.NumChannels)
 		{
 		case 2: TIndirectPropertyTraits<FVector2f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
@@ -402,14 +351,6 @@ struct FFloatVectorPropertyTraits
 	}
 	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FName& PropertyPath, StorageType& OutValue)
 	{
-		if (MetaData.bIsDouble)
-		{
-			FDoubleIntermediateVector TempDoubleValue;
-			FDoubleVectorPropertyTraits::GetObjectPropertyValue(InObject, MetaData, PropertyPath, TempDoubleValue);
-			OutValue = FFloatIntermediateVector(TempDoubleValue.X, TempDoubleValue.Y, TempDoubleValue.Z, TempDoubleValue.W);
-			return;
-		}
-
 		switch (MetaData.NumChannels)
 		{
 		case 2: TIndirectPropertyTraits<FVector2f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
@@ -420,19 +361,11 @@ struct FFloatVectorPropertyTraits
 
 	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, const FFloatIntermediateVector& InValue)
 	{
-		checkf(!MetaData.bIsDouble, TEXT("Type mismatch between FVectorXf and FVectorXd. Please check for any custom accessors defined on the wrong vector property type."));
 		const TCustomPropertyAccessor<FFloatVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatVectorPropertyTraits>&>(BaseCustomAccessor);
 		(*CustomAccessor.Functions.Setter)(InObject, MetaData, InValue);
 	}
 	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, const FFloatIntermediateVector& InValue)
 	{
-		if (MetaData.bIsDouble)
-		{
-			FDoubleIntermediateVector TempDoubleValue(InValue.X, InValue.Y, InValue.Z, InValue.W);
-			FDoubleVectorPropertyTraits::SetObjectPropertyValue(InObject, MetaData, PropertyOffset, TempDoubleValue);
-			return;
-		}
-
 		switch (MetaData.NumChannels)
 		{
 		case 2: TIndirectPropertyTraits<FVector2f, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
@@ -444,13 +377,6 @@ struct FFloatVectorPropertyTraits
 	}
 	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, const FFloatIntermediateVector& InValue)
 	{
-		if (MetaData.bIsDouble)
-		{
-			FDoubleIntermediateVector TempDoubleValue(InValue.X, InValue.Y, InValue.Z, InValue.W);
-			FDoubleVectorPropertyTraits::SetObjectPropertyValue(InObject, MetaData, PropertyBindings, TempDoubleValue);
-			return;
-		}
-
 		switch (MetaData.NumChannels)
 		{
 		case 2: TIndirectPropertyTraits<FVector2f, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;

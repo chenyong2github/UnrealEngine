@@ -25,7 +25,7 @@ struct FIntegerAccumulationTask
 	{}
 
 	/** Task entry point - iterates the allocation's headers and accumulates int32 results for any required components */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TReadOptional<float> EasingAndWeights)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TReadOptional<double> EasingAndWeights)
 	{
 		static const FMovieSceneBlenderSystemID IntegerBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseIntegerBlenderSystem>();
 
@@ -41,7 +41,7 @@ struct FIntegerAccumulationTask
 
 				FIntegerBlendResult& Result = AccumulationBuffer[BlendID.ChannelID];
 
-				const float Weight = EasingAndWeights[Index];
+				const double Weight = EasingAndWeights[Index];
 				Result.Total  += (int32)(Integers[Index] * Weight);
 				Result.Weight += Weight;
 			}
@@ -75,7 +75,7 @@ struct FIntegerAdditiveFromBaseBlendTask
 		: AccumulationBuffer(*InAccumulationBuffer)
 	{}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TRead<int32> BaseValues, TReadOptional<float> EasingAndWeights)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TRead<int32> BaseValues, TReadOptional<double> EasingAndWeights)
 	{
 		static const FMovieSceneBlenderSystemID IntegerBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseIntegerBlenderSystem>();
 
@@ -90,7 +90,7 @@ struct FIntegerAdditiveFromBaseBlendTask
 
 				FIntegerBlendResult& Result = AccumulationBuffer[BlendID.ChannelID];
 
-				const float Weight = EasingAndWeights[Index];
+				const double Weight = EasingAndWeights[Index];
 				Result.Total  += (int32)((Integers[Index] - BaseValues[Index]) * Weight);
 				Result.Weight += Weight;
 			}
@@ -157,7 +157,7 @@ struct FIntegerCombineBlends
 
 		FIntegerBlendResult TotalAdditiveResult = { AdditiveResult.Total + AdditiveFromBaseResult.Total, AdditiveResult.Weight + AdditiveFromBaseResult.Weight };
 
-		const float TotalWeight = AbsoluteResult.Weight + RelativeResult.Weight;
+		const double TotalWeight = AbsoluteResult.Weight + RelativeResult.Weight;
 		if (TotalWeight != 0)
 		{
 			// If the absolute value has some partial weighting (for ease-in/out for instance), we ramp it from/to the initial value. This means
@@ -170,7 +170,7 @@ struct FIntegerCombineBlends
 			const int32 AbsoluteBlendedValue = bInitialValueContributes ?
 				((int32)(InitialValue * (1.f - AbsoluteResult.Weight)) + AbsoluteResult.Total) :
 				AbsoluteResult.Total;
-			const float FinalTotalWeight = bInitialValueContributes ? (TotalWeight + (1.f - AbsoluteResult.Weight)) : TotalWeight;
+			const double FinalTotalWeight = bInitialValueContributes ? (TotalWeight + (1.f - AbsoluteResult.Weight)) : TotalWeight;
 
 			const int32 Value = (int32)((AbsoluteBlendedValue + RelativeResult.Total) / FinalTotalWeight) + TotalAdditiveResult.Total;
 			OutFinalBlendResult = Value;
@@ -195,7 +195,7 @@ struct FIntegerCombineBlends
 		ensureMsgf(AbsoluteResult.Weight != 0.f, TEXT("Default blend combine being used for an entity that has no absolute weight. This should have an initial value and should be handled by each system, and excluded by default with UMovieSceneBlenderSystem::FinalCombineExclusionFilter ."));
 #endif
 
-		const float TotalWeight = AbsoluteResult.Weight;
+		const double TotalWeight = AbsoluteResult.Weight;
 		if (TotalWeight != 0)
 		{
 			const int32 Value = (int32)(AbsoluteResult.Total / AbsoluteResult.Weight) + AdditiveResult.Total + AdditiveFromBaseResult.Total;

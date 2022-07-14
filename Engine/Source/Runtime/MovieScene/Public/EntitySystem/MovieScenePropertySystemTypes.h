@@ -57,6 +57,53 @@ template<typename PropertyTraits>
 struct TCompositePropertyTypeID : FCompositePropertyTypeID
 {};
 
+namespace Private
+{
+	/** Utility global flag to determine whether a given type has a nested type called CustomAccessorStorageType */
+	template<typename, typename = void>
+	constexpr bool PropertyTraitsHaveCustomAccessorStorageType = false;
+
+	template<typename T>
+	constexpr bool PropertyTraitsHaveCustomAccessorStorageType<T, std::void_t<decltype(sizeof(typename T::CustomAccessorStorageType))>> = true;
+
+	/** Utility class for selecting a property traits' CustomAccessorStorageType, or StorageType if not defined */
+	template<typename PropertyTraits, bool Custom>
+	struct TCustomPropertyAccessorStorageTypeImpl;
+
+	template<typename PropertyTraits>
+	struct TCustomPropertyAccessorStorageTypeImpl<PropertyTraits, false>
+	{
+		using Value = typename PropertyTraits::StorageType;
+	};
+	
+	template<typename PropertyTraits>
+	struct TCustomPropertyAccessorStorageTypeImpl<PropertyTraits, true>
+	{
+		using Value = typename PropertyTraits::CustomAccessorStorageType;
+	};
+	
+	template<typename PropertyTraits>
+	struct TCustomPropertyAccessorStorageType : TCustomPropertyAccessorStorageTypeImpl<PropertyTraits, PropertyTraitsHaveCustomAccessorStorageType<PropertyTraits>>
+	{};
+
+	namespace Tests
+	{
+		struct TestNormal
+		{
+			using StorageType = bool;
+		};
+		static_assert(PropertyTraitsHaveCustomAccessorStorageType<TestNormal> == false, "Normal has no custom storage type");
+		static_assert(TIsSame<TCustomPropertyAccessorStorageType<TestNormal>::Value, bool>::Value, "Normal has bool storage type");
+
+		struct TestCustom
+		{
+			using StorageType = bool;
+			using CustomAccessorStorageType = int;
+		};
+		static_assert(PropertyTraitsHaveCustomAccessorStorageType<TestCustom> == true, "Custom does have custom storage type");
+		static_assert(TIsSame<TCustomPropertyAccessorStorageType<TestCustom>::Value, int>::Value, "Custom has int storage type");
+	}
+}
 
 /**
  * Structure that defines 2 static function pointers that are to be used for retrieving and applying properties of a given type
@@ -67,7 +114,7 @@ struct TCustomPropertyAccessorFunctionsImpl;
 template<typename PropertyTraits, typename ...MetaDataTypes>
 struct TCustomPropertyAccessorFunctionsImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 {
-	using StorageType = typename PropertyTraits::StorageType;
+	using StorageType = typename Private::TCustomPropertyAccessorStorageType<PropertyTraits>::Value;
 	using ParamType   = typename TCallTraits<StorageType>::ParamType;
 
 	using GetterFunc = StorageType (*)(const UObject* Object, MetaDataTypes...);

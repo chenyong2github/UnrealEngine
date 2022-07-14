@@ -10,7 +10,7 @@
 
 #include "MovieSceneComponentMaterialSystem.generated.h"
 
-class UMovieScenePiecewiseFloatBlenderSystem;
+class UMovieScenePiecewiseDoubleBlenderSystem;
 
 namespace UE::MovieScene
 {

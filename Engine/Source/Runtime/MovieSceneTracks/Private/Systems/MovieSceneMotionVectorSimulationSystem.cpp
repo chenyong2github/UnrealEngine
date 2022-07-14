@@ -12,7 +12,6 @@
 #include "MovieSceneTracksComponentTypes.h"
 
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 
 #include "Rendering/MotionVectorSimulation.h"
@@ -153,17 +152,17 @@ void UMovieSceneMotionVectorSimulationSystem::ComputeSimulatedMotion()
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->BoundObject)
 	.ReadAnyOf(
-		BuiltInComponents->FloatResult[0], BuiltInComponents->FloatResult[1], BuiltInComponents->FloatResult[2],
-		BuiltInComponents->FloatResult[3], BuiltInComponents->FloatResult[4], BuiltInComponents->FloatResult[5],
-		BuiltInComponents->FloatResult[6], BuiltInComponents->FloatResult[7], BuiltInComponents->FloatResult[8])
+		BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2],
+		BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5],
+		BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8])
 	.FilterAll({ TracksComponents->ComponentTransform.PropertyTag })
 	.FilterAny({ BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty })
 	.FilterAny({ 
 		// must have at least one float result component
-		BuiltInComponents->FloatResult[0], BuiltInComponents->FloatResult[1], BuiltInComponents->FloatResult[2],
-		BuiltInComponents->FloatResult[3], BuiltInComponents->FloatResult[4], BuiltInComponents->FloatResult[5],
-		BuiltInComponents->FloatResult[6], BuiltInComponents->FloatResult[7], BuiltInComponents->FloatResult[8] })
-	.Iterate_PerEntity(&Linker->EntityManager, [this](UObject* BoundObject, const float* T_X, const float* T_Y, const float* T_Z, const float* R_X, const float* R_Y, const float* R_Z, const float* S_X, const float* S_Y, const float* S_Z)
+		BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2],
+		BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5],
+		BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8] })
+	.Iterate_PerEntity(&Linker->EntityManager, [this](UObject* BoundObject, const double* T_X, const double* T_Y, const double* T_Z, const double* R_X, const double* R_Y, const double* R_Z, const double* S_X, const double* S_Y, const double* S_Z)
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(BoundObject))
 		{

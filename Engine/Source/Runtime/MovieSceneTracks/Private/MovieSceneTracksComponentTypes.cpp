@@ -13,7 +13,7 @@
 #include "Systems/MovieScenePiecewiseByteBlenderSystem.h"
 #include "Systems/MovieScenePiecewiseEnumBlenderSystem.h"
 #include "Systems/MovieScenePiecewiseIntegerBlenderSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
@@ -228,44 +228,38 @@ void SetSkyLightComponentLightColor(UObject* Object, EColorPropertyType InColorT
 	SkyLightComponent->SetLightColor(InColor.GetLinearColor());
 }
 
-float GetSecondFogDataFogDensity(const UObject* Object, bool bIsDouble)
+float GetSecondFogDataFogDensity(const UObject* Object)
 {
-	check(!bIsDouble);
 	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
 	return ExponentialHeightFogComponent->SecondFogData.FogDensity;
 }
 
-void SetSecondFogDataFogDensity(UObject* Object, bool bIsDouble, float InFogDensity)
+void SetSecondFogDataFogDensity(UObject* Object, float InFogDensity)
 {
-	check(!bIsDouble);
 	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
 	ExponentialHeightFogComponent->SecondFogData.FogDensity = InFogDensity;
 }
 
-float GetSecondFogDataFogHeightFalloff(const UObject* Object, bool bIsDouble)
+float GetSecondFogDataFogHeightFalloff(const UObject* Object)
 {
-	check(!bIsDouble);
 	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
 	return ExponentialHeightFogComponent->SecondFogData.FogHeightFalloff;
 }
 
-void SetSecondFogDataFogHeightFalloff(UObject* Object, bool bIsDouble, float InFogHeightFalloff)
+void SetSecondFogDataFogHeightFalloff(UObject* Object, float InFogHeightFalloff)
 {
-	check(!bIsDouble);
 	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
 	ExponentialHeightFogComponent->SecondFogData.FogHeightFalloff = InFogHeightFalloff;
 }
 
-float GetSecondFogDataFogHeightOffset(const UObject* Object, bool bIsDouble)
+float GetSecondFogDataFogHeightOffset(const UObject* Object)
 {
-	check(!bIsDouble);
 	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
 	return ExponentialHeightFogComponent->SecondFogData.FogHeightOffset;
 }
 
-void SetSecondFogDataFogHeightOffset(UObject* Object, bool bIsDouble, float InFogHeightOffset)
+void SetSecondFogDataFogHeightOffset(UObject* Object, float InFogHeightOffset)
 {
-	check(!bIsDouble);
 	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
 	ExponentialHeightFogComponent->SecondFogData.FogHeightOffset = InFogHeightOffset;
 }
@@ -368,34 +362,11 @@ void FComponentDetachParams::ApplyDetach(USceneComponent* ChildComponentToAttach
 static bool GMovieSceneTracksComponentTypesDestroyed = false;
 static TUniquePtr<FMovieSceneTracksComponentTypes> GMovieSceneTracksComponentTypes;
 
-struct FFloatHandler : TPropertyComponentHandler<FFloatPropertyTraits, float>
+struct FFloatHandler : TPropertyComponentHandler<FFloatPropertyTraits, double>
 {
-	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
-	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-		FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
-
-		FEntityTaskBuilder()
-		.Read(BuiltInComponents->BoundObject)
-		.Read(BuiltInComponents->PropertyBinding)
-		.Write(TrackComponents->Float.MetaDataComponents.GetType<0>())
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
-		.Iterate_PerEntity(&Linker->EntityManager, [](UObject* Object, const FMovieScenePropertyBinding& Binding, bool& OutIsDouble)
-		{
-			FProperty* BoundProperty = FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString());
-			if (ensure(BoundProperty))
-			{
-				OutIsDouble = BoundProperty->IsA<FDoubleProperty>();
-			}
-			else
-			{
-				OutIsDouble = false;
-			}
-		});
-	}
 };
 
-struct FColorHandler : TPropertyComponentHandler<FColorPropertyTraits, float, float, float, float>
+struct FColorHandler : TPropertyComponentHandler<FColorPropertyTraits, double, double, double, double>
 {
 	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
 	{
@@ -438,7 +409,7 @@ struct FColorHandler : TPropertyComponentHandler<FColorPropertyTraits, float, fl
 };
 
 
-struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTraits, float, float, float, float>
+struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTraits, double, double, double, double>
 {
 	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
 	{
@@ -455,21 +426,18 @@ struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTrait
 			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
 			if (ensure(BoundProperty && BoundProperty->Struct))
 			{
-				if (BoundProperty->Struct == TBaseStructure<FVector2D>::Get() || BoundProperty->Struct == TVariantStructure<FVector2f>::Get()) // LWC_TODO: Fix LWC type FName case
+				if (BoundProperty->Struct == TVariantStructure<FVector2f>::Get())
 				{
 					OutMetaData.NumChannels = 2;
-					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector2D>::Get()); // LWC_TODO: Fix LWC type FName case
 				}
-				else if (BoundProperty->Struct == TBaseStructure<FVector>::Get() || BoundProperty->Struct == TVariantStructure<FVector3f>::Get() || BoundProperty->Struct == TVariantStructure<FVector3d>::Get())
+				else if (BoundProperty->Struct == TVariantStructure<FVector3f>::Get())
 				{
 					OutMetaData.NumChannels = 3;
-					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector>::Get() || BoundProperty->Struct == TVariantStructure<FVector3d>::Get());
 				}
 				else
 				{
-					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || BoundProperty->Struct == TVariantStructure<FVector4f>::Get() || BoundProperty->Struct == TVariantStructure<FVector4d>::Get());
+					ensure(BoundProperty->Struct == TVariantStructure<FVector4f>::Get());
 					OutMetaData.NumChannels = 4;
-					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector4>::Get() || BoundProperty->Struct == TVariantStructure<FVector4d>::Get());
 				}
 			}
 			else
@@ -502,13 +470,13 @@ struct FDoubleVectorHandler : TPropertyComponentHandler<FDoubleVectorPropertyTra
 				{
 					OutMetaData.NumChannels = 2;
 				}
-				else if (BoundProperty->Struct->GetFName() == NAME_Vector3d || BoundProperty->Struct->GetFName() == NAME_Vector)
+				else if (BoundProperty->Struct == TBaseStructure<FVector>::Get() || BoundProperty->Struct == TVariantStructure<FVector3d>::Get())
 				{
 					OutMetaData.NumChannels = 3;
 				}
 				else
 				{
-					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || (BoundProperty->Struct->GetFName() == NAME_Vector4d) || (BoundProperty->Struct->GetFName() == NAME_Vector4));
+					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || BoundProperty->Struct == TVariantStructure<FVector4d>::Get());
 					OutMetaData.NumChannels = 4;
 				}
 			}
@@ -547,7 +515,6 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewPropertyType(EulerTransform, TEXT("FEulerTransform"));
 	ComponentRegistry->NewPropertyType(ComponentTransform, TEXT("Component Transform"));
 
-	Float.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Is Double"));
 	Color.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Color Type"));
 	FloatVector.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Num Float Vector Channels"));
 	DoubleVector.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Num Double Vector Channels"));
@@ -629,8 +596,8 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// --------------------------------------------------------------------------------------------
 	// Set up float properties
 	BuiltInComponents->PropertyRegistry.DefineProperty(Float, TEXT("Apply float Properties"))
-	.AddSoleChannel(BuiltInComponents->FloatResult[0])
-	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
+	.AddSoleChannel(BuiltInComponents->DoubleResult[0])
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Float)
 	.Commit(FFloatHandler());
 
@@ -645,11 +612,11 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// --------------------------------------------------------------------------------------------
 	// Set up color properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Color, TEXT("Apply Color Properties"))
-	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateColor::R)
-	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateColor::G)
-	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateColor::B)
-	.AddComposite(BuiltInComponents->FloatResult[3], &FIntermediateColor::A)
-	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
+	.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediateColor::R)
+	.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediateColor::G)
+	.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediateColor::B)
+	.AddComposite(BuiltInComponents->DoubleResult[3], &FIntermediateColor::A)
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Color)
 	.Commit(FColorHandler());
 
@@ -677,11 +644,11 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	// --------------------------------------------------------------------------------------------
 	// Set up vector properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(FloatVector, TEXT("Apply FloatVector Properties"))
-	.AddComposite(BuiltInComponents->FloatResult[0], &FFloatIntermediateVector::X)
-	.AddComposite(BuiltInComponents->FloatResult[1], &FFloatIntermediateVector::Y)
-	.AddComposite(BuiltInComponents->FloatResult[2], &FFloatIntermediateVector::Z)
-	.AddComposite(BuiltInComponents->FloatResult[3], &FFloatIntermediateVector::W)
-	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
+	.AddComposite(BuiltInComponents->DoubleResult[0], &FFloatIntermediateVector::X)
+	.AddComposite(BuiltInComponents->DoubleResult[1], &FFloatIntermediateVector::Y)
+	.AddComposite(BuiltInComponents->DoubleResult[2], &FFloatIntermediateVector::Z)
+	.AddComposite(BuiltInComponents->DoubleResult[3], &FFloatIntermediateVector::W)
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&Accessors.FloatVector)
 	.Commit(FFloatVectorHandler());
 

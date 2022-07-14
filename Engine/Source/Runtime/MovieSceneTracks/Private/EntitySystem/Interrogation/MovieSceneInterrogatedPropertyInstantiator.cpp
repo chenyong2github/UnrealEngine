@@ -5,7 +5,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyRegistry.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 #include "Algo/IndexOf.h"
 #include "Algo/Find.h"
@@ -131,9 +131,9 @@ UClass* UMovieSceneInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(c
 		}
 	}
 	
-	if (!ensureMsgf(BlenderClass, TEXT("No default blender class specified on property, and no custom blender specified on entities. Falling back to float blender.")))
+	if (!ensureMsgf(BlenderClass, TEXT("No default blender class specified on property, and no custom blender specified on entities. Falling back to double blender.")))
 	{
-		BlenderClass = UMovieScenePiecewiseFloatBlenderSystem::StaticClass();
+		BlenderClass = UMovieScenePiecewiseDoubleBlenderSystem::StaticClass();
 	}
 	
 	return BlenderClass;

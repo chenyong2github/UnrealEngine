@@ -286,14 +286,8 @@ public:
 	// FMovieSceneObjectPathChannel that represents a changing object path over time
 	TComponentTypeID<FSourceObjectPathChannel> ObjectPathChannel;
 
-	// A float representing the output of the channel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
-	TComponentTypeID<float> FloatResult[9];
-
 	// A double considered to be at index N within the source structure (ie 0 = Location.X, Vector.X; 1 = Location.Y, Vector.Y)
 	TComponentTypeID<double> DoubleResult[9];
-
-	// A float representing the base value for the float channel at index N, for the purposes of "additive from base" blending.
-	TComponentTypeID<float> BaseFloat[9];
 
 	// A double representing the base value for the double channel at index N, for the purposes of "additive from base" blending.
 	TComponentTypeID<double> BaseDouble[9];
@@ -302,7 +296,7 @@ public:
 	TComponentTypeID<FFrameTime> BaseValueEvalTime;
 
 	// A float representing the evaluated output of a weight channel
-	TComponentTypeID<float> WeightResult;
+	TComponentTypeID<double> WeightResult;
 
 	// The result of an evaluated FMovieSceneObjectPathChannel
 	TComponentTypeID<UObject*> ObjectResult;
@@ -319,7 +313,7 @@ public:
 	TComponentTypeID<FMovieSceneSequenceID> HierarchicalEasingProvider;
 
 	// A float representing the evaluated easing weight
-	TComponentTypeID<float> WeightAndEasingResult;
+	TComponentTypeID<double> WeightAndEasingResult;
 
 	/** A blender type that should be used for blending this entity */
 	TComponentTypeID<TSubclassOf<UMovieSceneBlenderSystem>> BlenderType;

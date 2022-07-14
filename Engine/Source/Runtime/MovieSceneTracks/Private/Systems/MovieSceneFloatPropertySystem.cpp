@@ -2,7 +2,7 @@
 
 #include "Systems/MovieSceneFloatPropertySystem.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 #include "MovieSceneTracksComponentTypes.h"
 
@@ -16,7 +16,7 @@ UMovieSceneFloatPropertySystem::UMovieSceneFloatPropertySystem(const FObjectInit
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
 	}
 }

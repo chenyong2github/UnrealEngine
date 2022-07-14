@@ -8,7 +8,6 @@
 #include "Systems/DoubleChannelEvaluatorSystem.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 
 UMovieSceneFloatVectorPropertySystem::UMovieSceneFloatVectorPropertySystem(const FObjectInitializer& ObjInit)
@@ -22,7 +21,7 @@ UMovieSceneFloatVectorPropertySystem::UMovieSceneFloatVectorPropertySystem(const
 	{
 		// We need our floats correctly evaluated and blended, so we are downstream from those systems.
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 	}
 }
 

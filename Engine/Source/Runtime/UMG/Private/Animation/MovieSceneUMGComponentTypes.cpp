@@ -6,7 +6,7 @@
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "MovieSceneTracksComponentTypes.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 #include "Components/Widget.h"
 
@@ -40,15 +40,29 @@ void ConvertOperationalProperty(const FWidgetTransform& In, FIntermediateWidgetT
 	Out.ShearY = In.Shear.Y;
 }
 
-static float GetRenderOpacity(const UObject* Object, bool bIsDouble)
+void ConvertOperationalProperty(const FIntermediateMargin& In, FMargin& Out)
 {
-	check(!bIsDouble);
+	Out.Top = In.Top;
+	Out.Right = In.Right;
+	Out.Bottom = In.Bottom;
+	Out.Left = In.Left;
+}
+
+void ConvertOperationalProperty(const FMargin& In, FIntermediateMargin& Out)
+{
+	Out.Top = In.Top;
+	Out.Right = In.Right;
+	Out.Bottom = In.Bottom;
+	Out.Left = In.Left;
+}
+
+static float GetRenderOpacity(const UObject* Object)
+{
 	return CastChecked<const UWidget>(Object)->GetRenderOpacity();
 }
 
-static void SetRenderOpacity(UObject* Object, bool bIsDouble, float InRenderOpacity)
+static void SetRenderOpacity(UObject* Object, float InRenderOpacity)
 {
-	check(!bIsDouble);
 	CastChecked<UWidget>(Object)->SetRenderOpacity(InRenderOpacity);
 }
 
@@ -87,22 +101,22 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 	CustomWidgetTransformAccessors.Add(UWidget::StaticClass(), "RenderTransform", &GetRenderTransform, &SetRenderTransform);
 
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Margin, TEXT("Apply FMargin Properties"))
-	.AddComposite(BuiltInComponents->FloatResult[0], &FMargin::Left)
-	.AddComposite(BuiltInComponents->FloatResult[1], &FMargin::Top)
-	.AddComposite(BuiltInComponents->FloatResult[2], &FMargin::Right)
-	.AddComposite(BuiltInComponents->FloatResult[3], &FMargin::Bottom)
-	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
+	.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediateMargin::Left)
+	.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediateMargin::Top)
+	.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediateMargin::Right)
+	.AddComposite(BuiltInComponents->DoubleResult[3], &FIntermediateMargin::Bottom)
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.Commit();
 
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(WidgetTransform, TEXT("Call UUserWidget::SetRenderTransform"))
-	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateWidgetTransform::TranslationX)
-	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateWidgetTransform::TranslationY)
-	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateWidgetTransform::Rotation)
-	.AddComposite(BuiltInComponents->FloatResult[3], &FIntermediateWidgetTransform::ScaleX)
-	.AddComposite(BuiltInComponents->FloatResult[4], &FIntermediateWidgetTransform::ScaleY)
-	.AddComposite(BuiltInComponents->FloatResult[5], &FIntermediateWidgetTransform::ShearX)
-	.AddComposite(BuiltInComponents->FloatResult[6], &FIntermediateWidgetTransform::ShearY)
-	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
+	.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediateWidgetTransform::TranslationX)
+	.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediateWidgetTransform::TranslationY)
+	.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediateWidgetTransform::Rotation)
+	.AddComposite(BuiltInComponents->DoubleResult[3], &FIntermediateWidgetTransform::ScaleX)
+	.AddComposite(BuiltInComponents->DoubleResult[4], &FIntermediateWidgetTransform::ScaleY)
+	.AddComposite(BuiltInComponents->DoubleResult[5], &FIntermediateWidgetTransform::ShearX)
+	.AddComposite(BuiltInComponents->DoubleResult[6], &FIntermediateWidgetTransform::ShearY)
+	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&CustomWidgetTransformAccessors)
 	.Commit();
 }

@@ -96,15 +96,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&BoolResult,            TEXT("Bool Result"));
 	ComponentRegistry->NewComponentType(&ByteResult,            TEXT("Byte Result"));
 	ComponentRegistry->NewComponentType(&IntegerResult,         TEXT("Integer Result"));
-	ComponentRegistry->NewComponentType(&FloatResult[0],        TEXT("Float Result 0"));
-	ComponentRegistry->NewComponentType(&FloatResult[1],        TEXT("Float Result 1"));
-	ComponentRegistry->NewComponentType(&FloatResult[2],        TEXT("Float Result 2"));
-	ComponentRegistry->NewComponentType(&FloatResult[3],        TEXT("Float Result 3"));
-	ComponentRegistry->NewComponentType(&FloatResult[4],        TEXT("Float Result 4"));
-	ComponentRegistry->NewComponentType(&FloatResult[5],        TEXT("Float Result 5"));
-	ComponentRegistry->NewComponentType(&FloatResult[6],        TEXT("Float Result 6"));
-	ComponentRegistry->NewComponentType(&FloatResult[7],        TEXT("Float Result 7"));
-	ComponentRegistry->NewComponentType(&FloatResult[8],        TEXT("Float Result 8"));
 	ComponentRegistry->NewComponentType(&DoubleResult[0],       TEXT("Double Result 0"));
 	ComponentRegistry->NewComponentType(&DoubleResult[1],       TEXT("Double Result 1"));
 	ComponentRegistry->NewComponentType(&DoubleResult[2],       TEXT("Double Result 2"));
@@ -117,15 +108,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&ObjectResult,          TEXT("Object Result"));
 
 	ComponentRegistry->NewComponentType(&BaseInteger,			TEXT("Base Integer"));
-	ComponentRegistry->NewComponentType(&BaseFloat[0],          TEXT("Base Float 0"));
-	ComponentRegistry->NewComponentType(&BaseFloat[1],          TEXT("Base Float 1"));
-	ComponentRegistry->NewComponentType(&BaseFloat[2],          TEXT("Base Float 2"));
-	ComponentRegistry->NewComponentType(&BaseFloat[3],          TEXT("Base Float 3"));
-	ComponentRegistry->NewComponentType(&BaseFloat[4],          TEXT("Base Float 4"));
-	ComponentRegistry->NewComponentType(&BaseFloat[5],          TEXT("Base Float 5"));
-	ComponentRegistry->NewComponentType(&BaseFloat[6],          TEXT("Base Float 6"));
-	ComponentRegistry->NewComponentType(&BaseFloat[7],          TEXT("Base Float 7"));
-	ComponentRegistry->NewComponentType(&BaseFloat[8],          TEXT("Base Float 8"));
 	ComponentRegistry->NewComponentType(&BaseDouble[0],         TEXT("Base Double 0"));
 	ComponentRegistry->NewComponentType(&BaseDouble[1],         TEXT("Base Double 1"));
 	ComponentRegistry->NewComponentType(&BaseDouble[2],         TEXT("Base Double 2"));
@@ -229,7 +211,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	// Float channel relationships
 	{
 		static_assert(
-				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(BaseFloat), 
+				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(BaseDouble), 
 				"Base floats and float results should have the same size.");
 		static_assert(
 				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(FloatChannelFlags),
@@ -239,17 +221,17 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(FloatChannel); ++Index)
 		{
 			ComponentRegistry->Factories.DuplicateChildComponent(FloatChannel[Index]);
-			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatResult[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], DoubleResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], EvalTime);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatChannelFlags[Index]);
 		}
 
 		// Create base float components for float channels that are meant to be additive from base.
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseFloat); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseDouble); ++Index)
 		{
 			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
 					FComplexInclusivityFilter::All({ FloatChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
-					BaseFloat[Index]);
+					BaseDouble[Index]);
 		}
 	}
 

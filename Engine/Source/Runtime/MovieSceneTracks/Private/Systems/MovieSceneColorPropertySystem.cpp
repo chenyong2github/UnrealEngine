@@ -3,7 +3,7 @@
 #include "Systems/MovieSceneColorPropertySystem.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 
 UMovieSceneColorPropertySystem::UMovieSceneColorPropertySystem(const FObjectInitializer& ObjInit)
@@ -16,7 +16,7 @@ UMovieSceneColorPropertySystem::UMovieSceneColorPropertySystem(const FObjectInit
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// We need our floats correctly evaluated and blended, so we are downstream from those systems.
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
 	}
 }
