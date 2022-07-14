@@ -551,6 +551,7 @@ TArray<UStruct*> FRigVMTemplate::GetSuperStructs(UStruct* InStruct, bool bInclud
 	{
 		SuperStructs.Remove(SuperStructs.Last());
 	}
+
 	return SuperStructs;
 }
 
