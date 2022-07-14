@@ -31,6 +31,8 @@ namespace Chaos
 UCLASS(MinimalAPI, Within=LandscapeProxy)
 class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 {
+	friend class FLandscapeHeightfieldCollisionComponentSceneProxy;
+
 	GENERATED_UCLASS_BODY()
 
 	ULandscapeHeightfieldCollisionComponent(FVTableHelper& Helper);
@@ -229,6 +231,11 @@ public:
 #endif
 	/** Gets the landscape info object for this landscape */
 	ULandscapeInfo* GetLandscapeInfo() const;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_EDITORONLY_DATA
+	// The scene proxy is only for debug purposes :
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_EDITORONLY_DATA
 
 	/** Creates collision object from a cooked collision data */
 	virtual void CreateCollisionObject();
