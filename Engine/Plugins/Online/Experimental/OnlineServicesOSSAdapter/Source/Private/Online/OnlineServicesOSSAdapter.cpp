@@ -10,6 +10,9 @@
 #include "Online/PresenceOSSAdapter.h"
 #include "Online/PrivilegesOSSAdapter.h"
 #include "Online/StatsOSSAdapter.h"
+#include "Online/TitleFileOSSAdapter.h"
+#include "Online/UserFileOSSAdapter.h"
+#include "Online/UserInfoOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
 
@@ -37,6 +40,18 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 	if (Subsystem->GetExternalUIInterface().IsValid())
 	{
 		Components.Register<FExternalUIOSSAdapter>(*this);
+	}
+	if (Subsystem->GetTitleFileInterface().IsValid())
+	{
+		Components.Register<FTitleFileOSSAdapter>(*this);
+	}
+	if (Subsystem->GetUserCloudInterface().IsValid())
+	{
+		Components.Register<FUserFileOSSAdapter>(*this);
+	}
+	if (Subsystem->GetUserInterface().IsValid())
+	{
+		Components.Register<FUserInfoOSSAdapter>(*this);
 	}
 
 	FOnlineServicesCommon::RegisterComponents();
