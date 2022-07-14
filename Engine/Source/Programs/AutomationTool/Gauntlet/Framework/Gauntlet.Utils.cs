@@ -27,6 +27,8 @@ namespace Gauntlet
 			set { InnerParams = value; }
 		}
 
+		public static readonly DateTime ProgramStartTime = DateTime.UtcNow;
+
 		static string InnerTempDir;
 		static string InnerLogDir;
 		static string InnerUnrealRootDir;
@@ -337,6 +339,12 @@ namespace Gauntlet
 						Message = Regex.Replace(Message, Trigger, SafeTrigger, RegexOptions.IgnoreCase);
 					}
 				}		
+			}
+
+			if (Globals.Params.ParseParam("timestamp"))
+			{
+				TimeSpan ElapsedTime = DateTime.UtcNow - Globals.ProgramStartTime;
+				Message = "[" + ElapsedTime.ToString() + "] " + Message;
 			}
 
 			if (string.IsNullOrEmpty(Prefix) == false)
