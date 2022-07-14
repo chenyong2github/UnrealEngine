@@ -82,6 +82,9 @@ struct PCG_API FPCGDataCollection
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TArray<FPCGTaggedData> TaggedData;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	bool bCancelExecutionOnEmpty = false;
+
 	/** This flag is used to cancel further computation or for the debug/isolate feature */
 	bool bCancelExecution = false;
 };
