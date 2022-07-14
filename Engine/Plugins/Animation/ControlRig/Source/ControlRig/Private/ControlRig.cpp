@@ -956,8 +956,11 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 						{
 							InitialPose = GetHierarchy()->GetPose(true, ERigElementType::ToResetAfterConstructionEvent, FRigElementKeyCollection());
 						}
-						
-						GetHierarchy()->ResetToDefault();
+
+						if(bCopyHierarchyBeforeConstruction)
+						{
+							GetHierarchy()->ResetToDefault();
+						}
 
 						if(InitialPose.Num() > 0)
 						{
