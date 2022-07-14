@@ -11,22 +11,33 @@
 
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
+#include "EntitySystem/MovieSceneComponentTypeInfo.h"
 #include "MovieSceneTracksComponentTypes.h"
+
+#include "MovieSceneMaterialSystem.generated.h"
+
+USTRUCT()
+struct FMovieScenePreAnimatedMaterialParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> PreviousMaterial = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> PreviousParameterContainer = nullptr;
+};
 
 namespace UE::MovieScene
 {
-
-struct FPreAnimatedMaterialParameters
-{
-	UMaterialInterface* PreviousMaterial = nullptr;
-	UMaterialInterface* PreviousParameterContainer = nullptr;
-};
 
 template<typename AccessorType, typename... RequiredComponents>
 struct TPreAnimatedMaterialTraits : FBoundObjectPreAnimatedStateTraits
 {
 	using KeyType     = typename AccessorType::KeyType;
 	using StorageType = UMaterialInterface*;
+
+	static_assert(THasAddReferencedObjectForComponent<StorageType>::Value, "StorageType is not correctly exposed to the reference graph!");
 
 	static UMaterialInterface* CachePreAnimatedValue(typename TCallTraits<RequiredComponents>::ParamType... InRequiredComponents)
 	{
@@ -43,13 +54,15 @@ template<typename AccessorType, typename... RequiredComponents>
 struct TPreAnimatedMaterialParameterTraits : FBoundObjectPreAnimatedStateTraits
 {
 	using KeyType     = typename AccessorType::KeyType;
-	using StorageType = FPreAnimatedMaterialParameters;
+	using StorageType = FMovieScenePreAnimatedMaterialParameters;
 
-	static FPreAnimatedMaterialParameters CachePreAnimatedValue(typename TCallTraits<RequiredComponents>::ParamType... InRequiredComponents)
+	static_assert(THasAddReferencedObjectForComponent<StorageType>::Value, "StorageType is not correctly exposed to the reference graph!");
+
+	static FMovieScenePreAnimatedMaterialParameters CachePreAnimatedValue(typename TCallTraits<RequiredComponents>::ParamType... InRequiredComponents)
 	{
 		AccessorType Accessor{ InRequiredComponents... };
 
-		FPreAnimatedMaterialParameters Parameters;
+		FMovieScenePreAnimatedMaterialParameters Parameters;
 		Parameters.PreviousMaterial = Accessor.GetMaterial();
 
 		// If the current material we're overriding is already a material instance dynamic, copy it since we will be modifying the data. 
@@ -63,7 +76,7 @@ struct TPreAnimatedMaterialParameterTraits : FBoundObjectPreAnimatedStateTraits
 		return Parameters;
 	}
 
-	static void RestorePreAnimatedValue(const KeyType& InKey, const FPreAnimatedMaterialParameters& PreAnimatedValue, const FRestoreStateParams& Params)
+	static void RestorePreAnimatedValue(const KeyType& InKey, const FMovieScenePreAnimatedMaterialParameters& PreAnimatedValue, const FRestoreStateParams& Params)
 	{
 		AccessorType Accessor{ InKey };
 		if (PreAnimatedValue.PreviousParameterContainer != nullptr)
