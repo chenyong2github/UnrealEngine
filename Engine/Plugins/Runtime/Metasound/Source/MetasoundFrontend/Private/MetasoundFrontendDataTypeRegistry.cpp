@@ -582,12 +582,9 @@ namespace Metasound
 					}
 
 					const FDataTypeRegistryInfo& RegistryInfo = Entry->GetDataTypeInfo();
-					if (!RegistryInfo.IsArrayType())
+					if (const UClass* Class = RegistryInfo.ProxyGeneratorClass)
 					{
-						if (const UClass* Class = RegistryInfo.ProxyGeneratorClass)
-						{
-							RegisteredObjectClasses.Add(Class, Name);
-						}
+						RegisteredObjectClasses.Add(Class, Name);
 					}
 
 					RegisteredDataTypes.Add(Name, Entry);
@@ -825,9 +822,46 @@ namespace Metasound
 			FLiteral FDataTypeRegistry::CreateLiteralFromUObjectArray(const FName& InDataType, const TArray<UObject*>& InObjectArray) const
 			{
 				TArray<Audio::IProxyDataPtr> ProxyArray;
+				const IDataTypeRegistryEntry* DataTypeEntry = FindDataTypeEntry(InDataType);
+				if (!DataTypeEntry)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from Array DataType '%s': Type is not registered."), *InDataType.ToString());
+					return Metasound::FLiteral(MoveTemp(ProxyArray));
+				}
+
+				const FDataTypeRegistryInfo& DataTypeInfo = DataTypeEntry->GetDataTypeInfo();
+
+				const bool bIsArrayType = DataTypeInfo.bIsProxyArrayParsable;
+				if (!bIsArrayType)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from DataType '%s': Type is not 'ArrayType'."), *InDataType.ToString());
+					return Metasound::FLiteral(MoveTemp(ProxyArray));
+				}
+
+				const bool bIsProxyArrayParseable = DataTypeInfo.bIsProxyArrayParsable;
+				if (!bIsProxyArrayParseable)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from DataType '%s': Type is not proxy parseable."), *InDataType.ToString());
+					return Metasound::FLiteral(MoveTemp(ProxyArray));
+				}
+
+				const FName ElementDataType = CreateElementTypeNameFromArrayTypeName(InDataType);
+				const IDataTypeRegistryEntry* ElementEntry = FindDataTypeEntry(ElementDataType);
+				if (!ElementEntry)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from DataType '%s': ElementType '%s' is not registered."), *ElementDataType.ToString());
+					return Metasound::FLiteral(MoveTemp(ProxyArray));
+				}
+
 				for (UObject* InObject : InObjectArray)
 				{
-					Audio::IProxyDataPtr ProxyPtr = CreateProxyFromUObject(InDataType, InObject);
+					Audio::IProxyDataPtr ProxyPtr = CreateProxyFromUObject(ElementDataType, InObject);
+					ProxyPtr = ElementEntry->CreateProxy(InObject);
+					if (!ProxyPtr && InObject)
+					{
+						UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from UObject '%s'."), *InObject->GetName());
+					}
+
 					ProxyArray.Emplace(MoveTemp(ProxyPtr));
 				}
 

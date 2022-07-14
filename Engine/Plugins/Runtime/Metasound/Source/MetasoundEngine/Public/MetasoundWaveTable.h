@@ -77,6 +77,13 @@ namespace Metasound
 		}
 	};
 
+	// Disable arrays of WaveTables (as of addition, not supported by UX). Must be defined prior to DataType declaration macro below.
+	template<>
+	struct TEnableAutoArrayTypeRegistration<WaveTable::FWaveTable>
+	{
+		static constexpr bool Value = false;
+	};
+
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(WaveTable::FWaveTable, METASOUNDENGINE_API, FWaveTableTypeInfo, FWaveTableReadRef, FWaveTableWriteRef)
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveTableBankAsset, METASOUNDENGINE_API, FWaveTableBankAssetTypeInfo, FWaveTableBankAssetReadRef, FWaveTableBankAssetWriteRef)
 } // namespace Metasound

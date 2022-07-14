@@ -6,6 +6,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundEngineArchetypes.h"
+#include "MetasoundFrontendDataTypeTraits.h"
 #include "MetasoundInterface.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
@@ -18,10 +19,12 @@
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 
+
+REGISTER_METASOUND_DATATYPE(Metasound::FAudioBusAsset, "AudioBusAsset", Metasound::ELiteralType::UObjectProxy, UAudioBus);
 REGISTER_METASOUND_DATATYPE(Metasound::FWaveAsset, "WaveAsset", Metasound::ELiteralType::UObjectProxy, USoundWave);
 REGISTER_METASOUND_DATATYPE(WaveTable::FWaveTable, "WaveTable", Metasound::ELiteralType::FloatArray)
 REGISTER_METASOUND_DATATYPE(Metasound::FWaveTableBankAsset, "WaveTableBankAsset", Metasound::ELiteralType::UObjectProxy, UWaveTableBank);
-REGISTER_METASOUND_DATATYPE(Metasound::FAudioBusAsset, "AudioBusAsset", Metasound::ELiteralType::UObjectProxy, UAudioBus);
+
 
 class FMetasoundEngineModule : public IMetasoundEngineModule
 {

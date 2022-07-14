@@ -46,30 +46,33 @@ namespace Metasound
 			bool bIsStringArrayParsable = false;
 			bool bIsProxyArrayParsable = false;
 
-			// Is an TEnum wrapped enum
+			// Is a TEnum wrapped enum
 			bool bIsEnum = false;
 
 			// Determines whether the type can be used with send/receive transmitters
 			bool bIsTransmittable = false;
 
-			// Is true if is a Variable type
+			// Returns if DataType is a Variable type
 			bool bIsVariable = false;
 
-			// Is true if the data type can be used in on constructor vertices. 
+			// Returns if DataType can be used for constructor vertices.
 			bool bIsConstructorType = false;
 
-			// If provided in registration call, UClass this datatype was registered with
+			// Returns if DataType represents an array type (ex. TArray<float>, TArray<int32>, etc.).
+			bool bIsArrayType = false;
+
+			// Returns if DataType supports array parsing and passing array of base type to constructor.
+			bool bIsArrayParseable = false;
+
+			// If provided in registration call, UClass this datatype was registered with.
 			UClass* ProxyGeneratorClass = nullptr;
 
+
 			// Returns if DataType supports array parsing.
+			UE_DEPRECATED(5.1, "Use bIsArrayType or bIsArrayParseable members instead")
 			FORCEINLINE bool IsArrayType() const
 			{
-				return bIsDefaultArrayParsable
-				|| bIsBoolArrayParsable
-				|| bIsIntArrayParsable
-				|| bIsFloatArrayParsable
-				|| bIsStringArrayParsable
-				|| bIsProxyArrayParsable;
+				return bIsArrayType;
 			}
 		};
 

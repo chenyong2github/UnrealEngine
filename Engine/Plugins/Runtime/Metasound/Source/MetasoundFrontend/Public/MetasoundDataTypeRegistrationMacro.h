@@ -162,6 +162,10 @@ namespace Metasound
 			RegistryInfo.PreferredLiteralType = PreferredArgType;
 
 			RegistryInfo.bIsParsable = TLiteralTraits<TDataType>::bIsParsableFromAnyLiteralType;
+			RegistryInfo.bIsArrayParseable = TLiteralTraits<TDataType>::bIsParseableFromAnyArrayLiteralType;
+
+			RegistryInfo.bIsArrayType = TIsArrayType<TDataType>::Value;
+
 			RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType, FLiteral::FNone>::Value;
 			RegistryInfo.bIsBoolParsable = TIsParsable<TDataType, bool>::Value;
 			RegistryInfo.bIsIntParsable = TIsParsable<TDataType, int32>::Value;
@@ -185,7 +189,7 @@ namespace Metasound
 			{
 				RegistryInfo.ProxyGeneratorClass = UClassToUse::StaticClass();
 			}
-			else 
+			else
 			{
 				static_assert(std::is_same<UClassToUse, void>::value, "Only UObject derived classes can supply proxy interfaces.");
 				RegistryInfo.ProxyGeneratorClass = nullptr;
@@ -576,7 +580,7 @@ namespace Metasound
 		 *
 		 * @return True on success, false on failure.
 		 */
-		template<typename TDataType, ELiteralType PreferredArgType, typename UClassToUse>
+		template<typename TDataType, ELiteralType PreferredArgType>
 		bool RegisterDataTypeArrayWithFrontend()
 		{
 			using namespace MetasoundDataTypeRegistrationPrivate;
@@ -584,7 +588,8 @@ namespace Metasound
 
 			if (TEnableAutoArrayTypeRegistration<TDataType>::Value)
 			{
-				bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
+				constexpr bool bIsArrayType = true;
+				bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value>();
 				bSuccess = bSuccess && RegisterArrayNodes<TArrayType>();
 				bSuccess = bSuccess && RegisterDataTypeWithFrontendInternal<TVariable<TArrayType>>();
 				return bSuccess;
@@ -617,7 +622,7 @@ namespace Metasound
 		ensure(bSuccess);
 
 		// Register TArray<TDataType> as a metasound data type.
-		bSuccess = bSuccess && RegisterDataTypeArrayWithFrontend<TDataType, PreferredArgType, UClassToUse>();
+		bSuccess = bSuccess && RegisterDataTypeArrayWithFrontend<TDataType, PreferredArgType>();
 		ensure(bSuccess);
 
 		return bSuccess;

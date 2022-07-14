@@ -527,8 +527,7 @@ namespace Metasound
 				// Default to object as most calls to this outside of the MetaSound Editor will be for custom UObject types
 				const FName PinCategory = InPinCategory.IsNone() ? FGraphBuilder::PinCategoryObject : InPinCategory;
 
-				const bool bIsArray = DataTypeInfo.IsArrayType();
-				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
+				const EPinContainerType ContainerType = DataTypeInfo.bIsArrayType ? EPinContainerType::Array : EPinContainerType::None;
 				FEdGraphPinType PinType(PinCategory, InPinSubCategory, nullptr, ContainerType, false, FEdGraphTerminalType());
 				UClass* ClassToUse = IDataTypeRegistry::Get().GetUClassForDataType(InDataTypeName);
 				PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
@@ -614,17 +613,12 @@ namespace Metasound
 
 			virtual const FSlateBrush* GetIconBrush(FName InDataType, const bool bIsConstructorType) const override
 			{
-				bool bIsArrayType = false;
-
 				Frontend::FDataTypeRegistryInfo Info;
-				if (Frontend::IDataTypeRegistry::Get().GetDataTypeInfo(InDataType, Info))
-				{
-					bIsArrayType = Info.IsArrayType();
-				}
+				Frontend::IDataTypeRegistry::Get().GetDataTypeInfo(InDataType, Info);
 
 				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 				{
-					if (bIsArrayType)
+					if (Info.bIsArrayType)
 					{
 						return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ArrayPin"));
 					}
@@ -635,7 +629,7 @@ namespace Metasound
 				}
 				else
 				{
-					return bIsArrayType ? FAppStyle::GetBrush("Graph.ArrayPin.Connected") : FAppStyle::GetBrush("Icons.BulletPoint");
+					return Info.bIsArrayType ? FAppStyle::GetBrush("Graph.ArrayPin.Connected") : FAppStyle::GetBrush("Icons.BulletPoint");
 				}
 			}
 

@@ -74,7 +74,18 @@ namespace Metasound
 					{
 						if (const UMetasoundEditorGraphMember* Member = Cast<UMetasoundEditorGraphMember>(DefaultLiteral->GetOuter()))
 						{
-							ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Member->GetDataType(), OutDataTypeInfo));
+							FName DataTypeName = Member->GetDataType();
+							ensure(IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, OutDataTypeInfo));
+							if (OutDataTypeInfo.bIsArrayType)
+							{
+								DataTypeName = CreateElementTypeNameFromArrayTypeName(DataTypeName);
+								const bool bIsHiddenType = HiddenInputTypeNames.Contains(DataTypeName);
+								OutDataTypeInfo = { };
+								if (!bIsHiddenType)
+								{
+									ensure(IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, OutDataTypeInfo));
+								}
+							}
 						}
 					}
 				}
@@ -84,7 +95,7 @@ namespace Metasound
 			// element type. Otherwise, returns this type's DataTypeName.
 			FName GetPrimitiveTypeName(const Frontend::FDataTypeRegistryInfo& InDataTypeInfo)
 			{
-				return InDataTypeInfo.IsArrayType()
+				return InDataTypeInfo.bIsArrayType
 					? CreateElementTypeNameFromArrayTypeName(InDataTypeInfo.DataTypeName)
 					: InDataTypeInfo.DataTypeName;
 			}
@@ -227,10 +238,12 @@ namespace Metasound
 					MemberCustomizationPrivate::GetDataTypeFromElementPropertyHandle(DefaultValueHandle, DataTypeInfo);
 
 					const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-					bool bCanDrop = true;
-					for (const FAssetData& AssetData : InAssets)
+					bool bCanDrop = false;
+
+					if (UClass* ProxyGenClass = DataTypeInfo.ProxyGeneratorClass)
 					{
-						if (DataTypeInfo.ProxyGeneratorClass)
+						bCanDrop = true;
+						for (const FAssetData& AssetData : InAssets)
 						{
 							if (UClass* Class = AssetData.GetClass())
 							{
@@ -245,7 +258,8 @@ namespace Metasound
 							}
 						}
 					}
-					return true;
+
+					return bCanDrop;
 				})
 				.OnAssetsDropped_Lambda([this, DefaultValueHandle](const FDragDropEvent& DragDropEvent, TArrayView<FAssetData> InAssets)
 				{
@@ -551,6 +565,7 @@ namespace Metasound
 					}
 				}
 			}
+
 			MemberCustomizationPrivate::GetDataTypeFromElementPropertyHandle(ElementPropertyHandle, DataTypeInfo);
 
 			TSharedRef<SWidget> ValueWidget = CreateValueWidget(ParentPropertyHandleArray, StructPropertyHandle);
@@ -683,8 +698,7 @@ namespace Metasound
 				return;
 			}
 
-			const bool bIsArrayType = DataTypeInfo.IsArrayType();
-			if (bIsArrayType)
+			if (DataTypeInfo.bIsArrayType)
 			{
 				ArrayTypeName = GraphMember->GetDataType();
 				BaseTypeName = CreateElementTypeNameFromArrayTypeName(InGraphMember->GetDataType());
@@ -699,17 +713,15 @@ namespace Metasound
 
 			// Not all types have an equivalent array type. Base types without array
 			// types should have the "Is Array" checkbox disabled.
-			const bool bIsArrayTypeRegistered = bIsArrayType || IDataTypeRegistry::Get().IsRegistered(ArrayTypeName);
+			const bool bIsArrayTypeRegistered = IDataTypeRegistry::Get().IsRegistered(ArrayTypeName);
 			const bool bIsArrayTypeRegisteredHidden = MemberCustomizationPrivate::HiddenInputTypeNames.Contains(ArrayTypeName);
 
 			TArray<FName> BaseDataTypes;
 			IDataTypeRegistry::Get().IterateDataTypeInfo([&BaseDataTypes](const FDataTypeRegistryInfo& RegistryInfo)
 			{
-				// Hide the type from the combo selector if any of the following is true;
-				const bool bIsArrayType = RegistryInfo.IsArrayType();
-				const bool bIsVariable = RegistryInfo.bIsVariable;
+				// Hide the type from the combo selector if any of the following is true
 				const bool bIsHiddenType = MemberCustomizationPrivate::HiddenInputTypeNames.Contains(RegistryInfo.DataTypeName);
-				const bool bHideBaseType = bIsArrayType || bIsVariable || bIsHiddenType;
+				const bool bHideBaseType = RegistryInfo.bIsArrayType || RegistryInfo.bIsVariable || bIsHiddenType;
 				if (!bHideBaseType)
 				{
 					BaseDataTypes.Add(RegistryInfo.DataTypeName);
@@ -804,7 +816,7 @@ namespace Metasound
 				FDataTypeRegistryInfo DataTypeInfo;
 				if (ensure(IDataTypeRegistry::Get().GetDataTypeInfo(InGraphMember->GetDataType(), DataTypeInfo)))
 				{
-					return DataTypeInfo.IsArrayType() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					return DataTypeInfo.bIsArrayType ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				}
 			}
 
@@ -1258,6 +1270,7 @@ namespace Metasound
 				}
 			}
 		}
+
 		void FMetasoundInputDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
 		{
 			FMetasoundVertexDetailCustomization::CustomizeGeneralCategory(InDetailLayout);

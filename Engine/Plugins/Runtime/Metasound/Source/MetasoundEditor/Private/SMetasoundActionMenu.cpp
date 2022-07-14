@@ -103,7 +103,7 @@ namespace Metasound
 
 					TypeColor = FGraphBuilder::GetPinCategoryColor(Pin->PinType);
 
-					if (RegistryInfo.IsArrayType())
+					if (RegistryInfo.bIsArrayType)
 					{
 						PinBrush = FAppStyle::GetBrush("Graph.ArrayPin.Connected");
 					}
