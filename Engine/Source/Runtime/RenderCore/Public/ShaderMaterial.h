@@ -38,6 +38,7 @@ struct FShaderGlobalDefines
 	bool PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK;
 	bool PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK;
 	bool PLATFORM_SUPPORTS_DISTANCE_FIELDS;
+	bool PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS;
 
 	// This is a sepcial one. The flag COMPILE_SHADERS_FOR_DEVELOPMENT is set by the cvar r.CompileShadersForDevelopment, but only
 	// if bAllowDevelopmentShaderCompile is true in the call to GlobalBeginCompileShader(). So the flag COMPILE_SHADERS_FOR_DEVELOPMENT_ALLOWED

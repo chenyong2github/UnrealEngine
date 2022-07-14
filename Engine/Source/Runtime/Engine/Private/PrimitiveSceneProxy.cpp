@@ -546,11 +546,14 @@ uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
 	uint32 PayloadDataCount = 0;
 
 	// Random ID is packed into scene data currently
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	PayloadDataCount += HasPerInstanceDynamicData() ? 2 : 0;	// Compressed transform
-#else
-	PayloadDataCount += HasPerInstanceDynamicData() ? 3 : 0;	// FRenderTransform
-#endif
+	if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+	{
+		PayloadDataCount += HasPerInstanceDynamicData() ? 2 : 0;	// Compressed transform
+	}
+	else
+	{
+		PayloadDataCount += HasPerInstanceDynamicData() ? 3 : 0;	// FRenderTransform
+	}
 		
 	// Hierarchy is packed in with local bounds if they are both present (almost always the case)
 	if (HasPerInstanceLocalBounds())

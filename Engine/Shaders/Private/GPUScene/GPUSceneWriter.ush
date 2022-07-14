@@ -76,7 +76,7 @@ void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
  **/
 void WriteInstanceLocalToRelativeWorld(uint InstanceId, float4x4 LocalToRelativeWorld, bool StoreDeterminantSign)
 {
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 	uint4 RotationScale;
 	float3 Translation;
 	EncodeTransform(LocalToRelativeWorld, RotationScale, Translation);
@@ -210,7 +210,7 @@ void WriteInstanceDynamicData(FInstancePayloadDataOffsets PayloadOffsets, float4
 		return;
 	}
 
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 	uint4 RotationScale;
 	float3 Translation;
 	EncodeTransform(PrevLocalToRelativeWorld, RotationScale, Translation);

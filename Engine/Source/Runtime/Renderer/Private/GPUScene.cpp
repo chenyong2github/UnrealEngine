@@ -109,8 +109,6 @@ FAutoConsoleVariableRef CVarGPUSceneInstanceUploadViaCreate(
 );
 
 
-constexpr uint32 InstanceSceneDataNumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
-
 LLM_DECLARE_TAG_API(GPUScene, RENDERER_API);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneSummaryLLM, STATGROUP_LLM);
@@ -707,8 +705,8 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene* Scene, cons
 
 	const uint32 InstanceSceneDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize));
 	FResizeResourceSOAParams ResizeParams;
-	ResizeParams.NumBytes = InstanceSceneDataSizeReserve * sizeof(FInstanceSceneShaderData::Data);
-	ResizeParams.NumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
+	ResizeParams.NumBytes = InstanceSceneDataSizeReserve * FInstanceSceneShaderData::GetEffectiveNumBytes();
+	ResizeParams.NumArrays = FInstanceSceneShaderData::GetDataStrideInFloat4s();
 
 	BufferState.InstanceSceneDataBuffer = ResizeStructuredBufferSOAIfNeeded(GraphBuilder, InstanceSceneDataBuffer, ResizeParams, TEXT("GPUScene.InstanceSceneData"));
 	InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
@@ -1021,7 +1019,7 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExte
 				SCOPED_NAMED_EVENT(STAT_UpdateGPUSceneInstances, FColor::Green);
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneInstances);
 
-				InstanceSceneUploadBuffer.InitPreSized(GraphBuilder, NumInstanceSceneDataUploads * InstanceSceneDataNumArrays, sizeof(FVector4f), true, TEXT("InstanceSceneUploadBuffer"));
+				InstanceSceneUploadBuffer.InitPreSized(GraphBuilder, NumInstanceSceneDataUploads * FInstanceSceneShaderData::GetDataStrideInFloat4s(), sizeof(FVector4f), true, TEXT("InstanceSceneUploadBuffer"));
 
 				if (!InstanceUpdates.UpdateBatches.IsEmpty())
 				{
@@ -1062,9 +1060,9 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExte
 								);
 
 								// RefIndex* BufferState.InstanceSceneDataSOAStride + UploadInfo.InstanceSceneDataOffset + InstanceIndex
-								const uint32 UploadInstanceItemOffset = (PrimitiveItemInfo.InstanceSceneDataUploadOffset + InstanceIndex) * InstanceSceneDataNumArrays;
+								const uint32 UploadInstanceItemOffset = (PrimitiveItemInfo.InstanceSceneDataUploadOffset + InstanceIndex) * FInstanceSceneShaderData::GetDataStrideInFloat4s();
 
-								for (uint32 RefIndex = 0; RefIndex < InstanceSceneDataNumArrays; ++RefIndex)
+								for (uint32 RefIndex = 0; RefIndex < FInstanceSceneShaderData::GetDataStrideInFloat4s(); ++RefIndex)
 								{
 									FVector4f* DstVector = static_cast<FVector4f*>(InstanceSceneUploadBuffer.Set_GetRef(UploadInstanceItemOffset + RefIndex, RefIndex * BufferState.InstanceSceneDataSOAStride + UploadInfo.InstanceSceneDataOffset + InstanceIndex));
 									*DstVector = InstanceSceneData.Data[RefIndex];
@@ -1113,18 +1111,21 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExte
 									{
 										check(UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num());
 										const FRenderTransform PrevLocalToWorld = UploadInfo.InstanceDynamicData[InstanceIndex].ComputePrevLocalToWorld(UploadInfo.PrevPrimitiveToWorld);
-									#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-										check(PayloadPosition + 1 < InstancePayloadData.Num()); // Sanity check
-										FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
-										InstancePayloadData[PayloadPosition + 0] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
-										InstancePayloadData[PayloadPosition + 1] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
-										PayloadPosition += 2;
-									#else
-										// Note: writes 3x float4s
-										check(PayloadPosition + 2 < InstancePayloadData.Num()); // Sanity check
-										PrevLocalToWorld.To3x4MatrixTranspose((float*)&InstancePayloadData[PayloadPosition]);
-										PayloadPosition += 3;
-									#endif
+										if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+										{
+											check(PayloadPosition + 1 < InstancePayloadData.Num()); // Sanity check
+											FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
+											InstancePayloadData[PayloadPosition + 0] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
+											InstancePayloadData[PayloadPosition + 1] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
+											PayloadPosition += 2;
+										}
+										else
+										{
+											// Note: writes 3x float4s
+											check(PayloadPosition + 2 < InstancePayloadData.Num()); // Sanity check
+											PrevLocalToWorld.To3x4MatrixTranspose((float*)&InstancePayloadData[PayloadPosition]);
+											PayloadPosition += 3;
+										}
 									}
 
 									if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)

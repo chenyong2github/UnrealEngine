@@ -94,15 +94,31 @@ struct FPrimitiveInstanceDynamicData
 
 struct FInstanceSceneShaderData
 {
+private:
 	// Must match GetInstanceSceneData() in SceneData.ush
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	// Compressed transform
-	enum { DataStrideInFloat4s = 5 }; // TODO: Temporary PrevVelocityHack
-#else
-	enum { DataStrideInFloat4s = 4 };
-#endif
+	// Allocate the max Float4s usage when compressed transform is used.
+	// TODO: Temporary PrevVelocityHack (last float4s when compressed)
+	static constexpr uint32 CompressedTransformDataStrideInFloat4s = 5;
+	static constexpr uint32 UnCompressedTransformDataStrideInFloat4s = 4;
 
-	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
+public:
+
+	static uint32 GetDataStrideInFloat4s()
+	{
+		if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+		{
+			return CompressedTransformDataStrideInFloat4s;
+		}
+		else
+		{
+			return UnCompressedTransformDataStrideInFloat4s;
+		}
+	}
+
+	static uint32 GetEffectiveNumBytes()
+	{
+		return (GetDataStrideInFloat4s() * sizeof(FVector4f));
+	}
 
 	FInstanceSceneShaderData() : Data(InPlace, NoInit)
 	{
@@ -142,4 +158,6 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& LocalToWorld,
 		const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
 	);
+
+	TStaticArray<FVector4f, CompressedTransformDataStrideInFloat4s> Data;
 };

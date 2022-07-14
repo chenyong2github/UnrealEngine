@@ -418,6 +418,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsOIT : 1;
 	uint32 bSupportsRealTypes : int32(ERHIFeatureSupport::NumBits);
 	uint32 EnablesHLSL2021ByDefault : 2; // 0: disabled, 1: global shaders only, 2: all shaders
+	uint32 bSupportsSceneDataCompressedTransforms : 1;
 		
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -619,6 +620,12 @@ public:
 		return Infos[Platform].bSupportsRenderTargetWriteMask;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportSceneDataCompressedTransforms(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bSupportsSceneDataCompressedTransforms;
+	}
+	
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracing(const FStaticShaderPlatform Platform)
 	{
 		check(IsValid(Platform));

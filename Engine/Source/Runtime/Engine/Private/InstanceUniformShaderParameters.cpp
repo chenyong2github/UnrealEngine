@@ -77,16 +77,19 @@ void FInstanceSceneShaderData::BuildInternal
 	Data[0].W  = *(const float*)&RandomID;
 
 	// TODO: Temporary PrevVelocityHack
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	FCompressedTransform CompressedLocalToWorld(LocalToWorld);
-	Data[1] = *(const FVector4f*)&CompressedLocalToWorld.Rotation[0];
-	Data[2] = *(const FVector3f*)&CompressedLocalToWorld.Translation;
+	if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+	{
+		FCompressedTransform CompressedLocalToWorld(LocalToWorld);
+		Data[1] = *(const FVector4f*)&CompressedLocalToWorld.Rotation[0];
+		Data[2] = *(const FVector3f*)&CompressedLocalToWorld.Translation;
 
-	FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
-	Data[3] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
-	Data[4] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
-#else
-	// Note: writes 3x float4s
-	LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
-#endif
+		FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
+		Data[3] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
+		Data[4] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
+	}
+	else
+	{
+		// Note: writes 3x float4s
+		LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
+	}
 }

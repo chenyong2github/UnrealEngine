@@ -31,10 +31,6 @@
 
 #define ENABLE_PER_INSTANCE_CUSTOM_DATA (USES_PER_INSTANCE_CUSTOM_DATA || VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA)
 
-// When transforms come from the InstanceSceneData buffer, indicates whether or not the transforms are compressed (ignored on mobile)
-// TODO: Global setting/define
-#define INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS 1
-
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #if VF_SUPPORTS_PRIMITIVE_SCENE_DATA
 	#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
@@ -99,7 +95,7 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			0x80
 #define INSTANCE_SCENE_DATA_FLAG_IS_RAYTRACING_FAR_FIELD	0x100
 
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 	static const uint InstanceTransformSizeFloat4Count = 2u; // compressed transform
 #else
 	static const uint InstanceTransformSizeFloat4Count = 3u; // encoded scale/rotation (uint4) and translation (float3)
@@ -823,7 +819,7 @@ void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData, float3 Ti
 	// Do not put any load operations here!
 	//
 
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 2) || !INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if (VF_USE_PRIMITIVE_SCENE_DATA == 2) || !PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 	// Non-uniform scale must be computed from the transform because it was not already computed when decoding it (see below in GetInstanceSceneData)
 	float3 Scale2;
 	Scale2.x = length2(LocalToRelativeWorld[0].xyz);
@@ -869,7 +865,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 	// LocalBounds Center		float0.yzw
 	// LocalBounds Extent		float1.xyz
 	// __UNUSED					float1.w
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 	// Previous Transform[0]	float2.xyzw
 	// Previous Transform[1]	float3.xyzw
 	// LM/SM Scale Bias			float4.xyzw
@@ -901,7 +897,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 
 		float3 TilePosition 									= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
 
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 		uint4  RotationScale									= asuint(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId));
 		float3 Translation										= LoadInstanceSceneDataElement(2 * SOAStride + InstanceId).xyz;
 		float3 Scale = 0;
@@ -971,7 +967,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		BRANCH
 		if (Offsets.DynamicData != INVALID_INSTANCE_PAYLOAD_OFFSET)
 		{
-		#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+		#if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 			uint4  PrevRotationScale			= asuint(LoadInstancePayloadDataElement(Offsets.DynamicData + 0));
 			float3 PrevTranslation				= LoadInstancePayloadDataElement(Offsets.DynamicData + 1).xyz;
 			float3 PrevScale					= 0;
@@ -981,21 +977,6 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 																 LoadInstancePayloadDataElement(Offsets.DynamicData + 1),
 																 LoadInstancePayloadDataElement(Offsets.DynamicData + 2),
 																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
-		#endif
-
-			float3 TilePosition 				= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
-			InstanceData.PrevLocalToWorld		= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
-		}
-		else
-		{
-		#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-			// TODO: Temporary PrevVelocityHack
-			uint4  PrevRotationScale			= asuint(LoadInstanceSceneDataElement(3 * SOAStride + InstanceId));
-			float3 PrevTranslation				= LoadInstanceSceneDataElement(4 * SOAStride + InstanceId).xyz;
-			float3 PrevScale = 0;
-			float4x4 PrevLocalToRelativeWorld	= DecodeTransform(PrevRotationScale, PrevTranslation, PrevScale);
-		#else
-			float4x4 PrevLocalToRelativeWorld	= InstanceData.LocalToWorld;
 		#endif
 
 			float3 TilePosition 				= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
