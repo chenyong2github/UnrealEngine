@@ -15,6 +15,7 @@
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Core/IrisProfiler.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #endif // UE_WITH_IRIS
 
 namespace UE::Net::Private
@@ -162,7 +163,7 @@ void UDataStreamChannel::Tick()
 	}
 
 	IRIS_PROFILER_SCOPE(UDataStreamChannel_Tick);
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	// Currently we want to use a full bunch so we flush if we have to
 	bool bNeedsPreSendFlush = Connection->SendBuffer.GetNumBits() > MAX_PACKET_HEADER_BITS;

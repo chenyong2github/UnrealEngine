@@ -2,6 +2,7 @@
 
 #include "ObjectReferenceCache.h"
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
@@ -289,7 +290,8 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 	CachedObject.bIsPending = false;
 	CachedObject.bIsBroken = false;
 
-	check( CachedObject.bIsPackage == (Cast< UPackage >( Object ) != NULL));		// Make sure it really is a package
+	// Make sure it really is a package
+	check(CachedObject.bIsPackage == (Cast<UPackage>(Object) != nullptr));
 
 	ReferenceHandleToCachedReference.Add(NetHandle, CachedObject);
 	ObjectToNetReferenceHandle.Add(Object, NetHandle);
@@ -361,7 +363,7 @@ void FObjectReferenceCache::AddRemoteReference(FNetHandle RefHandle, const UObje
 
 	if (ensure(RefHandle.IsDynamic()))
 	{
-		UE_LOG_REFERENCECACHE(Verbose, TEXT("AddRemoteReference: %s, Object: %s Pointer: %p" ), *RefHandle.ToString(), Object ? *Object->GetName() : TEXT( "NULL" ), Object);
+		UE_LOG_REFERENCECACHE(Verbose, TEXT("AddRemoteReference: %s, Object: %s Pointer: %p" ), *RefHandle.ToString(), Object ? *Object->GetName() : TEXT("NULL"), Object);
 
 	#if UE_NET_VALIDATE_REFERENCECACHE
 		// Dynamic object might have been referenced before it gets replicated, then it will then already be registered (with a path relative to its outer)
@@ -384,7 +386,7 @@ void FObjectReferenceCache::AddRemoteReference(FNetHandle RefHandle, const UObje
 		}
 		else
 		{
-			LLM_SCOPE(ELLMTag::Iris);
+			LLM_SCOPE_BYTAG(Iris);
 
 			FCachedNetObjectReference CachedObject;
 	
@@ -411,7 +413,7 @@ void FObjectReferenceCache::RemoveReference(FNetHandle RefHandle, const UObject*
 	// Cleanup cached data for dynamic instance
 	if (ensure(RefHandle.IsDynamic()))
 	{
-		UE_LOG_REFERENCECACHE(Verbose, TEXT("ObjectReferenceCache::RemoveReference %s, Object: %s Pointer: %p"), *RefHandle.ToString(), Object ? *Object->GetName() : TEXT( "NULL" ), Object);
+		UE_LOG_REFERENCECACHE(Verbose, TEXT("ObjectReferenceCache::RemoveReference %s, Object: %s Pointer: %p"), *RefHandle.ToString(), Object ? *Object->GetName() : TEXT("NULL"), Object);
 
 		// We create an iterator to avoid having to find the key twice
 		TMap<FNetHandle, FCachedNetObjectReference>::TKeyIterator It = ReferenceHandleToCachedReference.CreateKeyIterator(RefHandle);
@@ -440,7 +442,7 @@ void FObjectReferenceCache::RemoveReference(FNetHandle RefHandle, const UObject*
 					if (ReferenceHandleToCachedReference.RemoveAndCopyValue(SubRefHandle, RemovedSubObjectRef))
 					{
 						const UObject* SubRefObject = RemovedSubObjectRef.Object.Get();
-						UE_LOG_REFERENCECACHE(Verbose, TEXT("ObjectReferenceCache::RemoveReference %s, Referenced dynamic %s, Object: %s Pointer: %p"), *SubRefHandle.ToString(), *RefHandle.ToString(), SubRefObject ? *SubRefObject->GetName() : TEXT( "NULL" ), RemovedSubObjectRef.ObjectKey);
+						UE_LOG_REFERENCECACHE(Verbose, TEXT("ObjectReferenceCache::RemoveReference %s, Referenced dynamic %s, Object: %s Pointer: %p"), *SubRefHandle.ToString(), *RefHandle.ToString(), SubRefObject ? *SubRefObject->GetName() : TEXT("NULL"), RemovedSubObjectRef.ObjectKey);
 
 						ObjectToNetReferenceHandle.Remove(RemovedSubObjectRef.ObjectKey);
 					}
@@ -818,7 +820,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetHandle 
 		}
 	}
 
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	if (bShouldAssign)
 	{
@@ -943,7 +945,7 @@ FNetObjectReference FObjectReferenceCache::GetOrCreateObjectReference(const FStr
 
 	if (Handle.IsValid())
 	{
-		LLM_SCOPE(ELLMTag::Iris);
+		LLM_SCOPE_BYTAG(Iris);
 
 		// Register cached ref
 		FCachedNetObjectReference CachedObject;
@@ -1193,7 +1195,7 @@ void FObjectReferenceCache::ReadFullReference(FNetSerializationContext& Context,
 
 	UE_NET_TRACE_SCOPE(FullNetObjectReference, *Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_NAMED_OBJECT_SCOPE(ReferenceScope, FNetHandle(), *Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	// Handle client assigned reference
 	if (const bool bIsClientAssignedReference = Reader->ReadBool())
@@ -1278,7 +1280,7 @@ void FObjectReferenceCache::ReadReference(FNetSerializationContext& Context, FNe
 {
 	UE_NET_TRACE_SCOPE(NetObjectReference, *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_NAMED_OBJECT_SCOPE(ReferenceScope, FNetHandle(), *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 

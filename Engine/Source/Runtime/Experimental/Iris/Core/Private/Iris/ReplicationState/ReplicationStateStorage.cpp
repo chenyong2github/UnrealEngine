@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationState/ReplicationStateStorage.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/ReplicationSystem/NetHandleManager.h"
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"
 #include "Iris/ReplicationSystem/ReplicationProtocol.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
 #include <limits>
@@ -85,7 +85,7 @@ const uint8* FReplicationStateStorage::GetState(uint32 ObjectIndex, EReplication
 
 uint8* FReplicationStateStorage::AllocBaseline(uint32 ObjectIndex, EReplicationStateType Base)
 {
-	LLM_SCOPE(ELLMTag::IrisState);
+	LLM_SCOPE_BYTAG(IrisState);
 
 	FPerObjectInfo* ObjectInfo = GetOrCreatePerObjectInfoForObject(ObjectIndex);
 	if (!ensureMsgf(ObjectInfo != nullptr, TEXT("Out of object infos. Max number of object infos is %u."), UsedPerObjectInfos.GetNumBits()))
@@ -176,7 +176,7 @@ void FReplicationStateStorage::FreeBaseline(uint32 ObjectIndex, uint8* Storage)
 
 FReplicationStateStorage::FBaselineReservation FReplicationStateStorage::ReserveBaseline(uint32 ObjectIndex, EReplicationStateType Base)
 {
-	LLM_SCOPE(ELLMTag::IrisState);
+	LLM_SCOPE_BYTAG(IrisState);
 
 	FBaselineReservation Reservation;
 

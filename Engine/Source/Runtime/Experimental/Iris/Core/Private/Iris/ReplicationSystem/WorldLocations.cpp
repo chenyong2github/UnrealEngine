@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationSystem/WorldLocations.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 
 namespace UE::Net
 {
@@ -18,7 +18,7 @@ void FWorldLocations::SetHasWorldLocation(uint32 ObjectIndex, bool bHasWorldLoca
 	{
 		if (ObjectIndex >= uint32(WorldLocations.Num()))
 		{
-			LLM_SCOPE(ELLMTag::Iris);
+			LLM_SCOPE_BYTAG(Iris);
 			WorldLocations.Add(ObjectIndex + 1U - WorldLocations.Num());
 		}
 		WorldLocations[ObjectIndex] = FVector::Zero();

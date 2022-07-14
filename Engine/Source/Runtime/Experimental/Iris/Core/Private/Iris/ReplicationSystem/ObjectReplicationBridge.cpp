@@ -5,6 +5,7 @@
 #include "Iris/IrisConfigInternal.h"
 
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/Core/IrisProfiler.h"
 
 #include "Net/Core/Trace/NetTrace.h"
@@ -110,7 +111,7 @@ UObjectReplicationBridge::~UObjectReplicationBridge()
 
 void UObjectReplicationBridge::Initialize(UReplicationSystem* InReplicationSystem)
 {
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	Super::Initialize(InReplicationSystem);
 
@@ -171,7 +172,7 @@ UObject* UObjectReplicationBridge::GetReplicatedObject(FNetHandle Handle) const
 
 UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance, const FCreateNetHandleParams& Params)
 {
-	LLM_SCOPE(ELLMTag::IrisState);
+	LLM_SCOPE_BYTAG(IrisState);
 
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
@@ -301,7 +302,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 
 UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(FNetHandle OwnerHandle, UObject* Instance, FNetHandle InsertRelativeToSubObjectHandle, ESubObjectInsertionOrder InsertionOrder, const FCreateNetHandleParams& Params)
 {
-	LLM_SCOPE(ELLMTag::IrisState);
+	LLM_SCOPE_BYTAG(IrisState);
 
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
@@ -476,7 +477,7 @@ void UObjectReplicationBridge::UnregisterRemoteInstance(FNetHandle Handle, bool 
 	
 UE::Net::FNetHandle UObjectReplicationBridge::CreateNetHandleFromRemote(FNetHandle SubObjectOwnerNetHandle, FNetHandle WantedNetHandle, FReplicationBridgeSerializationContext& Context)
 {
-	LLM_SCOPE(ELLMTag::IrisState);
+	LLM_SCOPE_BYTAG(IrisState);
 
 	using namespace UE::Net;
 	using namespace UE::Net::Private;

@@ -3,6 +3,7 @@
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/Core/IrisDebugging.h"
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/NetObjectReference.h"
 #include "Net/Core/Trace/NetTrace.h"
@@ -67,7 +68,7 @@ public:
 
 	void Init(const UReplicationSystem::FReplicationSystemParams& Params)
 	{
-		LLM_SCOPE(ELLMTag::Iris);
+		LLM_SCOPE_BYTAG(Iris);
 
 #if !UE_BUILD_SHIPPING
 		IrisDebugHelperDummy = UE::Net::IrisDebugHelper::Init();
@@ -222,14 +223,14 @@ public:
 	void UpdateFiltering(const FNetBitArrayView& DirtyObjects)
 	{
 		IRIS_PROFILER_SCOPE(FReplicationSystem_UpdateFiltering);
-		LLM_SCOPE(ELLMTag::Iris);
+		LLM_SCOPE_BYTAG(Iris);
 
 		FReplicationFiltering& Filtering = ReplicationSystemInternal.GetFiltering();
 		Filtering.Filter(DirtyObjects);
 
 		// Iterate over all valid connections and propagate updated scopes
 		FReplicationConnections& Connections = ReplicationSystemInternal.GetConnections();
-		auto&& UpdateConnectionScope = [&Filtering, &Connections](uint32 ConnectionId)
+		auto UpdateConnectionScope = [&Filtering, &Connections](uint32 ConnectionId)
 		{
 			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
 			const FNetBitArrayView& ObjectsInScope = Filtering.GetObjectsInScope(ConnectionId);
@@ -252,7 +253,7 @@ public:
 	void UpdatePrioritization(const FNetBitArrayView& ReplicatingConnections, const FNetBitArrayView& DirtyObjects)
 	{
 		IRIS_PROFILER_SCOPE(FReplicationSystem::FImpl::UpdatePrioritization);
-		LLM_SCOPE(ELLMTag::Iris);
+		LLM_SCOPE_BYTAG(Iris);
 
 		FReplicationPrioritization& Prioritization = ReplicationSystemInternal.GetPrioritization();
 		Prioritization.Prioritize(ReplicatingConnections, DirtyObjects);
@@ -266,7 +267,7 @@ public:
 		const FChangeMaskCache& UpdatedChangeMasks = ReplicationSystemInternal.GetChangeMaskCache();
 
 		// Iterate over connections and propagate dirty changemasks
-		auto&& UpdateDirtyChangeMasks = [&Connections, &UpdatedChangeMasks](uint32 ConnectionId)
+		auto UpdateDirtyChangeMasks = [&Connections, &UpdatedChangeMasks](uint32 ConnectionId)
 		{
 			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
 			Conn->ReplicationWriter->UpdateDirtyChangeMasks(UpdatedChangeMasks);
@@ -278,7 +279,7 @@ public:
 	void CopyDirtyStateData()
 	{
 		IRIS_PROFILER_SCOPE(FReplicationSystem_CopyDirtyStateData);
-		LLM_SCOPE(ELLMTag::IrisState);
+		LLM_SCOPE_BYTAG(IrisState);
 
 		FNetHandleManager& NetHandleManager = ReplicationSystemInternal.GetNetHandleManager();
 		FChangeMaskCache& Cache = ReplicationSystemInternal.GetChangeMaskCache();
@@ -331,7 +332,7 @@ public:
 
 	void AddConnection(uint32 ConnectionId)
 	{
-		LLM_SCOPE(ELLMTag::IrisConnection);
+		LLM_SCOPE_BYTAG(IrisConnection);
 
 		FReplicationConnections& Connections = ReplicationSystemInternal.GetConnections();
 		{
@@ -413,7 +414,7 @@ public:
 	void UpdateUnresolvableReferenceTracking()
 	{
 		FReplicationConnections& Connections = ReplicationSystemInternal.GetConnections();
-		auto&& UpdateUnresolvableReferenceTracking = [&Connections](uint32 ConnectionId)
+		auto UpdateUnresolvableReferenceTracking = [&Connections](uint32 ConnectionId)
 		{
 			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
 			Conn->ReplicationReader->UpdateUnresolvableReferenceTracking();
@@ -437,7 +438,7 @@ UReplicationSystem::UReplicationSystem()
 
 void UReplicationSystem::Init(uint32 InId, const FReplicationSystemParams& Params)
 {
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	Id = InId;
 	bIsServer = Params.bIsServer;
@@ -911,14 +912,14 @@ void UReplicationSystem::RemoveSubObjectFilter(FName GroupName)
 
 UE::Net::FNetObjectGroupHandle UReplicationSystem::CreateGroup()
 {
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	return Impl->ReplicationSystemInternal.GetGroups().CreateGroup();
 }
 
 void UReplicationSystem::AddToGroup(FNetObjectGroupHandle GroupHandle, FNetHandle Handle)
 {
-	LLM_SCOPE(ELLMTag::Iris);
+	LLM_SCOPE_BYTAG(Iris);
 
 	using namespace UE::Net::Private;
 

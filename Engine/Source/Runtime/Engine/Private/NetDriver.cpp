@@ -76,6 +76,7 @@
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"
 #include "Iris/Core/IrisProfiler.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/ReplicationSystem/ReplicationView.h"
 #include "Iris/ReplicationSystem/Filtering/NetObjectFilter.h"
@@ -1741,7 +1742,7 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 #if UE_WITH_IRIS
 	if (IsUsingIrisReplication() && !ReplicationSystem)
 	{
-		LLM_SCOPE(ELLMTag::Iris);
+		LLM_SCOPE_BYTAG(Iris);
 
 		if (ensureAlways(InitReplicationBridgeClass()))
 		{

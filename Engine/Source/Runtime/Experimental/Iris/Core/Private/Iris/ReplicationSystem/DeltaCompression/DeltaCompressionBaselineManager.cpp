@@ -4,6 +4,7 @@
 #include "Iris/IrisConfigInternal.h"
 #include "Iris/Core/BitTwiddling.h"
 #include "Iris/Core/IrisProfiler.h"
+#include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/ReplicationSystem/ChangeMaskCache.h"
 #include "Iris/ReplicationSystem/NetHandleManager.h"
 #include "Iris/ReplicationSystem/ReplicationConnections.h"
@@ -12,9 +13,8 @@
 #include "Iris/ReplicationSystem/DeltaCompression/DeltaCompressionBaselineInvalidationTracker.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "HAL/IConsoleManager.h"
-#include "HAL/LowLevelMemTracker.h"
-#include <limits>
 #include "Net/Core/Trace/NetTrace.h"
+#include <limits>
 
 #if UE_NET_VALIDATE_DC_BASELINES
 #define UE_NET_DC_BASELINE_CHECK(...) check(__VA_ARGS__)
@@ -353,7 +353,7 @@ FDeltaCompressionBaselineManager::ObjectInfoIndexType FDeltaCompressionBaselineM
 		const SIZE_T ObjectInfoStorageIndex = ObjectInfoIndex*BytesPerObjectInfo;
 		if (ObjectInfoStorageIndex >= ObjectInfoStorage.Num())
 		{
-			LLM_SCOPE(ELLMTag::Iris);
+			LLM_SCOPE_BYTAG(Iris);
 			ObjectInfoStorage.AddUninitialized(ObjectInfoGrowCount*BytesPerObjectInfo);
 		}
 
