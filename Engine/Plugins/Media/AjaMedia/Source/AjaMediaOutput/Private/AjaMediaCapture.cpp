@@ -394,12 +394,6 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 			UE_LOG(LogAjaMediaOutput, Warning, TEXT("GPU DMA is not supported with interlaced, defaulting to regular path."));
 			bGPUTextureTransferAvailable = false;
 		}
-
-		if (InAjaMediaOutput->PixelFormat != EAjaMediaOutputPixelFormat::PF_8BIT_YUV)
-		{
-			UE_LOG(LogAjaMediaOutput, Warning, TEXT("GPU DMA is not supported with pixel format 10 Bit YUV, defaulting to regular path."));
-			bGPUTextureTransferAvailable = false;
-		}
 	}
 
 	// Init Device options

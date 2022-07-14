@@ -497,12 +497,6 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("GPU DMA is not supported with interlaced, defaulting to regular path."));
 			bGPUTextureTransferAvailable = false;
 		}
-
-		if (InBlackmagicMediaOutput->PixelFormat != EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV)
-		{
-			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("GPU DMA is not supported with pixel format 10 Bit YUV, defaulting to regular path."));
-			bGPUTextureTransferAvailable = false;
-		}
 	}
 
 
