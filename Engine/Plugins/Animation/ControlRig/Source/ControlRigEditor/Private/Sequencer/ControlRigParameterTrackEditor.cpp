@@ -193,6 +193,8 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 	return nullptr;
 }
 
+bool FControlRigParameterTrackEditor::bAutoGenerateControlRigTrack = true;
+
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer)
 	, bCurveDisplayTickIsPending(false)
@@ -1734,7 +1736,7 @@ void FControlRigParameterTrackEditor::AddTrackForComponent(USceneComponent* InCo
 {
 	if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (!SkelMeshComp->GetDefaultAnimatingRig().IsNull())
+		if(bAutoGenerateControlRigTrack && !SkelMeshComp->GetDefaultAnimatingRig().IsNull())
 		{
 			UObject* Object = SkelMeshComp->GetDefaultAnimatingRig().LoadSynchronous();
 			if (Object != nullptr && (Object->IsA<UControlRigBlueprint>() || Object->IsA<UControlRigComponent>()))

@@ -242,6 +242,11 @@ private:
 
 	/** A transaction used to group multiple key events */
 	TSharedPtr<FScopedTransaction> ControlUndoTransaction;
+
+	/** Controls if the control rig track for the default animating rig should be created */
+	static bool bAutoGenerateControlRigTrack;
+
+	friend class FControlRigBlueprintActions;
 };
 
 

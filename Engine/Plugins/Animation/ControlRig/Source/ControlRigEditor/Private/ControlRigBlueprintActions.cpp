@@ -32,6 +32,7 @@
 #include "SBlueprintDiff.h"
 #include "Misc/MessageDialog.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "Sequencer/ControlRigParameterTrackEditor.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintActions"
 
@@ -289,6 +290,8 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		return;
 	}
 	UClass* ControlRigClass = RigBlueprint->GeneratedClass;
+
+	TGuardValue<bool> DisableTrackCreation(FControlRigParameterTrackEditor::bAutoGenerateControlRigTrack, false);
 
 	// find a level sequence in the world, if can't find that, create one
 	ULevelSequence* Sequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
