@@ -565,7 +565,13 @@ float3 CalculateRayTracedLighting(
 	}
 	else
 	{
+		// STRATA_TODO: current when HWRT is enabled, this part will crash with Strata enabled when running Lumen scene visualization. 
+		// It seems to be related to cards data not be properly bound at shader compilation but it is unclear why as all seems correct.
+		#if ENABLE_VISUALIZE_MODE && STRATA_ENABLED
+		FSurfaceCacheSample SurfaceCacheSample = InitSurfaceCacheSample();
+		#else
 		FSurfaceCacheSample SurfaceCacheSample = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode);
+		#endif
 
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
 		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
