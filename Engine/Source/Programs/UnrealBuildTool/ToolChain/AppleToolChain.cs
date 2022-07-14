@@ -221,10 +221,6 @@ namespace UnrealBuildTool
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 			Arguments.Add("-stdlib=libc++");
 
-			if (CompilerVersionGreaterOrEqual(11, 0, 0))
-			{
-				Arguments.Add("-fpch-validate-input-files-content");
-			}
 			if (CompilerVersionGreaterOrEqual(13, 0, 0)) // Note this is supported for >=11 on other clang platforms
 			{
 				Arguments.Add("-fpch-instantiate-templates");
