@@ -38,6 +38,7 @@ public:
 	TSharedPtr<FUICommandInfo> TriangleSelection;
 	TSharedPtr<FUICommandInfo> IslandSelection;
 	TSharedPtr<FUICommandInfo> FullMeshSelection;
+	TSharedPtr<FUICommandInfo> SelectAll;
 
 	TSharedPtr<FUICommandInfo> EnableOrbitCamera;
 	TSharedPtr<FUICommandInfo> EnableFlyCamera;

@@ -22,7 +22,7 @@ void FUVToolSelection::RestoreFromStableEdgeIdentifiers(const FDynamicMesh3& Mes
 	}
 }
 
-bool FUVToolSelection::AreElementsPresentInMesh(FDynamicMesh3& Mesh) const
+bool FUVToolSelection::AreElementsPresentInMesh(const FDynamicMesh3& Mesh) const
 {
 	switch (Type)
 	{
@@ -55,6 +55,68 @@ bool FUVToolSelection::AreElementsPresentInMesh(FDynamicMesh3& Mesh) const
 		break;
 	}
 	return true;
+}
+
+void FUVToolSelection::SelectAll(const FDynamicMesh3& Mesh, EType TypeIn)
+{
+	Type = TypeIn;
+	StableEdgeIDs.Reset();
+	SelectedIDs.Reset();
+	switch (Type)
+	{
+	case EType::Vertex:
+		SelectedIDs.Reserve(Mesh.VertexCount());
+		for (int32 Vid : Mesh.VertexIndicesItr())
+		{
+			SelectedIDs.Add(Vid);
+		}
+		break;
+	case EType::Edge:
+		SelectedIDs.Reserve(Mesh.EdgeCount());
+		for (int32 Eid : Mesh.EdgeIndicesItr())
+		{
+			SelectedIDs.Add(Eid);
+		}
+		break;
+	case EType::Triangle:
+		SelectedIDs.Reserve(Mesh.TriangleCount());
+		for (int32 Tid : Mesh.TriangleIndicesItr())
+		{
+			SelectedIDs.Add(Tid);
+		}
+		break;
+	default:
+		ensure(false);
+	}
+}
+
+bool FUVToolSelection::IsAllSelected(const FDynamicMesh3& Mesh) const
+{
+	switch (Type)
+	{
+	case EType::Vertex:
+		if (SelectedIDs.Num() != Mesh.VertexCount())
+		{
+			return false;
+		}
+		break;
+	case EType::Edge:
+		if (SelectedIDs.Num() != Mesh.EdgeCount())
+		{
+			return false;
+		}
+		break;
+	case EType::Triangle:
+		if (SelectedIDs.Num() != Mesh.TriangleCount())
+		{
+			return false;
+		}
+		break;
+	default:
+		ensure(false);
+	}
+
+	return AreElementsPresentInMesh(Mesh);
 }
 
 FUVToolSelection FUVToolSelection::GetConvertedSelection(const FDynamicMesh3& Mesh, FUVToolSelection::EType ExpectedSelectionType) const

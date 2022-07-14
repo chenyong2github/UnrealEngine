@@ -36,6 +36,10 @@ public:
 		StableEdgeIDs.Reset();
 	}
 
+	void SelectAll(const FDynamicMesh3& Mesh, EType TypeIn);
+
+	bool IsAllSelected(const FDynamicMesh3& Mesh) const;
+
 	bool IsEmpty() const
 	{
 		return SelectedIDs.IsEmpty();
@@ -64,7 +68,7 @@ public:
 
 	void RestoreFromStableEdgeIdentifiers(const FDynamicMesh3& Mesh);
 
-	bool AreElementsPresentInMesh(FDynamicMesh3& Mesh) const;
+	bool AreElementsPresentInMesh(const FDynamicMesh3& Mesh) const;
 
 	/**
 	 * Utility method to construct a new selection from an existing reference selection, only with a new geometry type.

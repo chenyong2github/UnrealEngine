@@ -672,6 +672,70 @@ void UUVEditorMode::BindCommands()
 		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 	);
+
+	CommandList->MapAction(
+		CommandInfos.SelectAll,
+		FExecuteAction::CreateLambda([this]() {
+
+			UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+			UUVToolViewportButtonsAPI* UVToolViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
+			if (UVToolViewportButtonsAPI && UVToolViewportButtonsAPI->AreSelectionButtonsEnabled())
+			{
+				UUVToolSelectionAPI::EUVEditorSelectionMode CurrentSelectionMode = UVToolViewportButtonsAPI->GetSelectionMode();
+				FUVToolSelection::EType SelectionType = FUVToolSelection::EType::Triangle;
+				if (CurrentSelectionMode == UUVToolSelectionAPI::EUVEditorSelectionMode::None)
+				{
+					return; // If we're in none selection mode, don't do anything for select all behavior
+				}
+
+				switch (CurrentSelectionMode)
+				{
+				case UUVToolSelectionAPI::EUVEditorSelectionMode::Vertex:
+					SelectionType = FUVToolSelection::EType::Vertex;
+					break;
+				case UUVToolSelectionAPI::EUVEditorSelectionMode::Edge:
+					SelectionType = FUVToolSelection::EType::Edge;
+					break;
+				case UUVToolSelectionAPI::EUVEditorSelectionMode::Triangle:
+				case UUVToolSelectionAPI::EUVEditorSelectionMode::Island:
+				case UUVToolSelectionAPI::EUVEditorSelectionMode::Mesh:
+					SelectionType = FUVToolSelection::EType::Triangle;
+					break;				
+				default:
+					ensure(false);
+				}
+
+				SelectionAPI->BeginChange();
+				const TArray<FUVToolSelection>& CurrentSelections = SelectionAPI->GetSelections();
+				bool bIsAllSelected = SelectionAPI->HaveSelections() && CurrentSelections.Num() == ToolInputObjects.Num();
+				for (const FUVToolSelection& Selection : CurrentSelections)
+				{
+					bIsAllSelected = bIsAllSelected && Selection.IsAllSelected(*Selection.Target->UnwrapCanonical);
+				}
+
+				SelectionAPI->ClearSelections(false, false);
+				SelectionAPI->ClearUnsetElementAppliedMeshSelections(false, false);
+
+				if (!bIsAllSelected) // If we already had everything selected, unselect everything. Otherwise, select everything.
+				{
+					TArray<FUVToolSelection> AllSelections;
+					AllSelections.SetNum(ToolInputObjects.Num());
+					for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
+					{
+						AllSelections[AssetID].Target = ToolInputObjects[AssetID];
+						AllSelections[AssetID].SelectAll(*ToolInputObjects[AssetID]->UnwrapCanonical, SelectionType);
+					}
+					SelectionAPI->SetSelections(AllSelections, false, false);
+				}
+				SelectionAPI->EndChangeAndEmitIfModified(true);
+			}
+		}),
+		FCanExecuteAction::CreateLambda([this]() { 
+			UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+			UUVToolViewportButtonsAPI* UVToolViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
+			return UVToolViewportButtonsAPI && UVToolViewportButtonsAPI->AreSelectionButtonsEnabled();
+		}));
+
 }
 
 void UUVEditorMode::Exit()
