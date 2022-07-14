@@ -1,53 +1,52 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/AssetRegistryGenerator.h"
-#include "HAL/FileManager.h"
-#include "HAL/PlatformFileManager.h"
-#include "Misc/FileHelper.h"
-#include "Serialization/ArrayReader.h"
-#include "Serialization/ArrayWriter.h"
-#include "Misc/App.h"
-#include "Serialization/JsonTypes.h"
-#include "Serialization/JsonReader.h"
-#include "Policies/PrettyJsonPrintPolicy.h"
-#include "Serialization/JsonSerializer.h"
-#include "Engine/Level.h"
-#include "Engine/World.h"
-#include "Settings/ProjectPackagingSettings.h"
-#include "CollectionManagerTypes.h"
-#include "ICollectionManager.h"
-#include "CollectionManagerModule.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/CookTagList.h"
-#include "GameDelegates.h"
-#include "Commandlets/IChunkDataGenerator.h"
-#include "Commandlets/ChunkDependencyInfo.h"
-#include "IPlatformFileSandboxWrapper.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/PathViews.h"
-#include "Stats/StatsMisc.h"
-#include "Templates/UniquePtr.h"
-#include "Engine/AssetManager.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
+
 #include "Algo/Sort.h"
 #include "Algo/StableSort.h"
-#include "ProfilingDebugging/ScopedTimers.h"
-
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/CookTagList.h"
+#include "CollectionManagerModule.h"
+#include "CollectionManagerTypes.h"
+#include "Commandlets/ChunkDependencyInfo.h"
+#include "Commandlets/IChunkDataGenerator.h"
+#include "Engine/AssetManager.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
+#include "GameDelegates.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "ICollectionManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "IPlatformFileSandboxWrapper.h"
+#include "Misc/App.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/FileHelper.h"
+#include "Misc/PathViews.h"
 #include "PakFileUtilities.h"
-
-#include "Serialization/JsonWriter.h"
+#include "Policies/PrettyJsonPrintPolicy.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "Serialization/ArrayReader.h"
+#include "Serialization/ArrayWriter.h"
+#include "Serialization/JsonReader.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonTypes.h"
+#include "Serialization/JsonWriter.h"
+#include "Settings/ProjectPackagingSettings.h"
+#include "Stats/StatsMisc.h"
 #include "String/ParseTokens.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogAssetRegistryGenerator, Log, All);
-
-#define LOCTEXT_NAMESPACE "AssetRegistryGenerator"
+#include "Templates/UniquePtr.h"
 
 #if WITH_EDITOR
 #include "HAL/ThreadHeartBeat.h"
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogAssetRegistryGenerator, Log, All);
+
+#define LOCTEXT_NAMESPACE "AssetRegistryGenerator"
 
 //////////////////////////////////////////////////////////////////////////
 // Static functions
