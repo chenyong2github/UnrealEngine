@@ -40,6 +40,7 @@ namespace TraceServices
 		virtual const FTaskInfo* TryGetTask(uint32 ThreadId, double Timestamp) const override;
 		virtual const FTaskInfo* TryGetTask(TaskTrace::FId TaskId) const;
 		virtual const FWaitingForTasks* TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const override;
+		virtual TArray<TaskTrace::FId> TryGetParallelForTasks(const TCHAR* TimerName, uint32 ThreadId, double StartTime, double EndTime) const override;
 		virtual int64 GetNumTasks() const override;
 		virtual void EnumerateTasks(double StartTime, double EndTime, TaskCallback Callback) const override;
 

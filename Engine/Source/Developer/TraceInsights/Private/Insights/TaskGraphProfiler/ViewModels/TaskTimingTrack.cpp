@@ -1067,6 +1067,7 @@ void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEven
 {
 	const int32 MaxTasksToShow = 30;
 	double StartTime = InSelectedEvent.GetStartTime();
+	double EndTime = InSelectedEvent.GetEndTime();
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
@@ -1103,6 +1104,17 @@ void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEven
 					FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, WaitedTask->CompletedTimestamp, WaitedTask->CompletedThreadId, WaitedTask->CompletedTimestamp, ThreadId, ETaskEventType::NestedCompleted);
 				}
 			}
+		}
+
+		TArray<TaskTrace::FId> ParallelForTasks = TasksProvider->TryGetParallelForTasks(Timer->Name, ThreadId, StartTime, EndTime);
+		int32 NumTasksToShow = FMath::Min(ParallelForTasks.Num(), MaxTasksToShow);
+		for (int32 TaskIndex = 0; TaskIndex != NumTasksToShow; ++TaskIndex)
+		{
+			const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ParallelForTasks[TaskIndex]);
+			int32 TaskExecutionDepth = FTaskGraphProfilerManager::Get()->GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+
+			FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, Task->StartedTimestamp, ThreadId, -1, Task->StartedTimestamp, Task->StartedThreadId, TaskExecutionDepth, ETaskEventType::NestedStarted);
+			FTaskGraphProfilerManager::Get()->AddRelation(&InSelectedEvent, Task->CompletedTimestamp, Task->CompletedThreadId, Task->CompletedTimestamp, ThreadId, ETaskEventType::NestedCompleted);
 		}
 	}
 }

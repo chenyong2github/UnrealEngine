@@ -518,6 +518,29 @@ namespace TraceServices
 		return Waiting.FinishedTimestamp > Timestamp || Waiting.FinishedTimestamp == FTaskInfo::InvalidTimestamp ? &Waiting : nullptr;
 	}
 
+	TArray<TaskTrace::FId> FTasksProvider::TryGetParallelForTasks(const TCHAR* TimerName, uint32 ThreadId, double StartTime, double EndTime) const
+	{
+		TArray<TaskTrace::FId> Result;
+
+		if (FCString::Strcmp(TimerName, TEXT("ParallelFor")) != 0)
+		{
+			return Result;
+		}
+
+		EnumerateTasks(StartTime, EndTime, 
+			[ThreadId, StartTime, EndTime, &Result] (const FTaskInfo& Task)
+			{
+				if (Task.LaunchedThreadId == ThreadId && Task.LaunchedTimestamp > StartTime && Task.FinishedTimestamp < EndTime)
+				{
+					Result.Add(Task.Id);
+				}
+				return ETaskEnumerationResult::Continue;
+			}
+		);
+
+		return Result;
+	}
+
 	int64 FTasksProvider::GetNumTasks() const
 	{
 		return Tasks.Num();
