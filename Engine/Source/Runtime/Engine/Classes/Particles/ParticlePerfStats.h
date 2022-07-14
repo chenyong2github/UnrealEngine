@@ -4,8 +4,8 @@
 
 #include "Templates/Atomic.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformTime.h"
-#include "Misc/CoreMiscDefines.h"
 #include "Containers/Array.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 

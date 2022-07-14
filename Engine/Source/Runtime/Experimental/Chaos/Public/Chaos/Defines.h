@@ -24,7 +24,6 @@
 #else
 	#include "CoreTypes.h"
 	#include "Logging/MessageLog.h"
-	#include "Misc/CoreMiscDefines.h"
 	#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #endif
 #include "Serializable.h"

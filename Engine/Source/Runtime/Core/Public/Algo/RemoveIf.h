@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "Templates/Invoke.h"
-#include "Misc/CoreMiscDefines.h"
 
 namespace Algo
 {

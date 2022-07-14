@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/Attribute.h"
 #include "Styling/SlateColor.h"
 #include "Fonts/SlateFontInfo.h"
@@ -13,7 +14,6 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
-#include "Misc/CoreMiscDefines.h"
 
 class SEditableText;
 class STextBlock;

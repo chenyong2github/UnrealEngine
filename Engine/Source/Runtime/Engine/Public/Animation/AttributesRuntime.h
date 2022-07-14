@@ -8,8 +8,8 @@
 #include "Containers/ContainersFwd.h"
 
 #include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/CoreMiscDefines.h"
 #include "UObject/StructOnScope.h"
 
 #include "Animation/IAttributeBlendOperator.h"
