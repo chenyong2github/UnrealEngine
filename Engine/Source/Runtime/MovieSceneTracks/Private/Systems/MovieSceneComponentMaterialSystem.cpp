@@ -3,6 +3,7 @@
 #include "Systems/MovieSceneComponentMaterialSystem.h"
 
 #include "EntitySystem/MovieSceneEntityMutations.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
 
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
