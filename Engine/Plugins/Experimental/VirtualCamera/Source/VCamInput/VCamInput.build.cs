@@ -13,6 +13,8 @@ public class VCamInput : ModuleRules
 			new string[]
 			{
 				"Core",
+				"UMG",
+				"CommonUI"
 			}
 			);
 
