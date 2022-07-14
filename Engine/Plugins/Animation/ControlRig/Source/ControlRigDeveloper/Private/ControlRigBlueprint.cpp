@@ -1388,18 +1388,25 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 				{
 					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
 					{
-						if (FunctionReferenceNode->GetLibrary() != GetLocalFunctionLibrary())
+						if (URigVMLibraryNode* ReferencedNode = Cast<URigVMLibraryNode>(FunctionReferenceNode->GetReferencedNode()))
 						{
-							UPackage* Package = FunctionReferenceNode->GetLibrary()->GetPackage();
-							if (!Package->IsFullyLoaded())
+							if (ReferencedNode->GetLibrary() != GetLocalFunctionLibrary())
 							{
-								Package->FullyLoad();
+								ReferencedNode->GetPackage()->FullyLoad();
 							}
-							continue;
+							else
+							{
+								ContainedGraphs.Add(ReferencedNode->GetContainedGraph());
+							}
 						}
+						
+						continue;
 					}
-					
-					ContainedGraphs.Add(LibraryNode->GetContainedGraph());					
+
+					if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
+					{
+						ContainedGraphs.Add(ContainedGraph);
+					}					
 				}
 			}
 			
