@@ -11,11 +11,11 @@
 
 namespace Chaos::Softs
 {
-
-	class FXPBDCorotatedFiberConstraints : public FXPBDCorotatedConstraints
+	template <typename T, typename ParticleType>
+	class FXPBDCorotatedFiberConstraints : public FXPBDCorotatedConstraints <T, ParticleType>
 	{
 
-		typedef FXPBDCorotatedConstraints Base;
+		typedef FXPBDCorotatedConstraints<T, ParticleType> Base;
 		using Base::MeshConstraints;
 		using Base::LambdaArray;
 		using Base::Measure;
@@ -24,20 +24,24 @@ namespace Chaos::Softs
 	public:
 		//this one only accepts tetmesh input and mesh
 		FXPBDCorotatedFiberConstraints(
-			const FSolverParticles& InParticles,
+			const ParticleType& InParticles,
 			const TArray<TVector<int32, 4>>& InMesh,
 			const bool bRecordMetricIn = true,
-			const FSolverReal& EMesh = (FSolverReal)10.0,
-			const FSolverReal& NuMesh = (FSolverReal).3,
-			const FSolverVec3 InFiberDir = FSolverVec3((FSolverReal)1., (FSolverReal)0., (FSolverReal)0.),
-			const FSolverReal InSigmaMax = (FSolverReal)3e5
+			const T& EMesh = (T)10.0,
+			const T& NuMesh = (T).3,
+			const TVector<T, 3> InFiberDir = TVector<T, 3>((T)1., (T)0., (T)0.),
+			const T InSigmaMax = (T)3e5
 		)
 			: Base(InParticles, InMesh, bRecordMetricIn, EMesh, NuMesh), SigmaMax(InSigmaMax), FiberDir(InFiberDir)
 		{
-			LambdaArray.Init((FSolverReal)0., 3 * MeshConstraints.Num());
+			LambdaArray.Init((T)0., 3 * MeshConstraints.Num());
 		}
 
 		virtual ~FXPBDCorotatedFiberConstraints() {}
+		
+		TVector<T, 3> GetFiberDir() { return FiberDir; }
+
+		void SetActivation(const T AlphaIn) { AlphaActivation = AlphaIn; }
 
 		void SetTime(const float Time) const {
 			float FinalTime = 4.0f;
@@ -46,26 +50,26 @@ namespace Chaos::Softs
 			{
 				CurrentTime -= FinalTime;
 			}
-			AlphaActivation = (FSolverReal)1. - (FSolverReal)4. / FinalTime * FMath::Abs(CurrentTime - FinalTime / (FSolverReal)2.);
+			AlphaActivation = (T)1. - (T)4. / FinalTime * FMath::Abs(CurrentTime - FinalTime / (T)2.);
 		}
 
-		virtual void ApplyInSerial(FSolverParticles& Particles, const FSolverReal Dt, const int32 ElementIndex) const override
+		virtual void ApplyInSerial(ParticleType& Particles, const T Dt, const int32 ElementIndex) const override
 		{
-			TVec4<FSolverVec3> PolarDelta = Base::GetPolarDelta(Particles, Dt, ElementIndex);
+			TVec4<TVector<T, 3>> PolarDelta = Base::GetPolarDelta(Particles, Dt, ElementIndex);
 
 			for (int i = 0; i < 4; i++)
 			{
 				Particles.P(MeshConstraints[ElementIndex][i]) += PolarDelta[i];
 			}
 
-			TVec4<FSolverVec3> DetDelta = Base::GetDeterminantDelta(Particles, Dt, ElementIndex);
+			TVec4<TVector<T, 3>> DetDelta = Base::GetDeterminantDelta(Particles, Dt, ElementIndex);
 
 			for (int i = 0; i < 4; i++)
 			{
 				Particles.P(MeshConstraints[ElementIndex][i]) += DetDelta[i];
 			}
 
-			TVec4<FSolverVec3> FiberDelta = GetFiberDelta(Particles, Dt, ElementIndex);
+			TVec4<TVector<T, 3>> FiberDelta = GetFiberDelta(Particles, Dt, ElementIndex);
 
 			for (int i = 0; i < 4; i++)
 			{
@@ -75,23 +79,47 @@ namespace Chaos::Softs
 
 		}
 
+		TVec4<TVector<T, 3>> GetFiberGradient(const T dFpdL, const T dFadL,const T C3, const TVec4<TVector<T, 3>>& dLdX) const 
+		{
+			T dC3dL = (T)0.5 * (dFpdL + AlphaActivation * dFadL);
+			if (C3 == 0)
+			{
+				return TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.));
+			}
+			else
+			{
+				dC3dL /= C3;
+			}
+
+			TVec4<TVector<T, 3>> dC3(TVector<T, 3>((T)0.));
+			for (int32 i = 0; i < 4; i++)
+			{
+				for (int32 j = 0; j < 3; j++)
+				{
+					dC3[i][j] = dC3dL * dLdX[i][j];
+				}
+			}
+
+			return dC3;
+		
+		}
 
 
 	private:
 
-		TVec4<FSolverVec3> GetFiberDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 ElementIndex, const FSolverReal Tol = 1e-3) const
+		TVec4<TVector<T, 3>> GetFiberDelta(const ParticleType& Particles, const T Dt, const int32 ElementIndex, const T Tol = 1e-3) const
 		{
-			const PMatrix<FSolverReal, 3, 3> Fe = F(ElementIndex, Particles);
+			const PMatrix<T, 3, 3> Fe = Base::F(ElementIndex, Particles);
 
-			PMatrix<FSolverReal, 3, 3> Re((FSolverReal)0.), Se((FSolverReal)0.);
+			PMatrix<T, 3, 3> Re((T)0.), Se((T)0.);
 
 			Chaos::PolarDecomposition(Fe, Re, Se);
 
 			// l: fiber stretch, f = (vTCv)^(1/2)
-			FSolverVec3 FeV = Fe.GetTransposed() * FiberDir;
-			FSolverVec3 DmInverseV = ElementDmInv(ElementIndex).GetTransposed() * FiberDir;
-			FSolverReal L = FeV.Size();
-			TVec4<FSolverVec3> dLdX(FSolverVec3((FSolverReal)0.));
+			TVector<T, 3> FeV = Fe.GetTransposed() * FiberDir;
+			TVector<T, 3> DmInverseV = Base::ElementDmInv(ElementIndex).GetTransposed() * FiberDir;
+			T L = FeV.Size();
+			TVec4<TVector<T, 3>> dLdX(TVector<T, 3>((T)0.));
 			for (int32 alpha = 0; alpha < 3; alpha++)
 			{
 				for (int32 s = 0; s < 3; s++)
@@ -108,70 +136,72 @@ namespace Chaos::Softs
 				}
 			}
 
-			FSolverReal LambdaOFL = (FSolverReal)1.4;
-			FSolverReal P1 = (FSolverReal)0.05;
-			FSolverReal P2 = (FSolverReal)6.6;
-			FSolverReal FpIntegral = (FSolverReal)0.;
-			FSolverReal FaIntegral = (FSolverReal)0.;
+			T LambdaOFL = (T)1.4;
+			T P1 = (T)0.05;
+			T P2 = (T)6.6;
+			T FpIntegral = (T)0.;
+			T FaIntegral = (T)0.;
 
-			FSolverReal C3 = (FSolverReal)0.;
-			FSolverReal AlphaTilde = LambdaOFL / (SigmaMax * Dt * Dt * Measure[ElementIndex]);
-			FSolverReal dFpdL = (FSolverReal)0.;
-			FSolverReal dFadL = (FSolverReal)0.;
+			T C3 = (T)0.;
+			T AlphaTilde = LambdaOFL / (SigmaMax * Dt * Dt * Measure[ElementIndex]);
+			T dFpdL = (T)0.;
+			T dFadL = (T)0.;
 
 			if (L > LambdaOFL)
 			{
-				FpIntegral = P1 * LambdaOFL / P2 * FMath::Exp(P2 * (L / LambdaOFL - (FSolverReal)1.)) - P1 * (L - LambdaOFL);
-				dFpdL = P1 * FMath::Exp(P2 * (L / LambdaOFL - (FSolverReal)1.)) - P1;
+				FpIntegral = P1 * LambdaOFL / P2 * FMath::Exp(P2 * (L / LambdaOFL - (T)1.)) - P1 * (L - LambdaOFL);
+				dFpdL = P1 * FMath::Exp(P2 * (L / LambdaOFL - (T)1.)) - P1;
 			}
-			if (L > (FSolverReal)0.4 * LambdaOFL && L < (FSolverReal)0.6 * LambdaOFL)
+			if (L > (T)0.4 * LambdaOFL && L < (T)0.6 * LambdaOFL)
 			{
-				FaIntegral = (FSolverReal)3. * LambdaOFL * FMath::Pow((L / LambdaOFL - (FSolverReal)0.4), 3);
-				dFadL = (FSolverReal)9. * FMath::Pow((L / LambdaOFL - (FSolverReal)0.4), 2);
+				FaIntegral = (T)3. * LambdaOFL * FMath::Pow((L / LambdaOFL - (T)0.4), 3);
+				dFadL = (T)9. * FMath::Pow((L / LambdaOFL - (T)0.4), 2);
 			}
-			else if (L >= (FSolverReal)0.6 * LambdaOFL && L <= (FSolverReal)1.4 * LambdaOFL)
+			else if (L >= (T)0.6 * LambdaOFL && L <= (T)1.4 * LambdaOFL)
 			{
-				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + L - (FSolverReal)4. / (FSolverReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FSolverReal)1., 3) - (FSolverReal)0.6 * LambdaOFL - (FSolverReal)4. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3);
-				dFadL = (FSolverReal)1. - (FSolverReal)4. * FMath::Pow(L / LambdaOFL - (FSolverReal)1., 2);
+				FaIntegral = (T)3. * LambdaOFL * (T)0.008 + L - (T)4. / (T)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (T)1., 3) - (T)0.6 * LambdaOFL - (T)4. / (T)3. * LambdaOFL * FMath::Pow((T)0.4, 3);
+				dFadL = (T)1. - (T)4. * FMath::Pow(L / LambdaOFL - (T)1., 2);
 			}
-			else if (L > (FSolverReal)1.4 * LambdaOFL && L <= (FSolverReal)1.6 * LambdaOFL)
+			else if (L > (T)1.4 * LambdaOFL && L <= (T)1.6 * LambdaOFL)
 			{
-				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + (FSolverReal)0.8 * LambdaOFL - (FSolverReal)8. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3) + (FSolverReal)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (FSolverReal)1.6, 3) + (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008;
-				dFadL = (FSolverReal)9. * FMath::Pow((L / LambdaOFL - (FSolverReal)1.6), 2);
+				FaIntegral = (T)3. * LambdaOFL * (T)0.008 + (T)0.8 * LambdaOFL - (T)8. / (T)3. * LambdaOFL * FMath::Pow((T)0.4, 3) + (T)3. * LambdaOFL * FMath::Pow(L / LambdaOFL - (T)1.6, 3) + (T)3. * LambdaOFL * (T)0.008;
+				dFadL = (T)9. * FMath::Pow((L / LambdaOFL - (T)1.6), 2);
 
 			}
-			else if (L > (FSolverReal)1.6 * LambdaOFL)
+			else if (L > (T)1.6 * LambdaOFL)
 			{
-				FaIntegral = (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008 + (FSolverReal)0.8 * LambdaOFL - (FSolverReal)8. / (FSolverReal)3. * LambdaOFL * FMath::Pow((FSolverReal)0.4, 3) + (FSolverReal)3. * LambdaOFL * (FSolverReal)0.008;
-				dFadL = (FSolverReal)0.;
+				FaIntegral = (T)3. * LambdaOFL * (T)0.008 + (T)0.8 * LambdaOFL - (T)8. / (T)3. * LambdaOFL * FMath::Pow((T)0.4, 3) + (T)3. * LambdaOFL * (T)0.008;
+				dFadL = (T)0.;
 			}
 
 
 			C3 = FMath::Sqrt(FpIntegral + AlphaActivation * FaIntegral);
 
 
-			FSolverReal dC3dL = (FSolverReal)0.5 * (dFpdL + AlphaActivation * dFadL);
-			if (C3 == 0)
-			{
-				return TVec4<FSolverVec3>(FSolverVec3((FSolverReal)0.));
-			}
-			else
-			{
-				dC3dL /= C3;
-			}
+			//T dC3dL = (T)0.5 * (dFpdL + AlphaActivation * dFadL);
+			//if (C3 == 0)
+			//{
+			//	return TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.));
+			//}
+			//else
+			//{
+			//	dC3dL /= C3;
+			//}
 
-			TVec4<FSolverVec3> dC3(FSolverVec3((FSolverReal)0.));
-			for (int32 i = 0; i < 4; i++)
-			{
-				for (int32 j = 0; j < 3; j++)
-				{
-					dC3[i][j] = dC3dL * dLdX[i][j];
-				}
-			}
+			TVec4<TVector<T, 3>> dC3 = GetFiberGradient(dFpdL,dFadL, C3, dLdX);
 
-			FSolverReal DLambda = -C3 - AlphaTilde * LambdaArray[2 * ElementIndex + 2];
+			//TVec4<TVector<T, 3>> dC3(TVector<T, 3>((T)0.));
+			//for (int32 i = 0; i < 4; i++)
+			//{
+			//	for (int32 j = 0; j < 3; j++)
+			//	{
+			//		dC3[i][j] = dC3dL * dLdX[i][j];
+			//	}
+			//}
 
-			FSolverReal Denom = AlphaTilde;
+			T DLambda = -C3 - AlphaTilde * LambdaArray[2 * ElementIndex + 2];
+
+			T Denom = AlphaTilde;
 			for (int i = 0; i < 4; i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -181,7 +211,7 @@ namespace Chaos::Softs
 			}
 			DLambda /= Denom;
 			LambdaArray[2 * ElementIndex + 2] += DLambda;
-			TVec4<FSolverVec3> Delta(FSolverVec3((FSolverReal)0.));
+			TVec4<TVector<T, 3>> Delta(TVector<T, 3>((T)0.));
 			for (int i = 0; i < 4; i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -198,9 +228,9 @@ namespace Chaos::Softs
 	private:
 
 		//material constants calculated from E:
-		FSolverReal SigmaMax;
-		mutable FSolverReal AlphaActivation;
-		FSolverVec3 FiberDir;
+		T SigmaMax;
+		mutable T AlphaActivation;
+		TVector<T, 3> FiberDir;
 
 	};
 
