@@ -564,8 +564,9 @@ public class MakeCookedEditor : BuildCommand
 
 		if (Context.IniPlatformName == "Linux")
 		{
-			// linux needs dotnet runtime
+			// linux needs dotnet runtime, as well as mono (at least for now until we can break our dependence)
 			SC.StageFiles(StagedFileType.NonUFS, Unreal.FindDotnetDirectoryForPlatform(RuntimePlatform.Type.Linux), StageFilesSearch.AllDirectories);
+			SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(Context.EngineDirectory, "Binaries/ThirdParty/Mono/Linux"), StageFilesSearch.AllDirectories);
 		}
 
 		// not sure if we need this or not now
