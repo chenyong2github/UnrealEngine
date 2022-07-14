@@ -183,7 +183,6 @@ protected:
 
 		// Handles for channel callbacks
 		EOS_NotificationId OnChannelDisconnectedNotificationId = EOS_INVALID_NOTIFICATIONID;
-		EOS_NotificationId OnLobbyChannelConnectionChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 		EOS_NotificationId OnParticipantStatusChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 		EOS_NotificationId OnParticipantAudioUpdatedNotificationId = EOS_INVALID_NOTIFICATIONID;
 		EOS_NotificationId OnAudioBeforeSendNotificationId = EOS_INVALID_NOTIFICATIONID;
@@ -202,6 +201,8 @@ protected:
 	// When logged in, contains the state for the current login session. Reset by Logout
 	struct FLoginSession
 	{
+		~FLoginSession();
+
 		// The numeric platform id for the local user
 		FPlatformUserId PlatformId = PLATFORMUSERID_NONE;
 		// Name of the local player
@@ -227,6 +228,9 @@ protected:
 			TArray<FOnVoiceChatLogoutCompleteDelegate> CompletionDelegates;
 		};
 		TOptional<FLogoutState> LogoutState;
+
+		// Handles for callbacks
+		EOS_NotificationId OnLobbyChannelConnectionChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 	};
 	FLoginSession LoginSession;
 
@@ -300,6 +304,8 @@ protected:
 	void ApplyPlayerReceivingOptions(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant);
 	void ApplySendingOptions();
 	void ApplySendingOptions(FChannelSession& ChannelSession);
+	void BindLoginCallbacks();
+	void UnbindLoginCallbacks();
 	void BindChannelCallbacks(FChannelSession& ChannelSession);
 	void UnbindChannelCallbacks(FChannelSession& ChannelSession);
 	void LeaveChannelInternal(const FString& ChannelName, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate);

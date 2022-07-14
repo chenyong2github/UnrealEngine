@@ -80,7 +80,7 @@ FVoiceChatResult ResultFromEOSResult(const EOS_EResult EosResult)
 		case EOS_EResult::EOS_Auth_ExternalAuthIsLastLoginType:
 		case EOS_EResult::EOS_Auth_ExchangeCodeNotFound:
 		case EOS_EResult::EOS_Auth_OriginatingExchangeCodeSessionExpired:
-		case EOS_EResult::EOS_Auth_PersistentAuth_AccountNotActive:
+		case EOS_EResult::EOS_Auth_AccountNotActive:
 		case EOS_EResult::EOS_Auth_MFARequired:
 		case EOS_EResult::EOS_Auth_ParentalControls:
 		case EOS_EResult::EOS_Auth_NoRealId:

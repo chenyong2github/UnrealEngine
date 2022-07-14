@@ -262,6 +262,10 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& Platf
 			ActivePlatforms.Emplace(PlatformHandle);
 			SharedPlatform = MakeShared<FEOSPlatformHandle, ESPMode::ThreadSafe>(*this, PlatformHandle);
 			SetupTicker();
+
+			// TODO Hardcode the application and network state for now
+			EOS_Platform_SetApplicationStatus(PlatformHandle, EOS_EApplicationStatus::EOS_AS_Foreground);
+			EOS_Platform_SetNetworkStatus(PlatformHandle, EOS_ENetworkStatus::EOS_NS_Online);
 		}
 		else
 		{

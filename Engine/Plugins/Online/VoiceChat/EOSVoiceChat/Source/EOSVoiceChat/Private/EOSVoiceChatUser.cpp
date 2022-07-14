@@ -378,6 +378,8 @@ void FEOSVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& PlayerN
 		LoginSession.LocalUserProductUserId = LocalUserProductUserId;
 		LoginSession.State = ELoginState::LoggedIn;
 
+		BindLoginCallbacks();
+
 		LoginCompleteDelegate.ExecuteIfBound(LoginSession.PlayerName, FVoiceChatResult::CreateSuccess());
 		OnVoiceChatLoggedInDelegate.Broadcast(LoginSession.PlayerName);
 
@@ -1287,6 +1289,30 @@ void FEOSVoiceChatUser::ApplySendingOptions(FChannelSession& ChannelSession)
 	EOS_RTCAudio_UpdateSending(EOS_RTC_GetAudioInterface(GetRtcInterface()), &UpdateSendingOptions, this, &FEOSVoiceChatUser::OnUpdateSendingAudioStatic);
 }
 
+void FEOSVoiceChatUser::BindLoginCallbacks()
+{
+	// OnLobbyChannelConnectionChanged
+	{
+		EOS_Lobby_AddNotifyRTCRoomConnectionChangedOptions Options = {};
+		Options.ApiVersion = EOS_LOBBY_ADDNOTIFYRTCROOMCONNECTIONCHANGED_API_LATEST;
+		static_assert(EOS_LOBBY_ADDNOTIFYRTCROOMCONNECTIONCHANGED_API_LATEST == 2, "EOS_Lobby_AddNotifyRTCRoomConnectionChangedOptions updated, check new fields");
+		LoginSession.OnLobbyChannelConnectionChangedNotificationId = EOS_Lobby_AddNotifyRTCRoomConnectionChanged(GetLobbyInterface(), &Options, this, &FEOSVoiceChatUser::OnLobbyChannelConnectionChangedStatic);
+		if (LoginSession.OnLobbyChannelConnectionChangedNotificationId == EOS_INVALID_NOTIFICATIONID)
+		{
+			EOSVOICECHATUSER_LOG(Warning, TEXT("BindLoginCallbacks EOS_Lobby_AddNotifyRTCRoomConnectionChanged failed"));
+		}
+	}
+}
+
+void FEOSVoiceChatUser::UnbindLoginCallbacks()
+{
+	if (LoginSession.OnLobbyChannelConnectionChangedNotificationId != EOS_INVALID_NOTIFICATIONID)
+	{
+		EOS_Lobby_RemoveNotifyRTCRoomConnectionChanged(GetLobbyInterface(), LoginSession.OnLobbyChannelConnectionChangedNotificationId);
+		LoginSession.OnLobbyChannelConnectionChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
+	}
+}
+
 void FEOSVoiceChatUser::BindChannelCallbacks(FChannelSession& ChannelSession)
 {
 	EOSVOICECHATUSER_LOG(Log, TEXT("BindChannelCallbacks ChannelName=[%s]"), *ChannelSession.ChannelName);
@@ -1306,21 +1332,6 @@ void FEOSVoiceChatUser::BindChannelCallbacks(FChannelSession& ChannelSession)
 		if (ChannelSession.OnChannelDisconnectedNotificationId == EOS_INVALID_NOTIFICATIONID)
 		{
 			EOSVOICECHATUSER_LOG(Warning, TEXT("BindChannelCallbacks EOS_RTC_AddNotifyDisconnected failed"));
-		}
-	}
-
-	// OnLobbyChannelConnectionChanged
-	if (ChannelSession.IsLobbySession())
-	{
-		EOS_Lobby_AddNotifyRTCRoomConnectionChangedOptions Options = {};
-		Options.ApiVersion = EOS_LOBBY_ADDNOTIFYRTCROOMCONNECTIONCHANGED_API_LATEST;
-		static_assert(EOS_LOBBY_ADDNOTIFYRTCROOMCONNECTIONCHANGED_API_LATEST == 1, "EOS_Lobby_AddNotifyRTCRoomConnectionChangedOptions updated, check new fields");
-		Options.LobbyId = Utf8LobbyId.Get();
-		Options.LocalUserId = LoginSession.LocalUserProductUserId;
-		ChannelSession.OnLobbyChannelConnectionChangedNotificationId = EOS_Lobby_AddNotifyRTCRoomConnectionChanged(GetLobbyInterface(), &Options, this, &FEOSVoiceChatUser::OnLobbyChannelConnectionChangedStatic);
-		if (ChannelSession.OnLobbyChannelConnectionChangedNotificationId == EOS_INVALID_NOTIFICATIONID)
-		{
-			EOSVOICECHATUSER_LOG(Warning, TEXT("BindChannelCallbacks EOS_Lobby_AddNotifyRTCRoomConnectionChanged failed"));
 		}
 	}
 
@@ -1404,12 +1415,6 @@ void FEOSVoiceChatUser::UnbindChannelCallbacks(FChannelSession& ChannelSession)
 	{
 		EOS_RTC_RemoveNotifyDisconnected(GetRtcInterface(), ChannelSession.OnChannelDisconnectedNotificationId);
 		ChannelSession.OnChannelDisconnectedNotificationId = EOS_INVALID_NOTIFICATIONID;
-	}
-
-	if (ChannelSession.OnLobbyChannelConnectionChangedNotificationId != EOS_INVALID_NOTIFICATIONID)
-	{
-		EOS_Lobby_RemoveNotifyRTCRoomConnectionChanged(GetLobbyInterface(), ChannelSession.OnLobbyChannelConnectionChangedNotificationId);
-		ChannelSession.OnLobbyChannelConnectionChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 	}
 
 	if (ChannelSession.OnParticipantStatusChangedNotificationId != EOS_INVALID_NOTIFICATIONID)
@@ -1582,6 +1587,7 @@ void FEOSVoiceChatUser::ClearLoginSession()
 	{
 		UnbindChannelCallbacks(Pair.Value);
 	}
+	UnbindLoginCallbacks();
 	LoginSession = FLoginSession();
 }
 
@@ -1954,9 +1960,16 @@ void EOS_CALL FEOSVoiceChatUser::OnLobbyChannelConnectionChangedStatic(const EOS
 
 void FEOSVoiceChatUser::OnLobbyChannelConnectionChanged(const EOS_Lobby_RTCRoomConnectionChangedCallbackInfo* CallbackInfo)
 {
+	const EOS_ProductUserId LocalUserId = CallbackInfo->LocalUserId;
 	const FString LobbyId = UTF8_TO_TCHAR(CallbackInfo->LobbyId);
 	const bool bIsConnected = CallbackInfo->bIsConnected == EOS_TRUE;
 	const FVoiceChatResult Reason = ResultFromEOSResult(CallbackInfo->DisconnectReason);
+
+	if (LocalUserId != LoginSession.LocalUserProductUserId)
+	{
+		EOSVOICECHATUSER_LOG(VeryVerbose, TEXT("OnLobbyChannelConnectionChanged LocalUserId=[%s] LobbyId=[%s] bIsConnected=[%s] Reason=[%s] Skipping notification for other user"),
+			*LexToString(LocalUserId), *LobbyId, *LexToString(bIsConnected), *LexToString(Reason));
+	}
 
 	EOSVOICECHATUSER_LOG(Log, TEXT("OnLobbyChannelConnectionChanged LobbyId=[%s] bIsConnected=[%s] Reason=[%s]"), *LobbyId, *LexToString(bIsConnected), *LexToString(Reason));
 
@@ -2593,7 +2606,6 @@ bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 FEOSVoiceChatUser::FChannelSession::~FChannelSession()
 {
 	check(OnChannelDisconnectedNotificationId == EOS_INVALID_NOTIFICATIONID);
-	check(OnLobbyChannelConnectionChangedNotificationId == EOS_INVALID_NOTIFICATIONID);
 	check(OnParticipantStatusChangedNotificationId == EOS_INVALID_NOTIFICATIONID);
 	check(OnParticipantAudioUpdatedNotificationId == EOS_INVALID_NOTIFICATIONID);
 	check(OnAudioBeforeSendNotificationId == EOS_INVALID_NOTIFICATIONID);
@@ -2609,6 +2621,11 @@ bool FEOSVoiceChatUser::FChannelSession::IsLocalUser(const FChannelParticipant& 
 bool FEOSVoiceChatUser::FChannelSession::IsLobbySession() const
 {
 	return !LobbyId.IsEmpty();
+}
+
+FEOSVoiceChatUser::FLoginSession::~FLoginSession()
+{
+	check(OnLobbyChannelConnectionChangedNotificationId == EOS_INVALID_NOTIFICATIONID);
 }
 
 const TCHAR* LexToString(FEOSVoiceChatUser::ELoginState State)
