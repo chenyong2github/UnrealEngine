@@ -19,7 +19,7 @@
 		{
 			"Name" : "SoundUtilities",
 			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "PreDefault"
 		},
 		{
 			"Name" : "SoundUtilitiesEditor",

@@ -19,7 +19,7 @@
 		{
 			"Name": "GameplayInteractionsModule",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		}
 	],
 	"Plugins": [

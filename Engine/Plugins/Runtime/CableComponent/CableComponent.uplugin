@@ -19,7 +19,7 @@
 		{
 			"Name" : "CableComponent",
 			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"LoadingPhase" : "PreDefault"
 		}
 	]
 }
