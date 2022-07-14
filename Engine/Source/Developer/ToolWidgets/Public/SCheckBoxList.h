@@ -27,11 +27,14 @@ class TOOLWIDGETS_API SCheckBoxList: public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SCheckBoxList)
 		: _CheckBoxStyle(&FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"))
+		, _IncludeGlobalCheckBoxInHeaderRow(true)
 		{}
 		/** The styling of the CheckBox */
 		SLATE_STYLE_ARGUMENT(FCheckBoxStyle, CheckBoxStyle)
 		/** The label of the item column header */
 		SLATE_ARGUMENT(FText, ItemHeaderLabel)
+		/** The label of the item column header */
+		SLATE_ARGUMENT(bool, IncludeGlobalCheckBoxInHeaderRow)
 	SLATE_END_ARGS()
 
 public:
@@ -45,6 +48,7 @@ public:
 	bool IsItemChecked(int32 Index) const;
 
 	TArray<bool> GetValues() const;
+	int32 GetNumCheckboxes() const;
 
 private:
 	void UpdateAllChecked();

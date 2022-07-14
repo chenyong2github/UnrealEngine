@@ -101,6 +101,8 @@ void SCheckBoxList::Construct(const FArguments& InArgs, const TArray<TSharedRef<
 		Items.Add(MakeShared<CheckBoxList::FItemPair>(Widget, bIsChecked));
 	}
 
+	bool bShowHeaderCheckbox = InArgs._IncludeGlobalCheckBoxInHeaderRow;
+
 	TSharedRef<SHeaderRow> HeaderRowWidget = SNew(SHeaderRow)
 		+ SHeaderRow::Column(CheckBoxList::ColumnID_CheckBox)
 		[
@@ -108,12 +110,13 @@ void SCheckBoxList::Construct(const FArguments& InArgs, const TArray<TSharedRef<
 			.Style(InArgs._CheckBoxStyle)
 			.IsChecked(this, &SCheckBoxList::GetToggleSelectedState)
 			.OnCheckStateChanged(this, &SCheckBoxList::OnToggleSelectedCheckBox)
+			.Visibility_Lambda([bShowHeaderCheckbox] { return bShowHeaderCheckbox ? EVisibility::Visible : EVisibility::Hidden; })
 		]
 		.FixedWidth(CheckBoxList::CheckBoxColumnWidth)
 		+ SHeaderRow::Column(CheckBoxList::ColumnID_Item)
 		.DefaultLabel(InArgs._ItemHeaderLabel)
 		.FillWidth(1.0f);
-	
+
 	ChildSlot
 	[
 		SAssignNew(ListView, SListView<TSharedRef<CheckBoxList::FItemPair>>)
@@ -151,6 +154,21 @@ void SCheckBoxList::RemoveItem(int32 Index)
 bool SCheckBoxList::IsItemChecked(int32 Index) const
 {
 	return Items.IsValidIndex(Index) ? Items[Index]->bIsChecked : false;
+}
+
+TArray<bool> SCheckBoxList::GetValues() const
+{
+	TArray<bool> Values;
+	for (const TSharedRef<CheckBoxList::FItemPair>& Item : Items)
+	{
+		Values.Add(Item->bIsChecked);
+	}
+	return Values;
+}
+
+int32 SCheckBoxList::GetNumCheckboxes() const
+{
+	return Items.Num();
 }
 
 void SCheckBoxList::UpdateAllChecked()
