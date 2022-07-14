@@ -27,7 +27,6 @@ public class OnlineSubsystem : ModuleRules
 			new string[] { 
 				"Core",
 				"CoreUObject",
-				"Sockets",
 				"JsonUtilities",
 			}
 		);

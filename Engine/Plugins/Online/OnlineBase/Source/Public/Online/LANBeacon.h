@@ -3,10 +3,36 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "OnlineSubsystemTypes.h"
-#include "OnlineDelegateMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
+
+#ifndef ONLINE_SUCCESS
+#define ONLINE_SUCCESS 0
+#endif
+
+#ifndef ONLINE_FAIL
+#define ONLINE_FAIL (uint32)-1
+#endif
+
+#ifndef ONLINE_IO_PENDING
+#define ONLINE_IO_PENDING 997
+#endif
+
+/**
+ * Generates a random nonce (number used once) of the desired length
+ *
+ * @param Nonce the buffer that will get the randomized data
+ * @param Length the number of bytes to generate random values for
+ */
+inline void GenerateNonce(uint8* Nonce, uint32 Length)
+{
+	//@todo joeg -- switch to CryptGenRandom() if possible or something equivalent
+		// Loop through generating a random value for each byte
+	for (uint32 NonceIndex = 0; NonceIndex < Length; NonceIndex++)
+	{
+		Nonce[NonceIndex] = (uint8)(FMath::Rand() & 255);
+	}
+}
 
 /**
  * This value indicates which packet version the server is sending. Clients with
@@ -60,12 +86,47 @@ typedef FOnValidResponsePacket::FDelegate FOnValidResponsePacketDelegate;
 DECLARE_MULTICAST_DELEGATE(FOnSearchingTimeout);
 typedef FOnSearchingTimeout::FDelegate FOnSearchingTimeoutDelegate;
 
+/** Enum indicating the state the LAN beacon is in */
+namespace ELanBeaconState
+{
+	enum Type
+	{
+		/** The lan beacon is disabled */
+		NotUsingLanBeacon,
+		/** The lan beacon is responding to client requests for information */
+		Hosting,
+		/** The lan beacon is querying servers for information */
+		Searching
+	};
+
+	/** @return the stringified version of the enum passed in */
+	inline const TCHAR* ToString(ELanBeaconState::Type EnumVal)
+	{
+		switch (EnumVal)
+		{
+
+		case NotUsingLanBeacon:
+		{
+			return TEXT("NotUsingLanBeacon");
+		}
+		case Hosting:
+		{
+			return TEXT("Hosting");
+		}
+		case Searching:
+		{
+			return TEXT("Searching");
+		}
+		}
+		return TEXT("");
+	}
+}
 
 /**
  * Class responsible for sending/receiving UDP broadcasts for LAN match
  * discovery
  */
-class ONLINESUBSYSTEM_API FLanBeacon
+class ONLINEBASE_API FLanBeacon
 {
 	/** Builds the broadcast address and caches it */
 	TSharedPtr<class FInternetAddr> BroadcastAddr;
@@ -124,7 +185,7 @@ public:
 /**
  *	Encapsulate functionality related to LAN broadcast data
  */
-class ONLINESUBSYSTEM_API FLANSession
+class ONLINEBASE_API FLANSession
 {
 protected:
 	/**
@@ -136,21 +197,6 @@ protected:
 	 * @return true if the header is valid, false otherwise
 	 */
 	bool IsValidLanQueryPacket(const uint8* Packet, uint32 Length, uint64& ClientNonce);
-
-	/**
-	 * Determines if the packet header is valid or not
-	 *
-	 * @param Packet the packet data to check
-	 * @param Length the size of the packet buffer
-	 *
-	 * @return true if the header is valid, false otherwise
-	 */
-	UE_DEPRECATED(4.24, "IsValidLanResponsePacket now takes an additional guid reference")
-	bool IsValidLanResponsePacket(const uint8* Packet, uint32 Length)
-	{
-		FGuid CompatGuid;
-		return IsValidLanResponsePacket(Packet, Length, CompatGuid);
-	}
 
 	/**
 	 * Determines if the packet header is valid or not
@@ -273,7 +319,7 @@ public:
 		return LanBeaconState;
 	}
 
-	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnValidQueryPacket, uint8*, int32, uint64);
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnValidResponsePacket, uint8*, int32);
-	DEFINE_ONLINE_DELEGATE(OnSearchingTimeout);
+	FOnValidQueryPacket OnValidQueryPacketDelegates;
+	FOnValidResponsePacket OnValidResponsePacketDelegates;
+	FOnSearchingTimeout OnSearchTimeoutDelegates;
 };

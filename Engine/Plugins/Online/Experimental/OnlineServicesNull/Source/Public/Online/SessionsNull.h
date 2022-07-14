@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LANBeacon.h"
+#include "Online/LANBeacon.h"
 #include "Online/SessionsCommon.h"
 
 namespace UE::Online {

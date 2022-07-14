@@ -25,6 +25,7 @@ public class OnlineSubsystemEOS : ModuleRules
 				"EOSShared",
 				"EOSVoiceChat",
 				"Json",
+				"OnlineBase",
 				"OnlineSubsystem",
 				"Sockets",
 				"SocketSubsystemEOS",

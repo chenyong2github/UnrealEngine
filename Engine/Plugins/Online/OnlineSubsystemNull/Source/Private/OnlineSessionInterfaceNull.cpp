@@ -1000,7 +1000,7 @@ void FOnlineSessionNull::TickLanTasks(float DeltaTime)
 void FOnlineSessionNull::AppendSessionToPacket(FNboSerializeToBufferNull& Packet, FOnlineSession* Session)
 {
 	/** Owner of the session */
-	Packet << *StaticCastSharedPtr<const FUniqueNetIdNull>(Session->OwningUserId)
+	((FNboSerializeToBuffer&) Packet) << Session->OwningUserId->ToString()
 		<< Session->OwningUserName
 		<< Session->NumOpenPrivateConnections
 		<< Session->NumOpenPublicConnections;
@@ -1022,7 +1022,7 @@ void FOnlineSessionNull::AppendSessionSettingsToPacket(FNboSerializeToBufferNull
 #endif 
 
 	// Members of the session settings class
-	Packet << SessionSettings->NumPublicConnections
+	((FNboSerializeToBuffer&)Packet) << SessionSettings->NumPublicConnections
 		<< SessionSettings->NumPrivateConnections
 		<< (uint8)SessionSettings->bShouldAdvertise
 		<< (uint8)SessionSettings->bIsLANMatch
@@ -1048,13 +1048,13 @@ void FOnlineSessionNull::AppendSessionSettingsToPacket(FNboSerializeToBufferNull
 	}
 
 	// Add count of advertised keys and the data
-	Packet << (int32)NumAdvertisedProperties;
+	((FNboSerializeToBuffer&)Packet) << (int32)NumAdvertisedProperties;
 	for (FSessionSettings::TConstIterator It(SessionSettings->Settings); It; ++It)
 	{
 		const FOnlineSessionSetting& Setting = It.Value();
 		if (Setting.AdvertisementType >= EOnlineDataAdvertisementType::ViaOnlineService)
 		{
-			Packet << It.Key();
+			((FNboSerializeToBuffer&)Packet) << It.Key();
 			Packet << Setting;
 #if DEBUG_LAN_BEACON
 			UE_LOG_ONLINE_SESSION(Verbose, TEXT("%s"), *Setting.ToString());

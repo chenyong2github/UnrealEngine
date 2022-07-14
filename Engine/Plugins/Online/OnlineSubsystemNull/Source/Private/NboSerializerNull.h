@@ -4,23 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "OnlineSubsystemNullTypes.h"
-#include "NboSerializer.h"
+#include "NboSerializerOSS.h"
 
 /**
  * Serializes data in network byte order form into a buffer
  */
-class FNboSerializeToBufferNull : public FNboSerializeToBuffer
+class ONLINESUBSYSTEMNULL_API FNboSerializeToBufferNull : public FNboSerializeToBufferOSS
 {
 public:
 	/** Default constructor zeros num bytes*/
 	FNboSerializeToBufferNull() :
-		FNboSerializeToBuffer(512)
+		FNboSerializeToBufferOSS(512)
 	{
 	}
 
 	/** Constructor specifying the size to use */
 	FNboSerializeToBufferNull(uint32 Size) :
-		FNboSerializeToBuffer(Size)
+		FNboSerializeToBufferOSS(Size)
 	{
 	}
 
@@ -32,7 +32,7 @@ public:
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
 		Ar << *SessionInfo.SessionId;
-		Ar << *SessionInfo.HostAddr;
+		((FNboSerializeToBuffer&)Ar) << *SessionInfo.HostAddr;
 		return Ar;
  	}
 
@@ -41,7 +41,7 @@ public:
 	 */
 	friend inline FNboSerializeToBufferNull& operator<<(FNboSerializeToBufferNull& Ar, const FUniqueNetIdNull& UniqueId)
 	{
-		Ar << UniqueId.UniqueNetIdStr;
+		((FNboSerializeToBuffer&)Ar) << UniqueId.UniqueNetIdStr;
 		return Ar;
 	}
 };
@@ -49,14 +49,14 @@ public:
 /**
  * Class used to write data into packets for sending via system link
  */
-class FNboSerializeFromBufferNull : public FNboSerializeFromBuffer
+class ONLINESUBSYSTEMNULL_API FNboSerializeFromBufferNull : public FNboSerializeFromBufferOSS
 {
 public:
 	/**
 	 * Initializes the buffer, size, and zeros the read offset
 	 */
 	FNboSerializeFromBufferNull(uint8* Packet,int32 Length) :
-		FNboSerializeFromBuffer(Packet,Length)
+		FNboSerializeFromBufferOSS(Packet,Length)
 	{
 	}
 

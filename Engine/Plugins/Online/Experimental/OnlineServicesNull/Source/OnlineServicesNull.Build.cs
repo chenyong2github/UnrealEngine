@@ -21,6 +21,7 @@ public class OnlineServicesNull : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"ApplicationCore",
+				"OnlineBase"
 			}
 		);
 

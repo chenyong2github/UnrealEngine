@@ -3,7 +3,7 @@
 #include "Modules/ModuleManager.h"
 
 /**
- * Online base module class - to support this otherwise header-only module to be loaded
+ * Online base module class
  */
 class FOnlineBaseModule : public IModuleInterface
 {

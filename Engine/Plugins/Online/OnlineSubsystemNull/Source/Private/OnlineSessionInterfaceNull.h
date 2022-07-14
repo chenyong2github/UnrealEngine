@@ -8,7 +8,7 @@
 #include "OnlineSessionSettings.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSubsystemNullPackage.h"
-#include "LANBeacon.h"
+#include "Online/LANBeacon.h"
 
 class FOnlineSubsystemNull;
 

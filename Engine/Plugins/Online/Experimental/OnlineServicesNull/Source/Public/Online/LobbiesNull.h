@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Online/LobbiesCommon.h"
 #include "Online/Lobbies.h"
-#include "LANBeacon.h"
+#include "Online/LANBeacon.h"
 
 namespace UE::Online {
 

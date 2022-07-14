@@ -25,6 +25,7 @@ public class OnlineSubsystemSteam : ModuleRules
 				"Sockets", 
 				"Voice",
                 "AudioMixer",
+				"OnlineBase",
 				"OnlineSubsystem",
 				"Json",
 				"PacketHandler",

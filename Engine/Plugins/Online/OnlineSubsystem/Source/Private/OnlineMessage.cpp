@@ -9,11 +9,11 @@
 #include "Serialization/JsonSerializer.h"
 #include "OnlineKeyValuePair.h"
 #include "Interfaces/OnlineMessageInterface.h"
-#include "NboSerializer.h"
+#include "NboSerializerOSS.h"
 
 void FOnlineMessagePayload::ToBytes(TArray<uint8>& OutBytes) const
 {
-	FNboSerializeToBuffer Ar(MaxPayloadSize);
+	FNboSerializeToBufferOSS Ar(MaxPayloadSize);
 	Ar << KeyValData;
 	Ar.TrimBuffer();
 	OutBytes = Ar.GetBuffer();
@@ -21,7 +21,7 @@ void FOnlineMessagePayload::ToBytes(TArray<uint8>& OutBytes) const
 
 void FOnlineMessagePayload::FromBytes(const TArray<uint8>& InBytes)
 {
-	FNboSerializeFromBuffer Ar(InBytes.GetData(), InBytes.Num());
+	FNboSerializeFromBufferOSS Ar(InBytes.GetData(), InBytes.Num());
 	Ar >> KeyValData;
 }
 

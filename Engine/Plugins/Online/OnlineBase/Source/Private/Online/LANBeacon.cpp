@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LANBeacon.h"
+#include "Online/LANBeacon.h"
 #include "Misc/FeedbackContext.h"
 #include "UObject/CoreNet.h"
-#include "OnlineSubsystem.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
-#include "NboSerializer.h"
+#include "Online/NboSerializer.h"
 
 /** Sets the broadcast address for this object */
 FLanBeacon::FLanBeacon(void) 
@@ -66,13 +65,13 @@ bool FLanBeacon::Init(int32 Port)
 		}
 		else
 		{
-			UE_LOG_ONLINE(Error, TEXT("Failed to bind listen socket to addr (%s) for LAN beacon"),
+			UE_LOG(LogTemp, Error, TEXT("Failed to bind listen socket to addr (%s) for LAN beacon"),
 				*ListenAddr->ToString(true));
 		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Error, TEXT("Failed to create listen socket for LAN beacon"));
+		UE_LOG(LogTemp, Error, TEXT("Failed to create listen socket for LAN beacon"));
 	}
 	return bSuccess && ListenSocket;
 }
@@ -97,7 +96,7 @@ int32 FLanBeacon::ReceivePacket(uint8* PacketData, int32 BufferSize)
 		ListenSocket->RecvFrom(PacketData, BufferSize, BytesRead, *SockAddr);
 		if (BytesRead > 0)
 		{
-			UE_LOG_ONLINE(Verbose, TEXT("Received %d bytes from %s"), BytesRead, *SockAddr->ToString(true));
+			UE_LOG(LogTemp, Verbose, TEXT("Received %d bytes from %s"), BytesRead, *SockAddr->ToString(true));
 		}
 	}
 
@@ -113,7 +112,7 @@ int32 FLanBeacon::ReceivePacket(uint8* PacketData, int32 BufferSize)
 bool FLanBeacon::BroadcastPacket(uint8* Packet, int32 Length)
 {
 	int32 BytesSent = 0;
-	UE_LOG_ONLINE(Verbose, TEXT("Sending %d bytes to %s"), Length, *BroadcastAddr->ToString(true));
+	UE_LOG(LogTemp, Verbose, TEXT("Sending %d bytes to %s"), Length, *BroadcastAddr->ToString(true));
 	return ListenSocket->SendTo(Packet, Length, BytesSent, *BroadcastAddr) && (BytesSent == Length);
 }
 
@@ -134,15 +133,15 @@ bool FLANSession::Host(FOnValidQueryPacketDelegate& QueryDelegate)
 	LanBeacon = new FLanBeacon();
 	if (LanBeacon->Init(LanAnnouncePort))
 	{
-		AddOnValidQueryPacketDelegate_Handle(QueryDelegate);
+		OnValidQueryPacketDelegates.Add(QueryDelegate);
 		// We successfully created everything so mark the socket as needing polling
 		LanBeaconState = ELanBeaconState::Hosting;
 		bSuccess = true;
-		UE_LOG_ONLINE(Verbose, TEXT("Listening for LAN beacon requests on %d"),	LanAnnouncePort);
+		UE_LOG(LogTemp, Verbose, TEXT("Listening for LAN beacon requests on %d"),	LanAnnouncePort);
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("Failed to init to LAN beacon %s"),	ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
+		UE_LOG(LogTemp, Warning, TEXT("Failed to init to LAN beacon %s"),	ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
 	}
 	
 	return bSuccess;
@@ -170,7 +169,7 @@ bool FLANSession::Search(FNboSerializeToBuffer& Packet, FOnValidResponsePacketDe
 	LanBeacon = new FLanBeacon();
 	if (LanBeacon->Init(LanAnnouncePort) == false)
 	{
-		UE_LOG_ONLINE(Warning, TEXT("Failed to create socket for lan announce port %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
+		UE_LOG(LogTemp, Warning, TEXT("Failed to create socket for lan announce port %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
 		bSuccess = false;
 	}
 
@@ -180,7 +179,7 @@ bool FLANSession::Search(FNboSerializeToBuffer& Packet, FOnValidResponsePacketDe
 		// Now kick off our broadcast which hosts will respond to
 		if (LanBeacon->BroadcastPacket(Packet, Packet.GetByteCount()))
 		{
-			UE_LOG_ONLINE(Verbose, TEXT("Sent query packet..."));
+			UE_LOG(LogTemp, Verbose, TEXT("Sent query packet..."));
 			// We need to poll for the return packets
 			LanBeaconState = ELanBeaconState::Searching;
 			// Set the timestamp for timing out a search
@@ -191,12 +190,12 @@ bool FLANSession::Search(FNboSerializeToBuffer& Packet, FOnValidResponsePacketDe
 
 			LanQueryRetryTimeLeft = LanQueryRetryTime;
 
-			AddOnValidResponsePacketDelegate_Handle(ResponseDelegate);
-			AddOnSearchingTimeoutDelegate_Handle(TimeoutDelegate);
+			OnValidResponsePacketDelegates.Add(ResponseDelegate);
+			OnSearchTimeoutDelegates.Add(TimeoutDelegate);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("Failed to send discovery broadcast %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
+			UE_LOG(LogTemp, Warning, TEXT("Failed to send discovery broadcast %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
 			bSuccess = false;
 		}
 	}
@@ -220,7 +219,7 @@ void FLANSession::StopLANSession()
 	// Clear delegates
 	OnValidQueryPacketDelegates.Clear();
 	OnValidResponsePacketDelegates.Clear();
-	OnSearchingTimeoutDelegates.Clear();
+	OnSearchTimeoutDelegates.Clear();
 
 	RetryData.Empty();
 
@@ -250,7 +249,7 @@ void FLANSession::Tick(float DeltaTime)
 				if (IsValidLanQueryPacket(PacketData, NumRead, ClientNonce))
 				{
 					// Strip off the header
-					TriggerOnValidQueryPacketDelegates(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE, ClientNonce);
+					OnValidQueryPacketDelegates.Broadcast(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE, ClientNonce);
 				}
 			}
 			else if (LanBeaconState == ELanBeaconState::Searching)
@@ -266,7 +265,7 @@ void FLANSession::Tick(float DeltaTime)
 					if (!bAlreadySet)
 					{
 						// Strip off the header
-						TriggerOnValidResponsePacketDelegates(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE);
+						OnValidResponsePacketDelegates.Broadcast(&PacketData[LAN_BEACON_PACKET_HEADER_SIZE], NumRead - LAN_BEACON_PACKET_HEADER_SIZE);
 					}
 				}
 			}
@@ -281,11 +280,11 @@ void FLANSession::Tick(float DeltaTime)
 				{
 					if (LanBeacon->BroadcastPacket(RetryData.GetData(), RetryData.Num()))
 					{
-						UE_LOG_ONLINE(Verbose, TEXT("Sent retry query packet..."));
+						UE_LOG(LogTemp, Verbose, TEXT("Sent retry query packet..."));
 					}
 					else
 					{
-						UE_LOG_ONLINE(Warning, TEXT("Failed to send retry discovery broadcast %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
+						UE_LOG(LogTemp, Warning, TEXT("Failed to send retry discovery broadcast %s"), ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError());
 					}
 
 					LanQueryRetryTimeLeft = LanQueryRetryTime;
@@ -296,7 +295,7 @@ void FLANSession::Tick(float DeltaTime)
 				// Check for a timeout on the search packet
 				if (LanQueryTimeLeft <= 0.f)
 				{
-					TriggerOnSearchingTimeoutDelegates();
+					OnSearchTimeoutDelegates.Broadcast();
 				}
 			}
 			bShouldRead = false;
@@ -350,7 +349,7 @@ bool FLANSession::BroadcastPacket(uint8* Packet, int32 Length)
 		bSuccess = LanBeacon->BroadcastPacket(Packet, Length);
 		if (!bSuccess)
 		{
-			UE_LOG_ONLINE(Warning, TEXT("Failed to send broadcast packet %d"), (int32)ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode());
+			UE_LOG(LogTemp, Warning, TEXT("Failed to send broadcast packet %d"), (int32)ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode());
 		}
 	}
 

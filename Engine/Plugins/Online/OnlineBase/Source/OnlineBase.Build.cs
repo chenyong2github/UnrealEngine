@@ -8,10 +8,17 @@ namespace UnrealBuildTool.Rules
 	{
 		public OnlineBase(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"Sockets"
+				}
+			);
+
 			// NOTE:  OnlineBase cannot depend on Engine!
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"Core"
+					"Core",
+					"CoreUObject"
 				}
 			);
 		}

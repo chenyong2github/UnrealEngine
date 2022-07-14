@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "NboSerializer.h"
+#include "Online/NboSerializer.h"
+
 #include "Online/AuthNull.h"
 #include "Online/LobbiesNull.h"
 #include "Online/SessionsNull.h"
@@ -12,7 +12,7 @@
 /**
  * Serializes data in network byte order form into a buffer
  */
- namespace UE::Online {
+namespace UE::Online {
 
 class FNboSerializeToBufferNullSvc : public FNboSerializeToBuffer
 {

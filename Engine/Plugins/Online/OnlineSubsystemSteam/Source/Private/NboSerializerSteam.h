@@ -4,23 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "OnlineSubsystemSteamTypes.h"
-#include "NboSerializer.h"
+#include "NboSerializerOSS.h"
 
 /**
  * Serializes data in network byte order form into a buffer
  */
-class FNboSerializeToBufferSteam : public FNboSerializeToBuffer
+class FNboSerializeToBufferSteam : public FNboSerializeToBufferOSS
 {
 public:
 	/** Default constructor zeros num bytes*/
 	FNboSerializeToBufferSteam() :
-		FNboSerializeToBuffer(512)
+		FNboSerializeToBufferOSS(512)
 	{
 	}
 
 	/** Constructor specifying the size to use */
 	FNboSerializeToBufferSteam(uint32 Size) :
-		FNboSerializeToBuffer(Size)
+		FNboSerializeToBufferOSS(Size)
 	{
 	}
 
@@ -31,8 +31,8 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		Ar << *SessionInfo.HostAddr;
-		Ar << SessionInfo.SessionId->UniqueNetId;
+		((FNboSerializeToBuffer&)Ar) << *SessionInfo.HostAddr;
+		((FNboSerializeToBuffer&)Ar) << SessionInfo.SessionId->UniqueNetId;
 		return Ar;
  	}
 };
@@ -40,14 +40,14 @@ public:
 /**
  * Class used to write data into packets for sending via system link
  */
-class FNboSerializeFromBufferSteam : public FNboSerializeFromBuffer
+class FNboSerializeFromBufferSteam : public FNboSerializeFromBufferOSS
 {
 public:
 	/**
 	 * Initializes the buffer, size, and zeros the read offset
 	 */
 	FNboSerializeFromBufferSteam(uint8* Packet,int32 Length) :
-		FNboSerializeFromBuffer(Packet,Length)
+		FNboSerializeFromBufferOSS(Packet,Length)
 	{
 	}
 

@@ -4,10 +4,11 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IConsoleManager.h"
-#include "NboSerializer.h"
+#include "Online/NboSerializer.h"
 #include "Misc/NetworkVersion.h"
 #include "Logging/LogMacros.h"
 #include "Misc/EngineVersion.h"
+#include "OnlineSessionSettings.h"
 
 #include "Interfaces/OnlineChatInterface.h"
 #include "Interfaces/OnlinePartyInterface.h"

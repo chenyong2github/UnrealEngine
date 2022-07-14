@@ -4,25 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "OnlineSubsystemEOSTypes.h"
-#include "NboSerializer.h"
+#include "NboSerializerOSS.h"
 
 #if WITH_EOS_SDK
 
 /**
  * Serializes data in network byte order form into a buffer
  */
-class FNboSerializeToBufferEOS : public FNboSerializeToBuffer
+class FNboSerializeToBufferEOS : public FNboSerializeToBufferOSS
 {
 public:
 	/** Default constructor zeros num bytes*/
 	FNboSerializeToBufferEOS() :
-		FNboSerializeToBuffer(512)
+		FNboSerializeToBufferOSS(512)
 	{
 	}
 
 	/** Constructor specifying the size to use */
 	FNboSerializeToBufferEOS(uint32 Size) :
-		FNboSerializeToBuffer(Size)
+		FNboSerializeToBufferOSS(Size)
 	{
 	}
 
@@ -34,7 +34,7 @@ public:
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
 		Ar << *SessionInfo.SessionId;
-		Ar << *SessionInfo.HostAddr;
+		((FNboSerializeToBuffer&)Ar) << *SessionInfo.HostAddr;
 		return Ar;
  	}
 
@@ -43,7 +43,7 @@ public:
 	 */
 	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdEOS& UniqueId)
 	{
-		Ar << UniqueId.UniqueNetIdStr;
+		((FNboSerializeToBuffer&)Ar) << UniqueId.UniqueNetIdStr;
 		return Ar;
 	}
 
@@ -52,7 +52,7 @@ public:
 	 */
 	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdString& UniqueId)
 	{
-		Ar << UniqueId.UniqueNetIdStr;
+		((FNboSerializeToBuffer&)Ar) << UniqueId.UniqueNetIdStr;
 		return Ar;
 	}
 };
@@ -60,14 +60,14 @@ public:
 /**
  * Class used to write data into packets for sending via system link
  */
-class FNboSerializeFromBufferEOS : public FNboSerializeFromBuffer
+class FNboSerializeFromBufferEOS : public FNboSerializeFromBufferOSS
 {
 public:
 	/**
 	 * Initializes the buffer, size, and zeros the read offset
 	 */
 	FNboSerializeFromBufferEOS(uint8* Packet,int32 Length) :
-		FNboSerializeFromBuffer(Packet,Length)
+		FNboSerializeFromBufferOSS(Packet,Length)
 	{
 	}
 

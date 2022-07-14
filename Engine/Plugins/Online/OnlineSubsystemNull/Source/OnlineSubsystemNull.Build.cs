@@ -31,6 +31,7 @@ public class OnlineSubsystemNull : ModuleRules
 				"Core",
 				"Sockets",
 				"CoreUObject",
+				"OnlineBase",
 				"OnlineSubsystem", 
 				"Json"
 			}
