@@ -1851,9 +1851,9 @@ UMovieSceneNiagaraEmitterTrack* FNiagaraSystemViewModel::GetTrackForHandleViewMo
 
 void FNiagaraSystemViewModel::SetupSequencer()
 {
-	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterDuringMerge)
+	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterDuringMerge || !FSlateApplicationBase::IsInitialized())
 	{
-		// we don't need a sequencer when merging emitters
+		// we don't need a sequencer when merging emitters or if we're in a commandlet with no slate application
 		return;
 	}
 	NiagaraSequence = NewObject<UNiagaraSequence>(GetTransientPackage());
