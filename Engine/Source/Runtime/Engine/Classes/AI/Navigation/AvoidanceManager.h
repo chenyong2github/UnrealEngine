@@ -225,7 +225,7 @@ protected:
 	TArray<int32> DebugUIDs;
 	bool bDebugAll;
 	
-	/** master switch for avoidance system */
+	/** main switch for avoidance system */
 	static bool bSystemActive;
 #endif
 };
