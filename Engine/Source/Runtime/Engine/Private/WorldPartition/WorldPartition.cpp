@@ -252,7 +252,7 @@ void UWorldPartition::OnGCPostReachabilityAnalysis()
 				{
 					if (Object->HasAnyFlags(RF_Standalone))
 					{
-						UE_LOG(LogWorldPartition, Warning, TEXT("Actor %s is unreachable without properly detaching object %s in its package"), *Actor->GetPathName(), *Object->GetPathName());
+						UE_LOG(LogWorldPartition, Log, TEXT("Actor %s is unreachable without properly detaching object %s in its package"), *Actor->GetPathName(), *Object->GetPathName());
 
 						Object->ClearFlags(RF_Standalone);
 
