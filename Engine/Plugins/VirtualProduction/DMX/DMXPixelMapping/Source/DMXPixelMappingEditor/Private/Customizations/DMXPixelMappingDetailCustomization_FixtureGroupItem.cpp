@@ -309,6 +309,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 					DetailsViewArgs.bAllowSearch = false;
 					DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 					DetailsViewArgs.bHideSelectionTip = false;
+					DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+
 					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 					DetailsView->SetObjects(ModulatorsToEdit);
 

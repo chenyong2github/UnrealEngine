@@ -305,6 +305,7 @@ void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailL
 					DetailsViewArgs.bAllowSearch = false;
 					DetailsViewArgs.bHideSelectionTip = false;
 					DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+					DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 
 					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 					DetailsView->SetObjects(ModulatorsToEdit);
