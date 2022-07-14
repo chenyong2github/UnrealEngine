@@ -3,6 +3,7 @@
 #include "SGameSyncTab.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "SPositiveActionButton.h"
 #include "SSimpleComboButton.h"
@@ -38,7 +39,7 @@ void SBuildDataRow::Construct(const FArguments& InArgs, const TSharedRef<STableV
 	SMultiColumnTableRow<TSharedPtr<FChangeInfo>>::Construct(SMultiColumnTableRow::FArguments(), InOwnerTableView);
 }
 
-TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId)
+TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId) // Todo: maybe can refactor some of this code so there's less duplication by using the root SWidget class on different types
 {
 	if (ColumnId == HordeTableColumnStatus)
 	{
@@ -73,7 +74,7 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 	TSharedRef<STextBlock> TextItem = SNew(STextBlock);
 	if (ColumnId == HordeTableColumnChange)
 	{
-		TextItem->SetText(CurrentItem->Changelist);
+		TextItem->SetText(FText::FromString(FString::FromInt(CurrentItem->Changelist)));
 		TextItem->SetJustification(ETextJustify::Center);
 	}
 	if (ColumnId == HordeTableColumnTime)
@@ -91,7 +92,9 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 	}
 
 	return SNew(SBox)
-		.Padding(10.0f, 0.0f)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(10.0f, 2.5f)
 		[
 			TextItem
 		];
@@ -110,12 +113,7 @@ TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
 		FText::FromString(TEXT("Sync Latest")),
 		FText::FromString(TEXT("Sync to the latest submitted changelist")),
 		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this]()
-			{
-				Tab->OnSyncLatest();
-			}),
-			FCanExecuteAction::CreateLambda([] { return true; })),
+		FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnSyncLatest)),
 		NAME_None,
 		EUserInterfaceActionType::Button
 		);
@@ -346,9 +344,11 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		.FillHeight(0.45f)
 		[
 			SAssignNew(HordeBuildsView, SListView<TSharedPtr<FChangeInfo>>)
+			.ListItemsSource(&HordeBuilds)
+			.SelectionMode(ESelectionMode::Single)
 			.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 			.OnGenerateRow(this, &SGameSyncTab::GenerateHordeBuildTableRow)
-			.ListItemsSource(&HordeBuilds)
+			.OnContextMenuOpening(this, &SGameSyncTab::OnRightClickedBuild)
 			.HeaderRow(
 				SNew(SHeaderRow)
 				+SHeaderRow::Column(HordeTableColumnStatus)
@@ -418,8 +418,28 @@ void SGameSyncTab::SetProjectPathText(FText ProjectPath)
 
 void SGameSyncTab::AddHordeBuilds(const TArray<TSharedPtr<FChangeInfo>>& Builds)
 {
-	HordeBuilds += Builds;
+	HordeBuilds = Builds;
 	HordeBuildsView->RebuildList();
+}
+
+TSharedPtr<SWidget> SGameSyncTab::OnRightClickedBuild()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	TArray<TSharedPtr<FChangeInfo>> SelectedItems = HordeBuildsView->GetSelectedItems(); // Todo: since I disabled multi select, I might be able to assume the array size is always 1?
+	if (SelectedItems.IsValidIndex(0))
+	{
+		MenuBuilder.AddMenuEntry(
+			FText::FromString(TEXT("Sync")),
+			FText::FromString("Sync to CL " + FString::FromInt(SelectedItems[0]->Changelist)),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnSyncChangelist, SelectedItems[0]->Changelist)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
 #undef LOCTEXT_NAMESPACE

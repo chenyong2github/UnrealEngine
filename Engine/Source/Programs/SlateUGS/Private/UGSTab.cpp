@@ -246,6 +246,21 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 	return false;
 }
 
+void UGSTab::OnSyncChangelist(int Changelist)
+{
+	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
+		Changelist,
+		Options,
+		CombinedSyncFilter,
+		GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
+		ProjectSettings->BuildSteps,
+		TSet<FGuid>(),
+		GetWorkspaceVariables(DetectSettings));
+
+	// Update the workspace with the Context!
+	Workspace->Update(Context);
+}
+
 void UGSTab::OnSyncLatest()
 {
 	int ChangeNumber = -1;
@@ -253,17 +268,7 @@ void UGSTab::OnSyncLatest()
 
 	if (PerforceClient->LatestChangeList(ChangeNumber, AbortEvent, MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()).Get()))
 	{
-		TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
-			ChangeNumber,
-			Options,
-			CombinedSyncFilter,
-			GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
-			ProjectSettings->BuildSteps,
-			TSet<FGuid>(),
-			GetWorkspaceVariables(DetectSettings));
-
-		// Update the workspace with the Context!
-		Workspace->Update(Context);
+		OnSyncChangelist(ChangeNumber);
 	}
 
 	FPlatformProcess::ReturnSynchEventToPool(AbortEvent);
@@ -411,7 +416,7 @@ void UGSTab::UpdateGameTabBuildList()
 
 				ChangeInfos.Add(MakeShareable(new FChangeInfo{
 					Status,
-					FText::FromString(FString::FromInt(Change.Number)),
+					Change.Number,
 					FText::FromString(DisplayTime.ToString()),
 					FText::FromString(FormatUserName(Change.User)),
 					FText::FromString(DescLines[0])}));

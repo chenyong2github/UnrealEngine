@@ -44,6 +44,9 @@ private:
 	TSharedRef<ITableRow> GenerateHordeBuildTableRow(TSharedPtr<FChangeInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable);
 	TSharedRef<SWidget> MakeSyncButtonDropdown();
 
+	// Widget callbacks
+	TSharedPtr<SWidget> OnRightClickedBuild();
+
 	TSharedPtr<SListView<TSharedPtr<FChangeInfo>>> HordeBuildsView;
 	TArray<TSharedPtr<FChangeInfo>> HordeBuilds;
 

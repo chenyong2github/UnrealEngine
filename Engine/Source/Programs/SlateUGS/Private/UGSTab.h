@@ -35,6 +35,7 @@ public:
 
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
+	void OnSyncChangelist(int Changelist);
 	void OnSyncLatest();
 	void OnSyncFilterWindowSaved(
 		const TArray<FString>& SyncViewCurrent,

@@ -7,7 +7,7 @@
 struct FChangeInfo
 {
 	EReviewVerdict ReviewStatus;
-	FText Changelist;
+	int Changelist;
 	FText Time;
 	FText Author;
 	FText Description;
