@@ -50,6 +50,7 @@ namespace UnrealBuildTool.Rules
                     "WindowsMixedRealityHMD",
 					"Slate",
 					"SlateCore",
+					"ApplicationCore"
 				});
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
