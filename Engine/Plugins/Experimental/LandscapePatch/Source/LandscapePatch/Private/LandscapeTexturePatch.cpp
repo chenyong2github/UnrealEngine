@@ -529,7 +529,7 @@ void ULandscapeTexturePatch::ReinitializeWeights()
 	}
 	SetResolution(DesiredResolution);
 
-	const FName VisibilityLayerName = Landscape->VisibilityLayer ? Landscape->VisibilityLayer->LayerName : NAME_None;
+	const FName VisibilityLayerName = Landscape->VisibilityLayer != nullptr ? Landscape->VisibilityLayer->LayerName : NAME_None;
 
 	ULandscapeInfo* Info = Landscape->GetLandscapeInfo();
 	if (Info)
