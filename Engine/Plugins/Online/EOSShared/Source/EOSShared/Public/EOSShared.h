@@ -30,7 +30,16 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEOSSDK, Log, All);
 
 EOSSHARED_API FString LexToString(const EOS_EResult EosResult);
 EOSSHARED_API FString LexToString(const EOS_ProductUserId UserId);
+EOSSHARED_API void LexFromString(EOS_ProductUserId& UserId, const TCHAR* String);
+inline EOS_ProductUserId EOSProductUserIdFromString(const TCHAR* String)
+{
+	EOS_ProductUserId UserId;
+	LexFromString(UserId, String);
+	return UserId;
+}
+
 EOSSHARED_API FString LexToString(const EOS_EpicAccountId AccountId);
+
 EOSSHARED_API const TCHAR* LexToString(const EOS_EFriendsStatus FriendStatus);
 EOSSHARED_API bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const TCHAR* InString);
 EOSSHARED_API bool LexFromString(EOS_EExternalCredentialType& OutEnum, const TCHAR* InString);
