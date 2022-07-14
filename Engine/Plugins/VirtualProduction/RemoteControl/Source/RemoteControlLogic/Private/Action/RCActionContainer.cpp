@@ -17,18 +17,53 @@ void URCActionContainer::ExecuteActions()
 	}
 }
 
-URCPropertyAction* URCActionContainer::AddAction(const TSharedPtr<FRemoteControlProperty> InRemoteControlProperty)
+TRCActionUniquenessTest URCActionContainer::GetDefaultActionUniquenessTest(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
-	if (!InRemoteControlProperty.IsValid())
+	const FGuid FieldId = InRemoteControlField->GetId();
+
+	return [FieldId](const TSet<TObjectPtr<URCAction>>& InActions)
 	{
-		return nullptr;
-	}
-	
-	if (FindActionByField(InRemoteControlProperty))
+		for (const URCAction* Action : InActions)
+		{
+			if (Action->ExposedFieldId == FieldId)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	};
+}
+
+URCAction* URCActionContainer::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
+{
+	return AddAction(GetDefaultActionUniquenessTest(InRemoteControlField), InRemoteControlField);
+}
+
+
+URCAction* URCActionContainer::AddAction(TRCActionUniquenessTest IsUnique, const TSharedRef<const FRemoteControlField> InRemoteControlField)
+{
+	if (!IsUnique(Actions))
 	{
 		return nullptr;
 	}
 
+	URCAction* NewAction = nullptr;
+
+	if (InRemoteControlField->FieldType == EExposedFieldType::Property)
+	{
+		NewAction = AddPropertyAction(StaticCastSharedRef<const FRemoteControlProperty>(InRemoteControlField));
+	}
+	else if (InRemoteControlField->FieldType == EExposedFieldType::Function)
+	{
+		NewAction = AddFunctionAction(StaticCastSharedRef<const FRemoteControlFunction>(InRemoteControlField));
+	}
+
+	return NewAction;
+}
+
+URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const FRemoteControlProperty> InRemoteControlProperty)
+{
 	// Create new Property
 	URCPropertyAction* NewPropertyAction = NewObject<URCPropertyAction>(this);
 	NewPropertyAction->PresetWeakPtr = PresetWeakPtr;
@@ -47,18 +82,8 @@ URCPropertyAction* URCActionContainer::AddAction(const TSharedPtr<FRemoteControl
 	return NewPropertyAction;
 }
 
-URCFunctionAction* URCActionContainer::AddAction(const TSharedPtr<FRemoteControlFunction> InRemoteControlFunction)
+URCFunctionAction* URCActionContainer::AddFunctionAction(const TSharedRef<const FRemoteControlFunction> InRemoteControlFunction)
 {
-	if (!InRemoteControlFunction.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (FindActionByField(InRemoteControlFunction))
-	{
-		return nullptr;
-	}
-	
 	// Create new Function Action
 	URCFunctionAction* NewFunctionAction = NewObject<URCFunctionAction>(this);
 	NewFunctionAction->PresetWeakPtr = PresetWeakPtr;
@@ -70,7 +95,7 @@ URCFunctionAction* URCActionContainer::AddAction(const TSharedPtr<FRemoteControl
 	return NewFunctionAction;
 }
 
-URCAction* URCActionContainer::FindActionByFieldId(const FGuid InId)
+URCAction* URCActionContainer::FindActionByFieldId(const FGuid InId) const
 {
 	for (URCAction* Action :  Actions)
 	{
@@ -83,17 +108,9 @@ URCAction* URCActionContainer::FindActionByFieldId(const FGuid InId)
 	return nullptr;
 }
 
-URCAction* URCActionContainer::FindActionByField(const TSharedPtr<FRemoteControlField> InRemoteControlField)
+URCAction* URCActionContainer::FindActionByField(const TSharedRef<const FRemoteControlField> InRemoteControlField) const
 {
-	for (URCAction* Action :  Actions)
-	{
-		if (Action->ExposedFieldId == InRemoteControlField->GetId())
-		{
-			return Action;
-		}
-	}
-
-	return nullptr;
+	return FindActionByFieldId(InRemoteControlField->GetId());
 }
 
 int32 URCActionContainer::RemoveAction(const FGuid InExposedFieldId)

@@ -28,6 +28,7 @@
 #include "Textures/SlateIcon.h"
 #include "UI/Action/SRCActionPanel.h"
 #include "UI/Behaviour/SRCBehaviourPanel.h"
+#include "UI/Behaviour/Builtin/Conditional/SRCBehaviourConditional.h"
 #include "UI/Customizations/FPassphraseCustomization.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/SRCPanelExposedField.h"
@@ -274,6 +275,7 @@ void FRemoteControlUIModule::ShutdownModule()
 	SRemoteControlPanel::Shutdown();
 	SRCActionPanel::Shutdown();
 	SRCBehaviourPanel::Shutdown();
+	SRCBehaviourConditional::Shutdown();
 }
 
 FDelegateHandle FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)

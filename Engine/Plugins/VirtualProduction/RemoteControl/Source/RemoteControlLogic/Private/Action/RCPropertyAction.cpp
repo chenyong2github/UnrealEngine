@@ -57,3 +57,16 @@ void URCPropertyAction::Execute() const
 	
 	Super::Execute();
 }
+
+FName URCAction::GetExposedFieldLabel() const
+{
+	if (const URemoteControlPreset* Preset = PresetWeakPtr.Get())
+	{
+		if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedFieldId).Pin())
+		{
+			return RemoteControlField->GetLabel();
+		}
+	}
+
+	return NAME_None;
+}

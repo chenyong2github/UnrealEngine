@@ -40,10 +40,10 @@ public:
 	virtual int32 Num() const override;
 
 	/** Whether the Behaviours List View currently has focus.*/
-	bool IsListFocused() const;
+	virtual bool IsListFocused() const override;
 
 	/** Deletes currently selected items from the list view*/
-	void DeleteSelectedPanelItem();
+	virtual void DeleteSelectedPanelItem() override;
 
 private:
 

@@ -2,14 +2,19 @@
 
 #pragma once
 
+#include "Action/RCActionContainer.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
 #include "RCBehaviour.generated.h"
 
+struct FRemoteControlField;
 class URCBehaviourNode;
 class URCController;
+class URCFunctionAction;
+class URCPropertyAction;
 class URemoteControlPreset;
+class URCAction;
 class URCActionContainer;
 class URCVirtualProperty;
 
@@ -36,8 +41,14 @@ public:
 	/** Execute the behaviour */
 	virtual void Execute();
 
+	/** Add a Logic action using a remote control field as input */
+	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
+
 	/** Get number of action associated with behaviour */
 	int32 GetNumActions() const;
+
+	/** Whether we can create an action pertaining to a given remote control field for the current behaviour */
+	virtual bool CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const;
 
 	/**
 	 * Return blueprint class associated with behaviour if exists
@@ -64,7 +75,7 @@ public:
 	const FText& GetBehaviorDescription();
 #endif
 
-private:
+protected:
 	/**
 	 * It created the node if it called first time
 	 * If BehaviourNodeClass changes it creates new instance

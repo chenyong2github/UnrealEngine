@@ -4,8 +4,11 @@
 #include "Behaviour/RCIsEqualBehaviour.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 
+struct FRCPanelStyle;
 class IPropertyRowGenerator;
 class STextBlock;
+class SRCActionPanel;
+class SRCLogicPanelListBase;
 class SWidget;
 class URCBehaviour;
 
@@ -20,13 +23,16 @@ class FRCBehaviourModel : public FRCLogicModeBase
 public:
 	FRCBehaviourModel(URCBehaviour* InBehaviour);
 
+	/** Add a Logic Action using a remote control field as input */
+	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
+
 	/** The widget to be rendered for this Property in the Behaviour panel
 	* Currently displays Behaviour Name metadata in the Behaviours Panel List
 	*/
 	virtual TSharedRef<SWidget> GetWidget() const override;
 
 	/** Builds a Behaviour specific widget that child Behaviour classes can implement as required*/
-	virtual TSharedRef<SWidget> GetBehaviourDetailsWidget() const;
+	virtual TSharedRef<SWidget> GetBehaviourDetailsWidget();
 
 	/** Returns the Behaviour (Data model) associated with us*/
 	URCBehaviour* GetBehaviour() const;
@@ -40,10 +46,22 @@ public:
 	/** Set the Enabled state of our underlying Behaviour */
 	void SetIsBehaviourEnabled(const bool bIsEnabled);
 
+	/** The Actions List widget to be used for this Behaviour.
+	* The default actions table is used if a behaviour doesn't specify it.
+	*/
+	virtual TSharedPtr<SRCLogicPanelListBase> GetActionsListWidget(TSharedRef<SRCActionPanel> InActionPanel);
+
+protected:
+	/** Invoked after an action has been added for this Behaviour in the actions panel */
+	virtual void OnActionAdded(URCAction* Action) {}
+
 private:
 	/** The Behaviour (Data model) associated with us*/
 	TWeakObjectPtr<URCBehaviour> BehaviourWeakPtr;
 
 	/** Text block widget for representing the Behaviour's title */
 	TSharedPtr<STextBlock> BehaviourTitleText;
+
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };

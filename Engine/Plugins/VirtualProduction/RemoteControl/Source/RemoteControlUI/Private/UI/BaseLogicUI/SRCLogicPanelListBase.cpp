@@ -4,6 +4,7 @@
 
 #include "RCLogicModeBase.h"
 #include "SlateOptMacros.h"
+#include "UI/Action/Conditional/RCActionConditionalModel.h"
 #include "UI/Action/RCActionModel.h"
 #include "UI/Behaviour/RCBehaviourModel.h"
 #include "UI/Controller/RCControllerModel.h"
@@ -54,3 +55,4 @@ void SRCLogicPanelListBase::DeleteItemFromLogicPanel(TArray<TSharedPtr<T>>& Item
 template void SRCLogicPanelListBase::DeleteItemFromLogicPanel(TArray<TSharedPtr<FRCControllerModel>>& ItemsSource, const TArray<TSharedPtr<FRCControllerModel>>& SelectedItems);
 template void SRCLogicPanelListBase::DeleteItemFromLogicPanel(TArray<TSharedPtr<FRCBehaviourModel>>& ItemsSource, const TArray<TSharedPtr<FRCBehaviourModel>>& SelectedItems);
 template void SRCLogicPanelListBase::DeleteItemFromLogicPanel(TArray<TSharedPtr<FRCActionModel>>& ItemsSource, const TArray<TSharedPtr<FRCActionModel>>& SelectedItems);
+template void SRCLogicPanelListBase::DeleteItemFromLogicPanel(TArray<TSharedPtr<FRCActionConditionalModel>>& ItemsSource, const TArray<TSharedPtr<FRCActionConditionalModel>>& SelectedItems);

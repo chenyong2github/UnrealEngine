@@ -19,6 +19,8 @@ public:
 	/** Execute action */
 	virtual void Execute() const {}
 
+	FName GetExposedFieldLabel() const;
+
 public:
 	/** Exposed Property or Function field Id*/
 	UPROPERTY()

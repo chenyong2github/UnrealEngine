@@ -2,6 +2,7 @@
 
 #include "SRCBehaviourPanelList.h"
 
+#include "Behaviour/Builtin/Conditional/RCBehaviourConditional.h"
 #include "Controller/RCController.h"
 #include "RCBehaviourModel.h"
 #include "RemoteControlPreset.h"
@@ -9,6 +10,7 @@
 #include "SRCBehaviourPanel.h"
 #include "Styling/RemoteControlStyles.h"
 #include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
+#include "UI/Behaviour/Builtin/Conditional/RCBehaviourConditionalModel.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "UI/Controller/RCControllerModel.h"
@@ -86,6 +88,10 @@ void SRCBehaviourPanelList::Reset()
 				if (URCIsEqualBehaviour* IsEqualBehaviour = Cast<URCIsEqualBehaviour>(Behaviour))
 				{
 					BehaviourItems.Add(MakeShared<FRCIsEqualBehaviourModel>(IsEqualBehaviour));
+				}
+				else if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(Behaviour))
+				{
+					BehaviourItems.Add(MakeShared<FRCBehaviourConditionalModel>(ConditionalBehaviour));
 				}
 				else
 				{

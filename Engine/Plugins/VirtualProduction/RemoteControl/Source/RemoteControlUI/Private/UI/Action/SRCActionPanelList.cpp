@@ -7,12 +7,16 @@
 #include "Action/RCFunctionAction.h"
 #include "Action/RCPropertyAction.h"
 #include "RCActionModel.h"
+#include "RemoteControlPreset.h"
 #include "SlateOptMacros.h"
 #include "SRCActionPanel.h"
+#include "SDropTarget.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/Conditional/RCActionConditionalModel.h"
 #include "UI/Behaviour/RCBehaviourModel.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
+#include "UI/SRCPanelExposedField.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
@@ -20,16 +24,8 @@
 
 #define LOCTEXT_NAMESPACE "SRCActionPanelList"
 
-namespace FRemoteControlActionColumns
-{
-	const FName DragDropHandle = TEXT("DragDropHandle");
-	const FName Description = TEXT("Description");
-	const FName Value = TEXT("Value");
-}
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCActionPanel> InActionPanel, TSharedPtr<FRCBehaviourModel> InBehaviourItem)
+template <class ActionType>
+void SRCActionPanelList<ActionType>::Construct(const FArguments& InArgs, const TSharedRef<SRCActionPanel> InActionPanel, TSharedPtr<FRCBehaviourModel> InBehaviourItem)
 {
 	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments());
 
@@ -38,33 +34,23 @@ void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SR
 	
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
 
-	ListView = SNew(SListView<TSharedPtr<FRCActionModel>>)
-		.ListItemsSource( &ActionItems )
-		.OnGenerateRow(this, &SRCActionPanelList::OnGenerateWidgetForList )
+	ListView = SNew(SListView<TSharedPtr<ActionType>>)
+		.ListItemsSource(&ActionItems)
+		.OnGenerateRow(this, &SRCActionPanelList::OnGenerateWidgetForList)
 		.ListViewStyle(&RCPanelStyle->TableViewStyle)
-		.HeaderRow(
-			SNew(SHeaderRow)
-			.Style(&RCPanelStyle->HeaderRowStyle)
+		.HeaderRow(ActionType::GetHeaderRow());
 
-			+ SHeaderRow::Column(FRemoteControlActionColumns::DragDropHandle)
-			.DefaultLabel(LOCTEXT("RCActionDragDropHandleColumnHeader", ""))
-			.FixedWidth(25.f)
-			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
-
-			+ SHeaderRow::Column(FRemoteControlActionColumns::Description)
-			.DefaultLabel(LOCTEXT("RCActionDescColumnHeader", "Description"))
-			.FillWidth(0.5f)
-			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
-
-			+ SHeaderRow::Column(FRemoteControlActionColumns::Value)
-			.DefaultLabel(LOCTEXT("RCActionValueColumnHeader", "Value"))
-			.FillWidth(0.5f)
-			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
-		);
-	
 	ChildSlot
 	[
-		ListView.ToSharedRef()
+		SNew(SDropTarget)
+		.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
+		.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
+		.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return SRCActionPanelList::OnExposedFieldDrop(InDragDropEvent.GetOperation()); })
+		.OnAllowDrop(this, &SRCActionPanelList::OnAllowDrop)
+		.OnIsRecognized(this, &SRCActionPanelList::OnAllowDrop)
+		[
+			ListView.ToSharedRef()
+		]
 	];
 
 	// Add delegates
@@ -78,63 +64,103 @@ void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SR
 	Reset();
 }
 
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-bool SRCActionPanelList::IsEmpty() const
+template <class ActionType>
+bool SRCActionPanelList<ActionType>::IsEmpty() const
 {
 	return ActionItems.IsEmpty();
 }
 
-int32 SRCActionPanelList::Num() const
+template <class ActionType>
+int32 SRCActionPanelList<ActionType>::Num() const
 {
 	return ActionItems.Num();
 }
 
-void SRCActionPanelList::Reset()
+template <class ActionType>
+void SRCActionPanelList<ActionType>::Reset()
 {
-	ActionItems.Empty();
-
-	if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
+	if (TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
 	{
-		if (URCBehaviour* Behaviour = Cast<URCBehaviour>(BehaviourItem->GetBehaviour()))
+		if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ActionPanel->GetRemoteControlPanel())
 		{
-			for (URCAction* Action : Behaviour->ActionContainer->Actions)
+			ActionItems.Empty();
+
+			if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
 			{
-				if (URCPropertyAction* PropertyAction = Cast<URCPropertyAction>(Action))
+				if (URCBehaviour* Behaviour = Cast<URCBehaviour>(BehaviourItem->GetBehaviour()))
 				{
-					ActionItems.Add(MakeShared<FRCPropertyActionModel>(PropertyAction));
+					for (URCAction* Action : Behaviour->ActionContainer->Actions)
+					{
+						TSharedPtr<ActionType> ActionItem = ActionType::GetModelByActionType(Action, BehaviourItem, RemoteControlPanel);
+
+						ActionItems.Add(ActionItem);
+					}
 				}
-				else if (URCFunctionAction* FunctionAction = Cast<URCFunctionAction>(Action))
+			}
+
+			ListView->RebuildList();
+		}
+	}
+}
+
+template <class ActionType>
+FReply SRCActionPanelList<ActionType>::OnExposedFieldDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	if (DragDropOperation && DragDropOperation->IsOfType<FExposedEntityDragDrop>())
+	{
+		if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
+		{
+			if (const URemoteControlPreset* Preset = GetPreset())
+			{
+				FGuid ExposedEntityId = DragDropOp->GetId();
+				if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedEntityId).Pin())
 				{
-					ActionItems.Add(MakeShared<FRCFunctionActionModel>(FunctionAction));
+					if (const TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
+					{
+						ActionPanel->AddAction(RemoteControlField.ToSharedRef());
+					}
 				}
 			}
 		}
 	}
 
-	ListView->RebuildList();
+	return FReply::Handled();
 }
 
-TSharedRef<ITableRow> SRCActionPanelList::OnGenerateWidgetForList(TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+template <class ActionType>
+bool SRCActionPanelList<ActionType>::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
+	return true;
+}
+
+template <class ActionType>
+TSharedRef<ITableRow> SRCActionPanelList<ActionType>::OnGenerateWidgetForList(TSharedPtr<ActionType> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	if (ensure(InItem))
+	{
+		return InItem->OnGenerateWidgetForList(InItem, OwnerTable);
+	}
+
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-		.Style(&RCPanelStyle->TableRowStyle)
 		[
-			InItem->GetWidget()
+			SNullWidget::NullWidget
 		];
 }
 
-void SRCActionPanelList::OnActionAdded(URCAction* InAction)
+template <class ActionType>
+void SRCActionPanelList<ActionType>::OnActionAdded(URCAction* InAction)
 {
 	Reset();
 }
 
-void SRCActionPanelList::OnEmptyActions()
+template <class ActionType>
+void SRCActionPanelList<ActionType>::OnEmptyActions()
 {
 	Reset();
 }
 
-URemoteControlPreset* SRCActionPanelList::GetPreset()
+template <class ActionType>
+URemoteControlPreset* SRCActionPanelList<ActionType>::GetPreset()
 {
 	if (ActionPanelWeakPtr.IsValid())
 	{
@@ -144,13 +170,14 @@ URemoteControlPreset* SRCActionPanelList::GetPreset()
 	return nullptr;
 }
 
-int32 SRCActionPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel)
+template <class ActionType>
+int32 SRCActionPanelList<ActionType>::RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel)
 {
 	if (const TSharedPtr<FRCBehaviourModel> BehaviourModel = BehaviourItemWeakPtr.Pin())
 	{
 		if (const URCBehaviour* Behaviour = BehaviourModel->GetBehaviour())
 		{
-			if(const TSharedPtr<FRCActionModel> SelectedAction = StaticCastSharedPtr<FRCActionModel>(InModel))
+			if(const TSharedPtr<ActionType> SelectedAction = StaticCastSharedPtr<ActionType>(InModel))
 			{
 				// Remove Model from Data Container
 				const int32 RemoveCount = Behaviour->ActionContainer->RemoveAction(SelectedAction->GetAction());
@@ -163,14 +190,19 @@ int32 SRCActionPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel
 	return 0;
 }
 
-bool SRCActionPanelList::IsListFocused() const
+template <class ActionType>
+bool SRCActionPanelList<ActionType>::IsListFocused() const
 {
 	return ListView->HasAnyUserFocus().IsSet();
 }
 
-void SRCActionPanelList::DeleteSelectedPanelItem()
+template <class ActionType>
+void SRCActionPanelList<ActionType>::DeleteSelectedPanelItem()
 {
-	DeleteItemFromLogicPanel<FRCActionModel>(ActionItems, ListView->GetSelectedItems());
+	DeleteItemFromLogicPanel<ActionType>(ActionItems, ListView->GetSelectedItems());
 }
 
 #undef LOCTEXT_NAMESPACE
+
+template class SRCActionPanelList<FRCActionModel>;
+template class SRCActionPanelList<FRCActionConditionalModel>;

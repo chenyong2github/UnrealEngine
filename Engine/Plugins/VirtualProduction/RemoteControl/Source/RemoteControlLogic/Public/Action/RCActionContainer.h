@@ -16,6 +16,8 @@ struct FRemoteControlField;
 struct FRemoteControlFunction;
 struct FRemoteControlProperty;
 
+typedef TFunction<bool(const TSet<TObjectPtr<URCAction>>& Actions)> TRCActionUniquenessTest;
+
 /**
  * Container for created actions
  */
@@ -28,17 +30,19 @@ public:
 	/** Execute container actions */
 	void ExecuteActions();
 
-	/** Add remote control property action  */
-	URCPropertyAction* AddAction(const TSharedPtr<FRemoteControlProperty> InRemoteControlProperty);
+	TRCActionUniquenessTest GetDefaultActionUniquenessTest(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
-	/** Add remote control property function */
-	URCFunctionAction* AddAction(const TSharedPtr<FRemoteControlFunction> InRemoteControlFunction);
+	/** Add remote control property action  */
+	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
+
+	/** Add remote control property action  */
+	URCAction* AddAction(TRCActionUniquenessTest IsUnique, const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
 	/** Find Action by given exposed filed id */
-	URCAction* FindActionByFieldId(const FGuid InFieldId);
+	URCAction* FindActionByFieldId(const FGuid InFieldId) const;
 
 	/** Find Action by given remote control field */
-	URCAction* FindActionByField(const TSharedPtr<FRemoteControlField> InRemoteControlField);
+	URCAction* FindActionByField(const TSharedRef<const FRemoteControlField> InRemoteControlField) const;
 	
 	/** Remove action by exposed field Id */
 	virtual int32 RemoveAction(const FGuid InExposedFieldId);
@@ -49,7 +53,6 @@ public:
 	/** Empty action set */
 	void EmptyActions();
 
-public:
 	/** Set of actions */
 	UPROPERTY()
 	TSet<TObjectPtr<URCAction>> Actions;
@@ -61,4 +64,11 @@ public:
 	/** Reference to Preset */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;
+
+private:
+	/** Add remote control property action  */
+	URCPropertyAction* AddPropertyAction(const TSharedRef<const FRemoteControlProperty> InRemoteControlProperty);
+
+	/** Add remote control property function */
+	URCFunctionAction* AddFunctionAction(const TSharedRef<const FRemoteControlFunction> InRemoteControlFunction);
 };

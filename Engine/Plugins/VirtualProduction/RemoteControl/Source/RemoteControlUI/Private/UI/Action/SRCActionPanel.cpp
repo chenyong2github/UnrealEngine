@@ -84,11 +84,13 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 {
 	if (InBehaviourItem.IsValid())
 	{
+		ActionPanelList = InBehaviourItem->GetActionsListWidget(SharedThis(this));
+
 		// Action Dock Panel
 		TSharedPtr<SRCMinorPanel> ActionDockPanel = SNew(SRCMinorPanel)
 			.HeaderLabel(LOCTEXT("ActionsLabel", "Actions"))
 			[
-				SAssignNew(ActionPanelList, SRCActionPanelList, SharedThis(this), InBehaviourItem)
+				ActionPanelList.ToSharedRef()
 			];
 
 		// Add New Action Button
@@ -255,7 +257,7 @@ TSharedRef<SWidget> SRCActionPanel::GetActionMenuContentWidget()
 				if (const URCBehaviour* Behaviour = SelectedBehaviourItemWeakPtr.Pin()->GetBehaviour())
 				{
 					// Skip if we already have an Action created for this exposed entity
-					if (Behaviour->ActionContainer->FindActionByFieldId(RemoteControlField->GetId()))
+					if(!Behaviour->CanHaveActionForField(RemoteControlField))
 					{
 						continue;
 					}
@@ -275,31 +277,32 @@ TSharedRef<SWidget> SRCActionPanel::GetActionMenuContentWidget()
 	return MenuBuilder.MakeWidget();
 }
 
-void SRCActionPanel::OnAddActionClicked(TSharedPtr<FRemoteControlField> InRemoteControlField)
+URCAction* SRCActionPanel::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
-	if (!SelectedBehaviourItemWeakPtr.IsValid())
+	if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
 	{
-		return;
-	}
+		URCAction* NewAction = BehaviourItem->AddAction(InRemoteControlField);
 
-	if (const URCBehaviour* Behaviour = SelectedBehaviourItemWeakPtr.Pin()->GetBehaviour())
-	{
-		URCAction* NewAction = nullptr;
-
-		if (InRemoteControlField->FieldType == EExposedFieldType::Property)
-		{
-			NewAction = Behaviour->ActionContainer->AddAction(StaticCastSharedPtr<FRemoteControlProperty>(InRemoteControlField));
-		}
-		else if (InRemoteControlField->FieldType == EExposedFieldType::Function)
-		{
-			NewAction = Behaviour->ActionContainer->AddAction(StaticCastSharedPtr<FRemoteControlFunction>(InRemoteControlField));
-		}
-
+		// Broadcast new Action to other panels
 		if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
 		{
 			RemoteControlPanel->OnActionAdded.Broadcast(NewAction);
 		}
+
+		return NewAction;
 	}
+
+	return nullptr;
+}
+
+void SRCActionPanel::OnAddActionClicked(TSharedPtr<FRemoteControlField> InRemoteControlField)
+{
+	if (!SelectedBehaviourItemWeakPtr.IsValid() || !InRemoteControlField)
+	{
+		return;
+	}
+
+	AddAction(InRemoteControlField.ToSharedRef());
 }
 
 FReply SRCActionPanel::OnClickEmptyButton()
@@ -329,7 +332,7 @@ FReply SRCActionPanel::OnAddAllFields()
 
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		if (const URCBehaviour* Behaviour = SelectedBehaviourItemWeakPtr.Pin()->GetBehaviour())
+		if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
 		{
 			const TArray<TWeakPtr<FRemoteControlField>>& RemoteControlFields = Preset->GetExposedEntities<FRemoteControlField>();
 
@@ -338,24 +341,7 @@ FReply SRCActionPanel::OnAddAllFields()
 			{
 				if (const TSharedPtr<FRemoteControlField> RemoteControlField = RemoteControlFieldWeakPtr.Pin())
 				{
-					URCAction* NewAction = nullptr;
-
-					// Property Action
-					if (RemoteControlField->FieldType == EExposedFieldType::Property)
-					{
-						NewAction = Behaviour->ActionContainer->AddAction(StaticCastSharedPtr<FRemoteControlProperty>(RemoteControlField));
-					}
-					// Function Action
-					else if (RemoteControlField->FieldType == EExposedFieldType::Function)
-					{
-						NewAction = Behaviour->ActionContainer->AddAction(StaticCastSharedPtr<FRemoteControlFunction>(RemoteControlField));
-					}
-
-					// Broadcast New Action
-					if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
-					{
-						RemoteControlPanel->OnActionAdded.Broadcast(NewAction);
-					}
+					AddAction(RemoteControlField.ToSharedRef());
 				}
 			}
 		}

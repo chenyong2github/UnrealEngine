@@ -2,8 +2,6 @@
 
 #include "RCActionModel.h"
 
-#include "Action/RCFunctionAction.h"
-#include "Action/RCPropertyAction.h"
 #include "Controller/RCController.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
@@ -11,14 +9,114 @@
 #include "RCVirtualPropertyContainer.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
+#include "Styling/RemoteControlStyles.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelDragHandle.h"
 #include "UI/SRCPanelExposedEntity.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
-FRCActionModel::FRCActionModel(URCAction* InAction)
-	: ActionWeakPtr(InAction)
+#define LOCTEXT_NAMESPACE "RCActionModel"
+
+namespace UE::RCActionPanelList
 {
+	namespace Columns
+	{
+		const FName VariableColor = TEXT("VariableColor");
+		const FName DragDropHandle = TEXT("DragDropHandle");
+		const FName Description = TEXT("Description");
+		const FName Value = TEXT("Value");
+	}
+
+	class SActionItemListRow : public SMultiColumnTableRow<TSharedRef<FRCActionModel>>
+	{
+	public:
+		void Construct(const FTableRowArgs& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TSharedRef<FRCActionModel> InActionItem)
+		{
+			ActionItem = InActionItem;
+			FSuperRowType::Construct(InArgs, OwnerTableView);
+		}
+
+		TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+		{
+			if (!ensure(ActionItem.IsValid()))
+				return SNullWidget::NullWidget;
+
+			if (ColumnName == UE::RCActionPanelList::Columns::VariableColor)
+			{
+				return ActionItem->GetVariableColorWidget();
+			}
+			else if (ColumnName == UE::RCActionPanelList::Columns::Description)
+			{
+				return ActionItem->GetNameWidget();
+			}
+			else if (ColumnName == UE::RCActionPanelList::Columns::Value)
+			{
+				return ActionItem->GetWidget();
+			}
+
+			// @todo: Implement Drag-Drop-handle column with Actions reordering support
+
+			return SNullWidget::NullWidget;
+		}
+
+	private:
+		TSharedPtr<FRCActionModel> ActionItem;
+	};
+}
+
+
+FRCActionModel::FRCActionModel(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
+	: FRCLogicModeBase(InRemoteControlPanel),
+	ActionWeakPtr(InAction)
+{
+	BehaviourItemWeakPtr = InBehaviourItem;
+
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+}
+
+TSharedRef<SWidget> FRCActionModel::GetNameWidget() const
+{
+	if(URCAction* Action = GetAction())
+	{
+		if (URemoteControlPreset* Preset = GetPreset())
+		{
+			if (const TSharedPtr<FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(Action->ExposedFieldId).Pin())
+			{
+				return SNew(SBox)
+					.Padding(FMargin(6.f))
+					[
+						SNew(STextBlock).Text(FText::FromName(RemoteControlField->GetLabel()))
+					];
+			}
+		}
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> FRCActionModel::GetWidget() const
+{
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> FRCActionModel::GetVariableColorWidget() const
+{
+	const FLinearColor TypeColor = GetActionTypeColor();
+
+	// Variable Color Bar
+	return SNew(SBox)
+		.HeightOverride(5.f)
+		[
+			SNew(SBorder)
+			.Visibility(EVisibility::HitTestInvisible)
+			.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
+			.BorderBackgroundColor(TypeColor)
+			.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.f))
+		];
 }
 
 URCAction* FRCActionModel::GetAction() const
@@ -26,10 +124,61 @@ URCAction* FRCActionModel::GetAction() const
 	return ActionWeakPtr.Get();
 }
 
-FRCPropertyActionModel::FRCPropertyActionModel(URCPropertyAction* InPropertyAction)
-	: FRCActionModel(InPropertyAction)
-	, PropertyActionWeakPtr(InPropertyAction)
+TSharedRef<ITableRow> FRCActionModel::OnGenerateWidgetForList(TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
+	typedef UE::RCActionPanelList::SActionItemListRow ActionRowType;
+
+	return SNew(ActionRowType, OwnerTable, InItem.ToSharedRef())
+		.Style(&RCPanelStyle->TableRowStyle)
+		.Padding(FMargin(3.f));
+}
+
+TSharedPtr<SHeaderRow> FRCActionModel::GetHeaderRow()
+{
+	const FRCPanelStyle* RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
+	return SNew(SHeaderRow)
+		.Style(&RCPanelStyle->HeaderRowStyle)
+
+		+ SHeaderRow::Column(UE::RCActionPanelList::Columns::VariableColor)
+		.DefaultLabel(LOCTEXT("RCActionVariableColorColumnHeader", ""))
+		.FixedWidth(5.f)
+		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+		+ SHeaderRow::Column(UE::RCActionPanelList::Columns::DragDropHandle)
+		.DefaultLabel(LOCTEXT("RCActionDragDropHandleColumnHeader", ""))
+		.FixedWidth(25.f)
+		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+		+ SHeaderRow::Column(UE::RCActionPanelList::Columns::Description)
+		.DefaultLabel(LOCTEXT("RCActionDescColumnHeader", "Description"))
+		.FillWidth(0.5f)
+		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+		+ SHeaderRow::Column(UE::RCActionPanelList::Columns::Value)
+		.DefaultLabel(LOCTEXT("RCActionValueColumnHeader", "Value"))
+		.FillWidth(0.5f)
+		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding);
+}
+
+TSharedPtr<FRCActionModel> FRCActionModel::GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
+{
+	if (URCPropertyAction* PropertyAction = Cast<URCPropertyAction>(InAction))
+	{
+		return MakeShared<FRCPropertyActionModel>(PropertyAction, InBehaviourItem, InRemoteControlPanel);
+	}
+	else if (URCFunctionAction* FunctionAction = Cast<URCFunctionAction>(InAction))
+	{
+		return MakeShared<FRCFunctionActionModel>(FunctionAction, InBehaviourItem, InRemoteControlPanel);
+	}
+	else
+		return nullptr;
+}
+
+FRCPropertyActionType::FRCPropertyActionType(URCPropertyAction* InPropertyAction)
+{
+	PropertyActionWeakPtr = InPropertyAction;
+
 	FPropertyRowGeneratorArgs Args;
 	Args.bShouldShowHiddenProperties = true;
 	PropertyRowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
@@ -54,19 +203,26 @@ FRCPropertyActionModel::FRCPropertyActionModel(URCPropertyAction* InPropertyActi
 	}
 }
 
-const FName& FRCPropertyActionModel::GetPropertyName() const
+const FName& FRCPropertyActionType::GetPropertyName() const
 {
 	return PropertyActionWeakPtr.Get()->PropertySelfContainer->PropertyName;
 }
 
-TSharedRef<SWidget> FRCPropertyActionModel::GetWidget() const
+TSharedRef<SWidget> FRCPropertyActionType::GetPropertyWidget() const
 {
+	if (!ensure(PropertyActionWeakPtr.IsValid()))
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	const URCPropertyAction* PropertyAction = PropertyActionWeakPtr.Get();	
+
 	if (DetailTreeNodeWeakPtr.IsValid())
 	{
 		const FNodeWidgets NodeWidgets = DetailTreeNodeWeakPtr.Pin()->CreateNodeWidgets();
 
 		const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-	
+
 		if (NodeWidgets.ValueWidget)
 		{
 			FieldWidget->AddSlot()
@@ -87,70 +243,24 @@ TSharedRef<SWidget> FRCPropertyActionModel::GetWidget() const
 				];
 		}
 
-		TSharedRef<SBorder> BorderWidget = SNew(SBorder)
-			.Padding(0.0f)
-			.BorderImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.ExposedFieldBorder"));
-
-		FLinearColor TypeColor;
-		if (PropertyActionWeakPtr.IsValid())
-		{
-			TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(PropertyActionWeakPtr->PropertySelfContainer->GetProperty());
-		}
-	
-		return SNew(SHorizontalBox)
-			.Clipping(EWidgetClipping::OnDemand)
-
-			// Variable Color Bar
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Fill)
-			.AutoWidth()
-			.Padding(FMargin(3.f))
-			[
-				SNew(SBorder)
-				.Visibility(EVisibility::HitTestInvisible)
-				.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
-				.BorderBackgroundColor(TypeColor)
-				.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.0f))
-			]
-			// Field name
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				NodeWidgets.NameWidget.ToSharedRef()
-			]
-			// Value Widget
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				FieldWidget
-			];
+		return FieldWidget;
 	}
 	
-	return FRCActionModel::GetWidget();
+	return SNullWidget::NullWidget;
 }
 
-FRCFunctionActionModel::FRCFunctionActionModel(URCFunctionAction* InFunctionAction)
-	: FRCActionModel(InFunctionAction)
-	, FunctionActionWeakPtr(InFunctionAction)
+FLinearColor FRCPropertyActionType::GetPropertyTypeColor() const
 {
-}
-
-TSharedRef<SWidget> FRCFunctionActionModel::GetWidget() const
-{
-	if (FunctionActionWeakPtr.IsValid())
+	if (!ensure(PropertyActionWeakPtr.IsValid()))
 	{
-		if (URemoteControlPreset* Preset = FunctionActionWeakPtr->PresetWeakPtr.Get())
-		{
-			if (const TSharedPtr<FRemoteControlFunction> RemoteControlField = Preset->GetExposedEntity<FRemoteControlFunction>(FunctionActionWeakPtr->ExposedFieldId).Pin())
-			{
-				const FString FinalNameStr = RemoteControlField->GetLabel().ToString();
-
-				return SNew(STextBlock).Text(FText::FromString(FinalNameStr));
-			}
-		}
+		return FLinearColor::White;
 	}
-	
-	return FRCActionModel::GetWidget();
+
+	const URCPropertyAction* PropertyAction = PropertyActionWeakPtr.Get();
+
+	const FLinearColor TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(PropertyAction->PropertySelfContainer->GetProperty());
+
+	return TypeColor;
 }
+
+#undef LOCTEXT_NAMESPACE

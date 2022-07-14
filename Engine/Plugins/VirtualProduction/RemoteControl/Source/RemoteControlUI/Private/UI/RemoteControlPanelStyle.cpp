@@ -99,7 +99,6 @@ void FRemoteControlPanelStyle::Initialize()
 	StyleSet->Set("Switch.ToggleOn", new IMAGE_PLUGIN_BRUSH("Icons/Switch_ON", Icon28x14));
 
 	// Remote Control Logic UI
-	StyleSet->Set("RemoteControlPanel.Behaviours.Title", FCoreStyle::GetDefaultFontStyle("Regular", 12));
 	StyleSet->Set("RemoteControlPanel.Behaviours.BehaviourDescription", FCoreStyle::GetDefaultFontStyle("Regular", 10));
 	StyleSet->Set("RemoteControlPanel.Behaviours.CustomBlueprint", new IMAGE_BRUSH_SVG("Starship/MainToolbar/blueprints", Icon20x20));
 	StyleSet->Set("RemoteControlPanel.Actions.ValuePanelHeader", FCoreStyle::GetDefaultFontStyle("Bold", 12));
@@ -206,6 +205,15 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 		.SetSectionHeaderTextStyle(HeaderText);
 
 	StyleSet->Set("RemoteControlPanel.MinorPanel", RCMinorPanelStyle);
+
+	// Behaviour Panel style
+	FRCPanelStyle RCBehaviourPanelStyle = RCMinorPanelStyle;
+
+	const FTextBlockStyle BehaviourPanelHeaderText = FTextBlockStyle(NormalText)
+		.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 12));
+	RCBehaviourPanelStyle.SetHeaderTextStyle(BehaviourPanelHeaderText);
+
+	StyleSet->Set("RemoteControlPanel.BehaviourPanel", RCBehaviourPanelStyle);
 }
 
 #undef IMAGE_PLUGIN_BRUSH

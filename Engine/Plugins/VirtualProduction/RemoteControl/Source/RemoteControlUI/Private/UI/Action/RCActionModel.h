@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Action/RCFunctionAction.h"
+#include "Action/RCPropertyAction.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
+
 #include "UObject/WeakFieldPtr.h"
 
+class FRCBehaviourModel;
+struct FRCPanelStyle;
 class IDetailTreeNode;
+class ITableRow;
 class IPropertyRowGenerator;
+class SHeaderRow;
+class SHorizontalBox;
+class STableViewBase;
 class SWidget;
 class URCAction;
 class URCPropertyAction;
@@ -22,35 +31,64 @@ class URCFunctionAction;
 class FRCActionModel : public FRCLogicModeBase
 {
 public:
-	FRCActionModel(URCAction* InAction);
+	FRCActionModel(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
 	
 	/** Fetch the Action (data model) associated with us*/
 	URCAction* GetAction() const;
 
-private:
+	/** Widget representing Action Name field */
+	virtual TSharedRef<SWidget> GetNameWidget() const;
+
+	/** Widget representing the Value field */
+	virtual TSharedRef<SWidget> GetWidget() const override;
+
+	/** Widget representing Color Coding for the Action Type*/
+	virtual TSharedRef<SWidget> GetVariableColorWidget() const;
+
+	/** Color code for this Action. Customized per action type*/
+	virtual FLinearColor GetActionTypeColor() const = 0;
+
+	/** OnGenerateRow delegate for the Actions List View*/
+	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Get the Header Row appropriate for this particular Action model */
+	static TSharedPtr<SHeaderRow> GetHeaderRow();
+
+	/** Chooses the appropriate Action model for the current class and field type*/
+	static TSharedPtr<FRCActionModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
+
+protected:
 	/** The Action (data model) associated with us*/
 	TWeakObjectPtr<URCAction> ActionWeakPtr;
+
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
+
+	/** The Behaviour (UI model) associated with us*/
+	TWeakPtr<FRCBehaviourModel> BehaviourItemWeakPtr;
 };
 
-/* 
-* ~ FRCPropertyActionModel ~
+/*
+* ~ FRCPropertyActionType ~
 *
-* UI model for Property based Actions
+* Reusable class containing Property action related data and functions
 */
-class FRCPropertyActionModel : public FRCActionModel
+class FRCPropertyActionType
 {
 public:
-	FRCPropertyActionModel(URCPropertyAction* InPropertyAction);
+	FRCPropertyActionType(URCPropertyAction* InPropertyAction);
 
 	/** Property Name associated with this Action */
 	const FName& GetPropertyName() const;
 
-	/** The widget to be rendered for this Property 
-	* Used to represent a single row when added to the Actions Panel List
+	/** The widget to be rendered for this Property
+	* Represents the input field which the user will use to set a value for this Action
 	*/
-	virtual TSharedRef<SWidget> GetWidget() const override;
+	TSharedRef<SWidget> GetPropertyWidget() const;
 
-private:
+	FLinearColor GetPropertyTypeColor() const;
+
+protected:
 	/** The Property Action (data model) associated with us*/
 	TWeakObjectPtr<URCPropertyAction> PropertyActionWeakPtr;
 
@@ -58,7 +96,53 @@ private:
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
 
 	/** Used to create a generic Value Widget for the property row widget*/
-	TWeakPtr<IDetailTreeNode> DetailTreeNodeWeakPtr;
+	TWeakPtr<IDetailTreeNode> DetailTreeNodeWeakPtr;	
+};
+
+/*
+* ~ FRCFunctionActionType ~
+*
+* Reusable class containing Function action related data and functions
+*/
+class FRCFunctionActionType
+{
+public:
+	FRCFunctionActionType(URCFunctionAction* InFunctionAction) : FunctionActionWeakPtr(InFunctionAction) {}
+
+	/** Color code for function actions in the Actions table */
+	FLinearColor GetFunctionTypeColor() const
+	{
+		// @todo: Confirm color to be used for this with VP team.
+		return FLinearColor::Blue; 
+	}
+
+protected:
+	/** The Function Action (data model) associated with us*/
+	TWeakObjectPtr<URCFunctionAction> FunctionActionWeakPtr;
+};
+
+/*
+* ~ FRCPropertyActionModel ~
+*
+* UI model for Property based Actions
+*/
+class FRCPropertyActionModel : public FRCActionModel, public FRCPropertyActionType
+{
+public:
+	FRCPropertyActionModel(URCPropertyAction* InPropertyAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
+		: FRCActionModel(InPropertyAction, InBehaviourItem, InRemoteControlPanel),
+		FRCPropertyActionType(InPropertyAction)	{ }
+
+	virtual TSharedRef<SWidget> GetWidget() const override
+	{
+		return GetPropertyWidget();
+	}
+
+	/** Color code for this Action*/
+	virtual FLinearColor GetActionTypeColor() const override
+	{
+		return GetPropertyTypeColor();
+	}
 };
 
 /*
@@ -66,17 +150,16 @@ private:
 *
 * UI model for Function based Actions
 */
-class FRCFunctionActionModel : public FRCActionModel
+class FRCFunctionActionModel : public FRCActionModel, public FRCFunctionActionType
 {
 public:
-	FRCFunctionActionModel(URCFunctionAction* InAction);
+	FRCFunctionActionModel(URCFunctionAction* InFunctionAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
+		: FRCActionModel(InFunctionAction, InBehaviourItem, InRemoteControlPanel)
+		, FRCFunctionActionType(InFunctionAction) { }
 
-	/** The widget to be rendered for this Function
-	* Used to represent a single row when added to the Actions Panel List
-	*/
-	virtual TSharedRef<SWidget> GetWidget() const override;
-
-private:
-	/** The Function Action (data model) associated with us*/
-	TWeakObjectPtr<URCFunctionAction> FunctionActionWeakPtr;
+	/** Color code for this Action*/
+	virtual FLinearColor GetActionTypeColor() const override
+	{
+		return GetFunctionTypeColor();
+	}
 };

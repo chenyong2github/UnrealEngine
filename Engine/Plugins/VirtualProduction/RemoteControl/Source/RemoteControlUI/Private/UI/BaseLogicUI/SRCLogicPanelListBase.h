@@ -32,6 +32,12 @@ public:
 	/** Returns number of items in the list. */
 	virtual int32 Num() const = 0;
 
+	/** Whether the List View currently has focus.*/
+	virtual bool IsListFocused() const = 0;
+
+	/** Deletes currently selected items from the list view*/
+	virtual void DeleteSelectedPanelItem()  = 0;
+
 private:
 
 	/** Refreshes the list from the latest state of the model*/

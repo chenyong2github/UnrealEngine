@@ -36,12 +36,12 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
 	
 	// 2. Expose Fields
 	// 2.1 Expose Properties
-	const TSharedPtr<FRemoteControlProperty> RCProp1 = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{GET_TEST_PROP(Color)->GetName()}).Pin();
+	const TSharedRef<FRemoteControlProperty> RCProp1 = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{GET_TEST_PROP(Color)->GetName()}).Pin().ToSharedRef();
  
 	// 2.2 Expose Functions
 	// UObject* Object, UFunction* Function, FRemoteControlPresetExposeArgs Args
 	UFunction* TestIntFunction = TestObject->GetClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(URemoteControlLogicTestData, TestIntFunction));
-	const TSharedPtr<FRemoteControlFunction> RCFunc1 = Preset->ExposeFunction(TestObject.Get(), TestIntFunction).Pin();
+	const TSharedRef<FRemoteControlFunction> RCFunc1 = Preset->ExposeFunction(TestObject.Get(), TestIntFunction).Pin().ToSharedRef();
  
 	// 3. Add Controllers
 	// 3.1.1 Create Float Property
@@ -85,7 +85,7 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
  
 	// 5 Add actions
 	// 5.1 Add Float Controller Actions
-	URCPropertyAction* FloatControllerBehaviourAction = FloatControllerBehaviour->ActionContainer->AddAction(RCProp1);
+	URCPropertyAction* FloatControllerBehaviourAction = Cast<URCPropertyAction> (FloatControllerBehaviour->ActionContainer->AddAction(RCProp1));
 
 	FColor OutColorValue = FColor();
 	TestTrue(TEXT("Should Get Color"), FloatControllerBehaviourAction->PropertySelfContainer->GetValueColor(OutColorValue) == true);
@@ -96,8 +96,8 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Should Set Color"), FloatControllerBehaviourAction->PropertySelfContainer->SetValueColor(SecColorValue));
 	
 	// 5.4 Add Function Controller Actions
-	URCFunctionAction* FloatControllerBehaviourAction1 = FloatControllerBehaviour->ActionContainer->AddAction(RCFunc1);
-	URCPropertyAction* StrControllerBehaviourAction = StrControllerBehaviour->ActionContainer->AddAction(RCProp1);
+	URCFunctionAction* FloatControllerBehaviourAction1 = Cast<URCFunctionAction>(FloatControllerBehaviour->ActionContainer->AddAction(RCFunc1));
+	URCPropertyAction* StrControllerBehaviourAction = Cast<URCPropertyAction> (StrControllerBehaviour->ActionContainer->AddAction(RCProp1));
 	FColor StringControllerColorValue(7,8,9,10);
 	TestTrue(TEXT("Should Set Color"), StrControllerBehaviourAction->PropertySelfContainer->SetValueColor(StringControllerColorValue));
 	

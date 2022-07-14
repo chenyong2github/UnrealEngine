@@ -8,7 +8,10 @@ struct FRCPanelStyle;
 struct FRemoteControlField;
 class FRCBehaviourModel;
 class SBox;
+class SRCLogicPanelListBase;
 class SRemoteControlPanel;
+class URCAction;
+
 /*
 * ~ SRCActionPanel ~
 *
@@ -35,6 +38,9 @@ public:
 
 	/** Delete Item UI command implementation for this panel */
 	virtual void DeleteSelectedPanelItem() override;
+
+	/** Adds an Action for the currently active Behaviour and broadcasts to parent panels */
+	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
 protected:
 
@@ -82,7 +88,7 @@ private:
 	TSharedPtr<SBox> WrappedBoxWidget;
 
 	/** Widget representing List of Actions */
-	TSharedPtr<class SRCActionPanelList> ActionPanelList;
+	TSharedPtr<SRCLogicPanelListBase> ActionPanelList;
 
 	/** Helper widget for behavior details. */
 	static TSharedPtr<SBox> NoneSelectedWidget;

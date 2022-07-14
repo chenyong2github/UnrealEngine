@@ -36,7 +36,7 @@ FRCIsEqualBehaviourModel::FRCIsEqualBehaviourModel(URCIsEqualBehaviour* IsEqualB
 	}
 }
 
-TSharedRef<SWidget> FRCIsEqualBehaviourModel::GetBehaviourDetailsWidget() const
+TSharedRef<SWidget> FRCIsEqualBehaviourModel::GetBehaviourDetailsWidget()
 {
 	return SNew(SRCBehaviourIsEqual, SharedThis(this));
 }

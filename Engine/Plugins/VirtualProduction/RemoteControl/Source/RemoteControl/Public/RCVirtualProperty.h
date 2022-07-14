@@ -73,8 +73,32 @@ public:
 	 */
 	bool DeserializeFromBackend(IStructDeserializerBackend& InBackend);
 
+	/** Whether this Virtual Property is a numeric type, i.e. an Integral or Floating point type */
+	bool IsNumericType() const;
+
+	/** Whether this Virtual Property represents an FVector*/
+	bool IsVectorType() const;
+
+	/** Whether this Virtual Property represents an FColor*/
+	bool IsColorType() const;
+
+	/** Whether this Virtual Property represents an FRotator*/
+	bool IsRotatorType() const;
+
 	/** Compare this virtual property value with given property value */
-	bool IsValueEqual(URCVirtualPropertyBase* InVirtualProperty);
+	bool IsValueEqual(URCVirtualPropertyBase* InVirtualProperty) const;
+
+	/** Operator > comparison of self with a given virtual property*/
+	bool IsValueGreaterThan(URCVirtualPropertyBase* InVirtualProperty) const;
+
+	/** Operator >= comparison of self with a given virtual property*/
+	bool IsValueGreaterThanOrEqualTo(URCVirtualPropertyBase* InVirtualProperty) const;
+
+	/** Operator < comparison of self with a given virtual property*/
+	bool IsValueLesserThan(URCVirtualPropertyBase* InVirtualProperty) const;
+
+	/** Operator <= comparison of self with a given virtual property*/
+	bool IsValueLesserThanOrEqualTo(URCVirtualPropertyBase* InVirtualProperty) const;
 
 	/** Copy this virtual property's data onto a given FProperty
 	* 
@@ -85,75 +109,81 @@ public:
 	
 	/** Get Bool value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueBool(bool& OutBoolValue);
+	bool GetValueBool(bool& OutBoolValue) const;
 
 	/** Get Int8 value from Virtual Property */
 	UFUNCTION()
-	bool GetValueInt8(int8& OutInt8);
+	bool GetValueInt8(int8& OutInt8) const;
 
 	/** Get Byte value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueByte(uint8& OutByte);
+	bool GetValueByte(uint8& OutByte) const;
 
 	/** Get Int16 value from Virtual Property */
 	UFUNCTION()
-	bool GetValueInt16(int16& OutInt16);
+	bool GetValueInt16(int16& OutInt16) const;
 
 	/** Get Uint16 value from Virtual Property */
 	UFUNCTION()
-	bool GetValueUint16(uint16& OutUInt16);
+	bool GetValueUint16(uint16& OutUInt16) const;
 
 	/** Get Int32 value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueInt32(int32& OutInt32);
+	bool GetValueInt32(int32& OutInt32) const;
 
 	/** Get Uint32 value from Virtual Property */
 	UFUNCTION()
-	bool GetValueUInt32(uint32& OutUInt32);
+	bool GetValueUInt32(uint32& OutUInt32) const;
 
 	/** Get Int64 value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueInt64(int64& OuyInt64);
+	bool GetValueInt64(int64& OuyInt64) const;
 
 	/** Get Uint64 value from Virtual Property */
 	UFUNCTION()
-	bool GetValueUint64(uint64& OuyUInt64);
+	bool GetValueUint64(uint64& OuyUInt64) const;
 
 	/** Get Float value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueFloat(float& OutFloat);
+	bool GetValueFloat(float& OutFloat) const;
 
 	/** Get Double value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueDouble(double& OutDouble);
+	bool GetValueDouble(double& OutDouble) const;
 
 	/** Get String value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueString(FString& OutStringValue);
+	bool GetValueString(FString& OutStringValue) const;
 
 	/** Get Name value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueName(FName& OutNameValue);
+	bool GetValueName(FName& OutNameValue) const;
 
 	/** Get Text value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueText(FText& OutTextValue);
+	bool GetValueText(FText& OutTextValue) const;
 
 	/** Get Numeric value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueNumericInteger(int64& OutInt64Value);
+	bool GetValueNumericInteger(int64& OutInt64Value) const;
 
 	/** Get Vector value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueVector(FVector& OutVector);
+	bool GetValueVector(FVector& OutVector) const;
 
 	/** Get Rotator value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueRotator(FRotator& OutRotator);
+	bool GetValueRotator(FRotator& OutRotator) const;
 
 	/** Get Color value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueColor(FColor& OutColor);
+	bool GetValueColor(FColor& OutColor) const;	
+
+	/** Infers correct type internally, fetches value from memory and returns the value as a string 
+	* that can be immediately used for dispaly (without needing to create a generic readonly property widget)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
+	FString GetDisplayValueAsString() const;
 
 	/** Set Bool value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
@@ -227,7 +257,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
 	bool SetValueColor(const FColor& InColor);
 	
-	/** Set FProperty Name */
+	/** Get FProperty Name */
 	UFUNCTION(BlueprintPure, Category = "Remote Control Behaviour")
 	FName GetPropertyName() const;
 

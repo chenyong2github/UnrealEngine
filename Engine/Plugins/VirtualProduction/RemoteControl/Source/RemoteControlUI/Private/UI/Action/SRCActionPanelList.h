@@ -6,7 +6,7 @@
 
 struct FRCPanelStyle;
 class FRCBehaviourModel;
-class FRCActionModel;
+class ActionType;
 class ITableRow;
 class STableViewBase;
 class SRCActionPanel;
@@ -20,10 +20,11 @@ template <typename ItemType> class SListView;
 * UI Widget for Actions List
 * Used as part of the RC Logic Actions Panel.
 */
+template <typename ActionType>
 class REMOTECONTROLUI_API SRCActionPanelList : public SRCLogicPanelListBase
 {
 public:
-	SLATE_BEGIN_ARGS(SRCActionPanelList)
+	SLATE_BEGIN_ARGS(SRCActionPanelList<ActionType>)
 		{
 		}
 
@@ -39,15 +40,27 @@ public:
 	virtual int32 Num() const override;
 
 	/** Whether the Actions List View currently has focus.*/
-	bool IsListFocused() const;
+	virtual bool IsListFocused() const override;
 
 	/** Deletes currently selected items from the list view*/
-	void DeleteSelectedPanelItem();
+	virtual void DeleteSelectedPanelItem() override;
+
+	/** Fetches the parent Action panel*/
+	TSharedPtr<SRCActionPanel> GetActionPanel()
+	{
+		return ActionPanelWeakPtr.Pin();
+	}
+
+	/** Fetches the Behaviour (UI model) associated with us */
+	TSharedPtr<FRCBehaviourModel> GetBehaviourItem()
+	{
+		return BehaviourItemWeakPtr.Pin();
+	}
 
 private:
 
 	/** OnGenerateRow delegate for the Actions List View*/
-	TSharedRef<ITableRow> OnGenerateWidgetForList( TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable );
+	TSharedRef<ITableRow> OnGenerateWidgetForList( TSharedPtr<ActionType> InItem, const TSharedRef<STableViewBase>& OwnerTable );
 
 	/** Responds to the selection of a newly created action. Resets UI state*/
 	void OnActionAdded(URCAction* InAction);
@@ -67,6 +80,12 @@ private:
 	/** Removes the given Action UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;
 
+	/*Drag and drop event for creating an Action from an exposed field */
+	FReply OnExposedFieldDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	/** Whether drag and drop is possible from the current exposed property to the Actions table */
+	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
 private:
 
 	/** The parent Action Panel widget*/
@@ -76,10 +95,10 @@ private:
 	TWeakPtr<FRCBehaviourModel> BehaviourItemWeakPtr;
 
 	/** List of Actions (UI model) active in this widget */
-	TArray<TSharedPtr<FRCActionModel>> ActionItems;
+	TArray<TSharedPtr<ActionType>> ActionItems;
 
 	/** List View widget for representing our Actions List*/
-	TSharedPtr<SListView<TSharedPtr<FRCActionModel>>> ListView;
+	TSharedPtr<SListView<TSharedPtr<ActionType>>> ListView;
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;

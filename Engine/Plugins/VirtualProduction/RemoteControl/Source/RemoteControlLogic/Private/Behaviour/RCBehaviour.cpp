@@ -2,10 +2,12 @@
 
 #include "Behaviour/RCBehaviour.h"
 
-#include "Engine/Blueprint.h"
-
-#include "Action/RCActionContainer.h"
+#include "Action/RCAction.h"
+#include "Action/RCFunctionAction.h"
+#include "Action/RCPropertyAction.h"
 #include "Behaviour/RCBehaviourNode.h"
+#include "Engine/Blueprint.h"
+#include "RemoteControlField.h"
 
 URCBehaviour::URCBehaviour()
 {
@@ -30,9 +32,24 @@ void URCBehaviour::Execute()
 	}
 }
 
+URCAction* URCBehaviour::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
+{
+	return ActionContainer->AddAction(InRemoteControlField);
+}
+
 int32 URCBehaviour::GetNumActions() const
 {
 	return ActionContainer->Actions.Num();
+}
+
+bool URCBehaviour::CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const
+{
+	if (ActionContainer->FindActionByFieldId(InRemoteControlField->GetId()))
+	{
+		return false; // already exists!
+	}
+
+	return true;
 }
 
 UClass* URCBehaviour::GetOverrideBehaviourBlueprintClass() const

@@ -140,7 +140,47 @@ bool URCVirtualPropertyBase::DeserializeFromBackend(IStructDeserializerBackend& 
 	return bSuccess;
 }
 
-bool URCVirtualPropertyBase::IsValueEqual(URCVirtualPropertyBase* InVirtualProperty)
+bool URCVirtualPropertyBase::IsNumericType() const
+{
+	const FProperty* Property = GetProperty();
+
+	return Property && Property->IsA(FNumericProperty::StaticClass());
+}
+
+bool URCVirtualPropertyBase::IsVectorType() const
+{
+	const FProperty* Property = GetProperty();
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+	{
+		return StructProperty->Struct == TBaseStructure<FVector>::Get();
+	}
+
+	return false;
+}
+
+bool URCVirtualPropertyBase::IsColorType() const
+{
+	const FProperty* Property = GetProperty();
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+	{
+		return StructProperty->Struct == TBaseStructure<FColor>::Get();
+	}
+
+	return false;
+}
+
+bool URCVirtualPropertyBase::IsRotatorType() const
+{
+	const FProperty* Property = GetProperty();
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+	{
+		return StructProperty->Struct == TBaseStructure<FRotator>::Get();
+	}
+
+	return false;
+}
+
+bool URCVirtualPropertyBase::IsValueEqual(URCVirtualPropertyBase* InVirtualProperty) const
 {
 	const FProperty* ThisProperty = GetProperty();
 	const uint8* ThisContainerPtr = GetContainerPtr();
@@ -194,7 +234,7 @@ bool URCVirtualPropertyBase::CopyCompleteValue(const FProperty* InTargetProperty
 struct FRCVirtualPropertyCastHelpers
 {
 	template<typename TPropertyType, typename TValueType>
-	static bool GetPrimitiveValue(URCVirtualPropertyBase* InVirtualProperty, TValueType& OutValue)
+	static bool GetPrimitiveValue(const URCVirtualPropertyBase* InVirtualProperty, TValueType& OutValue)
 	{
 		const uint8* ContainerPtr = InVirtualProperty->GetContainerPtr();
 		if (!ContainerPtr)
@@ -234,7 +274,7 @@ struct FRCVirtualPropertyCastHelpers
 	}
 
 	template<typename TValueType>
-	static bool GetStructValue(URCVirtualPropertyBase* InVirtualProperty, UScriptStruct* InScriptStruct, TValueType* OutValuePtr)
+	static bool GetStructValue(const URCVirtualPropertyBase* InVirtualProperty, UScriptStruct* InScriptStruct, TValueType* OutValuePtr)
 	{
 		const uint8* ValuePtr = InVirtualProperty->GetValuePtr();
 		if (!ValuePtr)
@@ -278,77 +318,77 @@ struct FRCVirtualPropertyCastHelpers
 	}
 };
 
-bool URCVirtualPropertyBase::GetValueBool(bool& OutBoolValue)
+bool URCVirtualPropertyBase::GetValueBool(bool& OutBoolValue) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FBoolProperty, bool>(this, OutBoolValue);
 }
 
-bool URCVirtualPropertyBase::GetValueInt8(int8& OutInt8)
+bool URCVirtualPropertyBase::GetValueInt8(int8& OutInt8) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FInt8Property, int8>(this, OutInt8);
 }
 
-bool URCVirtualPropertyBase::GetValueByte(uint8& OutByte)
+bool URCVirtualPropertyBase::GetValueByte(uint8& OutByte) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FByteProperty, uint8&>(this, OutByte);
 }
 
-bool URCVirtualPropertyBase::GetValueInt16(int16& OutInt16)
+bool URCVirtualPropertyBase::GetValueInt16(int16& OutInt16) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FInt16Property, int16&>(this, OutInt16);
 }
 
-bool URCVirtualPropertyBase::GetValueUint16(uint16& OutUInt16)
+bool URCVirtualPropertyBase::GetValueUint16(uint16& OutUInt16) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FUInt16Property, uint16&>(this, OutUInt16);
 }
 
-bool URCVirtualPropertyBase::GetValueInt32(int32& OutInt32)
+bool URCVirtualPropertyBase::GetValueInt32(int32& OutInt32) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FIntProperty, int32&>(this, OutInt32);
 }
 
-bool URCVirtualPropertyBase::GetValueUInt32(uint32& OutUInt32)
+bool URCVirtualPropertyBase::GetValueUInt32(uint32& OutUInt32) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FUInt32Property, uint32&>(this, OutUInt32);
 }
 
-bool URCVirtualPropertyBase::GetValueInt64(int64& OuyInt64)
+bool URCVirtualPropertyBase::GetValueInt64(int64& OuyInt64) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FInt64Property, int64>(this, OuyInt64);
 }
 
-bool URCVirtualPropertyBase::GetValueUint64(uint64& OuyUInt64)
+bool URCVirtualPropertyBase::GetValueUint64(uint64& OuyUInt64) const
 {
 return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FUInt64Property, uint64>(this, OuyUInt64);
 }
 
-bool URCVirtualPropertyBase::GetValueFloat(float& OutFloat)
+bool URCVirtualPropertyBase::GetValueFloat(float& OutFloat) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FFloatProperty, float>(this, OutFloat);
 }
 
-bool URCVirtualPropertyBase::GetValueDouble(double& OutDouble)
+bool URCVirtualPropertyBase::GetValueDouble(double& OutDouble) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FDoubleProperty, double>(this, OutDouble);
 }
 
-bool URCVirtualPropertyBase::GetValueString(FString& OutStringValue)
+bool URCVirtualPropertyBase::GetValueString(FString& OutStringValue) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FStrProperty, FString>(this, OutStringValue);
 }
 
-bool URCVirtualPropertyBase::GetValueName(FName& OutNameValue)
+bool URCVirtualPropertyBase::GetValueName(FName& OutNameValue) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FNameProperty, FName>(this, OutNameValue);
 }
 
-bool URCVirtualPropertyBase::GetValueText(FText& OutTextValue)
+bool URCVirtualPropertyBase::GetValueText(FText& OutTextValue) const
 {
 	return FRCVirtualPropertyCastHelpers::GetPrimitiveValue<FTextProperty, FText>(this, OutTextValue);
 }
 
-bool URCVirtualPropertyBase::GetValueNumericInteger(int64& OutInt64Value)
+bool URCVirtualPropertyBase::GetValueNumericInteger(int64& OutInt64Value) const
 {
 	const uint8* ContainerPtr = GetContainerPtr();
 	if (!ContainerPtr)
@@ -371,19 +411,107 @@ bool URCVirtualPropertyBase::GetValueNumericInteger(int64& OutInt64Value)
 	return false;
 }
 
-bool URCVirtualPropertyBase::GetValueVector(FVector& OutVector)
+bool URCVirtualPropertyBase::GetValueVector(FVector& OutVector) const
 {
 	return FRCVirtualPropertyCastHelpers::GetStructValue<FVector>(this, TBaseStructure<FVector>::Get(), &OutVector);
 }
 
-bool URCVirtualPropertyBase::GetValueRotator(FRotator& OutRotator)
+bool URCVirtualPropertyBase::GetValueRotator(FRotator& OutRotator) const
 {
 	return FRCVirtualPropertyCastHelpers::GetStructValue<FRotator>(this, TBaseStructure<FRotator>::Get(), &OutRotator);
 }
 
-bool URCVirtualPropertyBase::GetValueColor(FColor& OutColor)
+bool URCVirtualPropertyBase::GetValueColor(FColor& OutColor) const
 {
 	return FRCVirtualPropertyCastHelpers::GetStructValue<FColor>(this, TBaseStructure<FColor>::Get(), &OutColor);
+}
+
+FString URCVirtualPropertyBase::GetDisplayValueAsString() const
+{
+	const FProperty* Property = GetProperty();
+
+	if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+	{
+		bool Value;
+		GetValueBool(Value);
+
+		return Value ? TEXT("true") : TEXT("false");
+	}
+	else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+	{
+		uint8 Value;
+		GetValueByte(Value);
+
+		return FString::Printf(TEXT("%d"), Value);
+	}
+	else if (const FTextProperty* TextProperty = CastField<FTextProperty>(Property))
+	{
+		FText Value;
+		GetValueText(Value);
+
+		return Value.ToString();
+	}
+	else if (const FStrProperty* StringProperty = CastField<FStrProperty>(Property))
+	{
+		FString Value;
+		GetValueString(Value);
+
+		return Value;
+	}
+	else if (const FNameProperty* NameProperty = CastField<FNameProperty>(Property))
+	{
+		FName Value;
+		GetValueName(Value);
+
+		return Value.ToString();
+	}
+	else if (const FIntProperty* IntProperty = CastField<FIntProperty>(Property))
+	{
+		int32 Value;
+		GetValueInt32(Value);
+
+		return FString::Printf(TEXT("%d"), Value);
+	}
+	else if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
+	{
+		float Value;
+		GetValueFloat(Value);
+
+		return FString::Printf(TEXT("%f"), Value);
+	}
+	else if (const FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(Property))
+	{
+		double Value;
+		GetValueDouble(Value);
+
+		return FString::Printf(TEXT("%lf"), Value);
+	}
+	else if (IsVectorType())
+	{
+		FVector Vector;
+		GetValueVector(Vector);
+
+		return Vector.ToString();
+	}
+	else if (IsRotatorType())
+	{
+		FRotator Rotator;
+		GetValueRotator(Rotator);
+
+		return Rotator.ToString();
+	}
+	else if (IsColorType())
+	{
+		FColor Color;
+		GetValueColor(Color);
+
+		return Color.ToString();
+	}
+
+	// Unimplemented type!
+	ensureAlwaysMsgf(false, TEXT("Unimplemented type %s passed to GetDisplayValueAsString"), *Property->GetName());
+		 
+	return "Unimplemented type";
 }
 
 bool URCVirtualPropertyBase::SetValueBool(bool InBoolValue)

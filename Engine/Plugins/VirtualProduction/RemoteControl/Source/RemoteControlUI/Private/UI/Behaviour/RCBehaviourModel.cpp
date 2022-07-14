@@ -4,6 +4,10 @@
 
 #include "Behaviour/RCBehaviourNode.h"
 #include "Engine/Blueprint.h"
+#include "Styling/RemoteControlStyles.h"
+#include "UI/Action/RCActionModel.h"
+#include "UI/Action/SRCActionPanel.h"
+#include "UI/Action/SRCActionPanelList.h"
 #include "UI/BaseLogicUI/RCLogicHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
@@ -15,11 +19,27 @@
 FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour)
 	: BehaviourWeakPtr(InBehaviour)
 {
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.BehaviourPanel");
+
 	const FText BehaviorDisplayName = BehaviourWeakPtr->GetDisplayName().ToUpper();
 
 	SAssignNew(BehaviourTitleText, STextBlock)
 		.Text(BehaviorDisplayName)
-		.Font(FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.Title"));
+		.TextStyle(&RCPanelStyle->HeaderTextStyle);
+}
+
+URCAction* FRCBehaviourModel::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
+{
+	URCAction* NewAction = nullptr;
+
+	if (URCBehaviour* Behaviour = BehaviourWeakPtr.Get())
+	{
+		NewAction = Behaviour->AddAction(InRemoteControlField);
+
+		OnActionAdded(NewAction);
+	}
+
+	return NewAction;
 }
 
 TSharedRef<SWidget> FRCBehaviourModel::GetWidget() const
@@ -41,7 +61,7 @@ TSharedRef<SWidget> FRCBehaviourModel::GetWidget() const
 		];
 }
 
-TSharedRef<SWidget> FRCBehaviourModel::GetBehaviourDetailsWidget() const
+TSharedRef<SWidget> FRCBehaviourModel::GetBehaviourDetailsWidget()
 {
 	return SNullWidget::NullWidget;
 }
@@ -79,6 +99,13 @@ void FRCBehaviourModel::SetIsBehaviourEnabled(const bool bIsEnabled)
 
 		BehaviourTitleText->SetEnabled(bIsEnabled);
 	}
+}
+
+TSharedPtr<SRCLogicPanelListBase> FRCBehaviourModel::GetActionsListWidget(TSharedRef<SRCActionPanel> InActionPanel)
+{
+	// Returns the default Actions List; child classes can override as required
+
+	return SNew(SRCActionPanelList<FRCActionModel>, InActionPanel, SharedThis(this));
 }
 
 URCBehaviour* FRCBehaviourModel::GetBehaviour() const

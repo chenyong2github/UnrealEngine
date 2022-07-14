@@ -21,7 +21,7 @@ public:
 	FRCIsEqualBehaviourModel(URCIsEqualBehaviour* IsEqualBehaviour);
 
 	/** Builds a Behaviour specific widget as required for Is Equal behaviour*/
-	virtual TSharedRef<SWidget> GetBehaviourDetailsWidget() const override;
+	virtual TSharedRef<SWidget> GetBehaviourDetailsWidget() override;
 
 	/** Builds a generic Value Widget of the Controller's type
 	* Use to store user input for performing the Is Equal Behaviour comparison*/
