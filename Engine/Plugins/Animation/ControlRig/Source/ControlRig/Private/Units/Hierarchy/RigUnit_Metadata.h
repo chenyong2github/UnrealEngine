@@ -432,6 +432,7 @@ struct CONTROLRIG_API FRigUnit_RemoveMetadataTag : public FRigUnitMutable
 	FRigUnit_RemoveMetadataTag()
 		: Item(NAME_None, ERigElementType::Bone)
 		, Tag(NAME_None)
+		, Removed(false)
 		, CachedIndex()
 	{}
 

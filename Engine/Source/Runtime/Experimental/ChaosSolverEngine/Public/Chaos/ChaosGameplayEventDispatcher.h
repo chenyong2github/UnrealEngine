@@ -84,6 +84,8 @@ public:
 		, Orientation(FQuat::Identity)
 		, LinearVelocity(FVector::ZeroVector)
 		, AngularVelocity(FVector::ZeroVector)
+		, Mass(0)
+		, LocalBounds(ForceInitToZero)
 	{}
 
 	/** primitive component involved in the crumble event */
