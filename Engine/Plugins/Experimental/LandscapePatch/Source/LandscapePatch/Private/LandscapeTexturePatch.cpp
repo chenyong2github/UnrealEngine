@@ -12,6 +12,7 @@
 #include "LandscapeTexturePatchPS.h"
 #include "MathUtil.h"
 #include "RenderGraph.h"
+#include "RHIStaticStates.h"
 
 namespace LandscapeTexturePatchLocals
 {
