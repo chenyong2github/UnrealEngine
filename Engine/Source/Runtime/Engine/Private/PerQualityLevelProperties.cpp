@@ -106,9 +106,8 @@ namespace QualityLevelProperty
 		{
 			FScopeLock ScopeLock(&MappingCriticalSection);
 			CachedMappingQualitLevelInfo = &CachedPerPlatformToQualityLevels.Add(InPlatformName, QualityLevels);
+			return *CachedMappingQualitLevelInfo;
 		}
-
-		return *CachedMappingQualitLevelInfo;
 	}
 #endif
 }
@@ -195,9 +194,8 @@ FSupportedQualityLevelArray FPerQualityLevelProperty<_StructType, _ValueType, _B
 	{
 		FScopeLock ScopeLock(&GCookCriticalSection);
 		CachedCookingQualitLevelInfo = &GSupportedQualityLevels.Add(FString(InPlatformName), CookingQualitLevelInfo);
+		return *CachedCookingQualitLevelInfo;
 	}
-
-	return *CachedCookingQualitLevelInfo;
 }
 
 template<typename _StructType, typename _ValueType, EName _BasePropertyName>
