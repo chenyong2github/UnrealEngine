@@ -2130,7 +2130,8 @@ namespace AssetRegistry
 }
 
 template <typename MapType>
-static void PrintAssetDataMap(FString Name, const MapType& AssetMap, TStringBuilder<16>& PageBuffer, const TFunctionRef<void()>& AddLine)
+static void PrintAssetDataMap(FString Name, const MapType& AssetMap, TStringBuilder<16>& PageBuffer, const TFunctionRef<void()>& AddLine,
+	TUniqueFunction<void(const typename MapType::KeyType& Key, const FAssetData& Data)>&& PrintValue = {})
 {
 	PageBuffer.Appendf(TEXT("--- Begin %s ---"), *Name);
 	AddLine();
@@ -2166,14 +2167,18 @@ static void PrintAssetDataMap(FString Name, const MapType& AssetMap, TStringBuil
 			{ return A.ObjectPath.ToString() < B.ObjectPath.ToString(); }
 		);
 
-		PageBuffer.Append(TEXT("	"));
+		PageBuffer.Append(TEXT("\t"));
 		Key.AppendString(PageBuffer);
 		PageBuffer.Appendf(TEXT(" : %d item(s)"), Items.Num());
 		AddLine();
 		for (const FAssetData* Data : Items)
 		{
-			PageBuffer.Append(TEXT("	 "));
+			PageBuffer.Append(TEXT("\t\t"));
 			Data->ObjectPath.AppendString(PageBuffer);
+			if (PrintValue)
+			{
+				PrintValue(Key, *Data);
+			}
 			AddLine();
 		}
 	}
@@ -2187,21 +2192,23 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 	int32 ExpectedNumLines = 14 + CachedAssetsByObjectPath.Num() * 5 + CachedDependsNodes.Num() + CachedPackageData.Num();
 	const int32 EstimatedLinksPerNode = 10*2; // Each dependency shows up once as a dependency and once as a reference
 	const int32 EstimatedCharactersPerLine = 100;
-	const bool bDumpDependencyDetails = Arguments.Contains(TEXT("DependencyDetails"));
+	bool bAllFields = Arguments.Contains(TEXT("All"));
+
+	const bool bDumpDependencyDetails = bAllFields || Arguments.Contains(TEXT("DependencyDetails"));
 	if (bDumpDependencyDetails)
 	{
 		ExpectedNumLines += CachedDependsNodes.Num() * (3 + EstimatedLinksPerNode);
 	}
-	LinesPerPage = FMath::Max(LinesPerPage, 1);
-	const int32 ExpectedNumPages = ExpectedNumLines / LinesPerPage;
-	const int32 PageEndSearchLength = LinesPerPage / 20;
+	LinesPerPage = FMath::Max(0, LinesPerPage);
+	const int32 ExpectedNumPages = LinesPerPage > 0 ? (ExpectedNumLines / LinesPerPage) : 1;
+	const int32 PageEndSearchLength = FMath::Min(LinesPerPage, ExpectedNumLines) / 20;
 	const uint32 HashStartValue = MAX_uint32 - 49979693; // Pick a large starting value to bias against picking empty string
 	const uint32 HashMultiplier = 67867967;
 	TStringBuilder<16> PageBuffer;
 	TStringBuilder<16> OverflowText;
 
 	OutPages.Reserve(ExpectedNumPages);
-	PageBuffer.AddUninitialized(LinesPerPage * EstimatedCharactersPerLine);// TODO: Add Reserve function to TStringBuilder
+	PageBuffer.AddUninitialized(FMath::Min(LinesPerPage, ExpectedNumLines) * EstimatedCharactersPerLine);// TODO: Add Reserve function to TStringBuilder
 	PageBuffer.Reset();
 	OverflowText.AddUninitialized(PageEndSearchLength * EstimatedCharactersPerLine);
 	OverflowText.Reset();
@@ -2274,7 +2281,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		else
 		{
 			++NumLinesInPage;
-			if (NumLinesInPage != LinesPerPage)
+			if (LinesPerPage == 0 || NumLinesInPage < LinesPerPage)
 			{
 				PageBuffer.Append(LINE_TERMINATOR);
 			}
@@ -2285,7 +2292,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		}
 	};
 
-	if (Arguments.Contains(TEXT("ObjectPath")))
+	if (bAllFields || Arguments.Contains(TEXT("ObjectPath")))
 	{
 		PageBuffer.Append(TEXT("--- Begin CachedAssetsByObjectPath ---"));
 		AddLine();
@@ -2305,27 +2312,31 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		AddLine();
 	}
 
-	if (Arguments.Contains(TEXT("PackageName")))
+	if (bAllFields || Arguments.Contains(TEXT("PackageName")))
 	{
 		PrintAssetDataMap(TEXT("CachedAssetsByPackageName"), CachedAssetsByPackageName, PageBuffer, AddLine);
 	}
 
-	if (Arguments.Contains(TEXT("Path")))
+	if (bAllFields || Arguments.Contains(TEXT("Path")))
 	{
 		PrintAssetDataMap(TEXT("CachedAssetsByPath"), CachedAssetsByPath, PageBuffer, AddLine);
 	}
 
-	if (Arguments.Contains(TEXT("Class")))
+	if (bAllFields || Arguments.Contains(TEXT("Class")))
 	{
 		PrintAssetDataMap(TEXT("CachedAssetsByClass"), CachedAssetsByClass, PageBuffer, AddLine);
 	}
 
-	if (Arguments.Contains(TEXT("Tag")))
+	if (bAllFields || Arguments.Contains(TEXT("Tag")))
 	{
-		PrintAssetDataMap(TEXT("CachedAssetsByTag"), CachedAssetsByTag, PageBuffer, AddLine);
+		PrintAssetDataMap(TEXT("CachedAssetsByTag"), CachedAssetsByTag, PageBuffer, AddLine,
+			[&PageBuffer, &AddLine](const FName& TagName, const FAssetData& Data)
+			{
+				PageBuffer << TEXT(", ") << Data.TagsAndValues.FindTag(TagName).ToLoose();
+			});
 	}
 
-	if (Arguments.Contains(TEXT("Dependencies")) && !bDumpDependencyDetails)
+	if ((bAllFields || Arguments.Contains(TEXT("Dependencies"))) && !bDumpDependencyDetails)
 	{
 		PageBuffer.Appendf(TEXT("--- Begin CachedDependsNodes ---"));
 		AddLine();
@@ -2359,7 +2370,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		CachedDependsNodes.GenerateValueArray(Nodes);
 		Nodes.Sort(SortByAssetID);
 
-		if (Arguments.Contains(TEXT("LegacyDependencies")))
+		if (Arguments.Contains(TEXT("LegacyDependencies"))) // LegacyDependencies are not show by all; they have to be directly requested
 		{
 			EDependencyCategory CategoryTypes[] = { EDependencyCategory::Package, EDependencyCategory::Package,EDependencyCategory::SearchableName,EDependencyCategory::Manage, EDependencyCategory::Manage, EDependencyCategory::None };
 			EDependencyQuery CategoryQueries[] = { EDependencyQuery::Hard, EDependencyQuery::Soft, EDependencyQuery::NoRequirements, EDependencyQuery::Direct, EDependencyQuery::Indirect, EDependencyQuery::NoRequirements };
@@ -2464,7 +2475,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 		PageBuffer.Appendf(TEXT("--- End CachedDependsNodes : %d entries ---"), CachedDependsNodes.Num());
 		AddLine();
 	}
-	if (Arguments.Contains(TEXT("PackageData")))
+	if (bAllFields || Arguments.Contains(TEXT("PackageData")))
 	{
 		PageBuffer.Append(TEXT("--- Begin CachedPackageData ---"));
 		AddLine();
