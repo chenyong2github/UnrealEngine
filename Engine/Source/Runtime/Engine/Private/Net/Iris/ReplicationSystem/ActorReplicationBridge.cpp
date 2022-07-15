@@ -905,7 +905,8 @@ void UActorReplicationBridge::GetActorCreationHeader(const AActor* Actor, UE::Ne
 
 	// Custom actor creation data
 	{
-		FOutBunch Bunch(static_cast<UPackageMap*>(nullptr), 1024);
+		constexpr int64 MaxBunchBits = 1024;
+		FOutBunch Bunch(MaxBunchBits);
 		const_cast<AActor*>(Actor)->OnSerializeNewActor(Bunch);
 		Header.CustomCreationDataBitCount = Bunch.GetNumBits();
 		if (Header.CustomCreationDataBitCount > 0)
