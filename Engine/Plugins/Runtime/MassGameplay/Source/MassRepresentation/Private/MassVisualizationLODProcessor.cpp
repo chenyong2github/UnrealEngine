@@ -46,6 +46,8 @@ void UMassVisualizationLODProcessor::ConfigureQueries()
 
 	DebugEntityQuery = BaseQuery;
 	DebugEntityQuery.RegisterWithProcessor(*this);
+
+	ProcessorRequirements.AddSubsystemRequirement<UMassLODSubsystem>(EMassFragmentAccess::ReadOnly);
 }
 
 void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -63,7 +65,7 @@ void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareExecution)
-		// @todo this access patter will be transformed into "computation tasks" in near future. Do not duplicate.
+		ConfigureContextForProcessorUse(Context);
 		const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
 		const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([this, &Viewers](FMassVisualizationLODSharedFragment& LODSharedFragment)

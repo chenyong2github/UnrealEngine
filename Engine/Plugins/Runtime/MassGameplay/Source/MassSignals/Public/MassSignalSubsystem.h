@@ -109,3 +109,12 @@ protected:
 
 	TArray<FDelayedSignal> DelayedSignals;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<UMassSignalSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};

@@ -19,14 +19,12 @@ void FMassExecutionContext::ClearExecutionData()
 	ChunkSerialModificationNumber = -1;
 	ConstSubsystemsBitSet.Reset();
 	MutableSubsystemsBitSet.Reset();
-	bSubsystemRequirementsSet = false;
 }
 
 void FMassExecutionContext::SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems)
 {
 	ConstSubsystemsBitSet = RequiredConstSubsystems;
 	MutableSubsystemsBitSet = RequiredMutableSubsystems;
-	bSubsystemRequirementsSet = true;
 }
 
 void FMassExecutionContext::SetEntityCollection(const FMassArchetypeEntityCollection& InEntityCollection)

@@ -19,19 +19,12 @@ public:
 	UMassSmartObjectCandidatesFinderProcessor();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** Extents used to perform the spatial query in the octree for world location queries. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, config)
 	float SearchExtents = 5000.f;
-
-	UPROPERTY(Transient)
-	UMassSignalSubsystem* SignalSubsystem;
-
-	UPROPERTY(Transient)
-	UZoneGraphAnnotationSubsystem* AnnotationSubsystem;
 
 	/** Query to fetch and process requests to find smart objects using spacial query around a given world location. */
 	FMassEntityQuery WorldRequestQuery;
@@ -49,12 +42,8 @@ public:
 	UMassSmartObjectTimedBehaviorProcessor();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void ConfigureQueries() override;
-
-	UPROPERTY(Transient)
-	UMassSignalSubsystem* SignalSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };

@@ -242,11 +242,6 @@ UMassStateTreeActivationProcessor::UMassStateTreeActivationProcessor()
 	bRequiresGameThreadExecution = true; // due to UMassStateTreeSubsystem RW access
 }
 
-void UMassStateTreeActivationProcessor::Initialize(UObject& Owner)
-{
-	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
-}
-
 void UMassStateTreeActivationProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassStateTreeInstanceFragment>(EMassFragmentAccess::ReadWrite);
@@ -254,14 +249,14 @@ void UMassStateTreeActivationProcessor::ConfigureQueries()
 	EntityQuery.AddTagRequirement<FMassStateTreeActivatedTag>(EMassFragmentPresence::None);
 	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	EntityQuery.AddSubsystemRequirement<UMassStateTreeSubsystem>(EMassFragmentAccess::ReadWrite);
+
+	ProcessorRequirements.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	if (SignalSubsystem == nullptr)
-	{
-		return;
-	}
+	ConfigureContextForProcessorUse(Context);
+	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(EntitySubsystem.GetWorld());
 
 	const UMassBehaviorSettings* BehaviorSettings = GetDefault<UMassBehaviorSettings>();
 	check(BehaviorSettings);
@@ -269,7 +264,7 @@ void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
 
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
+	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, SignalSubsystem, Context);
 
 	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
 
@@ -325,8 +320,7 @@ void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 	// Signal all entities inside the consolidated list
 	if (EntitiesToSignal.Num())
 	{
-		checkf(SignalSubsystem != nullptr, TEXT("Expecting a valid MassSignalSubsystem when activating state trees."));
-		SignalSubsystem->SignalEntities(UE::Mass::Signals::StateTreeActivate, EntitiesToSignal);
+		SignalSubsystem.SignalEntities(UE::Mass::Signals::StateTreeActivate, EntitiesToSignal);
 	}
 }
 
@@ -351,30 +345,30 @@ void UMassStateTreeProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
-	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
+	UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 
-	SubscribeToSignal(UE::Mass::Signals::StateTreeActivate);
-	SubscribeToSignal(UE::Mass::Signals::LookAtFinished);
-	SubscribeToSignal(UE::Mass::Signals::NewStateTreeTaskRequired);
-	SubscribeToSignal(UE::Mass::Signals::StandTaskFinished);
-	SubscribeToSignal(UE::Mass::Signals::DelayedTransitionWakeup);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::StateTreeActivate);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::LookAtFinished);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::NewStateTreeTaskRequired);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::StandTaskFinished);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::DelayedTransitionWakeup);
 
 	// @todo MassStateTree: add a way to register/unregister from enter/exit state (need reference counting)
-	SubscribeToSignal(UE::Mass::Signals::SmartObjectRequestCandidates);
-	SubscribeToSignal(UE::Mass::Signals::SmartObjectCandidatesReady);
-	SubscribeToSignal(UE::Mass::Signals::SmartObjectInteractionDone);
-	SubscribeToSignal(UE::Mass::Signals::SmartObjectInteractionAborted);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::SmartObjectRequestCandidates);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::SmartObjectCandidatesReady);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::SmartObjectInteractionDone);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::SmartObjectInteractionAborted);
 
-	SubscribeToSignal(UE::Mass::Signals::FollowPointPathStart);
-	SubscribeToSignal(UE::Mass::Signals::FollowPointPathDone);
-	SubscribeToSignal(UE::Mass::Signals::CurrentLaneChanged);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::FollowPointPathStart);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::FollowPointPathDone);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::CurrentLaneChanged);
 
-	SubscribeToSignal(UE::Mass::Signals::AnnotationTagsChanged);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::AnnotationTagsChanged);
 
-	SubscribeToSignal(UE::Mass::Signals::HitReceived);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::HitReceived);
 
 	// @todo MassStateTree: move this to its game plugin when possible
-	SubscribeToSignal(UE::Mass::Signals::ContextualAnimTaskFinished);
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::ContextualAnimTaskFinished);
 }
 
 void UMassStateTreeProcessor::ConfigureQueries()
@@ -382,24 +376,26 @@ void UMassStateTreeProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassStateTreeInstanceFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddConstSharedRequirement<FMassStateTreeSharedFragment>();
 	EntityQuery.AddSubsystemRequirement<UMassStateTreeSubsystem>(EMassFragmentAccess::ReadWrite);
+
+	ProcessorRequirements.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
-	if (SignalSubsystem == nullptr)
-	{
-		return;
-	}
+	UWorld* World = EntitySubsystem.GetWorld();
+	ConfigureContextForProcessorUse(Context);
+	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(World);
+	
 	QUICK_SCOPE_CYCLE_COUNTER(StateTreeProcessor_Run);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
 
 	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
+	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, SignalSubsystem, Context);
 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context,
-		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World = EntitySubsystem.GetWorld(), &EntitySignals](FMassExecutionContext& Context)
+		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World, &EntitySignals](FMassExecutionContext& Context)
 		{
 			// Keep stats regarding the amount of tree instances ticked per frame
 			CSV_CUSTOM_STAT(StateTreeProcessor, NumTickedStateTree, Context.GetNumEntities(), ECsvCustomStatOp::Accumulate);
@@ -453,6 +449,6 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 
 	if (EntitiesToSignal.Num())
 	{
-		SignalSubsystem->SignalEntities(UE::Mass::Signals::NewStateTreeTaskRequired, EntitiesToSignal);
+		SignalSubsystem.SignalEntities(UE::Mass::Signals::NewStateTreeTaskRequired, EntitiesToSignal);
 	}
 }

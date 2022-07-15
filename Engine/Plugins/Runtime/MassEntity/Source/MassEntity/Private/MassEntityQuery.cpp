@@ -312,6 +312,12 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
+void FMassEntityQuery::ApplyQueryRequirementsToContext(FMassExecutionContext& ExecutionContext)
+{
+	ExecutionContext.SetSubsystemRequirements(RequiredConstSubsystems, RequiredMutableSubsystems);
+	ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
+}
+
 int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);

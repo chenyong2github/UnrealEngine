@@ -124,6 +124,9 @@ public:
 	 */
 	void ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 
+	/** Configures ExecutionContext with access/presence requirements declared by this query */
+	void ApplyQueryRequirementsToContext(FMassExecutionContext& ExecutionContext);
+
 	/** Will gather all archetypes from InEntitySubsystem matching this->Requirements.
 	 *  Note that no work will be done if the cached data is up to date (as tracked by EntitySubsystemHash and 
 	 *	ArchetypeDataVersion properties). */

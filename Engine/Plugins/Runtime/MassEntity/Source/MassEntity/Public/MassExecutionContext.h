@@ -60,11 +60,6 @@ private:
 	 * is mainly utilized to avoid numerous small flushes in favor of fewer larger ones. */
 	bool bFlushDeferredCommands = true;
 
-	/** A temporary variable letting us access subsystems via a FMassExecutionContext outside of MassEntityQuery's 
-	 * execution. Will go away once entity-independent calculations as well as query-bound calculations are being 
-	 * performed with a common tasks interface */
-	bool bSubsystemRequirementsSet = false;
-
 	TArrayView<FFragmentView> GetMutableRequirements() { return FragmentViews; }
 	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkFragmentViews; }
 	TArrayView<FConstSharedFragmentView> GetMutableConstSharedRequirements() { return ConstSharedFragmentViews; }
@@ -250,7 +245,7 @@ public:
 	{
 		// @todo consider getting this directly from entity subsystem - it should cache all the used system
 		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
-		if (bSubsystemRequirementsSet == false || ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		if (ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex);
 		}
@@ -270,7 +265,7 @@ public:
 	const T* GetSubsystem(const UWorld* World)
 	{
 		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
-		if (bSubsystemRequirementsSet == false || ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		if (ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex);
 		}
@@ -284,9 +279,6 @@ public:
 		check(InstancePtr);
 		return *InstancePtr;
 	}
-	
-
-	void SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems);
 
 	template<typename T>
 	T* GetMutableSubsystem(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
@@ -350,6 +342,8 @@ public:
 	}
 
 protected:
+	void SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems);
+
 	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, 
 		TConstArrayView<FMassFragmentRequirement> InChunkRequirements, 
 		TConstArrayView<FMassFragmentRequirement> InConstSharedRequirements, 

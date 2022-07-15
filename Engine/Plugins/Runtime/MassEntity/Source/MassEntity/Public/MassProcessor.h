@@ -45,7 +45,8 @@ class MASSENTITY_API UMassProcessor : public UObject
 {
 	GENERATED_BODY()
 public:
-	UMassProcessor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UMassProcessor();
+	UMassProcessor(const FObjectInitializer& ObjectInitializer);
 
 	virtual void Initialize(UObject& Owner) {}
 	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray());
@@ -56,6 +57,10 @@ public:
 	bool ShouldExecute(const EProcessorExecutionFlags CurrentExecutionFlags) const { return (GetExecutionFlags() & CurrentExecutionFlags) != EProcessorExecutionFlags::None; }
 	void CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 	
+	/** Configures Context to accept access requests performed outside of FMassEntityQuery::ForEachEntityChunk calls.
+	 *  The access is declared via ProcessorQuery member variable */
+	void ConfigureContextForProcessorUse(FMassExecutionContext& Context);
+
 	bool AllowDuplicates() const { return bAllowDuplicates; }
 
 	virtual void DebugOutputDescription(FOutputDevice& Ar, int32 Indent = 0) const;
@@ -134,6 +139,9 @@ protected:
 
 	friend UMassCompositeProcessor;
 	friend FMassDebugger;
+
+	/** A query representing elements this processor is accessing in Execute function outside of query execution */
+	FMassEntityQuery ProcessorRequirements;
 
 private:
 	/** Stores processor's queries registered via RegisterQuery. 

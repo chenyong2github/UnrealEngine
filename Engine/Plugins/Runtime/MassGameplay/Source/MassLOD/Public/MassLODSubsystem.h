@@ -7,7 +7,7 @@
 #include "IndexedHandle.h"
 #include "MassLODTypes.h"
 #include "Subsystems/WorldSubsystem.h"
-
+#include "MassExternalSubsystemTraits.h"
 #include "MassLODSubsystem.generated.h"
 
 class UMassLODSubsystem;
@@ -137,3 +137,11 @@ private:
 
 };
 
+template<>
+struct TMassExternalSubsystemTraits<UMassLODSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};

@@ -11,14 +11,9 @@ UMassSignalProcessorBase::UMassSignalProcessorBase(const FObjectInitializer& Obj
 {
 }
 
-void UMassSignalProcessorBase::Initialize(UObject& Owner)
-{
-	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
-}
-
 void UMassSignalProcessorBase::BeginDestroy()
 {
-	if (SignalSubsystem)
+	if (UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(GetWorld()))
 	{
 		for (const FName& SignalName : RegisteredSignals)
 		{
@@ -29,12 +24,11 @@ void UMassSignalProcessorBase::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UMassSignalProcessorBase::SubscribeToSignal(const FName SignalName)
+void UMassSignalProcessorBase::SubscribeToSignal(UMassSignalSubsystem& SignalSubsystem, const FName SignalName)
 {
-	check(SignalSubsystem);
 	check(!RegisteredSignals.Contains(SignalName));
 	RegisteredSignals.Add(SignalName);
-	SignalSubsystem->GetSignalDelegateByName(SignalName).AddUObject(this, &UMassSignalProcessorBase::OnSignalReceived);
+	SignalSubsystem.GetSignalDelegateByName(SignalName).AddUObject(this, &UMassSignalProcessorBase::OnSignalReceived);
 }
 
 void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

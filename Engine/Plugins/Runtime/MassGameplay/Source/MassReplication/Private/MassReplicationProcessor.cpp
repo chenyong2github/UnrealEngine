@@ -59,6 +59,8 @@ void UMassReplicationProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassReplicatedAgentFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddConstSharedRequirement<FMassReplicationParameters>();
 	EntityQuery.AddSharedRequirement<FMassReplicationSharedFragment>(EMassFragmentAccess::ReadWrite);
+
+	ProcessorRequirements.AddSubsystemRequirement<UMassLODSubsystem>(EMassFragmentAccess::ReadOnly);
 }
 
 void UMassReplicationProcessor::Initialize(UObject& Owner)
@@ -162,7 +164,8 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 		PrepareExecution(EntitySubsystem);
 	}
 
-	UMassLODSubsystem& LODSubsystem = Context.GetMutableSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
+	ConfigureContextForProcessorUse(Context);
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
 	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem.GetViewers();
 	const TArray<FMassClientHandle>& ClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
 	for (const FMassClientHandle ClientHandle : ClientHandles)

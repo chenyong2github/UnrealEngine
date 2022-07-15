@@ -12,6 +12,7 @@
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassSimulationLOD.h"
+#include "MassSignalSubsystem.h"
 
 //----------------------------------------------------------------------//
 // UMassCrowdLaneTrackingSignalProcessor
@@ -33,7 +34,8 @@ void UMassCrowdLaneTrackingSignalProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 	
-	SubscribeToSignal(UE::Mass::Signals::CurrentLaneChanged);
+	UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::CurrentLaneChanged);
 }
 
 void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)

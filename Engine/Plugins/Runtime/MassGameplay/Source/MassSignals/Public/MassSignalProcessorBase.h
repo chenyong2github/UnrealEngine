@@ -23,12 +23,6 @@ public:
 	UMassSignalProcessorBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
-	/**
-	 * Initialize the processor
-	 * @param Owner of the Processor
-	 */
-	virtual void Initialize(UObject& Owner) override;
-
 	virtual void BeginDestroy() override;
 
 	/** Configure the owned FMassEntityQuery instances to express processor queries requirements */
@@ -60,11 +54,7 @@ protected:
 	 * To receive notification about a particular signal, you need to subscribe to it.
 	 * @param SignalName is the name of the signal to receive notification about
 	 */
-	void SubscribeToSignal(const FName SignalName);
-
-	
-	UPROPERTY(Transient)
-	UMassSignalSubsystem* SignalSubsystem = nullptr;
+	void SubscribeToSignal(UMassSignalSubsystem& SignalSubsystem, const FName SignalName);
 
 	FMassEntityQuery EntityQuery;
 

@@ -100,8 +100,14 @@ public:
 // UMassProcessor 
 //----------------------------------------------------------------------//
 UMassProcessor::UMassProcessor(const FObjectInitializer& ObjectInitializer)
+	: UMassProcessor()
+{
+}
+
+UMassProcessor::UMassProcessor()
 	: ExecutionFlags((int32)(EProcessorExecutionFlags::Server | EProcessorExecutionFlags::Standalone))
 {
+	RegisterQuery(ProcessorRequirements);
 }
 
 void UMassProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister)
@@ -146,6 +152,11 @@ void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExe
 	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
 #endif
 	Execute(EntitySubsystem, Context);
+}
+
+void UMassProcessor::ConfigureContextForProcessorUse(FMassExecutionContext& Context)
+{
+	ProcessorRequirements.ApplyQueryRequirementsToContext(Context);
 }
 
 void UMassProcessor::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
