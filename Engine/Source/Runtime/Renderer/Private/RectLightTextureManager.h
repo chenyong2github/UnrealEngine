@@ -20,22 +20,22 @@ struct FAtlasSlotDesc
 };
 	
 // Add a rect light source texture to the texture atlas
-uint32 AddRectLightTexture(UTexture* Texture);
+RENDERER_API uint32 AddRectLightTexture(UTexture* Texture);
 
 // Remove a rect light source texture to the texture atlas
-void RemoveRectLightTexture(uint32 InSlotId);
+RENDERER_API void RemoveRectLightTexture(uint32 InSlotId);
 
 // Return the atlas texture coordinate for a	 particular slot
-FAtlasSlotDesc GetRectLightAtlasSlot(uint32 InSlotId);
+RENDERER_API FAtlasSlotDesc GetRectLightAtlasSlot(uint32 InSlotId);
 
 // Return the atlas texture
-FRHITexture* GetRectLightAtlasTexture();
+RENDERER_API FRHITexture* GetRectLightAtlasTexture();
 
 // Update the rect light atlas texture
-void UpdateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLevel::Type FeatureLevel);
+RENDERER_API void UpdateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLevel::Type FeatureLevel);
 
 // Return the rect light atlas debug pass
-void AddRectLightAtlasDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture);
+RENDERER_API void AddRectLightAtlasDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture);
 
 // Scope for invalidating a particular texture 
 // This ensures the atlas contains the latest version of the texture and filter it

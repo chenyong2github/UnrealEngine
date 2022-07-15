@@ -3,6 +3,7 @@
 #include "Lights.h"
 #include "RenderGraphBuilder.h"
 #include "ReflectionEnvironment.h"
+#include "RectLightTextureManager.h"
 
 RENDERER_API void PrepareSkyTexture_Internal(
 	FRDGBuilder& GraphBuilder,
@@ -200,6 +201,22 @@ FRectLightRenderState::FRectLightRenderState(URectLightComponent* RectLightCompo
 	AttenuationRadius = RectLightComponent->AttenuationRadius;
 	ShadowMapChannel = RectLightComponent->PreviewShadowMapChannel;
 	IESTexture = RectLightComponent->IESTexture ? RectLightComponent->IESTexture->GetResource() : nullptr;
+	SourceTexture = RectLightComponent->SourceTexture;
+}
+
+void FRectLightRenderState::RenderThreadInit()
+{
+	AtlasSlotIndex = RectLightAtlas::AddRectLightTexture(SourceTexture);
+
+	const RectLightAtlas::FAtlasSlotDesc Slot = RectLightAtlas::GetRectLightAtlasSlot(AtlasSlotIndex);
+	RectLightAtlasUVOffset = Slot.UVOffset;
+	RectLightAtlasUVScale = Slot.UVScale;
+	RectLightAtlasMaxLevel = Slot.MaxMipLevel;
+}
+
+void FRectLightRenderState::RenderThreadFinalize()
+{
+	RectLightAtlas::RemoveRectLightTexture(AtlasSlotIndex);
 }
 
 FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() const
@@ -279,10 +296,7 @@ FLightRenderParameters FRectLightRenderState::GetLightShaderParameters() const
 	LightParameters.SourceLength = SourceHeight * 0.5f;
 	LightParameters.RectLightBarnCosAngle = FMath::Cos(FMath::DegreesToRadians(BarnDoorAngle));
 	LightParameters.RectLightBarnLength = BarnDoorLength;
-	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
-	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
-	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
-
+	
 	return LightParameters;
 }
 

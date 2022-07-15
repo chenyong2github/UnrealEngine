@@ -11,6 +11,11 @@ RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLight
 
 RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV);
 
+static uint32 EncodeToF16x2(const FVector2f& In)
+{
+	return FFloat16(In.X).Encoded | (FFloat16(In.Y).Encoded << 16);
+}
+
 template<typename PassParameterType>
 void SetupPathTracingLightParameters(
 	const GPULightmass::FLightSceneRenderState& LightScene,
@@ -205,6 +210,13 @@ void SetupPathTracingLightParameters(
 		FVector3f Tip = Center + Normal * Radius;
 		DestLight.TranslatedBoundMin = Tip.ComponentMin(Center - Radius * Disc);
 		DestLight.TranslatedBoundMax = Tip.ComponentMax(Center + Radius * Disc);
+
+		DestLight.RectLightAtlasUVOffset = EncodeToF16x2(Light.RectLightAtlasUVOffset);
+		DestLight.RectLightAtlasUVScale  = EncodeToF16x2(Light.RectLightAtlasUVScale);
+		if (Light.RectLightAtlasMaxLevel < 16)
+		{
+			DestLight.Flags |= PATHTRACER_FLAG_HAS_RECT_TEXTURE_MASK;
+		}
 	}
 
 	PassParameters->SceneLightCount = Lights.Num();

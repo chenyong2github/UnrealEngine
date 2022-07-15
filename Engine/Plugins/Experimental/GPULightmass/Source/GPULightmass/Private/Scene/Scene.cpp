@@ -442,6 +442,8 @@ void FScene::AddLight(LightComponentType* LightComponent)
 	{
 		typename LightTypeInfo<LightComponentType>::RenderStateRefType LightRenderStateRef = LightTypeInfo<LightComponentType>::GetLightRenderStateArray(RenderState.LightSceneRenderState).Emplace(MoveTemp(LightRenderState));
 
+		LightRenderStateRef->RenderThreadInit();
+
 		for (FGeometryRenderStateToken Token : RelevantGeometriesToUpdateOnRenderThread)
 		{
 			for (FLightmapRenderStateRef& Lightmap : Token.RenderStateArray->Get(Token.ElementId).LODLightmapRenderStates)
@@ -531,6 +533,8 @@ void FScene::RemoveLight(LightComponentType* PointLightComponent)
 	{
 		typename LightTypeInfo<LightComponentType>::RenderStateRefType LightRenderStateRef(LightTypeInfo<LightComponentType>::GetLightRenderStateArray(RenderState.LightSceneRenderState).Elements[ElementId], LightTypeInfo<LightComponentType>::GetLightRenderStateArray(RenderState.LightSceneRenderState));
 
+		LightRenderStateRef->RenderThreadFinalize();
+		
 		for (FGeometryRenderStateToken Token : RelevantGeometriesToUpdateOnRenderThread)
 		{
 			for (FLightmapRenderStateRef& Lightmap : Token.RenderStateArray->Get(Token.ElementId).LODLightmapRenderStates)

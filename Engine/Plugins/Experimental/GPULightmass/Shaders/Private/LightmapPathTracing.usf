@@ -4,7 +4,7 @@
 PathTracingRayGenShader.usf: Reference path tracing
 ===============================================================================================*/
 
-#define SIMPLIFIED_MATERIAL_SHADER 1
+#define SIMPLIFIED_MATERIAL_SHADER 1 
 #define RANDSEQ_UNROLL_SOBOL 0
 #define USE_PATH_TRACING_LIGHT_GRID 1
 

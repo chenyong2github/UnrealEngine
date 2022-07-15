@@ -27,6 +27,7 @@
 #include "ScreenPass.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "ShaderCompiler.h"
+#include "RectLightTextureManager.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -1929,6 +1930,8 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 		MostCommonLODIndex = NonZeroLODIndices[FrameNumber % NonZeroLODIndices.Num()];
 	}
+
+	RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, Scene->FeatureLevel);
 
 	Scene->SetupRayTracingScene(MostCommonLODIndex);
 

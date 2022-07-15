@@ -85,6 +85,8 @@ struct FLocalLightBuildInfo
 struct FLocalLightRenderState
 {
 	FLocalLightRenderState(ULightComponent* LightComponent);
+	virtual void RenderThreadInit()  {}
+	virtual void RenderThreadFinalize()  {}
 	virtual ~FLocalLightRenderState() {}
 
 	bool bStationary = false;
@@ -267,7 +269,9 @@ using FSpotLightRenderStateRef = TEntityArray<FSpotLightRenderState>::EntityRefT
 struct FRectLightRenderState : public FLocalLightRenderState
 {
 	FRectLightRenderState(URectLightComponent* ComponentUObject);
-
+	virtual void RenderThreadInit() override;
+	virtual void RenderThreadFinalize() override;
+	
 	FLinearColor Color;
 	float AttenuationRadius;
 	FVector Position;
@@ -278,6 +282,11 @@ struct FRectLightRenderState : public FLocalLightRenderState
 	float BarnDoorAngle;
 	float BarnDoorLength;
 	FTexture* IESTexture;
+	UTexture* SourceTexture;
+	uint32 AtlasSlotIndex;
+	FVector2f RectLightAtlasUVOffset;
+	FVector2f RectLightAtlasUVScale;
+	float RectLightAtlasMaxLevel;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
 };

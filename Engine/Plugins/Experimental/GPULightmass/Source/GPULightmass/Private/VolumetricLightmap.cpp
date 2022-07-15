@@ -10,6 +10,7 @@
 #include "RHIGPUReadback.h"
 #include "LevelEditorViewport.h"
 #include "Editor.h"
+#include "RectLightTextureManager.h"
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationVS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationVS"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationGS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationGS"), SF_Geometry);
@@ -526,7 +527,10 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 		}
 	}
 
-	FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+	FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());	
+
+	RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, Scene->FeatureLevel);
+	
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Volumetric Lightmap Path Tracing");
 
