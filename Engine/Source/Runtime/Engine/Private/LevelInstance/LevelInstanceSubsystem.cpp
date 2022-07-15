@@ -1936,6 +1936,14 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	// When editing a Level Instance, push a new empty actor editor context
 	UActorEditorContextSubsystem::Get()->PushContext();
 
+	for (const auto& [LevelInstanceID, LoadedLevelInstance] : LoadedLevelInstances)
+	{
+		if (LoadedLevelInstance.LevelStreaming && LoadedLevelInstance.LevelStreaming->PackageNameToLoad.ToString() == LevelInstance->GetWorldAsset().GetLongPackageName())
+		{
+			LoadedLevelInstance.LevelStreaming->ResetLevelInstanceLoaders();
+		}
+	}
+
 	return true;
 }
 

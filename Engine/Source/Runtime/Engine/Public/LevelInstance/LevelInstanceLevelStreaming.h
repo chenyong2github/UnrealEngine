@@ -37,7 +37,8 @@ protected:
 	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 private:
 #if WITH_EDITOR
-	void PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance);
+	void ResetLevelInstanceLoaders();
+	void PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance, bool bResetLoaders);
 	void OnLoadedActorAddedToLevel(AActor& InActor);
 	void OnLoadedActorRemovedFromLevel(AActor& InActor);
 
@@ -45,6 +46,7 @@ private:
 
 	mutable FTransform CachedTransform;
 	mutable FBox CachedBounds;
+	bool bResetLoadersCalled;
 #endif
 	FLevelInstanceID LevelInstanceID;
 };

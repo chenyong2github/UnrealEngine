@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/WorldSettings.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
@@ -21,6 +22,7 @@ ULevelStreamingLevelInstance::ULevelStreamingLevelInstance(const FObjectInitiali
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, CachedBounds(ForceInit)
+	, bResetLoadersCalled(false)
 #endif
 {
 #if WITH_EDITOR
@@ -75,17 +77,63 @@ FBox ULevelStreamingLevelInstance::GetBounds() const
 void ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel(AActor& InActor)
 {
 	check(LevelInstanceEditorInstanceActor.IsValid());
-	PrepareLevelInstanceLoadedActor(InActor, GetLevelInstance());
+	PrepareLevelInstanceLoadedActor(InActor, GetLevelInstance(), true);
 }
 
-void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance)
+void ULevelStreamingLevelInstance::ResetLevelInstanceLoaders()
+{
+	// @todo_ow: Resetting the load will prevent any OFPA package to properly load since their import level will fail to resolve.
+	//           This is a temporary workaround. The downside of this is that the level can't be saved. 
+	//           Most of the changes will only affect OFPA packages. One problematic use case is when changing the pivot of a Level Instance.
+
+	if (bResetLoadersCalled)
+	{
+		return;
+	}
+
+	if (UWorld* OuterWorld = LoadedLevel ? LoadedLevel->GetTypedOuter<UWorld>() : nullptr)
+	{
+		UE_SCOPED_TIMER(*FString::Printf(TEXT("ULevelStreamingLevelInstance::ResetLevelInstanceLoaders(%s)"), *FPaths::GetBaseFilename(OuterWorld->GetPackage()->GetName())), LogLevelInstance, Log);
+
+		FName PackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
+		if (!ULevel::GetIsLevelPartitionedFromPackage(PackageName))
+		{
+			ResetLoaders(OuterWorld->GetPackage());
+		}
+
+		for (AActor* Actor : LoadedLevel->Actors)
+		{
+			if (Actor && Actor->IsPackageExternal())
+			{
+				ResetLoaders(Actor->GetExternalPackage());
+			}
+		}
+
+		LoadedLevel->ForEachActorFolder([](UActorFolder* ActorFolder)
+		{
+			if (ActorFolder->IsPackageExternal())
+			{
+				ResetLoaders(ActorFolder->GetExternalPackage());
+			}
+			return true;
+		});
+
+		bResetLoadersCalled = true;
+	}
+}
+
+void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance, bool bResetLoaders)
 {
 	InActor.ClearFlags(RF_Transactional);
 	InActor.SetFlags(RF_Transient);
 
 	if (InActor.IsPackageExternal())
 	{
-		ResetLoaders(InActor.GetExternalPackage());
+		if (bResetLoaders)
+		{
+			ResetLoaders(InActor.GetExternalPackage());
+		}
+
 		InActor.GetPackage()->SetFlags(RF_Transient);
 	}
 
@@ -176,15 +224,6 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			OuterWorld->ClearFlags(RF_Transactional);
 			OuterWorld->SetFlags(RF_Transient);
 			
-			// @todo_ow: Resetting the load will prevent any OFPA package to properly load since their import level will fail to resolve.
-			//           This is a temporary workaround. The downside of this is that the level can't be saved. 
-			//           Most of the changes will only affect OFPA packages. One problematic use case is when changing the pivot of a Level Instance.
-			FName PackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
-			if (!ULevel::GetIsLevelPartitionedFromPackage(PackageName))
-			{
-				ResetLoaders(OuterWorld->GetPackage());
-			}
-
 			OuterWorld->GetPackage()->ClearFlags(RF_Transactional);
 			OuterWorld->GetPackage()->SetFlags(RF_Transient);
 
@@ -198,14 +237,14 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			{
 				if (LevelActor)
 				{
-					LevelStreaming->PrepareLevelInstanceLoadedActor(*LevelActor, LevelInstance);
+					LevelStreaming->PrepareLevelInstanceLoadedActor(*LevelActor, LevelInstance, false);
 				}
 			}
+
 			Level->ForEachActorFolder([](UActorFolder* ActorFolder)
 			{
 				if (ActorFolder->IsPackageExternal())
 				{
-					ResetLoaders(ActorFolder->GetExternalPackage());
 					ActorFolder->GetPackage()->SetFlags(RF_Transient);
 				}
 				return true;
