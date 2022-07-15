@@ -103,8 +103,11 @@ static TArray<OodleNetworkHandlerComponent*> OodleComponentList;
  * CVars
  */
 
-TAutoConsoleVariable<int32> CVarOodleMinSizeForCompression(
-	TEXT("net.OodleMinSizeForCompression"), 0,
+static int32 GOodleMinSizeForCompression = 0;
+
+FAutoConsoleVariableRef CVarOodleMinSizeForCompression(
+	TEXT("net.OodleMinSizeForCompression"),
+	GOodleMinSizeForCompression,
 	TEXT("The minimum size an outgoing packet must be, for it to be considered for compression (does not count overhead of handler components which process packets after Oodle)."));
 
 
@@ -572,6 +575,8 @@ void OodleNetworkHandlerComponent::InitializeDictionaries()
 
 void OodleNetworkHandlerComponent::RemoteInitializeDictionaries()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Oodle_RemoteInitializeDictionaries);
+
 	InitializeDictionaries();
 
 	if (bOodleNetworkAnalytics && NetAnalyticsData.IsValid())
@@ -1060,6 +1065,12 @@ void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 						if (bCaptureMode && Handler->Mode == Handler::Mode::Server && InPacketLog != nullptr)
 						{
+#if !UE_BUILD_SHIPPING
+							QUICK_SCOPE_CYCLE_COUNTER(STAT_Oodle_InCaptureTime);
+
+							GPacketHandlerDiscardTimeguardMeasurement = true;
+#endif
+
 							InPacketLog->SerializePacket((void*)Packet.GetData(), DecompressedLength);
 						}
 #endif
@@ -1121,6 +1132,12 @@ void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 
 				if (SizeOfPacket > 0)
 				{
+#if !UE_BUILD_SHIPPING
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_Oodle_InCaptureTime);
+
+					GPacketHandlerDiscardTimeguardMeasurement = true;
+#endif
+
 					InPacketLog->SerializePacket((void*)Packet.GetData(), SizeOfPacket);
 				}
 			}
@@ -1142,6 +1159,12 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 
 			if (SizeOfPacket > 0)
 			{
+#if !UE_BUILD_SHIPPING
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_Oodle_OutCaptureTime);
+
+				GPacketHandlerDiscardTimeguardMeasurement = true;
+#endif
+
 				OutPacketLog->SerializePacket((void*)Packet.GetData(), SizeOfPacket);
 			}
 		}
@@ -1158,7 +1181,6 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 		FOodleNetworkAnalyticsVars* AnalyticsVars = (bOodleNetworkAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
 		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
 		FOodleNetworkDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
-		uint32 MinSizeForCompression = CVarOodleMinSizeForCompression.GetValueOnAnyThread();
 		uint32 UncompressedBytes = Packet.GetNumBytes();
 		bool bSkipCompressionClientDisabled = false;
 		bool bSkipCompressionTooSmall = false;
@@ -1177,7 +1199,7 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 		}
 
 		// Skip compression when the packet is below the minimum size
-		if (!bSkipCompression && (MinSizeForCompression > 0 && UncompressedBytes < MinSizeForCompression))
+		if (!bSkipCompression && (GOodleMinSizeForCompression > 0 && static_cast<int32>(UncompressedBytes) < GOodleMinSizeForCompression))
 		{
 			bSkipCompression = true;
 			bSkipCompressionTooSmall = true;
@@ -1202,7 +1224,7 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 				FMemory::Memcpy(UncompressedData, Packet.GetData(), UncompressedBytes);
 					
 				{
-#if STATS && !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING
 					SCOPE_CYCLE_COUNTER(STAT_Oodle_OutCompressTime);
 #endif
 

@@ -40,6 +40,7 @@ FAutoConsoleVariableRef CVarNetPacketHandlerCRCDump(
 
 static int32 GPacketHandlerTimeguardLimit = 20;
 static float GPacketHandlerTimeguardThresholdMS = 0.0f;
+bool GPacketHandlerDiscardTimeguardMeasurement = false;
 
 static FAutoConsoleVariableRef CVarNetPacketHandlerTimeguardThresholdMS(
 	TEXT("net.PacketHandlerTimeguardThresholdMS"),
@@ -56,10 +57,11 @@ static FAutoConsoleVariableRef CVarNetPacketHandlerTimeguardLimit(
 // Lightweight time guard. Note: Threshold of 0 disables the timeguard
 #define NET_LIGHTWEIGHT_TIME_GUARD_BEGIN( Name, ThresholdMS ) \
 	float PREPROCESSOR_JOIN(__TimeGuard_ThresholdMS_, Name) = ThresholdMS; \
-	uint64 PREPROCESSOR_JOIN(__TimeGuard_StartCycles_, Name) = ( ThresholdMS > 0.0f && GPacketHandlerTimeguardLimit > 0 ) ? FPlatformTime::Cycles64() : 0;
+	uint64 PREPROCESSOR_JOIN(__TimeGuard_StartCycles_, Name) = ( ThresholdMS > 0.0f && GPacketHandlerTimeguardLimit > 0 ) ? FPlatformTime::Cycles64() : 0; \
+	GPacketHandlerDiscardTimeguardMeasurement = false;
 
 #define NET_LIGHTWEIGHT_TIME_GUARD_END( Name, NameStringCode ) \
-	if ( PREPROCESSOR_JOIN(__TimeGuard_ThresholdMS_, Name) > 0.0f && GPacketHandlerTimeguardLimit > 0 ) \
+	if ( PREPROCESSOR_JOIN(__TimeGuard_ThresholdMS_, Name) > 0.0f && GPacketHandlerTimeguardLimit > 0 && !GPacketHandlerDiscardTimeguardMeasurement ) \
 	{\
 		float PREPROCESSOR_JOIN(__TimeGuard_MSElapsed_,Name) = FPlatformTime::ToMilliseconds64( FPlatformTime::Cycles64() - PREPROCESSOR_JOIN(__TimeGuard_StartCycles_,Name) ); \
 		if ( PREPROCESSOR_JOIN(__TimeGuard_MSElapsed_,Name) > PREPROCESSOR_JOIN(__TimeGuard_ThresholdMS_, Name) ) \
@@ -85,7 +87,7 @@ PacketHandler::PacketHandler(FDDoSDetection* InDDoS/*=nullptr*/)
 	, DDoS(InDDoS)
 	, LowLevelSendDel()
 	, HandshakeCompleteDel()
-	, OutgoingPacket()
+	, OutgoingPacket(MAX_PACKET_SIZE * 8)
 	, IncomingPacket()
 	, HandlerComponents()
 	, MaxPacketBits(0)

@@ -30,6 +30,9 @@ namespace UE
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+extern PACKETHANDLER_API bool GPacketHandlerDiscardTimeguardMeasurement;
+#endif
 
 /**
  * Delegates
