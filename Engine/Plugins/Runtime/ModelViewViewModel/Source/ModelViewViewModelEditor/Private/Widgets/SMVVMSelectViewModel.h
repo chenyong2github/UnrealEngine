@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ClassViewerFilter.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SClassViewer;
@@ -11,6 +12,15 @@ class UWidgetBlueprint;
 namespace UE::MVVM
 {
 class SSourceBindingList;
+
+class FViewModelClassFilter : public IClassViewerFilter
+{
+public:
+	FViewModelClassFilter() = default;
+
+	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override;
+	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override;
+};
 
 class SMVVMSelectViewModel : public SCompoundWidget
 {
@@ -29,10 +39,10 @@ private:
 	void HandleClassPicked(UClass* ClassPicked);
 	FReply HandleAccepted();
 	FReply HandleCancel();
-	bool HandelIsSelectionEnabled() const;
+	bool HandleIsSelectionEnabled() const;
 
 private:
-	TSharedPtr<SClassViewer> ClassViewer;
+	TSharedPtr<SWidget> ClassViewer;
 	TSharedPtr<SSourceBindingList> BindingListWidget;
 	TWeakObjectPtr<const UClass> SelectedClass;
 
