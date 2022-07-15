@@ -13,6 +13,14 @@ namespace UE::VertexDeltaModel
 	{
 	}
 
+	FVertexDeltaEditorModelActor::~FVertexDeltaEditorModelActor()
+	{
+		if (GeomCacheComponent)
+		{
+			Actor->RemoveOwnedComponent(GeomCacheComponent);
+		}
+	}
+
 	void FVertexDeltaEditorModelActor::SetVisibility(bool bIsVisible)
 	{
 		FMLDeformerEditorActor::SetVisibility(bIsVisible);

@@ -19,6 +19,19 @@ namespace UE::MLDeformer
 		bIsTrainingActor = Settings.bIsTrainingActor;
 	}
 
+	FMLDeformerEditorActor::~FMLDeformerEditorActor()
+	{
+		if (LabelComponent)
+		{
+			Actor->RemoveOwnedComponent(LabelComponent);
+		}
+
+		if (SkeletalMeshComponent)
+		{
+			Actor->RemoveOwnedComponent(SkeletalMeshComponent);
+		}
+	}
+
 	void FMLDeformerEditorActor::SetVisibility(bool bIsVisible)
 	{
 		if (SkeletalMeshComponent && bIsVisible != SkeletalMeshComponent->IsVisible())

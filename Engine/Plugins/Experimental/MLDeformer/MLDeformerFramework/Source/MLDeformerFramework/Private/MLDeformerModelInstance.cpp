@@ -252,15 +252,8 @@ bool UMLDeformerModelInstance::IsValidForDataProvider() const
 			return false;
 		}
 	}
-	else
-	{
-		// We don't support CPU neural networks on default, when using the deformer graph, as we want the neural network output on the GPU.
-		return false;
-	}
 
-	return
-		Model->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
-		GetNeuralNetworkInferenceHandle() != -1;
+	return (Model->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr) && (GetNeuralNetworkInferenceHandle() != -1);
 }
 
 void UMLDeformerModelInstance::RunNeuralNetwork(float ModelWeight)

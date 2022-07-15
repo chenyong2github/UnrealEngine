@@ -16,6 +16,7 @@ namespace UE::NeuralMorphModel
 	{
 	public:
 		FNeuralMorphEditorModelActor(const FConstructSettings& Settings);
+		virtual ~FNeuralMorphEditorModelActor() override;
 
 		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
 		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }

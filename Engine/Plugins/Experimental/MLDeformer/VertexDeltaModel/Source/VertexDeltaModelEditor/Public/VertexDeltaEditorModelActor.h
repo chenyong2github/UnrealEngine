@@ -16,6 +16,7 @@ namespace UE::VertexDeltaModel
 	{
 	public:
 		FVertexDeltaEditorModelActor(const FConstructSettings& Settings);
+		virtual ~FVertexDeltaEditorModelActor() override;
 
 		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
 		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }

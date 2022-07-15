@@ -13,6 +13,14 @@ namespace UE::NeuralMorphModel
 	{
 	}
 
+	FNeuralMorphEditorModelActor::~FNeuralMorphEditorModelActor()
+	{
+		if (GeomCacheComponent)
+		{
+			Actor->RemoveOwnedComponent(GeomCacheComponent);
+		}
+	}
+
 	void FNeuralMorphEditorModelActor::SetVisibility(bool bIsVisible)
 	{
 		FMLDeformerEditorActor::SetVisibility(bIsVisible);

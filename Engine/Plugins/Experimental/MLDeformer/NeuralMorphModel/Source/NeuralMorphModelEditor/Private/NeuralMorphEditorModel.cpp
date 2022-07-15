@@ -307,7 +307,7 @@ namespace UE::NeuralMorphModel
 
 	FString FNeuralMorphEditorModel::GetHeatMapDeformerGraphPath() const
 	{
-		return FString(TEXT("/Script/OptimusCore.OptimusDeformer'/Optimus/Deformers/DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals.DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals'"));
+		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel_GPUMorph_HeatMap.DG_MLDeformerModel_GPUMorph_HeatMap"));
 	}
 
 	void FNeuralMorphEditorModel::OnPreTraining()

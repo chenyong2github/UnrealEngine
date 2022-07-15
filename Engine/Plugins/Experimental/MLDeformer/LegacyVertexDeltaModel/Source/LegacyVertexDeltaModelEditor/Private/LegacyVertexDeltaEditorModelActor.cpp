@@ -13,6 +13,14 @@ namespace UE::LegacyVertexDeltaModel
 	{
 	}
 
+	FLegacyVertexDeltaEditorModelActor::~FLegacyVertexDeltaEditorModelActor()
+	{
+		if (GeomCacheComponent)
+		{
+			Actor->RemoveOwnedComponent(GeomCacheComponent);
+		}
+	}
+
 	void FLegacyVertexDeltaEditorModelActor::SetVisibility(bool bIsVisible)
 	{
 		FMLDeformerEditorActor::SetVisibility(bIsVisible);

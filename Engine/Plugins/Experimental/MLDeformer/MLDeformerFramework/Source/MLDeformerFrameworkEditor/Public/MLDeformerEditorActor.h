@@ -32,7 +32,7 @@ namespace UE::MLDeformer
 			bool bIsTrainingActor = false;
 		};
 		FMLDeformerEditorActor(const FConstructSettings& Settings);
-		virtual ~FMLDeformerEditorActor() = default;
+		virtual ~FMLDeformerEditorActor();
 
 		// Main methods you can override.
 		virtual void SetVisibility(bool bIsVisible);
@@ -56,8 +56,6 @@ namespace UE::MLDeformer
 		void SetMeshOffsetFactor(float OffsetFactor) { MeshOffsetFactor = OffsetFactor; }
 		bool IsTrainingActor() const { return bIsTrainingActor; }
 		bool IsTestActor() const { return !bIsTrainingActor; }
-		void SetCanDestroyActor(bool bCanDestroy) { bCanDestroyActor = bCanDestroy; }
-		bool GetCanDestroyActor() const { return bCanDestroyActor; }
 		float GetMeshOffsetFactor() const { return MeshOffsetFactor; }
 
 	protected:
@@ -85,11 +83,7 @@ namespace UE::MLDeformer
 		/** The position offset factor of the actor. A value of 1.0 would offset the actor with the Mesh Spacing amount, a value of 2.0 would be two times the mesh spacing offset, etc. */
 		float MeshOffsetFactor = 0.0f;
 
-		/** Can the actor we created be destroyed during cleanup? */
-		bool bCanDestroyActor = true;
-
 		/** Is this actor used for training? */
 		bool bIsTrainingActor = true;
 	};
-
 }	// namespace UE::MLDeformer

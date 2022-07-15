@@ -83,8 +83,8 @@ namespace UE::MLDeformer
 
 		// Spawn the linear skinned actor.
 		FActorSpawnParameters BaseSpawnParams;
-		BaseSpawnParams.Name = MakeUniqueObjectName(World, AAnimationEditorPreviewActor::StaticClass(), "Train Base Actor");
-		AActor* Actor = World->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity, BaseSpawnParams);
+		BaseSpawnParams.Name = MakeUniqueObjectName(World, AActor::StaticClass(), "Train Base Actor");
+		AActor* Actor = World->SpawnActor<AActor>(AActor::StaticClass(), BaseSpawnParams);
 		Actor->SetFlags(RF_Transient);
 
 		// Create the preview skeletal mesh component.
@@ -93,11 +93,6 @@ namespace UE::MLDeformer
 		SkelMeshComponent->SetWireframeMeshOverlayColor(BaseWireColor);
 		SkelMeshComponent->SetVisibility(false);
 		SkelMeshComponent->MarkRenderStateDirty();
-
-		// Setup an apply an anim instance to the skeletal mesh component.
-		UAnimPreviewInstance* AnimPreviewInstance = NewObject<UAnimPreviewInstance>(SkelMeshComponent, TEXT("MLDeformerAnimInstance"));
-		SkelMeshComponent->PreviewInstance = AnimPreviewInstance;
-		AnimPreviewInstance->InitializeAnimation();
 
 		// Set the skeletal mesh on the component.
 		// NOTE: This must be done AFTER setting the AnimInstance so that the correct root anim node is loaded.
@@ -121,7 +116,6 @@ namespace UE::MLDeformer
 		Settings.bIsTrainingActor = true;
 		FMLDeformerEditorActor* EditorActor = CreateEditorActor(Settings);
 		EditorActor->SetSkeletalMeshComponent(SkelMeshComponent);
-		EditorActor->SetCanDestroyActor(false);	// Crash will occur when destroying the Persona actor, so disable this.
 		EditorActor->SetMeshOffsetFactor(0.0f);
 		EditorActors.Add(EditorActor);
 	}
@@ -227,28 +221,33 @@ namespace UE::MLDeformer
 	{
 		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor->GetPersonaToolkit()->GetPreviewScene();
 
+		// First remove actors from the world and add them to the destroy list.
+		TArray<AActor*> ActorsToDestroy;
+		ActorsToDestroy.Reserve(EditorActors.Num());
 		UWorld* World = PreviewScene->GetWorld();
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
 			if (EditorActor)
-			{
+			{				
 				World->RemoveActor(EditorActor->GetActor(), true);
-				if (EditorActor->GetCanDestroyActor())
-				{
-					EditorActor->GetActor()->Destroy();
-				}
+				ActorsToDestroy.Add(EditorActor->GetActor());
 			}
 		}
 
+		// Now delete the editor actors, which removes components.
+		DeleteEditorActors();
+
+		PreviewScene->DeselectAll();
 		PreviewScene->SetPreviewAnimationAsset(nullptr);
 		PreviewScene->SetPreviewAnimationBlueprint(nullptr, nullptr);
 		PreviewScene->SetPreviewMesh(nullptr);
 		PreviewScene->SetPreviewMeshComponent(nullptr);
 		PreviewScene->SetActor(nullptr);
-		PreviewScene->ClearSelectedActor();
 
-		// Clear the editor actors.
-		DeleteEditorActors();
+		for (AActor* Actor : ActorsToDestroy)
+		{
+			Actor->Destroy();
+		}
 	}
 
 	FMLDeformerEditorActor* FMLDeformerEditorModel::CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const
