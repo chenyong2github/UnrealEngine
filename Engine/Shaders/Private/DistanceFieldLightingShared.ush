@@ -152,6 +152,7 @@ struct FDFObjectBounds
 	float SphereRadius;	// World space bounding sphere extent
 	float3 BoxExtent;	// World space AABB extent
 	uint OftenMoving;
+	bool bVisible;
 	uint bCastShadow;
 	bool bIsNaniteMesh;
 	uint bEmissiveLightSource;
@@ -186,6 +187,7 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 	Bounds.bCastShadow = (Flags & 2U) != 0U;
 	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
 	Bounds.bEmissiveLightSource = (Flags & 8U) != 0U;
+	Bounds.bVisible = (Flags & 16U) != 0U;
 
 	return Bounds;
 }

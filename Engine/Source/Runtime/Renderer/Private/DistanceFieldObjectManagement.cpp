@@ -735,12 +735,18 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 										UploadObjectBounds[1] = ObjectBoundingSphere;
 
 										const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-										const uint32 bOftenMoving = CacheType == GDF_Full;
-										const uint32 bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
-										const uint32 bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh() ? 1U : 0U;
-										const uint32 bEmissiveLightSource = PrimitiveSceneProxy->IsEmissiveLightSource();
+										const bool bOftenMoving = CacheType == GDF_Full;
+										const bool bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
+										const bool bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh();
+										const bool bEmissiveLightSource = PrimitiveSceneProxy->IsEmissiveLightSource();
+										const bool bVisible = PrimitiveSceneProxy->IsDrawnInGame(); // Distance field object can be invisible in main view, but cast shadows
 
-										const uint32 Flags = bOftenMoving | (bCastShadow << 1U) | (bIsNaniteMesh << 2U) | (bEmissiveLightSource << 3U);
+										uint32 Flags = 0;
+										Flags |= bOftenMoving ? 1u : 0;
+										Flags |= bCastShadow ? 2u : 0;
+										Flags |= bIsNaniteMesh ? 4u : 0;
+										Flags |= bEmissiveLightSource ? 8u : 0;
+										Flags |= bVisible ? 16u : 0;
 
 										FVector4f ObjectWorldExtentAndFlags((FVector3f)WorldSpaceMeshBounds.GetExtent(), 0.0f);
 										ObjectWorldExtentAndFlags.W = *(const float*)&Flags;

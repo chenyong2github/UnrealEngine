@@ -83,7 +83,8 @@ void CullObjectsToClipmapCS(
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
 		BRANCH
-		if ((DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold || DFObjectBounds.bEmissiveLightSource)
+		if (DFObjectBounds.bVisible
+			&& (DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold || DFObjectBounds.bEmissiveLightSource)
 			&& (AcceptOftenMovingObjectsOnly == 2 || DFObjectBounds.OftenMoving == AcceptOftenMovingObjectsOnly))
 		{
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter, ClipmapWorldExtent, LWCHackToFloat(DFObjectBounds.Center), DFObjectBounds.BoxExtent);
