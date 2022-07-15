@@ -237,6 +237,12 @@ protected:
 	 * @param PreviewMapType EBakeMapType to preview
 	 */
 	void UpdatePreview(EBakeMapType PreviewMapType);
+
+
+	/**
+	 * Resets the preview material parameters to their default state.
+	 */
+	void ResetPreview();
 	
 
 	/**
