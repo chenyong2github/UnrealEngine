@@ -36,6 +36,70 @@ void LexFromString(ELobbyJoinPolicy& OutPolicy, const TCHAR* InStr)
 	}
 }
 
+const TCHAR* LexToString(ELobbyMemberLeaveReason LeaveReason)
+{
+	switch (LeaveReason)
+	{
+	case ELobbyMemberLeaveReason::Left:			return TEXT("Left");
+	case ELobbyMemberLeaveReason::Kicked:		return TEXT("Kicked");
+	case ELobbyMemberLeaveReason::Disconnected:	return TEXT("Disconnected");
+	default:									checkNoEntry(); // Intentional fallthrough
+	case ELobbyMemberLeaveReason::Closed:		return TEXT("Closed");
+	}
+}
+
+void LexFromString(ELobbyMemberLeaveReason& OutLeaveReason, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Left")) == 0)
+	{
+		OutLeaveReason = ELobbyMemberLeaveReason::Left;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Kicked")) == 0)
+	{
+		OutLeaveReason = ELobbyMemberLeaveReason::Kicked;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Disconnected")) == 0)
+	{
+		OutLeaveReason = ELobbyMemberLeaveReason::Disconnected;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Closed")) == 0)
+	{
+		OutLeaveReason = ELobbyMemberLeaveReason::Closed;
+	}
+	else
+	{
+		checkNoEntry();
+		OutLeaveReason = ELobbyMemberLeaveReason::Closed;
+	}
+}
+
+const TCHAR* LexToString(ELobbyAttributeVisibility Visibility)
+{
+	switch (Visibility)
+	{
+	case ELobbyAttributeVisibility::Public:		return TEXT("Public");
+	default:									checkNoEntry(); // Intentional fallthrough
+	case ELobbyAttributeVisibility::Private:	return TEXT("Private");
+	}
+}
+
+void LexFromString(ELobbyAttributeVisibility& OutVisibility, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Public")) == 0)
+	{
+		OutVisibility = ELobbyAttributeVisibility::Public;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Private")) == 0)
+	{
+		OutVisibility = ELobbyAttributeVisibility::Private;
+	}
+	else
+	{
+		checkNoEntry();
+		OutVisibility = ELobbyAttributeVisibility::Private;
+	}
+}
+
 const TCHAR* LexToString(ELobbyComparisonOp Comparison)
 {
 	switch (Comparison)

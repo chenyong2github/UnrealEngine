@@ -40,7 +40,22 @@ public:
 public:
 	FVariantType VariantData;
 };
-ONLINESERVICESINTERFACE_API const FString LexToString(const FSchemaVariant& Variant);
+
+// Don't allow implicit conversion to FSchemaVariant when calling LexToString.
+template <typename T> class FLexToStringAdaptor;
+template <>
+class FLexToStringAdaptor<FSchemaVariant>
+{
+public:
+	FLexToStringAdaptor(const FSchemaVariant& SchemaVariant)
+		: SchemaVariant(SchemaVariant)
+	{
+	}
+
+	const FSchemaVariant& SchemaVariant;
+};
+
+ONLINESERVICESINTERFACE_API const FString LexToString(const FLexToStringAdaptor<FSchemaVariant>& Adaptor);
 ONLINESERVICESINTERFACE_API void LexFromString(FSchemaVariant& Variant, const TCHAR* InStr);
 
 /* UE::Online */ }

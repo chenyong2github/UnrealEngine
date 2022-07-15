@@ -62,6 +62,17 @@ const TCHAR* LexToString(const EOS_EFriendsStatus FriendStatus)
 	}
 }
 
+const TCHAR* LexToString(EOS_ELoginStatus LoginStatus)
+{
+	switch (LoginStatus)
+	{
+	default: checkNoEntry(); // Intentional fallthrough
+	case EOS_ELoginStatus::EOS_LS_NotLoggedIn:			return TEXT("EOS_LS_NotLoggedIn");
+	case EOS_ELoginStatus::EOS_LS_UsingLocalProfile:	return TEXT("EOS_LS_UsingLocalProfile");
+	case EOS_ELoginStatus::EOS_LS_LoggedIn:				return TEXT("EOS_LS_LoggedIn");
+	}
+}
+
 bool LexFromString(EOS_EExternalCredentialType& OutEnum, const TCHAR* InString)
 {
 	if (FCString::Stricmp(InString, TEXT("Steam")) == 0)

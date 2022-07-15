@@ -135,7 +135,7 @@ void FAuthOSSAdapter::PostInitialize()
 				{
 					if (TSharedPtr<FAuthOSSAdapter> PinnedThis = WeakThis.Pin())
 					{
-						PinnedThis->HandleLoginStatusChangedImplOp(FHandleLoginStatusChangedImpl::Params{
+						PinnedThis->HandleLoginStatusChangedImplOp(FAuthHandleLoginStatusChangedImpl::Params{
 							FPlatformMisc::GetPlatformUserForUserIndex(LocalUserNum),
 							static_cast<FOnlineServicesOSSAdapter&>(PinnedThis->Services).GetAccountIdRegistry().FindOrAddHandle(NetId.AsShared()),
 							TranslateLoginStatus(NewStatus) });
@@ -532,6 +532,17 @@ int32 FAuthOSSAdapter::GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) c
 	return AccountInfoOSSAdapter ? AccountInfoOSSAdapter->LocalUserNum : INDEX_NONE;
 }
 
+#if !UE_BUILD_SHIPPING
+void FAuthOSSAdapter::CheckMetadata()
+{
+	// Metadata sanity check.
+	ToLogString(FAuthHandleLoginStatusChangedImpl::Params());
+	ToLogString(FAuthHandleLoginStatusChangedImpl::Result());
+	Meta::VisitFields(FAuthHandleLoginStatusChangedImpl::Params(), [](const TCHAR* Name, auto& Field) { return false; });
+	Meta::VisitFields(FAuthHandleLoginStatusChangedImpl::Result(), [](const TCHAR* Name, auto& Field) { return false; });
+}
+#endif
+
 const FAccountInfoRegistry& FAuthOSSAdapter::GetAccountInfoRegistry() const
 {
 	return AccountInfoRegistryOSSAdapter;
@@ -557,14 +568,14 @@ IOnlineIdentityPtr FAuthOSSAdapter::GetIdentityInterface() const
 	return GetSubsystem().GetIdentityInterface();
 }
 
-TOnlineAsyncOpHandle<FAuthOSSAdapter::FHandleLoginStatusChangedImpl> FAuthOSSAdapter::HandleLoginStatusChangedImplOp(FHandleLoginStatusChangedImpl::Params&& Params)
+TOnlineAsyncOpHandle<FAuthHandleLoginStatusChangedImpl> FAuthOSSAdapter::HandleLoginStatusChangedImplOp(FAuthHandleLoginStatusChangedImpl::Params&& Params)
 {
-	TOnlineAsyncOpRef<FHandleLoginStatusChangedImpl> Op = GetOp<FHandleLoginStatusChangedImpl>(MoveTemp(Params));
+	TOnlineAsyncOpRef<FAuthHandleLoginStatusChangedImpl> Op = GetOp<FAuthHandleLoginStatusChangedImpl>(MoveTemp(Params));
 
 	// Step 1: Set up operation data.
-	Op->Then([this](TOnlineAsyncOp<FHandleLoginStatusChangedImpl>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FAuthHandleLoginStatusChangedImpl>& InAsyncOp)
 	{
-		const FHandleLoginStatusChangedImpl::Params& Params = InAsyncOp.GetParams();
+		const FAuthHandleLoginStatusChangedImpl::Params& Params = InAsyncOp.GetParams();
 		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.AccountId);
 		if (!AccountInfoOSSAdapter)
 		{
@@ -577,7 +588,7 @@ TOnlineAsyncOpHandle<FAuthOSSAdapter::FHandleLoginStatusChangedImpl> FAuthOSSAda
 		{
 			UE_LOG(LogOnlineServices, Log, TEXT("[FAuthOSSAdapter::HandleLoginStatusChangedImplOp][%s] Login status has not changed. Ignoring event. [%s] Current Status: %s"),
 				*GetSubsystem().GetSubsystemName().ToString(), *ToLogString(AccountInfoOSSAdapter->AccountId), *ToLogString(Params.NewLoginStatus));
-			InAsyncOp.SetResult(FHandleLoginStatusChangedImpl::Result{});
+			InAsyncOp.SetResult(FAuthHandleLoginStatusChangedImpl::Result{});
 			return;
 		}
 
@@ -585,16 +596,16 @@ TOnlineAsyncOpHandle<FAuthOSSAdapter::FHandleLoginStatusChangedImpl> FAuthOSSAda
 		InAsyncOp.Data.Set<TSharedRef<FAccountInfoOSSAdapter>>(AccountInfoKeyName, AccountInfoOSSAdapter.ToSharedRef());
 	})
 	// Step 2: Update status and notify.
-	.Then([this](TOnlineAsyncOp<FHandleLoginStatusChangedImpl>& InAsyncOp)
+	.Then([this](TOnlineAsyncOp<FAuthHandleLoginStatusChangedImpl>& InAsyncOp)
 	{
-		const FHandleLoginStatusChangedImpl::Params& Params = InAsyncOp.GetParams();
+		const FAuthHandleLoginStatusChangedImpl::Params& Params = InAsyncOp.GetParams();
 		const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoOSSAdapter = GetOpDataChecked<TSharedRef<FAccountInfoOSSAdapter>>(InAsyncOp, AccountInfoKeyName);
 
 		UE_LOG(LogOnlineServices, Log, TEXT("[FAuthOSSAdapter::HandleLoginStatusChangedImplOp][%s] Login status changed for account [%s]: %s => %s."),
 			*GetSubsystem().GetSubsystemName().ToString(), *ToLogString(AccountInfoOSSAdapter->AccountId), *ToLogString(AccountInfoOSSAdapter->LoginStatus), *ToLogString(Params.NewLoginStatus));
 		AccountInfoOSSAdapter->LoginStatus = Params.NewLoginStatus;
 		OnAuthLoginStatusChangedEvent.Broadcast(FAuthLoginStatusChanged{ AccountInfoOSSAdapter, AccountInfoOSSAdapter->LoginStatus });
-		InAsyncOp.SetResult(FHandleLoginStatusChangedImpl::Result{});
+		InAsyncOp.SetResult(FAuthHandleLoginStatusChangedImpl::Result{});
 	})
 	.Enqueue(GetSerialQueue());
 

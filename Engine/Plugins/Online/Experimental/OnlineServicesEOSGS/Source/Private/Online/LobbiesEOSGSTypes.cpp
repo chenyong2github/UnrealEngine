@@ -1033,4 +1033,9 @@ FLobbySearchEOS::FLobbySearchEOS(const TSharedRef<FSearchHandle>& SearchHandle, 
 {
 }
 
+FString ToLogString(const FLobbyDataEOS& LobbyData)
+{
+	return FString::Printf(TEXT("[%s:%s]"), *ToLogString(LobbyData.GetLobbyIdHandle()), *LobbyData.GetLobbyId());
+}
+
 /* UE::Online */ }

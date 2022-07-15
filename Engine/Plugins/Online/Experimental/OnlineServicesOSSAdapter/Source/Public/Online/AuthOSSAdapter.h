@@ -14,6 +14,22 @@ namespace UE::Online {
 
 class FOnlineServicesOSSAdapter;
 
+struct FAuthHandleLoginStatusChangedImpl
+{
+	static constexpr TCHAR Name[] = TEXT("HandleLoginStatusChangedImpl");
+
+	struct Params
+	{
+		FPlatformUserId PlatformUserId;
+		FOnlineAccountIdHandle AccountId;
+		ELoginStatus NewLoginStatus;
+	};
+
+	struct Result
+	{
+	};
+};
+
 struct FAccountInfoOSSAdapter final : public FAccountInfo
 {
 	FUniqueNetIdPtr UniqueNetId;
@@ -56,6 +72,10 @@ public:
 	int32 GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const;
 
 protected:
+#if !UE_BUILD_SHIPPING
+	static void CheckMetadata();
+#endif
+
 	virtual const FAccountInfoRegistry& GetAccountInfoRegistry() const override;
 
 	const FOnlineServicesOSSAdapter& GetOnlineServicesOSSAdapter() const;
@@ -63,26 +83,23 @@ protected:
 	const IOnlineSubsystem& GetSubsystem() const;
 	IOnlineIdentityPtr GetIdentityInterface() const;
 
-	struct FHandleLoginStatusChangedImpl
-	{
-		static constexpr TCHAR Name[] = TEXT("HandleLoginStatusChangedImpl");
-
-		struct Params
-		{
-			FPlatformUserId PlatformUserId;
-			FOnlineAccountIdHandle AccountId;
-			ELoginStatus NewLoginStatus;
-		};
-
-		struct Result
-		{
-		};
-	};
-
-	TOnlineAsyncOpHandle<FHandleLoginStatusChangedImpl> HandleLoginStatusChangedImplOp(FHandleLoginStatusChangedImpl::Params&& Params);
+	TOnlineAsyncOpHandle<FAuthHandleLoginStatusChangedImpl> HandleLoginStatusChangedImplOp(FAuthHandleLoginStatusChangedImpl::Params&& Params);
 
 	FAccountInfoRegistryOSSAdapter AccountInfoRegistryOSSAdapter;
 	FDelegateHandle OnLoginStatusChangedHandle[MAX_LOCAL_PLAYERS];
 };
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FAuthHandleLoginStatusChangedImpl::Params)
+	ONLINE_STRUCT_FIELD(FAuthHandleLoginStatusChangedImpl::Params, PlatformUserId),
+	ONLINE_STRUCT_FIELD(FAuthHandleLoginStatusChangedImpl::Params, AccountId),
+	ONLINE_STRUCT_FIELD(FAuthHandleLoginStatusChangedImpl::Params, NewLoginStatus)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthHandleLoginStatusChangedImpl::Result)
+END_ONLINE_STRUCT_META()
+
+/* Meta*/ }
 
 /* UE::Online */ }

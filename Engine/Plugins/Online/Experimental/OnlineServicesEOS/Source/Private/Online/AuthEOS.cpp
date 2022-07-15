@@ -88,7 +88,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		FAuthEOSLoginConfig AuthEOSLoginConfig;
 		LoadConfig(AuthEOSLoginConfig, TEXT("Login"));
 
-		FLoginEASImpl::Params LoginParams;
+		FAuthLoginEASImpl::Params LoginParams;
 		LoginParams.PlatformUserId = Params.PlatformUserId;
 		LoginParams.CredentialsType = Params.CredentialsType;
 		LoginParams.CredentialsId = Params.CredentialsId;
@@ -96,7 +96,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		LoginParams.Scopes = !Params.Scopes.IsEmpty() ? Params.Scopes : AuthEOSLoginConfig.DefaultScopes;
 
 		LoginEASImpl(LoginParams)
-		.Next([this, Promise = MoveTemp(Promise), WeakOp = InAsyncOp.AsWeak()](TDefaultErrorResult<FLoginEASImpl>&& LoginResult) mutable -> void
+		.Next([this, Promise = MoveTemp(Promise), WeakOp = InAsyncOp.AsWeak()](TDefaultErrorResult<FAuthLoginEASImpl>&& LoginResult) mutable -> void
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FAuthLogin>> Op = WeakOp.Pin())
 			{
@@ -125,34 +125,34 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		const FAuthLogin::Params& Params = InAsyncOp.GetParams();
 		const TSharedRef<FAccountInfoEOS>& AccountInfoEOS = GetOpDataChecked<TSharedRef<FAccountInfoEOS>>(InAsyncOp, AccountInfoKeyName);
 
-		TPromise<FLoginConnectImpl::Params> Promise;
-		TFuture<FLoginConnectImpl::Params> Future = Promise.GetFuture();
+		TPromise<FAuthLoginConnectImpl::Params> Promise;
+		TFuture<FAuthLoginConnectImpl::Params> Future = Promise.GetFuture();
 
-		TDefaultErrorResult<FGetExternalAuthTokenImpl> AuthTokenResult = GetExternalAuthTokenImpl(FGetExternalAuthTokenImpl::Params{AccountInfoEOS->EpicAccountId});
+		TDefaultErrorResult<FAuthGetExternalAuthTokenImpl> AuthTokenResult = GetExternalAuthTokenImpl(FAuthGetExternalAuthTokenImpl::Params{AccountInfoEOS->EpicAccountId});
 		if (AuthTokenResult.IsError())
 		{
 			UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::Login] Failure: GetExternalAuthTokenImpl %s"), *AuthTokenResult.GetErrorValue().GetLogString());
 			InAsyncOp.SetError(Errors::Unknown(MoveTemp(AuthTokenResult.GetErrorValue())));
 
 			// Failed to acquire token - logout EAS.
-			LogoutEASImpl(FLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
-			.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FLogoutEASImpl>&& LogoutResult) mutable -> void
+			LogoutEASImpl(FAuthLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
+			.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FAuthLogoutEASImpl>&& LogoutResult) mutable -> void
 			{
 				if (LogoutResult.IsError())
 				{
 					UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::Login] Failure: LogoutEASImpl %s"), *LogoutResult.GetErrorValue().GetLogString());
 				}
-				Promise.EmplaceValue(FLoginConnectImpl::Params{});
+				Promise.EmplaceValue(FAuthLoginConnectImpl::Params{});
 			});
 
 			return Future;
 		}
 
-		Promise.EmplaceValue(FLoginConnectImpl::Params{Params.PlatformUserId, MoveTemp(AuthTokenResult.GetOkValue().Token)});
+		Promise.EmplaceValue(FAuthLoginConnectImpl::Params{Params.PlatformUserId, MoveTemp(AuthTokenResult.GetOkValue().Token)});
 		return Future;
 	})
 	// Step 4: Attempt connect login. On connect login failure handle logout of EAS.
-	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp, FLoginConnectImpl::Params&& LoginConnectParams)
+	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp, FAuthLoginConnectImpl::Params&& LoginConnectParams)
 	{
 		const TSharedRef<FAccountInfoEOS>& AccountInfoEOS = GetOpDataChecked<TSharedRef<FAccountInfoEOS>>(InAsyncOp, AccountInfoKeyName);
 
@@ -161,7 +161,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 
 		// Attempt connect login.
 		LoginConnectImpl(LoginConnectParams)
-		.Next([this, AccountInfoEOS, WeakOp = InAsyncOp.AsWeak(), Promise = MoveTemp(Promise)](TDefaultErrorResult<FLoginConnectImpl>&& LoginResult) mutable -> void
+		.Next([this, AccountInfoEOS, WeakOp = InAsyncOp.AsWeak(), Promise = MoveTemp(Promise)](TDefaultErrorResult<FAuthLoginConnectImpl>&& LoginResult) mutable -> void
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FAuthLogin>> Op = WeakOp.Pin())
 			{
@@ -170,8 +170,8 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 					UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::Login] Failure: LoginConnectImpl %s"), *LoginResult.GetErrorValue().GetLogString());
 					Op->SetError(Errors::Unknown(MoveTemp(LoginResult.GetErrorValue())));
 
-					LogoutEASImpl(FLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
-					.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FLogoutEASImpl>&& LogoutResult) mutable -> void
+					LogoutEASImpl(FAuthLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
+					.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FAuthLogoutEASImpl>&& LogoutResult) mutable -> void
 					{
 						if (LogoutResult.IsError())
 						{
@@ -223,8 +223,8 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 			TPromise<void> Promise;
 			TFuture<void> Future = Promise.GetFuture();
 
-			LogoutEASImpl(FLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
-			.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FLogoutEASImpl>&& LogoutResult) mutable -> void
+			LogoutEASImpl(FAuthLogoutEASImpl::Params{ AccountInfoEOS->EpicAccountId })
+			.Next([Promise = MoveTemp(Promise)](TDefaultErrorResult<FAuthLogoutEASImpl>&& LogoutResult) mutable -> void
 			{
 				if (LogoutResult.IsError())
 				{
@@ -330,7 +330,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthEOS::QueryExternalAuthTok
 			return;
 		}
 
-		TDefaultErrorResult<FGetExternalAuthTokenImpl> AuthTokenResult = GetExternalAuthTokenImpl(FGetExternalAuthTokenImpl::Params{ AccountInfoEOS->EpicAccountId });
+		TDefaultErrorResult<FAuthGetExternalAuthTokenImpl> AuthTokenResult = GetExternalAuthTokenImpl(FAuthGetExternalAuthTokenImpl::Params{ AccountInfoEOS->EpicAccountId });
 		if (AuthTokenResult.IsError())
 		{
 			UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::QueryExternalAuthToken] Failure: GetExternalAuthTokenImpl %s"), *AuthTokenResult.GetErrorValue().GetLogString());
@@ -592,6 +592,5 @@ FOnlineAccountIdHandle FAuthEOS::CreateAccountId(const EOS_EpicAccountId EpicAcc
 {
 	return FOnlineAccountIdRegistryEOS::Get().FindOrAddAccountId(EpicAccountId, ProductUserId);
 }
-
 
 /* UE::Online */ }

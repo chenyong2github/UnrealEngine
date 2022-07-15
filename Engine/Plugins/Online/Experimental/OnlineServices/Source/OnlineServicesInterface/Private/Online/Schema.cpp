@@ -5,9 +5,9 @@
 namespace UE::Online {
 
 
-const FString LexToString(const FSchemaVariant& Variant)
+const FString LexToString(const FLexToStringAdaptor<FSchemaVariant>& Adaptor)
 {
-	return Variant.GetString();
+	return Adaptor.SchemaVariant.GetString();
 }
 
 void LexFromString(FSchemaVariant& Variant, const TCHAR* InStr)

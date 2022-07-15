@@ -48,12 +48,16 @@ enum class ELobbyMemberLeaveReason
 	*/
 	Closed
 };
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyMemberLeaveReason LeaveReason);
+ONLINESERVICESINTERFACE_API void LexFromString(ELobbyMemberLeaveReason& OutLeaveReason, const TCHAR* InStr);
 
 enum class ELobbyAttributeVisibility
 {
 	Public,
 	Private,
 };
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyAttributeVisibility Visibility);
+ONLINESERVICESINTERFACE_API void LexFromString(ELobbyAttributeVisibility& OutVisibility, const TCHAR* InStr);
 
 struct FLobbyMember
 {
@@ -985,7 +989,6 @@ BEGIN_ONLINE_STRUCT_META(FUILobbyJoinRequested)
 	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, LocalUserId),
 	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, Result)
 END_ONLINE_STRUCT_META()
-
 
 /* Meta*/ }
 

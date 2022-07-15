@@ -520,7 +520,6 @@ public:
 };
 
 namespace Meta {
-// TODO: Move to Auth_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FAccountInfo)
 	ONLINE_STRUCT_FIELD(FAccountInfo, AccountId),

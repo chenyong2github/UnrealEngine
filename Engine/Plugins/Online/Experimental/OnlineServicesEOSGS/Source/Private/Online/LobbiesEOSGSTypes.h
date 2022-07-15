@@ -485,4 +485,11 @@ private:
 	TArray<TSharedRef<FLobbyDataEOS>> Lobbies;
 };
 
+FString ToLogString(const FLobbyDataEOS& LobbyData);
+
+inline FString LexToString(const FLobbyDataEOS& LobbyData)
+{
+	return ToLogString(LobbyData);
+}
+
 /* UE::Online */ }
