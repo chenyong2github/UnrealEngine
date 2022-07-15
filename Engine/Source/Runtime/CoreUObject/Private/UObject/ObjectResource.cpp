@@ -88,7 +88,20 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 		bNotForClient = !Object->NeedsLoadForClient();
 		bNotForServer = !Object->NeedsLoadForServer();
 		bIsAsset = Object->IsAsset();
-		bIsInheritedInstance = !Object->HasAnyFlags(RF_ArchetypeObject) && Object->GetArchetype()->IsDefaultSubobject();
+
+		// Flag this export as an inherited instance if the object's archetype exists within the set
+		// of default subobjects owned by the object owner's archetype. This is used by the linker to
+		// determine whether or not the subobject should be instanced as an export on load. Note that
+		// if the archetype is owned by a different object, we treat it as a non-default subobject and
+		// thus exclude it from consideration. This is because an instanced subobject with a non-
+		// standard archetype won't find a matching instance in its owner's archetype subobject set,
+		// and thus wouldn't pass the instancing check on load. One example of a non-default instanced
+		// subobject is a Blueprint-added component, whose archetype is owned by the class object.
+		const UObject* Archetype = Object->GetArchetype();
+		if (Archetype->IsDefaultSubobject() && (Archetype->GetOuter() == Object->GetOuter()->GetArchetype()))
+		{
+			bIsInheritedInstance = true;
+		}
 	}
 }
 
@@ -164,12 +177,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	if (BaseArchive.UEVer() >= EUnrealEngineObjectUE5Version::TRACK_OBJECT_EXPORT_IS_INHERITED)
 	{
 		SERIALIZE_BIT_TO_RECORD(bIsInheritedInstance);
-
-		// Initial saves of TRACK_OBJECT_EXPORT_IS_INHERITED incorrectly considered nested template objects as inherited instances; fix that up here on load.
-		if (BaseArchive.IsLoading() && BaseArchive.UEVer().ToValue() == static_cast<int32>(EUnrealEngineObjectUE5Version::TRACK_OBJECT_EXPORT_IS_INHERITED))
-		{
-			E.bIsInheritedInstance &= !(!!(E.ObjectFlags & RF_ArchetypeObject));
-		}
 	}
 
 	Record << SA_VALUE(TEXT("PackageFlags"), E.PackageFlags);

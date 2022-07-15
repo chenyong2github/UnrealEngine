@@ -4874,6 +4874,18 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			}
 		}
 
+		// Initial saves of TRACK_OBJECT_EXPORT_IS_INHERITED incorrectly considered Blueprint-added component archetypes
+		// and subobjects instanced from those archetypes as inherited instances. The flag itself is intended to denote an
+		// instanced default subobject that's based on an archetype contained within the owner's archetype's set of instanced
+		// default subobjects; that is, the subobject owner's archetype is expected to also contain a matching default subobject
+		// instance with the same type/name. However, if the instanced subobject is based on an archetype that's owned by
+		// something other than it's owner's archetype (e.g. Blueprint-added component archetypes, which are owned by the
+		// Blueprint class object), such a match would not exist, and the export would then fail to be created below as a result.
+		if (Export.bIsInheritedInstance && Template->GetOuter()->IsA<UClass>())
+		{
+			Export.bIsInheritedInstance = false;
+		}
+
 		// If this export was an instance inherited from another class, 
 		// it should not be recreated unless the archetype also has it
 		if (Export.bIsInheritedInstance)
