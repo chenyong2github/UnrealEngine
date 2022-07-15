@@ -30,7 +30,7 @@ struct FBlendInstance
 {
 	/** Flag whether or not this instance is currently active */
 	bool bActive;
-	/** Flag whether or not the actor's part of this have been setup as a slave component to the blend actor, this is done so the blend actor atleast ticks once (otherwise it can pop from the previous blend end pose) */
+	/** Flag whether or not the actor's part of this have been setup as a follower component to the blend actor, this is done so the blend actor atleast ticks once (otherwise it can pop from the previous blend end pose) */
 	bool bBlendStarted;
 	/** Flag whether or not this instance is blending towards an on-demand state */
 	bool bOnDemand;
@@ -43,13 +43,13 @@ struct FBlendInstance
 	/** State value to blend to */
 	uint8 StateTo;
 
-	/** Permutation indices from and to which we are blending, used to ensure we 'forward' the actor to the correct MasterPoseComponent when finished blending */
+	/** Permutation indices from and to which we are blending, used to ensure we 'forward' the actor to the correct LeaderPoseComponent when finished blending */
 	uint32 FromPermutationIndex;
 	uint32 ToPermutationIndex;
 
 	/** Actor used for blending between the two states */
 	FTransitionBlendInstance* TransitionBlendInstance;
-	/** Indices of actors who are set up as slaves to BlendActor's main skeletal mesh component */
+	/** Indices of actors who are set up as followers to BlendActor's main skeletal mesh component */
 	TArray<uint32> ActorIndices;
 
 	/** Optional index into OnDemandInstances from which we are blending */
@@ -89,7 +89,7 @@ struct FOnDemandInstance
 	/** Permutation index that we are blending to before the end of the animation */
 	uint32 BlendToPermutationIndex;
 
-	/** Indices of actors who are set up as slaves to the skeletal mesh component running the animation */
+	/** Indices of actors who are set up as followers to the skeletal mesh component running the animation */
 	TArray<uint32> ActorIndices;
 };
 
@@ -212,8 +212,13 @@ struct FPerStateData
 	TBitArray<> InUseComponentFrameBits;
 	TBitArray<> PreviousInUseComponentFrameBits;
 
-	/** Bits keeping track whether or not any of the slave components requires the master component to tick */
+	/** Bits keeping track whether or not any of the follower components requires the leader component to tick */
+	TBitArray<> FollowerTickRequiredFrameBits;
+
+#if UE_EDITOR
+	UE_DEPRECATED(5.1, "This member has been deprecated. Please use FollowerTickRequiredFrameBits")
 	TBitArray<> SlaveTickRequiredFrameBits;
+#endif // UE_EDITOR
 
 	/** Length of the animations used for an on-demand state, array as it could contain different animation permutations */
 	TArray<float> AnimationLengths;
@@ -250,7 +255,7 @@ struct FPerActorData
 	/** Cached significance value */
 	float SignificanceValue;
 
-	/** Flag whether or not this actor requires the master component to tick */
+	/** Flag whether or not this actor requires the leader component to tick */
 	bool bRequiresTick;
 
 	/** Index to blend instance which is currently driving this actor's animation */
@@ -337,7 +342,7 @@ public:
 		return bShouldTick;
 	}
 
-	/** Ticks all currently running additive animation instances, this checks whether or not it has finished yet and sets the base-component as the master component when it has */
+	/** Ticks all currently running additive animation instances, this checks whether or not it has finished yet and sets the base-component as the leader component when it has */
 	void TickAdditiveInstances();
 
 	/** Ticks all Actor Data entries and determines their current state, if changed since last tick it will alter their animation accordingly */
@@ -346,7 +351,7 @@ public:
 	/** Ticks various types of debugging data / drawing (not active in shipping build) */
 	void TickDebugInformation();
 
-	/** Ticks all unique animation states, this checks which components are currently used and turns of those which currently don't have any slaves */
+	/** Ticks all unique animation states, this checks which components are currently used and turns of those which currently don't have any followerss */
 	void TickAnimationStates();
 
 	/** Removal functions which also make sure that indices of other data-structres are correctly remapped */
@@ -355,7 +360,7 @@ public:
 	void RemoveAdditiveInstance(int32 InstanceIndex);
 	void RemoveComponent(int32 ComponentIndex);
 
-	/** Removal functions which also make sure the actor is set to the correct master pose component */
+	/** Removal functions which also make sure the actor is set to the correct leader pose component */
 	void RemoveFromCurrentBlend(int32 ActorIndex);
 	void RemoveFromCurrentOnDemand(int32 ActorIndex);
 
@@ -365,14 +370,23 @@ public:
 	/**  Frees up an Additive Animation instance and resets it state*/
 	void FreeAdditiveInstance(uint8 StateIndex, FAdditiveAnimationInstance* Instance);
 
-	/** Sets up all components of an actor to be slaves of Component */
-	void SetMasterComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component);
+	/** Sets up all components of an actor to be followers of Component */
+	void SetLeaderComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component);
 
-	/** Sets up the correct MasterPoseComponent for the passed in Component and State indices */
-	void SetupSlaveComponent(uint8 CurrentState, uint32 ActorIndex);
+	UE_DEPRECATED(5.1, "This function has been deprecated. Please use SetLeaderComponentForActor instead.")
+	void SetMasterComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component) { SetLeaderComponentForActor(ActorIndex, Component); }
 
-	/** Sets up the correct MasterPoseComponent according to the state and permutation indices */
-	void SetPermutationSlaveComponent(uint8 StateIndex, uint32 ActorIndex, uint32 PermutationIndex);
+	/** Sets up the correct LeaderPoseComponent for the passed in Component and State indices */
+	void SetupFollowerComponent(uint8 CurrentState, uint32 ActorIndex);
+
+	UE_DEPRECATED(5.1, "This function has been deprecated. Please use SetupFollowerComponent instead.")
+	void SetupSlaveComponent(uint8 CurrentState, uint32 ActorIndex) { SetupFollowerComponent(CurrentState, ActorIndex); }
+
+	/** Sets up the correct LeaderPoseComponent according to the state and permutation indices */
+	void SetPermutationFollowerComponent(uint8 StateIndex, uint32 ActorIndex, uint32 PermutationIndex);
+
+	UE_DEPRECATED(5.1, "This function has been deprecated. Please use SetPermutationFollowerComponent instead.")
+	void SetPermutationSlaveComponent(uint8 StateIndex, uint32 ActorIndex, uint32 PermutationIndex) { SetPermutationFollowerComponent(StateIndex, ActorIndex, PermutationIndex); }
 	
 	/** Determines a permutation index for the given actor and state */
 	uint32 DeterminePermutationIndex(uint32 ActorIndex, uint8 State) const;
@@ -380,7 +394,7 @@ public:
 	/** Marks the component as either used/not-used, this is used to disable ticking of components which are not in use*/
 	void SetComponentUsage(bool bUsage, uint8 StateIndex, uint32 ComponentIndex);
 
-	/** Sets the whether or not any of the slave components are visible */
+	/** Sets the whether or not any of the follower components are visible */
 	void SetComponentTick(uint8 StateIndex, uint32 ComponentIndex);
 
 	/** Actors currently registered to be animation driven by the AnimManager using this setup */
@@ -514,8 +528,11 @@ public:
 	/** Ensures all currently registered actors are removed */
 	void UnregisterAllActors();	
 
-	/** Sets the visibility of currently used Master Pose Components */
-	void SetMasterComponentsVisibility(bool bVisible);
+	/** Sets the visibility of currently used Leader Pose Components */
+	void SetLeaderComponentsVisibility(bool bVisible);
+	
+	UE_DEPRECATED(5.1, "This member has been deprecated. Please use SetLeaderComponentsVisibility")
+	void SetMasterComponentsVisibility(bool bVisible) { SetLeaderComponentsVisibility(bVisible); }
 
 	/** Initialize sharing data structures */
 	void Initialise(const UAnimationSharingSetup* InSetup);

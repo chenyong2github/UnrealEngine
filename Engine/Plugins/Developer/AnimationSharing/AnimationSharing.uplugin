@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Animation Sharing",
-	"Description": "Plugin to create Shared Animation systems using the Master-Child pose functionality",
+	"Description": "Plugin to create Shared Animation systems using the Leader-Follower pose functionality",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",

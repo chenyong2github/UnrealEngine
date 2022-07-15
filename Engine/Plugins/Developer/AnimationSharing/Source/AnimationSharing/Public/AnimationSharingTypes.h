@@ -89,7 +89,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bOnDemand", UIMin="0.0", UIMax="1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float WiggleTimePercentage;
 	
-	/** Whether or not this animation requires curves or morphtargets to function correctly for slave components */
+	/** Whether or not this animation requires curves or morphtargets to function correctly for follower components */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = AnimationSharing)
 	bool bRequiresCurves;
 };
@@ -179,7 +179,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (ClampMin = "1", UIMin = "1"))
 	FPerPlatformInt MaximumNumberConcurrentBlends;
 
-	/** Significance value tied to whether or not the master pose components should be ticking */
+	/** Significance value tied to whether or not the leader pose components should be ticking */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (ClampMin = "0.0", UIMin = "0.0"))
 	FPerPlatformFloat TickSignificanceValue;
 };

@@ -47,8 +47,8 @@ static FAutoConsoleVariableRef CVarAnimSharing_DebugStates(
 	TEXT("Values: 0/1/2/3\n")
 	TEXT("Controls whether and which animation sharing debug features are enabled.\n")
 	TEXT("0: Turned off.\n")
-	TEXT("1: Turns on active master-components and blend with material coloring, and printing state information for each actor above their capsule.\n")
-	TEXT("2: Turns printing state information about currently active animation states, blend etc. Also enables line drawing from slave-components to currently assigned master components."),
+	TEXT("1: Turns on active leader-components and blend with material coloring, and printing state information for each actor above their capsule.\n")
+	TEXT("2: Turns printing state information about currently active animation states, blend etc. Also enables line drawing from follower-components to currently assigned leader components."),
 	ECVF_Cheat);
 
 static int32 GAnimationSharingEnabled = 1;
@@ -78,27 +78,27 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAnimSharing_Enabled(
 	ECVF_Cheat);
 
 #if !UE_BUILD_SHIPPING
-static int32 GMasterComponentsVisible = 0;
+static int32 GLeaderComponentsVisible = 0;
 static FAutoConsoleCommandWithWorldAndArgs CVarAnimSharing_ToggleVisibility(
 	TEXT("a.Sharing.ToggleVisibility"),
-	TEXT("Toggles the visibility of the Master Pose Components."),
+	TEXT("Toggles the visibility of the Leader Pose Components."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
-		const bool bShouldBeVisible = !GMasterComponentsVisible;
+		const bool bShouldBeVisible = !GLeaderComponentsVisible;
 
 		/** Need to unregister actors here*/
 		UAnimationSharingManager* Manager = FAnimSharingModule::Get(World);
 		if (Manager)
 		{
-			Manager->SetMasterComponentsVisibility(bShouldBeVisible);
+			Manager->SetLeaderComponentsVisibility(bShouldBeVisible);
 		}
 
-		GMasterComponentsVisible = bShouldBeVisible;
+		GLeaderComponentsVisible = bShouldBeVisible;
 	}),
 	ECVF_Cheat);
 
 #else
-static const int32 GMasterComponentsVisible = 0;
+static const int32 GLeaderComponentsVisible = 0;
 #endif
 
 #if WITH_EDITOR
@@ -438,7 +438,7 @@ void UAnimationSharingManager::RegisterActorWithSkeleton(AActor* InActor, const 
 				ActorData.ComponentIndices.Add(Data->PerComponentData.Num() - 1);
 
 				const int32 ComponentIndex = Data->PerComponentData.Num() - 1;
-				Data->SetupSlaveComponent(ActorData.CurrentState, ActorIndex);
+				Data->SetupFollowerComponent(ActorData.CurrentState, ActorIndex);
 			}
 
 			if (Data->PerStateData[ActorData.CurrentState].bIsOnDemand && ActorData.OnDemandInstanceIndex != INDEX_NONE)
@@ -611,7 +611,7 @@ void UAnimationSharingManager::UnregisterAllActors()
 	}	
 }
 
-void UAnimationSharingManager::SetMasterComponentsVisibility(bool bVisible)
+void UAnimationSharingManager::SetLeaderComponentsVisibility(bool bVisible)
 {
 	for (UAnimSharingInstance* Data : PerSkeletonData)
 	{
@@ -803,7 +803,7 @@ bool UAnimSharingInstance::Setup(UAnimationSharingManager* AnimationSharingManag
 				BlendComponent->RegisterComponent();
 				BlendComponent->SetRelativeLocation(SpawnLocation);
 				BlendComponent->SetSkeletalMesh(SkeletalMesh);
-				BlendComponent->SetVisibility(GMasterComponentsVisible == 1);
+				BlendComponent->SetVisibility(GLeaderComponentsVisible == 1);
 
 				BlendComponent->PrimaryComponentTick.AddPrerequisite(AnimSharingManager, AnimSharingManager->GetTickFunction());
 
@@ -908,7 +908,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 					Component->SetSkeletalMesh(SkeletalMesh);
 					Component->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 					Component->SetForcedLOD(1);
-					Component->SetVisibility(GMasterComponentsVisible == 1);
+					Component->SetVisibility(GLeaderComponentsVisible == 1);
 					Component->bPropagateCurvesToFollowers = StateEntry.bRequiresCurves;
 
 					if (AnimBPClass != nullptr && AnimSequence != nullptr && !StateEntry.bOnDemand)
@@ -971,7 +971,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 					AdditiveComponent->RegisterComponent();
 					AdditiveComponent->SetRelativeLocation(SpawnLocation);
 					AdditiveComponent->SetSkeletalMesh(SkeletalMesh);
-					AdditiveComponent->SetVisibility(GMasterComponentsVisible == 1);
+					AdditiveComponent->SetVisibility(GLeaderComponentsVisible == 1);
 
 					AdditiveComponent->PrimaryComponentTick.AddPrerequisite(AnimSharingManager, AnimSharingManager->GetTickFunction());
 
@@ -1016,20 +1016,20 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 	/** This should enforce turning off the components tick during the first frame */
 	StateData.PreviousInUseComponentFrameBits.Init(true, Components.Num());
 
-	StateData.SlaveTickRequiredFrameBits.Init(false, Components.Num());
+	StateData.FollowerTickRequiredFrameBits.Init(false, Components.Num());
 }
 
 void UAnimSharingInstance::TickDebugInformation()
 {
 #if !UE_BUILD_SHIPPING
 #if UE_BUILD_DEVELOPMENT
-	if (GMasterComponentsVisible && GAnimationSharingDebugging >= 2)
+	if (GLeaderComponentsVisible && GAnimationSharingDebugging >= 2)
 	{
 		for (const FPerStateData& StateData : PerStateData)
 		{
 			for (int32 Index = 0; Index < StateData.InUseComponentFrameBits.Num(); ++Index)
 			{
-				const FString ComponentString = FString::Printf(TEXT("[%s]\n In Use %s - Required %s"), *StateEnum->GetDisplayNameTextByValue(StateData.StateEnumValue).ToString(), StateData.InUseComponentFrameBits[Index] ? TEXT("True") : TEXT("False"), StateData.SlaveTickRequiredFrameBits[Index] ? TEXT("True") : TEXT("False"));
+				const FString ComponentString = FString::Printf(TEXT("[%s]\n In Use %s - Required %s"), *StateEnum->GetDisplayNameTextByValue(StateData.StateEnumValue).ToString(), StateData.InUseComponentFrameBits[Index] ? TEXT("True") : TEXT("False"), StateData.FollowerTickRequiredFrameBits[Index] ? TEXT("True") : TEXT("False"));
 				DrawDebugString(GetWorld(), StateData.Components[Index]->GetComponentLocation() + FVector(0,0,StateData.Components[Index]->Bounds.BoxExtent.Z), ComponentString, nullptr, FColor::White, 0.016f, false);
 			}
 		}
@@ -1141,13 +1141,13 @@ void UAnimSharingInstance::TickOnDemandInstances()
 			{
 				if (Instance.BlendToPermutationIndex != INDEX_NONE)
 				{
-					SetPermutationSlaveComponent(NewState, ActorIndex, Instance.BlendToPermutationIndex);
+					SetPermutationFollowerComponent(NewState, ActorIndex, Instance.BlendToPermutationIndex);
 				}
 				else
 				{
-					SetupSlaveComponent(NewState, ActorIndex);
+					SetupFollowerComponent(NewState, ActorIndex);
 
-					// If we are setting up a slave to an on-demand state that is not in use yet it needs to create a new On Demand Instance which will not be kicked-off yet, so do that directly.
+					// If we are setting up a follower to an on-demand state that is not in use yet it needs to create a new On Demand Instance which will not be kicked-off yet, so do that directly.
 					if (PerStateData[NewState].bIsOnDemand)
 					{
 						const int32 OnDemandInstanceIndex = PerActorData[ActorIndex].OnDemandInstanceIndex;
@@ -1197,7 +1197,7 @@ void UAnimSharingInstance::TickOnDemandInstances()
 				// Only do this if the state is different than the current on-demand one
 				else if (CurrentState != Instance.State)
 				{
-					// If the new state is not an on-demand one and we are not currently blending, if we are blending the blend will set the final master component
+					// If the new state is not an on-demand one and we are not currently blending, if we are blending the blend will set the final leader component
 					if (!PerStateData[CurrentState].bIsOnDemand || !Instance.bBlendActive)
 					{
 						SetActorState(ActorIndex, CurrentState);
@@ -1312,7 +1312,7 @@ void UAnimSharingInstance::TickAdditiveInstances()
 					PerActorData[Instance.ActorIndex].AdditiveInstanceIndex = INDEX_NONE;
 
 					// Set it to base component on top of the additive animation is playing
-					SetMasterComponentForActor(Instance.ActorIndex, Instance.AdditiveAnimationInstance->GetBaseComponent());
+					SetLeaderComponentForActor(Instance.ActorIndex, Instance.AdditiveAnimationInstance->GetBaseComponent());
 				}
 				FreeAdditiveInstance(Instance.State, Instance.AdditiveAnimationInstance);
 				RemoveAdditiveInstance(InstanceIndex);
@@ -1327,7 +1327,7 @@ void UAnimSharingInstance::TickAdditiveInstances()
 			Instance.AdditiveAnimationInstance->Start();
 			if (Instance.ActorIndex != INDEX_NONE)
 			{				
-				SetMasterComponentForActor(Instance.ActorIndex, Instance.AdditiveAnimationInstance->GetComponent());
+				SetLeaderComponentForActor(Instance.ActorIndex, Instance.AdditiveAnimationInstance->GetComponent());
 			}
 		}
 	}
@@ -1468,7 +1468,7 @@ void UAnimSharingInstance::TickActorStates()
 					/** Otherwise just switch it to the new state */
 					if (bShouldSwitch)
 					{
-						SetupSlaveComponent(CurrentState, ActorIndex);
+						SetupFollowerComponent(CurrentState, ActorIndex);
 #if LOG_STATES 
 						UE_LOG(LogAnimationSharing, Log, TEXT("Changing state to %s from %s %i"), *StateEnum->GetDisplayNameTextByValue(CurrentState).ToString(), *StateEnum->GetDisplayNameTextByValue(PreviousState).ToString(), ActorIndex);
 #endif
@@ -1477,7 +1477,7 @@ void UAnimSharingInstance::TickActorStates()
 					UpdateState();
 				}
 			}
-			/** Flag the currently master component as in-use */
+			/** Flag the currently leader component as in-use */
 			else if (!ActorData.bRunningOnDemand && !ActorData.bBlending)
 			{
 #if LOG_STATES 
@@ -1494,7 +1494,7 @@ void UAnimSharingInstance::TickActorStates()
 				SetComponentUsage(true, ActorData.CurrentState, ActorData.PermutationIndex);
 			}
 			
-			// Propagate visibility to master component
+			// Propagate visibility to leader component
 			if (ActorData.bRequiresTick)
 			{
 				SetComponentTick(ActorData.CurrentState, ActorData.PermutationIndex);
@@ -1508,7 +1508,7 @@ void UAnimSharingInstance::RemoveFromCurrentBlend(int32 ActorIndex)
 	if (PerActorData[ActorIndex].bBlending && PerActorData[ActorIndex].BlendInstanceIndex != INDEX_NONE && BlendInstances.IsValidIndex(PerActorData[ActorIndex].BlendInstanceIndex))
 	{
 		FBlendInstance& OldBlendInstance = BlendInstances[PerActorData[ActorIndex].BlendInstanceIndex];
-		SetMasterComponentForActor(ActorIndex, OldBlendInstance.TransitionBlendInstance->GetToComponent());
+		SetLeaderComponentForActor(ActorIndex, OldBlendInstance.TransitionBlendInstance->GetToComponent());
 		OldBlendInstance.ActorIndices.Remove(ActorIndex);
 		PerActorData[ActorIndex].BlendInstanceIndex = INDEX_NONE;
 	}
@@ -1541,12 +1541,12 @@ void UAnimSharingInstance::TickBlendInstances()
 			const bool bToStateIsOnDemand = PerStateData[Instance.StateTo].bIsOnDemand;
 			const bool bFromStateIsOnDemand = PerStateData[Instance.StateFrom].bIsOnDemand;
 
-			// If we were blending to an on-demand state we need to set the on-demand component as the new master component
+			// If we were blending to an on-demand state we need to set the on-demand component as the new leader component
 			if (bToStateIsOnDemand)
 			{
 				for (uint32 ActorIndex : Instance.ActorIndices)
 				{
-					SetMasterComponentForActor(ActorIndex, Instance.TransitionBlendInstance->GetToComponent());
+					SetLeaderComponentForActor(ActorIndex, Instance.TransitionBlendInstance->GetToComponent());
 					PerActorData[ActorIndex].PermutationIndex = 0;
 #if LOG_STATES
 					UE_LOG(LogAnimationSharing, Log, TEXT("Setting %i to on-demand component %i"), ActorIndex, Instance.ToOnDemandInstanceIndex);
@@ -1558,8 +1558,8 @@ void UAnimSharingInstance::TickBlendInstances()
 					}
 				}
 			}
-			/** Otherwise if the state we were blending from was not on-demand we set the new state component as the new master component,
-				if we are blending from an on-demand state FOnDemandInstance with set the correct master component when it finishes	*/
+			/** Otherwise if the state we were blending from was not on-demand we set the new state component as the new leader component,
+				if we are blending from an on-demand state FOnDemandInstance with set the correct leader component when it finishes	*/
 			else if (!bFromStateIsOnDemand)
 			{				
 				for (uint32 ActorIndex : Instance.ActorIndices)
@@ -1569,7 +1569,7 @@ void UAnimSharingInstance::TickBlendInstances()
 #if LOG_STATES 
 						UE_LOG(LogAnimationSharing, Log, TEXT("Setting %i to state %i | %i"), ActorIndex, Instance.StateTo, Instance.ToPermutationIndex);
 #endif
-						SetPermutationSlaveComponent(Instance.StateTo, ActorIndex, Instance.ToPermutationIndex);
+						SetPermutationFollowerComponent(Instance.StateTo, ActorIndex, Instance.ToPermutationIndex);
 #if !UE_BUILD_SHIPPING
 						for (uint32 ComponentIndex : PerActorData[ActorIndex].ComponentIndices)
 						{
@@ -1597,12 +1597,12 @@ void UAnimSharingInstance::TickBlendInstances()
 		}
 		else
 		{
-			// Check whether or not the blend has started, if not set up the actors as slaves at this point
+			// Check whether or not the blend has started, if not set up the actors as followers at this point
 			if (!Instance.bBlendStarted)
 			{
 				for (uint32 ActorIndex : Instance.ActorIndices)
 				{
-					SetMasterComponentForActor(ActorIndex, Instance.TransitionBlendInstance->GetComponent());			
+					SetLeaderComponentForActor(ActorIndex, Instance.TransitionBlendInstance->GetComponent());			
 
 					for (uint32 ComponentIndex : PerActorData[ActorIndex].ComponentIndices)
 					{
@@ -1645,7 +1645,7 @@ void UAnimSharingInstance::TickAnimationStates()
 			const bool bPreviousState = StateData.PreviousInUseComponentFrameBits[Index];
 			const bool bCurrentState = StateData.InUseComponentFrameBits[Index];
 
-			const bool bShouldTick = StateData.SlaveTickRequiredFrameBits[Index];
+			const bool bShouldTick = StateData.FollowerTickRequiredFrameBits[Index];
 
 			if (bCurrentState != bPreviousState)
 			{
@@ -1676,7 +1676,7 @@ void UAnimSharingInstance::TickAnimationStates()
 		// Set previous to current and reset current bits
 		StateData.PreviousInUseComponentFrameBits = StateData.InUseComponentFrameBits;
 		StateData.InUseComponentFrameBits.Init(false, StateData.PreviousInUseComponentFrameBits.Num());
-		StateData.SlaveTickRequiredFrameBits.Init(false, StateData.SlaveTickRequiredFrameBits.Num());
+		StateData.FollowerTickRequiredFrameBits.Init(false, StateData.FollowerTickRequiredFrameBits.Num());
 
 		/** Reset on demand index for next frame */
 		StateData.CurrentFrameOnDemandIndex = INDEX_NONE;
@@ -1701,9 +1701,9 @@ void UAnimSharingInstance::SetComponentUsage(bool bUsage, uint8 StateIndex, uint
 
 void UAnimSharingInstance::SetComponentTick(uint8 StateIndex, uint32 ComponentIndex)
 {
-	if (PerStateData[StateIndex].SlaveTickRequiredFrameBits.IsValidIndex(ComponentIndex))
+	if (PerStateData[StateIndex].FollowerTickRequiredFrameBits.IsValidIndex(ComponentIndex))
 	{
-		PerStateData[StateIndex].SlaveTickRequiredFrameBits[ComponentIndex] = true;
+		PerStateData[StateIndex].FollowerTickRequiredFrameBits[ComponentIndex] = true;
 	}
 }
 
@@ -1720,7 +1720,7 @@ void UAnimSharingInstance::FreeAdditiveInstance(uint8 StateIndex, FAdditiveAnima
 	PerStateData[StateIndex].AdditiveInstanceStack.FreeInstance(Instance);
 }
 
-void UAnimSharingInstance::SetMasterComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component)
+void UAnimSharingInstance::SetLeaderComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component)
 {
 	// Always ensure the component is ticking
 	if (Component)
@@ -1744,20 +1744,20 @@ void UAnimSharingInstance::SetMasterComponentForActor(uint32 ActorIndex, USkelet
 	}
 }
 
-void UAnimSharingInstance::SetupSlaveComponent(uint8 CurrentState, uint32 ActorIndex)
+void UAnimSharingInstance::SetupFollowerComponent(uint8 CurrentState, uint32 ActorIndex)
 {
 	const FPerStateData& StateData = PerStateData[CurrentState];
 
 	if (StateData.Components.Num() == 0)
 	{	
-		UE_LOG(LogAnimationSharing, Warning, TEXT("No Master Components available for state %s, make sure to set up an Animation Sequence/Blueprint "), *StateEnum->GetDisplayNameTextByValue(CurrentState).ToString());
+		UE_LOG(LogAnimationSharing, Warning, TEXT("No Leader Components available for state %s, make sure to set up an Animation Sequence/Blueprint "), *StateEnum->GetDisplayNameTextByValue(CurrentState).ToString());
 		return;
 	}
 
 	if (!StateData.bIsOnDemand)
 	{
 		const uint32 PermutationIndex = DeterminePermutationIndex(ActorIndex, CurrentState);
-		SetPermutationSlaveComponent(CurrentState, ActorIndex, PermutationIndex);
+		SetPermutationFollowerComponent(CurrentState, ActorIndex, PermutationIndex);
 	}
 	else
 	{
@@ -1765,8 +1765,8 @@ void UAnimSharingInstance::SetupSlaveComponent(uint8 CurrentState, uint32 ActorI
 
 		if (OnDemandInstanceIndex != INDEX_NONE)
 		{
-			USkeletalMeshComponent* MasterComponent = StateData.Components[OnDemandInstances[OnDemandInstanceIndex].UsedPerStateComponentIndex];
-			SetMasterComponentForActor(ActorIndex, MasterComponent);
+			USkeletalMeshComponent* LeaderComponent = StateData.Components[OnDemandInstances[OnDemandInstanceIndex].UsedPerStateComponentIndex];
+			SetLeaderComponentForActor(ActorIndex, LeaderComponent);
 			OnDemandInstances[OnDemandInstanceIndex].ActorIndices.Add(ActorIndex);
 
 			PerActorData[ActorIndex].OnDemandInstanceIndex = OnDemandInstanceIndex;
@@ -1778,7 +1778,7 @@ void UAnimSharingInstance::SetupSlaveComponent(uint8 CurrentState, uint32 ActorI
 	}
 }
 
-void UAnimSharingInstance::SetPermutationSlaveComponent(uint8 StateIndex, uint32 ActorIndex, uint32 PermutationIndex)
+void UAnimSharingInstance::SetPermutationFollowerComponent(uint8 StateIndex, uint32 ActorIndex, uint32 PermutationIndex)
 {
 	const FPerStateData& StateData = PerStateData[StateIndex];
 
@@ -1791,7 +1791,7 @@ void UAnimSharingInstance::SetPermutationSlaveComponent(uint8 StateIndex, uint32
 	}
 #endif
 
-	SetMasterComponentForActor(ActorIndex, StateData.Components[PermutationIndex]);
+	SetLeaderComponentForActor(ActorIndex, StateData.Components[PermutationIndex]);
 	PerActorData[ActorIndex].PermutationIndex = PermutationIndex;
 	UAnimationSharingManager::SetDebugMaterial(StateData.Components[PermutationIndex], 1);
 }
@@ -1803,7 +1803,7 @@ uint32 UAnimSharingInstance::DeterminePermutationIndex(uint32 ActorIndex, uint8 
 
 	// This can grow to be more intricate to take into account surrounding actors?
 	const uint32 PermutationIndex = FMath::RandHelper(Components.Num());
-	checkf(Components.IsValidIndex(PermutationIndex), TEXT("Not enough MasterComponents initialised!"));
+	checkf(Components.IsValidIndex(PermutationIndex), TEXT("Not enough LeaderComponents initialised!"));
 
 	return PermutationIndex;
 }
@@ -1909,7 +1909,7 @@ void UAnimSharingInstance::SwitchBetweenOnDemands(uint32 FromOnDemandInstanceInd
 	const uint32 ComponentIndex = Instance.UsedPerStateComponentIndex;
 	const uint32 StateIndex = Instance.State;
 	PerActorData[ActorIndex].PermutationIndex = 0;
-	SetMasterComponentForActor(ActorIndex, PerStateData[StateIndex].Components[ComponentIndex]);
+	SetLeaderComponentForActor(ActorIndex, PerStateData[StateIndex].Components[ComponentIndex]);
 }
 
 uint32 UAnimSharingInstance::SetupOnDemandInstance(uint8 StateIndex)
