@@ -89,13 +89,8 @@ namespace Horde.Build
 	/// <summary>
 	/// Options for configuring a blob store
 	/// </summary>
-	public class BlobStoreOptions : StorageBackendOptions, IBlobStoreOptions
+	public class BlobStoreOptions : StorageBackendOptions
 	{
-		/// <inheritdoc/>
-		public string BlobPrefix { get; set; } = "blobs/";
-
-		/// <inheritdoc/>
-		public string RefPrefix { get; set; } = "refs/";
 	}
 
 	/// <summary>

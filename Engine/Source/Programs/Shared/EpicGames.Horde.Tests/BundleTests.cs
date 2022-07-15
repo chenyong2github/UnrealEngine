@@ -179,21 +179,21 @@ namespace EpicGames.Horde.Tests
 			DirectoryNode node = root.AddDirectory("hello");
 			DirectoryNode node2 = node.AddDirectory("world");
 
-			RefId refId = new RefId("testref");
-			await treeStore.WriteTreeAsync(refId, root, true);
+			RefName refName = new RefName("testref");
+			await treeStore.WriteTreeAsync(refName, root, true);
 
 			// Should be stored inline
 			Assert.AreEqual(1, blobStore.Refs.Count);
 			Assert.AreEqual(0, blobStore.Blobs.Count);
 
 			// Check the ref
-			IBlob blob = await blobStore.ReadRefAsync(refId);
+			IBlob blob = await blobStore.ReadRefAsync(refName);
 			Bundle bundle = new Bundle(new MemoryReader(blob.Data));
 			Assert.AreEqual(0, bundle.Header.Imports.Count);
 			Assert.AreEqual(3, bundle.Header.Exports.Count);
 
 			// Create a new bundle and read it back in again
-			DirectoryNode newRoot = await treeStore.ReadTreeAsync<DirectoryNode>(refId);
+			DirectoryNode newRoot = await treeStore.ReadTreeAsync<DirectoryNode>(refName);
 
 			Assert.AreEqual(0, newRoot.Files.Count);
 			Assert.AreEqual(1, newRoot.Directories.Count);
@@ -227,8 +227,8 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(0, blobStore.Refs.Count);
 			Assert.AreEqual(0, blobStore.Blobs.Count);
 
-			RefId refId = new RefId("ref");
-			await treeStore.WriteTreeAsync(refId, root, true);
+			RefName refName = new RefName("ref");
+			await treeStore.WriteTreeAsync(refName, root, true);
 
 			Assert.AreEqual(1, blobStore.Refs.Count);
 			Assert.AreEqual(1, blobStore.Blobs.Count);
@@ -243,7 +243,7 @@ namespace EpicGames.Horde.Tests
 
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 
-			RefId refId = new RefId("ref");
+			RefName refName = new RefName("ref");
 
 			using (ITreeStore oldBundle = new BundleStore(blobStore, options, _cache))
 			{
@@ -254,7 +254,7 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode node3 = node2.AddDirectory("node3");
 				DirectoryNode node4 = node3.AddDirectory("node4");
 
-				await oldBundle.WriteTreeAsync(refId, root, true);
+				await oldBundle.WriteTreeAsync(refName, root, true);
 
 				Assert.AreEqual(1, blobStore.Refs.Count);
 				Assert.AreEqual(4, blobStore.Blobs.Count);
@@ -262,7 +262,7 @@ namespace EpicGames.Horde.Tests
 
 			using (ITreeStore newBundle = new BundleStore(blobStore, options, _cache))
 			{
-				DirectoryNode root = await newBundle.ReadTreeAsync<DirectoryNode>(refId);
+				DirectoryNode root = await newBundle.ReadTreeAsync<DirectoryNode>(refName);
 
 				DirectoryNode? newNode1 = await root.FindDirectoryAsync("node1", CancellationToken.None);
 				Assert.IsNotNull(newNode1);
@@ -447,7 +447,7 @@ namespace EpicGames.Horde.Tests
 
 			using BundleStore treeStore = new BundleStore(_blobStore, options, _cache);
 
-			RefId refId = new RefId("ref");
+			RefName refName = new RefName("ref");
 			DirectoryNode root = new DirectoryNode();
 
 			long totalLength = 0;
@@ -470,7 +470,7 @@ namespace EpicGames.Horde.Tests
 					}
 
 					int oldWorkingSetSize = GetWorkingSetSize(root);
-					await treeStore.WriteTreeAsync(refId, root, false);
+					await treeStore.WriteTreeAsync(refName, root, false);
 					int newWorkingSetSize = GetWorkingSetSize(root);
 					Assert.IsTrue(newWorkingSetSize <= oldWorkingSetSize);
 					Assert.IsTrue(newWorkingSetSize <= 20);
@@ -480,7 +480,7 @@ namespace EpicGames.Horde.Tests
 			Assert.IsTrue(_blobStore.Blobs.Count > 0);
 			Assert.IsTrue(_blobStore.Refs.Count == 0);
 
-			await treeStore.WriteTreeAsync(refId, root, true, CancellationToken.None);
+			await treeStore.WriteTreeAsync(refName, root, true, CancellationToken.None);
 
 			Assert.AreEqual(totalLength, root.Length);
 

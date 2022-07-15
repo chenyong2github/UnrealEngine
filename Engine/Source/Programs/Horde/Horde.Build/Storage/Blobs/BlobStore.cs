@@ -11,38 +11,19 @@ using EpicGames.Horde.Storage;
 namespace Horde.Build.Storage
 {
 	/// <summary>
-	/// Options for configuring the default blob store implementation
-	/// </summary>
-	public interface IBlobStoreOptions
-	{
-		/// <summary>
-		/// Prefix for storing blobs
-		/// </summary>
-		string BlobPrefix { get; }
-
-		/// <summary>
-		/// Prefix for storing refs
-		/// </summary>
-		string RefPrefix { get; }
-	}
-
-	/// <summary>
 	/// Implementation of <see cref="IBlobStore"/> for AWS
 	/// </summary>
 	public class BlobStore : IBlobStore
 	{
 		readonly IStorageBackend _backend;
-		readonly IBlobStoreOptions _options;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="backend">Backend to use for storing data</param>
-		/// <param name="options">Options for the blob store</param>
-		public BlobStore(IStorageBackend backend, IBlobStoreOptions options)
+		public BlobStore(IStorageBackend backend)
 		{
 			_backend = backend;
-			_options = options;
 		}
 
 		async Task<IBlob?> TryReadAsync(string path, CancellationToken cancellationToken = default)
@@ -63,7 +44,7 @@ namespace Horde.Build.Storage
 
 		#region Blobs
 
-		string GetBlobPath(BlobId id) => $"{_options.BlobPrefix}{id}";
+		static string GetBlobPath(BlobId id) => $"{id}.blob";
 
 		/// <inheritdoc/>
 		public Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => TryReadAsync(GetBlobPath(id), cancellationToken);
@@ -80,7 +61,7 @@ namespace Horde.Build.Storage
 
 		#region Refs
 
-		string GetRefPath(RefName name) => $"{_options.RefPrefix}{name}";
+		static string GetRefPath(RefName name) => $"{name}.ref";
 
 		/// <inheritdoc/>
 		public async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
