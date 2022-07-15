@@ -43,11 +43,13 @@ enum class EMassDebuggerProcessingGraphNodeSelection : uint8
 
 struct FMassDebuggerQueryData
 {
-	FMassDebuggerQueryData(const FMassEntityQuery& Query);
+	FMassDebuggerQueryData(const FMassEntityQuery& Query, const FText& InLabel);
 
 	FMassExecutionRequirements ExecutionRequirements;
+	FText Label;
 
 	int32 GetTotalBitsUsedCount();
+	bool IsEmpty() const;
 }; 
 
 struct FMassDebuggerArchetypeData
@@ -85,6 +87,7 @@ public:
 	FString Name;
 	FString Label;
 	uint32 ProcessorHash = 0; 
+	TSharedPtr<FMassDebuggerQueryData> ProcessorRequirements;
 	TArray<TSharedPtr<FMassDebuggerQueryData>> Queries;
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> ValidArchetypes;
 	

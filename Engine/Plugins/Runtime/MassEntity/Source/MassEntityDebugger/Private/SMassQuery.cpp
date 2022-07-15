@@ -55,7 +55,7 @@ void SMassQuery::Construct(const FArguments& InArgs, TSharedPtr<FMassDebuggerQue
 	.AutoHeight()
 	[
 		SNew(SRichTextBlock)
-		.Text(LOCTEXT("MassEntityQueryLabel", "Query"))
+		.Text(InQueryData->Label)
 		.DecoratorStyleSet(&FAppStyle::Get())
 		.TextStyle(FAppStyle::Get(), "LargeText")
 	];

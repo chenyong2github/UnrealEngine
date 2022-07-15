@@ -5,6 +5,7 @@
 #include "MassDebuggerStyle.h"
 #include "SMassQuery.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"
@@ -36,6 +37,28 @@ void SMassProcessor::Construct(const FArguments& InArgs, TSharedPtr<FMassDebugge
 		]
 	];
 	
+	if (ProcessorData->ProcessorRequirements->IsEmpty())
+	{
+		Box->AddSlot()
+		.AutoHeight()
+		[
+			SNew(SBorder)
+			.Padding(10.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("NoProcessorRequirements", "No Processor Requirements"))
+			]
+		];
+	}
+	else
+	{
+		Box->AddSlot()
+		.AutoHeight()
+		[
+			SNew(SMassQuery, ProcessorData->ProcessorRequirements)
+		];
+	}
+
 	for (TSharedPtr<FMassDebuggerQueryData>& QueryData : ProcessorData->Queries)
 	{
 		Box->AddSlot()

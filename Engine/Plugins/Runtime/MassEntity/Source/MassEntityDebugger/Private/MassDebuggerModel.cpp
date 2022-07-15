@@ -70,7 +70,8 @@ const UMassEntitySubsystem* FMassDebuggerEnvironment::GetEntitySubsystem() const
 //----------------------------------------------------------------------//
 // FMassDebuggerQueryData
 //----------------------------------------------------------------------//
-FMassDebuggerQueryData::FMassDebuggerQueryData(const FMassEntityQuery& Query)
+FMassDebuggerQueryData::FMassDebuggerQueryData(const FMassEntityQuery& Query, const FText& InLabel)
+	: Label(InLabel)
 {
 #if WITH_MASSENTITY_DEBUG
 	FMassDebugger::GetQueryExecutionRequirements(Query, ExecutionRequirements);
@@ -82,6 +83,11 @@ int32 FMassDebuggerQueryData::GetTotalBitsUsedCount()
 	return ExecutionRequirements.GetTotalBitsUsedCount();
 }
 
+bool FMassDebuggerQueryData::IsEmpty() const
+{
+	return ExecutionRequirements.IsEmpty();
+}
+
 //----------------------------------------------------------------------//
 // FMassDebuggerProcessorData
 //----------------------------------------------------------------------//
@@ -90,11 +96,18 @@ FMassDebuggerProcessorData::FMassDebuggerProcessorData(const UMassProcessor& InP
 	SetProcessor(InProcessor);
 #if WITH_MASSENTITY_DEBUG
 	TConstArrayView<FMassEntityQuery*> ProcessorQueries = FMassDebugger::GetProcessorQueries(InProcessor);
-	Queries.Reserve(ProcessorQueries.Num());
-	for (const FMassEntityQuery* Query : ProcessorQueries)
+
+	if (ensureMsgf(ProcessorQueries.Num() >= 1, TEXT("We expect at least one query to be there - every processor should have their ProcessorRequirements registered in OwnedQueries")))
 	{
-		check(Query);
-		Queries.Add(MakeShareable(new FMassDebuggerQueryData(*Query)));
+		ProcessorRequirements = MakeShareable(new FMassDebuggerQueryData(*ProcessorQueries[0], LOCTEXT("MassProcessorRequirementsLabel", "Processor Requirements")));
+
+		Queries.Reserve(ProcessorQueries.Num() - 1);
+		for (int i = 1; i < ProcessorQueries.Num(); ++i)
+		{
+			const FMassEntityQuery* Query = ProcessorQueries[i];
+			check(Query);
+			Queries.Add(MakeShareable(new FMassDebuggerQueryData(*Query, LOCTEXT("MassEntityQueryLabel", "Query"))));
+		}
 	}
 #endif // WITH_MASSENTITY_DEBUG
 }
@@ -104,16 +117,21 @@ FMassDebuggerProcessorData::FMassDebuggerProcessorData(const UMassEntitySubsyste
 	SetProcessor(InProcessor);
 #if WITH_MASSENTITY_DEBUG
 	TConstArrayView<FMassEntityQuery*> ProcessorQueries = FMassDebugger::GetUpToDateProcessorQueries(EntitySubsystem, InProcessor);
-	Queries.Reserve(ProcessorQueries.Num());
-
-	for (const FMassEntityQuery* Query : ProcessorQueries)
+	if (ensureMsgf(ProcessorQueries.Num() >= 1, TEXT("We expect at least one query to be there - every processor should have their ProcessorRequirements registered in OwnedQueries")))
 	{
-		check(Query);
-		Queries.Add(MakeShareable(new FMassDebuggerQueryData(*Query)));
+		ProcessorRequirements = MakeShareable(new FMassDebuggerQueryData(*ProcessorQueries[0], LOCTEXT("MassProcessorRequirementsLabel", "Processor Requirements")));
 
-		for (const FMassArchetypeHandle& ArchetypeHandle : Query->GetArchetypes())
+		Queries.Reserve(ProcessorQueries.Num() - 1);
+		for (int i = 1; i < ProcessorQueries.Num(); ++i)
 		{
-			ValidArchetypes.Add(InTransientArchetypesMap.FindChecked(ArchetypeHandle));
+			const FMassEntityQuery* Query = ProcessorQueries[i];
+			check(Query);
+			Queries.Add(MakeShareable(new FMassDebuggerQueryData(*Query, LOCTEXT("MassEntityQueryLabel", "Query"))));
+
+			for (const FMassArchetypeHandle& ArchetypeHandle : Query->GetArchetypes())
+			{
+				ValidArchetypes.Add(InTransientArchetypesMap.FindChecked(ArchetypeHandle));
+			}
 		}
 	}
 #endif // WITH_MASSENTITY_DEBUG

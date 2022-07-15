@@ -52,6 +52,7 @@ struct MASSENTITY_API FMassExecutionRequirements
 	void Append(const FMassExecutionRequirements& Other);
 	void CountResourcesUsed();
 	int32 GetTotalBitsUsedCount();
+	bool IsEmpty() const;
 
 	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
 	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;

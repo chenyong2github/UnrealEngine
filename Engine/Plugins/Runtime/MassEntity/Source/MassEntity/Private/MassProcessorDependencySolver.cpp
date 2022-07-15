@@ -68,6 +68,13 @@ int32 FMassExecutionRequirements::GetTotalBitsUsedCount()
 		+ RequiredAnyTags.CountStoredTypes() + RequiredNoneTags.CountStoredTypes();
 }
 
+bool FMassExecutionRequirements::IsEmpty() const
+{
+	return Fragments.IsEmpty() && ChunkFragments.IsEmpty() 
+		&& SharedFragments.IsEmpty() && RequiredSubsystems.IsEmpty()
+		&& RequiredAllTags.IsEmpty() && RequiredAnyTags.IsEmpty() && RequiredNoneTags.IsEmpty();
+}
+
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FResourceUsage
 //----------------------------------------------------------------------//
