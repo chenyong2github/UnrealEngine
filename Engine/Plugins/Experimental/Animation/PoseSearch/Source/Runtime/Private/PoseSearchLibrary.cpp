@@ -288,40 +288,28 @@ void UpdateMotionMatchingState(
 		if (SearchResult.IsValid())
 		{
 			// If the result is valid and we couldn't advance we should always jump to the search result
-			if (!bCanAdvance)
-			{
-				InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
-			}
+			bool bJumpToPose = true;
+
 			// Otherwise we need to check if the result is a good improvement over the current pose
-			else
+			if (bCanAdvance)
 			{
 				// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
 				check(SearchResult.PoseCost.GetDissimilarity() >= 0.0f);
-				bool bBetterPose = true;
-				if (SearchResult.ContinuityPoseCost.IsValid())
+				
+				if (SearchResult.ContinuingPoseCost.IsValid())
 				{
-					if ((SearchResult.ContinuityPoseCost.GetTotalCost() <= SearchResult.PoseCost.GetTotalCost()) || 
-						(SearchResult.ContinuityPoseCost.GetDissimilarity() <= SearchResult.PoseCost.GetDissimilarity()))
+					if ((SearchResult.ContinuingPoseCost.GetTotalCost() <= SearchResult.PoseCost.GetTotalCost()) ||
+						(SearchResult.ContinuingPoseCost.GetDissimilarity() <= SearchResult.PoseCost.GetDissimilarity()))
 					{
-						bBetterPose = false;
-					}
-					else
-					{
-						checkSlow(
-							SearchResult.ContinuityPoseCost.GetDissimilarity() > 0.0f && 
-							 SearchResult.ContinuityPoseCost.GetDissimilarity() > SearchResult.PoseCost.GetDissimilarity());
-						const float RelativeSimilarityGain = -1.0f * 
-							(SearchResult.PoseCost.GetDissimilarity() - SearchResult.ContinuityPoseCost.GetDissimilarity()) / 
-							SearchResult.ContinuityPoseCost.GetDissimilarity();
-						bBetterPose = RelativeSimilarityGain >= Settings.MinPercentImprovement / 100.0f;
+						bJumpToPose = false;
 					}
 				}
+			}
 
-				// Jump to candidate pose if there was a better option
-				if (bBetterPose)
-				{
-					InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
-				}
+			// Jump to candidate pose if there was a better option
+			if (bJumpToPose)
+			{
+				InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 			}
 		}
 
@@ -477,14 +465,6 @@ float FMotionMatchingState::ComputeJumpBlendTime(
 	}
 
 	return JumpBlendTime;
-}
-
-EPoseSearchPostSearchStatus UPoseSearchPostProcessor_Bias::PostProcess_Implementation(FPoseSearchCost& InOutCost) const
-{
-	InOutCost.SetDissimilarity(Multiplier * InOutCost.GetDissimilarity());
-	InOutCost.SetCostAddend(Addend + InOutCost.GetCostAddend());
-
-	return EPoseSearchPostSearchStatus::Continue;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -356,7 +356,7 @@ void UPoseSearchFeatureChannel_Position::GenerateDDCKey(FBlake3& InOutKeyHasher)
 	InOutKeyHasher.Update(&Bone, sizeof(Bone));
 	InOutKeyHasher.Update(&Weight, sizeof(Weight));
 	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuityPose, sizeof(bUseFeaturesFromContinuityPose));
+	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
 	InOutKeyHasher.Update(&bUseSampleTimeOffsetRootBone, sizeof(bUseSampleTimeOffsetRootBone));
 }
 
@@ -364,7 +364,7 @@ bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuityPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 	if (bSkip)
 	{
 		return true;
@@ -489,7 +489,7 @@ void UPoseSearchFeatureChannel_Heading::GenerateDDCKey(FBlake3& InOutKeyHasher) 
 	InOutKeyHasher.Update(&Weight, sizeof(Weight));
 	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
 	InOutKeyHasher.Update(&HeadingAxis, sizeof(HeadingAxis));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuityPose, sizeof(bUseFeaturesFromContinuityPose));
+	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
 	InOutKeyHasher.Update(&bUseSampleTimeOffsetRootBone, sizeof(bUseSampleTimeOffsetRootBone));
 }
 
@@ -497,7 +497,7 @@ bool UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContex
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuityPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 	if (bSkip)
 	{
 		return true;
@@ -880,14 +880,14 @@ void UPoseSearchFeatureChannel_Pose::GenerateDDCKey(FBlake3& InOutKeyHasher) con
 	InOutKeyHasher.Update(&Weight, sizeof(Weight));
 	InOutKeyHasher.Update(MakeMemoryView(SampledBones));
 	InOutKeyHasher.Update(MakeMemoryView(SampleTimes));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuityPose, sizeof(bUseFeaturesFromContinuityPose));
+	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
 }
 
 bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuityPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
 	if (bSkip)
 	{
 		return true;

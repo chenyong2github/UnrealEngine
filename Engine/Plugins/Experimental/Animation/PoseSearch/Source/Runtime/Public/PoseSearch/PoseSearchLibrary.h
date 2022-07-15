@@ -42,10 +42,6 @@ struct POSESEARCH_API FMotionMatchingSettings
 	// Minimum amount of time to wait between pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float SearchThrottleTime = 0.1f;
-
-	// How much better the search result must be compared to the current pose in order to jump to it
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", ClampMax="100"))
-	float MinPercentImprovement = 40.0f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
@@ -117,19 +113,4 @@ POSESEARCH_API void UpdateMotionMatchingState(
 	FMotionMatchingState& InOutMotionMatchingState,
 	bool bForceInterrupt
 );
-
-UCLASS(DisplayName = "Bias")
-class POSESEARCH_API UPoseSearchPostProcessor_Bias : public UPoseSearchPostProcessor
-{
-	GENERATED_BODY()
-
-public:
-	virtual EPoseSearchPostSearchStatus PostProcess_Implementation(FPoseSearchCost& InOutCost) const override;
-
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	float Multiplier = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = Parameters)
-	float Addend = 0.0f;
-};
 

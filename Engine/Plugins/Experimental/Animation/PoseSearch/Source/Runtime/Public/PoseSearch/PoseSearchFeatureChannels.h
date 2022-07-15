@@ -28,9 +28,9 @@ public:
 	UPROPERTY()
 	int8 SchemaBoneIdx;
 
-	// reuse continuity pose database feature values if available
+	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuityPose = true;
+	bool bUseFeaturesFromContinuingPose = true;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -81,9 +81,9 @@ public:
 	UPROPERTY()
 	int8 SchemaBoneIdx;
 
-	// reuse continuity pose database feature values if available
+	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuityPose = true;
+	bool bUseFeaturesFromContinuingPose = true;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -121,9 +121,9 @@ public:
 	UPROPERTY()
 	TArray<int8> SchemaBoneIdx;
 
-	// reuse continuity pose database feature values if available
+	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuityPose = true;
+	bool bUseFeaturesFromContinuingPose = true;
 
 	// UObject interface
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;

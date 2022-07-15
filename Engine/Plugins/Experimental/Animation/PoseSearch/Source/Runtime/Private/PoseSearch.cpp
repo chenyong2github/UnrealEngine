@@ -493,6 +493,9 @@ void UPoseSearchSchema::GenerateDDCKey(FBlake3& InOutKeyHasher) const
 	InOutKeyHasher.Update(&EffectiveDataPreprocessor, sizeof(EffectiveDataPreprocessor));
 	InOutKeyHasher.Update(&SamplingInterval, sizeof(SamplingInterval));
 	InOutKeyHasher.Update(MakeMemoryView(BoneIndicesWithParents));
+	InOutKeyHasher.Update(&ContinuingPoseCostBias, sizeof(ContinuingPoseCostBias));
+	InOutKeyHasher.Update(&BaseCostBias, sizeof(BaseCostBias));
+	InOutKeyHasher.Update(&MirrorMismatchCostBias, sizeof(MirrorMismatchCostBias));
 
 	// @todo: add schema version if POSESEARCHDB_DERIVEDDATA_VER is not enought
 }
@@ -823,7 +826,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 				continue;
 			}
 
-			FPoseSearchCost PoseCost = ComparePoses(PoseIdx, NormalizedQueryValues);
+			FPoseSearchCost PoseCost = ComparePoses(PoseIdx, EPoseComparisonFlags::ContinuingPose, NormalizedQueryValues);
 
 			if (PoseCost < BestPoseCost)
 			{
@@ -848,7 +851,8 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 }
 
 FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
-	int32 PoseIdx, 
+	int32 PoseIdx,
+	UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags,
 	const TArrayView<const float>& QueryValues) const
 {
 	using namespace UE::PoseSearch;
@@ -856,15 +860,13 @@ FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
 	FPoseSearchCost Result;
 
 	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
-	if (!ensure(PoseValues.Num() == QueryValues.Num()))
-	{
-		return Result;
-	}
+	check(PoseValues.Num() == QueryValues.Num());
 
 	Result.SetDissimilarity(CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), QueryValues.GetData()));
 
 	const FPoseSearchPoseMetadata& PoseMetadata = SearchIndex.PoseMetadata[PoseIdx];
-	Result.SetCostAddend(PoseMetadata.CostAddend);
+	const float ContinuingPoseCostAddend = EnumHasAnyFlags(PoseComparisonFlags, EPoseComparisonFlags::ContinuingPose) ? PoseMetadata.ContinuingPoseCostAddend : 0.f;
+	Result.SetCostAddend(PoseMetadata.CostAddend + ContinuingPoseCostAddend);
 
 	return Result;
 }
@@ -1752,32 +1754,22 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 #endif // WITH_EDITOR
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, int32 GroupIdx, const TArrayView<const float>& QueryValues) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const
 {
 	using namespace UE::PoseSearch;
 
 	FPoseSearchCost Result;
 
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	if (!ensure(SearchIndex))
-	{
-		return Result;
-	}
+	check(SearchIndex);
 
 	TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
-	if (!ensure(PoseValues.Num() == QueryValues.Num()))
-	{
-		return Result;
-	}
+	check(PoseValues.Num() == QueryValues.Num());
 
 	if (GroupIdx == INDEX_NONE)
 	{
 		const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
-		if (!ensure(SearchIndexAsset))
-		{
-			return Result;
-		}
-
+		check(SearchIndexAsset)
 		GroupIdx = SearchIndexAsset->SourceGroupIdx;
 	}
 
@@ -1789,13 +1781,13 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 
 	float NotifyAddend = 0.0f;
 	float MirrorMismatchAddend = 0.0f;
-	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
+	ComputePoseCostAddends(PoseIdx, PoseComparisonFlags, SearchContext, NotifyAddend, MirrorMismatchAddend);
 	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend);
 
 	return Result;
 }
 
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
 {
 	using namespace Eigen;
 	using namespace UE::PoseSearch;
@@ -1804,10 +1796,7 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 
 	TArrayView<const float> PoseValues = GetSearchIndex()->GetPoseValues(PoseIdx);
 	const int32 Dims = PoseValues.Num();
-	if (!ensure(Dims == QueryValues.Num()))
-	{
-		return Result;
-	}
+	check(Dims == QueryValues.Num());
 
 	OutPoseCostDetails.CostVector.SetNum(Dims);
 
@@ -1829,7 +1818,7 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 	// Output result
 	float NotifyAddend = 0.0f;
 	float MirrorMismatchAddend = 0.0f;
-	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
+	ComputePoseCostAddends(PoseIdx, PoseComparisonFlags, SearchContext, NotifyAddend, MirrorMismatchAddend);
 	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend);
 
 	// Output cost details
@@ -1847,6 +1836,7 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 		FPoseSearchCost RuntimeComparatorCost = ComparePoses(
 			SearchContext, 
 			PoseIdx, 
+			PoseComparisonFlags,
 			SearchIndexAsset->SourceGroupIdx,
 			QueryValues);
 		checkSlow(FMath::IsNearlyEqual(Result.GetTotalCost(), RuntimeComparatorCost.GetTotalCost(), 1e-3f));
@@ -1862,25 +1852,29 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 	return Result;
 }
 
-void UPoseSearchDatabase::ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const
+void UPoseSearchDatabase::ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const
 {
 	OutNotifyAddend = 0.0f;
 	OutMirrorMismatchAddend = 0.0f;
 
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	check(SearchIndex);
 	if (SearchContext.QueryMirrorRequest != EPoseSearchBooleanRequest::Indifferent)
 	{
-		const FPoseSearchIndexAsset* IndexAsset = GetSearchIndex()->FindAssetForPose(PoseIdx);
+		const FPoseSearchIndexAsset* IndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
 		const bool bMirroringMismatch =
 			(IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::FalseValue) ||
 			(!IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::TrueValue);
 		if (bMirroringMismatch)
 		{
-			OutMirrorMismatchAddend = MirroringMismatchCost;
+			check(Schema);
+			OutMirrorMismatchAddend = Schema->MirrorMismatchCostBias;
 		}
 	}
 
-	const FPoseSearchPoseMetadata& PoseMetadata = GetSearchIndex()->PoseMetadata[PoseIdx];
-	OutNotifyAddend = PoseMetadata.CostAddend;
+	const FPoseSearchPoseMetadata& PoseMetadata = SearchIndex->PoseMetadata[PoseIdx];
+	const float ContinuingPoseCostAddend = EnumHasAnyFlags(PoseComparisonFlags, UE::PoseSearch::EPoseComparisonFlags::ContinuingPose) ? PoseMetadata.ContinuingPoseCostAddend : 0.f;
+	OutNotifyAddend = PoseMetadata.CostAddend + ContinuingPoseCostAddend;
 }
 
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearchContext& SearchContext) const
@@ -2036,9 +2030,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
 	if (IsCurrentResultFromThisDatabase)
 	{
-		Result.ContinuityPoseCost = ComparePoses(
+		Result.ContinuingPoseCost = ComparePoses(
 			SearchContext,
 			SearchContext.CurrentResult.PoseIdx,
+			EPoseComparisonFlags::ContinuingPose,
 			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 			NormalizedQueryValues);
 	}
@@ -2078,6 +2073,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 			FPoseSearchCost PoseCost = ComparePoses(
 				SearchContext, 
 				PoseIdx, 
+				EPoseComparisonFlags::None,
 				GroupSearchIndex.GroupIndex,
 				NormalizedQueryValues);
 
@@ -2127,9 +2123,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
 	if (IsCurrentResultFromThisDatabase)
 	{
-		Result.ContinuityPoseCost = ComparePoses(
+		Result.ContinuingPoseCost = ComparePoses(
 			SearchContext,
 			SearchContext.CurrentResult.PoseIdx,
+			EPoseComparisonFlags::ContinuingPose,
 			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 			NormalizedQueryValues);
 
@@ -2169,6 +2166,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 			FPoseSearchCost PoseCost = ComparePoses(
 				SearchContext,
 				PoseIdx, 
+				EPoseComparisonFlags::None,
 				Asset.SourceGroupIdx,
 				NormalizedQueryValues);
 
@@ -2208,42 +2206,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 	using namespace UE::PoseSearch;
 
 	FSearchResult Result;
-	FPoseSearchCost ContinuityCost;
-
-	auto ProcessActiveEntry = 
-		[&SearchContext, &Result, &ContinuityCost](const FPoseSearchDatabaseSetEntry& Entry) 
-		-> EPoseSearchPostSearchStatus
-	{
-		EPoseSearchPostSearchStatus PostSearchStatus = EPoseSearchPostSearchStatus::Continue;
-		FSearchResult EntryResult = Entry.Searchable->Search(SearchContext);
-		if (EntryResult.IsValid())
-		{
-			if (IsValid(Entry.PostProcessor))
-			{
-				PostSearchStatus = Entry.PostProcessor->PostProcess(EntryResult.PoseCost);
-				if (EntryResult.ContinuityPoseCost.IsValid())
-				{
-					Entry.PostProcessor->PostProcess(EntryResult.ContinuityPoseCost);
-				}
-			}
-
-			if (!Result.IsValid() || EntryResult.PoseCost.GetTotalCost() < Result.PoseCost.GetTotalCost())
-			{
-				Result = EntryResult;
-			}
-
-			if (EntryResult.ContinuityPoseCost.IsValid())
-			{
-				if (!ContinuityCost.IsValid() ||
-					EntryResult.ContinuityPoseCost.GetTotalCost() < ContinuityCost.GetTotalCost())
-				{
-					ContinuityCost = EntryResult.ContinuityPoseCost;
-				}
-			}
-		}
-
-		return PostSearchStatus;
-	};
+	FPoseSearchCost ContinuingCost;
 
 	for (const FPoseSearchDatabaseSetEntry& Entry : AssetsToSearch)
 	{
@@ -2261,17 +2224,33 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 
 		if (bSearchEntry)
 		{
-			EPoseSearchPostSearchStatus PostSearchStatus = ProcessActiveEntry(Entry);
-			if (PostSearchStatus == EPoseSearchPostSearchStatus::Stop)
+			FSearchResult EntryResult = Entry.Searchable->Search(SearchContext);
+			if (EntryResult.IsValid())
 			{
-				break;
+				if (!Result.IsValid() || EntryResult.PoseCost.GetTotalCost() < Result.PoseCost.GetTotalCost())
+				{
+					Result = EntryResult;
+				}
+
+				if (EntryResult.ContinuingPoseCost.IsValid())
+				{
+					if (!ContinuingCost.IsValid() || EntryResult.ContinuingPoseCost.GetTotalCost() < ContinuingCost.GetTotalCost())
+					{
+						ContinuingCost = EntryResult.ContinuingPoseCost;
+					}
+				}
+
+				if (Entry.PostSearchStatus == EPoseSearchPostSearchStatus::Stop)
+				{
+					break;
+				}
 			}
 		}
 	}
 
 	if (Result.IsValid())
 	{
-		Result.ContinuityPoseCost = ContinuityCost;
+		Result.ContinuingPoseCost = ContinuingCost;
 	}
 	else
 	{
@@ -4107,6 +4086,9 @@ void FAssetIndexer::AddMetadata(int32 SampleIdx)
 		EnumAddFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition);
 	}
 
+	Metadata.CostAddend = IndexingContext.Schema->BaseCostBias;
+	Metadata.ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
+	
 	TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
 	IndexingContext.MainSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
 	for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
@@ -4120,6 +4102,12 @@ void FAssetIndexer::AddMetadata(int32 SampleIdx)
 			const UAnimNotifyState_PoseSearchModifyCost* ModifyCostNotify =
 				Cast<const UAnimNotifyState_PoseSearchModifyCost>(PoseSearchNotify);
 			Metadata.CostAddend = ModifyCostNotify->CostAddend;
+		}
+		else if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>())
+		{
+			const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBias =
+				Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify);
+			Metadata.ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
 		}
 	}
 }
@@ -5372,13 +5360,6 @@ void FModule::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveCont
 #endif // WITH_EDITOR
 
 }} // namespace UE::PoseSearch
-
-EPoseSearchPostSearchStatus UPoseSearchPostProcessor::PostProcess_Implementation(
-	FPoseSearchCost& InOutCost) const
-{
-	return EPoseSearchPostSearchStatus::Continue;
-}
-
 
 #undef LOCTEXT_NAMESPACE
 

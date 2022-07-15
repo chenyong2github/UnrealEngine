@@ -961,9 +961,12 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 			// @todo: invalidate rows in case Database changed while PIE is active with pose debugger. for now we just avoid crashes
 			if (PoseIdx < Database.GetSearchIndex()->NumPoses)
 			{
+				const EPoseComparisonFlags PoseComparisonFlags = (PoseIdx == State.ContinuingPoseIdx) ? EPoseComparisonFlags::ContinuingPose : EPoseComparisonFlags::None;
+
 				Database.ComparePoses(
 					SearchContext,
 					PoseIdx,
+					PoseComparisonFlags,
 					State.QueryVectorNormalized,
 					Row->PoseCostDetails);
 

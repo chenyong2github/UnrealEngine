@@ -72,7 +72,7 @@ enum class EPoseSearchFeatureDomain : int32
 	Invalid = Num UMETA(Hidden)
 };
 
-UENUM(BlueprintType)
+UENUM()
 enum class EPoseSearchBooleanRequest : uint8
 {
 	FalseValue,
@@ -124,6 +124,17 @@ enum class ESearchIndexAssetType : int32
 	Sequence,
 	BlendSpace,
 };
+
+namespace UE::PoseSearch {
+	
+enum class EPoseComparisonFlags : int32
+{
+	None = 0,
+	ContinuingPose = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EPoseComparisonFlags);
+
+} // namespace UE::PoseSearch
 
 UENUM()
 enum class EPoseSearchMirrorOption : int32
@@ -488,6 +499,19 @@ public:
 	UPROPERTY(Transient)
 	TArray<uint16> BoneIndicesWithParents;
 
+	// cost added to the continuing pose from databases that uses this schema
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	float ContinuingPoseCostBias = 0.f;
+
+	// base cost added to all poses from databases that uses this schema. it can be overridden by UAnimNotifyState_PoseSearchModifyCost
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	float BaseCostBias = 0.f;
+
+	// If there's a mirroring mismatch between the currently playing asset and a search candidate, this cost will be 
+	// added to the candidate, making it less likely to be selected
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	float MirrorMismatchCostBias = 0.f;
+
 	bool IsValid () const;
 
 	int32 GetNumBones () const { return BoneIndices.Num(); }
@@ -560,8 +584,13 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	UPROPERTY()
 	EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
 
+	// @todo: consider float16
 	UPROPERTY()
 	float CostAddend = 0.0f;
+
+	// @todo: consider float16
+	UPROPERTY()
+	float ContinuingPoseCostAddend = 0.0f;
 };
 
 
@@ -986,7 +1015,7 @@ struct FSearchResult
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
 	// cost of the current pose with the query from database in the result, if possible
-	FPoseSearchCost ContinuityPoseCost; 
+	FPoseSearchCost ContinuingPoseCost; 
 
 	float AssetTime = 0.0f;
 
@@ -1048,11 +1077,6 @@ public:
 	// Motion Database Config asset to use with this database.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database", DisplayName="Config")
 	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
-
-	// If there's a mirroring mismatch between the currently playing sequence and a search candidate, this cost will be 
-	// added to the candidate, making it less likely to be selected
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Database")
-	float MirroringMismatchCost = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
@@ -1179,9 +1203,9 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
-	void ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
+	void ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1217,7 +1241,7 @@ public:
 	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 protected:
-	FPoseSearchCost ComparePoses(int32 PoseIdx, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues) const;
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -1406,7 +1430,7 @@ POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& 
 } // namespace UE::PoseSearch
 
 
-UENUM(BlueprintType)
+UENUM()
 enum class EPoseSearchPostSearchStatus : uint8
 {
 	// Continue looking for results 
@@ -1414,17 +1438,6 @@ enum class EPoseSearchPostSearchStatus : uint8
 
 	// Halt and return the best result
 	Stop
-};
-
-
-UCLASS(Abstract, EditInlineNew, Blueprintable)
-class POSESEARCH_API UPoseSearchPostProcessor : public UDataAsset
-{
-	GENERATED_BODY()
-
-public:
-	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category=Settings)
-	EPoseSearchPostSearchStatus PostProcess(FPoseSearchCost& InOutCost) const;
 };
 
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
@@ -1439,8 +1452,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGameplayTag Tag;
 
-	UPROPERTY(EditAnywhere, Instanced, Category = Settings)
-	TObjectPtr<UPoseSearchPostProcessor> PostProcessor = nullptr;
+	UPROPERTY(EditAnywhere, Category = Settings)
+	EPoseSearchPostSearchStatus PostSearchStatus = EPoseSearchPostSearchStatus::Continue;
 };
 
 /** A data asset which holds a collection searchable assets. */
