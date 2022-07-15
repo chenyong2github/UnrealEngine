@@ -134,6 +134,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Core)
 	bool bTextAssetFormatSupport;
 
+	/** Enables in-editor support for rehydrating virtualized assets */
+	UPROPERTY(EditAnywhere, config, Category = Core)
+	bool bVirtualizedAssetRehydration;
+
 	/** When creating new Material Layers and Material Layer Blends, set up example graphs. */
 	UPROPERTY(EditAnywhere, config, Category = Materials)
 	bool bExampleLayersAndBlends;

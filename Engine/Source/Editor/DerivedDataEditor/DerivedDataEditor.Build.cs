@@ -27,7 +27,8 @@ public class DerivedDataEditor : ModuleRules
 				"WorkspaceMenuStructure",
 				"MessageLog",
 				"ToolWidgets",
-				"Zen"
+				"Zen",
+				"ContentBrowserData",
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(

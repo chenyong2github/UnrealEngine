@@ -6,8 +6,10 @@
 #include "Internationalization/Internationalization.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
+#include "Misc/ScopedSlowTask.h"
 #include "PackageUtils.h"
 #include "UObject/Linker.h"
+#include "UObject/Package.h"
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectGlobals.h"
 #include "Virtualization/VirtualizationSystem.h"
@@ -27,6 +29,9 @@ void RehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors
 	{
 		return;
 	}
+
+	FScopedSlowTask Progress(1.0f, LOCTEXT("VAHydration_Task", "Re-hydrating Assets..."));
+	Progress.MakeDialog();
 
 	for (const FString& FilePath : Packages)
 	{
@@ -50,7 +55,7 @@ void RehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors
 		TUniquePtr<FArchive> PackageAr(IFileManager::Get().CreateFileReader(*FilePath));
 		if (!PackageAr.IsValid())
 		{
-			FText Message = FText::Format(LOCTEXT("VAHydration_REadFailed", "Unable to open the package '{0}' for reading"),
+			FText Message = FText::Format(LOCTEXT("VAHydration_ReadFailed", "Unable to open the package '{0}' for reading"),
 				FText::FromString(FilePath));
 			OutErrors.Add(Message);
 
@@ -96,7 +101,16 @@ void RehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors
 		{
 			const FString NewPackagePath = DuplicatePackageWithNewTrailer(FilePath, Trailer, Builder, OutErrors);
 
-			// TODO: Reset loaders here if we ever expose this path to be run from the editor
+			FString PackageName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(FilePath, PackageName))
+			{
+				UPackage* Package = FindObjectFast<UPackage>(nullptr, *PackageName);
+				if (Package != nullptr)
+				{
+					UE_LOG(LogVirtualization, Verbose, TEXT("Detaching '%s' from disk so that it can be rehydrated"), *FilePath);
+					ResetLoadersForSave(Package, *FilePath);
+				}
+			}
 
 			if (CanWriteToFile(FilePath))                     
 			{
@@ -111,17 +125,12 @@ void RehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors
 			}
 			else
 			{
-				// Technically the package could have local payloads that won't be virtualized due to filtering or min payload sizes and so the
-				// following warning is misleading. This will be solved if we move that evaluation to the point of saving a package.
-				// If not then we probably need to extend QueryPayloadStatuses to test filtering etc as well, then check for potential package
-				// modification after that.
-				// Long term, the stand alone tool should be able to request the UnrealEditor relinquish the lock on the package file so this becomes 
-				// less of a problem.
 				FText Message = FText::Format(
-					LOCTEXT("VAHydration_PackageLocked", "The package file '{0}' has virtualized payloads but is locked for modification and cannot be hydrated, this package will be skipped!"),
+					LOCTEXT("VAHydration_PackageLocked", "The package file '{0}' has virtualized payloads but is locked for modification and cannot be hydrated"),
 					FText::FromString(FilePath));
 
-				UE_LOG(LogVirtualization, Warning, TEXT("%s"), *Message.ToString());
+				OutErrors.Add(Message);
+				return;
 			}
 		}
 	}
