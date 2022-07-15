@@ -183,6 +183,7 @@ private:
 			ReceivedPlaylists,
 			TracksChanged,
 			PlaylistDownload,
+			CleanStart,
 			BufferingStart,
 			BufferingEnd,
 			Bandwidth,
@@ -317,6 +318,10 @@ private:
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEventBase>(FPlayerMetricEventBase::EType::TracksChanged)); }
 	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) override
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEvent_PlaylistDownload>(PlaylistDownloadStats)); }
+	virtual void ReportCleanStart() override
+	{ /*DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEventBase>(FPlayerMetricEventBase::EType::CleanStart));*/ 
+		bDiscardOutputUntilCleanStart = false;
+	}
 	virtual void ReportBufferingStart(Metrics::EBufferingReason BufferingReason) override
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEvent_BufferingStart>(BufferingReason)); }
 	virtual void ReportBufferingEnd(Metrics::EBufferingReason BufferingReason) override
@@ -391,6 +396,7 @@ private:
 	mutable bool									bSubtitleTrackIndexDirty;
 
 	bool											bInitialSeekPerformed;
+	bool											bDiscardOutputUntilCleanStart;
 
 	FPlaybackRange									CurrentPlaybackRange;
 	TOptional<bool>									bFrameAccurateSeeking;

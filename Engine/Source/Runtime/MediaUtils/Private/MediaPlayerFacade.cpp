@@ -1770,7 +1770,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 	{
 		if (!Player.IsValid() || Player->FlushOnSeekCompleted())
 		{
-			Flush(Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::PlayerUsesInternalFlushOnSeek));
+			Flush(!Player.IsValid() || Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::PlayerUsesInternalFlushOnSeek));
 		}
 	}
 	else if (Event == EMediaEvent::MediaClosed)
@@ -2730,8 +2730,6 @@ void FMediaPlayerFacade::ProcessSubtitleSamples(IMediaSamples& Samples, TRange<F
 
 void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 {
-	UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Received media event %s"), this, *MediaUtils::EventToString(Event));
-
 	if (Event >= EMediaEvent::Internal_Start)
 	{
 		switch (Event)
@@ -2783,8 +2781,11 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 
 		case	EMediaEvent::Internal_ResetForDiscontinuity:
 		{
-			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Reset for discontinuity"), this);
-			bIsSinkFlushPending = true;
+			// Disabled for now to prevent a flush on the next handling iteration that might discard the samples a blocking range is waiting for.
+			#if 0
+				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Reset for discontinuity"), this);
+				bIsSinkFlushPending = true;
+			#endif
 			break;
 		}
 		case	EMediaEvent::Internal_RenderClockStart:
@@ -2824,11 +2825,15 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 		}
 
 		default:
+		{
+			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Received media event %s"), this, *MediaUtils::EventToString(Event));
 			break;
+		}
 		}
 	}
 	else
 	{
+		UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Received media event %s"), this, *MediaUtils::EventToString(Event));
 		QueuedEvents.Enqueue(Event);
 	}
 }

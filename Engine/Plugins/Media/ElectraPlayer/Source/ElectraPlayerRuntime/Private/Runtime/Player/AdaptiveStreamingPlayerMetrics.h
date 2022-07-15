@@ -228,6 +228,11 @@ public:
 	virtual void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) = 0;
 
 	/**
+	 * Called when the player starts over from a clean state.
+	 */
+	virtual void ReportCleanStart() = 0;
+
+	/**
 	 * Called when buffering of data begins.
 	 */
 	virtual void ReportBufferingStart(Metrics::EBufferingReason BufferingReason) = 0;

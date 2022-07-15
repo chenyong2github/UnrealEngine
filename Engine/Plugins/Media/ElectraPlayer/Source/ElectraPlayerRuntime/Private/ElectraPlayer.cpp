@@ -206,6 +206,7 @@ void FElectraPlayer::ClearToDefaultState()
 	bAudioTrackIndexDirty = true;
 	bSubtitleTrackIndexDirty = true;
 	bInitialSeekPerformed = false;
+	bDiscardOutputUntilCleanStart = false;
 	LastPresentedFrameDimension = FIntPoint::ZeroValue;
 	CurrentlyActiveVideoStreamFormat.Reset();
 	DeferredPlayerEvents.Empty();
@@ -765,8 +766,15 @@ bool FElectraPlayer::PresentVideoFrame(const FVideoDecoderOutputPtr& InVideoFram
 	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
 	if (PinnedAdapterDelegate.IsValid())
 	{
-		PinnedAdapterDelegate->PresentVideoFrame(InVideoFrame);
-		LastPresentedFrameDimension = InVideoFrame->GetOutputDim();
+		if (!bDiscardOutputUntilCleanStart)
+		{
+			PinnedAdapterDelegate->PresentVideoFrame(InVideoFrame);
+			LastPresentedFrameDimension = InVideoFrame->GetOutputDim();
+		}
+		else
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Dropping video frame @ %.6f;%d due to seek block"), this, CurrentPlayer.Get(), InVideoFrame->GetTime().Time.GetTotalSeconds(), (int)InVideoFrame->GetTime().SequenceIndex);
+		}
 	}
 	return true;
 }
@@ -782,7 +790,14 @@ bool FElectraPlayer::PresentAudioFrame(const IAudioDecoderOutputPtr& DecoderOutp
 	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
 	if (PinnedAdapterDelegate.IsValid())
 	{
-		PinnedAdapterDelegate->PresentAudioFrame(DecoderOutput);
+		if (!bDiscardOutputUntilCleanStart)
+		{
+			PinnedAdapterDelegate->PresentAudioFrame(DecoderOutput);
+		}
+		else
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Dropping audio frame @ %.6f;%d due to seek block"), this, CurrentPlayer.Get(), DecoderOutput->GetTime().Time.GetTotalSeconds(), (int)DecoderOutput->GetTime().SequenceIndex);
+		}
 	}
 	return true;
 }
@@ -793,7 +808,10 @@ bool FElectraPlayer::PresentSubtitle(const ISubtitleDecoderOutputPtr& DecoderOut
 	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
 	if (PinnedAdapterDelegate.IsValid())
 	{
-		PinnedAdapterDelegate->PresentSubtitleSample(DecoderOutput);
+		if (!bDiscardOutputUntilCleanStart)
+		{
+			PinnedAdapterDelegate->PresentSubtitleSample(DecoderOutput);
+		}
 	}
 	return true;
 }
@@ -1108,6 +1126,7 @@ bool FElectraPlayer::Seek(const FTimespan& Time, const FSeekParam& Param)
 		seek.bOptimizeForScrubbing = Param.bOptimizeForScrubbing;
 		seek.DistanceThreshold = Param.DistanceThreshold;
 		bInitialSeekPerformed = true;
+		bDiscardOutputUntilCleanStart = true;
 		CurrentPlayer->AdaptivePlayer->SeekTo(seek);
 		return true;
 	}
@@ -1677,6 +1696,11 @@ void FElectraPlayer::HandleDeferredPlayerEvents()
 				HandlePlayerEventPlaylistDownload(Ev->PlaylistDownloadStats);
 				break;
 			}
+			case FPlayerMetricEventBase::EType::CleanStart:
+			{
+				bDiscardOutputUntilCleanStart = false;
+				break;
+			}
 			case FPlayerMetricEventBase::EType::BufferingStart:
 			{
 				FPlayerMetricEvent_BufferingStart* Ev = static_cast<FPlayerMetricEvent_BufferingStart*>(Event.Get());
@@ -2127,7 +2151,7 @@ void FElectraPlayer::HandlePlayerEventBufferingEnd(Electra::Metrics::EBufferingR
 void FElectraPlayer::HandlePlayerEventBandwidth(int64 EffectiveBps, int64 ThroughputBps, double LatencyInSeconds)
 {
 //	FScopeLock Lock(&StatisticsLock);
-	UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("[%p][%p] Observed bandwidth of %d bps; throughput = %d; latency = %.3fs"), this, CurrentPlayer.Get(), (int32)EffectiveBps, (int32)ThroughputBps, LatencyInSeconds);
+	UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("[%p][%p] Observed bandwidth of %lld Kbps; throughput = %lld Kbps; latency = %.3fs"), this, CurrentPlayer.Get(), EffectiveBps/1000, ThroughputBps/1000, LatencyInSeconds);
 }
 
 void FElectraPlayer::HandlePlayerEventBufferUtilization(const Electra::Metrics::FBufferStats& BufferStats)
@@ -2293,6 +2317,7 @@ void FElectraPlayer::HandlePlayerEventCodecFormatChange(const Electra::FStreamCo
 
 void FElectraPlayer::HandlePlayerEventPrerollStart()
 {
+	bDiscardOutputUntilCleanStart = false;
 	// Update statistics
 	FScopeLock Lock(&StatisticsLock);
 	Statistics.TimeAtPrerollBegin = FPlatformTime::Seconds();
@@ -2490,6 +2515,7 @@ void FElectraPlayer::HandlePlayerEventPlaybackStopped()
 void FElectraPlayer::HandlePlayerEventSeekCompleted()
 {
 	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Seek completed"), this, CurrentPlayer.Get());
+	bDiscardOutputUntilCleanStart = false;
 	MediaStateOnSeekFinished();
 }
 

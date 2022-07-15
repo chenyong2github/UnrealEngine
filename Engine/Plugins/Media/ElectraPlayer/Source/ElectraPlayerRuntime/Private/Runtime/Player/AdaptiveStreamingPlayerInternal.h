@@ -491,6 +491,7 @@ struct FMetricEvent
 		ReceivedMasterPlaylist,
 		ReceivedPlaylists,
 		TracksChanged,
+		CleanStart,
 		BufferingStart,
 		BufferingEnd,
 		Bandwidth,
@@ -566,6 +567,12 @@ struct FMetricEvent
 	TWeakPtr<FAdaptiveStreamingPlayer, ESPMode::ThreadSafe>	Player;
 	FMediaEvent	*EventSignal = nullptr;
 
+	static TSharedPtrTS<FMetricEvent> ReportCleanStart()
+	{
+		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
+		Evt->Type = EType::CleanStart;
+		return Evt;
+	}
 	static TSharedPtrTS<FMetricEvent> ReportOpenSource(const FString& URL)
 	{
 		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
@@ -850,6 +857,7 @@ public:
 	{
 		return MetricListeners;
 	}
+	void FireSyncEvent(TSharedPtrTS<FMetricEvent> Event);
 
 
 	void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;

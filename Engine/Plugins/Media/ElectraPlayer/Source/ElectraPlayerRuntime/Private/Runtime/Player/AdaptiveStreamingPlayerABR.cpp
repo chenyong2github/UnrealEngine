@@ -52,6 +52,7 @@ namespace Electra
 		void ReportReceivedMasterPlaylist(const FString& EffectiveURL) override {}
 		void ReportReceivedPlaylists() override {}
 		void ReportTracksChanged() override {}
+		void ReportCleanStart() override {};
 		void ReportPlaylistDownload(const Metrics::FPlaylistDownloadStats& PlaylistDownloadStats) override {}
 		void ReportBandwidth(int64 EffectiveBps, int64 ThroughputBps, double LatencyInSeconds) override {}
 		void ReportBufferUtilization(const Metrics::FBufferStats& BufferStats) override {}

@@ -99,7 +99,7 @@ public:
 	void SetLastAudioRenderedSampleTime(FTimespan SampleTime) override;
 	bool FlushOnSeekStarted() const override
 	{
-		return false;
+		return true;
 	}
 	bool FlushOnSeekCompleted() const override
 	{
