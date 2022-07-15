@@ -8,6 +8,7 @@
 #include "PCGEditorCommands.h"
 #include "PCGEditorGraphNodeFactory.h"
 #include "PCGEditorSettings.h"
+#include "PCGEditorStyle.h"
 #include "PCGGraphDetails.h"
 #include "PCGSubsystem.h"
 #include "PCGVolumeDetails.h"
@@ -34,6 +35,7 @@ void FPCGEditorModule::StartupModule()
 	RegisterSettings();
 
 	FPCGEditorCommands::Register();
+	FPCGEditorStyle::Register();
 
 	GraphNodeFactory = MakeShareable(new FPCGEditorGraphNodeFactory());
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
@@ -52,6 +54,7 @@ void FPCGEditorModule::ShutdownModule()
 	UnregisterMenuExtensions();
 
 	FPCGEditorCommands::Unregister();
+	FPCGEditorStyle::Unregister();
 
 	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 

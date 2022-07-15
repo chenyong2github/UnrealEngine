@@ -75,6 +75,15 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 		Section.AddMenuEntry(bIsInspected ? FPCGEditorCommands::Get().StopInspectNode : FPCGEditorCommands::Get().StartInspectNode);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 		Section.AddMenuEntry(FPCGEditorCommands::Get().CollapseNodes);
+
+		Section.AddSubMenu("ExecutionMode", LOCTEXT("ExecutionModeHeader", "Execution Mode"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* ExecutionModeMenu)
+		{
+			FToolMenuSection& SubSection = ExecutionModeMenu->AddSection("ExecutionMode");
+			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeEnabled, LOCTEXT("ExecutionModeEnabledLabel", "Enabled"));
+			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeDebug, LOCTEXT("ExecutionModeDebugLabel", "Debug"));
+			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeDisabled, LOCTEXT("ExecutionModeDisabledLabel", "Disabled"));
+			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeIsolated, LOCTEXT("ExecutionModeIsolatedLabel", "Isolated"));
+		}));
 	}
 
 	{
@@ -230,6 +239,18 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 {
 	if (InNode == PCGNode)
 	{
+		if (!!(ChangeType & EPCGChangeType::Settings))
+		{
+			if (const UPCGSettings* PCGSettings = InNode->DefaultSettings)
+			{
+				const ENodeEnabledState NewEnabledState = (PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Disabled) ? ENodeEnabledState::Disabled : ENodeEnabledState::Enabled;
+				if (NewEnabledState != GetDesiredEnabledState())
+				{
+					SetEnabledState(NewEnabledState);
+				}
+			}
+		}
+		
 		ReconstructNode();
 	}
 }
@@ -292,15 +313,17 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 {
 	if (PCGNode)
 	{
-		if (bIsInspected)
+		const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
+		if (PCGSettings && PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
 		{
-			return GetDefault<UPCGEditorSettings>()->InspectNodeColor;
+			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
 		}
-		else if (PCGNode->NodeTitleColor != FLinearColor::White)
+
+		if (PCGNode->NodeTitleColor != FLinearColor::White)
 		{
 			return PCGNode->NodeTitleColor;
 		}
-		else if (PCGNode->DefaultSettings)
+		else if (PCGSettings)
 		{
 			FLinearColor SettingsColor = PCGNode->DefaultSettings->GetNodeTitleColor();
 			if (SettingsColor == FLinearColor::White)
@@ -316,6 +339,20 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeTitleColor() const
 	}
 
 	return GetDefault<UPCGEditorSettings>()->DefaultNodeColor;
+}
+
+FLinearColor UPCGEditorGraphNodeBase::GetNodeBodyTintColor() const
+{
+	if (PCGNode)
+	{
+		const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
+		if (PCGSettings && PCGSettings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		{
+			return GetDefault<UPCGEditorSettings>()->IsolatedNodeColor;
+		}
+	}
+
+	return Super::GetNodeBodyTintColor();
 }
 
 FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)

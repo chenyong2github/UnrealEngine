@@ -3,8 +3,10 @@
 #pragma once
 
 #include "PCGEditorModule.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "PCGSettings.h"
+
 #include "EditorUndoClient.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 class FUICommandList;
 class IDetailsView;
@@ -95,6 +97,12 @@ private:
 	/** Summon the Determinism tab */
 	void OnDeterminismTests();
 
+	/** Whether or not an execution mode is active for the selected ndoes */
+	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;
+		
+	/** Set execution mode for selected nodes */
+	void OnSetExecutionMode(EPCGSettingsExecutionMode InExecutionMode);
+	
 	/** Select every node in the graph */
 	void SelectAllNodes();
 	/** Whether we can select every node */

@@ -319,6 +319,30 @@ void FPCGEditor::BindCommands()
 		PCGEditorCommands.RunDeterminismTest,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismTests),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismTests));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ExecutionModeEnabled,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Enabled),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Enabled));
+	
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ExecutionModeDebug,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Debug),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Debug));
+	
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ExecutionModeDisabled,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Disabled),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Disabled));
+	
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ExecutionModeIsolated,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Isolated),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Isolated));
 }
 
 void FPCGEditor::OnFind()
@@ -813,6 +837,77 @@ void FPCGEditor::OnStopInspectNode()
 		PCGGraphNodeBeingInspected->SetInspected(false);
 		PCGGraphNodeBeingInspected = nullptr;
 		SetPCGNodeBeingInspected(nullptr);
+	}
+}
+
+bool FPCGEditor::IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		for (const UObject* Object : GraphEditorWidget->GetSelectedNodes())
+		{
+			const UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<const UPCGEditorGraphNodeBase>(Object);
+			if (!PCGEditorGraphNode)
+			{
+				continue;
+			}
+			
+			const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+			if (!PCGNode)
+			{
+				continue;
+			}
+
+			const UPCGSettings* PCGSettings = PCGNode->DefaultSettings; 
+			if (!PCGSettings)
+			{
+				continue;				
+			}
+			
+			if (PCGSettings->ExecutionMode == InExecutionMode)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+void FPCGEditor::OnSetExecutionMode(EPCGSettingsExecutionMode InExecutionMode)
+{
+	// todo should perhaps make a utility function to get all selected nodes.
+	if (GraphEditorWidget.IsValid())
+	{
+		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorExecutionModeTransactionMessage", "PCG Editor: ExecutionMode"), nullptr);
+		
+		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+		{
+			UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object);
+			if (!PCGEditorGraphNode)
+			{
+				continue;
+			}
+
+			UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+			if (!PCGNode)
+			{
+				continue;
+			}
+
+			UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
+			if (!PCGSettings)
+			{
+				continue;
+			}
+
+			if (PCGSettings->ExecutionMode != InExecutionMode)
+			{
+				PCGSettings->Modify();
+				PCGSettings->ExecutionMode = InExecutionMode;
+				PCGSettings->OnSettingsChangedDelegate.Broadcast(PCGSettings, EPCGChangeType::Settings);
+			}
+		}
 	}
 }
 

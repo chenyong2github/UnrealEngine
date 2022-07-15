@@ -20,6 +20,10 @@ public:
 	virtual void AddPin(const TSharedRef<SGraphPin>& PinToAdd) override;
 	//~ End SGraphNode Interface
 
+	//~ Begin SNodePanel::SNode Interface
+	virtual void GetOverlayBrushes(bool bSelected, const FVector2D WidgetSize, TArray<FOverlayBrushInfo>& Brushes) const override;
+	//~ End SNodePanel::SNode Interface
+
 protected:
 	void OnNodeChanged();
 

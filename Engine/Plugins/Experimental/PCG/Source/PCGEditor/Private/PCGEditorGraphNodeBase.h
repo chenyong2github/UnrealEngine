@@ -34,7 +34,8 @@ public:
 	virtual void PrepareForCopying() override;
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	virtual void ReconstructNode() override;
-	virtual FLinearColor GetNodeTitleColor() const;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FLinearColor GetNodeBodyTintColor() const override;
 	virtual void PostPasteNode() override;
 	virtual FText GetTooltipText() const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
@@ -48,6 +49,7 @@ public:
 	void PostCopy();
 	void PostPaste();
 	void SetInspected(bool InIsInspecting) { bIsInspected = InIsInspecting; }
+	bool GetInspected() const { return bIsInspected; }
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;

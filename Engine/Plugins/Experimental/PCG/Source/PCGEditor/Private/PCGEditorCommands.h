@@ -19,4 +19,8 @@ public:
 	TSharedPtr<FUICommandInfo> RunDeterminismTest;
 	TSharedPtr<FUICommandInfo> StartInspectNode;
 	TSharedPtr<FUICommandInfo> StopInspectNode;
+	TSharedPtr<FUICommandInfo> ExecutionModeEnabled;
+	TSharedPtr<FUICommandInfo> ExecutionModeDebug;
+	TSharedPtr<FUICommandInfo> ExecutionModeIsolated;
+	TSharedPtr<FUICommandInfo> ExecutionModeDisabled;
 };
