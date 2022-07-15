@@ -292,6 +292,9 @@ public:
 			};
 
 			GetAllTargetedShaderFormatsInternal(RelevantSettings, OutFormats);
+
+			// We always support ray tracing shaders when cooking for SM6, however we may skip them for SM5 based on project settings.
+			OutFormats.AddUnique(FName(TEXT("PCD3D_SM6")));
 		}
 	}
 
