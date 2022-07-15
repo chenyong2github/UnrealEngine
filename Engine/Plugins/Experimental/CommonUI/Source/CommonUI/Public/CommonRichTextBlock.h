@@ -89,5 +89,9 @@ private:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "bDisplayAllCaps is deprecated. Please use TextTransformPolicy instead."))
 	bool bDisplayAllCaps_DEPRECATED = false;
 
+	/** True to automatically collapse this rich text block when set to display an empty string. Conversely, will be SelfHitTestInvisible when showing a non-empty string. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, meta = (AllowPrivateAccess = true))
+	bool bAutoCollapseWithEmptyText = false;
+
 	TSharedPtr<STextScroller> MyTextScroller;
 };
