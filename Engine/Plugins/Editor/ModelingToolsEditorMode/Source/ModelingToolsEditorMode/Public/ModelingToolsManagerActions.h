@@ -152,6 +152,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToTriangleType;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToPolygroupType;
 
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Delete;
 
 	//
 	// Accept/Cancel/Complete commands are used to end the active Tool via ToolManager

@@ -2,6 +2,7 @@
 
 #include "Selection/GeometrySelectionManager.h"
 #include "Selection/DynamicMeshSelector.h"
+#include "Selection/SelectionEditInteractiveCommand.h"
 #include "ToolContextInterfaces.h"
 #include "ToolDataVisualizer.h"
 
@@ -649,6 +650,99 @@ void UGeometrySelectionManager::EndTransformation()
 
 	bSelectionRenderCachesDirty = true;
 }
+
+
+
+
+
+bool UGeometrySelectionManager::CanExecuteSelectionCommand(UGeometrySelectionEditCommand* Command)
+{
+	if (SelectionArguments == nullptr)
+	{
+		SelectionArguments = NewObject<UGeometrySelectionEditCommandArguments>();
+	}
+
+	bool bCanExecute = true;
+	bool bHaveSelections = false;
+	ProcessActiveSelections([&](FGeometrySelectionHandle Handle)
+	{
+		SelectionArguments->SelectionHandle = Handle;
+		SelectionArguments->SetTransactionsAPI(TransactionsAPI);
+		bCanExecute = bCanExecute && Command->CanExecuteCommand(SelectionArguments);
+		bHaveSelections = true;
+	});
+
+	return bHaveSelections && bCanExecute;
+}
+
+void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCommand* Command)
+{
+	if (SelectionArguments == nullptr)
+	{
+		SelectionArguments = NewObject<UGeometrySelectionEditCommandArguments>();
+	}
+
+	// open transaction to wrap the entire set of Commands and selection changes
+	FText CommandText = Command->GetCommandShortString();
+	GetTransactionsAPI()->BeginUndoTransaction(CommandText);
+
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->Selection.IsEmpty()) continue;
+
+		// When initially executing the command, we do not clear the selection, because we pass it to the command.
+		// However, when we later *undo* any changes emitted by the command, we need to restore the selection aftewards.
+		// So we emit a clearing change here, so that undo un-clears. 
+		// When we later Redo, it is also necessary to Clear as otherwise an invalid Selection might hang around.
+		// Note that this must happen *before* the Command. The Command will not be re-executed, only its emitted Changes,
+		// so it will not be holding onto the active Selection on Redo later
+		// (if that becomes necessary, this sequence of changes will need to become more complicated....)
+		TUniquePtr<FGeometrySelectionReplaceChange> ClearChange = MakeUnique<FGeometrySelectionReplaceChange>();
+		ClearChange->Identifier = Target->Selector->GetIdentifier();
+		ClearChange->Before = Target->Selection;
+		ClearChange->After.InitializeTypes(ClearChange->Before);
+		GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Clear Selection"));
+
+		// q: we could clear the selection here, and pass the Handle a copy. Perhaps safer?
+
+		SelectionArguments->SelectionHandle = FGeometrySelectionHandle{ Target->Selector->GetIdentifier(), &Target->Selection };
+		SelectionArguments->SetTransactionsAPI(TransactionsAPI);
+		Command->ExecuteCommand(SelectionArguments);
+
+		// clear selection after executing command
+		FGeometrySelectionDelta ClearDelta;
+		Target->SelectionEditor->ClearSelection(ClearDelta);
+
+		// 
+		// if commands could emit new selections, this is where we would set them up and emit changes!
+	}
+
+	GetTransactionsAPI()->EndUndoTransaction();
+
+	// assume this is true for now
+	bSelectionRenderCachesDirty = true;
+	OnSelectionModified.Broadcast();
+}
+
+
+void UGeometrySelectionManager::ProcessActiveSelections(TFunctionRef<void(FGeometrySelectionHandle)> ProcessFunc)
+{
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->Selection.IsEmpty() == false)
+		{
+			FGeometrySelectionHandle Handle;
+			Handle.Selection = & Target->Selection;
+			Handle.Identifier = Target->Selector->GetIdentifier();
+			ProcessFunc(Handle);
+		}
+	}
+}
+
+
+
+
+
 
 
 

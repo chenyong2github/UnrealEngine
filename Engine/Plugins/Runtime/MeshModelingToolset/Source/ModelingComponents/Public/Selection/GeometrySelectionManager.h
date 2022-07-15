@@ -14,6 +14,8 @@ class UInteractiveToolsContext;
 class IToolsContextRenderAPI;
 class IToolsContextTransactionsAPI;
 class UPersistentMeshSelection;
+class UGeometrySelectionEditCommand;
+class UGeometrySelectionEditCommandArguments;
 
 
 /**
@@ -218,6 +220,32 @@ public:
 	 * End the current active transformation, and emit changes/transactions
 	 */
 	virtual void EndTransformation();
+
+
+	//
+	// Command Execution
+	//
+public:
+	/**
+	 * @return true if Command->CanExecuteCommand() returns true for *all* the current Selections
+	 */
+	bool CanExecuteSelectionCommand(UGeometrySelectionEditCommand* Command);
+
+	/**
+	 * execute the selection command for *all* the current selections
+	 */
+	void ExecuteSelectionCommand(UGeometrySelectionEditCommand* Command);
+
+
+protected:
+	// This is set to current selection during CanExecuteSelectionCommand/ExecuteSelectionCommand, to keep the UObject alive
+	// Not expected to be used outside that context
+	UPROPERTY()
+	TObjectPtr<UGeometrySelectionEditCommandArguments> SelectionArguments;
+
+	// apply ProcessFunc to active selections via handles, perhaps should be public?
+	void ProcessActiveSelections(TFunctionRef<void(FGeometrySelectionHandle)> ProcessFunc);
+
 
 
 	//

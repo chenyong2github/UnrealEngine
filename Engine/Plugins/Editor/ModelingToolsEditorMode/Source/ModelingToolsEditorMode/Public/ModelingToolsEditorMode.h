@@ -19,6 +19,7 @@ class FLevelObjectsObserver;
 class UModelingSceneSnappingManager;
 class UModelingSelectionInteraction;
 class UGeometrySelectionManager;
+class UInteractiveCommand;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
@@ -111,6 +112,14 @@ protected:
 	void CancelActiveToolActionOrTool();
 
 	void ConfigureRealTimeViewportsOverride(bool bEnable);
+
+
+	// UInteractiveCommand support. Currently implemented by creating instances of
+	// commands on mode startup and holding onto them. This perhaps should be revisited,
+	// command instances could probably be created as needed...
+
+	UPROPERTY()
+	TArray<TObjectPtr<UInteractiveCommand>> ModelingModeCommands;
 
 
 	// analytics tracking

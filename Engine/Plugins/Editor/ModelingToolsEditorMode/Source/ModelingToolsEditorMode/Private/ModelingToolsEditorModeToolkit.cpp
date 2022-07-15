@@ -625,7 +625,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 	}
 	else if (PaletteIndex == SelectionActionsTabName)
 	{
-		//ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Delete);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Delete);
 		//ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Extrude);
 	}
 	else if (PaletteIndex == PrimitiveTabName)

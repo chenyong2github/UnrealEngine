@@ -101,6 +101,10 @@
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
 #include "Tools/LODManagerTool.h"
 
+// commands
+#include "Commands/DeleteGeometrySelectionCommand.h"
+
+
 #include "EditorModeManager.h"
 #include "UnrealWidget.h"
 
@@ -731,6 +735,22 @@ void UModelingToolsEditorMode::Enter()
 		RegisterSelectionElementType(EGeometryElementType::Edge, ToolManagerCommands.BeginSelectionAction_ToEdgeType);
 		RegisterSelectionElementType(EGeometryElementType::Face, ToolManagerCommands.BeginSelectionAction_ToFaceType);
 	}
+
+
+	// this function registers and tracks an active UGeometrySelectionEditCommand and it's associated UICommand
+	auto RegisterSelectionCommand = [&](UGeometrySelectionEditCommand* Command, TSharedPtr<FUICommandInfo> UICommand)
+	{
+		ModelingModeCommands.Add(Command);
+		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+		CommandList->MapAction(UICommand,
+			FExecuteAction::CreateUObject(GetSelectionManager(), &UGeometrySelectionManager::ExecuteSelectionCommand, Command),
+			FCanExecuteAction::CreateUObject(GetSelectionManager(), &UGeometrySelectionManager::CanExecuteSelectionCommand, Command),
+			FIsActionChecked(),
+			EUIActionRepeatMode::RepeatDisabled);
+	};
+
+	// create and register InteractiveCommands for mesh selections
+	RegisterSelectionCommand(NewObject<UDeleteGeometrySelectionCommand>(), ToolManagerCommands.BeginSelectionAction_Delete);
 
 
 	// register extensions
