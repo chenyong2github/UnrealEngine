@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Selections/GeometrySelection.h"
 #include "Selection/GeometrySelector.h"
-#include "Selection/GeometrySelection.h"
 #include "Selection/GeometrySelectionChanges.h"
 
 #include "GeometrySelectionManager.generated.h"
@@ -55,6 +55,15 @@ class MODELINGCOMPONENTS_API UGeometrySelectionManager : public UObject
 	GENERATED_BODY()
 
 public:
+
+	using FGeometrySelection = UE::Geometry::FGeometrySelection;
+	using FGeometrySelectionEditor = UE::Geometry::FGeometrySelectionEditor;
+	using FGeometrySelectionBounds = UE::Geometry::FGeometrySelectionBounds;
+	using FGeometrySelectionElements = UE::Geometry::FGeometrySelectionElements;
+	using FGeometrySelectionUpdateConfig = UE::Geometry::FGeometrySelectionUpdateConfig;
+	using FGeometrySelectionUpdateResult = UE::Geometry::FGeometrySelectionUpdateResult;
+	using EGeometryElementType = UE::Geometry::EGeometryElementType;
+	using EGeometryTopologyType = UE::Geometry::EGeometryTopologyType;
 
 	//
 	// Setup/Teardown

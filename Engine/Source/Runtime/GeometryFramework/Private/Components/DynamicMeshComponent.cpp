@@ -1402,10 +1402,7 @@ void UDynamicMeshComponent::SetDeferredCollisionUpdatesEnabled(bool bEnabled, bo
 
 void UDynamicMeshComponent::SetTransientDeferCollisionUpdates(bool bEnabled)
 {
-	if (bTransientDeferCollisionUpdates != bEnabled)
-	{
-		bTransientDeferCollisionUpdates = bEnabled;
-	}
+	bTransientDeferCollisionUpdates = bEnabled;
 }
 
 void UDynamicMeshComponent::SetSceneProxyVerifyUsedMaterials(bool bState)

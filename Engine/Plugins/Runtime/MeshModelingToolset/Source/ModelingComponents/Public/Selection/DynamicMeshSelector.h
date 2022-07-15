@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Misc/Change.h"
 #include "Templates/PimplPtr.h"
+#include "Selections/GeometrySelection.h"
 #include "Selection/GeometrySelector.h"
-#include "Selection/GeometrySelection.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "TransformTypes.h"
@@ -26,10 +26,7 @@ PREDECLARE_GEOMETRY(class FColliderMesh);
 class MODELINGCOMPONENTS_API FDynamicMeshSelector : public IGeometrySelector
 {
 public:
-	virtual ~FDynamicMeshSelector()
-	{
-		FDynamicMeshSelector::Shutdown();
-	}
+	virtual ~FDynamicMeshSelector();
 
 	/**
 	 * Initialize the FDynamicMeshSelector for a given source/target UDynamicMesh.

@@ -8,7 +8,11 @@
 #include "BoxTypes.h"
 #include "DynamicMesh/InfoTypes.h"
 
-PREDECLARE_GEOMETRY(class FDynamicMesh3);
+
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -22,7 +26,7 @@ PREDECLARE_GEOMETRY(class FDynamicMesh3);
  * Note that since the ints are unsigned, IndexConstants::InvalidID
  * is not directly representable (-1 will become positive 0xFFFFFFFF). 
  */
-struct MODELINGCOMPONENTS_API FGeoSelectionID
+struct DYNAMICMESH_API FGeoSelectionID
 {
 	/** Topology ID, stored in upper 32 bits when packed into 64-bits */
 	uint32 TopologyID;
@@ -105,7 +109,7 @@ struct MODELINGCOMPONENTS_API FGeoSelectionID
 /**
  * Type of selected Elements in a FGeometrySelection
  */
-enum class MODELINGCOMPONENTS_API EGeometryElementType
+enum class DYNAMICMESH_API EGeometryElementType
 {
 	/** Mesh Vertices, Polygroup Corners, ... */
 	Vertex = 1,
@@ -118,7 +122,7 @@ enum class MODELINGCOMPONENTS_API EGeometryElementType
 /**
  * Type of selected Topology in a FGeometrySelection.
  */
-enum class MODELINGCOMPONENTS_API EGeometryTopologyType
+enum class DYNAMICMESH_API EGeometryTopologyType
 {
 	Triangle = 1,
 	Polygroup = 2
@@ -132,7 +136,7 @@ enum class MODELINGCOMPONENTS_API EGeometryTopologyType
  * for efficient unique adds and removals. No assumptions are made about the values,
  * they could be (eg) mesh indices, IDs of some type, or even pointer values.
  */
-struct MODELINGCOMPONENTS_API FGeometrySelection
+struct DYNAMICMESH_API FGeometrySelection
 {
 	/** Type of geometric element represented by this selection, if applicable */
 	EGeometryElementType ElementType = EGeometryElementType::Face;
@@ -182,7 +186,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelection
 /**
  * Type of change, relative to a FGeometrySelection
  */
-enum class MODELINGCOMPONENTS_API EGeometrySelectionChangeType
+enum class DYNAMICMESH_API EGeometrySelectionChangeType
 {
 	/** Elements Added to Selection */
 	Add,
@@ -198,7 +202,7 @@ enum class MODELINGCOMPONENTS_API EGeometrySelectionChangeType
  * to indicate what type of change should be applied to a FGeometrySelection
  * (based on additional parameters, generally)
  */
-struct MODELINGCOMPONENTS_API FGeometrySelectionUpdateConfig
+struct DYNAMICMESH_API FGeometrySelectionUpdateConfig
 {
 	EGeometrySelectionChangeType ChangeType = EGeometrySelectionChangeType::Add;
 };
@@ -211,7 +215,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionUpdateConfig
  * 
  * (Currently there is no way to swap the order)
  */
-struct MODELINGCOMPONENTS_API FGeometrySelectionDelta
+struct DYNAMICMESH_API FGeometrySelectionDelta
 {
 	/**
 	 * Elements removed from a FGeometrySelection during some selection edit
@@ -231,7 +235,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionDelta
 /**
  * 3D Bounding information for a FGeometrySelection
  */
-struct MODELINGCOMPONENTS_API FGeometrySelectionBounds
+struct DYNAMICMESH_API FGeometrySelectionBounds
 {
 	UE::Geometry::FAxisAlignedBox3d WorldBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
 };
@@ -241,7 +245,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionBounds
  * 3D Geometry representing a FGeometrySelection, for example
  * suitable for passing to rendering code, etc
  */
-struct MODELINGCOMPONENTS_API FGeometrySelectionElements
+struct DYNAMICMESH_API FGeometrySelectionElements
 {
 	TArray<UE::Geometry::FTriangle3d> Triangles;
 	TArray<UE::Geometry::FSegment3d> Segments;
@@ -256,7 +260,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionElements
 };
 
 
-struct MODELINGCOMPONENTS_API FGeometrySelectionUpdateResult
+struct DYNAMICMESH_API FGeometrySelectionUpdateResult
 {
 	bool bSelectionMissed = false;
 	bool bSelectionModified = false;
@@ -272,7 +276,7 @@ struct MODELINGCOMPONENTS_API FGeometrySelectionUpdateResult
  * to the Selection, while also tracking what changed, returned via
  * FGeometrySelectionDelta structs. 
  */
-class MODELINGCOMPONENTS_API FGeometrySelectionEditor
+class DYNAMICMESH_API FGeometrySelectionEditor
 {
 public:
 	/**
@@ -335,4 +339,5 @@ protected:
 };
 
 
-
+} // end namespace UE::Geometry
+} // end namespace UE

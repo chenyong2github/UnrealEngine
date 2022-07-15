@@ -3,10 +3,11 @@
 
 #include "Selection/GeometrySelectionChanges.h"
 #include "Selection/GeometrySelectionManager.h"
-#include "Selection/GeometrySelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 #define LOCTEXT_NAMESPACE "GeometrySelectionChanges"
 
+using namespace UE::Geometry;
 
 void FGeometrySelectionDeltaChange::Apply(UObject* Object)
 {

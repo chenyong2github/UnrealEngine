@@ -47,6 +47,8 @@ public class ModelingToolsEditorMode : ModuleRules
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
 				"GeometryFramework",
+				"GeometryCore",
+				"DynamicMesh",
 				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
 				"MeshModelingTools",

@@ -2,7 +2,7 @@
 
 
 #include "Selection/DynamicMeshSelector.h"
-#include "Selection/GeometrySelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 #include "ToolContextInterfaces.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshIndexUtil.h"
@@ -14,6 +14,16 @@
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FDynamicMeshSelector"
+
+
+FDynamicMeshSelector::~FDynamicMeshSelector()
+{
+	if (TargetMesh.IsValid())
+	{
+		ensureMsgf(false, TEXT("FDynamicMeshSelector was not properly Shutdown!"));
+		FDynamicMeshSelector::Shutdown();
+	}
+}
 
 
 void FDynamicMeshSelector::Initialize(

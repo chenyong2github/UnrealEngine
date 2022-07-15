@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Selection/GeometrySelection.h"
+#include "Selections/GeometrySelection.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
+using namespace UE::Geometry;
 
 void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn)
 {

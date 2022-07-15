@@ -7,7 +7,7 @@
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMeshEditor.h"
 #include "Changes/MeshChange.h"
-#include "Selection/GeometrySelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 
 using namespace UE::Geometry;
 

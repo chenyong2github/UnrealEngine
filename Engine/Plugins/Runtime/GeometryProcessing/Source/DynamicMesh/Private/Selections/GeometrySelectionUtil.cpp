@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Selection/GeometrySelectionUtil.h"
+#include "Selections/GeometrySelectionUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/ColliderMesh.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -421,6 +421,12 @@ bool UE::Geometry::EnumeratePolygroupSelectionTriangles(
 	TArray<int32> SeedGroups;
 	TArray<int32> SeedTriangles;
 	TSet<int32> UniqueSeedGroups;
+
+	// TODO: the code below will not work correctly if the selection contains
+	// multiple disconnected-components with the same GroupID. They will be
+	// filtered out by the UniqueSeedGroups test. Seems like it will be necessary
+	// to detect this case up-front and do something more expensive, like filtering
+	// out duplicates inside the connected-components loop instead of up-front
 
 	if (MeshSelection.ElementType == EGeometryElementType::Face)
 	{

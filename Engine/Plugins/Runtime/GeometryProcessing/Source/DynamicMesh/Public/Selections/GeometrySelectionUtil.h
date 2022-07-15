@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Selection/GeometrySelection.h"
+#include "Selections/GeometrySelection.h"
 #include "TriangleTypes.h"
 #include "SegmentTypes.h"
 #include "FrameTypes.h"
@@ -25,7 +25,7 @@ struct FGroupTopologySelection;
  * @param UpdateConfig type of update (add/remove/replace) and other update controls
  * @param ResultOut selection delta and information on hit/miss are returned here
  */
-MODELINGCOMPONENTS_API void UpdateTriangleSelectionViaRaycast(
+DYNAMICMESH_API void UpdateTriangleSelectionViaRaycast(
 	const FColliderMesh* ColliderMesh,
 	FGeometrySelectionEditor* Editor,
 	const FRay3d& LocalRay,
@@ -38,7 +38,7 @@ MODELINGCOMPONENTS_API void UpdateTriangleSelectionViaRaycast(
  * @param UpdateConfig type of update (add/remove/replace) and other update controls
  * @param ResultOut selection delta and information on hit/miss are returned here
  */
-MODELINGCOMPONENTS_API void UpdateGroupSelectionViaRaycast(
+DYNAMICMESH_API void UpdateGroupSelectionViaRaycast(
 	const FColliderMesh* ColliderMesh,
 	const FGroupTopology* GroupTopology,
 	FGeometrySelectionEditor* Editor,
@@ -53,7 +53,7 @@ MODELINGCOMPONENTS_API void UpdateGroupSelectionViaRaycast(
  * @param NewIDs set of new IDs to use to update the selection
  * @param Delta selection delta will be stored here, if non-nullptr is provided
  */
-MODELINGCOMPONENTS_API bool UpdateSelectionWithNewElements(
+DYNAMICMESH_API bool UpdateSelectionWithNewElements(
 	FGeometrySelectionEditor* Editor,
 	EGeometrySelectionChangeType ChangeType,
 	const TArray<uint64>& NewIDs,
@@ -64,7 +64,7 @@ MODELINGCOMPONENTS_API bool UpdateSelectionWithNewElements(
  * Call VertexFunc for each selected Mesh element (vertex/edge/tri) in MeshSelection.
  * ApplyTransform will be applied to Vertex Positions before calling VertexFunc
  */
-MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionVertices(
+DYNAMICMESH_API bool EnumerateTriangleSelectionVertices(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const FTransform& ApplyTransform,
@@ -75,7 +75,7 @@ MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionVertices(
  * of polygroup faces/edges/corners specified by GroupSelection (relative to GroupTopology parameter)
  * ApplyTransform will be applied to Vertex Positions before calling VertexFunc
  */
-MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionVertices(
+DYNAMICMESH_API bool EnumeratePolygroupSelectionVertices(
 	const FGeometrySelection& GroupSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const FGroupTopology* GroupTopology,
@@ -91,7 +91,7 @@ MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionVertices(
  * EnumeratePolygroupSelectionTriangles() depending on the selection topology type.
  * If UseGroupSet and MeshSelection is for polygroups, the default Mesh group layer will be used.
  */
-MODELINGCOMPONENTS_API bool EnumerateSelectionTriangles(
+DYNAMICMESH_API bool EnumerateSelectionTriangles(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	TFunctionRef<void(int32)> TriangleFunc,
@@ -102,7 +102,7 @@ MODELINGCOMPONENTS_API bool EnumerateSelectionTriangles(
  * For Edges, both connected edges are included.
  * For Vertices, all triangles in the vertex one-ring are included.
  */
-MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionTriangles(
+DYNAMICMESH_API bool EnumerateTriangleSelectionTriangles(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	TFunctionRef<void(int32)> TriangleFunc
@@ -113,7 +113,7 @@ MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionTriangles(
  * For Polygroup Edges, currently all triangles in any group adjacent to the edge
  * For Polygroup Corners, currently all triangles in any group touching the corner
  */
-MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionTriangles(
+DYNAMICMESH_API bool EnumeratePolygroupSelectionTriangles(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const UE::Geometry::FPolygroupSet& GroupSet,
@@ -128,7 +128,7 @@ MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionTriangles(
  * This function is useful to collect up geometry that needs to be rendered for a given MeshSelection
  * @param ApplyTransform if non-null, transform is applied to the 3D geometry
  */
-MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionElements(
+DYNAMICMESH_API bool EnumerateTriangleSelectionElements(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	TFunctionRef<void(int32, const FVector3d&)> VertexFunc,
@@ -144,7 +144,7 @@ MODELINGCOMPONENTS_API bool EnumerateTriangleSelectionElements(
  * This function is useful to collect up geometry that needs to be rendered for a given MeshSelection
  * @param ApplyTransform if non-null, transform is applied to the 3D geometry
  */
-MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionElements(
+DYNAMICMESH_API bool EnumeratePolygroupSelectionElements(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const FGroupTopology* GroupTopology,
@@ -158,7 +158,7 @@ MODELINGCOMPONENTS_API bool EnumeratePolygroupSelectionElements(
 /**
  * Convert a MeshSelection with Polygroup topology type to a FGroupTopologySelection
  */
-MODELINGCOMPONENTS_API bool ConvertPolygroupSelectionToTopologySelection(
+DYNAMICMESH_API bool ConvertPolygroupSelectionToTopologySelection(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const FGroupTopology* GroupTopology,
@@ -170,7 +170,7 @@ MODELINGCOMPONENTS_API bool ConvertPolygroupSelectionToTopologySelection(
  * Compute a 3D Frame suitable for use as a 3D transform gizmo position/orientation
  * for the given MeshSelection
  */
-MODELINGCOMPONENTS_API bool GetTriangleSelectionFrame(
+DYNAMICMESH_API bool GetTriangleSelectionFrame(
 	const FGeometrySelection& MeshSelection,
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	FFrame3d& SelectionFrameOut);

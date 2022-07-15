@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Components/PrimitiveComponent.h"
-#include "Selection/GeometrySelection.h"
+#include "Selections/GeometrySelection.h"
 #include "FrameTypes.h"
 #include "InputState.h"
 
@@ -130,7 +130,7 @@ struct MODELINGCOMPONENTS_API FGeometryIdentifier
 struct MODELINGCOMPONENTS_API FGeometrySelectionHandle
 {
 	FGeometryIdentifier Identifier;
-	const FGeometrySelection* Selection;
+	const UE::Geometry::FGeometrySelection* Selection;
 };
 
 
@@ -167,7 +167,7 @@ public:
 	 * Start a transform (eg called at beginning of a user interaction with a 3D gizmo).
 	 * The caller provides the active Selection that is intended to be transformed.
 	 */
-	virtual void BeginTransform(const FGeometrySelection& Selection) = 0;
+	virtual void BeginTransform(const UE::Geometry::FGeometrySelection& Selection) = 0;
 
 	/**
 	 * Update the active transform (eg called on each mouse update during 3D gizmo usage).
@@ -215,6 +215,13 @@ public:
 class MODELINGCOMPONENTS_API IGeometrySelector
 {
 public:
+	using FGeometrySelection = UE::Geometry::FGeometrySelection;
+	using FGeometrySelectionEditor = UE::Geometry::FGeometrySelectionEditor;
+	using FGeometrySelectionBounds = UE::Geometry::FGeometrySelectionBounds;
+	using FGeometrySelectionElements = UE::Geometry::FGeometrySelectionElements;
+	using FGeometrySelectionUpdateConfig = UE::Geometry::FGeometrySelectionUpdateConfig;
+	using FGeometrySelectionUpdateResult = UE::Geometry::FGeometrySelectionUpdateResult;
+
 	virtual ~IGeometrySelector() {}
 
 	/**

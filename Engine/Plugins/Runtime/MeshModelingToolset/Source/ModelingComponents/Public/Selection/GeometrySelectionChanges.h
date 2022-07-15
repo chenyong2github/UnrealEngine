@@ -3,7 +3,7 @@
 #pragma once
 
 #include "InteractiveToolChange.h"
-#include "Selection/GeometrySelection.h"
+#include "Selections/GeometrySelection.h"
 #include "Selection/GeometrySelector.h"		// for FGeometryIdentifier
 
 
@@ -18,6 +18,10 @@
 class MODELINGCOMPONENTS_API IGeometrySelectionChange
 {
 public:
+	using FGeometrySelection = UE::Geometry::FGeometrySelection;
+	using FGeometrySelectionEditor = UE::Geometry::FGeometrySelectionEditor;
+	using FGeometrySelectionDelta = UE::Geometry::FGeometrySelectionDelta;
+
 	virtual ~IGeometrySelectionChange() {}
 
 	virtual FGeometryIdentifier GetIdentifier() const = 0;
