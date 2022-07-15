@@ -80,30 +80,30 @@ namespace Horde.Build.Storage
 
 		#region Refs
 
-		string GetRefPath(RefId id) => $"{_options.RefPrefix}{id}";
+		string GetRefPath(RefName name) => $"{_options.RefPrefix}{name}";
 
 		/// <inheritdoc/>
-		public async Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
 		{
-			await _backend.DeleteAsync(GetRefPath(id), cancellationToken);
+			await _backend.DeleteAsync(GetRefPath(name), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default)
 		{
-			return await _backend.ExistsAsync(GetRefPath(id), cancellationToken);
+			return await _backend.ExistsAsync(GetRefPath(name), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default)
 		{
-			return await TryReadAsync(GetRefPath(id), cancellationToken);
+			return await TryReadAsync(GetRefPath(name), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public async Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
-			await WriteAsync(GetRefPath(id), data, references, cancellationToken);
+			await WriteAsync(GetRefPath(name), data, references, cancellationToken);
 		}
 
 		#endregion

@@ -22,13 +22,13 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Map of ref name to ref data
 		/// </summary>
-		readonly ConcurrentDictionary<RefId, IBlob> _refs = new ConcurrentDictionary<RefId, IBlob>();
+		readonly ConcurrentDictionary<RefName, IBlob> _refs = new ConcurrentDictionary<RefName, IBlob>();
 
 		/// <inheritdoc cref="_blobs"/>
 		public IReadOnlyDictionary<BlobId, IBlob> Blobs => _blobs;
 
 		/// <inheritdoc cref="_refs"/>
-		public IReadOnlyDictionary<RefId, IBlob> Refs => _refs;
+		public IReadOnlyDictionary<RefName, IBlob> Refs => _refs;
 
 		#region Blobs
 
@@ -52,22 +52,22 @@ namespace EpicGames.Horde.Storage.Backends
 		#region Refs
 
 		/// <inheritdoc/>
-		public Task DeleteRefAsync(RefId id, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(id, out _));
+		public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken) => Task.FromResult(_refs.ContainsKey(id));
+		public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.ContainsKey(name));
 
 		/// <inheritdoc/>
-		public Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken)
+		public Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken)
 		{
-			_refs.TryGetValue(id, out IBlob? blob);
+			_refs.TryGetValue(name, out IBlob? blob);
 			return Task.FromResult(blob);
 		}
 
-		/// <inheritdoc/>
-		public Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
+		/// <inheritdoc/>s
+		public Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
 		{
-			_refs[id] = BlobUtils.FromMemory(data.ToArray(), references);
+			_refs[name] = BlobUtils.FromMemory(data.ToArray(), references);
 			return Task.CompletedTask;
 		}
 

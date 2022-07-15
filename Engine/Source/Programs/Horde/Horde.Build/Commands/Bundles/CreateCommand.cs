@@ -22,7 +22,7 @@ namespace Horde.Build.Commands.Bundles
 	class CreateCommand : Command
 	{
 		[CommandLine("-Ref=")]
-		public RefId RefId { get; set; } = new RefId("default-ref");
+		public RefName RefName { get; set; } = new RefName("default-ref");
 
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
@@ -44,7 +44,7 @@ namespace Horde.Build.Commands.Bundles
 
 			DirectoryNode node = new DirectoryNode();
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), logger, CancellationToken.None);
-			await store.WriteTreeAsync(RefId, node);
+			await store.WriteTreeAsync(RefName, node);
 
 			return 0;
 		}

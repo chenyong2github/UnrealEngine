@@ -30,7 +30,7 @@ namespace Horde.Agent.Commands.Bundles
 				DirectoryReference.CreateDirectory(_rootDir);
 			}
 
-			FileReference GetRefFile(RefId id) => FileReference.Combine(_rootDir, id.Hash.ToString() + ".ref");
+			FileReference GetRefFile(RefName name) => FileReference.Combine(_rootDir, name.ToString() + ".ref");
 			FileReference GetBlobFile(BlobId id) => FileReference.Combine(_rootDir, id.Inner.ToString() + ".blob");
 
 			static async Task WriteAsync(FileReference file, ReadOnlySequence<byte> sequence, CancellationToken cancellationToken)
@@ -49,6 +49,11 @@ namespace Horde.Agent.Commands.Bundles
 			public async Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetBlobFile(id);
+				if(!FileReference.Exists(file))
+				{
+					return null;
+				}
+
 				_logger.LogInformation("Reading {File}", file);
 				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
 				return BlobUtils.Deserialize(bytes);
@@ -67,27 +72,32 @@ namespace Horde.Agent.Commands.Bundles
 
 			#region Refs
 
-			public Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default)
+			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
 			{
 				throw new NotImplementedException();
 			}
 
-			public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default)
+			public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default)
 			{
 				throw new NotImplementedException();
 			}
 
-			public async Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default)
+			public async Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default)
 			{
-				FileReference file = GetRefFile(id);
+				FileReference file = GetRefFile(name);
+				if(!FileReference.Exists(file))
+				{
+					return null;
+				}
+
 				_logger.LogInformation("Reading {File}", file);
 				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
 				return BlobUtils.Deserialize(bytes);
 			}
 
-			public async Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+			public async Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
-				FileReference file = GetRefFile(id);
+				FileReference file = GetRefFile(name);
 				_logger.LogInformation("Writing {File}", file);
 				await WriteAsync(file, BlobUtils.Serialize(data, references), cancellationToken);
 			}
@@ -95,7 +105,7 @@ namespace Horde.Agent.Commands.Bundles
 			#endregion
 		}
 
-		public static RefId DefaultRefId { get; } = new RefId("default-ref");
+		public static RefName DefaultRefName { get; } = new RefName("default-ref");
 
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
 		public DirectoryReference StorageDir { get; set; } = DirectoryReference.Combine(Program.AppDir, "bundles");
@@ -119,7 +129,7 @@ namespace Horde.Agent.Commands.Bundles
 	class CreateCommand : BundleCommandBase
 	{
 		[CommandLine("-Ref=")]
-		public RefId RefId { get; set; } = DefaultRefId;
+		public RefName RefName { get; set; } = DefaultRefName;
 
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
@@ -131,7 +141,7 @@ namespace Horde.Agent.Commands.Bundles
 
 			DirectoryNode node = new DirectoryNode();
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), logger, CancellationToken.None);
-			await store.WriteTreeAsync(RefId, node);
+			await store.WriteTreeAsync(RefName, node);
 
 			return 0;
 		}

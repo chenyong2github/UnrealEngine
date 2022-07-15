@@ -17,7 +17,7 @@ namespace Horde.Build.Commands.Bundles
 	internal class ExtractCommand : Command
 	{
 		[CommandLine("-Ref=")]
-		public RefId RefId { get; set; } = new RefId("default-ref");
+		public RefName RefName { get; set; } = new RefName("default-ref");
 
 		[CommandLine("-OutputDir=", Required = true)]
 		public DirectoryReference OutputDir { get; set; } = null!;
@@ -37,7 +37,7 @@ namespace Horde.Build.Commands.Bundles
 
 			ITreeStore store = serviceProvider.GetRequiredService<ITreeStore<CommitService>>();
 
-			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefId);
+			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefName);
 			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;

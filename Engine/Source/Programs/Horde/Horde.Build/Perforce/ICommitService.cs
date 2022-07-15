@@ -7,8 +7,6 @@ using Horde.Build.Utilities;
 
 namespace Horde.Build.Perforce
 {
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Provides information about commits
 	/// </summary>
@@ -20,13 +18,5 @@ namespace Horde.Build.Perforce
 		/// <param name="onAddCommit">Callback for a new commit being added</param>
 		/// <returns>Disposable handler.</returns>
 		IDisposable AddListener(Action<ICommit> onAddCommit);
-
-		/// <summary>
-		/// Gets reference to replicated content for the given stream and change
-		/// </summary>
-		/// <param name="stream"></param>
-		/// <param name="change"></param>
-		/// <returns></returns>
-		QualifiedRefId? GetReplicatedContentRef(IStream stream, int change);
 	}
 }

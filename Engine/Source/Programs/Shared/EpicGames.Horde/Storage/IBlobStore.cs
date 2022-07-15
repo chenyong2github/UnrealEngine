@@ -10,6 +10,27 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
+	/// Exception for a ref not existing
+	/// </summary>
+	public sealed class RefNameNotFoundException : Exception
+	{
+		/// <summary>
+		/// Name of the missing ref
+		/// </summary>
+		public RefName Name { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name"></param>
+		public RefNameNotFoundException(RefName name)
+			: base($"Ref name '{name}' not found")
+		{
+			Name = name;
+		}
+	}
+
+	/// <summary>
 	/// Interface for accessing an object's data
 	/// </summary>
 	public interface IBlob
@@ -58,35 +79,35 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Checks if the given ref exists
 		/// </summary>
-		/// <param name="id">Name of the reference to look for</param>
+		/// <param name="name">Name of the reference to look for</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref exists, false if it did not exist</returns>
-		Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default);
+		Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
 		/// </summary>
-		/// <param name="id">The blob identifier</param>
+		/// <param name="name">The ref name</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default);
+		Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Writes a new blob to the store
+		/// Writes a new ref to the store
 		/// </summary>
-		/// <param name="id">Ref for which the blob is a part</param>
+		/// <param name="name">Ref to write</param>
 		/// <param name="data">Payload for the object</param>
 		/// <param name="references">Object references</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default);
+		Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
 		/// </summary>
-		/// <param name="id">The ref identifier</param>
+		/// <param name="name">The ref identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default);
+		Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		#endregion
 	}
@@ -122,16 +143,16 @@ namespace EpicGames.Horde.Storage
 			#region Refs
 
 			/// <inheritdoc/>
-			public Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.DeleteRefAsync(id, cancellationToken);
+			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteRefAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.HasRefAsync(id, cancellationToken);
+			public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.HasRefAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(id, cancellationToken);
+			public Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(id, data, references, cancellationToken);
+			public Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, data, references, cancellationToken);
 
 			#endregion
 		}
@@ -164,15 +185,15 @@ namespace EpicGames.Horde.Storage
 		/// Reads a ref from the store, throwing an exception if it does not exist
 		/// </summary>
 		/// <param name="store">The store instance to read from</param>
-		/// <param name="id">Id for the ref</param>
+		/// <param name="name">Id for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<IBlob> ReadRefAsync(this IBlobStore store, RefId id, CancellationToken cancellationToken = default)
+		public static async Task<IBlob> ReadRefAsync(this IBlobStore store, RefName name, CancellationToken cancellationToken = default)
 		{
-			IBlob? blob = await store.TryReadRefAsync(id, cancellationToken);
+			IBlob? blob = await store.TryReadRefAsync(name, cancellationToken);
 			if (blob == null)
 			{
-				throw new KeyNotFoundException($"Unable to find ref {id}");
+				throw new RefNameNotFoundException(name);
 			}
 			return blob;
 		}

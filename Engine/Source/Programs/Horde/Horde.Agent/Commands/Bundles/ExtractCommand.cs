@@ -14,7 +14,7 @@ namespace Horde.Agent.Commands.Bundles
 	internal class ExtractCommand : BundleCommandBase
 	{
 		[CommandLine("-Ref=")]
-		public RefId RefId { get; set; } = DefaultRefId;
+		public RefName RefName { get; set; } = DefaultRefName;
 
 		[CommandLine("-OutputDir=", Required = true)]
 		public DirectoryReference OutputDir { get; set; } = null!;
@@ -24,7 +24,7 @@ namespace Horde.Agent.Commands.Bundles
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			using ITreeStore store = CreateTreeStore(logger, cache);
 
-			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefId);
+			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefName);
 			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;

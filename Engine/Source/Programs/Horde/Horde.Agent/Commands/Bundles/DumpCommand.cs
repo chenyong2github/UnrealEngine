@@ -16,7 +16,7 @@ namespace Horde.Agent.Commands.Bundles
 	internal class DumpCommand : BundleCommandBase
 	{
 		[CommandLine("-Ref=")]
-		public RefId RefId { get; set; } = DefaultRefId;
+		public RefName RefName { get; set; } = DefaultRefName;
 
 		[CommandLine("-Blob=")]
 		public BlobId? BlobId { get; set; }
@@ -33,8 +33,8 @@ namespace Horde.Agent.Commands.Bundles
 			}
 			else
 			{
-				blob = await blobStore.ReadRefAsync(RefId, CancellationToken.None);
-				logger.LogInformation("Summary for ref {RefId}", RefId);
+				blob = await blobStore.ReadRefAsync(RefName, CancellationToken.None);
+				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
 			IReadOnlyList<BlobId> references = blob.References;

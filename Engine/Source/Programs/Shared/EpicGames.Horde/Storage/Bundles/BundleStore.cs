@@ -252,24 +252,32 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasTreeAsync(RefId id, CancellationToken cancellationToken) => _blobStore.HasRefAsync(id, cancellationToken);
+		public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.HasRefAsync(name, cancellationToken);
 
 		/// <inheritdoc/>
-		public async Task<ITreeBlob> ReadTreeAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default)
 		{
-			Bundle bundle = await _blobStore.ReadBundleAsync(id, cancellationToken);
+			Bundle? bundle = await _blobStore.TryReadBundleAsync(name, cancellationToken);
+			if (bundle == null)
+			{
+				return null;
+			}
 			return MountInMemoryBundle(bundle);
 		}
 
 		/// <inheritdoc/>
-		public async Task<T> ReadTreeAsync<T>(RefId refName, CancellationToken cancellationToken = default) where T : TreeNode
+		public async Task<T?> TryReadTreeAsync<T>(RefName name, CancellationToken cancellationToken = default) where T : TreeNode
 		{
-			ITreeBlob node = await ReadTreeAsync(refName, cancellationToken);
+			ITreeBlob? node = await TryReadTreeAsync(name, cancellationToken);
+			if (node == null)
+			{
+				return null;
+			}
 			return await TreeNode.DeserializeAsync<T>(node, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteTreeAsync(RefId id, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default)
+		public async Task WriteTreeAsync(RefName name, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default)
 		{
 			// Find all the referenced in-memory nodes from the root
 			List<NodeInfo> nodes = new List<NodeInfo>();
@@ -305,7 +313,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			{
 				// Write the main ref
 				Bundle rootBundle = CreateBundle(bundleNodes);
-				await _blobStore.WriteBundleAsync(id, rootBundle, cancellationToken);
+				await _blobStore.WriteBundleAsync(name, rootBundle, cancellationToken);
 
 				// Copy the stats over
 				Stats = _nextStats;
@@ -314,14 +322,14 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteTreeAsync<T>(RefId refName, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode
+		public async Task WriteTreeAsync<T>(RefName name, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode
 		{
 			ITreeBlob rootBlob = await TreeNode.SerializeAsync(root, this, cancellationToken);
-			await WriteTreeAsync(refName, rootBlob, flush, cancellationToken);
+			await WriteTreeAsync(name, rootBlob, flush, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteTreeAsync(RefId id, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(id, cancellationToken);
+		public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(name, cancellationToken);
 
 		/// <summary>
 		/// Gets the data for a given node

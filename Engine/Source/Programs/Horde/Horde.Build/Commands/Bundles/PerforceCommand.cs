@@ -39,7 +39,7 @@ namespace Horde.Build.Commands.Bundles
 		public int Change { get; set; }
 
 		[CommandLine]
-		public int? BaseChange { get; set; }
+		public int BaseChange { get; set; }
 
 		[CommandLine]
 		public int Count { get; set; } = 1;
@@ -51,13 +51,10 @@ namespace Horde.Build.Commands.Bundles
 		public bool Compact { get; set; } = true;
 
 		[CommandLine]
-		public bool Clean { get; set; }
-
-		[CommandLine]
 		public string Filter { get; set; } = "...";
 
 		[CommandLine]
-		public bool Metadata { get; set; } = false;
+		public bool RevisionsOnly { get; set; } = false;
 
 		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }
@@ -89,6 +86,16 @@ namespace Horde.Build.Commands.Bundles
 			Dictionary<IStream, int> streamToFirstChange = new Dictionary<IStream, int>();
 			streamToFirstChange[stream] = Change;
 
+			DirectoryNode baseContents;
+			if (BaseChange == 0)
+			{
+				baseContents = new DirectoryNode();
+			}
+			else
+			{
+				baseContents = await commitService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
+			}
+
 			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.ClusterName, streamToFirstChange).Take(Count))
 			{
 				string briefSummary = newCommit.Description.Replace('\n', ' ');
@@ -98,10 +105,7 @@ namespace Horde.Build.Commands.Bundles
 
 				if (Content)
 				{
-					if (Clean || BaseChange != null)
-					{
-						await commitService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, Filter, Metadata, CancellationToken.None);
-					}
+					baseContents = await commitService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
 					BaseChange = newCommit.Change;
 				}
 			}

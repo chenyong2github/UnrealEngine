@@ -886,12 +886,6 @@ namespace Horde.Build.Jobs
 
 			task.Workspace = workspaces.Last();
 
-			IStream? Stream;
-			if (_streams.TryGetValue(job.StreamId, out Stream))
-			{
-				task.ContentRef = _commitService.GetReplicatedContentRef(Stream, job.Change);
-			}
-
 			return task;
 		}
 
