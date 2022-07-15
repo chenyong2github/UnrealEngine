@@ -283,6 +283,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	void SetInputEvaluationOffsetInSeconds(const FTimedDataMonitorInputIdentifier& Identifier, float Seconds);
 
+	/** Get the offset in frames (see GetEvaluationType) used at evaluation. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	float GetInputEvaluationOffsetInFrames(const FTimedDataMonitorInputIdentifier& Identifier);
+
+	/** Set the offset in frames (see GetEvaluationType) used at evaluation. */
+	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
+	void SetInputEvaluationOffsetInFrames(const FTimedDataMonitorInputIdentifier& Identifier, float Frames);
+
 	/** Get the frame rate at which the samples is produce. */
 	UFUNCTION(BlueprintCallable, Category = "Timed Data Monitor|Input")
 	FFrameRate GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier);

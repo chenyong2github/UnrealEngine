@@ -13,6 +13,8 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableRow.h"
 
+#include "STimedDataListView.generated.h"
+
 enum class ETimedDataInputEvaluationType : uint8;
 struct FTimedDataInputTableRowData;
 struct FSlateBrush;
@@ -20,6 +22,15 @@ class STimedDataInputListView;
 class STimedDataInputTableRow;
 class STimedDataMonitorPanel;
 class STimingDiagramWidget;
+
+UENUM()
+enum class ETimedDataInputEvaluationOffsetType : uint8
+{
+	/** The input offset is specified in seconds. */
+	Seconds UMETA(DisplayName = "s"),
+	/** The input offset is specified in frames. */
+	Frames UMETA(DisplayName = "f"),
+};
 
 
 /**
@@ -71,6 +82,8 @@ private:
 	FText GetBufferUnderflowCount() const;
 	FText GetBufferOverflowCount() const;
 	FText GetFrameDroppedCount() const;
+
+	void OnEvaluationOffsetTypeChanged(int32 NewValue, ESelectInfo::Type);
 
 private:
 	FTimedDataInputTableRowDataPtr Item;

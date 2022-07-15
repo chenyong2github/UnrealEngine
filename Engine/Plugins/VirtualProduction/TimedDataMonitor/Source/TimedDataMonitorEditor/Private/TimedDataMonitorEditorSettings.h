@@ -56,6 +56,18 @@ public:
 	UPROPERTY(Config, AdvancedDisplay, EditAnywhere, Category = "UI", meta = (ClampMin = 0, ClampMax = 5, EditCondition = "bOverrideNumberOfStandardDeviationToShow"))
 	int32 OverrideNumberOfStandardDeviationToShow = 5;
 
+	/**
+	 * The threshold at which to display the frame time as orange.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "UI", meta = (ClampMin = 0, ClampMax = 2))
+	double FrameTimeWarnThreshold = 0.85;
+
+	/**
+	 * The percent at which to display the target frame time in the frame time indicator. 
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "UI", meta = (ClampMin = 0, ClampMax = 1))
+	double TargetFrameTimePercent = 0.8;
+
 	UPROPERTY(Config)
 	ETimedDataMonitorEditorCalibrationType LastCalibrationType = ETimedDataMonitorEditorCalibrationType::CalibrateWithTimecode;
 

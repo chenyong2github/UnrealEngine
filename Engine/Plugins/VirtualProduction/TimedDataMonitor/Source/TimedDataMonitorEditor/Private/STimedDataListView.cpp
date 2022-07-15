@@ -2,29 +2,28 @@
 
 #include "STimedDataListView.h"
 
+#include "EditorFontGlyphs.h"
 #include "Engine/Engine.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ITimedDataInput.h"
 #include "Misc/App.h"
 #include "Misc/DateTime.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
 #include "TimedDataMonitorEditorSettings.h"
-#include "TimedDataMonitorSubsystem.h"
-
-#include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
 #include "TimedDataMonitorEditorStyle.h"
-
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "TimedDataMonitorSubsystem.h"
+#include "SEnumCombo.h"
 #include "STimedDataMonitorPanel.h"
 #include "STimedDataNumericEntryBox.h"
 #include "STimingDiagramWidget.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
-#include "Widgets/SNullWidget.h"
 
 
 #define LOCTEXT_NAMESPACE "STimedDataListView"
@@ -66,9 +65,19 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 
 		DisplayName = TimedDataMonitorSubsystem->GetInputDisplayName(InputIdentifier);
 
-		if (ITimedDataInput* InpuTimedData = TimedDataMonitorSubsystem->GetTimedDataInput(InputIdentifier))
+		ETimedDataInputEvaluationType InputType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
+		if (InputType == ETimedDataInputEvaluationType::Timecode)
 		{
-			InputIcon = InpuTimedData->GetDisplayIcon();
+			CachedInputEvaluationOffsetType = ETimedDataInputEvaluationOffsetType::Frames;
+		}
+		else
+		{
+			CachedInputEvaluationOffsetType = ETimedDataInputEvaluationOffsetType::Seconds;
+		}
+
+		if (ITimedDataInput* InputTimedData = TimedDataMonitorSubsystem->GetTimedDataInput(InputIdentifier))
+		{
+			InputIcon = InputTimedData->GetDisplayIcon();
 		}
 	}
 
@@ -105,7 +114,9 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 			};
 
 			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
-			CachedInputEvaluationOffset = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
+
+			CachedInputEvaluationOffsetSeconds = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInSeconds(InputIdentifier);
+			CachedInputEvaluationOffsetFrames = TimedDataMonitorSubsystem->GetInputEvaluationOffsetInFrames(InputIdentifier);
 			CachedState = TimedDataMonitorSubsystem->GetInputConnectionState(InputIdentifier);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetInputDataBufferSize(InputIdentifier);
 			CachedCurrentAmountOfBuffer = 0;
@@ -132,7 +143,8 @@ struct FTimedDataInputTableRowData : TSharedFromThis<FTimedDataInputTableRowData
 		{
 			CachedEnabled = TimedDataMonitorSubsystem->IsChannelEnabled(ChannelIdentifier) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			CachedInputEvaluationType = TimedDataMonitorSubsystem->GetInputEvaluationType(InputIdentifier);
-			CachedInputEvaluationOffset = 0.f;
+			CachedInputEvaluationOffsetSeconds = 0.f;
+			CachedInputEvaluationOffsetFrames = 0.f;
 			CachedState = TimedDataMonitorSubsystem->GetChannelConnectionState(ChannelIdentifier);
 			CachedBufferSize = TimedDataMonitorSubsystem->GetChannelDataBufferSize(ChannelIdentifier);
 			CachedCurrentAmountOfBuffer = TimedDataMonitorSubsystem->GetChannelNumberOfSamples(ChannelIdentifier);
@@ -180,7 +192,10 @@ public:
 
 	ECheckBoxState CachedEnabled = ECheckBoxState::Undetermined;
 	ETimedDataInputEvaluationType CachedInputEvaluationType = ETimedDataInputEvaluationType::None;
-	float CachedInputEvaluationOffset = 0.f;
+	ETimedDataInputEvaluationOffsetType CachedInputEvaluationOffsetType = ETimedDataInputEvaluationOffsetType::Seconds;
+	float CachedInputEvaluationOffsetSeconds = 0.f;
+	float CachedInputEvaluationOffsetFrames = 0.f;
+
 	ETimedDataInputState CachedState = ETimedDataInputState::Disconnected;
 	FText CachedDescription;
 	int32 CachedBufferSize = 0;
@@ -319,12 +334,17 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 	{
 		if (Item->bIsInput)
 		{
+			TSharedRef<SWidget> Label = SNew(SEnumComboBox, StaticEnum<ETimedDataInputEvaluationOffsetType>())
+				.ContentPadding(0.f)
+				.CurrentValue_Lambda([this]() { return static_cast<int32>(Item->CachedInputEvaluationOffsetType); })
+				.OnEnumSelectionChanged(this, &STimedDataInputTableRow::OnEvaluationOffsetTypeChanged);
+
 			return SNew(STimedDataNumericEntryBox<float>)
 				.TextStyle(ItemTextBlockStyle)
-				.MinValue(1)
 				.ToolTipText(LOCTEXT("TimeCorrection_ToolTip", "Time Correction."))
 				.Value(this, &STimedDataInputTableRow::GetEvaluationOffset)
-				.EditLabel(LOCTEXT("TimeCorrection_EditLable", "In Seconds: "))
+				.ComboButton(false)
+				.SuffixWidget(Label)
 				.OnValueCommitted(this, &STimedDataInputTableRow::SetEvaluationOffset);
 		}
 		return SNullWidget::NullWidget;
@@ -335,7 +355,6 @@ TSharedRef<SWidget> STimedDataInputTableRow::GenerateWidgetForColumn(const FName
 		{
 			return SNew(STimedDataNumericEntryBox<int32>)
 				.TextStyle(ItemTextBlockStyle)
-				.MinValue(1)
 				.ToolTipText(LOCTEXT("BufferSize_ToolTip", "Buffer Size."))
 				.Value(this, &STimedDataInputTableRow::GetBufferSize)
 				.ShowAmount(!Item->bIsInput)
@@ -468,7 +487,7 @@ FText STimedDataInputTableRow::GetEvaluationOffsetText() const
 {
 	if (Item->bIsInput)
 	{
-		return FText::AsNumber(Item->CachedInputEvaluationOffset);
+		return Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Seconds ? FText::AsNumber(Item->CachedInputEvaluationOffsetSeconds) : FText::AsNumber(Item->CachedInputEvaluationOffsetFrames);
 	}
 	return FText::GetEmpty();
 }
@@ -476,7 +495,7 @@ FText STimedDataInputTableRow::GetEvaluationOffsetText() const
 
 float STimedDataInputTableRow::GetEvaluationOffset() const
 {
-	return Item->CachedInputEvaluationOffset;
+	return Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Seconds ? Item->CachedInputEvaluationOffsetSeconds : Item->CachedInputEvaluationOffsetFrames;
 }
 
 
@@ -487,7 +506,21 @@ void STimedDataInputTableRow::SetEvaluationOffset(float InValue, ETextCommit::Ty
 		UTimedDataMonitorSubsystem* TimedDataMonitorSubsystem = GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>();
 		check(TimedDataMonitorSubsystem);
 
-		TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Item->InputIdentifier, InValue);
+		if (Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Seconds)
+		{
+			Item->CachedInputEvaluationOffsetSeconds = InValue;
+			TimedDataMonitorSubsystem->SetInputEvaluationOffsetInSeconds(Item->InputIdentifier, InValue);
+		}
+		else if (Item->CachedInputEvaluationOffsetType == ETimedDataInputEvaluationOffsetType::Frames)
+		{
+			Item->CachedInputEvaluationOffsetFrames = InValue;
+			TimedDataMonitorSubsystem->SetInputEvaluationOffsetInFrames(Item->InputIdentifier, InValue);
+		}
+		else
+		{
+			ensure(false);
+		}
+		
 		OwnerTreeView->RequestRefresh();
 	}
 }
@@ -631,6 +664,16 @@ FText STimedDataInputTableRow::GetFrameDroppedCount() const
 	return FText::AsNumber(Item->CachedStatsFrameDropped);
 }
 
+void STimedDataInputTableRow::OnEvaluationOffsetTypeChanged(int32 NewValue, ESelectInfo::Type)
+{
+	FSlateApplication::Get().ForEachUser([&](FSlateUser& User)
+	{
+		User.ClearFocus(EFocusCause::SetDirectly);
+	});
+
+	Item->CachedInputEvaluationOffsetType = static_cast<ETimedDataInputEvaluationOffsetType>(NewValue);
+}
+
 /**
  * STimedDataListView
  */
@@ -690,8 +733,8 @@ void STimedDataInputListView::Construct(const FArguments& InArgs, TSharedPtr<STi
 			.DefaultTooltip(LOCTEXT("HeaderTooltip_EvaluationMode", "How the input is evaluated"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_TimeCorrection)
-			.FixedWidth(100)
-			.HAlignCell(EHorizontalAlignment::HAlign_Right)
+			.FixedWidth(170)
+			.HAlignCell(EHorizontalAlignment::HAlign_Center)
 			.DefaultLabel(LOCTEXT("HeaderName_TimeCorrection", "Time Correction"))
 
 			+ SHeaderRow::Column(TimedDataListView::HeaderIdName_BufferSize)
@@ -800,6 +843,16 @@ void STimedDataInputListView::RebuildSources()
 			ParentRowData->InputChildren.Add(ChildRowData);
 		}
 	}
+
+	struct FSortNamesAlphabetically
+	{
+		bool operator()(const TSharedPtr<FTimedDataInputTableRowData>& LHS, const TSharedPtr<FTimedDataInputTableRowData>& RHS) const
+		{
+			return (LHS->DisplayName.CompareTo(RHS->DisplayName) < 0);
+		}
+	};
+
+	ListItemsSource.Sort(FSortNamesAlphabetically());
 
 	for (FTimedDataInputTableRowDataPtr& TableRowData : ListItemsSource)
 	{

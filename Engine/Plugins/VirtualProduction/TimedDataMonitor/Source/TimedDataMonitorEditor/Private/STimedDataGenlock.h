@@ -22,7 +22,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<STimedDataMonitorPanel> OwnerPanel);
 
 	void RequestRefresh();
-	void UpdateCachedValue();
+	void UpdateCachedValue(float InDeltaTime);
 
 private:
 	FText GetStateText() const;
@@ -30,7 +30,7 @@ private:
 	FText GetCustomTimeStepText() const;
 
 	bool IsCustomTimeStepEnabled() const;
-	TOptional<float> GetFPSFraction() const;
+	float GetFPSFraction() const;
 
 	FText GetFPSText() const  { return CachedFPSText; }
 	FText GetDeltaTimeText() const  { return CachedDeltaTimeText; }
@@ -47,5 +47,4 @@ private:
 	FText CachedFPSText;
 	FText CachedDeltaTimeText;
 	FText CachedIdleTimeText;
-	TOptional<float> CachedFPSFraction;
 };

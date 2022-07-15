@@ -12,7 +12,9 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "EditorFontGlyphs.h"
+#include "FixedFrameRateCustomTimeStep.h"
 #include "ScopedTransaction.h"
+#include "SFrameTime.h"
 #include "Styling/CoreStyle.h"
 
 #include "STimedDataMonitorPanel.h"
@@ -31,7 +33,7 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 {
 	OwnerPanel = InOwnerPanel;
 
-	UpdateCachedValue();
+	UpdateCachedValue(0.f);
 
 	FSlateFontInfo TimeFont = FCoreStyle::Get().GetFontStyle(TEXT("EmbossedText"));
 	TimeFont.Size += 4;
@@ -42,12 +44,11 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 		+ SVerticalBox::Slot()
 		.Padding(0)
 		.AutoHeight()
-		.HAlign(HAlign_Center)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(0.f, 0.f, 4.f, 0.f)
 			.VAlign(VAlign_Center)
+			.Padding(0.f, 0.f, 4.f, 0.f)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
@@ -61,109 +62,96 @@ void STimedDataGenlock::Construct(const FArguments& InArgs, TSharedPtr<STimedDat
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.MinDesiredWidth(500)
 				.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
 				.Text(this, &STimedDataGenlock::GetCustomTimeStepText)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Bottom)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.Padding(4.f)
+				.ToolTipText(LOCTEXT("ShowCustomTimeStepSetting_Tip", "Show custom time step provider setting"))
+				.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsChecked_Lambda([](){return ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged(this, &STimedDataGenlock::ShowCustomTimeStepSetting)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Cogs)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
+			[
+				SNew(SCheckBox)
+				.Padding(4.f)
+				.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Custom Time Step."))
+				.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsEnabled(this, &STimedDataGenlock::IsCustomTimeStepEnabled)
+				.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged(this, &STimedDataGenlock::ReinitializeCustomTimeStep)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Undo)
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
 		.Padding(0)
 		.AutoHeight()
 		[
-			SNew(SProgressBar)
-			.BorderPadding(FVector2D::ZeroVector)
-			.Percent(this, &STimedDataGenlock::GetFPSFraction)
-			.FillColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
+			SNew(SFrameTime)
 		]
 		+ SVerticalBox::Slot()
 		.Padding(0)
+		
 		.AutoHeight()
 		[
 			SNew(SGridPanel)
-			.FillColumn(0, 0.25f)
-			.FillColumn(1, 0.25f)
-			.FillColumn(2, 0.02f)
-			.FillColumn(4, 0.49f)
+			.FillColumn(0, 0.5f)
+			.FillColumn(1, 0.5f)
 
 			+ SGridPanel::Slot(0, 0)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 
 				.Text(LOCTEXT("FPSLabel", "FPS: "))
 			]
 			+ SGridPanel::Slot(1, 0)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 				.Text(this, &STimedDataGenlock::GetFPSText)
 			]
 			+ SGridPanel::Slot(0, 1)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("DeltaTimeLabel", "DeltaTime: "))
 			]
 			+ SGridPanel::Slot(1, 1)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 				.Text(this, &STimedDataGenlock::GetDeltaTimeText)
 			]
 			+ SGridPanel::Slot(0, 2)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("IdleTimeLabel", "Idle Time: "))
 			]
 			+ SGridPanel::Slot(1, 2)
+			.Padding(0.f, 2.f)
 			[
 				SNew(STextBlock)
 				.Text(this, &STimedDataGenlock::GetIdleTimeText)
-			]
-			+ SGridPanel::Slot(3, 0)
-			.RowSpan(3)
-			[
-				SNew(SSeparator)
-				.Thickness(2)
-				.Orientation(EOrientation::Orient_Vertical)
-			]
-			+ SGridPanel::Slot(4, 0)
-			.RowSpan(3)
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Bottom)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Bottom)
-				.AutoWidth()
-				[
-					SNew(SCheckBox)
-					.Padding(4.f)
-					.ToolTipText(LOCTEXT("ShowTimecodeProviderSetting_Tip", "Show timecode provider setting"))
-					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-					.ForegroundColor(FSlateColor::UseForeground())
-					.IsChecked_Lambda([](){return ECheckBoxState::Unchecked; })
-					.OnCheckStateChanged(this, &STimedDataGenlock::ShowCustomTimeStepSetting)
-					[
-						SNew(STextBlock)
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-						.Text(FEditorFontGlyphs::Cogs)
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
-				[
-					SNew(SCheckBox)
-					.Padding(4.f)
-					.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Custom Time Step."))
-					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-					.ForegroundColor(FSlateColor::UseForeground())
-					.IsEnabled(this, &STimedDataGenlock::IsCustomTimeStepEnabled)
-					.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
-					.OnCheckStateChanged(this, &STimedDataGenlock::ReinitializeCustomTimeStep)
-					[
-						SNew(STextBlock)
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-						.Text(FEditorFontGlyphs::Undo)
-					]
-				]
 			]
 		]
 	];
@@ -178,10 +166,19 @@ void STimedDataGenlock::RequestRefresh()
 	}
 }
 
-
-void STimedDataGenlock::UpdateCachedValue()
+void STimedDataGenlock::UpdateCachedValue(float InDeltaTime)
 {
-	CachedFPSFraction = FApp::GetDeltaTime() > 0.0 ? (1.f-float(FApp::GetIdleTime() / FApp::GetDeltaTime())) : 1.f;
+	double IdleTime = FApp::GetIdleTime();
+
+	const float MaxTickRate = GEngine->GetMaxTickRate(0.001f, false);
+
+	float TargetFPS = GEngine->bUseFixedFrameRate ? GEngine->FixedFrameRate : MaxTickRate;
+	if (UFixedFrameRateCustomTimeStep* CustomTimeStep = Cast<UFixedFrameRateCustomTimeStep>(GEngine->GetCustomTimeStep()))
+	{
+		TargetFPS = CustomTimeStep->GetFixedFrameRate().AsDecimal();
+	}
+	
+	const float TargetFrameTime = 1 / TargetFPS;
 
 	FNumberFormattingOptions FPSFormattingOptions = FNumberFormattingOptions()
 		.SetUseGrouping(false)
@@ -190,9 +187,16 @@ void STimedDataGenlock::UpdateCachedValue()
 		.SetUseGrouping(false)
 		.SetMinimumFractionalDigits(3)
 		.SetMaximumFractionalDigits(3);
+
+	uint32 IdleFrames = 0;
+	if (!FMath::IsNearlyZero(IdleTime))
+	{
+		IdleFrames = FMath::RoundToInt(IdleTime / (TargetFrameTime * TargetFrameTime) );
+	}
+
 	CachedFPSText = FText::AsNumber(1.0/FApp::GetDeltaTime(), &FPSFormattingOptions);
 	CachedDeltaTimeText = FText::Format(LOCTEXT("WithMilliSeconds", "{0}ms"), FText::AsNumber(FApp::GetDeltaTime()*1000, &MsFormattingOptions));
-	CachedIdleTimeText = FText::Format(LOCTEXT("WithMilliSeconds", "{0}ms"), FText::AsNumber(FApp::GetIdleTime()*1000, &MsFormattingOptions));
+	CachedIdleTimeText = FText::Format(LOCTEXT("WithMilliSecondsFrames", "{0}ms ({1} frames)"), FText::AsNumber(IdleTime *1000, &MsFormattingOptions), IdleFrames);
 
 	if (const UEngineCustomTimeStep* CustomTimeStep = GEngine->GetCustomTimeStep())
 	{
@@ -202,18 +206,12 @@ void STimedDataGenlock::UpdateCachedValue()
 	else
 	{
 		CachedState = ECustomTimeStepSynchronizationState::Error;
-		CachedCustomTimeStepText = LOCTEXT("Undefined", "<Default Engine Settings>");
+		CachedCustomTimeStepText = LOCTEXT("NoCustomTimeStep", "No custom time step");
 	}
 }
 
-
 FText STimedDataGenlock::GetStateText() const
 {
-	if (!IsCustomTimeStepEnabled())
-	{
-		return FText::GetEmpty();
-	}
-
 	switch (CachedState)
 	{
 	case ECustomTimeStepSynchronizationState::Synchronized:
@@ -255,13 +253,6 @@ bool STimedDataGenlock::IsCustomTimeStepEnabled() const
 {
 	return GEngine && GEngine->GetCustomTimeStep() != nullptr;
 }
-
-
-TOptional<float> STimedDataGenlock::GetFPSFraction() const
-{
-	return CachedFPSFraction;
-}
-
 
 void STimedDataGenlock::ShowCustomTimeStepSetting(ECheckBoxState)
 {

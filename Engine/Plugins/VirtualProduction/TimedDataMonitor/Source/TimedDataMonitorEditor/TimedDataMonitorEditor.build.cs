@@ -11,6 +11,7 @@ public class TimedDataMonitorEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorFramework",
+				"EditorWidgets",
 				"Engine",
 				"EditorStyle",
 				"InputCore",

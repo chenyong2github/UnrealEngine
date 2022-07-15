@@ -25,9 +25,9 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 
 	// CheckBox
 	{
-		FSlateImageBrush SwitchOn = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_ON.png")), FVector2D(28.f, 14.f));
-		FSlateImageBrush SwitchOff = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_OFF.png")), FVector2D(28.f, 14.f));
-		FSlateImageBrush SwitchUndeterminded = FSlateImageBrush(RootToContentDir(TEXT("Widgets/Switch_Undetermined.png")), FVector2D(28.f, 14.f));
+		FSlateImageBrush SwitchOn = IMAGE_BRUSH(TEXT("Widgets/Switch_ON"), FVector2D(28.f, 14.f));
+		FSlateImageBrush SwitchOff = IMAGE_BRUSH(TEXT("Widgets/Switch_OFF"), FVector2D(28.f, 14.f));
+		FSlateImageBrush SwitchUndeterminded = IMAGE_BRUSH(TEXT("Widgets/Switch_Undetermined"), FVector2D(28.f, 14.f));
 
 		FCheckBoxStyle SwitchStyle = FCheckBoxStyle()
 			.SetForegroundColor(FLinearColor::White)
@@ -54,14 +54,14 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 		const FVector2D Icon20x20(20.0f, 20.0f);
 		Set("Img.TimedDataMonitor.Icon", new IMAGE_BRUSH_SVG("Common/TimedDataMonitor", Icon20x20));
 
-		Set(NAME_TimecodeBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Timecode_16x.png")), Icon16x16));
-		Set(NAME_PlatformTimeBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Time_16x.png")), Icon16x16));
-		Set(NAME_NoEvaluationBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/NoEvaluation_16x.png")), Icon16x16));
+		Set(NAME_TimecodeBrush, new IMAGE_BRUSH(TEXT("Widgets/Timecode_16x"), Icon16x16));
+		Set(NAME_PlatformTimeBrush, new IMAGE_BRUSH(TEXT("Widgets/Time_16x"), Icon16x16));
+		Set(NAME_NoEvaluationBrush, new IMAGE_BRUSH(TEXT("Widgets/NoEvaluation_16x"), Icon16x16));
 
-		Set("Img.BufferVisualization", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/BufferVisualization_24x.png")), Icon24x24));
-		Set("Img.Calibration", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Calibration_24x.png")), Icon24x24));
-		Set("Img.TimeCorrection", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/TimeCorrection_24x.png")), Icon24x24));
-		Set("Img.Edit", new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Edit_24x.png")), Icon24x24));
+		Set("Img.BufferVisualization", new IMAGE_BRUSH(TEXT("Widgets/BufferVisualization_24x"), Icon24x24));
+		Set("Img.Calibration", new IMAGE_BRUSH(TEXT("Widgets/Calibration_24x"), Icon24x24));
+		Set("Img.TimeCorrection", new IMAGE_BRUSH(TEXT("Widgets/TimeCorrection_24x"), Icon24x24));
+		Set("Img.Edit", new IMAGE_BRUSH(TEXT("Widgets/Edit_24x"), Icon24x24));
 		
 	}
 
@@ -127,10 +127,10 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 	// Button
 	{
 		FButtonStyle FlatButton = FButtonStyle()
-			.SetNormal(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
-			.SetHovered(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
-			.SetPressed(FSlateBoxBrush(RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
-			.SetNormalPadding(FMargin(0, 0, 0, 1))
+			.SetNormal(BOX_BRUSH(TEXT("Common/ButtonHoverHint"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
+			.SetHovered(BOX_BRUSH(TEXT("Common/ButtonHoverHint"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.25f)))
+			.SetPressed(BOX_BRUSH(TEXT("Common/ButtonHoverHint"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.30f)))
+			.SetNormalPadding(FMargin(0.f, 2.f))
 			.SetPressedPadding(FMargin(0, 1, 0, 0));
 		Set("FlatButton", FlatButton);
 
@@ -139,9 +139,14 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 			.SetNormal(ToggleButtonStyle.UncheckedImage)
 			.SetHovered(ToggleButtonStyle.UncheckedHoveredImage)
 			.SetPressed(ToggleButtonStyle.UncheckedPressedImage)
-			.SetNormalPadding(FMargin(0, 0, 0, 0))
+			.SetNormalPadding(FMargin(0, 0, 0, 1))
 			.SetPressedPadding(FMargin(0, 1, 0, 0));
 		Set("ToggleButton", ToggleButton);
+
+
+		const FVector2D Icon12x12(12.0f, 12.0f);
+		Set("PlusButton", new FSlateImageBrush( FAppStyle::Get().GetContentRootDir() / (TEXT("Icons/PlusSymbol_12x.png")), Icon12x12, FLinearColor::Gray));
+		Set("MinusButton", new FSlateImageBrush( FAppStyle::Get().GetContentRootDir() / TEXT("Icons/MinusSymbol_12x.png"), Icon12x12,  FLinearColor::Gray));
 	}
 	
 	FSlateStyleRegistry::RegisterSlateStyle(*this);

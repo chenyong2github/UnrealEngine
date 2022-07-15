@@ -480,6 +480,29 @@ void UTimedDataMonitorSubsystem::SetInputEvaluationOffsetInSeconds(const FTimedD
 	}
 }
 
+float UTimedDataMonitorSubsystem::GetInputEvaluationOffsetInFrames(const FTimedDataMonitorInputIdentifier& Identifier)
+{
+	BuildSourcesListIfNeeded();
+
+	if (const FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->ConvertSecondOffsetInFrameOffset(SourceItem->Input->GetEvaluationOffsetInSeconds());
+	}
+
+	return 0.f;
+}
+
+
+void UTimedDataMonitorSubsystem::SetInputEvaluationOffsetInFrames(const FTimedDataMonitorInputIdentifier& Identifier, float Offset)
+{
+	BuildSourcesListIfNeeded();
+
+	if (FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
+	{
+		return SourceItem->Input->SetEvaluationOffsetInSeconds(SourceItem->Input->ConvertFrameOffsetInSecondOffset(Offset));
+	}
+}
+
 
 FFrameRate UTimedDataMonitorSubsystem::GetInputFrameRate(const FTimedDataMonitorInputIdentifier& Identifier)
 {

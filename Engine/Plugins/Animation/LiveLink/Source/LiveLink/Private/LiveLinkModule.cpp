@@ -8,6 +8,7 @@
 #include "LiveLinkSettings.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
+#include "Styling/SlateStyleRegistry.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
@@ -46,6 +47,7 @@ void FLiveLinkModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 	FPlatformAtomics::InterlockedExchangePtr((void**)&LiveLinkClient_AnyThread, nullptr);
 
+	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
 	FLiveLinkLogInstance::DestroyInstance();
 }
 
@@ -53,6 +55,7 @@ void FLiveLinkModule::CreateStyle()
 {
 	static FName LiveLinkStyle(TEXT("LiveLinkCoreStyle"));
 	StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
+	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 
 	FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
 

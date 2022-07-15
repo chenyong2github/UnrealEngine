@@ -15,3 +15,15 @@ double ITimedDataInput::ConvertFrameOffsetInSecondOffset(double Frames, FFrameRa
 {
 	return Rate.AsSeconds(FFrameTime::FromDecimal(Frames));
 }
+
+double ITimedDataInput::ConvertSecondOffsetInFrameOffset(double Seconds) const
+{
+	const FFrameRate FrameRate = GetFrameRate();
+	return ITimedDataInput::ConvertSecondOffsetInFrameOffset(Seconds, FrameRate);
+}
+
+double ITimedDataInput::ConvertFrameOffsetInSecondOffset(double Frames) const
+{
+	const FFrameRate FrameRate = GetFrameRate();
+	return ITimedDataInput::ConvertFrameOffsetInSecondOffset(Frames, FrameRate);
+}

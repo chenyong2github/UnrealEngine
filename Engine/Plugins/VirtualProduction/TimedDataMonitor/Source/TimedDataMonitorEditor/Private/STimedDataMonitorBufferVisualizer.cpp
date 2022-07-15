@@ -260,10 +260,15 @@ void STimedDataMonitorBufferVisualizer::RebuiltListItemsSource()
 
 	if (bListModified)
 	{
-		Algo::Sort(ListItemsSource, [](const TSharedPtr<FTimedDataMonitorBuffervisualizerItem>& A, const TSharedPtr<FTimedDataMonitorBuffervisualizerItem>& B)
+		struct FSortNamesAlphabetically
+		{
+			bool operator()(const TSharedPtr<FTimedDataMonitorBuffervisualizerItem>& LHS, const TSharedPtr<FTimedDataMonitorBuffervisualizerItem>& RHS) const
 			{
-				return (A->InputIdentifier == B->InputIdentifier) ? A->ChannelDisplayName.CompareTo(B->ChannelDisplayName) < 0 : A->InputIdentifier < B->InputIdentifier;
-			});
+				return (LHS->ChannelDisplayName.CompareTo(RHS->ChannelDisplayName) < 0);
+			}
+		};
+
+		ListItemsSource.Sort(FSortNamesAlphabetically());
 		ListViewWidget->RequestListRefresh();
 	}
 }

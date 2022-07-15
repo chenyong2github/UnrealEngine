@@ -31,7 +31,6 @@ enum class ETimedDataInputEvaluationType : uint8
 	PlatformTime,
 };
 
-
 UENUM()
 enum class ETimedDataInputState : uint8
 {
@@ -111,7 +110,7 @@ public:
 	/** Set the offset in seconds used at evaluation. */
 	virtual void SetEvaluationOffsetInSeconds(double Offset) = 0;
 
-	/** Get the frame rate at which the samples is produce. */
+	/** Get the frame rate at which the samples are produced. */
 	virtual FFrameRate GetFrameRate() const = 0;
 
 	/** Does channel from this input support a different buffer size than it's input. */
@@ -128,6 +127,12 @@ public:
 
 	/** Remove channel from the input */
 	virtual void RemoveChannel(ITimedDataInputChannel* Channel) = 0;
+
+	/** Convert second offset to frame offset using this input's framerate. */
+	double ConvertSecondOffsetInFrameOffset(double Seconds) const;
+
+	/** Convert frame offset to second offset using this input's framerate. */
+	double ConvertFrameOffsetInSecondOffset(double Frames) const;
 
 #if WITH_EDITOR
 	/** Get the icon that represent the input. */

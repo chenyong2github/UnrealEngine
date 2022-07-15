@@ -24,6 +24,7 @@ public:
 			, _ShowMean(true)
 			, _ShowSigma(false)
 			, _ShowSnapshot(false)
+			, _UseNiceBrush(false)
 			, _SizePerSeconds(100)
 		{ }
 		SLATE_ARGUMENT(FTimedDataMonitorChannelIdentifier, ChannelIdentifier)

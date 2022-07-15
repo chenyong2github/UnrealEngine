@@ -20,6 +20,7 @@
 #include "Styling/CoreStyle.h"
 
 #include "STimedDataMonitorPanel.h"
+#include "STimedDataNumericEntryBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -48,15 +49,14 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 	UpdateCachedValue();
 
 	FSlateFontInfo TimeFont = FCoreStyle::Get().GetFontStyle(TEXT("EmbossedText"));
-	TimeFont.Size += 4;
+	TimeFont.Size += 2;
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.Padding(0)
+		.Padding(0.f)
 		.AutoHeight()
-		.HAlign(HAlign_Center)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -77,6 +77,42 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 				SNew(STextBlock)
 				.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
 				.Text(this, &STimedDataTimecodeProvider::GetTimecodeProviderText)
+			]
+			
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.Padding(4.f)
+				.ToolTipText(LOCTEXT("ShowTimecodeProviderSetting_Tip", "Show timecode provider setting"))
+				.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
+				.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ShowTimecodeProviderSetting)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Cogs)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
+			[
+				SNew(SCheckBox)
+				.Padding(4.f)
+				.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Timecode Provider."))
+				.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
+				.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ReinitializeTimecodeProvider)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
+					.Text(FEditorFontGlyphs::Undo)
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -103,85 +139,31 @@ void STimedDataTimecodeProvider::Construct(const FArguments& InArgs, TSharedPtr<
 				//	.Text(this, &STimedDataTimecodeProvider::GetSystemTimeText)
 				//]
 			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
-				SNew(SSeparator)
-				.Thickness(2)
-				.Orientation(EOrientation::Orient_Vertical)
+				SNew(STextBlock)
+				.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
+				.Text(LOCTEXT("GlobalFrameOffsetLabel", "Global Frame Offset: "))
 			]
 			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(FMargin(6.f, 4.f, 0.f, 4.f))
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1)
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalText")))
-						.Text(LOCTEXT("FrameOffsetLabel", "Global TC Offset: "))
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(SSpinBox<float>)
-						.ToolTipText(LOCTEXT("FrameDelay_ToolTip", "Number of frames to subtract from the original timecode."))
-						.Value(this, &STimedDataTimecodeProvider::GetTimecodeFrameDelay)
-						.MinValue(TOptional<float>())
-						.MaxValue(TOptional<float>())
-						.OnValueCommitted(this, &STimedDataTimecodeProvider::SetTimecodeFrameDelay)
-						.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
-					]
-				]
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Bottom)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.Padding(4.f)
-						.ToolTipText(LOCTEXT("ShowTimecodeProviderSetting_Tip", "Show timecode provider setting"))
-						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
-						.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ShowTimecodeProviderSetting)
-						[
-							SNew(STextBlock)
-							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-							.Text(FEditorFontGlyphs::Cogs)
-						]
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
-					[
-						SNew(SCheckBox)
-						.Padding(4.f)
-						.ToolTipText(LOCTEXT("ReapplyMenuToolTip", "Reinitialize the current Timecode Provider."))
-						.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-						.ForegroundColor(FSlateColor::UseForeground())
-						.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
-						.IsChecked_Lambda([]() {return ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged(this, &STimedDataTimecodeProvider::ReinitializeTimecodeProvider)
-						[
-							SNew(STextBlock)
-							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-							.Text(FEditorFontGlyphs::Undo)
-						]
-					]
-				]
+				SNew(STimedDataNumericEntryBox<float>)
+				.ComboButton(false)
+				.ToolTipText(LOCTEXT("FrameDelay_ToolTip", "Number of frames to subtract from the original timecode."))
+				.Value(this, &STimedDataTimecodeProvider::GetTimecodeFrameDelay)
+				.MinValue(TOptional<float>())
+				.MaxValue(TOptional<float>())
+				.OnValueCommitted(this, &STimedDataTimecodeProvider::SetTimecodeFrameDelay)
+				.IsEnabled(this, &STimedDataTimecodeProvider::IsTimecodeOffsetEnabled)
 			]
 		]
 	];

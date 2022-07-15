@@ -186,9 +186,10 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			];
 	}
 
-	TSharedRef<SWidget> Toolbar = SNew(SBorder)
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+	TSharedRef<SWidget> Toolbar = 
+		SNew(SBorder)
+		.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+		.Padding(FMargin(7.f, 5.f))
 		[
 			SNew(SHorizontalBox)
 			// Calibrate button
@@ -329,7 +330,7 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(4.f)
+			.Padding(4.f, 4.f, 6.f, 4.f)
 			[
 				SNew(STextBlock)
 				.MinDesiredWidth(100)
@@ -339,107 +340,114 @@ void STimedDataMonitorPanel::Construct(const FArguments& InArgs)
 			]
 		];
 
+	FSlateFontInfo SectionHeaderFont = FCoreStyle::Get().GetFontStyle(TEXT("EmbossedText"));
+	SectionHeaderFont.Size += 4;
+
 	ChildSlot
 	[
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
-			SNew(SVerticalBox)
-			// toolbar
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(10.f, 10.f, 10.f, 10.f)
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.BorderBackgroundColor(FLinearColor::Gray) // Darken the outer border
+			.Padding(0.f)
 			[
-				Toolbar
-			]
-			// timing element
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(10.f, 0.f, 10.f, 10.f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(0.5f)
-				.Padding(0.f, 0.f, 10.f, 0.f)
+				SNew(SVerticalBox)
+				// Toolbar
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("GenlockLabel", "Genlock"))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SBorder)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
-						[
-							SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
-						]
-					]
+					Toolbar
 				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(0.5f)
-				.Padding(0.f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("TimecodeLabel", "Timecode Provider"))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SBorder)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
-						]
-					]
-				]
-			]
-			// sources list
-			+ SVerticalBox::Slot()
-			.FillHeight(1.f)
-			.Padding(10.f, 0.f, 10.f, 10.f)
-			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Vertical)
-				+ SScrollBox::Slot()
-				[
-					SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
-					.OnContextMenuOpening(this, &STimedDataMonitorPanel::OnDataListConstructContextMenu)
-				]
-			]
-			// message log
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(10.f, 0.f, 10.f, 10.f)
-			[
-				SNew(SBorder)
-				.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
-				.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
+				// Timing element
+				+ SVerticalBox::Slot()
+				.Padding(4.f)
+				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
+					.FillWidth(0.5f)
+					.Padding(FMargin(0.f, 0.f, 2.5f, 0.f))
 					[
-						MessageLogListingWidget
+						SNew(SBorder)
+						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+						.Padding(FMargin(5.f, 2.f))
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Font(SectionHeaderFont)
+								.Text(LOCTEXT("GenlockLabel", "Genlock"))
+							]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SAssignNew(TimedDataGenlockWidget, STimedDataGenlock, SharedThis<STimedDataMonitorPanel>(this))
+							]
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(0.5f)
+					.Padding(FMargin(2.5f, 0.f, 0.f, 0.f))
+					[
+						SNew(SBorder)
+						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+						.Padding(FMargin(5.f, 2.f))
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Font(SectionHeaderFont)
+								.Text(LOCTEXT("TimecodeLabel", "Timecode Provider"))
+							]
+							+ SVerticalBox::Slot()
+							[
+								SAssignNew(TimedDataTimecodeWidget, STimedDataTimecodeProvider, SharedThis<STimedDataMonitorPanel>(this))
+							]
+						]
 					]
 				]
-			]
-			// show performance warning
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(10.f, 0.f, 10.f, 10.f)
-			[
-				PerformanceWidget.ToSharedRef()
+				// Sources list
+				+ SVerticalBox::Slot()
+				.Padding(5.f, 2.5f)
+				.FillHeight(1.f)
+				[
+					SNew(SScrollBox)
+					.Orientation(Orient_Vertical)
+					+ SScrollBox::Slot()
+					[
+						SAssignNew(TimedDataSourceList, STimedDataInputListView, SharedThis<STimedDataMonitorPanel>(this))
+						.OnContextMenuOpening(this, &STimedDataMonitorPanel::OnDataListConstructContextMenu)
+					]
+				]
+				// Message log
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBorder)
+					.Padding(FMargin(5.f, 5.f, 5.f, 5.f))
+					.Visibility(this, &STimedDataMonitorPanel::ShowMessageLog)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						[
+							MessageLogListingWidget
+						]
+					]
+				]
+				// Show performance warning
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(10.f, 0.f, 10.f, 10.f)
+				[
+					PerformanceWidget.ToSharedRef()
+				]
 			]
 		]
 		+ SOverlay::Slot()
@@ -498,7 +506,7 @@ void STimedDataMonitorPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 
 		if (TimedDataGenlockWidget)
 		{
-			TimedDataGenlockWidget->UpdateCachedValue();
+			TimedDataGenlockWidget->UpdateCachedValue(InDeltaTime);
 		}
 		if (TimedDataTimecodeWidget)
 		{
