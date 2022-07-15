@@ -1159,24 +1159,24 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				}
 #endif
 				//#TODO: bone color, bone selection and render bound?
-				
-				FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
-
-				const uint32 VertexCount = Section.MaxVertexIndex + 1;
-				Context.DynamicRayTracingGeometriesToUpdate.Add(
-					FRayTracingDynamicGeometryUpdateParams
-					{
-						RayTracingInstance.Materials,
-						false,
-						VertexCount,
-						VertexCount * (uint32)sizeof(FVector3f),
-						RayTracingGeometry.Initializer.TotalPrimitiveCount,
-						&RayTracingGeometry,
-						VertexBuffer,
-						true
-					}
-				);
 			}
+
+			FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
+			const uint32 VertexCount = MaxVertexIndex + 1;
+			Context.DynamicRayTracingGeometriesToUpdate.Add(
+				FRayTracingDynamicGeometryUpdateParams
+				{
+					RayTracingInstance.Materials,
+					false,
+					VertexCount,
+					VertexCount * (uint32)sizeof(FVector3f),
+					RayTracingGeometry.Initializer.TotalPrimitiveCount,
+					&RayTracingGeometry,
+					VertexBuffer,
+					true
+				}
+			);
 
 			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
@@ -1217,7 +1217,8 @@ void FGeometryCollectionSceneProxy::UpdatingRayTracingGeometry_RenderingThread(F
 		if (RayTracingGeometry.Initializer.TotalPrimitiveCount > 0)
 		{
 			RayTracingGeometry.Initializer.IndexBuffer = InIndexBuffer->IndexBufferRHI;
-			RayTracingGeometry.UpdateRHI();
+			// Create the ray tracing geometry but delay the acceleration structure build.
+			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
 		}
 
 		bGeometryResourceUpdated = false;
