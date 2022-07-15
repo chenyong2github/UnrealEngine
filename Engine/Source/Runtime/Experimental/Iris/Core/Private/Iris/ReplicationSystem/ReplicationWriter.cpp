@@ -494,7 +494,7 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 {
 	IRIS_PROFILER_SCOPE(FReplicationWriter_ScopeUpdate);
 
-	auto&& NewObjectFunctor = [this](uint32 Index)
+	auto NewObjectFunctor = [this](uint32 Index)
 	{
 		// We can only start replicating an object that is not currently replicated
 		// Later on we will support "cancelling" destroy objects that are flushing state data
@@ -546,7 +546,7 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 		}
 	};
 
-	auto&& DestroyedObjectFunctor = [this](uint32 Index) 
+	auto DestroyedObjectFunctor = [this](uint32 Index) 
 	{
 		// Request object to be destroyed
 		FReplicationInfo& Info = GetReplicationInfo(Index);
@@ -697,7 +697,7 @@ const FNetBitArray& FReplicationWriter::GetObjectsRequiringPriorityUpdate() cons
 void FReplicationWriter::UpdatePriorities(const float* UpdatedPriorities)
 {
 	IRIS_PROFILER_SCOPE(FReplicationWriter_UpdatePriorities);
-	auto&& UpdatePriority = [LocalPriorities = SchedulingPriorities.GetData(), UpdatedPriorities](uint32 Index)
+	auto UpdatePriority = [LocalPriorities = SchedulingPriorities.GetData(), UpdatedPriorities](uint32 Index)
 	{
 		LocalPriorities[Index] += UpdatedPriorities[Index];
 	};
@@ -721,7 +721,7 @@ uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObje
 	const FNetBitArray& SubObjects = NetHandleManager->GetSubObjectInternalIndices();
 
 	// Fill IndexList with all objects with dirty state that have positive priority excluding subobjects
-	auto&& FillIndexListFunc = [&LocalPriorities, &ScheduledObjectIndices, &ScheduledObjectCount](uint32 Index)
+	auto FillIndexListFunc = [&LocalPriorities, &ScheduledObjectIndices, &ScheduledObjectCount](uint32 Index)
 	{
 		const float UpdatedPriority = LocalPriorities[Index];
 
@@ -2184,7 +2184,7 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 
 	bool bContinue = WriteContext.bHasUpdatedObjectsToSend;
 
-	auto&& SendObjectFunction = [this, &Context, &WrittenObjectCount](FInternalNetHandle InternalIndex)
+	auto SendObjectFunction = [this, &Context, &WrittenObjectCount](FInternalNetHandle InternalIndex)
 	{
 		if (!this->WriteContext.ObjectsWrittenThisTick.GetBit(InternalIndex) && this->CanSendObject(InternalIndex))
 		{

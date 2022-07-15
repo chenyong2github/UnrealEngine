@@ -212,7 +212,7 @@ void FDeltaCompressionBaselineStorage::FreeBaselineStateInfo(DeltaCompressionBas
 
 void FDeltaCompressionBaselineStorage::FreeAllBaselineStateInfos()
 {
-	auto&& DestructStateInfo = [this](uint32 StateInfoIndex)
+	auto DestructStateInfo = [this](uint32 StateInfoIndex)
 	{
 		FInternalBaselineStateInfo* ObjectInfo = GetBaselineStateInfo(StateInfoIndex);
 		DestructBaselineStateInfo(ObjectInfo);

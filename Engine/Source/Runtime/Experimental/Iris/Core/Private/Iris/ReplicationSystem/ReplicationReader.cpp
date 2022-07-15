@@ -644,7 +644,7 @@ void FReplicationReader::UpdateObjectReferenceTracking(FReplicatedObjectInfo* Re
 		}
 
 		// Replace each entry in UnresolvedObjectReferences for the given changemask
-		auto&& UpdateUnresolvedReferencesForChange = [ReplicationInfo, &NewUnresolvedReferences](uint32 ChangeBit)
+		auto UpdateUnresolvedReferencesForChange = [ReplicationInfo, &NewUnresolvedReferences](uint32 ChangeBit)
 		{
 			FObjectReferenceTracker& UnresolvedObjectReferences = ReplicationInfo->UnresolvedObjectReferences;
 
@@ -715,7 +715,7 @@ void FReplicationReader::UpdateObjectReferenceTracking(FReplicatedObjectInfo* Re
 		}
 
 		// Replace each entry in ResolvedDynamicObjectReferences for the given changemask
-		auto&& UpdateResolvedReferencesForChange = [ReplicationInfo, &NewMappedDynamicReferences](uint32 ChangeBit)
+		auto UpdateResolvedReferencesForChange = [ReplicationInfo, &NewMappedDynamicReferences](uint32 ChangeBit)
 		{
 			FObjectReferenceTracker& ResolvedDynamicObjectReferences = ReplicationInfo->ResolvedDynamicObjectReferences;
 
@@ -1013,7 +1013,7 @@ void FReplicationReader::DispatchStateData(FNetSerializationContext& Context)
 	uint32 NumObjectsPendingPostDistpatch = 0U;
 
 	// Function to flush all objects pending post dispatch
-	auto&& FlushPostDispatchForBatch = [PostDispatchObjectInfos, &NumObjectsPendingPostDistpatch, this, &Context]()
+	auto FlushPostDispatchForBatch = [PostDispatchObjectInfos, &NumObjectsPendingPostDistpatch, this, &Context]()
 	{
 		// When all received states have been applied we invoke PostReplicate and RepNotifies
 		for (FPostDispatchObjectInfo& PostDispatchObjectInfo : MakeArrayView(PostDispatchObjectInfos, NumObjectsPendingPostDistpatch))

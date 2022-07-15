@@ -8,7 +8,7 @@
 #define UE_NET_IMPLEMENT_FASTARRAY(FastArrayType) \
 UE::Net::CreateAndRegisterReplicationFragmentFunc FastArrayType::GetFastArrayCreateReplicationFragmentFunction() \
 { \
-	auto&& CreateFastArrayReplicationFragmentFunction = [](UObject* InLocalOwner, const UE::Net::FReplicationStateDescriptor* InLocalDescriptor, UE::Net::FFragmentRegistrationContext& InLocalContext) \
+	auto CreateFastArrayReplicationFragmentFunction = [](UObject* InLocalOwner, const UE::Net::FReplicationStateDescriptor* InLocalDescriptor, UE::Net::FFragmentRegistrationContext& InLocalContext) \
 	{ \
 		return UE::Net::Private::CreateAndRegisterFragment<FastArrayType>(InLocalOwner, InLocalDescriptor, InLocalContext); \
 	}; \

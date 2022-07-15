@@ -596,7 +596,7 @@ void WriteSparseBitArray(FNetBitStreamWriter* Writer, const uint32* Data, uint32
 {
 	if (Hint == ESparseBitArraySerializationHint::None)
 	{
-		auto&& GetDataFunc = [](const uint32 Value) { return Value; };
+		auto GetDataFunc = [](const uint32 Value) { return Value; };
 		// Support large bit arrays
 		uint32 RemainingBits = BitCount;
 		while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)
@@ -612,7 +612,7 @@ void WriteSparseBitArray(FNetBitStreamWriter* Writer, const uint32* Data, uint32
 	}
 	else
 	{
-		auto&& GetDataFunc = [](const uint32 Value) { return ~Value; };
+		auto GetDataFunc = [](const uint32 Value) { return ~Value; };
 		// Support large bit arrays
 		uint32 RemainingBits = BitCount;
 		while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)
@@ -632,7 +632,7 @@ void ReadSparseBitArray(FNetBitStreamReader* Reader, uint32* OutData, uint32 Bit
 {
 	if (Hint == ESparseBitArraySerializationHint::None)
 	{
-		auto&& SetDataFunc = [](const uint32 Value) { return Value; };
+		auto SetDataFunc = [](const uint32 Value) { return Value; };
 		// Support large bit arrays
 		uint32 RemainingBits = BitCount;
 		while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)
@@ -648,7 +648,7 @@ void ReadSparseBitArray(FNetBitStreamReader* Reader, uint32* OutData, uint32 Bit
 	}
 	else
 	{
-		auto&& SetDataFunc = [](const uint32 Value) { return ~Value; };
+		auto SetDataFunc = [](const uint32 Value) { return ~Value; };
 		// Support large bit arrays
 		uint32 RemainingBits = BitCount;
 		while (RemainingBits >= Private::SerializeSparseArrayMaxBitCount)

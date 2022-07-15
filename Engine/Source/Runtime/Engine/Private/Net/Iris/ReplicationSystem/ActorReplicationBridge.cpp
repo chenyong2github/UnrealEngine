@@ -108,7 +108,7 @@ void UActorReplicationBridge::Initialize(UReplicationSystem* InReplicationSystem
 	Super::Initialize(InReplicationSystem);
 
 	{
-		auto&& ShouldSpatialize = [](const UClass* Class)
+		auto ShouldSpatialize = [](const UClass* Class)
 		{
 			if (AActor* CDO = Cast<AActor>(Class->GetDefaultObject()))
 			{
@@ -122,7 +122,7 @@ void UActorReplicationBridge::Initialize(UReplicationSystem* InReplicationSystem
 	}
 
 	{
-		auto&& ClassesAreRelevantEqual = [](const UClass* Class, const UClass* Subclass)
+		auto ClassesAreRelevantEqual = [](const UClass* Class, const UClass* Subclass)
 		{
 			const AActor* CDO = Cast<AActor>(Class->GetDefaultObject());
 			const AActor* SubCDO = Cast<AActor>(Subclass->GetDefaultObject());

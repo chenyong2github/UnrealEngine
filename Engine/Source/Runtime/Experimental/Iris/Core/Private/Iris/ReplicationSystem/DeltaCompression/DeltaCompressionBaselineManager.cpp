@@ -376,7 +376,7 @@ void FDeltaCompressionBaselineManager::FreePerObjectInfo(ObjectInfoIndexType Ind
 
 void FDeltaCompressionBaselineManager::FreeAllPerObjectInfos()
 {
-	auto&& DestructObjectInfo = [this](uint32 ObjectInfoIndex)
+	auto DestructObjectInfo = [this](uint32 ObjectInfoIndex)
 	{
 		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(ObjectInfoIndex);
 		DestructPerObjectInfo(ObjectInfo);
@@ -535,7 +535,7 @@ void FDeltaCompressionBaselineManager::AdjustBaselineCount(const FPerObjectInfo*
 
 void FDeltaCompressionBaselineManager::ReleaseBaselinesForConnection(uint32 ConnId)
 {
-	auto&& ReleaseObjectBaselines = [this, ConnId](uint32 ObjectInfoIndex)
+	auto ReleaseObjectBaselines = [this, ConnId](uint32 ObjectInfoIndex)
 	{
 		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(ObjectInfoIndex);
 		FObjectBaselineInfo& BaselineInfo = ObjectInfo->BaselinesForConnections[ConnId];
@@ -570,7 +570,7 @@ void FDeltaCompressionBaselineManager::ConstructBaselineSharingContext(FBaseline
 
 void FDeltaCompressionBaselineManager::DestructBaselineSharingContext(FBaselineSharingContext& SharingContext)
 {
-	auto&& ReleaseBaseline = [this, SharingContext](uint32 ObjectInfoIndex)
+	auto ReleaseBaseline = [this, SharingContext](uint32 ObjectInfoIndex)
 	{
 		const DeltaCompressionBaselineStateInfoIndexType BaselineStateInfoIndex = SharingContext.ObjectInfoIndexToBaselineInfoIndex[ObjectInfoIndex];
 		BaselineStorage.OptionallyCommitAndDoReleaseBaseline(BaselineStateInfoIndex);

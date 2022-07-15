@@ -345,7 +345,7 @@ void NetObjectProtocolReferencesToString(FStringBuilderBase& StringBuilder, uint
 			StringBuilder << TEXT("Protocol: ") << ToCStr(Protocol->DebugName);
 			StringBuilder.Appendf(TEXT("Id: 0x%" UINT64_x_FMT " Created From : 0x%p"), Protocol->ProtocolIdentifier, ArchetypeOrCDOUsedAsKey) << TEXT(" Used by : \n");
 
-			auto&& FindMatchingProtocol = [&StringBuilder, &Protocol, &NetHandleManager](uint32 InternalObjectIndex)
+			auto FindMatchingProtocol = [&StringBuilder, &Protocol, &NetHandleManager](uint32 InternalObjectIndex)
 			{
 				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 				if (ObjectData.Protocol == Protocol)
