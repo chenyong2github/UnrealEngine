@@ -114,7 +114,6 @@ private:
 
 	const FSlateBrush* GetLightCardIcon() const
 	{
-		FString ActorName = TEXT("");
 		if (LightCardTreeItem.IsValid())
 		{
 			TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem> LightCardTreeItemPin = LightCardTreeItem.Pin();
@@ -124,7 +123,14 @@ private:
 			}
 			else if (LightCardTreeItemPin->LightCardActor.IsValid())
 			{
-				return FClassIconFinder::FindIconForActor(LightCardTreeItemPin->LightCardActor.Get());
+				if (LightCardTreeItemPin->LightCardActor->bIsUVLightCard)
+				{
+					return FDisplayClusterLightCardEditorStyle::Get().GetBrush(TEXT("UVLightCard"));
+				}
+				else
+				{
+					return FClassIconFinder::FindIconForActor(LightCardTreeItemPin->LightCardActor.Get());
+				}
 			}
 		}
 

@@ -127,6 +127,10 @@ public:
 			case EDisplayClusterMeshProjectionType::Azimuthal:
 				Label = LOCTEXT("ProjectionwMenuTitle_Azimuthal", "Azimuthal");
 				break;
+
+			case EDisplayClusterMeshProjectionType::UV:
+				Label = LOCTEXT("ProjectionwMenuTitle_UV", "UV");
+				break;
 			}
 		}
 
@@ -143,6 +147,7 @@ public:
 		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection);
 		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().OrthographicProjection);
 		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection);
+		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().UVProjection);
 
 		return ViewMenuBuilder.MakeWidget();
 	}
@@ -405,6 +410,12 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective));
+
+		CommandList->MapAction(
+			FDisplayClusterLightCardEditorCommands::Get().UVProjection,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::UV, ELevelViewportType::LVT_OrthoFreelook),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::UV, ELevelViewportType::LVT_OrthoFreelook));
 
 		CommandList->MapAction(
 			Commands.ViewOrientationTop,

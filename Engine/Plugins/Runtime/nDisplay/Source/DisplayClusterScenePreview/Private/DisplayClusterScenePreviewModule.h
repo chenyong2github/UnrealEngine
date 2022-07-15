@@ -30,12 +30,13 @@ public:
 	virtual bool SetRendererRootActor(int32 RendererId, ADisplayClusterRootActor* Actor, bool bAutoUpdateLightcards = false) override;
 	virtual ADisplayClusterRootActor* GetRendererRootActor(int32 RendererId) override;
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor) override;
+	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor, const TFunctionRef<bool(const UPrimitiveComponent*)>& PrimitiveFilter) override;
 	virtual bool RemoveActorFromRenderer(int32 RendererId, AActor* Actor) override;
 	virtual bool ClearRendererScene(int32 RendererId) override;
 	virtual bool SetRendererActorSelectedDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSelection ActorSelectedDelegate) override;
 	virtual bool SetRendererRenderSimpleElementsDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSimpleElementPass RenderSimpleElementsDelegate) override;
-	virtual bool Render(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, FCanvas& Canvas) override;
-	virtual bool RenderQueued(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) override;
+	virtual bool Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas) override;
+	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) override;
 	//~ End IDisplayClusterScenePreview Interface
 
 private:
@@ -69,7 +70,7 @@ private:
 	{
 		FPreviewRenderJob() {}
 
-		FPreviewRenderJob(int32 RendererId, const FDisplayClusterScenePreviewRenderSettings& Settings, const FIntPoint& Size,
+		FPreviewRenderJob(int32 RendererId, const FDisplayClusterMeshProjectionRenderSettings& Settings, const FIntPoint& Size,
 			FRenderResultDelegate ResultDelegate)
 			: RendererId(RendererId), Settings(Settings), Size(Size), ResultDelegate(ResultDelegate)
 		{
@@ -79,7 +80,7 @@ private:
 		int32 RendererId;
 
 		/** The settings to use for the render. */
-		FDisplayClusterScenePreviewRenderSettings Settings;
+		FDisplayClusterMeshProjectionRenderSettings Settings;
 
 		/** The size of the image to render. */
 		FIntPoint Size;
@@ -95,7 +96,7 @@ private:
 	void InternalSetRendererRootActor(FRendererConfig& RendererConfig, ADisplayClusterRootActor* Actor, bool bAutoUpdateLightcards);
 
 	/** Immediately render with the given renderer config and settings to the given canvas. */
-	bool InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterScenePreviewRenderSettings& RenderSettings, FCanvas& Canvas);
+	bool InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas);
 
 	/** Check if any of the tracked root actors are set to auto-update their lightcards and register/unregister event listeners accordingly. */
 	void RegisterOrUnregisterGlobalActorEvents();

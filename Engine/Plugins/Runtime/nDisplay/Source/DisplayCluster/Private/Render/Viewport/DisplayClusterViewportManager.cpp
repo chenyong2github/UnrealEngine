@@ -12,6 +12,7 @@
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManager.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
@@ -63,6 +64,7 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 
 	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy);
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
+	LightCardManager = MakeShared<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>(*this);
 
 	// initialize proxy
 	ViewportManagerProxy->Initialize(*this);
@@ -142,6 +144,11 @@ void FDisplayClusterViewportManager::StartScene(UWorld* InWorld)
 	{
 		PostProcessManager->HandleStartScene();
 	}
+
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->HandleStartScene();
+	}
 }
 
 void FDisplayClusterViewportManager::EndScene()
@@ -167,6 +174,11 @@ void FDisplayClusterViewportManager::EndScene()
 void FDisplayClusterViewportManager::ResetScene()
 {
 	check(IsInGameThread());
+
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->ResetScene();
+	}
 
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
@@ -307,6 +319,11 @@ bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFr
 		if (bIsRootActorChanged)
 		{
 			ResetScene();
+		}
+
+		if (LightCardManager.IsValid())
+		{
+			LightCardManager->UpdateConfiguration();
 		}
 
 		if (InPreviewSettings == nullptr)
@@ -479,6 +496,11 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	if (PostProcessManager.IsValid())
 	{
 		PostProcessManager->HandleBeginNewFrame(OutRenderFrame);
+	}
+
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->HandleBeginNewFrame();
 	}
 
 	return true;
@@ -690,7 +712,9 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 
 void FDisplayClusterViewportManager::RenderFrame(FViewport* InViewport)
 {
+	PreRenderFrame();
 	ViewportManagerProxy->ImplRenderFrame(InViewport);
+	PostRenderFrame();
 }
 
 bool FDisplayClusterViewportManager::CreateViewport(const FString& InViewportId, const class UDisplayClusterConfigurationViewport* ConfigurationViewport)
@@ -923,5 +947,21 @@ void FDisplayClusterViewportManager::AddReferencedObjects(FReferenceCollector& C
 		{
 			ViewportIt->AddReferencedObjects(Collector);
 		}
+	}
+}
+
+void FDisplayClusterViewportManager::PreRenderFrame()
+{
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->PreRenderFrame();
+	}
+}
+
+void FDisplayClusterViewportManager::PostRenderFrame()
+{
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->PostRenderFrame();
 	}
 }

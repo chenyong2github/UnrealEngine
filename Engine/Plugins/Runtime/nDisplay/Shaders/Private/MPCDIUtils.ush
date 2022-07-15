@@ -19,6 +19,7 @@ Texture2D OverlayAlphaTexture;
 Texture2D InnerCameraTexture;
 Texture2D ChromakeyCameraTexture;
 Texture2D ChromakeyMarkerTexture;
+Texture2D UVLightCardMapTexture;
 
 SamplerState InputSampler;
 SamplerState WarpMapSampler;
@@ -29,6 +30,7 @@ SamplerState OverlayAlphaSampler;
 SamplerState InnerCameraSampler;
 SamplerState ChromakeyCameraSampler;
 SamplerState ChromakeyMarkerSampler;
+SamplerState UVLightCardMapSampler;
 
 float4x4 MeshToStageProjectionMatrix;
 float4x4 ViewportTextureProjectionMatrix;

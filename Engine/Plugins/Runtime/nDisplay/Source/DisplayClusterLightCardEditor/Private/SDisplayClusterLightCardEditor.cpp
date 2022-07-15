@@ -243,6 +243,15 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCard()
 
 	NewLightCard->SetActorLabel(NewLightCard->GetName());
 
+	if (ViewportView.IsValid())
+	{
+		const EDisplayClusterMeshProjectionType ProjectionMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode();
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			NewLightCard->bIsUVLightCard = true;
+		}
+	}
+
 	TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
 	AddLightCardsToActor(LightCards);
 

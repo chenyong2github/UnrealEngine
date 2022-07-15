@@ -154,16 +154,16 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 	}
 
 	// Set up the render
-	FDisplayClusterScenePreviewRenderSettings RenderSettings;
+	FDisplayClusterMeshProjectionRenderSettings RenderSettings;
 
 	switch (Body.RenderType)
 	{
 	case ERCWebSocketNDisplayPreviewRenderType::Color:
-		RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Color;
+		RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Color;
 		break;
 
 	case ERCWebSocketNDisplayPreviewRenderType::Normals:
-		RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Normals;
+		RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Normals;
 		break;
 	}
 

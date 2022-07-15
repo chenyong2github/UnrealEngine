@@ -7,7 +7,7 @@
 
 #include "StageAppRequest.generated.h"
 
-/** Type of preview render to perform, exposed as a UENUM. Corresponds to FDisplayClusterScenePreviewRenderSettings::ERenderType. */
+/** Type of preview render to perform, exposed as a UENUM. Corresponds to EDisplayClusterMeshProjectionOutput. */
 UENUM()
 enum class ERCWebSocketNDisplayPreviewRenderType : uint8
 {

@@ -114,6 +114,8 @@ public:
 		Cameras.Empty();
 		Lightcard.Reset();
 		Lightcard_OCIO.Reset();
+
+		UVLightCardMap = nullptr;
 	}
 
 	// Implement copy ref and arrays
@@ -126,6 +128,8 @@ public:
 		Lightcard      = InParameters.Lightcard;
 		Lightcard_OCIO = InParameters.Lightcard_OCIO;
 		LightcardMode = InParameters.LightcardMode;
+
+		UVLightCardMap = InParameters.UVLightCardMap;
 	}
 
 	void CollectRefViewports(TArray<FDisplayClusterShaderParametersICVFX_ViewportResource*>& Dst)
@@ -230,4 +234,7 @@ public:
 	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard;
 	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard_OCIO;
 	EDisplayClusterShaderParametersICVFX_LightcardRenderMode LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
+
+	/** Texture containing a UV map of the rendered UV light cards */
+	FTextureRHIRef UVLightCardMap;
 };

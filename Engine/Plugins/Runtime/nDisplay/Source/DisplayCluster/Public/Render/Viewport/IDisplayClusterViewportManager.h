@@ -15,6 +15,7 @@ class FSceneViewFamilyContext;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
 class IDisplayClusterViewportManagerProxy;
+class IDisplayClusterViewportLightCardManager;
 class FReferenceCollector;
 
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
@@ -148,6 +149,12 @@ public:
 	* @return - arrays with viewport objects refs
 	*/
 	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const = 0;
+
+	/**
+	* Return the light card manager, used to manage and render UV light cards
+	* [Game thread func]
+	*/
+	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager() const = 0;
 
 	/**
 	* Mark the geometry of the referenced component(s) as dirty (ProceduralMesh, etc)

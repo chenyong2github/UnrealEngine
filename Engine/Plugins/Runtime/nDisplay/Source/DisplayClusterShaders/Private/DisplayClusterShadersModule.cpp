@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
 
+#include "Shaders/DisplayClusterShadersPreprocess_UVLightCards.h"
 #include "Shaders/DisplayClusterShadersPostprocess_Blur.h"
 #include "Shaders/DisplayClusterShadersPostprocess_OutputRemap.h"
 #include "Shaders/DisplayClusterShadersWarpblend_ICVFX.h"
@@ -39,6 +40,11 @@ bool FDisplayClusterShadersModule::RenderWarpBlend_MPCDI(FRHICommandListImmediat
 bool FDisplayClusterShadersModule::RenderWarpBlend_ICVFX(FRHICommandListImmediate& RHICmdList, const FDisplayClusterShaderParameters_WarpBlend& InWarpBlendParameters, const FDisplayClusterShaderParameters_ICVFX& InICVFXParameters) const
 {
 	return FDisplayClusterShadersWarpblend_ICVFX::RenderWarpBlend_ICVFX(RHICmdList, InWarpBlendParameters, InICVFXParameters);
+}
+
+bool FDisplayClusterShadersModule::RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize) const
+{
+	return FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCards(RHICmdList, InScene, InRenderTarget, ProjectionPlaneSize);
 }
 
 bool FDisplayClusterShadersModule::RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const IDisplayClusterRender_MeshComponentProxy& MeshProxy) const

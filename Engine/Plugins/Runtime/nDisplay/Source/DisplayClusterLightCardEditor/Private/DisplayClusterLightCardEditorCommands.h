@@ -28,6 +28,7 @@ public:
 	TSharedPtr<FUICommandInfo> PerspectiveProjection;
 	TSharedPtr<FUICommandInfo> OrthographicProjection;
 	TSharedPtr<FUICommandInfo> AzimuthalProjection;
+	TSharedPtr<FUICommandInfo> UVProjection;
 
 	TSharedPtr<FUICommandInfo> ViewOrientationTop;
 	TSharedPtr<FUICommandInfo> ViewOrientationBottom;

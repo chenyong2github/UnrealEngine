@@ -15,6 +15,8 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterLightCardEditorLog.h"
+#include "IDisplayClusterScenePreview.h"
+#include "SDisplayClusterLightCardEditor.h"
 
 #include "AudioDevice.h"
 #include "CameraController.h"
@@ -32,7 +34,6 @@
 #include "EngineModule.h"
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "IDisplayClusterScenePreview.h"
 #include "ImageUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -44,7 +45,6 @@
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Renderer/Private/SceneRendering.h"
 #include "ScopedTransaction.h"
-#include "SDisplayClusterLightCardEditor.h"
 #include "Slate/SceneViewport.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
@@ -617,10 +617,20 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 	if (!bDisableCustomRenderer)
 	{
-		FDisplayClusterScenePreviewRenderSettings RenderSettings;
-		RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Color;
+		FDisplayClusterMeshProjectionRenderSettings RenderSettings;
+		RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Color;
 		RenderSettings.EngineShowFlags = EngineShowFlags;
 		RenderSettings.ProjectionType = ProjectionMode;
+		RenderSettings.PrimitiveFilter.ShouldRenderPrimitiveDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateSP(this, &FDisplayClusterLightCardEditorViewportClient::ShouldRenderPrimitive);
+		RenderSettings.PrimitiveFilter.ShouldApplyProjectionDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateSP(this, &FDisplayClusterLightCardEditorViewportClient::ShouldApplyProjectionToPrimitive);
+
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			RenderSettings.ProjectionTypeSettings.UVProjectionIndex = 1;
+			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+		}
+
 		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
 		IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
@@ -677,8 +687,11 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	// Axes indicators
 	if (bDrawAxes && !ViewFamily.EngineShowFlags.Game && !GLevelEditorModeTools().IsViewportUIHidden() && !IsVisualizeCalibrationMaterialEnabled())
 	{
-		// TODO: Figure out how we want the axes widget to be drawn
-		DrawAxes(Viewport, Canvas);
+		// Don't draw the usual 3D axes if the projection mode is UV
+		if (ProjectionMode != EDisplayClusterMeshProjectionType::UV)
+		{
+			DrawAxes(Viewport, Canvas);
+		}
 	}
 
 	// NOTE: DebugCanvasObject will be created by UDebugDrawService::Draw() if it doesn't already exist.
@@ -708,7 +721,8 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	if (SelectedLightCards.Num())
+	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
+	if (LastSelectedLightCard.IsValid() && LastSelectedLightCard->bIsUVLightCard == bIsUVProjection)
 	{
 		// Project the editor widget's world position into projection space so that it renders at the appropriate screen location.
 		// This needs to be computed on the render thread using the render thread's scene view, which will be behind the game thread's scene view
@@ -821,7 +835,14 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 			switch (EditorWidget->GetWidgetMode())
 			{
 			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate:
-				MoveSelectedLightCards(InViewport, CurrentAxis);
+				if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+				{
+					MoveSelectedUVLightCards(InViewport, CurrentAxis);
+				}
+				else
+				{
+					MoveSelectedLightCards(InViewport, CurrentAxis);
+				}
 				break;
 
 			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_RotateZ:
@@ -883,15 +904,15 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(
 
 		if (RenderViewportType != LVT_Perspective)
 		{
-			// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
-			// to find a useful direction away from the view origin to use
-			const FVector ViewOrigin = View->ViewLocation;
-
-			Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
-			Origin = ViewOrigin;
+			// For orthogonal projections, the drag widget offset should store the origin offset instead of the direction offset,
+			// since the direction offset is always the same regardless of which pixel has been clicked while the origin moves
+			DragWidgetOffset = Origin - FPlane::PointPlaneProject(CachedEditorWidgetWorldTransform.GetTranslation(), FPlane(Origin, Direction));
+		}
+		else
+		{
+			DragWidgetOffset = Direction - (CachedEditorWidgetWorldTransform.GetTranslation() - Origin).GetSafeNormal();
 		}
 
-		DragWidgetOffset = Direction - (CachedEditorWidgetWorldTransform.GetTranslation() - Origin).GetSafeNormal();
 		LastWidgetMousePos = MousePos;
 	}
 
@@ -923,24 +944,40 @@ void FDisplayClusterLightCardEditorViewportClient::CalculateNormalAndPositionInD
 	FVector& OutRelativeNormal, 
 	double InDesiredDistanceFromFlush) const
 {
-	const FVector Position = InViewOrigin + InDirection; // We fabricate a position in the right direction
-
-	float Distance;
-
-	// We find the normal and distance from origin
-	if (Position.Z < InViewOrigin.Z)
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 	{
-		SouthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
+		// In UV projection mode, all relevant geometry is projected onto the UV plane, so compute the world position and normal
+		// by performing a ray-plane intersection on the UV projection plane
+
+		const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+		const FPlane UVProjectionPlane(InViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
+		const FVector PlaneIntersection = FMath::RayPlaneIntersection(InViewOrigin, InDirection, UVProjectionPlane);
+
+		OutRelativeNormal = UVProjectionPlane.GetNormal();
+		OutWorldPosition = PlaneIntersection;
 	}
 	else
 	{
-		NorthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
+		const FVector Position = InViewOrigin + InDirection; // We fabricate a position in the right direction
+
+		float Distance;
+
+		// We find the normal and distance from origin
+		if (Position.Z < InViewOrigin.Z)
+		{
+			SouthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
+		}
+		else
+		{
+			NorthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
+		}
+
+		Distance = CalculateFinalLightCardDistance(Distance, InDesiredDistanceFromFlush);
+
+		// Calculate world position
+		OutWorldPosition = InViewOrigin + Distance * InDirection;
 	}
-
-	Distance = CalculateFinalLightCardDistance(Distance, InDesiredDistanceFromFlush);
-
-	// Calculate world position
-	OutWorldPosition = InViewOrigin + Distance * InDirection;
 };
 
 
@@ -1047,15 +1084,13 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 		CalculateNormalAndPositionInDirection(ViewOrigin, LightCardDirection, LightCardLocation, LightCardRelativeNormal);
 
 		const FMatrix RotEffector = FRotationMatrix::MakeFromX(-LightCardRelativeNormal);
-		const FMatrix RotArm = FRotationMatrix::MakeFromX(LightCardDirection);
+		const FMatrix RotArm = ProjectionMode != EDisplayClusterMeshProjectionType::UV ? FRotationMatrix::MakeFromX(LightCardDirection) : FMatrix::Identity;
 		const FRotator TotalRotator = (RotEffector * RotArm).Rotator();
 
 		LightCardPlaneAxisX = TotalRotator.RotateVector(-FVector::XAxisVector); // Same as Normal
 		LightCardPlaneAxisY = TotalRotator.RotateVector(-FVector::YAxisVector);
 		LightCardPlaneAxisZ = TotalRotator.RotateVector( FVector::ZAxisVector);
 	}
-
-	const FSphericalCoordinates LightCardCoords(LightCardLocation - ViewOrigin);
 
 	//
 	// Project mouse positions to light card plane.
@@ -1197,7 +1232,20 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	}
 
 	// Update position
-	MoveLightCardTo(*LightCard, LightCardCoords);
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+	{
+		const float UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+
+		const FVector DesiredLocation = LightCardLocation - ViewOrigin;
+		const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
+
+		LightCard->UVCoordinates = DesiredUVLocation;
+	}
+	else
+	{
+		const FSphericalCoordinates LightCardCoords(LightCardLocation - ViewOrigin);
+		MoveLightCardTo(*LightCard, LightCardCoords);
+	}
 
 #endif // WITH_OPENCV
 }
@@ -1597,7 +1645,18 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 			for (const FLightCardProxy& LightCardProxy : LightCardProxies)
 			{
-				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardProxy.Proxy.Get());
+				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardProxy.Proxy.Get(), [this](const UPrimitiveComponent* PrimitiveComponent)
+				{
+					// Always add the light card mesh component to the renderer's scene even if it is marked hidden in game, since UV light cards will purposefully
+					// hide the light card mesh since it isn't supposed to exist in 3D space. The light card mesh will be appropriately filtered when the scene is
+					// rendered based on the projection mode
+					if (PrimitiveComponent->GetFName() == TEXT("LightCard"))
+					{
+						return true;
+					}
+
+					return !PrimitiveComponent->bHiddenInGame;
+				});
 			}
 
 			Finalize();
@@ -1716,7 +1775,7 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 	ProjectionMode = InProjectionMode;
 	RenderViewportType = InViewportType;
 
-	if (ProjectionMode == EDisplayClusterMeshProjectionType::Linear)
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::Linear || ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 	{
 		// TODO: Do we want to cache the perspective rotation and restore it when the user switches back?
 		SetViewRotation(FVector::ForwardVector.Rotation());
@@ -1817,7 +1876,15 @@ void FDisplayClusterLightCardEditorViewportClient::MoveLightCardTo(ADisplayClust
 void FDisplayClusterLightCardEditorViewportClient::CenterLightCardInView(ADisplayClusterLightCardActor& LightCard)
 {
 	VerifyAndFixLightCardOrigin(&LightCard);
-	MoveLightCardTo(LightCard, FSphericalCoordinates(GetViewRotation().RotateVector(FVector::ForwardVector)));
+
+	if (LightCard.bIsUVLightCard)
+	{
+		LightCard.UVCoordinates = FVector2D(0.5, 0.5);
+	}
+	else
+	{
+		MoveLightCardTo(LightCard, FSphericalCoordinates(GetViewRotation().RotateVector(FVector::ForwardVector)));
+	}
 
 	// If this is a proxy light, propagate to its counterpart in the level.
 	if (LightCard.bIsProxy)
@@ -1855,8 +1922,8 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 
 	FViewportCameraTransform& ViewTransform = GetViewTransform();
 
-	ViewInitOptions.ViewLocation = ViewTransform.GetLocation();
-	ViewInitOptions.ViewRotation = ViewTransform.GetRotation();
+	ViewInitOptions.ViewLocation = ProjectionMode == EDisplayClusterMeshProjectionType::UV ? FVector::ZeroVector : ViewTransform.GetLocation();
+	ViewInitOptions.ViewRotation = ProjectionMode == EDisplayClusterMeshProjectionType::UV ? FRotator::ZeroRotator : ViewTransform.GetRotation();
 	ViewInitOptions.ViewOrigin = ViewInitOptions.ViewLocation;
 
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
@@ -2118,12 +2185,14 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(ADisplayClust
 		}
 
 		SelectedLightCards.Empty();
+		LastSelectedLightCard = nullptr;
 	}
 
 	if (Actor)
 	{
 		SelectedLightCards.Add(Actor);
 		UpdatedActors.Add(Actor);
+		LastSelectedLightCard = Actor;
 	}
 
 	for (AActor* UpdatedActor : UpdatedActors)
@@ -2194,6 +2263,7 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardTransform(A
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch));
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw));
 		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale));
+		TryChangeProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, UVCoordinates));
 		
 		// Snapshot the changed properties so multi-user can update while dragging.
 		if (ChangedProperties.Num() > 0)
@@ -2266,9 +2336,7 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 
 	FSceneView* View = CalcSceneView(&ViewFamily);
 
-	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
-
-	if (LastSelectedLightCard.IsValid())
+	if (LastSelectedLightCard.IsValid() && !LastSelectedLightCard->bIsUVLightCard)
 	{
 		const bool bUseDeltaRotation = (CurrentAxis == EAxisList::Type::XYZ) || (CurrentAxis == EAxisList::Type::Y);
 
@@ -2284,7 +2352,7 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 
 		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
 		{
-			if (!LightCard.IsValid())
+			if (!LightCard.IsValid() || LightCard->bIsUVLightCard)
 			{
 				continue;
 			}
@@ -2383,27 +2451,6 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 
 void FDisplayClusterLightCardEditorViewportClient::MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards)
 {
-	// First, find the average position of all selected light cards
-	FSphericalCoordinates AverageCoords = FSphericalCoordinates();
-	int32 NumLightCards = 0;
-
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
-	{
-		if (LightCard.IsValid())
-		{
-			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
-
-			AverageCoords = AverageCoords + LightCardCoords;
-			++NumLightCards;
-		}
-	}
-
-	AverageCoords.Radius /= NumLightCards;
-	AverageCoords.Azimuth /= NumLightCards;
-	AverageCoords.Inclination /= NumLightCards;
-	AverageCoords.Conform();
-
-	// Now, find the desired coordinates based on the mouse position
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		Viewport,
 		GetScene(),
@@ -2428,20 +2475,79 @@ void FDisplayClusterLightCardEditorViewportClient::MoveLightCardsToPixel(const F
 		Origin = ViewOrigin;
 	}
 
-	// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
-	const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
-	const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
-
-	// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 	{
-		if (LightCard.IsValid())
-		{
-			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
-			const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
+		// Find the average position of all selected light cards. This group average is what is moved to the specified pixel
+		FVector2D AverageUVCoords = FVector2D::ZeroVector;
+		int32 NumLightCards = 0;
 
-			MoveLightCardTo(*LightCard.Get(), NewCoords);
-			PropagateLightCardTransform(LightCard.Get());
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+		{
+			if (LightCard.IsValid() && LightCard->bIsUVLightCard)
+			{
+				AverageUVCoords += LightCard->UVCoordinates;
+				++NumLightCards;
+			}
+		}
+
+		AverageUVCoords /= NumLightCards;
+
+		// Compute the desired coordinates by projecting the specified screen ray onto the UV projection plane
+		const float UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+		const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+		const FPlane UVProjectionPlane(FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
+		const FVector PlaneIntersection = FMath::RayPlaneIntersection(FVector::ZeroVector, Direction, UVProjectionPlane);
+		const FVector2D DesiredUVCoords = FVector2D(PlaneIntersection.Y / UVProjectionPlaneSize + 0.5f, 0.5f - PlaneIntersection.Z / UVProjectionPlaneSize);
+
+		const FVector2D DeltaUVCoords = DesiredUVCoords - AverageUVCoords;
+
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+		{
+			if (LightCard.IsValid() && LightCard->bIsUVLightCard)
+			{
+				LightCard->UVCoordinates += DeltaUVCoords;
+				PropagateLightCardTransform(LightCard.Get());
+			}
+		}
+	}
+	else
+	{
+		// Find the average position of all selected light cards. This group average is what is moved to the specified pixel
+		FSphericalCoordinates AverageCoords = FSphericalCoordinates();
+		int32 NumLightCards = 0;
+
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+		{
+			if (LightCard.IsValid() && !LightCard->bIsUVLightCard)
+			{
+				const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+
+				AverageCoords = AverageCoords + LightCardCoords;
+				++NumLightCards;
+			}
+		}
+
+		AverageCoords.Radius /= NumLightCards;
+		AverageCoords.Azimuth /= NumLightCards;
+		AverageCoords.Inclination /= NumLightCards;
+		AverageCoords.Conform();
+
+		// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
+		const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
+		const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
+
+		// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+		{
+			if (LightCard.IsValid() && !LightCard->bIsUVLightCard)
+			{
+				const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+				const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
+
+				MoveLightCardTo(*LightCard.Get(), NewCoords);
+				PropagateLightCardTransform(LightCard.Get());
+			}
 		}
 	}
 }
@@ -2500,11 +2606,13 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 
 		const FVector ViewOrigin = View->ViewLocation;
 
-		Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
+		Direction = TraceScreenRay(Origin - DragWidgetOffset, Direction, ViewOrigin);
 		Origin = ViewOrigin;
 	}
-
-	Direction = (Direction - DragWidgetOffset).GetSafeNormal();
+	else
+	{
+		Direction = (Direction - DragWidgetOffset).GetSafeNormal();
+	}
 
 	const FVector LocalDirection = LightCard->GetActorRotation().RotateVector(Direction);
 	const FVector LightCardLocation = LightCard->GetLightCardTransform().GetTranslation() - Origin;
@@ -2550,9 +2658,69 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	return DeltaCoords;
 }
 
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedUVLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
+{
+	if (LastSelectedLightCard.IsValid() && LastSelectedLightCard->bIsUVLightCard)
+	{
+		const FVector2D DeltaUV = GetUVLightCardTranslationDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		{
+			if (!LightCard.IsValid() || !LightCard->bIsUVLightCard)
+			{
+				continue;
+			}
+
+			LightCard->UVCoordinates += DeltaUV;
+
+			PropagateLightCardTransform(LightCard.Get());
+		}
+	}
+}
+
+FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis)
+{
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		InViewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(*View, MousePos, Origin, Direction);
+
+	const float UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+	const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+	const FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
+	const FPlane UVProjectionPlane(ViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
+	const FVector PlaneIntersection = FMath::RayPlaneIntersection(Origin, Direction, UVProjectionPlane);
+
+	const FVector DesiredLocation = ((PlaneIntersection - DragWidgetOffset) - ViewOrigin);
+	const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
+
+	const FVector2D UVDelta = DesiredUVLocation - LightCard->UVCoordinates;
+
+	FVector2D UVAxis = FVector2D::ZeroVector;
+	if (CurrentAxis & EAxisList::Type::X)
+	{
+		UVAxis += FVector2D(1.0, 0.0);
+	}
+
+	if (CurrentAxis & EAxisList::Type::Y)
+	{
+		UVAxis += FVector2D(0.0, 1.0);
+	}
+
+	return UVDelta * UVAxis;
+}
+
 void FDisplayClusterLightCardEditorViewportClient::ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
 	if (LastSelectedLightCard.IsValid())
 	{
 		const FVector2D DeltaScale = GetLightCardScaleDelta(InViewport, LastSelectedLightCard.Get(), CurrentAxis);
@@ -2639,7 +2807,6 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(F
 
 void FDisplayClusterLightCardEditorViewportClient::SpinSelectedLightCards(FViewport* InViewport)
 {
-	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
 	if (LastSelectedLightCard.IsValid())
 	{
 		const double DeltaSpin = GetLightCardSpinDelta(InViewport, LastSelectedLightCard.Get());
@@ -2747,44 +2914,58 @@ FVector FDisplayClusterLightCardEditorViewportClient::TraceScreenRay(const FVect
 
 	FVector Direction = FVector::ZeroVector;
 
-	// First, trace against the stage actor to see if the screen ray hits it; if so, simply return the direction from the view origin to this hit point
-	FVector HitLocation = FVector::ZeroVector;
-	if (TraceStage(RayStart, RayEnd, HitLocation))
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 	{
-		Direction = (HitLocation - ViewOrigin).GetSafeNormal();
+		// In the UV projection mode, all stage geometry has been projected onto a UV projection plane, so perform a ray trace against that plane to find the 
+		// screen ray direction
+		const float UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+		const FPlane UVProjectionPlane(ViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
+		const FVector PlaneIntersection = FMath::RayPlaneIntersection(OrthogonalOrigin, OrthogonalDirection, UVProjectionPlane);
+
+		Direction = (PlaneIntersection - ViewOrigin).GetSafeNormal();
 	}
 	else
 	{
-		// If we didn't hit any stage geometry, try to trace against the normal map mesh. Procedural meshes does not appear to handle inward pointing normals correctly,
-		// so we need to reverse the trace start and end locations to get a useful hit result
-
-		UWorld* PreviewWorld = PreviewScene->GetWorld();
-		check(PreviewWorld);
-
-		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(DisplayClusterStageTrace), true);
-
-		for (const FLightCardProxy& ProxyRef : LightCardProxies)
+		// First, trace against the stage actor to see if the screen ray hits it; if so, simply return the direction from the view origin to this hit point
+		FVector HitLocation = FVector::ZeroVector;
+		if (TraceStage(RayStart, RayEnd, HitLocation))
 		{
-			if (ProxyRef.Proxy.IsValid())
-			{
-				TraceParams.AddIgnoredActor(ProxyRef.Proxy.Get());
-			}
-		}
-
-		TraceParams.AddIgnoredActor(RootActorProxy.Get());
-
-		FHitResult HitResult;
-		if (PreviewWorld->LineTraceSingleByObjectType(HitResult, RayEnd, RayStart, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
-		{
-			HitLocation = HitResult.Location;
 			Direction = (HitLocation - ViewOrigin).GetSafeNormal();
 		}
 		else
 		{
-			// If the screen ray does not hit the stage or the normal map mesh, then simply use the closest point on the ray to the view origin
-			const FVector ClosestPoint = OrthogonalOrigin + ((ViewOrigin - OrthogonalOrigin) | OrthogonalDirection) * OrthogonalDirection;
+			// If we didn't hit any stage geometry, try to trace against the normal map mesh. Procedural meshes does not appear to handle inward pointing normals correctly,
+			// so we need to reverse the trace start and end locations to get a useful hit result
 
-			Direction = (ClosestPoint - ViewOrigin).GetSafeNormal();
+			UWorld* PreviewWorld = PreviewScene->GetWorld();
+			check(PreviewWorld);
+
+			FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(DisplayClusterStageTrace), true);
+
+			for (const FLightCardProxy& ProxyRef : LightCardProxies)
+			{
+				if (ProxyRef.Proxy.IsValid())
+				{
+					TraceParams.AddIgnoredActor(ProxyRef.Proxy.Get());
+				}
+			}
+
+			TraceParams.AddIgnoredActor(RootActorProxy.Get());
+
+			FHitResult HitResult;
+			if (PreviewWorld->LineTraceSingleByObjectType(HitResult, RayEnd, RayStart, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
+			{
+				HitLocation = HitResult.Location;
+				Direction = (HitLocation - ViewOrigin).GetSafeNormal();
+			}
+			else
+			{
+				// If the screen ray does not hit the stage or the normal map mesh, then simply use the closest point on the ray to the view origin
+				const FVector ClosestPoint = OrthogonalOrigin + ((ViewOrigin - OrthogonalOrigin) | OrthogonalDirection) * OrthogonalDirection;
+
+				Direction = (ClosestPoint - ViewOrigin).GetSafeNormal();
+			}
 		}
 	}
 
@@ -2934,39 +3115,44 @@ bool FDisplayClusterLightCardEditorViewportClient::WorldToScreenDirection(const 
 	return false;
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection)
+bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransform)
 {
 	if (!SelectedLightCards.Num())
 	{
 		return false;
 	}
 
-	TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelected = SelectedLightCards.Last();
-
-	if (!LastSelected.IsValid())
+	if (!LastSelectedLightCard.IsValid())
 	{
 		return false;
 	}
 
-	FVector LightCardPosition = LastSelected->GetLightCardTransform().GetTranslation();
+	FVector LightCardPosition = LastSelectedLightCard->GetLightCardTransform().GetTranslation();
 
-	WidgetTransformBeforeMapProjection = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
+	WidgetTransform = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
 
 	FQuat WidgetOrientation;
 	if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
 	{
-		// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
-		const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-		const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
-		const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
-		const FVector InclinationVector = RadialVector ^ AzimuthalVector;
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			WidgetOrientation = FMatrix(FVector::YAxisVector, FVector::ZAxisVector, FVector::XAxisVector, FVector::ZeroVector).ToQuat();
+		}
+		else
+		{
+			// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
+			const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+			const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+			const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
+			const FVector InclinationVector = RadialVector ^ AzimuthalVector;
 
-		WidgetOrientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).ToQuat();
+			WidgetOrientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).ToQuat();
+		}
 	}
 	else
 	{
 		// Otherwise, orient the widget to match the light card's local orientation (spin, pitch, yaw)
-		const FQuat LightCardOrientation = LastSelected->GetLightCardTransform().GetRotation();
+		const FQuat LightCardOrientation = LastSelectedLightCard->GetLightCardTransform().GetRotation();
 		const FVector Normal = LightCardOrientation.RotateVector(FVector::XAxisVector);
 		const FVector Tangent = LightCardOrientation.RotateVector(FVector::YAxisVector);
 		const FVector Binormal = LightCardOrientation.RotateVector(FVector::ZAxisVector);
@@ -2975,7 +3161,7 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 		WidgetOrientation = FMatrix(-Tangent, Binormal, -Normal, FVector::ZeroVector).ToQuat();
 	}
 
-	WidgetTransformBeforeMapProjection.SetRotation(WidgetOrientation);
+	WidgetTransform.SetRotation(WidgetOrientation);
 
 	return true;
 }
@@ -2984,13 +3170,13 @@ void FDisplayClusterLightCardEditorViewportClient::RenderNormalMap(FNormalMap& N
 {
 	// Only render primitive components from the stage actor for the normal map
 	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
-	PrimitiveFilter.PrimitiveFilterDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([this](const UPrimitiveComponent* PrimitiveComponent)
+	PrimitiveFilter.ShouldRenderPrimitiveDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([this](const UPrimitiveComponent* PrimitiveComponent)
 	{
 		return PrimitiveComponent->GetOwner() == RootActorProxy;
 	});
 
-	FDisplayClusterScenePreviewRenderSettings RenderSettings;
-	RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Normals;
+	FDisplayClusterMeshProjectionRenderSettings RenderSettings;
+	RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Normals;
 	RenderSettings.EngineShowFlags = EngineShowFlags;
 	RenderSettings.ProjectionType = EDisplayClusterMeshProjectionType::Azimuthal;
 	RenderSettings.PrimitiveFilter = PrimitiveFilter;
@@ -3081,13 +3267,14 @@ bool FDisplayClusterLightCardEditorViewportClient::IsLocationCloseToEdge(const F
 
 void FDisplayClusterLightCardEditorViewportClient::ResetFOVs()
 {
-	constexpr int32 MaxFOVs = 2;
+	constexpr int32 MaxFOVs = 3;
 	if (ProjectionFOVs.Num() < MaxFOVs)
 	{
 		ProjectionFOVs.AddDefaulted(MaxFOVs - ProjectionFOVs.Num());
 	}
 	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Linear)] = 90.0f;
 	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Azimuthal)] = 130.0f;
+	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::UV)] = 45.0f;
 }
 
 void FDisplayClusterLightCardEditorViewportClient::EnterDrawingLightCardMode()
@@ -3108,5 +3295,33 @@ void FDisplayClusterLightCardEditorViewportClient::ExitDrawingLightCardMode()
 	}
 }
 
+bool FDisplayClusterLightCardEditorViewportClient::ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent)
+{
+	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
+	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+	{
+		// Only render the UV light cards when in UV projection mode, and only render non-UV light cards in any other projection mode
+		return bIsUVProjection ? LightCard->bIsUVLightCard : !LightCard->bIsUVLightCard;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::ShouldApplyProjectionToPrimitive(const UPrimitiveComponent* PrimitiveComponent)
+{
+	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
+	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+	{
+		// When in UV projection mode, don't render the UV light cards using the UV projection, render them linearly
+		if (bIsUVProjection && LightCard->bIsUVLightCard)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 #undef LOCTEXT_NAMESPACE

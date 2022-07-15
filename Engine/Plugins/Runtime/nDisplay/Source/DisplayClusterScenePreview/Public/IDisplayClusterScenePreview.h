@@ -6,53 +6,12 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-#include "SceneView.h"
 #include "ShowFlags.h"
 #include "DisplayClusterMeshProjectionRenderer.h"
 
 class ADisplayClusterRootActor;
-struct FSceneViewInitOptions;
 
 DECLARE_DELEGATE_OneParam(FRenderResultDelegate, FRenderTarget&);
-
-/** Settings for producing a single render. */
-struct FDisplayClusterScenePreviewRenderSettings
-{
-	FDisplayClusterScenePreviewRenderSettings()
-		: EngineShowFlags(ESFIM_Editor)
-	{}
-
-	/** Possible render types. */
-	enum ERenderType
-	{
-		/** Render the scene's colors. */
-		Color,
-
-		/** Render the scene's normals. */
-		Normals
-	};
-
-	/** The type of render to perform. */
-	ERenderType RenderType = ERenderType::Color;
-
-	/** Camera setup options for the render. */
-	FSceneViewInitOptions ViewInitOptions;
-
-	/**
-	 * Flags controlling renderer features to enable/disable for this preview.
-	 * Only flags supported by FDisplayClusterMeshProjectionRenderer will have an impact on the render output.
-	 */
-	FEngineShowFlags EngineShowFlags;
-
-	/** Type of projection to use for the renderer. */
-	EDisplayClusterMeshProjectionType ProjectionType = EDisplayClusterMeshProjectionType::Azimuthal;
-
-	/**
-	 * Optional filter to prevent specific primitives from being rendered.
-	 * This only applies when RenderType is ERenderType::Normals.
-	 */
-	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
-};
 
 /**
  * Interface for module containing tools for generation Display Cluster scene previews.
@@ -135,6 +94,15 @@ public:
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor) = 0;
 
 	/**
+	 * Add an actor to the preview scene for a renderer.
+	 *
+	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
+	 * @param Actor The actor to add to the renderer's scene.
+	 * @param PrimitiveFilter A custom filter used to determine which of the actor's primitives are added to the renderer's scene.
+	 */
+	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor, const TFunctionRef<bool(const UPrimitiveComponent*)>& PrimitiveFilter) = 0;
+
+	/**
 	 * Removes an actor from the preview scene for a renderer.
 	 *
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
@@ -174,7 +142,7 @@ public:
 	 * @param RenderSettings Settings controlling how the scene will be rendered.
 	 * @param Canvas The canvas to render to.
 	 */
-	virtual bool Render(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, FCanvas& Canvas) = 0;
+	virtual bool Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas) = 0;
 
 	/**
 	 * Queue a preview to be rendered in the future.
@@ -184,5 +152,5 @@ public:
 	 * @param Size The size of the image to produce. Note that whenever this changes for a given renderer, the underlying RenderTarget will be resized, which has a performance cost.
 	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
 	 */
-	virtual bool RenderQueued(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) = 0;
+	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) = 0;
 };

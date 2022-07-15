@@ -317,6 +317,11 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					}
 				}
 
+				if (RefViewportManagerProxy.GetLightCardManager_RenderThread().IsValid() && RefViewportManagerProxy.GetLightCardManager_RenderThread()->HasUVLightCards_RenderThread())
+				{
+					ShaderICVFX.UVLightCardMap = RefViewportManagerProxy.GetLightCardManager_RenderThread()->GetUVLightCardMap_RenderThread();
+				}
+
 				// Initialize shader input data
 				FDisplayClusterShaderParameters_WarpBlend WarpBlendParameters;
 

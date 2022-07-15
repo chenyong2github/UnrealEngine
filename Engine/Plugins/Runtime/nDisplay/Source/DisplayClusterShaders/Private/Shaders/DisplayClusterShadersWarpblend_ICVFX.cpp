@@ -73,6 +73,8 @@ namespace IcvfxShaderPermutation
 
 	class FIcvfxShaderMeshWarp         : SHADER_PERMUTATION_BOOL("MESH_WARP");
 
+	class FIcvfxShaderUVLightCards : SHADER_PERMUTATION_BOOL("UV_LIGHT_CARDS");
+
 	using FCommonVSDomain = TShaderPermutationDomain<FIcvfxShaderMeshWarp>;
 
 	using FCommonPSDomain = TShaderPermutationDomain<
@@ -90,7 +92,8 @@ namespace IcvfxShaderPermutation
 
 		FIcvfxShaderAlphaMapBlending,
 		FIcvfxShaderBetaMapBlending,
-		FIcvfxShaderMeshWarp
+		FIcvfxShaderMeshWarp,
+		FIcvfxShaderUVLightCards
 	>;
 	
 	bool ShouldCompileCommonPSPermutation(const FGlobalShaderPermutationParameters& Parameters, const FCommonPSDomain& PermutationVector)
@@ -150,6 +153,11 @@ namespace IcvfxShaderPermutation
 			return false;
 		}
 
+		if (PermutationVector.Get<FIcvfxShaderUVLightCards>() && !PermutationVector.Get<FIcvfxShaderMeshWarp>())
+		{
+			return false;
+		}
+
 		return true;
 	}
 
@@ -177,6 +185,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, InnerCameraTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, ChromakeyCameraTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, ChromakeyMarkerTexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D, UVLightCardMapTexture)
 
 	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, WarpMapSampler)
@@ -187,6 +196,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, InnerCameraSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ChromakeyCameraSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ChromakeyMarkerSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, UVLightCardMapSampler)
 
 	SHADER_PARAMETER(FMatrix44f, ViewportTextureProjectionMatrix)
 	SHADER_PARAMETER(FMatrix44f, OverlayProjectionMatrix)
@@ -633,6 +643,20 @@ public:
 		return false;
 	}
 
+	bool GetUVLightCardParameters(FIcvfxRenderPassData& RenderPassData)
+	{
+		if (ICVFXParameters.UVLightCardMap.IsValid() && RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>())
+		{
+			RenderPassData.PSParameters.UVLightCardMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.UVLightCardMapTexture = ICVFXParameters.UVLightCardMap;
+
+			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCards>(true);
+			return true;
+		}
+
+		return false;
+	}
+
 	void InitRenderPass(FIcvfxRenderPassData& RenderPassData)
 	{
 		// Forward input viewport
@@ -658,6 +682,8 @@ public:
 					GetCameraChromakeyMarkerParameters(RenderPassData);
 				}
 			}
+
+			GetUVLightCardParameters(RenderPassData);
 		}
 	}
 

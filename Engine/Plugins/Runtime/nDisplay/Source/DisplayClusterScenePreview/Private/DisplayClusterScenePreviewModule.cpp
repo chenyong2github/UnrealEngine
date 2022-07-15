@@ -99,6 +99,17 @@ bool FDisplayClusterScenePreviewModule::AddActorToRenderer(int32 RendererId, AAc
 	return false;
 }
 
+bool FDisplayClusterScenePreviewModule::AddActorToRenderer(int32 RendererId, AActor* Actor, const TFunctionRef<bool(const UPrimitiveComponent*)>& PrimitiveFilter)
+{
+	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))
+	{
+		Config->Renderer->AddActor(Actor, PrimitiveFilter);
+		return true;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterScenePreviewModule::RemoveActorFromRenderer(int32 RendererId, AActor* Actor)
 {
 	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))
@@ -143,7 +154,7 @@ bool FDisplayClusterScenePreviewModule::SetRendererRenderSimpleElementsDelegate(
 	return false;
 }
 
-bool FDisplayClusterScenePreviewModule::Render(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, FCanvas& Canvas)
+bool FDisplayClusterScenePreviewModule::Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas)
 {
 	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))
 	{
@@ -153,7 +164,7 @@ bool FDisplayClusterScenePreviewModule::Render(int32 RendererId, FDisplayCluster
 	return false;
 }
 
-bool FDisplayClusterScenePreviewModule::RenderQueued(int32 RendererId, FDisplayClusterScenePreviewRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate)
+bool FDisplayClusterScenePreviewModule::RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate)
 {
 	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))
 	{
@@ -215,7 +226,7 @@ void FDisplayClusterScenePreviewModule::InternalSetRendererRootActor(FRendererCo
 	RegisterOrUnregisterGlobalActorEvents();
 }
 
-bool FDisplayClusterScenePreviewModule::InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterScenePreviewRenderSettings& RenderSettings, FCanvas& Canvas)
+bool FDisplayClusterScenePreviewModule::InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas)
 {
 	UWorld* World = RendererConfig.RootActor.IsValid() ? RendererConfig.RootActor->GetWorld() : nullptr;
 	if (!World)
@@ -228,31 +239,8 @@ bool FDisplayClusterScenePreviewModule::InternalRenderImmediate(FRendererConfig&
 		AutoPopulateScene(RendererConfig);
 	}
 
-	switch (RenderSettings.RenderType)
-	{
-	case FDisplayClusterScenePreviewRenderSettings::ERenderType::Color:
-		RendererConfig.Renderer->Render(
-			&Canvas,
-			World->Scene,
-			RenderSettings.ViewInitOptions,
-			RenderSettings.EngineShowFlags,
-			RenderSettings.ProjectionType
-		);
-		return true;
-
-	case FDisplayClusterScenePreviewRenderSettings::ERenderType::Normals:
-		RendererConfig.Renderer->RenderNormals(
-			&Canvas,
-			World->Scene,
-			RenderSettings.ViewInitOptions,
-			RenderSettings.EngineShowFlags,
-			RenderSettings.ProjectionType,
-			&RenderSettings.PrimitiveFilter
-		);
-		return true;
-	}
-
-	return false;
+	RendererConfig.Renderer->Render(&Canvas, World->Scene, RenderSettings);
+	return true;
 }
 
 void FDisplayClusterScenePreviewModule::RegisterOrUnregisterGlobalActorEvents()

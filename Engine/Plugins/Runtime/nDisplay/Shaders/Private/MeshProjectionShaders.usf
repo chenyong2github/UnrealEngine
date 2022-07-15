@@ -63,6 +63,40 @@ void PerspectiveVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 	Output.Position = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToClip);
 }
 
+uint ProjectionParameters_UVProjectionIndex;
+float ProjectionParameters_UVProjectionPlaneSize;
+float ProjectionParameters_UVProjectionPlaneDistance;
+
+void UVProjectionVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
+{
+	ResolvedView = ResolveView();
+
+	const FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	Output.SavedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	const float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+
+	const FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
+	Output.SavedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+
+	float2 UV = float2(0, 0);
+	
+#if NUM_TEX_COORD_INTERPOLATORS
+	int UVIndex = min(ProjectionParameters_UVProjectionIndex, NUM_TEX_COORD_INTERPOLATORS - 1);
+	
+	UV = GetUV(Output.FactoryInterpolants, UVIndex);
+	
+	const float3 PlanePosition = float3(ProjectionParameters_UVProjectionPlaneSize * (UV.x - 0.5),ProjectionParameters_UVProjectionPlaneSize * (0.5 - UV.y), ProjectionParameters_UVProjectionPlaneDistance);
+	
+	Output.Azimuth = UVIndex;
+	Output.Position = mul(float4(PlanePosition, 1.0), ResolvedView.ViewToClip);
+#else
+	Output.Azimuth = 0;
+	Output.Position = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToClip);
+#endif
+}
+
 /** Gets a scalar value that indicates how much the current pixel diverges from where it should be from the projected vertices */
 float GetProjectionDivergence(FMeshProjectionVSToPS Input)
 {

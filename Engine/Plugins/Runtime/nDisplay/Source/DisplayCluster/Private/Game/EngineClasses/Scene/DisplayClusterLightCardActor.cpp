@@ -27,6 +27,8 @@ static FAutoConsoleVariableRef CVarDisplayClusterLightCardPolygonTextureSize(
 );
 
 const FRotator ADisplayClusterLightCardActor::PlaneMeshRotation = FRotator(0.0f, -90.0f, 90.0f);
+const float ADisplayClusterLightCardActor::UVPlaneDefaultSize = 200.0f;
+const float ADisplayClusterLightCardActor::UVPlaneDefaultDistance = 100.0f;
 
 ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -119,6 +121,7 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 
 	UpdateLightCardTransform();
 	UpdateLightCardMaterialInstance();
+	UpdateLightCardVisibility();
 }
 
 #if WITH_EDITOR
@@ -133,7 +136,8 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, RadialOffset) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale)))
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard)))
 	{
 		UpdateLightCardTransform();
 	}
@@ -158,6 +162,12 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		))
 	{
 		UpdateLightCardMaterialInstance();
+	}
+
+	if (PropertyChangedEvent.Property && (
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard)))
+	{
+		UpdateLightCardVisibility();
 	}
 }
 
@@ -203,8 +213,24 @@ FBox ADisplayClusterLightCardActor::GetLightCardBounds(bool bLocalSpace) const
 
 void ADisplayClusterLightCardActor::UpdateLightCardTransform()
 {
-	MainSpringArmComponent->TargetArmLength = DistanceFromCenter + RadialOffset;
-	MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
+	// If the light card is in UV space, set the spring arm's trasform to be zero, effectively removing it from the transform hierarchy
+	// This allows the light card to be positioned with the actor's cartesian coordinates instead of longitude and latitude
+	if (bIsUVLightCard)
+	{
+		MainSpringArmComponent->TargetArmLength = 0.0f;
+		MainSpringArmComponent->SetRelativeRotation(FRotator(0.0, 180.0, 0.0));
+
+		// Set world location and rotation such that the light card is always projected onto a YZ plane a distance of UVPlaneDefaultDistance from the world origin, facing in the -X direction
+		// This ensures that when the UV light cards are rendered to the light card map, they are always positioned and oriented correctly regardless of the stages location and rotation.
+		LightCardTransformerComponent->SetWorldLocation(FVector(UVPlaneDefaultDistance, -UVPlaneDefaultSize * (0.5 - UVCoordinates.X), UVPlaneDefaultSize * (0.5 - UVCoordinates.Y)));
+		LightCardTransformerComponent->SetWorldRotation(FVector(-1, 0, 0).Rotation());
+		LightCardTransformerComponent->SetWorldScale3D(FVector::OneVector);
+	}
+	else
+	{
+		MainSpringArmComponent->TargetArmLength = DistanceFromCenter + RadialOffset;
+		MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
+	}
 
 	FRotator LightCardOrientation = FRotator(-Pitch, Yaw, Spin);
 
@@ -352,6 +378,25 @@ void ADisplayClusterLightCardActor::UpdatePolygonTexture()
 #endif // WITH_OPENCV
 }
 
+void ADisplayClusterLightCardActor::UpdateLightCardVisibility()
+{
+	const bool bShouldBeVisible = !bIsUVLightCard || bIsProxy;
+	const bool bIsVisible = !IsHidden();
+	if (bIsVisible != bShouldBeVisible)
+	{
+		SetActorHiddenInGame(!bShouldBeVisible);
+	}
+
+#if WITH_EDITORONLY_DATA
+	const bool bShouldHideFromEditor = !bShouldBeVisible;
+	if (bShouldHideFromEditor != bHiddenEdLevel)
+	{
+		bHiddenEdLevel = bShouldHideFromEditor;
+		bHiddenEdLayer = bShouldHideFromEditor;
+		MarkComponentsRenderStateDirty();
+	}
+#endif
+}
 
 UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
 {

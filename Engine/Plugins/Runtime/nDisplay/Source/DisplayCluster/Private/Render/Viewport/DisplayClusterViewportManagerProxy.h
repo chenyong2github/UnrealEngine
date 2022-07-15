@@ -14,6 +14,7 @@ class FDisplayClusterRenderTargetManager;
 class FDisplayClusterViewportPostProcessManager;
 class FDisplayClusterViewportManager;
 class FDisplayClusterViewportResource;
+class IDisplayClusterViewportLightCardManager;
 class IDisplayClusterProjectionPolicy;
 
 class FViewport;
@@ -46,6 +47,8 @@ public:
 
 	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources = nullptr) const override;
 	virtual bool ResolveFrameTargetToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const uint32 InContextNum, const int32 DestArrayIndex, FRHITexture2D* DestTexture, FVector2D WindowSize) const override;
+
+	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager_RenderThread() const override { return LightCardManager; }
 
 	// internal use only
 	void DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr);
@@ -82,6 +85,7 @@ private:
 private:
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
+	TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
 
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 

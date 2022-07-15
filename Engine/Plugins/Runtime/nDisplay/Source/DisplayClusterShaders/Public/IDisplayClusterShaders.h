@@ -17,6 +17,8 @@ struct FDisplayClusterShaderParameters_GenerateMips;
 struct FDisplayClusterShaderParameters_PostprocessBlur;
 struct FDisplayClusterShaderParameters_WarpBlend;
 class IDisplayClusterWarpBlendManager;
+class FSceneInterface;
+class FRenderTarget;
 
 
 class IDisplayClusterShaders : public IModuleInterface
@@ -77,6 +79,18 @@ public:
 	* @return - true if success
 	*/
 	virtual bool RenderWarpBlend_ICVFX(FRHICommandListImmediate& RHICmdList, const FDisplayClusterShaderParameters_WarpBlend& InWarpBlendParameters, const FDisplayClusterShaderParameters_ICVFX& InICVFXParameters) const = 0;
+
+	/**
+	* Render UV light cards to texture that can be sampled by viewports to place light cards in UV space
+	*
+	* @param RHICmdList                    - RHI command list
+	* @param InScene                       - The scene the light cards live in
+	* @param InRenderTargetableDestTexture - Destination RTT texture
+	* @param ProjectionPlaneSize           - The size of the plane the UV light cards are projected to
+	*
+	* @return - true if success
+	*/
+	virtual bool RenderPreprocess_UVLightCards(FRHICommandListImmediate& RHICmdList, FSceneInterface* InScene, FRenderTarget* InRenderTarget, float ProjectionPlaneSize) const = 0;
 
 	/**
 	* Render postprocess OutputRemap

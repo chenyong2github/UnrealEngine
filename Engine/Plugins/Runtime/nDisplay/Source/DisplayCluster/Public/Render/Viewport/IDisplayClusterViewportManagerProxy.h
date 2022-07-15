@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
+#include "Render/Viewport/IDisplayClusterViewportLightCardManager.h"
 
 class DISPLAYCLUSTER_API IDisplayClusterViewportManagerProxy
 {
@@ -65,5 +66,11 @@ public:
 	* @return - true if success
 	*/
 	virtual bool ResolveFrameTargetToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const uint32 InContextNum, const int32 DestArrayIndex, FRHITexture2D* DstBackBuffer, FVector2D WindowSize) const = 0;
+
+	/**
+	* Return the light card manager, used to manage and render UV light cards
+	* [Rendering thread func]
+	*/
+	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager_RenderThread() const = 0;
 };
 

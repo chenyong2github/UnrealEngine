@@ -267,6 +267,12 @@ private:
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the mouse's location */
 	FSphericalCoordinates GetLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
 
+	/** Moves the currently selected UV light cards */
+	void MoveSelectedUVLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
+
+	/** Determines the appropriate delta in UV coordinates needed to move the specified light card to the mouse's location */
+	FVector2D GetUVLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
+
 	/** Scales the currently selected light cards */
 	void ScaleSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
@@ -307,7 +313,7 @@ private:
 	bool WorldToScreenDirection(const FSceneView& View, const FVector& WorldPos, const FVector& WorldDirection, FVector2D& OutScreenDir);
 
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
-	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection);
+	bool CalcEditorWidgetTransform(FTransform& WidgetTransform);
 	
 	/** Renders the viewport's normal map and stores the texture data to be used later */
 	void RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection);
@@ -329,6 +335,12 @@ private:
 
 	/** Calculates the relative normal vector and world position in the specified direction from the given view origin */
 	void CalculateNormalAndPositionInDirection(const FVector& InViewOrigin, const FVector& InDirection, FVector& OutWorldLocation, FVector& OutRelativeNormal, double InDesiredDistanceFromFlush = 0.) const;
+
+	/** Callback passed into the mesh projection renderer to filter which primitives are drawn */
+	bool ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent);
+
+	/** Callback passed into the mesh projection renderer to filter which primitives drawn with the current projection and which are drawn linearly */
+	bool ShouldApplyProjectionToPrimitive(const UPrimitiveComponent* PrimitiveComponent);
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
@@ -355,6 +367,9 @@ private:
 
 	TArray<FLightCardProxy> LightCardProxies;
 	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> SelectedLightCards;
+
+	/** The light card in the selected light card list that was selected last */
+	TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelectedLightCard = nullptr;
 
 	/** Light card preview actors being dropped on the scene */
 	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> DropPreviewLightCards;

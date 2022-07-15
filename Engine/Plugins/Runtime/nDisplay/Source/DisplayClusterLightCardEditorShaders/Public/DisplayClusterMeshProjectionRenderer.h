@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RenderGraphBuilder.h"
+#include "SceneView.h"
 
 class AActor;
 class UPrimitiveComponent;
@@ -11,7 +12,7 @@ class FSceneView;
 class FViewInfo;
 class FPrimitiveDrawInterface;
 class FSimpleElementCollector;
-struct FSceneViewInitOptions;
+class FMeshProjectionPassParameters;
 struct FEngineShowFlags;
 
 /** Indicates which kind of projection is used by the renderer */
@@ -21,19 +22,81 @@ enum DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API EDisplayClusterMeshProjectionType
 	Linear,
 
 	/** Non-linear spherical projection based on the azimuthal equidistant map projection */
-	Azimuthal
+	Azimuthal,
+
+	/** Projection that positions vertices based on their UV coordinates */
+	UV
+};
+
+/** Indicates the quantity that is output to the canvas by the renderer */
+enum DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API EDisplayClusterMeshProjectionOutput
+{
+	/** Outputs the emissive color of the rendered primitives */
+	Color,
+
+	/** Outputs the normals and depth of the rendered primitives */
+	Normals
 };
 
 /** A filter that allows specific primitive components to be filtered from a render pass */
 class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionPrimitiveFilter
 {
 public:
-	/** A delegate that returns true if the primitive component should be included in the render pass */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FPrimitiveFilter, const UPrimitiveComponent*);
-	FPrimitiveFilter PrimitiveFilterDelegate;
+
+
+	/** A delegate that returns true if the primitive component should be included in the render pass */
+	FPrimitiveFilter ShouldRenderPrimitiveDelegate;
+
+	/** A delegate that returns true if the primitive component should be rendered using the render pass's projection type */
+	FPrimitiveFilter ShouldApplyProjectionDelegate;
 
 	/** Gets whether a primitive component should be filtered out of the render pass or not */
-	bool IsPrimitiveComponentFiltered(const UPrimitiveComponent* InPrimitiveComponent) const;
+	bool ShouldRenderPrimitive(const UPrimitiveComponent* InPrimitiveComponent) const;
+
+	/** Gets whether a primitive component should be rendered using the current projection type or not */
+	bool ShouldApplyProjection(const UPrimitiveComponent* InPrimitiveComponent) const;
+};
+
+/** Settings for specific mesh projection types  */
+struct DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionTypeSettings
+{
+	/** The index of the UV to use when performing a UV projection */
+	uint32 UVProjectionIndex = 0;
+
+	/** The size of the plane the UVs are projected to, in view space */
+	float UVProjectionPlaneSize = 100.0f;
+
+	/** The distance from the view origin of the plane the UVs are projected to, in view space */
+	float UVProjectionPlaneDistance = 100.0f;
+};
+
+/** Settings for producing a single render. */
+struct DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRenderSettings
+{
+	/** Camera setup options for the render. */
+	FSceneViewInitOptions ViewInitOptions;
+
+	/**
+	 * Flags controlling renderer features to enable/disable for this preview.
+	 * Only flags supported by FDisplayClusterMeshProjectionRenderer will have an impact on the render output.
+	 */
+	FEngineShowFlags EngineShowFlags = FEngineShowFlags(ESFIM_Editor);
+
+	/** Type of projection to use for the renderer. */
+	EDisplayClusterMeshProjectionType ProjectionType = EDisplayClusterMeshProjectionType::Azimuthal;
+
+	/** Settings used by the projection type when rendering */
+	FDisplayClusterMeshProjectionTypeSettings ProjectionTypeSettings;
+
+	/** The output type to use for the renderer. */
+	EDisplayClusterMeshProjectionOutput RenderType = EDisplayClusterMeshProjectionOutput::Color;
+
+	/**
+	 * Optional filter to prevent specific primitives from being rendered.
+	 * This only applies when RenderType is ERenderType::Normals.
+	 */
+	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
 };
 
 /** A transform that can be passed around to project and unprojection positions for a specific projection type */
@@ -85,43 +148,53 @@ public:
 	void ClearScene();
 
 	/** Renders its list of primitive components to the specified canvas using the desired projection type. Can be called from the game thread */
-	void Render(FCanvas* Canvas, FSceneInterface* Scene, const FSceneViewInitOptions& ViewInitOptions, const FEngineShowFlags& EngineShowFlags, EDisplayClusterMeshProjectionType  ProjectionType);
-
-	/** Renders the normals and depth of the scene's primitives and performs blurring to create a continuous normal map */
-	void RenderNormals(FCanvas* Canvas,
-		FSceneInterface* Scene,
-		const FSceneViewInitOptions& ViewInitOptions,
-		const FEngineShowFlags& EngineShowFlags,
-		EDisplayClusterMeshProjectionType ProjectionType, 
-		FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter = nullptr);
+	void Render(FCanvas* Canvas, FSceneInterface* Scene, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings);
 
 private:
+	/** Constructs the necessary render passes for the default output of the rendered primitives */
+	void RenderColorOutput(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+		FRenderTargetBinding& OutputRenderTargetBinding);
+
+	/** Constructs the necessary render passes for the hit proxy output of the rendered primitives */
+	void RenderHitProxyOutput(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+		FRenderTargetBinding& OutputRenderTargetBinding,
+		FHitProxyConsumer* HitProxyConsumer);
+
+	/** Constructs the necessary render passes for the normals/depth output of the rendered primitives */
+	void RenderNormalsOutput(FRDGBuilder& GraphBuilder,
+		const FViewInfo* View,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+		FRenderTargetBinding& OutputRenderTargetBinding);
+
 	/** Adds a pass to perform the base render for the mesh projection. */
 	void AddBaseRenderPass(FRDGBuilder& GraphBuilder, 
 		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the translucency render for the mesh projection. */
 	void AddTranslucencyRenderPass(FRDGBuilder& GraphBuilder, 
 		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the hit proxy render for the mesh projection */
 	void AddHitProxyRenderPass(FRDGBuilder& GraphBuilder, 
 		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform a render of the primitives' normals for the mesh projection */
 	void AddNormalsRenderPass(FRDGBuilder& GraphBuilder,
 		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
-		FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
@@ -137,7 +210,7 @@ private:
 	/** Adds a pass to perform the depth render for any selected primitives for the mesh projection */
 	void AddSelectionDepthRenderPass(FRDGBuilder& GraphBuilder, 
 		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 		FDepthStencilBinding& OutputDepthStencilBinding);
 
 	/** Adds a pass to perform the post process selection outline for the mesh projection */
@@ -157,24 +230,46 @@ private:
 
 	/** Renders the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
-	void RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass);
+	void RenderPrimitives_RenderThread(const FSceneView* View,
+		FRHICommandList& RHICmdList,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+		bool bTranslucencyPass);
 
 	/** Renders the hit proxies of the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
-	void RenderHitProxies_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList);
+	void RenderHitProxies_RenderThread(const FSceneView* View,
+		FRHICommandList& RHICmdList,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings);
 
 	/** Renders the normals of the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
-	void RenderNormals_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter);
+	void RenderNormals_RenderThread(const FSceneView* View,
+		FRHICommandList& RHICmdList,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings);
 
 #if WITH_EDITOR
 	/** Renders the list of primitive components using the appropriate mesh pass processor given by the template parameter */
 	template<EDisplayClusterMeshProjectionType ProjectionType>
-	void RenderSelection_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList);
+	void RenderSelection_RenderThread(const FSceneView* View,
+		FRHICommandList& RHICmdList,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings);
 #endif
+
 
 	/** Callback used to determine if a primitive component should be rendered with a selection outline */
 	bool IsPrimitiveComponentSelected(const UPrimitiveComponent* InPrimitiveComponent);
+
+	/** Data struct that contains the scene proxy and the render configuration needed to render the scene's primitive components */
+	struct FSceneProxyElement
+	{
+		FPrimitiveSceneProxy* PrimitiveSceneProxy;
+		bool bApplyProjection;
+	};
+
+	/** Collects all valid scene proxies to be rendered from the scene's primitive componets */
+	void GetSceneProxies(TArray<FSceneProxyElement>& OutSceneProxyElements,
+		const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+		const TFunctionRef<bool(const UPrimitiveComponent*)> PrimitiveFilter = [](const UPrimitiveComponent*) { return true; });
 
 public:
 	/** Delegate to determine if an actor should be rendered as selected */

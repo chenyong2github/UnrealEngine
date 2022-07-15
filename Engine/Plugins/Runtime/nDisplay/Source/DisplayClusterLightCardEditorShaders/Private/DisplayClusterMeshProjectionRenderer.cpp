@@ -19,6 +19,147 @@
 
 
 //////////////////////////////////////////////////////////////////////////
+// Mesh Pass Processor
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMeshProjectionPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FMeshProjectionShaderElementData : public FMeshMaterialShaderElementData
+{
+public:
+	FDisplayClusterMeshProjectionTypeSettings ProjectionTypeSettings;
+};
+
+/** Base class for all mesh pass processors used by the projection renderer.
+ * 
+ *  NOTE: Due to C++ dependent naming, any class derived from this base class must access this class's
+ *  member variables and functions through this-> or FMeshProjectionPassProcessorBase<...>::, to ensure
+ *  that the compiler can properly locate the variables and functions once the class templates have been generated
+ */
+template<typename VertexType, typename PixelType, typename ShaderElementDataType = FMeshProjectionShaderElementData>
+class FMeshProjectionPassProcessorBase : public FMeshPassProcessor
+{
+public:
+	FMeshProjectionPassProcessorBase(const FScene* InScene,
+		const FSceneView* InView,
+		FMeshPassDrawListContext* InDrawListContext,
+		const FDisplayClusterMeshProjectionRenderSettings& InRenderSettings)
+		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
+		, ProjectionTypeSettings(InRenderSettings.ProjectionTypeSettings)
+		, StencilValue(0)
+	{
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<>::GetRHI());
+		DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
+	}
+
+	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
+	{
+		const FMaterial* Material;
+		const FMaterialRenderProxy* MaterialRenderProxy;
+		GetMeshBatchMaterial(MeshBatch, Material, MaterialRenderProxy);
+
+		check(Material);
+		check(MaterialRenderProxy);
+
+		if (!CanDrawMeshBatch(MeshBatch, PrimitiveSceneProxy, Material))
+		{
+			return;
+		}
+
+		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+
+		TMeshProcessorShaders<VertexType, PixelType> PassShaders;
+
+		FMaterialShaderTypes ShaderTypes;
+		ShaderTypes.AddShaderType<VertexType>();
+		ShaderTypes.AddShaderType<PixelType>();
+
+		FMaterialShaders Shaders;
+		if (!Material->TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+		{
+			return;
+		}
+
+		Shaders.TryGetVertexShader(PassShaders.VertexShader);
+		Shaders.TryGetPixelShader(PassShaders.PixelShader);
+
+		FMeshDrawingPolicyOverrideSettings OverrideSettings = GetMeshOverrideSettings(MeshBatch);
+		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
+
+		ShaderElementDataType ShaderElementData = CreateShaderElementData(MeshBatch, PrimitiveSceneProxy, StaticMeshId);
+		FMeshDrawCommandSortKey SortKey = CreateMeshSortKey(MeshBatch, PrimitiveSceneProxy, *Material, PassShaders.VertexShader.GetShader(), PassShaders.PixelShader.GetShader());
+
+		DrawRenderState.SetStencilRef(StencilValue);
+
+		BuildMeshDrawCommands(
+			MeshBatch,
+			BatchElementMask,
+			PrimitiveSceneProxy,
+			*MaterialRenderProxy,
+			*Material,
+			DrawRenderState,
+			PassShaders,
+			MeshFillMode,
+			MeshCullMode,
+			SortKey,
+			EMeshPassFeatures::Default,
+			ShaderElementData);
+	}
+
+	void SetStencilValue(uint32 InStencilValue)
+	{
+		StencilValue = InStencilValue;
+	}
+
+protected:
+	virtual bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial* Material)
+	{
+		return true;
+	}
+
+	virtual void GetMeshBatchMaterial(const FMeshBatch& RESTRICT MeshBatch, const FMaterial*& OutMaterial, const FMaterialRenderProxy*& OutMaterialRenderProxy)
+	{
+		const FMaterialRenderProxy* FallbackMaterialRenderProxy = nullptr;
+		OutMaterial = &MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxy);
+		OutMaterialRenderProxy = FallbackMaterialRenderProxy ? FallbackMaterialRenderProxy : MeshBatch.MaterialRenderProxy;
+	}
+
+	virtual FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings GetMeshOverrideSettings(const FMeshBatch& RESTRICT MeshBatch)
+	{
+		return ComputeMeshOverrideSettings(MeshBatch);
+	}
+
+	virtual ShaderElementDataType CreateShaderElementData(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
+	{
+		ShaderElementDataType ShaderElementData;
+		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+		ShaderElementData.ProjectionTypeSettings = ProjectionTypeSettings;
+
+		return ShaderElementData;
+	}
+
+	virtual FMeshDrawCommandSortKey CreateMeshSortKey(const FMeshBatch& RESTRICT MeshBatch,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		const FMaterial& Material,
+		const FMeshMaterialShader* VertexShader,
+		const FMeshMaterialShader* PixelShader)
+	{
+		return CalculateMeshStaticSortKey(VertexShader, PixelShader);
+	}
+
+protected:
+	FMeshPassProcessorRenderState DrawRenderState;
+	FDisplayClusterMeshProjectionTypeSettings ProjectionTypeSettings;
+	uint32 StencilValue;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
 // Base Render Pass
 
 template<EDisplayClusterMeshProjectionType ProjectionType>
@@ -32,6 +173,9 @@ public:
 		: FMeshMaterialShader(Initializer)
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		UVProjectionIndex.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionIndex"), SPF_Optional);
+		UVProjectionPlaneSize.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionPlaneSize"), SPF_Optional);
+		UVProjectionPlaneDistance.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionPlaneDistance"), SPF_Optional);
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -40,21 +184,39 @@ public:
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& Parameters.VertexFactoryType == FindVertexFactoryType(TEXT("FLocalVertexFactory"));
 	}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FMeshProjectionShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+
+		ShaderBindings.Add(UVProjectionIndex, ShaderElementData.ProjectionTypeSettings.UVProjectionIndex);
+		ShaderBindings.Add(UVProjectionPlaneSize, ShaderElementData.ProjectionTypeSettings.UVProjectionPlaneSize);
+		ShaderBindings.Add(UVProjectionPlaneDistance, ShaderElementData.ProjectionTypeSettings.UVProjectionPlaneDistance);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderParameter, UVProjectionIndex);
+	LAYOUT_FIELD(FShaderParameter, UVProjectionPlaneSize);
+	LAYOUT_FIELD(FShaderParameter, UVProjectionPlaneDistance);
 };
 
 using FMeshPerspectiveProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Linear>;
 using FMeshAzimuthalProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Azimuthal>;
+using FMeshUVProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::UV>;
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshPerspectiveProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("PerspectiveVS"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshAzimuthalProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("AzimuthalVS"), SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshUVProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("UVProjectionVS"), SF_Vertex);
 
-enum EMeshProjectionShaderOutput
-{
-	Default,
-	Normals
-};
-
-template<EMeshProjectionShaderOutput OutputType>
+template<EDisplayClusterMeshProjectionOutput OutputType>
 class FMeshProjectionPS : public FMeshMaterialShader
 {
 public:
@@ -75,98 +237,46 @@ public:
 	}
 };
 
-using FMeshProjectionDefaultPS = FMeshProjectionPS<EMeshProjectionShaderOutput::Default>;
-using FMeshProjectionNormalPS = FMeshProjectionPS<EMeshProjectionShaderOutput::Normals>;
+using FMeshProjectionColorPS = FMeshProjectionPS<EDisplayClusterMeshProjectionOutput::Color>;
+using FMeshProjectionNormalPS = FMeshProjectionPS<EDisplayClusterMeshProjectionOutput::Normals>;
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshProjectionDefaultPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("MainPS"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshProjectionColorPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("MainPS"), SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshProjectionNormalPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("NormalPS"), SF_Pixel);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMeshProjectionPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-template<EDisplayClusterMeshProjectionType ProjectionType, EMeshProjectionShaderOutput OutputType = EMeshProjectionShaderOutput::Default> 
-class FLightCardEditorMeshPassProcessor : public FMeshPassProcessor
+FMeshProjectionPassParameters* CreateProjectionPassParameters(FRDGBuilder& GraphBuilder, const FViewInfo* View, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
 {
+	FMeshProjectionPassParameters* PassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
+	PassParameters->View = View->ViewUniformBuffer;
+	PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+
+	return PassParameters;
+}
+
+template<EDisplayClusterMeshProjectionType ProjectionType, EDisplayClusterMeshProjectionOutput OutputType = EDisplayClusterMeshProjectionOutput::Color>
+class FMeshProjectionPassProcessor : public FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS<OutputType>>
+{
+	using Super = FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS<OutputType>>;
+
 public:
-	FLightCardEditorMeshPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext, bool bIsTranslucencyPass = false)
-		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
+	FMeshProjectionPassProcessor(const FScene* InScene,
+		const FSceneView* InView,
+		FMeshPassDrawListContext* InDrawListContext,
+		const FDisplayClusterMeshProjectionRenderSettings& InRenderSettings,
+		bool bIsTranslucencyPass = false)
+		: Super(InScene, InView, InDrawListContext, InRenderSettings)
 		, bTranslucencyPass(bIsTranslucencyPass)
 		, bIgnoreTranslucency(false)
 	{
-
 		if (bTranslucencyPass)
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-			DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI());
+			this->DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+			this->DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI());
 		}
 		else
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
-			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
+			this->DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
+			this->DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
 		}
-	}
-
-	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
-	{
-		const FMaterialRenderProxy* FallbackMaterialRenderProxy = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxy);
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxy ? *FallbackMaterialRenderProxy : *MeshBatch.MaterialRenderProxy;
-
-		if (!CanDrawMeshBatch(MeshBatch, Material))
-		{
-			return;
-		}
-
-		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-
-		TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionPS<OutputType>> PassShaders;
-
-		FMaterialShaderTypes ShaderTypes;
-		ShaderTypes.AddShaderType<FMeshProjectionVS<ProjectionType>>();
-		ShaderTypes.AddShaderType<FMeshProjectionPS<OutputType>>();
-
-		FMaterialShaders Shaders;
-		if (!Material.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
-		{
-			return;
-		}
-
-		Shaders.TryGetVertexShader(PassShaders.VertexShader);
-		Shaders.TryGetPixelShader(PassShaders.PixelShader);
-
-		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-
-		FMeshMaterialShaderElementData ShaderElementData;
-		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
-
-		FMeshDrawCommandSortKey SortKey = CreateMeshSortKey(MeshBatch, PrimitiveSceneProxy, Material, PassShaders.VertexShader.GetShader(), PassShaders.PixelShader.GetShader());
-
-		DrawRenderState.SetStencilRef(StencilValue);
-
-		BuildMeshDrawCommands(
-			MeshBatch,
-			BatchElementMask,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			DrawRenderState,
-			PassShaders,
-			MeshFillMode,
-			MeshCullMode,
-			SortKey,
-			EMeshPassFeatures::Default,
-			ShaderElementData);
-	}
-
-	void SetStencilValue(uint32 InStencilValue)
-	{
-		StencilValue = InStencilValue;
 	}
 
 	void SetIgnoreTranslucency(bool bInIgnoreTranslucency)
@@ -174,10 +284,10 @@ public:
 		bIgnoreTranslucency = bInIgnoreTranslucency;
 	}
 
-private:
-	bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FMaterial& Material)
+protected:
+	virtual bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial* Material) override
 	{
-		const bool bIsTranslucent = IsTranslucentBlendMode(Material.GetBlendMode());
+		const bool bIsTranslucent = IsTranslucentBlendMode(Material->GetBlendMode());
 
 		if (bTranslucencyPass)
 		{
@@ -189,11 +299,24 @@ private:
 		}
 	}
 
-	FMeshDrawCommandSortKey CreateMeshSortKey(const FMeshBatch& RESTRICT MeshBatch,
+	virtual FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings GetMeshOverrideSettings(const FMeshBatch& RESTRICT MeshBatch) override
+	{
+		FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings OverrideSettings = FMeshPassProcessor::ComputeMeshOverrideSettings(MeshBatch);
+
+		// Don't cull backfacing geometry if the projection mode is UV, since there is no guarantee that the UV coordinates are in the correct winding order
+		if (ProjectionType == EDisplayClusterMeshProjectionType::UV)
+		{
+			OverrideSettings.MeshOverrideFlags |= EDrawingPolicyOverrideFlags::TwoSided;
+		}
+
+		return OverrideSettings;
+	}
+
+	virtual FMeshDrawCommandSortKey CreateMeshSortKey(const FMeshBatch& RESTRICT MeshBatch,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterial& Material,
-		const FMeshMaterialShader* VertexShader, 
-		const FMeshMaterialShader* PixelShader)
+		const FMeshMaterialShader* VertexShader,
+		const FMeshMaterialShader* PixelShader) override
 	{
 		FMeshDrawCommandSortKey SortKey = FMeshDrawCommandSortKey::Default;
 
@@ -224,8 +347,6 @@ private:
 	}
 
 private:
-	FMeshPassProcessorRenderState DrawRenderState;
-	uint32 StencilValue;
 	bool bTranslucencyPass;
 	bool bIgnoreTranslucency;
 };
@@ -234,14 +355,9 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // Hit Proxy Render Pass
 
-class FMeshProjectionHitProxyShaderElementData : public FMeshMaterialShaderElementData
+class FMeshProjectionHitProxyShaderElementData : public FMeshProjectionShaderElementData
 {
 public:
-	FMeshProjectionHitProxyShaderElementData(FHitProxyId InBatchHitProxyId)
-		: BatchHitProxyId(InBatchHitProxyId)
-	{
-	}
-
 	FHitProxyId BatchHitProxyId;
 };
 
@@ -291,17 +407,21 @@ private:
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FMeshProjectionHitProxyPS, TEXT("/Plugin/nDisplay/Private/MeshProjectionHitProxy.usf"), TEXT("Main") ,SF_Pixel);
 
 template<EDisplayClusterMeshProjectionType ProjectionType> 
-class FLightCardEditorHitProxyMeshPassProcessor : public FMeshPassProcessor
+class FMeshProjectionHitProxyPassProcessor : public FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionHitProxyPS, FMeshProjectionHitProxyShaderElementData>
 {
+	using Super = FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionHitProxyPS, FMeshProjectionHitProxyShaderElementData>;
+
 public:
-	FLightCardEditorHitProxyMeshPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext)
-		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
+	FMeshProjectionHitProxyPassProcessor(const FScene* InScene,
+		const FSceneView* InView,
+		FMeshPassDrawListContext* InDrawListContext,
+		const FDisplayClusterMeshProjectionRenderSettings& InRenderSettings)
+		: Super(InScene, InView, InDrawListContext, InRenderSettings)
 	{
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-		DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	}
 
-	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
+protected:
+	virtual bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial* Material) override
 	{
 		const bool bDrawMeshBatch = MeshBatch.bUseForMaterial
 			&& MeshBatch.BatchHitProxyId != FHitProxyId::InvisibleHitProxyId
@@ -309,66 +429,38 @@ public:
 			&& PrimitiveSceneProxy
 			&& PrimitiveSceneProxy->IsSelectable();
 
-		if (bDrawMeshBatch)
+		return bDrawMeshBatch;
+	}
+
+	virtual void GetMeshBatchMaterial(const FMeshBatch& RESTRICT MeshBatch, const FMaterial*& OutMaterial, const FMaterialRenderProxy*& OutMaterialRenderProxy) override
+	{
+		OutMaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
+		if (OutMaterial && OutMaterial->GetRenderingThreadShaderMap())
 		{
-			const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
-			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-			if (Material && Material->GetRenderingThreadShaderMap())
+			if (OutMaterial->WritesEveryPixel() && !OutMaterial->IsTwoSided() && !OutMaterial->MaterialModifiesMeshPosition_RenderThread())
 			{
-				if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())
-				{
-					// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
-					MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-					check(MaterialRenderProxy);
-					Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-					check(Material);
-				}
-
-				const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-
-				TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionHitProxyPS> PassShaders;
-
-				FMaterialShaderTypes ShaderTypes;
-				ShaderTypes.AddShaderType<FMeshProjectionVS<ProjectionType>>();
-				ShaderTypes.AddShaderType<FMeshProjectionHitProxyPS>();
-
-				FMaterialShaders Shaders;
-				if (!Material->TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
-				{
-					return;
-				}
-
-				Shaders.TryGetVertexShader(PassShaders.VertexShader);
-				Shaders.TryGetPixelShader(PassShaders.PixelShader);
-
-				const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
-				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
-
-				FMeshProjectionHitProxyShaderElementData ShaderElementData(MeshBatch.BatchHitProxyId);
-				ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
-
-				const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
-
-				BuildMeshDrawCommands(
-					MeshBatch,
-					BatchElementMask,
-					PrimitiveSceneProxy,
-					*MaterialRenderProxy,
-					*Material,
-					DrawRenderState,
-					PassShaders,
-					MeshFillMode,
-					MeshCullMode,
-					SortKey,
-					EMeshPassFeatures::Default,
-					ShaderElementData);
+				// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
+				OutMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+				OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
 			}
+		}
+		else
+		{
+			OutMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
 		}
 	}
 
-private:
-	FMeshPassProcessorRenderState DrawRenderState;
+	virtual FMeshProjectionHitProxyShaderElementData CreateShaderElementData(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
+	{
+		FMeshProjectionHitProxyShaderElementData ShaderElementData;
+		ShaderElementData.InitializeMeshMaterialData(this->ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+		ShaderElementData.ProjectionTypeSettings = this->ProjectionTypeSettings;
+		ShaderElementData.BatchHitProxyId = MeshBatch.BatchHitProxyId;
+
+		return ShaderElementData;
+	}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -524,18 +616,25 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FMeshProjectionSelectionOutlinePS, "/Plugin/nDisplay/Private/MeshProjectionSelectionOutline.usf", "Main", SF_Pixel);
 
 template<EDisplayClusterMeshProjectionType ProjectionType> 
-class FLightCardEditorSelectionPassProcessor : public FMeshPassProcessor
+class FMeshProjectionSelectionPassProcessor : public FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionColorPS>
 {
+	using Super = FMeshProjectionPassProcessorBase<FMeshProjectionVS<ProjectionType>, FMeshProjectionColorPS>;
+
 public:
-	FLightCardEditorSelectionPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext)
-		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
-		, StencilValue(1)
+	FMeshProjectionSelectionPassProcessor(const FScene* InScene,
+		const FSceneView* InView,
+		FMeshPassDrawListContext* InDrawListContext,
+		const FDisplayClusterMeshProjectionRenderSettings& InRenderSettings)
+		: Super(InScene, InView, InDrawListContext, InRenderSettings)
 	{
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
-		DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI());
+		this->DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
+		this->DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI());
+
+		this->StencilValue = 1;
 	}
 
-	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
+protected:
+	virtual bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial* Material) override
 	{
 		const bool bDrawMeshBatch = MeshBatch.bUseForMaterial
 			&& MeshBatch.bUseSelectionOutline
@@ -543,69 +642,36 @@ public:
 			&& PrimitiveSceneProxy->WantsSelectionOutline()
 			&& (PrimitiveSceneProxy->IsSelected() || PrimitiveSceneProxy->IsHovered());
 
-		if (bDrawMeshBatch)
+		return bDrawMeshBatch;
+	}
+
+	virtual void GetMeshBatchMaterial(const FMeshBatch& RESTRICT MeshBatch, const FMaterial*& OutMaterial, const FMaterialRenderProxy*& OutMaterialRenderProxy) override
+	{
+		OutMaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
+		if (OutMaterial && OutMaterial->GetRenderingThreadShaderMap())
 		{
-			const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
-			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-			if (Material && Material->GetRenderingThreadShaderMap())
+			if (OutMaterial->WritesEveryPixel() && !OutMaterial->IsTwoSided() && !OutMaterial->MaterialModifiesMeshPosition_RenderThread())
 			{
-				if (Material->WritesEveryPixel() && !Material->IsTwoSided() && !Material->MaterialModifiesMeshPosition_RenderThread())
-				{
-					// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
-					MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-					check(MaterialRenderProxy);
-					Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-					check(Material);
-				}
-				
-				const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-
-				TMeshProcessorShaders<FMeshProjectionVS<ProjectionType>, FMeshProjectionDefaultPS> PassShaders;
-
-				FMaterialShaderTypes ShaderTypes;
-				ShaderTypes.AddShaderType<FMeshProjectionVS<ProjectionType>>();
-				ShaderTypes.AddShaderType<FMeshProjectionDefaultPS>();
-
-				FMaterialShaders Shaders;
-				if (!Material->TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
-				{
-					return;
-				}
-
-				Shaders.TryGetVertexShader(PassShaders.VertexShader);
-				Shaders.TryGetPixelShader(PassShaders.PixelShader);
-
-				const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
-				ERasterizerCullMode MeshCullMode = CM_None;
-
-				DrawRenderState.SetStencilRef(StencilValue);
-
-				FMeshMaterialShaderElementData ShaderElementData;
-				ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
-
-				FMeshDrawCommandSortKey SortKey{};
-
-				BuildMeshDrawCommands(
-					MeshBatch,
-					BatchElementMask,
-					PrimitiveSceneProxy,
-					*MaterialRenderProxy,
-					*Material,
-					DrawRenderState,
-					PassShaders,
-					MeshFillMode,
-					MeshCullMode,
-					SortKey,
-					EMeshPassFeatures::Default,
-					ShaderElementData);
+				// Default material doesn't handle masked, and doesn't have the correct bIsTwoSided setting.
+				OutMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+				OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
 			}
+		}
+		else
+		{
+			OutMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			OutMaterial = OutMaterialRenderProxy->GetMaterialNoFallback(this->FeatureLevel);
 		}
 	}
 
-private:
-	FMeshPassProcessorRenderState DrawRenderState;
-	uint32 StencilValue;
+	virtual FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings GetMeshOverrideSettings(const FMeshBatch& RESTRICT MeshBatch) override
+	{
+		FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings OverrideSettings = FMeshPassProcessor::ComputeMeshOverrideSettings(MeshBatch);
+		OverrideSettings.MeshOverrideFlags |= EDrawingPolicyOverrideFlags::TwoSided;
+
+		return OverrideSettings;
+	}
 };
 
 namespace
@@ -676,17 +742,24 @@ private:
 	FHitProxyConsumer* HitProxyConsumer;
 };
 
-bool FDisplayClusterMeshProjectionPrimitiveFilter::IsPrimitiveComponentFiltered(const UPrimitiveComponent* InPrimitiveComponent) const
+bool FDisplayClusterMeshProjectionPrimitiveFilter::ShouldRenderPrimitive(const UPrimitiveComponent* InPrimitiveComponent) const
 {
-	if (PrimitiveFilterDelegate.IsBound())
+	if (ShouldRenderPrimitiveDelegate.IsBound())
 	{
-		if (!PrimitiveFilterDelegate.Execute(InPrimitiveComponent))
-		{
-			return true;
-		}
+		return ShouldRenderPrimitiveDelegate.Execute(InPrimitiveComponent);
 	}
 
-	return false;
+	return true;
+}
+
+bool FDisplayClusterMeshProjectionPrimitiveFilter::ShouldApplyProjection(const UPrimitiveComponent* InPrimitiveComponent) const
+{
+	if (ShouldApplyProjectionDelegate.IsBound())
+	{
+		return ShouldApplyProjectionDelegate.Execute(InPrimitiveComponent);
+	}
+
+	return true;
 }
 
 FVector FDisplayClusterMeshProjectionTransform::ProjectPosition(const FVector& WorldPosition) const
@@ -822,7 +895,7 @@ void FDisplayClusterMeshProjectionRenderer::ClearScene()
 	PrimitiveComponents.Empty();
 }
 
-void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterface* Scene, const FSceneViewInitOptions& ViewInitOptions, const FEngineShowFlags& EngineShowFlags, EDisplayClusterMeshProjectionType ProjectionType)
+void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterface* Scene, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
 {
 	Canvas->Flush_GameThread();
 	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
@@ -830,14 +903,14 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 	FHitProxyConsumer* HitProxyConsumer = Canvas->GetHitProxyConsumer();
 
 	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
-		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, bIsHitTesting, HitProxyConsumer, ProjectionType, this](FRHICommandListImmediate& RHICmdList)
+		[RenderTarget, Scene, RenderSettings, bIsHitTesting, HitProxyConsumer, this](FRHICommandListImmediate& RHICmdList)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 
 			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 				RenderTarget,
 				Scene,
-				EngineShowFlags)
+				RenderSettings.EngineShowFlags)
 				.SetTime(FGameTime::GetTimeSinceAppStart())
 				.SetGammaCorrection(1.0f));
 
@@ -855,7 +928,7 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 
 			FScenePrimitiveRenderingContextScopeHelper ScenePrimitiveRenderingContextScopeHelper(GetRendererModule().BeginScenePrimitiveRendering(GraphBuilder, &ViewFamily));
 
-			FSceneViewInitOptions NewInitOptions(ViewInitOptions);
+			FSceneViewInitOptions NewInitOptions(RenderSettings.ViewInitOptions);
 			NewInitOptions.ViewFamily = &ViewFamily;
 
 			GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &NewInitOptions);
@@ -864,115 +937,24 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("ViewRenderTarget")));
 			FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
 
-			if (ViewFamily.EngineShowFlags.HitProxies)
+			switch (RenderSettings.RenderType)
 			{
-				FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
-				FRDGTextureRef HitProxyTexture = GraphBuilder.CreateTexture(Desc, TEXT("DisplayClusterMeshProjection.HitProxyTexture"));
-
-				const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-				FRDGTextureRef HitProxyDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.HitProxyDepthTexture"));
-
-				FRenderTargetBinding HitProxyRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::EClear);
-				FDepthStencilBinding HitProxyDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-				AddHitProxyRenderPass(GraphBuilder, View, ProjectionType, HitProxyRenderTargetBinding, HitProxyDepthStencilBinding);
-
-				// Copy the hit proxy buffer to the viewport family's render target
+			case EDisplayClusterMeshProjectionOutput::Color:
+				if (ViewFamily.EngineShowFlags.HitProxies)
 				{
-					FCopyRectPS::FParameters* ScreenPassParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
-					ScreenPassParameters->InputTexture = HitProxyTexture;
-					ScreenPassParameters->InputSampler = TStaticSamplerState<>::GetRHI();
-					ScreenPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
-
-					FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-					TShaderMapRef<FScreenPassVS> ScreenPassVS(GlobalShaderMap);
-					TShaderMapRef<FCopyRectPS> CopyPixelShader(GlobalShaderMap);
-
-					FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
-					const FScreenPassTextureViewport RegionViewport(OutputRenderTargetBinding.GetTexture());
-
-					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("MeshProjectionRenderer::CopyHitProxyTexture"),
-						ScreenPassParameters,
-						ERDGPassFlags::Raster,
-						[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
-					{
-						DrawScreenPass(
-							RHICmdList,
-							*View,
-							RegionViewport,
-							RegionViewport,
-							FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, DefaultBlendState),
-							[&](FRHICommandList&)
-						{
-							SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *ScreenPassParameters);
-						});
-					});
-				}
-			}
-			else
-			{
-				FRDGTextureRef ColorTexture = GraphBuilder.CreateTexture(OutputTexture->Desc, TEXT("DisplayClusterMeshProjection.ColorTexture"));
-
-				const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-				FRDGTextureRef DepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.DepthTexture"));
-
-				FRenderTargetBinding ColorRenderTargetBinding(ColorTexture, ERenderTargetLoadAction::EClear);
-				FDepthStencilBinding DepthStencilBinding(DepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-				AddBaseRenderPass(GraphBuilder, View, ProjectionType, ColorRenderTargetBinding, DepthStencilBinding);
-
-				ColorRenderTargetBinding.SetLoadAction(ERenderTargetLoadAction::ELoad);
-				DepthStencilBinding.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
-
-				AddTranslucencyRenderPass(GraphBuilder, View, ProjectionType, ColorRenderTargetBinding, DepthStencilBinding);
-
-#if WITH_EDITOR
-				if (EngineShowFlags.SelectionOutline)
-				{
-					const FRDGTextureDesc SelectionDepthDesc = FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-					FRDGTextureRef SelectionDepthTexture = GraphBuilder.CreateTexture(SelectionDepthDesc, TEXT("DisplayClusterMeshProjection.SelectionDepthTexture"));
-					FDepthStencilBinding SelectionDepthStencilBinding(SelectionDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-					AddSelectionDepthRenderPass(GraphBuilder, View, ProjectionType, SelectionDepthStencilBinding);
-					AddSelectionOutlineScreenPass(GraphBuilder, View, OutputRenderTargetBinding, ColorTexture, DepthTexture, SelectionDepthTexture);
+					RenderHitProxyOutput(GraphBuilder, View, RenderSettings, OutputRenderTargetBinding, HitProxyConsumer);
 				}
 				else
-#endif
-				// Copy the scene color to the output render target
 				{
-					FCopyRectPS::FParameters* ScreenPassParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
-					ScreenPassParameters->InputTexture = ColorTexture;
-					ScreenPassParameters->InputSampler = TStaticSamplerState<>::GetRHI();
-					ScreenPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
-
-					FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-					TShaderMapRef<FScreenPassVS> ScreenPassVS(GlobalShaderMap);
-					TShaderMapRef<FCopyRectPS> CopyPixelShader(GlobalShaderMap);
-
-					FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
-					const FScreenPassTextureViewport RegionViewport(OutputRenderTargetBinding.GetTexture());
-
-					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("MeshProjectionRenderer::CopyColorTexture"),
-						ScreenPassParameters,
-						ERDGPassFlags::Raster,
-						[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
-						{
-							DrawScreenPass(
-								RHICmdList,
-								*View,
-								RegionViewport,
-								RegionViewport,
-								FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, DefaultBlendState),
-								[&](FRHICommandList&)
-								{
-									SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *ScreenPassParameters);
-						});
-					});
+					RenderColorOutput(GraphBuilder, View, RenderSettings, OutputRenderTargetBinding);
 				}
+				break;
+
+			case EDisplayClusterMeshProjectionOutput::Normals:
+				RenderNormalsOutput(GraphBuilder, View, RenderSettings, OutputRenderTargetBinding);
+				break;
 			}
-			
+
 			FMeshProjectionElementCollector ElementCollector(HitProxyConsumer);
 			if (RenderSimpleElementsDelegate.IsBound())
 			{
@@ -984,63 +966,141 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 		});
 }
 
-void FDisplayClusterMeshProjectionRenderer::RenderNormals(FCanvas* Canvas,
-	FSceneInterface* Scene,
-	const FSceneViewInitOptions& ViewInitOptions,
-	const FEngineShowFlags& EngineShowFlags,
-	EDisplayClusterMeshProjectionType  ProjectionType,
-	FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
+void FDisplayClusterMeshProjectionRenderer::RenderColorOutput(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	FRenderTargetBinding& OutputRenderTargetBinding)
 {
-	Canvas->Flush_GameThread();
-	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
+	FRDGTextureRef ColorTexture = GraphBuilder.CreateTexture(OutputRenderTargetBinding.GetTexture()->Desc, TEXT("DisplayClusterMeshProjection.ColorTexture"));
 
-	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
-		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, ProjectionType, PrimitiveFilter, this](FRHICommandListImmediate& RHICmdList)
+	const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+	FRDGTextureRef DepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.DepthTexture"));
+
+	FRenderTargetBinding ColorRenderTargetBinding(ColorTexture, ERenderTargetLoadAction::EClear);
+	FDepthStencilBinding DepthStencilBinding(DepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+	AddBaseRenderPass(GraphBuilder, View, RenderSettings, ColorRenderTargetBinding, DepthStencilBinding);
+
+	ColorRenderTargetBinding.SetLoadAction(ERenderTargetLoadAction::ELoad);
+	DepthStencilBinding.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
+
+	AddTranslucencyRenderPass(GraphBuilder, View, RenderSettings, ColorRenderTargetBinding, DepthStencilBinding);
+
+#if WITH_EDITOR
+	if (RenderSettings.EngineShowFlags.SelectionOutline)
+	{
+		const FRDGTextureDesc SelectionDepthDesc = FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+		FRDGTextureRef SelectionDepthTexture = GraphBuilder.CreateTexture(SelectionDepthDesc, TEXT("DisplayClusterMeshProjection.SelectionDepthTexture"));
+		FDepthStencilBinding SelectionDepthStencilBinding(SelectionDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+		AddSelectionDepthRenderPass(GraphBuilder, View, RenderSettings, SelectionDepthStencilBinding);
+		AddSelectionOutlineScreenPass(GraphBuilder, View, OutputRenderTargetBinding, ColorTexture, DepthTexture, SelectionDepthTexture);
+	}
+	else
+#endif
+	// Copy the scene color to the output render target
+	{
+		FCopyRectPS::FParameters* ScreenPassParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+		ScreenPassParameters->InputTexture = ColorTexture;
+		ScreenPassParameters->InputSampler = TStaticSamplerState<>::GetRHI();
+		ScreenPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
+
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FScreenPassVS> ScreenPassVS(GlobalShaderMap);
+		TShaderMapRef<FCopyRectPS> CopyPixelShader(GlobalShaderMap);
+
+		FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+		const FScreenPassTextureViewport RegionViewport(OutputRenderTargetBinding.GetTexture());
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("MeshProjectionRenderer::CopyColorTexture"),
+			ScreenPassParameters,
+			ERDGPassFlags::Raster,
+			[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
-
-			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-				RenderTarget,
-				Scene,
-				EngineShowFlags)
-				.SetTime(FGameTime::GetTimeSinceAppStart())
-				.SetGammaCorrection(1.0f));
-
-			if (Scene)
+			DrawScreenPass(
+				RHICmdList,
+				*View,
+				RegionViewport,
+				RegionViewport,
+				FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, DefaultBlendState),
+				[&](FRHICommandList&)
 			{
-				Scene->IncrementFrameNumber();
-				ViewFamily.FrameNumber = Scene->GetFrameNumber();
-			}
-			else
-			{
-				ViewFamily.FrameNumber = GFrameNumber;
-			}
-
-			FScenePrimitiveRenderingContextScopeHelper ScenePrimitiveRenderingContextScopeHelper(GetRendererModule().BeginScenePrimitiveRendering(GraphBuilder, &ViewFamily));
-
-			FSceneViewInitOptions NewInitOptions(ViewInitOptions);
-			NewInitOptions.ViewFamily = &ViewFamily;
-
-			GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &NewInitOptions);
-			FViewInfo* View = (FViewInfo*)ViewFamily.Views[0];
-
-			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("ViewRenderTarget")));
-			FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
-
-			const FRDGTextureDesc NormalsDesc(FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, OutputTexture->Desc.Format, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
-			FRDGTextureRef NormalsTexture = GraphBuilder.CreateTexture(NormalsDesc, TEXT("DisplayClusterMeshProjection.NormalsTexture"));
-
-			const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-			FRDGTextureRef NormalsDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.NormalsDepthTexture"));
-
-			FRenderTargetBinding NormalsRenderTargetBinding(NormalsTexture, ERenderTargetLoadAction::EClear);
-			FDepthStencilBinding NormalsDepthStencilBinding(NormalsDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-			AddNormalsRenderPass(GraphBuilder, View, ProjectionType, PrimitiveFilter, NormalsRenderTargetBinding, NormalsDepthStencilBinding);
-			AddNormalsFilterPass(GraphBuilder, View, OutputRenderTargetBinding, NormalsTexture, NormalsDepthTexture);
-
-			GraphBuilder.Execute();
+				SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *ScreenPassParameters);
+			});
 		});
+	}
+}
+
+void FDisplayClusterMeshProjectionRenderer::RenderHitProxyOutput(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	FRenderTargetBinding& OutputRenderTargetBinding,
+	FHitProxyConsumer* HitProxyConsumer)
+{
+
+
+	FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+	FRDGTextureRef HitProxyTexture = GraphBuilder.CreateTexture(Desc, TEXT("DisplayClusterMeshProjection.HitProxyTexture"));
+
+	const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+	FRDGTextureRef HitProxyDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.HitProxyDepthTexture"));
+
+	FRenderTargetBinding HitProxyRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::EClear);
+	FDepthStencilBinding HitProxyDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+	AddHitProxyRenderPass(GraphBuilder, View, RenderSettings, HitProxyRenderTargetBinding, HitProxyDepthStencilBinding);
+
+	// Copy the hit proxy buffer to the viewport family's render target
+	{
+		FCopyRectPS::FParameters* ScreenPassParameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+		ScreenPassParameters->InputTexture = HitProxyTexture;
+		ScreenPassParameters->InputSampler = TStaticSamplerState<>::GetRHI();
+		ScreenPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
+
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FScreenPassVS> ScreenPassVS(GlobalShaderMap);
+		TShaderMapRef<FCopyRectPS> CopyPixelShader(GlobalShaderMap);
+
+		FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+		const FScreenPassTextureViewport RegionViewport(OutputRenderTargetBinding.GetTexture());
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("MeshProjectionRenderer::CopyHitProxyTexture"),
+			ScreenPassParameters,
+			ERDGPassFlags::Raster,
+			[View, ScreenPassVS, CopyPixelShader, RegionViewport, ScreenPassParameters, DefaultBlendState](FRHICommandList& RHICmdList)
+		{
+			DrawScreenPass(
+				RHICmdList,
+				*View,
+				RegionViewport,
+				RegionViewport,
+				FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, DefaultBlendState),
+				[&](FRHICommandList&)
+			{
+				SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *ScreenPassParameters);
+			});
+		});
+	}
+}
+
+void FDisplayClusterMeshProjectionRenderer::RenderNormalsOutput(FRDGBuilder& GraphBuilder,
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	FRenderTargetBinding& OutputRenderTargetBinding)
+{
+	const FRDGTextureDesc NormalsDesc(FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, OutputRenderTargetBinding.GetTexture()->Desc.Format, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+	FRDGTextureRef NormalsTexture = GraphBuilder.CreateTexture(NormalsDesc, TEXT("DisplayClusterMeshProjection.NormalsTexture"));
+
+	const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(OutputRenderTargetBinding.GetTexture()->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
+	FRDGTextureRef NormalsDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("DisplayClusterMeshProjection.NormalsDepthTexture"));
+
+	FRenderTargetBinding NormalsRenderTargetBinding(NormalsTexture, ERenderTargetLoadAction::EClear);
+	FDepthStencilBinding NormalsDepthStencilBinding(NormalsDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+	AddNormalsRenderPass(GraphBuilder, View, RenderSettings, NormalsRenderTargetBinding, NormalsDepthStencilBinding);
+	AddNormalsFilterPass(GraphBuilder, View, OutputRenderTargetBinding, NormalsTexture, NormalsDepthTexture);
 }
 
 // Helper macros that generate appropriate switch cases for each projection type the mesh projection renderer supports, allowing new projection types to be easily added
@@ -1052,91 +1112,94 @@ void FDisplayClusterMeshProjectionRenderer::RenderNormals(FCanvas* Canvas,
 	{ \
 	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::Azimuthal, __VA_ARGS__) \
 	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::Linear, __VA_ARGS__) \
+	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::UV, __VA_ARGS__) \
 	}
 
 void FDisplayClusterMeshProjectionRenderer::AddBaseRenderPass(FRDGBuilder& GraphBuilder,
-	const FViewInfo* View, EDisplayClusterMeshProjectionType ProjectionType,
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 	FRenderTargetBinding& OutputRenderTargetBinding,
 	FDepthStencilBinding& OutputDepthStencilBinding)
 {
-	FMeshProjectionPassParameters* MeshPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
-	MeshPassParameters->View = View->ViewUniformBuffer;
-	MeshPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	FMeshProjectionPassParameters* MeshPassParameters = CreateProjectionPassParameters(GraphBuilder, View, RenderSettings);
 	MeshPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
 	MeshPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Base"), MeshPassParameters, ERDGPassFlags::Raster | ERDGPassFlags::NeverCull, [View, ProjectionType, this](FRHICommandList& RHICmdList)
-	{
-		FIntRect ViewRect = View->UnscaledViewRect;
-		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Base"),
+		MeshPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[View, &RenderSettings, this](FRHICommandList& RHICmdList)
+		{
+			FIntRect ViewRect = View->UnscaledViewRect;
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-		SWITCH_ON_PROJECTION_TYPE(RenderPrimitives_RenderThread, ProjectionType, View, RHICmdList, false);
-	});
+			SWITCH_ON_PROJECTION_TYPE(RenderPrimitives_RenderThread, RenderSettings.ProjectionType, View, RHICmdList, RenderSettings, false);
+		});
 }
 
 void FDisplayClusterMeshProjectionRenderer::AddTranslucencyRenderPass(FRDGBuilder& GraphBuilder,
-	const FViewInfo* View, EDisplayClusterMeshProjectionType ProjectionType,
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 	FRenderTargetBinding& OutputRenderTargetBinding,
 	FDepthStencilBinding& OutputDepthStencilBinding)
 {
-	FMeshProjectionPassParameters* MeshPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
-	MeshPassParameters->View = View->ViewUniformBuffer;
-	MeshPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	FMeshProjectionPassParameters* MeshPassParameters = CreateProjectionPassParameters(GraphBuilder, View, RenderSettings);
 	MeshPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
 	MeshPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Translucency"), MeshPassParameters, ERDGPassFlags::Raster | ERDGPassFlags::NeverCull, [View, ProjectionType, this](FRHICommandList& RHICmdList)
-	{
-		FIntRect ViewRect = View->UnscaledViewRect;
-		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Translucency"),
+		MeshPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[View, &RenderSettings, this](FRHICommandList& RHICmdList)
+		{
+			FIntRect ViewRect = View->UnscaledViewRect;
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-		SWITCH_ON_PROJECTION_TYPE(RenderPrimitives_RenderThread, ProjectionType, View, RHICmdList, true);
-	});
+			SWITCH_ON_PROJECTION_TYPE(RenderPrimitives_RenderThread, RenderSettings.ProjectionType, View, RHICmdList, RenderSettings, true);
+		});
 }
 
 void FDisplayClusterMeshProjectionRenderer::AddHitProxyRenderPass(FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
-	EDisplayClusterMeshProjectionType ProjectionType,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 	FRenderTargetBinding& OutputRenderTargetBinding,
 	FDepthStencilBinding& OutputDepthStencilBinding)
 {
-	FMeshProjectionPassParameters* MeshPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
-	MeshPassParameters->View = View->ViewUniformBuffer;
-	MeshPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	FMeshProjectionPassParameters* MeshPassParameters = CreateProjectionPassParameters(GraphBuilder, View, RenderSettings);
 	MeshPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
 	MeshPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::HitProxies"), MeshPassParameters, ERDGPassFlags::Raster | ERDGPassFlags::NeverCull, [View, ProjectionType, this](FRHICommandList& RHICmdList)
-	{
-		FIntRect ViewRect = View->UnscaledViewRect;
-		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::HitProxies"),
+		MeshPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[View, &RenderSettings, this](FRHICommandList& RHICmdList)
+		{
+			FIntRect ViewRect = View->UnscaledViewRect;
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-		SWITCH_ON_PROJECTION_TYPE(RenderHitProxies_RenderThread, ProjectionType, View, RHICmdList);
-	});
+			SWITCH_ON_PROJECTION_TYPE(RenderHitProxies_RenderThread, RenderSettings.ProjectionType, View, RHICmdList, RenderSettings);
+		});
 }
 
 void FDisplayClusterMeshProjectionRenderer::AddNormalsRenderPass(FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
-	EDisplayClusterMeshProjectionType ProjectionType,
-	FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
 	FRenderTargetBinding& OutputRenderTargetBinding,
 	FDepthStencilBinding& OutputDepthStencilBinding)
 {
-	FMeshProjectionPassParameters* MeshPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
-	MeshPassParameters->View = View->ViewUniformBuffer;
-	MeshPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	FMeshProjectionPassParameters* MeshPassParameters = CreateProjectionPassParameters(GraphBuilder, View, RenderSettings);
 	MeshPassParameters->RenderTargets[0] = OutputRenderTargetBinding;
 	MeshPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::Normals"),
 		MeshPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-		[View, ProjectionType, PrimitiveFilter, this](FRHICommandList& RHICmdList)
+		[View, &RenderSettings, this](FRHICommandList& RHICmdList)
 		{
 			FIntRect ViewRect = View->UnscaledViewRect;
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-			SWITCH_ON_PROJECTION_TYPE(RenderNormals_RenderThread, ProjectionType, View, RHICmdList, PrimitiveFilter);
+			SWITCH_ON_PROJECTION_TYPE(RenderNormals_RenderThread, RenderSettings.ProjectionType, View, RHICmdList, RenderSettings);
 		});
 }
 
@@ -1337,21 +1400,22 @@ void FDisplayClusterMeshProjectionRenderer::AddNormalsFilterPass(FRDGBuilder& Gr
 
 #if WITH_EDITOR
 void FDisplayClusterMeshProjectionRenderer::AddSelectionDepthRenderPass(FRDGBuilder& GraphBuilder, 
-		const FViewInfo* View,
-		EDisplayClusterMeshProjectionType ProjectionType,
-		FDepthStencilBinding& OutputDepthStencilBinding)
+	const FViewInfo* View,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	FDepthStencilBinding& OutputDepthStencilBinding)
 {
-	FMeshProjectionPassParameters* SelectionPassParameters = GraphBuilder.AllocParameters<FMeshProjectionPassParameters>();
-	SelectionPassParameters->View = View->ViewUniformBuffer;
-	SelectionPassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	FMeshProjectionPassParameters* SelectionPassParameters = CreateProjectionPassParameters(GraphBuilder, View, RenderSettings);
 	SelectionPassParameters->RenderTargets.DepthStencil = OutputDepthStencilBinding;
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::SelectionDepth"), SelectionPassParameters, ERDGPassFlags::Raster | ERDGPassFlags::NeverCull, [View, ProjectionType, this](FRHICommandList& RHICmdList)
+	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshProjectionRenderer::SelectionDepth"),
+		SelectionPassParameters,
+		ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+		[View, &RenderSettings, this](FRHICommandList& RHICmdList)
 	{
 		FIntRect ViewRect = View->UnscaledViewRect;
 		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-		SWITCH_ON_PROJECTION_TYPE(RenderSelection_RenderThread, ProjectionType, View, RHICmdList);
+		SWITCH_ON_PROJECTION_TYPE(RenderSelection_RenderThread, RenderSettings.ProjectionType, View, RHICmdList, RenderSettings);
 	});
 }
 
@@ -1438,94 +1502,111 @@ void FDisplayClusterMeshProjectionRenderer::AddSimpleElementPass(FRDGBuilder& Gr
 }
 
 template<EDisplayClusterMeshProjectionType ProjectionType>
-void FDisplayClusterMeshProjectionRenderer::RenderPrimitives_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass)
+void FDisplayClusterMeshProjectionRenderer::RenderPrimitives_RenderThread(const FSceneView* View,
+	FRHICommandList& RHICmdList,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	bool bTranslucencyPass)
 {
-	DrawDynamicMeshPass(*View, RHICmdList, [View, bTranslucencyPass, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	DrawDynamicMeshPass(*View, RHICmdList, [View, &RenderSettings, bTranslucencyPass, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
-		TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
-		for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
-			{
-				PrimitiveSceneProxies.Add(PrimitiveComponent->SceneProxy);
-			}
-		}
+		TArray<FSceneProxyElement> PrimitiveSceneProxies;
+		GetSceneProxies(PrimitiveSceneProxies, RenderSettings);
 
-		FLightCardEditorMeshPassProcessor<ProjectionType> MeshProcessor(nullptr, View, DynamicMeshPassContext, bTranslucencyPass);
+		FMeshProjectionPassProcessor<ProjectionType> ProjectionMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings, bTranslucencyPass);
+		FMeshProjectionPassProcessor<EDisplayClusterMeshProjectionType::Linear> LinearMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings, bTranslucencyPass);
 
-		for (FPrimitiveSceneProxy* PrimitiveProxy : PrimitiveSceneProxies)
+		for (const FSceneProxyElement& PrimitiveProxyElement : PrimitiveSceneProxies)
 		{
+			FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveProxyElement.PrimitiveSceneProxy;
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
 				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
 
 				const uint64 BatchElementMask = ~0ull;
-				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
-			}
-		}
-	});
-}
 
-template<EDisplayClusterMeshProjectionType ProjectionType>
-void FDisplayClusterMeshProjectionRenderer::RenderHitProxies_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList)
-{
-	DrawDynamicMeshPass(*View, RHICmdList, [View, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-	{
-		TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
-		for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
-			{
-				PrimitiveSceneProxies.Add(PrimitiveComponent->SceneProxy);
-			}
-		}
-
-		FLightCardEditorHitProxyMeshPassProcessor<ProjectionType> MeshProcessor(nullptr, View, DynamicMeshPassContext);
-
-		for (FPrimitiveSceneProxy* PrimitiveProxy : PrimitiveSceneProxies)
-		{
-			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
-			{
-				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
-
-				const uint64 BatchElementMask = ~0ull;
-				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
-			}
-		}
-	});
-}
-
-template<EDisplayClusterMeshProjectionType ProjectionType>
-void FDisplayClusterMeshProjectionRenderer::RenderNormals_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
-{
-	DrawDynamicMeshPass(*View, RHICmdList, [View, PrimitiveFilter, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-	{
-		TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
-		for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
-			{
-				if (PrimitiveFilter && PrimitiveFilter->IsPrimitiveComponentFiltered(PrimitiveComponent.Get()))
+				if (PrimitiveProxyElement.bApplyProjection)
 				{
-					continue;
+					ProjectionMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
 				}
-
-				PrimitiveSceneProxies.Add(PrimitiveComponent->SceneProxy);
+				else
+				{
+					LinearMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
 			}
 		}
+	});
+}
 
-		FLightCardEditorMeshPassProcessor<ProjectionType, EMeshProjectionShaderOutput::Normals> MeshProcessor(nullptr, View, DynamicMeshPassContext);
-		MeshProcessor.SetStencilValue(1);
-		MeshProcessor.SetIgnoreTranslucency(true);
+template<EDisplayClusterMeshProjectionType ProjectionType>
+void FDisplayClusterMeshProjectionRenderer::RenderHitProxies_RenderThread(const FSceneView* View,
+	FRHICommandList& RHICmdList,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
+{
+	DrawDynamicMeshPass(*View, RHICmdList, [View, &RenderSettings, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	{
+		TArray<FSceneProxyElement> PrimitiveSceneProxies;
+		GetSceneProxies(PrimitiveSceneProxies, RenderSettings);
 
-		for (FPrimitiveSceneProxy* PrimitiveProxy : PrimitiveSceneProxies)
+		FMeshProjectionHitProxyPassProcessor<ProjectionType> ProjectionMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
+		FMeshProjectionHitProxyPassProcessor<EDisplayClusterMeshProjectionType::Linear> LinearMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
+
+		for (const FSceneProxyElement& PrimitiveProxyElement : PrimitiveSceneProxies)
 		{
+			FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveProxyElement.PrimitiveSceneProxy;
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
 				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
 
 				const uint64 BatchElementMask = ~0ull;
-				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+
+				if (PrimitiveProxyElement.bApplyProjection)
+				{
+					ProjectionMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
+				else
+				{
+					LinearMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
+			}
+		}
+	});
+}
+
+template<EDisplayClusterMeshProjectionType ProjectionType>
+void FDisplayClusterMeshProjectionRenderer::RenderNormals_RenderThread(const FSceneView* View,
+	FRHICommandList& RHICmdList,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
+{
+	DrawDynamicMeshPass(*View, RHICmdList, [View, &RenderSettings, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	{
+		TArray<FSceneProxyElement> PrimitiveSceneProxies;
+		GetSceneProxies(PrimitiveSceneProxies, RenderSettings);
+
+		FMeshProjectionPassProcessor<ProjectionType, EDisplayClusterMeshProjectionOutput::Normals> ProjectionMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
+		ProjectionMeshProcessor.SetStencilValue(1);
+		ProjectionMeshProcessor.SetIgnoreTranslucency(true);
+
+		FMeshProjectionPassProcessor<EDisplayClusterMeshProjectionType::Linear, EDisplayClusterMeshProjectionOutput::Normals> LinearMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
+		LinearMeshProcessor.SetStencilValue(1);
+		LinearMeshProcessor.SetIgnoreTranslucency(true);
+
+		for (const FSceneProxyElement& PrimitiveProxyElement : PrimitiveSceneProxies)
+		{
+			FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveProxyElement.PrimitiveSceneProxy;
+			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
+			{
+				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
+				const uint64 BatchElementMask = ~0ull;
+
+				if (PrimitiveProxyElement.bApplyProjection)
+				{
+					ProjectionMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
+				else
+				{
+					LinearMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
 			}
 		}
 	});
@@ -1533,29 +1614,38 @@ void FDisplayClusterMeshProjectionRenderer::RenderNormals_RenderThread(const FSc
 
 #if WITH_EDITOR
 template<EDisplayClusterMeshProjectionType ProjectionType>
-void FDisplayClusterMeshProjectionRenderer::RenderSelection_RenderThread(const FSceneView* View, FRHICommandList& RHICmdList)
+void FDisplayClusterMeshProjectionRenderer::RenderSelection_RenderThread(const FSceneView* View,
+	FRHICommandList& RHICmdList,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
 {
-	DrawDynamicMeshPass(*View, RHICmdList, [View, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+	DrawDynamicMeshPass(*View, RHICmdList, [View, &RenderSettings, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
-		TArray<FPrimitiveSceneProxy*> PrimitiveSceneProxies;
-		for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
+		TArray<FSceneProxyElement> PrimitiveSceneProxies;
+		GetSceneProxies(PrimitiveSceneProxies, RenderSettings, [](const UPrimitiveComponent* PrimitiveComponent)
 		{
-			if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy && PrimitiveComponent->SceneProxy->IsSelected())
-			{
-				PrimitiveSceneProxies.Add(PrimitiveComponent->SceneProxy);
-			}
-		}
+			return PrimitiveComponent->SceneProxy->IsSelected();
+		});
 
-		FLightCardEditorSelectionPassProcessor<ProjectionType> MeshProcessor(nullptr, View, DynamicMeshPassContext);
+		FMeshProjectionSelectionPassProcessor<ProjectionType> ProjectionMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
+		FMeshProjectionSelectionPassProcessor<EDisplayClusterMeshProjectionType::Linear> LinearMeshProcessor(nullptr, View, DynamicMeshPassContext, RenderSettings);
 
-		for (FPrimitiveSceneProxy* PrimitiveProxy : PrimitiveSceneProxies)
+		for (const FSceneProxyElement& PrimitiveProxyElement : PrimitiveSceneProxies)
 		{
+			FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveProxyElement.PrimitiveSceneProxy;
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
 				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
 
 				const uint64 BatchElementMask = ~0ull;
-				MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+
+				if (PrimitiveProxyElement.bApplyProjection)
+				{
+					ProjectionMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
+				else
+				{
+					LinearMeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveProxy);
+				}
 			}
 		}
 	});
@@ -1572,16 +1662,37 @@ bool FDisplayClusterMeshProjectionRenderer::IsPrimitiveComponentSelected(const U
 	return false;
 }
 
+void FDisplayClusterMeshProjectionRenderer::GetSceneProxies(TArray<FSceneProxyElement>& OutSceneProxyElements,
+	const FDisplayClusterMeshProjectionRenderSettings& RenderSettings,
+	const TFunctionRef<bool(const UPrimitiveComponent*)> PrimitiveFilter)
+{
+	for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
+	{
+		if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
+		{
+			if (PrimitiveFilter(PrimitiveComponent.Get()) && RenderSettings.PrimitiveFilter.ShouldRenderPrimitive(PrimitiveComponent.Get()))
+			{
+				FSceneProxyElement SceneProxyElement;
+				SceneProxyElement.PrimitiveSceneProxy = PrimitiveComponent->SceneProxy;
+				SceneProxyElement.bApplyProjection = RenderSettings.PrimitiveFilter.ShouldApplyProjection(PrimitiveComponent.Get());
+
+				OutSceneProxyElements.Add(SceneProxyElement);
+			}
+		}
+	}
+}
+
 // Explicit template specializations for each projection type
 #define PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, ProjectionType, ...) template void FDisplayClusterMeshProjectionRenderer::FuncName<ProjectionType>(__VA_ARGS__);
 #define CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(FuncName, ...) \
 	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Linear, __VA_ARGS__) \
-	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Azimuthal, __VA_ARGS__)
+	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Azimuthal, __VA_ARGS__) \
+	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::UV, __VA_ARGS__)
 
-CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderPrimitives_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass)
-CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderHitProxies_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList)
-CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderNormals_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, FDisplayClusterMeshProjectionPrimitiveFilter* PrimitiveFilter)
+CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderPrimitives_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings, bool bTranslucencyPass)
+CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderHitProxies_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
+CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderNormals_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
 
 #if WITH_EDITOR
-CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderSelection_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList)
+CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderSelection_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, const FDisplayClusterMeshProjectionRenderSettings& RenderSettings)
 #endif
