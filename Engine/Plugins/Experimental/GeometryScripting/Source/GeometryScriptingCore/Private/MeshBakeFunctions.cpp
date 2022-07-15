@@ -4,7 +4,8 @@
 #include "UDynamicMesh.h"
 
 #include "Sampling/MeshBakerCommon.h"
-#include "Sampling/MeshConstantMapEvaluator.h"
+#include "Sampling/MeshMapBaker.h"
+#include "Sampling/MeshVertexBaker.h"
 #include "Sampling/MeshCurvatureMapEvaluator.h"
 #include "Sampling/MeshOcclusionMapEvaluator.h"
 #include "Sampling/MeshNormalMapEvaluator.h"
@@ -15,7 +16,6 @@
 
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/Texture2DUtil.h"
-#include "Async/Async.h"
 
 using namespace UE::Geometry;
 
@@ -911,73 +911,6 @@ TArray<UTexture2D*> UGeometryScriptLibrary_MeshBakeFunctions::BakeTexture(
 	return TextureOutput;
 }
 
-void UGeometryScriptLibrary_MeshBakeFunctions::BakeTextureAsyncBegin(
-	const FBakeTextureDelegate& Completed,
-	const int BakeId,
-	UDynamicMesh* TargetMesh,
-	FTransform TargetTransform,
-	FGeometryScriptBakeTargetMeshOptions TargetOptions,
-	UDynamicMesh* SourceMesh,
-	FTransform SourceTransform,
-	FGeometryScriptBakeSourceMeshOptions SourceOptions,
-	const TArray<FGeometryScriptBakeTypeOptions>& BakeTypes,
-	FGeometryScriptBakeTextureOptions BakeOptions,
-	UGeometryScriptDebug* Debug)
-{
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Completed, BakeId, TargetMesh, TargetTransform, TargetOptions, SourceMesh, SourceTransform, SourceOptions, BakeTypes, BakeOptions, Debug]()
-	{
-		// FGeometryScriptDebug is not thread-safe. Instantiate a local
-		// debug message array to collect any debug errors and append those
-		// messages back on the game thread.
-		TSharedPtr<TArray<FGeometryScriptDebugMessage>, ESPMode::ThreadSafe> DebugMessages;
-		if (Debug)
-		{
-			DebugMessages = MakeShared<TArray<FGeometryScriptDebugMessage>, ESPMode::ThreadSafe>();
-		}
-		
-		TUniquePtr<FMeshMapBaker> Baker = GeometryScriptBakeLocals::BakeTextureImpl(
-			TargetMesh,
-			TargetTransform,
-			TargetOptions,
-			SourceMesh,
-			SourceTransform,
-			SourceOptions,
-			BakeTypes,
-			BakeOptions,
-			DebugMessages.Get());
-
-		TSharedPtr<FMeshMapBaker> SharedBaker = MakeShareable<FMeshMapBaker>(Baker.Release());
-
-		AsyncTask(ENamedThreads::GameThread, [Completed, BakeId, SharedBaker, BakeOptions, TargetMesh, SourceMesh, Debug, DebugMessages]()
-		{
-			if (Debug && DebugMessages)
-			{
-				for (const FGeometryScriptDebugMessage& Message : *DebugMessages)
-				{
-					Debug->Messages.Add(Message);
-				}
-			}
-			
-			FGeometryScriptBakeTextureAsyncResult Result;
-			Result.BakeOptions = BakeOptions;
-			Result.BakeResult = SharedBaker;
-			Completed.ExecuteIfBound(BakeId, Result);
-		});
-	});
-}
-
-TArray<UTexture2D*> UGeometryScriptLibrary_MeshBakeFunctions::BakeTextureAsyncEnd(
-	const FGeometryScriptBakeTextureAsyncResult& Result)
-{
-	FMeshMapBaker* Baker = Result.BakeResult.Get();
-	const FGeometryScriptBakeTextureOptions BakeOptions = Result.BakeOptions;
-
-	TArray<UTexture2D*> TextureOutput;
-	GeometryScriptBakeLocals::GetTexturesFromBaker(Baker, BakeOptions.BitDepth, TextureOutput);
-
-	return TextureOutput;
-}
-
 UDynamicMesh* UGeometryScriptLibrary_MeshBakeFunctions::BakeVertex(
 		UDynamicMesh* TargetMesh,
 		FTransform TargetTransform,
@@ -1005,72 +938,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBakeFunctions::BakeVertex(
 
 	return TargetMesh;
 }
-
-void UGeometryScriptLibrary_MeshBakeFunctions::BakeVertexAsyncBegin(
-	const FBakeVertexDelegate& Completed,
-	int BakeId,
-	UDynamicMesh* TargetMesh,
-	FTransform TargetTransform,
-	FGeometryScriptBakeTargetMeshOptions TargetOptions,
-	UDynamicMesh* SourceMesh,
-	FTransform SourceTransform,
-	FGeometryScriptBakeSourceMeshOptions SourceOptions,
-	FGeometryScriptBakeOutputType BakeTypes,
-	FGeometryScriptBakeVertexOptions BakeOptions,
-	UGeometryScriptDebug* Debug)
-{
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Completed, BakeId, TargetMesh, TargetTransform, TargetOptions, SourceMesh, SourceTransform, SourceOptions, BakeTypes, BakeOptions, Debug]()
-	{
-		// FGeometryScriptDebug is not thread-safe. Instantiate a local
-		// debug message array to collect any debug errors and append those
-		// messages back on the game thread.
-		TSharedPtr<TArray<FGeometryScriptDebugMessage>, ESPMode::ThreadSafe> DebugMessages;
-		if (Debug)
-		{
-			DebugMessages = MakeShared<TArray<FGeometryScriptDebugMessage>, ESPMode::ThreadSafe>();
-		}
-		
-		TUniquePtr<FMeshVertexBaker> Baker = GeometryScriptBakeLocals::BakeVertexImpl(
-			TargetMesh,
-			TargetTransform,
-			TargetOptions,
-			SourceMesh,
-			SourceTransform,
-			SourceOptions,
-			BakeTypes,
-			BakeOptions,
-			DebugMessages.Get());
-
-		TSharedPtr<FMeshVertexBaker> SharedBaker = MakeShareable<FMeshVertexBaker>(Baker.Release());
-
-		AsyncTask(ENamedThreads::GameThread, [Completed, BakeId, SharedBaker, TargetMesh, Debug, DebugMessages]()
-		{
-			if (Debug && DebugMessages)
-			{
-				for (const FGeometryScriptDebugMessage& Message : *DebugMessages)
-				{
-					Debug->Messages.Add(Message);
-				}
-			}
-			
-			FGeometryScriptBakeVertexAsyncResult Result;
-			Result.BakeResult = SharedBaker;
-			Result.TargetMesh = TargetMesh;
-			Completed.ExecuteIfBound(BakeId, Result);
-		});
-	});
-}
-
-UDynamicMesh* UGeometryScriptLibrary_MeshBakeFunctions::BakeVertexAsyncEnd(const FGeometryScriptBakeVertexAsyncResult& Result)
-{
-	FMeshVertexBaker* Baker = Result.BakeResult.Get();
-
-	// Extract the vertex bake data and apply to target mesh.
-	GeometryScriptBakeLocals::ApplyVertexBakeToMesh(Baker, Result.TargetMesh);
-
-	return Result.TargetMesh;
-}
-
 
 
 #undef LOCTEXT_NAMESPACE
