@@ -33,7 +33,7 @@ private:
 		// I tried this but unfortunately it didn't work, passing that option makes catch complain with the error message:
 		// "Verbosity level not supported by this reporter"
 
-		if (LogVerbosity <= DesiredLogVerbosity)
+		if (LogVerbosity <= DesiredLogVerbosity && !GLog->GetSuppressEventTag())
 		{
 			std::cout << *FText::FromName(Category).ToString() << "(" << ToString(LogVerbosity) << ")" << ": " << V << "\n";
 		}
