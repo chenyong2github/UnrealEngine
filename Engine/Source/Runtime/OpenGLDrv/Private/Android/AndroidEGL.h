@@ -82,6 +82,7 @@ public:
 	void InitRenderSurface(bool bUseSmallSurface, bool bCreateWndSurface);
 	void InitSharedSurface(bool bUseSmallSurface);
 	void UpdateBuffersTransform();
+	bool IsOfflineSurfaceRequired();
 
 	void GetDimensions(uint32& OutWidth, uint32& OutHeight);
 	

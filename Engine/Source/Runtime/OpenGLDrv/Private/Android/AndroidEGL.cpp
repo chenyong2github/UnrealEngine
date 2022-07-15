@@ -31,6 +31,14 @@ DEFINE_LOG_CATEGORY(LogEGL);
 typedef int32(*PFN_ANativeWindow_setBuffersTransform)(struct ANativeWindow* window, int32 transform);
 static PFN_ANativeWindow_setBuffersTransform ANativeWindow_setBuffersTransform_API = nullptr;
 
+static TAutoConsoleVariable<int32> CVarAndroidGLESFlipYMethod(
+	TEXT("r.Android.GLESFlipYMethod"),
+	0,
+	TEXT(" 0: Flip Y method detected automatically by GPU vendor.\n"
+		 " 1: Force flip Y by native window setBuffersTransform.\n"
+		 " 2: Force flip Y by BlitFrameBuffer."),
+	ECVF_RenderThreadSafe);
+
 
 const  int EGLMinRedBits		= 5;
 const  int EGLMinGreenBits		= 6;
@@ -160,7 +168,7 @@ AndroidEGL::AndroidEGL()
 	{
 		ANativeWindow_setBuffersTransform_API = reinterpret_cast<PFN_ANativeWindow_setBuffersTransform>(dlsym(LibNativeWindow, "ANativeWindow_setBuffersTransform"));
 	}
-	UE_LOG(LogAndroid, Log, TEXT("ANativeWindow_setBuffersTransform is %s on this device"), ANativeWindow_setBuffersTransform_API == nullptr ? TEXT("not supported") : TEXT("supported"));
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("ANativeWindow_setBuffersTransform is %s on this device"), ANativeWindow_setBuffersTransform_API == nullptr ? TEXT("not supported") : TEXT("supported"));
 }
 
 void AndroidEGL::ResetDisplay()
@@ -914,7 +922,7 @@ void AndroidEGL::AcquireCurrentRenderingContext()
 		PImplData->SingleThreadedContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
 	}
 
-	if (FAndroidMisc::SupportsBackbufferSampling())
+	if (IsOfflineSurfaceRequired())
 	{
 		// Needs to be generated on rendering context
 		if (!PImplData->ResolveFrameBuffer)
@@ -1136,7 +1144,7 @@ void AndroidEGL::LogConfigInfo(EGLConfig  EGLConfigInfo)
 
 void AndroidEGL::UpdateBuffersTransform()
 {
-	if (ANativeWindow_setBuffersTransform_API != nullptr)
+	if (ANativeWindow_setBuffersTransform_API != nullptr && !IsOfflineSurfaceRequired())
 	{
 		int32 BufferTransform = ANATIVEWINDOW_TRANSFORM_IDENTITY;
 
@@ -1166,6 +1174,14 @@ void AndroidEGL::UpdateBuffersTransform()
 
 		ANativeWindow_setBuffersTransform_API(GetNativeWindow(), BufferTransform);
 	}
+}
+
+bool AndroidEGL::IsOfflineSurfaceRequired()
+{
+	return FAndroidMisc::SupportsBackbufferSampling() ||
+		// setBuffersTransform doesn't work on arm GPU devices, uses BlitFrameBuffer instead
+		(CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 0 && GRHIVendorId == 0x13B5) ||
+		CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 2;
 }
 
 ///

@@ -225,8 +225,7 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 	
 	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 
-	if (bPresent && FPlatformMisc::SupportsBackbufferSampling())
-
+	if (bPresent && AndroidEGL::GetInstance()->IsOfflineSurfaceRequired())
 	{
 		if (Device->TargetDirty)
 		{
@@ -247,7 +246,7 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 
 			FOpenGL::BlitFramebuffer(
 				0, 0, BackbufferSizeX, BackbufferSizeY,
-				0, 0, BackbufferSizeX, BackbufferSizeY,
+				0, BackbufferSizeY, BackbufferSizeX, 0,
 				GL_COLOR_BUFFER_BIT,
 				GL_NEAREST
 			);
@@ -455,7 +454,7 @@ FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, ui
 	check(IsInRenderingThread());
 	// Create the built-in back buffer if we disable backbuffer sampling.
 	// Otherwise return null and we will create an off-screen surface afterward.
-	if (!FPlatformMisc::SupportsBackbufferSampling())
+	if (!AndroidEGL::GetInstance()->IsOfflineSurfaceRequired())
 	{
 		const FOpenGLTextureCreateDesc CreateDesc =
 			FRHITextureCreateDesc::Create2D(TEXT("PlatformCreateBuiltinBackBuffer"), SizeX, SizeY, PF_B8G8R8A8)
@@ -478,7 +477,7 @@ void PlatformResizeGLContext( FPlatformOpenGLDevice* Device, FPlatformOpenGLCont
 	Context->BackBufferResource = BackBufferResource;
 	Context->BackBufferTarget = BackBufferTarget;
 
-	if (FPlatformMisc::SupportsBackbufferSampling())
+	if (AndroidEGL::GetInstance()->IsOfflineSurfaceRequired())
 	{
 		Device->TargetDirty = true;
 		glBindFramebuffer(GL_FRAMEBUFFER, Context->ViewportFramebuffer);

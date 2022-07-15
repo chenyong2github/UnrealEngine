@@ -1072,9 +1072,9 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 	GRHISupportsAsyncPipelinePrecompile = false;
 
 	PlatformInitOpenGL();
-	PlatformDevice = PlatformCreateOpenGLDevice();
 	VERIFY_GL_SCOPE();
 	InitRHICapabilitiesForGL();
+	PlatformDevice = PlatformCreateOpenGLDevice();
 
 	check(PlatformOpenGLCurrentContext(PlatformDevice) == CONTEXT_Shared);
 
