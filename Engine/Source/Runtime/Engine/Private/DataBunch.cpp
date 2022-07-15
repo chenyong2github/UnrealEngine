@@ -138,7 +138,7 @@ FOutBunch::FOutBunch( UPackageMap *InPackageMap, int64 MaxBits )
 ,	Channel		( nullptr )
 ,	Time		( 0 )
 ,	ChIndex		( 0 )
-,	ChName		( NAME_None )
+,	ChName		( )
 ,	ChSequence	( 0 )
 ,	PacketId	( 0 )
 ,	ReceivedAck	( 0 )
@@ -152,6 +152,11 @@ FOutBunch::FOutBunch( UPackageMap *InPackageMap, int64 MaxBits )
 ,	bHasPackageMapExports	( 0 )
 ,	bHasMustBeMappedGUIDs	( 0 )
 ,	CloseReason( EChannelCloseReason::Destroyed )
+{
+}
+
+FOutBunch::FOutBunch(int64 InMaxBits)
+: FOutBunch(static_cast<UPackageMap*>(nullptr), InMaxBits)
 {
 }
 

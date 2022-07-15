@@ -69,6 +69,7 @@ public:
 
 	// Functions.
 	FOutBunch();
+	explicit FOutBunch(int64 InMaxBits);
 	FOutBunch( class UChannel* InChannel, bool bClose );
 	FOutBunch( UPackageMap * PackageMap, int64 InMaxBits = 1024 );
 
