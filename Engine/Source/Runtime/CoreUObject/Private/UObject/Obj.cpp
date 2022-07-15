@@ -2074,7 +2074,7 @@ static void PostLoadAssetRegistryTagProperty(FProperty* Prop, const FAssetData& 
 			if (!ExportPath.IsEmpty() && ExportPath[0] != '/' && ExportPath.FindChar('\'', ClassSeparatorIndex))
 			{
 				// Strip the class name and leave just the pathname of an object
-				FString ObjectPath = ExportPath.Mid(ClassSeparatorIndex + 1, ExportPath.Len() - ClassSeparatorIndex - 2); // -2 because we're stripping the first and last '
+				FString ObjectPath = FPackageName::ExportTextPathToObjectPath(ExportPath);
 				OutTagsAndValuesToUpdate.Add(UObject::FAssetRegistryTag(Prop->GetFName(), ObjectPath, TagType));
 			}
 		}
