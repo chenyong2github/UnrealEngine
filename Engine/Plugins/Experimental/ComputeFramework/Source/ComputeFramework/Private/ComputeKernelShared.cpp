@@ -219,8 +219,8 @@ void FComputeKernelResource::SetupResource(
 	FString const& InShaderHashKey,
 	FString& InShaderSource,
 	TMap<FString, FString>& InAdditionalSources,
-	TUniquePtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
-	TUniquePtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
+	TSharedPtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
+	TSharedPtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
 	TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
 	FShaderParametersMetadata* InShaderParameterMetadata,
 	FName const& InAssetPath
@@ -232,8 +232,8 @@ void FComputeKernelResource::SetupResource(
 	ShaderCodeHash = GetTypeHash(InShaderHashKey);
 	ShaderSource = MoveTemp(InShaderSource);
 	AdditionalSources = MoveTemp(InAdditionalSources);
-	ShaderDefinitionSet = MoveTemp(InShaderDefinitionSet);
-	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
+	ShaderDefinitionSet = InShaderDefinitionSet;
+	ShaderPermutationVector = InShaderPermutationVector;
 	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);
 	ShaderParameterMetadata = InShaderParameterMetadata;
 	CompileOutputMessages.Reset();

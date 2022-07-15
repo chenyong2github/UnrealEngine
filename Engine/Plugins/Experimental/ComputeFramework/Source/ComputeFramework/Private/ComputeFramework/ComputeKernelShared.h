@@ -418,8 +418,8 @@ public:
 		FString const& InShaderHashKey,
 		FString& InShaderSource,
 		TMap<FString, FString>& InAdditionalSources,
-		TUniquePtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
-		TUniquePtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
+		TSharedPtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
+		TSharedPtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
 		TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
 		FShaderParametersMetadata* InShaderParameterMetadata,
 		FName const& InAssetPath
@@ -480,11 +480,11 @@ private:
 	/** Additional source code. Stored as a map from a virtual source file name to the shader source.  */
 	TMap<FString, FString> AdditionalSources;
 
-	/** Defines used when compiling shaders. */
-	TUniquePtr<FComputeKernelDefinitionSet> ShaderDefinitionSet;
+	/** Defines used when compiling shaders. Object can be shared across a number of shader formats during cook. */
+	TSharedPtr<FComputeKernelDefinitionSet> ShaderDefinitionSet;
 	
-	/** Permutations used for compiling shaders. */
-	TUniquePtr<FComputeKernelPermutationVector> ShaderPermutationVector;
+	/** Permutations used for compiling shaders. Object can be shared across a number of shader formats during cook. */
+	TSharedPtr<FComputeKernelPermutationVector> ShaderPermutationVector;
 
 	/** Allocations for the ShaderParameterMetadata */
 	TUniquePtr<FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations;
