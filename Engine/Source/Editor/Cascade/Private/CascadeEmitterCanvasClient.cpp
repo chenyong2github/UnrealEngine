@@ -272,6 +272,10 @@ void FCascadeEmitterCanvasClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 bool FCascadeEmitterCanvasClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
+	return InputKey(EventArgs.Viewport, EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad());
+}
+
+{
 	bool bHandled = false;
 
 	bool bLODIsValid = true;
