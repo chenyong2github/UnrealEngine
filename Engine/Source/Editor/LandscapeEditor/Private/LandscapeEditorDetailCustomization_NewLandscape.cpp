@@ -239,7 +239,10 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&GetVisibilityOnlyInNewLandscapeMode, ENewLandscapePreviewMode::ImportLandscape)));
 
 	TSharedRef<IPropertyHandle> PropertyHandle_Layers = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_Layers));
-	NewLandscapeCategory.AddProperty(PropertyHandle_Layers);
+
+	TSharedRef<FDetailArrayBuilder> ArrayBuilder = MakeShared<FDetailArrayBuilder>(PropertyHandle_Layers, /*InGenerateHeader*/ true, /*InDisplayResetToDefault*/ false, /*InDisplayElementNum*/ false);
+	ArrayBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FLandscapeEditorDetailCustomization_NewLandscape::GenerateLayersArrayElementWidget));
+	NewLandscapeCategory.AddCustomBuilder(ArrayBuilder, /*bForAdvanced*/ false);
 
 	TSharedRef<IPropertyHandle> PropertyHandle_Location = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, NewLandscape_Location));
 	TSharedRef<IPropertyHandle> PropertyHandle_Location_X = PropertyHandle_Location->GetChildHandle("X").ToSharedRef();
@@ -721,11 +724,11 @@ void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResoluti
 		int32 NewComponentCountX = LandscapeEdMode->UISettings->CalcComponentsCount(NewValue);
 		if (NewComponentCountX == LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X)
 		{
-			return;
+return;
 		}
 
 		FScopedTransaction Transaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"), !bUsingSlider && bCommit);
-		
+
 		LandscapeEdMode->UISettings->Modify();
 		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = NewComponentCountX;
 	}
@@ -754,7 +757,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResoluti
 		}
 
 		FScopedTransaction Transaction(LOCTEXT("ChangeResolutionY_Transaction", "Change Landscape Resolution Y"), !bUsingSlider && bCommit);
-	
+
 		LandscapeEdMode->UISettings->Modify();
 		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = NewComponentCountY;
 	}
@@ -809,6 +812,31 @@ EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetVisibilityOnlyI
 		}
 	}
 	return EVisibility::Collapsed;
+}
+
+void FLandscapeEditorDetailCustomization_NewLandscape::GenerateLayersArrayElementWidget(TSharedRef<IPropertyHandle> InPropertyHandle, int32 InArrayIndex, IDetailChildrenBuilder& InChildrenBuilder)
+{
+	InChildrenBuilder.AddProperty(InPropertyHandle)
+	.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetLayerVisibility, InPropertyHandle)));
+}
+
+EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetLayerVisibility(TSharedRef<IPropertyHandle> InPropertyHandle) const
+{
+	const FEdModeLandscape* EdMode = GetEditorMode();
+	TArray<void*> RawData;
+	InPropertyHandle->AccessRawData(RawData);
+
+	if ((EdMode != nullptr) && !RawData.IsEmpty() && (RawData[0] != nullptr))
+	{
+		FLandscapeImportLayer* ImportLayer = reinterpret_cast<FLandscapeImportLayer*>(RawData[0]);
+
+		if ((EdMode->NewLandscapePreviewMode != ENewLandscapePreviewMode::ImportLandscape) && (ImportLayer->LayerName == ALandscapeProxy::VisibilityLayer->LayerName))
+		{
+			return EVisibility::Hidden;
+		}
+	}
+
+	return EVisibility::Visible;
 }
 
 bool FLandscapeEditorDetailCustomization_NewLandscape::IsCreateButtonEnabled() const
@@ -921,8 +949,8 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 			ULandscapeLayerInfoObject* LayerInfo = ImportLandscapeLayersList[i].LayerInfo;
 			FName LayerName = ImportLandscapeLayersList[i].LayerName;
 
-			// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject.
-			if (bIsDefaultLayerInfoObjectSet && (LayerInfo == nullptr))
+			// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject. Except for VisibilityLayer which doesn't require an asset.
+			if (bIsDefaultLayerInfoObjectSet && (LayerInfo == nullptr) && (LayerName != ALandscapeProxy::VisibilityLayer->LayerName))
 			{
 				LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.LoadSynchronous());
 

@@ -629,6 +629,11 @@ void ULandscapeEditorObject::RefreshLayerImport(FLandscapeImportLayer& ImportLay
 	ImportLayer.ErrorMessage = FText();
 	ImportLayer.ImportResult = ELandscapeImportResult::Success;
 
+	if (ImportLayer.LayerName == ALandscapeProxy::VisibilityLayer->LayerName)
+	{
+		ImportLayer.LayerInfo = ALandscapeProxy::VisibilityLayer;
+	}
+
 	if (!ImportLayer.SourceFilePath.IsEmpty())
 	{
 		if (!ImportLayer.LayerInfo)
@@ -837,7 +842,7 @@ void ULandscapeEditorObject::RefreshImportLayersList(bool bRefreshFromTarget)
 		Material = ParentMode->GetTargetLandscapeMaterial();
 		for (const TSharedRef<FLandscapeTargetListInfo>& TargetListInfo : ParentMode->GetTargetList())
 		{
-			if (TargetListInfo->TargetType != ELandscapeToolTargetType::Weightmap)
+			if ((TargetListInfo->TargetType != ELandscapeToolTargetType::Weightmap) && (TargetListInfo->TargetType != ELandscapeToolTargetType::Visibility))
 			{
 				continue;
 			}

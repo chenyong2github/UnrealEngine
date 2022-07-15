@@ -66,6 +66,10 @@ public:
 
 	static EVisibility GetVisibilityOnlyInNewLandscapeMode(ENewLandscapePreviewMode value);
 
+	/** Called to generate ImportLayer children */
+	void GenerateLayersArrayElementWidget(TSharedRef<IPropertyHandle> InPropertyHandle, int32 InArrayIndex, IDetailChildrenBuilder& InChildrenBuilder);
+	EVisibility GetLayerVisibility(TSharedRef<IPropertyHandle> InPropertyHandle) const;
+
 	// Import
 	static EVisibility GetHeightmapErrorVisibility(TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult);
 	static FSlateColor GetHeightmapErrorColor(TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult);
