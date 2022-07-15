@@ -134,8 +134,9 @@ void UMassProcessor::PostInitProperties()
 			CA_ASSUME(QueryPtr);
 			bNeedsGameThread = (bNeedsGameThread || QueryPtr->DoesRequireGameThreadExecution());
 		}
-		UE_CLOG(bRequiresGameThreadExecution != bNeedsGameThread, LogMass, Warning, TEXT("%s is marked bRequiresGameThreadExecution = %s, while the registered quries' requirement indicate the opposite")
-			, *GetProcessorName(), bRequiresGameThreadExecution ? TEXT("TRUE") : TEXT("FALSE"));
+		// @todo warning temporarily disabled until details cleared
+		/*UE_CLOG(bRequiresGameThreadExecution != bNeedsGameThread, LogMass, Warning, TEXT("%s is marked bRequiresGameThreadExecution = %s, while the registered quries' requirement indicate the opposite")
+			, *GetProcessorName(), bRequiresGameThreadExecution ? TEXT("TRUE") : TEXT("FALSE"));*/
 
 		// better safe than sorry - if queries indicate the game thread execution is required then we marked the whole processor as such
 		bRequiresGameThreadExecution = bRequiresGameThreadExecution || bNeedsGameThread;
