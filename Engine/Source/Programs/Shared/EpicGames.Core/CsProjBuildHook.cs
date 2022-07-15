@@ -33,19 +33,18 @@ namespace EpicGames.Core
 		DateTime GetLastWriteTime(string BasePath, string RelativeFilePath);
 
 		/// <summary>
-		/// Validate the given build records splitting them up into valid and invalid records.
-		/// The invalid ones will need to be build.
+		/// Return the build record directory for the given base path (i.e. engine dir or project dir)
 		/// </summary>
-		/// <param name="ValidBuildRecords">Output collection of up-to-date build records</param>
-		/// <param name="InvalidBuildRecords">Output collection of build records needing to be built.</param>
-		/// <param name="BuildRecords">Top level build records to test.  Dependencies are also checked so the
-		/// of valid and invalid build records will usually be larger than the number of input records</param>
-		/// <param name="ProjectPath">Path of the project</param>
-		void ValidateRecursively(
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> ValidBuildRecords,
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords,
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildRecords,
-			FileReference ProjectPath);
+		/// <param name="BasePath">The base path for the directory</param>
+		/// <returns>Directory for the build records</returns>
+		DirectoryReference GetBuildRecordDirectory(DirectoryReference BasePath);
+
+		/// <summary>
+		/// Validate the given build records for the project
+		/// </summary>
+		/// <param name="buildRecords">Build records being validated.  This also includes build records for dependencies.</param>
+		/// <param name="projectPath">Path of the project</param>
+		void ValidateRecursively(Dictionary<FileReference, CsProjBuildRecordEntry> buildRecords, FileReference projectPath);
 
 		/// <summary>
 		/// Test to see if the given file spec has any wild cards

@@ -19,10 +19,22 @@ namespace UnrealBuildBase
 		{
 			private ILogger Logger;
 			private Dictionary<string, DateTime> WriteTimes = new Dictionary<string, DateTime>();
+			private string BuildRecordDirectory;
 
-			public Hook(ILogger InLogger)
+			public Hook(ILogger InLogger, Rules.RulesFileType InRulesFileType)
 			{
 				Logger = InLogger;
+				switch (InRulesFileType)
+				{
+					case Rules.RulesFileType.AutomationModule:
+						BuildRecordDirectory = "ScriptModules";
+						break;
+					case Rules.RulesFileType.UbtPlugin:
+						BuildRecordDirectory = "ScriptModules.UBT";
+						break;
+					default:
+						throw new ArgumentException("Unexpected rules file type");
+				}
 			}
 
 			public DateTime GetLastWriteTime(DirectoryReference BasePath, string RelativeFilePath)
@@ -40,20 +52,20 @@ namespace UnrealBuildBase
 				return WriteTime;
 			}
 
-			public void ValidateRecursively(
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> ValidBuildRecords,
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords,
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildRecords,
-				FileReference ProjectPath)
+			public DirectoryReference GetBuildRecordDirectory(DirectoryReference BasePath)
 			{
-				CompileScriptModule.ValidateBuildRecordRecursively(ValidBuildRecords, InvalidBuildRecords, BuildRecords, ProjectPath, this, Logger);
+				return DirectoryReference.Combine(BasePath, "Intermediate", BuildRecordDirectory);
+			}
+
+			public void ValidateRecursively(Dictionary<FileReference, CsProjBuildRecordEntry> BuildRecords, FileReference ProjectPath)
+			{
+				CompileScriptModule.ValidateBuildRecordRecursively(BuildRecords, ProjectPath, this, Logger);
 			}
 
 			public bool HasWildcards(string FileSpec)
 			{
 				return FileMatcher.HasWildcards(FileSpec);
 			}
-
 			DirectoryReference CsProjBuildHook.EngineDirectory => Unreal.EngineDirectory;
 
 			DirectoryReference CsProjBuildHook.DotnetDirectory => Unreal.DotnetDirectory;
@@ -66,7 +78,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="BuildRecords">Input build records</param>
 		/// <returns>Set of target files</returns>
-		public static HashSet<FileReference> GetTargetPaths(IReadOnlyDictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecords)
+		public static HashSet<FileReference> GetTargetPaths(IReadOnlyDictionary<FileReference, CsProjBuildRecordEntry> BuildRecords)
 		{
 			return new HashSet<FileReference>(BuildRecords.Select(x => GetTargetPath(x)));
 		}
@@ -76,7 +88,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="BuildRecord">Build record</param>
 		/// <returns>File reference for the target</returns>
-		public static FileReference GetTargetPath(KeyValuePair<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecord)
+		public static FileReference GetTargetPath(KeyValuePair<FileReference, CsProjBuildRecordEntry> BuildRecord)
 		{
 			return FileReference.Combine(BuildRecord.Key.Directory, BuildRecord.Value.BuildRecord.TargetPath!);
 		}
@@ -120,26 +132,24 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Test to see if all the given projects are up-to-date
 		/// </summary>
+		/// <param name="RulesFileType">Type of script modules being tested</param>
 		/// <param name="FoundProjects">Collection of projects to test</param>
 		/// <param name="BaseDirectories">Base directories of the projects</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if all of the projects are up to date</returns>
-		public static bool AreScriptModulesUpToDate(HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, ILogger Logger)
+		public static bool AreScriptModulesUpToDate(Rules.RulesFileType RulesFileType, HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, ILogger Logger)
 		{
-			CsProjBuildHook Hook = new Hook(Logger);
+			CsProjBuildHook Hook = new Hook(Logger, RulesFileType);
 
 			// Load existing build records, validating them only if (re)compiling script projects is an option
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories, Logger);
-
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ValidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> InvalidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
-
+			Dictionary<FileReference, CsProjBuildRecordEntry> BuildRecords = LoadExistingBuildRecords(Hook, BaseDirectories, Logger);
 			foreach (FileReference Project in FoundProjects)
 			{
-				ValidateBuildRecordRecursively(ValidBuildRecords, InvalidBuildRecords, ExistingBuildRecords, Project, Hook, Logger);
+				ValidateBuildRecordRecursively(BuildRecords, Project, Hook, Logger);
 			}
 
 			// If all found records are valid, we can return their targets directly
+			Dictionary<FileReference, CsProjBuildRecordEntry> ValidBuildRecords = new(BuildRecords.Where(x => x.Value.Status == CsProjBuildRecordStatus.Valid));
 			return FoundProjects.All(x => ValidBuildRecords.ContainsKey(x));
 		}
 
@@ -157,26 +167,23 @@ namespace UnrealBuildBase
 		/// <param name="OnBuildingProjects">Action to invoke when projects get built</param>
 		/// <param name="Logger"></param>
 		/// <returns>Collection of all the projects.  They will have been compiled.</returns>
-		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(Rules.RulesFileType RulesFileType,
+		public static Dictionary<FileReference, CsProjBuildRecordEntry> Build(Rules.RulesFileType RulesFileType,
 			HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, List<string>? DefineConstants, 
 			bool bForceCompile, bool bNoCompile, bool bUseBuildRecords,
 			out bool bBuildSuccess, Action<int> OnBuildingProjects, ILogger Logger)
 		{
-			CsProjBuildHook Hook = new Hook(Logger);
+			CsProjBuildHook Hook = new Hook(Logger, RulesFileType);
 
 			bool bUseBuildRecordsOnlyForProjectDiscovery = bNoCompile || Unreal.IsEngineInstalled();
 
 			// Load existing build records, validating them only if (re)compiling script projects is an option
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories, Logger);
-
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ValidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> InvalidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
+			Dictionary<FileReference, CsProjBuildRecordEntry> BuildRecords = LoadExistingBuildRecords(Hook, BaseDirectories, Logger);
 
 			if (bUseBuildRecords)
 			{
 				foreach (FileReference Project in FoundProjects)
 				{
-					ValidateBuildRecordRecursively(ValidBuildRecords, InvalidBuildRecords, ExistingBuildRecords, Project, Hook, Logger);
+					ValidateBuildRecordRecursively(BuildRecords, Project, Hook, Logger);
 				}
 			}
 
@@ -194,9 +201,8 @@ namespace UnrealBuildBase
 					default:
 						throw new Exception("Unsupported rules file type");
 				}
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> OutRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
-				foreach (KeyValuePair<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> Record in
-					ExistingBuildRecords.Where(x => x.Value.BuildRecordPath.HasExtension(FilterExtension)))
+				Dictionary<FileReference, CsProjBuildRecordEntry> OutRecords = new Dictionary<FileReference, CsProjBuildRecordEntry>(BuildRecords.Count);
+				foreach (KeyValuePair<FileReference, CsProjBuildRecordEntry> Record in BuildRecords.Where(x => x.Value.BuildRecordFile.HasExtension(FilterExtension)))
 				{
 					FileReference TargetPath = FileReference.Combine(Record.Key.Directory, Record.Value.BuildRecord.TargetPath!);
 
@@ -209,12 +215,12 @@ namespace UnrealBuildBase
 						if (bNoCompile)
 						{
 							// when -NoCompile is on the command line, try to run with whatever is available
-							Logger.LogWarning("Script module \"{TargetPath}\" not found for record \"{BuildRecordPath}\"", TargetPath, Record.Value.BuildRecordPath);
+							Logger.LogWarning("Script module \"{TargetPath}\" not found for record \"{BuildRecordPath}\"", TargetPath, Record.Value.BuildRecordFile);
 						}
 						else
 						{
 							// when the engine is installed, expect to find a built target assembly for every record that was found
-							throw new Exception($"Script module \"{TargetPath}\" not found for record \"{Record.Value.BuildRecordPath}\"");
+							throw new Exception($"Script module \"{TargetPath}\" not found for record \"{Record.Value.BuildRecordFile}\"");
 						}
 
 					}
@@ -225,12 +231,12 @@ namespace UnrealBuildBase
 			else
 			{
 				// when the engine is not installed, delete any build record .json file that is not valid
-				foreach ((CsProjBuildRecord _, FileReference BuildRecordPath) in InvalidBuildRecords.Values)
+				foreach (CsProjBuildRecordEntry Entry in BuildRecords.Values.Where(x => x.Status == CsProjBuildRecordStatus.Invalid))
 				{
-					if (BuildRecordPath != null)
+					if (Entry.BuildRecordFile != null)
 					{
-						Logger.LogDebug("Deleting invalid build record \"{BuildRecordPath}\"", BuildRecordPath);
-						FileReference.Delete(BuildRecordPath);
+						Logger.LogDebug("Deleting invalid build record \"{BuildRecordPath}\"", Entry.BuildRecordFile);
+						FileReference.Delete(Entry.BuildRecordFile);
 					}
 				}
 			}
@@ -238,10 +244,11 @@ namespace UnrealBuildBase
 			if (!bForceCompile && bUseBuildRecords)
 			{
 				// If all found records are valid, we can return their targets directly
+				Dictionary<FileReference, CsProjBuildRecordEntry> ValidBuildRecords = new(BuildRecords.Where(x => x.Value.Status == CsProjBuildRecordStatus.Valid));
 				if (FoundProjects.All(x => ValidBuildRecords.ContainsKey(x)))
 				{
 					bBuildSuccess = true;
-					return new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ValidBuildRecords.Where(x => FoundProjects.Contains(x.Key)));
+					return new Dictionary<FileReference, CsProjBuildRecordEntry>(ValidBuildRecords.Where(x => FoundProjects.Contains(x.Key)));
 				}
 			}
 
@@ -255,7 +262,7 @@ namespace UnrealBuildBase
 		/// If it is placed in the caller directly, then when the caller is invoked, the assembly will be loaded resulting
 		/// in the possible Microsoft.Build.Framework load issue later on is this method isn't invoked.
 		/// </summary>
-		static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
+		static Dictionary<FileReference, CsProjBuildRecordEntry> Build(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories,
 			List<string>? DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
@@ -265,16 +272,17 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Find and load existing build record .json files from any Intermediate/ScriptModules found in the provided lists
 		/// </summary>
+		/// <param name="Hook">Hook object used to query directory</param>
 		/// <param name="BaseDirectories"></param>
 		/// <param name="Logger"></param>
 		/// <returns></returns>
-		static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> LoadExistingBuildRecords(List<DirectoryReference> BaseDirectories, ILogger Logger)
+		static Dictionary<FileReference, CsProjBuildRecordEntry> LoadExistingBuildRecords(CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, ILogger Logger)
         {
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> LoadedBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
+			Dictionary<FileReference, CsProjBuildRecordEntry> LoadedBuildRecords = new Dictionary<FileReference, CsProjBuildRecordEntry>();
 
 			foreach (DirectoryReference Directory in BaseDirectories)
 			{
-				DirectoryReference IntermediateDirectory = DirectoryReference.Combine(Directory, "Intermediate", "ScriptModules");
+				DirectoryReference IntermediateDirectory = Hook.GetBuildRecordDirectory(Directory);
 				if (!DirectoryReference.Exists(IntermediateDirectory))
 				{
 					continue;
@@ -298,9 +306,11 @@ namespace UnrealBuildBase
 
 					if (BuildRecord != null && BuildRecord.ProjectPath != null)
 					{
-						// Path.Combine, etc don't work so well with improper dir separators (a build record made on Windows will fail on Linux with the \ characters)
-						string Combined = Path.Combine(JsonFile.Directory.FullName, BuildRecord.ProjectPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar));
-						LoadedBuildRecords.Add(FileReference.FromString(Path.GetFullPath(Combined)), (BuildRecord, JsonFile));
+						CsProjBuildRecordEntry Entry = new CsProjBuildRecordEntry(
+							FileReference.FromString(Path.GetFullPath(BuildRecord.ProjectPath, JsonFile.Directory.FullName)),
+							JsonFile,
+							BuildRecord);
+						LoadedBuildRecords.Add(Entry.ProjectFile, Entry);
 					}
 					else
                     {
@@ -434,21 +444,20 @@ namespace UnrealBuildBase
 		}
 
 		static void ValidateBuildRecordRecursively(
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference)> ValidBuildRecords,
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords,
-			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildRecords,
+			Dictionary<FileReference, CsProjBuildRecordEntry> BuildRecords,
 			FileReference ProjectPath, CsProjBuildHook Hook, ILogger Logger)
 		{
-			if (ValidBuildRecords.ContainsKey(ProjectPath) || InvalidBuildRecords.ContainsKey(ProjectPath))
+			// Was a build record loaded for this project path? (relevant when considering referenced projects)
+			if (!BuildRecords.TryGetValue(ProjectPath, out CsProjBuildRecordEntry? Entry))
 			{
-				// Project validity has already been determined
+				Logger.LogDebug("Found project {ProjectPath} with no existing build record", ProjectPath);
 				return;
 			}
 
-			// Was a build record loaded for this project path? (relevant when considering referenced projects)
-			if (!BuildRecords.TryGetValue(ProjectPath, out (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath) Entry))
+			// Ignore if the status is known
+			if (Entry.Status != CsProjBuildRecordStatus.Unknown)
 			{
-				Logger.LogDebug("Found project {ProjectPath} with no existing build record", ProjectPath);
+				// Project validity has already been determined
 				return;
 			}
 
@@ -457,38 +466,60 @@ namespace UnrealBuildBase
 			{
 				string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
 				Logger.LogDebug("[{ProjectRelativePath}] {ValidationFailureMessage}", ProjectRelativePath, ValidationFailureMessage);
-
-				InvalidBuildRecords.Add(ProjectPath, Entry);
+				Entry.Status = CsProjBuildRecordStatus.Invalid;
 				return;
 			}
 
 			// Are all referenced build records valid?
-			foreach (string ReferencedProjectPath in Entry.BuildRecord.ProjectReferences)
+			foreach (CsProjBuildRecordRef ReferencedProject in Entry.BuildRecord.ProjectReferencesAndTimes)
 			{
-				FileReference FullProjectPath = FileReference.FromString(Path.GetFullPath(ReferencedProjectPath, ProjectPath.Directory.FullName));
-				ValidateBuildRecordRecursively(ValidBuildRecords, InvalidBuildRecords, BuildRecords, FullProjectPath, Hook, Logger);
+				FileReference FullProjectPath = FileReference.FromString(Path.GetFullPath(ReferencedProject.ProjectPath, ProjectPath.Directory.FullName));
+				ValidateBuildRecordRecursively(BuildRecords, FullProjectPath, Hook, Logger);
 
-				if (!ValidBuildRecords.ContainsKey(FullProjectPath))
+				if (!BuildRecords.TryGetValue(FullProjectPath, out CsProjBuildRecordEntry? RefEntry))
+				{
+					string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
+					string DependencyRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, FullProjectPath.FullName);
+					Logger.LogDebug("[{ProjectRelativePath}] Existing output is not valid because dependency {DependencyRelativePath} could not be found", ProjectRelativePath, DependencyRelativePath);
+					Entry.Status = CsProjBuildRecordStatus.Invalid;
+					return;
+				}
+
+				if (RefEntry.Status != CsProjBuildRecordStatus.Valid)
 				{
 					string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
 					string DependencyRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, FullProjectPath.FullName);
 					Logger.LogDebug("[{ProjectRelativePath}] Existing output is not valid because dependency {DependencyRelativePath} is not valid", ProjectRelativePath, DependencyRelativePath);
-					InvalidBuildRecords.Add(ProjectPath, Entry);
+					Entry.Status = CsProjBuildRecordStatus.Invalid;
 					return;
 				}
 
 				// Ensure that the dependency was not built more recently than the project
-				if (Entry.BuildRecord.TargetBuildTime < ValidBuildRecords[FullProjectPath].BuildRecord.TargetBuildTime)
+				if (ReferencedProject.TargetBuildTime == DateTime.MinValue)
 				{
-					string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
-					string DependencyRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, FullProjectPath.FullName);
-					Logger.LogDebug("[{ProjectRelativePath}] Existing output is not valid because dependency {DependencyRelativePath} is newer", ProjectRelativePath, DependencyRelativePath);
-					InvalidBuildRecords.Add(ProjectPath, Entry);
-					return;
+					if (Entry.BuildRecord.TargetBuildTime < RefEntry.BuildRecord.TargetBuildTime)
+					{
+						string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
+						string DependencyRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, FullProjectPath.FullName);
+						Logger.LogDebug("[{ProjectRelativePath}] Existing output is not valid because dependency {DependencyRelativePath} is newer", ProjectRelativePath, DependencyRelativePath);
+						Entry.Status = CsProjBuildRecordStatus.Invalid;
+						return;
+					}
+				}
+				else
+				{
+					if (ReferencedProject.TargetBuildTime != RefEntry.BuildRecord.TargetBuildTime)
+					{
+						string ProjectRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, ProjectPath.FullName);
+						string DependencyRelativePath = Path.GetRelativePath(Unreal.EngineDirectory.FullName, FullProjectPath.FullName);
+						Logger.LogDebug("[{ProjectRelativePath}] Existing dependency output time stamp for {DependencyRelativePath} does not match expected value", ProjectRelativePath, DependencyRelativePath);
+						Entry.Status = CsProjBuildRecordStatus.Invalid;
+						return;
+					}
 				}
 			}
 
-			ValidBuildRecords.Add(ProjectPath, Entry);
+			Entry.Status = CsProjBuildRecordStatus.Valid;
 		}
 
 		static List<DirectoryReference> GetGameDirectories(string? ScriptsForProjectFileName, ILogger Logger)

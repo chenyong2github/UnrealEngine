@@ -618,7 +618,7 @@ namespace UnrealBuildTool
 						BaseDirectories.Add(ProjectFile.Directory);
 					}
 					HashSet<FileReference> EnabledPlugins = new HashSet<FileReference>(Makefile.EnabledUbtPlugins);
-					if (!CompileScriptModule.AreScriptModulesUpToDate(EnabledPlugins, BaseDirectories, Logger))
+					if (!CompileScriptModule.AreScriptModulesUpToDate(Rules.RulesFileType.UbtPlugin, EnabledPlugins, BaseDirectories, Logger))
 					{
 						Logger.LogDebug("Enabled UBT plugins need to be recompiled");
 						ReasonNotLoaded = "Enabled UBT plugins need to be recompiled";

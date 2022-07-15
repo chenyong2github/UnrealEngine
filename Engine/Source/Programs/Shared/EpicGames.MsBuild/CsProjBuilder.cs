@@ -125,7 +125,7 @@ namespace EpicGames.MsBuild
 			}
 		}
 
-		static FileReference ConstructBuildRecordPath(FileReference ProjectPath, List<DirectoryReference> BaseDirectories)
+		static FileReference ConstructBuildRecordPath(CsProjBuildHook Hook, FileReference ProjectPath, List<DirectoryReference> BaseDirectories)
 		{
 			DirectoryReference BasePath = null;
 
@@ -143,7 +143,7 @@ namespace EpicGames.MsBuild
 				throw new Exception($"Unable to map csproj {ProjectPath} to Engine, game, or an additional script folder. Candidates were:{Environment.NewLine} {String.Join(Environment.NewLine, BaseDirectories)}");
 			}
 
-			DirectoryReference BuildRecordDirectory = DirectoryReference.Combine(BasePath!, "Intermediate", "ScriptModules");
+			DirectoryReference BuildRecordDirectory = Hook.GetBuildRecordDirectory(BasePath);
 			DirectoryReference.CreateDirectory(BuildRecordDirectory);
 
 			return FileReference.Combine(BuildRecordDirectory, ProjectPath.GetFileName()).ChangeExtension(".json");
@@ -160,7 +160,7 @@ namespace EpicGames.MsBuild
 		/// <param name="DefineConstants">Collection of constants to be defined while building projects</param>
 		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
 		/// <param name="Logger">Destination logger</param>
-		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
+		public static Dictionary<FileReference, CsProjBuildRecordEntry> Build(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, 
 			List<string> DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
@@ -183,7 +183,7 @@ namespace EpicGames.MsBuild
 		/// <param name="DefineConstants">Collection of constants to be defined while building projects</param>
 		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
 		/// <param name="Logger">Destination logger</param>
-		private static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildInternal(HashSet<FileReference> FoundProjects,
+		private static Dictionary<FileReference, CsProjBuildRecordEntry> BuildInternal(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, List<string> DefineConstants,
 			Action<int> OnBuildingProjects, ILogger Logger)
 		{
@@ -202,7 +202,7 @@ namespace EpicGames.MsBuild
 				GlobalProperties.Add("DefineConstants", String.Join(';', DefineConstants));
 			}
 
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
+			Dictionary<FileReference, CsProjBuildRecordEntry> BuildRecords = new();
 
 			using ProjectCollection ProjectCollection = new ProjectCollection(GlobalProperties);
 			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
@@ -281,7 +281,7 @@ namespace EpicGames.MsBuild
 				string TargetPath = Path.GetRelativePath(Project.DirectoryPath, Project.GetPropertyValue("TargetPath"));
 
 				FileReference ProjectPath = FileReference.FromString(Project.FullPath);
-				FileReference BuildRecordPath = ConstructBuildRecordPath(ProjectPath, BaseDirectories);
+				FileReference BuildRecordPath = ConstructBuildRecordPath(Hook, ProjectPath, BaseDirectories);
 
 				CsProjBuildRecord BuildRecord = new CsProjBuildRecord()
 				{
@@ -318,7 +318,7 @@ namespace EpicGames.MsBuild
 
 				foreach (ProjectItem ReferencedProjectItem in Project.GetItems("ProjectReference"))
 				{
-					BuildRecord.ProjectReferences.Add(ReferencedProjectItem.EvaluatedInclude);
+					BuildRecord.ProjectReferencesAndTimes.Add(new CsProjBuildRecordRef { ProjectPath = ReferencedProjectItem.EvaluatedInclude });
 				}
 
 				foreach (ProjectItem CompileItem in Project.GetItems("Compile"))
@@ -418,7 +418,8 @@ namespace EpicGames.MsBuild
 					});
 				}
 
-				BuildRecords.Add(ProjectPath, (BuildRecord, BuildRecordPath));
+				CsProjBuildRecordEntry Entry = new CsProjBuildRecordEntry(ProjectPath, BuildRecordPath, BuildRecord);
+				BuildRecords.Add(Entry.ProjectFile, Entry);
 			}
 
 			// Potential optimization: Constructing the ProjectGraph here gives the full graph of dependencies - which is nice,
@@ -439,15 +440,13 @@ namespace EpicGames.MsBuild
 			}
 			else
 			{
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> ValidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(BuildRecords.Count);
-				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(BuildRecords.Count);
-
 				foreach (ProjectGraphNode Project in InputProjectGraph.ProjectNodesTopologicallySorted)
 				{
-					Hook.ValidateRecursively(ValidBuildRecords, InvalidBuildRecords, BuildRecords, FileReference.FromString(Project.ProjectInstance.FullPath));
+					Hook.ValidateRecursively(BuildRecords, FileReference.FromString(Project.ProjectInstance.FullPath));
 				}
 
 				// Select the projects that have been found to be out of date
+				Dictionary<FileReference, CsProjBuildRecordEntry> InvalidBuildRecords = new(BuildRecords.Where(x => x.Value.Status == CsProjBuildRecordStatus.Invalid));
 				HashSet<ProjectGraphNode> OutOfDateProjects = new HashSet<ProjectGraphNode>(InputProjectGraph.ProjectNodes.Where(x => InvalidBuildRecords.ContainsKey(FileReference.FromString(x.ProjectInstance.FullPath))));
 
 				if (OutOfDateProjects.Count > 0)
@@ -466,28 +465,46 @@ namespace EpicGames.MsBuild
 				bBuildSuccess = true;
 			}
 
+			// Update the target times
+			foreach (ProjectGraphNode ProjectNode in InputProjectGraph.ProjectNodes)
+			{
+				FileReference ProjectPath = FileReference.FromString(ProjectNode.ProjectInstance.FullPath);
+				CsProjBuildRecordEntry Entry = BuildRecords[ProjectPath];
+				FileReference FullPath = FileReference.Combine(ProjectPath.Directory, Entry.BuildRecord.TargetPath);
+				Entry.BuildRecord.TargetBuildTime = FileReference.GetLastWriteTime(FullPath);
+			}
+
+			// Update the project reference target times
+			foreach (ProjectGraphNode ProjectNode in InputProjectGraph.ProjectNodes)
+			{
+				FileReference ProjectPath = FileReference.FromString(ProjectNode.ProjectInstance.FullPath);
+				CsProjBuildRecordEntry Entry = BuildRecords[ProjectPath];
+				foreach (CsProjBuildRecordRef ReferencedProject in Entry.BuildRecord.ProjectReferencesAndTimes)
+				{
+					FileReference RefProjectPath = FileReference.FromString(Path.GetFullPath(ReferencedProject.ProjectPath, ProjectPath.Directory.FullName));
+					if (BuildRecords.TryGetValue(RefProjectPath, out CsProjBuildRecordEntry RefEntry))
+					{
+						ReferencedProject.TargetBuildTime = RefEntry.BuildRecord.TargetBuildTime;
+					}
+				}
+			}
+
 			// write all build records
 			foreach (ProjectGraphNode ProjectNode in InputProjectGraph.ProjectNodes)
 			{
 				FileReference ProjectPath = FileReference.FromString(ProjectNode.ProjectInstance.FullPath);
-
-				(CsProjBuildRecord BuildRecord, FileReference BuildRecordPath) = BuildRecords[ProjectPath];
-
-				// update target build times into build records to ensure everything is up-to-date
-				FileReference FullPath = FileReference.Combine(ProjectPath.Directory, BuildRecord.TargetPath);
-				BuildRecord.TargetBuildTime = FileReference.GetLastWriteTime(FullPath);
-
-				if (FileReference.WriteAllTextIfDifferent(BuildRecordPath,
-					JsonSerializer.Serialize<CsProjBuildRecord>(BuildRecord, new JsonSerializerOptions { WriteIndented = true })))
+				CsProjBuildRecordEntry Entry = BuildRecords[ProjectPath];
+				if (FileReference.WriteAllTextIfDifferent(Entry.BuildRecordFile,
+					JsonSerializer.Serialize<CsProjBuildRecord>(Entry.BuildRecord, new JsonSerializerOptions { WriteIndented = true })))
 				{
-					Logger.LogDebug("Wrote script module build record to {BuildRecordPath}", BuildRecordPath);
+					Logger.LogDebug("Wrote script module build record to {BuildRecordPath}", Entry.BuildRecordFile);
 				}
 			}
 
 			// todo: re-verify build records after a build to verify that everything is actually up to date
 
 			// even if only a subset was built, this function returns the full list of target assembly paths
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> OutDict = new Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)>();
+			Dictionary<FileReference, CsProjBuildRecordEntry> OutDict = new();
 			foreach (ProjectGraphNode EntryPointNode in InputProjectGraph.EntryPointNodes)
 			{
 				FileReference ProjectPath = FileReference.FromString(EntryPointNode.ProjectInstance.FullPath);

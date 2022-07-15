@@ -152,7 +152,7 @@ namespace UnrealBuildBase
 			// If we have anything left to build, then build it
 			if (NotBuilt.Any())
 			{
-				Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)>? BuiltPlugins =
+				Dictionary<FileReference, CsProjBuildRecordEntry>? BuiltPlugins =
 					CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, new HashSet<FileReference>(NotBuilt),
 					GetBaseDirectories(ProjectFile), DefineConstants, false, false, true, out bBuildSuccess,
 					Count =>
@@ -169,7 +169,7 @@ namespace UnrealBuildBase
 				);
 				
 				// Add any built plugins back into the cache
-				foreach (KeyValuePair<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)> BuiltPlugin in BuiltPlugins)
+				foreach (KeyValuePair<FileReference, CsProjBuildRecordEntry> BuiltPlugin in BuiltPlugins)
 				{
 					Built.Add(BuiltPlugin.Key);
 					UbtPluginFileCache.Add(BuiltPlugin.Key, CompileScriptModule.GetTargetPath(BuiltPlugin));
