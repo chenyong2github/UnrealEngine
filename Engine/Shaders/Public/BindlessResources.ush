@@ -20,18 +20,21 @@
 //
 
 #if ENABLE_BINDLESS_RESOURCES && PLATFORM_SUPPORTS_BINDLESS
-    #define DEFINE_RESOURCE_VARIABLE(Type, Name) \
-        Type GetBindlessResource##Name() \
-        { \
-            return GetResourceFromHeap(Type, BindlessResource_##Name); \
-        }
+	#define DEFINE_RESOURCE_VARIABLE(Type, Name) \
+		Type GetBindlessResource##Name() \
+		{ \
+			return GetResourceFromHeap(Type, BindlessResource_##Name); \
+		}
 
-    #define GET_RESOURCE(Name) GetBindlessResource##Name()
+	#define GET_RESOURCE(Name) GetBindlessResource##Name()
 
-    #define DEFINE_RESOURCE(Type, Name) \
+	#define DEFINE_RESOURCE(Type, Name) \
 		DEFINE_RESOURCE_INDEX(Name); \
-        DEFINE_RESOURCE_VARIABLE(Type, Name); \
+		DEFINE_RESOURCE_VARIABLE(Type, Name); \
 		static const Type Name = GET_RESOURCE(Name);
+
+	COMPILER_DEFINE AUTO_BINDLESS_RESOURCE_INDEX(Name)          DEFINE_RESOURCE_INDEX(Name)
+	COMPILER_DEFINE AUTO_BINDLESS_RESOURCE_VARIABLE(Type, Name) DEFINE_RESOURCE_VARIABLE(Type, Name); static const Type Name = GET_RESOURCE(Name)
 #else
 	#define DEFINE_RESOURCE_VARIABLE(Type, Name)  Type Name
 	#define DEFINE_RESOURCE(Type, Name)           Type Name
@@ -41,16 +44,19 @@
 #if ENABLE_BINDLESS_SAMPLERS && PLATFORM_SUPPORTS_BINDLESS
 	#define DEFINE_SAMPLER_VARIABLE(Type, Name) \
 		Type GetBindlessSampler##Name() \
-        { \
-            return GetSamplerFromHeap(Type, BindlessSampler_##Name); \
-        }
+		{ \
+			return GetSamplerFromHeap(Type, BindlessSampler_##Name); \
+		}
 
-    #define GET_SAMPLER(Name)  GetBindlessSampler##Name()
+	#define GET_SAMPLER(Name)  GetBindlessSampler##Name()
 
-    #define DEFINE_SAMPLER(Type, Name) \
-        DEFINE_SAMPLER_INDEX(Name); \
-        DEFINE_SAMPLER_VARIABLE(Type, Name); \
+	#define DEFINE_SAMPLER(Type, Name) \
+		DEFINE_SAMPLER_INDEX(Name); \
+		DEFINE_SAMPLER_VARIABLE(Type, Name); \
 		static const Type Name = GET_SAMPLER(Name);
+
+	COMPILER_DEFINE AUTO_BINDLESS_SAMPLER_INDEX(Name)          uint BindlessSampler_##Name
+	COMPILER_DEFINE AUTO_BINDLESS_SAMPLER_VARIABLE(Type, Name) Type GetBindlessSampler##Name() { return GetSamplerFromHeap(Type, BindlessSampler_##Name); }; static const Type Name = GetBindlessSampler##Name()
 #else
 	#define DEFINE_SAMPLER_VARIABLE(Type, Name)  Type Name
 	#define DEFINE_SAMPLER(Type, Name)           Type Name

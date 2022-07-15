@@ -2,6 +2,110 @@
 
 #include "ShaderParameterParser.h"
 #include "ShaderCompilerCommon.h"
+#include "Misc/StringBuilder.h"
+
+template<typename TParameterFunction>
+static void IterateShaderParameterMembersInternal(
+	const FShaderParametersMetadata& ParametersMetadata,
+	uint16 ByteOffset,
+	TStringBuilder<1024>& ShaderBindingNameBuilder,
+	TParameterFunction Lambda)
+{
+	for (const FShaderParametersMetadata::FMember& Member : ParametersMetadata.GetMembers())
+	{
+		EUniformBufferBaseType BaseType = Member.GetBaseType();
+		const uint16 MemberOffset = ByteOffset + uint16(Member.GetOffset());
+		const uint32 NumElements = Member.GetNumElements();
+
+		int32 MemberNameLength = FCString::Strlen(Member.GetName());
+
+		if (BaseType == UBMT_INCLUDED_STRUCT)
+		{
+			check(NumElements == 0);
+			const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+			IterateShaderParameterMembersInternal(NewParametersMetadata, MemberOffset, ShaderBindingNameBuilder, Lambda);
+		}
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
+		{
+			ShaderBindingNameBuilder.Append(Member.GetName());
+			ShaderBindingNameBuilder.Append(TEXT("_"));
+
+			const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+			IterateShaderParameterMembersInternal(NewParametersMetadata, MemberOffset, ShaderBindingNameBuilder, Lambda);
+
+			ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength + 1);
+		}
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
+		{
+			ShaderBindingNameBuilder.Append(Member.GetName());
+			ShaderBindingNameBuilder.Append(TEXT("_"));
+
+			const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
+			{
+				FString ArrayElementIdString;
+				ArrayElementIdString.AppendInt(ArrayElementId);
+				int32 ArrayElementIdLength = ArrayElementIdString.Len();
+
+				ShaderBindingNameBuilder.Append(ArrayElementIdString);
+				ShaderBindingNameBuilder.Append(TEXT("_"));
+
+				uint16 NewStructOffset = MemberOffset + ArrayElementId * NewParametersMetadata.GetSize();
+				IterateShaderParameterMembersInternal(NewParametersMetadata, NewStructOffset, ShaderBindingNameBuilder, Lambda);
+
+				ShaderBindingNameBuilder.RemoveSuffix(ArrayElementIdLength + 1);
+			}
+
+			ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength + 1);
+		}
+		else
+		{
+			const bool bParametersAreExpanded =
+				NumElements > 0 &&
+				(BaseType == UBMT_TEXTURE ||
+					BaseType == UBMT_SRV ||
+					BaseType == UBMT_UAV ||
+					BaseType == UBMT_SAMPLER ||
+					IsRDGResourceReferenceShaderParameterType(BaseType));
+
+			if (bParametersAreExpanded)
+			{
+				const uint16 ElementSize = SHADER_PARAMETER_POINTER_ALIGNMENT;
+
+				for (uint32 Index = 0; Index < NumElements; Index++)
+				{
+					const FString RealBindingName = FString::Printf(TEXT("%s_%d"), Member.GetName(), Index);
+
+					ShaderBindingNameBuilder.Append(RealBindingName);
+					Lambda(ParametersMetadata, Member, ShaderBindingNameBuilder.ToString(), MemberOffset + Index * ElementSize);
+					ShaderBindingNameBuilder.RemoveSuffix(RealBindingName.Len());
+				}
+			}
+			else
+			{
+				ShaderBindingNameBuilder.Append(Member.GetName());
+				Lambda(ParametersMetadata, Member, ShaderBindingNameBuilder.ToString(), MemberOffset);
+				ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength);
+			}
+		}
+	}
+}
+
+template<typename TParameterFunction>
+static void IterateShaderParameterMembers(const FShaderParametersMetadata& ShaderParametersMetadata, TParameterFunction Lambda)
+{
+	FShaderParametersMetadata::EUseCase UseCase = ShaderParametersMetadata.GetUseCase();
+
+	TStringBuilder<1024> ShaderBindingNameBuilder;
+	if (UseCase == FShaderParametersMetadata::EUseCase::UniformBuffer || UseCase == FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer)
+	{
+		ShaderBindingNameBuilder.Append(ShaderParametersMetadata.GetShaderVariableName());
+		ShaderBindingNameBuilder.Append(TEXT("_"));
+	}
+
+	IterateShaderParameterMembersInternal(
+		ShaderParametersMetadata, /* ByteOffset = */ 0, ShaderBindingNameBuilder, Lambda);
+}
 
 static void AddNoteToDisplayShaderParameterMemberOnCppSide(
 	const FShaderCompilerInput& CompilerInput,
@@ -28,48 +132,44 @@ static void AddNoteToDisplayShaderParameterMemberOnCppSide(
 	CompilerOutput.Errors.Add(Error);
 }
 
-inline bool MemberWasPotentiallyMoved(const FShaderParametersMetadata::FMember& InMember)
+FShaderParameterParser::FShaderParameterParser() = default;
+FShaderParameterParser::~FShaderParameterParser() = default;
+
+FShaderParameterParser::FShaderParameterParser(
+	TArrayView<const TCHAR*> InExtraSRVTypes,
+	TArrayView<const TCHAR*> InExtraUAVTypes
+)
+	: ExtraSRVTypes(InExtraSRVTypes)
+	, ExtraUAVTypes(InExtraUAVTypes)
 {
-	const EUniformBufferBaseType BaseType = InMember.GetBaseType();
-	return BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32
-		|| BaseType == UBMT_TEXTURE || BaseType == UBMT_SRV || BaseType == UBMT_UAV
-		|| BaseType == UBMT_RDG_TEXTURE || BaseType == UBMT_RDG_TEXTURE_SRV || BaseType == UBMT_RDG_TEXTURE_UAV
-		|| BaseType == UBMT_RDG_BUFFER_SRV || BaseType == UBMT_RDG_BUFFER_UAV
-		|| BaseType == UBMT_SAMPLER
-		;
 }
 
-bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
+bool FShaderParameterParser::ParseParameters(
 	const FShaderCompilerInput& CompilerInput,
-	FShaderCompilerOutput& CompilerOutput,
-	FString& PreprocessedShaderSource,
-	const TCHAR* ConstantBufferType)
+	FShaderCompilerOutput& CompilerOutput)
 {
-	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
-	if (!CompilerInput.RootParametersStructure)
+	const FStringView ShaderSource(OriginalParsedShader);
+
+	if (CompilerInput.RootParametersStructure)
 	{
-		return true;
+		// Reserves the number of parameters up front.
+		ParsedParameters.Reserve(CompilerInput.RootParametersStructure->GetSize() / sizeof(int32));
+
+		IterateShaderParameterMembers(
+			*CompilerInput.RootParametersStructure,
+			[&](const FShaderParametersMetadata& ParametersMetadata,
+				const FShaderParametersMetadata::FMember& Member,
+				const TCHAR* ShaderBindingName,
+				uint16 ByteOffset)
+			{
+				FParsedShaderParameter ParsedParameter;
+				ParsedParameter.Member = &Member;
+				ParsedParameter.ConstantBufferOffset = ByteOffset;
+				check(ParsedParameter.IsBindable());
+
+				ParsedParameters.Add(ShaderBindingName, ParsedParameter);
+			});
 	}
-
-	const bool bMoveToRootConstantBuffer = ConstantBufferType != nullptr;
-	OriginalParsedShader = PreprocessedShaderSource;
-
-	// Reserves the number of parameters up front.
-	ParsedParameters.Reserve(CompilerInput.RootParametersStructure->GetSize() / sizeof(int32));
-
-	CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
-		[&](const FShaderParametersMetadata& ParametersMetadata,
-			const FShaderParametersMetadata::FMember& Member,
-			const TCHAR* ShaderBindingName,
-			uint16 ByteOffset)
-	{
-		FParsedShaderParameter ParsedParameter;
-		ParsedParameter.Member = &Member;
-		ParsedParameter.ConstantBufferOffset = ByteOffset;
-		check(ParsedParameter.IsBindable());
-
-		ParsedParameters.Add(ShaderBindingName, ParsedParameter);
-	});
 
 	bool bSuccess = true;
 
@@ -85,6 +185,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 
 			// Parsing what might be a type of the parameter.
 			ParsingPotentialType,
+			ParsingPotentialTypeTemplateArguments,
 			FinishedPotentialType,
 
 			// Parsing what might be a name of the parameter.
@@ -99,7 +200,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			FoundParameter,
 		};
 
-		const int32 ShaderSourceLen = PreprocessedShaderSource.Len();
+		const int32 ShaderSourceLen = ShaderSource.Len();
 
 		int32 CurrentPragamLineoffset = -1;
 		int32 CurrentLineoffset = 0;
@@ -145,7 +246,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 
 		for (int32 Cursor = 0; Cursor < ShaderSourceLen; Cursor++)
 		{
-			const TCHAR Char = PreprocessedShaderSource[Cursor];
+			const TCHAR Char = ShaderSource[Cursor];
 
 			auto FoundShaderParameter = [&]()
 			{
@@ -155,18 +256,46 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				check(NameStartPos != -1);
 				check(NameEndPos != -1);
 
-				FString Type = PreprocessedShaderSource.Mid(TypeStartPos, TypeEndPos - TypeStartPos + 1);
-				FString Name = PreprocessedShaderSource.Mid(NameStartPos, NameEndPos - NameStartPos + 1);
-				const FString ParsedName = Name;
+				FStringView Type = ShaderSource.Mid(TypeStartPos, TypeEndPos - TypeStartPos + 1);
+				FStringView Name = ShaderSource.Mid(NameStartPos, NameEndPos - NameStartPos + 1);
 
-				const bool bBindlessParameter = UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(Name);
+				FStringView Leftovers = ShaderSource.Mid(NameEndPos + 1, (Cursor - 1) - (NameEndPos + 1) + 1);
+
+				EShaderParameterType ParsedParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(Name);
+				const bool bBindlessIndex = (ParsedParameterType == EShaderParameterType::BindlessResourceIndex || ParsedParameterType == EShaderParameterType::BindlessSamplerIndex);
+
+				EShaderParameterType BindlessConversionType = EShaderParameterType::Num;
+
+				if ((bBindlessResources || bBindlessSamplers) && ParsedParameterType == EShaderParameterType::LooseData)
+				{
+					ParsedParameterType = UE::ShaderCompilerCommon::ParseParameterType(Type, ExtraSRVTypes, ExtraUAVTypes);
+
+					if (bBindlessResources && (ParsedParameterType == EShaderParameterType::SRV || ParsedParameterType == EShaderParameterType::UAV))
+					{
+						BindlessConversionType = EShaderParameterType::BindlessResourceIndex;
+					}
+					else if (bBindlessSamplers && ParsedParameterType == EShaderParameterType::Sampler)
+					{
+						BindlessConversionType = EShaderParameterType::BindlessSamplerIndex;
+					}
+
+					if (BindlessConversionType != EShaderParameterType::Num && Leftovers.Contains(TEXT("register")))
+					{
+						// avoid rewriting hardcoded register assignments
+						BindlessConversionType = EShaderParameterType::Num;
+					}
+				}
 
 				FParsedShaderParameter ParsedParameter;
+
+				EShaderParameterType ConstantBufferParameterType = EShaderParameterType::Num;
+				bool bMoveToRootConstantBuffer = false;
 				bool bUpdateParsedParameters = false;
-				bool bEraseOriginalParameter = false;
-				if (ParsedParameters.Contains(Name))
+
+ 				const FString ParsedParameterKey(Name);
+				if (ParsedParameters.Contains(ParsedParameterKey))
 				{
-					if (ParsedParameters.FindChecked(Name).IsFound())
+					if (ParsedParameters.FindChecked(ParsedParameterKey).IsFound())
 					{
 						// If it has already been found, it means it is duplicated. Do nothing and let the shader compiler throw the error.
 					}
@@ -174,13 +303,23 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 					{
 						// Update the parsed parameters
 						bUpdateParsedParameters = true;
-						ParsedParameter = ParsedParameters.FindChecked(Name);
+						ParsedParameter = ParsedParameters.FindChecked(ParsedParameterKey);
 
 						// Erase the parameter to move it into the root constant buffer.
-						if (bMoveToRootConstantBuffer && ParsedParameter.IsBindable())
+						if (bNeedToMoveToRootConstantBuffer && ParsedParameter.IsBindable())
 						{
-							EUniformBufferBaseType BaseType = ParsedParameter.Member->GetBaseType();
-							bEraseOriginalParameter = BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32 || bBindlessParameter;
+							const EUniformBufferBaseType BaseType = ParsedParameter.Member->GetBaseType();
+							bMoveToRootConstantBuffer =
+								BaseType == UBMT_INT32 ||
+								BaseType == UBMT_UINT32 ||
+								BaseType == UBMT_FLOAT32 ||
+								bBindlessIndex ||
+								(BindlessConversionType != EShaderParameterType::Num);
+
+							if (bMoveToRootConstantBuffer)
+							{
+								ConstantBufferParameterType = BindlessConversionType != EShaderParameterType::Num ? BindlessConversionType : ParsedParameterType;
+							}
 						}
 					}
 				}
@@ -193,28 +332,20 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				// Update 
 				if (bUpdateParsedParameters)
 				{
-					ParsedParameter.ParsedName = ParsedName;
 					ParsedParameter.ParsedType = Type;
 					ParsedParameter.ParsedPragmaLineoffset = CurrentPragamLineoffset;
 					ParsedParameter.ParsedLineOffset = CurrentLineoffset;
-					ParsedParameter.bOriginalParameterErased = bEraseOriginalParameter;
+					ParsedParameter.ParsedCharOffsetStart = TypeQualifierStartPos != -1 ? TypeQualifierStartPos : TypeStartPos;
+					ParsedParameter.ParsedCharOffsetEnd = Cursor;
+					ParsedParameter.BindlessConversionType = BindlessConversionType;
+					ParsedParameter.ConstantBufferParameterType = ConstantBufferParameterType;
 
 					if (ArrayStartPos != -1 && ArrayEndPos != -1)
 					{
-						ParsedParameter.ParsedArraySize = PreprocessedShaderSource.Mid(ArrayStartPos + 1, ArrayEndPos - ArrayStartPos - 1);
+						ParsedParameter.ParsedArraySize = ShaderSource.Mid(ArrayStartPos + 1, ArrayEndPos - ArrayStartPos - 1);
 					}
 
-					ParsedParameters.Add(Name, ParsedParameter);
-				}
-
-				// Erases this shader parameter conserving the same line numbers.
-				if (bEraseOriginalParameter)
-				{
-					for (int32 j = (TypeQualifierStartPos != -1 ? TypeQualifierStartPos : TypeStartPos); j <= Cursor; j++)
-					{
-						if (PreprocessedShaderSource[j] != '\r' && PreprocessedShaderSource[j] != '\n')
-							PreprocessedShaderSource[j] = ' ';
-					}
+					ParsedParameters.Add(ParsedParameterKey, ParsedParameter);
 				}
 
 				ResetState();
@@ -224,7 +355,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			const bool bIsLetter = (Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z');
 			const bool bIsNumber = Char >= '0' && Char <= '9';
 
-			const TCHAR* UpComing = (*PreprocessedShaderSource) + Cursor;
+			const TCHAR* UpComing = ShaderSource.GetData() + Cursor;
 			const int32 RemainingSize = ShaderSourceLen - Cursor;
 
 			CurrentLineoffset += Char == '\n';
@@ -272,14 +403,15 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			{
 				if (bIsLetter)
 				{
-					static const TCHAR* KeywordTable[] = {
+					static const TCHAR* KeywordTable[] =
+					{
 						TEXT("enum"),
 						TEXT("class"),
 						TEXT("const"),
 						TEXT("struct"),
 						TEXT("static"),
 					};
-					static int32 KeywordTableSize[] = {4, 5, 5, 6, 6};
+					static int32 KeywordTableSize[] = { 4, 5, 5, 6, 6 };
 
 					int32 RecognisedKeywordId = -1;
 					for (int32 KeywordId = 0; KeywordId < UE_ARRAY_COUNT(KeywordTable); KeywordId++)
@@ -349,15 +481,45 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				// Found character legal for a type...
 				if (bIsLetter ||
 					bIsNumber ||
-					Char == '<' || Char == '>' || Char == '_')
+					Char == '_')
 				{
 					// Keep browsing what might be type of the parameter.
+				}
+				else if (Char == '<')
+				{
+					// Found what looks like the begining of template argument that is legal on resource types for Instance Texture2D< float >
+					State = EState::ParsingPotentialTypeTemplateArguments;
 				}
 				else if (bIsWhiteSpace)
 				{
 					// Might have found a type.
 					State = EState::FinishedPotentialType;
 					TypeEndPos = Cursor - 1;
+				}
+				else
+				{
+					// Found unexpected character in the type.
+					State = EState::GoToNextSemicolonAndReset;
+				}
+			}
+			else if (State == EState::ParsingPotentialTypeTemplateArguments)
+			{
+				// Found character legal for a template argument...
+				if (bIsLetter ||
+					bIsNumber ||
+					Char == '_')
+				{
+					// Keep browsing what might be type of the parameter.
+				}
+				else if (bIsWhiteSpace || Char == ',')
+				{
+					// Spaces and comas are legal within agrument of the template arguments.
+				}
+				else if (Char == '>')
+				{
+					// Might have found a type with template argument.
+					State = EState::FinishedPotentialType;
+					TypeEndPos = Cursor;
 				}
 				else
 				{
@@ -372,6 +534,11 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 					// Might have found beginning of the name of a parameter.
 					State = EState::ParsingPotentialName;
 					NameStartPos = Cursor;
+				}
+				else if (Char == '<')
+				{
+					// Might have found beginning of a template argument for the type, that was separate by a whitespace from type. For instance Texture2D <float>
+					State = EState::ParsingPotentialTypeTemplateArguments;
 				}
 				else if (bIsWhiteSpace)
 				{
@@ -430,9 +597,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 					State = EState::GoToNextSemicolonAndReset;
 				}
 			}
-			else if (
-				State == EState::FinishedPotentialName ||
-				State == EState::FinishedArraySize)
+			else if (State == EState::FinishedPotentialName || State == EState::FinishedArraySize)
 			{
 				if (Char == ';')
 				{
@@ -508,58 +673,213 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			{
 				unimplemented();
 			}
-		} // for (int32 Cursor = 0; Cursor < PreprocessedShaderSource.Len(); Cursor++)
+		} // for (int32 Cursor = 0; Cursor < ShaderSourceLen; Cursor++)
 	}
 
+	return bSuccess;
+}
+
+void FShaderParameterParser::RemoveMovingParametersFromSource(FString& PreprocessedShaderSource)
+{
+	for (TPair<FString, FParsedShaderParameter>& Itr : ParsedParameters)
+	{
+		const FParsedShaderParameter& ParsedParameter = Itr.Value;
+
+		// If this parameter is going to be in the root constant buffer
+		if (ParsedParameter.ConstantBufferParameterType != EShaderParameterType::Num &&
+			// but it's not being converted to bindless
+			ParsedParameter.BindlessConversionType == EShaderParameterType::Num)
+		{
+			// then erase this shader parameter conserving the same line numbers.
+			for (int32 j = ParsedParameter.ParsedCharOffsetStart; j <= ParsedParameter.ParsedCharOffsetEnd; j++)
+			{
+				if (PreprocessedShaderSource[j] != '\r' && PreprocessedShaderSource[j] != '\n')
+				{
+					PreprocessedShaderSource[j] = ' ';
+				}
+			}
+		}
+	}
+}
+
+void FShaderParameterParser::ApplyBindlessModifications(FString& PreprocessedShaderSource)
+{
+	if (bBindlessResources || bBindlessSamplers)
+	{
+		// Array of modifications to do on PreprocessedShaderSource
+		struct FShaderCodeModifications
+		{
+			int32 CharOffsetStart;
+			int32 CharOffsetEnd;
+			FString Replace;
+		};
+		TArray<FShaderCodeModifications> Modifications;
+		Modifications.Reserve(ParsedParameters.Num());
+
+		for (TPair<FString, FParsedShaderParameter>& Itr : ParsedParameters)
+		{
+			const FStringView ShaderBindingName = Itr.Key;
+			FParsedShaderParameter& ParsedParameter = Itr.Value;
+
+			if (!ParsedParameter.IsFound())
+			{
+				continue;
+			}
+
+			if (ParsedParameter.BindlessConversionType != EShaderParameterType::Num)
+			{
+				const bool bIsSampler = (ParsedParameter.BindlessConversionType == EShaderParameterType::BindlessSamplerIndex);
+
+				const TCHAR* IndexDefine = bIsSampler ? TEXT("AUTO_BINDLESS_SAMPLER_INDEX") : TEXT("AUTO_BINDLESS_RESOURCE_INDEX");
+				const TCHAR* VariableDefine = bIsSampler ? TEXT("AUTO_BINDLESS_SAMPLER_VARIABLE") : TEXT("AUTO_BINDLESS_RESOURCE_VARIABLE");
+
+				const FStringView Name = ShaderBindingName;
+				const FStringView Type = ParsedParameter.ParsedType;
+
+				const FString IndexText = FString::Printf(TEXT("%s(%.*s);"), IndexDefine, Name.Len(), Name.GetData());
+				const FString VariableText = FString::Printf(TEXT("%s(%.*s, %.*s);"), VariableDefine, Type.Len(), Type.GetData(), Name.Len(), Name.GetData());
+
+				FShaderCodeModifications Modif;
+				Modif.CharOffsetStart = ParsedParameter.ParsedCharOffsetStart;
+				Modif.CharOffsetEnd = ParsedParameter.ParsedCharOffsetEnd + 1;
+
+				// If we weren't going to be added to a root constant buffer, that means we need to declare our index before we declare our getter.
+				if (ParsedParameter.ConstantBufferParameterType == EShaderParameterType::Num)
+				{
+					Modif.Replace += IndexText;
+				}
+				Modif.Replace += VariableText;
+
+				Modifications.Add(Modif);
+			}
+		}
+
+		// Apply all modifications
+		if (Modifications.Num() > 0)
+		{
+			// Sort all the modifications in order
+			Modifications.Sort(
+				[](const FShaderCodeModifications& ModifA, const FShaderCodeModifications& ModifB)
+				{
+					return  ModifA.CharOffsetStart < ModifB.CharOffsetStart;
+				}
+			);
+
+			// Find out the size of the shader code after all modifications
+			int32 NewShaderCodeSize = PreprocessedShaderSource.Len();
+			for (const FShaderCodeModifications& Modif : Modifications)
+			{
+				// Count the number of line return \n in CharOffsetStart -> CharOffsetEnd to ensure the line number remain unchanged.
+				check(!Modif.Replace.Contains(TEXT("\n")));
+				//int32 ReplacedCarriagedReturn = 0;
+				for (int32 CharPos = Modif.CharOffsetStart; CharPos < Modif.CharOffsetEnd; CharPos++)
+				{
+					ensure(PreprocessedShaderSource[CharPos] != '\n');
+				}
+
+				NewShaderCodeSize += Modif.Replace.Len() - (Modif.CharOffsetEnd - Modif.CharOffsetStart); // + ReplacedCarriagedReturn;
+			}
+
+			// Splice all the code and modifications together
+			FString NewShaderCode;
+			NewShaderCode.Reserve(NewShaderCodeSize);
+
+			int32 CurrentCodePos = 0;
+			for (const FShaderCodeModifications& Modif : Modifications)
+			{
+				check(CurrentCodePos <= Modif.CharOffsetStart);
+				NewShaderCode += PreprocessedShaderSource.Mid(CurrentCodePos, Modif.CharOffsetStart - CurrentCodePos);
+				NewShaderCode += Modif.Replace;
+				CurrentCodePos = Modif.CharOffsetEnd;
+			}
+			check(CurrentCodePos <= PreprocessedShaderSource.Len());
+			NewShaderCode += PreprocessedShaderSource.Mid(CurrentCodePos, PreprocessedShaderSource.Len() - CurrentCodePos);
+
+			// Commit all modifications to caller
+			PreprocessedShaderSource = NewShaderCode;
+		}
+	}
+}
+
+static const TCHAR* GetConstantSwizzle(uint16 ByteOffset)
+{
+	switch (ByteOffset % 16)
+	{
+	default: unimplemented();
+	case 0:  return TEXT("");
+	case 4:  return TEXT(".y");
+	case 8:  return TEXT(".z");
+	case 12: return TEXT(".w");
+	}
+}
+
+bool FShaderParameterParser::MoveShaderParametersToRootConstantBuffer(
+	const FShaderCompilerInput& CompilerInput,
+	FShaderCompilerOutput& CompilerOutput,
+	FString& PreprocessedShaderSource,
+	const TCHAR* ConstantBufferType)
+{
+	bool bSuccess = true;
+
 	// Generate the root cbuffer content.
-	if (bMoveToRootConstantBuffer)
+	if (CompilerInput.RootParametersStructure && bNeedToMoveToRootConstantBuffer)
 	{
 		FString RootCBufferContent;
 
-		CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
+		IterateShaderParameterMembers(
+			*CompilerInput.RootParametersStructure,
 			[&](const FShaderParametersMetadata& ParametersMetadata,
 				const FShaderParametersMetadata::FMember& Member,
 				const TCHAR* ShaderBindingName,
 				uint16 ByteOffset)
 		{
-			if (MemberWasPotentiallyMoved(Member))
+			FParsedShaderParameter* ParsedParameter = ParsedParameters.Find(ShaderBindingName);
+			if (ParsedParameter && ParsedParameter->IsFound() && ParsedParameter->ConstantBufferParameterType != EShaderParameterType::Num)
 			{
-				FParsedShaderParameter* ParsedParameter = ParsedParameters.Find(ShaderBindingName);
-				if (ParsedParameter && ParsedParameter->IsFound() && ParsedParameter->bOriginalParameterErased)
-				{
-					uint32 ConstantRegister = ByteOffset / 16;
-					const TCHAR* ConstantSwizzle = [ByteOffset]()
-						{
-							switch (ByteOffset % 16)
-							{
-							default: unimplemented();
-							case 0:  return TEXT("");
-							case 4:  return TEXT(".y");
-							case 8:  return TEXT(".z");
-							case 12: return TEXT(".w");
-							}
-						}();
+				const uint32 ConstantRegister = ByteOffset / 16;
+				const TCHAR* ConstantSwizzle = GetConstantSwizzle(ByteOffset);
 
+#define SVARG(N) N.Len(), N.GetData()
+				if (ParsedParameter->ConstantBufferParameterType == EShaderParameterType::BindlessResourceIndex)
+				{
+					RootCBufferContent.Append(FString::Printf(
+						TEXT("uint BindlessResource_%s : packoffset(c%d%s);\r\n"),
+						ShaderBindingName,
+						ConstantRegister,
+						ConstantSwizzle));
+				}
+				else if (ParsedParameter->ConstantBufferParameterType == EShaderParameterType::BindlessSamplerIndex)
+				{
+					RootCBufferContent.Append(FString::Printf(
+						TEXT("uint BindlessSampler_%s : packoffset(c%d%s);\r\n"),
+						ShaderBindingName,
+						ConstantRegister,
+						ConstantSwizzle));
+				}
+				else if (ParsedParameter->ConstantBufferParameterType == EShaderParameterType::LooseData)
+				{
 					if (!ParsedParameter->ParsedArraySize.IsEmpty())
 					{
 						RootCBufferContent.Append(FString::Printf(
-							TEXT("%s %s[%s] : packoffset(c%d%s);\r\n"),
-							*ParsedParameter->ParsedType,
-							*ParsedParameter->ParsedName,
-							*ParsedParameter->ParsedArraySize,
+							TEXT("%.*s %s[%.*s] : packoffset(c%d%s);\r\n"),
+							SVARG(ParsedParameter->ParsedType),
+							ShaderBindingName,
+							SVARG(ParsedParameter->ParsedArraySize),
 							ConstantRegister,
 							ConstantSwizzle));
 					}
 					else
 					{
 						RootCBufferContent.Append(FString::Printf(
-							TEXT("%s %s : packoffset(c%d%s);\r\n"),
-							*ParsedParameter->ParsedType,
-							*ParsedParameter->ParsedName,
+							TEXT("%.*s %s : packoffset(c%d%s);\r\n"),
+							SVARG(ParsedParameter->ParsedType),
+							ShaderBindingName,
 							ConstantRegister,
 							ConstantSwizzle));
 					}
 				}
+#undef SVARG
+
 			}
 		});
 
@@ -573,15 +893,50 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			*RootCBufferContent);
 
 		FString NewShaderCode = (
-			MakeInjectedShaderCodeBlock(TEXT("ParseAndMoveShaderParametersToRootConstantBuffer"), CBufferCodeBlock) +
+			MakeInjectedShaderCodeBlock(TEXT("MoveShaderParametersToRootConstantBuffer"), CBufferCodeBlock) +
 			PreprocessedShaderSource);
 
 		PreprocessedShaderSource = MoveTemp(NewShaderCode);
 
 		bMovedLoosedParametersToRootConstantBuffer = true;
-	} // if (bMoveToRootConstantBuffer)
+	} // if (CompilerInput.RootParametersStructure && bNeedToMoveToRootConstantBuffer)
 
 	return bSuccess;
+}
+
+bool FShaderParameterParser::ParseAndModify(
+	const FShaderCompilerInput& CompilerInput,
+	FShaderCompilerOutput& CompilerOutput,
+	FString& PreprocessedShaderSource,
+	const TCHAR* ConstantBufferType)
+{
+	bBindlessResources = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
+	bBindlessSamplers = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
+	bHasRootParameters = (CompilerInput.RootParametersStructure != nullptr);
+
+	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
+	if (!(bBindlessResources || bBindlessSamplers || bHasRootParameters))
+	{
+		return true;
+	}
+
+	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr;
+	OriginalParsedShader = PreprocessedShaderSource;
+
+	if (!ParseParameters(CompilerInput, CompilerOutput))
+	{
+		return false;
+	}
+
+	RemoveMovingParametersFromSource(PreprocessedShaderSource);
+	ApplyBindlessModifications(PreprocessedShaderSource);
+
+	if (bNeedToMoveToRootConstantBuffer)
+	{
+		return MoveShaderParametersToRootConstantBuffer(CompilerInput, CompilerOutput, PreprocessedShaderSource, ConstantBufferType);
+	}
+	
+	return true;
 }
 
 void FShaderParameterParser::ValidateShaderParameterType(
@@ -621,24 +976,32 @@ void FShaderParameterParser::ValidateShaderParameterType(
 
 		if (!bIsTypeCorrect)
 		{
+			auto CheckTypeCorrect = [&ParsedParameter, &ExpectedShaderType](int32 ParsedOffset, int32 ExpectedOffset) -> bool
+			{
+				const FStringView Parsed = ParsedParameter.ParsedType.RightChop(ParsedOffset);
+				const FStringView Expected = FStringView(ExpectedShaderType).RightChop(ExpectedOffset);
+
+				return Parsed.Compare(Expected, ESearchCase::CaseSensitive) == 0;
+			};
+
 			// Accept half-precision floats when single-precision was requested
 			if (ParsedParameter.ParsedType.StartsWith(TEXT("half")) && ParsedParameter.Member->GetBaseType() == UBMT_FLOAT32)
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.ParsedType + 4, *ExpectedShaderType + 5) == 0);
+				bIsTypeCorrect = CheckTypeCorrect(4, 5);
 			}
 			// Accept single-precision floats when half-precision was expected
 			else if (ParsedParameter.ParsedType.StartsWith(TEXT("float")) && ExpectedShaderType.StartsWith(TEXT("half")))
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.ParsedType + 5, *ExpectedShaderType + 4) == 0);
+				bIsTypeCorrect = CheckTypeCorrect(5, 4);
 			}
 			// support for min16float
 			else if (ParsedParameter.ParsedType.StartsWith(TEXT("min16float")) && ExpectedShaderType.StartsWith(TEXT("float")))
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.ParsedType + 10, *ExpectedShaderType + 5) == 0);
+				bIsTypeCorrect = CheckTypeCorrect(10, 5);
 			}
 			else if (ParsedParameter.ParsedType.StartsWith(TEXT("min16float")) && ExpectedShaderType.StartsWith(TEXT("half")))
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.ParsedType + 10, *ExpectedShaderType + 4) == 0);
+				bIsTypeCorrect = CheckTypeCorrect(10, 4);
 			}
 		}
 
@@ -667,8 +1030,8 @@ void FShaderParameterParser::ValidateShaderParameterType(
 
 			FShaderCompilerError Error;
 			Error.StrippedErrorMessage = FString::Printf(
-				TEXT("Error: Type %s of shader parameter %s in shader mismatch the shader parameter structure: %s expects a %s"),
-				*ParsedParameter.ParsedType,
+				TEXT("Error: Type %.*s of shader parameter %s in shader mismatch the shader parameter structure: %s expects a %s"),
+				ParsedParameter.ParsedType.Len(), ParsedParameter.ParsedType.GetData(),
 				*ShaderBindingName,
 				*CppCodeName,
 				*ExpectedShaderType);
@@ -720,7 +1083,8 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 
 	const TMap<FString, FParameterAllocation>& ParametersFoundByCompiler = CompilerOutput.ParameterMap.GetParameterMap();
 
-	CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
+	IterateShaderParameterMembers(
+		*CompilerInput.RootParametersStructure,
 		[&](const FShaderParametersMetadata& ParametersMetadata,
 			const FShaderParametersMetadata::FMember& Member,
 			const TCHAR* ShaderBindingName,

@@ -119,6 +119,6 @@ void UEReportAssertWithPayload(uint AssertID, uint4 Payload)
 
 #if PLATFORM_SUPPORTS_BINDLESS
 	// SM6.6 path
-	#define GetResourceFromHeap(Type, Index) ResourceDescriptorHeap[Index]
-	#define GetSamplerFromHeap(Type, Index) SamplerDescriptorHeap[Index]
+	COMPILER_DEFINE GetResourceFromHeap(Type, Index) ResourceDescriptorHeap[Index]
+	COMPILER_DEFINE GetSamplerFromHeap(Type, Index) SamplerDescriptorHeap[Index]
 #endif

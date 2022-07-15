@@ -6068,11 +6068,17 @@ void GlobalBeginCompileShader(
 		const ERHIBindlessConfiguration ResourcesConfig = RHIGetBindlessResourcesConfiguration(EShaderPlatform(Target.Platform));
 		const ERHIBindlessConfiguration SamplersConfig = RHIGetBindlessSamplersConfiguration(EShaderPlatform(Target.Platform));
 
-		Input.Environment.SetDefine(TEXT("ENABLE_BINDLESS_RESOURCES"),
-			ResourcesConfig == ERHIBindlessConfiguration::AllShaders || (ResourcesConfig == ERHIBindlessConfiguration::RayTracingShaders && bIsRaytracingShader));
+		if (ResourcesConfig == ERHIBindlessConfiguration::AllShaders || (ResourcesConfig == ERHIBindlessConfiguration::RayTracingShaders && bIsRaytracingShader))
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_BindlessResources);
+			Input.Environment.SetDefine(TEXT("ENABLE_BINDLESS_RESOURCES"), true);
+		}
 
-		Input.Environment.SetDefine(TEXT("ENABLE_BINDLESS_SAMPLERS"),
-			SamplersConfig == ERHIBindlessConfiguration::AllShaders || (SamplersConfig == ERHIBindlessConfiguration::RayTracingShaders && bIsRaytracingShader));
+		if (SamplersConfig == ERHIBindlessConfiguration::AllShaders || (SamplersConfig == ERHIBindlessConfiguration::RayTracingShaders && bIsRaytracingShader))
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_BindlessSamplers);
+			Input.Environment.SetDefine(TEXT("ENABLE_BINDLESS_SAMPLERS"), true);
+		}
 	}
 
 	{

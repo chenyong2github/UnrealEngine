@@ -117,9 +117,12 @@ enum ECompilerFlags
 	CFLAG_PrecompileWithDXC,
 	// Enable HLSL 2021 version. Enables templates, operator overloaing, C++ style function overloading. Contains breaking change with short-circuiting evaluation.
 	CFLAG_HLSL2021,
-
 	// Allow warnings to be treated as errors
 	CFLAG_WarningsAsErrors,
+	// Enabled if bindless resources are enabled for the platform
+	CFLAG_BindlessResources,
+	// Enabled if bindless samplers are enabled for the platform
+	CFLAG_BindlessSamplers,
 
 	CFLAG_Max,
 };
