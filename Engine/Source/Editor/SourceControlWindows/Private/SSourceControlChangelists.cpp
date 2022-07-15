@@ -36,7 +36,7 @@
 #include "SSourceControlSubmit.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
-
+#include "Virtualization/VirtualizationSystem.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -936,41 +936,51 @@ static bool GetOnPresubmitResult(FSourceControlChangelistStatePtr Changelist, FC
 
 	TArray<FText> PayloadErrors;
 	TArray<FText> DescriptionTags;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(LocalFilepathList, DescriptionTags, PayloadErrors);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (!PayloadErrors.IsEmpty())
+	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	if (System.IsEnabled())
 	{
-		for (const FText& Error : PayloadErrors)
+		if (System.TryVirtualizePackages(LocalFilepathList, DescriptionTags, PayloadErrors))
 		{
-			FMessageLog("SourceControl").Error(Error);
+			if (!DescriptionTags.IsEmpty())
+			{
+				FTextBuilder NewDescription;
+				NewDescription.AppendLine(Description.Description);
+				NewDescription.AppendLine(); // Add a gap between the user input and any automated description tags we need to add
+
+				for (const FText& Line : DescriptionTags)
+				{
+					NewDescription.AppendLine(Line);
+				}
+
+				Description.Description = NewDescription.ToText();
+			}
 		}
-
-		// Setup the notification for operation feedback
-		FText FailureMsg(LOCTEXT("SCC_Virtualization_Failed", "Virtualized payloads failed to submit."));
-		FNotificationInfo Info(FailureMsg);
-
-		Info.Text = LOCTEXT("SCC_Checkin_Failed", "Failed to check in files!");
-		Info.ExpireDuration = 8.0f;
-		Info.HyperlinkText = LOCTEXT("SCC_Checkin_ShowLog", "Show Message Log");
-		Info.Hyperlink = FSimpleDelegate::CreateLambda([]() { FMessageLog("SourceControl").Open(EMessageSeverity::Error, true); });
-
-		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-		Notification->SetCompletionState(SNotificationItem::CS_Fail);
-
-		return false;
-	}
-	else if (!DescriptionTags.IsEmpty())
-	{
-		FTextBuilder NewDescription;
-		NewDescription.AppendLine(Description.Description);
-		NewDescription.AppendLine(); // Add a gap between the user input and any automated description tags we need to add
-
-		for (const FText& Line : DescriptionTags)
+		else
 		{
-			NewDescription.AppendLine(Line);
-		}
+			for (const FText& Error : PayloadErrors)
+			{
+				FMessageLog("SourceControl").Error(Error);
+			}
 
-		Description.Description = NewDescription.ToText();
+			// Setup the notification for operation feedback
+			FText FailureMsg(LOCTEXT("SCC_Virtualization_Failed", "Virtualized payloads failed to submit."));
+			FNotificationInfo Info(FailureMsg);
+
+			Info.Text = LOCTEXT("SCC_Checkin_Failed", "Failed to check in files!");
+			Info.ExpireDuration = 8.0f;
+			Info.HyperlinkText = LOCTEXT("SCC_Checkin_ShowLog", "Show Message Log");
+			Info.Hyperlink = FSimpleDelegate::CreateLambda([]() { FMessageLog("SourceControl").Open(EMessageSeverity::Error, true); });
+
+			TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+			Notification->SetCompletionState(SNotificationItem::CS_Fail);
+
+			return false;
+		}
 	}
 
 	return true;

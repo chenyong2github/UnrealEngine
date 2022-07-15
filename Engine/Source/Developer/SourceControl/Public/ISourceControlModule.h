@@ -98,7 +98,7 @@ public:
 	virtual void QueueStatusUpdate(const TArray<UPackage*>& InPackages) = 0;
 
 	/**
-	 * Queues a file to have its source control status updated in the background.
+	 * Queues a file to have its s7ource control status updated in the background.
 	 * @param	InFilenames	The files to queue.
 	 */
 	virtual void QueueStatusUpdate(const TArray<FString>& InFilenames) = 0;
@@ -204,16 +204,19 @@ public:
 	/** 
 	 * Register a delegate that is invokes right before files are submitted to source control. @see FSourceControlPreSubmitFinalizeDelegate
 	 */
+	UE_DEPRECATED(5.1, "ISourceControlModule::RegisterPreSubmitFinalize is deprecated, the functionality will be removed")
 	virtual FDelegateHandle RegisterPreSubmitFinalize(const FSourceControlPreSubmitFinalizeDelegate::FDelegate& Delegate) = 0;
 
 	/**
 	 * Unregister a previously registered delegate. @see FSourceControlPreSubmitFinalizeDelegate
 	 */
+	UE_DEPRECATED(5.1, "ISourceControlModule::UnregisterPreSubmitFinalize is deprecated, the functionality will be removed")
 	virtual void UnregisterPreSubmitFinalize(FDelegateHandle Handle) = 0;
 
 	/** 
 	 * Returns access to the delegate so that it can be broadcast as needed. @see FSourceControlPreSubmitFinalizeDelegate
 	 */
+	UE_DEPRECATED(5.1, "ISourceControlModule::GetOnPreSubmitFinalize is deprecated, the functionality will be removed")
 	virtual const FSourceControlPreSubmitFinalizeDelegate& GetOnPreSubmitFinalize() const = 0;
 
 	/**
