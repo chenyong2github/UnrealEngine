@@ -22,7 +22,7 @@ enum class EFragmentationState : uint8 {
 struct PerSessionDataServer
 {
 	// Each session is actually a socket to a client
-	FWebSocket *Socket;
+	FWebSocket* Socket;
 	// Holds the concatenated message fragments.
 	TArray<uint8> FrameBuffer;
 	// The current state of the message being read.
@@ -39,8 +39,64 @@ static int unreal_networking_server(struct lws *wsi, enum lws_callback_reasons r
 	{
 		UE_LOG(LogWebSocketNetworking, Log, TEXT("websocket server: %s"), ANSI_TO_TCHAR(line));
 	}
+#endif // UE_BUILD_SHIPPING
+
+#endif // USE_LIBWEBSOCKET
+
+bool FWebSocketServer::IsHttpEnabled() const
+{
+	return bEnableHttp;
+}
+
+void FWebSocketServer::EnableHTTPServer(TArray<FWebSocketHttpMount> InDirectoriesToServe)
+{
+#if USE_LIBWEBSOCKET
+	bEnableHttp = true;
+
+	DirectoriesToServe = MoveTemp(InDirectoriesToServe);
+	const int NMounts = DirectoriesToServe.Num();
+
+	if(NMounts == 0)
+	{
+		return;
+	}
+
+	// Convert DirectoriesToServe to lws_http_mount for lws
+	LwsHttpMounts = new lws_http_mount[NMounts];
+
+	for(int i = 0; i < NMounts; i++) {
+		bool bLastMount = i == (NMounts - 1);
+		FWebSocketHttpMount& MountDir = DirectoriesToServe[i];
+		WebSocketInternalHttpMount* LWSMount = &LwsHttpMounts[i];
+		LWSMount->mount_next = bLastMount ? NULL : &LwsHttpMounts[i + 1];
+		LWSMount->mountpoint = MountDir.GetWebPath();
+		LWSMount->origin = MountDir.GetPathOnDisk();
+
+		if(!MountDir.HasDefaultFile())
+		{
+			LWSMount->def = MountDir.GetDefaultFile();
+		}
+		else
+		{
+			LWSMount->def = NULL;
+		}
+
+		LWSMount->protocol = NULL;
+		LWSMount->cgienv = NULL;
+		LWSMount->extra_mimetypes = NULL; // We may wish to expose this in future
+		LWSMount->interpret = NULL;
+		LWSMount->cgi_timeout = 0;
+		LWSMount->cache_max_age = 0;
+		LWSMount->auth_mask = 0;
+		LWSMount->cache_reusable = 0;
+		LWSMount->cache_revalidate = 0;
+		LWSMount->cache_intermediaries = 0;
+		LWSMount->origin_protocol = LWSMPRO_FILE;
+		LWSMount->mountpoint_len = FPlatformString::Strlen(MountDir.GetWebPath());
+		LWSMount->basic_auth_login_file = NULL;
+	}
 #endif
-#endif
+}
 
 bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallBack)
 {
@@ -86,12 +142,17 @@ bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallB
 	//Info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 	Info.options |= LWS_SERVER_OPTION_DISABLE_IPV6;
 
+	if(bEnableHttp && LwsHttpMounts != NULL)
+	{
+		Info.mounts = &LwsHttpMounts[0];
+	}
+
 	Context = lws_create_context(&Info);
 
 	if (Context == NULL)
 	{
 		ServerPort = 0;
-		delete Protocols;
+		delete[] Protocols;
 		Protocols = NULL;
 		return false; // couldn't create a server.
 	}
@@ -118,8 +179,11 @@ FWebSocketServer::~FWebSocketServer()
 		Context = NULL;
 	}
 
-	 delete Protocols;
+	 delete[] Protocols;
 	 Protocols = NULL;
+
+	 delete[] LwsHttpMounts;
+	 LwsHttpMounts = NULL;
 #endif
 }
 
@@ -143,7 +207,7 @@ static int unreal_networking_server
 		size_t Len
 	)
 {
-	struct lws_context *Context = lws_get_context(Wsi);
+	struct lws_context* Context = lws_get_context(Wsi);
 	PerSessionDataServer* BufferInfo = (PerSessionDataServer*)User;
 	FWebSocketServer* Server = (FWebSocketServer*)lws_context_user(Context);
 
@@ -201,8 +265,11 @@ static int unreal_networking_server
 			if (BufferInfo->Socket->Context == Context) // UE-68340 -- bandaid until this file is removed in favor of using LwsWebSocketsManager.cpp & LwsWebSocket.cpp
 			{
 				BufferInfo->Socket->OnRawWebSocketWritable(Wsi);
+
+				// Note: This particular lws callback reason gets hit in both ws and http cases as it used to signal that the server is in a writeable state.
+				// This means we only want to set an infinite timeout on genuine websocket connections, not http connections, otherwise they hang!
+				lws_set_timeout(Wsi, NO_PENDING_TIMEOUT, 0);
 			}
-			lws_set_timeout(Wsi, NO_PENDING_TIMEOUT, 0);
 			break;
 		case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
 			{
@@ -210,17 +277,22 @@ static int unreal_networking_server
 			}
 			break;
 		case LWS_CALLBACK_CLOSED:
-			if (BufferInfo->Socket)
+			if (BufferInfo->Socket->Context == Context)
 			{
 				BufferInfo->Socket->OnClose();
 			}
 			break;
 		case LWS_CALLBACK_WSI_DESTROY:
+			break;
 		case LWS_CALLBACK_PROTOCOL_DESTROY:
-		case LWS_CALLBACK_CLOSED_HTTP:
 			break;
 	}
 
+	// Check if http should be enabled or not, if so, use the in-built `lws_callback_http_dummy` which handles basic http requests
+	if(Server != nullptr && Server->IsHttpEnabled())
+	{
+		return lws_callback_http_dummy(Wsi, Reason, User, In, Len);
+	}
 	return 0;
 }
 #endif

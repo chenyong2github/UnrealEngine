@@ -14,10 +14,13 @@ public:
 	
 	//~ Begin IWebSocketServer interface
 	virtual ~FWebSocketServer() override;
+	virtual void EnableHTTPServer(TArray<FWebSocketHttpMount> DirectoriesToServe) override;
 	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack) override;
 	virtual void Tick() override;
 	virtual FString Info() override;
 	//~ End IWebSocketServer interface
+
+	bool IsHttpEnabled() const;
 
 // this was made public because of cross-platform build issues
 public:
@@ -33,6 +36,12 @@ public:
 
 	friend class FWebSocket;
 	uint32 ServerPort;
+
+private:
+	bool bEnableHttp = false;
+
+	TArray<FWebSocketHttpMount> DirectoriesToServe;
+	WebSocketInternalHttpMount* LwsHttpMounts = NULL;
 };
 
 
