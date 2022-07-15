@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Metadata/PCGMetadata.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -13,10 +14,18 @@ class UPCGComponent;
 class UPCGNode;
 struct FPCGPoint;
 
+struct FPCGMetadataInfo
+{
+	FName MetadataId = NAME_None;
+	int8 Index = 0;
+};
+
 struct FPCGListViewItem
 {
 	int32 Index = INDEX_NONE;
 	const FPCGPoint* PCGPoint = nullptr;
+	const UPCGMetadata* PCGMetadata = nullptr;
+	const TMap<FName, FPCGMetadataInfo>* MetadataInfos = nullptr;
 };
 
 typedef TSharedPtr<FPCGListViewItem> PCGListviewItemPtr;
@@ -63,6 +72,9 @@ private:
 
 	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	void AddMetadataColumn(const FName& InColumnId, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
+	void RemoveMetadataColumns();
+
 	/** Pointer back to the PCG editor that owns us */
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
 
@@ -72,7 +84,11 @@ private:
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;
 	TArray<PCGListviewItemPtr> ListViewItems;
+	/** Empty list to force refresh the ListView when regenerating */
+	TArray<PCGListviewItemPtr> EmptyList;
 
 	TSharedPtr<SComboBox<TSharedPtr<FName>>> DataComboBox;
 	TArray<TSharedPtr<FName>> DataComboBoxItems;
+
+	TMap<FName, FPCGMetadataInfo> MetadataInfos;
 };

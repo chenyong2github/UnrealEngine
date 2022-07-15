@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PCGMetadataCommon.h"
 #include "PCGMetadataAccessor.h"
+#include "PCGMetadataAttributeTraits.h"
+#include "PCGMetadataCommon.h"
 
 #include "PCGMetadata.generated.h"
 
