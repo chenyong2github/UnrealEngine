@@ -533,7 +533,7 @@ TArray<FString> UInterchangeManager::GetSupportedFormats(const EInterchangeTrans
 	{
 		const UInterchangeTranslatorBase* TranslatorBaseCDO = TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>();
 
-		if (TranslatorBaseCDO->GetTranslatorType() == ForTranslatorType)
+		if(EnumHasAnyFlags(TranslatorBaseCDO->GetTranslatorType(), ForTranslatorType))
 		{
 			FileExtensions.Append(TranslatorBaseCDO->GetSupportedFormats());
 		}
