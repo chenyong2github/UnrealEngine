@@ -21,7 +21,7 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase&, uint32 Siz
 	}
 
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
-	check(Size > 0);
+	checkf(Size > 0, TEXT("Attempt to create buffer '%s' with size 0."), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("(null)"));
 
 	// Describe the buffer.
 	D3D11_BUFFER_DESC Desc = { Size };

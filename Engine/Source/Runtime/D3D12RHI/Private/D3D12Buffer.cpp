@@ -317,7 +317,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AllocateBuffer);
 
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
-	check(Size > 0);
+	checkf(Size > 0, TEXT("Attempt to create buffer '%s' with size 0."), InDebugName ? InDebugName : TEXT("(null)"));
 
 	if (EnumHasAnyFlags(InUsage, BUF_AnyDynamic))
 	{
