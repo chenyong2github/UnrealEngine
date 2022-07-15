@@ -26,8 +26,6 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-#pragma optimize("",off)
-
 int32 GLumenSupported = 1;
 FAutoConsoleVariableRef CVarLumenSupported(
 	TEXT("r.Lumen.Supported"),
@@ -2907,5 +2905,3 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 	LumenSceneData.CardIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
 }
-
-#pragma optimize("",on)
