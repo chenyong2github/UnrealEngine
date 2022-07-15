@@ -14,6 +14,8 @@ UCLASS(config=Game, NotBlueprintable, notplaceable)
 class AParticleEventManager : public AActor
 {
 	GENERATED_UCLASS_BODY()
+		
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void HandleParticleSpawnEvents( UParticleSystemComponent* Component, const TArray<FParticleEventSpawnData>& SpawnEvents );
 	virtual void HandleParticleDeathEvents( UParticleSystemComponent* Component, const TArray<FParticleEventDeathData>& DeathEvents );

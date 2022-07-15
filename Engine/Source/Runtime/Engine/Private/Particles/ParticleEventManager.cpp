@@ -11,6 +11,21 @@ AParticleEventManager::AParticleEventManager(const FObjectInitializer& ObjectIni
 	SetCanBeDamaged(false);
 }
 
+void AParticleEventManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	if (EndPlayReason == EEndPlayReason::Destroyed)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (World->MyParticleEventManager == this)
+			{
+				World->MyParticleEventManager = nullptr;
+			}
+		}
+	}
+}
+
 void AParticleEventManager::HandleParticleSpawnEvents( UParticleSystemComponent* Component, const TArray<FParticleEventSpawnData>& SpawnEvents )
 {
 	AEmitter* Emitter = Cast<AEmitter>(Component->GetOwner());
