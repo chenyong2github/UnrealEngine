@@ -951,7 +951,8 @@ void GameProjectUtils::CheckForOutOfDateGameProjectFile()
 			const FText UpdateProjectCancelText = LOCTEXT("UpdateProjectFileCancel", "Not Now");
 
 			FNotificationInfo Info(UpdateProjectText);
-			Info.bFireAndForget = false;
+			Info.ExpireDuration = 10;
+			Info.bFireAndForget = true;
 			Info.bUseLargeFont = false;
 			Info.bUseThrobber = false;
 			Info.bUseSuccessFailIcons = false;
