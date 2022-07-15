@@ -793,6 +793,17 @@ namespace UnrealBuildTool
 				Result += " -fstack-protector-strong";  // Emits extra code to check for buffer overflows
 			}
 
+			// Add analysis flags to the argument list.
+			if (StaticAnalyzer == StaticAnalyzer.Default)
+			{
+				List<string> Arguments = new List<string>();
+				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
+				for (int i = 0; i < Arguments.Count; i++)
+				{
+					Result += " " + Arguments[i];
+				}
+			}
+
 			Result += " -fforce-emit-vtables";      // Helps with devirtualization
 			//Result += " -fstrict-vtable-pointers";	// Assumes that vtable pointer will never change, i.e. object of a different type would not be constracted in place of another object. Helps with devirtualization
 
@@ -1395,9 +1406,10 @@ namespace UnrealBuildTool
 					string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
 					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					if(bExecuteCompilerThroughShell)
+					CompileAction.CommandDescription = StaticAnalyzer == StaticAnalyzer.Default ? "Analyze" : "Compile";
+					if (bExecuteCompilerThroughShell)
 					{
-						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, "Compile");
+						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, CompileAction.CommandDescription);
 					}
 					else
 					{
