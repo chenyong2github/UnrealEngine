@@ -26,7 +26,10 @@ SActorEditorContext::~SActorEditorContext()
 {
 	GEditor->GetEditorWorldContext().RemoveRef(World);
 	FEditorDelegates::MapChange.RemoveAll(this);
-	UActorEditorContextSubsystem::Get()->OnActorEditorContextSubsystemChanged().RemoveAll(this);
+	if (UActorEditorContextSubsystem* ActorEditorContextSubsystem = UActorEditorContextSubsystem::Get())
+	{
+		ActorEditorContextSubsystem->OnActorEditorContextSubsystemChanged().RemoveAll(this);
+	}
 }
 
 void SActorEditorContext::Rebuild()
