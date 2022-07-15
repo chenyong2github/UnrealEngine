@@ -84,7 +84,7 @@ namespace FNavigationSystem
 	void NAVIGATIONSYSTEM_API MakeAllComponentsNeverAffectNav(AActor& Actor);
 
 #if ALLOW_TIME_SLICE_DEBUG
-	const FName TimeSliceDefaultSectionNameDebug= FName(TEXT("DefaultSection"));
+	const FName DebugTimeSliceDefaultSectionName = FName(TEXT("DefaultSection"));
 #endif // ALLOW_TIME_SLICE_DEBUG
 }
 
@@ -111,7 +111,7 @@ namespace ENavigationBuildLock
 #if ALLOW_TIME_SLICE_DEBUG
 #define MARK_TIMESLICE_SECTION_DEBUG(TIME_SLICER, TIME_SLICE_FNAME) \
 static const FName TIME_SLICE_FNAME(TEXT(#TIME_SLICE_FNAME)); \
-TIME_SLICER.SetSectionNameDebug(TIME_SLICE_FNAME);
+TIME_SLICER.DebugSetSectionName(TIME_SLICE_FNAME);
 #else
 #define MARK_TIMESLICE_SECTION_DEBUG(TIME_SLICER, TIME_SLICE_FNAME) ;
 #endif
@@ -146,15 +146,21 @@ public:
 
 
 #if ALLOW_TIME_SLICE_DEBUG
-	void SetCurrentTileDebug(UNavigationSystemV1& InNavSystem, const int InNavDataIdx, const FIntPoint& InTile, const FBox& InTileBox) const;
+	/*
+	 * Sets data used for debugging time slices that are taking too long to process.
+	 * @param LongTimeSliceFunction function called when a time slice is taking too long to process.
+	 * @param LongTimeSliceDuration when a time slice takes longer than this duration LongTimeSliceFunction will be called.
+	 */
+	void DebugSetLongTimeSliceData(TFunction<void(FName, double)> LongTimeSliceFunction, double LongTimeSliceDuration) const;
+	void DebugResetLongTimeSliceFunction() const;
 
 	/**
 	 *  Sets the debug name for a time sliced section of code.
 	 *  Do not call this directly use MARK_TIMESLICE_SECTION_DEBUG
 	 */
-	void SetSectionNameDebug(FName InSectionNameDebug) const
+	void DebugSetSectionName(FName InDebugSectionName) const
 	{
-		SectionNameDebug = InSectionNameDebug;
+		DebugSectionName = InDebugSectionName;
 	}
 #endif // ALLOW_TIME_SLICE_DEBUG
 
@@ -166,11 +172,9 @@ protected:
 	mutable bool bTimeSliceFinishedCached = false;
 
 #if ALLOW_TIME_SLICE_DEBUG
-	mutable TWeakObjectPtr<UNavigationSystemV1> NavSystemDebug;
-	mutable int NaxDataIdxDebug = 0;
-	mutable FIntPoint TileDebug;
-	mutable FBox TileBoxDebug;
-	mutable FName SectionNameDebug = FNavigationSystem::TimeSliceDefaultSectionNameDebug;
+	mutable TFunction<void(FName, double)> DebugLongTimeSliceFunction;
+	mutable double DebugLongTimeSliceDuration = 0.;
+	mutable FName DebugSectionName = FNavigationSystem::DebugTimeSliceDefaultSectionName;
 #endif
 };
 

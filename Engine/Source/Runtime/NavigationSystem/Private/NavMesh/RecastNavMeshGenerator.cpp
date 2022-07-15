@@ -6066,13 +6066,41 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 			SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().EndTimeSliceAndAdjustDuration();
 		}
 
+#if ALLOW_TIME_SLICE_DEBUG
+		// Reset the debug function to make sure the captured variables can't be used when invalid.
+		// This is just bombproofing the code as TestTimeSliceFinished() should not be called until 
+		// ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles() is next called.
+		SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().DebugResetLongTimeSliceFunction();
+#endif // ALLOW_TIME_SLICE_DEBUG
+
 		return UpdatedTiles;
 	};
+
+#if ALLOW_TIME_SLICE_DEBUG
+	auto DebugLongTileRegenFunction = [this](FName DebugSectionName, double Duration)
+	{
+		const FRecastTileGenerator* const TileGenerator = SyncTimeSlicedData.TileGeneratorSync.Get();
+
+		// This shouldn't trigger but its fairly easy during development to accidentaly call TestTimeSliceFinished() when TileGenerator == nullptr.
+		if (ensure(TileGenerator))
+		{
+			const FVector Pos = SyncTimeSlicedData.TileGeneratorSync->GetTileBB().GetCenter();
+
+			check(DestNavMesh);
+
+			// I'd quite like to make this a Warning, but it would be too frequently logged as things stand.
+			UE_LOG(LogNavigation, Verbose, TEXT("Nav mesh data: %s, tile at %d, %d, coordinate %f, %f, %f, section %s is taking %f secs to partially regenerate!"), *DestNavMesh->GetName(), TileGenerator->GetTileX(), TileGenerator->GetTileY(), Pos.X, Pos.Y, Pos.Z, *DebugSectionName.ToString(), Duration);
+			UE_VLOG_BOX(DestNavMesh, LogNavigation, Verbose, TileGenerator->GetTileBB(), FColor::Red, TEXT("Nav mesh data : %s,  tile at %d, %d, section %s is taking %f secs to partially regenerate!"), *DestNavMesh->GetName(), TileGenerator->GetTileX(), TileGenerator->GetTileY(), *DebugSectionName.ToString(), Duration);
+		}
+	};
+
+	SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().DebugSetLongTimeSliceData(DebugLongTileRegenFunction, DestNavMesh->TimeSliceLongDurationDebug);
+#endif // ALLOW_TIME_SLICE_DEBUG
 
 	int32 NextPendingDirtyTileIndex = INDEX_NONE;
 	const bool bHadWorkToDo = HasWorkToDo(NextPendingDirtyTileIndex);
 
-	//only calculate the time slice and process tiles if we have work to do
+	// Only calculate the time slice and process tiles if we have work to do.
 	if (bHadWorkToDo)
 	{
 		SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().StartTimeSlice();
@@ -6100,14 +6128,6 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				check(SyncTimeSlicedData.TileGeneratorSync);
 
-#if ALLOW_TIME_SLICE_DEBUG
-				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-
-				check(NavSys);
-
-				SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().SetCurrentTileDebug(*NavSys, SyncTimeSlicedData.TimeSliceManager->GetNavDataIdx(), TileLocation, SyncTimeSlicedData.TileGeneratorSync->GetTileBB());
-#endif
-
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 
 				if (SyncTimeSlicedData.TileGeneratorSync->HasDataToBuild())
@@ -6133,6 +6153,8 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 			}
 			else
 			{
+				check(SyncTimeSlicedData.TileGeneratorSync);
+
 				TileLocation.X = SyncTimeSlicedData.TileGeneratorSync->GetTileX();
 				TileLocation.Y = SyncTimeSlicedData.TileGeneratorSync->GetTileY();
 			}
@@ -6195,7 +6217,6 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 			{
 				//reset state to Init for next tile to be processed
 				SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Init;
-				SyncTimeSlicedData.TileGeneratorSync.Reset();
 
 				SyncTimeSlicedData.CurrentTileRegenDuration += (FPlatformTime::Seconds() - TimeStartProcessingTileThisFrame);
 
@@ -6206,7 +6227,13 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				MARK_TIMESLICE_SECTION_DEBUG(SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer(), FinishTile);
 
 				//test time slice 
-				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
+				const bool bTimeSliceFinished = SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
+
+				//reset TileGeneratorSync after the last call to TestTimeSliceFinished for this tile, otherwise we may end up
+				//trying to access TileGeneratorSync from DebugLongTileRegenFunction()
+				SyncTimeSlicedData.TileGeneratorSync.Reset();
+
+				if (bTimeSliceFinished)
 				{
 					//we just calculated and set TileRegenDuration so no need to calculate it again
 					return EndFunction(false /* bCalcTileRegenDuration */, bHadWorkToDo);
