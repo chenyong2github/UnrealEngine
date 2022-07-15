@@ -9078,6 +9078,52 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 	return AddCodeChunk(MCT_Float3, TEXT("GetDistanceFieldGradientGlobal(%s)"), *CoerceParameter(PositionArg, MCT_Float3));
 }
 
+int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 NormalArg, int32 RadiusArg, uint32 NumSteps, float StepScale)
+{
+	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (PositionArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (NormalArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (RadiusArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	MaterialCompilationOutput.bUsesGlobalDistanceField = true;
+
+	NumSteps = FMath::Clamp(NumSteps, 1, 4);
+	StepScale = FMath::Max(StepScale, 1.0f);
+
+	int32 NumStepsConst = Constant(NumSteps);
+	int32 NumStepsMinus1Const = Constant(NumSteps - 1);
+	int32 StepScaleConst = Constant(StepScale);
+
+	int32 StepDistance = Div(RadiusArg, Power(StepScaleConst, NumStepsMinus1Const));
+	int32 DistanceBiasConst = Constant(0);
+
+	// LWC_TODO: update for LWC position
+	return AddCodeChunk(MCT_Float,
+		TEXT("CalculateDistanceFieldApproxAO(%s, %s, %s, %s, %s, %s, %s)"),
+		*CoerceParameter(PositionArg, MCT_Float3),
+		*CoerceParameter(NormalArg, MCT_Float3),
+		*GetParameterCode(NumStepsConst),
+		*CoerceParameter(StepDistance, MCT_Float),
+		*GetParameterCode(StepScaleConst),
+		*GetParameterCode(DistanceBiasConst),
+		*CoerceParameter(RadiusArg, MCT_Float));
+}
+
 int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex)
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)

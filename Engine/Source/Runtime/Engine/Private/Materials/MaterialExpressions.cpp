@@ -245,6 +245,7 @@
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialExpressionDistanceToNearestSurface.h"
 #include "Materials/MaterialExpressionDistanceFieldGradient.h"
+#include "Materials/MaterialExpressionDistanceFieldApproxAO.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionAtmosphericLightVector.h"
@@ -18358,6 +18359,68 @@ int32 UMaterialExpressionDistanceFieldGradient::Compile(class FMaterialCompiler*
 void UMaterialExpressionDistanceFieldGradient::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("DistanceFieldGradient"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionDistanceFieldApproxAO
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionDistanceFieldApproxAO::UMaterialExpressionDistanceFieldApproxAO(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+
+	NumSteps = 1;
+	RadiusDefault = 150;
+	StepScaleDefault = 3.0f;
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionDistanceFieldApproxAO::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 PositionArg = INDEX_NONE;
+
+	if (Position.GetTracedInput().Expression)
+	{
+		PositionArg = Position.Compile(Compiler);
+	}
+	else
+	{
+		PositionArg = Compiler->WorldPosition(WPT_Default);
+	}
+
+	int32 NormalArg = INDEX_NONE;
+
+	if (Normal.GetTracedInput().Expression)
+	{
+		NormalArg = Position.Compile(Compiler);
+	}
+	else
+	{
+		NormalArg = Compiler->VertexNormal();
+	}
+
+	int32 RadiusArg = Radius.GetTracedInput().Expression ? Radius.Compile(Compiler) : Compiler->Constant(RadiusDefault);
+
+	return Compiler->DistanceFieldApproxAO(PositionArg, NormalArg, RadiusArg, NumSteps, StepScaleDefault);
+}
+
+void UMaterialExpressionDistanceFieldApproxAO::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("DistanceFieldApproxAO"));
 }
 #endif // WITH_EDITOR
 

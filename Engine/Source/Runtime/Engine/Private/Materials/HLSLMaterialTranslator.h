@@ -967,6 +967,7 @@ protected:
 	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) override;
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override;
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override;
+	virtual int32 DistanceFieldApproxAO(int32 PositionArg, int32 NormalArg, int32 RadiusArg, uint32 NumSteps, float StepScale) override;
 	virtual int32 SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex) override;
 	virtual int32 AtmosphericFogColor(int32 WorldPosition) override;
 	virtual int32 AtmosphericLightVector() override;

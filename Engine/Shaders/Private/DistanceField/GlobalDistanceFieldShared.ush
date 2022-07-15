@@ -316,6 +316,45 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 	return Gradient;
 }
 
+float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
+{
+	// determine the min clipmap that covers all the sampling points (sphere centered on WorldPosition with radius = MaxDistance)
+	int MinClipmapIndex = -1;
+
+	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
+	{
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+		if (DistanceFromClipmap > MaxDistance)
+		{
+			MinClipmapIndex = ClipmapIndex;
+			break;
+		}
+	}
+
+	if (MinClipmapIndex < 0)
+	{
+		return 1.0f;
+	}
+
+	float Occlusion = 0.0f;
+	float W = 0.5f;
+	float TotalW = 0.0f;
+
+	for (uint StepIndex = 0; StepIndex < NumSteps; ++StepIndex)
+	{
+		const float CurrentDistance = StepDistance + DistanceBias;
+		const float Dist = max(0.0f, SampleGlobalDistanceField(WorldPosition + WorldNormal * CurrentDistance, CurrentDistance, MinClipmapIndex));
+
+		Occlusion += W * Dist / CurrentDistance;
+		TotalW += W;
+		W *= 0.5f;
+
+		StepDistance *= StepScale;
+	}
+
+	return saturate(Occlusion / TotalW);
+}
+
 #else
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
@@ -326,6 +365,11 @@ float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
 float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 {
 	return float3(0, 0, .001f);
+}
+
+float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float BaseStepDistance, float StepScale, float MaxDistance)
+{
+	return 1.0f;
 }
 
 #endif
