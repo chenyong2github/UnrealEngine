@@ -18,6 +18,7 @@
 
 class SComboButton;
 class SSearchBox;
+class SReadOnlyHierarchyView;
 
 namespace UE::MVVM
 {
@@ -28,7 +29,7 @@ class SSourceBindingList;
 class SFieldSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FSelectionChanged, FMVVMBlueprintPropertyPath);
+	DECLARE_DELEGATE_OneParam(FOnSelectionChanged, FMVVMBlueprintPropertyPath);
 
 	SLATE_BEGIN_ARGS(SFieldSelector) :
 		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
@@ -36,7 +37,7 @@ public:
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ATTRIBUTE(FMVVMBlueprintPropertyPath, SelectedField)
-		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
+		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 		SLATE_ATTRIBUTE(EMVVMBindingMode, BindingMode)
 
 		/**
@@ -51,13 +52,9 @@ public:
 
 private:
 	TSharedRef<SWidget> OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const;
-
 	TSharedRef<SWidget> OnGetMenuContent();
-	void OnFieldSelected(FMVVMBlueprintPropertyPath Selected);
 
 	TValueOrError<bool, FString> ValidateField(FMVVMBlueprintPropertyPath Field) const;
-
-	void HandleSearchChanged(const FText& InFilterText);
 
 	bool IsClearEnabled() const;
 	FReply OnClearBinding();
@@ -70,6 +67,11 @@ private:
 	void SetSelection(const FMVVMBlueprintPropertyPath& SelectedPath);
 	EFieldVisibility GetFieldVisibilityFlags() const;
 
+	void OnViewModelSelected(FBindingSource ViewModel, ESelectInfo::Type);
+	TSharedRef<ITableRow> GenerateRowForViewModel(MVVM::FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const;
+
+	void OnSearchTextChanged(const FText& NewText);
+
 private:
 	TAttribute<FMVVMBlueprintPropertyPath> SelectedField;
 	TAttribute<EMVVMBindingMode> BindingMode;
@@ -79,7 +81,7 @@ private:
 
 	const FTextBlockStyle* TextStyle = nullptr;
 
-	FSelectionChanged OnSelectionChangedDelegate;
+	FOnSelectionChanged OnSelectionChangedDelegate;
 	FIsFieldValid OnValidateFieldDelegate;
 
 	FMVVMBlueprintPropertyPath CachedSelectedField;
@@ -90,6 +92,9 @@ private:
 
 	const UWidgetBlueprint* WidgetBlueprint = nullptr;
 	bool bViewModelProperty = false;
+
+	TArray<FBindingSource> ViewModelSources;
+	TSharedPtr<SListView<FBindingSource>> ViewModelList;
 }; 
 
 } // namespace UE::MVVM

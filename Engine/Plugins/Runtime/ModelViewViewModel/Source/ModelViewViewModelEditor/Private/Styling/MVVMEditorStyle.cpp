@@ -69,8 +69,6 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 		FComboButtonStyle(FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
 		.SetDownArrowImage(*FCoreStyle::Get().GetBrush("Icons.Edit")));
 
-	Set("FieldSelector.MenuBorderBrush", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0f, FStyleColors::DropdownOutline, 1.0f));
-
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 
