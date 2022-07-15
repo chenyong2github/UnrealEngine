@@ -27,6 +27,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FCCRRegionDataInputParameter, )
 	SHADER_PARAMETER(FVector3f, Scale)
 
 	SHADER_PARAMETER(float, WhiteTemp)
+	SHADER_PARAMETER(float, Tint)
 	SHADER_PARAMETER(float, Inner)
 	SHADER_PARAMETER(float, Outer)
 	SHADER_PARAMETER(float, Falloff)

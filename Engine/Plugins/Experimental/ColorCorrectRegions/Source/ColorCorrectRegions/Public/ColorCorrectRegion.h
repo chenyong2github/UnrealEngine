@@ -84,8 +84,12 @@ public:
 	EColorCorrectRegionTemperatureType TemperatureType;
 
 	/** Color correction temperature. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction", meta = (UIMin = "1500.0", UIMax = "15000.0"))
 	float Temperature;
+
+	/** Color temperature tint. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction", meta=(UIMin = "-1.0", UIMax = "1.0"))
+	float Tint;
 
 	/** Color correction settings. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")

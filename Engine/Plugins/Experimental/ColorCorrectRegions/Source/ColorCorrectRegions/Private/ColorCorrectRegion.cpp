@@ -18,7 +18,9 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, Outer(1.0)
 	, Falloff(1.0)
 	, Invert(false)
+	, TemperatureType(EColorCorrectRegionTemperatureType::WhiteBalance)
 	, Temperature(6500)
+	, Tint(0)
 	, Enabled(true)
 	, ExcludeStencil(false)
 	, ColorCorrectRegionsSubsystem(nullptr)
@@ -64,7 +66,8 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 			SpriteComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
 			SpriteComponent->SetMobility(EComponentMobility::Movable);
 			SpriteComponent->bHiddenInGame = true;
-			
+			SpriteComponent->bIsScreenSizeScaled = true;
+
 			SpriteComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}

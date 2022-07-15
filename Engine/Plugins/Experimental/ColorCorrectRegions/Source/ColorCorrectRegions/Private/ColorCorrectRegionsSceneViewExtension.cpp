@@ -224,7 +224,7 @@ namespace
 
 
 	bool RenderRegion
-	(FRDGBuilder& GraphBuilder
+		( FRDGBuilder& GraphBuilder
 		, const FSceneView& View
 		, const FPostProcessingInputs& Inputs
 		, const FSceneViewFamily& ViewFamily
@@ -239,6 +239,7 @@ namespace
 		, FGlobalShaderMap* GlobalShaderMap
 		, FRHIBlendState* DefaultBlendState)
 	{
+		SCOPED_GPU_STAT(GraphBuilder.RHICmdList, ColorCorrectRegion);
 		FRHIDepthStencilState* DepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
 
 		/* If Region is pending for kill, invisible or disabled we don't need to render it.
@@ -353,9 +354,10 @@ namespace
 
 		TShaderMapRef<FColorCorrectRegionMaterialVS> VertexShader(GlobalShaderMap);
 		const float DefaultTemperature = 6500;
+		const float DefaultTint = 0;
 
 		// If temperature is default we don't want to do the calculations.
-		FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType = FMath::IsNearlyEqual(Region->Temperature, DefaultTemperature)
+		FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType = FMath::IsNearlyEqual(Region->Temperature, DefaultTemperature) && FMath::IsNearlyEqual(Region->Tint, DefaultTint)
 			? FColorCorrectRegionMaterialPS::ETemperatureType::Disabled
 			: static_cast<FColorCorrectRegionMaterialPS::ETemperatureType>(Region->TemperatureType);
 		TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced);
@@ -379,6 +381,7 @@ namespace
 			RegionData.Scale = (FVector3f)Region->GetActorScale() * ScaleMultiplier;
 
 			RegionData.WhiteTemp = Region->Temperature;
+			RegionData.Tint = Region->Tint;
 			// Inner could be larger than outer, in which case we need to make sure these are swapped.
 			RegionData.Inner = FMath::Min<float>(Region->Outer, Region->Inner);
 			RegionData.Outer = FMath::Max<float>(Region->Outer, Region->Inner);
