@@ -1071,6 +1071,17 @@ public:
 	UPROPERTY(Transient)
 	FVector RequestedVelocity;
 
+	/**
+	 * Velocity requested by path following during last Update
+	 * Updated when we consume the value
+	 */
+	UPROPERTY(Transient)
+	FVector LastUpdateRequestedVelocity;
+
+	/** Returns velocity requested by path following */
+	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(Keywords="Velocity RequestedVelocity"))
+	FVector GetLastUpdateRequestedVelocity() const;
+
 	/** No default value, for now it's assumed to be valid if GetAvoidanceManager() returns non-NULL. */
 	UPROPERTY(Category="Character Movement: Avoidance", VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay)
 	int32 AvoidanceUID;

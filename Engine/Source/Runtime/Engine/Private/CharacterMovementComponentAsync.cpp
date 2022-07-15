@@ -397,6 +397,7 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		}
 
 		// consume path following requested velocity
+		Output.LastUpdateRequestedVelocity = Output.bHasRequestedVelocity ? Output.RequestedVelocity : FVector::ZeroVector;
 		Output.bHasRequestedVelocity = false;
 
 		// TODO OnMOvementUpdated
@@ -4593,6 +4594,7 @@ void FCharacterMovementComponentAsyncOutput::Copy(const FCharacterMovementCompon
 	bHasRequestedVelocity = Value.bHasRequestedVelocity;
 	bRequestedMoveWithMaxSpeed = Value.bRequestedMoveWithMaxSpeed;
 	RequestedVelocity = Value.RequestedVelocity;
+	LastUpdateRequestedVelocity = Value.LastUpdateRequestedVelocity;
 	NumJumpApexAttempts = Value.NumJumpApexAttempts;
 	AnimRootMotionVelocity = Value.AnimRootMotionVelocity;
 	bShouldApplyDeltaToMeshPhysicsTransforms = Value.bShouldApplyDeltaToMeshPhysicsTransforms;

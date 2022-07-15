@@ -2007,6 +2007,7 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 		UpdateCharacterStateAfterMovement(DeltaSeconds);
 
 		// consume path following requested velocity
+		LastUpdateRequestedVelocity = bHasRequestedVelocity ? RequestedVelocity : FVector::ZeroVector;
 		bHasRequestedVelocity = false;
 
 		OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
@@ -2598,6 +2599,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 		}
 
 		// consume path following requested velocity
+		LastUpdateRequestedVelocity = bHasRequestedVelocity ? RequestedVelocity : FVector::ZeroVector;
 		bHasRequestedVelocity = false;
 
 		OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
@@ -5650,6 +5652,7 @@ void UCharacterMovementComponent::StopActiveMovement()
 	Acceleration = FVector::ZeroVector; 
 	bHasRequestedVelocity = false;
 	RequestedVelocity = FVector::ZeroVector;
+	LastUpdateRequestedVelocity = FVector::ZeroVector;
 }
 
 void UCharacterMovementComponent::ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations)
@@ -10617,6 +10620,11 @@ void UCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* Overlapped
 	}
 }
 
+FVector UCharacterMovementComponent::GetLastUpdateRequestedVelocity() const
+{
+	return LastUpdateRequestedVelocity;
+}
+
 void UCharacterMovementComponent::SetAvoidanceGroup(int32 GroupFlags)
 {
 	SetAvoidanceGroupMask(GroupFlags);
@@ -12630,6 +12638,7 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 		AsyncSimState->bHasRequestedVelocity = bHasRequestedVelocity;
 		AsyncSimState->bRequestedMoveWithMaxSpeed = bRequestedMoveWithMaxSpeed;
 		AsyncSimState->RequestedVelocity = RequestedVelocity;
+		AsyncSimState->LastUpdateRequestedVelocity = LastUpdateRequestedVelocity;
 		AsyncSimState->NumJumpApexAttempts = NumJumpApexAttempts;
 		AsyncSimState->bShouldApplyDeltaToMeshPhysicsTransforms = false;
 		AsyncSimState->DeltaPosition = FVector::ZeroVector;
@@ -12749,6 +12758,7 @@ void UCharacterMovementComponent::ApplyAsyncOutput(FCharacterMovementComponentAs
 	bHasRequestedVelocity = Output.bHasRequestedVelocity;
 	bRequestedMoveWithMaxSpeed = Output.bRequestedMoveWithMaxSpeed;
 	RequestedVelocity = Output.RequestedVelocity;
+	LastUpdateRequestedVelocity = Output.LastUpdateRequestedVelocity;
 
 	if (CharacterOwner)
 	{

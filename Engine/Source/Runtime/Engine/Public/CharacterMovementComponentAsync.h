@@ -210,6 +210,7 @@ public:
 	bool bHasRequestedVelocity;
 	bool bRequestedMoveWithMaxSpeed;
 	FVector RequestedVelocity;
+	FVector LastUpdateRequestedVelocity;
 	int32 NumJumpApexAttempts;
 	FVector AnimRootMotionVelocity;
 	bool bShouldApplyDeltaToMeshPhysicsTransforms; // See UpdateBasedMovement
