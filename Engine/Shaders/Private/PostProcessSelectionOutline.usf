@@ -265,11 +265,9 @@ void MainPS(
 		OutColor = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
 
 		// Scene color has gamma applied. Need to remove and re-apply after linear operation.
-		float3 OutColorSigns = sign(OutColor.rgb);
-		OutColor.rgb = pow(abs(OutColor.rgb), 2.2f );
+		OutColor.rgb = pow(OutColor.rgb, 2.2f );
 		OutColor.rgb = lerp(OutColor.rgb, Avg.rgb, Avg.a);
 		OutColor.rgb = pow(OutColor.rgb, 1.0f / 2.2f);
-		OutColor.rgb *= OutColorSigns;
 	}
 	else
 	{
