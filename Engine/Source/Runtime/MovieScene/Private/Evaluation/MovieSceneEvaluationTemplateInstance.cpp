@@ -155,6 +155,11 @@ void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player
 		EntitySystemRunner.FinishInstance(RootInstanceHandle);
 	}
 
+	OnFinish();
+}
+
+void FMovieSceneRootEvaluationTemplateInstance::OnFinish()
+{
 	DirectorInstances.Reset();
 }
 

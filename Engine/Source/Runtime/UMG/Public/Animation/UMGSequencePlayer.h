@@ -101,6 +101,8 @@ private:
 	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ApplyLatentActions();
 
+	void HandleLatentStop();
+
 	/** Animation being played */
 	UPROPERTY()
 	TObjectPtr<UWidgetAnimation> Animation;
@@ -159,6 +161,9 @@ private:
 
 	/** Set to true while evaluating to prevent reentrancy */
 	bool bIsEvaluating : 1;
+
+	/** Set to true when this player is in the process of being stopped */
+	bool bIsStopping : 1;
 
 	/** Set to true if we need to run the finishing logic in post-evaluation */
 	bool bCompleteOnPostEvaluation : 1;

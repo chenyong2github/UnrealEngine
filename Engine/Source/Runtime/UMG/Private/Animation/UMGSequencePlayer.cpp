@@ -11,6 +11,18 @@
 
 extern TAutoConsoleVariable<bool> CVarUserWidgetUseParallelAnimation;
 
+namespace UE::UMG
+{
+
+	bool GAsyncAnimationControlFlow = true;
+	FAutoConsoleVariableRef CVarAsyncAnimationControlFlow(
+		TEXT("UMG.AsyncAnimationControlFlow"),
+		GAsyncAnimationControlFlow,
+		TEXT("(Default: true) Whether to perform animation control flow functions (Play, Pause, Stop etc) asynchronously.")
+	);
+
+} // namespace UE::UMG
+
 UUMGSequencePlayer::UUMGSequencePlayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -20,6 +32,7 @@ UUMGSequencePlayer::UUMGSequencePlayer(const FObjectInitializer& ObjectInitializ
 	bRestoreState = false;
 	Animation = nullptr;
 	bIsEvaluating = false;
+	bIsStopping = false;
 	bCompleteOnPostEvaluation = false;
 	UserTag = NAME_None;
 }
@@ -58,6 +71,11 @@ UMovieSceneEntitySystemLinker* UUMGSequencePlayer::ConstructEntitySystemLinker()
 
 void UUMGSequencePlayer::Tick(float DeltaTime)
 {
+	if (bIsStopping)
+	{
+		return;
+	}
+
 	if ( PlayerStatus == EMovieScenePlayerStatus::Playing )
 	{
 		FFrameTime DeltaFrameTime = (bIsPlayingForward ? DeltaTime * PlaybackSpeed : -DeltaTime * PlaybackSpeed) * AnimationResolution;
@@ -328,34 +346,74 @@ void UUMGSequencePlayer::Stop()
 
 	PlayerStatus = EMovieScenePlayerStatus::Stopped;
 
+	UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
+	const bool bIsRunningWithTickManager = CVarUserWidgetUseParallelAnimation.GetValueOnGameThread();
+	const bool bIsSequenceBlocking = EnumHasAnyFlags(MovieSceneSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation);
+	const bool bIsAsync = bIsRunningWithTickManager && !bIsSequenceBlocking && UE::UMG::GAsyncAnimationControlFlow == true;
+
 	UUserWidget* Widget = UserWidget.Get();
 	UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
-	if (TickManager && RootTemplateInstance.IsValid())
+	TimeCursorPosition = FFrameTime(0);
+
+	if (!TickManager || !RootTemplateInstance.IsValid())
 	{
-		if (RootTemplateInstance.HasEverUpdated())
-		{
-			const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart, AnimationResolution), PlayerStatus);
-			RootTemplateInstance.Evaluate(Context, *this);
-		}
-		else
-		{
-			TickManager->ClearLatentActions(this);
-			LatentActions.Empty();
-		}
-		RootTemplateInstance.Finish(*this);
+		HandleLatentStop();
+		return;
 	}
+
+	if (!RootTemplateInstance.HasEverUpdated())
+	{
+		TickManager->ClearLatentActions(this);
+		LatentActions.Empty();
+		HandleLatentStop();
+		return;
+	}
+
+	const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart, AnimationResolution), PlayerStatus);
+
+	// Prevent any other updates
+	bIsStopping = true;
+
+	if (bIsAsync)
+	{
+
+		TickManager->AddLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UUMGSequencePlayer::HandleLatentStop));
+		TickManager->GetRunner().QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+	}
+	else
+	{
+		RootTemplateInstance.Evaluate(Context, *this);
+		HandleLatentStop();
+	}
+}
+
+void UUMGSequencePlayer::HandleLatentStop()
+{
+	// Linker may not necessarily be valid here if we have already torn down the sequence
+	if (UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker())
+	{
+		UE::MovieScene::FSequenceInstance* RootInstance = RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root);
+		// Finish the root instance
+		if (RootInstance)
+		{
+			RootInstance->Finish(Linker);
+		}
+	}
+
+	RootTemplateInstance.OnFinish();
 
 	if (bRestoreState)
 	{
 		RestorePreAnimatedState();
 	}
 
+	bIsStopping = false;
+
 	UserWidget->OnAnimationFinishedPlaying(*this);
 	OnSequenceFinishedPlayingEvent.Broadcast(*this);
-
-	TimeCursorPosition = FFrameTime(0);
 }
+
 
 void UUMGSequencePlayer::SetNumLoopsToPlay(int32 InNumLoopsToPlay)
 {
@@ -413,19 +471,7 @@ void UUMGSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
 		bCompleteOnPostEvaluation = false;
 
 		PlayerStatus = EMovieScenePlayerStatus::Stopped;
-		
-		if (RootTemplateInstance.IsValid())
-		{
-			RootTemplateInstance.Finish(*this);
-		}
-
-		if (bRestoreState)
-		{
-			RestorePreAnimatedState();
-		}
-
-		UserWidget->OnAnimationFinishedPlaying(*this);
-		OnSequenceFinishedPlayingEvent.Broadcast(*this);
+		HandleLatentStop();
 	}
 }
 

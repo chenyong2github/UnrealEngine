@@ -63,6 +63,11 @@ public:
 	 */
 	MOVIESCENE_API void Finish(IMovieScenePlayer& Player);
 
+	/**
+	 * Called when this template has finished evaluating to perform cleanup
+	 */
+	MOVIESCENE_API void OnFinish();
+
 	bool IsValid() const
 	{
 		return CompiledDataManager && WeakRootSequence.Get();
