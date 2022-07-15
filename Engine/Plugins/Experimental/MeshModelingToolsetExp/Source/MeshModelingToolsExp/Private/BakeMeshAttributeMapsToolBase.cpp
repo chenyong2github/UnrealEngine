@@ -104,12 +104,17 @@ void UBakeMeshAttributeMapsToolBase::OnTick(float DeltaTime)
 	{
 		Compute->Tick(DeltaTime);
 
-		const float ElapsedComputeTime = Compute->GetElapsedComputeTime();
-		if (!CanAccept() && ElapsedComputeTime > SecondsBeforeWorkingMaterial)
+		if (static_cast<bool>(OpState & EBakeOpState::Invalid))
 		{
-			UMaterialInstanceDynamic* ProgressMaterial =
-				static_cast<bool>(OpState & EBakeOpState::Invalid) ? ErrorPreviewMaterial : WorkingPreviewMaterial;
-			PreviewMesh->SetOverrideRenderMaterial(ProgressMaterial);
+			PreviewMesh->SetOverrideRenderMaterial(ErrorPreviewMaterial);
+		}
+		else
+		{
+			const float ElapsedComputeTime = Compute->GetElapsedComputeTime();
+			if (!CanAccept() && ElapsedComputeTime > SecondsBeforeWorkingMaterial)
+			{
+				PreviewMesh->SetOverrideRenderMaterial(WorkingPreviewMaterial);
+			}
 		}
 	}
 }
