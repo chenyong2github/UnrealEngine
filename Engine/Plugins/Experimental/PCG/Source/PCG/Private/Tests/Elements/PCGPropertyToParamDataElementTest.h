@@ -75,6 +75,9 @@ public:
 
 	UPROPERTY()
 	FVector2D Vector2Property;
+
+	UPROPERTY()
+	FColor ColorProperty;
 };
 
 UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable, NotBlueprintType, Transient, HideDropdown)
