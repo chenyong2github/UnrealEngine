@@ -94,6 +94,11 @@ protected:
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
 	bool IsBuildOnDemand() const { return bBuildOnDemand; }
 
+	/** Removes all entries from the collection. */
+	UFUNCTION(CallInEditor, Category = SmartObject)
+	void ClearCollection();
+
+	/** Rebuild entries in the collection using all the SmartObjectComponents currently loaded in the level. */
 	UFUNCTION(CallInEditor, Category = SmartObject)
 	void RebuildCollection();
 	void RebuildCollection(const TConstArrayView<USmartObjectComponent*> Components);

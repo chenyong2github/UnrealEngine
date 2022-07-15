@@ -308,6 +308,11 @@ void ASmartObjectCollection::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	}
 }
 
+void ASmartObjectCollection::ClearCollection()
+{
+	ResetCollection();
+}
+
 void ASmartObjectCollection::RebuildCollection()
 {
 	if (USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
