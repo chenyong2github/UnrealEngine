@@ -49,6 +49,7 @@ void SFieldEntry::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(Label, STextBlock)
 			.TextStyle(InArgs._TextStyle)
+			.Clipping(EWidgetClipping::OnDemand)
 		]
 	];
 
