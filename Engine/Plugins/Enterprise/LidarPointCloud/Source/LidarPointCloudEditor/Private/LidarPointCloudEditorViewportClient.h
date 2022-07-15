@@ -6,7 +6,7 @@
 #include "InputCoreTypes.h"
 #include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
-#include "Components.h"
+#include "LidarPointCloudEditorHelper.h"
 #include "LidarPointCloudShared.h"
 
 class FAdvancedPreviewScene;
@@ -15,13 +15,6 @@ class FLidarPointCloudEditor;
 class SLidarPointCloudEditorViewport;
 class ULidarPointCloud;
 class ULidarPointCloudComponent;
-
-enum class ELidarPointCloudSelectionMode : uint8
-{
-	None,
-	Add,
-	Subtract
-};
 
 enum class ELidarPointCloudSelectionMethod : uint8
 {
@@ -39,8 +32,8 @@ public:
 	~FLidarPointCloudEditorViewportClient();
 
 	// FEditorViewportClient interface
-	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
-	virtual bool InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
+	virtual bool InputAxis(FViewport* InViewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas) override;
 	virtual bool InputWidgetDelta(FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale) override { return false; }
