@@ -32,6 +32,7 @@ public:
 	{
 		Services.RegisterExecHandler(InterfaceName, MakeUnique<TOnlineComponentExecHandler<TOnlineComponent<ComponentType>>>(this));
 		RegisterCommands();
+		LoadConfig();
 	}
 	virtual void PostInitialize() override {}
 	virtual void LoadConfig() override {}
