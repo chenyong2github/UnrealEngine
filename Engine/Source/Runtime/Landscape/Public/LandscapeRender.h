@@ -581,7 +581,7 @@ class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy,
 	{
 	public:
 		/** Initialization constructor. */
-		FLandscapeLCI(const ULandscapeComponent* InComponent)
+		FLandscapeLCI(const ULandscapeComponent* InComponent, ERHIFeatureLevel::Type FeatureLevel)
 			: FLightCacheInterface()
 		{
 			const FMeshMapBuildData* MapBuildData = InComponent->GetMeshMapBuildData();
@@ -591,7 +591,12 @@ class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy,
 				SetLightMap(MapBuildData->LightMap);
 				SetShadowMap(MapBuildData->ShadowMap);
 				SetResourceCluster(MapBuildData->ResourceCluster);
-				bCanUsePrecomputedLightingParametersFromGPUScene = true;
+				if (FeatureLevel >= ERHIFeatureLevel::SM5)
+				{
+					// Landscape does not support GPUScene on mobile
+					// TODO: enable this when GPUScene support is implemented
+					bCanUsePrecomputedLightingParametersFromGPUScene = true;
+				}
 				IrrelevantLights = MapBuildData->IrrelevantLights;
 			}
 		}

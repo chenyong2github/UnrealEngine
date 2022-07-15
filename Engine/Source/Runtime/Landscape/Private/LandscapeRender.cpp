@@ -1252,7 +1252,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		StaticLightingResolution = InComponent->GetLandscapeProxy()->StaticLightingResolution;
 	}
 
-	ComponentLightInfo = MakeUnique<FLandscapeLCI>(InComponent);
+	ComponentLightInfo = MakeUnique<FLandscapeLCI>(InComponent, FeatureLevel);
 	check(ComponentLightInfo);
 
 	const bool bHasStaticLighting = ComponentLightInfo->GetLightMap() || ComponentLightInfo->GetShadowMap();
