@@ -22,15 +22,6 @@ class ITargetPlatform;
 struct FTypeLayoutDesc;
 struct FPlatformTypeLayoutParameters;
 
-// Duplicated from RHIDefinitions.h [AND MUST MATCH THE Freezing_bWithRayTracing in DataDrivenPlatformInfo.ini]
-#ifndef WITH_RAYTRACING
-#if (PLATFORM_WINDOWS && PLATFORM_64BITS)
-#define WITH_RAYTRACING 1
-#else
-#define WITH_RAYTRACING 0
-#endif
-#endif
-
 /*#define UE_STATIC_ONLY(T) \
 	T() = delete; \
 	~T() = delete; \
@@ -493,16 +484,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #define LAYOUT_BITFIELD_EDITORONLY(T, Name, BitFieldSize, ...)
 #endif
 
-#if WITH_RAYTRACING
-#define LAYOUT_FIELD_RAYTRACING(T, Name, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlagsRayTracing(__VA_ARGS__), 1u, 0u, __COUNTER__)
-#define LAYOUT_FIELD_INITIALIZED_RAYTRACING(T, Name, Value, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name = Value; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlagsRayTracing(__VA_ARGS__), 1u, 0u, __COUNTER__)
-#define LAYOUT_ARRAY_RAYTRACING(T, Name, NumArray, ...) PREPROCESSOR_REMOVE_OPTIONAL_PARENS(T) Name[NumArray]; INTERNAL_LAYOUT_FIELD(T, Name, STRUCT_OFFSET(DerivedType, Name), EFieldLayoutFlags::MakeFlagsRayTracing(__VA_ARGS__), NumArray, 0u, __COUNTER__)
-#else
-#define LAYOUT_FIELD_RAYTRACING(T, Name, ...)
-#define LAYOUT_FIELD_INITIALIZED_RAYTRACING(T, Name, Value, ...)
-#define LAYOUT_ARRAY_RAYTRACING(T, Name, NumArray, ...)
-#endif
-
 #define INTERNAL_LAYOUT_INTERFACE_PREFIX_NonVirtual(...) __VA_ARGS__
 #define INTERNAL_LAYOUT_INTERFACE_PREFIX_Virtual(...) __VA_ARGS__ virtual
 #define INTERNAL_LAYOUT_INTERFACE_PREFIX_Abstract(...) virtual
@@ -818,7 +799,6 @@ struct FPlatformTypeLayoutParameters
 		Flag_Is32Bit = (1 << 1),
 		Flag_AlignBases = (1 << 2),
 		Flag_WithEditorOnly = (1 << 3),
-		Flag_WithRaytracing = (1 << 4),
 	};
 
 	LAYOUT_FIELD_INITIALIZED(uint32, MaxFieldAlignment, 0xffffffff);
@@ -828,7 +808,6 @@ struct FPlatformTypeLayoutParameters
 	inline bool Is32Bit() const { return (Flags & Flag_Is32Bit) != 0u; }
 	inline bool HasAlignBases() const { return (Flags & Flag_AlignBases) != 0u; }
 	inline bool WithEditorOnly() const { return (Flags & Flag_WithEditorOnly) != 0u; }
-	inline bool WithRaytracing() const { return (Flags & Flag_WithRaytracing) != 0u; }
 
 	// May need dedicated flag for this, if we need to support case-preserving names in non-editor builds
 	inline bool WithCasePreservingFName() const { return WithEditorOnly(); }

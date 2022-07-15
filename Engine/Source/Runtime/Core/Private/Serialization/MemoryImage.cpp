@@ -65,7 +65,6 @@ void FPlatformTypeLayoutParameters::InitializeForPlatform(const FString& Platfor
 
 	Flags = Flag_Initialized;
 	if (bHasEditorOnlyData) Flags |= Flag_WithEditorOnly;
-	if (PlatformInfo.Freezing_bWithRayTracing) Flags |= Flag_WithRaytracing;
 	if (PlatformInfo.Freezing_b32Bit) Flags |= Flag_Is32Bit;
 	if (PlatformInfo.Freezing_bAlignBases) Flags |= Flag_AlignBases;
 
@@ -76,7 +75,6 @@ void FPlatformTypeLayoutParameters::InitializeForCurrent()
 {
 	Flags = Flag_Initialized;
 	if (WITH_EDITORONLY_DATA) Flags |= Flag_WithEditorOnly;
-	if (WITH_RAYTRACING) Flags |= Flag_WithRaytracing;
 	if (PLATFORM_32BITS) Flags |= Flag_Is32Bit;
 
 	check(GetRawPointerSize() == sizeof(void*));
@@ -346,13 +344,8 @@ void Freeze::ExtractBitFieldValue(const void* Value, uint32 SrcBitOffset, uint32
 bool Freeze::IncludeField(const FFieldLayoutDesc* FieldDesc, const FPlatformTypeLayoutParameters& LayoutParams)
 {
 	const bool bIsEditorOnly = (FieldDesc->Flags & EFieldLayoutFlags::WithEditorOnly) != 0u;
-	const bool bIsRayTracing = (FieldDesc->Flags & EFieldLayoutFlags::WithRayTracing) != 0u;
 
 	if (bIsEditorOnly && !LayoutParams.WithEditorOnly())
-	{
-		return false;
-	}
-	if (bIsRayTracing && !LayoutParams.WithRaytracing())
 	{
 		return false;
 	}

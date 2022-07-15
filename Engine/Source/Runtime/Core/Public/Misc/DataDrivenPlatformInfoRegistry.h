@@ -140,7 +140,6 @@ struct FDataDrivenPlatformInfo
 	bool Freezing_b32Bit = false;
 	bool Freezing_bForce64BitMemoryImagePointers = false;
 	bool Freezing_bAlignBases = false;
-	bool Freezing_bWithRayTracing = false;
 
 	// True if this platform has a non-generic gamepad specifically associated with it
 	bool bHasDedicatedGamepad = false;
