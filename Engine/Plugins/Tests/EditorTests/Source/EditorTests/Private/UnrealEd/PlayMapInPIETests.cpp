@@ -117,7 +117,7 @@ public:
 
 						FString MapAssetPath = MapAsset.ObjectPath.ToString();
 
-						OutBeautifiedNames.Add(MapPackageName.RightChop(6)); // Remove "/Game/" from the name
+						OutBeautifiedNames.Add(MapPackageName.RightChop(6).Replace(TEXT("/"), TEXT("."))); // Remove "/Game/" from the name and use dot syntax
 						OutTestCommands.Add(MapAssetPath + TEXT(";") + MapPackageName);
 					}
 				}

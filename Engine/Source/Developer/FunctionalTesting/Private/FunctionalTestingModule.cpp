@@ -128,6 +128,7 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 				FString MapAssetPath = MapAsset.ObjectPath.ToString();
 				FString MapPackageName = MapAsset.PackageName.ToString();
 				if (!IsDeveloperDirectoryIncluded && MapPackageName.Find(TEXT("/Game/Developers")) == 0) continue;
+				FString PartialSuiteName = MapPackageName.RightChop(6).Replace(TEXT("/"), TEXT(".")); // Remove "/Game/" from the name and use dot syntax
 
 				FString AllTestNames;
 				FAssetDataTagMapSharedView::FFindTagResult MapTestNames = MapAsset.TagsAndValues.FindTag(bEditorOnlyTests ? TEXT("TestNamesEditor") : TEXT("TestNames"));
@@ -182,8 +183,8 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 
 						if (MapTest.Split(TEXT("|"), &BeautifulTestName, &RealTestName))
 						{
-							OutBeautifiedNames.Add(MapPackageName + TEXT(".") + *BeautifulTestName);
-							OutTestCommands.Add(MapAssetPath + TEXT(";") + MapAsset.PackageName.ToString() + TEXT(";") + *RealTestName);
+							OutBeautifiedNames.Add(PartialSuiteName + TEXT(".") + *BeautifulTestName);
+							OutTestCommands.Add(MapAssetPath + TEXT(";") + MapPackageName + TEXT(";") + *RealTestName);
 							OutTestMapAssets.AddUnique(MapAssetPath);
 						}
 					}
@@ -191,7 +192,7 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 				else if (!bEditorOnlyTests && MapAsset.AssetName.ToString().Find(TEXT("FTEST_")) == 0)
 				{
 					OutBeautifiedNames.Add(MapAsset.AssetName.ToString());
-					OutTestCommands.Add(MapAssetPath + TEXT(";") + MapAsset.PackageName.ToString());
+					OutTestCommands.Add(MapAssetPath + TEXT(";") + MapPackageName);
 					OutTestMapAssets.AddUnique(MapAssetPath);
 				}
 			}

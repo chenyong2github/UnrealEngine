@@ -57,12 +57,21 @@ FString UAutomationTestExcludelist::GetFullTestName(const FAutomationTestExclude
 		return ExcludelistEntry.FullTestName;
 	}
 
-	FString Map = ExcludelistEntry.Map.ToString().TrimStartAndEnd();
 	FString ListName = ExcludelistEntry.Test.ToString().TrimStartAndEnd();
 
-	if (Map.StartsWith(TEXT("/")) && !ListName.StartsWith(FunctionalTestsPreFix))
+	bool IsFunctionalTest = ListName.StartsWith(FunctionalTestsPreFix);
+
+	// Backcomp - merge Map and Test properties of Functional Test
+	FString Map = ExcludelistEntry.Map.ToString().TrimStartAndEnd();
+	if (Map.StartsWith(TEXT("/")) && !IsFunctionalTest)
 	{
 		ListName = FunctionalTestsPreFix + Map + TEXT(".") + ListName;
+		IsFunctionalTest = true;
+	}
+	// Backcomp - Convert package path by using dot syntax instead of /
+	if (IsFunctionalTest)
+	{
+		ListName = ListName.Replace(TEXT("./Game/"), TEXT(".")).Replace(TEXT("/"), TEXT("."));
 	}
 
 	return ListName.ToLower();
@@ -102,13 +111,8 @@ void UAutomationTestExcludelist::RemoveFromExcludeTest(const FString& TestName)
 
 bool UAutomationTestExcludelist::IsTestExcluded(const FString& TestName, const FString& RHI, FName* OutReason, bool* OutWarn)
 {
-	if (auto Entry = GetExcludeTestEntry(TestName))
+	if (auto Entry = GetExcludeTestEntry(TestName, RHI))
 	{
-		if (!Entry->ShouldExcludeForRHI(RHI))
-		{
-			return false;
-		}
-
 		if (OutReason != nullptr)
 		{
 			*OutReason = Entry->Reason;
@@ -125,7 +129,7 @@ bool UAutomationTestExcludelist::IsTestExcluded(const FString& TestName, const F
 	return false;
 }
 
-FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry(const FString& TestName)
+FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry(const FString& TestName, const FString& RHI)
 {
 	if (TestName.IsEmpty())
 		return nullptr;
@@ -138,7 +142,10 @@ FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry
 		{
 			if (NameToCompare.Len() == Entry.FullTestName.Len() || NameToCompare.Mid(Entry.FullTestName.Len(), 1) == TEXT("."))
 			{
-				return &Entry;
+				if (RHI.IsEmpty() || Entry.RHIs.Num() == 0 || Entry.RHIs.Contains(*RHI))
+				{
+					return &Entry;
+				}
 			}
 		}
 	}

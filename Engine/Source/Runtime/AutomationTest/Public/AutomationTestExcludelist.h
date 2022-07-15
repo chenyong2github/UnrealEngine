@@ -114,17 +114,6 @@ struct FAutomationTestExcludelistEntry
 		bIsPropagated = false;
 	}
 
-	/* Confirm that test should be excluded for that RHI */
-	bool ShouldExcludeForRHI(const FString& InRHI) const
-	{
-		if (!InRHI.IsEmpty() && RHIs.Num() != 0 && !RHIs.Contains(*InRHI))
-		{
-			return false;
-		}
-
-		return true;
-	}
-
 	/* Hold full test name/path */
 	FString FullTestName;
 	/* Is the entry comes from propagation */
@@ -167,7 +156,7 @@ public:
 	void AddToExcludeTest(const FString& TestName, const FAutomationTestExcludelistEntry& ExcludelistEntry);
 	void RemoveFromExcludeTest(const FString& TestName);
 	bool IsTestExcluded(const FString& TestName, const FString& RHI = TEXT(""), FName* OutReason = nullptr, bool* OutWarn = nullptr);
-	FAutomationTestExcludelistEntry* GetExcludeTestEntry(const FString& TestName);
+	FAutomationTestExcludelistEntry* GetExcludeTestEntry(const FString& TestName, const FString& RHI = TEXT(""));
 
 	void SaveConfig();
 	FString GetConfigFilename() { return UObject::GetDefaultConfigFilename(); } const
