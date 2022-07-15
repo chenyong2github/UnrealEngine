@@ -9,6 +9,7 @@ AParticleEventManager::AParticleEventManager(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	SetCanBeDamaged(false);
+	bReplayRewindable = true;
 }
 
 void AParticleEventManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
