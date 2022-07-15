@@ -821,6 +821,16 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.GPUSkin.UnlimitedBoneInfluencesThreshold", DisplayName = "Unlimited Bone Influences Threshold",
 		ToolTip = "When Unlimited Bone Influence is enabled, it still uses a fixed bone inflence buffer until the max bone influence of a mesh exceeds this value"))
 		int32 UnlimitedBonInfluencesThreshold;
+
+	/*
+	 * The maximum bones count section vertices's skinning can use before being chunked into more sections. The minimum value is the maximum total influences define (MAX_TOTAL_INFLUENCES).
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Skinning, meta = (
+		DisplayName = "Maximum bones per Sections",
+		ToolTip = "Max number of bones that can be skinned on the GPU in a single draw call. The default value is set by the Compat.MAX_GPUSKIN_BONES consolevariable. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true,
+		ClampMin = "12", UIMin = "12"))
+		FPerPlatformInt MaxSkinBones;
 	
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.PlanarReflectionMode", DisplayName = "Planar Reflection Mode",

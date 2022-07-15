@@ -10,6 +10,14 @@
 #include "GPUSkinCache.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+
+#include "PlatformInfo.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Logging/LogMacros.h"
+#include "Misc/CoreMisc.h"
+
+#include "Engine/RendererSettings.h"
 #if INTEL_ISPC
 #include "GPUSkinVertexFactory.ispc.generated.h"
 #endif
@@ -20,7 +28,7 @@ static int32 GCVarMaxGPUSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSk
 static FAutoConsoleVariableRef CVarMaxGPUSkinBones(
 	TEXT("Compat.MAX_GPUSKIN_BONES"),
 	GCVarMaxGPUSkinBones,
-	TEXT("Max number of bones that can be skinned on the GPU in a single draw call. Cannot be changed at runtime."),
+	TEXT("Max number of bones that can be skinned on the GPU in a single draw call. This setting clamp the per platform project setting URendererSettings::MaxSkinBones. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
 static int32 GCVarSupport16BitBoneIndex = 0;
@@ -52,6 +60,12 @@ static FAutoConsoleVariableRef CVarUnlimitedBoneInfluencesThreshold(
 	TEXT("Unlimited Bone Influences Threshold to use unlimited bone influences buffer if r.GPUSkin.UnlimitedBoneInfluences is enabled. Should be unsigned int. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
+static int32 GCVarUseBonesBufferSRV = 1;
+static FAutoConsoleVariableRef CVarUseBonesBufferSRV(
+	TEXT("r.Mobile.GPUSkin.UseBonesBufferSRV"),
+	GCVarUseBonesBufferSRV,
+	TEXT("Whether to use SRV buffer instead of uniform buffer to store bone matrices on mobile platforms."),
+	ECVF_ReadOnly);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAPEXClothUniformShaderParameters,"APEXClothParam");
 
@@ -100,12 +114,12 @@ static TAutoConsoleVariable<int32> CVarVelocityTest(
 // These should match USE_BONES_SRV_BUFFER
 static inline bool SupportsBonesBufferSRV(EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform);
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform) || GCVarUseBonesBufferSRV != 0;
 }
 
 static inline bool SupportsBonesBufferSRV(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return InFeatureLevel > ERHIFeatureLevel::ES3_1 || IsVulkanPlatform(GMaxRHIShaderPlatform) || IsMetalPlatform(GMaxRHIShaderPlatform);
+	return InFeatureLevel > ERHIFeatureLevel::ES3_1 || IsVulkanPlatform(GMaxRHIShaderPlatform) || IsMetalPlatform(GMaxRHIShaderPlatform) || GCVarUseBonesBufferSRV != 0;
 }
 // ---
 
@@ -224,7 +238,9 @@ static bool DeferSkeletalLockAndFillToRHIThread()
 bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListImmediate& RHICmdList, const TArray<FMatrix>& ReferenceToLocalMatrices,
 	const TArray<FBoneIndexType>& BoneMap, uint32 RevisionNumber, bool bPrevious, ERHIFeatureLevel::Type InFeatureLevel, bool bUseSkinCache)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinVertexFactory_UpdateBoneData);
+	// stat disabled by default due to low-value/high-frequency
+	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinVertexFactory_UpdateBoneData);
+
 	const uint32 NumBones = BoneMap.Num();
 	check(NumBones <= MaxGPUSkinBones);
 	FMatrix3x4* ChunkMatrices = nullptr;
@@ -348,17 +364,81 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 	return false;
 }
 
-int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones()
+int32 FGPUBaseSkinVertexFactory::GetMinimumPerPlatformMaxGPUSkinBonesValue()
 {
+	const bool bUseGlobalMaxGPUSkinBones = (GCVarMaxGPUSkinBones != FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
+	//Use the default value in case there is no valid target platform
+	int32 MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValue();
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+	for (const TPair<FName, int32>& PlatformData : GetDefault<URendererSettings>()->MaxSkinBones.PerPlatform)
+	{
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, PlatformData.Value);
+	}
+#endif
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, GCVarMaxGPUSkinBones);
+	}
+	return MaxGPUSkinBones;
+}
+
+int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(const ITargetPlatform* TargetPlatform /*= nullptr*/)
+{
+	const bool bUseGlobalMaxGPUSkinBones = (GCVarMaxGPUSkinBones != FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		static bool bIsLogged = false;
+		if (!bIsLogged)
+		{
+			UE_LOG(LogSkeletalMesh, Display, TEXT("The Engine config variable [SystemSettings] Compat.MAX_GPUSKIN_BONES (%d) is deprecated, please remove the variable from any engine .ini file. Instead use the per platform project settings - Engine - Rendering - Skinning - Maximum bones per sections. Until the variable is remove we will clamp the per platform value"),
+				   GCVarMaxGPUSkinBones);
+			bIsLogged = true;
+		}
+	}
+	//Use the default value in case there is no valid target platform
+	int32 MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValue();
+
+#if WITH_EDITOR
+	const ITargetPlatform* TargetPlatformTmp = TargetPlatform;
+	if (!TargetPlatformTmp)
+	{
+		//Get the running platform if the caller did not supply a platform
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		TargetPlatformTmp = TargetPlatformManager.GetRunningTargetPlatform();
+	}
+	if (TargetPlatformTmp)
+	{
+		//Get the platform value
+		const FName PlatformGroupName = TargetPlatformTmp->GetPlatformInfo().PlatformGroupName;
+		const FName VanillaPlatformName = TargetPlatformTmp->GetPlatformInfo().VanillaPlatformName;
+		MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	}
+#endif
+
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		//Make sure we do not go over the global ini console variable GCVarMaxGPUSkinBones
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, GCVarMaxGPUSkinBones);
+	}
+
+	bool bUseBonesBufferSRV = (GCVarUseBonesBufferSRV != 0);
+	if (!bUseBonesBufferSRV)
+	{
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, (int32)MAX_GPU_BONE_MATRICES_UNIFORMBUFFER);
+	}
+
+	//We cannot go under MAX_TOTAL_INFLUENCES
+	MaxGPUSkinBones = FMath::Max(MaxGPUSkinBones, MAX_TOTAL_INFLUENCES);
+
 	if (GCVarSupport16BitBoneIndex > 0)
 	{
-		// 16-bit bone index is supported, use GCVarMaxGPUSkinBones
-		return GCVarMaxGPUSkinBones;
+		// 16-bit bone index is supported
+		return MaxGPUSkinBones;
 	}
 	else
 	{
 		// 16-bit bone index is not supported, clamp the max bones to 8-bit
-		return FMath::Min(GCVarMaxGPUSkinBones, 256);
+		return FMath::Min(MaxGPUSkinBones, 256);
 	}
 }
 
@@ -392,8 +472,6 @@ template <GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	const int32 MaxGPUSkinBones = GetFeatureLevelMaxNumberOfBones(GetMaxSupportedFeatureLevel(Parameters.Platform));
-	OutEnvironment.SetDefine(TEXT("MAX_SHADER_BONES"), MaxGPUSkinBones);
 	{
 		bool bLimit2BoneInfluences = (CVarGPUSkinLimit2BoneInfluences.GetValueOnAnyThread() != 0);
 		OutEnvironment.SetDefine(TEXT("GPUSKIN_LIMIT_2BONE_INFLUENCES"), (bLimit2BoneInfluences ? 1 : 0));
