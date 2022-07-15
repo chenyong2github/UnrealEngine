@@ -7,6 +7,10 @@ using System.Text;
 namespace EpicGames.Core
 {
 
+	/// <summary>
+	/// The list of references projects needs to be both the path to the project and the
+	/// target build time from that project.
+	/// </summary>
 	public class CsProjBuildRecordRef
 	{
 		/// <summary>
