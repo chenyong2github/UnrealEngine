@@ -93,6 +93,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SCheckBox).Style(FAppStyle::Get(), "RadioButton")
+						.IsEnabled(false) // Todo: enable after adding this functionality
 						.IsChecked_Lambda([this] () { return bIsLocalFileSelected ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; })
 						.OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { bIsLocalFileSelected = (!bIsLocalFileSelected && InState == ECheckBoxState::Checked); } )
 					]
