@@ -366,7 +366,7 @@ public:
 	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
 	{
 		Particles.EnableParticle(Particle);
-		EnableConstraints({ Particle });
+		EnableConstraints(Particle);
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
 		DirtyParticle(*Particle);
 	}
@@ -376,14 +376,17 @@ public:
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		// disable constraint before disabling the particle in the graph because of dependencies 
-		DisableConstraints({ Particle });
+		DisableConstraints(Particle);
 		ConstraintGraph.DisableParticle(Particle);
-		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 	}
 
 	CHAOS_API void InvalidateParticle(FGeometryParticleHandle* Particle)
 	{
+		// Remove the particle from the constraint graph. This should remove all the constraints too
 		ConstraintGraph.DisableParticle(Particle);
+
+		// Destroy all the transient constraints (collisions) because the particle has changed somehow (e.g. new shapes) and they may have cached the previous state
+		DestroyTransientConstraints(Particle);
 	}
 	
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
@@ -480,32 +483,9 @@ public:
 
 	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles);
 
-	CHAOS_API void WakeIslands()
-	{
-		TArray<int32> UniqueIslands;
-
-		// there could easily be duplicates, best to remove these since WakeIsland is potentially expensive call
-		int32 IslandIdx = 0;
-		while (!IslandsToWake.IsEmpty())
-		{
-			IslandsToWake.Dequeue(IslandIdx);
-			UniqueIslands.AddUnique(IslandIdx);
-		}
-
-		for (int32 Island : UniqueIslands)
-		{
-			WakeIsland(Island);
-		}
-	}
-
 	CHAOS_API void WakeIsland(const int32 Island)
 	{
 		ConstraintGraph.WakeIsland(Particles, Island);
-		//Update Particles SOAs
-		/*for (auto Particle : ContactGraph.GetIslandParticles(Island))
-		{
-			ActiveIndices.Add(Particle);
-		}*/
 	}
 
 	/** remove a constraint from the constraint graph (see AddConstraintsToConstraintGraph) */
@@ -546,8 +526,10 @@ public:
 
 
 
-	/** Disconnect constraints from a set of particles to be removed (or destroyed) 
-	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr
+	/** Disconnect constraints from a set of particles to be destroyed. 
+	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr.
+	* Once this is done, the constraints cannot be re-enabled.
+	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
 	*/
 	CHAOS_API void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
@@ -562,29 +544,43 @@ public:
 		}
 	}
 
-	/** Disconnect constraints from a set of particles to be removed (or destroyed)
-	* this will set the constraints to Enabled = false, but leave connections to the 
-	* particles. 
+	/** Disconnect constraints from a particle to be removed (or destroyed)
+	* this will set the constraints to Enabled = false, but leave connections to the particles to support
+	* re-enabling at a later time.
+	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
 	*/
+	CHAOS_API void DisableConstraints(FGeometryParticleHandle* ParticleHandle)
+	{
+		RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
+
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->SetConstraintsEnabled(ParticleHandle, false);
+		}
+	}
+
 	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& DisabledParticles)
 	{
 		for (FGeometryParticleHandle* ParticleHandle : DisabledParticles)
 		{
-			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
-		}
-
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->SetConstraintsEnabled(DisabledParticles, false);
+			DisableConstraints(ParticleHandle);
 		}
 	}
 
 	/** Enable constraints from the enabled particles; constraints will only become enabled if their particle end points are valid */
-	CHAOS_API void EnableConstraints(const TSet<FGeometryParticleHandle*>& EnabledParticles)
+	CHAOS_API void EnableConstraints(FGeometryParticleHandle* ParticleHandle)
 	{
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->SetConstraintsEnabled(EnabledParticles, true);
+			ConstraintRule->SetConstraintsEnabled(ParticleHandle, true);
+		}
+	}
+
+	CHAOS_API void EnableConstraints(const TSet<FGeometryParticleHandle*>& EnabledParticles)
+	{
+		for (FGeometryParticleHandle* ParticleHandle : EnabledParticles)
+		{
+			EnableConstraints(ParticleHandle);
 		}
 	}
 
@@ -610,6 +606,8 @@ public:
 		}
 	}
 
+	virtual void DestroyTransientConstraints(FGeometryParticleHandle* Particle) {}
+
 	const TParticleView<FPBDRigidClusteredParticles>& GetNonDisabledClusteredView() const { return Particles.GetNonDisabledClusteredView(); }
 
 	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
@@ -627,7 +625,6 @@ public:
 		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
 	}
 
-	CHAOS_API const TArray<FGeometryParticleHandle*>& GetIslandParticles(const int32 Island) const { return ConstraintGraph.GetIslandParticles(Island); }
 	CHAOS_API int32 NumIslands() const { return ConstraintGraph.NumIslands(); }
 
 	void InitializeAccelerationStructures()
@@ -966,7 +963,6 @@ protected:
 
 	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
 	bool bCanStartAsyncTasks;
-	TQueue<int32, EQueueMode::Mpsc> IslandsToWake;
 
 	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 

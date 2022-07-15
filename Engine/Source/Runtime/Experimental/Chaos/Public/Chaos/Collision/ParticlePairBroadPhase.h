@@ -20,7 +20,6 @@ namespace Chaos
 	{
 	public:
 		using FParticleHandle = TGeometryParticleHandle<FReal, 3>;
-		using FParticlePair = TVector<FParticleHandle*, 2>;
 		using FAABB = FAABB3;
 
 		FBasicBroadPhase(const TArray<FParticlePair>* InParticlePairs, const TArray<FParticleHandle*>* InParticlesA, const TArray<FParticleHandle*>* InParticlesB)

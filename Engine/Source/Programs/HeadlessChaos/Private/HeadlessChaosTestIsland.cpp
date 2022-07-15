@@ -15,7 +15,7 @@ namespace ChaosTest
 	TEST(IslandTests,TestMergeIslands)
 	{
 		static constexpr int32 NumParticles = 21;
-		using IslandGraphType = Chaos::FIslandGraph<int32, int32, int32>;
+		using IslandGraphType = Chaos::FIslandGraph<int32, int32, int32, TNullIslandGraphOwner<int32, int32>>;
 
 		IslandGraphType IslandGraph;
 

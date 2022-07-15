@@ -7,7 +7,7 @@
 
 using namespace Chaos;
 
-TVec2<FGeometryParticleHandle*> FPBDRigidDynamicSpringConstraintHandle::GetConstrainedParticles() const
+FParticlePair FPBDRigidDynamicSpringConstraintHandle::GetConstrainedParticles() const
 {
 	return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 }

@@ -49,7 +49,7 @@ namespace Chaos
 		ConcreteContainer()->SetSettings(ConstraintIndex, Settings);
 	}
 
-	TVec2<FGeometryParticleHandle*> FPBDSuspensionConstraintHandle::GetConstrainedParticles() const
+	FParticlePair FPBDSuspensionConstraintHandle::GetConstrainedParticles() const
 	{
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}

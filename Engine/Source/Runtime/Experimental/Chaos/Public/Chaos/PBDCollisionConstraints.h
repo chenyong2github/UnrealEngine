@@ -5,6 +5,7 @@
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionContext.h"
+#include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/PBDConstraintContainer.h"
@@ -377,4 +378,81 @@ private:
 
 	EConstraintSolverType SolverType;
 };
+
+//
+//
+// Inlined FPBDCollisionConstraintHandle functions. Here to avoid circular deps
+//
+//
+
+inline const FPBDCollisionConstraints* FPBDCollisionConstraintHandle::ConcreteContainer() const
+{
+	return static_cast<FPBDCollisionConstraints*>(ConstraintContainer);
+}
+
+inline FPBDCollisionConstraints* FPBDCollisionConstraintHandle::ConcreteContainer()
+{
+	return static_cast<FPBDCollisionConstraints*>(ConstraintContainer);
+}
+
+inline const FPBDCollisionConstraint& FPBDCollisionConstraintHandle::GetContact() const
+{
+	return *GetConstraint();
+}
+
+inline FPBDCollisionConstraint& FPBDCollisionConstraintHandle::GetContact()
+{
+	return *GetConstraint();
+}
+
+inline ECollisionCCDType FPBDCollisionConstraintHandle::GetCCDType() const
+{
+	return GetContact().GetCCDType();
+}
+
+inline void FPBDCollisionConstraintHandle::SetEnabled(bool InEnabled)
+{
+	GetContact().SetDisabled(!InEnabled);
+}
+
+inline bool FPBDCollisionConstraintHandle::IsEnabled() const
+{
+	return !GetContact().GetDisabled();
+}
+
+inline bool FPBDCollisionConstraintHandle::IsProbe() const
+{
+	return GetContact().GetIsProbe();
+}
+
+inline FVec3 FPBDCollisionConstraintHandle::GetAccumulatedImpulse() const
+{
+	return GetContact().AccumulatedImpulse;
+}
+
+inline FParticlePair FPBDCollisionConstraintHandle::GetConstrainedParticles() const
+{
+	return { GetContact().GetParticle0(), GetContact().GetParticle1() };
+}
+
+inline void FPBDCollisionConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+{
+	ConcreteContainer()->PreGatherInput(Dt, GetContact(), SolverData);
+}
+
+inline void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+{
+	ConcreteContainer()->GatherInput(Dt, GetContact(), Particle0Level, Particle1Level, SolverData);
+}
+
+inline FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody0()
+{
+	return GetContact().GetSolverBody0();
+}
+
+inline FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody1()
+{
+	return GetContact().GetSolverBody1();
+}
+
 }

@@ -12,7 +12,7 @@ namespace Chaos
 	class FPBDPositionConstraints;
 	class FPBDIslandSolverData;
 
-	class FPBDPositionConstraintHandle : public TIndexedContainerConstraintHandle<FPBDPositionConstraints>
+	class FPBDPositionConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDPositionConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDPositionConstraints>;
@@ -22,7 +22,8 @@ namespace Chaos
 		FPBDPositionConstraintHandle() {}
 		FPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
 			: TIndexedContainerConstraintHandle<FPBDPositionConstraints>(InConstraintContainer, InConstraintIndex) {}
-		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const;
+		
+		virtual FParticlePair GetConstrainedParticles() const override;
 
 		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);

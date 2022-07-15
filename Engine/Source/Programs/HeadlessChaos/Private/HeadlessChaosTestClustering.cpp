@@ -141,11 +141,8 @@ namespace ChaosTest {
 			{
 				EXPECT_NE(Particle.Handle(), ClusteredParticles.Handle(BoxID));	//make sure boxes are not in non disabled array
 			}
-			
-			for (int32 Island = 0; Island < Evolution.NumIslands(); ++Island)
-			{
-				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusteredParticles.Handle(BoxID)) == false);
-			}
+
+			EXPECT_TRUE(Evolution.GetConstraintGraph().DebugCheckParticleNotInGraph(ClusteredParticles.Handle(BoxID)));
 		}
 
 		for (Chaos::FPBDRigidParticleHandle* ClusterHandle : ClusterHandles)
@@ -171,10 +168,7 @@ namespace ChaosTest {
 				EXPECT_NE(Particle.Handle(), ClusterHandle);	//make sure boxes are not in non disabled array
 			}
 
-			for (int32 Island = 0; Island < Evolution.NumIslands(); ++Island)
-			{
-				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusterHandle) == false);
-			}
+			EXPECT_TRUE(Evolution.GetConstraintGraph().DebugCheckParticleNotInGraph(ClusterHandle));
 		}
 
 		EXPECT_EQ(Particles.GetNonDisabledView().Num(), NumBoxes);
@@ -270,10 +264,7 @@ namespace ChaosTest {
 		{
 			EXPECT_TRUE(ClusteredParticles.Disabled(BoxID));	//no boxes should be active yet
 			EXPECT_TRUE(Evolution.GetRigidClustering().GetTopLevelClusterParents().Contains(ClusteredParticles.Handle(BoxID)) == false);
-			for (int32 Island = 0; Island < Evolution.NumIslands(); ++Island)
-			{
-				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusteredParticles.Handle(BoxID)) == false);
-			}
+			EXPECT_TRUE(Evolution.GetConstraintGraph().DebugCheckParticleNotInGraph(ClusteredParticles.Handle(BoxID)));
 		}
 
 		SolverStrainArray[NumBoxes + NumBoxes / 4 + 1] = (FReal)1;
@@ -290,10 +281,7 @@ namespace ChaosTest {
 		{
 			EXPECT_TRUE(ClusteredParticles.Disabled(BoxID));	//no boxes should be active yet
 			EXPECT_TRUE(Evolution.GetRigidClustering().GetTopLevelClusterParents().Contains(ClusteredParticles.Handle(BoxID)) == false);
-			for (int32 Island = 0; Island < Evolution.NumIslands(); ++Island)
-			{
-				EXPECT_TRUE(Evolution.GetIslandParticles(Island).Contains(ClusteredParticles.Handle(BoxID)) == false);
-			}
+			EXPECT_TRUE(Evolution.GetConstraintGraph().DebugCheckParticleNotInGraph(ClusteredParticles.Handle(BoxID)));
 		}
 		
 	}

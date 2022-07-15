@@ -19,7 +19,7 @@ namespace Chaos
 	class FPBDIslandSolverData;
 	class FPBDCollisionSolver;
 
-	class CHAOS_API FPBDSuspensionConstraintHandle : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
+	class CHAOS_API FPBDSuspensionConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>;
@@ -33,7 +33,7 @@ namespace Chaos
 
 		void SetSettings(const FPBDSuspensionSettings& Settings);
 
-		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
+		virtual FParticlePair GetConstrainedParticles() const override;
 
 		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);

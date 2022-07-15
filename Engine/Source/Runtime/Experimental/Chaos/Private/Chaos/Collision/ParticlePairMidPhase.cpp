@@ -29,6 +29,21 @@ namespace Chaos
 	}
 	using namespace CVars;
 
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	void CheckConstraintContainsDynamic(const FPBDCollisionConstraint* Constraint)
+	{
+		if (Constraint != nullptr)
+		{
+			const bool bIsDynamic0 = FConstGenericParticleHandle(Constraint->GetParticle0())->IsDynamic();
+			const bool bIsDynamic1 = FConstGenericParticleHandle(Constraint->GetParticle1())->IsDynamic();
+			if (!bIsDynamic0 && !bIsDynamic1)
+			{
+				ensure(false);
+			}
+		}
+	}
+#endif
+
 	inline bool ImplicitOverlapOBBToAABB(
 		const FImplicitObject* Implicit0,
 		const FImplicitObject* Implicit1,
@@ -436,8 +451,13 @@ namespace Chaos
 	{
 		if ((Constraint != nullptr) && IsUsedSince(SleepEpoch))
 		{
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			// If a particle changed to kinematic, all constraints without a dynamic should have been removed
+			CheckConstraintContainsDynamic(Constraint.Get());
+#endif
+
 			// We need to refresh the epoch so that the constraint state will be used as the previous
-			// state iof the pair is still colliding in the next tick
+			// state if the pair is still colliding in the next tick
 			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			Constraint->GetContainerCookie().LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			LastUsedEpoch = CurrentEpoch;
@@ -964,6 +984,7 @@ namespace Chaos
 				if (((Shape0 == ShapePair.GetShape0()) && (Shape1 == ShapePair.GetShape1())) || ((Shape0 == ShapePair.GetShape1()) && (Shape1 == ShapePair.GetShape0())))
 				{
 					ShapePair.SetCollision(Constraint);
+					break;
 				}
 			}
 		}
@@ -972,6 +993,8 @@ namespace Chaos
 			// @todo(chaos): implement cluster Resim restore
 			ensure(false);
 		}
+
+		LastUsedEpoch = CollisionAllocator->GetCurrentEpoch();
 	}
 
 	void FParticlePairMidPhase::SetIsSleeping(const bool bInIsSleeping)
@@ -1013,6 +1036,22 @@ namespace Chaos
 
 			Flags.bIsSleeping = bInIsSleeping;
 		}
+	}
+
+	bool FParticlePairMidPhase::IsInConstraintGraph() const
+	{
+		// @todo(chaos): optimize
+		bool bInGraph = false;
+		VisitConstCollisions([&bInGraph](const FPBDCollisionConstraint& Constraint)
+		{
+			if (Constraint.ConstraintGraphIndex() != INDEX_NONE)
+			{
+				bInGraph = true;
+				return ECollisionVisitorResult::Stop;
+			}
+			return ECollisionVisitorResult::Continue;
+		}, false);
+		return bInGraph;
 	}
 
 }

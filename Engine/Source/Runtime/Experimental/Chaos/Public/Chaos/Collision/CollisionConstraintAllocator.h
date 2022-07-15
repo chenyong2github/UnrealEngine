@@ -152,8 +152,14 @@ namespace Chaos
 			bInCollisionDetectionPhase = false;
 
 			ProcessNewItems();
+		}
 
-			PruneExpiredItems();
+		/**
+		 * @brief Called each tick after the graph is updated to remove unused collisions
+		*/
+		void PruneExpiredItems()
+		{
+			PruneExpiredMidPhases();
 		}
 
 		/**
@@ -309,11 +315,6 @@ namespace Chaos
 			ProcessNewConstraints();
 		}
 
-		void PruneExpiredItems()
-		{
-			PruneExpiredMidPhases();
-		}
-
 		FParticlePairMidPhase* FindParticlePairMidPhaseImpl(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticle)
 		{
 			// Find the existing midphase from one of the particle's lists of midphases
@@ -380,12 +381,19 @@ namespace Chaos
 			for (int32 Index = 0; Index < NumParticlePairMidPhases; ++Index)
 			{
 				TUniquePtr<FParticlePairMidPhase>& MidPhase = ParticlePairMidPhases[Index];
+
+				// We could also add !MidPhase->IsInConstraintGraph() here, but we know that we will not be in the graph if we were
+				// not active this tick and were not asleep. The constraint graph ejects all non-sleeping constraints each tick.
+				// (There is a check in the collision destructor that verified this).
 				if ((MidPhase != nullptr) && !MidPhase->IsUsedSince(CurrentEpoch) && !MidPhase->IsSleeping())
 				{
+					// Remove from the particles' lists of contacts
 					DetachParticlePairMidPhase(MidPhase.Get());
 
-					// This array can get very large so we allow it to shrink when possible
-					constexpr bool bAllowShrink = true;
+					// Destroy the midphase. ParticlePairMidPhases can get large so we allow it to shrink from time to time
+					const int32 MaxSlack = 1000;
+					const int32 Slack = ParticlePairMidPhases.Max() - ParticlePairMidPhases.Num();
+					const bool bAllowShrink = (Slack > MaxSlack);
 					ParticlePairMidPhases.RemoveAtSwap(Index, 1, bAllowShrink);
 
 					--Index;
@@ -421,9 +429,6 @@ namespace Chaos
 			}
 
 			Cookie.LastUsedEpoch = CurrentEpoch;
-
-			// An opportunity for the constraint to initialize data before CCD or solver
-			CollisionConstraint->Activate();
 		}
 
 		// All of the overlapping particle pairs in the scene
@@ -460,12 +465,14 @@ namespace Chaos
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	template<typename TLambda>
-	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitCollisions(const int32 LastEpoch, const TLambda& Visitor)
+	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive)
 	{
 		for (auto& KVP : Constraints)
 		{
 			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
-			if (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)
+
+			// If we only want active constraints, check the timestamp
+			if ((Constraint != nullptr) && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
 			{
 				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
 				{
@@ -477,14 +484,16 @@ namespace Chaos
 	}
 
 	template<typename TLambda>
-	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor) const
+	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive) const
 	{
 		for (auto& KVP : Constraints)
 		{
 			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
-			if (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)
+
+			// If we only want active constraints, check the timestamp
+			if ((Constraint != nullptr) && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
 			{
-				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
 				{
 					return ECollisionVisitorResult::Stop;
 				}
@@ -494,12 +503,13 @@ namespace Chaos
 	}
 
 	template<typename TLambda>
-	inline ECollisionVisitorResult FParticlePairMidPhase::VisitCollisions(const TLambda& Visitor)
+	inline ECollisionVisitorResult FParticlePairMidPhase::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
 	{
 		const int32 LastEpoch = IsSleeping() ? LastUsedEpoch : GetCurrentEpoch();
 		for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 		{
-			if (ShapePair.IsUsedSince(LastEpoch))
+			// If we only want active constraints, check the timestamp
+			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || ShapePair.IsUsedSince(LastEpoch)))
 			{
 				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
 				{
@@ -510,7 +520,7 @@ namespace Chaos
 
 		for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 		{
-			if (MultiShapePair.VisitCollisions(LastEpoch, Visitor) == ECollisionVisitorResult::Stop)
+			if (MultiShapePair.VisitCollisions(LastEpoch, Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
 			{
 				return ECollisionVisitorResult::Stop;
 			}
@@ -521,12 +531,13 @@ namespace Chaos
 
 
 	template<typename TLambda>
-	inline ECollisionVisitorResult FParticlePairMidPhase::VisitConstCollisions(const TLambda& Visitor) const
+	inline ECollisionVisitorResult FParticlePairMidPhase::VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive) const
 	{
 		const int32 LastEpoch = IsSleeping() ? LastUsedEpoch : GetCurrentEpoch();
 		for (const FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 		{
-			if (ShapePair.IsUsedSince(LastEpoch))
+			// If we only want active constraints, check the timestamp
+			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || ShapePair.IsUsedSince(LastEpoch)))
 			{
 				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
 				{
@@ -537,7 +548,7 @@ namespace Chaos
 
 		for (const FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 		{
-			if (MultiShapePair.VisitConstCollisions(LastEpoch, Visitor) == ECollisionVisitorResult::Stop)
+			if (MultiShapePair.VisitConstCollisions(LastEpoch, Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
 			{
 				return ECollisionVisitorResult::Stop;
 			}

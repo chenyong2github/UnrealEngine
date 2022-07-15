@@ -32,15 +32,15 @@ class FChaosPhysicsMaterial;
 
 using FPBDRigidParticles = TPBDRigidParticles<FReal, 3>;
 
-
 /** Island manager responsible to create the list of solver islands that will be persistent over time */
 class CHAOS_API FPBDIslandManager
 {
 public:
-	using GraphType = FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIslandSolver*>;
+	using GraphType = FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIslandSolver*, FPBDIslandManager>;
 	using FGraphNode = GraphType::FGraphNode;
 	using FGraphEdge = GraphType::FGraphEdge;
-	
+	using FGraphIsland = GraphType::FGraphIsland;
+
 	/**
 	  * Default island manager constructor
 	  */
@@ -54,7 +54,17 @@ public:
 	/**
 	* Reset nodes and edges graph indices 
 	*/
-	void ResetIndices();
+	//void ResetIndices();
+
+	/**
+	 * Clear all nodes and edges from the graph
+	*/
+	void Reset();
+
+	/**
+	 * Remove all particles (and their constraints) from the graph
+	*/
+	void RemoveParticles();
 
 	/**
 	* Remove all the constraints from the graph
@@ -75,6 +85,11 @@ public:
 	void InitializeGraph(const TParticleView<FPBDRigidParticles>& Particles);
 
 	/**
+	 * @brief Called at the end of the frame to perform cleanup
+	*/
+	void EndTick();
+
+	/**
 	  * Reserve space in the graph for NumConstraints additional constraints.
 	  * @param NumConstraints Number of constraints to be used to reserved memory space
 	  */
@@ -87,7 +102,7 @@ public:
 	  * @param ConstrainedParticles List of 2 particles handles that are used within the constraint
 	  * @return Edge index within the sparse graph edges list
 	  */
-	int32 AddConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& ConstrainedParticles);
+	void AddConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& ConstrainedParticles);
 
 	/**
 	  * Remove a constraint from the graph
@@ -96,6 +111,13 @@ public:
 	  * @param ConstrainedParticles List of 2 particles handles that are used within the constraint
 	  */
 	void RemoveConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle);
+
+	/**
+	 * @brief Remove all the constraints of the specified type (ContainerId) belonging to the Particle
+	 * @param Particle the particle to remove the constraints from
+	 * @param ContainerId Container id the constraint is belonging to
+	*/
+	void RemoveParticleConstraints(FGeometryParticleHandle* Particle, const uint32 ContainerId);
 	
 	/**
 	  * Preallocate buffers for \p Num particles.
@@ -174,6 +196,7 @@ public:
 	  * Get the island particles stored in the solver island
 	  * @param IslandIndex Island index
 	  * @return List of particles handles in the island
+	  * @note This will be empty for sleeping islands, though the particles will still be in the graph
 	  */
 	const TArray<FGeometryParticleHandle*>& GetIslandParticles(const int32 IslandIndex) const;
 
@@ -181,8 +204,17 @@ public:
 	  * Get the island constraints stored in the solver island
 	  * @param IslandIndex Island index
 	  * @return List of constraints handles in the island
+	  * @note This will be empty for sleeping islands, though the constraints will still be in the graph
 	  */
 	const TArray<FConstraintHandleHolder>& GetIslandConstraints(const int32 IslandIndex) const;
+
+	/**
+	 * Get the set of islands that the particle belongs to. Will be 0-1 island for dynamics and could be any number for non-dynamics.
+	 * This works for sleeping and waking particles (but we must iterate over constraints for this to work).
+	 */
+	TArray<int32> FindParticleIslands(const FGeometryParticleHandle* ParticleHandle) const;
+
+	int32 GetConstraintIsland(const FConstraintHandle* ConstraintHandle) const;
 
 	/**
 	 * When resim is used, tells us whether we need to resolve island
@@ -259,18 +291,6 @@ public:
 		}
 	}
 
-	// /** Add a constraint container to all the solver island given a container id
-	// * @param ContainerId Constraints container id from which the solver constraint containers are being built
-	// */
-	// template<typename ConstraintType>
-	// void GatherSolverInput(const FReal Dt, int32 IslandIndex, const int32 ContainerId)
-	// {
-	// 	if(IslandIndexing.IsValidIndex(IslandIndex))
-	// 	{
-	// 		IslandSolvers[IslandIndexing[IslandIndex]]->GatherSolverInput<ConstraintType>(Dt, IslandIndex, ContainerId);
-	// 	}
-	// }
-
 	/** Accessors of the graph group */
 	const FPBDIslandGroup* GetIslandGroup(const int32 GroupIndex) const {return IslandGroups.IsValidIndex(GroupIndex) ? IslandGroups[GroupIndex].Get() : nullptr; }
 	FPBDIslandGroup* GetIslandGroup(const int32 GroupIndex) {return IslandGroups.IsValidIndex(GroupIndex) ? IslandGroups[GroupIndex].Get()  : nullptr; }
@@ -298,8 +318,27 @@ public:
 	
 	/** Get the constraints edges */
 	const TMap<FConstraintHandleHolder, int32>& GetConstraintEdges() const { return IslandGraph->ItemEdges; }
-	
+
+	// Graph Owner API Implementation
+	void GraphNodeAdded(FGeometryParticleHandle* NodeItem, const int32 NodeIndex);
+	void GraphNodeRemoved(FGeometryParticleHandle* NodeItem);
+	void GraphEdgeAdded(const FConstraintHandleHolder& EdgeItem, const int32 EdgeIndex);
+	void GraphEdgeRemoved(const FConstraintHandleHolder& EdgeItem);
+
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	bool DebugCheckParticleNotInGraph(const FGeometryParticleHandle* ParticleHandle) const;
+	bool DebugParticleConstraintsNotInGraph(const FGeometryParticleHandle* Particle, const int32 ContainerId) const;
+	bool DebugCheckConstraintNotInGraph(const FConstraintHandle* ConstraintHandle) const;
+#endif
+
 protected:
+
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	bool DebugCheckIslandConstraints() const;
+	void DebugCheckParticleIslands(const FGeometryParticleHandle* ParticleHandle) const;
+	void DebugCheckConstraintIslands(const FConstraintHandle* ConstraintHandle, const int32 IslandIndex) const;
+	void DebugCheckIslands() const;
+#endif
 
 	/**
 	* Initialize the groups according to the number of threads
@@ -316,6 +355,12 @@ protected:
 	*/
 	void SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumContainers);
 
+
+	/**
+	* Set the island and all particles' sleep state (called from the graph update).
+	*/
+	void SetIslandSleeping(FPBDRigidsSOAs& Particles, const int32 IslandIndex, const bool bIsSleeping);
+
 	void ValidateIslands() const;
 
 	/** List of solver islands in the manager */
@@ -331,9 +376,15 @@ protected:
 	int32									MaxParticleIndex = INDEX_NONE;
 	
 	/** List of island groups in the manager */
-	TArray<TUniquePtr<FPBDIslandGroup>> IslandGroups;
+	TArray<TUniquePtr<FPBDIslandGroup>>		IslandGroups;
 
 	/** Sorted list of islands */
 	TArray<int32>							SortedIslands;
+
+	/** Islands are only populated with constraints and particles during the solver phase. Trying to access them outside that is an error we can trap */
+	bool									bIslandsPopulated;
+
+	/** Make sure EndTick is called. Sanity check mostlyhelpful for unit tests */
+	bool									bEndTickCalled;
 };
 }

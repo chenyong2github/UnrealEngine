@@ -60,11 +60,11 @@ void FPBDIslandSolver::AddConstraint(FConstraintHandle* ConstraintHandle)
 {
 	if (ConstraintHandle)
 	{
-		IslandConstraints.Add(ConstraintHandle);
-
 		const int32 ContainerId = ConstraintHandle->GetContainerId();
-		if(ConstraintCounts.IsValidIndex(ContainerId))
+		if (ConstraintCounts.IsValidIndex(ContainerId))
 		{
+			IslandConstraints.Add(ConstraintHandle);
+
 			ConstraintCounts[ContainerId]++;
 		}
 	}
@@ -83,14 +83,6 @@ void FPBDIslandSolver::ReserveConstraints(const int32 NumConstraints)
 {
 	ClearConstraints();
 	IslandConstraints.Reserve(NumConstraints);
-}
-
-void FPBDIslandSolver::ResetIndices()
-{
-	for(FConstraintHandleHolder& ConstraintHandle : IslandConstraints)
-	{
-		ConstraintHandle->SetConstraintGraphIndex(INDEX_NONE);
-	}
 }
 
 void FPBDIslandSolver::ClearConstraints()

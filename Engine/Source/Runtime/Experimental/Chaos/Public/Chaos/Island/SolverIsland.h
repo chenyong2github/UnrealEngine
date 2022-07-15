@@ -78,11 +78,6 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	void RemoveConstraint(FConstraintHandle* ConstraintHandle);
 
 	/**
-	* Reset all the island constraint graph index
-	*/
-	void ResetIndices();
-
-	/**
 	* Sort the islands constraints
 	*/
 	void SortConstraints();
@@ -121,7 +116,8 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	* Members accessors
 	*/
 	FORCEINLINE bool IsSleeping() const {return bIsSleeping;}
-	FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bSleepingChanged = (bIsSleeping != bIsSleepingIn); bIsSleeping = bIsSleepingIn; }
+	FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bSleepingChanged = bSleepingChanged || (bIsSleeping != bIsSleepingIn); bIsSleeping = bIsSleepingIn; }
+	FORCEINLINE void ResetSleepingChanged() { bSleepingChanged = false; }
 	FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
 	FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
 	FORCEINLINE bool NeedsResim() const { return bNeedsResim; }

@@ -164,7 +164,7 @@ namespace Chaos
 		}
 	}
 
-	TVector<FGeometryParticleHandle*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
+	FParticlePair FPBDJointConstraintHandle::GetConstrainedParticles() const
 	{ 
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
@@ -676,7 +676,7 @@ namespace Chaos
 	}
 
 	
-	const typename FPBDJointConstraints::FParticlePair& FPBDJointConstraints::GetConstrainedParticles(int32 ConstraintIndex) const
+	const FParticlePair& FPBDJointConstraints::GetConstrainedParticles(int32 ConstraintIndex) const
 	{
 		return ConstraintParticles[ConstraintIndex];
 	}

@@ -16,23 +16,34 @@ namespace Chaos
 		// @todo(chaos): should we really have a sparse array here? The implementation probably wastes a lot of memory
 		TSparseArray<int32> NodeEdges;
 
-		/** Node Island Index (for static/kinematic particles could belong to several islands) */
+		/**
+		 * Node Island Index. Only used by valid nodes (Dynamic/Sleeping Particles).
+		 * Static/kinematic particles could belong to several islands and this is always INDEX_NONE.
+		 */
 		int32 IslandIndex = INDEX_NONE;
 
-		/** List of islands in which the node is referenced */
-		// @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
+		/**
+		 * List of islands in which the node is referenced. Should only be 1 item for valied nodes(
+		 * Dynamic/Sleeping Particles), and may be more if invalid (Static/Kinematic).
+		 * @note this array is populated externally (see see PopulateIslands in IslandManager.cpp)
+		 * @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
+		 */
 		TSet<int32> NodeIslands;
 
-		/** Check if a node is valid (checked for graph partitioning) */
+		/** Check if a node is valid (checked for graph partitioning into islands).
+		 * In the context of particles (nodes) and constraints (edges), bValidNode is true when
+		 * a Particle is Dynamic or Sleeping, but not when Static or Kinematic. This is because we
+		 * do not need to merge islands that are only connected through a Static/Kinematic Particle node.
+		 */
 		bool bValidNode = true;
 
 		/** Check if a node is steady */
 		bool bStationaryNode = true;
 
-		/** Node counter to filter nodes already processed */
+		/** Node counter to filter nodes already processed (@see SplitIsland) */
 		int32 NodeCounter = 0;
 
-		/** Node item that is stored per node */
+		/** Node item that is stored per node. This is a ParticleHandle. */
 		NodeType NodeItem;
 
 		/** Node level index */
@@ -61,7 +72,10 @@ namespace Chaos
 		/** Unique edge island index */
 		int32 IslandIndex = INDEX_NONE;
 
-		/** Edge counter to filter edges already processed */
+		/** True if one or both nodes are valid (dynamic) */
+		bool bValidEdge = true;
+
+		/** Edge counter to filter edges already processed (@see SplitIsland) */
 		int32 EdgeCounter = 0;
 
 		/** Edge item that is stored per node */
@@ -90,7 +104,7 @@ namespace Chaos
 		/** Island counter to filter islands already processed */
 		int32 IslandCounter = 0;
 
-		/** Boolean to check if an island is persistent or not */
+		/** Boolean to check if an island is persistent or not. A persistent island is one where no particles or constraints were added or removed */
 		bool bIsPersistent = true;
 
 		/** Boolean to check if an island is sleeping or not */
@@ -119,10 +133,10 @@ namespace Chaos
  * This template implements a graph that will be stored on the island manager
  * The goal here is to minimize memory allocation while doing graph operations. 
  *
- * @param NodeType The node type of the item that will be stored in each nodes
- * @param EdgeType The edge type of the item that will be stored in each edges
+ * @param NodeType The node type of the item that will be stored in each node (e.g., ParticleHandle)
+ * @param EdgeType The edge type of the item that will be stored in each edge (e.g., ConstraintHandle)
  */
-template<typename NodeType, typename EdgeType, typename IslandType>
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
 class CHAOS_API FIslandGraph
 {
 public:
@@ -131,8 +145,17 @@ public:
 	using FGraphNode = TIslandGraphNode<NodeType>;
 	using FGraphEdge = TIslandGraphEdge<EdgeType>;
 	using FGraphIsland = TIslandGraphIsland<IslandType>;
+	using FGraphOwner = OwnerType;
 
 	static constexpr const int32 MaxCount = 100000;
+
+	/**
+	 * @brief Set the graph owner. This will allow the owner to cache node and edge indices with the node/edge items
+	*/
+	void SetOwner(FGraphOwner* InOwner)
+	{
+		Owner = InOwner;
+	}
 
 	/**
 	 * Update current graph to merge connected islands 
@@ -146,14 +169,14 @@ public:
 	void ReserveNodes(const int32 NumNodes);
 
 	/**
-	 * Clear the graph nodes without deallocating memory
+	 * Remove all nodes (and attached edges - so all of them) from the graph
 	 */
 	void ResetNodes();
 
 	/**
 	 * Given a node item, add a node to the graph nodes
 	 * @param NodeItem Node Item to be stored in the graph node
-	 * @param bValidNode Check if a node should be considered for graph partitioning
+	 * @param bValidNode Check if a node should be considered for graph partitioning (into islands)
 	 * @param IslandIndex Potential island index we want the node to belong to
 	 * @param bStationaryNode Boolean to check if a node is steady or not
 	 * @return Node index that has just been added
@@ -163,7 +186,7 @@ public:
 	/**
 	* Given a node item, update the graph node information (valid,discard...)
 	* @param NodeItem Node Item to be stored in the graph node
-	* @param bValidNode Check if a node should be considered for graph partitioning
+	* @param bValidNode Check if a node should be considered for graph partitioning (into islands)
 	* @param IslandIndex Potential island index we want the node to belong to
 	* @param bStationaryNode Boolean to check if a node is steady or not
 	*  @param NodeIndex Index to consider to update the graph node information
@@ -204,6 +227,8 @@ public:
 	 */
 	void RemoveEdge(const int32 EdgeIndex);
 
+	void UpdateEdge(const int32 EdgeIndex);
+
 	/**
 	* Remove all the edges from the graph
 	*/
@@ -215,22 +240,19 @@ public:
 	void InitIslands();
 
 	/**
-	 * Get the number of edges that are inside a graph
-	 * @return Number of graph edges
+	 * Get the maximum number of edges that are inside a graph (SparseArray size)
 	 */
-	FORCEINLINE int32 NumEdges() const { return GraphEdges.GetMaxIndex(); }
+	FORCEINLINE int32 MaxNumEdges() const { return GraphEdges.GetMaxIndex(); }
 
 	/**
-	 * Get the number of nodes that are inside a graph
-	 * @return Number of graph nodes
+	 * Get the maximum number of nodes that are inside a graph (SparseArray size)
 	 */
-	FORCEINLINE int32 NumNodes() const { return GraphNodes.GetMaxIndex(); }
+	FORCEINLINE int32 MaxNumNodes() const { return GraphNodes.GetMaxIndex(); }
 
 	/**
-	 * Get the number of islands that are inside a graph
-	 * @return Number of graph islands
+	 * Get the maximum number of islands that are inside a graph (SparseArray size)
 	 */
-	FORCEINLINE int32 NumIslands() const { return GraphIslands.GetMaxIndex(); }
+	FORCEINLINE int32 MaxNumIslands() const { return GraphIslands.GetMaxIndex(); }
 
 	/**
 	 * Link two islands to each other for future island traversal
@@ -335,7 +357,9 @@ public:
 		}
 		return false;
 	}
-	
+
+	FGraphOwner* Owner = nullptr;
+
 	/** List of graph nodes */
 	TSparseArray<FGraphNode> GraphNodes;
 
@@ -357,5 +381,17 @@ public:
 	/** List of nodes to be processed in the graph functions */
 	TDeque<int32> NodeQueue;
 };
+
+// For use with unit tests to pretend to be the owner of the graph
+template<typename NodeType, typename EdgeType>
+struct TNullIslandGraphOwner
+{
+	void GraphNodeAdded(const NodeType& NodeItem, const int32 NodeIndex) {}
+	void GraphNodeRemoved(const NodeType& NodeItem) {}
+
+	void GraphEdgeAdded(const EdgeType& EdgeItem, const int32 EdgeIndex) {}
+	void GraphEdgeRemoved(const EdgeType& EdgeItem) {}
+};
+
 
 }

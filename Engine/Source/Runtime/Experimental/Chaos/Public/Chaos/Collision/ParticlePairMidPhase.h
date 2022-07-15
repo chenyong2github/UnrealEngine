@@ -220,13 +220,13 @@ namespace Chaos
 		 * @brief Visit all the collisions
 		*/
 		template<typename TLambda>
-		ECollisionVisitorResult VisitCollisions(const int32 LastEpoch, const TLambda& Visitor);
+		ECollisionVisitorResult VisitCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive = true);
 
 		/**
 		 * @brief Visit all the collisions
 		*/
 		template<typename TLambda>
-		ECollisionVisitorResult VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor) const;
+		ECollisionVisitorResult VisitConstCollisions(const int32 LastEpoch, const TLambda& Visitor, const bool bOnlyActive = true) const;
 
 	private:
 		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
@@ -335,6 +335,8 @@ namespace Chaos
 		*/
 		void SetIsSleeping(const bool bInIsSleeping);
 
+		bool IsInConstraintGraph() const;
+
 		/**
 		 * @brief Destroy all collisions and prevent this midphasae from being used any more. Called when one of its particles is destoyed.
 		 * It will be culled at the next Prune in the CollisionConstraintAllocator. We don't delete it immediately so that we don't
@@ -370,14 +372,14 @@ namespace Chaos
 		 * but are still kept around as an optimization.
 		*/
 		template<typename TLambda>
-		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor);
+		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor, const bool bOnlyActive = true);
 
 
 		/**
 		 * @brief Call a lambda on each active collision constraint
 		 */
 		template<typename TLambda>
-		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor) const;
+		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;
 
 		/**
 		 * @brief Cookie for use by FParticleCollisions

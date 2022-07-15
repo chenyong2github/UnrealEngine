@@ -992,6 +992,16 @@ namespace Chaos
 							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Orange, false, Duration, Settings.DrawPriority, 0.5f * Settings.LineThickness);
 						}
 					}
+
+					// Sleeping
+					if (Settings.ContactInfoWidth > 0)
+					{
+						if (Contact.IsSleeping())
+						{
+							const FReal BoxScale = Settings.DrawScale * Settings.ContactInfoWidth * 1.1f;
+							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Black, false, Duration, Settings.DrawPriority, 0.5f * Settings.LineThickness);
+						}
+					}
 				}
 
 				// AccumulatedImpulse
@@ -1324,43 +1334,49 @@ namespace Chaos
 				}
 			};
 
-			for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
+			if (bChaosDebugDebugDrawIslands)
 			{
-				const FPBDIslandSolver* Island = Graph.GetSolverIsland(IslandIndex);
+				TArray<FAABB3> IslandBounds;
+				IslandBounds.SetNum(Graph.NumIslands());
 
-				FAABB3 IslandAABB = FAABB3::EmptyAABB();
-				const TArray<FGeometryParticleHandle*> Particles = Island->GetParticles();
-				for (const FGeometryParticleHandle* GeoParticle : Particles)
+				const typename FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
+				for (const auto& GraphNode : IslandGraph->GraphNodes)
 				{
-					FConstGenericParticleHandle Particle = GeoParticle;
+					FConstGenericParticleHandle Particle = GraphNode.NodeItem;
 					if (Particle->IsDynamic() && Particle->HasBounds())
 					{
-						IslandAABB.GrowToInclude(Particle->BoundingBox());
+						for (int32 ParticleIsland : Graph.FindParticleIslands(Particle->Handle()))
+						{
+							IslandBounds[ParticleIsland].GrowToInclude(Particle->BoundingBox());
+						}
 					}
 				}
-
-				if (bChaosDebugDebugDrawIslands)
+			
+				for (int32 IslandIndex = 0; IslandIndex < IslandBounds.Num(); ++IslandIndex)
 				{
-					const FColor IslandColor = GetIslandColor(IslandIndex, !Island->IsSleeping());
+					FAABB3 IslandAABB = IslandBounds[IslandIndex];
+
+					const FColor IslandColor = GetIslandColor(IslandIndex, !Graph.GetSolverIsland(IslandIndex)->IsSleeping());
 					const FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
 					FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColor, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, 3.0f * Settings.LineThickness);
 				}
+			}
 
-				if (bChaosDebugDebugDrawContactGraph || bChaosDebugDebugDrawContactGraphUnused || bChaosDebugDebugDrawContactGraphUsed)
+			if (bChaosDebugDebugDrawContactGraph || bChaosDebugDebugDrawContactGraphUnused || bChaosDebugDebugDrawContactGraphUsed)
+			{
+				const typename FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
+				for (const auto& GraphEdge : IslandGraph->GraphEdges)
 				{
-					const auto& Constraints = Island->GetConstraints();
-					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+					const FConstraintHandle* Constraint = GraphEdge.EdgeItem;
+					if (const FPBDCollisionConstraintHandle* Collision = Constraint->As<FPBDCollisionConstraintHandle>())
 					{
-						const FConstraintHandle* Constraint = Constraints[ConstraintIndex];
-
-						if (const FPBDCollisionConstraintHandle* Collision = Constraint->As<FPBDCollisionConstraintHandle>())
-						{
-							// @chaos(todo): store level and color in the constraint? Only for debug draw...
-							const int32 LevelIndex = INDEX_NONE;
-							const int32 ColorIndex = INDEX_NONE;
-							const bool bIsUsed = !Collision->GetConstraint()->AccumulatedImpulse.IsNearlyZero();
-							DrawGraphCollision(SpaceTransform, Collision->GetConstraint(), IslandIndex, LevelIndex, ColorIndex, ConstraintIndex, bIsUsed, Settings);
-						}
+						const int32 IslandIndex = GraphEdge.IslandIndex;
+						// @chaos(todo): would be nice to have this data retained for debug draw...
+						const int32 LevelIndex = INDEX_NONE;
+						const int32 ColorIndex = INDEX_NONE;
+						const int32 OrderIndex = INDEX_NONE;
+						const bool bIsUsed = !Collision->GetConstraint()->AccumulatedImpulse.IsNearlyZero();
+						DrawGraphCollision(SpaceTransform, Collision->GetConstraint(), IslandIndex, LevelIndex, ColorIndex, OrderIndex, bIsUsed, Settings);
 					}
 				}
 			}

@@ -12,7 +12,7 @@ namespace Chaos
 	class FPBDRigidSpringConstraints;
 	class FPBDIslandSolverData;
 
-	class CHAOS_API FPBDRigidSpringConstraintHandle : public TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>
+	class CHAOS_API FPBDRigidSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>;
@@ -31,7 +31,7 @@ namespace Chaos
 		const TVector<FVec3, 2>& GetConstraintPositions() const;
 		void SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions);
 		
-		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const;
+		virtual FParticlePair GetConstrainedParticles() const override;
 
 		// Get the rest length of the spring
 		FReal GetRestLength() const;

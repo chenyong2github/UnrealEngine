@@ -24,5 +24,9 @@ public class HeadlessChaosTarget : TestTargetRules
 
 		// our gtest does not have debug crt libs
 		bDebugBuildsActuallyUseDebugCRT = false;
+
+		// Enable additional debug functionality in the constraint management system to allow better unit testing
+		GlobalDefinitions.Add("CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED=1");
+		BuildEnvironment = TargetBuildEnvironment.Unique;
 	}
 }

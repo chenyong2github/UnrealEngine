@@ -44,6 +44,7 @@ namespace Chaos
 	/**
 	 * @brief A handle to a contact constraint.
 	 * @note This is an intrusive handle, so you can use a contact pointer as a handle.
+	 * @todo(chaos): remove this class - it can just be a "using FPBDCollisionConstraintHandle = FPBDCollisionConstraint"
 	*/
 	class CHAOS_API FPBDCollisionConstraintHandle : public TIntrusiveConstraintHandle<FPBDCollisionConstraint>
 	{
@@ -85,9 +86,8 @@ namespace Chaos
 
 		FVec3 GetAccumulatedImpulse() const;
 
-		TVector<const TGeometryParticleHandle<FReal, 3>*, 2> GetConstrainedParticles() const;
-
-		TVector<TGeometryParticleHandle<FReal, 3>*, 2> GetConstrainedParticles();
+		// Declared final so that TPBDConstraintGraphRuleImpl::AddToGraph() does not need to hit vtable
+		virtual FParticlePair GetConstrainedParticles() const override final;
 
 		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);

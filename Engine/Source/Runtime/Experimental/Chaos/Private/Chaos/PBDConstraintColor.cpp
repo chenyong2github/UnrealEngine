@@ -759,8 +759,8 @@ void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintG
 	Edges.SetNum(ConstraintGraph.GetGraphEdges().GetMaxIndex());
 	IslandData.SetNum(ConstraintGraph.NumIslands());
 	ParticleToLevel.Init(0, ConstraintGraph.GetMaxParticleUniqueIdx() + 1);
-	DynamicGlobalToIslandLocalNodeIndicesArray.Init(-1, ConstraintGraph.GetIslandGraph()->NumNodes());
-	NodeToParticle.Init(nullptr, ConstraintGraph.GetIslandGraph()->NumNodes());
+	DynamicGlobalToIslandLocalNodeIndicesArray.Init(-1, ConstraintGraph.GetIslandGraph()->MaxNumNodes());
+	NodeToParticle.Init(nullptr, ConstraintGraph.GetIslandGraph()->MaxNumNodes());
 	IslandToGBFContactGraphData.SetNum(ConstraintGraph.NumIslands());
 }
 

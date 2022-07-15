@@ -7,6 +7,8 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 CSV_DECLARE_CATEGORY_EXTERN(ChaosPhysicsTimers);
 
 int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar = 1;
@@ -1022,7 +1024,12 @@ namespace Chaos
 
 	void FPBDRigidsEvolutionBase::SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState)
 	{
-		EObjectStateType InitialState = Particle->ObjectState();
+		const EObjectStateType InitialState = Particle->ObjectState();
+
+		// Should never be called for statics - they cannot change state. Except...
+		// @todo(chaos): We should be able to assert this but FRigidClustering::CreateClusterParticle and ReleaseClusterParticle change the state after creation
+		//check(InitialState != EObjectStateType::Static)
+		//check(ObjectState != EObjectStateType::Static);
 
 		Particle->SetObjectStateLowLevel(ObjectState);
 
@@ -1036,20 +1043,12 @@ namespace Chaos
 			Particles.SetDynamicParticleSOA(Particle);
 		}
 
-		// @todo(chaos): this doesn't seem to handle Sleeping -> Kinematic, or Kinematic -> Sleeping
 		if (InitialState != ObjectState && !Particle->Disabled())
 		{
-			if (InitialState == EObjectStateType::Sleeping)
+			// If we were just put to sleep or made kinematic, we should still report info back to GT
+			// @todo(chaos): why? add reason to the comments
+			if (ObjectState != EObjectStateType::Dynamic)
 			{
-				if (Particle->IslandIndex() != INDEX_NONE)
-				{
-					// GT has forced a wake so have to wake everything in the island
-					IslandsToWake.Enqueue(Particle->IslandIndex());
-				}
-			}
-			else if (ObjectState != EObjectStateType::Dynamic)
-			{
-				// even though we went to sleep, we should still report info back to GT
 				Particles.MarkTransientDirtyParticle(Particle);
 			}
 		}
@@ -1075,15 +1074,7 @@ namespace Chaos
 		Particles.SetDynamicParticleSOA(Particle);
 		if (InitialState != ObjectState)
 		{
-			if (InitialState == EObjectStateType::Sleeping)
-			{
-				if (Particle->IslandIndex() != INDEX_NONE)
-				{
-					// GT has forced a wake so have to wake everything in the island
-					IslandsToWake.Enqueue(Particle->IslandIndex());
-				}
-			}
-			else if(ObjectState != EObjectStateType::Dynamic)
+			if(ObjectState != EObjectStateType::Dynamic)
 			{
 				// even though we went to sleep, we should still report info back to GT
 				Particles.MarkTransientDirtyParticle(Particle);

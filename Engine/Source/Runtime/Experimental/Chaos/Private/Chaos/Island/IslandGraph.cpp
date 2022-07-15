@@ -2,11 +2,14 @@
 
 #include "Chaos/Island/IslandGraph.h"
 #include "Chaos/Island/SolverIsland.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ConstraintHandle.h"
 
 #include "ChaosStats.h"
 #include "ChaosLog.h"
+
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -14,24 +17,36 @@ namespace Chaos
 DECLARE_CYCLE_STAT(TEXT("MergeIslandGraph"), STAT_MergeIslandGraph, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("SplitIslandGraph"), STAT_SplitIslandGraph, STATGROUP_Chaos);
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ResetNodes()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetNodes()
 {
+	// If we remove all nodes, we must also remove edges
+	ResetEdges();
+
+	// Notify all nodes they were removed
+	if (Owner != nullptr)
+	{
+		for (auto& ItemNode : GraphNodes)
+		{
+			Owner->GraphNodeRemoved(ItemNode.NodeItem);
+		}
+	}
+
 	GraphNodes.Reset();
 	ItemNodes.Reset();
 	GraphIslands.Reset();
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ReserveNodes(const int32 NumNodes)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ReserveNodes(const int32 NumNodes)
 {
 	GraphNodes.Reserve(NumNodes);
 	ItemNodes.Reserve(NumNodes);
 	GraphIslands.Reserve(NumNodes);
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ParentIslands(const int32 FirstIsland, const int32 SecondIsland, const bool bIsEdgeMoving)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ParentIslands(const int32 FirstIsland, const int32 SecondIsland, const bool bIsEdgeMoving)
 {
 	if (GraphIslands.IsValidIndex(FirstIsland) && GraphIslands.IsValidIndex(SecondIsland) && (FirstIsland != SecondIsland))
 	{
@@ -47,64 +62,70 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ParentIslands(const int32 Fir
 	}
 }
 	
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode, const int32 NodeIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode, const int32 NodeIndex)
 {
 	if (GraphNodes.IsValidIndex(NodeIndex))
 	{
 		FGraphNode& GraphNode = GraphNodes[NodeIndex];
-		
-		// In case the item is changing its state to be valid
-		// we merge all the connected islands 
-		if (bValidNode && !GraphNode.bValidNode)
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+		ensure(GraphNode.NodeItem == NodeItem);
+#endif
+
+		// Update node state (must come first because IsEdgeMoving relies in state on Stationary being up to date)
+		const bool bWasValidNode = GraphNode.bValidNode;
+		GraphNode.bValidNode = bValidNode;
+		GraphNode.bStationaryNode = bStationaryNode;
+
+		// In case the item is changing its state to be valid (Kinematic->Dynamic/Sleeping)
+		// we merge all the connected islands (this will wake the islands)
+		if (bValidNode && !bWasValidNode)
 		{
+			// @todo(chaos): we could just use the GraphNode.NodeIslands here if it were maintained internally
 			int32 MasterIsland = INDEX_NONE;
 			for (int32& EdgeIndex : GraphNode.NodeEdges)
 			{
 				FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+
 				const bool bIsEdgeMoving = IsEdgeMoving(EdgeIndex);
-				
 				ParentIslands(MasterIsland, GraphEdge.IslandIndex, bIsEdgeMoving);
+			
 				MasterIsland = GraphEdge.IslandIndex;
-				if(bIsEdgeMoving)
-				{
-					GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
-				}
 			}
+
+			// Put the valid node into one of the islands - they will be merged anyway so doesn't matter which
+			// If we did not have an island (no edges), one will be assigned later
+			GraphNode.IslandIndex = MasterIsland;
+			GraphNode.NodeIslands.Reset();
 		}
-		// If node is not valid and was valid before we check that all the node edges
-		// have at least one valid node. otherwise we remove the edge. 
-		if (!bValidNode && GraphNode.bValidNode)
+
+		// If we are changing to invalid (Dynamic/Sleeping->Kinematic) wake the island
+		if (!bValidNode && bWasValidNode)
 		{
-			for (int32 NodeEdge = GraphNode.NodeEdges.GetMaxIndex() - 1; NodeEdge >= 0; --NodeEdge)
+			// Wake the node's island if the kinematic is moving
+			if (GraphIslands.IsValidIndex(GraphNode.IslandIndex) && !bStationaryNode)
 			{
-				if (GraphNode.NodeEdges.IsValidIndex(NodeEdge))
-				{
-					const int32 EdgeIndex = GraphNode.NodeEdges[NodeEdge];
+				GraphIslands[GraphNode.IslandIndex].bIsPersistent = false;
+			}
 
-					if (GraphEdges.IsValidIndex(EdgeIndex))
-					{
-						FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+			// Invalid node island lists are built later (see PopulateIslands)
+			GraphNode.IslandIndex = INDEX_NONE;
+			GraphNode.NodeIslands.Reset();
+		}
 
-						// Get the opposite node index for the given edge
-						const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
-							GraphEdge.SecondNode : GraphEdge.FirstNode;
-
-						if (!GraphNodes.IsValidIndex(OtherIndex) || (GraphNodes.IsValidIndex(OtherIndex) && !GraphNodes[OtherIndex].bValidNode))
-						{
-							RemoveEdge(EdgeIndex);
-						}
-					}
-				}
+		// If we change validity, we may have to change the validity of some of the edges
+		if (bValidNode != bWasValidNode)
+		{
+			for (int32 EdgeIndex : GraphNode.NodeEdges)
+			{
+				UpdateEdge(EdgeIndex);
 			}
 		}
-		GraphNode.bValidNode = bValidNode;
-		GraphNode.bStationaryNode = bStationaryNode;
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+int32 FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AddNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode)
 {
 	int32 NodeIndex = INDEX_NONE;
 	int32* ItemIndex = ItemNodes.Find(NodeItem);
@@ -117,18 +138,27 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddNode(const NodeType& Node
 	{
 		FGraphNode GraphNode;
 		GraphNode.NodeItem = NodeItem;
-		GraphNode.IslandIndex = IslandIndex;
+
+		if (bValidNode)
+		{
+			GraphNode.IslandIndex = IslandIndex;
+		}
 		
 		GraphNode.bValidNode = bValidNode;
 		GraphNode.bStationaryNode = bStationaryNode;
 
 		NodeIndex =  ItemNodes.Add(NodeItem, GraphNodes.Emplace(GraphNode));
+
+		if (Owner != nullptr)
+		{
+			Owner->GraphNodeAdded(NodeItem, NodeIndex);
+		}
 	}
 	return NodeIndex;
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& NodeItem)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::RemoveNode(const NodeType& NodeItem)
 {
 	if (const int32* IndexPtr = ItemNodes.Find(NodeItem))
 	{
@@ -157,6 +187,11 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& No
 			}
 			ItemNodes.Remove(NodeItem);
 			GraphNodes.RemoveAt(NodeIndex);
+
+			if (Owner != nullptr)
+			{
+				Owner->GraphNodeRemoved(NodeItem);
+			}
 		}
 		else
 		{
@@ -165,22 +200,40 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& No
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ResetEdges()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetEdges()
 {
+	if (Owner != nullptr)
+	{
+		for (auto& GraphEdge : GraphEdges)
+		{
+			Owner->GraphEdgeRemoved(GraphEdge.EdgeItem);
+		}
+	}
+
+	for (auto& GraphIsland : GraphIslands)
+	{
+		GraphIsland.NumEdges = 0;
+	}
+
+	for (auto& GraphNode : GraphNodes)
+	{
+		GraphNode.NodeEdges.Reset();
+	}
+
 	GraphEdges.Reset();
 	ItemEdges.Reset();
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ReserveEdges(const int32 NumEdges)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ReserveEdges(const int32 NumEdges)
 {
 	GraphEdges.Reserve(NumEdges);
 	ItemEdges.Reserve(NumEdges);
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 EdgeIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AttachIslands(const int32 EdgeIndex)
 {
 	if (GraphEdges.IsValidIndex(EdgeIndex))
 	{
@@ -200,11 +253,19 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 			// if yes we set the invalid node island index 
 			// and the edge one to be the valid one 
 			// If none are valid we create a new island 
-			if (bFirstValidIsland && !bSecondValidIsland)
+			if (!FirstNode.bValidNode && !SecondNode.bValidNode)
+			{
+				// If we have two invalid nodes, we just remove the edge from its island
+				GraphEdge.IslandIndex = INDEX_NONE;
+			}
+			else if (bFirstValidIsland && !bSecondValidIsland)
 			{
 				GraphEdge.IslandIndex = FirstNode.IslandIndex;
-				SecondNode.IslandIndex = GraphEdge.IslandIndex;
-				if(SecondNode.bValidNode && bIsEdgeMoving)
+				if (SecondNode.bValidNode)
+				{
+					SecondNode.IslandIndex = GraphEdge.IslandIndex;
+				}
+				if (SecondNode.bValidNode && bIsEdgeMoving)
 				{
 					GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
 				}
@@ -212,8 +273,11 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 			else if (!bFirstValidIsland && bSecondValidIsland)
 			{
 				GraphEdge.IslandIndex = SecondNode.IslandIndex;
-				FirstNode.IslandIndex = GraphEdge.IslandIndex;
-				if(FirstNode.bValidNode && bIsEdgeMoving)
+				if (FirstNode.bValidNode)
+				{
+					FirstNode.IslandIndex = GraphEdge.IslandIndex;
+				}
+				if (FirstNode.bValidNode && bIsEdgeMoving)
 				{
 					GraphIslands[GraphEdge.IslandIndex].bIsPersistent = false;
 				}
@@ -224,8 +288,14 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 				GraphEdge.IslandIndex = GraphIslands.Emplace(GraphIsland);
 
 				// We set both island indices to be the equal to the edge one
-				FirstNode.IslandIndex = GraphEdge.IslandIndex;
-				SecondNode.IslandIndex = GraphEdge.IslandIndex;
+				if (FirstNode.bValidNode)
+				{
+					FirstNode.IslandIndex = GraphEdge.IslandIndex;
+				}
+				if (SecondNode.bValidNode)
+				{
+					SecondNode.IslandIndex = GraphEdge.IslandIndex;
+				}
 			}
 			else
 			{
@@ -238,7 +308,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		}
 		else if (GraphNodes.IsValidIndex(GraphEdge.FirstNode) && !GraphNodes.IsValidIndex(GraphEdge.SecondNode) && GraphNodes[GraphEdge.FirstNode].bValidNode)
 		{
-			// If only the first node is valid, check if its island index is valid and if yes use it for the edge.
+			// If only the first node exists and is valid, check if its island index is valid and if yes use it for the edge.
 			// otherwise we create a new island
 			if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.FirstNode].IslandIndex))
 			{
@@ -249,7 +319,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 		}
 		else if (!GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes.IsValidIndex(GraphEdge.SecondNode) && GraphNodes[GraphEdge.SecondNode].bValidNode)
 		{
-			// If only the second node is valid, check if its island index is valid and if yes use it for the edge.
+			// If only the second node exists and is valid, check if its island index is valid and if yes use it for the edge.
 			// otherwise we create a new island
 			if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.SecondNode].IslandIndex))
 			{
@@ -261,14 +331,14 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::AttachIslands(const int32 Edg
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddEdge(const EdgeType& EdgeItem, const int32 ItermContainer, const int32 FirstNode, const int32 SecondNode)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+int32 FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AddEdge(const EdgeType& EdgeItem, const int32 ItermContainer, const int32 FirstNode, const int32 SecondNode)
 {
 	int32 EdgeIndex = INDEX_NONE;
 	// We only add an edge if one of the 2 nodes are valid
 	if (GraphNodes.IsValidIndex(FirstNode) || GraphNodes.IsValidIndex(SecondNode))
 	{
-		// This test could be quite slow. will probably be better to use the graph index that is stored on the constraint handle
+		// @todo(chaos): This test could be quite slow. will probably be better to use the graph index that is stored on the constraint handle
 		int32* ItemIndex = ItemEdges.Find(EdgeItem);
 		if (ItemIndex)
 		{
@@ -284,14 +354,20 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddEdge(const EdgeType& Edge
 			GraphEdge.SecondNode = SecondNode;
 			GraphEdge.IslandIndex = INDEX_NONE;
 			GraphEdge.ItemContainer = ItermContainer;
+			GraphEdge.bValidEdge = true;
 
 			EdgeIndex = GraphEdges.Emplace(GraphEdge);
 			ItemEdges.Add(EdgeItem, EdgeIndex);
 
-			GraphEdges[EdgeIndex].FirstEdge = GraphNodes.IsValidIndex(FirstNode) ? GraphNodes[FirstNode].NodeEdges.Add(EdgeIndex) : -1;
-			GraphEdges[EdgeIndex].SecondEdge = GraphNodes.IsValidIndex(SecondNode) ? GraphNodes[SecondNode].NodeEdges.Add(EdgeIndex) : -1;
+			GraphEdges[EdgeIndex].FirstEdge = GraphNodes.IsValidIndex(FirstNode) ? GraphNodes[FirstNode].NodeEdges.Add(EdgeIndex) : INDEX_NONE;
+			GraphEdges[EdgeIndex].SecondEdge = GraphNodes.IsValidIndex(SecondNode) ? GraphNodes[SecondNode].NodeEdges.Add(EdgeIndex) : INDEX_NONE;
 
 			AttachIslands(EdgeIndex);
+
+			if (Owner != nullptr)
+			{
+				Owner->GraphEdgeAdded(EdgeItem, EdgeIndex);
+			}
 		}
 	}	
 	else
@@ -301,13 +377,12 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType>::AddEdge(const EdgeType& Edge
 	return EdgeIndex;
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveEdge(const int32 EdgeIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::RemoveEdge(const int32 EdgeIndex)
 {
 	if (GraphEdges.IsValidIndex(EdgeIndex))
 	{
 		FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
-		// We first remove the edge from the nodes edges list
 		if(GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes[GraphEdge.FirstNode].NodeEdges.IsValidIndex(GraphEdge.FirstEdge))
 		{
 			GraphNodes[GraphEdge.FirstNode].NodeEdges.RemoveAt(GraphEdge.FirstEdge);
@@ -319,6 +394,11 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveEdge(const int32 EdgeIn
 		// We then remove the edge from the item and graph edges
 		ItemEdges.Remove(GraphEdge.EdgeItem);
 		GraphEdges.RemoveAt(EdgeIndex);
+
+		if (Owner != nullptr)
+		{
+			Owner->GraphEdgeRemoved(GraphEdge.EdgeItem);
+		}
 	}
 	else
 	{
@@ -326,8 +406,20 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveEdge(const int32 EdgeIn
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands(const int32 ParentIndex, const int32 ChildIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateEdge(const int32 EdgeIndex)
+{
+	if (GraphEdges.IsValidIndex(EdgeIndex))
+	{
+		FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+		const bool bFirstNodeValid = GraphNodes.IsValidIndex(GraphEdge.FirstNode) && GraphNodes[GraphEdge.FirstNode].bValidNode;
+		const bool bSecondNodeValid = GraphNodes.IsValidIndex(GraphEdge.SecondNode) && GraphNodes[GraphEdge.SecondNode].bValidNode;
+		GraphEdge.bValidEdge = bFirstNodeValid || bSecondNodeValid;
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::MergeIslands(const int32 ParentIndex, const int32 ChildIndex)
 {
 	int32 CurrentIndex;
 	TQueue<int32> ChildQueue;
@@ -352,8 +444,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands(const int32 Pare
 	}
 }
 	
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::MergeIslands()
 {
 	GraphCounter = (GraphCounter + 1) % MaxCount;
 
@@ -396,8 +488,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands()
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::InitSorting()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::InitSorting()
 {
 	// Reset nodes levels and colors
 	for(auto& GraphNode : GraphNodes)
@@ -419,8 +511,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::InitSorting()
 	}
 }
 	
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateLevels(const int32 NodeIndex, const int32 ContainerId)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateLevels(const int32 NodeIndex, const int32 ContainerId)
 {
 	if(GraphNodes.IsValidIndex(NodeIndex))
 	{
@@ -451,8 +543,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateLevels(const int32 Node
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeLevels(const int32 ContainerId)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeLevels(const int32 ContainerId)
 {
 	// First enqueue all the static/kinematic nodes for levels 0
 	NodeQueue.Reset();
@@ -489,8 +581,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeLevels(const int32 Con
 	}
 }
 	
-template<typename NodeType, typename EdgeType, typename IslandType>
-int32 FIslandGraph<NodeType, EdgeType, IslandType>::PickColor(const FGraphNode& GraphNode, const int32 OtherIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+int32 FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::PickColor(const FGraphNode& GraphNode, const int32 OtherIndex)
 {
 	int32 ColorToUse = 0;
 	if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].bValidNode)
@@ -519,8 +611,8 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType>::PickColor(const FGraphNode& 
 	return ColorToUse;
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateColors(const int32 NodeIndex, const int32 ContainerId, const int32 MinEdges)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateColors(const int32 NodeIndex, const int32 ContainerId, const int32 MinEdges)
 {
 	if (GraphNodes.IsValidIndex(NodeIndex))
 	{
@@ -552,8 +644,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateColors(const int32 Node
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeColors(const int32 ContainerId, const int32 MinEdges)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeColors(const int32 ContainerId, const int32 MinEdges)
 {
 	GraphCounter = (GraphCounter + 1) % MaxCount;
 
@@ -581,8 +673,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeColors(const int32 Con
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(const int32 RootIndex, const int32 IslandIndex)
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::SplitIsland(const int32 RootIndex, const int32 IslandIndex)
 {
 	NodeQueue.PushLast(RootIndex);
 	int32 NodeIndex = RootIndex;
@@ -598,7 +690,17 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(const int32 RootI
 		if (GraphNode.NodeCounter != GraphCounter)
 		{
 			GraphNode.NodeCounter = GraphCounter;
-			GraphNode.IslandIndex = IslandIndex;
+
+			// We are always awake when SplitIslands is called so NodeIslands will be rebuilt
+			if (GraphNode.bValidNode)
+			{
+				GraphNode.IslandIndex = IslandIndex;
+			}
+			else
+			{
+				GraphNode.IslandIndex = INDEX_NONE;
+			}
+			GraphNode.NodeIslands.Reset();
 
 			// Loop over the node edges to continue the island discovery
 			for (int32& EdgeIndex : GraphNode.NodeEdges)
@@ -612,7 +714,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(const int32 RootI
 				const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
 					GraphEdge.SecondNode : GraphEdge.FirstNode;
 
-				// Only the valid nodes are allowed to continue the graph traversal
+				// Only the valid nodes (Sleeping/Dynamic Particles) are allowed to continue the graph traversal (connect islands)
 				if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].NodeCounter != GraphCounter && GraphNodes[OtherIndex].bValidNode)
 				{
 					NodeQueue.PushLast(OtherIndex);
@@ -622,8 +724,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(const int32 RootI
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIslands()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::SplitIslands()
 {
 	SCOPE_CYCLE_COUNTER(STAT_SplitIslandGraph);
 
@@ -659,14 +761,15 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIslands()
 				else
 				{
 					RootNode.IslandIndex = INDEX_NONE;
+					RootNode.NodeIslands.Reset();
 				}
 			}
 		}
 	}
 }
 	
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ReassignIslands()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ReassignIslands()
 {
 	// Update all the nodes indices
 	for (FGraphIsland& GraphIsland : GraphIslands)
@@ -675,18 +778,20 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ReassignIslands()
 		GraphIsland.NumEdges = 0;
 	}
 	
-	// Update all the edges indices
+	// Update all the edges island indices
 	for (FGraphEdge& GraphEdge : GraphEdges)
 	{
-		if(GraphIslands.IsValidIndex(GraphEdge.IslandIndex))
+		int32 EdgeIslandIndex = INDEX_NONE;
+		if (GraphIslands.IsValidIndex(GraphEdge.IslandIndex))
 		{
 			const int32 ParentIndex = GraphIslands[GraphEdge.IslandIndex].ParentIsland;
 			if(GraphIslands.IsValidIndex(ParentIndex))
 			{
-				GraphEdge.IslandIndex = ParentIndex;
+				EdgeIslandIndex = ParentIndex;
 				GraphIslands[ParentIndex].NumEdges++;
 			}
 		}
+		GraphEdge.IslandIndex = EdgeIslandIndex;
 	}
 
 	// Update all the nodes indices
@@ -697,7 +802,17 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ReassignIslands()
 			const int32 ParentIndex = GraphIslands[GraphNode.IslandIndex].ParentIsland;
 			if(GraphIslands.IsValidIndex(ParentIndex))
 			{
-				GraphNode.IslandIndex = ParentIndex;
+				// This is only called from MergeIslands so we know we are awake. NodeIslands will be rebuilt (See PopulateIslands)
+				if (GraphNode.bValidNode)
+				{
+					GraphNode.IslandIndex = ParentIndex;
+				}
+				else
+				{
+					GraphNode.IslandIndex = INDEX_NONE;
+				}
+				GraphNode.NodeIslands.Reset();
+
 				if(GraphNode.bValidNode)
 				{
 					GraphIslands[ParentIndex].NumNodes++;
@@ -707,8 +822,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ReassignIslands()
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateGraph()
 {
 	SCOPE_CYCLE_COUNTER(STAT_MergeIslandGraph);
 
@@ -721,23 +836,36 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 		if (GraphNodes.IsValidIndex(NodeIndex))
 		{
 			FGraphNode& GraphNode = GraphNodes[NodeIndex];
+
 			// Add new islands for the all the particles that are not connected into the graph 
-			if(!GraphIslands.IsValidIndex(GraphNode.IslandIndex) && GraphNode.bValidNode)
+			if (GraphNode.bValidNode && !GraphIslands.IsValidIndex(GraphNode.IslandIndex))
 			{
-				FGraphIsland GraphIsland = { 0, 1 };
+				FGraphIsland GraphIsland = { 0, 1 }; // {NumEdges, NumNodes}
 				GraphNode.IslandIndex = GraphIslands.Emplace(GraphIsland);
+
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+				// Should never have any NodeIslands if we get here
+				ensure(GraphNode.NodeIslands.Num() == 0);
+#endif
 			}
-			// Update of the sleeping flag on the island
-			if(!GraphNode.bStationaryNode)
+
+			// Clear the sleeping flag on the island for moving nodes
+			if (!GraphNode.bStationaryNode)
 			{
-				if(GraphNode.NodeEdges.Num() == 0 && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
+				if (GraphNode.bValidNode)
 				{
+					// NOTE: All valid nodes should have an island index here (see above)
+					check(GraphIslands.IsValidIndex(GraphNode.IslandIndex));
+
+					// Valid node (Sleeping/Dynamic Particle) that is moving - island must be awake
 					GraphIslands[GraphNode.IslandIndex].bIsSleeping = false;
 				}
-				else
+				else if (!GraphNode.bValidNode)
 				{
-					// if a node is a moving kinematic and is switching its stationary state
-					// we have to iterate through all the edges since the kinematic node could belong to several islands
+					// Invalid node (Kinematic) that is moving - islands must be awake.
+					// We have to iterate through all the edges since the node could belong to several islands
+					// and the NodeIslands array is managed outside this class and may not be up to date.
+					// @todo(chaos): move NodeIslands array management into FIslandGraph if possible
 					for (auto& EdgeIndex : GraphNode.NodeEdges)
 					{
 						GraphIslands[GraphEdges[EdgeIndex].IslandIndex].bIsSleeping = false;
@@ -756,33 +884,49 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 		}
 	}
 	
-	// Split the islands if this one is persistent and not sleeping
+	// Split the islands that are persistent and not sleeping if possible
 	SplitIslands();
+
+	// Remove edges from their island if:
+	// - the island is awake and the edge is invalid (no valid nodes)
+	// - the island was destroyed/merged but the edge wasn't moved to the new island (because it is invalid)
+	for (FGraphEdge& GraphEdge : GraphEdges)
+	{
+		const bool bValidIsland = GraphIslands.IsValidIndex(GraphEdge.IslandIndex);
+		const bool bAwakeIsland = bValidIsland && !GraphIslands[GraphEdge.IslandIndex].bIsSleeping;
+		const bool bValidEdge = GraphEdge.bValidEdge;
+		if (!bValidIsland || (bAwakeIsland && !bValidEdge))
+		{
+			GraphEdge.IslandIndex = INDEX_NONE;
+		}
+	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::InitIslands()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::InitIslands()
 {
 	// Remove of all the non sleeping edges
 	for(int32 EdgeIndex = GraphEdges.GetMaxIndex(); EdgeIndex >= 0; --EdgeIndex)
 	{
-		if(GraphEdges.IsValidIndex(EdgeIndex) && GraphIslands.IsValidIndex(GraphEdges[EdgeIndex].IslandIndex) && !GraphIslands[GraphEdges[EdgeIndex].IslandIndex].bIsSleeping)
+		if(GraphEdges.IsValidIndex(EdgeIndex) && GraphIslands.IsValidIndex(GraphEdges[EdgeIndex].IslandIndex))
 		{
-			RemoveEdge(EdgeIndex);
+			if (!GraphIslands[GraphEdges[EdgeIndex].IslandIndex].bIsSleeping)
+			{
+				RemoveEdge(EdgeIndex);
+			}
 		}
 	} 
 
 	// Reset of the sleeping flag for the graph islands
+	// See UpdateGraph() which sets it to false again if there are any awake nodes
 	for (auto& GraphIsland : GraphIslands)
 	{
 		GraphIsland.bIsSleeping = true;
-		GraphIsland.ChildrenIslands.Reset();
-		GraphIsland.ParentIsland = INDEX_NONE;
 	}
 }
 
-template<typename NodeType, typename EdgeType, typename IslandType>
-void FIslandGraph<NodeType, EdgeType, IslandType>::ResetIslands()
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetIslands()
 {
 	GraphEdges.Reset();
 	ItemEdges.Reset();
@@ -798,6 +942,6 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::ResetIslands()
 	}
 }
 
-template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIslandSolver*>;
-template class FIslandGraph<int32, int32, int32>;
+template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIslandSolver*, FPBDIslandManager>;
+template class FIslandGraph<int32, int32, int32, TNullIslandGraphOwner<int32, int32>>;
 }

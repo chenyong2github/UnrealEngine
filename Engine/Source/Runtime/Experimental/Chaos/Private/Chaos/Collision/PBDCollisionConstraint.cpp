@@ -3,9 +3,9 @@
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
-#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDCollisionConstraints.h"
@@ -176,6 +176,9 @@ namespace Chaos
 		// @todo(chaos): this should probably be handled by the copy constructor
 		Constraint.GetContainerCookie().ClearContainerData();
 
+		// We are not in the constraint graph, even if Source was
+		Constraint.SetConstraintGraphIndex(INDEX_NONE);
+
 		return Constraint;
 	}
 
@@ -251,6 +254,14 @@ namespace Chaos
 		, SavedManifoldPoints()
 		, ManifoldPoints()
 	{
+	}
+
+	FPBDCollisionConstraint::~FPBDCollisionConstraint()
+	{
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+		// Make sure we have been dropped by the graph
+		ensure(ConstraintGraphIndex() == INDEX_NONE);
+#endif
 	}
 
 	void FPBDCollisionConstraint::Setup(
@@ -378,6 +389,15 @@ namespace Chaos
 		const FReal MinBounds = FMath::Max(MinBounds0, MinBounds1);
 		CCDEnablePenetration = MinBounds * CVars::CCDEnableThresholdBoundsScale;
 		CCDTargetPenetration = FMath::Min(MinBounds * CVars::CCDAllowedDepthBoundsScale, CCDEnablePenetration);
+	}
+
+	bool FPBDCollisionConstraint::IsSleeping() const
+	{
+		if (ContainerCookie.MidPhase != nullptr)
+		{
+			return ContainerCookie.MidPhase->IsSleeping();
+		}
+		return false;
 	}
 
 	void FPBDCollisionConstraint::SetIsSleeping(const bool bInIsSleeping)

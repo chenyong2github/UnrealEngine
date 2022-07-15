@@ -66,12 +66,10 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 		if(NewNonFrequentData)
 		{
-			Handle->SetNonFrequentData(*NewNonFrequentData);
-
-			// geometry may have changed, we need to invalidate the particle so it can be removed from caching structures in the evolution
-			// @todo(chaos): Remove collision constraints only. Invalidate particle may remove joint constraints in constraint graph. If joint constraint is persistent, this may cause issues.
+			// Geometry may have changed, we need to remove the particle and its collisions from the graph
 			Evolution.InvalidateParticle(Handle);
-			Evolution.DestroyParticleCollisionsInAllocator(Handle);
+
+			Handle->SetNonFrequentData(*NewNonFrequentData);
 		}
 
 		auto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;

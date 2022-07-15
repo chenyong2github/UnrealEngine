@@ -12,7 +12,7 @@ namespace Chaos
 	class FPBDRigidDynamicSpringConstraints;
 	class FPBDIslandSolverData;
 
-	class CHAOS_API FPBDRigidDynamicSpringConstraintHandle : public TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>
+	class CHAOS_API FPBDRigidDynamicSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>;
@@ -27,7 +27,7 @@ namespace Chaos
 		{
 		}
 
-		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
+		virtual FParticlePair GetConstrainedParticles() const override;
 
 		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);

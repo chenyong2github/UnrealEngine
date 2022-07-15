@@ -21,9 +21,9 @@ namespace Chaos
 	{
 		ConcreteContainer()->SetConstraintPositions(ConstraintIndex, ConstraintPositions);
 	}
-	
-	TVector<typename FPBDRigidSpringConstraintHandle::FGeometryParticleHandle*, 2> FPBDRigidSpringConstraintHandle::GetConstrainedParticles() const
-	{ 
+
+	FParticlePair FPBDRigidSpringConstraintHandle::GetConstrainedParticles() const
+	{
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 

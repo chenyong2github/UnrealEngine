@@ -225,7 +225,7 @@ namespace Chaos
 	 * to reduce unnecessary indirection.
 	 * 
 	*/
-	class CHAOS_API FPBDCollisionConstraint : public FPBDCollisionConstraintHandle
+	class CHAOS_API FPBDCollisionConstraint final : public FPBDCollisionConstraintHandle
 	{
 		friend class FCollisionConstraintAllocator;
 		friend class FMultiShapePairCollisionDetector;
@@ -294,6 +294,7 @@ namespace Chaos
 		static FPBDCollisionConstraint MakeCopy(const FPBDCollisionConstraint& Source);
 
 		FPBDCollisionConstraint();
+		virtual ~FPBDCollisionConstraint();
 
 		/**
 		 * @brief The current CCD state of this constraint
@@ -335,12 +336,9 @@ namespace Chaos
 		// API
 		//
 
-		FGeometryParticleHandle* GetParticle0() { return Particle[0]; }
-		const FGeometryParticleHandle* GetParticle0() const { return Particle[0]; }
-		FGeometryParticleHandle* GetParticle1() { return Particle[1]; }
-		const FGeometryParticleHandle* GetParticle1() const { return Particle[1]; }
-		FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Particle[ParticleIndex]; }
-		const FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Particle[ParticleIndex]; }
+		FGeometryParticleHandle* GetParticle0() const { return Particle[0]; }
+		FGeometryParticleHandle* GetParticle1() const { return Particle[1]; }
+		FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Particle[ParticleIndex]; }
 
 		const FImplicitObject* GetImplicit0() const { return Implicit[0]; }
 		const FImplicitObject* GetImplicit1() const { return Implicit[1]; }
@@ -381,7 +379,9 @@ namespace Chaos
 		void SetIsProbe(bool bInProbe) { Flags.bIsProbe = bInProbe; }
 		bool GetIsProbe() const { return Flags.bIsProbe; }
 
-		virtual void SetIsSleeping(const bool bInIsSleeping) override;
+		virtual bool SupportsSleeping() const override final { return true; }
+		virtual bool IsSleeping() const override final;
+		virtual void SetIsSleeping(const bool bInIsSleeping) override final;
 
 		// Get the world-space normal of the closest manifold point
 		// @todo(chaos): remove (used by legacy RBAN collision solver)

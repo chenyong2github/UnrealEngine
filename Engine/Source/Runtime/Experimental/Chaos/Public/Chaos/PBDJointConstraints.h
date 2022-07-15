@@ -26,7 +26,7 @@ namespace Chaos
 	class FPBDJointSolver;
 	class FPBDIslandSolverData;
 
-	class CHAOS_API FPBDJointConstraintHandle : public TIndexedContainerConstraintHandle<FPBDJointConstraints>
+	class CHAOS_API FPBDJointConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDJointConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDJointConstraints>;
@@ -54,7 +54,8 @@ namespace Chaos
 		const FPBDJointSettings& GetJointSettings() const { return GetSettings(); }	//needed for property macros
 
 		void SetSettings(const FPBDJointSettings& Settings);
-		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
+		
+		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const override;
 
 		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
@@ -108,7 +109,6 @@ namespace Chaos
 
 		using FConstraintContainerHandle = FPBDJointConstraintHandle;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDJointConstraints>;
-		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
 		using FVectorPair = TVector<FVec3, 2>;
 		using FTransformPair = TVector<FRigidTransform3, 2>;
 		using FHandles = TArray<FConstraintContainerHandle*>;

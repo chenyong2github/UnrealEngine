@@ -775,7 +775,6 @@ namespace Chaos
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_StartedSceneSimulation);
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PopStorageData_Internal(GetEvolution()->LatestExternalTimestampConsumed_Internal);
-		GetEvolution()->WakeIslands();
 	}
 
 	void FPBDRigidsSolver::DestroyPendingProxies_Internal()

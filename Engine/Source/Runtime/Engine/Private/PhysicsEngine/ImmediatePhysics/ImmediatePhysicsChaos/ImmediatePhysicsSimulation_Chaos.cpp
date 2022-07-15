@@ -301,8 +301,6 @@ namespace ImmediatePhysics_Chaos
 	struct FSimulation::FImplementation
 	{
 	public:
-		using FParticlePair = Chaos::TVec2<Chaos::FGeometryParticleHandle*>;
-
 		FImplementation()
 			: Particles(UniqueIndices)
 			, Joints()
@@ -335,7 +333,7 @@ namespace ImmediatePhysics_Chaos
 		}
 
 		// @todo(ccaulfield): Look into these...
-		TArray<FParticlePair> ActivePotentiallyCollidingPairs;
+		TArray<Chaos::FParticlePair> ActivePotentiallyCollidingPairs;
 		TArray<FActorHandle*> StaticParticles;
 		Chaos::TArrayCollectionArray<bool> CollidedParticles;
 		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
@@ -366,7 +364,7 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): Optimize
 		TMap<const Chaos::FGeometryParticleHandle*, TSet<const Chaos::FGeometryParticleHandle*>> IgnoreCollisionParticlePairTable;
 
-		TArray<FParticlePair> PotentiallyCollidingPairs;
+		TArray<Chaos::FParticlePair> PotentiallyCollidingPairs;
 
 		Chaos::FSimulationSpace SimulationSpace;
 
@@ -596,7 +594,7 @@ namespace ImmediatePhysics_Chaos
 			FGeometryParticleHandle* Particle1 = OtherActorHandle->GetParticle();
 			if ((OtherActorHandle != ActorHandle) && OtherActorHandle->IsSimulated())
 			{
-				Implementation->PotentiallyCollidingPairs.Emplace(typename FImplementation::FParticlePair(Particle0, Particle1));
+				Implementation->PotentiallyCollidingPairs.Emplace(FParticlePair(Particle0, Particle1));
 			}
 		}
 		Implementation->bActorsDirty = true;
@@ -604,7 +602,8 @@ namespace ImmediatePhysics_Chaos
 
 	void FSimulation::RemoveFromCollidingPairs(FActorHandle* ActorHandle)
 	{
-		for (typename FImplementation::FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
+		using namespace Chaos;
+		for (FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
 		{
 			if ((ParticlePair[0] == ActorHandle->GetParticle()) || (ParticlePair[1] == ActorHandle->GetParticle()))
 			{
@@ -677,7 +676,7 @@ namespace ImmediatePhysics_Chaos
 					bool bIgnoreActorHandlePair = (Particle0IgnoreSet != nullptr) && Particle0IgnoreSet->Contains(Particle1);
 					if (!bIgnoreActorHandlePair)
 					{
-						Implementation->PotentiallyCollidingPairs.Emplace(typename FImplementation::FParticlePair(Particle0, Particle1));
+						Implementation->PotentiallyCollidingPairs.Emplace(FParticlePair(Particle0, Particle1));
 					}
 				}
 			}
@@ -707,7 +706,7 @@ namespace ImmediatePhysics_Chaos
 		using namespace Chaos;
 
 		Implementation->ActivePotentiallyCollidingPairs.Reset();
-		for (const typename FImplementation::FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
+		for (const FParticlePair& ParticlePair : Implementation->PotentiallyCollidingPairs)
 		{
 			if ((ParticlePair[0] != nullptr) && (ParticlePair[1] != nullptr))
 			{

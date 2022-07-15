@@ -301,6 +301,9 @@ namespace Chaos
 				Contact->SetContainer(this);
 				UpdateConstraintMaterialProperties(*Contact);
 			}
+
+			// Reset constraint modifications and accumulators
+			Contact->Activate();
 		}
 	}
 

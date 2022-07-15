@@ -4,17 +4,32 @@
 #include "Chaos/Core.h"
 #include "Chaos/Declares.h"
 #include "Chaos/Vector.h"
+#include "Chaos/ParticleHandleFwd.h"
 
-#if UE_BUILD_DEBUG
-#define CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED  1
-#else
+// Set to 1 to help trap erros in the constraint management which typically manifests as a dangling constraint handle in the IslandManager
+// 
+// WARNING: Do not submit with either of these set to 1 !!
+//
+#ifndef CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 #define CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED  0
+#endif
+#ifndef CHAOS_CONSTRAINTHANDLE_DEBUG_DETAILED_ENABLED
+#define CHAOS_CONSTRAINTHANDLE_DEBUG_DETAILED_ENABLED (CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED && 0)
+#endif
+
+// This is a proxy for not allowing the above to be checked in - CIS should fail if it is left enabled
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+static_assert(CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED == 0, "CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED should be 0");
+static_assert(CHAOS_CONSTRAINTHANDLE_DEBUG_DETAILED_ENABLED == 0, "CHAOS_CONSTRAINTHANDLE_DEBUG_DETAILED_ENABLED should be 0");
 #endif
 
 namespace Chaos
 {
 	class FPBDConstraintContainer;
 	class FPBDIndexedConstraintContainer;
+
+	using FParticlePair = TVec2<FGeometryParticleHandle*>;
+	using FConstParticlePair = TVec2<const FGeometryParticleHandle*>;
 
 	/**
 	 * @brief A type id for constraint handles to support safe up/down casting (including intermediate classes in the hierrachy)
@@ -125,11 +140,16 @@ namespace Chaos
 			return (GraphIndex != INDEX_NONE);
 		}
 
+		virtual TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const = 0;
+
 		virtual void SetEnabled(bool InEnabled) = 0;
 
 		virtual bool IsEnabled() const = 0;
 
 		virtual bool IsProbe() const { return false; }
+
+		// Does this constraint have the concept of sleep? (only really used for debug validation)
+		virtual bool SupportsSleeping() const { return false; }
 
 		virtual bool IsSleeping() const { return false; }
 		virtual void SetIsSleeping(const bool bInIsSleeping) {}
@@ -358,30 +378,23 @@ namespace Chaos
 	 * @brief A debugging utility for tracking down dangling constraint issues
 	 * This acts as a FConstraintHandle*, but caches some extra debug data useful in tracking
 	 * down dangling pointer issues when they arise.
-	 * @todo(chaos): improve constraint lifetime management so that we don't get these problems!
 	*/
 	class CHAOS_API FConstraintHandleHolder
 	{
 	public:
 		FConstraintHandleHolder()
 			: Handle(nullptr)
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-			, ConstraintType(nullptr)
-#endif
 		{
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			InitDebugData();
+#endif
 		}
 
 		FConstraintHandleHolder(FConstraintHandle* InHandle)
 			: Handle(InHandle)
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-			, ConstraintType(nullptr)
-#endif
 		{
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-			if (Handle != nullptr)
-			{
-				ConstraintType = &InHandle->GetType();
-			}
+			InitDebugData();
 #endif
 		}
 
@@ -396,8 +409,17 @@ namespace Chaos
 
 	private:
 		FConstraintHandle* Handle;
+
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	public:
+		const FGeometryParticleHandle* GetParticle0() const { return Particles[0]; }
+		const FGeometryParticleHandle* GetParticle1() const { return Particles[1]; }
+
+	private:
+		void InitDebugData();
+
 		const FConstraintHandleTypeID* ConstraintType;
+		const FGeometryParticleHandle* Particles[2];
 #endif
 	};
 }

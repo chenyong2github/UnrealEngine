@@ -29,7 +29,7 @@
 namespace Chaos
 {
 #if !UE_BUILD_SHIPPING
-	CHAOS_API bool bPendingHierarchyDump = false;
+	CHAOS_API bool bPendingHierarchyDump = false; 
 #else
 	const bool bPendingHierarchyDump = false;
 #endif
@@ -126,6 +126,7 @@ namespace Chaos
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ComputeIntermediateSpatialAcceleration"), STAT_Evolution_ComputeIntermediateSpatialAcceleration, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evolution_CreateConstraintGraph, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evolution_CreateIslands, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PruneCollisions"), STAT_Evolution_PruneCollisions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateAccelerationStructures"), STAT_Evolution_UpdateAccelerationStructures, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AddSleepingContacts"), STAT_Evolution_AddSleepingContacts, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PreApplyCallback"), STAT_Evolution_PreApplyCallback, STATGROUP_Chaos);
@@ -455,11 +456,19 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_GraphColor);
 		SortConstraints();
 	}
+	{
+		// Once the graph is built (constraints are removed/added) we can destroy any collision that are not required
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_PruneCollisions);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_PruneCollisions);
+		CollisionConstraints.GetConstraintAllocator().PruneExpiredItems();
+	}
+
 	if (PreApplyCallback != nullptr)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_PreApplyCallback);
 		PreApplyCallback();
 	}
+
 	CollisionConstraints.SetGravity(GetGravityForces().GetAcceleration());
 
 	TArray<bool> SleepedIslands;
@@ -622,6 +631,9 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	}
 
 	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
+
+	// Clean up the transient data from the constraint graph (e.g., IslandSolvers get cleared here)
+	GetConstraintGraph().EndTick();
 
 	if (bChaos_Solver_TestMode)
 	{
@@ -901,8 +913,9 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 
 FPBDRigidsEvolutionGBF::~FPBDRigidsEvolutionGBF()
 {
-	// Not sure we need to reset the indices since all the particles and constraints are going to be destroyed
-	//GetConstraintGraph().ResetIndices();
+	// This is really only needed to ensure proper cleanup (we verify that constraints have been removed from 
+	// the graph in the destructor). This can be optimized if it's a problem but it shouldn't be
+	GetConstraintGraph().Reset();
 }
 
 void FPBDRigidsEvolutionGBF::Serialize(FChaosArchive& Ar)
@@ -1098,6 +1111,18 @@ void FPBDRigidsEvolutionGBF::DestroyParticleCollisionsInAllocator(FGeometryParti
 	{
 		CollisionConstraints.GetConstraintAllocator().RemoveParticle(Particle);
 		Particle->ParticleCollisions().Reset();
+	}
+}
+
+void FPBDRigidsEvolutionGBF::DestroyTransientConstraints(FGeometryParticleHandle* Particle)
+{
+	if (Particle != nullptr)
+	{
+		// Remove all the particle's collisions from the graph
+		GetConstraintGraph().RemoveParticleConstraints(Particle, CollisionConstraints.GetContainerId());
+
+		// Mark all collision constraints for destruction
+		DestroyParticleCollisionsInAllocator(Particle);
 	}
 }
 

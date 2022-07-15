@@ -5,10 +5,13 @@
 #include "Chaos/Island/SolverIsland.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBDNullConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDRigidSpringConstraints.h"
+
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -571,17 +574,20 @@ namespace Chaos
 	{
 		for(auto& GraphEdge : ConstraintGraph->GetIslandGraph()->GraphEdges)
 		{
-			auto& GraphIsland = ConstraintGraph->GetIslandGraph()->GraphIslands[GraphEdge.IslandIndex];
-			if(GraphEdge.ItemContainer == Constraints.GetContainerId() && !GraphIsland.IslandItem->IsSleeping())
+			if (GraphEdge.IslandIndex != INDEX_NONE)
 			{
-				const int32 EdgeColor = IsSortingUsingColors() ? FMath::Max(0,GraphEdge.ColorIndex) : 0;
-				const int32 EdgeLevel = IsSortingUsingLevels() ? FMath::Max(0,GraphEdge.LevelIndex) : 0;
-				const int32 MaxColors = IsSortingUsingColors() ? FMath::Max(1,GraphIsland.MaxColors+1) : 1;
+				auto& GraphIsland = ConstraintGraph->GetIslandGraph()->GraphIslands[GraphEdge.IslandIndex];
+				if(GraphEdge.ItemContainer == Constraints.GetContainerId() && !GraphIsland.IslandItem->IsSleeping())
+				{
+					const int32 EdgeColor = IsSortingUsingColors() ? FMath::Max(0,GraphEdge.ColorIndex) : 0;
+					const int32 EdgeLevel = IsSortingUsingLevels() ? FMath::Max(0,GraphEdge.LevelIndex) : 0;
+					const int32 MaxColors = IsSortingUsingColors() ? FMath::Max(1,GraphIsland.MaxColors+1) : 1;
 
-				const int32 IslandOffset = IslandOffsets[GraphIsland.IslandItem->GetIslandIndex()];
-				const int32 OffsetIndex = IslandOffset + EdgeLevel * MaxColors + EdgeColor;
+					const int32 IslandOffset = IslandOffsets[GraphIsland.IslandItem->GetIslandIndex()];
+					const int32 OffsetIndex = IslandOffset + EdgeLevel * MaxColors + EdgeColor;
 
-				InFunction(OffsetIndex,GraphEdge);
+					InFunction(OffsetIndex,GraphEdge);
+				}
 			}
 		}
 	}
@@ -609,11 +615,10 @@ namespace Chaos
 				}
 			}
 			// Initialization of the constraint offsets and the offsets counters
-			ConstraintOffsets.SetNum(IslandOffset, false);
-			OffsetCounters.SetNum(IslandOffset, false);
-			
-			FMemory::Memzero(ConstraintOffsets.GetData(), ConstraintOffsets.Num() * sizeof(int32));
-			FMemory::Memzero(OffsetCounters.GetData(), ConstraintOffsets.Num() * sizeof(int32));
+			ConstraintOffsets.Reset();
+			OffsetCounters.Reset();
+			ConstraintOffsets.SetNumZeroed(IslandOffset, false);
+			OffsetCounters.SetNumZeroed(IslandOffset, false);
 			
 			auto& LocalConstraintOffsets = ConstraintOffsets;
 			auto& LocalOffsetCounters = OffsetCounters;
@@ -651,10 +656,12 @@ namespace Chaos
 
 	template class TSimpleConstraintRule<FPBDCollisionConstraints>;
 	template class TSimpleConstraintRule<FPBDJointConstraints>;
+	template class TSimpleConstraintRule<FPBDNullConstraints>;
 	template class TSimpleConstraintRule<FPBDRigidSpringConstraints>;
 
 	template class TPBDConstraintGraphRuleImpl<FPBDCollisionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
+	template class TPBDConstraintGraphRuleImpl<FPBDNullConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDPositionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDSuspensionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidDynamicSpringConstraints>;
@@ -662,6 +669,7 @@ namespace Chaos
 
 	template class TPBDConstraintColorRule<FPBDCollisionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
+	template class TPBDConstraintIslandRule<FPBDNullConstraints>;
 	template class TPBDConstraintIslandRule<FPBDPositionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDRigidDynamicSpringConstraints>;
