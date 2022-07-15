@@ -288,6 +288,46 @@ public:
 
 	void SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems);
 
+	template<typename T>
+	T* GetMutableSubsystem(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	{
+		// @todo consider getting this directly from entity subsystem - it should cache all the used system
+		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex(**SubsystemClass);
+		if (ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		{
+			return GetSubsystemInternal<T>(World, SystemIndex, SubsystemClass);
+		}
+
+		return nullptr;
+	}
+
+	template<typename T>
+	T& GetMutableSubsystemChecked(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	{
+		T* InstancePtr = GetMutableSubsystem<T>(World, SubsystemClass);
+		check(InstancePtr);
+		return *InstancePtr;
+	}
+
+	template<typename T>
+	const T* GetSubsystem(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	{
+		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex(**SubsystemClass);
+		if (ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		{
+			return GetSubsystemInternal<T>(World, SystemIndex, SubsystemClass);
+		}
+		return nullptr;
+	}
+
+	template<typename T>
+	const T& GetSubsystemChecked(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	{
+		const T* InstancePtr = GetSubsystem<T>(World, SubsystemClass);
+		check(InstancePtr);
+		return *InstancePtr;
+	}
+
 	/** Sparse chunk related operation */
 	const FMassArchetypeEntityCollection& GetEntityCollection() const { return EntityCollection; }
 
@@ -347,6 +387,23 @@ protected:
 		if (SystemInstance == nullptr)
 		{
 			SystemInstance = FMassExternalSubsystemTraits::GetInstance<typename TRemoveConst<T>::Type>(World);
+			Subsystems[SystemIndex] = SystemInstance;
+		}
+		return SystemInstance;
+	}
+
+	template<typename T>
+	T* GetSubsystemInternal(const UWorld* World, const uint32 SystemIndex, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	{
+		if (UNLIKELY(Subsystems.IsValidIndex(SystemIndex) == false))
+		{
+			Subsystems.AddZeroed(Subsystems.Num() - SystemIndex + 1);
+		}
+
+		T* SystemInstance = (T*)Subsystems[SystemIndex].Get();
+		if (SystemInstance == nullptr)
+		{
+			SystemInstance = FMassExternalSubsystemTraits::GetInstance<typename TRemoveConst<T>::Type>(World, SubsystemClass);
 			Subsystems[SystemIndex] = SystemInstance;
 		}
 		return SystemInstance;

@@ -349,6 +349,27 @@ public:
 		return *this;
 	}
 
+	FMassEntityQuery& AddSubsystemRequirement(const TSubclassOf<USubsystem> SubsystemClass, const EMassFragmentAccess AccessMode, const bool bGameThreadOnly = true)
+	{
+		check(AccessMode != EMassFragmentAccess::None && AccessMode != EMassFragmentAccess::MAX);
+
+		switch (AccessMode)
+		{
+		case EMassFragmentAccess::ReadOnly:
+			RequiredConstSubsystems.Add(**SubsystemClass);
+			bRequiresGameThreadExecution |= bGameThreadOnly;
+			break;
+		case EMassFragmentAccess::ReadWrite:
+			RequiredMutableSubsystems.Add(**SubsystemClass);
+			bRequiresGameThreadExecution |= bGameThreadOnly;
+			break;
+		default:
+			check(false);
+		}
+
+		return *this;
+	}
+
 	void Clear()
 	{
 		Requirements.Empty();
