@@ -58,7 +58,7 @@ public:
 	float Weight = 1.f;
 
 	/** Should the child be able to change it's offset dynamically. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	bool bDynamicOffset = false;
 
 	/** Returns the constraint type (Position, Parent, Aim...). */
@@ -157,12 +157,8 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** Defines the local child's translation offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetTranslation = FVector::ZeroVector;
-
-	/** Defines the local child's translation dynamic offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
-	FVector DynamicOffsetTranslation = FVector::ZeroVector;
 
 #if WITH_EDITOR
 public:
@@ -204,12 +200,8 @@ protected:
 	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
 	
 	/** Defines the local child's rotation offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FQuat OffsetRotation = FQuat::Identity;
-
-	/** Defines the local child's rotation dynamic offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
-	FQuat DynamicOffsetRotation = FQuat::Identity;
 
 #if WITH_EDITOR
 public:
@@ -239,7 +231,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** Defines the local child's scale offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetScale = FVector::OneVector;
 };
 
@@ -274,12 +266,8 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** Defines the local child's transform offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FTransform OffsetTransform = FTransform::Identity;
-
-	/** Defines the local child's dynamic transform offset in the parent space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
-	FTransform DynamicOffsetTransform = FTransform::Identity;
 
 #if WITH_EDITOR
 public:
