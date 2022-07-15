@@ -59,7 +59,6 @@ public:
 	static const FName LevelEditorHierarchicalLODOutliner;
 	static const FName OutputLog;
 	static const FName LevelEditorEnvironmentLightingViewer;
-
 };
 
 /**

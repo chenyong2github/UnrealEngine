@@ -72,7 +72,6 @@
 #include "EditorViewportLayout.h"
 #include "LevelViewportTabContent.h"
 #include "SLevelViewport.h"
-#include "ObjectMixerEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -1480,11 +1479,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorEnvironmentLightingViewerTooltipText", "Open the Environmment Lighting tab to edit all the entities important for world lighting."))
 				.SetGroup(MenuStructure.GetLevelEditorCategory())
 				.SetIcon(EnvironmentLightingViewerIcon);
-		}
-
-		{
-			// The object mixer module will take care of its tab spawner once it's loaded.
-			FModuleManager::Get().LoadModuleChecked<FObjectMixerEditorModule>( "ObjectMixerEditor" );
 		}
 
 		FTabSpawnerEntry& BuildAndSubmitEntry = LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorBuildAndSubmit, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorBuildAndSubmit, FString()));
