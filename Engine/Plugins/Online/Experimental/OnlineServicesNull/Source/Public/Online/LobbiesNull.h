@@ -5,7 +5,9 @@
 #include "Online/LobbiesCommon.h"
 #include "Online/Lobbies.h"
 #include "Online/LANBeacon.h"
-#include "Online/NboSerializerNullSvc.h"
+
+class FNboSerializeToBuffer;
+class FNboSerializeFromBuffer;
 
 namespace UE::Online {
 
