@@ -2048,6 +2048,11 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						TArray<FLightSampleData> LightSampleData;
 						LightSampleData.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y); // LightSampleData will have different row pitch as VT is padded to tiles
 
+						TArray<FLinearColor> IncidentLighting;
+						TArray<FLinearColor> LuminanceSH;
+						IncidentLighting.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+						LuminanceSH.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+						
 						{
 							int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 							int32 DstRowPitchInPixels = Lightmap.GetSize().X;
@@ -2057,10 +2062,32 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 								SrcRowPitchInPixels,
 								DstRowPitchInPixels,
-								[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+								[&Lightmap, &IncidentLighting, &LuminanceSH](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 							{
-								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
+								IncidentLighting[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex];
+								LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 							});
+
+							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
+							{
+								if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
+								{
+									SimpleFireflyFilter(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
+								}
+								else
+								{
+									DenoiseRawData(Lightmap.GetSize(), IncidentLighting, LuminanceSH, DenoiserContext);
+								}
+							}
+							
+							for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
+							{
+								for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
+								{
+									int32 LinearIndex = Y * Lightmap.GetSize().X + X;
+									LightSampleData[LinearIndex] = ConvertToLightSample(IncidentLighting[LinearIndex], LuminanceSH[LinearIndex]);
+								}
+							}
 
 							if (bHasSkyShadowing)
 							{
@@ -2123,11 +2150,6 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							}
 						}
 #endif
-
-						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
-						{
-							DenoiseLightSampleData(Lightmap.GetSize(), LightSampleData, DenoiserContext);
-						}
 
 						FQuantizedLightmapData* QuantizedLightmapData = new FQuantizedLightmapData();
 						QuantizedLightmapData->SizeX = Lightmap.GetSize().X;
@@ -2330,6 +2352,11 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 						for (int32 InstanceIndex = 0; InstanceIndex < InstanceGroupLightSampleData.Num(); InstanceIndex++)
 						{
+							TArray<FLinearColor> IncidentLighting;
+							TArray<FLinearColor> LuminanceSH;
+							IncidentLighting.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
+							LuminanceSH.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
+							
 							TArray<FLightSampleData>& LightSampleData = InstanceGroupLightSampleData[InstanceIndex];
 							LightSampleData.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
 							InstancedSourceQuantizedData[InstanceIndex] = MakeUnique<FQuantizedLightmapData>();
@@ -2343,16 +2370,38 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							{
 								FIntPoint InstanceTilePos = FIntPoint(RenderIndex % InstancesPerRow, RenderIndex / InstancesPerRow);
 								FIntPoint InstanceTileMin = FIntPoint(InstanceTilePos.X * BaseLightMapWidth, InstanceTilePos.Y * BaseLightMapHeight);
-
+								
 								CopyRectTiled(
 									InstanceTileMin,
 									FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
 									SrcRowPitchInPixels,
 									DstRowPitchInPixels,
-									[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+									[&Lightmap, &IncidentLighting, &LuminanceSH](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 								{
-									LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
+									IncidentLighting[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex];
+									LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 								});
+								
+								if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
+								{
+									if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
+									{
+										SimpleFireflyFilter(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, LuminanceSH);
+									}
+									else
+									{
+										DenoiseRawData(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, LuminanceSH, DenoiserContext);
+									}
+								}
+
+								for (int32 Y = 0; Y < BaseLightMapHeight; Y++)
+								{
+									for (int32 X = 0; X < BaseLightMapWidth; X++)
+									{
+										int32 LinearIndex = Y * BaseLightMapWidth + X;
+										LightSampleData[LinearIndex] = ConvertToLightSample(IncidentLighting[LinearIndex], LuminanceSH[LinearIndex]);
+									}
+								}
 
 								if (bHasSkyShadowing)
 								{
@@ -2366,11 +2415,6 @@ void FScene::ApplyFinishedLightmapsToWorld()
 										AddSkyOcclusionToLightSample(LightSampleData[DstLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex]);
 									});
 								}
-							}
-
-							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
-							{
-								DenoiseLightSampleData(FIntPoint(BaseLightMapWidth, BaseLightMapHeight), LightSampleData, DenoiserContext);
 							}
 
 							FQuantizedLightmapData& QuantizedLightmapData = *InstancedSourceQuantizedData[InstanceIndex];
@@ -2603,6 +2647,11 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						TArray<FLightSampleData> LightSampleData;
 						LightSampleData.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y); // LightSampleData will have different row pitch as VT is padded to tiles
 
+						TArray<FLinearColor> IncidentLighting;
+						TArray<FLinearColor> LuminanceSH;
+						IncidentLighting.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+						LuminanceSH.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+						
 						{
 							int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 							int32 DstRowPitchInPixels = Lightmap.GetSize().X;
@@ -2612,10 +2661,32 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 								SrcRowPitchInPixels,
 								DstRowPitchInPixels,
-								[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+								[&Lightmap, &IncidentLighting, &LuminanceSH](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
 							{
-								LightSampleData[DstLinearIndex] = ConvertToLightSample(Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex]);
+								IncidentLighting[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex];
+								LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 							});
+
+							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
+							{
+								if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
+								{
+									SimpleFireflyFilter(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
+								}
+								else
+								{
+									DenoiseRawData(Lightmap.GetSize(), IncidentLighting, LuminanceSH, DenoiserContext);
+								}
+							}
+							
+							for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
+							{
+								for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
+								{
+									int32 LinearIndex = Y * Lightmap.GetSize().X + X;
+									LightSampleData[LinearIndex] = ConvertToLightSample(IncidentLighting[LinearIndex], LuminanceSH[LinearIndex]);
+								}
+							}
 
 							if (bHasSkyShadowing)
 							{
@@ -2629,11 +2700,6 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									AddSkyOcclusionToLightSample(LightSampleData[DstLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex]);
 								});
 							}
-						}
-
-						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
-						{
-							DenoiseLightSampleData(Lightmap.GetSize(), LightSampleData, DenoiserContext);
 						}
 
 						FQuantizedLightmapData* QuantizedLightmapData = new FQuantizedLightmapData();

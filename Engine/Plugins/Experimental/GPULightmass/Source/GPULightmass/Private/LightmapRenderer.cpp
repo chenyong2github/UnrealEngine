@@ -3032,13 +3032,20 @@ const int32 DenoiseTileProximity = 3;
 
 void FLightmapTileDenoiseAsyncTask::DoThreadedWork()
 {
-	static FDenoiserContext DenoiserContext;
-
-	DenoiseRawData(
-		Size,
-		TextureData->Texture[0],
-		TextureData->Texture[1],
-		DenoiserContext);
+	if (Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
+	{
+		SimpleFireflyFilter(Size, TextureData->Texture[0], TextureData->Texture[1]);
+	}
+	else
+	{
+		static FDenoiserContext DenoiserContext;
+		
+		DenoiseRawData(
+			Size,
+			TextureData->Texture[0],
+			TextureData->Texture[1],
+			DenoiserContext);
+	}
 
 	FPlatformAtomics::AtomicStore(&TextureData->bDenoisingFinished, 1);
 }
@@ -3392,6 +3399,7 @@ void FLightmapRenderer::BackgroundTick()
 			DenoiseGroup.AsyncDenoisingWork = new FLightmapTileDenoiseAsyncTask();
 			DenoiseGroup.AsyncDenoisingWork->Size = FIntPoint(DenoiseTileProximity * GPreviewLightmapVirtualTileSize, DenoiseTileProximity * GPreviewLightmapVirtualTileSize);
 			DenoiseGroup.AsyncDenoisingWork->TextureData = DenoiseGroup.TextureData;
+			DenoiseGroup.AsyncDenoisingWork->Denoiser = Scene->Settings->Denoiser;
 			DenoisingThreadPool->AddQueuedWork(DenoiseGroup.AsyncDenoisingWork);
 
 			OngoingDenoiseGroups.Add(MoveTemp(DenoiseGroup));

@@ -88,11 +88,14 @@ struct FDenoiserContext
 	}
 };
 
-void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampleData, FDenoiserContext& DenoiserContext, bool bPrepadTexels = true);
-
 void DenoiseRawData(
 	FIntPoint Size,
 	TArray<FLinearColor>& IncidentLighting,
 	TArray<FLinearColor>& LuminanceSH,
 	FDenoiserContext& DenoiserContext,
 	bool bPrepadTexels = true);
+
+void SimpleFireflyFilter(
+	FIntPoint Size,
+	TArray<FLinearColor>& IncidentLighting,
+	TArray<FLinearColor>& LuminanceSH);

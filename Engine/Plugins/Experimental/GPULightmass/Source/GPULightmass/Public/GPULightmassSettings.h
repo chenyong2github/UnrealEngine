@@ -22,6 +22,13 @@ enum class EGPULightmassDenoisingOptions : uint8
 	DuringInteractivePreview
 };
 
+UENUM()
+enum class EGPULightmassDenoiser : uint8
+{
+	IntelOIDN  UMETA(DisplayName = "Intel Open Image Denoise"),
+	SimpleFireflyRemover
+};
+
 UCLASS(BlueprintType)
 class GPULIGHTMASS_API UGPULightmassSettings : public UObject
 {
@@ -43,8 +50,11 @@ public:
 
 	// If enabled, denoise the results on the CPU after rendering. On Completion denoises the entire lightmap when it is finished.
 	// During Interactive Preview denoises each tile as it finishes, which is useful for previewing but less efficient.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, DisplayName = "Denoise")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Denoising, DisplayName = "Denoise when")
 	EGPULightmassDenoisingOptions DenoisingOptions = EGPULightmassDenoisingOptions::OnCompletion;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Denoising)
+	EGPULightmassDenoiser Denoiser = EGPULightmassDenoiser::IntelOIDN;
 
 	// Whether to compress lightmap textures.  Disabling lightmap texture compression will reduce artifacts but increase memory and disk size by 4x.
 	// Use caution when disabling this.

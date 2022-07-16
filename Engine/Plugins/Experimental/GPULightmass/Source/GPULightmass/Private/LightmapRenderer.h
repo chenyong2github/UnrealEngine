@@ -4,6 +4,7 @@
 
 #include "LightmapTilePool.h"
 #include "RHIGPUReadback.h"
+#include "GPULightmassSettings.h"
 // TBB suffers from extreme fragmentation problem in editor
 #include "Core/Private/HAL/Allocators/AnsiAllocator.h"
 
@@ -99,6 +100,7 @@ class FLightmapTileDenoiseAsyncTask : public IQueuedWork
 public:
 	FIntPoint Size;
 	TSharedPtr<FLightmapTileDenoiseGroup::FTextureData, ESPMode::ThreadSafe> TextureData;
+	EGPULightmassDenoiser Denoiser;
 
 	virtual void DoThreadedWork();
 	virtual void Abandon() {}
