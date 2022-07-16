@@ -29,10 +29,12 @@ public:
 
 	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionIdHandle& Handle) const override
 	{
-		const FTCHARToUTF8 IdValueUtf8(BasicRegistry.FindIdValue(Handle));
+		const FString IdValue = BasicRegistry.FindIdValue(Handle);
+		const FTCHARToUTF8 IdValueUtf8(IdValue);
 
 		TArray<uint8> ReplicationData;
 		ReplicationData.SetNumUninitialized(IdValueUtf8.Length());
+
 		FMemory::Memcpy(ReplicationData.GetData(), IdValueUtf8.Get(), IdValueUtf8.Length());
 
 		return ReplicationData;
@@ -40,11 +42,14 @@ public:
 
 	virtual inline FOnlineSessionIdHandle FromReplicationData(const TArray<uint8>& ReplicationData) override
 	{
-		FString Result = BytesToString(ReplicationData.GetData(), ReplicationData.Num());
-		if (Result.Len() > 0)
+		const FUTF8ToTCHAR IdValueTCHAR((char*)ReplicationData.GetData(), ReplicationData.Num());
+		const FString IdValue = FString(IdValueTCHAR.Length(), IdValueTCHAR.Get());
+
+		if (!IdValue.IsEmpty())
 		{
-			return BasicRegistry.FindOrAddHandle(Result);
+			return BasicRegistry.FindOrAddHandle(IdValue);
 		}
+
 		return FOnlineSessionIdHandle();
 	}
 	// End IOnlineSessionIdRegistry

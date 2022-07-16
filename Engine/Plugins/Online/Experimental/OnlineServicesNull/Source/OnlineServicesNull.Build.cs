@@ -21,18 +21,9 @@ public class OnlineServicesNull : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"ApplicationCore",
-				"OnlineBase"
+				"OnlineBase",
+				"OnlineServicesCommonEngineUtils"
 			}
 		);
-
-		if (Target.bCompileAgainstEngine)
-		{
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"OnlineSubsystemUtils"
-				}
-			);
-		}
 	}
 }

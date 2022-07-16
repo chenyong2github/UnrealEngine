@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Online/LANBeacon.h"
-#include "Online/SessionsCommon.h"
+#include "Online/SessionsLAN.h"
 
 namespace UE::Online {
 
@@ -17,27 +17,12 @@ public:
 	FOnlineSessionIdHandle GetNextSessionId();
 };
 
-class FSessionNull : public FSession
+typedef FSessionLAN FSessionNull;
+
+class FSessionsNull : public FSessionsLAN
 {
 public:
-	FSessionNull();
-	FSessionNull(const FSession& InSession);
-
-	static FSessionNull& Cast(FSession& InSession);
-	static const FSessionNull& Cast(const FSession& InSession);
-
-private:
-	void Initialize();
-
-public:
-	/** The IP address for the session owner */
-	TSharedPtr<FInternetAddr> OwnerInternetAddr;
-};
-
-class FSessionsNull : public FSessionsCommon
-{
-public:
-	using Super = FSessionsCommon;
+	using Super = FSessionsLAN;
 
 	FSessionsNull(FOnlineServicesNull& InServices);
 	virtual ~FSessionsNull() = default;
@@ -52,20 +37,9 @@ public:
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 
 private:
-	/** LAN Methods */
-	bool TryHostLANSession();
-	void FindLANSessions();
-	void StopLANSession();
-	void OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce);
-	void OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength);
-	void OnLANSearchTimeout();
-	void AppendSessionToPacket(class FNboSerializeToBufferNullSvc& Packet, const FSessionNull& Session);
-	void ReadSessionFromPacket(class FNboSerializeFromBufferNullSvc& Packet, FSessionNull& Session);
-	
-private:
-	uint32 PublicSessionsHosted = 0;
-
-	TSharedPtr<FLANSession> LANSessionManager;
+	// FSessionsLAN
+	virtual void AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session) override;
+	virtual void ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session) override;
 };
 
 /* UE::Online */ }

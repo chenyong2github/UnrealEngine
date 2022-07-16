@@ -2,14 +2,11 @@
 
 #include "Online/LobbiesNull.h"
 #include "Online/OnlineServicesNull.h"
+#include "Online/OnlineServicesCommonEngineUtils.h"
 #include "Misc/Guid.h"
 #include "SocketSubsystem.h"
-#include "Online/NboSerializerNullSvc.h"
 #include "UObject/CoreNet.h"
 #include "Online/LobbyRegistryNull.h"
-#if WITH_ENGINE
-	#include "OnlineSubsystemUtils.h" // Needed for GetPortFromNetDriver
-#endif //WITH_ENGINE
 
 namespace UE::Online { 
 
@@ -32,10 +29,7 @@ FLobbyNull::FLobbyNull()
 	}
 
 	// Now set the port that was configured
-#if WITH_ENGINE
-	// jntodo: can we put anything here if we don't have engine code?
 	HostAddr->SetPort(GetPortFromNetDriver(NAME_None));
-#endif //WITH_ENGINE
 	
 	if (HostAddr->GetPort() == 0)
 	{
@@ -188,7 +182,7 @@ uint32 FLobbiesNull::FindLANSession()
 	FOnValidResponsePacketDelegate ResponseDelegate = FOnValidResponsePacketDelegate::CreateRaw(this, &FLobbiesNull::OnValidResponsePacketReceived);
 	FOnSearchingTimeoutDelegate TimeoutDelegate = FOnSearchingTimeoutDelegate::CreateRaw(this, &FLobbiesNull::OnLANSearchTimeout);
 
-	FNboSerializeToBufferNullSvc Packet(LAN_BEACON_MAX_PACKET_SIZE);
+	FNboSerializeToBuffer Packet(LAN_BEACON_MAX_PACKET_SIZE);
 	LANSessionManager.CreateClientQueryPacket(Packet, LANSessionManager.LanNonce);
 	if (LANSessionManager.Search(Packet, ResponseDelegate, TimeoutDelegate) == false)
 	{
@@ -250,14 +244,16 @@ uint32 FLobbiesNull::UpdateLANStatus()
 	return Result;
 }
 
-void FLobbiesNull::AppendLobbyToPacket(FNboSerializeToBufferNullSvc& Packet, const TSharedRef<FLobbyNull>& Lobby)
+void FLobbiesNull::AppendLobbyToPacket(FNboSerializeToBuffer& Packet, const TSharedRef<FLobbyNull>& Lobby)
 {
+	using namespace NboSerializerNullSvc;
+
 	/** Owner of the session */
 	UE_LOG(LogTemp, Warning, TEXT("AppendLobbyToPacket: Appending IP %s"), *Lobby->HostAddr->ToString(true));
 
-	Packet << Lobby->Data->OwnerAccountId
-		<< Lobby->Data->Attributes
-		<< TEXT("Temp:Owner") // todo: owner name
+	SerializeToBuffer(Packet, Lobby->Data->OwnerAccountId);
+	SerializeToBuffer(Packet, Lobby->Data->Attributes);
+	Packet	<< TEXT("Temp:Owner") // todo: owner name
 		<< Lobby->HostAddrIp
 		<< Lobby->HostAddrPort
 		<< 100 // todo: num private connections
@@ -276,7 +272,7 @@ void FLobbiesNull::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLen
 
 		// TODO: Joinability (ensure lobby is joinable
 
-		FNboSerializeToBufferNullSvc Packet(LAN_BEACON_MAX_PACKET_SIZE);
+		FNboSerializeToBuffer Packet(LAN_BEACON_MAX_PACKET_SIZE);
 		// Create the basic header before appending additional information
 		LANSessionManager.CreateHostResponsePacket(Packet, ClientNonce);
 
@@ -295,17 +291,19 @@ void FLobbiesNull::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLen
 	}
 }
 
-void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBufferNullSvc& Packet, const TSharedRef<FLobbyNull>& Session)
+void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TSharedRef<FLobbyNull>& Session)
 {
+	using namespace NboSerializerNullSvc;
+
 	UE_LOG(LogTemp, Verbose, TEXT("Reading session information from server"));
 
 	/** Owner of the session */
 	FOnlineAccountIdHandle OwningUserId;
 	FString OwningUserName;
 	uint32 NumOpenPrivateConnections, NumOpenPublicConnections;
-	Packet >> OwningUserId
-		>> Session->Data->Attributes
-		>> OwningUserName
+	SerializeFromBuffer(Packet, OwningUserId);
+	SerializeFromBuffer(Packet, Session->Data->Attributes);
+	Packet	>> OwningUserName
 		>> Session->HostAddrIp
 		>> Session->HostAddrPort
 		>> NumOpenPrivateConnections
@@ -342,7 +340,7 @@ void FLobbiesNull::OnValidResponsePacketReceived(uint8* PacketData, int32 Packet
 		//Lobby->PingInMs = static_cast<int32>((FPlatformTime::Seconds() - SessionSearchStartInSeconds) * 1000);
 
 		// Prepare to read data from the packet
-		FNboSerializeFromBufferNullSvc Packet(PacketData, PacketLength);
+		FNboSerializeFromBuffer Packet(PacketData, PacketLength);
 		
 		ReadLobbyFromPacket(Packet, Lobby);
 

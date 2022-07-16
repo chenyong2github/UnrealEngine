@@ -20,6 +20,11 @@
 			"Name": "OnlineServicesCommon",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "OnlineServicesCommonEngineUtils",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
 		}
 	],
 	"Plugins": [

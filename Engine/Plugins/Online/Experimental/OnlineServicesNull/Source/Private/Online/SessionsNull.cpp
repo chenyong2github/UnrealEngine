@@ -7,9 +7,6 @@
 #include "Online/OnlineServicesNull.h"
 #include "SocketSubsystem.h"
 #include "UObject/CoreNet.h"
-#if WITH_ENGINE
-	#include "OnlineSubsystemUtils.h" // Needed for GetPortFromNetDriver
-#endif
 
 namespace UE::Online {
 
@@ -26,79 +23,17 @@ FOnlineSessionIdHandle FOnlineSessionIdRegistryNull::GetNextSessionId()
 	return BasicRegistry.FindOrAddHandle(FGuid().ToString());
 }
 
-/** FSessionNull */
-
-FSessionNull::FSessionNull()
-{
-	Initialize();
-}
-
-FSessionNull::FSessionNull(const FSession& InSession)
-	: FSession(InSession)
-{
-	const FSessionNull& InSessionNull = FSessionNull::Cast(InSession);
-
-	OwnerInternetAddr = InSessionNull.OwnerInternetAddr;
-}
-
-void FSessionNull::Initialize()
-{
-	bool bCanBindAll;
-	OwnerInternetAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bCanBindAll);
-
-	// The below is a workaround for systems that set hostname to a distinct address from 127.0.0.1 on a loop back interface.
-	// See e.g. https://www.debian.org/doc/manuals/debian-reference/ch05.en.html#_the_hostname_resolution
-	// and http://serverfault.com/questions/363095/why-does-my-hostname-appear-with-the-address-127-0-1-1-rather-than-127-0-0-1-in
-	// Since we bind to 0.0.0.0, we won't answer on 127.0.1.1, so we need to advertise ourselves as 127.0.0.1 for any other loop back address we may have.
-
-	uint32 HostIp = 0;
-	OwnerInternetAddr->GetIp(HostIp); // Will return in host order
-
-	// If this address is on loop back interface, advertise it as 127.0.0.1
-	if ((HostIp & 0xff000000) == 0x7f000000)
-	{
-		OwnerInternetAddr->SetIp(0x7f000001); // 127.0.0.1
-	}
-
-#if WITH_ENGINE
-	// Now set the port that was configured
-	OwnerInternetAddr->SetPort(GetPortFromNetDriver(NAME_None));
-#endif
-
-	if (OwnerInternetAddr->GetPort() == 0)
-	{
-		OwnerInternetAddr->SetPort(7777); // Default port
-	}
-}
-
-FSessionNull& FSessionNull::Cast(FSession& InSession)
-{
-	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Null);
-	
-	return *static_cast<FSessionNull*>(&InSession);
-}
-
-const FSessionNull& FSessionNull::Cast(const FSession& InSession)
-{
-	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Null);
-
-	return *static_cast<const FSessionNull*>(&InSession);
-}
-
 /** FSessionsNull */
 
 FSessionsNull::FSessionsNull(FOnlineServicesNull& InServices)
 	: Super(InServices)
 {
-	if (!LANSessionManager.IsValid())
-	{
-		LANSessionManager = MakeShared<FLANSession>();
-	}
+
 }
 
 void FSessionsNull::Tick(float DeltaSeconds)
 {
-	if (LANSessionManager.IsValid() && LANSessionManager->GetBeaconState() > ELanBeaconState::NotUsingLanBeacon)
+	if (LANSessionManager->GetBeaconState() > ELanBeaconState::NotUsingLanBeacon)
 	{
 		LANSessionManager->Tick(DeltaSeconds);
 	}
@@ -365,7 +300,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsNull::JoinSession(FJoinSession::Para
 			return;
 		}
 
-		TSharedRef<FSessionNull> NewSessionNullRef = MakeShared<FSessionNull>(*OpParams.Session);
+		TSharedRef<FSessionNull> NewSessionNullRef = MakeShared<FSessionNull>(FSessionNull::Cast(*OpParams.Session));
 		FSessionSettings NewSessionNullSettings = NewSessionNullRef->SessionSettings;
 
 		// TODO: This will move to AddSessionMember
@@ -454,179 +389,27 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsNull::LeaveSession(FLeaveSession::P
 	return Op->GetHandle();
 }
 
-/** LAN Methods */
+/** FSessionsLAN */
 
-bool FSessionsNull::TryHostLANSession()
+void FSessionsNull::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionNull& Session)
 {
-	// The LAN Beacon can only broadcast one session at a time
-	if (LANSessionManager->GetBeaconState() == ELanBeaconState::NotUsingLanBeacon)
-	{
-		FOnValidQueryPacketDelegate QueryPacketDelegate = FOnValidQueryPacketDelegate::CreateRaw(this, &FSessionsNull::OnValidQueryPacketReceived);
+	using namespace NboSerializerNullSvc;
 
-		if (LANSessionManager->Host(QueryPacketDelegate))
-		{
-			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsNull::TryHostLANSession] LAN Beacon hosting..."));
-
-			PublicSessionsHosted++;
-
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsNull::TryHostLANSession] LAN Beacon failed to host!"));
-
-			LANSessionManager->StopLANSession();
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsNull::TryHostLANSession] LAN Beacon already in use!"));
-	}
-
-	return false;
-}
-
-void FSessionsNull::FindLANSessions()
-{
-	// Recreate the unique identifier for this client
-	GenerateNonce((uint8*)&LANSessionManager->LanNonce, 8);
-
-	// Bind delegates
-	FOnValidResponsePacketDelegate ResponseDelegate = FOnValidResponsePacketDelegate::CreateRaw(this, &FSessionsNull::OnValidResponsePacketReceived);
-	FOnSearchingTimeoutDelegate TimeoutDelegate = FOnSearchingTimeoutDelegate::CreateRaw(this, &FSessionsNull::OnLANSearchTimeout);
-
-	FNboSerializeToBufferNullSvc Packet(LAN_BEACON_MAX_PACKET_SIZE);
-	LANSessionManager->CreateClientQueryPacket(Packet, LANSessionManager->LanNonce);
-	if (LANSessionManager->Search(Packet, ResponseDelegate, TimeoutDelegate) == false)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::FindLANSessions] Search failed!"));
-
-		if (LANSessionManager->GetBeaconState() == ELanBeaconState::Searching)
-		{
-			LANSessionManager->StopLANSession();
-		}
-
-		// Trigger the delegate as having failed
-		CurrentSessionSearchHandle->SetError(Errors::RequestFailure()); // TODO: May need a new error type
-
-		CurrentSessionSearch.Reset();
-		CurrentSessionSearchHandle.Reset();
-
-		// If we were hosting public sessions before the search, we'll return the beacon to that state
-		if (PublicSessionsHosted > 0)
-		{
-			TryHostLANSession();
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[]FSessionsNull::FindLANSessions] Searching...."));
-	}
-}
-
-void FSessionsNull::StopLANSession()
-{
-	PublicSessionsHosted--;
-
-	if (PublicSessionsHosted <= 0)
-	{
-		LANSessionManager->StopLANSession();
-	}
-}
-
-void FSessionsNull::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
-{
-	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (TMap<FName, TSharedRef<FSession>>::TConstIterator It(SessionsByName); It; ++It)
-	{
-		const TSharedRef<FSession>& Session = It.Value();
-
-		if (Session->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
-		{
-			FNboSerializeToBufferNullSvc Packet(LAN_BEACON_MAX_PACKET_SIZE);
-			// Create the basic header before appending additional information
-			LANSessionManager->CreateHostResponsePacket(Packet, ClientNonce);
-
-			// Add all the session details
-			AppendSessionToPacket(Packet, FSessionNull::Cast(*Session));
-
-			// Broadcast this response so the client can see us
-			if (!Packet.HasOverflow())
-			{
-				LANSessionManager->BroadcastPacket(Packet, Packet.GetByteCount());
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::OnValidQueryPacketReceived] LAN broadcast packet overflow, cannot broadcast on LAN"));
-			}
-		}
-	}
-}
-
-void FSessionsNull::OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength)
-{
-	if (CurrentSessionSearch.IsValid())
-	{
-		TSharedRef<FSessionNull> Session = MakeShared<FSessionNull>();
-
-		FNboSerializeFromBufferNullSvc Packet(PacketData, PacketLength);
-		ReadSessionFromPacket(Packet, FSessionNull::Cast(*Session));
-
-		CurrentSessionSearch->FoundSessions.Add(Session);
-	}
-}
-
-void FSessionsNull::OnLANSearchTimeout()
-{
-	if (LANSessionManager->GetBeaconState() == ELanBeaconState::Searching)
-	{
-		LANSessionManager->StopLANSession();
-	}
-
-	if (!CurrentSessionSearch.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::OnLANSearchTimeout] Session search invalid"));
-
-		CurrentSessionSearchHandle->SetError(Errors::InvalidState());
-	}
-
-	if (CurrentSessionSearch->FoundSessions.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::OnLANSearchTimeout] Session search found no results"));
-
-		CurrentSessionSearchHandle->SetError(Errors::NotFound());
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::OnLANSearchTimeout] %d sessions found!"), CurrentSessionSearch->FoundSessions.Num());
-
-	FFindSessions::Result Result = *CurrentSessionSearch;
-	CurrentSessionSearchHandle->SetResult(MoveTemp(Result));
-
-	CurrentSessionSearch.Reset();
-	CurrentSessionSearchHandle.Reset();
-
-	// If we were hosting public sessions before the search, we'll return the beacon to that state
-	if (PublicSessionsHosted > 0)
-	{
-		TryHostLANSession();
-	}
-}
-
-void FSessionsNull::AppendSessionToPacket(FNboSerializeToBufferNullSvc& Packet, const FSessionNull& Session)
-{
 	// We won't save CurrentState in the packet as all advertised sessions will be Valid
-	Packet << Session.OwnerUserId
-		<< Session.SessionId
-		<< *Session.OwnerInternetAddr;
+	SerializeToBuffer(Packet, Session.OwnerUserId);
+	SerializeToBuffer(Packet, Session.SessionId);
+	Packet << *Session.OwnerInternetAddr;
 
 	// TODO: Write session settings to packet, after SchemaVariant work
 }
 
-void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBufferNullSvc& Packet, FSessionNull& Session)
+void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionNull& Session)
 {
-	Packet >> Session.OwnerUserId
-		>> Session.SessionId
-		>> *Session.OwnerInternetAddr;
+	using namespace NboSerializerNullSvc;
+
+	SerializeFromBuffer(Packet, Session.OwnerUserId);
+	SerializeFromBuffer(Packet, Session.SessionId);
+	Packet >> *Session.OwnerInternetAddr;
 
 	// We'll set the connect address for the remote session as a custom parameter, so it can be read in OnlineServices' GetResolvedConnectString
 	FCustomSessionSetting ConnectString;

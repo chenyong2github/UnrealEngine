@@ -5,6 +5,7 @@
 #include "Online/LobbiesCommon.h"
 #include "Online/Lobbies.h"
 #include "Online/LANBeacon.h"
+#include "Online/NboSerializerNullSvc.h"
 
 namespace UE::Online {
 
@@ -47,9 +48,9 @@ private:
 	uint32 JoinLANSession(int32 PlayerNum, TSharedRef<FLobbyNull>& Lobby);
 	uint32 FindLANSession();
 	uint32 FinalizeLANSearch();
-	void AppendLobbyToPacket(class FNboSerializeToBufferNullSvc& Packet, const TSharedRef<FLobbyNull>& Lobby);
+	void AppendLobbyToPacket(FNboSerializeToBuffer& Packet, const TSharedRef<FLobbyNull>& Lobby);
 	//void AppendSessionSettingsToPacket(class FNboSerializeToBufferNull& Packet, FOnlineSessionSettings* SessionSettings);
-	void ReadLobbyFromPacket(class FNboSerializeFromBufferNullSvc& Packet, const TSharedRef<FLobbyNull>& Session);
+	void ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TSharedRef<FLobbyNull>& Session);
 	//void ReadSettingsFromPacket(class FNboSerializeFromBufferNull& Packet, FOnlineSessionSettings& SessionSettings);
 	void OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce);
 	void OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength);
