@@ -3,17 +3,19 @@
 #include "SRCBehaviourPanelList.h"
 
 #include "Behaviour/Builtin/Conditional/RCBehaviourConditional.h"
+#include "Behaviour/RCSetAssetByPathBehaviour.h"
 #include "Controller/RCController.h"
 #include "RCBehaviourModel.h"
 #include "RemoteControlPreset.h"
-#include "SlateOptMacros.h"
 #include "SRCBehaviourPanel.h"
+#include "SlateOptMacros.h"
 #include "Styling/RemoteControlStyles.h"
-#include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
 #include "UI/Behaviour/Builtin/Conditional/RCBehaviourConditionalModel.h"
+#include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
+#include "UI/Behaviour/Builtin/RCBehaviourSetAssetByPathModel.h"
+#include "UI/Controller/RCControllerModel.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
-#include "UI/Controller/RCControllerModel.h"
 #include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelBehavioursList"
@@ -92,6 +94,10 @@ void SRCBehaviourPanelList::Reset()
 				else if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(Behaviour))
 				{
 					BehaviourItems.Add(MakeShared<FRCBehaviourConditionalModel>(ConditionalBehaviour));
+				}
+				else if (URCSetAssetByPathBehaviour* SetAssetByPathBehaviour = Cast<URCSetAssetByPathBehaviour>(Behaviour))
+				{
+					BehaviourItems.Add(MakeShared<FRCSetAssetByPathBehaviourModel>(SetAssetByPathBehaviour));
 				}
 				else
 				{

@@ -16,10 +16,6 @@ URCBehaviour::URCBehaviour()
 
 void URCBehaviour::Execute()
 {
-	if (!ActionContainer->Actions.Num())
-	{
-		return;
-	}
 	const URCBehaviourNode* BehaviourNode = GetBehaviourNode();
 
 	// Execute before the logic
