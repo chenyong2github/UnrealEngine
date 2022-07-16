@@ -171,8 +171,8 @@ namespace Chaos
 		TVector<bool, 3> bLinearPositionDriveEnabled;
 		TVector<bool, 3> bLinearVelocityDriveEnabled;
 		EJointForceMode LinearDriveForceMode;
-		FReal LinearDriveStiffness;
-		FReal LinearDriveDamping;
+		FVec3 LinearDriveStiffness;
+		FVec3 LinearDriveDamping;
 
 		FRotation3 AngularDrivePositionTarget;
 		FVec3 AngularDriveVelocityTarget;
@@ -184,8 +184,8 @@ namespace Chaos
 		bool bAngularSwingPositionDriveEnabled;
 		bool bAngularSwingVelocityDriveEnabled;
 		EJointForceMode AngularDriveForceMode;
-		FReal AngularDriveStiffness;
-		FReal AngularDriveDamping;
+		FVec3 AngularDriveStiffness;
+		FVec3 AngularDriveDamping;
 
 		FReal LinearBreakForce;
 		FReal LinearPlasticityLimit;

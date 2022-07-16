@@ -178,14 +178,14 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 
 				if (LocationMotionType != Chaos::EJointMotionType::Locked)
 				{
-					Constraint->SetLinearDriveStiffness(LinearStiffness);
-					Constraint->SetLinearDriveDamping(LinearDamping);
+					Constraint->SetLinearDriveStiffness(Chaos::FVec3(LinearStiffness));
+					Constraint->SetLinearDriveDamping(Chaos::FVec3(LinearDamping));
 				}
 
 				if (bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked)
 				{
-					Constraint->SetAngularDriveStiffness(AngularStiffness);
-					Constraint->SetAngularDriveDamping(AngularDamping);
+					Constraint->SetAngularDriveStiffness(Chaos::FVec3(AngularStiffness));
+					Constraint->SetAngularDriveDamping(Chaos::FVec3(AngularDamping));
 				}
 			}
 		});

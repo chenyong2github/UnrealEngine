@@ -483,7 +483,7 @@ namespace Chaos
 	{
 		if (JointSettings.bLinearPositionDriveEnabled[AxisIndex])
 		{
-			return (SolverSettings.LinearDriveStiffnessOverride >= 0.0f) ? SolverSettings.LinearDriveStiffnessOverride : JointSettings.LinearDriveStiffness;
+			return (SolverSettings.LinearDriveStiffnessOverride >= 0.0f) ? SolverSettings.LinearDriveStiffnessOverride : JointSettings.LinearDriveStiffness[AxisIndex];
 		}
 		return 0.0f;
 	}
@@ -495,7 +495,7 @@ namespace Chaos
 	{
 		if (JointSettings.bLinearVelocityDriveEnabled[AxisIndex])
 		{
-			return (SolverSettings.LinearDriveDampingOverride >= 0.0f) ? SolverSettings.LinearDriveDampingOverride : JointSettings.LinearDriveDamping;
+			return (SolverSettings.LinearDriveDampingOverride >= 0.0f) ? SolverSettings.LinearDriveDampingOverride : JointSettings.LinearDriveDamping[AxisIndex];
 		}
 		return 0.0f;
 	}
@@ -506,7 +506,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularTwistPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness[(int)EJointAngularConstraintIndex::Twist];
 		}
 		return 0.0f;
 	}
@@ -517,7 +517,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularTwistVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping[(int)EJointAngularConstraintIndex::Twist];
 		}
 		return 0.0f;
 	}
@@ -528,7 +528,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSwingPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness[(int)EJointAngularConstraintIndex::Swing1];
 		}
 		return 0.0f;
 	}
@@ -539,7 +539,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSwingVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping[(int)EJointAngularConstraintIndex::Swing1];
 		}
 		return 0.0f;
 	}
@@ -550,7 +550,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSLerpPositionDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness;
+			return (SolverSettings.AngularDriveStiffnessOverride >= 0.0f) ? SolverSettings.AngularDriveStiffnessOverride : JointSettings.AngularDriveStiffness[(int)EJointAngularConstraintIndex::Twist];
 		}
 		return 0.0f;
 	}
@@ -561,7 +561,7 @@ namespace Chaos
 	{
 		if (JointSettings.bAngularSLerpVelocityDriveEnabled)
 		{
-			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping;
+			return (SolverSettings.AngularDriveDampingOverride >= 0.0f) ? SolverSettings.AngularDriveDampingOverride : JointSettings.AngularDriveDamping[(int)EJointAngularConstraintIndex::Twist];
 		}
 		return 0.0f;
 	}

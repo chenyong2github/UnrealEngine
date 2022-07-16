@@ -30,8 +30,8 @@ namespace ChaosTest {
 
 		Test.JointSettings[0].bAngularSLerpPositionDriveEnabled = true;
 		Test.JointSettings[0].bAngularSLerpVelocityDriveEnabled = true;
-		Test.JointSettings[0].AngularDriveDamping = 500;
-		Test.JointSettings[0].AngularDriveStiffness = 500000.f;
+		Test.JointSettings[0].AngularDriveDamping = FVec3(500);
+		Test.JointSettings[0].AngularDriveStiffness = FVec3(500000.f);
 		
 		Test.JointSettings[0].AngularPlasticityLimit = PlasticityAngle * (PI/180.);
 
@@ -86,8 +86,8 @@ namespace ChaosTest {
 
 		Test.JointSettings[0].bAngularSLerpPositionDriveEnabled = true;
 		Test.JointSettings[0].bAngularSLerpVelocityDriveEnabled = true;
-		Test.JointSettings[0].AngularDriveDamping = 50;
-		Test.JointSettings[0].AngularDriveStiffness = 10000.f;
+		Test.JointSettings[0].AngularDriveDamping = FVec3(50);
+		Test.JointSettings[0].AngularDriveStiffness = FVec3(10000.f);
 
 		Test.JointSettings[0].AngularPlasticityLimit = PlasticityAngle * (PI / 180.);
 

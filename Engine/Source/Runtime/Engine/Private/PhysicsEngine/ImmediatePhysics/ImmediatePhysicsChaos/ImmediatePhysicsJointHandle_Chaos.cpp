@@ -91,8 +91,8 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.bLinearVelocityDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnableVelocityDrive;
 		ConstraintSettings.bLinearVelocityDriveEnabled[1] = Profile.LinearDrive.YDrive.bEnableVelocityDrive;
 		ConstraintSettings.bLinearVelocityDriveEnabled[2] = Profile.LinearDrive.ZDrive.bEnableVelocityDrive;
-		ConstraintSettings.LinearDriveStiffness = Chaos::ConstraintSettings::LinearDriveStiffnessScale() * Profile.LinearDrive.XDrive.Stiffness;
-		ConstraintSettings.LinearDriveDamping = Chaos::ConstraintSettings::LinearDriveDampingScale() * Profile.LinearDrive.XDrive.Damping;
+		ConstraintSettings.LinearDriveStiffness = Chaos::ConstraintSettings::LinearDriveStiffnessScale() * Chaos::FVec3(Profile.LinearDrive.XDrive.Stiffness, Profile.LinearDrive.YDrive.Stiffness, Profile.LinearDrive.ZDrive.Stiffness);
+		ConstraintSettings.LinearDriveDamping = Chaos::ConstraintSettings::LinearDriveDampingScale() * Chaos::FVec3(Profile.LinearDrive.XDrive.Damping, Profile.LinearDrive.YDrive.Damping, Profile.LinearDrive.ZDrive.Damping);
 		ConstraintSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
@@ -100,18 +100,20 @@ namespace ImmediatePhysics_Chaos
 
 		if (Profile.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{
+			ConstraintSettings.AngularDriveStiffness = Chaos::ConstraintSettings::AngularDriveStiffnessScale() * FVec3(Profile.AngularDrive.SlerpDrive.Stiffness);
+			ConstraintSettings.AngularDriveDamping = Chaos::ConstraintSettings::AngularDriveDampingScale() * FVec3(Profile.AngularDrive.SlerpDrive.Damping);
 			ConstraintSettings.bAngularSLerpPositionDriveEnabled = Profile.AngularDrive.SlerpDrive.bEnablePositionDrive;
 			ConstraintSettings.bAngularSLerpVelocityDriveEnabled = Profile.AngularDrive.SlerpDrive.bEnableVelocityDrive;
 		}
 		else
 		{
+			ConstraintSettings.AngularDriveStiffness = Chaos::ConstraintSettings::AngularDriveStiffnessScale() * FVec3(Profile.AngularDrive.TwistDrive.Stiffness, Profile.AngularDrive.SwingDrive.Stiffness, Profile.AngularDrive.SwingDrive.Stiffness);
+			ConstraintSettings.AngularDriveDamping = Chaos::ConstraintSettings::AngularDriveDampingScale() * FVec3(Profile.AngularDrive.TwistDrive.Damping, Profile.AngularDrive.SwingDrive.Damping, Profile.AngularDrive.SwingDrive.Damping);
 			ConstraintSettings.bAngularTwistPositionDriveEnabled = Profile.AngularDrive.TwistDrive.bEnablePositionDrive;
 			ConstraintSettings.bAngularTwistVelocityDriveEnabled = Profile.AngularDrive.TwistDrive.bEnableVelocityDrive;
 			ConstraintSettings.bAngularSwingPositionDriveEnabled = Profile.AngularDrive.SwingDrive.bEnablePositionDrive;
 			ConstraintSettings.bAngularSwingVelocityDriveEnabled = Profile.AngularDrive.SwingDrive.bEnableVelocityDrive;
 		}
-		ConstraintSettings.AngularDriveStiffness = Chaos::ConstraintSettings::AngularDriveStiffnessScale() * Profile.AngularDrive.TwistDrive.Stiffness;
-		ConstraintSettings.AngularDriveDamping = Chaos::ConstraintSettings::AngularDriveDampingScale() * Profile.AngularDrive.TwistDrive.Damping;
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.LinearBreakForce = (Profile.bLinearBreakable) ? Chaos::ConstraintSettings::LinearBreakScale() * Profile.LinearBreakThreshold : FLT_MAX;

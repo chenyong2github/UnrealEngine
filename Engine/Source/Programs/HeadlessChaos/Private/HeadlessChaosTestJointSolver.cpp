@@ -356,8 +356,8 @@ namespace ChaosTest
 		SolverTestA.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
 		SolverTestA.JointSettings.bAngularSLerpPositionDriveEnabled = true;
 		SolverTestA.JointSettings.bAngularSLerpVelocityDriveEnabled = true;
-		SolverTestA.JointSettings.AngularDriveStiffness = Stiffness;
-		SolverTestA.JointSettings.AngularDriveDamping = Damping;
+		SolverTestA.JointSettings.AngularDriveStiffness = FVec3(Stiffness);
+		SolverTestA.JointSettings.AngularDriveDamping = FVec3(Damping);
 		SolverTestA.JointSettings.AngularDrivePositionTarget = FRotation3::FromIdentity();
 		SolverTestA.JointSettings.AngularDriveForceMode = ForceMode;
 
@@ -537,8 +537,8 @@ namespace ChaosTest
 		SolverTestA.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
 		SolverTestA.JointSettings.bAngularSLerpPositionDriveEnabled = true;
 		SolverTestA.JointSettings.bAngularSLerpVelocityDriveEnabled = true;
-		SolverTestA.JointSettings.AngularDriveStiffness = 80.0f;
-		SolverTestA.JointSettings.AngularDriveDamping = 1.0f;
+		SolverTestA.JointSettings.AngularDriveStiffness = FVec3(80.0f);
+		SolverTestA.JointSettings.AngularDriveDamping = FVec3(1.0f);
 		SolverTestA.JointSettings.AngularDrivePositionTarget = FRotation3::FromIdentity();
 
 		// Particle 0 is Kinematic
@@ -585,7 +585,7 @@ namespace ChaosTest
 		}
 
 		FReal GravityAngAcc = SolverTestA.Body1.InvI().M[1][1] * SolverTestA.Mass1 * FVec3::CrossProduct(SolverTestA.Body1.P(), SolverTestA.Gravity).Y;
-		FReal SpringAngAcc = -SolverTestA.JointSettings.AngularDriveStiffness * OutAngles1.Y;
+		FReal SpringAngAcc = -SolverTestA.JointSettings.AngularDriveStiffness.X * OutAngles1.Y;
 		EXPECT_NEAR(SpringAngAcc, -GravityAngAcc, 5.0f);
 
 		// Verify that X and Z angles are zero, and that Y is almost zero
@@ -595,4 +595,153 @@ namespace ChaosTest
 		//EXPECT_LT(OutAngles1.Y, FMath::DegreesToRadians(1));
 		//EXPECT_NEAR(OutAngles1.Z, 0.0f, KINDA_SMALL_NUMBER);
 	}
+
+	// Linear Drive Stiffness and Damping test
+	// A dynamic body attached to a kinematic boidy by a spring with different stiffness and damping on each axis.
+	GTEST_TEST(JointSolverTests, TestJointSolver_KinematicDynamic_LinearDrive)
+	{
+		FJointSolverTest SolverTest;
+
+		FReal Dt = 0.02f;
+		int32 NumIts = 100;
+		SolverTest.Gravity = FVec3(0, 0, -1000);
+		SolverTest.Mass1 = 100.0f;
+		SolverTest.Inertia1 = FVec3(10000, 10000, 10000);
+
+		SolverTest.JointSettings.LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
+		SolverTest.JointSettings.bSoftLinearLimitsEnabled = false;
+		SolverTest.JointSettings.LinearDriveStiffness = FVec3(1000, 0, 100);
+		SolverTest.JointSettings.LinearDriveDamping = FVec3(70, 0, 20);
+		SolverTest.JointSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
+		SolverTest.JointSettings.bLinearPositionDriveEnabled = TVec3<bool>(true);
+		SolverTest.JointSettings.bLinearVelocityDriveEnabled = TVec3<bool>(true);
+
+		// Particle 0 is Kinematic
+		// Particle 1 is Dynamic
+		SolverTest.Body0.SetP(FVec3(0, 0, 0));
+		SolverTest.Body1.SetP(FVec3(100, 100, 100));
+
+		SolverTest.Init();
+
+		int32 It = 0;
+		while (It++ < NumIts)
+		{
+			SolverTest.Tick(Dt);
+		}
+
+		// Dynamic body should be close to X = 0, Y = 100, Z = G/K
+		const FReal Tolerance = UE_KINDA_SMALL_NUMBER;
+		EXPECT_NEAR(SolverTest.Body1.P().X, 0, Tolerance);
+		EXPECT_NEAR(SolverTest.Body1.P().Y, 100, Tolerance);
+		EXPECT_NEAR(SolverTest.Body1.P().Z, SolverTest.Gravity.Z / SolverTest.JointSettings.LinearDriveStiffness.Z, Tolerance);
+	}
+
+	// A dynamic body connected to a kinematic body by a twist spring.
+	// Body starts rotated about twist and swing and the twist angle should decrease to 0, leaving the swing untouched.
+	GTEST_TEST(JointSolverTests, TestJointSolver_KinematicDynamic_TwistDrive)
+	{
+		FJointSolverTest SolverTest;
+
+		FReal Dt = 0.02f;
+		int32 NumIts = 50;
+		FReal Stiffness = 1000;
+		FReal Damping = 70;
+		FVec3 Connector = FVec3(100, 0, 0);
+		FReal InitSwingAngle = FMath::DegreesToRadians(45);
+		FReal InitTwistAngle = FMath::DegreesToRadians(45);
+		FRotation3 InitRot = FRotation3::FromAxisAngle(FVec3(0,1,0), InitSwingAngle) * FRotation3::FromAxisAngle(FVec3(1, 0, 0), InitTwistAngle);
+
+		SolverTest.Gravity = FVec3(0);
+		SolverTest.Mass1 = 100.0f;
+		SolverTest.Inertia1 = FVec3(10000, 10000, 10000);
+		SolverTest.Body1.SetQ(InitRot);
+
+		// Set up a damped Twist drive. Swing drive is also active but with 0 stiffness and damping
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Free;
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Free;
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
+		SolverTest.JointSettings.bAngularTwistPositionDriveEnabled = true;
+		SolverTest.JointSettings.bAngularTwistVelocityDriveEnabled = true;
+		SolverTest.JointSettings.bAngularSwingPositionDriveEnabled = true;
+		SolverTest.JointSettings.bAngularSwingVelocityDriveEnabled = true;
+		SolverTest.JointSettings.AngularDriveStiffness = FVec3(Stiffness, 0, 0);
+		SolverTest.JointSettings.AngularDriveDamping = FVec3(Damping, 0, 0);
+		SolverTest.JointSettings.AngularDrivePositionTarget = FRotation3::FromIdentity();
+		SolverTest.JointSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
+
+		SolverTest.Init();
+
+		FReal TwistAngle, Swing1Angle, Swing2Angle;
+		FPBDJointUtilities::GetSwingTwistAngles(FRotation3::FromIdentity(), SolverTest.Body1.Q(), TwistAngle, Swing1Angle, Swing2Angle);
+		EXPECT_NEAR(TwistAngle, InitTwistAngle, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing1Angle, 0, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing2Angle, InitSwingAngle, UE_KINDA_SMALL_NUMBER);
+
+		int32 It = 0;
+		while (It++ < NumIts)
+		{
+			SolverTest.Tick(Dt);
+
+			FPBDJointUtilities::GetSwingTwistAngles(FRotation3::FromIdentity(), SolverTest.Body1.Q(), TwistAngle, Swing1Angle, Swing2Angle);
+		}
+
+		const FReal Tolerance = UE_KINDA_SMALL_NUMBER;
+		EXPECT_NEAR(TwistAngle, 0, Tolerance);
+		EXPECT_NEAR(Swing1Angle, 0, Tolerance);
+		EXPECT_NEAR(Swing2Angle, InitSwingAngle, Tolerance);
+	}
+
+	// A dynamic body connected to a kinematic body by a swing spring.
+	// Body starts rotated about twist and swing and the swing angle should decrease to 0, leaving the twist untouched.
+	GTEST_TEST(JointSolverTests, TestJointSolver_KinematicDynamic_Swing2Drive)
+	{
+		FJointSolverTest SolverTest;
+
+		FReal Dt = 0.02f;
+		int32 NumIts = 50;
+		FReal Stiffness = 1000;
+		FReal Damping = 70;
+		FReal InitSwingAngle = FMath::DegreesToRadians(45);
+		FReal InitTwistAngle = FMath::DegreesToRadians(0);
+		FRotation3 InitRot = FRotation3::FromAxisAngle(FVec3(0, 1, 0), InitSwingAngle) * FRotation3::FromAxisAngle(FVec3(1, 0, 0), InitTwistAngle);
+
+		SolverTest.Gravity = FVec3(0);
+		SolverTest.Mass1 = 100.0f;
+		SolverTest.Inertia1 = FVec3(10000, 10000, 10000);
+		SolverTest.Body1.SetQ(InitRot);
+
+		// Set up a damped Twist drive. Swing drive is also active but with 0 stiffness and damping
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Free;
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Free;
+		SolverTest.JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
+		SolverTest.JointSettings.bAngularTwistPositionDriveEnabled = true;
+		SolverTest.JointSettings.bAngularTwistVelocityDriveEnabled = true;
+		SolverTest.JointSettings.bAngularSwingPositionDriveEnabled = true;
+		SolverTest.JointSettings.bAngularSwingVelocityDriveEnabled = true;
+		SolverTest.JointSettings.AngularDriveStiffness = FVec3(0, Stiffness, Stiffness);
+		SolverTest.JointSettings.AngularDriveDamping = FVec3(0, Damping, Damping);
+		SolverTest.JointSettings.AngularDrivePositionTarget = FRotation3::FromIdentity();
+		SolverTest.JointSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
+
+		SolverTest.Init();
+
+		FReal TwistAngle, Swing1Angle, Swing2Angle;
+		FPBDJointUtilities::GetSwingTwistAngles(FRotation3::FromIdentity(), SolverTest.Body1.Q(), TwistAngle, Swing1Angle, Swing2Angle);
+		EXPECT_NEAR(TwistAngle, InitTwistAngle, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing1Angle, 0, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing2Angle, InitSwingAngle, UE_KINDA_SMALL_NUMBER);
+
+		int32 It = 0;
+		while (It++ < NumIts)
+		{
+			SolverTest.Tick(Dt);
+
+			FPBDJointUtilities::GetSwingTwistAngles(FRotation3::FromIdentity(), SolverTest.Body1.Q(), TwistAngle, Swing1Angle, Swing2Angle);
+		}
+
+		EXPECT_NEAR(TwistAngle, InitTwistAngle, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing1Angle, 0, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Swing2Angle, 0, UE_KINDA_SMALL_NUMBER);
+	}
+
 }
