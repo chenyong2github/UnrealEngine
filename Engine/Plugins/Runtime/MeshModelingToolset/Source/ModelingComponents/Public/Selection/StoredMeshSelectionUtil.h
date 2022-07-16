@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Selections/GeometrySelection.h"
 
 struct FToolBuilderState;
 class UPersistentMeshSelection;
 class UToolTarget;
 class UInteractiveTool;
 class UInteractiveToolManager;
-struct FGeometrySelection;
 PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopology);
 PREDECLARE_USE_GEOMETRY_CLASS(FCompactMaps);
 
