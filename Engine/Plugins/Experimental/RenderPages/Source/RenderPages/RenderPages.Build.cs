@@ -14,6 +14,7 @@ public class RenderPages : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"LevelSequence",
 				"RemoteControl",
 			}
 		);
