@@ -5431,6 +5431,11 @@ bool APlayerController::PopInputComponent(UInputComponent* InInputComponent)
 	return false;
 }
 
+bool APlayerController::IsInputComponentInStack(const UInputComponent* InInputComponent) const
+{
+	return InInputComponent && CurrentInputStack.Contains(InInputComponent);
+}
+
 void APlayerController::AddPitchInput(float Val)
 {	
 	RotationInput.Pitch += !IsLookInputIgnored() ? Val * (GetDefault<UInputSettings>()->bEnableLegacyInputScales ? InputPitchScale_DEPRECATED : 1.0f) : 0.0f;
