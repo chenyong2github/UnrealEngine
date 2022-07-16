@@ -50,9 +50,9 @@ namespace Horde.Build.Storage
 		public Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => TryReadAsync(GetBlobPath(id), cancellationToken);
 
 		/// <inheritdoc/>
-		public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public async Task<BlobId> WriteBlobAsync(RefName refName, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
-			BlobId id = new BlobId(Guid.NewGuid().ToString());
+			BlobId id = new BlobId($"{refName}/{Guid.NewGuid()}");
 			await WriteAsync(GetBlobPath(id), data, references, cancellationToken);
 			return id;
 		}

@@ -59,10 +59,11 @@ namespace Horde.Agent.Commands.Bundles
 				return BlobUtils.Deserialize(bytes);
 			}
 
-			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+			public async Task<BlobId> WriteBlobAsync(RefName refName, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
-				BlobId id = new BlobId(Guid.NewGuid().ToString());
+				BlobId id = new BlobId($"{refName}/{Guid.NewGuid()}");
 				FileReference file = GetBlobFile(id);
+				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
 				await WriteAsync(file, BlobUtils.Serialize(data, references), cancellationToken);
 				return id;
@@ -98,6 +99,7 @@ namespace Horde.Agent.Commands.Bundles
 			public async Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
+				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
 				await WriteAsync(file, BlobUtils.Serialize(data, references), cancellationToken);
 			}

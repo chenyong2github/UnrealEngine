@@ -294,7 +294,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				if (bundleNodes.Count > 0 && bundleSize + nodeSize > _options.MaxBlobSize)
 				{
 					Bundle bundle = CreateBundle(bundleNodes);
-					BlobId blobId = await _blobStore.WriteBundleAsync(bundle, cancellationToken);
+					BlobId blobId = await _blobStore.WriteBundleBlobAsync(name, bundle, cancellationToken);
 
 					BlobInfo bundleInfo = new BlobInfo(blobId, bundleNodes.ToArray());
 					MountExportedBundle(bundleInfo, bundle);
@@ -313,7 +313,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			{
 				// Write the main ref
 				Bundle rootBundle = CreateBundle(bundleNodes);
-				await _blobStore.WriteBundleAsync(name, rootBundle, cancellationToken);
+				await _blobStore.WriteBundleRefAsync(name, rootBundle, cancellationToken);
 
 				// Copy the stats over
 				Stats = _nextStats;

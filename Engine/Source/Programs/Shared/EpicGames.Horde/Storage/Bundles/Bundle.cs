@@ -375,7 +375,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <param name="name">Identifier for the blob</param>
 		/// <param name="bundle">Bundle to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task WriteBundleAsync(this IBlobStore store, RefName name, Bundle bundle, CancellationToken cancellationToken)
+		public static Task WriteBundleRefAsync(this IBlobStore store, RefName name, Bundle bundle, CancellationToken cancellationToken)
 		{
 			ReadOnlySequence<byte> data = bundle.AsSequence();
 			List<BlobId> imports = bundle.Header.Imports.Select(x => x.BlobId).ToList();
@@ -386,14 +386,15 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// Writes a bundle to a blob store
 		/// </summary>
 		/// <param name="store">Blob store to write to</param>
+		/// <param name="name">Name of the root ref</param>
 		/// <param name="bundle">Bundle to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Identifier for the blob</returns>
-		public static Task<BlobId> WriteBundleAsync(this IBlobStore store, Bundle bundle, CancellationToken cancellationToken)
+		public static Task<BlobId> WriteBundleBlobAsync(this IBlobStore store, RefName name, Bundle bundle, CancellationToken cancellationToken)
 		{
 			ReadOnlySequence<byte> data = bundle.AsSequence();
 			List<BlobId> imports = bundle.Header.Imports.Select(x => x.BlobId).ToList();
-			return store.WriteBlobAsync(data, imports, cancellationToken);
+			return store.WriteBlobAsync(name, data, imports, cancellationToken);
 		}
 
 		static Bundle ReadBundle(IBlob blob)
