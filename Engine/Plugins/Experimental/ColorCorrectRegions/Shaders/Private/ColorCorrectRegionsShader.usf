@@ -137,9 +137,9 @@ MaterialFloat3 ProcessColor(in FExternalExpressions ExternalExpressions)
 		AfterTemperature.g = AfterTemperature.g - ExternalExpressions.Tint; 
 	}
 #elif TEMPERATURE_TYPE == TEMPERATURE_TYPE_WHITE_BALANCE
-	AfterTemperature = WhiteBalance(FinalColor, ExternalExpressions.WhiteTemp, ExternalExpressions.Tint, true /*bIsTemperatureWhiteBalance*/);
+	AfterTemperature = WhiteBalance(FinalColor, ExternalExpressions.WhiteTemp, ExternalExpressions.Tint, true /*bIsTemperatureWhiteBalance*/, (float3x3)WorkingColorSpace.ToXYZ, (float3x3)WorkingColorSpace.FromXYZ);
 #elif TEMPERATURE_TYPE == TEMPERATURE_TYPE_COLOR_TEMP
-	AfterTemperature = WhiteBalance(FinalColor, ExternalExpressions.WhiteTemp, ExternalExpressions.Tint, false /*bIsTemperatureWhiteBalance*/);
+	AfterTemperature = WhiteBalance(FinalColor, ExternalExpressions.WhiteTemp, ExternalExpressions.Tint, false /*bIsTemperatureWhiteBalance*/, (float3x3)WorkingColorSpace.ToXYZ, (float3x3)WorkingColorSpace.FromXYZ);
 #endif
 	return AfterTemperature;
 }

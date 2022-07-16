@@ -347,6 +347,7 @@ namespace
 		FCCRShaderInputParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FCCRShaderInputParameters>();
 		PostProcessMaterialParameters->RenderTargets[0] = BackBufferRenderTarget.GetRenderTargetBinding();
 
+		PostProcessMaterialParameters->WorkingColorSpace = GDefaultWorkingColorSpaceUniformBuffer.GetUniformBufferRef();
 		PostProcessMaterialParameters->PostProcessOutput = SceneTextureViewportParams;
 		PostProcessMaterialParameters->PostProcessInput[0] = SceneTextureInput;
 		PostProcessMaterialParameters->SceneTextures = SceneTextures;
