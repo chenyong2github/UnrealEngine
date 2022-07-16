@@ -20,11 +20,11 @@ class UAnimMontageFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category="Scripting")
 	TObjectPtr<class USkeleton> TargetSkeleton;
 
 	/* Used when creating a montage from an AnimSequence, becomes the only AnimSequence contained */
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
 	TObjectPtr<class UAnimSequence> SourceAnimation;
 
 	/** The preview mesh to use with this animation */
