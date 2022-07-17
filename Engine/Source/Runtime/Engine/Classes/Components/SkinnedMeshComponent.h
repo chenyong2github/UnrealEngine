@@ -277,7 +277,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property is deprecated. Please use LeaderPoseComponent instead")
-	UPROPERTY()
 	TWeakObjectPtr<USkinnedMeshComponent> MasterPoseComponent;
 #endif // WITH_EDITORONLY_DATA
 
@@ -576,7 +575,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property is deprecated. Please use bUseBoundsFromLeaderPoseComponent instead")
-	UPROPERTY()
 	uint8 bUseBoundsFromMasterPoseComponent : 1;
 #endif // WITH_EDITORONLY_DATA
 
@@ -671,7 +669,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property is deprecated. Please use bIgnoreLeaderPoseComponentLOD instead")
-	UPROPERTY()
 	uint8 bIgnoreMasterPoseComponentLOD : 1;
 #endif // WITH_EDITORONLY_DATA
 
@@ -1444,7 +1441,6 @@ public:
 	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false);
 
 	UE_DEPRECATED(5.1, "SetMasterPoseComponent has been deprecated. Please use SetLeaderPoseComponent instead.")
-	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh", meta = (DeprecatedFunction, DeprecationMessage = "SetMasterPoseComponent has been deprecated. Please use SetLeaderPoseComponent instead."))
 	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false) { SetLeaderPoseComponent(NewMasterBoneComponent, bForceUpdate); }
 
 	/** Return current active list of follower components */

@@ -779,7 +779,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property is deprecated. Please use bPropagateCurvesToFollowers instead")
-	UPROPERTY()
 	uint8 bPropagateCurvesToSlaves : 1;
 #endif // WITH_EDITORONLY_DATA
 
@@ -1232,7 +1231,6 @@ public:
 	void BindClothToLeaderPoseComponent();
 
 	UE_DEPRECATED(5.1, "BindClothToMasterPoseComponent has been deprecated. Please use BindClothToLeaderPoseComponent instead.")
-	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true", DeprecatedFunction, DeprecationMessage = "BindClothToMasterPoseComponent has been deprecated. Please use BindClothToLeaderPoseComponent instead."))
 	void BindClothToMasterPoseComponent() { BindClothToLeaderPoseComponent(); }
 
 	/** 
@@ -1246,7 +1244,6 @@ public:
 	void UnbindClothFromLeaderPoseComponent(bool bRestoreSimulationSpace = true);
 
 	UE_DEPRECATED(5.1, "UnbindClothFromMasterPoseComponent has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead.")
-	UFUNCTION(BlueprintCallable, Category = "Clothing", meta = (UnsafeDuringActorConstruction = "true", DeprecatedFunction, DeprecationMessage = "UnbindClothFromMasterPoseComponent has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead."))
 	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true) { UnbindClothFromLeaderPoseComponent(bRestoreSimulationSpace); }
 
 	/**
