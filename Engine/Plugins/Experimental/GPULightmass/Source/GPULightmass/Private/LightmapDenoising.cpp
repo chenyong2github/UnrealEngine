@@ -2,6 +2,7 @@
 
 #include "LightmapDenoising.h"
 #include "GPULightmassCommon.h"
+#include "Async/ParallelFor.h"
 
 FDenoiserFilterSet::FDenoiserFilterSet(FDenoiserContext& Context, FIntPoint NewSize, bool bSHDenoiser)
 	: Context(Context)
