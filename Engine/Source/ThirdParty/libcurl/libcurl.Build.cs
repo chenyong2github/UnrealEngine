@@ -11,20 +11,24 @@ public class libcurl : ModuleRules
 
 		PublicDefinitions.Add("WITH_LIBCURL=1");
 
-		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_65_3/";
+		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7.83.1/";
+		string MacLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7.83.1/";
 		string WinLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7.83.1/";
 		string AndroidLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_75_0/";
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string platform = "/Unix/" + Target.Architecture;
-			string IncludePath = LinuxLibCurlPath + "include" + platform;
-			string LibraryPath = LinuxLibCurlPath + "lib" + platform;
+			PublicIncludePaths.Add(Path.Combine(LinuxLibCurlPath, "include"));
+			PublicAdditionalLibraries.Add(Path.Combine(LinuxLibCurlPath, "lib", "Unix", Target.Architecture, "Release", "libcurl.a"));
+			PublicDefinitions.Add("CURL_STATICLIB=1");
 
-			PublicIncludePaths.Add(IncludePath);
-			PublicAdditionalLibraries.Add(LibraryPath + "/libcurl.a");
-
-			PrivateDependencyModuleNames.Add("SSL");
+			// Our build requires nghttp2, OpenSSL and zlib, so ensure they're linked in
+			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
+			{
+				"nghttp2",
+				"OpenSSL",
+				"zlib"
+			});
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
@@ -41,9 +45,18 @@ public class libcurl : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string LibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/";
-			PublicIncludePaths.Add(LibCurlPath + "include/Mac");
-			PublicAdditionalLibraries.Add(LibCurlPath + "lib/Mac/libcurl.a");
+			PublicIncludePaths.Add(Path.Combine(MacLibCurlPath, "include"));
+			PublicAdditionalLibraries.Add(Path.Combine(MacLibCurlPath, "lib", "Mac", "Release", "libcurl.a"));
+			PublicDefinitions.Add("CURL_STATICLIB=1");
+			PublicFrameworks.Add("SystemConfiguration");
+
+			// Our build requires nghttp2, OpenSSL and zlib, so ensure they're linked in
+			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
+			{
+				"nghttp2",
+				"OpenSSL",
+				"zlib"
+			});
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
