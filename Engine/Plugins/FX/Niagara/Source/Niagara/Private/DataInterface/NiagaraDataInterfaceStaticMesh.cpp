@@ -22,7 +22,6 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Internationalization/Internationalization.h"
-#include "GPUSkinCache.h"
 #include "ShaderCompilerCore.h"
 
 #include "NiagaraGpuComputeDispatchInterface.h"

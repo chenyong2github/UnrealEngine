@@ -16,7 +16,6 @@ DebugViewModeRendering.h: Contains definitions for rendering debug viewmodes.
 #include "ShaderBaseClasses.h"
 #include "MeshPassProcessor.h"
 #include "DebugViewModeInterface.h"
-#include "GPUSkinCache.h"
 #include "SceneRenderTargetParameters.h"
 
 class FPrimitiveSceneProxy;

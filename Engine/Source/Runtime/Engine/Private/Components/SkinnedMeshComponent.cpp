@@ -29,6 +29,7 @@
 #include "Animation/MorphTarget.h"
 #include "AnimationRuntime.h"
 #include "Animation/SkinWeightProfileManager.h"
+#include "GPUSkinCache.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 

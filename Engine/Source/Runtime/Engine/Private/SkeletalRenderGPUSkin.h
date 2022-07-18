@@ -12,15 +12,17 @@
 #include "ShaderParameters.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "GlobalShader.h"
-#include "GPUSkinCache.h"
 #include "GPUSkinVertexFactory.h"
 #include "SkeletalRenderPublic.h"
 #include "ClothingSystemRuntimeTypes.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 
+enum class EGPUSkinCacheEntryMode;
 class FGPUSkinCache;
 class FRayTracingSkinnedGeometryUpdateQueue;
+class FSkeletalMeshObjectGPUSkin;
+class FVertexOffsetBuffers;
 
 /** 
 * Stores the updated matrices needed to skin the verts.

@@ -481,8 +481,6 @@ TSharedRef<SWidget> FGroomMaterialDetails::OnGenerateCustomNameWidgetsForSection
 
 TSharedRef<SWidget> FGroomMaterialDetails::OnGenerateCustomSectionWidgetsForSection(int32 LODIndex, int32 SectionIndex)
 {
-	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
-
 	TSharedRef<SVerticalBox> SectionWidget = SNew(SVerticalBox);
 	SectionWidget->AddSlot()
 	.AutoHeight()
