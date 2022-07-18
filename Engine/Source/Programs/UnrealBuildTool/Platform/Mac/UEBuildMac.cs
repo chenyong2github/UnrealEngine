@@ -150,6 +150,7 @@ namespace UnrealBuildTool
 					"VertexDeltaModel",
 					"MetaHumanAnimator",
 					"MetaHumans",
+					"NeuralMorphModel",
 
 					// MDL
 					"MDLImporter",
