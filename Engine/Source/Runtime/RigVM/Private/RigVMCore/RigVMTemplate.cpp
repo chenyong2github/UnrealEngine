@@ -1392,6 +1392,15 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 					return false;
 				}
 			}
+
+			// Find if these types were already registered
+			FRigVMTemplateTypeMap TestTypes = Types;
+			TArray<int32> TestPermutations;
+			if (Resolve(TestTypes, TestPermutations, false))
+			{
+				return false;
+			}
+			
 			for(FRigVMTemplateArgument& Argument : Arguments)
 			{
 				const TRigVMTypeIndex TypeIndex = Types.FindChecked(Argument.Name);
@@ -1400,6 +1409,7 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 			}
 
 			Permutations.Add(INDEX_NONE);
+			return true;
 		}
 	}
 	return false;

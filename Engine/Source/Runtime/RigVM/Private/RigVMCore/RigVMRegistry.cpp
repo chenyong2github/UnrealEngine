@@ -257,7 +257,25 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 			TypeToIndex.Add(CurType, Index);
 
 			Indices.Add(Index);
+		}
 
+		if (!bIsExecute)
+		{
+			Types[Indices[1]].BaseTypeIndex = Indices[0];
+			Types[Indices[2]].BaseTypeIndex = Indices[1];
+
+			Types[Indices[0]].ArrayTypeIndex = Indices[1];
+			Types[Indices[1]].ArrayTypeIndex = Indices[2];
+		}
+
+		for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
+		{
+			if(bIsExecute && ArrayDimension > 0)
+			{
+				break;
+			}
+			Index = Indices[ArrayDimension];
+			
 			// Add to category
 			// simple types
 			if(CPPTypeObject == nullptr)
@@ -393,15 +411,6 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 					}
 				}
 			}
-		}
-
-		if (!bIsExecute)
-		{
-			Types[Indices[1]].BaseTypeIndex = Indices[0];
-			Types[Indices[2]].BaseTypeIndex = Indices[1];
-
-			Types[Indices[0]].ArrayTypeIndex = Indices[1];
-			Types[Indices[1]].ArrayTypeIndex = Indices[2];
 		}
 
 		// if the type is a structure
