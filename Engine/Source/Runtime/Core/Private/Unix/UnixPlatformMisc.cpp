@@ -24,6 +24,7 @@
 #include "Unix/UnixPlatformCrashContext.h"
 #include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 #if PLATFORM_HAS_CPUID
 	#include <cpuid.h>

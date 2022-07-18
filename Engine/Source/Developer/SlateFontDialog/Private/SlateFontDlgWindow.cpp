@@ -4,12 +4,18 @@
 
 #include "Fonts/CompositeFont.h"
 
+#include "Framework/Docking/TabManager.h"
+
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 
+#include "SlateOptMacros.h"
+
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Layout/SGridPanel.h"
 
 #include <fontconfig.h>
 

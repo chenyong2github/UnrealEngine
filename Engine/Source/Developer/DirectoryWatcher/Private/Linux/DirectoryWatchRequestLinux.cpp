@@ -4,6 +4,10 @@
 #include "HAL/FileManager.h"
 #include "DirectoryWatcherPrivate.h"
 
+#if !UE_BUILD_SHIPPING
+#include "Misc/CoreMisc.h"
+#endif
+
 // To see inotify watch events:
 //   TestPAL dirwatcher -LogCmds="LogDirectoryWatcher VeryVerbose"
 

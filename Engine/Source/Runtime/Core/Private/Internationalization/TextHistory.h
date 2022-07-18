@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Internationalization/CulturePointer.h"
 #include "Internationalization/ITextData.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 #include "Internationalization/StringTableCoreFwd.h"
+#include "Internationalization/Text.h"
 #include "Internationalization/TextKey.h"
 #include "Internationalization/Text.h"
 #include "Misc/DateTime.h"

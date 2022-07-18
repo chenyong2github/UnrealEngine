@@ -2,7 +2,9 @@
 
 #include "Materials/MaterialInstanceActor.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/Texture2D.h"
 #include "Misc/MessageDialog.h"
+#include "UObject/ConstructorHelpers.h"
 
 /**
  * Construct a list of static actor names.

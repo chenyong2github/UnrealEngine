@@ -6,6 +6,8 @@
 #include "Templates/IsEnum.h"
 #include "Misc/Crc.h"
 
+#include <stdint.h>
+
 /**
  * Combines two hash values to get a third.
  * Note - this function is not commutative.

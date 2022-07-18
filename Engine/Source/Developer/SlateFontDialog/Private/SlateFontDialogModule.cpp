@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateFontDialogModule.h"
+
+#include "Modules/ModuleManager.h"
 #include "SlateFontDlgWindow.h"
 
 bool FSlateFontDialogModule::OpenFontDialog(FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags)
