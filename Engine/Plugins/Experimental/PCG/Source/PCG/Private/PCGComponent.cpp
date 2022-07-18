@@ -112,7 +112,7 @@ bool UPCGComponent::ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger R
 
 #if WITH_EDITOR
 	// Always run Generate if we are in editor and partitioned since the original component doesn't know the state of the local one.
-	if (IsPartitioned() && !GIsPlayInEditorWorld)
+	if (IsPartitioned() && !PCGHelpers::IsRuntimeOrPIE())
 	{
 		return true;
 	}
@@ -221,12 +221,14 @@ void UPCGComponent::GenerateLocal(bool bForce, EPCGComponentGenerationTrigger Re
 	{
 		bIsGenerating = true;
 	}
+	else
+	{
+		OnProcessGraphAborted();
+	}
 }
 
 FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& TaskDependencies)
 {
-	FPCGTaskId TaskId = InvalidPCGTaskId;
-
 	if (!ShouldGenerate(bForce, RequestedGenerationTrigger))
 	{
 		return InvalidPCGTaskId;
@@ -242,56 +244,19 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationT
 
 	Modify();
 
-	if (IsPartitioned())
+	// Immediate operation: cleanup beforehand
+	if (bGenerated)
 	{
-#if WITH_EDITOR
-		if (!GIsPlayInEditorWorld)
-		{
-			TaskId = GetSubsystem()->DelayGenerateGraph(this, /*bSave=*/bForce);
-		}
-		else
-#endif
-		{
-			// If we don't have valid bounds, just cleanup
-			const FBox NewBounds = GetGridBounds();
-			if (!NewBounds.IsValid)
-			{
-				CleanupLocal(/*bRemoveComponents=*/false);
-				return InvalidPCGTaskId;
-			}
-
-			// Otherwise, ask for generation on all the partition actors registered.
-			TArray<FPCGTaskId> TaskIds = GetSubsystem()->ScheduleMultipleComponent(this, PartitionActors, TaskDependencies);
-
-			// Finally, create a task to call PostProcessGraph.
-			if (!TaskIds.IsEmpty())
-			{
-				return GetSubsystem()->ScheduleGeneric([this, NewBounds]() { PostProcessGraph(NewBounds, true); return true; }, TaskIds);
-			}
-			else
-			{
-				return InvalidPCGTaskId;
-			}
-		}
-	}
-	else
-	{
-		// Immediate operation: cleanup beforehand
-		if (bGenerated)
-		{
-			CleanupInternal(/*bRemoveComponents=*/false);
-		}
-
-		const FBox NewBounds = GetGridBounds();
-		if (!NewBounds.IsValid)
-		{
-			return InvalidPCGTaskId;
-		}
-
-		TaskId = GetSubsystem()->ScheduleComponent(this, TaskDependencies);
+		CleanupInternal(/*bRemoveComponents=*/false);
 	}
 
-	return TaskId;
+	const FBox NewBounds = GetGridBounds();
+	if (!NewBounds.IsValid)
+	{
+		return InvalidPCGTaskId;
+	}
+
+	return GetSubsystem()->ScheduleComponent(this, /*bSave=*/false, TaskDependencies);
 }
 
 bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds)
@@ -332,29 +297,14 @@ bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjec
 	return bHasValidTag;
 }
 
-void UPCGComponent::AddPCGPartitionActor(const APCGPartitionActor* Actor)
-{
-	PartitionActors.Add(Actor);
-}
-
-void UPCGComponent::RemovePCGPartitionActor(const APCGPartitionActor* Actor)
-{
-	PartitionActors.Remove(Actor);
-}
-
-void UPCGComponent::ClearPCGPartitionActors()
-{
-	PartitionActors.Empty();
-}
-
 void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 {
 	LastGeneratedBounds = InNewBounds;
 
+	CleanupUnusedManagedResources();
+
 	if (bInGenerated)
 	{
-		CleanupUnusedManagedResources();
-
 		bGenerated = true;
 
 		bIsGenerating = false;
@@ -369,6 +319,8 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 void UPCGComponent::OnProcessGraphAborted()
 {
 	UE_LOG(LogPCG, Warning, TEXT("Process Graph was called but aborted, check for errors in log if you expected a result."));
+
+	CleanupUnusedManagedResources();
 
 	bGenerated = false;
 	bIsGenerating = false;
@@ -404,25 +356,13 @@ void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 		return;
 	}
 
+	Modify();
+
+	GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, {});
+
 	if (IsPartitioned())
 	{
-#if WITH_EDITOR
-		if (!GIsPlayInEditorWorld)
-		{
-			Modify();
-			GetSubsystem()->CleanupGraph(this, LastGeneratedBounds, bRemoveComponents, bSave);
-		}
-		else
-#endif
-		{
-			GetSubsystem()->ScheduleMultipleCleanup(this, PartitionActors, bRemoveComponents, {});
-		}
-
 		bGenerated = false;
-	}
-	else
-	{
-		CleanupInternal(bRemoveComponents);
 	}
 
 #if WITH_EDITOR
@@ -568,6 +508,12 @@ void UPCGComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// First if it is partitioned, register itself to the PCGSubsystem, to map the component to all its corresponding PartitionActors
+	if (IsPartitioned() && GetSubsystem())
+	{
+		GetSubsystem()->RegisterPCGComponent(this);
+	}
+
 	if(bActivated && !bGenerated && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)
 	{
 		if (IsPartitioned())
@@ -591,9 +537,14 @@ void UPCGComponent::BeginPlay()
 
 void UPCGComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Super::EndPlay(EndPlayReason);
+	// Always try to unregister itself, if it doesn't exist, it will early out. 
+	// Just making sure that we don't left some resources registered while dead.
+	if (GetSubsystem())
+	{
+		GetSubsystem()->UnregisterPCGComponent(this);
+	}
 
-	ClearPCGPartitionActors();
+	Super::EndPlay(EndPlayReason);
 }
 
 void UPCGComponent::OnComponentCreated()
@@ -713,7 +664,7 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool 
 
 #if WITH_EDITOR
 	// In editor, since we've changed the graph, we might have changed the tracked actor tags as well
-	if (!GIsPlayInEditorWorld)
+	if (!PCGHelpers::IsRuntimeOrPIE())
 	{
 		TeardownTrackingCallbacks();
 		SetupTrackingCallbacks();

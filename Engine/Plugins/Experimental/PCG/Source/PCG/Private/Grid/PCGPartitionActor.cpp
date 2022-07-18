@@ -3,7 +3,9 @@
 #include "PCGPartitionActor.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
+#include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
+#include "Helpers/PCGActorHelpers.h"
 
 #include "Landscape.h"
 #include "Components/BoxComponent.h"
@@ -37,10 +39,10 @@ void APCGPartitionActor::PostLoad()
 		PCGGridSize = APCGWorldActor::DefaultPartitionGridSize;
 	}
 
-#if WITH_EDITOR
 	// Make sure that we don't track objects that do not exist anymore
 	CleanupDeadGraphInstances();
 
+#if WITH_EDITOR
 	if (BoundsComponent)
 	{
 		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
@@ -68,22 +70,27 @@ void APCGPartitionActor::BeginPlay()
 		}
 	}
 
-	// Make the Partition actor register itself to the PCG Component
-	RegisterActorToOriginalComponents();
+	// Make the Partition actor register itself to the PCG Subsystem
+	UWorld* World = GetWorld();
+	check(World);
+
+	UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>();
+	check(Subsystem);
+
+	Subsystem->RegisterPartitionActor(this);
 
 	Super::BeginPlay();
-
-	// Register cell to the PCG grid
-	// TODO
 }
 
 void APCGPartitionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Unregister each cell to the PCG grid
-	// TODO
+	UWorld* World = GetWorld();
+	check(World);
 
-	// Make the Partition actor unregister itself to the PCG Component
-	UnregisterActorToOriginalComponents();
+	UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>();
+	check(Subsystem);
+
+	Subsystem->UnregisterPartitionActor(this);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -108,6 +115,12 @@ FBox APCGPartitionActor::GetFixedBounds() const
 	return FBox(Center - HalfGridSize, Center + HalfGridSize);
 }
 
+FIntVector APCGPartitionActor::GetGridCoord() const
+{
+	const FVector Center = GetActorLocation();
+	return UPCGActorHelpers::GetCellCoord(Center, PCGGridSize);
+}
+
 void APCGPartitionActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
 {
 	Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
@@ -130,44 +143,42 @@ UPCGComponent* APCGPartitionActor::GetOriginalComponent(const UPCGComponent* Loc
 	return OriginalComponent ? (*OriginalComponent).Get() : nullptr;
 }
 
-void APCGPartitionActor::RegisterActorToOriginalComponents() const
+bool APCGPartitionActor::CleanupDeadGraphInstances()
 {
-	for (auto& It : OriginalToLocalMap)
+	TSet<TObjectPtr<UPCGComponent>> DeadLocalInstances;
+
+	// Note: since we might end up with multiple nulls in the original to local map
+	// it might not be very stable to use it; we'll use the 
+	for (const auto& LocalToOriginalItem : LocalToOriginalMap)
 	{
-		if (It.Key && It.Value)
+		if (!LocalToOriginalItem.Value)
 		{
-			It.Key->AddPCGPartitionActor(this);
+			DeadLocalInstances.Add(LocalToOriginalItem.Key);
 		}
 	}
-}
 
-void APCGPartitionActor::UnregisterActorToOriginalComponents() const
-{
-	for (auto& It : OriginalToLocalMap)
+	if (DeadLocalInstances.Num() == 0)
 	{
-		if (It.Key && It.Value)
+		return OriginalToLocalMap.IsEmpty();
+	}
+
+	Modify();
+
+	for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadLocalInstances)
+	{
+		LocalToOriginalMap.Remove(DeadInstance);
+
+		if (DeadInstance)
 		{
-			It.Key->RemovePCGPartitionActor(this);
+			DeadInstance->CleanupLocal(/*bRemoveComponents=*/true);
+			DeadInstance->DestroyComponent();
 		}
 	}
-}
 
-#if WITH_EDITOR
-FBox APCGPartitionActor::GetStreamingBounds() const
-{
-	return Super::GetStreamingBounds() + GetFixedBounds();
-}
+	// Remove all dead entries
+	OriginalToLocalMap.Remove(nullptr);
 
-AActor* APCGPartitionActor::GetSceneOutlinerParent() const
-{
-	if (APCGWorldActor* PCGActor = PCGHelpers::GetPCGWorldActor(GetWorld()))
-	{
-		return PCGActor;
-	}
-	else
-	{
-		return Super::GetSceneOutlinerParent();
-	}	
+	return OriginalToLocalMap.IsEmpty();
 }
 
 void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
@@ -223,42 +234,22 @@ bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
 	return OriginalToLocalMap.IsEmpty();
 }
 
-bool APCGPartitionActor::CleanupDeadGraphInstances()
+#if WITH_EDITOR
+FBox APCGPartitionActor::GetStreamingBounds() const
 {
-	TSet<TObjectPtr<UPCGComponent>> DeadLocalInstances;
+	return Super::GetStreamingBounds() + GetFixedBounds();
+}
 
-	// Note: since we might end up with multiple nulls in the original to local map
-	// it might not be very stable to use it; we'll use the 
-	for (const auto& LocalToOriginalItem : LocalToOriginalMap)
+AActor* APCGPartitionActor::GetSceneOutlinerParent() const
+{
+	if (APCGWorldActor* PCGActor = PCGHelpers::GetPCGWorldActor(GetWorld()))
 	{
-		if (!LocalToOriginalItem.Value)
-		{
-			DeadLocalInstances.Add(LocalToOriginalItem.Key);
-		}
+		return PCGActor;
 	}
-
-	if (DeadLocalInstances.Num() == 0)
+	else
 	{
-		return OriginalToLocalMap.IsEmpty();
-	}
-
-	Modify();
-
-	for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadLocalInstances)
-	{
-		LocalToOriginalMap.Remove(DeadInstance);
-
-		if (DeadInstance)
-		{
-			DeadInstance->CleanupLocal(/*bRemoveComponents=*/true);
-			DeadInstance->DestroyComponent();
-		}
-	}
-
-	// Remove all dead entries
-	OriginalToLocalMap.Remove(nullptr);
-
-	return OriginalToLocalMap.IsEmpty();
+		return Super::GetSceneOutlinerParent();
+	}	
 }
 
 void APCGPartitionActor::PostCreation()

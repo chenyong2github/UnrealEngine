@@ -96,4 +96,9 @@ public:
 	* @param Parent Optional parent to attach to.
 	*/
 	static AActor* SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> ActorClass, FName BaseName, const FTransform& Transform, AActor* Parent = nullptr);
+
+	/**
+	 * Return the grid cell coordinates on the PCG partition grid given a position and the grid size.
+	 */
+	static FIntVector GetCellCoord(FVector InPosition, int InGridSize);
 };

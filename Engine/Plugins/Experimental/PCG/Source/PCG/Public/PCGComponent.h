@@ -185,9 +185,7 @@ public:
 
 	UPCGSubsystem* GetSubsystem() const;
 
-	void AddPCGPartitionActor(const APCGPartitionActor* Actor);
-	void RemovePCGPartitionActor(const APCGPartitionActor* Actor);
-	void ClearPCGPartitionActors();
+	FBox GetGridBounds() const;
 
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
@@ -250,7 +248,6 @@ private:
 	bool GraphUsesLandscapePin() const;
 #endif
 
-	FBox GetGridBounds() const;
 	FBox GetGridBounds(AActor* InActor) const;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
@@ -314,10 +311,6 @@ private:
 	UPROPERTY(Transient)
 	TMap<const UPCGNode*, FPCGDataCollection> InspectionCache;
 #endif
-
-	// TODO: Will need to be cleaned up after we have dynamic association between PartitionActors and PCGComponents.
-	UPROPERTY(Transient)
-	TSet<TSoftObjectPtr<APCGPartitionActor>> PartitionActors;
 
 	FCriticalSection GeneratedResourcesLock;
 };

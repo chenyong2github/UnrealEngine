@@ -33,6 +33,8 @@ namespace PCGHelpers
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InActorBounds);
 	ALandscape* GetAnyLandscape(UWorld* InWorld);
 
+	bool IsRuntimeOrPIE();
+
 #if WITH_EDITOR
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld);
 

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphExecutor.h"
-#include "PCGGraph.h"
-#include "PCGData.h"
-#include "PCGSubgraph.h"
-#include "PCGGraphCompiler.h"
 #include "PCGComponent.h"
+#include "PCGData.h"
+#include "PCGHelpers.h"
+#include "PCGGraph.h"
+#include "PCGGraphCompiler.h"
 #include "PCGInputOutputSettings.h"
+#include "PCGSubgraph.h"
 
 #include "Async/Async.h"
 
@@ -571,7 +572,7 @@ void FPCGGraphExecutor::ReleaseUnusedActors()
 	ActorsListLock.Unlock();
 
 #if WITH_EDITOR
-	if (bRunGC && !((GEditor && GEditor->PlayWorld) || GIsPlayInEditorWorld))
+	if (bRunGC && !PCGHelpers::IsRuntimeOrPIE())
 	{
 		CollectGarbage(RF_NoFlags, true);
 	}

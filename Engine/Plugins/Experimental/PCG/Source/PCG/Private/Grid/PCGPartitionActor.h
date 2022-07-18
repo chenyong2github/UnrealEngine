@@ -44,11 +44,13 @@ public:
 #endif
 
 	FBox GetFixedBounds() const;
-#if WITH_EDITOR
+	FIntVector GetGridCoord() const;
+
 	void AddGraphInstance(UPCGComponent* OriginalComponent);
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
 	bool CleanupDeadGraphInstances();
 
+#if WITH_EDITOR
 	/** To be called after the creation of a new actor to copy the GridSize property (Editor only) into the PCGGridSize property */
 	void PostCreation();
 
@@ -89,7 +91,4 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBoxComponent> BoundsComponent;
 #endif // WITH_EDITORONLY_DATA
-
-	void RegisterActorToOriginalComponents() const;
-	void UnregisterActorToOriginalComponents() const;
 };

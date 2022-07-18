@@ -10,6 +10,10 @@
 #include "UObject/UObjectIterator.h"
 #include "WorldPartition/WorldPartition.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 namespace PCGHelpers
 {
 	int ComputeSeed(int A)
@@ -75,6 +79,15 @@ namespace PCGHelpers
 		return Box;
 	}
 
+	bool IsRuntimeOrPIE()
+	{
+#if WITH_EDITOR
+		return (GEditor && GEditor->PlayWorld) || GIsPlayInEditorWorld;
+#else
+		return true;
+#endif // WITH_EDITOR
+	}
+
 	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape)
 	{
 		check(InLandscape);
@@ -82,7 +95,7 @@ namespace PCGHelpers
 		if (ALandscape* Landscape = Cast<ALandscape>(InLandscape))
 		{
 #if WITH_EDITOR
-			if (!GIsPlayInEditorWorld)
+			if (!IsRuntimeOrPIE())
 			{
 				return Landscape->GetCompleteBounds();
 			}

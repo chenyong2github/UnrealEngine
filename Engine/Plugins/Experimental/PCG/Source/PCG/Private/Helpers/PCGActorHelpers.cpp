@@ -384,3 +384,16 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 
 	return NewActor;
 }
+
+FIntVector UPCGActorHelpers::GetCellCoord(FVector InPosition, int InGridSize)
+{
+	check(InGridSize > 0);
+
+	FVector Temp = InPosition / InGridSize;
+
+	return FIntVector(
+		FMath::FloorToInt(Temp.X),
+		FMath::FloorToInt(Temp.Y),
+		FMath::FloorToInt(Temp.Z)
+	);
+}
