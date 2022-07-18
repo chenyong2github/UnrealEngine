@@ -351,13 +351,21 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 			{
 				FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[InstanceIndex];
 
-				FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = Instance.PrimitiveUniformShaderParameters;
-				PrimitiveUniformShaderParameters.LightmapDataIndex = LightmapSceneDataStartOffsets[InstanceIndex];
-				PrimitiveUniformShaderParameters.LightmapUVIndex = 0; // TODO: LightmapUVIndex
-				PrimitiveUniformShaderParameters.InstanceSceneDataOffset = InstanceIndex;
-				PrimitiveUniformShaderParameters.NumInstanceSceneDataEntries = 1;
-				PrimitiveUniformShaderParameters.InstancePayloadDataOffset = INDEX_NONE;
-				PrimitiveUniformShaderParameters.InstancePayloadDataStride = 0;
+				FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters =
+					FPrimitiveUniformShaderParametersBuilder{}
+					.Defaults()
+					.LocalToWorld(Instance.LocalToWorld)
+					.ActorWorldPosition(Instance.ActorPosition)
+					.WorldBounds(Instance.WorldBounds)
+					.LocalBounds(Instance.LocalBounds)
+					.LightingChannelMask(0b111)
+					.LightmapDataIndex(LightmapSceneDataStartOffsets[InstanceIndex])
+					.InstanceSceneDataOffset(InstanceIndex)
+					.NumInstanceSceneDataEntries(1)
+					.InstancePayloadDataOffset(INDEX_NONE)
+					.InstancePayloadDataStride(0)
+				.Build();
+				
 				PrimitiveSceneData[InstanceIndex] = FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters);
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
@@ -417,8 +425,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					.NumInstanceSceneDataEntries(NumInstancesThisGroup)
 					.InstancePayloadDataOffset(InstancePayloadData.Num())
 					.InstancePayloadDataStride(1)
-					.CastContactShadow(true)
-					.CastShadow(true)
 				.Build();
 
 			InstanceDataOriginalOffsets.Add(InstanceSceneData.Num());
@@ -485,8 +491,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					.LightmapDataIndex(LightmapSceneDataStartOffsets[PrimitiveId])
 					.InstanceSceneDataOffset(InstanceSceneData.Num())
 					.NumInstanceSceneDataEntries(1)
-					.CastContactShadow(true)
-					.CastShadow(true)
 				.Build();
 
 			InstanceDataOriginalOffsets.Add(InstanceSceneData.Num());

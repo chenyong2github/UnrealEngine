@@ -797,19 +797,6 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 	{
 		FStaticMeshInstanceRenderStateRef InstanceRenderStateRef = RenderState.StaticMeshInstanceRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
-		InstanceRenderStateRef->PrimitiveUniformShaderParameters =
-			FPrimitiveUniformShaderParametersBuilder{}
-			.Defaults()
-				.LocalToWorld(InstanceRenderStateRef->LocalToWorld)
-				.ActorWorldPosition(InstanceRenderStateRef->ActorPosition)
-				.WorldBounds(InstanceRenderStateRef->WorldBounds)
-				.LocalBounds(InstanceRenderStateRef->LocalBounds)
-				.LightingChannelMask(0b111)
-				.LightmapDataIndex(0)
-				.CastContactShadow(true)
-				.CastShadow(true)
-			.Build();
-
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
 			FLightmapRenderState::Initializer& Initializer = InstanceLightmapRenderStateInitializers[LODIndex];
