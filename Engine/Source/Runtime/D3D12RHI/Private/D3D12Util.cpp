@@ -1400,7 +1400,7 @@ D3D12_RESOURCE_STATES GetD3D12ResourceState(ERHIAccess InRHIAccess, bool InIsAsy
 				State |= D3D12_RESOURCE_STATE_DEPTH_READ;
 			}
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::ShadingRateSource) && GRHISupportsPipelineVariableRateShading)
+			if (EnumHasAnyFlags(InRHIAccess, ERHIAccess::ShadingRateSource) && GRHISupportsAttachmentVariableRateShading)
 			{
 				State |= D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE;
 			}

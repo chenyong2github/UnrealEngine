@@ -57,6 +57,12 @@ enum class ED3D12PipelineType : uint8
 	RayTracing,
 };
 
+namespace ED3D12VRSCombinerStages
+{
+	constexpr int32 PerPrimitive	= 0;
+	constexpr int32 ScreenSpace		= PerPrimitive + 1;
+	constexpr int32 Num				= ScreenSpace + 1;
+};
 
 #define MAX_VBS			D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT
 
@@ -335,6 +341,7 @@ protected:
 	bool bNeedSetStencilRef;
 	bool bNeedSetDepthBounds;
 	bool bNeedSetShadingRate;
+	bool bNeedSetShadingRateImage;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 
 	struct
@@ -392,7 +399,10 @@ protected:
 			float MaxDepth;
 
 			EVRSShadingRate  DrawShadingRate;
-			EVRSRateCombiner Combiner;
+
+			TStaticArray<EVRSRateCombiner, ED3D12VRSCombinerStages::Num> Combiners;
+
+			FD3D12Resource*  ShadingRateImage;
 		} Graphics;
 
 		struct
@@ -815,11 +825,29 @@ public:
 
 	void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
 	{
-		if (PipelineState.Graphics.DrawShadingRate != ShadingRate || PipelineState.Graphics.Combiner != Combiner)
+		if (PipelineState.Graphics.DrawShadingRate != ShadingRate || PipelineState.Graphics.Combiners[ED3D12VRSCombinerStages::PerPrimitive] != Combiner)
 		{
 			PipelineState.Graphics.DrawShadingRate = ShadingRate;
-			PipelineState.Graphics.Combiner = Combiner;
+			PipelineState.Graphics.Combiners[ED3D12VRSCombinerStages::PerPrimitive] = Combiner;
 			bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled;
+		}
+	}
+
+	void SetShadingRateImage(FD3D12Resource* ShadingRateImage, EVRSRateCombiner Combiner)
+	{
+		if (PipelineState.Graphics.ShadingRateImage != ShadingRateImage)
+		{
+			PipelineState.Graphics.ShadingRateImage = ShadingRateImage;
+			bNeedSetShadingRateImage = GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled;
+		}
+
+		// If we aren't provided a ShadingRateImage, we should request the passthrough combiner
+		ensure((PipelineState.Graphics.ShadingRateImage != nullptr) || (Combiner == EVRSRateCombiner::VRSRB_Passthrough));
+
+		if (PipelineState.Graphics.Combiners[ED3D12VRSCombinerStages::ScreenSpace] != Combiner)
+		{
+			PipelineState.Graphics.Combiners[ED3D12VRSCombinerStages::ScreenSpace] = Combiner;
+			bNeedSetShadingRate = GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled;
 		}
 	}
 

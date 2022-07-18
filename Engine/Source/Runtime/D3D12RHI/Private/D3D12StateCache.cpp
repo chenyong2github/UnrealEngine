@@ -253,8 +253,12 @@ void FD3D12StateCacheBase::ClearState()
 
 	PipelineState.Graphics.MinDepth = 0.0f;
 	PipelineState.Graphics.MaxDepth = 1.0f;
-	PipelineState.Graphics.Combiner = EVRSRateCombiner::VRSRB_Passthrough;
+	for (auto& Combiner : PipelineState.Graphics.Combiners)
+	{
+		Combiner = EVRSRateCombiner::VRSRB_Passthrough;
+	}
 	PipelineState.Graphics.DrawShadingRate = EVRSShadingRate::VRSSR_1x1;
+	PipelineState.Graphics.ShadingRateImage = nullptr;
 }
 
 void FD3D12StateCacheBase::DirtyStateForNewCommandList()
@@ -298,6 +302,8 @@ void FD3D12StateCacheBase::DirtyStateForNewCommandList()
 	
 	bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled;
 	
+	bNeedSetShadingRateImage = GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled;
+
 	// Always dirty View and Sampler bindings. We detect the slots that are actually used at Draw/Dispatch time.
 	PipelineState.Common.SRVCache.DirtyAll();
 	PipelineState.Common.UAVCache.DirtyAll();
@@ -321,6 +327,7 @@ void FD3D12StateCacheBase::DirtyState()
 	bNeedSetStencilRef = true;
 	bNeedSetDepthBounds = GSupportsDepthBoundsTest;
 	bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled;
+	bNeedSetShadingRateImage = GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled;
 	PipelineState.Common.SRVCache.DirtyAll();
 	PipelineState.Common.UAVCache.DirtyAll();
 	PipelineState.Common.CBVCache.DirtyAll();
@@ -584,7 +591,13 @@ void FD3D12StateCacheBase::ApplyState()
 		if (bNeedSetShadingRate)
 		{
 			bNeedSetShadingRate = false;
-			CmdContext->SetShadingRate(PipelineState.Graphics.DrawShadingRate, PipelineState.Graphics.Combiner);
+			CmdContext->SetShadingRate(PipelineState.Graphics.DrawShadingRate, PipelineState.Graphics.Combiners);
+		}
+
+		if (bNeedSetShadingRateImage)
+		{
+			bNeedSetShadingRateImage = false;
+			CmdContext->SetShadingRateImage(PipelineState.Graphics.ShadingRateImage);
 		}
 	}
 
