@@ -116,6 +116,7 @@ void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 		)
 #endif
 	{
+		AsRegion->Cleanup();
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 		RegionsPriorityBased.Remove(AsRegion);
 		RegionsDistanceBased.Remove(AsRegion);

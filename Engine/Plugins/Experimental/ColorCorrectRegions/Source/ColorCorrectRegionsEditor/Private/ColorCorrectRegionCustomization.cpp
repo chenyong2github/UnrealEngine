@@ -23,9 +23,20 @@ void FColorCorrectRegionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 			}
 		}
 	}
+
 	if (bPriorityHidden)
 	{
-		TSharedRef<IPropertyHandle> TileLayersProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority));
-		DetailBuilder.HideProperty(TileLayersProperty);
+		TSharedRef<IPropertyHandle> PriorityProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority));
+		DetailBuilder.HideProperty(PriorityProperty);
+	}
+
+	// Trick to force the viewport to update because depending on Type, Priority property could be hidden.
+	TSharedRef<IPropertyHandle> TypeProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Type));
+	if (TypeProperty->IsValidHandle())
+	{
+		TypeProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailBuilder]()
+			{
+				DetailBuilder.ForceRefreshDetails();
+			}));
 	}
 }

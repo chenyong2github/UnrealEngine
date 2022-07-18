@@ -82,10 +82,6 @@ SamplerState PostProcessInput_BilinearSampler;
  */
 struct FMaterialPixelParameters
 {
-
-	/** Interpolated vertex color, in linear color space. */
-	half4 VertexColor;
-
 	/** Normalized world space normal. */
 	half3 WorldNormal;
 
@@ -98,9 +94,6 @@ struct FMaterialPixelParameters
 	/** Normalized world space camera vector, which is the vector from the point being shaded to the camera position. */
 	half3 CameraVector;
 
-	/** World space light vector, only valid when rendering a light function. */
-	half3 LightVector;
-
 	/**
 	 * Like SV_Position (.xy is pixel position at pixel center, z:DeviceZ, .w:SceneDepth)
 	 * using shader generated value SV_POSITION
@@ -108,18 +101,14 @@ struct FMaterialPixelParameters
 	 */
 	MaterialFloat4 SvPosition;
 
+	/* Scene depth in world units. */
+	half SceneDepth;
+
+	/* Custom depth in world units. */
+	half CustomDepth;
+
 	/** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
 	MaterialFloat4 ScreenPosition;
-
-	half UnMirrored;
-
-	half TwoSidedSign;
-
-	/**
-	 * Orthonormal rotation-only transform from tangent space to world space
-	 * The transpose(TangentToWorld) is WorldToTangent, and TangentToWorld[2] is WorldVertexNormal
-	 */
-	half3x3 TangentToWorld;
 
 	/**
 	 * Interpolated worldspace position of this pixel
@@ -131,28 +120,6 @@ struct FMaterialPixelParameters
 	 * Interpolated worldspace position of this pixel, centered around the camera
 	 */
 	MaterialFloat3 WorldPosition_CamRelative;
-
-	/**
-	 * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
-	 * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
-	 */
-	MaterialFloat3 WorldPosition_NoOffsets;
-
-	/**
-	 * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
-	 * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
-	 */
-	MaterialFloat3 WorldPosition_NoOffsets_CamRelative;
-
-	/** Offset applied to the lighting position for translucency, used to break up aliasing artifacts. */
-	half3 LightingPositionOffset;
-
-	MaterialFloat AOMaterialMask;
-
-	// Index into View.PrimitiveSceneData
-	uint PrimitiveId;
-
-
 };
 
 

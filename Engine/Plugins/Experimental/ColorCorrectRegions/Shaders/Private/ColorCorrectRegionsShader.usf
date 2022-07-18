@@ -265,8 +265,11 @@ MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExt
 
 	if (ExternalExpressions.ExcludeStencil > 0)
 	{
-		float4 CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_CustomStencil), PPI_CustomStencil, false);
-		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, clamp(CustomStencil.r, 0., 1.));
+		float CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_CustomStencil), PPI_CustomStencil, false).r;
+
+		const float Float_Eps = 0.00000001;
+		float UseStencil = lerp(0, clamp(CustomStencil, 0., 1.), step(abs(Parameters.SceneDepth - Parameters.CustomDepth), Float_Eps));
+		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, UseStencil);
 	}
 
 	return MaterialFloat4(FinalColor, FinalAlpha);
@@ -394,14 +397,11 @@ void BuildParameters(in FPostProcessMaterialVSToPS Input, inout FMaterialPixelPa
 	Parameters.AbsoluteWorldPosition = TranslatedWorldPosition.xyz - LWCHackToFloat(ResolvedView.PreViewTranslation).xyz;
 
 	Parameters.SvPosition = SvPosition;
+	Parameters.SceneDepth = CalcSceneDepth(ViewportUVToBufferUV(ViewportUV));
+	Parameters.CustomDepth = CalcSceneCustomDepth(ViewportUVToBufferUV(ViewportUV));
 	Parameters.ScreenPosition = ScreenPosition;
 
 	Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
-
-	/* Unused */
-	Parameters.LightVector = 0;
-	Parameters.VertexColor = 1;
-	Parameters.TwoSidedSign = 1.0f;
 }
 
 void MainPS(
