@@ -45,7 +45,7 @@ struct FPreAnimatedConstraintTraits : FBoundObjectPreAnimatedStateTraits
 	{
 		if (UTickableConstraint* Constraint = OldValue.WeakConstraint.Get())
 		{
-			Constraint->Active = OldValue.bPreviouslyEnabled;
+			Constraint->SetActive(OldValue.bPreviouslyEnabled);
 		}
 	}
 };
@@ -113,11 +113,9 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 				UTickableConstraint* Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
 				if (Constraint)
 				{
-					bool Result;
-					if (ConstraintChannel.Channel->Evaluate(FrameTime, Result))
-					{
-						Constraint->Active = Result;
-					}
+					bool Result = false;
+					ConstraintChannel.Channel->Evaluate(FrameTime, Result);
+					Constraint->SetActive(Result);
 				}
 			}
 			FConstraintsManagerController* Controller;
