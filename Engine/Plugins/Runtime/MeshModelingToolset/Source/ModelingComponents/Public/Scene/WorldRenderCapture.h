@@ -24,8 +24,18 @@ enum class ERenderCaptureType
 	Specular = 8,
 	Emissive = 16,
 	WorldNormal = 32,
+	DeviceDepth = 64,
 	CombinedMRS = 128
 };
+
+struct MODELINGCOMPONENTS_API FRenderCaptureConfig
+{
+	// You might want to disable this if you're using FMeshMapBaker because it supports multi-sampling in a way which
+	// will avoid blending pixels at different depths. This option is ignored for ERenderCaptureType::DeviceDepth
+	bool bAntiAliasing = true;
+};
+
+FRenderCaptureConfig MODELINGCOMPONENTS_API GetDefaultRenderCaptureConfig(ERenderCaptureType CaptureType);
 
 /**
  * FRenderCaptureTypeFlags is a set of per-capture-type booleans
@@ -39,6 +49,7 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTypeFlags
 	bool bEmissive = false;
 	bool bWorldNormal = false;
 	bool bCombinedMRS = false;
+	bool bDeviceDepth = false;
 
 	/** @return FRenderCaptureTypeFlags with all types enabled/true */
 	static FRenderCaptureTypeFlags All();
@@ -57,6 +68,36 @@ struct MODELINGCOMPONENTS_API FRenderCaptureTypeFlags
 
 	/** Set the indicated CaptureType to enabled */
 	void SetEnabled(ERenderCaptureType CaptureType, bool bEnabled);
+};
+
+
+/** 
+ * Render capture images use the render target coordinate system, which is defined such that:
+ * - The upper-left corner is (0,0) in pixel space, (0,0) in UV space and (-1,1) in NDC space
+ * - The bottom-right corner is (Width,Height) in pixel space, (1,1) in UV Space and (1,-1) in NDC space
+ * Pixel centers are offset by (0.5,0.5) from integer locations
+ */
+struct FRenderCaptureCoordinateConverter2D
+{
+	// Convert normalized device coordinates to render capture image UV coordinates
+	static FVector2d DeviceToUV(FVector2d NDC)
+	{
+		FVector2d UV = NDC / 2. + FVector2d(.5, .5);
+		UV.Y = 1. - UV.Y;
+		return UV;
+	}
+
+	// Convert render capture image pixel coordinates to normalized device coordinates
+	static FVector2d PixelToDevice(FVector2i Pixel, int32 Width, int32 Height)
+	{
+		FVector2d NDC;
+		NDC.X = ((double)Pixel.X + .5) / Width;
+		NDC.Y = ((double)Pixel.Y + .5) / Height;
+		NDC.X = 2. * NDC.X - 1.;
+		NDC.Y = 2. * NDC.Y - 1.;
+		NDC.Y *= -1;
+		return NDC;
+	}
 };
 
 
@@ -97,10 +138,17 @@ public:
 
 	/** @return pixel dimensions that target image will be rendered at */
 	const FImageDimensions& GetDimensions() const { return Dimensions; }
+	
+	/**
+	 * @return view matrices used in the last call to CaptureFromPosition
+	 * Useful to get the needed information to unproject the DeviceDepth render capture
+	 */
+	const FViewMatrices& GetLastCaptureViewMatrices() const { return LastCaptureViewMatrices; }
 
 	/**
-	 * Capture the desired buffer type CaptureType with the given view/camera parameters.
-	 * @param ResultImageOut output iamge of size GetDimensions() is stored here.
+	 * Capture the desired buffer type CaptureType with the given view/camera parameters. The returned image
+	 * data is interpreted according to the comment in FRenderCaptureCoordinateConverter2D
+	 * @param ResultImageOut output image of size GetDimensions() is stored here.
 	 * @return true if capture could be rendered successfully
 	 */
 	bool CaptureFromPosition(
@@ -108,7 +156,8 @@ public:
 		const FFrame3d& ViewFrame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,
-		FImageAdapter& ResultImageOut);
+		FImageAdapter& ResultImageOut,
+		const FRenderCaptureConfig& Config = {});
 
 	/**
 	 * Enable debug image write. The captured image will be written to <Project>/Intermediate/<FolderName>/<CaptureType>_<ImageCounter>.bmp
@@ -129,8 +178,13 @@ protected:
 	// Temporary textures used as render targets. We explicitly prevent this from being GC'd internally
 	UTextureRenderTarget2D* LinearRenderTexture = nullptr;
 	UTextureRenderTarget2D* GammaRenderTexture = nullptr;
+	UTextureRenderTarget2D* DepthRenderTexture = nullptr;
+
 	FImageDimensions RenderTextureDimensions;
 	UTextureRenderTarget2D* GetRenderTexture(bool bLinear);
+	UTextureRenderTarget2D* GetDepthRenderTexture();
+
+	FViewMatrices LastCaptureViewMatrices;
 
 	// temporary buffer used to read from texture
 	TArray<FLinearColor> ReadImageBuffer;
@@ -140,14 +194,24 @@ protected:
 		const FFrame3d& Frame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,
-		FImageAdapter& ResultImageOut);
+		FImageAdapter& ResultImageOut,
+		const FRenderCaptureConfig& Config = {});
 
 	/** Combined Metallic/Roughness/Specular uses a custom postprocess material */
 	bool CaptureMRSFromPosition(
 		const FFrame3d& Frame,
 		double HorzFOVDegrees,
 		double NearPlaneDist,
-		FImageAdapter& ResultImageOut);
+		FImageAdapter& ResultImageOut,
+		const FRenderCaptureConfig& Config = {});
+
+	/** Depth is a special case and uses different code than capture of color/property channels */
+	bool CaptureDeviceDepthFromPosition(
+		const FFrame3d& Frame,
+		double HorzFOVDegrees,
+		double NearPlaneDist,
+		FImageAdapter& ResultImageOut,
+		const FRenderCaptureConfig& Config = {});
 
 	bool bWriteDebugImage = false;
 	int32 DebugImageCounter = -1;

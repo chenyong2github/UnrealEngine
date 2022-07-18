@@ -5,6 +5,7 @@
 
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "GameFramework/WorldSettings.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "EngineModule.h"
 #include "Rendering/Texture2DResource.h"
@@ -15,6 +16,9 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ChildActorComponent.h"
 
+#include "SceneViewExtension.h"
+#include "RenderCaptureInterface.h" // For debugging with RenderCaptureInterface::FScopedCapture
+
 using namespace UE::Geometry;
 
 static TAutoConsoleVariable<int32> CVarModelingWorldRenderCaptureVTWarmupFrames(
@@ -24,22 +28,25 @@ static TAutoConsoleVariable<int32> CVarModelingWorldRenderCaptureVTWarmupFrames(
 
 FRenderCaptureTypeFlags FRenderCaptureTypeFlags::All()
 {
-	return FRenderCaptureTypeFlags{ true, true, true, true, true, true };
+	// TODO Cleanup this function, its confusing due to CombinedMRS overlapping with the individual channels
+	FRenderCaptureTypeFlags Result{ true, true, true, true, true, true };
+	Result.bDeviceDepth = true;
+	return Result;
 }
 
 FRenderCaptureTypeFlags FRenderCaptureTypeFlags::None()
 {
-	return FRenderCaptureTypeFlags{ false, false, false, false, false, false };
+	return FRenderCaptureTypeFlags{};
 }
 
 FRenderCaptureTypeFlags FRenderCaptureTypeFlags::BaseColor()
 {
-	return FRenderCaptureTypeFlags{ true, false, false, false, false, false };
+	return Single(ERenderCaptureType::BaseColor);
 }
 
 FRenderCaptureTypeFlags FRenderCaptureTypeFlags::WorldNormal()
 {
-	return FRenderCaptureTypeFlags{ false, false, false, false, false, true };
+	return Single(ERenderCaptureType::WorldNormal);
 }
 
 FRenderCaptureTypeFlags FRenderCaptureTypeFlags::Single(ERenderCaptureType CaptureType)
@@ -74,10 +81,34 @@ void FRenderCaptureTypeFlags::SetEnabled(ERenderCaptureType CaptureType, bool bE
 	case ERenderCaptureType::CombinedMRS:
 		bCombinedMRS = bEnabled;
 		break;
+	case ERenderCaptureType::DeviceDepth:
+		bDeviceDepth = bEnabled;
+		break;
 	default:
 		check(false);
 	}
 }
+
+
+
+namespace UE
+{
+namespace Geometry
+{
+
+FRenderCaptureConfig GetDefaultRenderCaptureConfig(ERenderCaptureType CaptureType)
+{
+	FRenderCaptureConfig Config;
+
+	// The DeviceDepth channel ignores this option, but since its hard-coded to false we set it to false
+	Config.bAntiAliasing = (CaptureType != ERenderCaptureType::DeviceDepth);
+
+	return Config;
+}
+
+}
+}
+
 
 
 
@@ -103,6 +134,11 @@ void FWorldRenderCapture::Shutdown()
 	{
 		GammaRenderTexture->RemoveFromRoot();
 		GammaRenderTexture = nullptr;
+	}
+	if (DepthRenderTexture != nullptr)
+	{
+		DepthRenderTexture->RemoveFromRoot();
+		DepthRenderTexture = nullptr;
 	}
 }
 
@@ -230,6 +266,50 @@ UTextureRenderTarget2D* FWorldRenderCapture::GetRenderTexture(bool bLinear)
 }
 
 
+UTextureRenderTarget2D* FWorldRenderCapture::GetDepthRenderTexture()
+{
+	if (RenderTextureDimensions != this->Dimensions)
+	{
+		if (DepthRenderTexture != nullptr)
+		{
+			DepthRenderTexture->RemoveFromRoot();
+			DepthRenderTexture = nullptr;
+		}
+	}
+
+	if (DepthRenderTexture != nullptr)
+	{
+		return DepthRenderTexture;
+	}
+
+	RenderTextureDimensions = Dimensions;
+	int32 Width = Dimensions.GetWidth();
+	int32 Height = Dimensions.GetHeight();
+
+	DepthRenderTexture = NewObject<UTextureRenderTarget2D>();
+	if (ensure(DepthRenderTexture))
+	{
+		DepthRenderTexture->AddToRoot();		// keep alive for GC
+		DepthRenderTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
+		DepthRenderTexture->ClearColor = FLinearColor::Black;
+		DepthRenderTexture->InitAutoFormat(Width, Height);
+		DepthRenderTexture->UpdateResourceImmediate(true);
+
+		// Flush RHI thread after creating texture render target to make sure that RHIUpdateTextureReference is executed
+		// before doing any rendering with it This makes sure that
+		//    Value->TextureReference.TextureReferenceRHI->GetReferencedTexture()
+		// is valid so that
+		//    UniformExpressionSet::FillUniformBuffer
+		// properly uses the texture for rendering, instead of using a fallback texture
+		ENQUEUE_RENDER_COMMAND(FlushRHIThreadToUpdateTextureRenderTargetReference)(
+		[](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		});
+	}
+
+	return DepthRenderTexture;
+}
 
 
 namespace UE 
@@ -331,7 +411,8 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 	const FFrame3d& ViewFrame,
 	double HorzFOVDegrees,
 	double NearPlaneDist,
-	FImageAdapter& ResultImageOut)
+	FImageAdapter& ResultImageOut,
+	const FRenderCaptureConfig& Config)
 {
 	// this post-process material renders an image with R=Metallic, G=Roughness, B=Specular, A=AmbientOcclusion
 	FString MRSPostProcessMaterialAssetPath = TEXT("/MeshModelingToolsetExp/Materials/PostProcess_PackedMRSA.PostProcess_PackedMRSA");
@@ -376,7 +457,7 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 	ApplyViewMode(ViewModeIndex, true, ShowFlags);
 
 	// unclear if these flags need to be set before creating ViewFamily
-	ShowFlags.SetAntiAliasing(false);
+	ShowFlags.SetAntiAliasing(Config.bAntiAliasing);
 	ShowFlags.SetDepthOfField(false);
 	ShowFlags.SetMotionBlur(false);
 	ShowFlags.SetBloom(false);
@@ -468,6 +549,9 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 
 	UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);
 
+	// Cache the view/projection matricies we used to render the scene
+	LastCaptureViewMatrices = NewView->ViewMatrices;
+
 	// wait for render
 	FlushRenderingCommands();
 
@@ -489,7 +573,8 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	const FFrame3d& Frame,
 	double HorzFOVDegrees,
 	double NearPlaneDist,
-	FImageAdapter& ResultImageOut)
+	FImageAdapter& ResultImageOut,
+	const FRenderCaptureConfig& Config)
 {
 	UTextureRenderTarget2D* RenderTargetTexture = GetRenderTexture(true);
 	if (ensure(RenderTargetTexture) == false)
@@ -518,7 +603,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 
 	// unclear if these flags need to be set before creating ViewFamily
 	FEngineShowFlags ShowFlags(ESFIM_Game);
-	ShowFlags.SetAntiAliasing(false);
+	ShowFlags.SetAntiAliasing(Config.bAntiAliasing);
 	ShowFlags.SetDepthOfField(false);
 	ShowFlags.SetMotionBlur(false);
 	ShowFlags.SetBloom(false);
@@ -579,6 +664,9 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 
 	UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);
 
+	// Cache the view/projection matricies we used to render the scene
+	LastCaptureViewMatrices = NewView->ViewMatrices;
+
 	// Copy the contents of the remote texture to system memory
 	ReadImageBuffer.Reset();
 	ReadImageBuffer.SetNumUninitialized(Width * Height);
@@ -600,6 +688,166 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 }
 
 
+bool FWorldRenderCapture::CaptureDeviceDepthFromPosition(
+	const FFrame3d& Frame,
+	double HorzFOVDegrees,
+	double NearPlaneDist,
+	FImageAdapter& ResultImageOut,
+	const FRenderCaptureConfig& Config)
+{
+	DepthRenderTexture = GetDepthRenderTexture();
+	if (ensure(DepthRenderTexture) == false)
+	{
+		return false;
+	}
+	FTextureRenderTargetResource* RenderTargetResource = DepthRenderTexture->GameThread_GetRenderTargetResource();
+
+	int32 Width = Dimensions.GetWidth();
+	int32 Height = Dimensions.GetHeight();
+
+	// TODO The input frame should have been the render frame the whole time
+	FFrame3d RenderFrame(Frame.Origin, Frame.Y(), Frame.Z(), Frame.X());
+	FVector ViewOrigin = (FVector)RenderFrame.Origin;
+	FMatrix ViewRotationMatrix = FRotationMatrix::Make((FQuat)RenderFrame.Rotation.Inverse());
+
+	const float HalfFOVRadians = FMath::DegreesToRadians<float>(HorzFOVDegrees) * 0.5f;
+	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Check NearPlane and Projection Matrix");
+	FMatrix ProjectionMatrix = FReversedZPerspectiveMatrix(HalfFOVRadians, 1.0f, 1.0f, (float)NearPlaneDist);
+
+	// unclear if these flags need to be set before creating ViewFamily
+	FEngineShowFlags ShowFlags(ESFIM_Game);
+	ShowFlags.SetAntiAliasing(false); // Intentionally does NOT use Config.bAntiAliasing
+	ShowFlags.SetDepthOfField(false);
+	ShowFlags.SetMotionBlur(false);
+	ShowFlags.SetBloom(false);
+	ShowFlags.SetSceneColorFringe(false);
+	ShowFlags.SetNaniteMeshes(false);
+	ShowFlags.SetAtmosphere(false);
+	ShowFlags.SetLighting(false);
+	ShowFlags.SetScreenPercentage(false);
+	ShowFlags.SetTranslucency(false);
+	ShowFlags.SetSeparateTranslucency(false);
+	ShowFlags.SetFog(false);
+	ShowFlags.SetVolumetricFog(false);
+	ShowFlags.SetDynamicShadows(false);
+
+	FSceneViewFamilyContext ViewFamily(
+		FSceneViewFamily::ConstructionValues(
+			RenderTargetResource,
+			World->Scene,
+			ShowFlags)
+		.SetRealtimeUpdate(false)
+		.SetResolveScene(false)
+	);
+
+	// Request a scene depth render
+	ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_DeviceDepth;
+
+	FSceneViewInitOptions ViewInitOptions;
+	
+	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Width, Height));
+	ViewInitOptions.ViewFamily = &ViewFamily;
+	if (VisiblePrimitives.Num() > 0)
+	{
+		ViewInitOptions.ShowOnlyPrimitives = VisiblePrimitives;
+	}
+	ViewInitOptions.ViewOrigin = ViewOrigin;
+	ViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
+	ViewInitOptions.ProjectionMatrix = ProjectionMatrix;
+
+	ViewInitOptions.OverrideFarClippingPlaneDistance = -1.f;
+
+	if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
+	{
+		ViewInitOptions.WorldToMetersScale = ViewFamily.Scene->GetWorld()->GetWorldSettings()->WorldToMeters;
+	}
+
+	FSceneView* NewView = new FSceneView(ViewInitOptions);
+	NewView->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+	NewView->SetupAntiAliasingMethod();
+	ViewFamily.Views.Add(NewView);
+
+	NewView->StartFinalPostprocessSettings(ViewOrigin);
+	NewView->EndFinalPostprocessSettings(ViewInitOptions);
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f));
+	
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(World->Scene));
+	for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+	{
+		Extension->SetupViewFamily(ViewFamily);
+		Extension->SetupView(ViewFamily, *NewView);
+	}
+
+	FCanvas Canvas(RenderTargetResource, NULL, FGameTime::GetTimeSinceAppStart(), World->Scene->GetFeatureLevel());
+	Canvas.Clear(FLinearColor::Transparent);
+
+	UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);
+
+	// Cache the view/projection matricies we used to render the scene
+	LastCaptureViewMatrices = NewView->ViewMatrices;
+
+	// Copy the contents of the remote texture to system memory
+	TArray<FLinearColor> ReadImageColorBuffer;
+	ReadImageColorBuffer.SetNumUninitialized(Width * Height);
+	FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);
+	ReadSurfaceDataFlags.SetLinearToGamma(false);
+
+	RenderTargetResource->ReadLinearColorPixels(ReadImageColorBuffer, ReadSurfaceDataFlags, FIntRect(0, 0, Width, Height));
+	ResultImageOut.SetDimensions(Dimensions);
+	for (int32 yi = 0; yi < Height; ++yi)
+	{
+		for (int32 xi = 0; xi < Width; ++xi)
+		{
+			FLinearColor Color = ReadImageColorBuffer[yi * Width + xi];
+
+			// Reverse the float encoding used for the Depth value in SceneCapturePixelShader.usf (one minus the device
+			// z is encoded in the RGB components). See DecodeFloatRGB in WaterInfoMerge.usf and, for a reference on the
+			// method, see https://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
+			FVector3f EncodedDepth(Color.R, Color.G, Color.B);
+			float Depth = FVector3f::DotProduct(EncodedDepth, FVector3f(1.0, 1/255.0, 1/65025.0));
+
+			// Reverse the expression used to compute the Depth to recover the DeviceZ aka normalized device coordinate z
+			float DeviceZ = -(Depth - 1);
+			ensure(DeviceZ >= 0. && DeviceZ <= 1.); // Points on the near plane have Z=1, points on the far plane have Z=0
+
+			ResultImageOut.SetPixel(FVector2i(xi, yi), FLinearColor(DeviceZ, 0., 0., 0.));
+		}
+	}
+
+	// Set this to true to compute a world point cloud for debugging.
+	// You probably want to change the logging so it writes an .obj file
+	constexpr bool bDebugDepthCapture = false;
+
+	if constexpr (bDebugDepthCapture)
+	{
+		int PointIndex = 1;
+		for (int32 yi = 0; yi < Height; ++yi)
+		{
+			for (int32 xi = 0; xi < Width; ++xi)
+			{
+				float DeviceZ = ResultImageOut.GetPixel(FVector2i(xi, yi)).X;
+				if (DeviceZ > 0.) // Skip points on the far plane since these unproject to infinity
+				{
+					// Map from pixel space to NDC space
+					FVector2d DeviceXY = FRenderCaptureCoordinateConverter2D::PixelToDevice(FVector2i(xi, yi), Width, Height);
+
+					// Compute world coordinates from normalized device coordinates
+					FVector4d Point = GetLastCaptureViewMatrices().GetInvViewProjectionMatrix().TransformPosition(FVector3d(DeviceXY, DeviceZ));
+					Point /= Point.W;
+
+					// Log the point
+					UE_LOG(LogGeometry, Log, TEXT("DebugDepthCapture: [%d] %s"), PointIndex, *Point.ToString());
+					PointIndex += 1;
+				}
+			} // xi
+		} // yi
+	}
+
+	return true;
+}
+
+
+
 /**
  * internal Utility function to render the given Scene to a render target and capture
  * one of the render buffers, defined by VisualizationMode. Not clear where
@@ -617,9 +865,11 @@ namespace Internal
 		const FVector& ViewOrigin,
 		const FMatrix& ViewRotationMatrix,
 		const FMatrix& ProjectionMatrix,
+		const FRenderCaptureConfig& Config,
 		const TSet<FPrimitiveComponentId>& HiddenPrimitives,		// these primitives will be hidden
 		const TSet<FPrimitiveComponentId>& VisiblePrimitives,		// if non-empty, only these primitives are shown
-		TArray<FLinearColor>& OutSamples
+		TArray<FLinearColor>& OutSamples,
+		FViewMatrices& LastCaptureViewMatrices
 	)
 	{
 		int32 Width = Dimensions.GetWidth();
@@ -636,6 +886,7 @@ namespace Internal
 		ViewFamily.EngineShowFlags.SetVisualizeBuffer(true);
 		ViewFamily.EngineShowFlags.SetTonemapper(false);
 		ViewFamily.EngineShowFlags.SetScreenPercentage(false);
+		ViewFamily.EngineShowFlags.SetAntiAliasing(Config.bAntiAliasing);
 
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Width, Height));
@@ -661,6 +912,9 @@ namespace Internal
 
 		UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);
 
+		// Cache the view/projection matricies we used to render the scene
+		LastCaptureViewMatrices = NewView->ViewMatrices;
+
 		// Copy the contents of the remote texture to system memory
 		OutSamples.SetNumUninitialized(Width * Height);
 		//FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_MinMax);		// should we use MinMax to avoid normalization?
@@ -672,17 +926,28 @@ namespace Internal
 }
 
 
+// This is useful to debug the GPU state of the render captures in RenderDoc. Usage: set `r.RenderCaptureDraw 1` in the
+// and open the capture in RenderDoc (which may have opened automatically)
+static int32 RenderCaptureDraws = 0;
+static FAutoConsoleVariableRef CVarRenderCaptureDraws(
+	TEXT("r.RenderCaptureDraws"),
+	RenderCaptureDraws,
+	TEXT("Enable capturing of render capture texture for the next N draws"));
 
 bool FWorldRenderCapture::CaptureFromPosition(
 	ERenderCaptureType CaptureType,
 	const FFrame3d& ViewFrame,
 	double HorzFOVDegrees,
 	double NearPlaneDist,
-	FImageAdapter& ResultImageOut)
+	FImageAdapter& ResultImageOut,
+	const FRenderCaptureConfig& Config)
 {
+	RenderCaptureInterface::FScopedCapture RenderCapture(RenderCaptureDraws > 0, TEXT("RenderCaptureFromPosition"));
+	RenderCaptureDraws--;
+
 	if (CaptureType == ERenderCaptureType::Emissive)
 	{
-		bool bOK = CaptureEmissiveFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		bool bOK = CaptureEmissiveFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut, Config);
 		if (bWriteDebugImage)
 		{
 			WriteDebugImage(ResultImageOut, TEXT("Emissive"));
@@ -691,10 +956,20 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	}
 	else if (CaptureType == ERenderCaptureType::CombinedMRS)
 	{
-		bool bOK = CaptureMRSFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut);
+		bool bOK = CaptureMRSFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut, Config);
 		if (bWriteDebugImage)
 		{
 			WriteDebugImage(ResultImageOut, TEXT("CombinedMRS"));
+		}
+		return bOK;
+	}
+	else if (CaptureType == ERenderCaptureType::DeviceDepth)
+	{
+		
+		bool bOK = CaptureDeviceDepthFromPosition(ViewFrame, HorzFOVDegrees, NearPlaneDist, ResultImageOut, Config);
+		if (bWriteDebugImage)
+		{
+			WriteDebugImage(ResultImageOut, TEXT("DeviceDepth"));
 		}
 		return bOK;
 	}
@@ -732,7 +1007,6 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	case ERenderCaptureType::Roughness:		CaptureTypeName = FName("Roughness");	break;
 	case ERenderCaptureType::Metallic:		CaptureTypeName = FName("Metallic");	break;
 	case ERenderCaptureType::Specular:		CaptureTypeName = FName("Specular");	break;
-	case ERenderCaptureType::Emissive:		CaptureTypeName = FName("PreTonemapHDRColor");	break;
 	case ERenderCaptureType::BaseColor:
 	default:
 		CaptureTypeName = FName("BaseColor");
@@ -743,10 +1017,11 @@ bool FWorldRenderCapture::CaptureFromPosition(
 	UE::Internal::RenderSceneVisualizationToTexture( 
 		RenderTargetTexture, this->Dimensions,
 		World->Scene, CaptureTypeName,
-		ViewOrigin, ViewRotationMatrix, ProjectionMatrix,
+		ViewOrigin, ViewRotationMatrix, ProjectionMatrix, Config,
 		HiddenPrimitives,
 		VisiblePrimitives,
-		ReadImageBuffer);
+		ReadImageBuffer,
+		LastCaptureViewMatrices);
 
 	ResultImageOut.SetDimensions(Dimensions);
 	for (int32 yi = 0; yi < Height; ++yi)

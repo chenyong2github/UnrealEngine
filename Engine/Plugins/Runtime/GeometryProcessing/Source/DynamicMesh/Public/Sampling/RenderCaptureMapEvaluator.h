@@ -18,6 +18,7 @@ enum class ERenderCaptureChannel
 	Specular = 8,
 	Emissive = 16,
 	WorldNormal = 32,
+	DeviceDepth = 64,
 	CombinedMRS = 128
 };
 

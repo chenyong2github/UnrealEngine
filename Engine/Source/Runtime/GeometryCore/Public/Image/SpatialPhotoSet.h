@@ -4,6 +4,7 @@
 
 #include "VectorTypes.h"
 #include "FrameTypes.h"
+#include "SceneView.h"
 #include "Image/ImageBuilder.h"
 #include "Image/ImageDimensions.h"
 
@@ -26,6 +27,9 @@ struct FSpatialPhotoParams
 
 	/** Pixel dimensions of the photo image */
 	FImageDimensions Dimensions;
+
+	/** Useful to to unproject the DeviceDepth render capture */
+	FViewMatrices ViewMatrices;
 };
 
 /**
@@ -97,6 +101,12 @@ public:
 	) const;
 
 	PixelType ComputeSample(
+		const int& PhotoIndex,
+		const FVector2d& PhotoCoords,
+		const PixelType& DefaultValue
+	) const;
+	
+	PixelType ComputeSampleNearest(
 		const int& PhotoIndex,
 		const FVector2d& PhotoCoords,
 		const PixelType& DefaultValue
@@ -193,6 +203,8 @@ PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
 	FVector2d PhotoCoords;
 	if (ComputeSampleLocation(Position, Normal, VisibilityFunction, PhotoIndex, PhotoCoords))
 	{
+		// TODO This bilinear sampling causes artefacts when it blends pixels from different depths (hence unrelated
+		// values), we could fix this with some kind of rejection strategy. Search :BilinearSamplingDepthArtefacts 
 		const TSpatialPhoto<PixelType>& Photo = *Photos[PhotoIndex];
 		Result = Photo.Image.template BilinearSample<RealType>(PhotoCoords, DefaultValue);
 	}
@@ -206,8 +218,29 @@ PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
 	const FVector2d& PhotoCoords, 
 	const PixelType& DefaultValue) const
 {
+	// TODO See the task tagged :BilinearSamplingDepthArtefacts
 	const TSpatialPhoto<PixelType>& Photo = *Photos[PhotoIndex];
 	return Photo.Image.template BilinearSample<RealType>(PhotoCoords, DefaultValue);
+}
+
+
+template<typename PixelType, typename RealType>
+PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSampleNearest(
+	const int& PhotoIndex, 
+	const FVector2d& PhotoCoords, 
+	const PixelType& DefaultValue) const
+{
+	const TSpatialPhoto<PixelType>& Photo = *Photos[PhotoIndex];
+
+	FVector2d UVCoords;
+	UVCoords.X = PhotoCoords.X / Photo.Image.GetDimensions().GetWidth();
+	UVCoords.Y = PhotoCoords.Y / Photo.Image.GetDimensions().GetHeight();
+	if (UVCoords.X < 0. || UVCoords.X > 1. || UVCoords.Y < 0. || UVCoords.Y > 1.)
+	{
+		return DefaultValue;
+	}
+
+	return Photo.Image.NearestSampleUV(UVCoords);
 }
 
 
