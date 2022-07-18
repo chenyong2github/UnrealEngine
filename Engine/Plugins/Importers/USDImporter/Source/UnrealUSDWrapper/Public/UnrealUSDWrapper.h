@@ -225,6 +225,13 @@ public:
 	/** Creates a new memory USD root layer, opens it as a new stage and returns that stage */
 	UNREALUSDWRAPPER_API static UE::FUsdStage NewStage();
 
+	/**
+	 * Get the singleton, persistent stage used as a clipboard for prim cut/copy/paste operations.
+	 * WARNING: This stage may remain open indefinitely! If you use this directly, be aware that there may be unintended
+	 * consequences (e.g. a sublayer added to this stage may never fully close)
+	 */
+	UNREALUSDWRAPPER_API static UE::FUsdStage GetClipboardStage();
+
 	/** Returns all the stages that are currently opened in the USD utils stage cache, shared between C++ and Python */
 	UNREALUSDWRAPPER_API static TArray< UE::FUsdStage > GetAllStagesFromCache();
 

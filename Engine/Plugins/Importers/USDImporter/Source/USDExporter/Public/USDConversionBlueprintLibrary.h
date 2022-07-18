@@ -107,4 +107,91 @@ public:
 	/** Defer to the USDClasses module to actually send analytics information */
 	UFUNCTION( BlueprintCallable, Category = "Analytics" )
 	static void SendAnalytics( const TArray<FAnalyticsEventAttr>& Attrs, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension );
+
+    /**
+	 * Removes all the prim specs for Prim on the given Layer.
+	 *
+	 * This function is useful in case the prim is inside a variant set: In that case, just calling FUsdStage::RemovePrim()
+	 * will attempt to remove the "/Root/Example/Child", which wouldn't remove the "/Root{Varset=Var}Example/Child" spec,
+	 * meaning the prim may still be left on the stage. Note that it's even possible to have both of those specs at the same time:
+	 * for example when we have a prim inside a variant set, but outside of it we have overrides to the same prim. This function
+	 * will remove both.
+	 *
+	 * @param StageRootLayer - Path to the root layer of the stage from which we should fetch the Prims
+	 * @param PrimPath - Prim to remove
+	 * @param Layer - Layer to remove prim specs from. This can be left with the invalid layer (default) in order to remove all
+	 *				  specs from the entire stage's local layer stack.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static void RemoveAllPrimSpecs( const FString& StageRootLayer, const FString& PrimPath, const FString& TargetLayer );
+
+	/**
+	 * Copies flattened versions of the input prims onto the clipboard stage and removes all the prim specs for Prims from their stages.
+	 * These cut prims can then be pasted with PastePrims.
+	 *
+	 * @param StageRootLayer - Path to the root layer of the stage from which we should fetch the Prims
+	 * @param PrimPaths - Prims to cut
+	 * @return True if we managed to cut
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static bool CutPrims( const FString& StageRootLayer, const TArray<FString>& PrimPaths );
+
+	/**
+	 * Copies flattened versions of the input prims onto the clipboard stage.
+	 * These copied prims can then be pasted with PastePrims.
+	 *
+	 * @param StageRootLayer - Path to the root layer of the stage from which we should fetch the Prims
+	 * @param PrimPaths - Prims to copy
+	 * @return True if we managed to copy
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static bool CopyPrims( const FString& StageRootLayer, const TArray<FString>& PrimPaths );
+
+	/**
+	 * Pastes the prims from the clipboard stage as children of ParentPrim.
+	 *
+	 * The pasted prims may be renamed in order to have valid names for the target location, which is why this function
+	 * returns the pasted prim paths.
+	 * This function returns just paths instead of actual prims because USD needs to respond to the notices about
+	 * the created prim specs before the prims are fully created, which means we wouldn't be able to return the
+	 * created prims yet, in case this function was called from within an SdfChangeBlock.
+	 *
+	 * @param StageRootLayer - Path to the root layer of the stage from which we should fetch the Prims
+	 * @param ParentPrimPath - Prim that will become parent to the pasted prims
+	 * @return Paths to the pasted prim specs, after they were added as children of ParentPrim
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static TArray<FString> PastePrims( const FString& StageRootLayer, const FString& ParentPrimPath );
+
+	/** Returns true if we have prims that we can paste within our clipboard stage */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static bool CanPastePrims();
+
+	/** Clears all prims from our clipboard stage */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static void ClearPrimClipboard();
+
+	/**
+	 * Duplicates all provided Prims one-by-one, performing the requested DuplicateType.
+	 * See the documentation on EUsdDuplicateType for the different operation types.
+	 *
+	 * The duplicated prims may be renamed in order to have valid names for the target location, which is why this
+	 * function returns the pasted prim paths.
+	 * This function returns just paths instead of actual prims because USD needs to respond to the notices about
+	 * the created prim specs before the prims are fully created, which means we wouldn't be able to return the
+	 * created prims yet, in case this function was called from within an SdfChangeBlock.
+	 *
+	 * @param StageRootLayer - Path to the root layer of the stage from which we should fetch the Prims
+	 * @param PrimPaths - Prims to duplicate
+	 * @param DuplicateType - Type of prim duplication to perform
+	 * @param TargetLayer - Target layer to use when duplicating, if relevant for that duplication type
+	 * @return Paths to the duplicated prim specs, after they were added as children of ParentPrim.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static TArray<FString> DuplicatePrims(
+		const FString& StageRootLayer,
+		const TArray<FString>& PrimPaths,
+		EUsdDuplicateType DuplicateType,
+		const FString& TargetLayer
+	);
 };

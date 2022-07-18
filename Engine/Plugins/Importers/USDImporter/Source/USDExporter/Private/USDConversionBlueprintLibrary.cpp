@@ -468,3 +468,138 @@ void UUsdConversionBlueprintLibrary::SendAnalytics( const TArray<FAnalyticsEvent
 
 	IUsdClassesModule::SendAnalytics( MoveTemp( Converted ), EventName, bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
 }
+
+void UUsdConversionBlueprintLibrary::RemoveAllPrimSpecs( const FString& StageRootLayer, const FString& PrimPath, const FString& TargetLayer )
+{
+#if USE_USD_SDK
+	const bool bUseStageCache = true;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayer, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+	if ( !Stage )
+	{
+		return;
+	}
+
+	UsdUtils::RemoveAllPrimSpecs(
+		Stage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } ),
+		UE::FSdfLayer::FindOrOpen( *TargetLayer )
+	);
+#endif // USE_USD_SDK
+}
+
+bool UUsdConversionBlueprintLibrary::CutPrims( const FString& StageRootLayer, const TArray<FString>& PrimPaths )
+{
+#if USE_USD_SDK
+	const bool bUseStageCache = true;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayer, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( PrimPaths.Num() );
+
+	for ( const FString& PrimPath : PrimPaths )
+	{
+		Prims.Add( Stage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } ) );
+	}
+
+	return UsdUtils::CutPrims( Prims );
+#else
+	return false;
+#endif // USE_USD_SDK
+}
+
+bool UUsdConversionBlueprintLibrary::CopyPrims( const FString& StageRootLayer, const TArray<FString>& PrimPaths )
+{
+#if USE_USD_SDK
+	const bool bUseStageCache = true;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayer, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( PrimPaths.Num() );
+
+	for ( const FString& PrimPath : PrimPaths )
+	{
+		Prims.Add( Stage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } ) );
+	}
+
+	return UsdUtils::CopyPrims( Prims );
+#else
+	return false;
+#endif // USE_USD_SDK
+}
+
+TArray<FString> UUsdConversionBlueprintLibrary::PastePrims( const FString& StageRootLayer, const FString& ParentPrimPath )
+{
+	TArray<FString> Result;
+
+#if USE_USD_SDK
+	const bool bUseStageCache = true;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayer, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+	if ( !Stage )
+	{
+		return Result;
+	}
+
+	TArray<UE::FSdfPath> PastedPrims = UsdUtils::PastePrims( Stage.GetPrimAtPath( UE::FSdfPath{ *ParentPrimPath } ) );
+
+	for ( const UE::FSdfPath& DuplicatePrim : PastedPrims )
+	{
+		Result.Add( DuplicatePrim.GetString() );
+	}
+#endif // USE_USD_SDK
+
+	return Result;
+}
+
+bool UUsdConversionBlueprintLibrary::CanPastePrims()
+{
+	return UsdUtils::CanPastePrims();
+}
+
+void UUsdConversionBlueprintLibrary::ClearPrimClipboard()
+{
+	UsdUtils::ClearPrimClipboard();
+}
+
+TArray<FString> UUsdConversionBlueprintLibrary::DuplicatePrims( const FString& StageRootLayer, const TArray<FString>& PrimPaths, EUsdDuplicateType DuplicateType, const FString& TargetLayer )
+{
+	TArray<FString> Result;
+	Result.SetNum( PrimPaths.Num() );
+
+#if USE_USD_SDK
+	const bool bUseStageCache = true;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayer, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+	if ( !Stage )
+	{
+		return Result;
+	}
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( PrimPaths.Num() );
+
+	for ( const FString& PrimPath : PrimPaths )
+	{
+		Prims.Add( Stage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } ) );
+	}
+
+	TArray<UE::FSdfPath> DuplicatedPrims = UsdUtils::DuplicatePrims(
+		Prims,
+		DuplicateType,
+		UE::FSdfLayer::FindOrOpen( *TargetLayer )
+	);
+
+	for ( int32 Index = 0; Index < DuplicatedPrims.Num(); ++Index )
+	{
+		const UE::FSdfPath& DuplicatePrim = DuplicatedPrims[Index];
+		Result[ Index ] = DuplicatePrim.GetString();
+	}
+#endif // USE_USD_SDK
+
+	return Result;
+}

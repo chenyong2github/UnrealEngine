@@ -23,6 +23,7 @@
 	#include "pxr/usd/sdf/namespaceEdit.h"
 	#include "pxr/usd/sdf/path.h"
 	#include "pxr/usd/usd/modelAPI.h"
+	#include "pxr/usd/usd/payloads.h"
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/references.h"
 	#include "pxr/usd/usd/tokens.h"
@@ -254,25 +255,6 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 #endif // #if USE_USD_SDK
 }
 
-bool FUsdPrimViewModel::CanExecutePrimAction() const
-{
-#if USE_USD_SDK
-	if ( UsdPrim.IsPseudoRoot() )
-	{
-		return false;
-	}
-
-	UE::FSdfPath SpecPath = UsdUtils::GetPrimSpecPathForLayer( UsdPrim, UsdStage.GetEditTarget() );
-	if ( !SpecPath.IsEmpty() )
-	{
-		return true;
-	}
-
-#endif // #if USE_USD_SDK
-
-	return false;
-}
-
 bool FUsdPrimViewModel::HasVisibilityAttribute() const
 {
 #if USE_USD_SDK
@@ -467,11 +449,6 @@ void FUsdPrimViewModel::DefinePrim( const TCHAR* PrimName )
 #endif // #if USE_USD_SDK
 }
 
-void FUsdPrimViewModel::AddReference( const TCHAR* AbsoluteFilePath )
-{
-	UsdUtils::AddReference( UsdPrim, AbsoluteFilePath );
-}
-
 void FUsdPrimViewModel::ClearReferences()
 {
 #if USE_USD_SDK
@@ -479,5 +456,15 @@ void FUsdPrimViewModel::ClearReferences()
 
 	pxr::UsdReferences References = pxr::UsdPrim( UsdPrim ).GetReferences();
 	References.ClearReferences();
+#endif // #if USE_USD_SDK
+}
+
+void FUsdPrimViewModel::ClearPayloads()
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPayloads Payloads = pxr::UsdPrim( UsdPrim ).GetPayloads();
+	Payloads.ClearPayloads();
 #endif // #if USE_USD_SDK
 }

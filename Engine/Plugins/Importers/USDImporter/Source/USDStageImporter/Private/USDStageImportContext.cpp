@@ -59,7 +59,8 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 		ImportOptions->EnableActorImport( bAllowActorImport );
 
 		// Show dialog for import options
-		bool bProceedWithImport = SUsdOptionsWindow::ShowOptions( *ImportOptions );
+		const bool bIsImport = true;
+		bool bProceedWithImport = SUsdOptionsWindow::ShowImportExportOptions( *ImportOptions, bIsImport );
 		if (!bProceedWithImport)
 		{
 			return false;

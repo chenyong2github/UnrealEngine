@@ -3,6 +3,7 @@
 #include "USDConversionUtils.h"
 
 #include "USDAssetImportData.h"
+#include "USDDuplicateType.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLayerUtils.h"
@@ -49,10 +50,12 @@
 	#include "pxr/base/tf/stringUtils.h"
 	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/kind/registry.h"
+	#include "pxr/usd/sdf/copyUtils.h"
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/modelAPI.h"
 	#include "pxr/usd/usd/payloads.h"
+	#include "pxr/usd/usd/primCompositionQuery.h"
 	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usd/stage.h"
 	#include "pxr/usd/usd/variantSets.h"
@@ -1096,77 +1099,161 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 	return ImportData;
 }
 
-void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
+namespace UE::UsdConversionUtils::Private
 {
 #if USE_USD_SDK
-	if ( !Prim || !AbsoluteFilePath )
+	bool PrepareToAddReferenceOrPayload(
+		const UE::FUsdPrim& Prim,
+		const TCHAR* AbsoluteFilePath,
+		const UE::FSdfPath& TargetPrimPath,
+		std::string& OutRelativeFilePath,
+		pxr::SdfPath& OutPrimPath
+	)
+	{
+		if ( !Prim || !AbsoluteFilePath )
+		{
+			return false;
+		}
+
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdPrim UsdPrim( Prim );
+
+		pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+		if ( !UsdStage )
+		{
+			return false;
+		}
+
+		// Turn our layer path into a relative one
+		FString RelativePath = AbsoluteFilePath;
+		if ( !RelativePath.IsEmpty() )
+		{
+			pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
+
+			std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
+
+			// If we're editing an in-memory stage our root layer may not have a path yet
+			// Giving an empty InRelativeTo to MakePathRelativeTo causes it to use the engine binary
+			if ( !RepositoryPath.empty() )
+			{
+				FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
+				FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
+			}
+		}
+
+		// Get the target layer
+		pxr::SdfLayerRefPtr TargetLayer;
+		bool bIsInternalReference = false;
+		if ( RelativePath.IsEmpty() )
+		{
+			TargetLayer = UsdStage->GetRootLayer();
+			bIsInternalReference = true;
+		}
+		else
+		{
+			TargetLayer = pxr::SdfLayer::FindOrOpen( UnrealToUsd::ConvertString( AbsoluteFilePath ).Get() );
+		}
+		if ( !TargetLayer )
+		{
+			return false;
+		}
+
+		// Get the target prim spec we want to reference
+		pxr::SdfPrimSpecHandle TargetPrimSpec = TargetLayer->GetPrimAtPath( TargetPrimPath );
+		if ( ( TargetPrimPath.IsEmpty() || !TargetPrimSpec ) && TargetLayer->HasDefaultPrim() )
+		{
+			TargetPrimSpec = TargetLayer->GetPrimAtPath( pxr::SdfPath::AbsoluteRootPath().AppendChild( TargetLayer->GetDefaultPrim() ) );
+		}
+
+		// Update UsdPrim's type so that it can handle the reference and be parsed by the proper translator
+		if ( !UsdPrim.GetTypeName().IsEmpty() && TargetPrimSpec )
+		{
+			pxr::TfToken TargetTypeName = TargetPrimSpec->GetTypeName();
+			pxr::TfType TargetPrimType = pxr::UsdSchemaRegistry::GetTypeFromName( TargetTypeName );
+
+			if ( TargetPrimType.IsUnknown() )
+			{
+				UsdPrim.ClearTypeName();
+			}
+			else if ( !UsdPrim.IsA( TargetPrimType ) )
+			{
+				UsdPrim.SetTypeName( TargetTypeName );
+			}
+		}
+
+		// We want to output no path for the prim if we received it as such, even if we already know what the path to the
+		// default prim is, so that the authored reference doesn't actually specify any prim name and just refers to the
+		// default prim by default. Otherwise if the default prim of the layer changed, we wouldn't update to the new prim
+		OutPrimPath = TargetPrimSpec && !TargetPrimPath.IsEmpty() ? TargetPrimSpec->GetPath() : pxr::SdfPath{};
+		OutRelativeFilePath = bIsInternalReference ? std::string() : UnrealToUsd::ConvertString( *RelativePath ).Get();
+		return true;
+	}
+#endif // #if USE_USD_SDK
+}
+
+void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath, double TimeCodeOffset, double TimeCodeScale )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	// Group updates or else the SetTypeName (inside PrepareToAddReferenceOrPayload) and AddReference calls below will
+	// both trigger separate resyncs of the same prim path
+	pxr::SdfChangeBlock ChangeBlock;
+
+	std::string RelativeLayerPath;
+	pxr::SdfPath FinalPrimPath;
+	bool bProceed = UE::UsdConversionUtils::Private::PrepareToAddReferenceOrPayload(
+		Prim,
+		AbsoluteFilePath,
+		TargetPrimPath,
+		RelativeLayerPath,
+		FinalPrimPath
+	);
+
+	if( !bProceed )
 	{
 		return;
 	}
 
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdPrim UsdPrim( Prim );
-
-	const std::string UsdAbsoluteFilePath = UnrealToUsd::ConvertString( AbsoluteFilePath ).Get();
-	pxr::UsdReferences References = UsdPrim.GetReferences();
-
-	pxr::SdfLayerRefPtr ReferenceLayer = pxr::SdfLayer::FindOrOpen( UsdAbsoluteFilePath );
-
-	// Group updates or else the SetTypeName and AddReference calls below will both trigger separate resyncs of the same prim path
-	pxr::SdfChangeBlock ChangeBlock;
-
-	if ( ReferenceLayer && !UsdPrim.GetTypeName().IsEmpty() )
-	{
-		pxr::SdfPrimSpecHandle DefaultPrimSpec = ReferenceLayer->GetPrimAtPath( pxr::SdfPath( ReferenceLayer->GetDefaultPrim() ) );
-		if ( DefaultPrimSpec )
-		{
-			// Set the same prim type as its reference so that they are compatible
-			pxr::TfType DefaultPrimType = pxr::UsdSchemaRegistry::GetTypeFromName( DefaultPrimSpec->GetTypeName() );
-			if ( DefaultPrimType.IsUnknown() )
-			{
-				UsdPrim.ClearTypeName();
-			}
-			else if ( !UsdPrim.IsA( DefaultPrimType ) )
-			{
-				UsdPrim.SetTypeName( DefaultPrimSpec->GetTypeName() );
-			}
-		}
-	}
-
-	FString RelativePath = AbsoluteFilePath;
-
-	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
-
-	std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
-
-	// If we're editing an in-memory stage our root layer may not have a path yet
-	// Giving an empty InRelativeTo to MakePathRelativeTo causes it to use the engine binary
-	if ( !RepositoryPath.empty() )
-	{
-		FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
-		FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
-	}
-
-	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
+	pxr::UsdReferences References = pxr::UsdPrim{ Prim }.GetReferences();
+	References.AddReference(
+		RelativeLayerPath,
+		FinalPrimPath,
+		pxr::SdfLayerOffset{ TimeCodeOffset, TimeCodeScale }
+	);
 #endif // #if USE_USD_SDK
 }
 
-void UsdUtils::AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
+void UsdUtils::AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath, double TimeCodeOffset, double TimeCodeScale )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdPrim UsdPrim( Prim );
+	// Group updates or else the SetTypeName (inside PrepareToAddReferenceOrPayload) and AddReference calls below will
+	// both trigger separate resyncs of the same prim path
+	pxr::SdfChangeBlock ChangeBlock;
 
-	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
+	std::string RelativeLayerPath;
+	pxr::SdfPath FinalPrimPath;
+	bool bProceed = UE::UsdConversionUtils::Private::PrepareToAddReferenceOrPayload(
+		Prim,
+		AbsoluteFilePath,
+		TargetPrimPath,
+		RelativeLayerPath,
+		FinalPrimPath
+	);
 
-	FString RelativePath = AbsoluteFilePath;
-	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
+	if ( !bProceed )
+	{
+		return;
+	}
 
-	pxr::UsdPayloads Payloads = UsdPrim.GetPayloads();
+	pxr::UsdPayloads Payloads = pxr::UsdPrim{ Prim }.GetPayloads();
 	Payloads.AddPayload(
-		UnrealToUsd::ConvertString( *RelativePath ).Get()
+		RelativeLayerPath,
+		FinalPrimPath,
+		pxr::SdfLayerOffset{ TimeCodeOffset, TimeCodeScale }
 	);
 #endif // #if USE_USD_SDK
 }
@@ -1527,6 +1614,10 @@ UE::FSdfPath UsdUtils::GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const 
 
 	pxr::UsdPrim UsdPrim{ Prim };
 	pxr::SdfLayerRefPtr UsdLayer{ Layer };
+	if ( !UsdPrim || !UsdLayer )
+	{
+		return Result;
+	}
 
 	// We may have multiple specs in the same layer if we're within a variant set (e.g "/Root/Parent/Child" and
 	// "/Root{Varset=Var}Parent/Child{ChildSet=ChildVar}" and "/Root{Varset=Var}Parent/Child").
@@ -1615,6 +1706,485 @@ USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, co
 	}
 
 #endif // USE_USD_SDK
+}
+
+bool UsdUtils::CutPrims( const TArray<UE::FUsdPrim>& Prims )
+{
+	bool bCopied = UsdUtils::CopyPrims( Prims );
+	if ( !bCopied )
+	{
+		return false;
+	}
+
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		UsdUtils::RemoveAllPrimSpecs( Prim );
+	}
+
+	return true;
+}
+
+bool UsdUtils::CopyPrims( const TArray<UE::FUsdPrim>& Prims )
+{
+	bool bCopiedSomething = false;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage;
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		if ( Prim )
+		{
+			UsdStage = pxr::UsdStageRefPtr{ Prim.GetStage() };
+			if ( UsdStage )
+			{
+				break;
+			}
+		}
+	}
+	if ( !UsdStage )
+	{
+		return false;
+	}
+
+	pxr::UsdStageRefPtr ClipboardStage = pxr::UsdStageRefPtr{ UnrealUSDWrapper::GetClipboardStage() };
+	if ( !ClipboardStage )
+	{
+		return false;
+	}
+
+	pxr::SdfLayerHandle ClipboardRoot = ClipboardStage->GetRootLayer();
+	if ( !ClipboardRoot )
+	{
+		return false;
+	}
+
+	pxr::UsdStagePopulationMask Mask;
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		if ( Prim )
+		{
+			Mask.Add( pxr::SdfPath{ Prim.GetPrimPath() } );
+		}
+	}
+	if ( Mask.IsEmpty() )
+	{
+		return false;
+	}
+
+	pxr::UsdStageRefPtr TempStage = pxr::UsdStage::OpenMasked( UsdStage->GetRootLayer(), Mask );
+	if ( !TempStage )
+	{
+		return false;
+	}
+
+	const bool bAddSourceFileComment = false;
+	pxr::SdfLayerRefPtr FlattenedLayer = TempStage->Flatten( bAddSourceFileComment );
+	if ( !FlattenedLayer )
+	{
+		return false;
+	}
+
+	ClipboardRoot->Clear();
+
+	TSet<FString> UsedNames;
+
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		pxr::SdfPrimSpecHandle FlattenedPrim = FlattenedLayer->GetPrimAtPath( pxr::SdfPath{ Prim.GetPrimPath() } );
+		if ( !FlattenedPrim )
+		{
+			continue;
+		}
+
+		// Have to ensure the selected prims can coexist as siblings on the clipboard until being pasted.
+		// Note how we don't use GetValidChildName here: That should work too, but it could fail if somebody ever
+		// calls this function within a SdfChangeBlock, given that GetValidChildName relies on USD's GetChildren,
+		// which could potentially yield stale results until USD actually emits the notices about these prims being
+		// added.
+		FString PrimName = Prim.GetName().ToString();
+		FString UniqueName = GetUniqueName( SanitizeUsdIdentifier( *PrimName ), UsedNames );
+		UsedNames.Add( UniqueName );
+
+		const bool bSuccess = pxr::SdfCopySpec(
+			FlattenedLayer,
+			FlattenedPrim->GetPath(),
+			ClipboardRoot,
+			pxr::SdfPath::AbsoluteRootPath().AppendChild( UnrealToUsd::ConvertToken( *UniqueName ).Get() )
+		);
+		if ( !bSuccess )
+		{
+			continue;
+		}
+
+		bCopiedSomething = true;
+		UE_LOG( LogUsd, Log, TEXT( "Copied prim '%s' into the clipboard" ),
+			*Prim.GetPrimPath().GetString()
+		);
+	}
+#endif // USE_USD_SDK
+
+	return bCopiedSomething;
+}
+
+TArray<UE::FSdfPath> UsdUtils::PastePrims( const UE::FUsdPrim& ParentPrim )
+{
+	TArray<UE::FSdfPath> Result;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdParentPrim{ ParentPrim };
+	if ( !UsdParentPrim )
+	{
+		return Result;
+	}
+
+	pxr::UsdStageRefPtr UsdStage = UsdParentPrim.GetStage();
+	if ( !UsdStage )
+	{
+		return Result;
+	}
+
+	pxr::UsdStageRefPtr ClipboardStage = pxr::UsdStageRefPtr{ UnrealUSDWrapper::GetClipboardStage() };
+	if ( !ClipboardStage )
+	{
+		return Result;
+	}
+
+	pxr::SdfLayerHandle ClipboardRoot = ClipboardStage->GetRootLayer();
+	if ( !ClipboardRoot )
+	{
+		return Result;
+	}
+
+	pxr::UsdPrimSiblingRange PrimChildren = ClipboardStage->GetPseudoRoot().GetChildren();
+	int32 NumPrimsToPaste = std::distance( PrimChildren.begin(), PrimChildren.end() );
+
+	TArray<pxr::UsdPrim> PrimsToPaste;
+	PrimsToPaste.Reserve( NumPrimsToPaste );
+	for ( const pxr::UsdPrim& ClipboardPrim : ClipboardStage->GetPseudoRoot().GetChildren() )
+	{
+		PrimsToPaste.Add( ClipboardPrim );
+	}
+
+	pxr::SdfLayerHandle EditTarget = UsdStage->GetEditTarget().GetLayer();
+	if ( !EditTarget )
+	{
+		return Result;
+	}
+
+	TSet<FString> UsedNames;
+	for ( const pxr::UsdPrim& Child : ParentPrim.GetChildren() )
+	{
+		UsedNames.Add( UsdToUnreal::ConvertToken( Child.GetName() ) );
+	}
+
+	Result.SetNum( NumPrimsToPaste );
+	for ( int32 Index = 0; Index < NumPrimsToPaste; ++Index )
+	{
+		const pxr::UsdPrim& ClipboardPrim = PrimsToPaste[ Index ];
+		if ( !ClipboardPrim )
+		{
+			continue;
+		}
+
+		const FString OriginalName = UsdToUnreal::ConvertToken( ClipboardPrim.GetName() );
+		FString ValidName = GetUniqueName( SanitizeUsdIdentifier( *OriginalName ), UsedNames );
+		UsedNames.Add( ValidName );
+
+		pxr::SdfPath TargetSpecPath = UsdParentPrim.GetPath().AppendChild( UnrealToUsd::ConvertToken( *ValidName ).Get() );
+
+		// Ensure our parent prim spec exists, otherwise pxr::SdfCopySpec will fail
+		if ( !pxr::SdfCreatePrimInLayer( EditTarget, TargetSpecPath ) )
+		{
+			continue;
+		}
+
+		if ( !pxr::SdfCopySpec( ClipboardRoot, ClipboardPrim.GetPath(), EditTarget, TargetSpecPath ) )
+		{
+			continue;
+		}
+
+		UE_LOG( LogUsd, Log, TEXT( "Pasted prim '%s' as a child of prim '%s' within the edit target '%s'" ),
+			*OriginalName,
+			*UsdToUnreal::ConvertPath( UsdParentPrim.GetPath() ),
+			*UsdToUnreal::ConvertString( EditTarget->GetIdentifier() )
+		);
+		Result[ Index ] = UE::FSdfPath{ TargetSpecPath };
+	}
+#endif // USE_USD_SDK
+
+	return Result;
+}
+
+bool UsdUtils::CanPastePrims()
+{
+#if USE_USD_SDK
+	pxr::UsdStageRefPtr ClipboardStage = pxr::UsdStageRefPtr{ UnrealUSDWrapper::GetClipboardStage() };
+	if ( !ClipboardStage )
+	{
+		return false;
+	}
+
+	for ( const pxr::UsdPrim& ClipboardPrim : ClipboardStage->GetPseudoRoot().GetChildren() )
+	{
+		if ( ClipboardPrim )
+		{
+			return true;
+		}
+	}
+#endif // USE_USD_SDK
+
+	return false;
+}
+
+void UsdUtils::ClearPrimClipboard()
+{
+#if USE_USD_SDK
+	pxr::UsdStageRefPtr ClipboardStage = pxr::UsdStageRefPtr{ UnrealUSDWrapper::GetClipboardStage() };
+	if ( !ClipboardStage )
+	{
+		return;
+	}
+
+	pxr::SdfLayerHandle ClipboardRoot = ClipboardStage->GetRootLayer();
+	if ( !ClipboardRoot )
+	{
+		return;
+	}
+
+	ClipboardRoot->Clear();
+#endif // USE_USD_SDK
+}
+
+TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims, EUsdDuplicateType DuplicateType, const UE::FSdfLayer& TargetLayer )
+{
+	TArray<UE::FSdfPath> Result;
+	Result.SetNum( Prims.Num() );
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdStageRefPtr UsdStage;
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		if ( Prim )
+		{
+			UsdStage = pxr::UsdStageRefPtr{ Prim.GetStage() };
+			if ( UsdStage )
+			{
+				break;
+			}
+		}
+	}
+	if ( !UsdStage )
+	{
+		return Result;
+	}
+
+	pxr::SdfLayerRefPtr UsdLayer{ TargetLayer };
+
+	// Figure out which layers we'll modify
+	std::unordered_set<pxr::SdfLayerHandle, pxr::TfHash> LayersThatCanBeAffected;
+	switch ( DuplicateType )
+	{
+		case EUsdDuplicateType::FlattenComposedPrim:
+		case EUsdDuplicateType::SingleLayerSpecs:
+		{
+			if ( !UsdLayer )
+			{
+				return Result;
+			}
+
+			LayersThatCanBeAffected.insert( UsdLayer );
+			break;
+		}
+		case EUsdDuplicateType::AllLocalLayerSpecs:
+		{
+			const bool bIncludeSessionLayers = true;
+			for ( const pxr::SdfLayerHandle& Handle : UsdStage->GetLayerStack( bIncludeSessionLayers ) )
+			{
+				LayersThatCanBeAffected.insert( Handle );
+			}
+			break;
+		}
+	}
+
+	// If we're going to need to flatten, just flatten the stage once for all prims we'll duplicate
+	pxr::SdfLayerRefPtr FlattenedLayer = nullptr;
+	if ( DuplicateType == EUsdDuplicateType::FlattenComposedPrim )
+	{
+		pxr::UsdStagePopulationMask Mask;
+		for ( int32 Index = 0; Index < Prims.Num(); ++Index )
+		{
+			pxr::UsdPrim UsdPrim{ Prims[ Index ] };
+			if ( UsdPrim )
+			{
+				Mask.Add( UsdPrim.GetPath() );
+			}
+		}
+
+		pxr::UsdStageRefPtr TempStage = pxr::UsdStage::OpenMasked( UsdStage->GetRootLayer(), Mask );
+		if ( !TempStage )
+		{
+			return Result;
+		}
+
+		const bool bAddSourceFileComment = false;
+		FlattenedLayer = TempStage->Flatten( bAddSourceFileComment );
+		if ( !FlattenedLayer )
+		{
+			return Result;
+		}
+	}
+
+	for ( int32 Index = 0; Index < Prims.Num(); ++Index )
+	{
+		pxr::UsdPrim UsdPrim{ Prims[ Index ] };
+		if ( !UsdPrim )
+		{
+			continue;
+		}
+
+		std::vector<pxr::SdfPrimSpecHandle> PrimSpecs = UsdPrim.GetPrimStack();
+
+		// Note: We won't actually use these in case we're flattening, but it makes the code a bit simpler to also
+		// do this while we're collecting LayersThatWillBeAffected below
+		std::vector<pxr::SdfPrimSpecHandle> SpecsToDuplicate;
+		SpecsToDuplicate.reserve( PrimSpecs.size() );
+
+		std::unordered_set<pxr::SdfLayerHandle, pxr::TfHash> LayersThatWillBeAffected;
+		LayersThatWillBeAffected.reserve( PrimSpecs.size() );
+
+		for ( const pxr::SdfPrimSpecHandle& Spec : PrimSpecs )
+		{
+			// For whatever reason sometimes there are invalid specs in the layer stack, so we need to be careful
+			if ( !Spec )
+			{
+				continue;
+			}
+
+			pxr::SdfPath SpecPath = Spec->GetPath();
+			if ( !SpecPath.IsPrimPath() )
+			{
+				continue;
+			}
+
+			pxr::SdfLayerHandle SpecLayerHandle = Spec->GetLayer();
+			if ( !SpecLayerHandle || LayersThatCanBeAffected.count( SpecLayerHandle ) == 0 )
+			{
+				continue;
+			}
+
+			SpecsToDuplicate.push_back( Spec );
+			LayersThatWillBeAffected.insert( SpecLayerHandle );
+		}
+
+		// Find a usable name for the new duplicate prim
+		pxr::SdfPath NewSpecPath;
+		{
+			const std::string SourcePrimName = UsdPrim.GetName().GetString();
+			const pxr::SdfPath ParentPath = UsdPrim.GetPath().GetParentPath();
+
+			int32 Suffix = -1;
+
+			bool bFoundName = false;
+			while ( !bFoundName )
+			{
+				NewSpecPath = ParentPath.AppendElementString( SourcePrimName + "_" + std::to_string( ++Suffix ) );
+
+				bFoundName = true;
+				for ( const pxr::SdfLayerHandle& Layer : LayersThatWillBeAffected )
+				{
+					if ( Layer->HasSpec( NewSpecPath ) )
+					{
+						bFoundName = false;
+						break;
+					}
+				}
+			}
+		}
+
+		// Actually do the duplication operation we chose
+		if ( DuplicateType == EUsdDuplicateType::FlattenComposedPrim && FlattenedLayer )
+		{
+			pxr::SdfPrimSpecHandle FlattenedPrim = FlattenedLayer->GetPrimAtPath( UsdPrim.GetPath() );
+			if ( !FlattenedPrim )
+			{
+				return Result;
+			}
+
+			if ( !pxr::SdfJustCreatePrimInLayer( UsdLayer, NewSpecPath ) )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Failed to create prim and parent specs for path '%s' within layer '%s'" ),
+					*UsdToUnreal::ConvertPath( NewSpecPath ),
+					*UsdToUnreal::ConvertString( UsdLayer->GetIdentifier() )
+				);
+				return Result;
+			}
+
+			if ( !pxr::SdfCopySpec( FlattenedLayer, FlattenedPrim->GetPath(), UsdLayer, NewSpecPath ) )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Failed to copy flattened prim spec from '%s' onto path '%s' within layer '%s'" ),
+					*UsdToUnreal::ConvertPath( UsdPrim.GetPath() ),
+					*UsdToUnreal::ConvertPath( NewSpecPath ),
+					*UsdToUnreal::ConvertString( UsdLayer->GetIdentifier() )
+				);
+				return Result;
+			}
+
+			UE_LOG( LogUsd, Log, TEXT( "Flattened prim '%s' onto spec '%s' at layer '%s'" ),
+				*UsdToUnreal::ConvertPath( UsdPrim.GetPath() ),
+				*UsdToUnreal::ConvertPath( NewSpecPath ),
+				*UsdToUnreal::ConvertString( UsdLayer->GetIdentifier() )
+			);
+		}
+		else
+		{
+			for ( const pxr::SdfPrimSpecHandle& Spec : SpecsToDuplicate )
+			{
+				pxr::SdfPath SpecPath = Spec->GetPath();
+				pxr::SdfLayerHandle SpecLayerHandle = Spec->GetLayer();
+
+				UE_LOG( LogUsd, Log, TEXT( "Duplicating prim spec '%s' within layer '%s'" ),
+					*UsdToUnreal::ConvertPath( SpecPath ),
+					*UsdToUnreal::ConvertString( SpecLayerHandle->GetIdentifier() )
+				);
+
+				// Technically we shouldn't need to do this since we'll already do our changes on the Sdf level, however the
+				// USDTransactor will record these notices as belonging to the current edit target, and if that is not in sync
+				// with the layer that is actually changing, we won't be able to undo/redo the duplicate operation
+				pxr::UsdEditContext Context{ UsdStage, SpecLayerHandle };
+
+				// Since we're duplicating a prim essentially as a sibling, parent specs should always exist.
+				// Let's ensure that though, just in case
+				if ( !pxr::SdfJustCreatePrimInLayer( SpecLayerHandle, NewSpecPath ) )
+				{
+					UE_LOG( LogUsd, Warning, TEXT( "Failed to create prim and parent specs for path '%s' within layer '%s'" ),
+						*UsdToUnreal::ConvertPath( NewSpecPath ),
+						*UsdToUnreal::ConvertString( SpecLayerHandle->GetIdentifier() )
+					);
+					continue;
+				}
+
+				if ( !pxr::SdfCopySpec( SpecLayerHandle, SpecPath, SpecLayerHandle, NewSpecPath ) )
+				{
+					UE_LOG( LogUsd, Warning, TEXT( "Failed to copy spec from path '%s' onto path '%s' within layer '%s'" ),
+						*UsdToUnreal::ConvertPath( SpecPath ),
+						*UsdToUnreal::ConvertPath( NewSpecPath ),
+						*UsdToUnreal::ConvertString( SpecLayerHandle->GetIdentifier() )
+					);
+				}
+			}
+		}
+
+		Result[ Index ] = UE::FSdfPath{ NewSpecPath };
+	}
+#endif // USE_USD_SDK
+
+	return Result;
 }
 
 #if USE_USD_SDK

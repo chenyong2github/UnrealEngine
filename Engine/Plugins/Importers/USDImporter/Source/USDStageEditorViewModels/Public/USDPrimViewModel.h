@@ -43,7 +43,6 @@ public:
 
 	void RefreshData( bool bRefreshChildren );
 
-	bool CanExecutePrimAction() const;
 	bool HasVisibilityAttribute() const;
 	void ToggleVisibility();
 	void TogglePayload();
@@ -75,8 +74,8 @@ public:
 	FOnRenameRequest RenameRequestEvent;
 
 public:
-	void AddReference( const TCHAR* AbsoluteFilePath );
 	void ClearReferences();
+	void ClearPayloads();
 
 public:
 	UE::FUsdStageWeak UsdStage;

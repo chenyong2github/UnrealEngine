@@ -16,7 +16,27 @@
 
 #define LOCTEXT_NAMESPACE "USDOptionsWindow"
 
-bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, bool bIsImport )
+bool SUsdOptionsWindow::ShowImportExportOptions( UObject& OptionsObject, bool bIsImport )
+{
+	if ( bIsImport )
+	{
+		return SUsdOptionsWindow::ShowOptions(
+			OptionsObject,
+			LOCTEXT( "USDImportOptionsTitle", "USD Import Options" ),
+			LOCTEXT( "USDOptionWindow_Import", "Import" )
+		);
+	}
+	else
+	{
+		return SUsdOptionsWindow::ShowOptions(
+			OptionsObject,
+			LOCTEXT( "USDExportOptionsTitle", "USD Export Options" ),
+			LOCTEXT( "USDOptionWindow_Export", "Export" )
+		);
+	}
+}
+
+bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, const FText& WindowTitle, const FText& AcceptText )
 {
 	TSharedPtr<SWindow> ParentWindow;
 
@@ -27,10 +47,7 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, bool bIsImport )
 	}
 
 	TSharedRef<SWindow> Window = SNew( SWindow )
-		.Title( bIsImport
-			? LOCTEXT( "USDImportOptionsTitle", "USD Import Options" )
-			: LOCTEXT( "USDExportOptionsTitle", "USD Export Options" )
-		)
+		.Title( WindowTitle )
 		.SizingRule( ESizingRule::Autosized );
 
 	TSharedPtr<SUsdOptionsWindow> OptionsWindow;
@@ -38,7 +55,7 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, bool bIsImport )
 	(
 		SAssignNew( OptionsWindow, SUsdOptionsWindow )
 		.OptionsObject( &OptionsObject )
-		.IsImport( bIsImport )
+		.AcceptText( AcceptText )
 		.WidgetWindow( Window )
 	);
 
@@ -60,7 +77,7 @@ void SUsdOptionsWindow::Construct( const FArguments& InArgs )
 {
 	OptionsObject = InArgs._OptionsObject;
 	Window = InArgs._WidgetWindow;
-	bIsImport = InArgs._IsImport;
+	AcceptText = InArgs._AcceptText;
 	bAccepted = false;
 
 	TSharedPtr<SBox> DetailsViewBox;
@@ -89,10 +106,7 @@ void SUsdOptionsWindow::Construct( const FArguments& InArgs )
 			[
 				SNew( SButton )
 				.HAlign( HAlign_Center )
-				.Text( bIsImport
-					? LOCTEXT( "USDOptionWindow_Import", "Import" )
-					: LOCTEXT( "USDOptionWindow_Export", "Export" )
-				)
+				.Text( AcceptText )
 				.OnClicked( this, &SUsdOptionsWindow::OnAccept )
 			]
 

@@ -11,7 +11,9 @@
 #include "USDPrimViewModel.h"
 
 class AUsdStageActor;
+class FUICommandList;
 enum class EPayloadsTrigger;
+enum class EUsdDuplicateType : uint8;
 
 #if USE_USD_SDK
 
@@ -38,6 +40,10 @@ private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdPrimViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
 	virtual void OnGetChildren( FUsdPrimViewModelRef InParent, TArray< FUsdPrimViewModelRef >& OutChildren ) const override;
 
+	// Required so that we can use the cut/copy/paste/etc. shortcuts
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+
 	void ScrollItemIntoView( FUsdPrimViewModelRef TreeItem );
 	virtual void OnTreeItemScrolledIntoView( FUsdPrimViewModelRef TreeItem, const TSharedPtr< ITableRow >& Widget ) override ;
 
@@ -49,11 +55,22 @@ private:
 
 	void OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger );
 
-	void OnAddPrim();
+	void FillDuplicateSubmenu( FMenuBuilder& MenuBuilder );
+
+	void OnAddChildPrim();
+	void OnCutPrim();
+	void OnCopyPrim();
+	void OnPastePrim();
+	void OnDuplicatePrim( EUsdDuplicateType DuplicateType );
+	void OnDeletePrim();
 	void OnRenamePrim();
-	void OnRemovePrim();
+
 	void OnAddReference();
 	void OnClearReferences();
+
+	void OnAddPayload();
+	void OnClearPayloads();
+
 	void OnSetUpLiveLink();
 	void OnRemoveLiveLink();
 	void OnSetUpControlRig();
@@ -61,8 +78,11 @@ private:
 	void OnApplyGroomSchema();
 	void OnRemoveGroomSchema();
 
-	bool CanAddPrim() const;
-	bool CanExecutePrimAction() const;
+	bool CanAddChildPrim() const;
+	bool CanPastePrim() const;
+	bool DoesPrimExistOnStage() const;
+	bool DoesPrimExistOnEditTarget() const;
+
 	bool CanSetUpLiveLink() const;
 	bool CanRemoveLiveLink() const;
 	bool CanSetUpControlRig() const;
@@ -82,6 +102,8 @@ private:
 	TMap< FString, bool > TreeItemExpansionStates;
 
 	FOnPrimSelectionChanged OnPrimSelectionChanged;
+
+	TSharedPtr<FUICommandList> UICommandList;
 };
 
 #endif // #if USE_USD_SDK

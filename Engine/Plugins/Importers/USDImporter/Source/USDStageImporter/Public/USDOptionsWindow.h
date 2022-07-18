@@ -14,11 +14,12 @@ public:
 	SLATE_BEGIN_ARGS( SUsdOptionsWindow ) : _OptionsObject( nullptr ) {}
 		SLATE_ARGUMENT( UObject*, OptionsObject )
 		SLATE_ARGUMENT( TSharedPtr<SWindow>, WidgetWindow )
-		SLATE_ARGUMENT( bool, IsImport )
+		SLATE_ARGUMENT( FText, AcceptText )
 	SLATE_END_ARGS()
 
 public:
-	static bool ShowOptions( UObject& OptionsObject, bool bIsImport = true );
+	static bool ShowImportExportOptions( UObject& OptionsObject, bool bIsImport );
+	static bool ShowOptions( UObject& OptionsObject, const FText& WindowTitle, const FText& AcceptText );
 
 	void Construct( const FArguments& InArgs );
 	virtual bool SupportsKeyboardFocus() const override;
@@ -32,6 +33,6 @@ public:
 private:
 	UObject* OptionsObject;
 	TWeakPtr< SWindow > Window;
-	bool bIsImport;
+	FText AcceptText;
 	bool bAccepted;
 };

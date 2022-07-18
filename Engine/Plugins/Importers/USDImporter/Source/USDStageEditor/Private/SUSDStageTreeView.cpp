@@ -5,7 +5,10 @@
 #include "SUSDStageEditorStyle.h"
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
+#include "USDDuplicateType.h"
 #include "USDLayerUtils.h"
+#include "USDOptionsWindow.h"
+#include "USDReferenceOptions.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
@@ -16,13 +19,15 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
-#include "Styling/AppStyle.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
 #include "Templates/Function.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -167,22 +172,20 @@ public:
 
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
-		bool bHasPayload = false;
+		const TWeakPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
 
-		if ( InTreeItem )
-		{
-			const TSharedPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
-			bHasPayload = TreeItem->RowData->HasPayload();
-		}
+		 TSharedRef< SWidget > Item = SNew( SCheckBox )
+			.Visibility_Lambda( [this, TreeItem]() -> EVisibility
+			{
+				if ( const TSharedPtr< FUsdPrimViewModel > PinnedItem = TreeItem.Pin() )
+				{
+					return PinnedItem->RowData->HasPayload() ? EVisibility::Visible : EVisibility::Collapsed;
+				}
 
-		TSharedRef< SWidget > Item = SNullWidget::NullWidget;
-
-		if ( bHasPayload )
-		{
-			Item = SNew( SCheckBox )
-					.IsChecked( this, &FUsdStagePayloadColumn::IsChecked, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) )
-					.OnCheckStateChanged( this, &FUsdStagePayloadColumn::OnCheckedPayload, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) );
-		}
+				return EVisibility::Collapsed;
+			})
+			.IsChecked( this, &FUsdStagePayloadColumn::IsChecked, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) )
+			.OnCheckStateChanged( this, &FUsdStagePayloadColumn::OnCheckedPayload, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) );
 
 		return Item;
 	}
@@ -340,6 +343,38 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 	});
 
 	OnPrimSelectionChanged = InArgs._OnPrimSelectionChanged;
+
+	UICommandList = MakeShared<FUICommandList>();
+	UICommandList->MapAction(
+		FGenericCommands::Get().Cut,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnCutPrim ),
+		FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+	);
+	UICommandList->MapAction(
+		FGenericCommands::Get().Copy,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnCopyPrim ),
+		FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+	);
+	UICommandList->MapAction(
+		FGenericCommands::Get().Paste,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnPastePrim ),
+		FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanPastePrim )
+	);
+	UICommandList->MapAction(
+		FGenericCommands::Get().Duplicate,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::AllLocalLayerSpecs ),
+		FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+	);
+	UICommandList->MapAction(
+		FGenericCommands::Get().Delete,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDeletePrim ),
+		FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+	);
+	UICommandList->MapAction(
+		FGenericCommands::Get().Rename,
+		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRenamePrim ),
+		FCanExecuteAction::CreateLambda( [this]() { return SUsdStageTreeView::DoesPrimExistOnStage() && GetSelectedItems().Num() == 1; } )
+	);
 
 	Refresh( InUsdStageActor );
 }
@@ -560,43 +595,74 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 {
 	TSharedRef< SWidget > MenuWidget = SNullWidget::NullWidget;
 
-	FMenuBuilder PrimOptions( true, nullptr );
-	PrimOptions.BeginSection( "Prim", LOCTEXT("Prim", "Prim") );
+	const bool bInShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder PrimOptions( bInShouldCloseWindowAfterMenuSelection, UICommandList );
+	PrimOptions.BeginSection( "Edit", LOCTEXT("EditText", "Edit") );
 	{
 		PrimOptions.AddMenuEntry(
-			LOCTEXT("AddPrim", "Add Prim"),
-			LOCTEXT("AddPrim_ToolTip", "Adds a new prim"),
-			FSlateIcon(),
+			TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+			{
+				return GetSelectedItems().Num() == 0
+					? LOCTEXT( "AddTopLevelPrim", "Add Prim" )
+					: LOCTEXT( "AddPrim", "Add Child" );
+			})),
+			TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+			{
+				return GetSelectedItems().Num() == 0
+					? LOCTEXT( "AddTopPrim_ToolTip", "Adds a new top-level prim" )
+					: LOCTEXT( "AddPrim_ToolTip", "Adds a new prim as a child of this one" );
+			})),
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "Icons.PlaceActors" ),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnAddPrim ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanAddPrim )
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnAddChildPrim ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanAddChildPrim )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
 
 		PrimOptions.AddMenuEntry(
-			LOCTEXT( "RenamePrim", "Rename Prim" ),
-			LOCTEXT( "RenamePrim_ToolTip", "Renames the prim on all layers" ),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRenamePrim ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
-			),
+			FGenericCommands::Get().Cut,
 			NAME_None,
-			EUserInterfaceActionType::Button
+			LOCTEXT( "Cut_Text", "Cut" ),
+			LOCTEXT( "Cut_ToolTip", "Cuts this prim selection from the stage" )
 		);
 
 		PrimOptions.AddMenuEntry(
-			LOCTEXT("RemovePrim", "Remove Prim"),
-			LOCTEXT("RemovePrim_ToolTip", "Removes the prim and its children from the current edit target"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemovePrim ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
-			),
+			FGenericCommands::Get().Copy,
 			NAME_None,
-			EUserInterfaceActionType::Button
+			LOCTEXT( "Copy_Text", "Copy" ),
+			LOCTEXT( "Copy_ToolTip", "Copies the selected prims from the stage" )
+		);
+
+		PrimOptions.AddMenuEntry(
+			FGenericCommands::Get().Paste,
+			NAME_None,
+			LOCTEXT( "Paste_Text", "Paste" ),
+			LOCTEXT( "Paste_ToolTip", "Pastes a flattened representation of the cut/copied prims as children of this prim, on the current edit target" )
+		);
+
+		const bool bInOpenSubMenuOnClick = false;
+		PrimOptions.AddSubMenu(
+			LOCTEXT( "Duplicate_Text", "Duplicate..." ),
+			FText::GetEmpty(),
+			FNewMenuDelegate::CreateSP( this, &SUsdStageTreeView::FillDuplicateSubmenu ),
+			bInOpenSubMenuOnClick,
+			FSlateIcon( FAppStyle::GetAppStyleSetName(), "Icons.Duplicate" )
+		);
+
+		PrimOptions.AddMenuEntry(
+			FGenericCommands::Get().Delete,
+			NAME_None,
+			LOCTEXT( "Delete_Text", "Delete" ),
+			LOCTEXT( "Delete_ToolTip", "Deletes the selected prims" )
+		);
+
+		PrimOptions.AddMenuEntry(
+			FGenericCommands::Get().Rename,
+			NAME_None,
+			LOCTEXT( "Rename_Text", "Rename" ),
+			LOCTEXT( "Rename_ToolTip", "Renames the selected prim" )
 		);
 	}
 	PrimOptions.EndSection();
@@ -645,11 +711,11 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 	{
 		PrimOptions.AddMenuEntry(
 			LOCTEXT("AddReference", "Add Reference"),
-			LOCTEXT("AddReference_ToolTip", "Adds a reference to this prim"),
+			LOCTEXT("AddReference_ToolTip", "Adds a reference for this prim"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnAddReference ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
+				FCanExecuteAction::CreateLambda( [this]() { return SUsdStageTreeView::DoesPrimExistOnEditTarget() && GetSelectedItems().Num() == 1; } )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -661,7 +727,31 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnClearReferences ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanExecutePrimAction )
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnEditTarget )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "AddPayload", "Add Payload" ),
+			LOCTEXT( "AddPayload_ToolTip", "Adds a payload for this prim" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnAddPayload ),
+				FCanExecuteAction::CreateLambda( [this]() { return SUsdStageTreeView::DoesPrimExistOnEditTarget() && GetSelectedItems().Num() == 1; } )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "ClearPayloads", "Clear Payloads" ),
+			LOCTEXT( "ClearPayloads_ToolTip", "Clears the payloads for this prim" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnClearPayloads ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnEditTarget )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -755,7 +845,7 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 	return MenuWidget;
 }
 
-void SUsdStageTreeView::OnAddPrim()
+void SUsdStageTreeView::OnAddChildPrim()
 {
 	if ( !UsdStageActor.IsValid() )
 	{
@@ -789,6 +879,150 @@ void SUsdStageTreeView::OnAddPrim()
 	RequestTreeRefresh();
 }
 
+void SUsdStageTreeView::OnCutPrim()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "CutPrimTransaction", "Cut prims" ) );
+
+	UE::FSdfChangeBlock Block;
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( MySelectedItems.Num() );
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->UsdPrim )
+		{
+			Prims.Add( SelectedItem->UsdPrim );
+		}
+	}
+
+	UsdUtils::CutPrims( Prims );
+}
+
+void SUsdStageTreeView::OnCopyPrim()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( MySelectedItems.Num() );
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->UsdPrim )
+		{
+			Prims.Add( SelectedItem->UsdPrim );
+		}
+	}
+
+	UsdUtils::CopyPrims( Prims );
+}
+
+void SUsdStageTreeView::OnPastePrim()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "PastePrimTransaction", "Paste prims" ) );
+
+	UE::FSdfChangeBlock Block;
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	TArray<UE::FUsdPrim> ParentPrims;
+
+	// This happens when right-clicking the background area without selecting any prim
+	if ( MySelectedItems.IsEmpty() )
+	{
+		UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
+		ParentPrims.Add( Stage.GetPseudoRoot() );
+	}
+	else
+	{
+		ParentPrims.Reserve( MySelectedItems.Num() );
+
+		// A bit unusual that we can paste to multiple locations at the same time, but why not?
+		for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+		{
+			ParentPrims.Add( SelectedItem->UsdPrim );
+		}
+	}
+
+	for ( const UE::FUsdPrim& ParentPrim : ParentPrims )
+	{
+		// Preemptively mark the parent prims as expanded so that we can always see what we pasted
+		const bool bIsExpanded = true;
+		TreeItemExpansionStates.Add( ParentPrim.GetPrimPath().GetString(), bIsExpanded );
+
+		UsdUtils::PastePrims( ParentPrim );
+	}
+}
+
+void SUsdStageTreeView::OnDuplicatePrim( EUsdDuplicateType DuplicateType )
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !Stage )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "DuplicatePrimTransaction", "Duplicate prims" ) );
+
+	UE::FSdfChangeBlock Block;
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	TArray<UE::FUsdPrim> Prims;
+	Prims.Reserve( MySelectedItems.Num() );
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->UsdPrim )
+		{
+			Prims.Add( SelectedItem->UsdPrim );
+		}
+	}
+
+	UsdUtils::DuplicatePrims( Prims, DuplicateType, Stage.GetEditTarget() );
+}
+
+void SUsdStageTreeView::OnDeletePrim()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "DeletePrimTransaction", "Delete prims" ) );
+
+	UE::FSdfChangeBlock Block;
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim );
+	}
+}
+
 void SUsdStageTreeView::OnRenamePrim()
 {
 	if ( !UsdStageActor.IsValid() )
@@ -808,25 +1042,6 @@ void SUsdStageTreeView::OnRenamePrim()
 	}
 }
 
-void SUsdStageTreeView::OnRemovePrim()
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "RemovePrimTransaction", "Remove prims'" ) );
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
-
-		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim );
-	}
-}
-
 void SUsdStageTreeView::OnAddReference()
 {
 	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
@@ -835,26 +1050,44 @@ void SUsdStageTreeView::OnAddReference()
 		return;
 	}
 
-	TOptional< FString > PickedFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Composition, AsShared() );
-
-	if ( !PickedFile )
+	TStrongObjectPtr<UUsdReferenceOptions> Options = TStrongObjectPtr<UUsdReferenceOptions>{ NewObject<UUsdReferenceOptions>() };
+	UUsdReferenceOptions* OptionsPtr = Options.Get();
+	if ( !OptionsPtr )
 	{
 		return;
 	}
 
+	bool bContinue = SUsdOptionsWindow::ShowOptions(
+		*OptionsPtr,
+		LOCTEXT( "AddReferenceTitle", "Add reference" ),
+		LOCTEXT( "AddReferenceAccept", "OK" )
+	);
+	if ( !bContinue )
+	{
+		return;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+	if ( MySelectedItems.Num() != 1 )
+	{
+		return;
+	}
+	UE::FUsdPrim Referencer = MySelectedItems[ 0 ]->UsdPrim;
+
 	// This transaction is important as adding a reference may trigger the creation of new unreal assets, which need to be
 	// destroyed if we spam undo afterwards. Undoing won't remove the actual reference from the stage yet though, sadly...
 	FScopedTransaction Transaction( FText::Format(
-		LOCTEXT( "AddReferenceTransaction", "Add reference to file '{0}'" ),
-		FText::FromString( PickedFile.GetValue() )
+		LOCTEXT( "AddReferenceTransaction", "Add reference from prim '{0}'" ),
+		FText::FromString( Referencer.GetPrimPath().GetString() )
 	) );
 
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		SelectedItem->AddReference( *PickedFile.GetValue() );
-	}
+	UsdUtils::AddReference(
+		Referencer,
+		OptionsPtr->bInternalReference ? TEXT("") : *OptionsPtr->TargetFile.FilePath,
+		OptionsPtr->bUseDefaultPrim ? UE::FSdfPath{} : UE::FSdfPath{ *OptionsPtr->TargetPrimPath },
+		OptionsPtr->TimeCodeOffset,
+		OptionsPtr->TimeCodeScale
+	);
 }
 
 void SUsdStageTreeView::OnClearReferences()
@@ -871,6 +1104,71 @@ void SUsdStageTreeView::OnClearReferences()
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
 		SelectedItem->ClearReferences();
+	}
+}
+
+void SUsdStageTreeView::OnAddPayload()
+{
+	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStageActor.IsValid() || !Stage || !Stage.IsEditTargetValid() )
+	{
+		return;
+	}
+
+	TStrongObjectPtr<UUsdReferenceOptions> Options = TStrongObjectPtr<UUsdReferenceOptions>{ NewObject<UUsdReferenceOptions>() };
+	UUsdReferenceOptions* OptionsPtr = Options.Get();
+	if ( !OptionsPtr )
+	{
+		return;
+	}
+
+	bool bContinue = SUsdOptionsWindow::ShowOptions(
+		*OptionsPtr,
+		LOCTEXT( "AddPayloadTitle", "Add payload" ),
+		LOCTEXT( "AddPayloadAccept", "OK" )
+	);
+	if ( !bContinue )
+	{
+		return;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+	if ( MySelectedItems.Num() != 1 )
+	{
+		return;
+	}
+	UE::FUsdPrim Referencer = MySelectedItems[ 0 ]->UsdPrim;
+
+	// This transaction is important as adding a payload may trigger the creation of new unreal assets, which need to be
+	// destroyed if we spam undo afterwards. Undoing won't remove the actual payload from the stage yet though, sadly...
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "AddPayloadTransaction", "Add payload from prim '{0}'" ),
+		FText::FromString( Referencer.GetPrimPath().GetString() )
+	) );
+
+	UsdUtils::AddPayload(
+		Referencer,
+		OptionsPtr->bInternalReference ? TEXT( "" ) : *OptionsPtr->TargetFile.FilePath,
+		OptionsPtr->bUseDefaultPrim ? UE::FSdfPath{} : UE::FSdfPath{ *OptionsPtr->TargetPrimPath },
+		OptionsPtr->TimeCodeOffset,
+		OptionsPtr->TimeCodeScale
+	);
+}
+
+void SUsdStageTreeView::OnClearPayloads()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "ClearPayloadTransaction", "Clear payloads to USD layers" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->ClearPayloads();
 	}
 }
 
@@ -988,7 +1286,7 @@ void SUsdStageTreeView::OnRemoveGroomSchema()
 	}
 }
 
-bool SUsdStageTreeView::CanAddPrim() const
+bool SUsdStageTreeView::CanAddChildPrim() const
 {
 	if ( !UsdStageActor.IsValid() )
 	{
@@ -1001,10 +1299,75 @@ bool SUsdStageTreeView::CanAddPrim() const
 		return false;
 	}
 
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	// Allow adding a new top-level prim
+	if ( MySelectedItems.IsEmpty() )
+	{
+		return true;
+	}
+	else
+	{
+		// We use the "rename" text input workflow to specify the target name,
+		// so this doesn't work very well for multiple prims yet
+		if ( MySelectedItems.Num() > 1 )
+		{
+			return false;
+		}
+
+		// If we have something selected it must be valid
+		if ( !MySelectedItems[ 0 ]->UsdPrim.IsValid() )
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 
-bool SUsdStageTreeView::CanExecutePrimAction() const
+bool SUsdStageTreeView::CanPastePrim() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage )
+	{
+		return false;
+	}
+
+	return UsdUtils::CanPastePrims();
+}
+
+bool SUsdStageTreeView::DoesPrimExistOnStage() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( !SelectedItem->UsdPrim.IsPseudoRoot() && SelectedItem->UsdPrim.IsValid() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::DoesPrimExistOnEditTarget() const
 {
 	if ( !UsdStageActor.IsValid() )
 	{
@@ -1017,21 +1380,18 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 		return false;
 	}
 
-	bool bHasPrimSpec = false;
-
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		bHasPrimSpec = bHasPrimSpec || (bool)SelectedItem->CanExecutePrimAction();
-
-		if ( bHasPrimSpec )
+		UE::FSdfPath SpecPath = UsdUtils::GetPrimSpecPathForLayer( SelectedItem->UsdPrim, UsdStage.GetEditTarget() );
+		if ( !SpecPath.IsAbsoluteRootPath() && !SpecPath.IsEmpty() )
 		{
-			break;
+			return true;
 		}
 	}
 
-	return bHasPrimSpec;
+	return false;
 }
 
 bool SUsdStageTreeView::CanSetUpLiveLink() const
@@ -1294,6 +1654,55 @@ void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 		UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
 		UsdStage.LoadAndUnload( PrimsToLoad, PrimsToUnload );
 	}
+}
+
+void SUsdStageTreeView::FillDuplicateSubmenu( FMenuBuilder& MenuBuilder )
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "DuplicateFlattened_Text", "Flatten composed prim" ),
+		LOCTEXT( "DuplicateFlattened_ToolTip", "Generate a flattened duplicate of the composed prim onto the current edit target" ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::FlattenComposedPrim ),
+			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "DuplicateSingle_Text", "Single layer specs" ),
+		LOCTEXT( "DuplicateSingle_ToolTip", "Duplicate the prim's specs on the current edit target only" ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::SingleLayerSpecs ),
+			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "DuplicateAllLocal_Text", "All local layer specs" ),
+		LOCTEXT( "DuplicateAllLocal_ToolTip", "Duplicate each of the prim's specs across the entire stage" ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::AllLocalLayerSpecs ),
+			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
+}
+
+FReply SUsdStageTreeView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
+{
+	if ( UICommandList->ProcessCommandBindings( InKeyEvent ) )
+	{
+		return FReply::Handled();
+	}
+
+	return SUsdTreeView::OnKeyDown( MyGeometry, InKeyEvent );
 }
 
 void SUsdStageTreeView::ScrollItemIntoView( FUsdPrimViewModelRef TreeItem )

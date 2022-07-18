@@ -10,6 +10,7 @@
 #include "USDMemory.h"
 #include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -39,13 +40,13 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // #if USE_USD_SDK
 
-class UUsdAssetImportData;
 class USceneComponent;
+class UUsdAssetImportData;
+enum class EUsdDuplicateType : uint8;
 enum class EUsdUpAxis : uint8;
 namespace UE
 {
 	class FUsdPrim;
-	class FSdfPath;
 }
 namespace UsdUtils
 {
@@ -181,10 +182,10 @@ namespace UsdUtils
 	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
 
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
-	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath );
+	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );
 
 	/** Adds a payload on Prim pointing at the default prim of the layer at AbsoluteFilePath */
-	USDUTILITIES_API void AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath );
+	USDUTILITIES_API void AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );
 
 	/**
 	 * Renames a single prim to a new name
@@ -275,5 +276,64 @@ namespace UsdUtils
 	 *				  specs from the entire stage's local layer stack.
 	 */
 	USDUTILITIES_API void RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer = UE::FSdfLayer{} );
+
+	/**
+	 * Copies flattened versions of the input prims onto the clipboard stage and removes all the prim specs for Prims from their stages.
+	 * These cut prims can then be pasted with PastePrims.
+	 *
+	 * @param Prims - Prims to cut
+	 * @return True if we managed to cut
+	 */
+	USDUTILITIES_API bool CutPrims( const TArray<UE::FUsdPrim>& Prims );
+
+	/**
+	 * Copies flattened versions of the input prims onto the clipboard stage.
+	 * These copied prims can then be pasted with PastePrims.
+	 *
+	 * @param Prims - Prims to copy
+	 * @return True if we managed to copy
+	 */
+	USDUTILITIES_API bool CopyPrims( const TArray<UE::FUsdPrim>& Prims );
+
+	/**
+	 * Pastes the prims from the clipboard stage as children of ParentPrim.
+	 *
+	 * The pasted prims may be renamed in order to have valid names for the target location, which is why this function
+	 * returns the pasted prim paths.
+	 * This function returns just paths instead of actual prims because USD needs to respond to the notices about
+	 * the created prim specs before the prims are fully created, which means we wouldn't be able to return the
+	 * created prims yet, in case this function was called from within an SdfChangeBlock.
+	 *
+	 * @param ParentPrim - Prim that will become parent to the pasted prims
+	 * @return Paths to the pasted prim specs, after they were added as children of ParentPrim
+	 */
+	USDUTILITIES_API TArray<UE::FSdfPath> PastePrims( const UE::FUsdPrim& ParentPrim );
+
+	/** Returns true if we have prims that we can paste within our clipboard stage */
+	USDUTILITIES_API bool CanPastePrims();
+
+	/** Clears all prims from our clipboard stage */
+	USDUTILITIES_API void ClearPrimClipboard();
+
+	/**
+	 * Duplicates all provided Prims one-by-one, performing the requested DuplicateType.
+	 * See the documentation on EUsdDuplicateType for the different operation types.
+	 *
+	 * The duplicated prims may be renamed in order to have valid names for the target location, which is why this
+	 * function returns the pasted prim paths.
+	 * This function returns just paths instead of actual prims because USD needs to respond to the notices about
+	 * the created prim specs before the prims are fully created, which means we wouldn't be able to return the
+	 * created prims yet, in case this function was called from within an SdfChangeBlock.
+	 *
+	 * @param Prims - Prims to duplicate
+	 * @param DuplicateType - Type of prim duplication to perform
+	 * @param TargetLayer - Target layer to use when duplicating, if relevant for that duplication type
+	 * @return Paths to the duplicated prim specs, after they were added as children of ParentPrim.
+	 */
+	USDUTILITIES_API TArray<UE::FSdfPath> DuplicatePrims(
+		const TArray<UE::FUsdPrim>& Prims,
+		EUsdDuplicateType DuplicateType,
+		const UE::FSdfLayer& TargetLayer = UE::FSdfLayer{}
+	);
 }
 

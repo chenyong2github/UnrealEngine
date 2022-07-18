@@ -984,6 +984,26 @@ UE::FUsdStage UnrealUSDWrapper::NewStage()
 #endif // #if USE_USD_SDK
 }
 
+UE::FUsdStage UnrealUSDWrapper::GetClipboardStage()
+{
+	static UE::FUsdStage ClipboardStage;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( !ClipboardStage )
+	{
+		// Use this specific name so that we can check for it on our automated tests
+		pxr::UsdStageCacheContext StageCacheContext{ pxr::UsdUtilsStageCache::Get() };
+		ClipboardStage = UE::FUsdStage{ pxr::UsdStage::CreateInMemory( TCHAR_TO_ANSI( TEXT( "unreal_clipboard_layer" ) ) ) };
+
+		pxr::UsdGeomSetStageUpAxis( ClipboardStage, pxr::UsdGeomTokens->z );
+	}
+#endif // #if USE_USD_SDK
+
+	return ClipboardStage;
+}
+
 TArray< UE::FUsdStage > UnrealUSDWrapper::GetAllStagesFromCache()
 {
 	TArray< UE::FUsdStage > StagesInCache;

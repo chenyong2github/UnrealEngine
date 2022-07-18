@@ -81,7 +81,7 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 		Options->Inner.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
 
 		const bool bIsImport = false;
-		const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+		const bool bContinue = SUsdOptionsWindow::ShowImportExportOptions( *Options, bIsImport );
 		if ( !bContinue )
 		{
 			return false;
