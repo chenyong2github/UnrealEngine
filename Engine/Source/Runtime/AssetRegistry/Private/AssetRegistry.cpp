@@ -2421,7 +2421,7 @@ bool UAssetRegistryImpl::DoesPackageExistOnDisk(FName PackageName, FString* OutC
 			FReadScopeLock InterfaceScopeLock(InterfaceLock);
 			AssetPackageData = GuardedData.GetState().GetAssetPackageData(PackageName);
 		}
-		constexpr bool bVerifyNegativeResults = true;
+		const static bool bVerifyNegativeResults = FParse::Param(FCommandLine::Get(), TEXT("AssetRegistryValidatePackageExists"));
 		if (bVerifyNegativeResults && !AssetPackageData)
 		{
 			FString FileName;
