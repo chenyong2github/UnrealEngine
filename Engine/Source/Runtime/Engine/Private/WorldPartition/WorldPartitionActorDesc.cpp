@@ -485,11 +485,9 @@ AActor* FWorldPartitionActorDesc::Load() const
 	if (ActorPtr.IsExplicitlyNull())
 	{
 		const FLinkerInstancingContext* InstancingContext = nullptr;
-		FSoftObjectPathFixupArchive* SoftObjectPathFixupArchive = nullptr;
-
 		if (Container)
 		{
-			Container->GetInstancingContext(InstancingContext, SoftObjectPathFixupArchive);
+			Container->GetInstancingContext(InstancingContext);
 		}
 
 		UPackage* Package = nullptr;
@@ -507,14 +505,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 		if (Package)
 		{
 			ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
-			if (AActor* Actor = ActorPtr.Get())
-			{
-				if (SoftObjectPathFixupArchive)
-				{
-					SoftObjectPathFixupArchive->Fixup(Actor);
-				}
-			}
-			else
+			if (!ActorPtr.IsValid())
 			{
 				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor guid `%s` ('%s') from package '%s'"), *Guid.ToString(), *GetActorName().ToString(), *ActorPackage.ToString());
 			}

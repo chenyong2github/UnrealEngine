@@ -204,16 +204,36 @@ FString FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(const FAc
 	return InSubPathString;
 }
 
-FString FWorldPartitionLevelHelper::AddActorContainerIDToActorPath(const FActorContainerID& InContainerID, const FString& InActorPath)
+FString FWorldPartitionLevelHelper::GetContainerPackage(const FActorContainerID& InContainerID, const FString& InPackageName, int32 InPIEInstanceID)
+{
+	FString ContainerPackageName = InPackageName;
+	if (InPIEInstanceID != INDEX_NONE)
+	{
+		ContainerPackageName = UWorld::ConvertToPIEPackageName(ContainerPackageName, InPIEInstanceID);
+	}
+
+	return FString::Printf(TEXT("/Temp%s_%s"), *ContainerPackageName, *InContainerID.ToString());
+}
+
+bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InContainerID, const FString& InActorPath, FString& OutActorPath)
 {
 	if (!InContainerID.IsMainContainer())
 	{
 		const FSoftObjectPath SoftObjectPath(InActorPath);
+		const FString LongPackageName = SoftObjectPath.GetLongPackageName();
+			
+		const FString ContainerPackageString = GetContainerPackage(InContainerID, LongPackageName, INDEX_NONE);	
 		const FString NewSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, SoftObjectPath.GetSubPathString());
-		return FSoftObjectPath(SoftObjectPath.GetAssetPathName(), NewSubPathString).ToString();
+			
+		FNameBuilder NewAssetPathBuilder;
+		SoftObjectPath.GetAssetPathName().ToString(NewAssetPathBuilder);
+		NewAssetPathBuilder.ReplaceAt(0, LongPackageName.Len(), ContainerPackageString);
+
+		OutActorPath = FSoftObjectPath(*NewAssetPathBuilder, NewSubPathString).ToString();
+		return true;
 	}
 
-	return InActorPath;
+	return false;
 }
 
 /**
@@ -307,13 +327,8 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 		{
 			check(!PackageObjectMapping.ContainerID.IsMainContainer());
 		
-			FString ContainerPackageName = PackageObjectMapping.ContainerPackage.ToString();
-			if (InDestLevel && InDestLevel->GetPackage()->GetPIEInstanceID() != INDEX_NONE)
-			{
-				ContainerPackageName = UWorld::ConvertToPIEPackageName(ContainerPackageName, InDestLevel->GetPackage()->GetPIEInstanceID());
-			}
-			
-			const FName ContainerPackageInstanceName(*FString::Printf(TEXT("/Temp%s_%s"), *ContainerPackageName, *PackageObjectMapping.ContainerID.ToString()));
+			const int32 PIEInstanceID = InDestLevel ? InDestLevel->GetPackage()->GetPIEInstanceID() : INDEX_NONE;
+			const FName ContainerPackageInstanceName(GetContainerPackage(PackageObjectMapping.ContainerID, PackageObjectMapping.ContainerPackage.ToString(), PIEInstanceID));
 
 			FLinkerInstancingContext& NewContext = LinkerInstancingContexts.Add(PackageObjectMapping.ContainerID);
 			NewContext.AddTag(ULevel::DontLoadExternalObjectsTag);
@@ -400,7 +415,7 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 					// to a Cell in the StreamingPolicy (this relies on the fact that the _DUP package doesn't get fixed up)
 					FSoftObjectPathFixupArchive FixupArchive([&](FSoftObjectPath& Value)
 					{
-						if (!Value.IsNull() && Value.GetAssetPathString().Equals(SourceWorldPath, ESearchCase::IgnoreCase))
+						if (!Value.IsNull() && Value.GetAssetPathString().Equals(RemappedWorldPath, ESearchCase::IgnoreCase))
 						{
 							Value.SetSubPathString(AddActorContainerIDToSubPathString(PackageObjectMapping->ContainerID, Value.GetSubPathString()));
 						}

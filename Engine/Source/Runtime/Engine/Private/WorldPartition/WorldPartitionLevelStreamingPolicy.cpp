@@ -77,24 +77,27 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 	// Build Actor-to-Cell remapping
 	for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
 	{
-		if (!Cell->NeedsActorToCellRemapping())
-		{
-			continue;
-		}
-
 		const UWorldPartitionRuntimeLevelStreamingCell* StreamingCell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(Cell);
 		check(StreamingCell);
 		for (const FWorldPartitionRuntimeCellObjectMapping& CellObjectMap : StreamingCell->GetPackages())
 		{
-			// Add actor container id to actor path so that we can distinguish between actors of different Level Instances
-			const FString Path = FWorldPartitionLevelHelper::AddActorContainerIDToActorPath(CellObjectMap.ContainerID, CellObjectMap.Path.ToString());
-						
-			ActorToCellRemapping.Add(FName(*Path), StreamingCell->GetFName());
+			FString RemappedActorPath;
+			FString CellActorPath = CellObjectMap.Path.ToString();
 
-			const int32 LastDotPos = Path.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-			check(LastDotPos != INDEX_NONE);
-			
-			SubObjectsToCellRemapping.Add(FName(*Path.Mid(LastDotPos+1)), StreamingCell->GetFName());
+			// Add actor container id to actor path so that we can distinguish between actors of different Level Instances
+			const bool ActorPathNeedsRemapping = FWorldPartitionLevelHelper::RemapActorPath(CellObjectMap.ContainerID, CellActorPath, RemappedActorPath);
+
+			if (ActorPathNeedsRemapping || Cell->NeedsActorToCellRemapping())
+			{
+				const FString& ActorPath = ActorPathNeedsRemapping ? RemappedActorPath : CellActorPath;
+
+				ActorToCellRemapping.Add(FName(*ActorPath), StreamingCell->GetFName());
+
+				const int32 LastDotPos = ActorPath.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				check(LastDotPos != INDEX_NONE);
+
+				SubObjectsToCellRemapping.Add(FName(*ActorPath.Mid(LastDotPos + 1)), StreamingCell->GetFName());
+			}
 		}
 	}
 }

@@ -2678,6 +2678,12 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					//now load the map into the package created above
 					const FName WorldPackageFName = WorldPackage->GetFName();
 					UWorld::WorldTypePreLoadMap.FindOrAdd(WorldPackageFName) = EWorldType::Editor;
+					
+					// SoftObjectPaths: Specific case for new maps (/Temp/Untitled) where we need to remap the AssetPath and not just the Package name because the World gets renamed (See UWorld::PostLoad)
+					const FString ShortPackageName = FPackageName::GetShortName(LongTempFname);
+					const FString ShortWorldPackageName = FPackageName::GetShortName(WorldPackage);
+					WorldPackageInstancingContext.AddMapping(*WriteToString<256>(LongTempFname, TEXT("."), ShortPackageName), *WriteToString<256>(WorldPackage->GetName(), TEXT("."), ShortWorldPackageName ));
+
 					WorldPackage = LoadPackage( WorldPackage, *LongTempFname, LoadFlags, nullptr /* InReaderOverride */, &WorldPackageInstancingContext);
 					WorldPackage->SetPackageFlags(PKG_NewlyCreated);
 					UWorld::WorldTypePreLoadMap.Remove(WorldPackageFName);

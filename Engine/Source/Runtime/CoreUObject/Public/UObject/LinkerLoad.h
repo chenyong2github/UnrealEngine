@@ -193,16 +193,15 @@ private:
 	TUniquePtr<UE::FPackageTrailer> PackageTrailer;
 
 	// Helper function to access the InstancingContext IsInstanced, 
-	// returns false if WITH_EDITOR isn't defined.
 	bool IsContextInstanced() const;
 
+	// Helper function to query if we should do any SoftObjectPath fixup
+	bool IsSoftObjectRemappingEnabled() const;
+
 	// Helper function to access the InstancingContext, 
-	// return ObjectName directly  if WITH_EDITOR isn't defined.
 	FName InstancingContextRemap(FName ObjectName) const;
 
-	/** Set when the package is being loaded as an instance; empty otherwise. */
-	FNameBuilder InstancedPackageSourceName;
-	FNameBuilder InstancedPackageInstanceName;
+	/** Remaps SoftObjectPaths using InstancingContextRemap. */
 	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath);
 
 protected:

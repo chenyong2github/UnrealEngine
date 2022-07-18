@@ -12,11 +12,15 @@ class FLinkerInstancingContext
 {
 public:
 	FLinkerInstancingContext() = default;
-	FLinkerInstancingContext(TMap<FName, FName> InInstanceMapping)
+	explicit FLinkerInstancingContext(TMap<FName, FName> InInstanceMapping)
 		: Mapping(MoveTemp(InInstanceMapping))
 	{}
-	FLinkerInstancingContext(TSet<FName> InTags)
+	explicit FLinkerInstancingContext(TSet<FName> InTags)
 		: Tags(MoveTemp(InTags))
+	{
+	}
+	explicit FLinkerInstancingContext(bool bInSoftObjectPathRemappingEnabled)
+		: bSoftObjectPathRemappingEnabled(bInSoftObjectPathRemappingEnabled)
 	{
 	}
 
@@ -60,6 +64,13 @@ public:
 		return Tags.Contains(Tag);
 	}
 
+	void SetSoftObjectPathRemappingEnabled(bool bInSoftObjectPathRemappingEnabled)
+	{
+		bSoftObjectPathRemappingEnabled = bInSoftObjectPathRemappingEnabled;
+	}
+
+	bool GetSoftObjectPathRemappingEnabled() const { return bSoftObjectPathRemappingEnabled; }
+
 	/** Return the instanced package name for a given instanced outer package and an object package name */
 	static FString GetInstancedPackageName(const FString& InOuterPackageName, const FString& InPackageName)
 	{
@@ -73,4 +84,6 @@ private:
 	TMap<FName, FName> Mapping;
 	/** Tags can be used to determine some loading behavior. */
 	TSet<FName> Tags;
+	/** Remap soft object paths */
+	bool bSoftObjectPathRemappingEnabled = true;
 };

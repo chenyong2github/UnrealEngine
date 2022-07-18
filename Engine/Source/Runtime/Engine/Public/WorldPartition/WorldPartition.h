@@ -129,7 +129,7 @@ private:
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
 	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) override;
 
-	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
+	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const override;
 #endif
 
 public:
@@ -277,7 +277,6 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;
-	TUniquePtr<FSoftObjectPathFixupArchive> InstancingSoftObjectPathFixupArchive;
 
 	FWorldPartitionReference WorldDataLayersActor;
 #endif

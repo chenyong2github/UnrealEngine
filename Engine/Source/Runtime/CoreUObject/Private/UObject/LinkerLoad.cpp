@@ -958,12 +958,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 	FName PackageNameToLoad = GetPackagePath().GetPackageFName();
 	if (LinkerRoot->GetFName() != PackageNameToLoad)
 	{
-		PackageNameToLoad.ToString(InstancedPackageSourceName);
-		LinkerRoot->GetFName().ToString(InstancedPackageInstanceName);
-
-#if WITH_EDITOR
 		InstancingContext.AddMapping(PackageNameToLoad, LinkerRoot->GetFName());
-#endif
 	}
 }
 
@@ -6196,36 +6191,39 @@ bool FLinkerLoad::FinishExternalReadDependencies(double InTimeLimit)
 
 bool FLinkerLoad::IsContextInstanced() const
 {
-#if WITH_EDITOR
 	return InstancingContext.IsInstanced();
-#else
-	return false;
-#endif
+}
+
+bool FLinkerLoad::IsSoftObjectRemappingEnabled() const
+{
+	return IsContextInstanced() && InstancingContext.GetSoftObjectPathRemappingEnabled();
 }
 
 FName FLinkerLoad::InstancingContextRemap(FName ObjectName) const
 {
-#if WITH_EDITOR
 	return InstancingContext.Remap(ObjectName);
-#else
-	return ObjectName;
-#endif
 }
 
 void FLinkerLoad::FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 {
-	if (InstancedPackageSourceName.Len() > 0 && InstancedPackageInstanceName.Len() > 0)
+	if (IsSoftObjectRemappingEnabled())
 	{
-		FNameBuilder TmpSoftObjectPathBuilder;
-		InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
-
-		FStringView InstancedPackageSourceNameView = InstancedPackageSourceName.ToView();
-		FStringView TmpSoftObjectPathView = TmpSoftObjectPathBuilder.ToView();
-
-		if (TmpSoftObjectPathView.StartsWith(InstancedPackageSourceNameView) && (TmpSoftObjectPathView.Len() == InstancedPackageSourceNameView.Len() || TmpSoftObjectPathView[InstancedPackageSourceNameView.Len()] == TEXT('.')))
+		// Try remapping AssetPathName before remapping LongPackageName
+		if (FName RemappedAssetPath = InstancingContextRemap(InOutSoftObjectPath.GetAssetPathName()); RemappedAssetPath != InOutSoftObjectPath.GetAssetPathName())
 		{
-			TmpSoftObjectPathBuilder.ReplaceAt(0, InstancedPackageSourceNameView.Len(), InstancedPackageInstanceName.ToView());
-			InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
+			InOutSoftObjectPath.SetAssetPathName(RemappedAssetPath);
+		}
+		else
+		{
+			FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName();
+			if (FName RemappedPackage = InstancingContextRemap(LongPackageName); RemappedPackage != LongPackageName)
+			{
+				FNameBuilder TmpSoftObjectPathBuilder;
+				InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
+
+				TmpSoftObjectPathBuilder.ReplaceAt(0, LongPackageName.GetStringLength(), RemappedPackage.ToString());
+				InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
+			}
 		}
 	}
 }

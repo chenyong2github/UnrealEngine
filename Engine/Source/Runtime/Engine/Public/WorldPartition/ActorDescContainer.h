@@ -36,7 +36,7 @@ public:
 	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
 
 	/** Instancing support */
-	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const { return false; }
+	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const { return false; }
 #endif
 
 	virtual const FTransform& GetInstanceTransform() const { return FTransform::Identity; }

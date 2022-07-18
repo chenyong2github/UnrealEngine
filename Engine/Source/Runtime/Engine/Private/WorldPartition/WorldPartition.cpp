@@ -424,7 +424,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		if (bIsInstanced)
 		{
 			InstancingContext.AddMapping(PackageName, LevelPackage->GetFName());
-			InstancingSoftObjectPathFixupArchive.Reset(new FSoftObjectPathFixupArchive(SourceWorldPath, RemappedWorldPath));
+
+			// SoftObjectPaths: Specific case for new maps (/Temp/Untitled) where we need to remap the AssetPath and not just the Package name because the World gets renamed (See UWorld::PostLoad)
+			InstancingContext.AddMapping(*FString::Format(TEXT("{0}.{1}"), { PackageName.ToString(), FPackageName::GetShortName(PackageName) }), *GetWorld()->GetPathName());
 		}
 
 		{
@@ -897,12 +899,11 @@ void UWorldPartition::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
 	}
 }
 
-bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const
+bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const
 {
 	if (InstancingContext.IsInstanced())
 	{
 		OutInstancingContext = &InstancingContext;
-		OutSoftObjectPathFixupArchive = InstancingSoftObjectPathFixupArchive.Get();
 		return true;
 	}
 	return false;
@@ -1376,7 +1377,6 @@ void UWorldPartition::OnWorldRenamed()
 
 	// World was renamed so existing context is invalid.
 	InstancingContext = FLinkerInstancingContext();
-	InstancingSoftObjectPathFixupArchive.Reset();
 }
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)

@@ -282,7 +282,9 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	check(!bLoadRequestInProgress);
 	bLoadSucceeded = false;
 	bLoadRequestInProgress = true;
-	FLinkerInstancingContext InstancingContext;
+	// Don't do SoftObjectPath remapping for PersistentLevel actors because references can end up in different cells
+	const bool bSoftObjectRemappingEnabled = false;
+	FLinkerInstancingContext InstancingContext(bSoftObjectRemappingEnabled);
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
 

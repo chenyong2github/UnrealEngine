@@ -145,11 +145,17 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratorPackageForCook(T
 	{
 		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
 		const bool bLoadAsync = false;
-		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
-		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
+		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+
+		// Don't do SoftObjectPath remapping for PersistentLevel actors because references can end up in different cells
+		const bool bSoftObjectRemappingEnabled = false;
+		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext(bSoftObjectRemappingEnabled)));
 
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel, OutModifiedPackages);
 
+		// Remap needed here for references to Actors that are inside a Container
+		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(OuterWorld->PersistentLevel, WorldPartition);
 		// Empty cell's package list (this ensures that no one can rely on cell's content).
 		Packages.Empty();
 	}
@@ -195,7 +201,10 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		// Load cell Actors
 		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
 		const bool bLoadAsync = false;
-		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
+
+		// Don't do SoftObjectPath remapping for PersistentLevel actors because references can end up in different cells
+		const bool bSoftObjectRemappingEnabled = false;
+		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext(bSoftObjectRemappingEnabled)));
 
 		// Create a level and move these actors in it
 		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(this, OuterWorld, LevelStreaming->GetWorldAsset().ToString(), InPackage);

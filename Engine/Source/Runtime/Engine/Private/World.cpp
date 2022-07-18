@@ -1223,10 +1223,11 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (!GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
+		// Avoid renaming PIE worlds and Instanced worlds except for the new maps (/Temp/Untitled) to preserve naming behavior
+		if (!GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor) && (!IsInstanced() || GetPackage()->GetPathName().StartsWith(TEXT("/Temp/Untitled"))))
 		{
 			// Needed for VER_UE4_WORLD_NAMED_AFTER_PACKAGE. If this file was manually renamed outside of the editor, this is needed anyway
-			const FString ShortPackageName = FPackageName::GetLongPackageAssetName(GetOutermost()->GetName());
+			const FString ShortPackageName = FPackageName::GetLongPackageAssetName(GetPackage()->GetName());
 			OriginalWorldName = GetFName();
 			if (GetName() != ShortPackageName)
 			{
