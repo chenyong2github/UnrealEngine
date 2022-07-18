@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "PlatformInfo.h"
+#include "Templates/PimplPtr.h"
 
 // Forward declare.
 namespace Audio 
