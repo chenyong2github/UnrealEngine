@@ -11,6 +11,7 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
+#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "Http/HttpClient.h"
 #include "Math/UnrealMathUtility.h"
@@ -21,11 +22,9 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
-#include "Serialization/CompactBinarySerialization.h"
-#include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 #include "Templates/Function.h"
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
@@ -63,10 +62,6 @@ void ForEachBatch(const int32 BatchSize, const int32 TotalCount, T&& Fn)
 	}
 }
 
-//----------------------------------------------------------------------------------------------------------
-// FZenCacheStore
-//----------------------------------------------------------------------------------------------------------
-
 /**
  * Backend for a HTTP based caching service (Zen)
  */
@@ -77,10 +72,10 @@ public:
 	/**
 	 * Creates the cache store client, checks health status and attempts to acquire an access token.
 	 *
-	 * @param ServiceUrl	Base url to the service including schema.
+	 * @param ServiceUrl	Base url to the service including scheme.
 	 * @param Namespace		Namespace to use.
 	 */
-	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
+	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace);
 
 	inline FString GetName() const { return ZenService.GetInstance().GetURL(); }
 
@@ -125,29 +120,13 @@ public:
 private:
 	bool IsServiceReady();
 
-	using FOnRpcComplete = TUniqueFunction<void(FHttpRequest::EResult HttpResult, FHttpRequest* Request, FCbPackage& Response)>;
-	static FHttpRequest::EResult ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse);
-	static FHttpRequest::EResult PerformBlockingRpc(FHttpRequest& Request,
-		FStringView Uri,
-		FCbObject RequestObject,
-		FCbPackage &OutResponse);
-	static FHttpRequest::EResult PerformBlockingRpc(FHttpRequest& Request,
-		FStringView Uri,
-		const FCbPackage& RequestPackage,
-		FCbPackage& OutResponse);
-	static void EnqueueAsyncRpc(FHttpRequest& Request,
-		UE::DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		FCbObject RequestObject,
-		FOnRpcComplete&& OnComplete);
-	static void EnqueueAsyncRpc(FHttpRequest& Request,
-		UE::DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		const FCbPackage& RequestPackage,
-		FOnRpcComplete&& OnComplete);
-
+	static FCompositeBuffer SaveRpcPackage(const FCbPackage& Package);
+	THttpUniquePtr<IHttpRequest> CreateRpcRequest();
+	THttpUniquePtr<IHttpResponse> PerformBlockingRpc(FCbObject RequestObject, FCbPackage& OutResponse);
+	THttpUniquePtr<IHttpResponse> PerformBlockingRpc(const FCbPackage& RequestPackage, FCbPackage& OutResponse);
+	using FOnRpcComplete = TUniqueFunction<void(THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)>;
+	void EnqueueAsyncRpc(IRequestOwner& Owner, FCbObject RequestObject, FOnRpcComplete&& OnComplete);
+	void EnqueueAsyncRpc(IRequestOwner& Owner, const FCbPackage& RequestPackage, FOnRpcComplete&& OnComplete);
 
 	template <typename T, typename... ArgTypes>
 	static TRefCountPtr<T> MakeAsyncOp(ArgTypes&&... Args)
@@ -155,29 +134,31 @@ private:
 		// TODO: This should in-place construct from a pre-allocated memory pool
 		return TRefCountPtr<T>(new T(Forward<ArgTypes>(Args)...));
 	}
+
 private:
-	friend class FPutOp;
-	friend class FGetOp;
-	friend class FPutValueOp;
-	friend class FGetValueOp;
-	friend class FGetChunksOp;
+	class FPutOp;
+	class FGetOp;
+	class FPutValueOp;
+	class FGetValueOp;
+	class FGetChunksOp;
+
+	class FCbPackageReceiver;
+	class FAsyncCbPackageReceiver;
 
 	FString Namespace;
-	FString StructuredNamespace;
 	UE::Zen::FScopeZenService ZenService;
 	mutable FDerivedDataCacheUsageStats UsageStats;
-	TUniquePtr<FHttpSharedData> SharedData;
-	TUniquePtr<FHttpRequestPool> RequestPool;
+	THttpUniquePtr<IHttpConnectionPool> ConnectionPool;
+	FHttpRequestQueue RequestQueue;
 	bool bIsUsable = false;
 	int32 BatchPutMaxBytes = 1024*1024;
 	int32 CacheRecordBatchSize = 8;
 	int32 CacheChunksBatchSize = 8;
-
-	/** Debug Options */
 	FBackendDebugOptions DebugOptions;
+	TAnsiStringBuilder<256> RpcUri;
 };
 
-class FPutOp final : public FThreadSafeRefCountedObject
+class FZenCacheStore::FPutOp final : public FThreadSafeRefCountedObject
 {
 public:
 	FPutOp(FZenCacheStore& InCacheStore,
@@ -206,7 +187,7 @@ public:
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
 					BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-					BatchWriter.AddString(ANSITEXTVIEW("Namespace"), CacheStore.StructuredNamespace);
+					BatchWriter.AddString(ANSITEXTVIEW("Namespace"), CacheStore.Namespace);
 
 					BatchWriter.BeginArray(ANSITEXTVIEW("Requests"));
 					for (const FCachePutRequest& Request : Batch)
@@ -231,10 +212,10 @@ public:
 			BatchWriter.EndObject();
 			BatchPackage.SetObject(BatchWriter.Save().AsObject());
 
-			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FPutOp>(this), Batch](FHttpRequest::EResult HttpResult, FHttpRequest* HttpRequest, FCbPackage& Response)
+			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FPutOp>(this), Batch](THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)
 			{
 				int32 RequestIndex = 0;
-				if (HttpResult == FHttpRequest::EResult::Success)
+				if (HttpResponse->GetErrorCode() == EHttpErrorCode::None)
 				{
 					const FCbObject& ResponseObj = Response.GetObject();
 					for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
@@ -267,8 +248,7 @@ public:
 					OnMiss(Request);
 				}
 			};
-			FHttpRequest* Request = CacheStore.RequestPool->WaitForFreeRequest();
-			CacheStore.EnqueueAsyncRpc(*Request, Owner, CacheStore.RequestPool.Get(), TEXTVIEW("/z$/$rpc"), BatchPackage, MoveTemp(OnRpcComplete));
+			CacheStore.EnqueueAsyncRpc(Owner, BatchPackage, MoveTemp(OnRpcComplete));
 		}
 	}
 
@@ -317,7 +297,7 @@ private:
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer = CacheStore.UsageStats.TimePut());
 };
 
-class FGetOp final : public FThreadSafeRefCountedObject
+class FZenCacheStore::FGetOp final : public FThreadSafeRefCountedObject
 {
 public:
 	FGetOp(FZenCacheStore& InCacheStore,
@@ -354,7 +334,7 @@ public:
 					{
 						ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
 						BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-						BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.StructuredNamespace);
+						BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.Namespace);
 
 						BatchRequest.BeginArray(ANSITEXTVIEW("Requests"));
 						for (const FCacheGetRequest& Request : Batch)
@@ -376,10 +356,10 @@ public:
 				BatchRequest.EndObject();
 
 				FGetOp* OriginalOp = this;
-				auto OnRpcComplete = [this, OpRef = TRefCountPtr<FGetOp>(OriginalOp), Batch](FHttpRequest::EResult HttpResult, FHttpRequest* HttpRequest, FCbPackage& Response)
+				auto OnRpcComplete = [this, OpRef = TRefCountPtr<FGetOp>(OriginalOp), Batch](THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)
 				{
 					int32 RequestIndex = 0;
-					if (HttpResult == FHttpRequest::EResult::Success)
+					if (HttpResponse->GetErrorCode() == EHttpErrorCode::None)
 					{
 						const FCbObject& ResponseObj = Response.GetObject();
 						
@@ -418,8 +398,7 @@ public:
 					}
 				};
 
-				FHttpRequest* Request = CacheStore.RequestPool->WaitForFreeRequest();
-				CacheStore.EnqueueAsyncRpc(*Request, Owner, CacheStore.RequestPool.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), MoveTemp(OnRpcComplete));
+				CacheStore.EnqueueAsyncRpc(Owner, BatchRequest.Save().AsObject(), MoveTemp(OnRpcComplete));
 			});
 	}
 private:
@@ -451,7 +430,7 @@ private:
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer = CacheStore.UsageStats.TimeGet());
 };
 
-class FPutValueOp final : public FThreadSafeRefCountedObject
+class FZenCacheStore::FPutValueOp final : public FThreadSafeRefCountedObject
 {
 public:
 	FPutValueOp(FZenCacheStore& InCacheStore,
@@ -480,7 +459,7 @@ public:
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
 					BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-					BatchWriter.AddString(ANSITEXTVIEW("Namespace"), CacheStore.StructuredNamespace);
+					BatchWriter.AddString(ANSITEXTVIEW("Namespace"), CacheStore.Namespace);
 
 					BatchWriter.BeginArray("Requests");
 					for (const FCachePutValueRequest& Request : Batch)
@@ -508,10 +487,10 @@ public:
 			BatchWriter.EndObject();
 			BatchPackage.SetObject(BatchWriter.Save().AsObject());
 
-			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FPutValueOp>(this), Batch](FHttpRequest::EResult HttpResult, FHttpRequest* HttpRequest, FCbPackage& Response)
+			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FPutValueOp>(this), Batch](THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)
 			{
 				int32 RequestIndex = 0;
-				if (HttpResult == FHttpRequest::EResult::Success)
+				if (HttpResponse->GetErrorCode() == EHttpErrorCode::None)
 				{
 					const FCbObject& ResponseObj = Response.GetObject();
 					for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
@@ -543,8 +522,8 @@ public:
 					OnMiss(Request);
 				}
 			};
-			FHttpRequest* Request = CacheStore.RequestPool->WaitForFreeRequest();
-			CacheStore.EnqueueAsyncRpc(*Request, Owner, CacheStore.RequestPool.Get(), TEXTVIEW("/z$/$rpc"), BatchPackage, MoveTemp(OnRpcComplete));
+
+			CacheStore.EnqueueAsyncRpc(Owner, BatchPackage, MoveTemp(OnRpcComplete));
 		}
 	}
 
@@ -586,7 +565,7 @@ private:
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer = CacheStore.UsageStats.TimePut());
 };
 
-class FGetValueOp final : public FThreadSafeRefCountedObject
+class FZenCacheStore::FGetValueOp final : public FThreadSafeRefCountedObject
 {
 public:
 	FGetValueOp(FZenCacheStore& InCacheStore,
@@ -623,7 +602,7 @@ public:
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
 					BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.StructuredNamespace);
+					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.Namespace);
 
 					BatchRequest.BeginArray("Requests");
 					for (const FCacheGetValueRequest& Request : Batch)
@@ -645,10 +624,10 @@ public:
 			BatchRequest.EndObject();
 
 			FGetValueOp* OriginalOp = this;
-			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FGetValueOp>(OriginalOp), Batch](FHttpRequest::EResult HttpResult, FHttpRequest* HttpRequest, FCbPackage& Response)
+			auto OnRpcComplete = [this, OpRef = TRefCountPtr<FGetValueOp>(OriginalOp), Batch](THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)
 			{
 				int32 RequestIndex = 0;
-				if (HttpResult == FHttpRequest::EResult::Success)
+				if (HttpResponse->GetErrorCode() == EHttpErrorCode::None)
 				{
 					const FCbObject& ResponseObj = Response.GetObject();
 
@@ -699,8 +678,8 @@ public:
 					OnMiss(Request);
 				}
 			};
-			FHttpRequest* Request = CacheStore.RequestPool->WaitForFreeRequest();
-			CacheStore.EnqueueAsyncRpc(*Request, Owner, CacheStore.RequestPool.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), MoveTemp(OnRpcComplete));
+
+			CacheStore.EnqueueAsyncRpc(Owner, BatchRequest.Save().AsObject(), MoveTemp(OnRpcComplete));
 		});
 	}
 private:
@@ -731,7 +710,7 @@ private:
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer = CacheStore.UsageStats.TimeGet());
 };
 
-class FGetChunksOp final : public FThreadSafeRefCountedObject
+class FZenCacheStore::FGetChunksOp final : public FThreadSafeRefCountedObject
 {
 public:
 	FGetChunksOp(FZenCacheStore& InCacheStore,
@@ -770,7 +749,7 @@ public:
 				{
 					ECachePolicy DefaultPolicy = Batch[0].Policy;
 					BatchRequest << ANSITEXTVIEW("DefaultPolicy") << WriteToString<128>(DefaultPolicy);
-					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.StructuredNamespace);
+					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), CacheStore.Namespace);
 
 					BatchRequest.BeginArray(ANSITEXTVIEW("ChunkRequests"));
 					for (const FCacheGetChunkRequest& Request : Batch)
@@ -809,16 +788,16 @@ public:
 			BatchRequest.EndObject();
 
 			FCbPackage BatchResponse;
-			FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+			EHttpErrorCode HttpErrorCode = EHttpErrorCode::Unknown;
 
 			{
 				LLM_SCOPE_BYTAG(UntaggedDDCResult);
-				FScopedHttpPoolRequestPtr Request(CacheStore.RequestPool.Get());
-				HttpResult = CacheStore.PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
+				THttpUniquePtr<IHttpResponse> HttpResponse = CacheStore.PerformBlockingRpc(BatchRequest.Save().AsObject(), BatchResponse);
+				HttpErrorCode = HttpResponse->GetErrorCode();
 			}
 
 			int32 RequestIndex = 0;
-			if (HttpResult == FHttpRequest::EResult::Success)
+			if (HttpErrorCode == EHttpErrorCode::None)
 			{
 				const FCbObject& ResponseObj = BatchResponse.GetObject();
 
@@ -904,22 +883,123 @@ private:
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer = CacheStore.UsageStats.TimeGet());
 };
 
+class FZenCacheStore::FCbPackageReceiver final : public IHttpReceiver
+{
+public:
+	FCbPackageReceiver(const FCbPackageReceiver&) = delete;
+	FCbPackageReceiver& operator=(const FCbPackageReceiver&) = delete;
+
+	explicit FCbPackageReceiver(FCbPackage& OutPackage, IHttpReceiver* InNext = nullptr)
+		: Package(OutPackage)
+		, Next(InNext)
+	{
+	}
+
+private:
+	IHttpReceiver* OnCreate(IHttpResponse& Response) final
+	{
+		return &BodyReceiver;
+	}
+
+	IHttpReceiver* OnComplete(IHttpResponse& Response) final
+	{
+		FMemoryReaderView Ar(MakeMemoryView(BodyArray));
+		Package.TryLoad(Ar);
+		return Next;
+	}
+
+private:
+	FCbPackage& Package;
+	IHttpReceiver* Next;
+	TArray64<uint8> BodyArray;
+	FHttpByteArrayReceiver BodyReceiver{BodyArray, this};
+};
+
+class FZenCacheStore::FAsyncCbPackageReceiver final : public FRequestBase, public IHttpReceiver
+{
+public:
+	FAsyncCbPackageReceiver(const FAsyncCbPackageReceiver&) = delete;
+	FAsyncCbPackageReceiver& operator=(const FAsyncCbPackageReceiver&) = delete;
+
+	FAsyncCbPackageReceiver(
+		THttpUniquePtr<IHttpRequest>&& InRequest,
+		IRequestOwner* InOwner,
+		FOnRpcComplete&& InOnRpcComplete)
+		: Request(MoveTemp(InRequest))
+		, Owner(InOwner)
+		, BaseReceiver(Package, this)
+		, OnRpcComplete(MoveTemp(InOnRpcComplete))
+	{
+		Request->SendAsync(this, Response);
+	}
+
+private:
+	// IRequest Interface
+
+	void SetPriority(EPriority Priority) final {}
+	void Cancel() final { Monitor->Cancel(); }
+	void Wait() final { Monitor->Wait(); }
+
+	// IHttpReceiver Interface
+
+	IHttpReceiver* OnCreate(IHttpResponse& LocalResponse) final
+	{
+		Monitor = LocalResponse.GetMonitor();
+		Owner->Begin(this);
+		return &BaseReceiver;
+	}
+
+	IHttpReceiver* OnComplete(IHttpResponse& LocalResponse) final
+	{
+		Request.Reset();
+		Owner->End(this, [Self = this]
+		{
+			if (Self->OnRpcComplete)
+			{
+				// Launch a task for the completion function since it can execute arbitrary code.
+				Self->Owner->LaunchTask(TEXT("ZenHttpComplete"), [Self = TRefCountPtr(Self)]
+				{
+					Self->OnRpcComplete(Self->Response, Self->Package);
+				});
+			}
+		});
+		return nullptr;
+	}
+
+private:
+	THttpUniquePtr<IHttpRequest> Request;
+	THttpUniquePtr<IHttpResponse> Response;
+	TRefCountPtr<IHttpResponseMonitor> Monitor;
+	IRequestOwner* Owner;
+	FCbPackage Package;
+	FCbPackageReceiver BaseReceiver;
+	FOnRpcComplete OnRpcComplete;
+};
+
 FZenCacheStore::FZenCacheStore(
 	const TCHAR* InServiceUrl,
-	const TCHAR* InNamespace,
-	const TCHAR* InStructuredNamespace)
+	const TCHAR* InNamespace)
 	: Namespace(InNamespace)
-	, StructuredNamespace(InStructuredNamespace)
 	, ZenService(InServiceUrl)
 {
-	const uint32 MaxConnections = FMath::Clamp(static_cast<uint32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads()), 8, 64);
-	constexpr uint32 RequestPoolSize = 128;
-	constexpr uint32 RequestPoolOverflowSize = 128;
-	
-	SharedData = MakeUnique<FHttpSharedData>(MaxConnections);
 	if (IsServiceReady())
 	{
-		RequestPool = MakeUnique<FHttpRequestPool>(ZenService.GetInstance().GetURL(), ZenService.GetInstance().GetURL(), nullptr, SharedData.Get(), RequestPoolSize, RequestPoolOverflowSize);
+		RpcUri << ZenService.GetInstance().GetURL() << ANSITEXTVIEW("/z$/$rpc");
+
+		const uint32 MaxConnections = FMath::Clamp(static_cast<uint32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads()), 8, 64);
+		constexpr uint32 RequestPoolSize = 128;
+		constexpr uint32 RequestPoolOverflowSize = 128;
+
+		FHttpConnectionPoolParams ConnectionPoolParams;
+		ConnectionPoolParams.MaxConnections = MaxConnections;
+		ConnectionPoolParams.MinConnections = MaxConnections;
+		ConnectionPool = IHttpManager::Get().CreateConnectionPool(ConnectionPoolParams);
+
+		FHttpClientParams ClientParams;
+		ClientParams.MaxRequests = RequestPoolSize + RequestPoolOverflowSize;
+		ClientParams.MinRequests = RequestPoolSize;
+		RequestQueue = FHttpRequestQueue(*ConnectionPool, ClientParams);
+
 		bIsUsable = true;
 
 		// Issue a request for stats as it will be fetched asynchronously and issuing now makes them available sooner for future callers.
@@ -937,85 +1017,61 @@ bool FZenCacheStore::IsServiceReady()
 	return ZenService.GetInstance().IsServiceReady();
 }
 
-FHttpRequest::EResult FZenCacheStore::ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse)
+FCompositeBuffer FZenCacheStore::SaveRpcPackage(const FCbPackage& Package)
 {
-	if (ResultFromPost != FHttpRequest::EResult::Success || !FHttpRequest::IsSuccessResponse(Request.GetResponseCode()))
-	{
-		return FHttpRequest::EResult::Failed;
-	}
-
-	const TArray64<uint8>& ResponseBuffer = Request.GetResponseBuffer();
-	if (ResponseBuffer.Num())
-	{
-		FLargeMemoryReader Ar(ResponseBuffer.GetData(), ResponseBuffer.Num());
-		if (!OutResponse.TryLoad(Ar))
-		{
-			return FHttpRequest::EResult::Failed;
-		}
-	}
-
-	return FHttpRequest::EResult::Success;
+	FLargeMemoryWriter Memory;
+	Zen::Http::SaveCbPackage(Package, Memory);
+	uint64 PackageMemorySize = Memory.TotalSize();
+	return FCompositeBuffer(FSharedBuffer::TakeOwnership(Memory.ReleaseOwnership(), PackageMemorySize, FMemory::Free));
 }
 
-FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
-	FStringView Uri,
-	FCbObject RequestObject,
-	FCbPackage& OutResponse)
+THttpUniquePtr<IHttpRequest> FZenCacheStore::CreateRpcRequest()
 {
-	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, RequestObject.GetBuffer(), EHttpMediaType::CbObject, EHttpMediaType::CbPackage), Request, OutResponse);
+	THttpUniquePtr<IHttpRequest> Request = RequestQueue.CreateRequest({});
+	Request->SetUri(RpcUri);
+	Request->SetMethod(EHttpMethod::Post);
+	Request->AddAcceptType(EHttpMediaType::CbPackage);
+	return Request;
 }
 
-FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
-	FStringView Uri,
-	const FCbPackage& RequestPackage,
-	FCbPackage& OutResponse)
+THttpUniquePtr<IHttpResponse> FZenCacheStore::PerformBlockingRpc(FCbObject RequestObject, FCbPackage& OutResponse)
 {
-	FLargeMemoryWriter PackageMemory;
-	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
+	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
+	Request->SetContentType(EHttpMediaType::CbObject);
+	Request->SetBody(RequestObject.GetBuffer().MakeOwned());
 
-	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, FCompositeBuffer(FSharedBuffer::MakeView(PackageMemory.GetView())), EHttpMediaType::CbPackage, EHttpMediaType::CbPackage), Request, OutResponse);
+	FCbPackageReceiver Receiver(OutResponse);
+	THttpUniquePtr<IHttpResponse> Response;
+	Request->Send(&Receiver, Response);
+	return Response;
 }
 
-void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
-	UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	FCbObject RequestObject,
-	FOnRpcComplete&& OnComplete)
+THttpUniquePtr<IHttpResponse> FZenCacheStore::PerformBlockingRpc(const FCbPackage& RequestPackage, FCbPackage& OutResponse)
 {
-	auto OnHttpRequestComplete = [OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
-	{
-		FCbPackage Response;
-		FHttpRequest::EResult ParsedResponseResult = ParseRpcResponse(HttpResult, *Request, Response);
-		OnComplete(ParsedResponseResult, Request, Response);
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, RequestObject.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject, EHttpMediaType::CbPackage);
+	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
+	Request->SetContentType(EHttpMediaType::CbPackage);
+	Request->SetBody(SaveRpcPackage(RequestPackage));
+
+	FCbPackageReceiver Receiver(OutResponse);
+	THttpUniquePtr<IHttpResponse> Response;
+	Request->Send(&Receiver, Response);
+	return Response;
 }
 
-void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
-	UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	const FCbPackage& RequestPackage,
-	FOnRpcComplete&& OnComplete)
+void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, FCbObject RequestObject, FOnRpcComplete&& OnComplete)
 {
-	auto OnHttpRequestComplete = [OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
-	{
-		FCbPackage Response;
-		FHttpRequest::EResult ParsedResponseResult = ParseRpcResponse(HttpResult, *Request, Response);
-		OnComplete(ParsedResponseResult, Request, Response);
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	FLargeMemoryWriter PackageMemory;
-	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
-	uint64 PackageMemorySize = PackageMemory.TotalSize();
-	FSharedBuffer PackageSharedBuffer = FSharedBuffer::TakeOwnership(PackageMemory.ReleaseOwnership(), PackageMemorySize, FMemory::Free);
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, FCompositeBuffer(PackageSharedBuffer), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbPackage, EHttpMediaType::CbPackage);
+	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
+	Request->SetContentType(EHttpMediaType::CbObject);
+	Request->SetBody(RequestObject.GetBuffer().MakeOwned());
+	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, MoveTemp(OnComplete));
+}
+
+void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, const FCbPackage& RequestPackage, FOnRpcComplete&& OnComplete)
+{
+	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
+	Request->SetContentType(EHttpMediaType::CbPackage);
+	Request->SetBody(SaveRpcPackage(RequestPackage));
+	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, MoveTemp(OnComplete));
 }
 
 void FZenCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
@@ -1144,7 +1200,7 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* No
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Missing required parameter 'StructuredNamespace', falling back to Namespace: '%s'"), NodeName, *StructuredNamespace);
 	}
 
-	TUniquePtr<FZenCacheStore> Backend = MakeUnique<FZenCacheStore>(*ServiceUrl, *Namespace, *StructuredNamespace);
+	TUniquePtr<FZenCacheStore> Backend = MakeUnique<FZenCacheStore>(*ServiceUrl, *StructuredNamespace);
 	if (!Backend->IsUsable())
 	{
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to contact the service (%s), will not use it."), NodeName, *Backend->GetName());

@@ -3,39 +3,48 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "Containers/DepletableMpscQueue.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
-#include "Containers/UnrealString.h"
-#include "Dom/JsonObject.h"
-#include "Experimental/Async/LazyEvent.h"
-#include "Experimental/Containers/FAAArrayQueue.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/Thread.h"
-#include "Memory/CompositeBuffer.h"
-#include "Memory/MemoryView.h"
+#include "Containers/StringView.h"
+#include "Memory/MemoryFwd.h"
+#include "Templates/Function.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/RefCounting.h"
-#include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
-#include <atomic>
 
-struct curl_slist;
-namespace UE { class FHttpRequest; }
-namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::Http::Private { struct FAsyncRequestData; }
-namespace UE::Http::Private { struct FCurlStringListDeleter; }
-namespace UE::Http::Private { struct FHttpRequestStatics; }
-namespace UE::Http::Private { struct FHttpSharedDataInternals; }
-namespace UE::Http::Private { struct FHttpSharedDataStatics; }
-namespace UE::Http::Private { using FCurlStringList = TUniquePtr<curl_slist, FCurlStringListDeleter>; }
+namespace UE { class IHttpClient; }
+namespace UE { class IHttpConnectionPool; }
+namespace UE { class IHttpReceiver; }
+namespace UE { class IHttpRequest; }
+namespace UE { class IHttpResponse; }
+namespace UE { struct FHttpClientParams; }
+namespace UE { struct FHttpConnectionPoolParams; }
+namespace UE { struct FHttpRequestParams; }
+namespace UE { struct FHttpResponseStats; }
+namespace UE::Http::Private { struct FHttpRequestQueueData; }
+
+namespace UE::Http::Private
+{
+
+template <typename T>
+struct THttpDestroyer
+{
+	void operator()(void* Object) const
+	{
+		if (Object)
+		{
+			((T*)Object)->Destroy();
+		}
+	}
+};
+
+} // UE::Http::Private
 
 namespace UE
 {
 
-class FHttpRequestPool;
+template <typename Type, typename BaseType = Type>
+using THttpUniquePtr = TUniquePtr<Type, Http::Private::THttpDestroyer<BaseType>>;
 
 enum class EHttpMethod : uint8
 {
@@ -46,10 +55,11 @@ enum class EHttpMethod : uint8
 	Delete,
 };
 
-enum class EHttpMediaType : int16
+FAnsiStringView LexToString(EHttpMethod Method);
+bool TryLexFromString(EHttpMethod& OutMethod, FAnsiStringView View);
+
+enum class EHttpMediaType : uint8
 {
-	// Negative integers reserved for future custom string content types
-	UnspecifiedContentType = 0,
 	Any,
 	Binary,
 	Text,
@@ -62,520 +72,382 @@ enum class EHttpMediaType : int16
 	FormUrlEncoded,
 };
 
-inline FStringView GetHttpMimeType(EHttpMediaType Type)
+FAnsiStringView LexToString(EHttpMediaType MediaType);
+bool TryLexFromString(EHttpMediaType& OutMediaType, FAnsiStringView View);
+
+enum class EHttpTlsLevel : uint8
 {
-	switch (Type)
+	/** Do not use TLS. */
+	None = 0,
+	/** Try to use TLS and fall back to none. */
+	Try,
+	/** Require TLS. */
+	All,
+};
+
+enum class EHttpErrorCode : uint8
+{
+	/** Success. */
+	None = 0,
+	/** Unknown. Check IHttpResponse::GetError(). */
+	Unknown,
+	/** Request was canceled. */
+	Canceled,
+	/** Failed to resolve the host. */
+	ResolveHost,
+	/** Failed to establish a connection. */
+	Connect,
+	/** Failed to establish a TLS connection. */
+	TlsConnect,
+	/** Failed to verify the certificate of the peer. */
+	TlsPeerVerification,
+	/** Failed because the timeout period was exceeded. */
+	TimedOut,
+};
+
+class IHttpManager
+{
+public:
+	static IHttpManager& Get();
+
+	[[nodiscard]] virtual THttpUniquePtr<IHttpConnectionPool> CreateConnectionPool(const FHttpConnectionPoolParams& Params) = 0;
+};
+
+class IHttpConnectionPool
+{
+public:
+	[[nodiscard]] virtual THttpUniquePtr<IHttpClient> CreateClient(const FHttpClientParams& Params) = 0;
+
+protected:
+	friend Http::Private::THttpDestroyer<IHttpConnectionPool>;
+	virtual ~IHttpConnectionPool() = default;
+	virtual void Destroy() = 0;
+};
+
+struct FHttpConnectionPoolParams final
+{
+	/** Maximum number of concurrent connections created by the pool. Use 0 for the default limit. */
+	uint32 MaxConnections = 0;
+
+	/** Minimum number of concurrent connections maintained by the pool for reuse. Use 0 for the default limit. */
+	uint32 MinConnections = 0;
+
+	/** Allow requests to send async using the pool. Requests will block on execution when this is disabled. */
+	bool bAllowAsync = true;
+};
+
+class IHttpClient
+{
+public:
+	/**
+	 * Try to create a request.
+	 *
+	 * The request is counted against the maximum request count as soon as it is created.
+	 *
+	 * Returns null when the maximum request count has been reached. Retry after destroying a request.
+	 */
+	[[nodiscard]] virtual THttpUniquePtr<IHttpRequest> TryCreateRequest(const FHttpRequestParams& Params) = 0;
+
+protected:
+	friend Http::Private::THttpDestroyer<IHttpClient>;
+	virtual ~IHttpClient() = default;
+	virtual void Destroy() = 0;
+};
+
+struct FHttpClientParams final
+{
+	/** Invoked whenever a request from this client is destroyed. This may be used to retry creating a request. */
+	TFunction<void()> OnDestroyRequest;
+
+	/** Maximum number of concurrent requests created by the client. Use 0 for the default limit. */
+	uint32 MaxRequests = 0;
+
+	/** Minimum number of concurrent requests maintained by the client for reuse. Use 0 for the default limit. */
+	uint32 MinRequests = 0;
+
+	/** Domain name cache timeout in seconds. Use 0 to disable the cache. */
+	uint32 DnsCacheTimeout = 60;
+
+	/** Connection timeout in milliseconds. Use 0 for the default timeout. */
+	uint32 ConnectTimeout = 0;
+
+	/** Average transfer speed in bytes/s below which a request will abort. Use 0 to disable. */
+	uint32 LowSpeedLimit = 0;
+
+	/** Time in seconds after which a request will abort if it stays below LowSpeedLimit. Use 0 to disable. */
+	uint32 LowSpeedTime = 0;
+
+	/** Level of TLS to use for requests created by the client. */
+	EHttpTlsLevel TlsLevel = EHttpTlsLevel::None;
+
+	/** Follow redirects in responses automatically. */
+	bool bFollowRedirects : 1;
+	/** Follow redirects of the corresponding status code without rewriting POST to GET. */
+	bool bFollow301Post : 1;
+	bool bFollow302Post : 1;
+	bool bFollow303Post : 1;
+
+	/** Verbose logging for requests created by the client. */
+	bool bVerbose : 1;
+
+	inline FHttpClientParams()
+		: bFollowRedirects(false)
+		, bFollow301Post(false)
+		, bFollow302Post(false)
+		, bFollow303Post(false)
+		, bVerbose(false)
 	{
-		case EHttpMediaType::UnspecifiedContentType:
-			checkNoEntry();
-			return FStringView();
-		case EHttpMediaType::Any:
-			return TEXTVIEW("*/*");
-		case EHttpMediaType::Binary:
-			return TEXTVIEW("application/octet-stream");
-		case EHttpMediaType::Text:
-			return TEXTVIEW("text/plain");
-		case EHttpMediaType::Json:
-			return TEXTVIEW("application/json");
-		case EHttpMediaType::Yaml:
-			return TEXTVIEW("text/yaml");
-		case EHttpMediaType::CbObject:
-			return TEXTVIEW("application/x-ue-cb");
-		case EHttpMediaType::CbPackage:
-			return TEXTVIEW("application/x-ue-cbpkg");
-		case EHttpMediaType::CbPackageOffer:
-			return TEXTVIEW("application/x-ue-offer");
-		case EHttpMediaType::CompressedBinary:
-			return TEXTVIEW("application/x-ue-comp");
-		case EHttpMediaType::FormUrlEncoded:
-			return TEXTVIEW("application/x-www-form-urlencoded");
-		default:
-			return TEXTVIEW("unknown");
 	}
-}
-
-/**
- * Encapsulation for access token shared by all requests.
- */
-class FHttpAccessToken
-{
-public:
-	void SetToken(FStringView Token);
-	inline uint32 GetSerial() const { return Serial.load(std::memory_order_relaxed); }
-	friend FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token);
-
-private:
-	mutable FRWLock Lock;
-	TArray<ANSICHAR> Header;
-	std::atomic<uint32> Serial;
 };
 
-class FHttpSharedData
+class IHttpRequest
 {
 public:
-	FHttpSharedData(uint32 OverrideMaxConnections = 0);
-	~FHttpSharedData();
+	/**
+	 * Reset the request to an empty state equivalent to when it was created.
+	 *
+	 * The request must be idle to be reset, which means any associated response must have completed.
+	 */
+	virtual void Reset() = 0;
 
-private:
-	void ProcessAsyncRequests();
-	void AddRequest(void* Curl);
-	void* GetCurlShare() const;
+	/** Set the URI used for the request, including the scheme and authority. */
+	virtual void SetUri(FAnsiStringView Uri) = 0;
 
-	friend FHttpRequest;
-	friend Http::Private::FHttpSharedDataStatics;
+	/** Set the method used for the request. Defaults to GET. */
+	virtual void SetMethod(EHttpMethod Method) = 0;
 
-	FLazyEvent PendingRequestEvent;
-	FThread AsyncServiceThread;
-	std::atomic<bool> bAsyncThreadStarting = false;
-	std::atomic<bool> bAsyncThreadShutdownRequested = false;
+	/**
+	 * Set the body for PUT and POST requests.
+	 *
+	 * Body must be owned or otherwise remain valid until the request is complete.
+	 */
+	virtual void SetBody(const FCompositeBuffer& Body) = 0;
 
-	TPimplPtr<Http::Private::FHttpSharedDataInternals> Internals;
+	/** Set the Content-Type header with a known media type. Use AddHeader() for other types. */
+	void SetContentType(EHttpMediaType Type, FAnsiStringView Param = {});
+
+	/** Add an Accept header with a known media type. Use AddHeader() for other types. */
+	void AddAcceptType(EHttpMediaType Type, float Weight = 1.0);
+
+	/** Add the header. An empty value removes the header. */
+	virtual void AddHeader(FAnsiStringView Name, FAnsiStringView Value) = 0;
+
+	/**
+	 * Send the request on the client that it was created from, and wait for it to complete before returning.
+	 *
+	 * Request must be idle to send, which means any previous response must be complete.
+	 *
+	 * Receiver must remain valid until OnComplete is called or until it returns another receiver
+	 * to be used for subsequent events.
+	 */
+	virtual void Send(IHttpReceiver* Receiver, THttpUniquePtr<IHttpResponse>& OutResponse) = 0;
+
+	/**
+	 * Asynchronously send the request on the client that it was created from.
+	 *
+	 * Request must be idle to send, which means any previous response must be complete.
+	 *
+	 * Receiver must remain valid until OnComplete is called or until it returns another receiver
+	 * to be used for subsequent events.
+	 *
+	 * Response must be kept alive until OnComplete is called. Cancel to complete immediately.
+	 */
+	virtual void SendAsync(IHttpReceiver* Receiver, THttpUniquePtr<IHttpResponse>& OutResponse) = 0;
+
+protected:
+	friend Http::Private::THttpDestroyer<IHttpRequest>;
+	virtual ~IHttpRequest() = default;
+	virtual void Destroy() = 0;
 };
 
+struct FHttpRequestParams final
+{
+	/** Whether to force creation of the request even if it would exceed the configured maximum. */
+	bool bIgnoreMaxRequests = false;
+};
+
+class IHttpResponseMonitor
+{
+public:
+	/** Cancels the request associated with this response. */
+	virtual void Cancel() = 0;
+
+	/** Waits for the request associated with this response to be complete. */
+	virtual void Wait() const = 0;
+
+	/** Returns true if the request associated with this response is complete, and false otherwise. */
+	[[nodiscard]] virtual bool Poll() const = 0;
+
+	virtual void AddRef() const = 0;
+	virtual void Release() const = 0;
+};
+
+class IHttpResponse
+{
+public:
+	/** Returns a monitor for the response that can poll, wait, or cancel it. */
+	[[nodiscard]] virtual TRefCountPtr<IHttpResponseMonitor> GetMonitor() = 0;
+
+	/** Cancels the request associated with this response. */
+	virtual void Cancel() = 0;
+
+	/** Waits for the request associated with this response to be complete. */
+	virtual void Wait() const = 0;
+
+	/** Returns true if the request associated with this response is complete, and false otherwise. */
+	[[nodiscard]] virtual bool Poll() const = 0;
+
+	/** Get the URI used for the request associated with this response. Always available. */
+	[[nodiscard]] virtual FAnsiStringView GetUri() const = 0;
+
+	/** Get the method used for the request associated with this response. Always available. */
+	[[nodiscard]] virtual EHttpMethod GetMethod() const = 0;
+
+	/**
+	 * Returns the status code of the response. Available once the response status has been received.
+	 *
+	 * The return value is negative until the response status has been received.
+	 * The return value is 0 if an error occurred. See GetError().
+	 */
+	[[nodiscard]] virtual int32 GetStatusCode() const = 0;
+
+	/** Returns the error code from the HTTP stack. Available when the response is complete. */
+	[[nodiscard]] virtual EHttpErrorCode GetErrorCode() const = 0;
+
+	/** Returns the optional error message from the HTTP stack. Available when the status code is 0. */
+	[[nodiscard]] virtual FAnsiStringView GetError() const = 0;
+
+	/** Returns information about the request such as size, rate, and duration. Available when complete. */
+	[[nodiscard]] virtual const FHttpResponseStats& GetStats() const = 0;
+
+	/** Returns every header in the response. Available once OnHeaders() has been invoked. */
+	[[nodiscard]] virtual TConstArrayView<FAnsiStringView> GetAllHeaders() const = 0;
+
+	/** Returns the value of the first header matching the name, or empty if there was no matching header. */
+	[[nodiscard]] FAnsiStringView GetHeader(FAnsiStringView Name) const;
+
+	/**
+	 * Fills the array of header values and returns the total number of headers matching the name.
+	 *
+	 * The return value can be greater than the array size if there are more matching headers than the array can hold.
+	 */
+	[[nodiscard]] int32 GetHeaders(FAnsiStringView Name, TArrayView<FAnsiStringView> OutValues) const;
+
+	/** Returns the content type of the response, or Any if there was no matching header. */
+	[[nodiscard]] EHttpMediaType GetContentType() const;
+
+protected:
+	friend Http::Private::THttpDestroyer<IHttpResponse>;
+	virtual ~IHttpResponse() = default;
+
+	/** Cancel() if not yet invoking OnComplete(), and then Release(). */
+	virtual void Destroy() = 0;
+};
+
+/** Appends the URI, method, status code, and optional error from the response to the builder. */
+FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const IHttpResponse& Response);
+
+struct FHttpResponseStats final
+{
+	/** Total size of data sent to the server, in bytes. */
+	uint64 SendSize = 0;
+	/** Total size of data received from the server, in bytes. */
+	uint64 RecvSize = 0;
+	/** Average rate at which data was sent to the server, in bytes/s. */
+	uint64 SendRate = 0;
+	/** Average rate at which data was received from the server, in bytes/s. */
+	uint64 RecvRate = 0;
+
+	/** Time from the start of the request until the name was resolved, in seconds. */
+	double NameResolveTime = 0.0;
+	/** Time from the start of the request until the connection was established, in seconds. */
+	double ConnectTime = 0.0;
+	/** Time from the start of the request until the TLS connection was complete, in seconds. */
+	double TlsConnectTime = 0.0;
+	/** Time from the start of the request until the first byte was received, in seconds. */
+	double StartTransferTime = 0.0;
+	/** Time from the start of the request until response was complete, in seconds. */
+	double TotalTime = 0.0;
+};
 
 /**
- * Minimal HTTP request type wrapping CURL without the need for managers. This request
- * is written to allow reuse of request objects, in order to allow connections to be reused.
+ * Interface to receive the headers and body of the response.
  *
- * CURL has a global library initialization (curl_global_init). We rely on this happening in 
- * the Online/HTTP library which is a dependency on this module.
+ * Functions on this interface must be implemented to do the minimal work possible, because their
+ * execution can block other requests from being processed.
  */
-class FHttpRequest
+class IHttpReceiver
 {
 public:
+	virtual ~IHttpReceiver() = default;
 
 	/**
-	 * Convenience result type interpreted from HTTP response code.
+	 * Invoked when the response has been created, before it begins executing.
+	 *
+	 * Returns the receiver to use for the next part of the response and can return itself.
 	 */
-	enum class EResult
-	{
-		Success,
-		Failed,
-		FailedTimeout
-	};
-
-	enum class ECompletionBehavior : uint8
-	{
-		Done,
-		Retry
-	};
-
-	using FResultCode = int;
-
-	using FOnHttpRequestComplete = TUniqueFunction<ECompletionBehavior(EResult HttpResult, FHttpRequest* Request)>;
-
-	FHttpRequest(
-		FStringView InDomain,
-		FStringView InEffectiveDomain,
-		const FHttpAccessToken* InAuthorizationToken,
-		FHttpSharedData* InSharedData,
-		bool bInLogErrors);
-	~FHttpRequest();
+	virtual IHttpReceiver* OnCreate(IHttpResponse& Response) { return this; }
 
 	/**
-	 * Resets all options on the request except those that should always be set.
+	 * Invoked when every header has been received for the response.
+	 *
+	 * Returns the receiver to use for the next part of the response and can return itself.
 	 */
-	void Reset();
-
-	void PrepareToRetry();
-
-	/** Gets the domain name for this request */
-	const FString& GetName() const
-	{
-		return Domain;
-	}
-
-	/** Gets the domain name for this request */
-	const FString& GetDomain() const
-	{
-		return Domain;
-	}
-
-	/** Gets the effective domain name for this request */
-	const FString& GetEffectiveDomain() const
-	{
-		return EffectiveDomain;
-	}
-
-	/** Returns the HTTP response code.*/
-	const int64 GetResponseCode() const
-	{
-		return ResponseCode;
-	}
-
-	/** Returns the number of bytes received this request (headers withstanding). */
-	const size_t GetBytesReceived() const
-	{
-		return BytesReceived;
-	}
-
-	/** Returns the number of attempts we've made issuing this request (currently tracked for async requests only). */
-	const size_t GetAttempts() const
-	{
-		return Attempts;
-	}
-
-	/** Returns the number of bytes sent during this request (headers withstanding). */
-	const size_t GetBytesSent() const
-	{
-		return BytesSent;
-	}
+	virtual IHttpReceiver* OnHeaders(IHttpResponse& Response) { return this; }
 
 	/**
-	 * Upload buffer using the request, using either "Put" or "Post" verbs.
-	 * @param Uri Url to use.
-	 * @param Buffer Data to upload
-	 * @return Result of the request
+	 * Invoked when a part of the body has been received.
+	 *
+	 * The Data parameter can be reassigned to point to the tail of the view that is not consumed
+	 * by this receiver, and will be passed to the receiver that is returned.
+	 *
+	 * Returns the receiver to use for the next part of the response and can return itself.
 	 */
-	EResult PerformBlockingPut(
-		FStringView Uri,
-		const FCompositeBuffer& Buffer,
-		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {});
-	EResult PerformBlockingPost(FStringView Uri,
-		const FCompositeBuffer& Buffer,
-		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {});
-	void EnqueueAsyncPut(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		const FCompositeBuffer& Buffer,
-		FOnHttpRequestComplete&& OnComplete,
-		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {});
-	void EnqueueAsyncPost(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		const FCompositeBuffer& Buffer,
-		FOnHttpRequestComplete&& OnComplete,
-		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {});
+	virtual IHttpReceiver* OnBody(IHttpResponse& Response, FMemoryView& Data) { return this; }
 
 	/**
-	 * Download an url into a buffer using the request.
-	 * @param Uri Url to use.
-	 * @param Buffer Optional buffer where data should be downloaded to. If empty downloaded data will
-	 * be stored in an internal buffer and accessed GetResponse* methods.
-	 * @return Result of the request
+	 * Invoked when the response is complete. Always invoked exactly once for each response.
+	 *
+	 * Check the status code to detect errors. Can retry using the same request.
+	 *
+	 * It is valid for implementations of this function to delete the response.
+	 *
+	 * Returns the next receiver to handle OnComplete, or null if there are no others.
 	 */
-	EResult PerformBlockingDownload(
-		FStringView Uri,
-		TArray64<uint8>* Buffer,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncDownload(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		FOnHttpRequestComplete&& OnComplete,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-
-	/**
-	 * Query an url using the request. Queries can use either "Head" or "Delete" verbs.
-	 * @param Uri Url to use.
-	 * @return Result of the request
-	 */
-	EResult PerformBlockingHead(
-		FStringView Uri,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-	EResult PerformBlockingDelete(
-		FStringView Uri,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncHead(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		FOnHttpRequestComplete&& OnComplete,
-		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncDelete(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		FOnHttpRequestComplete&& OnComplete,
-		TConstArrayView<long> ExpectedErrorCodes = {400});
-
-	/**
-	 * Set a header to send with the request.
-	 */
-	void AddHeader(FStringView Header, FStringView Value);
-
-	/**
-	 * Attempts to find the header from the response. Returns false if header is not present.
-	 */
-	bool GetHeader(FAnsiStringView Header, FString& OutValue) const;
-
-	/**
-	 * Returns the response buffer. Note that is the request is performed
-	 * with an external buffer as target buffer this string will be empty.
-	 */
-	const TArray64<uint8>& GetResponseBuffer() const
-	{
-		return ResponseBuffer;
-	}
-
-	FSharedBuffer MoveResponseBufferToShared()
-	{
-		return MakeSharedBufferFromArray(MoveTemp(ResponseBuffer));
-	}
-
-	/**
-	 * Returns the response buffer as a string. Note that is the request is performed
-	 * with an external buffer as target buffer this string will be empty.
-	 */
-	FString GetResponseAsString() const
-	{
-		return GetAnsiBufferAsString(ResponseBuffer);
-	}
-
-	/**
-	 * Returns the response header as a string.
-	 */
-	FString GetResponseHeaderAsString()
-	{
-		return GetAnsiBufferAsString(ResponseHeader);
-	}
-
-	/**
-	 * Tries to parse the response buffer as a JsonObject. Return empty pointer if 
-	 * parse error occurs.
-	 */
-	TSharedPtr<FJsonObject> GetResponseAsJsonObject() const;
-
-	/**
-	 * Tries to parse the response buffer as a JsonArray. Return empty array if
-	 * parse error occurs.
-	 */
-	TArray<TSharedPtr<FJsonValue>> GetResponseAsJsonArray() const;
-
-	void CompleteAsync(FResultCode Result);
-
-	/** Will return true if the response code is considered a success */
-	static bool IsSuccessResponse(long ResponseCode)
-	{
-		// We consider anything in the 1XX or 2XX range a success
-		return ResponseCode >= 100 && ResponseCode < 300;
-	}
-
-	static bool AllowAsync();
-
-private:
-	friend struct Http::Private::FAsyncRequestData;
-	friend struct Http::Private::FHttpRequestStatics;
-
-	void* Curl;
-	FResultCode ResultCode;
-	FHttpSharedData* SharedData;
-	Http::Private::FAsyncRequestData* AsyncData;
-	long ResponseCode;
-	size_t BytesSent;
-	size_t BytesReceived;
-	size_t Attempts;
-	bool bLogErrors;
-
-	FCompositeBuffer ReadCompositeBuffer;
-	TArray64<uint8>* WriteDataBufferPtr;
-	TArray64<uint8>* WriteHeaderBufferPtr;
-	
-	TArray64<uint8> ResponseHeader;
-	TArray64<uint8> ResponseBuffer;
-	TArray<FString> Headers;
-	FString Domain;
-	FString EffectiveDomain;
-	const FHttpAccessToken* AuthorizationToken;
-
-	void AddContentTypeHeader(FStringView Header, EHttpMediaType Type);
-	Http::Private::FCurlStringList PrepareToIssueRequest(FStringView Uri, EHttpMethod Verb, uint64 ContentLength);
-
-	/**
-	 * Performs the request, blocking until finished.
-	 * @param Uri Address on the domain to query
-	 * @param Verb HTTP verb to use
-	 * @param ContentLength The number of bytes being uploaded for the body of this request.
-	 * @param ExpectedErrorCodes An array of expected return codes outside of the success range that should NOT be logged as an abnormal/exceptional outcome.
-	 * If unset the response body will be stored in the request.
-	 */
-	EResult PerformBlocking(FStringView Uri, EHttpMethod Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
-
-	void EnqueueAsync(
-		DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		EHttpMethod Verb,
-		uint64 ContentLength,
-		FOnHttpRequestComplete&& OnComplete,
-		TConstArrayView<long> ExpectedErrorCodes);
-
-	void LogResult(FResultCode EResult, FStringView Uri, EHttpMethod Verb, TConstArrayView<long> ExpectedErrorCodes) const;
-
-	static FString GetAnsiBufferAsString(TConstArrayView64<uint8> Buffer)
-	{
-		// Content is NOT null-terminated; we need to specify lengths here
-		static_assert(sizeof(UTF8CHAR) == sizeof(uint8));
-		return FString(Buffer.Num(), reinterpret_cast<const UTF8CHAR*>(Buffer.GetData()));
-	}
+	virtual IHttpReceiver* OnComplete(IHttpResponse& Response) { return this; }
 };
 
-/**
- * Pool that manages a fixed set of requests. Users are required to release requests that have been 
- * acquired. Usable with \ref FScopedRequestPtr which handles this automatically.
- */
-class FHttpRequestPool
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHttpByteArrayReceiver final : public IHttpReceiver
 {
 public:
-	FHttpRequestPool(
-		FStringView InServiceUrl,
-		FStringView InEffectiveServiceUrl,
-		const FHttpAccessToken* InAuthorizationToken,
-		FHttpSharedData* InSharedData,
-		uint32 PoolSize,
-		uint32 InOverflowLimit = 0);
-	~FHttpRequestPool();
+	explicit FHttpByteArrayReceiver(TArray64<uint8>& OutArray, IHttpReceiver* Next = nullptr);
 
-	/**
-	 * Attempts to get a request is free. Once a request has been returned it is
-	 * "owned by the caller and need to release it to the pool when work has been completed.
-	 * @return Usable request instance if one is available, otherwise null.
-	 */
-	FHttpRequest* GetFreeRequest(bool bUnboundedOverflow = false);
-
-	class FWaiter : public FThreadSafeRefCountedObject
-	{
-	public:
-		std::atomic<FHttpRequest*> Request = nullptr;
-
-		FWaiter(FHttpRequestPool* InPool)
-			: Event(FPlatformProcess::GetSynchEventFromPool(true))
-			, Pool(InPool)
-		{
-		}
-		
-		bool Wait(uint32 TimeMS)
-		{
-			return Event->Wait(TimeMS);
-		}
-
-		void Trigger()
-		{
-			Event->Trigger();
-		}
-
-	private:
-		~FWaiter()
-		{
-			FPlatformProcess::ReturnSynchEventToPool(Event);
-
-			if (Request)
-			{
-				Pool->ReleaseRequestToPool(Request.exchange(nullptr));
-			}
-		}
-
-		FEvent* Event;
-		FHttpRequestPool* Pool;
-	};
-
-	/**
-	 * Block until a request is free. Once a request has been returned it is 
-	 * "owned by the caller and need to release it to the pool when work has been completed.
-	 * @return Usable request instance.
-	 */
-	FHttpRequest* WaitForFreeRequest(bool bUnboundedOverflow = false);
-
-	/**
-	 * Release request to the pool.
-	 * @param Request Request that should be freed. Note that any buffer owened by the request can now be reset.
-	 */
-	void ReleaseRequestToPool(FHttpRequest* Request);
-
-	/**
-	 * While holding a request, make it shared across many users.
-	 */
-	void MakeRequestShared(FHttpRequest* Request, uint8 Users);
+	IHttpReceiver* OnBody(IHttpResponse& Response, FMemoryView& Data) final;
+	IHttpReceiver* OnComplete(IHttpResponse& Response) final { return Next; }
 
 private:
-
-	struct FEntry
-	{
-		std::atomic<uint8> Usage;
-		FHttpRequest* Request;
-	};
-
-	struct FInitData
-	{
-		FString ServiceUrl;
-		FString EffectiveServiceUrl;
-		const FHttpAccessToken* AccessToken;
-		FHttpSharedData* SharedData;
-
-		FInitData(
-			FStringView InServiceUrl,
-			FStringView InEffectiveServiceUrl,
-			const FHttpAccessToken* InAccessToken,
-			FHttpSharedData* InSharedData)
-			: ServiceUrl(InServiceUrl)
-			, EffectiveServiceUrl(InEffectiveServiceUrl)
-			, AccessToken(InAccessToken)
-			, SharedData(InSharedData)
-		{
-		}
-	};
-
-	TArray<FEntry> Pool;
-	TArray<FHttpRequest> Requests;
-	FAAArrayQueue<FWaiter> Waiters;
-	std::atomic<uint32> ActiveOverflowRequests;
-	TUniquePtr<const FInitData> InitData;
-	const uint32 OverflowLimit;
+	TArray64<uint8>& Array;
+	IHttpReceiver* Next;
 };
 
-/**
- * Utility class to manage requesting and releasing requests from the \ref FHttpRequestPool.
- */
-class FScopedHttpPoolRequestPtr
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Manages a client by letting callers queue to receive a request when one is not immediately available. */
+class FHttpRequestQueue final
 {
 public:
-	UE_NONCOPYABLE(FScopedHttpPoolRequestPtr)
+	/** Create a null request queue. Asserts if CreateRequest is called. */
+	FHttpRequestQueue() = default;
 
-	explicit FScopedHttpPoolRequestPtr(FHttpRequestPool* InPool)
-		: Request(InPool->WaitForFreeRequest())
-		, Pool(InPool)
-	{
-	}
+	FHttpRequestQueue(IHttpConnectionPool& ConnectionPool, const FHttpClientParams& ClientParams);
 
-	~FScopedHttpPoolRequestPtr()
-	{
-		Pool->ReleaseRequestToPool(Request);
-	}
-
-	bool IsValid() const
-	{
-		return Request != nullptr;
-	}
-
-	inline explicit operator bool() const { return IsValid(); }
-
-	FHttpRequest* Get() const
-	{
-		check(IsValid());
-		return Request;
-	}
-
-	FHttpRequest* operator->()
-	{
-		check(IsValid());
-		return Request;
-	}
+	/** Blocks until a request can be created on the underlying client. */
+	[[nodiscard]] THttpUniquePtr<IHttpRequest> CreateRequest(const FHttpRequestParams& Params);
 
 private:
-	FHttpRequest* Request;
-	FHttpRequestPool* Pool;
+	TPimplPtr<Http::Private::FHttpRequestQueueData> Data;
 };
 
 } // UE

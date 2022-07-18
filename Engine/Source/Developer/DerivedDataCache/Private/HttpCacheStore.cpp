@@ -13,11 +13,14 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
+#include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
 #include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
 #include "Http/HttpClient.h"
 #include "IO/IoHash.h"
 #include "Memory/SharedBuffer.h"
@@ -25,7 +28,9 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -33,6 +38,9 @@
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "String/Find.h"
 
 #if PLATFORM_MICROSOFT
 #include "Microsoft/WindowsHWrapper.h"
@@ -55,11 +63,18 @@
 namespace UE::DerivedData
 {
 
+static bool bHttpEnableAsync = true;
+static FAutoConsoleVariableRef CVarHttpEnableAsync(
+	TEXT("DDC.Http.EnableAsync"),
+	bHttpEnableAsync,
+	TEXT("If true, asynchronous operations are permitted, otherwise all operations are forced to be synchronous."),
+	ECVF_Default);
+
 static bool bHttpEnableOidc = false;
 static FAutoConsoleVariableRef CVarHttpEnableOidc(
 	TEXT("DDC.Http.EnableOidc"),
 	bHttpEnableOidc,
-	TEXT("If true, Oidc tokens are used, otherwise legacy shared credentials are used."),
+	TEXT("If true, Oidc tokens are used, otherwise shared credentials are used."),
 	ECVF_Default);
 
 TRACE_DECLARE_INT_COUNTER(HttpDDC_Get, TEXT("HttpDDC Get"));
@@ -68,7 +83,6 @@ TRACE_DECLARE_INT_COUNTER(HttpDDC_Put, TEXT("HttpDDC Put"));
 TRACE_DECLARE_INT_COUNTER(HttpDDC_PutHit, TEXT("HttpDDC Put Hit"));
 TRACE_DECLARE_INT_COUNTER(HttpDDC_BytesReceived, TEXT("HttpDDC Bytes Received"));
 TRACE_DECLARE_INT_COUNTER(HttpDDC_BytesSent, TEXT("HttpDDC Bytes Sent"));
-
 
 template <typename T>
 class TRefCountedUniqueFunction final : public FThreadSafeRefCountedObject
@@ -83,7 +97,6 @@ public:
 private:
 	T Function;
 };
-
 
 static bool ShouldAbortForShutdown()
 {
@@ -108,6 +121,106 @@ static bool IsValueDataReady(FValue& Value, const ECachePolicy Policy)
 	}
 	return false;
 };
+
+static bool TryResolveCanonicalHost(const FAnsiStringView Uri, FAnsiStringBuilderBase& OutUri)
+{
+	// Extract the host from the URI.
+	FAnsiStringView Domain = Uri;
+	if (const int32 SchemeIndex = String::FindFirst(Domain, ANSITEXTVIEW("://")); SchemeIndex != INDEX_NONE)
+	{
+		Domain.RightChopInline(SchemeIndex + ANSITEXTVIEW("://").Len());
+	}
+	if (const int32 SlashIndex = String::FindFirstChar(Domain, '/'); SlashIndex != INDEX_NONE)
+	{
+		Domain.LeftInline(SlashIndex);
+	}
+	if (const int32 AtIndex = String::FindFirstChar(Domain, '@'); AtIndex != INDEX_NONE)
+	{
+		Domain.RightChopInline(AtIndex + 1);
+	}
+	const auto RemovePort = [](FAnsiStringView& Authority)
+	{
+		if (const int32 ColonIndex = String::FindLastChar(Authority, ':'); ColonIndex != INDEX_NONE)
+		{
+			Authority.LeftInline(ColonIndex);
+		}
+	};
+	if (Domain.StartsWith('['))
+	{
+		if (const int32 LastBracketIndex = String::FindLastChar(Domain, ']'); LastBracketIndex != INDEX_NONE)
+		{
+			Domain.MidInline(1, LastBracketIndex - 1);
+		}
+		else
+		{
+			RemovePort(Domain);
+		}
+	}
+	else
+	{
+		RemovePort(Domain);
+	}
+
+	// Append the URI until the end of the domain.
+	const int32 OutUriIndex = OutUri.Len();
+	const int32 DomainIndex = int32(Domain.GetData() - Uri.GetData());
+	const int32 DomainEndIndex = DomainIndex + Domain.Len();
+	OutUri.Append(Uri.Left(DomainEndIndex));
+
+	// Append the URI beyond the end of the domain before returning.
+	ON_SCOPE_EXIT { OutUri.Append(Uri.RightChop(DomainEndIndex)); };
+
+	// Try to resolve the host.
+	::addrinfo* Result = nullptr;
+	::addrinfo Hints{};
+	Hints.ai_flags = AI_CANONNAME;
+	Hints.ai_family = AF_UNSPEC;
+	if (::getaddrinfo(*OutUri + OutUriIndex + DomainIndex, nullptr, &Hints, &Result) == 0)
+	{
+		ON_SCOPE_EXIT { ::freeaddrinfo(Result); };
+		if (Result->ai_canonname)
+		{
+			OutUri.RemoveSuffix(Domain.Len());
+			OutUri.Append(Result->ai_canonname);
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Encapsulation for access token shared by all requests.
+ */
+class FHttpAccessToken
+{
+public:
+	void SetToken(FStringView Token);
+	inline uint32 GetSerial() const { return Serial.load(std::memory_order_relaxed); }
+	friend FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token);
+
+private:
+	mutable FRWLock Lock;
+	TArray<ANSICHAR> Header;
+	std::atomic<uint32> Serial;
+};
+
+void FHttpAccessToken::SetToken(const FStringView Token)
+{
+	FWriteScopeLock WriteLock(Lock);
+	const FAnsiStringView Prefix = ANSITEXTVIEW("Bearer ");
+	const int32 TokenLen = FPlatformString::ConvertedLength<ANSICHAR>(Token.GetData(), Token.Len());
+	Header.Empty(Prefix.Len() + TokenLen);
+	Header.Append(Prefix.GetData(), Prefix.Len());
+	const int32 TokenIndex = Header.AddUninitialized(TokenLen);
+	FPlatformString::Convert(Header.GetData() + TokenIndex, TokenLen, Token.GetData(), Token.Len());
+	Serial.fetch_add(1, std::memory_order_relaxed);
+}
+
+FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token)
+{
+	FReadScopeLock ReadLock(Token.Lock);
+	return Builder.Append(Token.Header);
+}
 
 struct FHttpCacheStoreParams
 {
@@ -191,7 +304,6 @@ public:
 
 private:
 	FString Domain;
-	FString EffectiveDomain;
 	FString Namespace;
 	FString StructuredNamespace;
 	FString OAuthProvider;
@@ -201,16 +313,19 @@ private:
 	FString OAuthProviderIdentifier;
 	FString OAuthAccessToken;
 
+	FAnsiStringBuilderBase EffectiveDomain;
+
 	FDerivedDataCacheUsageStats UsageStats;
 	FBackendDebugOptions DebugOptions;
-	TUniquePtr<FHttpSharedData> SharedData;
-	TUniquePtr<FHttpRequestPool> GetRequestPools[2];
-	TUniquePtr<FHttpRequestPool> PutRequestPools[2];
-	TUniquePtr<FHttpRequestPool> NonBlockingRequestPools;
+	THttpUniquePtr<IHttpConnectionPool> ConnectionPool;
+	FHttpRequestQueue GetRequestQueues[2];
+	FHttpRequestQueue PutRequestQueues[2];
+	FHttpRequestQueue NonBlockingRequestQueue;
 
 	FCriticalSection AccessCs;
 	TUniquePtr<FHttpAccessToken> Access;
 	FTSTicker::FDelegateHandle RefreshAccessTokenHandle;
+	double RefreshAccessTokenTime = 0.0;
 	uint32 FailedLoginAttempts = 0;
 
 	bool bIsUsable = false;
@@ -218,38 +333,22 @@ private:
 
 	static inline FHttpCacheStore* AnyInstance = nullptr;
 
-	bool IsServiceReady();
-	bool AcquireAccessToken();
-	void SetAccessToken(FStringView Token, double RefreshDelay = 0.0);
-	bool ShouldRetryOnError(FHttpRequest::EResult Result, int64 ResponseCode);
-	bool ShouldRetryOnError(int64 ResponseCode) { return ShouldRetryOnError(FHttpRequest::EResult::Success, ResponseCode); }
+	FHttpClientParams GetDefaultClientParams() const;
 
-	enum class OperationCategory
+	THttpUniquePtr<IHttpResponse> BeginIsServiceReady(IHttpClient& Client, TArray64<uint8>& Body);
+	bool EndIsServiceReady(THttpUniquePtr<IHttpResponse>& Response, TArray64<uint8>& Body);
+	bool AcquireAccessToken(IHttpClient* Client = nullptr);
+	void SetAccessToken(FStringView Token, double RefreshDelay = 0.0);
+
+	enum class EOperationCategory
 	{
 		Get,
 		Put,
 	};
-	template <OperationCategory Category>
-	FHttpRequest* WaitForHttpRequestForOwner(IRequestOwner& Owner, bool bUnboundedOverflow, FHttpRequestPool*& OutPool)
-	{
-		if (!FHttpRequest::AllowAsync())
-		{
-			if (Category == OperationCategory::Get)
-			{
-				OutPool = GetRequestPools[IsInGameThread()].Get();
-			}
-			else
-			{
-				OutPool = PutRequestPools[IsInGameThread()].Get();
-			}
-			return OutPool->WaitForFreeRequest();
-		}
-		else
-		{
-			OutPool = NonBlockingRequestPools.Get();
-			return OutPool->WaitForFreeRequest(bUnboundedOverflow);
-		}
-	}
+
+	class FHttpOperation;
+
+	TUniquePtr<FHttpOperation> WaitForHttpOperation(EOperationCategory Category, bool bUnboundedOverflow);
 
 	struct FGetCacheRecordOnlyResponse
 	{
@@ -307,8 +406,296 @@ private:
 		TConstArrayView<FCacheGetValueRequest> ValueRefs,
 		FOnCacheGetValueComplete&& OnComplete);
 
+	class FHealthCheckOp;
 	class FPutPackageOp;
 	class FGetRecordOp;
+};
+
+//----------------------------------------------------------------------------------------------------------
+// FHttpCacheStore::FHttpOperation
+//----------------------------------------------------------------------------------------------------------
+class FHttpCacheStore::FHttpOperation final
+{
+public:
+	FHttpOperation(const FHttpOperation&) = delete;
+	FHttpOperation& operator=(const FHttpOperation&) = delete;
+
+	explicit FHttpOperation(THttpUniquePtr<IHttpRequest>&& InRequest)
+		: Request(MoveTemp(InRequest))
+	{
+	}
+
+	// Prepare Request
+
+	void SetUri(FAnsiStringView Uri) { Request->SetUri(Uri); }
+	void SetMethod(EHttpMethod Method) { Request->SetMethod(Method); }
+	void AddHeader(FAnsiStringView Name, FAnsiStringView Value) { Request->AddHeader(Name, Value); }
+	void SetBody(const FCompositeBuffer& Body) { Request->SetBody(Body); }
+	void SetContentType(EHttpMediaType Type) { Request->SetContentType(Type); }
+	void AddAcceptType(EHttpMediaType Type) { Request->AddAcceptType(Type); }
+	void SetExpectedErrorCodes(TConstArrayView<int32> Codes) { ExpectedErrorCodes = Codes; }
+
+	// Send Request
+
+	void Send();
+	void SendAsync(IRequestOwner& Owner, TUniqueFunction<void ()>&& OnComplete);
+
+	// Consume Response
+
+	int32 GetStatusCode() const { return Response->GetStatusCode(); }
+	EHttpErrorCode GetErrorCode() const { return Response->GetErrorCode(); }
+	EHttpMediaType GetContentType() const { return Response->GetContentType(); }
+	FAnsiStringView GetHeader(FAnsiStringView Name) const { return Response->GetHeader(Name); }
+	FSharedBuffer GetBody() const { return ResponseBody; }
+	FString GetBodyAsString() const;
+	TSharedPtr<FJsonObject> GetBodyAsJson() const;
+	uint64 GetBytesSent() const { return Response->GetStats().SendSize; }
+	uint64 GetBytesReceived() const { return Response->GetStats().RecvSize; }
+
+	friend FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FHttpOperation& Operation)
+	{
+		check(Operation.Response);
+		return Builder << *Operation.Response;
+	}
+
+private:
+	class FHttpOperationReceiver;
+	class FAsyncHttpOperationReceiver;
+
+	FSharedBuffer ResponseBody;
+	THttpUniquePtr<IHttpRequest> Request;
+	THttpUniquePtr<IHttpResponse> Response;
+	TArray<int32, TInlineAllocator<4>> ExpectedErrorCodes;
+	uint32 AttemptCount = 0;
+};
+
+class FHttpCacheStore::FHttpOperation::FHttpOperationReceiver final : public IHttpReceiver
+{
+public:
+	FHttpOperationReceiver(const FHttpOperationReceiver&) = delete;
+	FHttpOperationReceiver& operator=(const FHttpOperationReceiver&) = delete;
+
+	explicit FHttpOperationReceiver(FHttpOperation* InOperation, IHttpReceiver* InNext = nullptr)
+		: Operation(InOperation)
+		, Next(InNext)
+		, BodyReceiver(BodyArray, this)
+	{
+	}
+
+	FHttpOperation* GetOperation() const { return Operation; }
+
+private:
+	IHttpReceiver* OnCreate(IHttpResponse& LocalResponse) final
+	{
+		++Operation->AttemptCount;
+		return &BodyReceiver;
+	}
+
+	IHttpReceiver* OnComplete(IHttpResponse& LocalResponse) final
+	{
+		Operation->ResponseBody = MakeSharedBufferFromArray(MoveTemp(BodyArray));
+
+		LogResponse(LocalResponse);
+
+		if (!ShouldRetry(LocalResponse))
+		{
+			Operation->Request.Reset();
+		}
+
+		return Next;
+	}
+
+	bool ShouldRetry(IHttpResponse& LocalResponse) const
+	{
+		if (Operation->AttemptCount >= UE_HTTPDDC_MAX_ATTEMPTS || ShouldAbortForShutdown())
+		{
+			return false;
+		}
+
+		if (LocalResponse.GetErrorCode() == EHttpErrorCode::TimedOut)
+		{
+			return true;
+		}
+
+		// Too many requests, make a new attempt.
+		if (LocalResponse.GetStatusCode() == 429)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	void LogResponse(IHttpResponse& LocalResponse) const
+	{
+		if (UE_LOG_ACTIVE(LogDerivedDataCache, Display))
+		{
+			const int32 StatusCode = LocalResponse.GetStatusCode();
+			const bool bVerbose = (StatusCode >= 200 && StatusCode < 300) || Operation->ExpectedErrorCodes.Contains(StatusCode);
+
+			TStringBuilder<80> StatsText;
+			if (!bVerbose || UE_LOG_ACTIVE(LogDerivedDataCache, Verbose))
+			{
+				const FHttpResponseStats& Stats = LocalResponse.GetStats();
+				if (Stats.SendSize)
+				{
+					StatsText << TEXTVIEW("sent ") << Stats.SendSize << TEXTVIEW(" bytes, ");
+				}
+				if (Stats.RecvSize)
+				{
+					StatsText << TEXTVIEW("received ") << Stats.RecvSize << TEXTVIEW(" bytes, ");
+				}
+				StatsText.Appendf(TEXT("%.3f seconds"), Stats.TotalTime);
+			}
+
+			if (bVerbose)
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("HTTP: %s (%s)"), *WriteToString<256>(LocalResponse), *StatsText);
+			}
+			else
+			{
+				FString Body = Operation->GetBodyAsString();
+				Body.ReplaceCharInline(TEXT('\r'), TEXT(' '));
+				Body.ReplaceCharInline(TEXT('\n'), TEXT(' '));
+				UE_LOG(LogDerivedDataCache, Display,
+					TEXT("HTTP: %s (%s) %s"), *WriteToString<256>(LocalResponse), *StatsText, *Body);
+			}
+		}
+	}
+
+private:
+	FHttpOperation* Operation;
+	IHttpReceiver* Next;
+	TArray64<uint8> BodyArray;
+	FHttpByteArrayReceiver BodyReceiver{BodyArray, this};
+};
+
+class FHttpCacheStore::FHttpOperation::FAsyncHttpOperationReceiver final : public FRequestBase, public IHttpReceiver
+{
+public:
+	FAsyncHttpOperationReceiver(const FAsyncHttpOperationReceiver&) = delete;
+	FAsyncHttpOperationReceiver& operator=(const FAsyncHttpOperationReceiver&) = delete;
+
+	FAsyncHttpOperationReceiver(FHttpOperation* InOperation, IRequestOwner* InOwner, TUniqueFunction<void ()>&& InOperationComplete)
+		: Owner(InOwner)
+		, BaseReceiver(InOperation, this)
+		, OperationComplete(MoveTemp(InOperationComplete))
+	{
+	}
+
+private:
+	// IRequest Interface
+
+	void SetPriority(EPriority Priority) final {}
+	void Cancel() final { Monitor->Cancel(); }
+	void Wait() final { Monitor->Wait(); }
+
+	// IHttpReceiver Interface
+
+	IHttpReceiver* OnCreate(IHttpResponse& LocalResponse) final
+	{
+		Monitor = LocalResponse.GetMonitor();
+		Owner->Begin(this);
+		return &BaseReceiver;
+	}
+
+	IHttpReceiver* OnComplete(IHttpResponse& LocalResponse) final
+	{
+		Owner->End(this, [Self = this]
+		{
+			FHttpOperation* Operation = Self->BaseReceiver.GetOperation();
+			if (IHttpRequest* LocalRequest = Operation->Request.Get())
+			{
+				// Retry as indicated by the request not being reset.
+				TRefCountPtr<FAsyncHttpOperationReceiver> Receiver = new FAsyncHttpOperationReceiver(Operation, Self->Owner, MoveTemp(Self->OperationComplete));
+				LocalRequest->SendAsync(Receiver, Operation->Response);
+			}
+			else if (Self->OperationComplete)
+			{
+				// Launch a task for the completion function since it can execute arbitrary code.
+				Self->Owner->LaunchTask(TEXT("HttpOperationComplete"), [Self = TRefCountPtr(Self)]
+				{
+					Self->OperationComplete();
+				});
+			}
+		});
+		return nullptr;
+	}
+
+private:
+	IRequestOwner* Owner;
+	FHttpOperationReceiver BaseReceiver;
+	TUniqueFunction<void ()> OperationComplete;
+	TRefCountPtr<IHttpResponseMonitor> Monitor;
+};
+
+void FHttpCacheStore::FHttpOperation::Send()
+{
+	FHttpOperationReceiver Receiver(this);
+	do
+	{
+		Request->Send(&Receiver, Response);
+	}
+	while (Request);
+}
+
+void FHttpCacheStore::FHttpOperation::SendAsync(IRequestOwner& Owner, TUniqueFunction<void ()>&& OnComplete)
+{
+	TRefCountPtr<FAsyncHttpOperationReceiver> Receiver = new FAsyncHttpOperationReceiver(this, &Owner, MoveTemp(OnComplete));
+	Request->SendAsync(Receiver, Response);
+}
+
+FString FHttpCacheStore::FHttpOperation::GetBodyAsString() const
+{
+	static_assert(sizeof(uint8) == sizeof(UTF8CHAR));
+	const int32 Len = IntCastChecked<int32>(ResponseBody.GetSize());
+	return FString(Len, (const UTF8CHAR*)ResponseBody.GetData());
+}
+
+TSharedPtr<FJsonObject> FHttpCacheStore::FHttpOperation::GetBodyAsJson() const
+{
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(GetBodyAsString());
+	FJsonSerializer::Deserialize(JsonReader, JsonObject);
+	return JsonObject;
+}
+
+//----------------------------------------------------------------------------------------------------------
+// FHttpCacheStore::FHealthCheckOp
+//----------------------------------------------------------------------------------------------------------
+class FHttpCacheStore::FHealthCheckOp final
+{
+public:
+	FHealthCheckOp(FHttpCacheStore& CacheStore, IHttpClient& Client)
+		: Operation(Client.TryCreateRequest({}))
+		, Owner(EPriority::High)
+		, Domain(*CacheStore.Domain)
+	{
+		Operation.SetUri(WriteToAnsiString<256>(CacheStore.EffectiveDomain, ANSITEXTVIEW("/health/ready")));
+		Operation.SendAsync(Owner, []{});
+	}
+
+	bool IsReady()
+	{
+		Owner.Wait();
+		const FString Body = Operation.GetBodyAsString();
+		if (Operation.GetStatusCode() == 200)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: HTTP DDC: %s"), Domain, *Body);
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Unable to reach HTTP DDC at %s. %s"),
+				Domain, *WriteToString<256>(Operation), *Body);
+			return false;
+		}
+	}
+
+private:
+	FHttpOperation Operation;
+	FRequestOwner Owner;
+	const TCHAR* Domain;
 };
 
 //----------------------------------------------------------------------------------------------------------
@@ -398,12 +785,9 @@ private:
 		FOnCachePutPackageComplete&& OnComplete,
 		FCachePutRefResponse&& Response);
 
-	FHttpRequest::ECompletionBehavior OnCompressedBlobUploadComplete(
-		FHttpRequest::EResult HttpResult,
-		FHttpRequest* Request);
+	void OnCompressedBlobUploadComplete(FHttpOperation& Operation);
 
-	void OnPutRefFinalizationComplete(
-		FCachePutRefResponse&& Response);
+	void OnPutRefFinalizationComplete(FCachePutRefResponse&& Response);
 
 	FCachePutPackageResponse MakeResponse(uint64 InBytesSent, EStatus Status)
 	{
@@ -559,29 +943,35 @@ void FHttpCacheStore::FPutPackageOp::PutRefAsync(
 	FString Bucket(Key.Bucket.ToString());
 	Bucket.ToLowerInline();
 
-	TStringBuilder<256> RefsUri;
-	RefsUri << "api/v1/refs/" << CacheStore.StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
+	TAnsiStringBuilder<256> RefsUri;
+	RefsUri << CacheStore.EffectiveDomain << ANSITEXTVIEW("/api/v1/refs/") << CacheStore.StructuredNamespace << '/' << Bucket << '/' << Key.Hash;
 	if (bFinalize)
 	{
-		RefsUri << "/finalize/" << ObjectHash;
+		RefsUri << ANSITEXTVIEW("/finalize/") << ObjectHash;
 	}
 
-	FHttpRequestPool* Pool = nullptr;
-	FHttpRequest* Request = CacheStore.WaitForHttpRequestForOwner<OperationCategory::Put>(Owner, bFinalize /* bUnboundedOverflow */, Pool);
-
-	auto OnHttpRequestComplete = [&CacheStore, &Owner, Name = FSharedString(Name), Key, Object, UserData, bFinalize, OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+	TUniquePtr<FHttpOperation> Operation = CacheStore.WaitForHttpOperation(EOperationCategory::Put, /*bUnboundedOverflow*/ bFinalize);
+	FHttpOperation& LocalOperation = *Operation;
+	LocalOperation.SetUri(RefsUri);
+	if (bFinalize)
+	{
+		LocalOperation.SetMethod(EHttpMethod::Post);
+		LocalOperation.SetContentType(EHttpMediaType::FormUrlEncoded);
+	}
+	else
+	{
+		LocalOperation.SetMethod(EHttpMethod::Put);
+		LocalOperation.SetContentType(EHttpMediaType::CbObject);
+		LocalOperation.AddHeader(ANSITEXTVIEW("X-Jupiter-IoHash"), WriteToAnsiString<48>(ObjectHash));
+		LocalOperation.SetBody(Object.GetBuffer());
+	}
+	LocalOperation.AddAcceptType(EHttpMediaType::Json);
+	LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), &CacheStore, Name, Key, Object, UserData, bFinalize, OnComplete = MoveTemp(OnComplete)]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_PutRefAsync_OnHttpRequestComplete);
 
-		if (Owner.IsCanceled())
-		{
-			OnComplete({ Name, Key, UserData, Request->GetBytesSent(), {}, EStatus::Canceled });
-			return FHttpRequest::ECompletionBehavior::Done;
-		}
-
-		int64 ResponseCode = Request->GetResponseCode();
-		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		const int32 StatusCode = Operation->GetStatusCode();
+		if (StatusCode >= 200 && StatusCode <= 204)
 		{
 			TArray<FIoHash> NeededBlobHashes;
 
@@ -599,7 +989,7 @@ void FHttpCacheStore::FPutPackageOp::PutRefAsync(
 					}
 				});
 			}
-			else if (TSharedPtr<FJsonObject> ResponseObject = Request->GetResponseAsJsonObject())
+			else if (TSharedPtr<FJsonObject> ResponseObject = Operation->GetBodyAsJson())
 			{
 				TArray<FString> NeedsArrayStrings;
 				ResponseObject->TryGetStringArrayField(TEXT("needs"), NeedsArrayStrings);
@@ -616,28 +1006,14 @@ void FHttpCacheStore::FPutPackageOp::PutRefAsync(
 				}
 			}
 
-			OnComplete({ Name, Key, UserData, Request->GetBytesSent(), NeededBlobHashes, EStatus::Ok });
-			return FHttpRequest::ECompletionBehavior::Done;
+			OnComplete({ Name, Key, UserData, Operation->GetBytesSent(), NeededBlobHashes, EStatus::Ok });
 		}
-
-		if (!ShouldAbortForShutdown() && CacheStore.ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
+		else
 		{
-			return FHttpRequest::ECompletionBehavior::Retry;
+			const EStatus Status = Operation->GetErrorCode() == EHttpErrorCode::Canceled ? EStatus::Canceled : EStatus::Error;
+			OnComplete({ Name, Key, UserData, Operation->GetBytesSent(), {}, Status });
 		}
-
-		OnComplete({ Name, Key, UserData, Request->GetBytesSent(), {}, EStatus::Error });
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-
-	if (bFinalize)
-	{
-		Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::FormUrlEncoded);
-	}
-	else
-	{
-		Request->AddHeader(TEXTVIEW("X-Jupiter-IoHash"), WriteToString<48>(ObjectHash));
-		Request->EnqueueAsyncPut(Owner, Pool, *RefsUri, Object.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject);
-	}
+	});
 }
 
 void FHttpCacheStore::FPutPackageOp::OnPackagePutRefComplete(
@@ -741,51 +1117,40 @@ void FHttpCacheStore::FPutPackageOp::OnPackagePutRefComplete(
 	FRequestBarrier Barrier(Owner);
 	for (const FCompressedBlobUpload& CompressedBlobUpload : CompressedBlobUploads)
 	{
-		TStringBuilder<256> CompressedBlobsUri;
-		CompressedBlobsUri << "api/v1/compressed-blobs/" << CacheStore.StructuredNamespace << "/" << CompressedBlobUpload.Hash;
-
-		FHttpRequestPool* Pool = nullptr;
-		FHttpRequest* Request = CacheStore.WaitForHttpRequestForOwner<OperationCategory::Put>(Owner, true /* bUnboundedOverflow */, Pool);
-		Request->EnqueueAsyncPut(Owner, Pool, *CompressedBlobsUri, FCompositeBuffer(CompressedBlobUpload.BlobBuffer),
-			[PutPackageOp](FHttpRequest::EResult HttpResult, FHttpRequest* Request)
-			{
-				return PutPackageOp->OnCompressedBlobUploadComplete(HttpResult, Request);
-			},
-			EHttpMediaType::CompressedBinary);
+		TUniquePtr<FHttpOperation> Operation = CacheStore.WaitForHttpOperation(EOperationCategory::Put, /*bUnboundedOverflow*/ true);
+		FHttpOperation& LocalOperation = *Operation;
+		LocalOperation.SetUri(WriteToAnsiString<256>(CacheStore.EffectiveDomain, ANSITEXTVIEW("/api/v1/compressed-blobs/"), CacheStore.StructuredNamespace, '/', CompressedBlobUpload.Hash));
+		LocalOperation.SetMethod(EHttpMethod::Put);
+		LocalOperation.SetContentType(EHttpMediaType::CompressedBinary);
+		LocalOperation.SetBody(FCompositeBuffer(CompressedBlobUpload.BlobBuffer));
+		LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), PutPackageOp]
+		{
+			PutPackageOp->OnCompressedBlobUploadComplete(*Operation);
+		});
 	}
 }
 
-FHttpRequest::ECompletionBehavior FHttpCacheStore::FPutPackageOp::OnCompressedBlobUploadComplete(
-	FHttpRequest::EResult HttpResult,
-	FHttpRequest* Request)
+void FHttpCacheStore::FPutPackageOp::OnCompressedBlobUploadComplete(FHttpOperation& Operation)
 {
-	int64 ResponseCode = Request->GetResponseCode();
-	bool bIsSuccessResponse = FHttpRequest::IsSuccessResponse(ResponseCode);
+	BytesSent.fetch_add(Operation.GetBytesSent(), std::memory_order_relaxed);
 
-	if (!bIsSuccessResponse && !ShouldAbortForShutdown() && !Owner.IsCanceled() && CacheStore.ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
-	{
-		return FHttpRequest::ECompletionBehavior::Retry;
-	}
-
-	BytesSent.fetch_add(Request->GetBytesSent(), std::memory_order_relaxed);
-	if (bIsSuccessResponse)
+	const int32 StatusCode = Operation.GetStatusCode();
+	if (StatusCode >= 200 && StatusCode <= 204)
 	{
 		SuccessfulBlobUploads.fetch_add(1, std::memory_order_relaxed);
 	}
 
 	if (PendingBlobUploads.fetch_sub(1, std::memory_order_relaxed) == 1)
 	{
+		const uint32 LocalSuccessfulBlobUploads = SuccessfulBlobUploads.load(std::memory_order_relaxed);
 		if (Owner.IsCanceled())
 		{
 			OnComplete(MakeResponse(BytesSent.load(std::memory_order_relaxed), EStatus::Canceled));
-			return FHttpRequest::ECompletionBehavior::Done;
 		}
-
-		uint32 LocalSuccessfulBlobUploads = SuccessfulBlobUploads.load(std::memory_order_relaxed);
-		if (LocalSuccessfulBlobUploads == TotalBlobUploads)
+		else if (LocalSuccessfulBlobUploads == TotalBlobUploads)
 		{
 			// Perform finalization
-			PutRefAsync(CacheStore, Owner, Name, Key, PackageObject, PackageObjectHash, UserData, true,
+			PutRefAsync(CacheStore, Owner, Name, Key, PackageObject, PackageObjectHash, UserData, /*bFinalize*/ true,
 				[PutPackageOp = TRefCountPtr<FPutPackageOp>(this)](FCachePutRefResponse&& Response)
 				{
 					return PutPackageOp->OnPutRefFinalizationComplete(MoveTemp(Response));
@@ -793,17 +1158,15 @@ FHttpRequest::ECompletionBehavior FHttpCacheStore::FPutPackageOp::OnCompressedBl
 		}
 		else
 		{
-			uint32 FailedBlobUploads = (uint32)(TotalBlobUploads - LocalSuccessfulBlobUploads);
+			const uint32 FailedBlobUploads = TotalBlobUploads - LocalSuccessfulBlobUploads;
 			UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Failed to put %d/%d blobs for put of %s from '%s'"),
 				*CacheStore.Domain, FailedBlobUploads, TotalBlobUploads, *WriteToString<96>(Key), *Name);
 			OnComplete(MakeResponse(BytesSent.load(std::memory_order_relaxed), EStatus::Error));
 		}
 	}
-	return FHttpRequest::ECompletionBehavior::Done;
 }
 
-void FHttpCacheStore::FPutPackageOp::OnPutRefFinalizationComplete(
-	FCachePutRefResponse&& Response)
+void FHttpCacheStore::FPutPackageOp::OnPutRefFinalizationComplete(FCachePutRefResponse&& Response)
 {
 	BytesSent.fetch_add(Response.BytesSent, std::memory_order_relaxed);
 
@@ -847,83 +1210,68 @@ void FHttpCacheStore::FGetRecordOp::GetDataBatch(
 	}
 
 	FRequestBarrier Barrier(Owner);
-	TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>* CompletionFunction = new TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>(MoveTemp(OnComplete));
-	TRefCountPtr<TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>> BatchOnCompleteRef(CompletionFunction);
+	TRefCountPtr<TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>> SharedOnComplete(new TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>(MoveTemp(OnComplete)));
 	for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
 	{
-		const ValueType& Value = Values[ValueIndex];
-		const FIoHash& RawHash = Value.GetRawHash();
-
-		FHttpRequestPool* Pool = nullptr;
-		FHttpRequest* Request = CacheStore.WaitForHttpRequestForOwner<OperationCategory::Get>(Owner, true /* bUnboundedOverflow */, Pool);
-
-		auto OnHttpRequestComplete = [&CacheStore, &Owner, Name = FSharedString(Name), Key = FCacheKey(Key), ValueIndex, Value = Value.RemoveData(), ValueIdGetter, OnCompletePtr = TRefCountPtr<TRefCountedUniqueFunction<FOnGetCachedDataBatchComplete>>(CompletionFunction)]
-		(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+		const ValueType Value = Values[ValueIndex].RemoveData();
+		TUniquePtr<FHttpOperation> Operation = CacheStore.WaitForHttpOperation(EOperationCategory::Get, /*bUnboundedOverflow*/ true);
+		FHttpOperation& LocalOperation = *Operation;
+		LocalOperation.SetUri(WriteToAnsiString<256>(CacheStore.EffectiveDomain, ANSITEXTVIEW("/api/v1/compressed-blobs/"), CacheStore.StructuredNamespace, '/', Value.GetRawHash()));
+		LocalOperation.SetMethod(EHttpMethod::Get);
+		LocalOperation.AddAcceptType(EHttpMediaType::Any);
+		LocalOperation.SetExpectedErrorCodes({404});
+		LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), &CacheStore, Name, Key, Value, ValueIndex, ValueIdGetter, SharedOnComplete]
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_GetDataBatch_OnHttpRequestComplete);
 
-			int64 ResponseCode = Request->GetResponseCode();
 			bool bHit = false;
 			FCompressedBuffer CompressedBuffer;
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			if (Operation->GetStatusCode() == 200)
 			{
-				FString ReceivedContentType;
-				if (Request->GetHeader("Content-Type", ReceivedContentType))
+				switch (Operation->GetContentType())
 				{
-					if (ReceivedContentType == TEXT("application/x-ue-comp"))
-					{
-						CompressedBuffer = FCompressedBuffer::FromCompressed(Request->MoveResponseBufferToShared());
-						bHit = true;
-					}
-					else if (ReceivedContentType == TEXT("application/octet-stream"))
-					{
-						CompressedBuffer = FValue::Compress(Request->MoveResponseBufferToShared()).GetData();
-						bHit = true;
-					}
-					else
-					{
-						bHit = false;
-					}
+				case EHttpMediaType::Any:
+				case EHttpMediaType::CompressedBinary:
+					CompressedBuffer = FCompressedBuffer::FromCompressed(Operation->GetBody());
+					bHit = true;
+					break;
+				case EHttpMediaType::Binary:
+					CompressedBuffer = FValue::Compress(Operation->GetBody()).GetData();
+					bHit = true;
+					break;
+				default:
+					break;
+				}
+			}
+
+			if (bHit)
+			{
+				if (CompressedBuffer.GetRawHash() == Value.GetRawHash())
+				{
+					SharedOnComplete->GetFunction()({ Name, Key, ValueIndex, Operation->GetBytesReceived(), MoveTemp(CompressedBuffer), EStatus::Ok });
 				}
 				else
 				{
-					CompressedBuffer = FCompressedBuffer::FromCompressed(Request->MoveResponseBufferToShared());
-					bHit = true;
+					UE_LOG(LogDerivedDataCache, Display,
+						TEXT("%s: Cache miss with corrupted value %s with hash %s for %s from '%s'"),
+						*CacheStore.Domain, *ValueIdGetter(Value), *WriteToString<48>(Value.GetRawHash()),
+						*WriteToString<96>(Key), *Name);
+					SharedOnComplete->GetFunction()({ Name, Key, ValueIndex, Operation->GetBytesReceived(), {}, EStatus::Error });
 				}
 			}
-
-			if (!ShouldAbortForShutdown() && !Owner.IsCanceled() && CacheStore.ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
+			else if (Operation->GetErrorCode() == EHttpErrorCode::Canceled)
 			{
-				return FHttpRequest::ECompletionBehavior::Retry;
+				SharedOnComplete->GetFunction()({ Name, Key, ValueIndex, Operation->GetBytesReceived(), {}, EStatus::Canceled });
 			}
-
-			if (!bHit)
+			else
 			{
 				UE_LOG(LogDerivedDataCache, Verbose,
 					TEXT("%s: Cache miss with missing value %s with hash %s for %s from '%s'"),
 					*CacheStore.Domain, *ValueIdGetter(Value), *WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key),
 					*Name);
-				OnCompletePtr->GetFunction()({ Name, Key, ValueIndex, Request->GetBytesReceived(), {}, EStatus::Error });
+				SharedOnComplete->GetFunction()({ Name, Key, ValueIndex, Operation->GetBytesReceived(), {}, EStatus::Error });
 			}
-			else if (CompressedBuffer.GetRawHash() != Value.GetRawHash())
-			{
-				UE_LOG(LogDerivedDataCache, Display,
-					TEXT("%s: Cache miss with corrupted value %s with hash %s for %s from '%s'"),
-					*CacheStore.Domain, *ValueIdGetter(Value), *WriteToString<48>(Value.GetRawHash()),
-					*WriteToString<96>(Key), *Name);
-				OnCompletePtr->GetFunction()({ Name, Key, ValueIndex, Request->GetBytesReceived(), {}, EStatus::Error });
-			}
-			else
-			{
-				OnCompletePtr->GetFunction()({ Name, Key, ValueIndex, Request->GetBytesReceived(), MoveTemp(CompressedBuffer), EStatus::Ok });
-			}
-
-			return FHttpRequest::ECompletionBehavior::Done;
-		};
-
-		TStringBuilder<256> CompressedBlobsUri;
-		CompressedBlobsUri << "api/v1/compressed-blobs/" << CacheStore.StructuredNamespace << "/" << RawHash;
-		Request->EnqueueAsyncDownload(Owner, Pool, *CompressedBlobsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::Any, { 404 });
+		});
 	}
 }
 
@@ -1048,30 +1396,33 @@ void FHttpCacheStore::FGetRecordOp::DataProbablyExistsBatch(
 		return;
 	}
 
-	FHttpRequestPool* Pool = nullptr;
-	FHttpRequest* Request = CacheStore.WaitForHttpRequestForOwner<OperationCategory::Get>(Owner, true /* bUnboundedOverflow */, Pool);
-
-	TStringBuilder<256> CompressedBlobsUri;
-	CompressedBlobsUri << "api/v1/compressed-blobs/" << CacheStore.StructuredNamespace << "/exists?";
+	TAnsiStringBuilder<256> CompressedBlobsUri;
+	CompressedBlobsUri << CacheStore.EffectiveDomain << ANSITEXTVIEW("/api/v1/compressed-blobs/") << CacheStore.StructuredNamespace << ANSITEXTVIEW("/exists?");
 	bool bFirstItem = true;
 	for (const FValueWithId& Value : Values)
 	{
 		if (!bFirstItem)
 		{
-			CompressedBlobsUri << "&";
+			CompressedBlobsUri << '&';
 		}
-		CompressedBlobsUri << "id=" << Value.GetRawHash();
+		CompressedBlobsUri << ANSITEXTVIEW("id=") << Value.GetRawHash();
 		bFirstItem = false;
 	}
 
-	auto OnHttpRequestComplete = [this, Values = TArray<FValueWithId>(Values), InOnComplete = MoveTemp(InOnComplete)](FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+	TUniquePtr<FHttpOperation> Operation = CacheStore.WaitForHttpOperation(EOperationCategory::Get, /*bUnboundedOverflow*/ true);
+	FHttpOperation& LocalOperation = *Operation;
+	LocalOperation.SetUri(CompressedBlobsUri);
+	LocalOperation.SetMethod(EHttpMethod::Post);
+	LocalOperation.SetContentType(EHttpMediaType::FormUrlEncoded);
+	LocalOperation.AddAcceptType(EHttpMediaType::Json);
+	LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), this, Values = TArray<FValueWithId>(Values), InOnComplete = MoveTemp(InOnComplete)]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_DataProbablyExistsBatch_OnHttpRequestComplete);
 
-		int64 ResponseCode = Request->GetResponseCode();
-		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		const int32 StatusCode = Operation->GetStatusCode();
+		if (StatusCode >= 200 && StatusCode <= 204)
 		{
-			if (TSharedPtr<FJsonObject> ResponseObject = Request->GetResponseAsJsonObject())
+			if (TSharedPtr<FJsonObject> ResponseObject = Operation->GetBodyAsJson())
 			{
 				TArray<FString> NeedsArrayStrings;
 				if (ResponseObject->TryGetStringArrayField(TEXT("needs"), NeedsArrayStrings))
@@ -1082,12 +1433,12 @@ void FHttpCacheStore::FGetRecordOp::DataProbablyExistsBatch(
 						{
 							const FValueWithId& Value = Values[ValueIndex];
 							UE_LOG(LogDerivedDataCache, VeryVerbose,
-								TEXT("%s: Cache exists hit for %s with hash %s for %s from '%s'"),
-								*CacheStore.Domain, *WriteToString<16>(Value.GetId()), *WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key),
-								*Name);
+								TEXT("%s: Cache exists hit for value %s with hash %s for %s from '%s'"),
+								*CacheStore.Domain, *WriteToString<16>(Value.GetId()),
+								*WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key), *Name);
 							InOnComplete({ Name, Key, ValueIndex, EStatus::Ok });
 						}
-						return FHttpRequest::ECompletionBehavior::Done;
+						return;
 					}
 				}
 
@@ -1113,17 +1464,17 @@ void FHttpCacheStore::FGetRecordOp::DataProbablyExistsBatch(
 					if (ResultStatus[ValueIndex])
 					{
 						UE_LOG(LogDerivedDataCache, VeryVerbose,
-							TEXT("%s: Cache exists hit for %s with hash %s for %s from '%s'"),
-							*CacheStore.Domain, *WriteToString<16>(Value.GetId()), *WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key),
-							*Name);
+							TEXT("%s: Cache exists hit for value %s with hash %s for %s from '%s'"),
+							*CacheStore.Domain, *WriteToString<32>(Value.GetId()),
+							*WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key), *Name);
 						InOnComplete({ Name, Key, ValueIndex, EStatus::Ok });
 					}
 					else
 					{
 						UE_LOG(LogDerivedDataCache, Verbose,
 							TEXT("%s: Cache exists miss with missing value %s with hash %s for %s from '%s'"),
-							*CacheStore.Domain, *WriteToString<16>(Value.GetId()), *WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key),
-							*Name);
+							*CacheStore.Domain, *WriteToString<32>(Value.GetId()),
+							*WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key), *Name);
 						InOnComplete({ Name, Key, ValueIndex, EStatus::Error });
 					}
 				}
@@ -1133,31 +1484,25 @@ void FHttpCacheStore::FGetRecordOp::DataProbablyExistsBatch(
 				for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
 				{
 					UE_LOG(LogDerivedDataCache, Log,
-						TEXT("%s: Cache exists returned invalid results."),
-						*CacheStore.Domain);
+						TEXT("%s: Cache exists miss with invalid response for value %s for %s from '%s'"),
+						*CacheStore.Domain, *WriteToString<32>(Values[ValueIndex].GetId()),
+						*WriteToString<96>(Key), *Name);
 					InOnComplete({ Name, Key, ValueIndex, EStatus::Error });
 				}
 			}
-
-			return FHttpRequest::ECompletionBehavior::Done;
 		}
-
-		if (!ShouldAbortForShutdown() && !Owner.IsCanceled() && CacheStore.ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
+		else
 		{
-			return FHttpRequest::ECompletionBehavior::Retry;
+			for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+			{
+				UE_LOG(LogDerivedDataCache, Verbose,
+					TEXT("%s: Cache exists miss with failed response for value %s for %s from '%s'"),
+					*CacheStore.Domain, *WriteToString<32>(Values[ValueIndex].GetId()),
+					*WriteToString<96>(Key), *Name);
+				InOnComplete({Name, Key, ValueIndex, EStatus::Error});
+			}
 		}
-
-		for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
-		{
-			const FValueWithId& Value = Values[ValueIndex];
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with failed HTTP request for %s from '%s'"),
-				*CacheStore.Domain, *WriteToString<96>(Key), *Name);
-			InOnComplete({Name, Key, ValueIndex, EStatus::Error});
-		}
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	FCompositeBuffer DummyBuffer;
-	Request->EnqueueAsyncPost(Owner, Pool, *CompressedBlobsUri, DummyBuffer, MoveTemp(OnHttpRequestComplete), EHttpMediaType::FormUrlEncoded);
+	});
 }
 
 void FHttpCacheStore::FGetRecordOp::FinishDataStep(bool bSuccess, uint64 InBytesReceived)
@@ -1191,7 +1536,6 @@ void FHttpCacheStore::FGetRecordOp::FinishDataStep(bool bSuccess, uint64 InBytes
 
 FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 	: Domain(Params.Host)
-	, EffectiveDomain(Params.Host)
 	, Namespace(Params.Namespace)
 	, StructuredNamespace(Params.StructuredNamespace)
 	, OAuthProvider(Params.OAuthProvider)
@@ -1202,61 +1546,45 @@ FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 	, OAuthAccessToken(Params.OAuthAccessToken)
 	, bReadOnly(Params.bReadOnly)
 {
-	SharedData = MakeUnique<FHttpSharedData>();
-	if (IsServiceReady() && AcquireAccessToken())
+	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Construct);
+
+	EffectiveDomain.Append(Domain);
+	TAnsiStringBuilder<256> ResolvedDomain;
+	if (Params.bResolveHostCanonicalName && TryResolveCanonicalHost(EffectiveDomain, ResolvedDomain))
 	{
-		FString OriginalDomainPrefix;
-		TAnsiStringBuilder<64> DomainResolveName;
+		// Store the URI with the canonical name to pin to one region when using DNS-based region selection.
+		UE_LOG(LogDerivedDataCache, Display,
+			TEXT("%s: Pinned to %hs based on DNS canonical name."), *Domain, *ResolvedDomain);
+		EffectiveDomain.Reset();
+		EffectiveDomain.Append(ResolvedDomain);
+	}
 
-		if (Domain.StartsWith(TEXT("http://")))
-		{
-			DomainResolveName << Domain.RightChop(7);
-			OriginalDomainPrefix = TEXT("http://");
-		}
-		else if (Domain.StartsWith(TEXT("https://")))
-		{
-			DomainResolveName << Domain.RightChop(8);
-			OriginalDomainPrefix = TEXT("https://");
-		}
-		else
-		{
-			DomainResolveName << Domain;
-		}
+	constexpr uint32 MaxTotalConnections = 8;
+	FHttpConnectionPoolParams ConnectionPoolParams;
+	ConnectionPoolParams.MaxConnections = MaxTotalConnections;
+	ConnectionPoolParams.MinConnections = MaxTotalConnections;
+	ConnectionPool = IHttpManager::Get().CreateConnectionPool(ConnectionPoolParams);
 
-		addrinfo* AddrResult = nullptr;
-		addrinfo AddrHints;
-		FMemory::Memset(&AddrHints, 0, sizeof(AddrHints));
-		AddrHints.ai_flags = AI_CANONNAME;
-		AddrHints.ai_family = AF_UNSPEC;
-		if (Params.bResolveHostCanonicalName && !::getaddrinfo(*DomainResolveName, nullptr, &AddrHints, &AddrResult))
-		{
-			if (AddrResult->ai_canonname)
-			{
-				// Swap the domain with a canonical name from DNS so that if we are using regional redirection, we pin to a region.
-				EffectiveDomain = OriginalDomainPrefix + ANSI_TO_TCHAR(AddrResult->ai_canonname);
+	FHttpClientParams ClientParams = GetDefaultClientParams();
 
-				UE_LOG(LogDerivedDataCache, Display,
-					TEXT("%s: Pinned to %s based on DNS canonical name."),
-					*Domain, *EffectiveDomain);
-			}
-			else
-			{
-				EffectiveDomain = Domain;
-			}
+	THttpUniquePtr<IHttpClient> Client = ConnectionPool->CreateClient(ClientParams);
+	FHealthCheckOp HealthCheck(*this, *Client);
+	if (AcquireAccessToken(Client.Get()) && HealthCheck.IsReady())
+	{
+		ClientParams.MaxRequests = UE_HTTPDDC_GET_REQUEST_POOL_SIZE;
+		ClientParams.MinRequests = UE_HTTPDDC_GET_REQUEST_POOL_SIZE;
+		GetRequestQueues[0] = FHttpRequestQueue(*ConnectionPool, ClientParams);
+		GetRequestQueues[1] = FHttpRequestQueue(*ConnectionPool, ClientParams);
 
-			::freeaddrinfo(AddrResult);
-		}
-		else
-		{
-			EffectiveDomain = Domain;
-		}
+		ClientParams.MaxRequests = UE_HTTPDDC_PUT_REQUEST_POOL_SIZE;
+		ClientParams.MinRequests = UE_HTTPDDC_PUT_REQUEST_POOL_SIZE;
+		PutRequestQueues[0] = FHttpRequestQueue(*ConnectionPool, ClientParams);
+		PutRequestQueues[1] = FHttpRequestQueue(*ConnectionPool, ClientParams);
 
-		GetRequestPools[0] = MakeUnique<FHttpRequestPool>(*Domain, *EffectiveDomain, Access.Get(), SharedData.Get(), UE_HTTPDDC_GET_REQUEST_POOL_SIZE);
-		GetRequestPools[1] = MakeUnique<FHttpRequestPool>(*Domain, *EffectiveDomain, Access.Get(), SharedData.Get(), UE_HTTPDDC_GET_REQUEST_POOL_SIZE);
-		PutRequestPools[0] = MakeUnique<FHttpRequestPool>(*Domain, *EffectiveDomain, Access.Get(), SharedData.Get(), UE_HTTPDDC_PUT_REQUEST_POOL_SIZE);
-		PutRequestPools[1] = MakeUnique<FHttpRequestPool>(*Domain, *EffectiveDomain, Access.Get(), SharedData.Get(), UE_HTTPDDC_PUT_REQUEST_POOL_SIZE);
-		// Allowing the non-blocking requests to overflow to double their pre-allocated size before we start waiting for one to free up.
-		NonBlockingRequestPools = MakeUnique<FHttpRequestPool>(*Domain, *EffectiveDomain, Access.Get(), SharedData.Get(), UE_HTTPDDC_NONBLOCKING_REQUEST_POOL_SIZE, UE_HTTPDDC_NONBLOCKING_REQUEST_POOL_SIZE);
+		ClientParams.MaxRequests = UE_HTTPDDC_NONBLOCKING_REQUEST_POOL_SIZE * 2;
+		ClientParams.MinRequests = UE_HTTPDDC_NONBLOCKING_REQUEST_POOL_SIZE;
+		NonBlockingRequestQueue = FHttpRequestQueue(*ConnectionPool, ClientParams);
+
 		bIsUsable = true;
 	}
 
@@ -1276,31 +1604,26 @@ FHttpCacheStore::~FHttpCacheStore()
 	}
 }
 
+FHttpClientParams FHttpCacheStore::GetDefaultClientParams() const
+{
+	FHttpClientParams ClientParams;
+	ClientParams.DnsCacheTimeout = 300;
+	ClientParams.ConnectTimeout = 30 * 1000;
+	ClientParams.LowSpeedLimit = 1024;
+	ClientParams.LowSpeedTime = 30;
+	ClientParams.TlsLevel = EHttpTlsLevel::All;
+	ClientParams.bFollowRedirects = true;
+	ClientParams.bFollow302Post = true;
+	return ClientParams;
+}
+
 bool FHttpCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
-bool FHttpCacheStore::IsServiceReady()
-{
-	FHttpRequest Request(*Domain, *Domain, nullptr, SharedData.Get(), false);
-	FHttpRequest::EResult Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
-	
-	if (Result == FHttpRequest::EResult::Success && Request.GetResponseCode() == 200)
-	{
-		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: HTTP DDC service status: %s."), *Request.GetName(), *Request.GetResponseAsString());
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Unable to reach HTTP DDC service at %s. Status: %d . Response: %s"), *Request.GetName(), *Domain, Request.GetResponseCode(), *Request.GetResponseAsString());
-	}
-
-	return false;
-}
-
-bool FHttpCacheStore::AcquireAccessToken()
+bool FHttpCacheStore::AcquireAccessToken(IHttpClient* Client)
 {
 	if (Domain.StartsWith(TEXT("http://localhost")))
 	{
@@ -1316,6 +1639,8 @@ bool FHttpCacheStore::AcquireAccessToken()
 
 	ensureMsgf(OAuthProvider.StartsWith(TEXT("http://")) || OAuthProvider.StartsWith(TEXT("https://")),
 		TEXT("%s: OAuth provider %s must be a complete URI including the scheme."), *Domain, *OAuthProvider);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_AcquireAccessToken);
 
 	// In case many requests wants to update the token at the same time
 	// get the current serial while we wait to take the CS.
@@ -1354,27 +1679,32 @@ bool FHttpCacheStore::AcquireAccessToken()
 		return false;
 	}
 
-	const uint32 SchemeEnd = OAuthProvider.Find(TEXT("://")) + 3;
-	const uint32 DomainEnd = OAuthProvider.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SchemeEnd);
-	FString AuthDomain(DomainEnd, *OAuthProvider);
-	FString Uri(*OAuthProvider + DomainEnd + 1);
+	THttpUniquePtr<IHttpClient> LocalClient;
+	if (!Client)
+	{
+		LocalClient = ConnectionPool->CreateClient(GetDefaultClientParams());
+		Client = LocalClient.Get();
+	}
 
-	FHttpRequest Request(*AuthDomain, *AuthDomain, nullptr, SharedData.Get(), false);
-	FHttpRequest::EResult Result = FHttpRequest::EResult::Success;
+	FHttpRequestParams RequestParams;
+	RequestParams.bIgnoreMaxRequests = true;
+	FHttpOperation Operation(Client->TryCreateRequest(RequestParams));
+	Operation.SetUri(StringCast<ANSICHAR>(*OAuthProvider));
+
 	if (OAuthProvider.StartsWith(TEXT("http://localhost")))
 	{
 		// Simple unauthenticated call to a local endpoint that mimics the result from an OIDC provider.
-		Result = Request.PerformBlockingDownload(*Uri, nullptr);
+		Operation.Send();
 	}
 	else
 	{
-		// Needs client id and secret to authenticate with an actual OIDC provider.
+		// Needs client id and secret to authenticate with the OIDC provider.
 
 		// If contents of the secret string is a file path, resolve and read form data.
 		if (OAuthSecret.StartsWith(TEXT("file://")))
 		{
 			FString FilePath = OAuthSecret.Mid(7, OAuthSecret.Len() - 7);
-				FString SecretFileContents;
+			FString SecretFileContents;
 			if (FFileHelper::LoadFileToString(SecretFileContents, *FilePath))
 			{
 				// Overwrite the filepath with the actual content.
@@ -1394,12 +1724,15 @@ bool FHttpCacheStore::AcquireAccessToken()
 			<< ANSITEXTVIEW("&grant_type=client_credentials")
 			<< ANSITEXTVIEW("&client_secret=") << OAuthSecret;
 
-		Result = Request.PerformBlockingPost(*Uri, FCompositeBuffer(FSharedBuffer::MakeView(MakeMemoryView(OAuthFormData))), EHttpMediaType::FormUrlEncoded);
+		Operation.SetMethod(EHttpMethod::Post);
+		Operation.SetContentType(EHttpMediaType::FormUrlEncoded);
+		Operation.SetBody(FCompositeBuffer(FSharedBuffer::MakeView(MakeMemoryView(OAuthFormData))));
+		Operation.Send();
 	}
 
-	if (Result == FHttpRequest::EResult::Success && Request.GetResponseCode() == 200)
+	if (Operation.GetStatusCode() == 200)
 	{
-		if (TSharedPtr<FJsonObject> ResponseObject = Request.GetResponseAsJsonObject())
+		if (TSharedPtr<FJsonObject> ResponseObject = Operation.GetBodyAsJson())
 		{
 			FString AccessTokenString;
 			double ExpiryTimeSeconds = 0.0;
@@ -1414,7 +1747,7 @@ bool FHttpCacheStore::AcquireAccessToken()
 		}
 	}
 
-	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to log in to HTTP services. Server responded with code %d."), *Domain, Request.GetResponseCode());
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to log in to HTTP services with request %s."), *Domain, *WriteToString<256>(Operation));
 	FailedLoginAttempts++;
 	return false;
 }
@@ -1433,43 +1766,67 @@ void FHttpCacheStore::SetAccessToken(FStringView Token, double RefreshDelay)
 	}
 	Access->SetToken(Token);
 
-	// Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
-	constexpr float RefreshGracePeriod = 20.0f;
-	if (RefreshDelay > RefreshGracePeriod && !IsRunningCommandlet())
+	constexpr double RefreshGracePeriod = 20.0f;
+	if (RefreshDelay > RefreshGracePeriod)
 	{
-		RefreshAccessTokenHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-			[this](float DeltaTime)
-			{
-				AcquireAccessToken();
-				return false;
-			}
-		), RefreshDelay - RefreshGracePeriod);
+		// Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
+		if (!IsRunningCommandlet())
+		{
+			RefreshAccessTokenHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+				[this](float DeltaTime)
+				{
+					AcquireAccessToken();
+					return false;
+				}
+			), RefreshDelay - RefreshGracePeriod);
+		}
+
+		// Schedule a forced refresh of the token when the scheduled refresh is starved or unavailable.
+		RefreshAccessTokenTime = FPlatformTime::Seconds() + RefreshDelay - RefreshGracePeriod * 0.5f;
+	}
+	else
+	{
+		RefreshAccessTokenTime = 0.0;
 	}
 
 	// Reset failed login attempts, the service is indeed alive.
 	FailedLoginAttempts = 0;
 }
 
-bool FHttpCacheStore::ShouldRetryOnError(FHttpRequest::EResult Result, int64 ResponseCode)
+TUniquePtr<FHttpCacheStore::FHttpOperation> FHttpCacheStore::WaitForHttpOperation(EOperationCategory Category, bool bUnboundedOverflow)
 {
-	if (Result == FHttpRequest::EResult::FailedTimeout)
+	if (Access && RefreshAccessTokenTime && RefreshAccessTokenTime < FPlatformTime::Seconds())
 	{
-		return true;
+		AcquireAccessToken();
 	}
 
-	// Access token might have expired, request a new token and try again.
-	if (ResponseCode == 401 && AcquireAccessToken())
+	THttpUniquePtr<IHttpRequest> Request;
+
+	FHttpRequestParams Params;
+	if (FPlatformProcess::SupportsMultithreading() && bHttpEnableAsync)
 	{
-		return true;
+		Params.bIgnoreMaxRequests = bUnboundedOverflow;
+		Request = NonBlockingRequestQueue.CreateRequest(Params);
+	}
+	else
+	{
+		const bool bIsInGameThread = IsInGameThread();
+		if (Category == EOperationCategory::Get)
+		{
+			Request = GetRequestQueues[bIsInGameThread].CreateRequest(Params);
+		}
+		else
+		{
+			Request = PutRequestQueues[bIsInGameThread].CreateRequest(Params);
+		}
 	}
 
-	// Too many requests, make a new attempt
-	if (ResponseCode == 429)
+	if (Access)
 	{
-		return true;
+		Request->AddHeader(ANSITEXTVIEW("Authorization"), WriteToAnsiString<1024>(*Access));
 	}
 
-	return false;
+	return MakeUnique<FHttpOperation>(MoveTemp(Request));
 }
 
 void FHttpCacheStore::GetCacheRecordOnlyAsync(
@@ -1511,54 +1868,45 @@ void FHttpCacheStore::GetCacheRecordOnlyAsync(
 	FString Bucket(Key.Bucket.ToString());
 	Bucket.ToLowerInline();
 
-	TStringBuilder<256> RefsUri;
-	RefsUri << "api/v1/refs/" << StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
-
-	FHttpRequestPool* Pool = nullptr;
-	FHttpRequest* Request = WaitForHttpRequestForOwner<OperationCategory::Get>(Owner, false /* bUnboundedOverflow */, Pool);
-
-	auto OnHttpRequestComplete = [this, &Owner, Name = FSharedString(Name), Key, UserData, OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+	TUniquePtr<FHttpOperation> Operation = WaitForHttpOperation(EOperationCategory::Get, /*bUnboundedOverflow*/ false);
+	FHttpOperation& LocalOperation = *Operation;
+	LocalOperation.SetUri(WriteToAnsiString<256>(EffectiveDomain, ANSITEXTVIEW("/api/v1/refs/"), StructuredNamespace, '/', Bucket, '/', Key.Hash));
+	LocalOperation.SetMethod(EHttpMethod::Get);
+	LocalOperation.AddAcceptType(EHttpMediaType::CbObject);
+	LocalOperation.SetExpectedErrorCodes({404});
+	LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), this, Name, Key, UserData, OnComplete = MoveTemp(OnComplete)]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_GetCacheRecordOnlyAsync_OnHttpRequestComplete);
 
-		int64 ResponseCode = Request->GetResponseCode();
-		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		const int32 StatusCode = Operation->GetStatusCode();
+		if (StatusCode >= 200 && StatusCode <= 204)
 		{
-			FSharedBuffer ResponseBuffer = Request->MoveResponseBufferToShared();
+			FSharedBuffer Body = Operation->GetBody();
 
-			if (ValidateCompactBinary(ResponseBuffer, ECbValidateMode::Default) != ECbValidateError::None)
+			if (ValidateCompactBinary(Body, ECbValidateMode::Default) != ECbValidateError::None)
 			{
 				UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Cache miss with invalid package for %s from '%s'"),
 					*Domain, *WriteToString<96>(Key), *Name);
-				OnComplete({ Name, Key, UserData, Request->GetBytesReceived(), {}, EStatus::Error });
-				return FHttpRequest::ECompletionBehavior::Done;
+				OnComplete({ Name, Key, UserData, Operation->GetBytesReceived(), {}, EStatus::Error });
 			}
-
-			FOptionalCacheRecord Record = FCacheRecord::Load(FCbPackage(FCbObject(ResponseBuffer)));
-			if (Record.IsNull())
+			else if (FOptionalCacheRecord Record = FCacheRecord::Load(FCbPackage(FCbObject(Body))); Record.IsNull())
 			{
 				UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Cache miss with record load failure for %s from '%s'"),
 					*Domain, *WriteToString<96>(Key), *Name);
-				OnComplete({ Name, Key, UserData, Request->GetBytesReceived(), {}, EStatus::Error });
-				return FHttpRequest::ECompletionBehavior::Done;
+				OnComplete({ Name, Key, UserData, Operation->GetBytesReceived(), {}, EStatus::Error });
 			}
-
-			OnComplete({ Name, Key, UserData, Request->GetBytesReceived(), MoveTemp(Record), EStatus::Ok });
-			return FHttpRequest::ECompletionBehavior::Done;
+			else
+			{
+				OnComplete({ Name, Key, UserData, Operation->GetBytesReceived(), MoveTemp(Record), EStatus::Ok });
+			}
 		}
-
-		if (!ShouldAbortForShutdown() && !Owner.IsCanceled() && ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
+		else
 		{
-			return FHttpRequest::ECompletionBehavior::Retry;
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with missing package for %s from '%s'"),
+				*Domain, *WriteToString<96>(Key), *Name);
+			OnComplete({ Name, Key, UserData, Operation->GetBytesReceived(), {}, EStatus::Error });
 		}
-
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with missing package for %s from '%s'"),
-			*Domain, *WriteToString<96>(Key), *Name);
-		OnComplete({ Name, Key, UserData, Request->GetBytesReceived(), {}, EStatus::Error });
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject, { 401, 404 });
+	});
 }
 
 void FHttpCacheStore::PutCacheRecordAsync(
@@ -1710,29 +2058,28 @@ void FHttpCacheStore::GetCacheValueAsync(
 	FString Bucket(Key.Bucket.ToString());
 	Bucket.ToLowerInline();
 
-	TStringBuilder<256> RefsUri;
-	RefsUri << "api/v1/refs/" << StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
-
-	FHttpRequestPool* Pool = nullptr;
-	FHttpRequest* Request = WaitForHttpRequestForOwner<OperationCategory::Get>(Owner, false /* bUnboundedOverflow */, Pool);
+	TUniquePtr<FHttpOperation> Operation = WaitForHttpOperation(EOperationCategory::Get, /*bUnboundedOverflow*/ false);
+	FHttpOperation& LocalOperation = *Operation;
+	LocalOperation.SetUri(WriteToAnsiString<256>(EffectiveDomain, ANSITEXTVIEW("/api/v1/refs/"), StructuredNamespace, '/', Bucket, '/', Key.Hash));
+	LocalOperation.SetMethod(EHttpMethod::Get);
 	if (bSkipData)
 	{
-		Request->AddHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
+		LocalOperation.AddAcceptType(EHttpMediaType::CbObject);
 	}
 	else
 	{
-		Request->AddHeader(TEXT("Accept"), TEXT("application/x-jupiter-inline"));
+		LocalOperation.AddHeader(ANSITEXTVIEW("Accept"), ANSITEXTVIEW("application/x-jupiter-inline"));
 	}
-
-	auto OnHttpRequestComplete = [this, &Owner, Name, Key, UserData, bSkipData, OnComplete = MoveTemp(OnComplete)] (FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+	LocalOperation.SetExpectedErrorCodes({404});
+	LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), this, Name, Key, UserData, bSkipData, OnComplete = MoveTemp(OnComplete)]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_GetCacheValueAsync_OnHttpRequestComplete);
 
-		int64 ResponseCode = Request->GetResponseCode();
-		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		const int32 StatusCode = Operation->GetStatusCode();
+		if (StatusCode >= 200 && StatusCode <= 204)
 		{
 			FValue ResultValue;
-			FSharedBuffer ResponseBuffer = Request->MoveResponseBufferToShared();
+			FSharedBuffer ResponseBuffer = Operation->GetBody();
 
 			if (bSkipData)
 			{
@@ -1741,7 +2088,7 @@ void FHttpCacheStore::GetCacheValueAsync(
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%s'"),
 						*Domain, *WriteToString<96>(Key), *Name);
 					OnComplete({Name, Key, {}, UserData, EStatus::Error});
-					return FHttpRequest::ECompletionBehavior::Done;
+					return;
 				}
 
 				const FCbObjectView Object = FCbObject(ResponseBuffer);
@@ -1752,7 +2099,7 @@ void FHttpCacheStore::GetCacheValueAsync(
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%'"),
 						*Domain, *WriteToString<96>(Key), *Name);
 					OnComplete({Name, Key, {}, UserData, EStatus::Error});
-					return FHttpRequest::ECompletionBehavior::Done;
+					return;
 				}
 				ResultValue = FValue(RawHash, RawSize);
 			}
@@ -1761,8 +2108,7 @@ void FHttpCacheStore::GetCacheValueAsync(
 				FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(ResponseBuffer);
 				if (!CompressedBuffer)
 				{
-					FString ReceivedHashStr;
-					if (Request->GetHeader("X-Jupiter-InlinePayloadHash", ReceivedHashStr))
+					if (FAnsiStringView ReceivedHashStr = Operation->GetHeader("X-Jupiter-InlinePayloadHash"); !ReceivedHashStr.IsEmpty())
 					{
 						FIoHash ReceivedHash(ReceivedHashStr);
 						FIoHash ComputedHash = FIoHash::HashBuffer(ResponseBuffer.GetView());
@@ -1778,26 +2124,18 @@ void FHttpCacheStore::GetCacheValueAsync(
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%s'"),
 						*Domain, *WriteToString<96>(Key), *Name);
 					OnComplete({Name, Key, {}, UserData, EStatus::Error});
-					return FHttpRequest::ECompletionBehavior::Done;
+					return;
 				}
 				ResultValue = FValue(CompressedBuffer);
 			}
 			OnComplete({Name, Key, ResultValue, UserData, EStatus::Ok});
-			return FHttpRequest::ECompletionBehavior::Done;
-		}
-
-		if (!ShouldAbortForShutdown() && !Owner.IsCanceled() && ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
-		{
-			return FHttpRequest::ECompletionBehavior::Retry;
+			return;
 		}
 
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with failed HTTP request for %s from '%s'"),
 			*Domain, *WriteToString<96>(Key), *Name);
 		OnComplete({Name, Key, {}, UserData, EStatus::Error});
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-
-	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::UnspecifiedContentType, { 401, 404 });
+	});
 }
 
 void FHttpCacheStore::GetCacheRecordAsync(
@@ -1833,8 +2171,6 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 		return;
 	}
 
-	TStringBuilder<256> RefsUri;
-	RefsUri << "api/v1/refs/" << StructuredNamespace;
 	FCbWriter RequestWriter;
 	RequestWriter.BeginObject();
 	RequestWriter.BeginArray(ANSITEXTVIEW("ops"));
@@ -1857,33 +2193,32 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 	RequestWriter.EndObject();
 	FCbFieldIterator RequestFields = RequestWriter.Save();
 
-
-	FHttpRequestPool* Pool = nullptr;
-	FHttpRequest* Request = WaitForHttpRequestForOwner<OperationCategory::Get>(Owner, false /* bUnboundedOverflow */, Pool);
-
-	Request->AddHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
-
-	auto OnHttpRequestComplete = [this, &Owner, ValueRefs = TArray<FCacheGetValueRequest>(ValueRefs), OnComplete = MoveTemp(OnComplete)](FHttpRequest::EResult HttpResult, FHttpRequest* Request)
+	TUniquePtr<FHttpOperation> Operation = WaitForHttpOperation(EOperationCategory::Get, /*bUnboundedOverflow*/ false);
+	FHttpOperation& LocalOperation = *Operation;
+	LocalOperation.SetUri(WriteToAnsiString<256>(EffectiveDomain, ANSITEXTVIEW("/api/v1/refs/"), StructuredNamespace));
+	LocalOperation.SetMethod(EHttpMethod::Post);
+	LocalOperation.SetContentType(EHttpMediaType::CbObject);
+	LocalOperation.AddAcceptType(EHttpMediaType::CbObject);
+	LocalOperation.SetBody(FCompositeBuffer(RequestFields.GetOuterBuffer()));
+	LocalOperation.SendAsync(Owner, [Operation = MoveTemp(Operation), this, ValueRefs = TArray<FCacheGetValueRequest>(ValueRefs), OnComplete = MoveTemp(OnComplete)]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_RefCachedDataProbablyExistsBatchAsync_OnHttpRequestComplete);
 
-		int64 ResponseCode = Request->GetResponseCode();
-		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		const int32 OverallStatusCode = Operation->GetStatusCode();
+		if (OverallStatusCode >= 200 && OverallStatusCode <= 204)
 		{
-			FMemoryView ResponseView = MakeMemoryView(Request->GetResponseBuffer().GetData(), Request->GetResponseBuffer().Num());
+			FMemoryView ResponseView = Operation->GetBody();
 			if (ValidateCompactBinary(ResponseView, ECbValidateMode::Default) != ECbValidateError::None)
 			{
 				for (const FCacheGetValueRequest& ValueRef : ValueRefs)
 				{
-					UE_LOG(LogDerivedDataCache, Log,
-						TEXT("%s: Cache exists returned invalid results."),
-						*Domain);
-						OnComplete(ValueRef.MakeResponse(EStatus::Error));
+					UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Cache exists returned invalid results."), *Domain);
+					OnComplete(ValueRef.MakeResponse(EStatus::Error));
 				}
-				return FHttpRequest::ECompletionBehavior::Done;
+				return;
 			}
 
-			const FCbObjectView ResponseObject = FCbObjectView(Request->GetResponseBuffer().GetData());
+			const FCbObjectView ResponseObject(ResponseView.GetData());
 
 			FCbArrayView ResultsArrayView = ResponseObject[ANSITEXTVIEW("results")].AsArrayView();
 
@@ -1896,7 +2231,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 						*Domain, ValueRefs.Num(), ResultsArrayView.Num());
 						OnComplete(ValueRef.MakeResponse(EStatus::Error));
 				}
-				return FHttpRequest::ECompletionBehavior::Done;
+				return;
 			}
 
 			for (FCbFieldView ResultFieldView : ResultsArrayView)
@@ -1915,7 +2250,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 
 				const FCacheGetValueRequest& ValueRef = ValueRefs[OpId];
 
-				if (!FHttpRequest::IsSuccessResponse(StatusCode))
+				if (StatusCode < 200 || StatusCode > 204)
 				{
 					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with unsuccessful response code %d for %s from '%s'"),
 						*Domain, StatusCode, *WriteToString<96>(ValueRef.Key), *ValueRef.Name);
@@ -1943,12 +2278,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 
 				OnComplete({ValueRef.Name, ValueRef.Key, FValue(RawHash, RawSize), ValueRef.UserData, EStatus::Ok});
 			}
-			return FHttpRequest::ECompletionBehavior::Done;
-		}
-
-		if (!ShouldAbortForShutdown() && !Owner.IsCanceled() && ShouldRetryOnError(HttpResult, ResponseCode) && ((Request->GetAttempts()+1) < UE_HTTPDDC_MAX_ATTEMPTS))
-		{
-			return FHttpRequest::ECompletionBehavior::Retry;
+			return;
 		}
 
 		for (const FCacheGetValueRequest& ValueRef : ValueRefs)
@@ -1957,10 +2287,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 				*Domain, *WriteToString<96>(ValueRef.Key), *ValueRef.Name);
 			OnComplete(ValueRef.MakeResponse(EStatus::Error));
 		}
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-
-	Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(RequestFields.GetOuterBuffer()), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject);
+	});
 }
 
 void FHttpCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)

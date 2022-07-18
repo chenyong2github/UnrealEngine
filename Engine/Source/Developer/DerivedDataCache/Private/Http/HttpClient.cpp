@@ -2,377 +2,357 @@
 
 #include "HttpClient.h"
 
-#include "Algo/RemoveIf.h"
+#include "Containers/LockFreeList.h"
+#include "HAL/Event.h"
+#include "Memory/MemoryView.h"
 #include "Misc/AsciiSet.h"
-#include "Misc/ScopeRWLock.h"
-#include "Tasks/Task.h"
-
-#if !defined(CURL_NO_OLDIES)
-	#define CURL_NO_OLDIES
-#endif
-
-#if PLATFORM_MICROSOFT
-#include "Microsoft/AllowMicrosoftPlatformTypes.h"
-#endif
-
-#if defined(PLATFORM_CURL_INCLUDE)
-#include PLATFORM_CURL_INCLUDE
-#else
-#include "curl/curl.h"
-#endif // defined(PLATFORM_CURL_INCLUDE)
-
-#if PLATFORM_MICROSOFT
-#include "Microsoft/HideMicrosoftPlatformTypes.h"
-#endif
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "String/Find.h"
 
 namespace UE
 {
 
-namespace Http::Private
+FAnsiStringView LexToString(const EHttpMethod Method)
 {
-
-static constexpr uint32 MaxTotalConnections = 8;
-static constexpr uint32 WaitIntervalMs = 10;
-
-struct FHttpSharedDataInternals
-{
-	CURLSH* CurlShare;
-	CURLM* CurlMulti;
-	TDepletableMpscQueue<CURL*> PendingRequestAdditions;
-	FRWLock Locks[CURL_LOCK_DATA_LAST];
-	bool WriteLocked[CURL_LOCK_DATA_LAST]{};
-};
-
-struct FHttpSharedDataStatics
-{
-	static void LockFn(CURL* Handle, curl_lock_data Data, curl_lock_access Access, void* User)
+	switch (Method)
 	{
-		FHttpSharedDataInternals* SharedDataInternals = ((FHttpSharedData*)User)->Internals.Get();
-		if (Access == CURL_LOCK_ACCESS_SHARED)
+	case EHttpMethod::Get:    return ANSITEXTVIEW("GET");
+	case EHttpMethod::Put:    return ANSITEXTVIEW("PUT");
+	case EHttpMethod::Post:   return ANSITEXTVIEW("POST");
+	case EHttpMethod::Head:   return ANSITEXTVIEW("HEAD");
+	case EHttpMethod::Delete: return ANSITEXTVIEW("DELETE");
+	default:                  return ANSITEXTVIEW("UNKNOWN");
+	}
+}
+
+bool TryLexFromString(EHttpMethod& OutMethod, const FAnsiStringView View)
+{
+	if (View == ANSITEXTVIEW("GET"))
+	{
+		OutMethod = EHttpMethod::Get;
+	}
+	else if (View == ANSITEXTVIEW("PUT"))
+	{
+		OutMethod = EHttpMethod::Put;
+	}
+	else if (View == ANSITEXTVIEW("POST"))
+	{
+		OutMethod = EHttpMethod::Post;
+	}
+	else if (View == ANSITEXTVIEW("HEAD"))
+	{
+		OutMethod = EHttpMethod::Head;
+	}
+	else if (View == ANSITEXTVIEW("DELETE"))
+	{
+		OutMethod = EHttpMethod::Delete;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}
+
+FAnsiStringView LexToString(const EHttpMediaType MediaType)
+{
+	switch (MediaType)
+	{
+	case EHttpMediaType::Any:              return ANSITEXTVIEW("*/*");
+	case EHttpMediaType::Binary:           return ANSITEXTVIEW("application/octet-stream");
+	case EHttpMediaType::Text:             return ANSITEXTVIEW("text/plain");
+	case EHttpMediaType::Json:             return ANSITEXTVIEW("application/json");
+	case EHttpMediaType::Yaml:             return ANSITEXTVIEW("text/yaml");
+	case EHttpMediaType::CbObject:         return ANSITEXTVIEW("application/x-ue-cb");
+	case EHttpMediaType::CbPackage:        return ANSITEXTVIEW("application/x-ue-cbpkg");
+	case EHttpMediaType::CbPackageOffer:   return ANSITEXTVIEW("application/x-ue-offer");
+	case EHttpMediaType::CompressedBinary: return ANSITEXTVIEW("application/x-ue-comp");
+	case EHttpMediaType::FormUrlEncoded:   return ANSITEXTVIEW("application/x-www-form-urlencoded");
+	default:                               return ANSITEXTVIEW("unknown");
+	}
+}
+
+bool TryLexFromString(EHttpMediaType& OutMediaType, const FAnsiStringView View)
+{
+	const int32 SlashIndex = String::FindFirstChar(View, '/');
+	if (SlashIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const FAnsiStringView Type = View.Left(SlashIndex);
+	const FAnsiStringView SubType = View.RightChop(SlashIndex + 1);
+	if (Type == ANSITEXTVIEW("application"))
+	{
+		if (SubType == ANSITEXTVIEW("octet-stream"))
 		{
-			SharedDataInternals->Locks[Data].ReadLock();
+			OutMediaType = EHttpMediaType::Binary;
+		}
+		else if (SubType == ANSITEXTVIEW("json"))
+		{
+			OutMediaType = EHttpMediaType::Json;
+		}
+		else if (SubType == ANSITEXTVIEW("x-ue-cb"))
+		{
+			OutMediaType = EHttpMediaType::CbObject;
+		}
+		else if (SubType == ANSITEXTVIEW("x-ue-cbpkg"))
+		{
+			OutMediaType = EHttpMediaType::CbPackage;
+		}
+		else if (SubType == ANSITEXTVIEW("x-ue-offer"))
+		{
+			OutMediaType = EHttpMediaType::CbPackageOffer;
+		}
+		else if (SubType == ANSITEXTVIEW("x-ue-comp"))
+		{
+			OutMediaType = EHttpMediaType::CompressedBinary;
+		}
+		else if (SubType == ANSITEXTVIEW("x-www-form-urlencoded"))
+		{
+			OutMediaType = EHttpMediaType::FormUrlEncoded;
 		}
 		else
 		{
-			SharedDataInternals->Locks[Data].WriteLock();
-			SharedDataInternals->WriteLocked[Data] = true;
+			return false;
 		}
 	}
-
-	static void UnlockFn(CURL* Handle, curl_lock_data Data, void* User)
+	else if (Type == ANSITEXTVIEW("text"))
 	{
-		FHttpSharedDataInternals* SharedDataInternals = ((FHttpSharedData*)User)->Internals.Get();
-		if (!SharedDataInternals->WriteLocked[Data])
+		if (SubType == ANSITEXTVIEW("plain"))
 		{
-			SharedDataInternals->Locks[Data].ReadUnlock();
+			OutMediaType = EHttpMediaType::Text;
+		}
+		else if (SubType == ANSITEXTVIEW("yaml"))
+		{
+			OutMediaType = EHttpMediaType::Yaml;
 		}
 		else
 		{
-			SharedDataInternals->WriteLocked[Data] = false;
-			SharedDataInternals->Locks[Data].WriteUnlock();
+			return false;
 		}
 	}
-};
-
-} // Http::Private
-
-void FHttpAccessToken::SetToken(const FStringView Token)
-{
-	FWriteScopeLock WriteLock(Lock);
-	const FAnsiStringView Prefix = ANSITEXTVIEW("Authorization: Bearer ");
-	const int32 TokenLen = FPlatformString::ConvertedLength<ANSICHAR>(Token.GetData(), Token.Len());
-	Header.Empty(Prefix.Len() + TokenLen);
-	Header.Append(Prefix.GetData(), Prefix.Len());
-	const int32 TokenIndex = Header.AddUninitialized(TokenLen);
-	FPlatformString::Convert(Header.GetData() + TokenIndex, TokenLen, Token.GetData(), Token.Len());
-	Serial.fetch_add(1, std::memory_order_relaxed);
-}
-
-FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token)
-{
-	FReadScopeLock ReadLock(Token.Lock);
-	return Builder.Append(Token.Header);
-}
-
-FHttpSharedData::FHttpSharedData(uint32 OverrideMaxConnections)
-	: PendingRequestEvent(EEventMode::AutoReset)
-{
-	Internals = MakePimpl<Http::Private::FHttpSharedDataInternals>();
-	Internals->CurlShare = curl_share_init();
-	curl_share_setopt(Internals->CurlShare, CURLSHOPT_USERDATA, this);
-	curl_share_setopt(Internals->CurlShare, CURLSHOPT_LOCKFUNC, Http::Private::FHttpSharedDataStatics::LockFn);
-	curl_share_setopt(Internals->CurlShare, CURLSHOPT_UNLOCKFUNC, Http::Private::FHttpSharedDataStatics::UnlockFn);
-	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
-	Internals->CurlMulti = curl_multi_init();
-	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_MAX_TOTAL_CONNECTIONS, OverrideMaxConnections ? OverrideMaxConnections : Http::Private::MaxTotalConnections);
-	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_MAXCONNECTS, OverrideMaxConnections ? OverrideMaxConnections : Http::Private::MaxTotalConnections); // Keep the connection pool at exactly the number of total connections
-	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
-}
-
-FHttpSharedData::~FHttpSharedData()
-{
-	bAsyncThreadShutdownRequested.store(true, std::memory_order_relaxed);
-	if (AsyncServiceThread.IsJoinable())
+	else if (Type == ANSITEXTVIEW("*") && SubType == ANSITEXTVIEW("*"))
 	{
-		AsyncServiceThread.Join();
+		OutMediaType = EHttpMediaType::Any;
+	}
+	else
+	{
+		return false;
 	}
 
-	curl_multi_cleanup(Internals->CurlMulti);
-	curl_share_cleanup(Internals->CurlShare);
+	return true;
 }
 
-void FHttpSharedData::AddRequest(void* Curl)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void IHttpRequest::SetContentType(const EHttpMediaType Type, const FAnsiStringView Param)
 {
-	if (Internals->PendingRequestAdditions.EnqueueAndReturnWasEmpty(static_cast<CURL*>(Curl)))
+	TAnsiStringBuilder<64> Value;
+	Value << LexToString(Type);
+	if (!Param.IsEmpty())
 	{
-		PendingRequestEvent.Trigger();
+		Value << ANSITEXTVIEW("; ") << Param;
 	}
+	AddHeader(ANSITEXTVIEW("Content-Type"), Value);
+}
 
-	if (!bAsyncThreadStarting.load(std::memory_order_relaxed) && !bAsyncThreadStarting.exchange(true, std::memory_order_relaxed))
+void IHttpRequest::AddAcceptType(const EHttpMediaType Type, const float Weight)
+{
+	TAnsiStringBuilder<64> Value;
+	Value << LexToString(Type);
+	if (Weight != 1.0f)
 	{
-		AsyncServiceThread = FThread(TEXT("HttpService"), [this] { ProcessAsyncRequests(); }, 64 * 1024, TPri_Normal);
+		Value.Appendf(";q=%.3f", Weight);
 	}
+	AddHeader(ANSITEXTVIEW("Accept"), Value);
 }
 
-void* FHttpSharedData::GetCurlShare() const
-{
-	return Internals->CurlShare;
-}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FHttpSharedData::ProcessAsyncRequests()
+FAnsiStringView IHttpResponse::GetHeader(const FAnsiStringView Name) const
 {
-	int ActiveTransfers = 0;
-	TArray<Tasks::TTask<void>> PendingCompletionTasks;
-	PendingCompletionTasks.Reserve(128);
-
-	auto ProcessPendingRequests = [this, &ActiveTransfers, &PendingCompletionTasks]
+	const int32 NameLen = Name.Len();
+	for (const FAnsiStringView& Header : GetAllHeaders())
 	{
-		int CurrentActiveTransfers = -1;
-
-		do
+		if (Header.StartsWith(Name, ESearchCase::IgnoreCase) &&
+			Header.Len() > NameLen && Header.GetData()[NameLen] == ':')
 		{
-			Internals->PendingRequestAdditions.Deplete([this, &ActiveTransfers](CURL* Curl)
-			{
-				curl_multi_add_handle(Internals->CurlMulti, Curl);
-				++ActiveTransfers;
-			});
+			return Header.TrimStartAndEnd();
+		}
+	}
+	return {};
+}
 
-			curl_multi_perform(Internals->CurlMulti, &CurrentActiveTransfers);
-
-			if (CurrentActiveTransfers == 0 || ActiveTransfers != CurrentActiveTransfers)
+int32 IHttpResponse::GetHeaders(FAnsiStringView Name, TArrayView<FAnsiStringView> OutValues) const
+{
+	int32 MatchIndex = 0;
+	const int32 NameLen = Name.Len();
+	const int32 ValuesCount = OutValues.Num();
+	FAnsiStringView* Values = OutValues.GetData();
+	for (const FAnsiStringView& Header : GetAllHeaders())
+	{
+		if (Header.StartsWith(Name, ESearchCase::IgnoreCase) &&
+			Header.Len() > NameLen && Header.GetData()[NameLen] == ':')
+		{
+			if (ValuesCount > MatchIndex)
 			{
-				for (;;)
+				Values[MatchIndex] = Header.TrimStartAndEnd();
+			}
+			++MatchIndex;
+		}
+	}
+	return MatchIndex;
+}
+
+EHttpMediaType IHttpResponse::GetContentType() const
+{
+	const FAnsiStringView ContentType = GetHeader(ANSITEXTVIEW("Content-Type"));
+	const FAnsiStringView ContentTypeNoParams = FAsciiSet::FindPrefixWithout(ContentType, "; \t");
+	EHttpMediaType MediaType = EHttpMediaType::Any;
+	TryLexFromString(MediaType, ContentTypeNoParams);
+	return MediaType;
+}
+
+FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const IHttpResponse& Response)
+{
+	Builder << LexToString(Response.GetMethod()) << TEXT(' ') << Response.GetUri();
+
+	if (const int32 StatusCode = Response.GetStatusCode(); StatusCode > 0)
+	{
+		Builder << TEXTVIEW(" -> ") << StatusCode;
+	}
+
+	if (const FAnsiStringView Error = Response.GetError(); !Error.IsEmpty())
+	{
+		Builder << TEXTVIEW(": ") << Error;
+	}
+
+	return Builder;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FHttpByteArrayReceiver::FHttpByteArrayReceiver(TArray64<uint8>& OutArray, IHttpReceiver* InNext)
+	: Array(OutArray)
+	, Next(InNext)
+{
+	Array.Reset();
+}
+
+IHttpReceiver* FHttpByteArrayReceiver::OnBody(IHttpResponse& Response, FMemoryView& Data)
+{
+	if (Array.IsEmpty())
+	{
+		constexpr int64 MaxReserveSize = 96 * 1024 * 1024;
+		if (const FAnsiStringView View = Response.GetHeader(ANSITEXTVIEW("Content-Length")); !View.IsEmpty())
+		{
+			constexpr int32 MaxStringLen = 16;
+			ANSICHAR String[MaxStringLen];
+			if (const int32 CopyLen = View.CopyString(String, MaxStringLen); CopyLen < MaxStringLen)
+			{
+				String[CopyLen] = '\0';
+				const int64 ContentLength = FCStringAnsi::Atoi64(String);
+				if (ContentLength > 0 && ContentLength <= MaxReserveSize)
 				{
-					int MsgsStillInQueue = 0; // may use that to impose some upper limit we may spend in that loop
-					CURLMsg* Message = curl_multi_info_read(Internals->CurlMulti, &MsgsStillInQueue);
-
-					if (!Message)
-					{
-						break;
-					}
-
-					// find out which requests have completed
-					if (Message->msg == CURLMSG_DONE)
-					{
-						CURL* CompletedHandle = Message->easy_handle;
-						curl_multi_remove_handle(Internals->CurlMulti, CompletedHandle);
-
-						void* PrivateData = nullptr;
-						curl_easy_getinfo(CompletedHandle, CURLINFO_PRIVATE, &PrivateData);
-						FHttpRequest* CompletedRequest = (FHttpRequest*)PrivateData;
-
-						if (CompletedRequest)
-						{
-							// It is important that the CompleteAsync call doesn't happen on this thread as it is possible it will block waiting
-							// for a free HTTP request, and if that happens on this thread, we can deadlock as no HTTP requests will become 
-							// available while this thread is blocked.
-							PendingCompletionTasks.Emplace(Tasks::Launch(TEXT("FHttpRequest::CompleteAsync"), [CompletedRequest, Result = Message->data.result]() mutable
-							{
-								CompletedRequest->CompleteAsync(Result);
-							}));
-						}
-					}
+					Array.Reserve(ContentLength);
 				}
-				ActiveTransfers = CurrentActiveTransfers;
-			}
-
-			if (CurrentActiveTransfers > 0)
-			{
-				curl_multi_wait(Internals->CurlMulti, nullptr, 0, 1, nullptr);
 			}
 		}
-		while (CurrentActiveTransfers > 0);
+	}
+	Array.Append(static_cast<const uint8*>(Data.GetData()), int64(Data.GetSize()));
+	return this;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct Http::Private::FHttpRequestQueueData
+{
+	struct FWaiter
+	{
+		THttpUniquePtr<IHttpRequest> Request;
+		FEventRef Event{EEventMode::ManualReset};
 	};
 
-	do
+	FHttpRequestQueueData(IHttpConnectionPool& ConnectionPool, const FHttpClientParams& ClientParams)
 	{
-		ProcessPendingRequests();
-
-		PendingCompletionTasks.SetNum(Algo::StableRemoveIf(PendingCompletionTasks, [](const Tasks::TTask<void>& Task) { return Task.IsCompleted(); }), false);
-		if (!PendingCompletionTasks.IsEmpty())
+		FHttpClientParams QueueParams = ClientParams;
+		QueueParams.OnDestroyRequest = [this, OnDestroyRequest = MoveTemp(QueueParams.OnDestroyRequest)]
 		{
-			Tasks::Wait(PendingCompletionTasks, FTimespan::FromMilliseconds(100));
-		}
-		else
-		{
-			PendingRequestEvent.Wait(100);
-		}
-	}
-	while (!FHttpSharedData::bAsyncThreadShutdownRequested.load(std::memory_order_relaxed));
-
-	// Process last requests before shutdown.  May want these to be aborted instead.
-	ProcessPendingRequests();
-}
-
-FHttpRequestPool::FHttpRequestPool(
-	const FStringView InServiceUrl,
-	FStringView InEffectiveServiceUrl,
-	const FHttpAccessToken* const InAuthorizationToken,
-	FHttpSharedData* const InSharedData,
-	const uint32 PoolSize,
-	const uint32 InOverflowLimit)
-	: ActiveOverflowRequests(0)
-	, OverflowLimit(InOverflowLimit)
-{
-	InEffectiveServiceUrl = FAsciiSet::TrimSuffixWith(InEffectiveServiceUrl, "/");
-
-	Pool.AddUninitialized(PoolSize);
-	Requests.AddUninitialized(PoolSize);
-	for (int32 Index = 0; Index < Pool.Num(); ++Index)
-	{
-		Pool[Index].Usage = 0u;
-		Pool[Index].Request = new(&Requests[Index]) FHttpRequest(InServiceUrl, InEffectiveServiceUrl, InAuthorizationToken, InSharedData, /*bLogErrors*/ true);
-	}
-
-	InitData = MakeUnique<FInitData>(InServiceUrl, InEffectiveServiceUrl, InAuthorizationToken, InSharedData);
-}
-
-FHttpRequestPool::~FHttpRequestPool()
-{
-	check(ActiveOverflowRequests.load() == 0);
-	for (const FEntry& Entry : Pool)
-	{
-		// No requests should be in use by now.
-		check(Entry.Usage.load(std::memory_order_acquire) == 0u);
-	}
-}
-
-FHttpRequest* FHttpRequestPool::GetFreeRequest(bool bUnboundedOverflow)
-{
-	for (FEntry& Entry : Pool)
-	{
-		if (!Entry.Usage.load(std::memory_order_relaxed))
-		{
-			uint8 Expected = 0u;
-			if (Entry.Usage.compare_exchange_strong(Expected, 1u))
+			if (OnDestroyRequest)
 			{
-				Entry.Request->Reset();
-				return Entry.Request;
+				OnDestroyRequest();
 			}
-		}
-	}
-	if (bUnboundedOverflow || (OverflowLimit > 0))
-	{
-		// The use of two operations here (load, then fetch_add) implies that we can exceed the overflow limit because the combined operation
-		// is not atomic.  This is acceptable for our use case.  If we wanted to enforce the hard limit, we could use a loop instead.
-		if (bUnboundedOverflow || (ActiveOverflowRequests.load(std::memory_order_relaxed) < OverflowLimit))
-		{
-			// Create an overflow request (outside of the pre-allocated range of requests)
-			ActiveOverflowRequests.fetch_add(1, std::memory_order_relaxed);
-			return new FHttpRequest(InitData->ServiceUrl, InitData->EffectiveServiceUrl, InitData->AccessToken, InitData->SharedData, true);
-		}
-	}
-	return nullptr;
-}
-
-FHttpRequest* FHttpRequestPool::WaitForFreeRequest(bool bUnboundedOverflow)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_WaitForFreeRequest);
-
-	FHttpRequest* Request = GetFreeRequest(bUnboundedOverflow);
-	if (Request == nullptr)
-	{
-		// Make it a fair by allowing each thread to register itself in a FIFO
-		// so that the first thread to start waiting is the first one to get a request.
-		FWaiter* Waiter = new FWaiter(this);
-		Waiter->AddRef(); // One ref for the thread that will dequeue
-		Waiter->AddRef(); // One ref for us
-
-		Waiters.enqueue(Waiter);
-
-		while (!Waiter->Wait(Http::Private::WaitIntervalMs))
-		{
-			// While waiting, allow us to check if a race occurred and a request has been freed
-			// between the time we checked for free requests and the time we queued ourself as a Waiter.
-			if ((Request = GetFreeRequest(bUnboundedOverflow)) != nullptr)
+			if (!Waiters.IsEmpty())
 			{
-				// We abandon the FWaiter, it will be freed by the next dequeue
-				// and if it has a request, it will be queued back to the pool.
-				Waiter->Release();
+				if (THttpUniquePtr<IHttpRequest> Request = Client->TryCreateRequest({}))
+				{
+					if (FWaiter* Waiter = Waiters.Pop())
+					{
+						Waiter->Request = MoveTemp(Request);
+						Waiter->Event->Trigger();
+					}
+				}
+			}
+		};
+		Client = ConnectionPool.CreateClient(QueueParams);
+	}
+
+	THttpUniquePtr<IHttpRequest> CreateRequest(const FHttpRequestParams& Params)
+	{
+		if (Params.bIgnoreMaxRequests)
+		{
+			return Client->TryCreateRequest(Params);
+		}
+
+		while (THttpUniquePtr<IHttpRequest> Request = Client->TryCreateRequest(Params))
+		{
+			if (FWaiter* Waiter = Waiters.Pop())
+			{
+				Waiter->Request = MoveTemp(Request);
+				Waiter->Event->Trigger();
+			}
+			else
+			{
 				return Request;
 			}
 		}
 
-		Request = Waiter->Request.exchange(nullptr);
-		Request->Reset();
-		Waiter->Release();
-	}
-	check(Request);
-	return Request;
-}
+		FWaiter LocalWaiter;
+		Waiters.Push(&LocalWaiter);
 
-void FHttpRequestPool::ReleaseRequestToPool(FHttpRequest* Request)
-{
-	if ((Request < Requests.GetData()) || (Request >= (Requests.GetData() + Requests.Num())))
-	{
-		// For overflow requests (outside of the pre-allocated range of requests), just delete it immediately
-		delete Request;
-		ActiveOverflowRequests.fetch_sub(1, std::memory_order_relaxed);
-		return;
-	}
-
-	for (FEntry& Entry : Pool)
-	{
-		if (Entry.Request == Request)
+		while (THttpUniquePtr<IHttpRequest> Request = Client->TryCreateRequest(Params))
 		{
-			// If only 1 user is remaining, we can give it to a waiter
-			// instead of releasing it back to the pool.
-			if (Entry.Usage == 1u)
+			if (FWaiter* Waiter = Waiters.Pop())
 			{
-				if (FWaiter* Waiter = Waiters.dequeue())
-				{
-					Waiter->Request = Request;
-					Waiter->Trigger();
-					Waiter->Release();
-					return;
-				}
+				Waiter->Request = MoveTemp(Request);
+				Waiter->Event->Trigger();
 			}
-			
-			Entry.Usage--;
-			return;
+			if (LocalWaiter.Event->Wait(0))
+			{
+				return MoveTemp(LocalWaiter.Request);
+			}
 		}
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(HttpRequestQueue_Wait);
+		LocalWaiter.Event->Wait();
+		return MoveTemp(LocalWaiter.Request);
 	}
 
-	checkNoEntry();
+	THttpUniquePtr<IHttpClient> Client;
+	TLockFreePointerListFIFO<FWaiter, 0> Waiters;
+};
+
+FHttpRequestQueue::FHttpRequestQueue(IHttpConnectionPool& ConnectionPool, const FHttpClientParams& ClientParams)
+	: Data(MakePimpl<Http::Private::FHttpRequestQueueData>(ConnectionPool, ClientParams))
+{
 }
 
-void FHttpRequestPool::MakeRequestShared(FHttpRequest* Request, uint8 Users)
+THttpUniquePtr<IHttpRequest> FHttpRequestQueue::CreateRequest(const FHttpRequestParams& Params)
 {
-	// Overflow requests (outside of the pre-allocated range of requests), cannot be made shared
-	check((Request >= Requests.GetData()) && (Request < (Requests.GetData() + Requests.Num())));
-
-	check(Users != 0);
-	for (FEntry& Entry : Pool)
-	{
-		if (Entry.Request == Request)
-		{
-			Entry.Usage = Users;
-			return;
-		}
-	}
-
-	checkNoEntry();
+	static_assert(sizeof(Params) == sizeof(bool), "CreateRequest only handles bIgnoreMaxRequests");
+	check(Data);
+	return Data->CreateRequest(Params);
 }
 
 } // UE
