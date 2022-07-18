@@ -25,7 +25,7 @@
 
 //*****************************************************************************
 
-// Master switch to control whether streaming is enabled for volume texture. 
+// Externed global switch to control whether streaming is enabled for volume texture. 
 bool GSupportsVolumeTextureStreaming = true;
 
 // Limit the possible depth of volume texture otherwise when the user converts 2D textures, they can crash the engine.

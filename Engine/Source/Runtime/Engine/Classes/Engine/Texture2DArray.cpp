@@ -26,7 +26,7 @@
 
 #define LOCTEXT_NAMESPACE "UTexture2DArray"
 
-// Master switch to control whether streaming is enabled for texture2darray. 
+// Externed global switch to control whether streaming is enabled for texture2darray. 
 bool GSupportsTexture2DArrayStreaming = true;
 
 static TAutoConsoleVariable<int32> CVarAllowTexture2DArrayAssetCreation(
