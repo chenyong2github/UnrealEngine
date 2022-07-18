@@ -1270,11 +1270,6 @@ FOptimusDataTypeRegistry::PropertyCreateFuncT FOptimusDataTypeRegistry::FindProp
 
 FOptimusDataTypeRegistry::FOptimusDataTypeRegistry()
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-	AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FOptimusDataTypeRegistry::OnFilesLoaded);
-	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FOptimusDataTypeRegistry::OnAssetRemoved);
-	AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FOptimusDataTypeRegistry::OnAssetRenamed);
 }
 
 void FOptimusDataTypeRegistry::OnFilesLoaded()
@@ -1324,10 +1319,13 @@ void FOptimusDataTypeRegistry::OnFilesLoaded()
 
 void FOptimusDataTypeRegistry::OnAssetRemoved(const FAssetData& InAssetData)
 {
-	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InAssetData.GetAsset()))
+	if (InAssetData.AssetClassPath == UUserDefinedStruct::StaticClass()->GetClassPathName())
 	{
-		FName TypeName = Optimus::GetTypeName(UserDefinedStruct);
-		UnregisterType(TypeName);
+		if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InAssetData.GetAsset()))
+		{
+			FName TypeName = Optimus::GetTypeName(UserDefinedStruct);
+			UnregisterType(TypeName);
+		}
 	}
 }
 
