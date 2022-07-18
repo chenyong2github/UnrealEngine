@@ -109,6 +109,16 @@ void UPCGMetadataAccessorHelpers::SetFloatAttributeByMetadataKey(int64& Key, UPC
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
+double UPCGMetadataAccessorHelpers::GetDoubleAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<double>(Key, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetDoubleAttributeByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, double Value)
+{
+	SetAttribute(Key, Metadata, AttributeName, Value);
+}
+
 FVector UPCGMetadataAccessorHelpers::GetVectorAttributeByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<FVector>(Key, Metadata, AttributeName);
@@ -250,6 +260,16 @@ float UPCGMetadataAccessorHelpers::GetFloatAttribute(const FPCGPoint& Point, con
 }
 
 void UPCGMetadataAccessorHelpers::SetFloatAttribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, float Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
+}
+
+double UPCGMetadataAccessorHelpers::GetDoubleAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<double>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetDoubleAttribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, double Value)
 {
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }

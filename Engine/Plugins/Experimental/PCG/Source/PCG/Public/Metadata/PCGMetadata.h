@@ -73,6 +73,9 @@ public:
 	void CreateFloatAttribute(FName AttributeName, float DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void CreateDoubleAttribute(FName AttributeName, double DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateVectorAttribute(FName AttributeName, FVector DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata", meta=(DisplayName = "Create Vector4 Attribute"))
@@ -176,6 +179,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void AccumulatePointWeightedAttributes(const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, float Weight, bool bSetNonInterpolableAttributes, UPARAM(ref) FPCGPoint& OutPoint);
 
+	int64 GetItemCountForChild() const;
+
 protected:
 	template<typename T>
 	FPCGMetadataAttributeBase* CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent);
@@ -183,7 +188,6 @@ protected:
 	FPCGMetadataAttributeBase* CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
 
 	bool ParentHasAttribute(FName AttributeName) const;
-	int64 GetItemCountForChild() const;
 
 	void AddAttributeInternal(FName AttributeName, FPCGMetadataAttributeBase* Attribute);
 	void RemoveAttributeInternal(FName AttributeName);
