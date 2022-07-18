@@ -127,7 +127,6 @@ public:
 	int32 LightmapTilePoolSize = 55;
 
 public:
-	void GatherSettingsFromCVars();
 	void ApplyImmediateSettingsToRunningInstances();
 
 #if WITH_EDITOR

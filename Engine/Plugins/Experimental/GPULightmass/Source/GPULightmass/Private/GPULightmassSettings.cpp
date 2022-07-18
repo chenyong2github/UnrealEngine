@@ -13,114 +13,6 @@
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
-int32 GGPULightmassShowProgressBars = 1;
-static FAutoConsoleVariableRef CVarGPULightmassShowProgressBars(
-	TEXT("r.GPULightmass.ShowProgressBars"),
-	GGPULightmassShowProgressBars,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassOnlyBakeWhatYouSee = 0;
-static FAutoConsoleVariableRef CVarGPULightmassOnlyBakeWhatYouSee(
-	TEXT("r.GPULightmass.OnlyBakeWhatYouSee"),
-	GGPULightmassOnlyBakeWhatYouSee,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassSamplesPerTexel = 512;
-static FAutoConsoleVariableRef CVarGPULightmassSamplesPerTexel(
-	TEXT("r.GPULightmass.SamplesPerTexel"),
-	GGPULightmassSamplesPerTexel,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassShadowSamplesPerTexel = 512; // 512 samples to reach good image plane stratification. Shadow samples are 100x faster than path samples
-static FAutoConsoleVariableRef CVarGPULightmassShadowSamplesPerTexel(
-	TEXT("r.GPULightmass.ShadowSamplesPerTexel"),
-	GGPULightmassShadowSamplesPerTexel,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassUseIrradianceCaching = 0;
-static FAutoConsoleVariableRef CVarGPULightmassUseIrradianceCaching(
-	TEXT("r.GPULightmass.IrradianceCaching"),
-	GGPULightmassUseIrradianceCaching,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassIrradianceCachingQuality = 128;
-static FAutoConsoleVariableRef CVarGPULightmassIrradianceCachingQuality(
-	TEXT("r.GPULightmass.IrradianceCaching.Quality"),
-	GGPULightmassIrradianceCachingQuality,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-float GGPULightmassIrradianceCachingSpacing = 32.0f;
-static FAutoConsoleVariableRef CVarGPULightmassIrradianceCachingSpacing(
-	TEXT("r.GPULightmass.IrradianceCaching.Spacing"),
-	GGPULightmassIrradianceCachingSpacing,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassVisualizeIrradianceCache = 0;
-static FAutoConsoleVariableRef CVarGPULightmassVisualizeIrradianceCache(
-	TEXT("r.GPULightmass.IrradianceCaching.Visualize"),
-	GGPULightmassVisualizeIrradianceCache,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassUseFirstBounceRayGuiding = 0;
-static FAutoConsoleVariableRef CVarGPULightmassUseFirstBounceRayGuiding(
-	TEXT("r.GPULightmass.FirstBounceRayGuiding"),
-	GGPULightmassUseFirstBounceRayGuiding,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassFirstBounceRayGuidingTrialSamples = 128;
-static FAutoConsoleVariableRef CVarGPULightmassFirstBounceRayGuidingTrialSamples(
-	TEXT("r.GPULightmass.FirstBounceRayGuiding.TrialSamples"),
-	GGPULightmassFirstBounceRayGuidingTrialSamples,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassGPUTilePoolSize = 40;
-static FAutoConsoleVariableRef CVarGPULightmassGPUTilePoolSize(
-	TEXT("r.GPULightmass.System.GPUTilePoolSize"),
-	GGPULightmassGPUTilePoolSize,
-	TEXT("\n"),
-	ECVF_Default
-);
-
-int32 GGPULightmassDenoiseGIOnCompletion = WITH_INTELOIDN;
-#if WITH_INTELOIDN
-static FAutoConsoleVariableRef CVarGGPULightmassDenoiseOnCompletion(
-	TEXT("r.GPULightmass.DenoiseGIOnCompletion"),
-	GGPULightmassDenoiseGIOnCompletion,
-	TEXT("\n"),
-	ECVF_Default
-);
-#endif
-
-int32 GGPULightmassDenoiseGIDuringInteractiveBake = 0;
-#if WITH_INTELOIDN
-static FAutoConsoleVariableRef CVarGGPULightmassDenoiseGIDuringInteractiveBake(
-	TEXT("r.GPULightmass.DenoiseGIDuringInteractiveBake"),
-	GGPULightmassDenoiseGIDuringInteractiveBake,
-	TEXT("\n"),
-	ECVF_Default
-);
-#endif
-
 AGPULightmassSettingsActor::AGPULightmassSettingsActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
 {
@@ -221,40 +113,6 @@ bool UGPULightmassSettings::CanEditChange(const FProperty* InProperty) const
 }
 #endif
 
-void UGPULightmassSettings::GatherSettingsFromCVars()
-{
-	bShowProgressBars = GGPULightmassShowProgressBars == 1;
-
-	if (GGPULightmassOnlyBakeWhatYouSee == 1)
-	{
-		Mode = EGPULightmassMode::BakeWhatYouSee;
-	}
-
-	GISamples = GGPULightmassSamplesPerTexel;
-	StationaryLightShadowSamples = GGPULightmassSamplesPerTexel;
-	
-	bUseIrradianceCaching = GGPULightmassUseIrradianceCaching == 1;
-	IrradianceCacheQuality = GGPULightmassIrradianceCachingQuality;
-	IrradianceCacheSpacing = GGPULightmassIrradianceCachingSpacing;
-	bVisualizeIrradianceCache = GGPULightmassVisualizeIrradianceCache == 1;
-
-	bUseFirstBounceRayGuiding = GGPULightmassUseFirstBounceRayGuiding == 1;
-	FirstBounceRayGuidingTrialSamples = GGPULightmassFirstBounceRayGuidingTrialSamples;
-
-	if (GGPULightmassDenoiseGIOnCompletion == 1)
-	{
-		DenoisingOptions = EGPULightmassDenoisingOptions::OnCompletion;
-	}
-
-	if (GGPULightmassDenoiseGIDuringInteractiveBake == 1)
-	{
-		// Override
-		DenoisingOptions = EGPULightmassDenoisingOptions::DuringInteractivePreview;
-	}
-
-	LightmapTilePoolSize = GGPULightmassGPUTilePoolSize;
-}
-
 void UGPULightmassSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UWorld* World = Cast<UWorld>(GetOuter());
@@ -302,7 +160,7 @@ void UGPULightmassSubsystem::Launch()
 
 			FlushRenderingCommands(); // Flush again to execute commands generated by DestroyRenderState_Concurrent()
 
-			IStaticLightingSystem* StaticLightingSystem = GPULightmassModule.AllocateStaticLightingSystemForWorldWithSettings(World, SettingsCopy);
+			FGPULightmass* StaticLightingSystem = GPULightmassModule.CreateGPULightmassForWorld(World, SettingsCopy);
 
 			if (StaticLightingSystem)
 			{
@@ -425,7 +283,7 @@ void UGPULightmassSubsystem::Stop()
 				SubSlowTask.EnterProgressFrame(1, LOCTEXT("UnregisteringComponentsWithStaticLightingSystem", "Unregistering components with static lighting system"));
 			}
 
-			GPULightmassModule.RemoveStaticLightingSystemForWorld(World);
+			GPULightmassModule.RemoveGPULightmassFromWorld(World);
 
 			UE_LOG(LogTemp, Log, TEXT("Static lighting system is removed for world %s."), *World->GetPathName(World->GetOuter()));
 		}

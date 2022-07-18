@@ -2,7 +2,6 @@
 
 #include "GPULightmass.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "EngineModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Components/SkyLightComponent.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -12,8 +11,6 @@
 #include "GPULightmassSettings.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
-
-extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
 
 FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmassModule, UGPULightmassSettings* InSettings)
 	: World(InWorld)
@@ -195,8 +192,6 @@ void FGPULightmass::OnLightComponentUnregistered(ULightComponentBase* InComponen
 {
 	if (InComponent->GetWorld() != World) return;
 
-	// UE_LOG(LogGPULightmass, Display, TEXT("LightComponent %s on actor %s is being unregistered with GPULightmass"), *InComponent->GetName(), *InComponent->GetOwner()->GetName());
-
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
 	{
 		Scene.RemoveLight(DirectionalLight);
@@ -259,14 +254,10 @@ void FGPULightmass::OnStationaryLightChannelReassigned(ULightComponentBase* InCo
 
 void FGPULightmass::OnPreWorldFinishDestroy(UWorld* InWorld)
 {
-	UE_LOG(LogGPULightmass, Display, TEXT("World %s is being destroyed"), *World->GetName());
-
 	if (InWorld != World) return;
 
-	UE_LOG(LogGPULightmass, Display, TEXT("Removing all delegates (including this one)"), *World->GetName());
-
 	// This calls destructor of FGPULightmass
-	GPULightmassModule->RemoveStaticLightingSystemForWorld(World);
+	GPULightmassModule->RemoveGPULightmassFromWorld(World);
 }
 
 void FGPULightmass::EditorTick()

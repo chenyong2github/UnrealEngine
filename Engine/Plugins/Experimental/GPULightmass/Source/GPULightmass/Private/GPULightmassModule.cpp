@@ -2,15 +2,11 @@
 
 #include "GPULightmassModule.h"
 #include "CoreMinimal.h"
-#include "Internationalization/Internationalization.h"
 #include "Modules/ModuleManager.h"
-#include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
 #include "GPULightmass.h"
-#include "SceneInterface.h"
-#include "CompactingObjectPool.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -46,7 +42,7 @@ void FGPULightmassModule::ShutdownModule()
 	}
 }
 
-IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorldWithSettings(UWorld* InWorld, UGPULightmassSettings* Settings)
+FGPULightmass* FGPULightmassModule::CreateGPULightmassForWorld(UWorld* InWorld, UGPULightmassSettings* Settings)
 {
 	check(StaticLightingSystems.Find(InWorld) == nullptr);
 
@@ -61,16 +57,7 @@ IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorld
 	return GPULightmass;
 }
 
-IStaticLightingSystem* FGPULightmassModule::AllocateStaticLightingSystemForWorld(UWorld* InWorld)
-{
-	// Gather settings from CVars
-	UGPULightmassSettings* Settings = NewObject<UGPULightmassSettings>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UGPULightmassSettings::StaticClass()));
-	Settings->GatherSettingsFromCVars();
-
-	return AllocateStaticLightingSystemForWorldWithSettings(InWorld, Settings);
-}
-
-void FGPULightmassModule::RemoveStaticLightingSystemForWorld(UWorld* InWorld)
+void FGPULightmassModule::RemoveGPULightmassFromWorld(UWorld* InWorld)
 {
 	if (StaticLightingSystems.Find(InWorld) != nullptr)
 	{
@@ -107,11 +94,9 @@ void FGPULightmassModule::EditorTick()
 		}
 	}
 
-	for (auto& StaticLightingSystem : FinishedStaticLightingSystems)
+	for (FGPULightmass* StaticLightingSystem : FinishedStaticLightingSystems)
 	{
-		extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld * InWorld);
-
-		ToggleLightmapPreview_GameThread(StaticLightingSystem->World);
+		StaticLightingSystem->World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
 	}
 }
 

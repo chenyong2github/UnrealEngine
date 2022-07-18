@@ -19,12 +19,7 @@ public:
 
 class ENGINE_API IStaticLightingSystemImpl
 {
-public:
-	virtual bool SupportsRealtimePreview() { return false; }
-	virtual IStaticLightingSystem* CreateStaticLightingSystemForWorld(UWorld* InWorld) { return nullptr; }
-	
-	virtual IStaticLightingSystem* AllocateStaticLightingSystemForWorld(UWorld* InWorld) { return nullptr; }
-	virtual void RemoveStaticLightingSystemForWorld(UWorld* InWorld) {}
+public:	
 	virtual IStaticLightingSystem* GetStaticLightingSystemForWorld(UWorld* InWorld) { return nullptr; }
 
 	virtual void EditorTick() {}
@@ -59,7 +54,6 @@ public:
 	void RegisterImplementation(FName Name, IStaticLightingSystemImpl* Impl);
 	void UnregisterImplementation(FName Name);
 	IStaticLightingSystemImpl* GetPreferredImplementation();
-	bool ShouldOperateOnWorld(UWorld* InWorld);
 
 private:
 	TMap<FName, IStaticLightingSystemImpl*> Implementations;

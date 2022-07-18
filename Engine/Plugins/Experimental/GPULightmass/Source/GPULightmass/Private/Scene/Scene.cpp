@@ -1541,6 +1541,8 @@ void FScene::BackgroundTick()
 		{
 			ApplyFinishedLightmapsToWorld();
 			GPULightmass->World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
+			// We can't destroy GPULM in its member func
+			// FGPULightmassModule::EditorTick() will handle the destruction
 		}
 	}
 }
