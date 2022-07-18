@@ -114,11 +114,6 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 									PDI->SetHitProxy(nullptr);
 								}
 							}
-							else if (const UContextualAnimSelectionCriterion_Facing* Facing = Cast<UContextualAnimSelectionCriterion_Facing>(Criterion))
-							{
-								const FTransform Transform = AnimTrack.GetAlignmentTransformAtEntryTime() * PrimaryTransform;
-								UContextualAnimUtilities::DrawSector(*PDI, Transform.GetLocation(), Transform.GetRotation().GetForwardVector(), 0.f, 30.f, -Facing->MaxAngle, Facing->MaxAngle, DrawColor, SDPG_World, 1.f);
-							}
 						}
 					}
 				}

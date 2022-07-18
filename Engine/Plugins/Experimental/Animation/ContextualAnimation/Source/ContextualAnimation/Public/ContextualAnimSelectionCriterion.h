@@ -55,20 +55,70 @@ public:
 	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };
 
-// UContextualAnimSelectionCriterion_Facing
+// UContextualAnimSelectionCriterion_Angle
 //===========================================================================
 
+UENUM(BlueprintType)
+enum class EContextualAnimCriterionAngleMode : uint8
+{
+	/** Uses the angle between the vector from querier to primary and querier forward vector */
+	ToPrimary,
+
+	/** Uses the angle between the vector from primary to querier and primary forward vector */
+	FromPrimary
+};
+
 UCLASS()
-class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion_Facing : public UContextualAnimSelectionCriterion
+class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion_Angle : public UContextualAnimSelectionCriterion
 {
 	GENERATED_BODY()
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", ClampMax = "180", UIMin = "0", UIMax = "180"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	EContextualAnimCriterionAngleMode Mode = EContextualAnimCriterionAngleMode::ToPrimary;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	bool bUseSignedAngle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "-180", UIMin = "-180", ClampMax = "180", UIMax = "180"))
+	float MinAngle = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "-180", UIMin = "-180", ClampMax = "180", UIMax = "180"))
 	float MaxAngle = 0.f;
 
-	UContextualAnimSelectionCriterion_Facing(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
+	UContextualAnimSelectionCriterion_Angle(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
+
+	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
+};
+
+// UContextualAnimSelectionCriterion_Distance
+//===========================================================================
+
+UENUM(BlueprintType)
+enum class EContextualAnimCriterionDistanceMode : uint8
+{
+	Distance_3D,
+	Distance_2D
+};
+
+UCLASS()
+class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion_Distance : public UContextualAnimSelectionCriterion
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	EContextualAnimCriterionDistanceMode Mode = EContextualAnimCriterionDistanceMode::Distance_2D;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0"))
+	float MinDistance = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (ClampMin = "0", UIMin = "0"))
+	float MaxDistance = 0.f;
+
+	UContextualAnimSelectionCriterion_Distance(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
 	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };
