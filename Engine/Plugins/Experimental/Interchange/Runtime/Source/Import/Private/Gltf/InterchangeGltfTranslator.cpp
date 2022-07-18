@@ -259,6 +259,24 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 			bNeedsFactorNode = !MapFactor.Get< FLinearColor >().Equals( FLinearColor::White );
 		}
 
+		if (bIsNormal)
+		{
+			//MakeFloat3:
+			UInterchangeShaderNode* MakeFloat3Node = UInterchangeShaderNode::Create(&NodeContainer, ColorNodeName + TEXT("_MakeFloat3"), ShaderNode.GetUniqueID());
+			MakeFloat3Node->SetCustomShaderType(Standard::Nodes::MakeFloat3::Name.ToString());
+
+			UInterchangeShaderNode* MultiplyNode = UInterchangeShaderNode::Create(&NodeContainer, ColorNodeName + TEXT("_Flip"), ShaderNode.GetUniqueID());
+			MultiplyNode->SetCustomShaderType(Standard::Nodes::Multiply::Name.ToString());
+			MultiplyNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Standard::Nodes::Multiply::Inputs::B.ToString()), -1.0);
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(MultiplyNode, Standard::Nodes::Multiply::Inputs::A.ToString(), ColorNode->GetUniqueID(), "G");
+
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(MakeFloat3Node, Standard::Nodes::MakeFloat3::Inputs::X.ToString(), ColorNode->GetUniqueID(), "R");
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(MakeFloat3Node, Standard::Nodes::MakeFloat3::Inputs::Y.ToString(), MultiplyNode->GetUniqueID());
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(MakeFloat3Node, Standard::Nodes::MakeFloat3::Inputs::Z.ToString(), ColorNode->GetUniqueID(), "B");
+
+			ColorNode = MakeFloat3Node;
+		}
+
 		if ( bNeedsFactorNode )
 		{
 			UInterchangeShaderNode* FactorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName + TEXT("_Factor"), ShaderNode.GetUniqueID() );
@@ -778,7 +796,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 	const bool bLoadImageData = false;
 	const bool bLoadMetaData = false;
-	GltfFileReader.ReadFile( FilePath, bLoadImageData, bLoadMetaData, const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset );
+	GltfFileReader.ReadFile( FilePath, bLoadImageData, bLoadMetaData, const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset );	
 
 	const FString FileName = FPaths::GetBaseFilename(FilePath);
 	const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset.GenerateNames(FileName);

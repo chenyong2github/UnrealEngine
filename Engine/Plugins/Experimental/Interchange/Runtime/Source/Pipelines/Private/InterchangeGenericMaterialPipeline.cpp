@@ -945,6 +945,42 @@ void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterch
 	}
 }
 
+void UInterchangeGenericMaterialPipeline::HandleMakeFloat3Node(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
+	UInterchangeMaterialExpressionFactoryNode* MakeFloat3FactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes::MakeFloat3;
+
+	MakeFloat3FactoryNode->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
+
+	const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
+	MakeFloat3FactoryNode->AddStringAttribute(MaterialFunctionMemberName, TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3"));
+	MakeFloat3FactoryNode->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), MaterialFunctionMemberName);
+
+	TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> RedChannelExpression =
+		CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::X.ToString(), MakeFloat3FactoryNode->GetUniqueID());
+	if (RedChannelExpression.Get<0>())
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInput(MakeFloat3FactoryNode, TEXT("X"),
+			RedChannelExpression.Get<0>()->GetUniqueID(), RedChannelExpression.Get<1>());
+	}
+
+	TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> GreenChannelExpression =
+		CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::Y.ToString(), MakeFloat3FactoryNode->GetUniqueID());
+	if (GreenChannelExpression.Get<0>())
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInput(MakeFloat3FactoryNode, TEXT("Y"),
+			GreenChannelExpression.Get<0>()->GetUniqueID(), GreenChannelExpression.Get<1>());
+	}
+
+	TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> BlueChannelExpression =
+		CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::Z.ToString(), MakeFloat3FactoryNode->GetUniqueID());
+	if (BlueChannelExpression.Get<0>())
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInput(MakeFloat3FactoryNode, TEXT("Z"),
+			BlueChannelExpression.Get<0>()->GetUniqueID(), BlueChannelExpression.Get<1>());
+	}
+}
+
 void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
@@ -1287,6 +1323,10 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	if (*ShaderType == Nodes::FlattenNormal::Name)
 	{
 		HandleFlattenNormalNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if (*ShaderType == Nodes::MakeFloat3::Name)
+	{
+		HandleMakeFloat3Node(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else if (*ShaderType == Nodes::Lerp::Name)
 	{

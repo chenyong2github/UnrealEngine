@@ -75,6 +75,17 @@ namespace Interchange
 					}
 				}
 
+				namespace MakeFloat3
+				{
+					const FName Name = TEXT("MakeFloat3");
+					namespace Inputs
+					{
+						const FName X = TEXT("X");
+						const FName Y = TEXT("Y");
+						const FName Z = TEXT("Z");
+					}
+				}
+
 				namespace OneMinus
 				{
 					const FName Name = TEXT("OneMinus");
