@@ -49,6 +49,26 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionBinaryOp : public FRigUnit_MathQuat
 	FQuat Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathQuaternionBinaryAggregateOp : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionBinaryAggregateOp()
+	{
+		A = B = Result = FQuat::Identity;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FQuat A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FQuat B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	FQuat Result;
+};
+
 /**
  * Makes a quaternion from an axis and an angle in radians
  */
@@ -321,7 +341,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQua
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternionBinaryOp
+struct CONTROLRIG_API FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternionBinaryAggregateOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()

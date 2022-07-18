@@ -48,11 +48,31 @@ struct CONTROLRIG_API FRigUnit_MathIntBinaryOp : public FRigUnit_MathIntBase
 	int32 Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathIntBinaryAggregateOp : public FRigUnit_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathIntBinaryAggregateOp()
+	{
+		A = B = Result = 0;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	int32 A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	int32 B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	int32 Result;
+};
+
 /**
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathIntAdd : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntAdd : public FRigUnit_MathIntBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -76,7 +96,7 @@ struct CONTROLRIG_API FRigUnit_MathIntSub : public FRigUnit_MathIntBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathIntMul : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMul : public FRigUnit_MathIntBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -129,7 +149,7 @@ struct CONTROLRIG_API FRigUnit_MathIntMod : public FRigUnit_MathIntBinaryOp
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", TemplateName="Minimum"))
-struct CONTROLRIG_API FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -141,7 +161,7 @@ struct CONTROLRIG_API FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryOp
  * Returns the larger of the two values
  */
 USTRUCT(meta=(DisplayName="Maximum", TemplateName="Maximum"))
-struct CONTROLRIG_API FRigUnit_MathIntMax : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMax : public FRigUnit_MathIntBinaryAggregateOp
 {
 	GENERATED_BODY()
 

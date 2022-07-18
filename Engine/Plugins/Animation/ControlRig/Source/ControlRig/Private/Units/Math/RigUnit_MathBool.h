@@ -63,6 +63,26 @@ struct CONTROLRIG_API FRigUnit_MathBoolBinaryOp : public FRigUnit_MathBoolBase
 	bool Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathBoolBinaryAggregateOp : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathBoolBinaryAggregateOp()
+	{
+		A = B = Result = 0.f;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	bool A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	bool B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	bool Result;
+};
+
 /**
  * Returns true
  */
@@ -113,7 +133,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
  * Returns true if both conditions are true
  */
 USTRUCT(meta=(DisplayName="And", TemplateName="And", Keywords="&&"))
-struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -137,7 +157,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
  * Returns true if one of the conditions is true
  */
 USTRUCT(meta=(DisplayName="Or", TemplateName="Or", Keywords="||"))
-struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryAggregateOp
 {
 	GENERATED_BODY()
 

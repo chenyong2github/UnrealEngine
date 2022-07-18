@@ -62,6 +62,26 @@ struct CONTROLRIG_API FRigUnit_MathFloatBinaryOp : public FRigUnit_MathFloatBase
 	float Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathFloatBinaryAggregateOp : public FRigUnit_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathFloatBinaryAggregateOp()
+	{
+		A = B = Result = 0.f;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	float A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	float B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	float Result;
+};
+
 /**
  * Returns PI
  */
@@ -114,7 +134,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstE : public FRigUnit_MathFloatConsta
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathFloatAdd : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathFloatAdd : public FRigUnit_MathFloatBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -138,7 +158,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatSub : public FRigUnit_MathFloatBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathFloatMul : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathFloatMul : public FRigUnit_MathFloatBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -191,7 +211,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatMod : public FRigUnit_MathFloatBinaryOp
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", TemplateName="Minimum"))
-struct CONTROLRIG_API FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -203,7 +223,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryOp
  * Returns the larger of the two values
  */
 USTRUCT(meta=(DisplayName="Maximum", TemplateName="Maximum"))
-struct CONTROLRIG_API FRigUnit_MathFloatMax : public FRigUnit_MathFloatBinaryOp
+struct CONTROLRIG_API FRigUnit_MathFloatMax : public FRigUnit_MathFloatBinaryAggregateOp
 {
 	GENERATED_BODY()
 

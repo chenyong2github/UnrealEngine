@@ -45,6 +45,7 @@ URigVMTemplateNode::URigVMTemplateNode()
 	, ResolvedFunctionName()
 	, CachedTemplate(nullptr)
 	, CachedFunction(nullptr)
+	, ResolvedPermutation(INDEX_NONE)
 {
 }
 
@@ -131,7 +132,7 @@ TRigVMTypeIndex URigVMTemplateNode::GetPreferredType(const FName& ArgumentName) 
 	{
 		if (PreferredType.Argument == ArgumentName)
 		{
-			return PreferredType.TypeIndex;
+			return PreferredType.GetTypeIndex();
 		}
 	}
 	return INDEX_NONE;
@@ -256,7 +257,17 @@ TArray<URigVMPin*> URigVMTemplateNode::GetAggregatePins(const ERigVMPinDirection
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
-		if (FilteredPermutations.IsEmpty())
+		TArray<int32> Permutations = FilteredPermutations;
+		if (Permutations.IsEmpty())
+		{
+			Permutations.Reserve(Template->NumPermutations());
+			for (int32 i=0; i<Template->NumPermutations(); ++i)
+			{
+				Permutations.Add(i);
+			}
+		}
+		
+		if (Permutations.IsEmpty())
 		{
 			return AggregatePins;
 		}
@@ -287,10 +298,10 @@ TArray<URigVMPin*> URigVMTemplateNode::GetAggregatePins(const ERigVMPinDirection
 			return Inputs;
 		};
 		
-		AggregatePins = FindAggregatePins(FilteredPermutations[0]);
-		for (int32 i=1; i<FilteredPermutations.Num(); ++i)
+		AggregatePins = FindAggregatePins(Permutations[0]);
+		for (int32 i=1; i<Permutations.Num(); ++i)
 		{
-			TArray<URigVMPin*> OtherAggregateInputs = FindAggregatePins(FilteredPermutations[i]);
+			TArray<URigVMPin*> OtherAggregateInputs = FindAggregatePins(Permutations[i]);
 			if (OtherAggregateInputs.Num() != AggregatePins.Num() ||
 				OtherAggregateInputs.FilterByPredicate([&](const URigVMPin* OtherPin)
 				{
@@ -407,15 +418,6 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, TRigVMTypeIndex In
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		const TPair<FName,TRigVMTypeIndex> CacheKey(RootPin->GetFName(), TypeIndex);
-		if (const TPair<bool, TRigVMTypeIndex>* CachedResult = SupportedTypesCache.Find(CacheKey))
-		{
-			if(OutTypeIndex)
-			{
-				*OutTypeIndex = CachedResult->Value;
-			}
-			return CachedResult->Key;
-		}
-
 		TRigVMTypeIndex SupportedTypeIndex = INDEX_NONE;
 		if (Template->ArgumentSupportsTypeIndex(RootPin->GetFName(), TypeIndex, &SupportedTypeIndex))
 		{
@@ -547,10 +549,9 @@ const FRigVMFunction* URigVMTemplateNode::GetResolvedFunction() const
 
 		if(CachedFunction == nullptr)
 		{
-			TArray<int32> PermutationIndices = GetFilteredPermutationsIndices();
-			if(PermutationIndices.Num() == 1)
+			if(ResolvedPermutation != INDEX_NONE)
 			{
-				CachedFunction = GetTemplate()->GetPermutation(PermutationIndices[0]);
+				CachedFunction = GetTemplate()->GetPermutation(ResolvedPermutation);
 			}
 		}
 	}
@@ -1082,10 +1083,8 @@ void URigVMTemplateNode::InvalidateCache()
 {
 	Super::InvalidateCache();
 	
-	SupportedTypesCache.Reset();
 	CachedFunction = nullptr;
 	CachedTemplate = nullptr;
-	ResolvedPermutations.Reset();
 
 	for(URigVMPin* Pin : GetPins())
 	{

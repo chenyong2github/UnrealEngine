@@ -190,11 +190,10 @@ protected:
 	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs;
 
 	TArray<int32> FilteredPermutations;
-	TMap<TPair<FName,TRigVMTypeIndex>, TPair<bool, TRigVMTypeIndex>> SupportedTypesCache;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;
-	mutable TArray<int32> ResolvedPermutations;
+	mutable int32 ResolvedPermutation;
 
 	friend class URigVMController;
 	friend class UControlRigBlueprint;

@@ -50,6 +50,26 @@ struct CONTROLRIG_API FRigUnit_MathMatrixBinaryOp : public FRigUnit_MathMatrixBa
 	FMatrix Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathMatrixBinaryAggregateOp : public FRigUnit_MathMatrixBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathMatrixBinaryAggregateOp()
+	{
+		A = B = Result = FMatrix::Identity;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FMatrix A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FMatrix B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	FMatrix Result;
+};
+
 /**
 * Makes a transform from a matrix
 */
@@ -201,7 +221,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromVectors : public FRigUnit_MathMatri
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*,Global"))
-struct CONTROLRIG_API FRigUnit_MathMatrixMul : public FRigUnit_MathMatrixBinaryOp
+struct CONTROLRIG_API FRigUnit_MathMatrixMul : public FRigUnit_MathMatrixBinaryAggregateOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()

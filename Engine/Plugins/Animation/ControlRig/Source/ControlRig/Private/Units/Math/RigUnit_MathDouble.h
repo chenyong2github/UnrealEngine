@@ -62,6 +62,27 @@ struct CONTROLRIG_API FRigUnit_MathDoubleBinaryOp : public FRigUnit_MathDoubleBa
 	double Result;
 };
 
+
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathDoubleBinaryAggregateOp : public FRigUnit_MathDoubleBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathDoubleBinaryAggregateOp()
+	{
+		A = B = Result = 0.0;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	double A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	double B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	double Result;
+};
+
 /**
  * Returns PI
  */
@@ -114,7 +135,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleConstE : public FRigUnit_MathDoubleCons
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathDoubleAdd : public FRigUnit_MathDoubleBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleAdd : public FRigUnit_MathDoubleBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -138,7 +159,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleSub : public FRigUnit_MathDoubleBinaryO
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathDoubleMul : public FRigUnit_MathDoubleBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMul : public FRigUnit_MathDoubleBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -191,7 +212,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMod : public FRigUnit_MathDoubleBinaryO
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", TemplateName="Minimum"))
-struct CONTROLRIG_API FRigUnit_MathDoubleMin : public FRigUnit_MathDoubleBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMin : public FRigUnit_MathDoubleBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -203,7 +224,7 @@ struct CONTROLRIG_API FRigUnit_MathDoubleMin : public FRigUnit_MathDoubleBinaryO
  * Returns the larger of the two values
  */
 USTRUCT(meta=(DisplayName="Maximum", TemplateName="Maximum"))
-struct CONTROLRIG_API FRigUnit_MathDoubleMax : public FRigUnit_MathDoubleBinaryOp
+struct CONTROLRIG_API FRigUnit_MathDoubleMax : public FRigUnit_MathDoubleBinaryAggregateOp
 {
 	GENERATED_BODY()
 

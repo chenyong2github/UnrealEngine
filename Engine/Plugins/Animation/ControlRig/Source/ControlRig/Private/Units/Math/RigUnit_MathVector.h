@@ -49,6 +49,26 @@ struct CONTROLRIG_API FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBa
 	FVector Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathVectorBinaryAggregateOp : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorBinaryAggregateOp()
+	{
+		A = B = Result = FVector::ZeroVector;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FVector A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FVector B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	FVector Result;
+};
+
 /**
  * Makes a vector from a single float
  */
@@ -76,7 +96,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorB
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -100,7 +120,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryO
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -179,7 +199,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryO
  * Returns the smaller of the two values for each component
  */
 USTRUCT(meta=(DisplayName="Minimum", TemplateName="Minimum"))
-struct CONTROLRIG_API FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -191,7 +211,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryO
  * Returns the larger of the two values each component
  */
 USTRUCT(meta=(DisplayName="Maximum", TemplateName="Maximum"))
-struct CONTROLRIG_API FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryAggregateOp
 {
 	GENERATED_BODY()
 

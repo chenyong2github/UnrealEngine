@@ -32,6 +32,26 @@ struct CONTROLRIG_API FRigUnit_MathColorBinaryOp : public FRigUnit_MathColorBase
 	FLinearColor Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathColorBinaryAggregateOp : public FRigUnit_MathColorBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathColorBinaryAggregateOp()
+	{
+		A = B = Result = FLinearColor::Black;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FLinearColor A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FLinearColor B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	FLinearColor Result;
+};
+
 /**
  * Makes a vector from a single float
  */
@@ -59,7 +79,7 @@ struct CONTROLRIG_API FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBas
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))
-struct CONTROLRIG_API FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryAggregateOp
 {
 	GENERATED_BODY()
 
@@ -83,7 +103,7 @@ struct CONTROLRIG_API FRigUnit_MathColorSub : public FRigUnit_MathColorBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*"))
-struct CONTROLRIG_API FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryAggregateOp
 {
 	GENERATED_BODY()
 

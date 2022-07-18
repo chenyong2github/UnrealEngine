@@ -56,6 +56,26 @@ struct CONTROLRIG_API FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTrans
 	FTransform Result;
 };
 
+USTRUCT(meta=(Abstract))
+struct CONTROLRIG_API FRigUnit_MathTransformBinaryAggregateOp : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformBinaryAggregateOp()
+	{
+		A = B = Result = FTransform::Identity;
+	}
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FTransform A;
+
+	UPROPERTY(meta=(Input, Aggregate))
+	FTransform B;
+
+	UPROPERTY(meta=(Output, Aggregate))
+	FTransform Result;
+};
+
 /**
  * Makes a quaternion based transform from a euler based transform
  */
@@ -135,7 +155,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_M
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*,Global"))
-struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
+struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryAggregateOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -342,7 +362,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathT
 /**
  * Multiplies a given vector (location) by the transform
  */
-USTRUCT(meta=(DisplayName="Transform Location", TemplateName="Multiply", Keywords="Multiply"))
+USTRUCT(meta=(DisplayName="Transform Location", Keywords="Multiply"))
 struct CONTROLRIG_API FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
