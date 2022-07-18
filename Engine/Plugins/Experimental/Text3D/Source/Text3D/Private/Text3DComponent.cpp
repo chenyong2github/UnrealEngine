@@ -95,6 +95,8 @@ UText3DComponent::UText3DComponent()
 
 	bPendingBuild = false;
 	bFreezeBuild = false;
+
+	TextScale = FVector::ZeroVector;
 }
 
 void UText3DComponent::OnRegister()
@@ -571,12 +573,12 @@ void UText3DComponent::CalculateTextWidth()
 	}
 }
 
-float UText3DComponent::GetTextHeight()
+float UText3DComponent::GetTextHeight() const
 {
 	return ShapedText->Lines.Num() * ShapedText->LineHeight + (ShapedText->Lines.Num() - 1) * LineSpacing;
 }
 
-FVector UText3DComponent::GetTextScale()
+void UText3DComponent::CalculateTextScale()
 {
 	FVector Scale(1.0f, 1.0f, 1.0f);
 
@@ -610,7 +612,17 @@ FVector UText3DComponent::GetTextScale()
 		Scale.X = Scale.Y;
 	}
 
-	return Scale;
+	TextScale = Scale;
+}
+
+FVector UText3DComponent::GetTextScale()
+{
+	if (TextScale == FVector::ZeroVector)
+	{
+		CalculateTextScale();
+	}
+
+	return TextScale;
 }
 
 FVector UText3DComponent::GetLineLocation(int32 LineIndex)
@@ -656,6 +668,7 @@ FVector UText3DComponent::GetLineLocation(int32 LineIndex)
 void UText3DComponent::UpdateTransforms()
 {
 	CalculateTextWidth();
+	CalculateTextScale();
 	const FVector Scale = GetTextScale();
 	TextRoot->SetRelativeScale3D(Scale);
 
@@ -784,6 +797,7 @@ void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
 	FTextShaper::Get()->ShapeBidirectionalText(Face, Text.ToString(), ShapedText->Lines);
 	
 	CalculateTextWidth();
+	CalculateTextScale();
 	TextRoot->SetRelativeScale3D(GetTextScale());
 
 	// Pre-allocate, avoid new'ing! 

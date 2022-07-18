@@ -264,6 +264,10 @@ public:
 	/** Gets all the glyph meshes*/
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	const TArray<UStaticMeshComponent*>& GetGlyphMeshComponents();
+	
+	/** Gets the scale of actual text geometry, taking into account MaxWidth and MaxHeight constraints. This function will NOT return the component scale*/
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	FVector GetTextScale();
 
 protected:
 	virtual void OnVisibilityChanged() override;
@@ -283,6 +287,8 @@ private:
 	
 	bool bPendingBuild;
 	bool bFreezeBuild;
+
+	FVector TextScale;
 
 	TSharedPtr<struct FText3DShapedText> ShapedText;
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
@@ -310,7 +316,7 @@ private:
 	void UpdateMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
 
 	void CalculateTextWidth();
-	float GetTextHeight();
-	FVector GetTextScale();
+	float GetTextHeight() const;
+	void CalculateTextScale();
 	FVector GetLineLocation(int32 LineIndex);
 };
