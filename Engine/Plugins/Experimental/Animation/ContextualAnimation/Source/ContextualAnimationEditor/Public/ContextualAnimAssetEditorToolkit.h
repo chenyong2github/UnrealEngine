@@ -53,7 +53,8 @@ private:
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
 	TSharedRef<SWidget> BuildSectionsMenu();
-	TSharedRef<SWidget> BuildNewAnimSetWidget();
+
+	void ShowNewAnimSetDialog();
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
@@ -66,8 +67,6 @@ private:
 	TSharedPtr<FContextualAnimPreviewScene> PreviewScene;
 
 	TSharedPtr<FContextualAnimViewModel> ViewModel;
-
-	TSharedPtr<FStructOnScope> NewAnimSetWidgetStruct;
 };
 
 

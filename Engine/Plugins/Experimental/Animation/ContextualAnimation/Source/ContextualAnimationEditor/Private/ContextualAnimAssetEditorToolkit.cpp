@@ -3,6 +3,7 @@
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "SContextualAnimViewport.h"
 #include "SContextualAnimAssetBrowser.h"
+#include "SContextualAnimNewAnimSetDialog.h"
 #include "ContextualAnimPreviewScene.h"
 #include "ContextualAnimAssetEditorCommands.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -158,6 +159,11 @@ void FContextualAnimAssetEditorToolkit::BindCommands()
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
+		Commands.NewAnimSet,
+		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ShowNewAnimSetDialog),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
 		Commands.Simulate,
 		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ToggleSimulateMode),
 		FCanExecuteAction(),
@@ -209,11 +215,11 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 		FSlateIcon()
 	);
 
-	ToolbarBuilder.AddComboButton(
-		FUIAction(),
-		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget),
-		LOCTEXT("NewSet_Label", "New Set"),
-		FText::GetEmpty(),
+	ToolbarBuilder.AddToolBarButton(
+		FContextualAnimAssetEditorCommands::Get().NewAnimSet,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus")
 	);
 
@@ -252,68 +258,10 @@ TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildSectionsMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget()
+void FContextualAnimAssetEditorToolkit::ShowNewAnimSetDialog()
 {
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
-
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs Args;
-	Args.bHideSelectionTip = true;
-	Args.bAllowSearch = false;
-	Args.bAllowFavoriteSystem = false;
-
-	NewAnimSetWidgetStruct = MakeShared<FStructOnScope>(FContextualAnimNewAnimSetParams::StaticStruct());
-	FContextualAnimNewAnimSetParams* Params = (FContextualAnimNewAnimSetParams*)NewAnimSetWidgetStruct->GetStructMemory();
-
-	const TArray<FName> Roles = ViewModel->GetSceneAsset()->GetRoles();
-	for (FName Role : Roles)
-	{
-		FContextualAnimNewAnimSetData Entry;
-		Entry.RoleName = Role;
-		Params->Data.Add(Entry);
-	}
-
-	TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(Args, FStructureDetailsViewArgs(), NewAnimSetWidgetStruct);
-
-	MenuBuilder.AddWidget(
-		SNew(SBox)
-		.MinDesiredWidth(500.0f)
-		.MaxDesiredWidth(500.f)
-		.MaxDesiredHeight(400.0f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
-			[
-				StructureDetailsView->GetWidget().ToSharedRef()
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
-			.Padding(5)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
-				.Text(LOCTEXT("OK", "OK"))
-				.OnClicked_Lambda([this]()
-				{
-					FContextualAnimNewAnimSetParams* Params = (FContextualAnimNewAnimSetParams*)NewAnimSetWidgetStruct->GetStructMemory();
-					check(Params);
-
-					ViewModel->AddNewAnimSet(*Params);
-
-					FSlateApplication::Get().DismissAllMenus();
-
-					return FReply::Handled();
-				})
-			]
-		], FText(), true, false);
-
-	return MenuBuilder.MakeWidget();
+	TSharedRef<SContextualAnimNewAnimSetDialog> NewAnimSetDialog = SNew(SContextualAnimNewAnimSetDialog, ViewModel.ToSharedRef());
+	NewAnimSetDialog->Show();
 }
 
 void FContextualAnimAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)

@@ -7,6 +7,7 @@
 void FContextualAnimAssetEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(ResetPreviewScene, "Reset Scene", "Reset Scene.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(NewAnimSet, "New AnimSet", "New AnimSet.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(ShowIKTargetsDrawSelected, "Selected Actor Only", "Show IK Targets for the selected actor", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(ShowIKTargetsDrawAll, "All Actors", "Show IK Targets for all the actors", EUserInterfaceActionType::RadioButton, FInputChord());
