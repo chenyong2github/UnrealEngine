@@ -300,6 +300,7 @@ public:
 	virtual void SeamlessTravelTo(class APlayerState* NewPlayerState);
 
 	/** return true if PlayerState is primary (ie. non-splitscreen) player */
+	UE_DEPRECATED(5.1, "This version of IsPrimaryPlayer has been deprecated, please use the Platform Device Mapper to check the owning PlatformUserId instead.")
 	virtual bool IsPrimaryPlayer() const;
 
 	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
