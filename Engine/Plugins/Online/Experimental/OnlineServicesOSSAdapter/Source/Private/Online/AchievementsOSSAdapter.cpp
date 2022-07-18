@@ -14,6 +14,11 @@
 
 namespace UE::Online {
 
+void FAchievementsOSSAdapter::Initialize()
+{
+	Super::Initialize();
+}
+
 void FAchievementsOSSAdapter::PostInitialize()
 {
 	Super::PostInitialize();
@@ -273,7 +278,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 	return Op->GetHandle();	
 }
 
-TOnlineResult<FGetAchievementState> FAchievementsOSSAdapter::GetAchievementState(FGetAchievementState::Params&& Params)
+TOnlineResult<FGetAchievementState> FAchievementsOSSAdapter::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
 	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
 	if (!LocalUserId)

@@ -126,7 +126,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsOSSAdapter::UpdateStats(FUpdateStats::P
 			return;
 		}
 
-		StatsInterface->UpdateStats(LocalUserId.ToSharedRef(), UpdateUserStatsV1, *MakeDelegateAdapter(this, [WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError) mutable
+		StatsInterface->UpdateStats(LocalUserId.ToSharedRef(), UpdateUserStatsV1, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](const FOnlineErrorOss& OnlineError) mutable
 		{
 			if (TSharedPtr<TOnlineAsyncOp<FUpdateStats>> PinnedOp = WeakOp.Pin())
 			{
@@ -137,6 +137,8 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsOSSAdapter::UpdateStats(FUpdateStats::P
 				}
 
 				PinnedOp->SetResult({});
+
+				OnStatsUpdatedEvent.Broadcast(PinnedOp->GetParams());
 			}
 		}));
 	}) 
@@ -177,6 +179,11 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsOSSAdapter::QueryStats(FQueryStats::Para
 					ConvertStatValueV1ToStatValueV2(StatPair.Value, StatValue);
 					Result.Stats.Emplace(StatPair.Key, MoveTemp(StatValue));
 				}
+
+				FUserStats UserStats;
+				UserStats.UserId = PinnedOp->GetParams().TargetUserId;
+				UserStats.Stats = Result.Stats;
+				CacheUserStats(UserStats);
 
 				PinnedOp->SetResult(MoveTemp(Result));
 			}
@@ -235,6 +242,8 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsOSSAdapter::BatchQueryStats(FBatchQ
 						ConvertStatValueV1ToStatValueV2(StatPair.Value, StatValue);
 						UserStats.Stats.Emplace(StatPair.Key, MoveTemp(StatValue));
 					}
+
+					CacheUserStats(UserStats);
 				}
 
 				PinnedOp->SetResult(MoveTemp(Result));

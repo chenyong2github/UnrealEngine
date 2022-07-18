@@ -91,6 +91,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 	Op->Then([this](TOnlineAsyncOp<FUpdateStats>& InAsyncOp)
 	{
 		InAsyncOp.SetResult({});
+		OnStatsUpdatedEvent.Broadcast(InAsyncOp.GetParams());
 	});
 
 	Op->Enqueue(GetSerialQueue());
@@ -181,6 +182,12 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsEOSGS::QueryStats(FQueryStats::Params&& 
 
 		FQueryStats::Result Result;
 		Private::ReadStatsFromEOSResult(StatsHandle, Data, InAsyncOp.GetParams().StatNames, Result.Stats);
+
+		FUserStats UserStats;
+		UserStats.UserId = InAsyncOp.GetParams().TargetUserId;
+		UserStats.Stats = Result.Stats;
+		CacheUserStats(UserStats);
+
 		InAsyncOp.SetResult(MoveTemp(Result));
 	});
 
@@ -216,21 +223,22 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsEOSGS::BatchQueryStats(FBatchQueryS
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("EOS_Stats_QueryStats failed with result=[%s]"), *LexToString(Data->ResultCode));
-				CachedUsersStats.Reset();
+				BatchQueriedUsersStats.Reset();
 				InAsyncOp.SetError(FromEOSError(Data->ResultCode));
 				return;
 			}
 
-			FUserStats& UserStats = CachedUsersStats.Emplace_GetRef();
+			FUserStats& UserStats = BatchQueriedUsersStats.Emplace_GetRef();
 
 			Private::ReadStatsFromEOSResult(StatsHandle, Data, InAsyncOp.GetParams().StatNames, UserStats.Stats);
+			CacheUserStats(UserStats);
 		});
 	}
 
 	Op->Then([this](TOnlineAsyncOp<FBatchQueryStats>& InAsyncOp)
 	{
 		FBatchQueryStats::Result Result;
-		Result.UsersStats = MoveTemp(CachedUsersStats);
+		Result.UsersStats = MoveTemp(BatchQueriedUsersStats);
 		InAsyncOp.SetResult(MoveTemp(Result));
 	});
 

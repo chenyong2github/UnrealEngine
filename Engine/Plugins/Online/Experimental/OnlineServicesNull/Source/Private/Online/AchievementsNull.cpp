@@ -160,7 +160,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsNull::QueryAchievemen
 	return Op->GetHandle();
 }
 
-TOnlineResult<FGetAchievementState> FAchievementsNull::GetAchievementState(FGetAchievementState::Params&& Params)
+TOnlineResult<FGetAchievementState> FAchievementsNull::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
 	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
 	{

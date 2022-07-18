@@ -25,6 +25,7 @@ public:
 #endif // !UE_BUILD_SHIPPING
 
 protected:
+	// TODO: Save UsersStats into local user profile
 	TArray<FUserStats> UsersStats;
 };
 

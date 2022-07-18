@@ -169,4 +169,41 @@ TOnlineAsyncOpHandle<FResetStats> FStatsCommon::ResetStats(FResetStats::Params&&
 }
 #endif // !UE_BUILD_SHIPPING
 
+TOnlineResult<FGetCachedStats> FStatsCommon::GetCachedStats(FGetCachedStats::Params&& Params) const
+{
+	return TOnlineResult<FGetCachedStats>({ CachedUsersStats });
+}
+
+void FStatsCommon::CacheUserStats(const FUserStats& UserStats)
+{
+	if (FUserStats* ExistingUserStats = CachedUsersStats.FindByPredicate(FFindUserStatsByAccountId(UserStats.UserId)))
+	{
+		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
+		{
+			if (FStatValue* StatValue = ExistingUserStats->Stats.Find(StatPair.Key))
+			{
+				*StatValue = StatPair.Value;
+			}
+			else
+			{
+				ExistingUserStats->Stats.Add(StatPair);
+			}
+		}
+	}
+	else
+	{
+		CachedUsersStats.Emplace(UserStats);
+	}
+}
+
+TOnlineEvent<void(const FStatsUpdated&)> FStatsCommon::OnStatsUpdated() 
+{ 
+	return OnStatsUpdatedEvent; 
+}
+
+const FStatDefinition* FStatsCommon::GetStatDefinition(const FString& StatName) const 
+{ 
+	return StatDefinitions.Find(StatName); 
+}
+
 /* UE::Online */ }

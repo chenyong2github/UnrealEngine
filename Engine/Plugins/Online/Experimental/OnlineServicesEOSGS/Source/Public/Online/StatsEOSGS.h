@@ -31,7 +31,7 @@ public:
 
 private:
 	EOS_HStats StatsHandle = nullptr;
-	TArray<FUserStats> CachedUsersStats;
+	TArray<FUserStats> BatchQueriedUsersStats;
 };
 
 /* UE::Online */ }

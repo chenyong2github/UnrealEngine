@@ -95,6 +95,22 @@ struct FResetStats
 };
 #endif // !UE_BUILD_SHIPPING
 
+struct FGetCachedStats
+{
+	static constexpr TCHAR Name[] = TEXT("GetCachedStats");
+
+	struct Params
+	{
+	};
+
+	struct Result
+	{
+		TArray<FUserStats> UsersStats;
+	};
+};
+
+using FStatsUpdated = FUpdateStats::Params;
+
 // Stats interface is used to upload the stats to EOS or first party platforms, to complete corresponding InGame/Platform features such as Stats Query, Achievements, Leaderboard, etc.
 class IStats
 {
@@ -130,6 +146,18 @@ public:
 	 */
 	virtual TOnlineAsyncOpHandle<FResetStats> ResetStats(FResetStats::Params&& Params) = 0;
 #endif // !UE_BUILD_SHIPPING
+
+	/**
+	 * Event triggered when stats of user(s) changed
+	 */
+	virtual TOnlineEvent<void(const FStatsUpdated&)> OnStatsUpdated() = 0;
+
+	/**
+	 * Retrieve cached users' stats, which was retrieved when call QueryStats or BatchQueryStats, or when 
+	 * call UpdateStats for StatsNull impl. When choose to use StatsNull, make sure to listen to OnStatsUpdated
+	 * event and use this function to get all latest local stats and put them into SaveGame
+	 */
+	virtual TOnlineResult<FGetCachedStats> GetCachedStats(FGetCachedStats::Params&& Params) const = 0;
 };
 
 namespace Meta {
@@ -171,6 +199,13 @@ BEGIN_ONLINE_STRUCT_META(FResetStats::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FResetStats::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetCachedStats::Params)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetCachedStats::Result)
+	ONLINE_STRUCT_FIELD(FGetCachedStats::Result, UsersStats)
 END_ONLINE_STRUCT_META()
 #endif // !UE_BUILD_SHIPPING
 

@@ -217,7 +217,7 @@ public:
 	 * Gets the state of an achievement by id for the given player.
 	 * Requires first calling QueryAchievementStates.
 	 */
-	virtual TOnlineResult<FGetAchievementState> GetAchievementState(FGetAchievementState::Params&& Params) = 0;
+	virtual TOnlineResult<FGetAchievementState> GetAchievementState(FGetAchievementState::Params&& Params) const = 0;
 
 	/**
 	 * Manually unlock achievements

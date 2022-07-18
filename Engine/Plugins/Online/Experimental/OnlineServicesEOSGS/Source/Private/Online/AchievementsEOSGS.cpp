@@ -286,7 +286,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 	return Op->GetHandle();
 }
 
-TOnlineResult<FGetAchievementState> FAchievementsEOSGS::GetAchievementState(FGetAchievementState::Params&& Params)
+TOnlineResult<FGetAchievementState> FAchievementsEOSGS::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
 	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
 	{

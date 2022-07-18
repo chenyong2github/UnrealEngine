@@ -12,21 +12,6 @@ FStatsNull::FStatsNull(FOnlineServicesNull& InOwningSubsystem)
 {
 }
 
-struct FFindUserStatsNull
-{
-	FFindUserStatsNull(const FOnlineAccountIdHandle& InUserId)
-		: UserId(InUserId)
-	{
-	}
-
-	bool operator()(const FUserStats& UserStats)
-	{
-		return UserStats.UserId == UserId;
-	}
-
-	FOnlineAccountIdHandle UserId;
-};
-
 TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&& Params)
 {
 	TOnlineAsyncOpRef<FUpdateStats> Op = GetOp<FUpdateStats>(MoveTemp(Params));
@@ -41,7 +26,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 	{
 		for (const FUserStats& UpdateUserStats : InAsyncOp.GetParams().UpdateUsersStats)
 		{
-			FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsNull(UpdateUserStats.UserId));
+			FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(UpdateUserStats.UserId));
 			if (!ExistingUserStats)
 			{
 				ExistingUserStats = &UsersStats.Emplace_GetRef();
@@ -103,9 +88,12 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 					}
 				}
 			}
+
+			CacheUserStats(*ExistingUserStats);
 		}
 
 		InAsyncOp.SetResult({});
+		OnStatsUpdatedEvent.Broadcast(InAsyncOp.GetParams());
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -126,7 +114,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& P
 	{
 		FQueryStats::Result Result;
 
-		if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsNull(InAsyncOp.GetParams().TargetUserId)))
+		if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().TargetUserId)))
 		{
 			Result.Stats = ExistingUserStats->Stats;
 		}
@@ -153,7 +141,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsNull::BatchQueryStats(FBatchQuerySt
 
 		for (const FOnlineAccountIdHandle& TargetUserId : InAsyncOp.GetParams().TargetUserIds)
 		{
-			if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsNull(TargetUserId)))
+			if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(TargetUserId)))
 			{
 				Result.UsersStats.Emplace(*ExistingUserStats);
 			}
@@ -179,11 +167,17 @@ TOnlineAsyncOpHandle<FResetStats> FStatsNull::ResetStats(FResetStats::Params&& P
 
 	Op->Then([this](TOnlineAsyncOp<FResetStats>& InAsyncOp)
 	{
-		uint32 Index = UsersStats.IndexOfByPredicate(FFindUserStatsNull(InAsyncOp.GetParams().LocalUserId));
+		uint32 Index = UsersStats.IndexOfByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().LocalUserId));
 		if (Index != INDEX_NONE)
 		{
 			UsersStats.RemoveAt(Index);
 		}
+
+		FFindUserStatsByAccountId FindUserStatsByAccountId(InAsyncOp.GetParams().LocalUserId);
+
+		UsersStats.RemoveAll(FindUserStatsByAccountId);
+		CachedUsersStats.RemoveAll(FindUserStatsByAccountId);
+
 		InAsyncOp.SetResult({});
 	})
 	.Enqueue(GetSerialQueue());

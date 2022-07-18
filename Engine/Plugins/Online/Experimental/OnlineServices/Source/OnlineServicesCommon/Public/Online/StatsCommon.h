@@ -48,6 +48,20 @@ struct FStatDefinition
 	EStatModifyMethod ModifyMethod = EStatModifyMethod::Set;
 };
 
+struct FFindUserStatsByAccountId
+{
+	FFindUserStatsByAccountId(const FOnlineAccountIdHandle& InUserId)
+		: UserId(InUserId)
+	{
+	}
+
+	bool operator()(const FUserStats& UserStats) const
+	{
+		return UserStats.UserId == UserId;
+	}
+
+	FOnlineAccountIdHandle UserId;
+};
 
 class ONLINESERVICESCOMMON_API FStatsCommon : public TOnlineComponent<IStats>
 {
@@ -67,9 +81,18 @@ public:
 #if !UE_BUILD_SHIPPING
 	virtual TOnlineAsyncOpHandle<FResetStats> ResetStats(FResetStats::Params&& Params) override;
 #endif // !UE_BUILD_SHIPPING
+	virtual TOnlineResult<FGetCachedStats> GetCachedStats(FGetCachedStats::Params&& Params) const override;
+
+	virtual TOnlineEvent<void(const FStatsUpdated&)> OnStatsUpdated() override;
+	const FStatDefinition* GetStatDefinition(const FString& StatName) const;
 
 protected:
+	void CacheUserStats(const FUserStats& UserStats);
+
 	TMap<FString, FStatDefinition> StatDefinitions;
+	TOnlineEventCallable<void(const FStatsUpdated& StatsUpdated)> OnStatsUpdatedEvent;
+
+	TArray<FUserStats> CachedUsersStats;
 };
 
 /* UE::Online */ }
