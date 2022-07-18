@@ -49,11 +49,6 @@
 
 LLM_DEFINE_TAG(SkeletalMesh_TransformData);
 
-#if INTEL_ISPC
-#include "SkeletalMeshComponent.ispc.generated.h"
-static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
-#endif
-
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
 
 TAutoConsoleVariable<int32> CVarUseParallelAnimationEvaluation(TEXT("a.ParallelAnimEvaluation"), 1, TEXT("If 1, animation evaluation will be run across the task graph system. If 0, evaluation will run purely on the game thread"));
@@ -66,16 +61,17 @@ static TAutoConsoleVariable<float> CVarStallParallelAnimation(
 	0.0f,
 	TEXT("Sleep for the given time in each parallel animation task. Time is given in ms. This is a debug option used for critical path analysis and forcing a change in the critical path."));
 
+// Deprecated. Please switch to ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT and "a.SkinnedAsset.ISPC", see SkinnedAsset.cpp.
 #if !defined(ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT)
 #define ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT 1
 #endif
 
 // Support run-time toggling on supported platforms in non-shipping configurations
 #if !INTEL_ISPC || UE_BUILD_SHIPPING
-static constexpr bool bAnim_SkeletalMesh_ISPC_Enabled = INTEL_ISPC && ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT;
+bool bAnim_SkeletalMesh_ISPC_Enabled = INTEL_ISPC && ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT;
 #else
-static bool bAnim_SkeletalMesh_ISPC_Enabled = ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT;
-static FAutoConsoleVariableRef CVarAnimSkeletalMeshISPCEnabled(TEXT("a.SkeletalMesh.ISPC"), bAnim_SkeletalMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation skeletal mesh components"));
+bool bAnim_SkeletalMesh_ISPC_Enabled = ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarAnimSkeletalMeshISPCEnabled(TEXT("a.SkeletalMesh.ISPC"), bAnim_SkeletalMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation skeletal mesh components. Deprecated, please switch to a.SkinnedAsset.ISPC"));
 #endif
 
 static TAutoConsoleVariable<int32> CVarCacheLocalSpaceBounds(
@@ -808,7 +804,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					BoneSpaceTransforms = GetSkeletalMesh()->GetRefSkeleton().GetRefBonePose();
 					//Mini RefreshBoneTransforms (the bit we actually care about)
-					FillComponentSpaceTransforms(GetSkeletalMesh(), BoneSpaceTransforms, GetEditableComponentSpaceTransforms());
+					GetSkeletalMesh()->FillComponentSpaceTransforms(BoneSpaceTransforms, FillComponentSpaceTransformsRequiredBones, GetEditableComponentSpaceTransforms());
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					bNeedToFlipSpaceBaseBuffers = true; // Have updated space bases so need to flip
 					FlipEditableSpaceBases();
@@ -1604,87 +1600,6 @@ static void IntersectBoneIndexArrays(TArray<FBoneIndexType>& Output, const TArra
 	}
 }
 
-
-void USkeletalMeshComponent::FillComponentSpaceTransforms(const USkeletalMesh* InSkeletalMesh, const TArray<FTransform>& InBoneSpaceTransforms, TArray<FTransform>& OutComponentSpaceTransforms) const
-{
-	ANIM_MT_SCOPE_CYCLE_COUNTER(FillComponentSpaceTransforms, !IsInGameThread());
-
-	if( !InSkeletalMesh )
-	{
-		return;
-	}
-
-	// right now all this does is populate DestSpaceBases
-	check( InSkeletalMesh->GetRefSkeleton().GetNum() == InBoneSpaceTransforms.Num());
-	check( InSkeletalMesh->GetRefSkeleton().GetNum() == OutComponentSpaceTransforms.Num());
-
-	const int32 NumBones = InBoneSpaceTransforms.Num();
-
-#if DO_GUARD_SLOW
-	/** Keep track of which bones have been processed for fast look up */
-	TArray<uint8, TInlineAllocator<256>> BoneProcessed;
-	BoneProcessed.AddZeroed(NumBones);
-#endif
-
-	const FTransform* LocalTransformsData = InBoneSpaceTransforms.GetData();
-	FTransform* ComponentSpaceData = OutComponentSpaceTransforms.GetData();
-
-	// First bone (if we have one) is always root bone, and it doesn't have a parent.
-	{
-		check(FillComponentSpaceTransformsRequiredBones.Num() == 0 || FillComponentSpaceTransformsRequiredBones[0] == 0);
-		OutComponentSpaceTransforms[0] = InBoneSpaceTransforms[0];
-
-#if DO_GUARD_SLOW
-		// Mark bone as processed
-		BoneProcessed[0] = 1;
-#endif
-	}
-
-	if (bAnim_SkeletalMesh_ISPC_Enabled)
-	{
-#if INTEL_ISPC
-		ispc::FillComponentSpaceTransforms(
-			(ispc::FTransform*)&ComponentSpaceData[0],
-			(ispc::FTransform*)&LocalTransformsData[0],
-			FillComponentSpaceTransformsRequiredBones.GetData(),
-			(const uint8*)InSkeletalMesh->GetRefSkeleton().GetRefBoneInfo().GetData(),
-			sizeof(FMeshBoneInfo),
-			offsetof(FMeshBoneInfo, ParentIndex),
-			FillComponentSpaceTransformsRequiredBones.Num());
-#endif
-	}
-	else
-	{
-		for (int32 i = 1; i < FillComponentSpaceTransformsRequiredBones.Num(); i++)
-		{
-			const int32 BoneIndex = FillComponentSpaceTransformsRequiredBones[i];
-			FTransform* SpaceBase = ComponentSpaceData + BoneIndex;
-
-			FPlatformMisc::Prefetch(SpaceBase);
-
-#if DO_GUARD_SLOW
-			// Mark bone as processed
-			BoneProcessed[BoneIndex] = 1;
-#endif
-			// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
-			const int32 ParentIndex = InSkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
-			FTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;
-			FPlatformMisc::Prefetch(ParentSpaceBase);
-
-#if DO_GUARD_SLOW
-			// Check the precondition that Parents occur before Children in the RequiredBones array.
-			checkSlow(BoneProcessed[ParentIndex] == 1);
-#endif
-			FTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);
-
-			SpaceBase->NormalizeRotation();
-
-			checkSlow(SpaceBase->IsRotationNormalized());
-			checkSlow(!SpaceBase->ContainsNaN());
-		}
-	}
-}
-
 /** Takes sorted array Base and then adds any elements from sorted array Insert which is missing from it, preserving order.
  * this assumes both arrays are sorted and contain unique bone indices. */
 static void MergeInBoneIndexArrays(TArray<FBoneIndexType>& BaseArray, const TArray<FBoneIndexType>& InsertArray)
@@ -2116,7 +2031,7 @@ void USkeletalMeshComponent::PerformAnimationProcessing(const USkeletalMesh* InS
 		}
 
 		// Fill SpaceBases from LocalAtoms
-		FillComponentSpaceTransforms(InSkeletalMesh, OutBoneSpaceTransforms, OutSpaceBases);
+		InSkeletalMesh->FillComponentSpaceTransforms(OutBoneSpaceTransforms, FillComponentSpaceTransformsRequiredBones, OutSpaceBases);
 	}
 }
 
@@ -2710,7 +2625,7 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FAnimationRuntime::LerpBoneTransforms(BoneSpaceTransforms, CachedBoneSpaceTransforms, Alpha, RequiredBones);
-			FillComponentSpaceTransforms(GetSkeletalMesh(), BoneSpaceTransforms, GetEditableComponentSpaceTransforms());
+			GetSkeletalMesh()->FillComponentSpaceTransforms(BoneSpaceTransforms, FillComponentSpaceTransformsRequiredBones, GetEditableComponentSpaceTransforms());
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			// interpolate curve
 			AnimCurves.LerpTo(CachedCurve, Alpha);
@@ -4037,7 +3952,7 @@ void USkeletalMeshComponent::ParallelDuplicateAndInterpolate(FAnimationEvaluatio
 			}
 
 			FAnimationRuntime::LerpBoneTransforms(InAnimEvaluationContext.BoneSpaceTransforms, InAnimEvaluationContext.CachedBoneSpaceTransforms, Alpha, RequiredBones);
-			FillComponentSpaceTransforms(InAnimEvaluationContext.SkeletalMesh, InAnimEvaluationContext.BoneSpaceTransforms, InAnimEvaluationContext.ComponentSpaceTransforms);
+			InAnimEvaluationContext.SkeletalMesh->FillComponentSpaceTransforms(InAnimEvaluationContext.BoneSpaceTransforms, FillComponentSpaceTransformsRequiredBones, InAnimEvaluationContext.ComponentSpaceTransforms);
 
 			// interpolate curve
 			InAnimEvaluationContext.Curve.LerpTo(InAnimEvaluationContext.CachedCurve, Alpha);

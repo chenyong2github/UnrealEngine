@@ -207,6 +207,13 @@ public:
 	virtual uint32 GetVertexBufferFlags() const
 	{ return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None; }
 
+	/**
+	 * Take the BoneSpaceTransforms array (translation vector, rotation quaternion and scale vector) and update the array of component-space bone transformation matrices (ComponentSpaceTransforms).
+	 * It will work down hierarchy multiplying the component-space transform of the parent by the relative transform of the child.
+	 * This code also applies any per-bone rotators etc. as part of the composition process
+	 */
+	void FillComponentSpaceTransforms(const TArray<FTransform>& InBoneSpaceTransforms, const TArray<FBoneIndexType>& InFillComponentSpaceTransformsRequiredBones, TArray<FTransform>& OutComponentSpaceTransforms) const;
+
 	//~ Begin UObject Interface
 	/**
 	* This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,

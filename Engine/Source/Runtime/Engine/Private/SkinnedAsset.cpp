@@ -2,6 +2,24 @@
 
 #include "Engine/SkinnedAsset.h"
 #include "SkinnedAssetCompiler.h"
+#include "Animation/AnimStats.h"
+
+#if INTEL_ISPC
+#include "SkinnedAsset.ispc.generated.h"
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+#endif
+
+#if !defined(ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT)
+#define ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bAnim_SkinnedAsset_ISPC_Enabled = INTEL_ISPC && ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT;
+#else
+static bool bAnim_SkinnedAsset_ISPC_Enabled = ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarAnimSkinnedAssetISPCEnabled(TEXT("a.SkinnedAsset.ISPC"), bAnim_SkinnedAsset_ISPC_Enabled, TEXT("Whether to use ISPC optimizations on skinned assets"));
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedAsset, Log, All);
 
@@ -137,4 +155,101 @@ void USkinnedAsset::WaitUntilAsyncPropertyReleasedInternal(uint64 AsyncPropertie
 		}
 	}
 #endif
+}
+
+extern bool bAnim_SkeletalMesh_ISPC_Enabled;
+static bool IsISPCEnabled()
+{
+	// By default when ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT and CVarAnimSkeletalMeshISPCEnabled are not set, bAnim_SkeletalMesh_ISPC_Enabled should be true,
+	// so when it is false it means one of the two settings are changed. To be backwards compatible, its overridden value takes priority.
+	if (!bAnim_SkeletalMesh_ISPC_Enabled)
+	{
+		UE_LOG(
+			LogSkinnedAsset,
+			Log,
+			TEXT("ANIM_SKELETAL_MESH_ISPC_ENABLED_DEFAULT and CVar 'a.SkeletalMesh.ISPC' are deprecated and will be removed in future releases."
+				 "Please switch to ANIM_SKINNED_ASSET_ISPC_ENABLED_DEFAULT and 'a.SkinnedAsset.ISPC'")
+		);
+		return false;
+	}
+
+	// No old values detected, use the new setting
+	return bAnim_SkinnedAsset_ISPC_Enabled;
+}
+
+void USkinnedAsset::FillComponentSpaceTransforms(const TArray<FTransform>& InBoneSpaceTransforms,
+												 const TArray<FBoneIndexType>& InFillComponentSpaceTransformsRequiredBones, 
+												 TArray<FTransform>& OutComponentSpaceTransforms) const
+{
+	ANIM_MT_SCOPE_CYCLE_COUNTER(FillComponentSpaceTransforms, !IsInGameThread());
+
+	// right now all this does is populate DestSpaceBases
+	check(GetRefSkeleton().GetNum() == InBoneSpaceTransforms.Num());
+	check(GetRefSkeleton().GetNum() == OutComponentSpaceTransforms.Num());
+
+	const int32 NumBones = InBoneSpaceTransforms.Num();
+
+#if DO_GUARD_SLOW
+	/** Keep track of which bones have been processed for fast look up */
+	TArray<uint8, TInlineAllocator<256>> BoneProcessed;
+	BoneProcessed.AddZeroed(NumBones);
+#endif
+
+	const FTransform* LocalTransformsData = InBoneSpaceTransforms.GetData();
+	FTransform* ComponentSpaceData = OutComponentSpaceTransforms.GetData();
+
+	// First bone (if we have one) is always root bone, and it doesn't have a parent.
+	{
+		check(InFillComponentSpaceTransformsRequiredBones.Num() == 0 || InFillComponentSpaceTransformsRequiredBones[0] == 0);
+		OutComponentSpaceTransforms[0] = InBoneSpaceTransforms[0];
+
+#if DO_GUARD_SLOW
+		// Mark bone as processed
+		BoneProcessed[0] = 1;
+#endif
+	}
+
+	if (IsISPCEnabled())
+	{
+#if INTEL_ISPC
+		ispc::FillComponentSpaceTransforms(
+			(ispc::FTransform*)&ComponentSpaceData[0],
+			(ispc::FTransform*)&LocalTransformsData[0],
+			InFillComponentSpaceTransformsRequiredBones.GetData(),
+			(const uint8*)GetRefSkeleton().GetRefBoneInfo().GetData(),
+			sizeof(FMeshBoneInfo),
+			offsetof(FMeshBoneInfo, ParentIndex),
+			InFillComponentSpaceTransformsRequiredBones.Num());
+#endif
+	}
+	else
+	{
+		for (int32 i = 1; i < InFillComponentSpaceTransformsRequiredBones.Num(); i++)
+		{
+			const int32 BoneIndex = InFillComponentSpaceTransformsRequiredBones[i];
+			FTransform* SpaceBase = ComponentSpaceData + BoneIndex;
+
+			FPlatformMisc::Prefetch(SpaceBase);
+
+#if DO_GUARD_SLOW
+			// Mark bone as processed
+			BoneProcessed[BoneIndex] = 1;
+#endif
+			// For all bones below the root, final component-space transform is relative transform * component-space transform of parent.
+			const int32 ParentIndex = GetRefSkeleton().GetParentIndex(BoneIndex);
+			FTransform* ParentSpaceBase = ComponentSpaceData + ParentIndex;
+			FPlatformMisc::Prefetch(ParentSpaceBase);
+
+#if DO_GUARD_SLOW
+			// Check the precondition that Parents occur before Children in the RequiredBones array.
+			checkSlow(BoneProcessed[ParentIndex] == 1);
+#endif
+			FTransform::Multiply(SpaceBase, LocalTransformsData + BoneIndex, ParentSpaceBase);
+
+			SpaceBase->NormalizeRotation();
+
+			checkSlow(SpaceBase->IsRotationNormalized());
+			checkSlow(!SpaceBase->ContainsNaN());
+		}
+	}
 }
