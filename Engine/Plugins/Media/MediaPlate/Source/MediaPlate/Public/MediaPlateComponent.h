@@ -152,8 +152,6 @@ private:
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
 	/** Our media clock sink. */
 	TSharedPtr<FMediaComponentClockSink, ESPMode::ThreadSafe> ClockSink;
-	/** True if we are waiting for the first frame to come out. */
-	bool bIsWaitingForRender = false;
 
 	/**
 	 * Plays a media source.
