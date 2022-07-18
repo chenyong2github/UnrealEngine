@@ -16,6 +16,7 @@ class APCGPartitionActor;
 class APCGWorldActor;
 class UPCGGraph;
 struct FPCGDataCollection;
+struct FPCGLandscapeCache;
 
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
@@ -47,8 +48,13 @@ public:
 	//~ End FTickableGameObject
 
 	APCGWorldActor* GetPCGWorldActor();
+#if WITH_EDITOR
+	void DestroyPCGWorldActor();
+#endif
 	void RegisterPCGWorldActor(APCGWorldActor* InActor);
 	void UnregisterPCGWorldActor(APCGWorldActor* InActor);
+
+	FPCGLandscapeCache* GetLandscapeCache();
 
 	// Schedule graph (owner -> graph)
 	FPCGTaskId ScheduleComponent(UPCGComponent* PCGComponent, bool bSave, const TArray<FPCGTaskId>& Dependencies);
@@ -112,11 +118,17 @@ public:
 	/** If the partition grid size change, call this to empty the Partition actors map */
 	void ResetPartitionActorsMap();
 
+	/** Builds the landscape data cache */
+	void BuildLandscapeCache();
+
+	/** Clears the landscape data cache */
+	void ClearLandscapeCache();
+
 private:
 	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds);
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, bool bGenerate, bool bSave);
 #endif // WITH_EDITOR
-
+	
 	// Schedule multiple graphs
 	TArray<FPCGTaskId> ScheduleMultipleComponent(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TArray<FPCGTaskId>& Dependencies);
 
@@ -132,6 +144,10 @@ private:
 private:
 	APCGWorldActor* PCGWorldActor = nullptr;
 	FPCGGraphExecutor* GraphExecutor = nullptr;
+
+#if WITH_EDITOR
+	FCriticalSection PCGWorldActorLock;
+#endif
 
 	FPCGComponentOctree PCGComponentOctree;
 	TMap<TObjectPtr<const UPCGComponent>, FPCGComponentOctreeIDSharedRef> ComponentToIdMap;

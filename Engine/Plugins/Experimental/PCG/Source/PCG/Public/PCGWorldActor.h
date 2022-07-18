@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
+#include "Grid/PCGLandscapeCache.h"
+
 #include "PCGWorldActor.generated.h"
 
 UCLASS(MinimalAPI, NotBlueprintable, NotPlaceable)
@@ -16,12 +18,14 @@ public:
 	APCGWorldActor(const FObjectInitializer& ObjectInitializer);
 
 	//~Begin AActor Interface
+	virtual void Serialize(FArchive& InArchive) override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR	
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return false; }
 	virtual bool IsUserManaged() const override { return false; }
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform);
 	//~End AActor Interface
 
 	static APCGWorldActor* CreatePCGWorldActor(UWorld* InWorld);
@@ -38,6 +42,9 @@ public:
 	/** Size of the grid for PCG partition actors */
 	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
 	uint32 PartitionGridSize;
+
+	UPROPERTY(VisibleAnywhere, Category = CachedData)
+	FPCGLandscapeCache LandscapeCache;
 
 private:
 	void RegisterToSubsystem();

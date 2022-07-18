@@ -105,8 +105,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr, bool bInheritMetadata = true);
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	AActor* TargetActor = nullptr;
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
+	TObjectPtr<AActor> TargetActor = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)

@@ -10,11 +10,29 @@ FPCGMetadataAttributeBase::FPCGMetadataAttributeBase(UPCGMetadata* InMetadata, F
 {
 }
 
+void FPCGMetadataAttributeBase::Serialize(UPCGMetadata* InMetadata, FArchive& InArchive)
+{
+	InArchive << EntryToValueKeyMap;
+	Metadata = InMetadata;
+
+	int32 ParentAttributeId = (Parent ? Parent->AttributeId : -1);
+	InArchive << ParentAttributeId;
+
+	if (InArchive.IsLoading() && ParentAttributeId >= 0 && Metadata->GetParent())
+	{
+		Parent = Metadata->GetParent()->GetConstAttributeById(ParentAttributeId);
+	}
+
+	//Type id should already be known by then, so no need to serialize it
+	InArchive << Name;
+	InArchive << AttributeId;
+}
+
 void FPCGMetadataAttributeBase::SetValueFromValueKey(PCGMetadataEntryKey EntryKey, PCGMetadataValueKey ValueKey)
 {
 	check(EntryKey != PCGInvalidEntryKey);
 	FWriteScopeLock ScopeLock(EntryMapLock);
-	EntryToValueMap.FindOrAdd(EntryKey) = ValueKey;
+	EntryToValueKeyMap.FindOrAdd(EntryKey) = ValueKey;
 }
 
 PCGMetadataValueKey FPCGMetadataAttributeBase::GetValueKey(PCGMetadataEntryKey EntryKey) const
@@ -28,7 +46,7 @@ PCGMetadataValueKey FPCGMetadataAttributeBase::GetValueKey(PCGMetadataEntryKey E
 	bool bFoundKey = false;
 
 	EntryMapLock.ReadLock();
-	if (const PCGMetadataValueKey* FoundLocalKey = EntryToValueMap.Find(EntryKey))
+	if (const PCGMetadataValueKey* FoundLocalKey = EntryToValueKeyMap.Find(EntryKey))
 	{
 		ValueKey = *FoundLocalKey;
 		bFoundKey = true;
@@ -52,5 +70,5 @@ bool FPCGMetadataAttributeBase::HasNonDefaultValue(PCGMetadataEntryKey EntryKey)
 
 void FPCGMetadataAttributeBase::ClearEntries()
 {
-	EntryToValueMap.Reset();
+	EntryToValueKeyMap.Reset();
 }

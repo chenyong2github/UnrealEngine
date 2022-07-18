@@ -89,7 +89,73 @@ namespace PCGPointHelpers
 			return Q + BlendQuat;
 		else
 			return Q - BlendQuat;
-	}	
+	}
+
+	void Lerp(const FPCGPoint& A, const FPCGPoint& B, float Ratio, const UPCGMetadata* SourceMetadata, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata)
+	{
+		check(Ratio >= 0 && Ratio <= 1.0f);
+		// TODO: this might be incorrect. See UKismetMathLibrary::TLerp instead
+		OutPoint.Transform = FTransform(
+			FMath::Lerp(A.Transform.GetRotation(), B.Transform.GetRotation(), Ratio),
+			FMath::Lerp(A.Transform.GetLocation(), B.Transform.GetLocation(), Ratio),
+			FMath::Lerp(A.Transform.GetScale3D(), B.Transform.GetScale3D(), Ratio));
+		OutPoint.Density = FMath::Lerp(A.Density, B.Density, Ratio);
+		OutPoint.BoundsMin = FMath::Lerp(A.BoundsMin, B.BoundsMin, Ratio);
+		OutPoint.BoundsMax = FMath::Lerp(A.BoundsMax, B.BoundsMax, Ratio);
+		OutPoint.Color = FMath::Lerp(A.Color, B.Color, Ratio);
+		OutPoint.Steepness = FMath::Lerp(A.Steepness, B.Steepness, Ratio);
+
+		if (OutMetadata)
+		{
+			UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, ((Ratio <= 0.5f) ? A : B), SourceMetadata);
+			OutMetadata->ResetPointWeightedAttributes(OutPoint);
+			OutMetadata->AccumulatePointWeightedAttributes(A, SourceMetadata, Ratio, (Ratio <= 0.5f), OutPoint);
+			OutMetadata->AccumulatePointWeightedAttributes(B, SourceMetadata, 1.0f-Ratio, (Ratio > 0.5f), OutPoint);
+		}
+	}
+
+	void Bilerp(const FPCGPoint& X0Y0, const FPCGPoint& X1Y0, const FPCGPoint& X0Y1, const FPCGPoint& X1Y1, const UPCGMetadata* SourceMetadata, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata, float XFactor, float YFactor)
+	{
+		const FPCGPoint* SelectedPoint = nullptr;
+
+		// First, check preexisting points as interpolation might be costly
+		if (XFactor < KINDA_SMALL_NUMBER && YFactor < KINDA_SMALL_NUMBER)
+		{
+			SelectedPoint = &X0Y0;
+		}
+		else if (XFactor > 1.0f - KINDA_SMALL_NUMBER && YFactor < KINDA_SMALL_NUMBER)
+		{
+			SelectedPoint = &X1Y0;
+		}
+		else if (XFactor < KINDA_SMALL_NUMBER && YFactor > 1.0f - KINDA_SMALL_NUMBER)
+		{
+			SelectedPoint = &X0Y1;
+		}
+		else if (XFactor > 1.0f - KINDA_SMALL_NUMBER && YFactor > 1.0f - KINDA_SMALL_NUMBER)
+		{
+			SelectedPoint = &X1Y1;
+		}
+
+		if (SelectedPoint)
+		{
+			OutPoint = *SelectedPoint;
+			if (OutMetadata)
+			{
+				OutMetadata->SetPointAttributes(*SelectedPoint, SourceMetadata, OutPoint);
+			}
+		}
+		else
+		{
+			// Interpolate X0Y0-X1Y0 and X0Y1-X1Y1 using XFactor
+			FPCGPoint Y0Lerp;
+			FPCGPoint Y1Lerp;
+
+			Lerp(X0Y0, X1Y0, XFactor, SourceMetadata, Y0Lerp, OutMetadata);
+			Lerp(X0Y1, X1Y1, XFactor, SourceMetadata, Y1Lerp, OutMetadata);
+			// Interpolate between the two points using YFactor
+			Lerp(Y0Lerp, Y1Lerp, YFactor, SourceMetadata, OutPoint, OutMetadata);
+		}
+	}
 }
 
 FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
@@ -265,7 +331,7 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 		const FPCGPoint& SourcePoint = *Contribution.Key;
 		const float Weight = Contribution.Value / SumContributions;
 
-		WeightedPosition += SourcePoint.Transform.GetLocation();
+		WeightedPosition += SourcePoint.Transform.GetLocation() * Weight;
 		WeightedQuat = PCGPointHelpers::AddQuatWithWeight(WeightedQuat, SourcePoint.Transform.GetRotation(), Weight);
 		WeightedScale += SourcePoint.Transform.GetScale3D() * Weight;
 

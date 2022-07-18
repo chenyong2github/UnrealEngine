@@ -13,6 +13,7 @@
 #include "PCGSubsystem.h"
 #include "PCGVolumeDetails.h"
 #include "PCGVolumeFactory.h"
+#include "PCGWorldActor.h"
 
 #include "EdGraphUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -172,6 +173,63 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 					}
 				}
 			})),
+		NAME_None);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DeletePCGWorldActor", "Delete PCG World Actor"),
+		LOCTEXT("DeletePCGWorldActor_Tooltip", "Deletes the PCG World Actor"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([]() {
+				if (GEditor)
+				{
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						if (APCGWorldActor* PCGWorldActor = World->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor())
+						{
+							World->GetSubsystem<UPCGSubsystem>()->DestroyPCGWorldActor();
+						}
+					}
+				}
+			})),
+		NAME_None);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("BuildLandscapeCache", "Build Landscape Data Cache"),
+		LOCTEXT("BuildLandscapeCache_Tooltip", "Caches the landscape data in the PCG World Actor"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([]() {
+				if (GEditor)
+				{
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
+						{
+							Subsystem->BuildLandscapeCache();
+						}
+					}
+				}
+			})),
+		NAME_None);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearLandscapeCache", "Clear Landscape Data Cache"),
+		LOCTEXT("ClearLandscapeCache_Tooltip", "Clears the landscape data cache in the PCG World Actor"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([]() {
+				if (GEditor)
+				{
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
+						{
+							Subsystem->ClearLandscapeCache();
+						}
+					}
+				}
+				})),
 		NAME_None);
 }
 

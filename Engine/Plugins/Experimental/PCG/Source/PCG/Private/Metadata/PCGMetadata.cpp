@@ -7,9 +7,54 @@
 #include "Misc/ScopeRWLock.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
-void UPCGMetadata::Serialize(FArchive& Ar)
+void UPCGMetadata::Serialize(FArchive& InArchive)
 {
-	// TODO
+	Super::Serialize(InArchive);
+
+	int32 NumAttributes = (InArchive.IsLoading() ? 0 : Attributes.Num());
+
+	InArchive << NumAttributes;
+
+	if (InArchive.IsLoading())
+	{
+		for (int32 AttributeIndex = 0; AttributeIndex < NumAttributes; ++AttributeIndex)
+		{
+			FName AttributeName = NAME_None;
+			InArchive << AttributeName;
+
+			int32 AttributeTypeId = 0;
+			InArchive << AttributeTypeId;
+
+			FPCGMetadataAttributeBase* SerializedAttribute = PCGMetadataAttribute::AllocateEmptyAttributeFromType(static_cast<int16>(AttributeTypeId));
+			if (SerializedAttribute)
+			{
+				SerializedAttribute->Name = AttributeName;
+				SerializedAttribute->Serialize(this, InArchive);
+				Attributes.Add(AttributeName, SerializedAttribute);
+			}
+		}
+	}
+	else
+	{
+		for (auto& AttributePair : Attributes)
+		{
+			InArchive << AttributePair.Key;
+			
+			int32 AttributeTypeId = AttributePair.Value->GetTypeId();
+			InArchive << AttributeTypeId;
+
+			AttributePair.Value->Serialize(this, InArchive);
+		}
+	}
+
+	InArchive << ParentKeys;
+
+	// Finally, initialize non-serialized members
+	if (InArchive.IsLoading())
+	{
+		NextAttributeId = Attributes.Num();
+		ItemKeyOffset = (Parent ? Parent->GetItemCountForChild() : 0);
+	}
 }
 
 void UPCGMetadata::BeginDestroy()
@@ -247,10 +292,34 @@ const FPCGMetadataAttributeBase* UPCGMetadata::GetConstAttribute(FName Attribute
 	return Attribute;
 }
 
+const FPCGMetadataAttributeBase* UPCGMetadata::GetConstAttributeById(int32 InAttributeId) const
+{
+	const FPCGMetadataAttributeBase* Attribute = nullptr;
+
+	AttributeLock.ReadLock();
+	for (const auto& AttributePair : Attributes)
+	{
+		if (AttributePair.Value && AttributePair.Value->AttributeId == InAttributeId)
+		{
+			Attribute = AttributePair.Value;
+			break;
+		}
+	}
+	AttributeLock.ReadUnlock();
+
+	return Attribute;
+}
+
 bool UPCGMetadata::HasAttribute(FName AttributeName) const
 {
 	FReadScopeLock ScopeLock(AttributeLock);
 	return Attributes.Contains(AttributeName);
+}
+
+int32 UPCGMetadata::GetAttributeCount() const
+{
+	FReadScopeLock ScopeLock(AttributeLock);
+	return Attributes.Num();
 }
 
 void UPCGMetadata::GetAttributes(TArray<FName>& AttributeNames, TArray<EPCGMetadataTypes>& AttributeTypes) const
@@ -424,7 +493,7 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(const FPCGMetadataAttribu
 	FPCGMetadataAttributeBase* NewAttribute = OriginalAttribute->Copy(NewAttributeName, this, bKeepParent, bCopyEntries, bCopyValues);
 
 	AttributeLock.WriteLock();
-	NewAttribute->AttributeId = ++NextAttributeId;
+	NewAttribute->AttributeId = NextAttributeId++;
 	AddAttributeInternal(NewAttributeName, NewAttribute);
 	AttributeLock.WriteUnlock();
 
@@ -697,7 +766,7 @@ void UPCGMetadata::SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* 
 
 void UPCGMetadata::SetPointAttributes(const TArrayView<const FPCGPoint>& InPoints, const UPCGMetadata* InMetadata, const TArrayView<FPCGPoint>& OutPoints)
 {
-	if (!InMetadata)
+	if (!InMetadata || InMetadata->GetAttributeCount() == 0)
 	{
 		return;
 	}

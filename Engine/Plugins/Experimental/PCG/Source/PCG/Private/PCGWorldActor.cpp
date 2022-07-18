@@ -12,18 +12,37 @@
 APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bIsEditorOnlyActor = true;
 #if WITH_EDITORONLY_DATA
 	bIsSpatiallyLoaded = false;
 	bDefaultOutlinerExpansionState = false;
 #endif
 
 	PartitionGridSize = DefaultPartitionGridSize;
+	LandscapeCache.SetOwner(this);
 }
+
+void APCGWorldActor::Serialize(FArchive& InArchive)
+{
+	if (InArchive.IsSaving() && !InArchive.IsCooking() && !(GetWorld() && GetWorld()->GetWorldPartition()))
+	{
+		LandscapeCache.ClearCache();
+	}
+
+	Super::Serialize(InArchive);
+}
+
+#if WITH_EDITOR
+void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+	LandscapeCache.PrimeCache();
+}
+#endif
 
 void APCGWorldActor::PostLoad()
 {
 	Super::PostLoad();
+	LandscapeCache.SetOwner(this);
 	RegisterToSubsystem();
 }
 

@@ -16,6 +16,7 @@ public:
 	FPCGMetadataAttributeBase(UPCGMetadata* InMetadata, FName InName, const FPCGMetadataAttributeBase* InParent, bool bInAllowsInterpolation);
 
 	virtual ~FPCGMetadataAttributeBase() = default;
+	virtual void Serialize(UPCGMetadata* InMetadata, FArchive& InArchive);
 
 	const UPCGMetadata* GetMetadata() const { return Metadata; }
 	int16 GetTypeId() const { return TypeId; }
@@ -37,7 +38,7 @@ public:
 	bool AllowsInterpolation() const { return bAllowsInterpolation; }
 
 protected:
-	TMap<PCGMetadataEntryKey, PCGMetadataValueKey> EntryToValueMap;
+	TMap<PCGMetadataEntryKey, PCGMetadataValueKey> EntryToValueKeyMap;
 	mutable FRWLock EntryMapLock;
 
 	TObjectPtr<UPCGMetadata> Metadata = nullptr;

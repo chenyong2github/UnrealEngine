@@ -30,7 +30,7 @@ class PCG_API UPCGMetadata : public UObject
 public:
 
 	//~ Begin UObject interface
-	virtual void Serialize(FArchive& Ar) override;
+	virtual void Serialize(FArchive& InArchive) override;
 	virtual void BeginDestroy() override;
 	//~ End UObject interface
 
@@ -106,7 +106,9 @@ public:
 	/** Get attributes */
 	FPCGMetadataAttributeBase* GetMutableAttribute(FName AttributeName);
 	const FPCGMetadataAttributeBase* GetConstAttribute(FName AttributeName) const;
+	const FPCGMetadataAttributeBase* GetConstAttributeById(int32 AttributeId) const;
 	bool HasAttribute(FName AttributeName) const;
+	int32 GetAttributeCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void GetAttributes(TArray<FName>& AttributeNames, TArray<EPCGMetadataTypes>& AttributeTypes) const;

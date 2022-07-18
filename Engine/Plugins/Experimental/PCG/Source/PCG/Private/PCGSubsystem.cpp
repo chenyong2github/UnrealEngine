@@ -58,8 +58,19 @@ void UPCGSubsystem::PostInitialize()
 	// Initialize graph executor
 	check(!GraphExecutor);
 	GraphExecutor = new FPCGGraphExecutor(this);
-	// gather things.. ?
-	// TODO	
+	
+	// Gather world pcg actor if it exists
+	if (!PCGWorldActor)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UPCGActorHelpers::ForEachActorInWorld<APCGWorldActor>(World, [this](AActor* InActor)
+			{
+				PCGWorldActor = Cast<APCGWorldActor>(InActor);
+				return PCGWorldActor == nullptr;
+			});
+		}
+	}
 
 	// TODO: For now we set our octree to be 2km wide, but it would be perhaps better to
 	// scale it to the size of our world.
@@ -80,12 +91,30 @@ APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
 #if WITH_EDITOR
 	if (!PCGWorldActor)
 	{
+		PCGWorldActorLock.Lock();
+		if (!PCGWorldActor)
+		{
 		PCGWorldActor = APCGWorldActor::CreatePCGWorldActor(GetWorld());
+	}
+		PCGWorldActorLock.Unlock();
 	}
 #endif
 
 	return PCGWorldActor;
 }
+
+#if WITH_EDITOR
+void UPCGSubsystem::DestroyPCGWorldActor()
+{
+	if (PCGWorldActor)
+	{
+		PCGWorldActorLock.Lock();
+		PCGWorldActor->Destroy();
+		PCGWorldActor = nullptr;
+		PCGWorldActorLock.Unlock();
+	}
+}
+#endif
 
 void UPCGSubsystem::RegisterPCGWorldActor(APCGWorldActor* InActor)
 {
@@ -95,11 +124,16 @@ void UPCGSubsystem::RegisterPCGWorldActor(APCGWorldActor* InActor)
 
 void UPCGSubsystem::UnregisterPCGWorldActor(APCGWorldActor* InActor)
 {
-	check(PCGWorldActor == InActor);
 	if (PCGWorldActor == InActor)
 	{
 		PCGWorldActor = nullptr;
 	}
+}
+
+FPCGLandscapeCache* UPCGSubsystem::GetLandscapeCache()
+{
+	APCGWorldActor* LandscapeCacheOwner = GetPCGWorldActor();
+	return LandscapeCacheOwner ? &LandscapeCacheOwner->LandscapeCache : nullptr;
 }
 
 FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bSave, const TArray<FPCGTaskId>& Dependencies)
@@ -185,7 +219,7 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 	// If the component is partitioned, we will forward the calls to its registered PCG Partition actors
 	if (PCGComponent->IsPartitioned())
 	{
-		{
+{
 			// TODO: Might be more interesting to copy the set and release the lock.
 			FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
 			TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(PCGComponent);
@@ -197,11 +231,11 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 		}
 	}
 	else
-	{
+		{
 		// In non partitioned mode, do it immediately
 		// TODO: Should it be a parameter?
 		PCGComponent->CleanupInternal(bRemoveComponents);
-	}
+		}
 
 	if (AllTasks.IsEmpty())
 	{
@@ -252,8 +286,8 @@ TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleComponent(UPCGComponent* Origi
 				// Add check to avoid infinite loop
 				if (ensure(!LocalComponent->IsPartitioned()))
 				{
-					// Ensure that the PCG actor match our original
-					LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
+				// Ensure that the PCG actor match our original
+				LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
 
 					FPCGTaskId LocalTask = ScheduleComponent(LocalComponent, /*bSave=*/ false, Dependencies);
 
@@ -1083,6 +1117,27 @@ void UPCGSubsystem::FlushCache()
 	if (GraphExecutor)
 	{
 		GraphExecutor->GetCache().ClearCache();
+	}
+}
+
+void UPCGSubsystem::BuildLandscapeCache()
+{
+	if (FPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
+	{
+		PCGWorldActor->Modify();
+		LandscapeCache->PrimeCache();
+	}
+	else
+	{
+		UE_LOG(LogPCG, Error, TEXT("Unable to build landscape cache because either the world is null or there is no PCG world actor"));
+	}
+}
+
+void UPCGSubsystem::ClearLandscapeCache()
+{
+	if (FPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
+	{
+		LandscapeCache->ClearCache();
 	}
 }
 

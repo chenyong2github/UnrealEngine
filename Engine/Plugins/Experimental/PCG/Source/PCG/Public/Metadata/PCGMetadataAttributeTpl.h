@@ -22,6 +22,26 @@ public:
 		}
 	}
 
+	// This constructor is used only during serialization
+	FPCGMetadataAttribute()
+	{
+		TypeId = PCG::Private::MetadataTypes<T>::Id;
+	}
+
+	virtual void Serialize(UPCGMetadata* InMetadata, FArchive& InArchive) override
+	{
+		FPCGMetadataAttributeBase::Serialize(InMetadata, InArchive);
+
+		InArchive << Values;
+		InArchive << DefaultValue;
+		
+		// Initialize non-serialized members
+		if (InArchive.IsLoading())
+		{
+			ValueKeyOffset = GetParent() ? GetParent()->GetValueKeyOffsetForChild() : 0;
+		}
+	}
+
 	const FPCGMetadataAttribute* GetParent() const { return static_cast<const FPCGMetadataAttribute*>(Parent); }
 
 	virtual FPCGMetadataAttributeBase* Copy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true) const override
@@ -33,7 +53,7 @@ public:
 		if (bCopyEntries)
 		{
 			EntryMapLock.ReadLock();
-			AttributeCopy->EntryToValueMap = EntryToValueMap;
+			AttributeCopy->EntryToValueKeyMap = EntryToValueKeyMap;
 			EntryMapLock.ReadUnlock();
 		}
 
@@ -373,6 +393,35 @@ protected:
 protected:
 	mutable FRWLock ValueLock;
 	TArray<T> Values;
-	T DefaultValue;
+	T DefaultValue = T{};
 	PCGMetadataValueKey ValueKeyOffset = 0;
 };
+
+namespace PCGMetadataAttribute
+{
+	inline FPCGMetadataAttributeBase* AllocateEmptyAttributeFromType(int16 TypeId)
+	{
+#define AllocatePCGMetadataAttributeOnType(Type) case PCG::Private::MetadataTypes<Type>::Id : { return new FPCGMetadataAttribute<Type>(); } break;
+
+		switch (TypeId)
+		{
+			AllocatePCGMetadataAttributeOnType(float);
+			AllocatePCGMetadataAttributeOnType(double);
+			AllocatePCGMetadataAttributeOnType(int32);
+			AllocatePCGMetadataAttributeOnType(int64);
+			AllocatePCGMetadataAttributeOnType(FVector);
+			AllocatePCGMetadataAttributeOnType(FVector4);
+			AllocatePCGMetadataAttributeOnType(FQuat);
+			AllocatePCGMetadataAttributeOnType(FTransform);
+			AllocatePCGMetadataAttributeOnType(FString);
+			AllocatePCGMetadataAttributeOnType(bool);
+			AllocatePCGMetadataAttributeOnType(FRotator);
+			AllocatePCGMetadataAttributeOnType(FName);
+
+		default:
+			return nullptr;
+		}
+
+#undef AllocatePCGMetadataAttributeOnType
+	}
+}
