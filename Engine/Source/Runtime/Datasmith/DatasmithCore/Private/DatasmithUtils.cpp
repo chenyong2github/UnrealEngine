@@ -175,7 +175,7 @@ int32 FDatasmithUtils::GetEnterpriseVersionAsInt()
 
 FString FDatasmithUtils::GetEnterpriseVersionAsString()
 {
-	return FEngineVersion::Current().ToString( EVersionComponent::Patch );
+	return FEngineVersion::Current().ToString( EVersionComponent::Changelist );
 }
 
 float FDatasmithUtils::GetDatasmithFormatVersionAsFloat()
