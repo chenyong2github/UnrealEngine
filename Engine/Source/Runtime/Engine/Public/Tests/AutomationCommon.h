@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 
+class AActor;
 class SWindow;
 class SWidget;
 
