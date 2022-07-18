@@ -24,7 +24,6 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Net/Core/Trace/NetTrace.h"
-#include "Engine/DemoNetDriver.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Components/ChildActorComponent.h"
@@ -687,11 +686,7 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 	else if ( Ar.IsLoading() && Actor == NULL )
 	{
 		// Do not log a warning during replay, since this is a valid case
-		UDemoNetDriver* DemoNetDriver = Cast<UDemoNetDriver>(Connection->Driver);
-		if (DemoNetDriver == nullptr)
-		{
-			UE_LOG( LogNetPackageMap, Log, TEXT( "SerializeNewActor: Failed to find static actor: FullNetGuidPath: %s, Channel: %d" ), *GuidCache->FullNetGUIDPath( NetGUID ), Channel->ChIndex );
-		}
+		UE_CLOG(!Connection->IsReplay(), LogNetPackageMap, Log, TEXT("SerializeNewActor: Failed to find static actor: FullNetGuidPath: %s, Channel: %d"), *GuidCache->FullNetGUIDPath(NetGUID), Channel->ChIndex);
 
 		if (UE::Net::FilterGuidRemapping != 0)
 		{

@@ -27,10 +27,7 @@
 #include "Misc/App.h"
 #include "CharacterMovementComponentAsync.h"
 #include "PBDRigidsSolver.h"
-
-#include "Engine/DemoNetDriver.h"
 #include "Engine/NetworkObjectList.h"
-
 #include "Net/PerfCountersHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #if UE_WITH_IRIS
