@@ -315,11 +315,28 @@ namespace Metasound
 
 		bool FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 		{
+			UE_LOG(LogMetaSound, Error, TEXT("FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType with these parameters is no longer supported and should not be called. Use the one with EMetasoundFrontendVertexAccessType instead."));
+			return false;
+		}
+
+		bool FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InAccessType, FNodeRegistryKey& OutKey)
+		{
 			FMetasoundFrontendClass Class;
-			if (IDataTypeRegistry::Get().GetFrontendInputClass(InDataTypeName, Class))
+			if (InAccessType == EMetasoundFrontendVertexAccessType::Reference)
 			{
-				OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-				return true;
+				if (IDataTypeRegistry::Get().GetFrontendInputClass(InDataTypeName, Class))
+				{
+					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+					return true;
+				}
+			}
+			else // InAccessType == EMetasoundFrontendVertexAccessType::Value
+			{
+				if (IDataTypeRegistry::Get().GetFrontendConstructorInputClass(InDataTypeName, Class))
+				{
+					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+					return true;
+				}
 			}
 			return false;
 		}
@@ -337,12 +354,30 @@ namespace Metasound
 
 		bool FRegistryContainerImpl::FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 		{
+			UE_LOG(LogMetaSound, Error, TEXT("FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType with these parameters is no longer supported and should not be called. Use the one with EMetasoundFrontendVertexAccessType instead."));
+			return false;
+		}
+
+		bool FRegistryContainerImpl::FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InAccessType, FNodeRegistryKey& OutKey)
+		{
 			FMetasoundFrontendClass Class;
-			if (IDataTypeRegistry::Get().GetFrontendOutputClass(InDataTypeName, Class))
+			if (InAccessType == EMetasoundFrontendVertexAccessType::Reference) 
 			{
-				OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-				return true;
+				if (IDataTypeRegistry::Get().GetFrontendOutputClass(InDataTypeName, Class))
+				{
+					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+					return true;
+				}
 			}
+			else // InAccessType == EMetasoundFrontendVertexAccessType::Value
+			{
+				if (IDataTypeRegistry::Get().GetFrontendConstructorOutputClass(InDataTypeName, Class))
+				{
+					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+					return true;
+				}
+			}
+
 			return false;
 		}
 
@@ -562,12 +597,17 @@ bool FMetasoundFrontendRegistryContainer::GetNodeClassInfoFromRegistered(const F
 	return false;
 }
 
-
 bool FMetasoundFrontendRegistryContainer::GetInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
+{
+	UE_LOG(LogMetaSound, Error, TEXT("FMetasoundFrontendRegistryContainer::GetInputNodeRegistryKeyForDataType with these parameters is no longer supported and should not be called. Use the one with EMetasoundFrontendVertexAccessType instead."));
+	return false;
+}
+
+bool FMetasoundFrontendRegistryContainer::GetInputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InAccessType, FNodeRegistryKey& OutKey)
 {
 	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
 	{
-		return Registry->FindInputNodeRegistryKeyForDataType(InDataTypeName, OutKey);
+		return Registry->FindInputNodeRegistryKeyForDataType(InDataTypeName, InAccessType, OutKey);
 	}
 	return false;
 }
@@ -583,11 +623,15 @@ bool FMetasoundFrontendRegistryContainer::GetVariableNodeRegistryKeyForDataType(
 
 bool FMetasoundFrontendRegistryContainer::GetOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 {
-	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
-	{
-		return Registry->FindOutputNodeRegistryKeyForDataType(InDataTypeName, OutKey);
-	}
+	UE_LOG(LogMetaSound, Error, TEXT("FMetasoundFrontendRegistryContainer::GetOutputNodeRegistryKeyForDataType with these parameters is no longer supported and should not be called. Use the one with EMetasoundFrontendVertexAccessType instead."));
 	return false;
 }
 
-
+bool FMetasoundFrontendRegistryContainer::GetOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InVertexAccessType, FNodeRegistryKey& OutKey)
+{
+	if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+	{
+		return Registry->FindOutputNodeRegistryKeyForDataType(InDataTypeName, InVertexAccessType, OutKey);
+	}
+	return false;
+}

@@ -203,7 +203,7 @@ namespace Metasound
 				OutConnectability.Connectable = FConnectability::EConnectable::No;
 				OutConnectability.Reason = FConnectability::EReason::IncompatibleDataTypes;
 			}
-			else if (!IsCompatibleAccessType(InController))
+			else if (!FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(InController.GetVertexAccessType(), GetVertexAccessType()))
 			{
 				OutConnectability.Connectable = FConnectability::EConnectable::No;
 				OutConnectability.Reason = FConnectability::EReason::IncompatibleAccessTypes;
@@ -254,7 +254,7 @@ namespace Metasound
 			{
 				if (OtherDataType == DataType)
 				{
-					if (IsCompatibleAccessType(InController))
+					if (FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(InController.GetVertexAccessType(), GetVertexAccessType()))
 					{
 						// Overwrite an existing connection if it exists.
 						FMetasoundFrontendEdge* Edge = FindEdge();
@@ -363,19 +363,6 @@ namespace Metasound
 			}
 
 			return false;
-		}
-
-		bool FBaseInputController::IsCompatibleAccessType(const IOutputController& InOutputController) const
-		{
-			if (EMetasoundFrontendVertexAccessType::Value == GetVertexAccessType())
-			{
-				// If the input vertex accesses by "Value" then the output vertex 
-				// must also access by "Value" to enforce unexpected consequences 
-				// of connecting data which varies over time to an input which only
-				// evaluates the data during operator initialization.
-				return (EMetasoundFrontendVertexAccessType::Value == InOutputController.GetVertexAccessType());
-			}
-			return true;
 		}
 
 		const FMetasoundFrontendEdge* FBaseInputController::FindEdge() const
@@ -502,6 +489,11 @@ namespace Metasound
 			}
 		}
 
+		EMetasoundFrontendVertexAccessType FOutputNodeInputController::GetVertexAccessType() const
+		{
+			return OwningGraphClassOutputPtr.Get()->AccessType;
+		}
+
 		FDocumentAccess FOutputNodeInputController::ShareAccess() 
 		{
 			FDocumentAccess Access = FBaseInputController::ShareAccess();
@@ -573,6 +565,11 @@ namespace Metasound
 			{
 				Vertex->Name = InName;
 			}
+		}
+		
+		EMetasoundFrontendVertexAccessType FInputNodeInputController::GetVertexAccessType() const
+		{
+			return OwningGraphClassInputPtr.Get()->AccessType;
 		}
 
 		bool FInputNodeInputController::IsConnectionUserModifiable() const

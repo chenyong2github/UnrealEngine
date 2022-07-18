@@ -10,6 +10,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceMacro.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphInputNode.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundFrontend.h"
@@ -45,6 +46,15 @@ namespace Metasound
 	{
 		namespace MemberCustomizationPrivate
 		{
+			static int32 EnableMetasoundConstructorPins = 0;
+
+			FAutoConsoleVariableRef CVarMetaSoundEditorEnableConstructorPins(
+				TEXT("au.MetaSounds.Editor.ConstructorPinsEnabled"),
+				EnableMetasoundConstructorPins,
+				TEXT("Whether option to make inputs and outputs constructor pins is available in editor.\n")
+				TEXT("0 (default): Disabled, !0: Enabled"),
+				ECVF_Default);
+
 			/** Set of input types which are valid registered types, but should
 			 * not show up as an input type option in the MetaSound editor. */
 			static const TSet<FName> HiddenInputTypeNames =
@@ -59,7 +69,7 @@ namespace Metasound
 
 			static const FText ConstructorPinText = LOCTEXT("ConstructorPinText", "Is Constructor Pin");
 			static const FText ConstructorPinTooltip = LOCTEXT("ConstructorPinTooltip",
-				"Whether this input is a constructor pin (value is only read on construction, and is not updated at runtime).");
+				"Whether this input or output is a constructor pin (value is only read on construction, and is not dynamically updated at runtime).");
 
 			void GetDataTypeFromElementPropertyHandle(TSharedPtr<IPropertyHandle> ElementPropertyHandle, Frontend::FDataTypeRegistryInfo& OutDataTypeInfo)
 			{
@@ -189,7 +199,8 @@ namespace Metasound
 			{
 				if (const UMetasoundEditorGraph* OwningGraph = ParentMember->GetOwningGraph())
 				{
-					bShowWidgetOptions = OwningGraph->IsEditable();
+					// Disable widget options for constructor inputs for now to prevent changing default value via widget while playing 
+					bShowWidgetOptions = OwningGraph->IsEditable() && ParentMember->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Reference;
 				}
 			}
 
@@ -1136,62 +1147,107 @@ namespace Metasound
 			bIsNameInvalid = false;
 		}
 
+		void FMetasoundVertexDetailCustomization::AddConstructorPinRow(IDetailLayoutBuilder& InDetailLayout)
+		{
+			if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(GraphMember.Get()))
+			{
+				InDetailLayout.EditCategory("General").AddCustomRow(MemberCustomizationPrivate::ConstructorPinText)
+				.IsEnabled(IsGraphEditable() && !IsInterfaceMember())
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(MemberCustomizationPrivate::ConstructorPinText)
+					.ToolTipText(MemberCustomizationPrivate::ConstructorPinTooltip)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+				]
+				.ValueContent()
+				[
+					SAssignNew(ConstructorPinCheckbox, SCheckBox)
+					.IsChecked_Lambda([this, Vertex]()
+					{
+						return OnGetConstructorPinCheckboxState(Vertex);
+					})
+					.OnCheckStateChanged_Lambda([this, Vertex](ECheckBoxState InNewState)
+					{
+						OnConstructorPinStateChanged(Vertex, InNewState);
+					})
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+				];
+			}
+		}
+		
 		void FMetasoundVertexDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
 		{
 			FMetasoundMemberDetailCustomization::CustomizeGeneralCategory(InDetailLayout);
-
-			IDetailCategoryBuilder& CategoryBuilder = FMetasoundMemberDetailCustomization::GetGeneralCategoryBuilder(InDetailLayout);
 			UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(GraphMember.Get());
-			if (ensure(Vertex))
+			if (!ensure(Vertex))
 			{
-				TWeakObjectPtr<UMetasoundEditorGraphVertex> VertexPtr = Vertex;
-				static const FText SortOrderText = LOCTEXT("Vertex_SortOrderPropertyName", "Sort Order");
-				static const FText SortOrderToolTipFormat = LOCTEXT("Vertex_SortOrderToolTipFormat", "Sort Order for {0}. Used to organize pins in node view. The higher the number, the lower in the list.");
-				const FText SortOrderToolTipText = FText::Format(SortOrderToolTipFormat, GraphMember->GetGraphMemberLabel());
-				CategoryBuilder.AddCustomRow(SortOrderText)
-					.EditCondition(IsGraphEditable(), nullptr)
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Font(IDetailLayoutBuilder::GetDetailFontBold())
-						.Text(SortOrderText)
-						.ToolTipText(SortOrderToolTipText)
-					]
-					.ValueContent()
-					[
-						SNew(SNumericEntryBox<int32>)
-						.Value_Lambda([VertexPtr]() { return VertexPtr->GetSortOrderIndex(); })
-						.AllowSpin(false)
-						.UndeterminedString(LOCTEXT("Vertex_SortOrder_MultipleValues", "Multiple"))
-						.OnValueCommitted_Lambda([VertexPtr](int32 NewValue, ETextCommit::Type CommitInfo)
-						{
-							if (!VertexPtr.IsValid())
-							{
-								return;
-							}
-
-							const FText TransactionTitle = FText::Format(LOCTEXT("SetVertexSortOrderFormat", "Set MetaSound Graph {0} '{1}' SortOrder to {2}"),
-								VertexPtr->GetGraphMemberLabel(),
-								VertexPtr->GetDisplayName(),
-								FText::AsNumber(NewValue));
-							FScopedTransaction Transaction(TransactionTitle);
-
-							UObject* MetaSoundObject = VertexPtr->GetOutermostObject();
-							FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject);
-							check(MetaSoundAsset);
-
-							MetaSoundObject->Modify();
-							MetaSoundAsset->GetGraphChecked().Modify();
-							VertexPtr->Modify();
-
-							VertexPtr->SetSortOrderIndex(NewValue);
-
-							constexpr bool bInForceViewSynchronization = true;
-							FGraphBuilder::RegisterGraphWithFrontend(*MetaSoundObject, bInForceViewSynchronization);
-						})
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					];
+				return;
 			}
+
+			// Constructor pin 
+			if (MemberCustomizationPrivate::EnableMetasoundConstructorPins)
+			{
+				Frontend::FDataTypeRegistryInfo DataTypeInfo;
+				Frontend::IDataTypeRegistry::Get().GetDataTypeInfo(Vertex->GetDataType(), DataTypeInfo);
+				if (DataTypeInfo.bIsConstructorType)
+				{
+					AddConstructorPinRow(InDetailLayout);
+				}
+			}
+
+			// Sort order
+			IDetailCategoryBuilder& CategoryBuilder = FMetasoundMemberDetailCustomization::GetGeneralCategoryBuilder(InDetailLayout);
+			TWeakObjectPtr<UMetasoundEditorGraphVertex> VertexPtr = Vertex;
+			static const FText SortOrderText = LOCTEXT("Vertex_SortOrderPropertyName", "Sort Order");
+			static const FText SortOrderToolTipFormat = LOCTEXT("Vertex_SortOrderToolTipFormat", "Sort Order for {0}. Used to organize pins in node view. The higher the number, the lower in the list.");
+			const FText SortOrderToolTipText = FText::Format(SortOrderToolTipFormat, GraphMember->GetGraphMemberLabel());
+			CategoryBuilder.AddCustomRow(SortOrderText)
+				.EditCondition(IsGraphEditable(), nullptr)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(SortOrderText)
+					.ToolTipText(SortOrderToolTipText)
+				]
+				.ValueContent()
+				[
+					SNew(SNumericEntryBox<int32>)
+					.Value_Lambda([VertexPtr]() { return VertexPtr->GetSortOrderIndex(); })
+					.AllowSpin(false)
+					.UndeterminedString(LOCTEXT("Vertex_SortOrder_MultipleValues", "Multiple"))
+					.OnValueCommitted_Lambda([VertexPtr](int32 NewValue, ETextCommit::Type CommitInfo)
+					{
+						if (!VertexPtr.IsValid())
+						{
+							return;
+						}
+
+						const FText TransactionTitle = FText::Format(LOCTEXT("SetVertexSortOrderFormat", "Set MetaSound Graph {0} '{1}' SortOrder to {2}"),
+							VertexPtr->GetGraphMemberLabel(),
+							VertexPtr->GetDisplayName(),
+							FText::AsNumber(NewValue));
+						FScopedTransaction Transaction(TransactionTitle);
+
+						UObject* MetaSoundObject = VertexPtr->GetOutermostObject();
+						FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject);
+						check(MetaSoundAsset);
+
+						MetaSoundObject->Modify();
+						MetaSoundAsset->GetGraphChecked().Modify();
+						VertexPtr->Modify();
+
+						VertexPtr->SetSortOrderIndex(NewValue);
+
+						constexpr bool bInForceViewSynchronization = true;
+						FGraphBuilder::RegisterGraphWithFrontend(*MetaSoundObject, bInForceViewSynchronization);
+					})
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				];
 		}
 
 		bool FMetasoundVertexDetailCustomization::IsInterfaceMember() const
@@ -1271,17 +1327,38 @@ namespace Metasound
 			}
 		}
 
-		void FMetasoundInputDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
+		ECheckBoxState FMetasoundVertexDetailCustomization::OnGetConstructorPinCheckboxState(TWeakObjectPtr<UMetasoundEditorGraphVertex> InGraphVertex) const
 		{
-			FMetasoundVertexDetailCustomization::CustomizeGeneralCategory(InDetailLayout);
-
-			if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
+			if (InGraphVertex.IsValid())
 			{
-				IDetailCategoryBuilder& CategoryBuilder = FMetasoundMemberDetailCustomization::GetGeneralCategoryBuilder(InDetailLayout);
-				// TODO: Remove ConstructorPin bool from UMetasoundEditorGraphInput and add constructor pin bool property from frontend here 
-				/*IDetailPropertyRow* Row = CategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ Input }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInput, ConstructorPin));
-				auto PropertyEnabled = TAttribute<bool>::CreateLambda([this] { return !GetDocumentHandle()->GetRootGraphClass().PresetOptions.bIsPreset; });
-				Row->EditCondition(PropertyEnabled, { });*/
+				return InGraphVertex->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			}
+
+			return ECheckBoxState::Undetermined;
+		}
+
+		void FMetasoundVertexDetailCustomization::OnConstructorPinStateChanged(TWeakObjectPtr<UMetasoundEditorGraphVertex> InGraphVertex, ECheckBoxState InNewState)
+		{
+			if (InGraphVertex.IsValid() && ConstructorPinCheckbox.IsValid())
+			{
+				EMetasoundFrontendVertexAccessType NewAccessType = InNewState == ECheckBoxState::Checked ? 
+					EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
+
+				if (InGraphVertex->GetVertexAccessType() == NewAccessType)
+				{
+					return;
+				}
+
+				// Have to stop playback to avoid attempting to change live edit data on invalid input type.
+				check(GEditor);
+				GEditor->ResetPreviewAudioComponent();
+
+				InGraphVertex->SetVertexAccessType(NewAccessType);
+				
+				if (FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GraphMember->GetOutermostObject()))
+				{
+					MetasoundAsset->SetUpdateDetailsOnSynchronization();
+				}
 			}
 		}
 
@@ -1357,6 +1434,30 @@ namespace Metasound
 							FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> /* PropertyHandle */) { return !GetInputInheritsDefault(); }),
 							FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> /* PropertyHandle */) { SetInputInheritsDefault(); }));
 						DefaultPropertyRow->OverrideResetToDefault(ResetOverride);
+					}
+				}
+			} 
+			else if (!bIsPreset)
+			{
+				// Make default value uneditable while playing for constructor inputs
+				const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberDefaultLiteral->GetParentMember());
+				if (ensure(Input))
+				{
+					auto PropertyEnabled = TAttribute<bool>::CreateLambda([this, Input]
+					{
+						if (Input->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value)
+						{
+							UObject* MetaSoundObject = Input->GetOutermostObject();
+							if (TSharedPtr<FEditor> MetaSoundEditor = FGraphBuilder::GetEditorForMetasound(*MetaSoundObject))
+							{
+								return !MetaSoundEditor->IsPlaying();
+							}
+						}
+						return true;
+					});
+					for (IDetailPropertyRow* DefaultPropertyRow : DefaultPropertyRows)
+					{
+						DefaultPropertyRow->EditCondition(PropertyEnabled, { });
 					}
 				}
 			}

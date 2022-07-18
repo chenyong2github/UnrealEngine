@@ -861,12 +861,16 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassI
 	IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
 	auto IsTransmittable = [&Registry, &NonTransmittableInputs](const FMetasoundFrontendClassVertex& InVertex)
 	{
-		if (!NonTransmittableInputs.Contains(InVertex.Name))
+		// Don't transmit constructor inputs 
+		if (InVertex.AccessType == EMetasoundFrontendVertexAccessType::Reference)
 		{
-			FDataTypeRegistryInfo Info;
-			if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
+			if (!NonTransmittableInputs.Contains(InVertex.Name))
 			{
-				return Info.bIsTransmittable;
+				FDataTypeRegistryInfo Info;
+				if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
+				{
+					return Info.bIsTransmittable;
+				}
 			}
 		}
 

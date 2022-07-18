@@ -34,6 +34,12 @@ namespace Metasound
 	namespace Editor
 	{
 		struct FGraphValidationResults;
+
+		struct FCreateNodeVertexParams
+		{
+			FName DataType;
+			EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference;
+		};
 	} // namespace Editor
 } // namespace Metasound
 
@@ -192,8 +198,11 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphVertex : public UMetasoundEditorG
 	GENERATED_BODY()
 
 protected:
-	/** Adds the node handle for a newly created vertex. */
+	UE_DEPRECATED(5.1, "Use AddNodeHandle with FCreateNodeVertexParams instead.")
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) PURE_VIRTUAL(UMetasoundEditorGraphVertex::AddNodeHandle, return Metasound::Frontend::INodeController::GetInvalidHandle(); )
+
+	/** Adds the node handle for a newly created vertex. */
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, const Metasound::Editor::FCreateNodeVertexParams& InParams) PURE_VIRTUAL(UMetasoundEditorGraphVertex::AddNodeHandle, return Metasound::Frontend::INodeController::GetInvalidHandle(); )
 
 public:
 	/** Initializes all properties with the given parameters required to identify the frontend member from this editor graph member. */
@@ -235,12 +244,16 @@ public:
 
 	/** Sets the SortOrderIndex assigned to this member. */
 	virtual void SetSortOrderIndex(int32 InSortOrderIndex) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetSortOrderIndex, )
+	
+	void SetVertexAccessType(EMetasoundFrontendVertexAccessType InNewAccessType, bool bPostTransaction = true);
 
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FNodeHandle GetNodeHandle();
 
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
+
+	virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const PURE_VIRTUAL(UMetasoundEditorGraphVertex::GetVertexAccessType, return EMetasoundFrontendVertexAccessType::Reference; );
 
 	virtual bool CanRename() const override;
 };
@@ -251,10 +264,6 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 	GENERATED_BODY()
 
 public:
-	/** Whether this input is a constructor pin (value is only read on construction, and is not updated at runtime). */
-	UPROPERTY(Transient, EditAnywhere, Category = General)
-	bool ConstructorPin = false;
-
 	virtual int32 GetSortOrderIndex() const override;
 	virtual void SetSortOrderIndex(int32 InSortOrderIndex) override;
 
@@ -262,9 +271,11 @@ public:
 	virtual void ResetToClassDefault() override;
 	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) override;
 	virtual void UpdateFrontendDefaultLiteral(bool bPostTransaction) override;
+	virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, const Metasound::Editor::FCreateNodeVertexParams& InParams) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
 	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
 };
@@ -281,9 +292,11 @@ public:
 	virtual const FText& GetGraphMemberLabel() const override;
 	virtual void ResetToClassDefault() override;
 	virtual void UpdateFrontendDefaultLiteral(bool bPostTransaction) override;
+	virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, const Metasound::Editor::FCreateNodeVertexParams& InParams) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
 	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
 };

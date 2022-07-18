@@ -949,7 +949,7 @@ namespace Metasound
 				if (Algo::NoneOf(GraphClass->Interface.Inputs, IsInputWithSameName))
 				{
 					FNodeRegistryKey Key;
-					if (FRegistry::GetInputNodeRegistryKeyForDataType(InClassInput.TypeName, Key))
+					if (FRegistry::GetInputNodeRegistryKeyForDataType(InClassInput.TypeName, InClassInput.AccessType, Key))
 					{
 						FConstClassAccessPtr InputClassPtr = OwningDocument->FindOrAddClass(Key);
 						if (const FMetasoundFrontendClass* InputClass = InputClassPtr.Get())
@@ -1084,7 +1084,7 @@ namespace Metasound
 				if (Algo::NoneOf(GraphClass->Interface.Outputs, IsOutputWithSameName))
 				{
 					FNodeRegistryKey Key;
-					if (FRegistry::GetOutputNodeRegistryKeyForDataType(InClassOutput.TypeName, Key))
+					if (FRegistry::GetOutputNodeRegistryKeyForDataType(InClassOutput.TypeName, InClassOutput.AccessType, Key))
 					{
 						FConstClassAccessPtr OutputClassPtr = OwningDocument->FindOrAddClass(Key);
 						if (const FMetasoundFrontendClass* OutputClass = OutputClassPtr.Get())

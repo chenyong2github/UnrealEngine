@@ -517,9 +517,10 @@ namespace Metasound
 				{
 
 					UMetasoundEditorGraphMember* GraphMember = GraphMemberAction->GetGraphMember();
-					if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember))
+					if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(GraphMember))
 					{
-						bIsConstructorPin = Input->ConstructorPin;
+						EMetasoundFrontendVertexAccessType AccessType = Vertex->GetVertexAccessType();
+						bIsConstructorPin = AccessType == EMetasoundFrontendVertexAccessType::Value;
 					}
 					FName DataTypeName = GraphMember->GetDataType(); 
 
@@ -3321,7 +3322,10 @@ namespace Metasound
 					Metasound->Modify();
 
 					const FName DataTypeName = GetMetasoundDataTypeName<float>();
-					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(*Metasound, DataTypeName);
+					FCreateNodeVertexParams VertexParams;
+					VertexParams.DataType = DataTypeName;
+
+					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(*Metasound, VertexParams);
 					if (ensure(NodeHandle->IsValid()))
 					{
 						NameToSelect = NodeHandle->GetNodeName();
@@ -3347,7 +3351,10 @@ namespace Metasound
 					Metasound->Modify();
 
 					const FName DataTypeName = GetMetasoundDataTypeName<float>();
-					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(*Metasound, DataTypeName);
+					FCreateNodeVertexParams VertexParams;
+					VertexParams.DataType = DataTypeName;
+
+					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(*Metasound, VertexParams);
 					if (ensure(NodeHandle->IsValid()))
 					{
 						NameToSelect = NodeHandle->GetNodeName();

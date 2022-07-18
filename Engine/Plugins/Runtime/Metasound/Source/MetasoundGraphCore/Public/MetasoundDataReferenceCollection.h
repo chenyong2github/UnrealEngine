@@ -120,7 +120,7 @@ namespace Metasound
 					if (IsDataReferenceOfType<DataType>(*DataRef))
 					{
 						const EDataReferenceAccessType AccessType = DataRef->GetAccessType();
-						return (AccessType == EDataReferenceAccessType::Read) || (AccessType == EDataReferenceAccessType::Write);
+						return (AccessType == EDataReferenceAccessType::Read) || (AccessType == EDataReferenceAccessType::Write) || (AccessType == EDataReferenceAccessType::Value);
 					}
 				}
 

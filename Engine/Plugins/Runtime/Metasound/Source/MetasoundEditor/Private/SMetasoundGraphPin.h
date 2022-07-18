@@ -211,22 +211,37 @@ namespace Metasound
 			virtual const FSlateBrush* GetPinIcon() const
 			{
 				const bool bIsConnected = ParentPinType::IsConnected();
-				bool bIsConstructorPin = false;
+				EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference;
+
 				if (const UEdGraphPin* Pin = ParentPinType::GetPinObj())
 				{
 					if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
 					{
 						if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
 						{
-							if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberNode->GetMember()))
+							if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberNode->GetMember()))
 							{
-								bIsConstructorPin = Input->ConstructorPin; 
+								AccessType = Vertex->GetVertexAccessType();
+							}
+						}
+						else if (const UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Node))
+						{
+							if (Pin->Direction == EGPD_Input)
+							{
+								Frontend::FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+								AccessType = InputHandle->GetVertexAccessType();
+							}
+							else if (Pin->Direction == EGPD_Output)
+							{
+								Frontend::FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
+								AccessType = OutputHandle->GetVertexAccessType();
 							}
 						}
 					}
 				}
 
-				if (bIsConstructorPin)
+				// Is constructor pin 
+				if (AccessType == EMetasoundFrontendVertexAccessType::Value)
 				{
 					if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 					{

@@ -127,6 +127,7 @@ namespace Metasound
 #endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 		protected:
 			virtual FDocumentAccess ShareAccess() override;
@@ -177,6 +178,7 @@ namespace Metasound
 #endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 			virtual bool IsConnectionUserModifiable() const override;
 			virtual FConnectability CanConnectTo(const IInputController& InController) const override;

@@ -221,7 +221,14 @@ namespace Metasound
 						MoveTemp(Literal)
 					};
 
-					return DataTypeRegistry.CreateInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+					if (InOwningGraphClassInput.AccessType == EMetasoundFrontendVertexAccessType::Reference)
+					{
+						return DataTypeRegistry.CreateInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+					}
+					else // InOwningGraphClassInput.AccessType == EMetasoundFrontendVertexAccessType::Value
+					{
+						return DataTypeRegistry.CreateConstructorInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+					}
 				}
 				else
 				{
@@ -264,7 +271,15 @@ namespace Metasound
 				}
 			}
 
-			return IDataTypeRegistry::Get().CreateOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
+			ensure(InClass.Interface.Outputs.Num() == 1);
+			if (InClass.Interface.Outputs[0].AccessType == EMetasoundFrontendVertexAccessType::Reference)
+			{
+				return IDataTypeRegistry::Get().CreateOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
+			}
+			else // InClass.Interface.Outputs[0].AccessType == EMetasoundFrontendVertexAccessType::Value
+			{
+				return IDataTypeRegistry::Get().CreateConstructorOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
+			}
 		}
 		return TUniquePtr<INode>(nullptr);
 	}

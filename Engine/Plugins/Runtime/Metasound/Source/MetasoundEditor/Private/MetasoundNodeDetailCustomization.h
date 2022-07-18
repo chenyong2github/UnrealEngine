@@ -355,6 +355,12 @@ namespace Metasound
 			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout) override;
 			virtual EVisibility GetDefaultVisibility() const;
 			virtual bool IsInterfaceMember() const override;
+
+			void AddConstructorPinRow(IDetailLayoutBuilder& InDetailLayout);
+			ECheckBoxState OnGetConstructorPinCheckboxState(TWeakObjectPtr<UMetasoundEditorGraphVertex> InGraphMember) const;
+			void OnConstructorPinStateChanged(TWeakObjectPtr<UMetasoundEditorGraphVertex> InGraphMember, ECheckBoxState InNewState);
+
+			TSharedPtr<SCheckBox> ConstructorPinCheckbox;
 		};
 
 		class FMetasoundInputDetailCustomization : public FMetasoundVertexDetailCustomization
@@ -364,9 +370,6 @@ namespace Metasound
 			
 			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			virtual bool IsDefaultEditable() const override;
-
-		protected: 
-			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout) override;
 
 		private:
 			bool GetInputInheritsDefault() const;

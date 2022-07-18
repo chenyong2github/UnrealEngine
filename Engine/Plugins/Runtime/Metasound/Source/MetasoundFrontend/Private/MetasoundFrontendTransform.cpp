@@ -832,6 +832,7 @@ namespace Metasound
 
 					ClassInput.Name = NodeName;
 					ClassInput.TypeName = Input->GetDataType();
+					ClassInput.AccessType = Input->GetVertexAccessType();
 
 #if WITH_EDITOR
 					ClassInput.Metadata.SetDescription(InputNode->GetDescription());
@@ -907,6 +908,7 @@ namespace Metasound
 
 					ClassOutput.Name = NodeName;
 					ClassOutput.TypeName = Output->GetDataType();
+					ClassOutput.AccessType = Output->GetVertexAccessType();
 
 #if WITH_EDITOR
 					ClassOutput.Metadata.SetDescription(OutputNode->GetDescription());

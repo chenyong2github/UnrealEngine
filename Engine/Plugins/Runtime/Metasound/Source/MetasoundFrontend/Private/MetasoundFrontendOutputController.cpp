@@ -293,6 +293,11 @@ namespace Metasound
 				Vertex->Name = InName;
 			}
 		}
+		
+		EMetasoundFrontendVertexAccessType FInputNodeOutputController::GetVertexAccessType() const
+		{
+			return OwningGraphClassInputPtr.Get()->AccessType;
+		}
 
 		FDocumentAccess FInputNodeOutputController::ShareAccess() 
 		{
@@ -364,6 +369,11 @@ namespace Metasound
 			{
 				Vertex->Name = InName;
 			}
+		}
+
+		EMetasoundFrontendVertexAccessType FOutputNodeOutputController::GetVertexAccessType() const
+		{
+			return OwningGraphClassOutputPtr.Get()->AccessType;
 		}
 
 		bool FOutputNodeOutputController::IsConnectionUserModifiable() const 

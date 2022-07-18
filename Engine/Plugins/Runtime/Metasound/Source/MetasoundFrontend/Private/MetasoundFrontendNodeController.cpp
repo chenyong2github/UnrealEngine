@@ -807,19 +807,22 @@ namespace Metasound
 				const FVertexNameAndType ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
 				if (FInputConnectionInfo* ConnectionInfo = InputConnections.Find(ConnectionKey))
 				{
-					if (ConnectionInfo->bLiteralSet)
+					if (InputHandle->CanConnectTo(*ConnectionInfo->ConnectedOutput).Connectable == FConnectability::EConnectable::Yes)
 					{
-						InputHandle->SetLiteral(ConnectionInfo->DefaultValue);
-					}
+						if (ConnectionInfo->bLiteralSet)
+						{
+							InputHandle->SetLiteral(ConnectionInfo->DefaultValue);
+						}
 
-					if (ConnectionInfo->ConnectedOutput->IsValid())
-					{
-						ensure(InputHandle->Connect(*ConnectionInfo->ConnectedOutput));
-					}
+						if (ConnectionInfo->ConnectedOutput->IsValid())
+						{
+							ensure(InputHandle->Connect(*ConnectionInfo->ConnectedOutput));
+						}
 
-					// Remove connection to track missing connections between 
-					// node versions.
-					InputConnections.Remove(ConnectionKey);
+						// Remove connection to track missing connections between 
+						// node versions.
+						InputConnections.Remove(ConnectionKey);
+					}
 				}
 			});
 
@@ -841,17 +844,24 @@ namespace Metasound
 				const FVertexNameAndType ConnectionKey(OutputHandle->GetName(), OutputHandle->GetDataType());
 				if (FOutputConnectionInfo* ConnectionInfo = OutputConnections.Find(ConnectionKey))
 				{
+					bool bConnectionSuccess = false;
 					for (FInputHandle InputHandle : ConnectionInfo->ConnectedInputs)
 					{
-						if (InputHandle->IsValid())
+						if (InputHandle->CanConnectTo(*OutputHandle).Connectable == FConnectability::EConnectable::Yes)
 						{
-							ensure(InputHandle->Connect(*OutputHandle));
+							if (InputHandle->IsValid())
+							{
+								ensure(InputHandle->Connect(*OutputHandle));
+								bConnectionSuccess = true;
+							}
 						}
 					}
-
 					// Remove connection to track missing connections between 
 					// node versions.
-					OutputConnections.Remove(ConnectionKey);
+					if (bConnectionSuccess)
+					{
+						OutputConnections.Remove(ConnectionKey);
+					}
 				}
 			});
 

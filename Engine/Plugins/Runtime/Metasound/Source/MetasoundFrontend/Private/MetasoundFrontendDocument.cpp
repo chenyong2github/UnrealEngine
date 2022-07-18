@@ -164,6 +164,19 @@ bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFront
 	return FMetasoundFrontendVertex::IsFunctionalEquivalent(InLHS, InRHS) && (InLHS.AccessType == InRHS.AccessType);
 }
 
+bool FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(EMetasoundFrontendVertexAccessType InFromType, EMetasoundFrontendVertexAccessType InToType)
+{
+	if (EMetasoundFrontendVertexAccessType::Value == InToType)
+	{
+		// If the input vertex accesses by "Value" then the output vertex 
+		// must also access by "Value" to enforce unexpected consequences 
+		// of connecting data which varies over time to an input which only
+		// evaluates the data during operator initialization.
+		return (EMetasoundFrontendVertexAccessType::Value == InFromType);
+	}
+	return true;
+}
+
 FMetasoundFrontendClassName::FMetasoundFrontendClassName(const FName& InNamespace, const FName& InName, const FName& InVariant)
 : Namespace(InNamespace)
 , Name(InName)

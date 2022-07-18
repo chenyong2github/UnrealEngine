@@ -37,6 +37,7 @@ namespace Metasound
 		// Forward Declarations
 		class FEditor;
 		class IMetasoundEditorModule;
+		struct FCreateNodeVertexParams;
 
 		class FGraphBuilder
 		{
@@ -118,10 +119,17 @@ namespace Metasound
 			// Adds a corresponding UMetasoundEditorGraphInputNode for the provided node handle.
 			static UMetasoundEditorGraphInputNode* AddInputNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
-			// Generates FNodeHandle for the given external node data. Does not bind or create EdGraph representation of given node.
+			UE_DEPRECATED(5.1, "Use AddInputNodeHandle with FCreateNodeVertexParams instead.")
 			static Frontend::FNodeHandle AddInputNodeHandle(
 				UObject& InMetaSound,
 				const FName InTypeName,
+				const FMetasoundFrontendLiteral* InDefaultValue = nullptr,
+				const FName* InNameBase = nullptr);
+
+			// Generates FNodeHandle for the given external node data. Does not bind or create EdGraph representation of given node.
+			static Frontend::FNodeHandle AddInputNodeHandle(
+				UObject& InMetaSound,
+				const FCreateNodeVertexParams& InVertexParams,
 				const FMetasoundFrontendLiteral* InDefaultValue = nullptr,
 				const FName* InNameBase = nullptr);
 
@@ -138,8 +146,11 @@ namespace Metasound
 			// Adds an output node to the editor graph that corresponds to the provided node handle.
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
-			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
+			UE_DEPRECATED(5.1, "Use AddOutputNodeHandle with FCreateNodeVertexParams instead.")
 			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FName* InNameBase = nullptr);
+
+			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
+			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FCreateNodeVertexParams& InParams, const FName* InNameBase = nullptr);
 
 			// Create a unique name for the variable.
 			static FName GenerateUniqueVariableName(const Frontend::FConstGraphHandle& InFrontendGraph, const FString& InBaseName);

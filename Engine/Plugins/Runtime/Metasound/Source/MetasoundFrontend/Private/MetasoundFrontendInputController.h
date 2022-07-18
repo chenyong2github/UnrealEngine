@@ -92,11 +92,6 @@ namespace Metasound
 			FConstClassInputAccessPtr ClassInputPtr;
 			FGraphAccessPtr GraphPtr;
 			FNodeHandle OwningNode;
-
-		private:
-
-			bool IsCompatibleAccessType(const IOutputController& InOutputController) const;
-
 		};
 
 		/** FOutputNodeInputController represents the input vertex of an output 
@@ -133,6 +128,7 @@ namespace Metasound
 #endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 		protected:
 
@@ -180,6 +176,7 @@ namespace Metasound
 #endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 			virtual bool IsConnectionUserModifiable() const override;
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const override;

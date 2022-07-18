@@ -993,7 +993,10 @@ namespace Metasound
 					if (ensure(Input))
 					{
 						const FName PinName = Pin->GetFName();
-						NodeHandle = AddInputNodeHandle(InMetaSound, Input->GetDataType(), nullptr, &PinName);
+						FCreateNodeVertexParams VertexParams;
+						VertexParams.DataType = Input->GetDataType();
+
+						NodeHandle = AddInputNodeHandle(InMetaSound, VertexParams, nullptr, &PinName);
 						NodeHandle->SetDescription(InGraphNode.GetTooltipText());
 					}
 				}
@@ -1009,7 +1012,10 @@ namespace Metasound
 					if (ensure(Output))
 					{
 						const FName PinName = Pin->GetFName();
-						NodeHandle = FGraphBuilder::AddOutputNodeHandle(InMetaSound, Output->GetDataType(), &PinName);
+						FCreateNodeVertexParams VertexParams;
+						VertexParams.DataType = Output->GetDataType();
+
+						NodeHandle = FGraphBuilder::AddOutputNodeHandle(InMetaSound, VertexParams, &PinName);
 						NodeHandle->SetDescription(InGraphNode.GetTooltipText());
 					}
 				}
@@ -1046,14 +1052,21 @@ namespace Metasound
 
 		Frontend::FNodeHandle FGraphBuilder::AddInputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FMetasoundFrontendLiteral* InDefaultValue, const FName* InNameBase)
 		{
+			UE_LOG(LogMetaSound, Error, TEXT("FGraphBuilder::AddInputNodeHandle with these parameters is no longer supported and should not be called. Use the one with FCreateNodeVertexParams instead."));
+			return Frontend::INodeController::GetInvalidHandle();
+		}
+
+		Frontend::FNodeHandle FGraphBuilder::AddInputNodeHandle(UObject& InMetaSound, const FCreateNodeVertexParams& InParams, const FMetasoundFrontendLiteral* InDefaultValue, const FName* InNameBase)
+		{
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
 			const FGuid VertexID = FGuid::NewGuid();
 
 			FMetasoundFrontendClassInput ClassInput;
 			ClassInput.Name = GenerateUniqueNameByClassType(InMetaSound, EMetasoundFrontendClassType::Input, InNameBase ? InNameBase->ToString() : TEXT("Input"));
-			ClassInput.TypeName = InTypeName;
+			ClassInput.TypeName = InParams.DataType;
 			ClassInput.VertexID = VertexID;
+			ClassInput.AccessType = InParams.AccessType;
 
 			if (nullptr != InDefaultValue)
 			{
@@ -1061,20 +1074,34 @@ namespace Metasound
 			}
 			else
 			{
-				Metasound::FLiteral Literal = Frontend::IDataTypeRegistry::Get().CreateDefaultLiteral(InTypeName);
+				Metasound::FLiteral Literal = Frontend::IDataTypeRegistry::Get().CreateDefaultLiteral(InParams.DataType);
 				ClassInput.DefaultLiteral.SetFromLiteral(Literal);
 			}
 
 			return MetaSoundAsset->GetRootGraphHandle()->AddInputVertex(ClassInput);
 		}
-
+		
 		Frontend::FNodeHandle FGraphBuilder::AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FName* InNameBase)
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("FGraphBuilder::AddOutputNodeHandle with these parameters is no longer supported and should not be called. Use the one with FCreateNodeVertexParams instead."));
+			return Frontend::INodeController::GetInvalidHandle();
+		}
+
+		Frontend::FNodeHandle FGraphBuilder::AddOutputNodeHandle(UObject& InMetaSound, const FCreateNodeVertexParams& InParams, const FName* InNameBase)
 		{
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
+			const FGuid VertexID = FGuid::NewGuid();
 
 			const FName NewName = GenerateUniqueNameByClassType(InMetaSound, EMetasoundFrontendClassType::Output, InNameBase ? InNameBase->ToString() : TEXT("Output"));
-			return MetaSoundAsset->GetRootGraphHandle()->AddOutputVertex(NewName, InTypeName);
+
+			FMetasoundFrontendClassOutput ClassOutput;
+			ClassOutput.Name = NewName;
+			ClassOutput.TypeName = InParams.DataType;
+			ClassOutput.VertexID = VertexID;
+			ClassOutput.AccessType = InParams.AccessType;
+
+			return MetaSoundAsset->GetRootGraphHandle()->AddOutputVertex(ClassOutput);
 		}
 
 		FName FGraphBuilder::GenerateUniqueVariableName(const Frontend::FConstGraphHandle& InFrontendGraph, const FString& InBaseName)

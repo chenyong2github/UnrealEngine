@@ -154,7 +154,8 @@ namespace Metasound
 						if (Pin->Direction == EGPD_Output)
 						{
 							FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
-							if (OutputHandle->IsValid() && OutputHandle->GetDataType() == InputHandle->GetDataType())
+							if (OutputHandle->IsValid() && 
+								InputHandle->CanConnectTo(*OutputHandle).Connectable == FConnectability::EConnectable::Yes)
 							{
 								if (ensure(FGraphBuilder::ConnectNodes(*FromPin, *Pin, true /* bConnectEdPins */)))
 								{
@@ -173,7 +174,8 @@ namespace Metasound
 						if (Pin->Direction == EGPD_Input)
 						{
 							FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
-							if (InputHandle->IsValid() && InputHandle->GetDataType() == OutputHandle->GetDataType())
+							if (InputHandle->IsValid() && 
+								InputHandle->CanConnectTo(*OutputHandle).Connectable == FConnectability::EConnectable::Yes)
 							{
 								if (ensure(FGraphBuilder::ConnectNodes(*Pin, *FromPin, true /* bConnectEdPins */)))
 								{
@@ -548,7 +550,10 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	FGraphBuilder::GetPinLiteral(*FromPin, DefaultValue);
 
 	const FName InputName = InputHandle->GetName();
-	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, InputHandle->GetDataType(), &DefaultValue, &InputName);
+	// The promoted input must have the same vertex access type in order for it to be connectable 
+	const FCreateNodeVertexParams VertexParams = { InputHandle->GetDataType(), InputHandle->GetVertexAccessType() };
+
+	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, VertexParams, &DefaultValue, &InputName);
 	if (ensure(NodeHandle->IsValid()))
 	{
 		UMetasoundEditorGraphInput* Input = MetasoundGraph->FindOrAddInput(NodeHandle);
@@ -766,7 +771,9 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGrap
 
 	const FString OutputName = OutputHandle->GetName().ToString();
 	const FVertexName NewNodeName = FGraphBuilder::GenerateUniqueNameByClassType(ParentMetasound, EMetasoundFrontendClassType::Output, OutputName);
-	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, OutputHandle->GetDataType(), &NewNodeName);
+	const FCreateNodeVertexParams VertexParams = { OutputHandle->GetDataType(), OutputHandle->GetVertexAccessType() };
+
+	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, VertexParams, &NewNodeName);
 	if (ensure(NodeHandle->IsValid()))
 	{
 		UMetasoundEditorGraphOutput* Output = MetasoundGraph->FindOrAddOutput(NodeHandle);
@@ -1011,32 +1018,40 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 
 	FActionClassFilters ClassFilters;
 	FConstGraphHandle GraphHandle = IGraphController::GetInvalidHandle();
+	bool bIsConstructorOutput = false;
 	if (const UEdGraphPin* FromPin = ContextMenuBuilder.FromPin)
 	{
 		if (FromPin->Direction == EGPD_Input)
 		{
 			FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(ContextMenuBuilder.FromPin);
+			bIsConstructorOutput = InputHandle->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value;
+
 			ClassFilters.OutputFilterFunction = [InputHandle](const FMetasoundFrontendClassOutput& InOutput)
 			{
-				return InOutput.TypeName == InputHandle->GetDataType();
+				return InOutput.TypeName == InputHandle->GetDataType() && 
+					FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(InOutput.AccessType, InputHandle->GetVertexAccessType());
 			};
 
 			// Show only input nodes as output nodes can only connected if FromPin is input
 			GraphHandle = InputHandle->GetOwningNode()->GetOwningGraph();
 			GetDataTypeInputNodeActions(ContextMenuBuilder, GraphHandle, [InputHandle](FConstNodeHandle NodeHandle)
 			{
-				bool bHasOutputOfType = false;
+				bool bHasConnectableOutput = false;
 				NodeHandle->IterateConstOutputs([&](FConstOutputHandle PotentialOutputHandle)
 				{
-					bHasOutputOfType |= PotentialOutputHandle->GetDataType() == InputHandle->GetDataType();
+					bHasConnectableOutput |= (InputHandle->CanConnectTo(*PotentialOutputHandle).Connectable == FConnectability::EConnectable::Yes);
 				});
-				return bHasOutputOfType;
+				return bHasConnectableOutput;
 			});
 
 			FGraphActionMenuBuilder& ActionMenuBuilder = static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder);
 			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToInput>());
-			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode>());
-			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode>());
+			// Constructor outputs cannot be promoted to variables
+			if (!bIsConstructorOutput)
+			{
+				ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode>());
+				ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode>());
+			}
 		}
 
 		if (FromPin->Direction == EGPD_Output)
@@ -1044,19 +1059,20 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 			FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(FromPin);
 			ClassFilters.InputFilterFunction = [OutputHandle](const FMetasoundFrontendClassInput& InInput)
 			{
-				return InInput.TypeName == OutputHandle->GetDataType();
+				return InInput.TypeName == OutputHandle->GetDataType() &&
+					FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(OutputHandle->GetVertexAccessType(), InInput.AccessType);
 			};
 
 			// Show only output nodes as input nodes can only connected if FromPin is output
 			GraphHandle = OutputHandle->GetOwningNode()->GetOwningGraph();
 			GetDataTypeOutputNodeActions(ContextMenuBuilder, GraphHandle, [OutputHandle](FConstNodeHandle NodeHandle)
 			{
-				bool bHasInputOfType = false;
+				bool bHasConnectableInput = false;
 				NodeHandle->IterateConstInputs([&](FConstInputHandle PotentialInputHandle)
 				{
-					bHasInputOfType |= PotentialInputHandle->GetDataType() == OutputHandle->GetDataType();
+					bHasConnectableInput |= (PotentialInputHandle->CanConnectTo(*OutputHandle).Connectable == FConnectability::EConnectable::Yes);
 				});
-				return bHasInputOfType;
+				return bHasConnectableInput;
 			});
 
 			FGraphActionMenuBuilder& ActionMenuBuilder = static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder);
@@ -1086,8 +1102,13 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 	}
 
 	GetFunctionActions(ContextMenuBuilder, ClassFilters, true /* bShowSelectedActions */, GraphHandle);
-	GetVariableActions(ContextMenuBuilder, ClassFilters, true /* bShowSelectedActions */, GraphHandle);
-	GetConversionActions(ContextMenuBuilder, ClassFilters);
+
+	// Variable and conversion actions are always by reference so are incompatible with constructor outputs 
+	if (!bIsConstructorOutput)
+	{
+		GetVariableActions(ContextMenuBuilder, ClassFilters, true /* bShowSelectedActions */, GraphHandle);
+		GetConversionActions(ContextMenuBuilder, ClassFilters);
+	}
 }
 
 void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
@@ -1213,6 +1234,10 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 			else if (Frontend::FConnectability::EReason::CausesLoop == Connectability.Reason)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionLoop1", "Connection causes loop"));
+			}
+			else if (Frontend::FConnectability::EReason::IncompatibleAccessTypes == Connectability.Reason)
+			{
+				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionIncompatibleAccessTypes", "Cannot create connection between incompatible access types. Constructor pin outputs can only be connected to constructor pin inputs."));
 			}
 			else
 			{

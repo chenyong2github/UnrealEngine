@@ -7,7 +7,6 @@
 #include "EdGraph/EdGraphNode.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "MetasoundAssetBase.h"
-#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphInputNode.h"
 #include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
@@ -343,7 +342,11 @@ void UMetasoundEditorGraphVertex::SetDataType(FName InNewType, bool bPostTransac
 
 	// 4. Add the new input node with the same identifier data but new datatype.
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	FNodeHandle NewNodeHandle = AddNodeHandle(NodeName, InNewType);
+
+	FCreateNodeVertexParams VertexParams;
+	VertexParams.DataType = InNewType;
+
+	FNodeHandle NewNodeHandle = AddNodeHandle(NodeName, VertexParams);
 	NewNodeHandle->SetNodeName(NodeName);
 	NewNodeHandle->SetDisplayName(NodeDisplayName);
 
@@ -362,6 +365,101 @@ void UMetasoundEditorGraphVertex::SetDataType(FName InNewType, bool bPostTransac
 	for (FVector2D Location : NodeLocations)
 	{
 		FGraphBuilder::AddNode(Metasound, NewNodeHandle, Location, false /* bInSelectNewNode */);
+	}
+
+	// Notify now that the node has a new ID (doing so before creating & syncing Frontend Node &
+	// EdGraph variable can result in refreshing editors while in a desync'ed state)
+	NameChanged.Broadcast(NodeID);
+}
+
+void UMetasoundEditorGraphVertex::SetVertexAccessType(EMetasoundFrontendVertexAccessType InNewAccessType, bool bPostTransaction)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (InNewAccessType == GetVertexAccessType())
+	{
+		return;
+	}
+
+	UMetasoundEditorGraph* Graph = GetOwningGraph();
+	if (!ensure(Graph))
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("SetGraphVertexType", "Set MetaSound GraphVertex Type"), bPostTransaction);
+	Graph->GetMetasoundChecked().Modify();
+	Graph->Modify();
+	Modify();
+
+	// Logic is based on UMetasoundEditorGraphMember::SetDataType
+	// 1. Cache current editor node reference positions & linked pins
+	TArray<UMetasoundEditorGraphMemberNode*> Nodes = GetNodes();
+	TArray<FVector2D> NodeLocations;
+	// Map of node index within NodeLocations to pins linked to that node
+	TMap<int32, TArray<UEdGraphPin*>> LinkedPins;
+	for (int32 i = 0; i < Nodes.Num(); ++i)
+	{
+		const UMetasoundEditorGraphMemberNode* Node = Nodes[i];
+		if (ensure(Node))
+		{
+			NodeLocations.Add(FVector2D(Node->NodePosX, Node->NodePosY));
+
+			ensure(Node->Pins.Num() == 1);
+			if (UEdGraphPin* NodePin = Node->Pins.Last()) 
+			{
+				if (NodePin->LinkedTo.Num() > 0)
+				{
+					LinkedPins.Add(i, NodePin->LinkedTo);
+				}
+			}
+		}
+	}
+
+	// 2. Cache the old version's Frontend data.
+	FNodeHandle NodeHandle = GetNodeHandle();
+	const FName NodeName = NodeHandle->GetNodeName();
+	const FText NodeDisplayName = NodeHandle->GetDisplayName();
+	const FName NodeType = GetDataType();
+	
+	// 3. Remove the current nodes and vertex
+	Graph->RemoveMemberNodes(*this);
+	Graph->RemoveFrontendMember(*this);
+
+	// 4. Add the new input node with the same identifier data but new access type.
+	FCreateNodeVertexParams VertexParams;
+	VertexParams.DataType = NodeType;
+	VertexParams.AccessType = InNewAccessType;
+	UObject& Metasound = Graph->GetMetasoundChecked();
+	
+	FNodeHandle NewNodeHandle = AddNodeHandle(NodeName, VertexParams);
+	NewNodeHandle->SetNodeName(NodeName);
+	NewNodeHandle->SetDisplayName(NodeDisplayName);
+
+	if (!ensure(NewNodeHandle->IsValid()))
+	{
+		return;
+	}
+
+	ClassName = NewNodeHandle->GetClassMetadata().GetClassName();
+	NodeID = NewNodeHandle->GetID();
+
+	InitializeLiteral();
+
+	// 6. Create new node references in the same locations as the old locations
+	// and reconnect linked pins 
+	for (int32 i = 0; i < NodeLocations.Num(); ++i)
+	{
+		UMetasoundEditorGraphNode* NewEdGraphNode = FGraphBuilder::AddNode(Metasound, NewNodeHandle, NodeLocations[i], false /* bInSelectNewNode */);
+		
+		if (LinkedPins.Contains(i))
+		{
+			for (UEdGraphPin* LinkedPin : LinkedPins[i])
+			{
+				NewEdGraphNode->AutowireNewNode(LinkedPin);
+			}
+		}
 	}
 
 	// Notify now that the node has a new ID (doing so before creating & syncing Frontend Node &
@@ -497,6 +595,13 @@ Metasound::Editor::ENodeSection UMetasoundEditorGraphInput::GetSectionID() const
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const FName& InName, FName InDataType)
 {
+	UE_LOG(LogMetaSound, Error, TEXT("UMetasoundEditorGraphInput::AddNodeHandle with these parameters is no longer supported and should not be called. Use the one with FCreateNodeVertexParams instead."));
+
+	return Metasound::Frontend::INodeController::GetInvalidHandle();
+}
+
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const FName& InName, const Metasound::Editor::FCreateNodeVertexParams& InParams)
+{
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
@@ -507,7 +612,7 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const
 	}
 
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddInputNodeHandle(Metasound, InDataType, nullptr /* DefaultValue */, &InName);
+	Metasound::Frontend::FNodeHandle NewNodeHandle = FGraphBuilder::AddInputNodeHandle(Metasound, InParams, nullptr /* DefaultValue */, &InName);
 	return NewNodeHandle;
 }
 
@@ -640,7 +745,32 @@ void UMetasoundEditorGraphInput::UpdateFrontendDefaultLiteral(bool bPostTransact
 	}
 }
 
+EMetasoundFrontendVertexAccessType UMetasoundEditorGraphInput::GetVertexAccessType() const
+{
+	using namespace Metasound::Frontend;
+
+	const FName MemberName = GetMemberName();
+	const UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	FConstGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+
+	FConstClassInputAccessPtr ClassInputPtr = GraphHandle->FindClassInputWithName(MemberName);
+
+	if (const FMetasoundFrontendClassInput* InputPtr = ClassInputPtr.Get())
+	{
+		return InputPtr->AccessType;
+	}
+
+	return EMetasoundFrontendVertexAccessType::Reference;
+}
+
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(const FName& InName, FName InDataType)
+{
+	UE_LOG(LogMetaSound, Error, TEXT("UMetasoundEditorGraphOutput::AddNodeHandle with these parameters is no longer supported and should not be called. Use the one with FCreateNodeVertexParams instead."));
+
+	return Metasound::Frontend::INodeController::GetInvalidHandle();
+}
+
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(const FName& InName, const Metasound::Editor::FCreateNodeVertexParams& InParams)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -649,10 +779,10 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(cons
 	if (!ensure(Graph))
 	{
 		return Metasound::Frontend::INodeController::GetInvalidHandle();
-	}
+	} 
 
 	UObject& Metasound = Graph->GetMetasoundChecked();
-	FNodeHandle NewNodeHandle = FGraphBuilder::AddOutputNodeHandle(Metasound, InDataType, &InName);
+	FNodeHandle NewNodeHandle = FGraphBuilder::AddOutputNodeHandle(Metasound, InParams, &InName);
 	return NewNodeHandle;
 }
 
@@ -754,6 +884,24 @@ void UMetasoundEditorGraphOutput::UpdateFrontendDefaultLiteral(bool bPostTransac
 			GraphPrivate::SetLiteralOrClearIfMatchesDefault(Inputs.Last(), DefaultLiteral);
 		}
 	}
+}
+
+EMetasoundFrontendVertexAccessType UMetasoundEditorGraphOutput::GetVertexAccessType() const
+{
+	using namespace Metasound::Frontend;
+
+	const FName MemberName = GetMemberName();
+	const UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	FConstGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+
+	FConstClassOutputAccessPtr ClassOutputPtr = GraphHandle->FindClassOutputWithName(MemberName);
+
+	if (const FMetasoundFrontendClassOutput* OutputPtr = ClassOutputPtr.Get())
+	{
+		return OutputPtr->AccessType;
+	}
+
+	return EMetasoundFrontendVertexAccessType::Reference;
 }
 
 Metasound::Editor::ENodeSection UMetasoundEditorGraphOutput::GetSectionID() const 
