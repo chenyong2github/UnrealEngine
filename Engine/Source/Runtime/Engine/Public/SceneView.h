@@ -1768,6 +1768,9 @@ public:
 	*/
 	bool bIsFirstViewInMultipleViewFamily = true;
 
+	/** The index of this view inside multiple view families rendered in a single frame. */
+	uint8 MultipleViewFamilyIndex = 0;
+
 	bool bIsSceneTexturesInitialized = false;
 	bool bIsViewFamilyInfo = false;
 

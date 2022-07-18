@@ -718,7 +718,9 @@ public:
 
 				// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
 				// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
-				bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == ShaderData.UpdatedFrameNumber);
+				// When using multiple view families in a frame, View->Family->FrameNumber is incremented for each view. The updated frame number for bone data 
+				// though is the frame number from the first view, so add its view index in the view families on top to get the right frame number to compare with.
+				bool bBoneDataUpdatedThisFrame = View->Family->FrameNumber == ShaderData.UpdatedFrameNumber + View->Family->MultipleViewFamilyIndex;
 				// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
 				bool bPrevious = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
 				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(bPrevious).VertexBufferSRV;
@@ -810,7 +812,9 @@ public:
 
 		// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
 		// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
-		bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber());
+		// When using multiple view families in a frame, View->Family->FrameNumber is incremented for each view. The updated frame number for bone data 
+		// though is the frame number from the first view, so add its view index in the view families on top to get the right frame number to compare with.
+		bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber() + View->Family->MultipleViewFamilyIndex);
 		// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
 		bool bVerticesInMotion = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
 
