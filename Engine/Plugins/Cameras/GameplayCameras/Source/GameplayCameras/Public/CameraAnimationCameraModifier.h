@@ -9,6 +9,7 @@
 #include "Camera/CameraTypes.h"
 #include "Camera/CameraModifier.h"
 #include "Containers/SparseArray.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "CameraAnimationCameraModifier.generated.h"
 
 class UCameraAnimationSequence;
