@@ -232,6 +232,14 @@ TTuple<EViewTargetBlendFunction, float> BuiltInEasingTypeToBlendFunction(EMovieS
 
 void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams)
 {
+	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraObject);
+	if (CameraComponent && CameraComponent->GetOwner() != CameraObject)
+	{
+		CameraObject = CameraComponent->GetOwner();
+	}
+
+	CachedCameraComponent = CameraComponent;
+	
 	if (World == nullptr || World->GetGameInstance() == nullptr)
 	{
 		return;
@@ -247,14 +255,6 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 
 	// skip same view target
 	AActor* ViewTarget = PC->GetViewTarget();
-
-	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraObject);
-	if (CameraComponent && CameraComponent->GetOwner() != CameraObject)
-	{
-		CameraObject = CameraComponent->GetOwner();
-	}
-
-	CachedCameraComponent = CameraComponent;
 
 	if (!CanUpdateCameraCut())
 	{
