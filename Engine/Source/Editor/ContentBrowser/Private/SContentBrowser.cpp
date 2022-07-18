@@ -82,10 +82,6 @@
 
 const FString SContentBrowser::SettingsIniSection = TEXT("ContentBrowser");
 
-// Workaround to hide Save As Collection button until collections support the AliasDataSource
-bool bHideSaveSearchButton = false;
-FAutoConsoleVariableRef CVarHideSaveSearchButton(TEXT("ContentBrowser.HideSaveSearchButton"), bHideSaveSearchButton, TEXT("Hide the Content Browser button to save search as a dynamic collection."));
-
 namespace ContentBrowserSourcesWidgetSwitcherIndex
 {
 	static const int32 PathView = 0;
@@ -1412,6 +1408,36 @@ void SContentBrowser::SyncToFolders(TArrayView<const FString> FolderList, const 
 
 void SContentBrowser::SyncToItems(TArrayView<const FContentBrowserItem> ItemsToSync, const bool bAllowImplicitSync, const bool bDisableFiltersThatHideAssets)
 {
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+	const TSharedRef<FPathPermissionList>& FolderPermissions = FAssetToolsModule::GetModule().Get().GetFolderPermissionList();
+
+	// If any of the items to sync don't pass the permission filter, try to find an alias that might be visible
+	TArray<FContentBrowserItem> NewItemsToSync;
+	for (const FContentBrowserItem& Item : ItemsToSync)
+	{
+		if (FolderPermissions->PassesStartsWithFilter(Item.GetInternalPath()))
+		{
+			NewItemsToSync.Add(Item);
+		}
+		else
+		{
+			TArray<FContentBrowserItemPath> Aliases = ContentBrowserData->GetAliasesForPath(Item.GetInternalPath());
+			for (const FContentBrowserItemPath& Alias : Aliases)
+			{
+				if (FolderPermissions->PassesStartsWithFilter(Alias.GetInternalPathName()))
+				{
+					FContentBrowserItem AliasedItem = ContentBrowserData->GetItemAtPath(Alias.GetVirtualPathName(), EContentBrowserItemTypeFilter::IncludeFiles);
+					if (AliasedItem.IsValid())
+					{
+						NewItemsToSync.Add(MoveTemp(AliasedItem));
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	ItemsToSync = NewItemsToSync;
 	PrepareToSyncItems(ItemsToSync, bDisableFiltersThatHideAssets);
 
 	// Tell the sources view first so the asset view will be up to date by the time we request the sync
@@ -1422,6 +1448,32 @@ void SContentBrowser::SyncToItems(TArrayView<const FContentBrowserItem> ItemsToS
 
 void SContentBrowser::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToSync, const bool bAllowImplicitSync, const bool bDisableFiltersThatHideAssets)
 {
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+	const TSharedRef<FPathPermissionList>& FolderPermissions = FAssetToolsModule::GetModule().Get().GetFolderPermissionList();
+
+	// If any of the items to sync don't pass the permission filter, try to map the item to a different one that might be visible
+	TArray<FName> NewItemsToSync;
+	for (const FName VirtualPath : VirtualPathsToSync)
+	{
+		FName InternalPath;
+		ContentBrowserData->TryConvertVirtualPath(VirtualPath, InternalPath);
+		if (FolderPermissions->PassesStartsWithFilter(InternalPath))
+		{
+			NewItemsToSync.Add(VirtualPath);
+		}
+		else
+		{
+			TArray<FContentBrowserItemPath> Aliases = ContentBrowserData->GetAliasesForPath(InternalPath);
+			for (const FContentBrowserItemPath& Alias : Aliases)
+			{
+				if (FolderPermissions->PassesStartsWithFilter(Alias.GetInternalPathName()))
+				{
+					NewItemsToSync.Add(Alias.GetVirtualPathName());
+				}
+			}
+		}
+	}
+	VirtualPathsToSync = NewItemsToSync;
 	PrepareToSyncVirtualPaths(VirtualPathsToSync, bDisableFiltersThatHideAssets);
 
 	// Tell the sources view first so the asset view will be up to date by the time we request the sync
@@ -1432,6 +1484,34 @@ void SContentBrowser::SyncToVirtualPaths(TArrayView<const FName> VirtualPathsToS
 
 void SContentBrowser::SyncToLegacy(TArrayView<const FAssetData> AssetDataList, TArrayView<const FString> FolderList, const bool bAllowImplicitSync, const bool bDisableFiltersThatHideAssets)
 {
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+	const TSharedRef<FPathPermissionList>& FolderPermissions = FAssetToolsModule::GetModule().Get().GetFolderPermissionList();
+
+	// If any of the items to sync don't pass the permission filter, try to map the item to a different one that might be visible
+	TArray<FAssetData> NewItemsToSync;
+	for (int32 i = 0; i < AssetDataList.Num(); ++i)
+	{
+		if (FolderPermissions->PassesStartsWithFilter(AssetDataList[i].ObjectPath))
+		{
+			NewItemsToSync.Add(AssetDataList[i]);
+		}
+		else
+		{
+			TArray<FContentBrowserItemPath> Aliases = ContentBrowserData->GetAliasesForPath(AssetDataList[i].ObjectPath);
+			for (const FContentBrowserItemPath& Alias : Aliases)
+			{
+				const FName InternalPath = Alias.GetInternalPathName();
+				if (FolderPermissions->PassesStartsWithFilter(InternalPath))
+				{
+					FAssetData AliasAssetData(InternalPath, *FPackageName::GetLongPackagePath(InternalPath.ToString()), FPackageName::GetShortFName(InternalPath), AssetDataList[i].AssetClassPath, AssetDataList[i].TagsAndValues.CopyMap());
+					NewItemsToSync.Add(MoveTemp(AliasAssetData));
+					break;
+				}
+			}
+		}
+	}
+
+	AssetDataList = NewItemsToSync;
 	PrepareToSyncLegacy(AssetDataList, FolderList, bDisableFiltersThatHideAssets);
 
 	// Tell the sources view first so the asset view will be up to date by the time we request the sync
@@ -1444,21 +1524,11 @@ void SContentBrowser::SyncTo( const FContentBrowserSelection& ItemSelection, con
 {
 	if (ItemSelection.IsLegacy())
 	{
-		PrepareToSyncLegacy(ItemSelection.SelectedAssets, ItemSelection.SelectedFolders, bDisableFiltersThatHideAssets);
-
-		// Tell the sources view first so the asset view will be up to date by the time we request the sync
-		PathViewPtr->SyncToLegacy(ItemSelection.SelectedAssets, ItemSelection.SelectedFolders, bAllowImplicitSync);
-		FavoritePathViewPtr->SyncToLegacy(ItemSelection.SelectedAssets, ItemSelection.SelectedFolders, bAllowImplicitSync);
-		AssetViewPtr->SyncToLegacy(ItemSelection.SelectedAssets, ItemSelection.SelectedFolders);
+		SyncToLegacy(ItemSelection.SelectedAssets, ItemSelection.SelectedFolders, bAllowImplicitSync, bDisableFiltersThatHideAssets);
 	}
 	else
 	{
-		PrepareToSyncItems(ItemSelection.SelectedItems, bDisableFiltersThatHideAssets);
-
-		// Tell the sources view first so the asset view will be up to date by the time we request the sync
-		PathViewPtr->SyncToItems(ItemSelection.SelectedItems, bAllowImplicitSync);
-		FavoritePathViewPtr->SyncToItems(ItemSelection.SelectedItems, bAllowImplicitSync);
-		AssetViewPtr->SyncToItems(ItemSelection.SelectedItems);
+		SyncToItems(ItemSelection.SelectedItems, bAllowImplicitSync, bDisableFiltersThatHideAssets);
 	}
 }
 

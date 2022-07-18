@@ -5,11 +5,14 @@
 #include "ContentBrowserAssetDataCore.h"
 #include "ContentBrowserAssetDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserItemPath.h"
 
 #include "AssetToolsModule.h"
 #include "ObjectTools.h"
 #include "Misc/NamePermissionList.h"
 #include "Modules/ModuleManager.h"
+#include "CollectionManagerModule.h"
+#include "ICollectionManager.h"
 
 DEFINE_LOG_CATEGORY(LogContentBrowserAliasDataSource);
 
@@ -58,7 +61,7 @@ void UContentBrowserAliasDataSource::BuildRootPathVirtualTree()
 void UContentBrowserAliasDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
 {
 	UContentBrowserAssetDataSource::FAssetFilterInputParams Params;
-	if (UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter))
+	if (UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter, &FCollectionManagerModule::GetModule().Get()))
 	{
 		// Use the DataSource's custom PathTree instead of the AssetRegistry
 		const bool bCreatedPathFilter = UContentBrowserAssetDataSource::CreatePathFilter(Params, InPath, InFilter, OutCompiledFilter, [this](FName Path, TFunctionRef<bool(FName)> Callback, bool bRecursive)
@@ -70,7 +73,7 @@ void UContentBrowserAliasDataSource::CompileFilter(const FName InPath, const FCo
 		{
 			UContentBrowserAssetDataSource::CreateAssetFilter(Params, InPath, InFilter, OutCompiledFilter, [this, &Params](FARFilter& InputFilter, FARCompiledFilter& OutputFilter)
 			{
-				// Same as above - CompileFilter calls EnumerateSubPaths internally so this needs to intercept
+				// Same as CreatePathFilter - CompileFilter calls EnumerateSubPaths internally so this needs to intercept
 				// the filter compilation and use its own PathTree to generate the sub paths.
 				if (InputFilter.bRecursivePaths)
 				{
@@ -274,22 +277,28 @@ bool UContentBrowserAliasDataSource::DoesAliasPassFilter(const FAliasData& Alias
 {
 	// Create a fake asset data using the alias path instead of the asset's original path
 	// AssetRegistry->IsAssetIncludedByFilter is effectively a static function and does not actually use AssetRegistry data
-	FAssetData AliasAssetData(AliasData.AliasName, AliasData.PackagePath, AliasData.AliasName, AliasData.AssetData.AssetClassPath, AliasData.AssetData.TagsAndValues.CopyMap());
+	FAssetData AliasAssetData(AliasData.PackageName, AliasData.PackagePath, AliasData.AssetData.AssetName, AliasData.AssetData.AssetClassPath, AliasData.AssetData.TagsAndValues.CopyMap());
 
 	return (Filter.InclusiveFilter.IsEmpty() || AssetRegistry->IsAssetIncludedByFilter(AliasAssetData, Filter.InclusiveFilter)) // Passes Inclusive
 		&& (Filter.ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AliasAssetData, Filter.ExclusiveFilter)); // Passes Exclusive
 }
 
-FName UContentBrowserAliasDataSource::GetAliasForObjectPath(const FName ObjectPath) const
+TArray<FContentBrowserItemPath> UContentBrowserAliasDataSource::GetAliasesForPath(const FName ObjectPath) const
 {
-	if (const TArray<FName>* Aliases = AliasesForObjectPath.Find(ObjectPath))
+	TArray<FContentBrowserItemPath> OutAliases;
+
+	if (const TArray<FName>* FoundAliases = AliasesForObjectPath.Find(ObjectPath))
 	{
-		if (Aliases->Num() > 0)
+		for (const FName Alias : *FoundAliases)
 		{
-			return (*Aliases)[0];
+			if (const FAliasData* AliasData = AllAliases.Find(FContentBrowserUniqueAlias(ObjectPath, Alias)))
+			{
+				OutAliases.Add(FContentBrowserItemPath(AliasData->PackageName, EContentBrowserPathType::Internal));
+			}
 		}
 	}
-	return NAME_None;
+
+	return OutAliases;
 }
 
 void UContentBrowserAliasDataSource::AddAliases(const FAssetData& Asset, const TArray<FName>& Aliases, bool bInIsFromMetaData)
@@ -707,6 +716,19 @@ bool UContentBrowserAliasDataSource::UpdateThumbnail(const FContentBrowserItemDa
 	return ContentBrowserAssetData::UpdateItemThumbnail(this, InItem, InThumbnail);
 }
 
+bool UContentBrowserAliasDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+{
+	if (TSharedPtr<const FContentBrowserAliasItemDataPayload> AliasPayload = StaticCastSharedPtr<const FContentBrowserAliasItemDataPayload>(InItem.GetPayload()))
+	{
+		if (const FAliasData* AliasData = AllAliases.Find(AliasPayload->Alias))
+		{
+			OutCollectionId = AliasData->ObjectPath;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool UContentBrowserAliasDataSource::Legacy_TryGetPackagePath(const FContentBrowserItemData& InItem, FName& OutPackagePath)
 {
 	if (TSharedPtr<const FContentBrowserAssetFolderItemDataPayload> FolderPayload = ContentBrowserAssetData::GetAssetFolderItemPayload(this, InItem))
@@ -756,7 +778,7 @@ FContentBrowserItemData UContentBrowserAliasDataSource::CreateAssetFileItem(cons
 	if (AliasData)
 	{
 		FName VirtualizedPath;
-		TryConvertInternalPathToVirtual(AliasData->AliasID, VirtualizedPath);
+		TryConvertInternalPathToVirtual(AliasData->ObjectPath, VirtualizedPath);
 
 		// Since AliasID is PackagePath/AssetName, AssetName should also be passed as the ItemName here. This provides the functionality of
 		// being able to have multiple aliases with the same display name, while still showing their original asset name in the tooltip.

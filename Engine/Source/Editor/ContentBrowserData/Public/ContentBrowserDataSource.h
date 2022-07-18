@@ -213,6 +213,14 @@ public:
 	virtual bool EnumerateItemsForObjects(const TArrayView<UObject*> InObjects, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback);
 
 	/**
+	 * Get a list of other paths that the data source may be using to represent a specific path
+	 *
+	 * @param The internal path (or object path) of an asset to get aliases for
+	 * @return All alternative paths that represent the input path (not including the input path itself)
+	 */
+	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const;
+
+	/**
 	 * Query whether this data source instance is currently discovering content, and retrieve an optional status message that can be shown in the UI.
 	 */
 	virtual bool IsDiscoveringItems(FText* OutStatus = nullptr);

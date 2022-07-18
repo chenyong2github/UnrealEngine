@@ -2,6 +2,7 @@
 
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataSource.h"
+#include "ContentBrowserItemPath.h"
 #include "IContentBrowserDataModule.h"
 #include "Containers/Ticker.h"
 #include "Misc/PackageName.h"
@@ -439,6 +440,24 @@ FContentBrowserItem UContentBrowserDataSubsystem::GetItemAtPath(const FName InPa
 		return true;
 	});
 	return FoundItem;
+}
+
+TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(const FContentBrowserItemPath InPath) const
+{
+	return GetAliasesForPath(InPath.GetInternalPathName());
+}
+
+TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(const FName InInternalPath) const
+{
+	TArray<FContentBrowserItemPath> Aliases;
+
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		Aliases.Append(DataSource->GetAliasesForPath(InInternalPath));
+	}
+
+	return Aliases;
 }
 
 bool UContentBrowserDataSubsystem::IsDiscoveringItems(TArray<FText>* OutStatus) const

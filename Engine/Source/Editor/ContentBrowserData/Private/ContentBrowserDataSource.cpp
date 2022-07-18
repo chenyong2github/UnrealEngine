@@ -217,6 +217,11 @@ bool UContentBrowserDataSource::EnumerateItemsForObjects(const TArrayView<UObjec
 	return true;
 }
 
+TArray<FContentBrowserItemPath> UContentBrowserDataSource::GetAliasesForPath(const FName InInternalPath) const
+{
+	return TArray<FContentBrowserItemPath>();
+}
+
 bool UContentBrowserDataSource::IsDiscoveringItems(FText* OutStatus)
 {
 	return false;

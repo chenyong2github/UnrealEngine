@@ -2127,8 +2127,10 @@ public:
 
 	/**
 	 * Syncs the selected actors objects to the content browser
+	 * 
+	 * @param bAllowOverrideMetadata If true, allows an asset to define "BrowseToAssetOverride" in its metadata to sync to an asset other than itself
 	 */
-	void SyncToContentBrowser();
+	void SyncToContentBrowser(bool bAllowOverrideMetadata = true);
 
 	/**
 	 * Syncs the selected actors' levels to the content browser
@@ -2445,8 +2447,17 @@ public:
 	 * Gets all objects which can be synced to in content browser for current selection
 	 *
 	 * @param Objects	Array to be filled with objects which can be browsed to
+	 * @param bAllowOverrideMetadata If true, allows an asset to define "BrowseToAssetOverride" in its metadata to sync to an asset other than itself
 	 */
-	void GetObjectsToSyncToContentBrowser( TArray<UObject*>& Objects );
+	UE_DEPRECATED(5.1, "Use GetAssetsToSyncToContentBrowser instead")
+	void GetObjectsToSyncToContentBrowser(TArray<UObject*>& Objects, bool bAllowBrowseToAssetOverride = true);
+	/**
+	 * Gets all assets which can be synced to in content browser for current selection
+	 *
+	 * @param Assets	Array to be filled with assets which can be browsed to
+	 * @param bAllowOverrideMetadata If true, allows an asset to define "BrowseToAssetOverride" in its metadata to sync to an asset other than itself
+	 */
+	void GetAssetsToSyncToContentBrowser(TArray<FAssetData>& Assets, bool bAllowBrowseToAssetOverride = true);
 
 	/**
 	 * Gets all levels which can be synced to in content browser for current selection

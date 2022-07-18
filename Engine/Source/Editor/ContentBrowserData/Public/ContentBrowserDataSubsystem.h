@@ -12,6 +12,8 @@
 #include "Containers/Ticker.h"
 #include "ContentBrowserDataSubsystem.generated.h"
 
+struct FContentBrowserItemPath;
+
 UENUM(BlueprintType)
 enum class EContentBrowserPathType : uint8
 {
@@ -188,6 +190,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="ContentBrowser")
 	FContentBrowserItem GetItemAtPath(const FName InPath, const EContentBrowserItemTypeFilter InItemTypeFilter) const;
+
+	/**
+	 * Get a list of other paths that the data source may be using to represent a specific path
+	 *
+	 * @param The internal path (or object path) of an asset to get aliases for
+	 * @return All alternative paths that represent the input path (not including the input path itself)
+	 */
+	TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const;
+	TArray<FContentBrowserItemPath> GetAliasesForPath(const FContentBrowserItemPath InPath) const;
 
 	/**
 	 * Query whether any data sources are currently discovering content, and retrieve optional status messages that can be shown in the UI.

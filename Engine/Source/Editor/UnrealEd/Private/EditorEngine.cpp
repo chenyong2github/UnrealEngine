@@ -2904,64 +2904,98 @@ void UEditorEngine::SyncBrowserToObjects( TArray<struct FAssetData>& InAssetsToS
 
 bool UEditorEngine::CanSyncToContentBrowser()
 {
-	TArray< UObject*> Objects;
-	GetObjectsToSyncToContentBrowser( Objects );
-	return Objects.Num() > 0;
+	TArray<FAssetData> Assets;
+	GetAssetsToSyncToContentBrowser(Assets);
+	return Assets.Num() > 0;
 }
 
 
-void UEditorEngine::GetObjectsToSyncToContentBrowser( TArray<UObject*>& Objects )
+void UEditorEngine::GetObjectsToSyncToContentBrowser(TArray<UObject*>& Objects, bool bAllowBrowseToAssetOverride)
+{
+	TArray<FAssetData> Assets;
+	GetAssetsToSyncToContentBrowser(Assets, bAllowBrowseToAssetOverride);
+	for (const FAssetData& Asset : Assets)
+	{
+		Objects.Add(Asset.GetAsset());
+	}
+}
+
+void UEditorEngine::GetAssetsToSyncToContentBrowser(TArray<FAssetData>& Assets, bool bAllowBrowseToAssetOverride)
 {
 	// If the user has any BSP surfaces selected, sync to the materials on them.
 	bool bFoundSurfaceMaterial = false;
 
-	for ( TSelectedSurfaceIterator<> It(GWorld) ; It ; ++It )
+	for (TSelectedSurfaceIterator<> It(GWorld); It; ++It)
 	{
 		FBspSurf* Surf = *It;
 		UMaterialInterface* Material = Surf->Material;
-		if( Material )
+		if (Material)
 		{
-			Objects.AddUnique( Material );
+			Assets.AddUnique(FAssetData(Material));
 			bFoundSurfaceMaterial = true;
 		}
 	}
 
 	// Otherwise, assemble a list of resources from selected actors.
-	if( !bFoundSurfaceMaterial )
+	if (!bFoundSurfaceMaterial)
 	{
-		for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
+		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow( Actor->IsA(AActor::StaticClass()) );
+			AActor* Actor = static_cast<AActor*>(*It);
+			checkSlow(Actor->IsA(AActor::StaticClass()));
 
-			// If the actor is an instance of a blueprint, just add the blueprint.
-			UBlueprint* GeneratingBP = Cast<UBlueprint>(It->GetClass()->ClassGeneratedBy);
-			if ( GeneratingBP != NULL )
+			bool bFoundOverride = false;
+			if (bAllowBrowseToAssetOverride)
 			{
-				Objects.Add(GeneratingBP);
+				// If BrowseToAssetOverride is set, then use the asset it points to instead of the selected asset
+				const FString& BrowseToAssetOverride = Actor->GetBrowseToAssetOverride();
+				if (!BrowseToAssetOverride.IsEmpty())
+				{
+					if (IAssetRegistry* AssetRegistry = IAssetRegistry::Get())
+					{
+						TArray<FAssetData> FoundAssets;
+						if (AssetRegistry->GetAssetsByPackageName(*BrowseToAssetOverride, FoundAssets) && FoundAssets.Num() > 0)
+						{
+							Assets.Add(FoundAssets[0]);
+							bFoundOverride = true;
+						}
+					}
+				}
 			}
-			// Cooked editor sometimes only contains UBlueprintGeneratedClass with no UBlueprint
-			else if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(It->GetClass()))
+
+			if (!bFoundOverride)
 			{
-				Objects.Add(BlueprintGeneratedClass);
-			}
-			// Otherwise, add the results of the GetReferencedContentObjects call
-			else
-			{
-				Actor->GetReferencedContentObjects(Objects);
+				// If the actor is an instance of a blueprint, just add the blueprint.
+				UBlueprint* GeneratingBP = Cast<UBlueprint>(It->GetClass()->ClassGeneratedBy);
+				if (GeneratingBP != NULL)
+				{
+					Assets.Add(FAssetData(GeneratingBP));
+				}
+				// Cooked editor sometimes only contains UBlueprintGeneratedClass with no UBlueprint
+				else if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(It->GetClass()))
+				{
+					Assets.Add(FAssetData(BlueprintGeneratedClass));
+				}
+				// Otherwise, add the results of the GetReferencedContentObjects call
+				else
+				{
+					TArray<UObject*> Objects;
+					Actor->GetReferencedContentObjects(Objects);
+					for (UObject* Object : Objects)
+					{
+						Assets.Add(FAssetData(Object));
+					}
+				}
 			}
 		}
 	}
 }
 
-void UEditorEngine::SyncToContentBrowser()
+void UEditorEngine::SyncToContentBrowser(bool bAllowOverrideMetadata)
 {
-	TArray<UObject*> Objects;
-
-	GetObjectsToSyncToContentBrowser( Objects );
-
-	// Sync the content browser to the object list.
-	SyncBrowserToObjects(Objects);
+	TArray<FAssetData> Assets;
+	GetAssetsToSyncToContentBrowser(Assets, bAllowOverrideMetadata);
+	SyncBrowserToObjects(Assets);
 }
 
 void UEditorEngine::GetLevelsToSyncToContentBrowser(TArray<UObject*>& Objects)

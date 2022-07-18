@@ -58,6 +58,8 @@ public:
 
 	virtual bool DoesItemPassFilter(const FContentBrowserItemData& InItem, const FContentBrowserDataCompiledFilter& InFilter) override;
 
+	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const override;
+
 	virtual bool GetItemAttribute(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue) override;
 	virtual bool GetItemAttributes(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues) override;
 	virtual bool GetItemPhysicalPath(const FContentBrowserItemData& InItem, FString& OutDiskPath) override;
@@ -78,14 +80,14 @@ public:
 	virtual bool AppendItemReference(const FContentBrowserItemData& InItem, FString& InOutStr) override;
 	virtual bool UpdateThumbnail(const FContentBrowserItemData& InItem, FAssetThumbnail& InThumbnail) override;
 
+	virtual bool TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId) override;
+
 	// Legacy functions seem necessary for FrontendFilters to work
 	virtual bool Legacy_TryGetPackagePath(const FContentBrowserItemData& InItem, FName& OutPackagePath) override;
 	virtual bool Legacy_TryGetAssetData(const FContentBrowserItemData& InItem, FAssetData& OutAssetData) override;
 	virtual bool Legacy_TryConvertPackagePathToVirtualPath(const FName InPackagePath, FName& OutPath) override;
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 	// ~ End UContentBrowserDataSource interface
-
-	FName GetAliasForObjectPath(const FName ObjectPath) const;
 
 	/** Add a list of aliases for a given asset. bInIsFromMetaData should only be true if the list of aliases came from the AliasTagName metadata. */
 	void AddAliases(const FAssetData& Asset, const TArray<FName>& Aliases, bool bInIsFromMetaData = false);
@@ -129,15 +131,24 @@ private:
 		FAliasData(const FAssetData& InAssetData, const FName InPackagePath, const FName InName, const bool bInIsFromMetaData = false)
 			: AssetData(InAssetData), PackagePath(InPackagePath), AliasName(InName), bIsFromMetaData(bInIsFromMetaData)
 		{
-			AliasID = *(InPackagePath.ToString() / InAssetData.AssetName.ToString());
+			FNameBuilder PathBuilder(PackagePath);
+			PathBuilder << TEXT('/');
+			PathBuilder << InAssetData.AssetName;
+			PackageName = FName(PathBuilder.ToView());
+
+			PathBuilder << TEXT('.');
+			PathBuilder << InAssetData.AssetName;
+			ObjectPath = FName(PathBuilder.ToView());
 		}
 
 		/** The source asset for this alias */
 		FAssetData AssetData;
-		/** The package path of the alias */
+		/** The folder path that contains the alias, /MyAliases */
 		FName PackagePath;
-		/** A unique path for this alias, which is PackagePath/SourceAssetName */
-		FName AliasID;
+		/** PackagePath/SourceAssetName, /MyAliases/SomeAsset  */
+		FName PackageName;
+		/** PackageName.SourceAssetName, /MyAliases/SomeAsset.SomeAsset */
+		FName ObjectPath;
 		/** A non-unique display name for this alias */
 		FName AliasName;
 		/** Whether this alias was generated from package metadata or manually through the C++ interface */

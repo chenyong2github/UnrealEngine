@@ -573,6 +573,16 @@ bool AActor::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) c
 	return true;
 }
 
+void AActor::SetBrowseToAssetOverride(const FString& PackageName)
+{
+	GetPackage()->GetMetaData()->SetValue(this, "BrowseToAssetOverride", *PackageName);
+}
+
+const FString& AActor::GetBrowseToAssetOverride() const
+{
+	return GetPackage()->GetMetaData()->GetValue(this, "BrowseToAssetOverride");
+}
+
 #endif
 
 UWorld* AActor::GetWorld() const

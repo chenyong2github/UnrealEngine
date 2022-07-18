@@ -2468,6 +2468,11 @@ public:
 	{
 		return bOptimizeBPComponentData;
 	}
+
+	/** Sets metadata on the Actor that allows it to point to a different asset than its source when browsing in the Content Browser */
+	void SetBrowseToAssetOverride(const FString& PackageName);
+	/** Gets metadata on the Actor that says which package to show in the Content Browser when browsing to it, or an empty string if there is no override */
+	const FString& GetBrowseToAssetOverride() const;
 #endif		// WITH_EDITOR
 
 	/**
