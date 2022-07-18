@@ -15,7 +15,7 @@ FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, F
 	
 	TArray<int32, TFixedAllocator<2> > ViewIds;
 	ViewIds.Add(ViewInfo->GPUSceneViewId);
-	bUsingStereo = bEnableStereo && ViewInfo->bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View);
+	bUsingStereo = bEnableStereo && ViewInfo->bIsInstancedStereoEnabled && !View.bIsMultiViewportEnabled && IStereoRendering::IsStereoEyeView(View);
 	if (bUsingStereo)
 	{
 		check(ViewInfo->GetInstancedView() != nullptr);

@@ -354,7 +354,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsVolumetricFog: 1; // also used for FVVoxelization
 	uint32 bSupportsIndexBufferUAVs: 1;
 	uint32 bSupportsInstancedStereo: 1;
-	uint32 bSupportsMultiView: 1;
+	uint32 SupportsMultiViewport: int32(ERHIFeatureSupport::NumBits);
 	uint32 bSupportsMSAA: 1;
 	uint32 bSupports4ComponentUAVReadWrite: 1;
 	uint32 bSupportsRenderTargetWriteMask: 1;
@@ -596,11 +596,18 @@ public:
 		return Infos[Platform].bSupportsInstancedStereo;
 	}
 
+	UE_DEPRECATED(5.1, "bSupportsMultiView shader platform property has been deprecated. Use SupportsMultiViewport")
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMultiView(const FStaticShaderPlatform Platform)
 	{
 		check(IsValid(Platform));
-		return Infos[Platform].bSupportsMultiView;
+		return ERHIFeatureSupport(Infos[Platform].SupportsMultiViewport) != ERHIFeatureSupport::Unsupported;
 	}
+
+	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsMultiViewport(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return ERHIFeatureSupport(Infos[Platform].SupportsMultiViewport);
+	}	
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMSAA(const FStaticShaderPlatform Platform)
 	{

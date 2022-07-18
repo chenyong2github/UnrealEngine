@@ -169,8 +169,8 @@ public:
 
 	void Reset()
 	{
-		FMemory::Memzero(Scissor);
-		FMemory::Memzero(Viewport);
+		Viewports.SetNumZeroed(1);
+		Scissors.SetNumZeroed(1);
 		StencilRef = 0;
 		bScissorEnable = false;
 
@@ -196,25 +196,41 @@ public:
 
 	void SetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
 	{
-		FMemory::Memzero(Viewport);
+		Viewports.SetNumZeroed(1);
 
-		Viewport.x = MinX;
-		Viewport.y = MinY;
-		Viewport.width = MaxX - MinX;
-		Viewport.height = MaxY - MinY;
-		Viewport.minDepth = MinZ;
+		Viewports[0].x = MinX;
+		Viewports[0].y = MinY;
+		Viewports[0].width = MaxX - MinX;
+		Viewports[0].height = MaxY - MinY;
+		Viewports[0].minDepth = MinZ;
 		if (MinZ == MaxZ)
 		{
 			// Engine pases in some cases MaxZ as 0.0
-			Viewport.maxDepth = MinZ + 1.0f;
+			Viewports[0].maxDepth = MinZ + 1.0f;
 		}
 		else
 		{
-			Viewport.maxDepth = MaxZ;
+			Viewports[0].maxDepth = MaxZ;
 		}
 
 		SetScissorRect((uint32)MinX, (uint32)MinY, (uint32)(MaxX - MinX), (uint32)(MaxY - MinY));
 		bScissorEnable = false;
+	}
+
+	void SetMultiViewport(const TArrayView<VkViewport>& InViewports)
+	{
+		Viewports = InViewports;
+
+		// Set the scissor rects appropriately.
+		Scissors.SetNumZeroed(Viewports.Num());
+		for (int32 Idx = 0; Idx < Scissors.Num(); ++Idx)
+		{
+			Scissors[Idx].offset.x = Viewports[Idx].x;
+			Scissors[Idx].offset.y = Viewports[Idx].y;
+			Scissors[Idx].extent.width = Viewports[Idx].width;
+			Scissors[Idx].extent.height = Viewports[Idx].height;
+		}
+		bScissorEnable = true;
 	}
 
 	inline void SetScissor(bool bInEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY)
@@ -225,7 +241,8 @@ public:
 		}
 		else
 		{
-			SetScissorRect(Viewport.x, Viewport.y, Viewport.width, Viewport.height);
+			checkf(Viewports.Num() > 0, TEXT("At least one Viewport is expected to be configured."));
+			SetScissorRect(Viewports[0].x, Viewports[0].y, Viewports[0].width, Viewports[0].height);
 		}
 
 		bScissorEnable = bInEnable;
@@ -233,12 +250,12 @@ public:
 
 	inline void SetScissorRect(uint32 MinX, uint32 MinY, uint32 Width, uint32 Height)
 	{
-		FMemory::Memzero(Scissor);
+		Scissors.SetNumZeroed(1);
 
-		Scissor.offset.x = MinX;
-		Scissor.offset.y = MinY;
-		Scissor.extent.width = Width;
-		Scissor.extent.height = Height;
+		Scissors[0].offset.x = MinX;
+		Scissors[0].offset.y = MinY;
+		Scissors[0].extent.width = Width;
+		Scissors[0].extent.height = Height;
 	}
 
 	inline void SetStreamSource(uint32 StreamIndex, VkBuffer VertexBuffer, uint32 Offset)
@@ -363,8 +380,8 @@ public:
 	}
 
 protected:
-	VkViewport Viewport;
-	VkRect2D Scissor;
+	TArray<VkViewport, TInlineAllocator<2>> Viewports;
+	TArray<VkRect2D, TInlineAllocator<2>> Scissors;
 
 	EPrimitiveType PrimitiveType = PT_Num;
 	uint32 StencilRef;

@@ -143,9 +143,21 @@ inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
+UE_DEPRECATED(5.1, "RHISupportsMultiView has been deprecated. Use RHISupportsMultiViewport to avoid confusion.")
 inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+/** 
+ * Can this platform implement instanced stereo rendering by rendering to multiple viewports.
+ * Note: run-time users should always check GRHISupportsArrayIndexFromAnyShader as well, since for some SPs (particularly PCD3D_SM5) minspec does not guarantee that feature.
+ **/
+inline bool RHISupportsMultiViewport(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsMultiViewport(Platform) != ERHIFeatureSupport::Unsupported;
 }
 
 inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)

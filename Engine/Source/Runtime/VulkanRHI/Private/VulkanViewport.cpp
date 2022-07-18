@@ -1123,6 +1123,27 @@ void FVulkanCommandListContext::RHISetViewport(float MinX, float MinY, float Min
 	PendingGfxState->SetViewport(MinX, MinY, MinZ, MaxX, MaxY, MaxZ);
 }
 
+void FVulkanCommandListContext::RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ)
+{
+	TStaticArray<VkViewport, 2> Viewports;
+
+	Viewports[0].x = FMath::FloorToInt(LeftMinX);
+	Viewports[0].y = FMath::FloorToInt(LeftMinY);
+	Viewports[0].width = FMath::CeilToInt(LeftMaxX - LeftMinX);
+	Viewports[0].height = FMath::CeilToInt(LeftMaxY - LeftMinY);
+	Viewports[0].minDepth = MinZ;
+	Viewports[0].maxDepth = MaxZ;
+
+	Viewports[1].x = FMath::FloorToInt(RightMinX);
+	Viewports[1].y = FMath::FloorToInt(RightMinY);
+	Viewports[1].width = FMath::CeilToInt(RightMaxX - RightMinX);
+	Viewports[1].height = FMath::CeilToInt(RightMaxY - RightMinY);
+	Viewports[1].minDepth = MinZ;
+	Viewports[1].maxDepth = MaxZ;
+
+	PendingGfxState->SetMultiViewport(Viewports);
+}
+
 void FVulkanCommandListContext::RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data)
 {
 	VULKAN_SIGNAL_UNIMPLEMENTED();

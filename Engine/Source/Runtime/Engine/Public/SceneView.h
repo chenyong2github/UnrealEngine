@@ -1168,8 +1168,12 @@ public:
 	/** True if instanced stereo is enabled. */
 	bool bIsInstancedStereoEnabled;
 
-	/** True if multi-view is enabled. */
+	/** OLD variable governing multi-viewport rendering. */
+	UE_DEPRECATED(5.1, "bIsMultiViewEnabled has been deprecated. Use bIsMultiViewportEnabled")
 	bool bIsMultiViewEnabled;
+
+	/** True if multi-viewport instanced stereo rendering is enabled. */
+	bool bIsMultiViewportEnabled;
 
 	/** True if mobile multi-view is enabled. */
 	bool bIsMobileMultiViewEnabled;
@@ -1288,6 +1292,12 @@ public:
 
 	/** Initialization constructor. */
 	FSceneView(const FSceneViewInitOptions& InitOptions);
+
+	/** These are only needed because of deprecated members being accessed in them */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSceneView(const FSceneView& Other) = default;
+	FSceneView(FSceneView&& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if DO_CHECK || USING_CODE_ANALYSIS
 	/** Verifies all the assertions made on members. */

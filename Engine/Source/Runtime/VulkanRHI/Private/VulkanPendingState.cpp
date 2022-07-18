@@ -506,33 +506,34 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 
 void FVulkanPendingGfxState::InternalUpdateDynamicStates(FVulkanCmdBuffer* Cmd)
 {
-	bool bInCmdNeedsDynamicState = Cmd->bNeedsDynamicStateSet;
-
-	bool bNeedsUpdateViewport = !Cmd->bHasViewport || (FMemory::Memcmp((const void*)&Cmd->CurrentViewport, (const void*)&Viewport, sizeof(VkViewport)) != 0);
+	const bool bNeedsUpdateViewport = !Cmd->bHasViewport || Viewports.Num() != Cmd->CurrentViewports.Num() || (FMemory::Memcmp((const void*)Cmd->CurrentViewports.GetData(), (const void*)Viewports.GetData(), Viewports.Num() * sizeof(VkViewport)) != 0);
 	// Validate and update Viewport
 	if (bNeedsUpdateViewport)
 	{
-		ensure(Viewport.width > 0 || Viewport.height > 0);
+		ensure(Viewports[0].width > 0 || Viewports[0].height > 0);
 
 		// Flip viewport on Y-axis to be uniform between DXC generated SPIR-V shaders (requires VK_KHR_maintenance1 extension)
-		VkViewport FlippedViewport = Viewport;
-		FlippedViewport.y += FlippedViewport.height;
-		FlippedViewport.height = -FlippedViewport.height;
-		VulkanRHI::vkCmdSetViewport(Cmd->GetHandle(), 0, 1, &FlippedViewport);
+		TArray<VkViewport, TInlineAllocator<2>> FlippedViewports = Viewports;
+		for (VkViewport& FlippedViewport : FlippedViewports)
+		{
+			FlippedViewport.y += FlippedViewport.height;
+			FlippedViewport.height = -FlippedViewport.height;
+		}
+		VulkanRHI::vkCmdSetViewport(Cmd->GetHandle(), 0, FlippedViewports.Num(), FlippedViewports.GetData());
 
-		FMemory::Memcpy(Cmd->CurrentViewport, Viewport);
+		Cmd->CurrentViewports = Viewports;
 		Cmd->bHasViewport = true;
 	}
 
-	bool bNeedsUpdateScissor = !Cmd->bHasScissor || (FMemory::Memcmp((const void*)&Cmd->CurrentScissor, (const void*)&Scissor, sizeof(VkRect2D)) != 0);
+	const bool bNeedsUpdateScissor = !Cmd->bHasScissor || Scissors.Num() != Cmd->CurrentScissors.Num() || (FMemory::Memcmp((const void*)Cmd->CurrentScissors.GetData(), (const void*)Scissors.GetData(), Scissors.Num() * sizeof(VkRect2D)) != 0);
 	if (bNeedsUpdateScissor)
 	{
-		VulkanRHI::vkCmdSetScissor(Cmd->GetHandle(), 0, 1, &Scissor);
-		FMemory::Memcpy(Cmd->CurrentScissor, Scissor);
+		VulkanRHI::vkCmdSetScissor(Cmd->GetHandle(), 0, Scissors.Num(), Scissors.GetData());
+		Cmd->CurrentScissors = Scissors;
 		Cmd->bHasScissor = true;
 	}
 
-	bool bNeedsUpdateStencil = !Cmd->bHasStencilRef || (Cmd->CurrentStencilRef != StencilRef);
+	const bool bNeedsUpdateStencil = !Cmd->bHasStencilRef || (Cmd->CurrentStencilRef != StencilRef);
 	if (bNeedsUpdateStencil)
 	{
 		VulkanRHI::vkCmdSetStencilReference(Cmd->GetHandle(), VK_STENCIL_FRONT_AND_BACK, StencilRef);

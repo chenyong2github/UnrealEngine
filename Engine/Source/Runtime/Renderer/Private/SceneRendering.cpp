@@ -178,6 +178,12 @@ static TAutoConsoleVariable<int32> CVarMobileMultiView(
 	TEXT("0 to disable mobile multi-view, 1 to enable.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMultiViewport(
+	TEXT("vr.MultiViewport"),
+	1,
+	TEXT("0 to disable multi-viewport instanced stereo rendering, 1 to enable its use (if supported by the RHI/shader platform).\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
 	TEXT("vr.RoundRobinOcclusion"),
 	0,
@@ -3367,6 +3373,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 				FSceneViewState* ViewState = (FSceneViewState*)View.State;
 				bool bViewParentOrFrozen = ViewState && (ViewState->HasViewParent() || ViewState->bIsFrozen);
 				bool bLocked = View.bIsLocked;
+				const bool bStereoView = IStereoRendering::IsStereoEyeView(View);
 
 				// display a warning if an ambient cubemap uses non-angular mipmap filtering
 				bool bShowAmbientCubemapMipGenSettingsWarning = false;
@@ -3384,9 +3391,14 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 					}
 				}
 #endif
-				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bViewParentOrFrozen || bLocked || bShowAmbientCubemapMipGenSettingsWarning || bAnyWarning))
+				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bViewParentOrFrozen || bLocked || bStereoView || bShowAmbientCubemapMipGenSettingsWarning || bAnyWarning))
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+					const bool bPrimaryStereoView = IStereoRendering::IsAPrimaryView(View);
+					const bool bIsInstancedStereoEnabled = View.bIsInstancedStereoEnabled;
+					const bool bIsMultiViewportEnabled = View.bIsMultiViewportEnabled;
+					const bool bIsMobileMultiViewEnabled = View.bIsMobileMultiViewEnabled;
 
 					AddDrawCanvasPass(GraphBuilder, {}, View, Output,
 						[this, &ReadOnlyCVARCache, ViewState, GPUSkinCacheExtraRequiredMemory,
@@ -3394,7 +3406,8 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowLocalExposureDisabledWarning,
-						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight, bShowAmbientCubemapMipGenSettingsWarning]
+						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight, bShowAmbientCubemapMipGenSettingsWarning,
+						bStereoView, bPrimaryStereoView, bIsInstancedStereoEnabled, bIsMultiViewportEnabled, bIsMobileMultiViewEnabled]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3546,6 +3559,39 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							static const FText Message = NSLOCTEXT("Renderer", "AmbientCubemapMipGenSettings", "Ambient cubemaps should use 'Angular' Mip Gen Settings.");
 							Writer.DrawLine(Message);
 						}
+
+#if !UE_BUILD_SHIPPING
+						if (bStereoView)
+						{
+							const TCHAR* SecondaryOrInstanced = bIsInstancedStereoEnabled ? TEXT("Instanced") : TEXT("Secondary");
+							FString ViewIdString = FString::Printf(TEXT("StereoView: %s"), bPrimaryStereoView ? TEXT("Primary") : SecondaryOrInstanced);
+							Writer.DrawLine(FText::FromString(ViewIdString));
+
+							// display information (in the primary view only) about the particular method used
+							if (bPrimaryStereoView)
+							{
+								const TCHAR* Technique = TEXT("Splitscreen-like");
+								if (bIsInstancedStereoEnabled)
+								{
+									if (bIsMultiViewportEnabled)
+									{
+										Technique = TEXT("Multi-viewport");
+									}
+									else if (bIsMobileMultiViewEnabled)
+									{
+										Technique = TEXT("Multi-view (mobile)");
+									}
+									else
+									{
+										Technique = TEXT("Instanced, clip planes");
+									}
+								}
+
+								FString TechniqueString = FString::Printf(TEXT("Stereo rendering method: %s"), Technique);
+								Writer.DrawLine(FText::FromString(TechniqueString));
+							}
+						}
+#endif
 
 #if WITH_EDITOR
 						FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
@@ -5089,7 +5135,7 @@ void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewI
 {
 	if (View.IsInstancedStereoPass())
 	{
-		if (View.bIsMultiViewEnabled)
+		if (View.bIsMultiViewportEnabled)
 		{
 			const FViewInfo& LeftView = View;
 			const uint32 LeftMinX = LeftView.ViewRect.Min.X * ViewportScale;

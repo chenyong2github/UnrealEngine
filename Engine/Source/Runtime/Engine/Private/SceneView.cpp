@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "SceneView.h"
+#include "Engine/Scene.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "EngineGlobals.h"
@@ -758,7 +759,10 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bIsLocked(false)
 	, bStaticSceneOnly(false)
 	, bIsInstancedStereoEnabled(false)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	, bIsMultiViewEnabled(false)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	, bIsMultiViewportEnabled(false)
 	, bIsMobileMultiViewEnabled(false)
 	, bShouldBindInstancedViewUB(false)
 	, UnderwaterDepth(-1.0f)
@@ -849,8 +853,11 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
 	bIsInstancedStereoEnabled = !bUsingMobileRenderer && RHISupportsInstancedStereo(ShaderPlatform) && (CVar && CVar->GetValueOnAnyThread() != 0);
 
-	// TODO: Should be renamed to multi-viewport
-	bIsMultiViewEnabled = RHISupportsMultiView(ShaderPlatform) && bIsInstancedStereoEnabled;
+	static const auto CVarMultiViewport = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MultiViewport"));
+	bIsMultiViewportEnabled = RHISupportsMultiViewport(ShaderPlatform) && bIsInstancedStereoEnabled && (CVarMultiViewport && CVarMultiViewport->GetValueOnAnyThread() != 0);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bIsMultiViewEnabled = bIsMultiViewportEnabled;	// temporary, as a graceful way to support plugins/licensee mods
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bIsMobileMultiViewEnabled = Family && Family->bRequireMultiView;
 	if (bIsMobileMultiViewEnabled && !RHISupportsMobileMultiView(ShaderPlatform))
@@ -866,6 +873,12 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	{
 		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(ShaderPlatform);
 		bShouldBindInstancedViewUB = Aspects.IsInstancedStereoEnabled() || Aspects.IsMobileMultiViewEnabled();
+
+		// make sure that FStereoShaderAspects logic matches the above logic (TODO: above should be replaced by setting them through aspects after more testing)
+		ensure(bIsInstancedStereoEnabled == Aspects.IsInstancedStereoEnabled());
+		ensure(bIsMultiViewportEnabled == Aspects.IsInstancedMultiViewportEnabled());
+		ensure(bIsMobileMultiViewEnabled == (Family && Family->bRequireMultiView && Aspects.IsMobileMultiViewEnabled()));
+		ensure(bShouldBindInstancedViewUB == bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled);
 	}
 
 	SetupAntiAliasingMethod();

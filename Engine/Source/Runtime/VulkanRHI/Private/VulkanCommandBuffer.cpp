@@ -80,8 +80,8 @@ void FVulkanCmdBuffer::AllocMemory()
 {
 	// Assumes we are inside a lock for the pool
 	check(State == EState::NotAllocated);
-	FMemory::Memzero(CurrentViewport);
-	FMemory::Memzero(CurrentScissor);
+	CurrentViewports.Empty();
+	CurrentScissors.Empty();
 
 	VkCommandBufferAllocateInfo CreateCmdBufInfo;
 	ZeroVulkanStruct(CreateCmdBufInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
@@ -377,8 +377,8 @@ void FVulkanCmdBuffer::RefreshFenceStatus()
 			}
 			SubmittedWaitSemaphores.Reset();
 
-			FMemory::Memzero(CurrentViewport);
-			FMemory::Memzero(CurrentScissor);
+			CurrentViewports.Empty();
+			CurrentScissors.Empty();
 			CurrentStencilRef = 0;
 #if VULKAN_REUSE_FENCES
 			Fence->GetOwner()->ResetFence(Fence);

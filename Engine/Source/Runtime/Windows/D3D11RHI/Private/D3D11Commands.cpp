@@ -272,11 +272,44 @@ void FD3D11DynamicRHI::RHISetViewport(float MinX, float MinY, float MinZ, float 
 
 static void ValidateScissorRect(const D3D11_VIEWPORT& Viewport, const D3D11_RECT& ScissorRect)
 {
-	ensure(ScissorRect.left   >= (LONG)Viewport.TopLeftX);
-	ensure(ScissorRect.top    >= (LONG)Viewport.TopLeftY);
-	ensure(ScissorRect.right  <= (LONG)Viewport.TopLeftX + (LONG)Viewport.Width);
+	ensure(ScissorRect.left >= (LONG)Viewport.TopLeftX);
+	ensure(ScissorRect.top >= (LONG)Viewport.TopLeftY);
+	ensure(ScissorRect.right <= (LONG)Viewport.TopLeftX + (LONG)Viewport.Width);
 	ensure(ScissorRect.bottom <= (LONG)Viewport.TopLeftY + (LONG)Viewport.Height);
 	ensure(ScissorRect.left <= ScissorRect.right && ScissorRect.top <= ScissorRect.bottom);
+}
+
+void FD3D11DynamicRHI::RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ)
+{
+	// Set up both viewports
+	D3D11_VIEWPORT StereoViewports[2] = { 0 };
+
+	StereoViewports[0].TopLeftX = FMath::FloorToInt(LeftMinX);
+	StereoViewports[0].TopLeftY = FMath::FloorToInt(LeftMinY);
+	StereoViewports[0].Width = FMath::CeilToInt(LeftMaxX - LeftMinX);
+	StereoViewports[0].Height = FMath::CeilToInt(LeftMaxY - LeftMinY);
+	StereoViewports[0].MinDepth = MinZ;
+	StereoViewports[0].MaxDepth = MaxZ;
+
+	StereoViewports[1].TopLeftX = FMath::FloorToInt(RightMinX);
+	StereoViewports[1].TopLeftY = FMath::FloorToInt(RightMinY);
+	StereoViewports[1].Width = FMath::CeilToInt(RightMaxX - RightMinX);
+	StereoViewports[1].Height = FMath::CeilToInt(RightMaxY - RightMinY);
+	StereoViewports[1].MinDepth = MinZ;
+	StereoViewports[1].MaxDepth = MaxZ;
+
+	D3D11_RECT ScissorRects[2] =
+	{
+		{ StereoViewports[0].TopLeftX, StereoViewports[0].TopLeftY, StereoViewports[0].TopLeftX + StereoViewports[0].Width, StereoViewports[0].TopLeftY + StereoViewports[0].Height },
+		{ StereoViewports[1].TopLeftX, StereoViewports[1].TopLeftY, StereoViewports[1].TopLeftX + StereoViewports[1].Width, StereoViewports[1].TopLeftY + StereoViewports[1].Height }
+	};
+
+	ValidateScissorRect(StereoViewports[0], ScissorRects[0]);
+	ValidateScissorRect(StereoViewports[1], ScissorRects[1]);
+
+	StateCache.SetViewports(2, StereoViewports);
+	// Set the scissor rect appropriately.
+	Direct3DDeviceIMContext->RSSetScissorRects(2, ScissorRects);
 }
 
 void FD3D11DynamicRHI::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 MinY,uint32 MaxX,uint32 MaxY)

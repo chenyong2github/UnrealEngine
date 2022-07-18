@@ -741,6 +741,36 @@ void FD3D12CommandContext::RHISetViewport(float MinX, float MinY, float MinZ, fl
 	}
 }
 
+void FD3D12CommandContext::RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ)
+{
+	// Set up both viewports
+	D3D12_VIEWPORT Viewports[2] = {0};
+
+	Viewports[0].TopLeftX = FMath::FloorToInt(LeftMinX);
+	Viewports[0].TopLeftY = FMath::FloorToInt(LeftMinY);
+	Viewports[0].Width = FMath::CeilToInt(LeftMaxX - LeftMinX);
+	Viewports[0].Height = FMath::CeilToInt(LeftMaxY - LeftMinY);
+	Viewports[0].MinDepth = MinZ;
+	Viewports[0].MaxDepth = MaxZ;
+
+	Viewports[1].TopLeftX = FMath::FloorToInt(RightMinX);
+	Viewports[1].TopLeftY = FMath::FloorToInt(RightMinY);
+	Viewports[1].Width = FMath::CeilToInt(RightMaxX - RightMinX);
+	Viewports[1].Height = FMath::CeilToInt(RightMaxY - RightMinY);
+	Viewports[1].MinDepth = MinZ;
+	Viewports[1].MaxDepth = MaxZ;
+
+	D3D12_RECT ScissorRects[2] =
+	{
+		{ Viewports[0].TopLeftX, Viewports[0].TopLeftY, Viewports[0].TopLeftX + Viewports[0].Width, Viewports[0].TopLeftY + Viewports[0].Height },
+		{ Viewports[1].TopLeftX, Viewports[1].TopLeftY, Viewports[1].TopLeftX + Viewports[1].Width, Viewports[1].TopLeftY + Viewports[1].Height }
+	};
+
+	StateCache.SetViewports(2, Viewports);
+	// Set the scissor rects appropriately.
+	StateCache.SetScissorRects(2, ScissorRects);
+}
+
 void FD3D12CommandContext::RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY)
 {
 	if (bEnable)

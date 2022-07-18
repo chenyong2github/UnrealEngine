@@ -159,8 +159,8 @@ public:
 		NeedReset,
 	};
 
-	VkViewport CurrentViewport;
-	VkRect2D CurrentScissor;
+	TArray<VkViewport, TInlineAllocator<2>> CurrentViewports;
+	TArray<VkRect2D, TInlineAllocator<2>> CurrentScissors;
 	uint32 CurrentStencilRef;
 	EState State;
 	uint8 bNeedsDynamicStateSet			: 1;

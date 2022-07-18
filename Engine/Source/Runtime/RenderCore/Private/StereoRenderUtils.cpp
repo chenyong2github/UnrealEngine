@@ -19,6 +19,7 @@ RENDERCORE_API FStereoShaderAspects::FStereoShaderAspects(EShaderPlatform Platfo
 	// Would be nice to use URendererSettings, but not accessible in RenderCore
 	static FShaderPlatformCachedIniValue<bool> CVarInstancedStereo(TEXT("vr.InstancedStereo"));
 	static FShaderPlatformCachedIniValue<bool> CVarMobileMultiView(TEXT("vr.MobileMultiView"));
+	static FShaderPlatformCachedIniValue<bool> CVarMultiViewport(TEXT("vr.MultiViewport"));
 	static FShaderPlatformCachedIniValue<bool> CVarMobileHDR(TEXT("r.MobileHDR"));
 	
 	const bool bInstancedStereo = CVarInstancedStereo.Get(Platform);
@@ -26,6 +27,7 @@ RENDERCORE_API FStereoShaderAspects::FStereoShaderAspects(EShaderPlatform Platfo
 	const bool bMobilePlatform = IsMobilePlatform(Platform);
 	const bool bMobilePostprocessing = CVarMobileHDR.Get(Platform);
 	const bool bMobileMultiView = CVarMobileMultiView.Get(Platform);
+	const bool bMultiViewport = CVarMultiViewport.Get(Platform);
 	
 	bInstancedStereoNative = !bMobilePlatform && bInstancedStereo && RHISupportsInstancedStereo(Platform);
 	
@@ -43,7 +45,7 @@ RENDERCORE_API FStereoShaderAspects::FStereoShaderAspects(EShaderPlatform Platfo
 	}
 	
 	bInstancedStereoEnabled = bInstancedStereoNative || bMobileMultiViewFallback;
-	bInstancedMultiViewportEnabled = bInstancedStereoNative && RHISupportsMultiView(Platform);
+	bInstancedMultiViewportEnabled = bInstancedStereoNative && bMultiViewport && GRHISupportsArrayIndexFromAnyShader && RHISupportsMultiViewport(Platform);
 	bMobileMultiViewEnabled = bMobileMultiViewNative || bMobileMultiViewFallback;
 }
 	
