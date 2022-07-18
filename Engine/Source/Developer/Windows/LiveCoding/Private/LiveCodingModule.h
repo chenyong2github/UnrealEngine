@@ -49,6 +49,11 @@ public:
 
 private:
 	void AttemptSyncLivePatching();
+	static void OnDllNotification(unsigned int Reason, const void* DataPtr, void* Context);
+	void OnDllLoaded(const FString& FullPath);
+	void OnDllUnloaded(const FString& FullPath);
+	bool IsUEDll(const FString& FullPath);
+	bool IsPatchDll(const FString& FullPath);
 
 private:
 	ULiveCodingSettings* Settings;
@@ -63,9 +68,11 @@ private:
 	ELiveCodingCompileResult LastResults = ELiveCodingCompileResult::Success;
 	TSet<FName> ConfiguredModules;
 	TArray<void*> LppPendingTokens;
+	void* CallbackCookie = nullptr;
 
 	FText EnableErrorText;
 
+	const FString FullEngineDir;
 	const FString FullEnginePluginsDir;
 	const FString FullProjectDir;
 	const FString FullProjectPluginsDir;
@@ -77,6 +84,14 @@ private:
 	FDelegateHandle EndFrameDelegateHandle;
 	FDelegateHandle ModulesChangedDelegateHandle;
 	FOnPatchCompleteDelegate OnPatchCompleteDelegate;
+
+	struct ModuleChange
+	{
+		FName FullName;
+		bool bLoaded;
+	};
+	FCriticalSection ModuleChangeCs;
+	TArray<ModuleChange> ModuleChanges;
 
 #if WITH_EDITOR
 	TUniquePtr<FReload> Reload;
@@ -90,7 +105,7 @@ private:
 
 	void UpdateModules();
 
-	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
+	bool ShouldPreloadModule(const FString& FullFilePath) const;
 
 	bool IsReinstancingEnabled() const;
 
