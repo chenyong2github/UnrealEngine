@@ -580,7 +580,7 @@ namespace {
 				// Convert from latlong UV to spherical coordinates
 				FVector2D TileCornerSpherical = FVector2D(
 					FMath::DegreesToRadians(MeshRange.Y) * InUV.Y,
-					FMath::DegreesToRadians(MeshRange.X) * (1.0f - InUV.X));
+					FMath::DegreesToRadians(MeshRange.X) * InUV.X);
 				FVector CornersWS = TileCornerSpherical.SphericalToUnitCartesian() * DefaultSphereRadius;
 				return MeshTransform.TransformPosition(CornersWS);
 			};
