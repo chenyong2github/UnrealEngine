@@ -4880,17 +4880,17 @@ bool UActorChannel::WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FRepli
 
     SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
 
-    if (RepFlags.bUseCustomSubobjectReplication)
-	{
-		return ReplicateSubobjectCustom(Obj, Bunch, RepFlags);
-	}
-
 #if SUBOBJECT_TRANSITION_VALIDATION
 	if (DataChannelInternal::bTrackReplicatedSubObjects)
 	{
 		DataChannelInternal::ReplicatedSubObjectsTracker.Emplace(DataChannelInternal::FSubObjectReplicatedInfo(Obj));
 	}
 #endif
+
+    if (RepFlags.bUseCustomSubobjectReplication)
+	{
+		return ReplicateSubobjectCustom(Obj, Bunch, RepFlags);
+	}
 
 	bool bFoundInvalidReplicator = false;
 	TSharedRef<FObjectReplicator>* FoundReplicator = FindReplicator(Obj, &bFoundInvalidReplicator);
