@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Hierarchy/SReadOnlyHierarchyView.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 #include "Types/MVVMBindingSource.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SMenuAnchor.h"
 
 namespace UE::MVVM
 {
@@ -23,29 +25,43 @@ public:
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
+		SLATE_ARGUMENT_DEFAULT(bool, ShowClear) = true;
+		SLATE_ARGUMENT_DEFAULT(bool, AutoRefresh) = false;
+		SLATE_ARGUMENT_DEFAULT(bool, ViewModels) = false;
 		SLATE_ATTRIBUTE(FBindingSource, SelectedSource)
-		SLATE_ATTRIBUTE(TArray<FBindingSource>, AvailableSources)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint);
 	void Refresh();
 
 private:
-	void OnComboBoxSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType);
+	void OnViewModelSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType);
+	void OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType);
+	TSharedRef<SWidget> OnGetMenuContent();
 
 	EVisibility GetClearVisibility() const;
 	FReply OnClearSource();
 
 private:
-	FSelectionChanged OnSelectionChanged;
+	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
+	FSelectionChanged OnSelectionChangedDelegate;
+	const FTextBlockStyle* TextStyle = nullptr;
+
 	TAttribute<TArray<FBindingSource>> AvailableSourcesAttribute;
 	TAttribute<FBindingSource> SelectedSourceAttribute;
-	TSharedPtr<SComboBox<FBindingSource>> SourceComboBox;
-	TArray<FBindingSource> AvailableSources;
+
+	TArray<FBindingSource> ViewModelSources;
 	FBindingSource SelectedSource;
+
+	TSharedPtr<SMenuAnchor> MenuAnchor;
+	TSharedPtr<SListView<FBindingSource>> ViewModelList;
+	TSharedPtr<SReadOnlyHierarchyView> WidgetHierarchy;
 	TSharedPtr<SSourceEntry> SelectedSourceWidget;
-	const FTextBlockStyle* TextStyle = nullptr;
+
+	bool bAutoRefresh = false;
+	bool bViewModels = false;
+	bool bShowClear = true;
 };
 
 } // namespace UE::MVVM
