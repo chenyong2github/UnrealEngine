@@ -156,7 +156,7 @@ namespace Horde.Build.Jobs
 	}
 
 	/// <summary>
-	/// Systemic error codes for a job failing
+	/// Systemic error codes for a job step failing
 	/// </summary>
 	public enum JobStepError
 	{
@@ -173,7 +173,12 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Step is in is paused state so was skipped
 		/// </summary>
-		Paused
+		Paused,
+
+		/// <summary>
+		/// Step did not complete because the batch exited
+		/// </summary>
+		Incomplete
 	}
 
 	/// <summary>
