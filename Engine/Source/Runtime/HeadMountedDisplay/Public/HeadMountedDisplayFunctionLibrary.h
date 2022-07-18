@@ -380,6 +380,18 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
 	static FVector2D GetPlayAreaBounds(TEnumAsByte<EHMDTrackingOrigin::Type> Origin = EHMDTrackingOrigin::Stage);
 
+	/**
+	 * Get the transform of the specified tracking origin, if available.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static bool GetTrackingOriginTransform(TEnumAsByte<EHMDTrackingOrigin::Type> Origin, FTransform& OutTransform);
+
+	/**
+	 * Get the transform and dimensions of the playable area rectangle.  Returns false if none currently specified/available.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
+	static bool GetPlayAreaRect(FTransform& OutTransform, FVector2D& OutRect);
+
 	/** Breaks an XR key apart into the interaction profile, handedness, motion source, indentifier and component. */
 	UFUNCTION(BlueprintPure, Category = "Input|XRTracking", meta = (NativeBreakFunc))
 	static void BreakKey(FKey InKey, FString& InteractionProfile, EControllerHand& Hand, FName& MotionSource, FString& Indentifier, FString& Component);

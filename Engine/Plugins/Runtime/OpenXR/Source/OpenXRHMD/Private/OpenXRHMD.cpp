@@ -366,6 +366,104 @@ FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 	return ToFVector2D(Bounds, WorldToMetersScale);
 }
 
+bool FOpenXRHMD::GetPlayAreaRect(FTransform& OutTransform, FVector2D& OutRect) const
+{
+	// Get the origin and the extents of the play area rect.
+	// The OpenXR Stage Space defines the origin of the playable rectangle.  The origin is at the floor. xrGetReferenceSpaceBoundsRect will give you the horizontal extents.
+
+	const FPipelinedFrameState& PipelinedState = GetPipelinedFrameStateForThread();
+
+	{
+		if (StageSpace == XR_NULL_HANDLE)
+		{
+			return false;
+		}
+
+		XrSpaceLocation NewLocation = { XR_TYPE_SPACE_LOCATION };
+		const XrResult Result = xrLocateSpace(StageSpace, PipelinedState.TrackingSpace->Handle, PipelinedState.FrameState.predictedDisplayTime, &NewLocation);
+		if (Result != XR_SUCCESS)
+		{
+			return false;
+		}
+
+		if (!(NewLocation.locationFlags & (XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)))
+		{
+			return false;
+		}
+		const FQuat Orientation = ToFQuat(NewLocation.pose.orientation);
+		const FVector Position = ToFVector(NewLocation.pose.position, PipelinedState.WorldToMetersScale);
+
+		FTransform TrackingToWorld = GetTrackingToWorldTransform();
+		OutTransform = FTransform(Orientation, Position) * TrackingToWorld;
+	}
+
+	{
+		XrExtent2Df Bounds; // width is X height is Z
+		const XrResult Result = xrGetReferenceSpaceBoundsRect(Session, XR_REFERENCE_SPACE_TYPE_STAGE, &Bounds);
+		if (Result != XR_SUCCESS)
+		{
+			return false;
+		}
+
+		OutRect = ToFVector2D(Bounds, PipelinedState.WorldToMetersScale);
+	}
+
+	return true;
+}
+
+bool FOpenXRHMD::GetTrackingOriginTransform(TEnumAsByte<EHMDTrackingOrigin::Type> Origin, FTransform& OutTransform)  const
+{
+	XrSpace Space = XR_NULL_HANDLE;
+	switch (Origin)
+	{
+	case EHMDTrackingOrigin::Eye:
+		if (DeviceSpaces.Num())
+		{
+			Space = DeviceSpaces[HMDDeviceId].Space;
+		}
+		break;
+	case EHMDTrackingOrigin::Floor:
+		Space = LocalSpace;
+		break;
+	case EHMDTrackingOrigin::Stage:
+		Space = StageSpace;
+		break;
+	//case EHMDTrackingOrigin::???:
+		//Space = CustomSpace
+		//break;
+	default:
+		check(false);
+		break;
+	}
+
+	if (Space == XR_NULL_HANDLE)
+	{
+		// This space is not supported.
+		return false;
+	}
+
+	const FPipelinedFrameState& PipelinedState = GetPipelinedFrameStateForThread();
+
+	XrSpaceLocation NewLocation = { XR_TYPE_SPACE_LOCATION };
+	const XrResult Result = xrLocateSpace(Space, PipelinedState.TrackingSpace->Handle, PipelinedState.FrameState.predictedDisplayTime, &NewLocation);
+	if (Result != XR_SUCCESS)
+	{
+		return false;
+	}
+	if (!(NewLocation.locationFlags & (XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)))
+	{
+		return false;
+	}
+	const FQuat Orientation = ToFQuat(NewLocation.pose.orientation);
+	const FVector Position = ToFVector(NewLocation.pose.position, PipelinedState.WorldToMetersScale);
+
+	FTransform TrackingToWorld = GetTrackingToWorldTransform();
+	OutTransform =  FTransform(Orientation, Position) * TrackingToWorld;
+
+	return true;
+}
+
+
 FName FOpenXRHMD::GetHMDName() const
 {
 	return SystemProperties.systemName;
@@ -2377,6 +2475,12 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				BasePosition = FVector::ZeroVector;
 				bTrackingSpaceInvalid = true;
 			}
+
+			if (SpaceChange.referenceSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE)
+			{
+				OnPlayAreaChanged();
+			}
+
 			break;
 		}
 		case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:

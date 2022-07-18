@@ -13,6 +13,7 @@
 
 // Tracking system delegates
 FXRTrackingSystemDelegates::FXRTrackingOriginChanged FXRTrackingSystemDelegates::OnXRTrackingOriginChanged;
+FXRTrackingSystemDelegates::FXRPlayAreaChanged FXRTrackingSystemDelegates::OnXRPlayAreaChanged;
 
 
 

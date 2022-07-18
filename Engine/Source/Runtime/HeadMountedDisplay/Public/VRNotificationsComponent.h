@@ -8,6 +8,8 @@
 #include "Components/ActorComponent.h"
 #include "VRNotificationsComponent.generated.h"
 
+class IXRTrackingSystem;
+
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = HeadMountedDisplay)
 class HEADMOUNTEDDISPLAY_API UVRNotificationsComponent : public UActorComponent
 {
@@ -57,6 +59,14 @@ class HEADMOUNTEDDISPLAY_API UVRNotificationsComponent : public UActorComponent
 	UPROPERTY(BlueprintAssignable)
 	FVRNotificationsDelegate VRControllerRecenteredDelegate;
 
+	// This will be called when the VR system recenters a controller.  
+	UPROPERTY(BlueprintAssignable)
+	FVRNotificationsDelegate XRTrackingOriginChangedDelegate;
+
+	// This will be called when the VR system recenters a controller.  
+	UPROPERTY(BlueprintAssignable)
+	FVRNotificationsDelegate XRPlayAreaChangedDelegate;
+
 public:
 	void OnRegister() override;
 	void OnUnregister() override;
@@ -65,13 +75,15 @@ private:
 	/** Native handlers that get registered with the actual FCoreDelegates, and then proceed to broadcast to the delegates above */
 	void HMDTrackingInitializingAndNeedsHMDToBeTrackedDelegate_Handler()	{ HMDTrackingInitializingAndNeedsHMDToBeTrackedDelegate.Broadcast(); }
 	void HMDTrackingInitializedDelegate_Handler()	{ HMDTrackingInitializedDelegate.Broadcast(); }
-	void HMDRecenteredDelegate_Handler()	{ HMDRecenteredDelegate.Broadcast(); }
-	void HMDLostDelegate_Handler()			{ HMDLostDelegate.Broadcast(); }
-	void HMDReconnectedDelegate_Handler()	{ HMDReconnectedDelegate.Broadcast(); }
-	void HMDConnectCanceledDelegate_Handler() { HMDConnectCanceledDelegate.Broadcast(); }
-	void HMDPutOnHeadDelegate_Handler() { HMDPutOnHeadDelegate.Broadcast(); }
-	void HMDRemovedFromHeadDelegate_Handler() { HMDRemovedFromHeadDelegate.Broadcast(); }
-	void VRControllerRecentered_Handler() { VRControllerRecenteredDelegate.Broadcast(); }
+	void HMDRecenteredDelegate_Handler()		{ HMDRecenteredDelegate.Broadcast(); }
+	void HMDLostDelegate_Handler()				{ HMDLostDelegate.Broadcast(); }
+	void HMDReconnectedDelegate_Handler()		{ HMDReconnectedDelegate.Broadcast(); }
+	void HMDConnectCanceledDelegate_Handler()	{ HMDConnectCanceledDelegate.Broadcast(); }
+	void HMDPutOnHeadDelegate_Handler()			{ HMDPutOnHeadDelegate.Broadcast(); }
+	void HMDRemovedFromHeadDelegate_Handler()	{ HMDRemovedFromHeadDelegate.Broadcast(); }
+	void VRControllerRecentered_Handler()		{ VRControllerRecenteredDelegate.Broadcast(); }
+	void XRTrackingOriginChanged_Handler(const IXRTrackingSystem* TrackingSys)		{ XRTrackingOriginChangedDelegate.Broadcast(); }
+	void XRPlayAreaChanged_Handler()			{ XRPlayAreaChangedDelegate.Broadcast(); }
 };
 
 

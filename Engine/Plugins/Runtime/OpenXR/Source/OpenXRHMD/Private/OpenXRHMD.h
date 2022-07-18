@@ -207,6 +207,8 @@ public:
 	virtual float GetWorldToMetersScale() const override;
 
 	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
+	virtual bool GetPlayAreaRect(FTransform& OutTransform, FVector2D& OutExtent) const override;
+	virtual bool GetTrackingOriginTransform(TEnumAsByte<EHMDTrackingOrigin::Type> Origin, FTransform& OutTransform)  const override;
 
 	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) override;
 
