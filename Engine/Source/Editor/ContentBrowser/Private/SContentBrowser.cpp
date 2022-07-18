@@ -869,6 +869,8 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 	FilterComboButton->AddMetadata(FilterComboButtonMetaData.ToSharedRef());
 	FilterComboButton->SetVisibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed);
 
+	AssetViewPtr->SetFilterBar(FilterListPtr);
+
 	SearchBoxPtr = SNew(SAssetSearchBox)
 							.HintText(this, &SContentBrowser::GetSearchAssetsHintText)
 							.ShowSearchHistory(true)

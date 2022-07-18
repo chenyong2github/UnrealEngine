@@ -36,6 +36,7 @@ class UFactory;
 struct FPropertyChangedEvent;
 struct FToolMenuContext;
 class SContentBrowser;
+class SFilterList;
 
 /** Fires whenever the asset view is asked to start to create a temporary item */
 DECLARE_DELEGATE_OneParam(FOnAssetViewNewItemRequested, const FContentBrowserItem& /*NewItem*/);
@@ -378,6 +379,9 @@ public:
 
 	/** Gets text name for given thumbnail */
 	static FText ThumbnailSizeToDisplayName(EThumbnailSize InSize);
+
+	/** Set the filter list attached to this asset view - allows toggling of the the filter bar layout from the view options */
+	void SetFilterBar(TSharedPtr<SFilterList> InFilterBar);
 
 private:
 
@@ -851,6 +855,9 @@ private:
 
 	/** The content browser that created this asset view if any */
 	TWeakPtr<SContentBrowser> OwningContentBrowser;
+
+	/** The Filter Bar attached to this asset view if any */
+	TWeakPtr<SFilterList> FilterBar;
 
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;

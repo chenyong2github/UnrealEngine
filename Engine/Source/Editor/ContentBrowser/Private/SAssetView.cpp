@@ -59,6 +59,7 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataLegacyBridge.h"
 #include "ContentBrowserDataDragDropOp.h"
+#include "SFilterList.h"
 #include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
@@ -2458,6 +2459,47 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			);
 	}
 
+	if(TSharedPtr<SFilterList> FilterBarPinned = FilterBar.Pin())
+	{
+		FToolMenuSection& Section = Menu->AddSection("FilterBar", LOCTEXT("FilterBarHeading", "Filter Display"));
+
+		Section.AddMenuEntry(
+		"VerticalLayout",
+		LOCTEXT("FilterListVerticalLayout", "Vertical"),
+		LOCTEXT("FilterListVerticalLayoutToolTip", "Swap to a vertical layout for the filter bar"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([FilterBarPinned]()
+			{
+				if(FilterBarPinned->GetFilterLayout() != EFilterBarLayout::Vertical)
+				{
+					FilterBarPinned->SetFilterLayout(EFilterBarLayout::Vertical);
+				}
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([FilterBarPinned]() { return FilterBarPinned->GetFilterLayout() == EFilterBarLayout::Vertical; })),
+		EUserInterfaceActionType::RadioButton
+	);
+
+		Section.AddMenuEntry(
+			"HorizontalLayout",
+			LOCTEXT("FilterListHorizontalLayout", "Horizontal"),
+			LOCTEXT("FilterListHorizontalLayoutToolTip", "Swap to a Horizontal layout for the filter bar"),
+			FSlateIcon(),
+			FUIAction(
+			FExecuteAction::CreateLambda([FilterBarPinned]()
+				{
+					if(FilterBarPinned->GetFilterLayout() != EFilterBarLayout::Horizontal)
+					{
+						FilterBarPinned->SetFilterLayout(EFilterBarLayout::Horizontal);
+					}
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([FilterBarPinned]() { return FilterBarPinned->GetFilterLayout() == EFilterBarLayout::Horizontal; })),
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+
 	{
 		FToolMenuSection& Section = Menu->AddSection("View", LOCTEXT("ViewHeading", "View"));
 
@@ -4604,6 +4646,11 @@ void SAssetView::HandleItemDataDiscoveryComplete()
 		// If we have a sort pending, then force this to happen next frame now that discovery has finished
 		LastSortTime = 0;
 	}
+}
+
+void SAssetView::SetFilterBar(TSharedPtr<SFilterList> InFilterBar)
+{
+	FilterBar = InFilterBar;
 }
 
 #undef checkAssetList

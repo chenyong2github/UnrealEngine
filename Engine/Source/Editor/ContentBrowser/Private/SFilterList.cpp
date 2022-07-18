@@ -306,47 +306,6 @@ bool IsFilteredByPicker(const TArray<UClass*>& FilterClassList, UClass* TestClas
 	return true;
 }
 
-void SFilterList::PopulateFilterDisplayMenu(UToolMenu* Menu)
-{
-	FToolMenuSection& Section = Menu->AddSection("FilterListFilterDisplay", LOCTEXT("FilterDisplay", "Filter Display"));
-
-	Section.AddMenuEntry(
-		"VerticalLayout",
-		LOCTEXT("FilterListVerticalLayout", "Vertical"),
-		LOCTEXT("FilterListVerticalLayoutToolTip", "Swap to a vertical layout for the filter bar"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this]()
-			{
-				if(this->FilterBarLayout != EFilterBarLayout::Vertical)
-				{
-					this->SetFilterLayout(EFilterBarLayout::Vertical);
-				}
-			}),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this]() { return FilterBarLayout == EFilterBarLayout::Vertical; })),
-		EUserInterfaceActionType::RadioButton
-	);
-
-	Section.AddMenuEntry(
-		"HorizontalLayout",
-		LOCTEXT("FilterListHorizontalLayout", "Horizontal"),
-		LOCTEXT("FilterListHorizontalLayoutToolTip", "Swap to a Horizontal layout for the filter bar"),
-		FSlateIcon(),
-		FUIAction(
-		FExecuteAction::CreateLambda([this]()
-			{
-				if(this->FilterBarLayout != EFilterBarLayout::Horizontal)
-				{
-					this->SetFilterLayout(EFilterBarLayout::Horizontal);
-				}
-			}),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([this]() { return FilterBarLayout == EFilterBarLayout::Horizontal; })),
-		EUserInterfaceActionType::RadioButton
-	);
-}
-
 void SFilterList::PopulateAddFilterMenu_Internal(UToolMenu* Menu)
 {
 	EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic;
@@ -360,8 +319,6 @@ void SFilterList::PopulateAddFilterMenu_Internal(UToolMenu* Menu)
 		return !IsFilteredByPicker(this->InitialClassFilters, TestClass);
 	}));
 	
-	PopulateFilterDisplayMenu(Menu);
-
 	Menu->AddSection("ContentBrowserFilterMiscAsset", LOCTEXT("MiscAssetsMenuHeading", "Misc Options") );
 }
 
@@ -760,10 +717,11 @@ void SFilterList::SetFilterLayout(EFilterBarLayout InFilterBarLayout)
 // FFilterListCustomTextFilter
 /////////////////////////////////////////
 
-
+/** Returns the system name for this filter */
 FString FFrontendFilter_CustomText::GetName() const
 {
-	return TEXT("FFrontendFilter_CustomText");
+	// Todo: Find some way to enforce this on all custom text filter interfaces
+	return FCustomTextFilter<FAssetFilterType>::GetFilterTypeName().ToString();
 }
 
 FText FFrontendFilter_CustomText::GetDisplayName() const

@@ -156,9 +156,6 @@ private:
 	/** Find the custom text filter corresponding to the specified state, and restore it's state to what is specified */
 	void RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState);
 	
-	/** Function to populate the options to change the filter layout */
-	void PopulateFilterDisplayMenu(UToolMenu* Menu);
-	
 private:
 
 	/** List of classes that our filters must match */
