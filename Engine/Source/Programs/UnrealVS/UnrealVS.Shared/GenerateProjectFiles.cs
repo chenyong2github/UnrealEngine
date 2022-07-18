@@ -150,7 +150,11 @@ namespace UnrealVS
 			if (UnrealVSPackage.Instance.IsUESolutionLoaded)
 			{
 				// We expect "GenerateProjectFiles.bat" to live in the same directory as the solution
-				return Path.Combine(Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath), "GenerateProjectFiles.bat");
+				string BatchPath = Path.Combine(Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath), "GenerateProjectFiles.bat");
+				if (File.Exists(BatchPath))
+				{
+					return BatchPath;
+				}
 			}
 			return null;
 		}
