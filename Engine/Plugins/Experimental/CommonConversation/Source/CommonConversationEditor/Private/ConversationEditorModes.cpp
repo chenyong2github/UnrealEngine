@@ -16,9 +16,8 @@ FConversationEditorApplicationMode_GraphView::FConversationEditorApplicationMode
 	ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FConversationDetailsSummoner(InConversationEditor)));
 	ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FConversationSearchSummoner(InConversationEditor)));
 	ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FConversationTreeEditorSummoner(InConversationEditor)));
-	//ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FBlackboardSummoner(InConversationEditor)));
 
-	TabLayout = FTabManager::NewLayout( "Standalone_ConversationEditor_GraphView_Layout_v2" )
+	TabLayout = FTabManager::NewLayout( "Standalone_ConversationEditor_GraphView_Layout_v4" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()

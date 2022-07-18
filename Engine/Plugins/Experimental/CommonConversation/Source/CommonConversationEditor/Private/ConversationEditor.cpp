@@ -245,14 +245,14 @@ void FConversationEditor::RestoreConversation()
 
 			if (UConversationGraph* ConversationGraph = Cast<UConversationGraph>(DocumentObject))
 			{
-				TSharedPtr<SDockTab> DocumentTab = DocumentManager->OpenDocument(Payload, FDocumentTracker::OpenNewDocument);
+				TSharedPtr<SDockTab> DocumentTab = DocumentManager->OpenDocument(Payload, FDocumentTracker::RestorePreviousDocument);
 
 				TSharedRef<SGraphEditor> GraphEditor = StaticCastSharedRef<SGraphEditor>(DocumentTab->GetContent());
 				GraphEditor->SetViewLocation(DocumentInfo.SavedViewOffset, DocumentInfo.SavedZoomAmount);
 			}
 			else
 			{
-				DocumentManager->OpenDocument(Payload, FDocumentTracker::OpenNewDocument);
+				DocumentManager->OpenDocument(Payload, FDocumentTracker::RestorePreviousDocument);
 			}
 		}
 	}
@@ -354,16 +354,6 @@ TSharedRef<SGraphEditor> FConversationEditor::CreateGraphEditorWidget(UEdGraph* 
 	if (!GraphEditorCommands.IsValid())
 	{
 		CreateCommandList();
-
-// 		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().RemoveExecutionPin,
-// 			FExecuteAction::CreateSP( this, &FConversationEditor::OnRemoveInputPin ),
-// 			FCanExecuteAction::CreateSP( this, &FConversationEditor::CanRemoveInputPin )
-// 			);
-// 
-// 		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().AddExecutionPin,
-// 			FExecuteAction::CreateSP( this, &FConversationEditor::OnAddInputPin ),
-// 			FCanExecuteAction::CreateSP( this, &FConversationEditor::CanAddInputPin )
-// 			);
 
 		// Debug actions
 		GraphEditorCommands->MapAction( FGraphEditorCommands::Get().AddBreakpoint,
