@@ -307,6 +307,18 @@ struct TAxisAlignedBox3
 		}
 	}
 
+	TAxisAlignedBox3(TArrayView<const TVector<RealType>> Pts) :
+		TAxisAlignedBox3(TAxisAlignedBox3<RealType>::Empty())
+	{
+		Contain(Pts);
+	}
+
+	TAxisAlignedBox3(const TArray<TVector<RealType>>& Pts) :
+		TAxisAlignedBox3(TAxisAlignedBox3<RealType>::Empty())
+	{
+		Contain(Pts);
+	}
+
 	bool operator==(const TAxisAlignedBox3<RealType>& Other) const
 	{
 		return Max == Other.Max && Min == Other.Min;
@@ -434,6 +446,22 @@ struct TAxisAlignedBox3
 		Max.X = Max.X > Other.Max.X ? Max.X : Other.Max.X;
 		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
 		Max.Z = Max.Z > Other.Max.Z ? Max.Z : Other.Max.Z;
+	}
+
+	void Contain(TArrayView<const TVector<RealType>> Pts)
+	{
+		for (const TVector<RealType>& Pt : Pts)
+		{
+			Contain(Pt);
+		}
+	}
+
+	void Contain(const TArray<TVector<RealType>>& Pts)
+	{
+		for (const TVector<RealType>& Pt : Pts)
+		{
+			Contain(Pt);
+		}
 	}
 
 	bool Contains(const TVector<RealType>& V) const
@@ -601,14 +629,12 @@ struct TAxisAlignedBox2
 	TAxisAlignedBox2(const TArray<TVector2<RealType>>& Pts) :
 		TAxisAlignedBox2(Empty())
 	{
-		*this = Empty();
 		Contain(Pts);
 	}
 
 	TAxisAlignedBox2(TArrayView<const TVector2<RealType>> Pts) :
 		TAxisAlignedBox2(Empty())
 	{
-		*this = Empty();
 		Contain(Pts);
 	}
 

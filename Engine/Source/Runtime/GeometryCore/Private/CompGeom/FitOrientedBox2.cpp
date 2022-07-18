@@ -16,7 +16,7 @@ namespace Geometry
 {
 
 template<typename RealType>
-TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVector2<RealType>(int32)> GetHullPt, EBox2FitCriteria FitMethod)
+TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVector2<RealType>(int32)> GetHullPt, TFunctionRef<RealType(RealType, RealType)> FitFn)
 {
 	// fallback to using the AABB in failure cases
 	auto ComputeFallback = [NumPts, &GetHullPt]
@@ -37,7 +37,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 	// Extreme Indices ordered as ymin, xmax, ymax, xmin
 	FIndex4i InitialExtreme(0, 0, 0, 0);
 
-	// Function to walk to the farthest point in a given direct
+	// Function to walk to the farthest point in a given direction
 	// For first pass, don't need looping or step count
 	auto FindExtremePtInitial = [NumPts, &GetHullPt](TVector2<RealType> BasisVec, int Start, RealType& OutExtremeVal)
 	{
@@ -64,7 +64,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 		return 0;
 	};
 
-	// Function to walk to the farthest point in a given direct, and report the point + number of steps taken to get there
+	// Function to walk to the farthest point in a given direction, and report the point + number of steps taken to get there
 	auto FindExtremePt = [NumPts, &GetHullPt](TVector2<RealType> BasisVec, int Start, RealType& OutExtremeVal, int32& OutSteps)
 	{
 		OutExtremeVal = BasisVec.Dot(GetHullPt(Start));
@@ -110,7 +110,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 	TVector2<RealType> ExtremesMax, ExtremesMin;
 	InitialExtreme.A = 0;
 	TVector2<RealType> Base = GetEdge(0);
-	if (!ensure(Base.Normalize()))
+	if (!ensure(Base.Normalize(0)))
 	{
 		return ComputeFallback(); // duplicate points -> not a valid hull, return the fallback bounds
 	}
@@ -120,17 +120,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 	InitialExtreme.D = FindExtremePtInitial(-Base, InitialExtreme.C, ExtremesMin.X); // Extreme left point
 	TAxisAlignedBox2<RealType> Range(-ExtremesMin, ExtremesMax);
 
-	using FEvalFn = TFunctionRef<RealType(const TAxisAlignedBox2<RealType>&)>;
-	FEvalFn EvalBox = FitMethod == EBox2FitCriteria::Area ?
-		FEvalFn([](const TAxisAlignedBox2<RealType>& Range) -> RealType
-			{
-				return Range.Area();
-			}) :
-		FEvalFn([](const TAxisAlignedBox2<RealType>& Range) -> RealType
-			{
-				return Range.Perimeter();
-			});
-	RealType BestScore = EvalBox(Range);
+	RealType BestScore = FitFn(Range.Width(), Range.Height());
 	TVector2<RealType> BestBase = Base;
 	TAxisAlignedBox2<RealType> BestRange = Range;
 
@@ -142,7 +132,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 	for (int32 Idx = 1; Idx < NumPts; ++Idx)
 	{
 		Base = GetEdge(Idx);
-		if (!ensure(Base.Normalize()))
+		if (!ensure(Base.Normalize(0)))
 		{
 			return ComputeFallback(); // duplicate points -> not a valid hull, return the fallback bounds
 		}
@@ -169,7 +159,7 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 		}
 		// Use the distances travelled in each direction to evaluate the bounding box for this edge
 		Range = TAxisAlignedBox2<RealType>(-ExtremesMin, ExtremesMax);
-		RealType Score = EvalBox(Range);
+		RealType Score = FitFn(Range.Width(), Range.Height());
 		if (Score < BestScore)
 		{
 			BestScore = Score;
@@ -184,9 +174,9 @@ TOrientedBox2<RealType> FitOrientedBox2ConvexHull(int32 NumPts, TFunctionRef<TVe
 	return ToRet;
 }
 
-// Compute the best fit box for a simple polygon. If the polygon is already known to be a convex hull, computes the bounds faster.
+// Compute the best fit box for a simple polygon.
 template <typename RealType>
-TOrientedBox2<RealType> FitOrientedBox2SimplePolygon(TArrayView<const TVector2<RealType>> Polygon, EBox2FitCriteria FitMethod)
+TOrientedBox2<RealType> FitOrientedBox2SimplePolygon(TArrayView<const TVector2<RealType>> Polygon, TFunctionRef<RealType(RealType, RealType)> FitFn)
 {
 	int32 Num = Polygon.Num();
 	if (!ensure(Num >= 3)) // fall back to an AABB if input has too few points to be a simple polygon
@@ -208,11 +198,11 @@ TOrientedBox2<RealType> FitOrientedBox2SimplePolygon(TArrayView<const TVector2<R
 	return FitOrientedBox2ConvexHull<RealType>(Indices.Num(), [&Indices, &Polygon](int32 Idx)
 		{
 			return Polygon[Indices[Idx]];
-		}, FitMethod);
+		}, FitFn);
 }
 
 template <typename RealType>
-TOrientedBox2<RealType> FitOrientedBox2Points(TArrayView<const TVector2<RealType>> Points, EBox2FitCriteria FitMethod)
+TOrientedBox2<RealType> FitOrientedBox2Points(TArrayView<const TVector2<RealType>> Points, TFunctionRef<RealType(RealType, RealType)> FitFn)
 {
 	if (Points.Num() < 2)
 	{
@@ -247,16 +237,16 @@ TOrientedBox2<RealType> FitOrientedBox2Points(TArrayView<const TVector2<RealType
 	return FitOrientedBox2ConvexHull<RealType>(Indices.Num(), [&Indices, &Points](int32 Idx)
 		{
 			return Points[Indices[Idx]];
-		}, FitMethod);
+		}, FitFn);
 }
 
 // explicit instantiations
-template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2Points<float>(TArrayView<const TVector2<float>> Points, EBox2FitCriteria FitMethod);
-template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2Points<double>(TArrayView<const TVector2<double>> Points, EBox2FitCriteria FitMethod);
-template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2SimplePolygon<float>(TArrayView<const TVector2<float>> Points, EBox2FitCriteria FitMethod);
-template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2SimplePolygon<double>(TArrayView<const TVector2<double>> Points, EBox2FitCriteria FitMethod);
-template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2ConvexHull<float>(int32 NumPts, TFunctionRef<TVector2<float>(int32)> GetHullPt, EBox2FitCriteria FitMethod);
-template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2ConvexHull<double>(int32 NumPts, TFunctionRef<TVector2<double>(int32)> GetHullPt, EBox2FitCriteria FitMethod);
+template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2Points<float>(TArrayView<const TVector2<float>> Points, TFunctionRef<float(float, float)> FitFn);
+template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2Points<double>(TArrayView<const TVector2<double>> Points, TFunctionRef<double(double, double)> FitFn);
+template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2SimplePolygon<float>(TArrayView<const TVector2<float>> Points, TFunctionRef<float(float, float)> FitFn);
+template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2SimplePolygon<double>(TArrayView<const TVector2<double>> Points, TFunctionRef<double(double, double)> FitFn);
+template TOrientedBox2<float> GEOMETRYCORE_API FitOrientedBox2ConvexHull<float>(int32 NumPts, TFunctionRef<TVector2<float>(int32)> GetHullPt, TFunctionRef<float(float, float)> FitFn);
+template TOrientedBox2<double> GEOMETRYCORE_API FitOrientedBox2ConvexHull<double>(int32 NumPts, TFunctionRef<TVector2<double>(int32)> GetHullPt, TFunctionRef<double(double, double)> FitFn);
 	
 }
 }

@@ -50,6 +50,10 @@ class GEOMETRYCORE_API TConvexHull3
 {
 public:
 
+	/// Whether neighbors for the hull triangles should be computed/saved.
+	/// If true, can call GetTriangleNeighbors() after Solve().
+	bool bSaveTriangleNeighbors = false;
+
 	/**
 	 * Generate convex hull as long as input is not degenerate
 	 * If input is degenerate, this will return false, and caller can call GetDimension()
@@ -119,6 +123,16 @@ public:
 	TArray<FIndex3i> const& GetTriangles() const
 	{
 		return Hull;
+	}
+
+	/**
+	 * Only valid if bSaveTriangleNeighbors was true when Solve() was called
+	 * @return Neighbors of each hull triangle, in edge order -- i.e., Nbr.A is the triangle across edge(Tri.A, Tri.B)
+	 */
+	TArray<FIndex3i> const& GetTriangleNeighbors() const
+	{
+		ensure(bSaveTriangleNeighbors && Hull.Num() == HullNeighbors.Num());
+		return HullNeighbors;
 	}
 
 	/** @return convex hull triangles by a move */
@@ -214,6 +228,8 @@ protected:
 
 	int NumHullPoints = 0;
 	TArray<FIndex3i> Hull;
+	// We can optionally also return the hull triangle adjacencies
+	TArray<FIndex3i> HullNeighbors;
 	
 };
 

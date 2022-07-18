@@ -758,6 +758,7 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
     std::vector<int> closedPolyline(mNumPoints);
     int numClosedPolyline = 0;
     int v = polylineStart;
+	bool bFoundEnd = false;
     for (auto& cp : closedPolyline)
     {
         cp = v;
@@ -765,10 +766,11 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
         v = polyline[v];
         if (v == polylineStart)
         {
+			bFoundEnd = true;
             break;
         }
     }
-	if (numClosedPolyline == closedPolyline.size()) // algorithm got stuck in a sub-loop and failed to find a boundary
+	if (!bFoundEnd) // algorithm got stuck in a sub-loop and failed to find a boundary
 	{
 		return;
 	}

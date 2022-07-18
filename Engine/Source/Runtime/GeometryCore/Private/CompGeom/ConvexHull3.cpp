@@ -588,7 +588,6 @@ struct FHullConnectivity
 
 		//ValidateConnectivity(Triangles, ToDelete);
 
-		TArray<FIndex3i> OldNbrs = TriNeighbors;
 
 		// do the deletions *last* so we don't invalidate tri indices in ToAdd
 		DeleteTriangles(Triangles, ToDelete);
@@ -615,7 +614,7 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealTyp
 		}
 		else if (Dimension == 2)
 		{
-			Plane = TPlane3<RealType>(InitialTet.Basis[1], InitialTet.Origin);
+			Plane = TPlane3<RealType>(InitialTet.Basis[2], InitialTet.Origin);
 		}
 		return false;
 	}
@@ -623,7 +622,7 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealTyp
 	// safety check; seems possible the InitialTet chosen points were actually coplanar, because it was constructed w/ inexact math
 	if (ExactPredicates::Orient3<RealType>(GetPointFunc(InitialTet.Extreme[0]), GetPointFunc(InitialTet.Extreme[1]), GetPointFunc(InitialTet.Extreme[2]), GetPointFunc(InitialTet.Extreme[3])) == 0)
 	{
-		Plane = TPlane3<RealType>(InitialTet.Basis[1], InitialTet.Origin);
+		Plane = TPlane3<RealType>(InitialTet.Basis[2], InitialTet.Origin);
 		Dimension = 2;
 		return false;
 	}
@@ -652,6 +651,11 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealTyp
 		}
 		NumHullPoints++;
 		Connectivity.UpdateHullWithNewPoint(Hull, GetPointFunc, Visible.A, Visible.B);
+	}
+
+	if (bSaveTriangleNeighbors)
+	{
+		HullNeighbors = MoveTemp(Connectivity.TriNeighbors);
 	}
 
 	return true;
