@@ -38,6 +38,8 @@ public:
 		{
 			GeomFileHash = GetSceneFileHash();
 			GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::bGSewMeshIfNeeded));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::GStitchingTolerance));
 		}
 		return GeomFileHash;
 	}
