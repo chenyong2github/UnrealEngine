@@ -391,7 +391,7 @@ namespace Audio
 		double AudioClockDelta;
 
 		/** What the previous master volume was. */
-		float PreviousMasterVolume;
+		float PreviousPrimaryVolume;
 
 		/** Timing data for audio thread. */
 		FAudioThreadTimingData AudioThreadTimingData;

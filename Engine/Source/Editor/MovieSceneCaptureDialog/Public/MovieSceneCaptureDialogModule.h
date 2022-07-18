@@ -125,7 +125,7 @@ private:
 	UWorld* CapturingFromWorld;
 
 	bool bScreenMessagesWereEnabled;
-	float TransientMasterVolume;
+	float TransientPrimaryVolume;
 	int32 BackedUpStreamingPoolSize;
 	int32 BackedUpUseFixedPoolSize;
 	int32 BackedUpTextureStreaming;

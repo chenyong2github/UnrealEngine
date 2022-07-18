@@ -74,14 +74,14 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 						{
 							if (GEngine && GEngine->GetMainAudioDevice())
 							{
-								GEngine->GetMainAudioDevice()->SetTransientMasterVolume(0.0f);
+								GEngine->GetMainAudioDevice()->SetTransientPrimaryVolume(0.0f);
 							}
 						}, TStatId());
 					}, TStatId(), NULL, ENamedThreads::GameThread);
 				}
 				else
 				{
-					AudioDevice->SetTransientMasterVolume(0.0f);
+					AudioDevice->SetTransientPrimaryVolume(0.0f);
 				}
 			}
 			else
@@ -169,14 +169,14 @@ void FAppEntry::Resume(bool bIsInterrupt)
 						{
 							if (GEngine && GEngine->GetMainAudioDevice())
 							{
-								GEngine->GetMainAudioDevice()->SetTransientMasterVolume(1.0f);
+								GEngine->GetMainAudioDevice()->SetTransientPrimaryVolume(1.0f);
 							}
 						}, TStatId());
 					}, TStatId(), NULL, ENamedThreads::GameThread);
 				}
 				else
 				{
-					AudioDevice->SetTransientMasterVolume(1.0f);
+					AudioDevice->SetTransientPrimaryVolume(1.0f);
 				}
 			}
 			else

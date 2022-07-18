@@ -976,7 +976,7 @@ float FWaveInstance::GetActualVolume() const
 		if (!ActiveSound->bIsPreviewSound)
 		{
 			check(ActiveSound->AudioDevice);
-			ActualVolume *= ActiveSound->AudioDevice->GetMasterVolume();
+			ActualVolume *= ActiveSound->AudioDevice->GetPrimaryVolume();
 		}
 	}
 

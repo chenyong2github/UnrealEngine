@@ -1885,11 +1885,20 @@ public:
 
 	bool AreStartupSoundsPreCached() const { return bStartupSoundsPreCached; }
 
-	float GetTransientMasterVolume() const { check(IsInAudioThread()); return TransientMasterVolume; }
-	void SetTransientMasterVolume(float TransientMasterVolume);
+	UE_DEPRECATED(5.1, "GetTransientMasterVolume has been deprecated. Please use GetTransientPrimaryVolume instead.")
+	float GetTransientMasterVolume() const { check(IsInAudioThread()); return TransientPrimaryVolume; }
+
+	UE_DEPRECATED(5.1, "SetTransientMasterVolume has been deprecated. Please use SetTransientPrimaryVolume instead.")
+	void SetTransientMasterVolume(float TransientPrimaryVolume);
+
+	UE_DEPRECATED(5.1, "GetMasterVolume has been deprecated. Please use GetPrimaryVolume instead.")
+	float GetMasterVolume() const { return PrimaryVolume; }
+
+	float GetTransientPrimaryVolume() const { check(IsInAudioThread()); return TransientPrimaryVolume; }
+	void SetTransientPrimaryVolume(float TransientPrimaryVolume);
 
 	/** Returns the volume that combines transient master volume and the FApp::GetVolumeMultiplier() value */
-	float GetMasterVolume() const { return MasterVolume; }
+	float GetPrimaryVolume() const { return PrimaryVolume; }
 
 	FSoundSource* GetSoundSource(FWaveInstance* WaveInstance) const;
 
@@ -2036,10 +2045,10 @@ private:
 	TEnumAsByte<enum EDebugState> DebugState;
 
 	/** transient master volume multiplier that can be modified at runtime without affecting user settings automatically reset to 1.0 on level change */
-	float TransientMasterVolume;
+	float TransientPrimaryVolume;
 
-	/** The master volume of the game combines the FApp::GetVolumeMultipler() value and the TransientMastervolume. */
-	float MasterVolume;
+	/** The master volume of the game combines the FApp::GetVolumeMultipler() value and the TransientPrimaryVolume. */
+	float PrimaryVolume;
 
 	/** Global dynamic pitch scale parameter */
 	FDynamicParameter GlobalPitchScale;

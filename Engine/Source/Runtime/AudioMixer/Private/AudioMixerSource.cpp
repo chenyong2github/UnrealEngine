@@ -1284,7 +1284,7 @@ namespace Audio
 		if (!AudioDevice->IsAudioDeviceMuted())
 		{
 			// 1. Apply device gain stage(s)
-			CurrentVolume = WaveInstance->ActiveSound->bIsPreviewSound ? 1.0f : AudioDevice->GetMasterVolume();
+			CurrentVolume = WaveInstance->ActiveSound->bIsPreviewSound ? 1.0f : AudioDevice->GetPrimaryVolume();
 			CurrentVolume *= AudioDevice->GetPlatformAudioHeadroom();
 
 			// 2. Apply instance gain stage(s)

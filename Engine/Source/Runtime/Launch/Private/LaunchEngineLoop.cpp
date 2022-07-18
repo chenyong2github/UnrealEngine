@@ -1543,10 +1543,10 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::StartOfEnginePreInit);
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInitPreStartupScreen");
 
-	// GLog is initialized lazily and its default master thread is the thread that initialized it.
+	// GLog is initialized lazily and its default primary thread is the thread that initialized it.
 	// This lazy initialization can happen during initialization of a DLL, which Windows does on a
-	// worker thread, which makes that worker thread the master thread. Make this the master thread
-	// until initialization is far enough along to try to start a dedicated master thread.
+	// worker thread, which makes that worker thread the primary thread. Make this the primary thread
+	// until initialization is far enough along to try to start a dedicated primary thread.
 	if (GLog)
 	{
 		GLog->SetCurrentThreadAsPrimaryThread();
@@ -1697,7 +1697,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// as soon as we determine whether GIsEditor == false
 	GLog->EnableBacklog(true);
 
-	// Try to start the dedicated master thread now that the command line is available.
+	// Try to start the dedicated primary thread now that the command line is available.
 	if (!FParse::Param(FCommandLine::Get(), TEXT("NoLogThread")))
 	{
 		GLog->TryStartDedicatedPrimaryThread();

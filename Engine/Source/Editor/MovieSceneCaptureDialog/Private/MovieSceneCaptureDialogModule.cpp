@@ -440,8 +440,8 @@ void FInEditorCapture::Start()
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
-		TransientMasterVolume = AudioDevice->GetTransientMasterVolume();
-		AudioDevice->SetTransientMasterVolume(0.0f);
+		TransientPrimaryVolume = AudioDevice->GetTransientPrimaryVolume();
+		AudioDevice->SetTransientPrimaryVolume(0.0f);
 	}
 
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
@@ -604,7 +604,7 @@ void FInEditorCapture::Shutdown()
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
 	if (AudioDevice)
 	{
-		AudioDevice->SetTransientMasterVolume(TransientMasterVolume);
+		AudioDevice->SetTransientPrimaryVolume(TransientPrimaryVolume);
 	}
 
 	CaptureObject->Close();

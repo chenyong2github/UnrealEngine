@@ -730,7 +730,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 		AudioDevice->Flush(PlayWorld);
 		AudioDevice->ResetInterpolation();
 		AudioDevice->OnEndPIE(false); // TODO: Should this have been bWasSimulatingInEditor?
-		AudioDevice->SetTransientMasterVolume(1.0f);
+		AudioDevice->SetTransientPrimaryVolume(1.0f);
 		// Reset solo audio
 		if (PlayInEditorSessionInfo.IsSet())
 		{
@@ -2516,7 +2516,7 @@ void UEditorEngine::ResetPIEAudioSetting(UWorld *CurrentPieWorld)
 	{
 		if (FAudioDevice* AudioDevice = CurrentPieWorld->GetAudioDeviceRaw())
 		{
-			AudioDevice->SetTransientMasterVolume(0.0f);
+			AudioDevice->SetTransientPrimaryVolume(0.0f);
 		}
 	}
 }
@@ -3017,7 +3017,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		{
 			if (FAudioDeviceHandle GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
 			{
-				GameInstanceAudioDevice->SetTransientMasterVolume(0.0f);
+				GameInstanceAudioDevice->SetTransientPrimaryVolume(0.0f);
 			}
 		}
 		if (InParams.EditorPlaySettings->SoloAudioInFirstPIEClient)

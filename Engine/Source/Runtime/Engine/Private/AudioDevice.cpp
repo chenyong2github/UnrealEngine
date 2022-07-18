@@ -301,8 +301,8 @@ FAudioDevice::FAudioDevice()
 	, CurrentTick(0)
 	, TestAudioComponent(nullptr)
 	, DebugState(DEBUGSTATE_None)
-	, TransientMasterVolume(1.0f)
-	, MasterVolume(1.0f)
+	, TransientPrimaryVolume(1.0f)
+	, PrimaryVolume(1.0f)
 	, GlobalPitchScale(1.0f)
 	, LastUpdateTime(FPlatformTime::Seconds())
 	, NextResourceID(1)
@@ -4436,11 +4436,11 @@ void FAudioDevice::Update(bool bGameTicking)
 	bIsStoppingVoicesEnabled = !DisableStoppingVoicesCvar;
 
 	// Update the master volume
-	MasterVolume = GetTransientMasterVolume();
+	PrimaryVolume = GetTransientPrimaryVolume();
 	
 	if (!DisableAppVolumeCvar)
 	{
-		MasterVolume *= FApp::GetVolumeMultiplier();
+		PrimaryVolume *= FApp::GetVolumeMultiplier();
 	}
 
 	UpdateAudioPluginSettingsObjectCache();
@@ -6961,22 +6961,22 @@ bool FAudioDevice::CanUseVRAudioDevice()
 	}
 }
 
-void FAudioDevice::SetTransientMasterVolume(const float InTransientMasterVolume)
+void FAudioDevice::SetTransientPrimaryVolume(const float InTransientPrimaryVolume)
 {
 	if (!IsInAudioThread())
 	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetTransientMasterVolume"), STAT_SetTransientMasterVolume, STATGROUP_AudioThreadCommands);
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetTransientPrimaryVolume"), STAT_SetTransientPrimaryVolume, STATGROUP_AudioThreadCommands);
 
 		FAudioDevice* AudioDevice = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, InTransientMasterVolume]()
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, InTransientPrimaryVolume]()
 		{
-			AudioDevice->SetTransientMasterVolume(InTransientMasterVolume);
-		}, GET_STATID(STAT_SetTransientMasterVolume));
+			AudioDevice->SetTransientPrimaryVolume(InTransientPrimaryVolume);
+		}, GET_STATID(STAT_SetTransientPrimaryVolume));
 
 		return;
 	}
 
-	TransientMasterVolume = InTransientMasterVolume;
+	TransientPrimaryVolume = InTransientPrimaryVolume;
 }
 
 FSoundSource* FAudioDevice::GetSoundSource(FWaveInstance* WaveInstance) const

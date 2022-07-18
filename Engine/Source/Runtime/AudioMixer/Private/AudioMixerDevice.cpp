@@ -161,7 +161,7 @@ namespace Audio
 		: QuantizedEventClockManager(this)
 		, AudioMixerPlatform(InAudioMixerPlatform)
 		, AudioClockDelta(0.0)
-		, PreviousMasterVolume((float)INDEX_NONE)
+		, PreviousPrimaryVolume((float)INDEX_NONE)
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
 		, bDebugOutputEnabled(false)
@@ -636,11 +636,11 @@ namespace Audio
 			}
 
 			// Check if the background mute changed state and update the submixes which are enabled to do background muting.
-			const float CurrentMasterVolume = GetMasterVolume();
-			if (!FMath::IsNearlyEqual(PreviousMasterVolume, CurrentMasterVolume))
+			const float CurrentPrimaryVolume = GetPrimaryVolume();
+			if (!FMath::IsNearlyEqual(PreviousPrimaryVolume, CurrentPrimaryVolume))
 			{
-				PreviousMasterVolume = CurrentMasterVolume;
-				bool IsMuted = FMath::IsNearlyZero(CurrentMasterVolume);
+				PreviousPrimaryVolume = CurrentPrimaryVolume;
+				bool IsMuted = FMath::IsNearlyZero(CurrentPrimaryVolume);
 
 				for (TObjectIterator<USoundSubmix> It; It; ++It)
 				{

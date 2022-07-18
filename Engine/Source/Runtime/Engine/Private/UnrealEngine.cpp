@@ -14444,7 +14444,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		if (FAudioDevice* AudioDevice = WorldContext.World()->GetAudioDeviceRaw())
 		{
 			AudioDevice->Flush(WorldContext.World());
-			AudioDevice->SetTransientMasterVolume(1.0f);
+			AudioDevice->SetTransientPrimaryVolume(1.0f);
 		}
 
 		WorldContext.SetCurrentWorld(nullptr);
