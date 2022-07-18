@@ -202,7 +202,7 @@ public:
 	FVector2D ManualAnchor = FVector2D(0, 0);
 
 	/** Controls what side of the island bounding boxes are being aligned */
-	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Direction"))
+	UPROPERTY(EditAnywhere, Category = "Align", meta = (TransientToolProperty, DisplayName = "Alignment Direction"))
 	EUVEditorAlignDirection AlignDirection = EUVEditorAlignDirection::None;
 
 	/** Controls how alignment considers grouping selected objects with respect to the alignment behavior.*/

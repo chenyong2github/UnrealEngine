@@ -420,9 +420,9 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 		case EUVEditorAlignDirectionBackend::Right:
 			return FVector2f(PointTo.X - PointFrom.X, 0);
 		case EUVEditorAlignDirectionBackend::CenterVertically:
-			return FVector2f(0, PointTo.Y - PointFrom.Y);
+			return FVector2f(PointTo.X - PointFrom.X, 0);
 		case EUVEditorAlignDirectionBackend::CenterHorizontally:
-			return FVector2f(PointTo.X - PointFrom.X, 0);			
+			return FVector2f(0, PointTo.Y - PointFrom.Y);
 		default:
 			ensure(false);
 			return FVector2f(0, 0);
@@ -659,10 +659,10 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Right, -1.0f, false);
 			break;
 		case EUVEditorDistributeModeBackend::CentersVertically:
-			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::CenterVertically, 1.0f, false);
+			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::CenterVertically, 1.0f, false);
 			break;
 		case EUVEditorDistributeModeBackend::CentersHorizontally:
-			PerComponentTranslation = ComputeDistributeTranslations(true, EUVEditorAlignDirectionBackend::CenterHorizontally, 1.0f, false);
+			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::CenterHorizontally, 1.0f, false);
 			break;
 		case EUVEditorDistributeModeBackend::HorizontalSpace:
 			PerComponentTranslation = ComputeDistributeTranslations(false, EUVEditorAlignDirectionBackend::Left, 1.0f, true);
