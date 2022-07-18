@@ -44,7 +44,16 @@ public:
 	bool bSubdivideExisting = false;
 	FPolygroupsGenerator::EWeightingType WeightingType = FPolygroupsGenerator::EWeightingType::None;
 	FVector3d WeightingCoeffs = FVector3d::One();
+
+	bool bRespectUVSeams = false;
+	bool bRespectHardNormals = false;
+
+	double QuadMetricClamp = 1.0;
+	double QuadAdjacencyWeight = 1.0;
+	int QuadSearchRounds = 1;
+
 	int32 MinGroupSize = 2;
+
 	bool bCalculateNormals = false;
 
 	// input mesh
@@ -90,7 +99,21 @@ public:
 		case EConvertToPolygonsMode::FaceNormalDeviation:
 		{
 			double DotTolerance = 1.0 - FMathd::Cos(AngleTolerance * FMathd::DegToRad);
-			Generator.FindPolygroupsFromFaceNormals(DotTolerance);
+			Generator.FindPolygroupsFromFaceNormals(
+				DotTolerance,
+				bRespectUVSeams, 
+				bRespectHardNormals );
+			break;
+		}
+		case EConvertToPolygonsMode::FindPolygons:
+		{
+			Generator.FindSourceMeshPolygonPolygroups(
+				bRespectUVSeams, 
+				bRespectHardNormals, 
+				QuadMetricClamp, 
+				QuadAdjacencyWeight,
+				FMath::Clamp(QuadSearchRounds, 1, 100)
+			);
 			break;
 		}
 		case EConvertToPolygonsMode::FromFurthestPointSampling:
@@ -234,7 +257,12 @@ void UConvertToPolygonsTool::Setup()
 	Settings->WatchProperty(Settings->bNormalWeighted, [this](bool) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->NormalWeighting, [this](float) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->MinGroupSize, [this](int32) { OnSettingsModified(); });
-	
+	Settings->WatchProperty(Settings->QuadAdjacencyWeight, [this](float) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->QuadMetricClamp, [this](float) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->QuadSearchRounds, [this](int) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->bRespectUVSeams, [this](int) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->bRespectHardNormals, [this](int) { OnSettingsModified(); });
+
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Cluster triangles of the Mesh into PolyGroups using various strategies"),
@@ -251,6 +279,12 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.WeightingType = (Settings->bNormalWeighted) ? FPolygroupsGenerator::EWeightingType::NormalDeviation : FPolygroupsGenerator::EWeightingType::None;
 	ConvertToPolygonsOp.WeightingCoeffs = FVector3d(Settings->NormalWeighting, 1.0, 1.0);
 	ConvertToPolygonsOp.MinGroupSize = Settings->MinGroupSize;
+	ConvertToPolygonsOp.QuadMetricClamp = Settings->QuadMetricClamp;
+	ConvertToPolygonsOp.QuadAdjacencyWeight = Settings->QuadAdjacencyWeight;
+	ConvertToPolygonsOp.QuadSearchRounds = Settings->QuadSearchRounds;
+	ConvertToPolygonsOp.bRespectUVSeams = Settings->bRespectUVSeams;
+	ConvertToPolygonsOp.bRespectHardNormals = Settings->bRespectHardNormals;
+
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
 	
 	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);

@@ -56,7 +56,10 @@ public:
 	 * Find Polygroups by randomly picking initial seed triangles and then flood-filling outwards,
 	 * stopping when the opening angle at an edge is larger than the angle defined by the DotTolerance.
 	 */
-	bool FindPolygroupsFromFaceNormals(double DotTolerance = 0.0001);
+	bool FindPolygroupsFromFaceNormals(
+		double DotTolerance = 0.0001,
+		bool bRespectUVSeams = false,
+		bool bRespectNormalSeams = false);
 
 	/**
 	 * Find Polygroups based on UV Islands, ie each UV Island becomes a Polygroup
@@ -72,6 +75,17 @@ public:
 	 * Find Polygroups based on mesh connectivity, ie each connected-component becomes a Polygroup
 	 */
 	bool FindPolygroupsFromConnectedTris();
+
+	/**
+	* Find Polygroups by trying to invert triangluation of a polygon mesh
+	*/
+	bool FindSourceMeshPolygonPolygroups(
+		bool bRespectUVSeams = true,
+		bool bRespectNormalSeams = false,
+		double QuadAdjacencyWeight = 1.0,
+		double QuadMetricClamp = 1.0,
+		int MaxSearchRounds = 1
+	);
 
 	/**
 	 * Weight potions for algorithms below
@@ -117,6 +131,8 @@ public:
 protected:
 	void PostProcessPolygroups(bool bApplyMerging, TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; });
 	void OptimizePolygroups(TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int, int) { return true; });
+
+	void GetSeamConstraintEdges(bool bUVSeams, bool bNormalSeams, TSet<int32>& ConstraintEdgesOut) const;
 };
 
 
