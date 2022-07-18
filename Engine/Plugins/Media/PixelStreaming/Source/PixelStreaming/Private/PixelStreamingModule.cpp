@@ -370,11 +370,6 @@ namespace UE::PixelStreaming
 				UE_LOG(LogPixelStreaming, Warning, TEXT("PixelStreamingIP and PixelStreamingPort are deprecated flags. Use PixelStreamingURL instead. eg. -PixelStreamingURL=ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
 				SignallingServerURL = FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
 			}
-			else
-			{
-				SignallingServerURL = Settings::GetDefaultSignallingURL();
-				UE_LOG(LogPixelStreaming, Log, TEXT("-PixelStreamingURL was not specified on the command line, using the default connection url: %s"), *SignallingServerURL);
-			}
 		}
 
 		TSharedPtr<IPixelStreamingStreamer> Streamer = CreateStreamer(Settings::GetDefaultStreamerID());

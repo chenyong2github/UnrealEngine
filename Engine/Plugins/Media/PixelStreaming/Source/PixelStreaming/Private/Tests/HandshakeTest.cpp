@@ -4,7 +4,6 @@
 #include "Tests/AutomationCommon.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "PixelStreamingServers.h"
 #include "Streamer.h"
 #include "IPixelStreamingSignallingConnectionObserver.h"
 #include "PixelStreamingPrivate.h"
@@ -13,6 +12,8 @@
 #include "PixelStreamingVideoInputBackBuffer.h"
 #include "Utils.h"
 #include "Settings.h"
+#include "PixelStreamingServers.h"
+#include "GenericPlatform/GenericPlatformTime.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -37,15 +38,26 @@ namespace UE::PixelStreaming
 		{
 			FPixelStreamingSignallingConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
 			SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, *this, TEXT("FMockPlayer"));
+
+			UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
+				Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(true, ECVF_SetByCode);
+			});
 		}
 
-		virtual ~FMockPlayer() = default;
+		virtual ~FMockPlayer()
+		{
+			Disconnect();
+
+			UE::PixelStreaming::DoOnGameThread([]() {
+				Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(false, ECVF_SetByCode);
+			});
+		}
 
 		enum class EMode
 		{
 			Unknown,
 			AcceptOffers,
-			OfferToReceive,
+			CreateOffers,
 		};
 
 		void SetMode(EMode InMode) { Mode = InMode; }
@@ -53,6 +65,16 @@ namespace UE::PixelStreaming
 		void Connect(const FString& Url)
 		{
 			SignallingServerConnection->Connect(Url);
+		}
+
+		void Disconnect()
+		{
+			SignallingServerConnection->Disconnect();
+		}
+
+		bool IsSignallingConnected()
+		{
+			return SignallingServerConnection->IsConnected();
 		}
 
 		virtual void OnSignallingConnected() override
@@ -69,6 +91,7 @@ namespace UE::PixelStreaming
 
 		virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override
 		{
+
 			PeerConnection = FPixelStreamingPeerConnection::Create(Config);
 
 			PeerConnection->OnEmitIceCandidate.AddLambda([this](const webrtc::IceCandidateInterface* Candidate) {
@@ -80,12 +103,13 @@ namespace UE::PixelStreaming
 				if (NewState == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionConnected)
 				{
 					Completed = true;
+					OnConnectionEstablished.Broadcast();
 				}
 			});
 
 			//PeerConnection->SetVideoSink(new FMockVideoSink());
 
-			if (Mode == EMode::OfferToReceive)
+			if (Mode == EMode::CreateOffers)
 			{
 				PeerConnection->CreateOffer(
 					FPixelStreamingPeerConnection::EReceiveMediaOption::All,
@@ -112,7 +136,7 @@ namespace UE::PixelStreaming
 				};
 				PeerConnection->ReceiveOffer(Sdp, OnSuccess, OnFailure);
 			}
-			else if (Type == webrtc::SdpType::kAnswer && Mode == EMode::OfferToReceive)
+			else if (Type == webrtc::SdpType::kAnswer && Mode == EMode::CreateOffers)
 			{
 				const auto OnFailure = [](const FString& Error) {
 					// fail
@@ -132,136 +156,174 @@ namespace UE::PixelStreaming
 		virtual void OnSignallingPlayerCount(uint32 Count) override {}
 		virtual void OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override {}
 
+		DECLARE_MULTICAST_DELEGATE(FOnConnectionEstablished);
+		FOnConnectionEstablished OnConnectionEstablished;
+
 		EMode Mode = EMode::Unknown;
 		TUniquePtr<FPixelStreamingSignallingConnection> SignallingServerConnection;
 		TUniquePtr<FPixelStreamingPeerConnection> PeerConnection;
 		bool Completed = false;
 	};
 
-	class FHandshakeTest;
-
-	class FMockStreamRun : public FRunnable
+	TSharedPtr<FStreamer> CreateStreamer(int StreamerPort)
 	{
-	public:
-		FMockStreamRun(FHandshakeTest& InParentTest)
-			: ParentTest(InParentTest) {}
-		virtual ~FMockStreamRun() = default;
+		TSharedPtr<FStreamer> OutStreamer = FStreamer::Create("Mock Streamer");
+		OutStreamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+		OutStreamer->SetSignallingServerURL(FString::Printf(TEXT("ws://127.0.0.1:%d"), StreamerPort));
+		OutStreamer->StartStreaming();
+		return OutStreamer;
+	}
 
-		virtual bool Init() override
+	TSharedPtr<FMockPlayer> CreatePlayer(FMockPlayer::EMode OfferMode, int PlayerPort)
+	{
+		TSharedPtr<FMockPlayer> OutPlayer = MakeShared<FMockPlayer>();
+		OutPlayer->SetMode(OfferMode);
+		return OutPlayer;
+	}
+
+	TSharedPtr<UE::PixelStreamingServers::IServer> CreateSignallingServer(int StreamerPort, int PlayerPort)
+	{
+		// Make signalling server
+		TSharedPtr<UE::PixelStreamingServers::IServer> OutSignallingServer = UE::PixelStreamingServers::MakeSignallingServer();
+		UE::PixelStreamingServers::FLaunchArgs LaunchArgs;
+		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%d --HttpPort=%d"), StreamerPort, PlayerPort);
+		bool bLaunchedSignallingServer = OutSignallingServer->Launch(LaunchArgs);
+		if(!bLaunchedSignallingServer)
 		{
-			bRunning = true;
+			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to launch signalling server."));
+		}
+		UE_LOG(LogPixelStreaming, Log, TEXT("Signalling server launched=%s"), bLaunchedSignallingServer ? TEXT("true") : TEXT("false"));
+		return OutSignallingServer;
+	}
+
+	DEFINE_LATENT_AUTOMATION_COMMAND_TWO_PARAMETER(FWaitForICEConnectedOrTimeout, double, TimeoutSeconds, TSharedPtr<FMockPlayer>, OutPlayer);
+	bool FWaitForICEConnectedOrTimeout::Update()
+	{
+		// If no signalling we can early exit.
+		if(!OutPlayer->IsSignallingConnected())
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Early exiting waiting for ICE connected as player is not connected to signalling server."));
 			return true;
 		}
 
-		virtual void Stop() override
+		if (OutPlayer)
 		{
+			double DeltaTime = FPlatformTime::Seconds() - StartTime;
+			if(DeltaTime > TimeoutSeconds)
+			{
+				UE_LOG(LogPixelStreaming, Error, TEXT("Timed out waiting for RTC connection between streamer and player."));
+				return true;
+			}
+			return OutPlayer->Completed;
 		}
-
-		virtual void Exit() override
-		{
-		}
-
-		virtual uint32 Run() override;
-
-		FHandshakeTest& ParentTest;
-		bool bRunning = false;
-	};
-
-	class FHandshakeWaitCommand : public IAutomationLatentCommand
-	{
-	public:
-		FHandshakeWaitCommand(FHandshakeTest& ParentTest)
-		{
-			StreamRunnable = MakeUnique<FMockStreamRun>(ParentTest);
-			StreamThread = FRunnableThread::Create(StreamRunnable.Get(), TEXT("FMockStreamRun Thread"));
-		}
-
-		virtual ~FHandshakeWaitCommand()
-		{
-			StreamThread->Kill(true);
-		}
-
-		virtual bool Update() override
-		{
-			return !StreamRunnable->bRunning;
-		}
-
-		FRunnableThread* StreamThread = nullptr;
-		TUniquePtr<FMockStreamRun> StreamRunnable;
-	};
-
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHandshakeTest, "System.Plugins.PixelStreaming.Handshake", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::Disabled)
-	bool FHandshakeTest::RunTest(const FString& Parameters)
-	{
-		ADD_LATENT_AUTOMATION_COMMAND(FHandshakeWaitCommand(*this));
 		return true;
 	}
 
-	uint32 FMockStreamRun::Run()
+	DEFINE_LATENT_AUTOMATION_COMMAND_TWO_PARAMETER(FWaitForStreamerConnectedOrTimeout, double, TimeoutSeconds, TSharedPtr<FStreamer>, OutStreamer);
+	bool FWaitForStreamerConnectedOrTimeout::Update()
 	{
-		// if we want to actually check we receive frames we need to use VP8 for now
-		//UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
-		//	Settings::CVarPixelStreamingEncoderCodec->Set(TEXT("VP8"), ECVF_SetByCode);
-		//});
-
-		TSharedPtr<FStreamer> Streamer;
-		TUniquePtr<FMockPlayer> Player;
-
-		Streamer = FStreamer::Create("Mock Streamer");
-		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
-		Streamer->SetSignallingServerURL("ws://localhost:8888");
-		Streamer->StartStreaming();
-
-		FPlatformProcess::Sleep(2.0f);
-
-		Player = MakeUnique<FMockPlayer>();
-		Player->SetMode(FMockPlayer::EMode::AcceptOffers);
-		Player->Connect("ws://localhost");
-
-		FPlatformProcess::Sleep(3.0f);
-
-		if (!Player->Completed)
+		if(OutStreamer->IsSignallingConnected())
 		{
-			UE_LOG(PixelStreamingHandshakeLog, Error, TEXT("Failed Streamer Offer: ICE state did not change to connected."));
+			UE_LOG(LogPixelStreaming, Log, TEXT("Streamer connected to signalling server."));
+			return true;
 		}
 
-		Player = nullptr;
-		Streamer = nullptr;
-
-		FPlatformProcess::Sleep(5.0f);
-
-		UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, []() {
-			Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(true, ECVF_SetByCode);
-		});
-
-		Streamer = FStreamer::Create("Mock Streamer");
-		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
-		Streamer->SetSignallingServerURL("ws://localhost:8888");
-		Streamer->StartStreaming();
-
-		FPlatformProcess::Sleep(2.0f);
-
-		Player = MakeUnique<FMockPlayer>();
-		Player->SetMode(FMockPlayer::EMode::OfferToReceive);
-		Player->Connect("ws://localhost");
-
-		FPlatformProcess::Sleep(3.0f);
-
-		if (!Player->Completed)
+		double DeltaTime = FPlatformTime::Seconds() - StartTime;
+		if(DeltaTime > TimeoutSeconds)
 		{
-			UE_LOG(PixelStreamingHandshakeLog, Error, TEXT("Failed Player Offer: ICE state did not change to connected."));
+			UE_LOG(LogPixelStreaming, Error, TEXT("Timed out waiting for streamer to connect to signalling server."));
+			return true;
 		}
-
-		Player = nullptr;
-		Streamer = nullptr;
-
-		UE::PixelStreaming::DoOnGameThread([]() {
-			Settings::CVarPixelStreamingSuppressICECandidateErrors->Set(false, ECVF_SetByCode);
-		});
-
-		bRunning = false;
-		return 0;
+		return false;
 	}
+
+	DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FWaitForPlayerConnectedOrTimeout, double, TimeoutSeconds, TSharedPtr<FMockPlayer>, OutPlayer, int, PlayerPort);
+	bool FWaitForPlayerConnectedOrTimeout::Update()
+	{
+		if(OutPlayer->IsSignallingConnected())
+		{
+			UE_LOG(LogPixelStreaming, Log, TEXT("Player connected to signalling server."));
+			return true;
+		}
+		else
+		{
+			OutPlayer->Connect(FString::Printf(TEXT("ws://127.0.0.1:%d"), PlayerPort));
+		}
+
+		double DeltaTime = FPlatformTime::Seconds() - StartTime;
+		if(DeltaTime > TimeoutSeconds)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Timed out waiting for player to connect to signalling server."));
+			return true;
+		}
+		return false;
+	}
+
+	DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FCleanupAll, TSharedPtr<UE::PixelStreamingServers::IServer>, OutSignallingServer, TSharedPtr<FStreamer>, OutStreamer, TSharedPtr<FMockPlayer>, OutPlayer);
+	bool FCleanupAll::Update()
+	{
+		if(OutPlayer)
+		{
+			OutPlayer->Disconnect();
+			OutPlayer.Reset();
+		}
+
+		if(OutStreamer)
+		{
+			OutStreamer->StopStreaming();
+			OutStreamer.Reset();
+		}
+
+		if(OutSignallingServer)
+		{
+			OutSignallingServer->Stop();
+			OutSignallingServer.Reset();
+		}
+		return true;
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHandshakeTestStreamerOffer, "System.Plugins.PixelStreaming.HandshakeStreamerOffer", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+	bool FHandshakeTestStreamerOffer::RunTest(const FString& Parameters)
+	{
+		int32 StreamerPort = 8866;
+		int32 PlayerPort = 86;
+		TSharedPtr<UE::PixelStreamingServers::IServer> OutSignallingServer = CreateSignallingServer(StreamerPort, PlayerPort);
+		TSharedPtr<FStreamer> OutStreamer = CreateStreamer(StreamerPort);
+		TSharedPtr<FMockPlayer> OutPlayer = CreatePlayer(FMockPlayer::EMode::AcceptOffers, PlayerPort);
+
+		OutPlayer->OnConnectionEstablished.AddLambda([this, OutPlayer](){
+			TestTrue(TEXT("Expected streamer and peer to establish RTC connection when streamer offered first."), OutPlayer->Completed);
+		});
+
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForStreamerConnectedOrTimeout(5.0, OutStreamer))
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForPlayerConnectedOrTimeout(5.0, OutPlayer, PlayerPort))
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForICEConnectedOrTimeout(5.0, OutPlayer))
+		ADD_LATENT_AUTOMATION_COMMAND(FCleanupAll(OutSignallingServer, OutStreamer, OutPlayer))
+
+		return true;
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHandshakeTestPlayerOffer, "System.Plugins.PixelStreaming.HandshakePlayerOffer", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+	bool FHandshakeTestPlayerOffer::RunTest(const FString& Parameters)
+	{
+		int32 StreamerPort = 6446;
+		int32 PlayerPort = 68;
+		TSharedPtr<UE::PixelStreamingServers::IServer> OutSignallingServer = CreateSignallingServer(StreamerPort, PlayerPort);
+		TSharedPtr<FStreamer> OutStreamer = CreateStreamer(StreamerPort);
+		TSharedPtr<FMockPlayer> OutPlayer = CreatePlayer(FMockPlayer::EMode::CreateOffers, PlayerPort);
+
+		OutPlayer->OnConnectionEstablished.AddLambda([this, OutPlayer](){
+			TestTrue(TEXT("Expected streamer and peer to establish RTC connection when streamer offered first."), OutPlayer->Completed);
+		});
+		
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForStreamerConnectedOrTimeout(5.0, OutStreamer))
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForPlayerConnectedOrTimeout(5.0, OutPlayer, PlayerPort))
+		ADD_LATENT_AUTOMATION_COMMAND(FWaitForICEConnectedOrTimeout(5.0, OutPlayer))
+		ADD_LATENT_AUTOMATION_COMMAND(FCleanupAll(OutSignallingServer, OutStreamer, OutPlayer))
+
+		return true;
+	}
+
 } // namespace UE::PixelStreaming
 
 #endif // WITH_DEV_AUTOMATION_TESTS

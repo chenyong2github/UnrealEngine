@@ -53,11 +53,15 @@ void UPixelStreamingMediaOutput::StartStreaming()
 {
 	if (Streamer)
 	{
+		Streamer->SetSignallingServerURL(SignallingServerURL);
 		Streamer->SetVideoInput(Capture->GetVideoInput());
 		Streamer->SetTargetViewport(Capture->GetViewport().Get());
 		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
-		Streamer->SetSignallingServerURL(SignallingServerURL);
-		Streamer->StartStreaming();
+
+		if(!Streamer->IsStreaming())
+		{
+			Streamer->StartStreaming();
+		}
 	}
 }
 

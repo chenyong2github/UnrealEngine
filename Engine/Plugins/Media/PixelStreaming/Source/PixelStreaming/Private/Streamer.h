@@ -33,6 +33,7 @@ namespace UE::PixelStreaming
 
 		virtual void SetSignallingServerURL(const FString& InSignallingServerURL) override;
 		virtual FString GetSignallingServerURL() override;
+		virtual bool IsSignallingConnected() override;
 		virtual void StartStreaming() override;
 		virtual void StopStreaming() override;
 		virtual bool IsStreaming() const override { return bStreamingStarted; }

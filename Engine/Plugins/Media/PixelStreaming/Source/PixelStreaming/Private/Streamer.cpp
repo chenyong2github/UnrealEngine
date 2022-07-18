@@ -112,11 +112,16 @@ namespace UE::PixelStreaming
 		return CurrentSignallingServerURL;
 	}
 
+	bool FStreamer::IsSignallingConnected()
+	{
+		return SignallingServerConnection && SignallingServerConnection->IsConnected();
+	}
+
 	void FStreamer::StartStreaming()
 	{
 		if (CurrentSignallingServerURL.IsEmpty())
 		{
-			UE_LOG(LogPixelStreaming, Error, TEXT("Attempted to start streamer (%s) but no signalling server URL has been set. Use Streamer->SetSignallingServerURL(URL)"), *StreamerId);
+			UE_LOG(LogPixelStreaming, Error, TEXT("Attempted to start streamer (%s) but no signalling server URL has been set. Use Streamer->SetSignallingServerURL(URL) or -PixelStreamingURL="), *StreamerId);
 			return;
 		}
 

@@ -87,6 +87,11 @@ public:
 	virtual FString GetSignallingServerURL() = 0;
 
 	/**
+	 * @return True if the streamer is connected to the signalling mechanism (e.g. websocket for signalling server).
+	 */
+	virtual bool IsSignallingConnected() = 0;
+
+	/**
 	 * @brief Start streaming this streamer
 	 */
 	virtual void StartStreaming() = 0;

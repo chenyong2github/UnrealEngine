@@ -16,7 +16,8 @@ namespace UnrealBuildTool.Rules
 				"InputDevice",
 				"MediaIOCore",
 				"VCamCore",
-				"PixelStreaming"
+				"PixelStreaming",
+				"PixelStreamingServers"
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
@@ -25,6 +26,7 @@ namespace UnrealBuildTool.Rules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"Projects",
 				"UMG",
 				"RHI",
 				"CinematicCamera",

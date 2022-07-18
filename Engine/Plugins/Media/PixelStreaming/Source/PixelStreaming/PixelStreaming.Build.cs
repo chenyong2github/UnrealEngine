@@ -100,6 +100,7 @@ namespace UnrealBuildTool.Rules
 				"DeveloperSettings",
 				"AVEncoder",
 				"PixelStreamingShaders",
+				"PixelStreamingServers"
 			});
 
 			PrivateDependencyModuleNames.Add("VulkanRHI");

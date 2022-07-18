@@ -13,8 +13,8 @@
 #include "Serialization/MemoryReader.h"
 #include "VCamPixelStreamingSubsystem.h"
 #include "VCamPixelStreamingLiveLink.h"
+#include "PixelStreamingVCamLog.h"
 
-DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 namespace VCamPixelStreamingSession
 {
 	static const FName LevelEditorName(TEXT("LevelEditor"));
@@ -23,10 +23,6 @@ namespace VCamPixelStreamingSession
 
 void UVCamPixelStreamingSession::Initialize()
 {
-	if (!bInitialized && (MediaOutput == nullptr))
-	{
-		MediaOutput = NewObject<UPixelStreamingMediaOutput>(GetTransientPackage(), UPixelStreamingMediaOutput::StaticClass());
-	}
 	Super::Initialize();
 }
 
@@ -56,9 +52,14 @@ void UVCamPixelStreamingSession::Activate()
 
 	if (!bInitialized)
 	{
-		UE_LOG(LogVCamOutputProvider, Warning, TEXT("Trying to start Pixel Streaming, but has not been initialized yet"));
+		UE_LOG(LogPixelStreamingVCam, Warning, TEXT("Trying to start Pixel Streaming, but has not been initialized yet"));
 		SetActive(false);
 		return;
+	}
+
+	if (MediaOutput == nullptr)
+	{
+		MediaOutput = NewObject<UPixelStreamingMediaOutput>(GetTransientPackage(), UPixelStreamingMediaOutput::StaticClass());
 	}
 
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
@@ -71,15 +72,14 @@ void UVCamPixelStreamingSession::Activate()
 
 	if (StartSignallingServer)
 	{
-		CirrusProcess = UE::PixelStreaming::Servers::MakeSignallingServer();
-		UE::PixelStreaming::Servers::FLaunchArgs LaunchArgs;
-		LaunchArgs.bEphemeral = false;
-		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%s --HttpPort=%s"), *FString::FromInt(PortNumber), *FString::FromInt(HttpPort));
-		CirrusProcess->Launch(LaunchArgs);
+		if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+		{
+			PixelStreamingSubsystem->LaunchSignallingServer(PortNumber, HttpPort);
+		}
 	}
 
 	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *IP, *FString::FromInt(PortNumber)));
-	UE_LOG(LogVCamOutputProvider, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *IP, *FString::FromInt(PortNumber));
+	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *IP, *FString::FromInt(PortNumber));
 
 	MediaCapture = Cast<UPixelStreamingMediaCapture>(MediaOutput->CreateMediaCapture());
 
@@ -92,11 +92,11 @@ void UVCamPixelStreamingSession::Activate()
 		if (ComposureProvider->FinalOutputRenderTarget)
 		{
 			MediaCapture->CaptureTextureRenderTarget2D(ComposureProvider->FinalOutputRenderTarget, Options);
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("PixelStreaming set with ComposureRenderTarget"));
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with ComposureRenderTarget"));
 		}
 		else
 		{
-			UE_LOG(LogVCamOutputProvider, Warning, TEXT("PixelStreaming Composure usage was requested, but the specified ComposureOutputProvider has no FinalOutputRenderTarget set"));
+			UE_LOG(LogPixelStreamingVCam, Warning, TEXT("PixelStreaming Composure usage was requested, but the specified ComposureOutputProvider has no FinalOutputRenderTarget set"));
 		}
 	}
 	else
@@ -105,7 +105,7 @@ void UVCamPixelStreamingSession::Activate()
 		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
 		{
 			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("PixelStreaming set with viewport"));
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with viewport"));
 		}
 	}
 
@@ -122,7 +122,7 @@ void UVCamPixelStreamingSession::Activate()
 			static constexpr int ExpectedDataSize = 1 + (16 * 4) + 8;
 			if (Data.Num() != ExpectedDataSize)
 			{
-				UE_LOG(LogVCamOutputProvider, Warning, TEXT("ARKitTransform data received but with invalid size. Expects %d bytes but received %d"),
+				UE_LOG(LogPixelStreamingVCam, Warning, TEXT("ARKitTransform data received but with invalid size. Expects %d bytes but received %d"),
 					ExpectedDataSize,
 					Data.Num());
 
@@ -174,9 +174,9 @@ void UVCamPixelStreamingSession::Activate()
 
 void UVCamPixelStreamingSession::StopSignallingServer()
 {
-	if (CirrusProcess.IsValid())
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
 	{
-		CirrusProcess->Stop();
+		PixelStreamingSubsystem->StopSignallingServer();
 	}
 }
 
@@ -232,9 +232,17 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 		static FName NAME_IP = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, IP);
 		static FName NAME_PortNumber = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, PortNumber);
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
+		
 		if ((Property->GetFName() == NAME_IP) || (Property->GetFName() == NAME_PortNumber) || (Property->GetFName() == NAME_FromComposureOutputProviderIndex))
 		{
-			SetActive(!bIsActive);
+			SetActive(false);
+		}
+		else if(Property->GetFName() == FName(TEXT("bIsActive")))
+		{
+			if(bIsActive) {
+				// this is a hack to suppress double activation, livelink tick will activate it
+				return;
+			}
 		}
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);

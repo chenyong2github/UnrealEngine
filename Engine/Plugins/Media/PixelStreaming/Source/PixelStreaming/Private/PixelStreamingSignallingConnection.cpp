@@ -40,7 +40,7 @@ FPixelStreamingSignallingConnection::~FPixelStreamingSignallingConnection()
 	Disconnect();
 }
 
-void FPixelStreamingSignallingConnection::Connect(const FString& Url)
+void FPixelStreamingSignallingConnection::Connect(const FString& InUrl)
 {
 	// Already have a websocket connection, no need to make another one
 	if (WebSocket)
@@ -48,6 +48,7 @@ void FPixelStreamingSignallingConnection::Connect(const FString& Url)
 		return;
 	}
 
+	Url = InUrl;
 	WebSocket = WebSocketFactory(Url);
 	checkf(WebSocket, TEXT("Web Socket Factory failed to return a valid Web Socket."));
 
@@ -79,6 +80,7 @@ void FPixelStreamingSignallingConnection::Disconnect()
 
 	WebSocket->Close();
 	WebSocket = nullptr;
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Closing websocket to SS %s"), *Url);
 }
 
 bool FPixelStreamingSignallingConnection::IsConnected() const
@@ -97,7 +99,7 @@ void FPixelStreamingSignallingConnection::SendOffer(FPixelStreamingPlayerId Play
 	FString SdpStr = UE::PixelStreaming::ToString(SdpAnsi);
 	OfferJson->SetStringField(TEXT("sdp"), SdpStr);
 
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending offer to player id=%s"), *PlayerId);
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending player=%s \"offer\" to SS %s"), *PlayerId, *Url);
 	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("SDP offer\n%s"), *SdpStr);
 
 	SendMessage(UE::PixelStreaming::ToString(OfferJson, false));
@@ -110,14 +112,21 @@ void FPixelStreamingSignallingConnection::SendAnswer(FPixelStreamingPlayerId Pla
 	SetPlayerIdJson(AnswerJson, PlayerId);
 
 	std::string SdpAnsi;
-	verifyf(SDP.ToString(&SdpAnsi), TEXT("Failed to serialise local SDP"));
-	FString SdpStr = UE::PixelStreaming::ToString(SdpAnsi);
-	AnswerJson->SetStringField(TEXT("sdp"), SdpStr);
 
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending answer to player id=%s"), *PlayerId);
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("SDP answer\n%s"), *SdpStr);
+	if(SDP.ToString(&SdpAnsi))
+	{
+		FString SdpStr = UE::PixelStreaming::ToString(SdpAnsi);
+		AnswerJson->SetStringField(TEXT("sdp"), SdpStr);
 
-	SendMessage(UE::PixelStreaming::ToString(AnswerJson, false));
+		UE_LOG(LogPixelStreamingSS, Log, TEXT("Sending player=%s \"answer\" to SS %s"), *PlayerId, *Url);
+		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("SDP answer\n%s"), *SdpStr);
+
+		SendMessage(UE::PixelStreaming::ToString(AnswerJson, false));
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to serialise local SDP."));
+	}
 }
 
 void FPixelStreamingSignallingConnection::SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate)
@@ -132,15 +141,18 @@ void FPixelStreamingSignallingConnection::SendIceCandidate(FPixelStreamingPlayer
 	CandidateJson->SetNumberField(TEXT("sdpMLineIndex"), static_cast<double>(IceCandidate.sdp_mline_index()));
 
 	std::string CandidateAnsi;
-	verifyf(IceCandidate.ToString(&CandidateAnsi), TEXT("Failed to serialize IceCandidate"));
-	FString CandidateStr = UE::PixelStreaming::ToString(CandidateAnsi);
-	CandidateJson->SetStringField(TEXT("candidate"), CandidateStr);
-
-	IceCandidateJson->SetObjectField(TEXT("candidate"), CandidateJson);
-
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *UE::PixelStreaming::ToString(IceCandidateJson));
-
-	SendMessage(UE::PixelStreaming::ToString(IceCandidateJson, false));
+	if(IceCandidate.ToString(&CandidateAnsi))
+	{
+		FString CandidateStr = UE::PixelStreaming::ToString(CandidateAnsi);
+		CandidateJson->SetStringField(TEXT("candidate"), CandidateStr);
+		IceCandidateJson->SetObjectField(TEXT("candidate"), CandidateJson);
+		UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *UE::PixelStreaming::ToString(IceCandidateJson));
+		SendMessage(UE::PixelStreaming::ToString(IceCandidateJson, false));
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to serialize IceCandidate"));
+	}
 }
 
 void FPixelStreamingSignallingConnection::SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason)
@@ -152,7 +164,7 @@ void FPixelStreamingSignallingConnection::SendDisconnectPlayer(FPixelStreamingPl
 	Json->SetStringField(TEXT("reason"), Reason);
 
 	FString Msg = UE::PixelStreaming::ToString(Json, false);
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *Msg);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("Sending player=%s \"disconnectPlayer\" to SS %s"), *PlayerId, *Url);
 
 	SendMessage(Msg);
 }
@@ -216,7 +228,7 @@ void FPixelStreamingSignallingConnection::KeepAlive()
 
 void FPixelStreamingSignallingConnection::OnConnected()
 {
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connected to SS"));
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connected to SS %s"), *Url);
 
 	Observer.OnSignallingConnected();
 
@@ -231,7 +243,7 @@ void FPixelStreamingSignallingConnection::OnConnected()
 
 void FPixelStreamingSignallingConnection::OnConnectionError(const FString& Error)
 {
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Failed to connect to SS - signalling server may not be up yet. Message: \"%s\""), *Error);
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Failed to connect to SS %s - signalling server may not be up yet. Message: \"%s\""), *Url, *Error);
 
 	Observer.OnSignallingError(Error);
 
@@ -246,7 +258,7 @@ void FPixelStreamingSignallingConnection::OnConnectionError(const FString& Error
 
 void FPixelStreamingSignallingConnection::OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
-	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %s"), StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Closed connection to SS %s - \n\tstatus %d\n\treason: %s\n\twas clean: %s"), *Url, StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
 
 	Observer.OnSignallingDisconnected(StatusCode, Reason, bWasClean);
 
@@ -266,14 +278,14 @@ void FPixelStreamingSignallingConnection::OnMessage(const FString& Msg)
 
 	if (!FJsonSerializer::Deserialize(JsonReader, JsonMsg))
 	{
-		FatalError(TEXT("Failed to parse SS message:\n%s"), *Msg);
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to parse SS message:\n%s"), *Msg);
 		return;
 	}
 
 	FString MsgType;
 	if (!JsonMsg->TryGetStringField(TEXT("type"), MsgType))
 	{
-		FatalError(TEXT("Cannot find `type` field in SS message:\n%s"), *Msg);
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Cannot find `type` field in SS message:\n%s"), *Msg);
 		return;
 	}
 
@@ -284,7 +296,7 @@ void FPixelStreamingSignallingConnection::OnMessage(const FString& Msg)
 	}
 	else
 	{
-		FatalError(TEXT("Unsupported message `%s` received from SS"), *MsgType);
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Unsupported message `%s` received from SS"), *MsgType);
 	}
 }
 
@@ -315,7 +327,7 @@ void FPixelStreamingSignallingConnection::OnConfig(const FJsonObjectPtr& Json)
 	const TSharedPtr<FJsonObject>* PeerConnectionOptions = nullptr;
 	if (!Json->TryGetObjectField(TEXT("peerConnectionOptions"), PeerConnectionOptions))
 	{
-		FatalError(TEXT("Cannot find `peerConnectionOptions` field in SS config\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Cannot find `peerConnectionOptions` field in SS config\n%s"), *UE::PixelStreaming::ToString(Json));
 		return;
 	}
 
@@ -329,7 +341,8 @@ void FPixelStreamingSignallingConnection::OnConfig(const FJsonObjectPtr& Json)
 			const TSharedPtr<FJsonObject>* IceServerJson;
 			if (!IceServerVal->TryGetObject(IceServerJson))
 			{
-				FatalError(TEXT("Failed to parse SS config: `iceServer` - not an object\n%s"), *UE::PixelStreaming::ToString(*PeerConnectionOptions));
+				UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to parse SS config: `iceServer` - not an object\n%s"), *UE::PixelStreaming::ToString(*PeerConnectionOptions));
+				return;
 			}
 
 			RTCConfig.servers.push_back(webrtc::PeerConnectionInterface::IceServer{});
@@ -338,9 +351,9 @@ void FPixelStreamingSignallingConnection::OnConfig(const FJsonObjectPtr& Json)
 			TArray<FString> Urls;
 			if ((*IceServerJson)->TryGetStringArrayField(TEXT("urls"), Urls))
 			{
-				for (const FString& Url : Urls)
+				for (const FString& UrlElem : Urls)
 				{
-					IceServer.urls.push_back(UE::PixelStreaming::ToString(Url));
+					IceServer.urls.push_back(UE::PixelStreaming::ToString(UrlElem));
 				}
 			}
 			else
@@ -381,7 +394,8 @@ void FPixelStreamingSignallingConnection::OnSessionDescription(const FJsonObject
 	FString Sdp;
 	if (!Json->TryGetStringField(TEXT("sdp"), Sdp))
 	{
-		FatalError(TEXT("Cannot find `sdp` in Streamer's answer\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Cannot find `sdp` in Streamer's answer\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	FPixelStreamingPlayerId PlayerId;
@@ -440,7 +454,8 @@ void FPixelStreamingSignallingConnection::OnPlayerCount(const FJsonObjectPtr& Js
 	uint32 Count;
 	if (!Json->TryGetNumberField(TEXT("count"), Count))
 	{
-		FatalError(TEXT("Failed to get `count` from `playerCount` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `count` from `playerCount` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	Observer.OnSignallingPlayerCount(Count);
@@ -452,7 +467,8 @@ void FPixelStreamingSignallingConnection::OnPlayerConnected(const FJsonObjectPtr
 	bool bGotPlayerId = GetPlayerIdJson(Json, PlayerId);
 	if (!bGotPlayerId)
 	{
-		FatalError(TEXT("Failed to get `playerId` from `join` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `playerId` from `join` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Got player connected, player id=%s"), *PlayerId);
@@ -476,7 +492,8 @@ void FPixelStreamingSignallingConnection::OnPlayerDisconnected(const FJsonObject
 	bool bGotPlayerId = GetPlayerIdJson(Json, PlayerId);
 	if (!bGotPlayerId)
 	{
-		FatalError(TEXT("Failed to get `playerId` from `playerDisconnected` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `playerId` from `playerDisconnected` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	Observer.OnSignallingPlayerDisconnected(PlayerId);
@@ -488,28 +505,32 @@ void FPixelStreamingSignallingConnection::OnSFUPeerDataChannels(const FJsonObjec
 	bool bSuccess = GetPlayerIdJson(Json, SFUId, TEXT("sfuId"));
 	if (!bSuccess)
 	{
-		FatalError(TEXT("Failed to get `sfuId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `sfuId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	FPixelStreamingPlayerId PlayerId;
 	bSuccess = GetPlayerIdJson(Json, PlayerId, TEXT("playerId"));
 	if (!bSuccess)
 	{
-		FatalError(TEXT("Failed to get `playerId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `playerId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	int32 SendStreamId;
 	bSuccess = Json->TryGetNumberField(TEXT("sendStreamId"), SendStreamId);
 	if (!bSuccess)
 	{
-		FatalError(TEXT("Failed to get `sendStreamId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `sendStreamId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	int32 RecvStreamId;
 	bSuccess = Json->TryGetNumberField(TEXT("recvStreamId"), RecvStreamId);
 	if (!bSuccess)
 	{
-		FatalError(TEXT("Failed to get `recvStreamId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `recvStreamId` from `streamerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		return;
 	}
 
 	Observer.OnSignallingSFUPeerDataChannels(SFUId, PlayerId, SendStreamId, RecvStreamId);
@@ -520,13 +541,13 @@ void FPixelStreamingSignallingConnection::OnPeerDataChannels(const FJsonObjectPt
 	int32 SendStreamId = 0;
 	if (!Json->TryGetNumberField(TEXT("sendStreamId"), SendStreamId))
 	{
-		FatalError(TEXT("Failed to get `sendStreamId` from remote `peerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `sendStreamId` from remote `peerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
 		return;
 	}
 	int32 RecvStreamId = 0;
 	if (!Json->TryGetNumberField(TEXT("recvStreamId"), RecvStreamId))
 	{
-		FatalError(TEXT("Failed to get `recvStreamId` from remote `peerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to get `recvStreamId` from remote `peerDataChannels` message\n%s"), *UE::PixelStreaming::ToString(Json));
 		return;
 	}
 	Observer.OnSignallingPeerDataChannels(SendStreamId, RecvStreamId);
@@ -602,10 +623,4 @@ void FPixelStreamingSignallingConnection::PlayerError(FPixelStreamingPlayerId Pl
 {
 	UE_LOG(LogPixelStreamingSS, Error, TEXT("player %s: %s"), *PlayerId, *Msg);
 	SendDisconnectPlayer(PlayerId, Msg);
-}
-
-void FPixelStreamingSignallingConnection::FatalError(const FString& Msg)
-{
-	UE_LOG(LogPixelStreamingSS, Error, TEXT("%s"), *Msg);
-	WebSocket->Close(4000, Msg);
 }

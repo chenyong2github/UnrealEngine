@@ -23,6 +23,13 @@
 			"TargetDenyList": [ "Server" ]
 		},
 		{
+			"Name": "PixelStreamingServers",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [ "Win64", "Linux" ],
+			"TargetDenyList": [ ]
+		},
+		{
             "Name": "PixelStreamingShaders",
             "Type": "Runtime",
             "LoadingPhase": "PostConfigInit",
@@ -45,6 +52,10 @@
 		},
 		{
 			"Name": "HardwareEncoders",
+			"Enabled": true
+		},
+		{
+			"Name": "WebSocketNetworking",
 			"Enabled": true
 		}
 	]

@@ -120,18 +120,11 @@ private:
 	}
 	void PlayerError(FPixelStreamingPlayerId PlayerId, const FString& Msg);
 
-	template <typename FmtType, typename... T>
-	void FatalError(const FmtType& Msg, T... args)
-	{
-		const FString FormattedMsg = FString::Printf(Msg, args...);
-		FatalError(FormattedMsg);
-	}
-	void FatalError(const FString& Msg);
-
 private:
 	FWebSocketFactory WebSocketFactory;
 	IPixelStreamingSignallingConnectionObserver& Observer;
 	FString StreamerId;
+	FString Url;
 
 	TSharedPtr<IWebSocket> WebSocket;
 

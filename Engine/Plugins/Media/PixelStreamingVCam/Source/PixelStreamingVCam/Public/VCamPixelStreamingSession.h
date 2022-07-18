@@ -67,5 +67,5 @@ private:
 	FHitResult LastViewportTouchResult;
 	bool bUsingDummyUMG = false;
 	bool bOldThrottleCPUWhenNotForeground;
-	TSharedPtr<UE::PixelStreaming::Servers::FServerBase> CirrusProcess;
+	TSharedPtr<UE::PixelStreamingServers::IServer> CirrusProcess;
 };
