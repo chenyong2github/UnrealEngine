@@ -61,6 +61,8 @@ public class LevelEditor : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"EngineSettings",
+				"ObjectMixerEditor",
+				"LightMixer",
 				"PropertyEditor",
 				"Kismet",
 				"KismetWidgets",
@@ -107,8 +109,7 @@ public class LevelEditor : ModuleRules
 				"VREditor",
                 "Persona",
 				"LevelAssetEditor",
-				"MergeActors",
-
+				"MergeActors"
 			}
 		);
 
