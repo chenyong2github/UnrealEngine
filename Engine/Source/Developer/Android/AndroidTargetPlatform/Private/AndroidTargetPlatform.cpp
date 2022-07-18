@@ -706,27 +706,6 @@ const UTextureLODSettings& FAndroidTargetPlatform::GetTextureLODSettings() const
 	return *TextureLODSettings;
 }
 
-
-FName FAndroidTargetPlatform::GetWaveFormat(const class USoundWave* Wave) const
-{
-	FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
-	if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
-	{
-		FormatName = Audio::NAME_OGG;
-	}
-	return FormatName;
-}
-
-
-void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
-{
-
-	OutFormats.Add(Audio::NAME_BINKA);
-	OutFormats.Add(Audio::NAME_OGG);
-	OutFormats.Add(Audio::NAME_PCM);
-	OutFormats.Add(Audio::NAME_ADPCM);
-}
-
 #endif //WITH_ENGINE
 
 bool FAndroidTargetPlatform::SupportsVariants() const

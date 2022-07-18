@@ -143,6 +143,9 @@ struct ENGINE_API FStreamedAudioPlatformData
 	/** Get the number of chunks while making sure any async task are finished before returning. */
 	int32 GetNumChunks() const;
 
+	/** Get the audio format making sure any async task are finished before returning. */
+	FName GetAudioFormat() const;
+
 	/** Serialization. */
 	void Serialize(FArchive& Ar, class USoundWave* Owner);
 
@@ -459,6 +462,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType);
 
+	/** Returns the Runtime format of the wave */
+	FName GetRuntimeFormat() const;
+		
 private:
 	// cached proxy
 	FSoundWaveProxyPtr InternalProxy{ nullptr };
@@ -1293,6 +1299,8 @@ public:
 
 private:
 	void DiscardZerothChunkData();
+
+	FName FindRuntimeFormat(const USoundWave&) const;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;

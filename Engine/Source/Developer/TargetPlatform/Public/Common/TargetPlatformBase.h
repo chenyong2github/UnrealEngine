@@ -11,6 +11,12 @@
 #include "Misc/Paths.h"
 #include "PlatformInfo.h"
 
+// Forward declare.
+namespace Audio 
+{
+	class FAudioFormatSettings;
+}
+
 /**
  * Base class for target platforms.
  */
@@ -222,10 +228,12 @@ public:
 			OutModuleNames.Add(*TextureCompressionFormat);
 		}
 	}
+	
+	TARGETPLATFORM_API virtual FName GetWaveFormat(const class USoundWave* Wave) const override;
+	
+	TARGETPLATFORM_API virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override;
 
-	virtual void GetWaveFormatModuleHints(TArray<FName>& OutModuleNames) const override
-	{
-	}
+	TARGETPLATFORM_API virtual void GetWaveFormatModuleHints(TArray<FName>& OutModuleNames) const override;
 
 #endif
 
@@ -248,19 +256,16 @@ public:
 
 protected:
 
-	FTargetPlatformBase(const PlatformInfo::FTargetPlatformInfo *const InPlatformInfo)
-		: PlatformInfo(InPlatformInfo)
-	{
-		checkf(PlatformInfo, TEXT("Null PlatformInfo was passed to FTargetPlatformBase. Check the static IsUsable function before creating this object. See FWindowsTargetPlatformModule::GetTargetPlatform()"));
-
-		PlatformOrdinal = AssignPlatformOrdinal(*this);
-	}
+	TARGETPLATFORM_API FTargetPlatformBase(const PlatformInfo::FTargetPlatformInfo *const InPlatformInfo);
 
 	/** Information about this platform */
 	const PlatformInfo::FTargetPlatformInfo *PlatformInfo;
 	int32 PlatformOrdinal;
-
+	
+	TARGETPLATFORM_API const Audio::FAudioFormatSettings& GetAudioFormatSettings() const;
 private:
+	TPimplPtr<Audio::FAudioFormatSettings> AudioFormatSettings;
+	
 	bool HasDefaultBuildSettings() const;
 	static bool DoProjectSettingsMatchDefault(const FString& InPlatformName, const FString& InSection, const TArray<FString>* InBoolKeys, const TArray<FString>* InIntKeys, const TArray<FString>* InStringKeys);
 };

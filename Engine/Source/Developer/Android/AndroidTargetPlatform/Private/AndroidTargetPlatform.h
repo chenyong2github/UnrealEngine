@@ -141,9 +141,6 @@ public:
 		TextureLODSettings = InTextureLODSettings;
 	}
 
-	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override;
-	virtual void GetAllWaveFormats( TArray<FName>& OutFormats) const override;
-
 #endif //WITH_ENGINE
 
 	virtual bool SupportsVariants() const override;

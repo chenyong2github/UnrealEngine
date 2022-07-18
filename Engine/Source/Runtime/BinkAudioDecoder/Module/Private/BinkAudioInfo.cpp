@@ -16,12 +16,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogBinkAudioDecoder, Log, All);
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-class BINKAUDIODECODER_API FBinkAudioDecoderModule : public IModuleInterface
-{
-public:
-	virtual void StartupModule() override {}
-	virtual void ShutdownModule() override {}
-};
 
 #define PTR_ADD(ptr,off) ((void*)(((uint8*)(ptr))+(off)))
 #define Align32( val ) ( ( ( val ) + 31 ) & ~31 )
@@ -659,5 +653,18 @@ bool FBinkAudioInfo::HasError() const
 {
 	return bErrorStateLatch;
 }
+
+class BINKAUDIODECODER_API FBinkAudioDecoderModule : public IModuleInterface
+{
+public:	
+	TUniquePtr<IAudioInfoFactory> Factory;
+
+	virtual void StartupModule() override
+	{	
+		Factory = MakeUnique<FSimpleAudioInfoFactory>([] { return new FBinkAudioInfo(); }, Audio::NAME_BINKA);
+	}
+
+	virtual void ShutdownModule() override {}
+};
 
 IMPLEMENT_MODULE(FBinkAudioDecoderModule, BinkAudioDecoder)

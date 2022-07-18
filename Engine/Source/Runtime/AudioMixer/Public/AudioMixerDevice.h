@@ -24,6 +24,7 @@ namespace Audio
 	class FMixerSourceManager;
 	class FMixerSourceVoice;
 	class FMixerSubmix;
+	class FAudioFormatSettings;
 
 	typedef TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixPtr;
 	typedef TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> FMixerSubmixWeakPtr;
@@ -337,6 +338,8 @@ namespace Audio
 		void InitSoundfieldAndEndpointDataForSubmix(const USoundSubmixBase& InSoundSubmix, FMixerSubmixPtr MixerSubmix, bool bAllowReInit);
 
 		void UnloadSoundSubmix(const USoundSubmixBase& SoundSubmix);
+
+		ICompressedAudioInfo* CreateAudioInfo(FName InFormat) const;
 
 		bool IsMasterSubmixType(const USoundSubmixBase* InSubmix) const;
 		FMixerSubmixPtr GetMasterSubmixInstance(uint32 InSubmixId);

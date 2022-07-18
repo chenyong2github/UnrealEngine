@@ -26,6 +26,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
 #include "AudioDeviceNotificationSubsystem.h"
+#include "Sound/AudioFormatSettings.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -673,20 +674,8 @@ namespace Audio
 
 	FName FMixerDevice::GetRuntimeFormat(const USoundWave* InSoundWave) const
 	{
-		FName RuntimeFormat = Audio::ToName(InSoundWave->GetSoundAssetCompressionType());
-
-		// If not specified, the default platform codec is BINK.
-		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
-		{
-			RuntimeFormat = AudioMixerPlatform->GetRuntimeFormat(InSoundWave);
-			if (RuntimeFormat.IsNone())
-			{
-				// TODO: make this an override per platform for "default" platform-specific codec
-				RuntimeFormat = Audio::NAME_BINKA;
-			}
-		}
-		return RuntimeFormat;
-	}
+		return InSoundWave->GetRuntimeFormat();
+    }
 
 	bool FMixerDevice::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
 	{
@@ -706,15 +695,24 @@ namespace Audio
 	{
 		return AudioMixerPlatform->DisablePCMAudioCaching();
 	}
+	
+	ICompressedAudioInfo* FMixerDevice::CreateAudioInfo(FName InFormat) const
+	{
+		if (IAudioInfoFactory* Factory = IAudioInfoFactoryRegistry::Get().Find(InFormat))
+		{
+			return Factory->Create();
+		}
+		return nullptr;
+	}
 
 	ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const USoundWave* InSoundWave) const
 	{
-		return AudioMixerPlatform->CreateCompressedAudioInfo(GetRuntimeFormat(InSoundWave));
+		return CreateAudioInfo(GetRuntimeFormat(InSoundWave));
 	}
 
 	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWaveProxy) const
 	{
-		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWaveProxy->GetRuntimeFormat());
+		return CreateAudioInfo(InSoundWaveProxy->GetRuntimeFormat());
 	}
 
 	bool FMixerDevice::ValidateAPICall(const TCHAR* Function, uint32 ErrorCode)

@@ -114,6 +114,19 @@ int32 FStreamedAudioPlatformData::GetNumChunks() const
 	return NumChunks;
 }
 
+FName FStreamedAudioPlatformData::GetAudioFormat() const
+{
+#if WITH_EDITORONLY_DATA
+	if (FStreamedAudioBuildScope::ShouldWaitOnIncompleteProperties(this))
+	{
+		// AudioFormat is written by the caching process, any async task need to complete before we can read it.
+		const_cast<FStreamedAudioPlatformData*>(this)->FinishCache();
+	}
+#endif
+
+	return AudioFormat;
+}
+
 #if WITH_EDITORONLY_DATA
 
 /*------------------------------------------------------------------------------

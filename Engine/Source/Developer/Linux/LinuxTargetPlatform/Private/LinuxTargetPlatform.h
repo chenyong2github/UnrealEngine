@@ -337,34 +337,6 @@ public:
 		TextureLODSettings = InTextureLODSettings;
 	}
 
-	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
-	{
-		FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
-
-		if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
-		{
-			if (Wave->IsStreaming(*this->IniPlatformName()))
-			{
-				return Audio::NAME_OPUS;
-			}
-
-			return Audio::NAME_OGG;
-		}
-		else
-		{
-			return FormatName;
-		}
-	}
-
-	virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override
-	{
-		OutFormats.Add(Audio::NAME_BINKA);
-		OutFormats.Add(Audio::NAME_ADPCM);
-		OutFormats.Add(Audio::NAME_PCM);
-		OutFormats.Add(Audio::NAME_OGG);
-		OutFormats.Add(Audio::NAME_OPUS);
-	}
-
 #endif //WITH_ENGINE
 
 	virtual bool SupportsVariants() const override

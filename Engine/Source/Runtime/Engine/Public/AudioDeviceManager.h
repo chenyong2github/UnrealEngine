@@ -28,6 +28,7 @@ class USoundWave;
 class UWorld;
 class FAudioDevice;
 struct FSourceEffectChainEntry;
+class FSimpleAudioInfoFactory;
 
 namespace Audio
 {
@@ -39,6 +40,7 @@ namespace Audio
 	using FDeviceId = uint32;
 
 	class FAudioDebugger;
+	class FAudioFormatSettings;
 }
 
 enum class ESoundType : uint8
@@ -409,12 +411,17 @@ public:
 
 	void LogListOfAudioDevices();
 
+	Audio::FAudioFormatSettings& GetAudioFormatSettings() const;
+
 private:
 
 #if ENABLE_AUDIO_DEBUG
 	/** Instance of audio debugger shared across audio devices */
 	TUniquePtr<Audio::FAudioDebugger> AudioDebugger;
 #endif // ENABLE_AUDIO_DEBUG
+
+	TPimplPtr<Audio::FAudioFormatSettings> AudioFormatSettings;
+	TArray<TPimplPtr<FSimpleAudioInfoFactory>> EngineFormats;
 
 	bool InitializeManager();
 
@@ -437,6 +444,8 @@ private:
 
 	/** Application enters background handler */
 	void AppWillEnterBackground();
+	
+	void RegisterAudioInfoFactories();
 
 	/** Audio device module which creates (old backend) audio devices. */
 	IAudioDeviceModule* AudioDeviceModule;

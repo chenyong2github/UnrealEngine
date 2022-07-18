@@ -330,6 +330,37 @@ protected:
 	int32 StreamSeekBlockOffset;
 };
 
+struct IAudioInfoFactory 
+{	
+	virtual ~IAudioInfoFactory() = default;
+	virtual ICompressedAudioInfo* Create() = 0;	
+};
+struct ENGINE_API IAudioInfoFactoryRegistry
+{
+	static IAudioInfoFactoryRegistry& Get();
+	virtual ~IAudioInfoFactoryRegistry() = default;
+	virtual void Register(IAudioInfoFactory*, FName) = 0;
+	virtual void Unregister(IAudioInfoFactory*, FName) = 0;
+	virtual IAudioInfoFactory* Find(FName InName) const = 0;
+};
+
+class FSimpleAudioInfoFactory : public IAudioInfoFactory
+{
+public:
+	FSimpleAudioInfoFactory(TFunction<ICompressedAudioInfo*(void)> InLambda, FName InFormatName)
+	:  CreateLamda(InLambda), FormatName(InFormatName)
+	{
+		IAudioInfoFactoryRegistry::Get().Register(this, FormatName);
+	}
+	virtual ~FSimpleAudioInfoFactory() 
+	{
+		IAudioInfoFactoryRegistry::Get().Unregister(this, FormatName);
+	}
+	virtual ICompressedAudioInfo* Create() override { return CreateLamda(); }
+private:
+	TFunction<ICompressedAudioInfo* ()> CreateLamda;
+	FName FormatName;
+};
 
 /**
  * Asynchronous audio decompression

@@ -10,6 +10,7 @@
 #include "ProjectDescriptor.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Sound/AudioFormatSettings.h"
 
 #define LOCTEXT_NAMESPACE "TargetPlatform"
 
@@ -291,5 +292,45 @@ bool FTargetPlatformBase::DoProjectSettingsMatchDefault(const FString& InPlatfor
 
 	return true;
 }
+
+
+FTargetPlatformBase::FTargetPlatformBase(const PlatformInfo::FTargetPlatformInfo* const InPlatformInfo) : PlatformInfo(InPlatformInfo)
+{
+	checkf(PlatformInfo, TEXT("Null PlatformInfo was passed to FTargetPlatformBase. Check the static IsUsable function before creating this object. See FWindowsTargetPlatformModule::GetTargetPlatform()"));
+
+	PlatformOrdinal = AssignPlatformOrdinal(*this);
+
+#if WITH_ENGINE
+	// Build Audio Format Settings, Using long form equiv of GetConfigSysten to avoid calling a virtual
+	AudioFormatSettings = MakePimpl<Audio::FAudioFormatSettings>(
+		FConfigCacheIni::ForPlatform(InPlatformInfo->IniPlatformName), GEngineIni, InPlatformInfo->IniPlatformName.ToString());
+#endif //WITH_ENGINE
+
+}
+
+#if WITH_ENGINE
+
+const Audio::FAudioFormatSettings& FTargetPlatformBase::GetAudioFormatSettings() const
+{
+	check(AudioFormatSettings.IsValid())
+	return *AudioFormatSettings;
+}
+
+FName FTargetPlatformBase::GetWaveFormat(const class USoundWave* InWave) const
+{
+	return GetAudioFormatSettings().GetWaveFormat(InWave);
+}
+
+void FTargetPlatformBase::GetAllWaveFormats(TArray<FName>& OutFormats) const
+{
+	GetAudioFormatSettings().GetAllWaveFormats(OutFormats);
+}
+
+void FTargetPlatformBase::GetWaveFormatModuleHints(TArray<FName>& OutModuleNames) const
+{
+	GetAudioFormatSettings().GetWaveFormatModuleHints(OutModuleNames);
+}
+
+#endif // WITH_ENGINE
 
 #undef LOCTEXT_NAMESPACE

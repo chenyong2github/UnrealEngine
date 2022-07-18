@@ -36,7 +36,7 @@ class FAudioFormatBink : public IAudioFormat
 	enum
 	{
 		/** Version for Bink Audio format, this becomes part of the DDC key. */
-		UE_AUDIO_BINK_VER = 3,
+		UE_AUDIO_BINK_VER = 4,
 	};
 
 public:

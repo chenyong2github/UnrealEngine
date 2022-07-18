@@ -37,6 +37,7 @@
 #include "Async/Async.h"
 #include "Misc/CommandLine.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Sound/AudioFormatSettings.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -157,15 +158,8 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 	}
 
 	// cache the runtime format for the wave
-	if (GEngine)
-	{
-		FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
-		if (LocalAudioDevice)
-		{
-			RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(&InWave);
-		}
-	}
-
+	RuntimeFormat = FindRuntimeFormat(InWave);
+	
 	SoundWaveKeyCached = FObjectKey(&InWave);
 	CuePoints = InWave.CuePoints;
 	SampleRate = InWave.GetSampleRateForCurrentPlatform();
@@ -180,6 +174,58 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 	bIsStreaming = InWave.IsStreaming(nullptr);
 	SoundAssetCompressionType = InWave.GetSoundAssetCompressionType();
 	bShouldUseStreamCaching = InWave.ShouldUseStreamCaching();
+}
+
+FName FSoundWaveData::FindRuntimeFormat(const USoundWave& InWave) const
+{		
+#if WITH_EDITOR	
+	// If this is an editor build, we can ask ITargetPlatform.
+	if (ITargetPlatformManagerModule* TPM = GetTargetPlatformManager())
+	{
+		if (ITargetPlatform* RunningTarget = TPM->GetRunningTargetPlatform())
+		{
+			return RunningTarget->GetWaveFormat(&InWave);
+		}
+	}
+#endif //WITH_EDITOR
+
+	// Force-inline does not use the stream cache chunks at all, so we have to work out the format
+	// from the name of the inner "Format" which has suffixes in the form "FORMAT123456789"
+	if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline)
+	{
+		TArray<FName> AllValidFormats;
+		FAudioDeviceManager::Get()->GetAudioFormatSettings().GetAllWaveFormats(AllValidFormats);
+
+		TArray<FName> ContainedFormats;
+		CompressedFormatData.GetContainedFormats(ContainedFormats);
+		if (ContainedFormats.Num() > 0)
+		{
+			// We only support 1 cooked format per wave, so just look at the first one.
+			FString CompressedFormatString = ContainedFormats[0].GetPlainNameString();
+			for (const FName ValidFormat : AllValidFormats)
+			{
+				if (CompressedFormatString.StartsWith(*ValidFormat.GetPlainNameString()))
+				{
+					return ValidFormat;
+				}
+			}
+
+			checkf(false, TEXT("Failed to determine encoded (inlined) AudioFormat: '%s'"), *CompressedFormatString);
+			
+			// Fail.
+			return {};
+		}	
+
+		checkf(false, TEXT("Failed to find any encoded formats in container"));
+		
+		// Fail.
+		return {};
+	}
+	else
+	{
+		// If we're using force inline, the audio format is written in the running platform.
+		return RunningPlatformData.GetAudioFormat();
+	}
 }
 
 uint32 FSoundWaveData::GetNumChunks() const
@@ -1084,6 +1130,11 @@ void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSound
 	SoundWaveDataPtr->bIsSeekable = IsSeekable();
 	UpdateAsset();
 #endif // #if WITH_EDITOR
+}
+
+FName USoundWave::GetRuntimeFormat() const
+{
+	return SoundWaveDataPtr->GetRuntimeFormat();
 }
 
 float USoundWave::GetSubtitlePriority() const

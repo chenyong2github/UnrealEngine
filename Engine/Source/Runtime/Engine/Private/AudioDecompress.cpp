@@ -841,3 +841,36 @@ bool ICompressedAudioInfo::StreamCompressedInfo(const FSoundWaveProxyPtr& Wave, 
 	StreamingSoundWave = Wave;
 	return StreamCompressedInfoInternal(StreamingSoundWave, QualityInfo);
 }
+
+IAudioInfoFactoryRegistry& IAudioInfoFactoryRegistry::Get()
+{
+	static struct FConcreteRegistry : IAudioInfoFactoryRegistry
+	{
+		mutable FRWLock FactoriesRWLock;
+		TMap<FName, IAudioInfoFactory*> Factories;
+
+		void Register(IAudioInfoFactory* InFactory, FName InFormatName) override
+		{
+			FRWScopeLock Lock(FactoriesRWLock, FRWScopeLockType::SLT_Write);
+			UE_LOG(LogAudio, Display, TEXT("AudioInfo: '%s' Registered"), *InFormatName.ToString());
+			check(!Factories.Contains(InFormatName));
+			Factories.Add(InFormatName) = InFactory;
+		}
+		void Unregister(IAudioInfoFactory* InFactory, FName InFormatName) override
+		{
+			FRWScopeLock Lock(FactoriesRWLock, FRWScopeLockType::SLT_Write);
+
+			Factories.Remove(InFormatName);
+		}
+		IAudioInfoFactory* Find(FName InFormat) const override
+		{
+			FRWScopeLock Lock(FactoriesRWLock, FRWScopeLockType::SLT_ReadOnly);
+			if( IAudioInfoFactory* const* Factory = Factories.Find(InFormat))
+			{
+				return *Factory;
+			}
+			return nullptr;
+		}
+	} sInstance;
+	return sInstance;
+}

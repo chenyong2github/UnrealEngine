@@ -32,7 +32,7 @@ class FAudioFormatOgg : public IAudioFormat
 	enum
 	{
 		/** Version for OGG format, this becomes part of the DDC key. */
-		UE_AUDIO_OGG_VER = 4,
+		UE_AUDIO_OGG_VER = 5,
 	};
 
 public:
