@@ -424,6 +424,13 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
+#if WITH_EDITOR
+	if(GIsReinstancing)
+	{
+		return;
+	}
+#endif
+
 #if DO_CHECK
 	checkf(!bUpdatingAnimation, TEXT("UpdateAnimation already in progress, circular detected for SkeletalMeshComponent [%s], AnimInstance [%s]"), *GetNameSafe(GetOwningComponent()),  *GetName());
 	TGuardValue<bool> CircularGuard(bUpdatingAnimation, true);
