@@ -42,7 +42,7 @@ namespace UnrealBuildTool.Rules
 
 			SetupIrisSupport(Target);
 
-			if (Target.bBuildDeveloperTools || (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test))
+			if (Target.bUseGameplayDebugger)
 			{
 				PrecompileForTargets = PrecompileTargetsType.Any;
 			}

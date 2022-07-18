@@ -729,6 +729,17 @@ namespace UnrealBuildTool
 		public bool bCompilePython = true;
 
 		/// <summary>
+		/// Whether to compile with WITH_GAMEPLAY_DEBUGGER enabled and use GameplayDebugger.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseGameplayDebugger
+		{
+			get { return bUseGameplayDebuggerOverride ?? (bBuildDeveloperTools || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping)); }
+			set { bUseGameplayDebuggerOverride = value; }
+		}
+		bool? bUseGameplayDebuggerOverride;
+
+		/// <summary>
 		/// Whether to use Iris.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2622,6 +2633,11 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileISPC; }
 		}
 
+		public bool bUseGameplayDebugger
+		{
+			get { return Inner.bUseGameplayDebugger; }
+		}
+		
 		public bool bUseIris
 		{
 			get { return Inner.bUseIris; }

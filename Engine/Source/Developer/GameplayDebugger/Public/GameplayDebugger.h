@@ -10,7 +10,7 @@
 // Category class:
 // - derives from FGameplayDebuggerCategory
 // - implements at least CollectData() and DrawData() functions
-// - requires WITH_GAMEPLAY_DEBUGGER define to compile (doesn't exist in shipping builds by default)
+// - requires WITH_GAMEPLAY_DEBUGGER define to compile (doesn't exist in shipping builds by default; see note below to override)
 // - needs to be registered and unregistered manually by owning module
 // - automatically replicate data added with FGameplayDebuggerCategory::AddTextLine, FGameplayDebuggerCategory::AddShape
 // - automatically replicate data structs initialized with FGameplayDebuggerCategory::SetDataPackReplication
@@ -26,9 +26,8 @@
 // Check FGameplayDebuggerCategory_BehaviorTree for implementation example.
 // Check AIModule/Private/AIModule.cpp for registration example.
 //
-//
-// Remember to define WITH_GAMEPLAY_DEBUGGER=1 when adding module to your project's Build.cs!
-// Check AIModule/AIModule.Build.cs for more details.
+// Note. Use 'SetupGameplayDebuggerSupport(Target)' when adding module to your project's Build.cs (see AIModule/AIModule.Build.cs)
+// Note. Use 'bUseGameplayDebugger={0|1}' in your <ProjectTargetType>.Target.cs to force GameplayDebugger disabled/enabled
 // 
 
 #pragma once

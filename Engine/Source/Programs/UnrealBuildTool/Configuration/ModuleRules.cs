@@ -1224,7 +1224,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Setup this module for physics support (based on the settings in UEBuildConfiguration)
+		/// Setup this module for Mesh Editor support (based on the settings in UEBuildConfiguration)
 		/// </summary>
 		public void EnableMeshEditorSupport(ReadOnlyTargetRules Target)
 		{
@@ -1235,6 +1235,30 @@ namespace UnrealBuildTool
 			else
 			{
 				PublicDefinitions.Add("ENABLE_MESH_EDITOR=0");
+			}
+		}
+
+		/// <summary>
+		/// Setup this module for GameplayDebugger support
+		/// </summary>
+		public void SetupGameplayDebuggerSupport(ReadOnlyTargetRules Target, bool bAddAsPublicDependency = false)
+		{
+			if (Target.bUseGameplayDebugger)
+			{
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=1");
+
+				if (bAddAsPublicDependency)
+				{
+					PublicDependencyModuleNames.Add("GameplayDebugger");
+				}
+				else
+				{
+					PrivateDependencyModuleNames.Add("GameplayDebugger");
+				}
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
 			}
 		}
 
