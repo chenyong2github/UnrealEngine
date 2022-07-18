@@ -57,6 +57,8 @@ FTestNetSerializerFixture::FTestNetSerializerFixture(const FNetSerializer& InSer
 , SerializerVersionOverride(InSerializer.Version)
 , Context(&Reader, &Writer)
 {
+	check(Serializer.QuantizedTypeSize <= sizeof(QuantizedBuffer[0]));
+
 	// If this serializer could have allocated state then Taint quantized state buffers before testing.
 	// Assume buffers are properly freed if necessary after every use of these buffers.
 	if (EnumHasAnyFlags(InSerializer.Traits, ENetSerializerTraits::IsForwardingSerializer | ENetSerializerTraits::HasDynamicState))
