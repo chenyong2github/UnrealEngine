@@ -28,7 +28,7 @@ FMVVMBindingSummoner::FMVVMBindingSummoner(TSharedPtr<FWidgetBlueprintEditor> Bl
 
 TSharedRef<SWidget> FMVVMBindingSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	return SNew(SMVVMViewBindingPanel, WeakWidgetBlueprintEditor.Pin(), bIsDrawerTab);
+	return SNew(UE::MVVM::SBindingsPanel, WeakWidgetBlueprintEditor.Pin(), bIsDrawerTab);
 }
 
 void FMVVMBindingSummoner::ToggleMVVMDrawer()

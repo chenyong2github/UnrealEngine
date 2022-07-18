@@ -9,29 +9,33 @@
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 
+struct FMVVMBlueprintViewBinding;
 class FWidgetBlueprintEditor;
 class IDetailsView;
 class IStructureDetailsView;
 class SBorder;
-class SMVVMViewBindingListView;
 class UBlueprintExtension;
 class UMVVMWidgetBlueprintExtension_View;
 
-class SMVVMViewBindingPanel : public SCompoundWidget
+namespace UE::MVVM
+{
+class SBindingsList;
+
+class SBindingsPanel : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMViewBindingPanel) {}
+	SLATE_BEGIN_ARGS(SBindingsPanel) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor>, bool bInIsDrawerTab);
-	virtual ~SMVVMViewBindingPanel();
+	virtual ~SBindingsPanel();
 
 	//~ Begin SWidget Interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual bool SupportsKeyboardFocus() const override;
 	//~ End SWidget Interface
 
-	void OnBindingListSelectionChanged(int32 Index);
+	void OnBindingListSelectionChanged(TConstArrayView<FMVVMBlueprintViewBinding*> Selection);
 
 	static void RegisterSettingsMenu();
 
@@ -49,16 +53,15 @@ private:
 
 	TSharedRef<SWidget> GenerateSettingsMenu();
 
-	void ShowManageViewModelsWindow();
-
 	TSharedRef<SWidget> CreateDrawerDockButton();
 	FReply CreateDrawerDockButtonClicked();
 
 	void HandleExtensionAdded(UBlueprintExtension* NewExtension);
+	void ShowManageViewModelsWindow();
 
 private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
-	TSharedPtr<SMVVMViewBindingListView> ListView;
+	TSharedPtr<SBindingsList> BindingsList;
 	TSharedPtr<SBorder> DetailContainer;
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<IStructureDetailsView> StructDetailsView;
@@ -66,3 +69,5 @@ private:
 	FDelegateHandle BlueprintViewChangedDelegateHandle;
 	bool bIsDrawerTab;
 };
+
+} // namespace UE::MVVM

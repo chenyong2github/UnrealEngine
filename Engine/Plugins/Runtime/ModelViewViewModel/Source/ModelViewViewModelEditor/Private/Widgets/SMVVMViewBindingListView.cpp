@@ -18,6 +18,7 @@
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "SEnumCombo.h"
+#include "SPrimaryButton.h"
 #include "SSimpleButton.h" 
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
@@ -32,135 +33,263 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableViewBase.h"
 
 #define LOCTEXT_NAMESPACE "BindingListView"
 
-struct FMVVMViewBindingListEntry
+namespace UE::MVVM
 {
-	FMVVMViewBindingListEntry(int32 InIndex) : Index(InIndex) {}
-	int32 Index;
+
+// a wrapper around either a widget row or a binding row
+struct FBindingEntry
+{
+	FBindingEntry(FName InWidgetName) : WidgetName(InWidgetName) {}
+	FBindingEntry(int32 InIndex) : BindingIndex(InIndex) { check(InIndex != INDEX_NONE); }
+	
+	FMVVMBlueprintViewBinding* GetBinding(UMVVMBlueprintView* View) const
+	{
+		return View->GetBindingAt(BindingIndex);
+	}
+
+	const FMVVMBlueprintViewBinding* GetBinding(const UMVVMBlueprintView* View) const
+	{
+		return View->GetBindingAt(BindingIndex);
+	}
+
+	int32 GetBindingIndex() const
+	{
+		return BindingIndex;
+	}
+
+	FName GetWidgetName() const
+	{
+		return WidgetName;
+	}
+
+	TConstArrayView<TSharedPtr<FBindingEntry>> GetChildren() const
+	{
+		return Children;
+	}
+
+	void AddChild(TSharedRef<FBindingEntry> Child)
+	{
+		Children.Add(Child);
+	}
+
+private:
+	FName WidgetName;
+	int32 BindingIndex = INDEX_NONE;
+	TArray<TSharedPtr<FBindingEntry>> Children;
 };
 
-class SMVVMViewBindingListEntryRow : public SMultiColumnTableRow<FMVVMViewBindingListEntryPtr>
+namespace Private
+{
+	TArray<FName>* GetBindingModeNames()
+	{
+		static TArray<FName> BindingModeNames;
+
+		if (BindingModeNames.IsEmpty())
+		{
+			UEnum* ModeEnum = StaticEnum<EMVVMBindingMode>();
+
+			BindingModeNames.Reserve(ModeEnum->NumEnums());
+
+			for (int32 BindingIndex = 0; BindingIndex < ModeEnum->NumEnums() - 1; ++BindingIndex)
+			{
+				const bool bIsHidden = ModeEnum->HasMetaData(TEXT("Hidden"), BindingIndex);
+				if (!bIsHidden)
+				{
+					BindingModeNames.Add(ModeEnum->GetNameByIndex(BindingIndex));
+				}
+			}
+		}
+
+		return &BindingModeNames;
+	}
+
+	void ExpandAll(const TSharedPtr<STreeView<TSharedPtr<FBindingEntry>>>& TreeView, const TSharedPtr<FBindingEntry>& Entry)
+	{
+		TreeView->SetItemExpansion(Entry, true);
+
+		for (const TSharedPtr<FBindingEntry>& Child : Entry->GetChildren())
+		{
+			ExpandAll(TreeView, Child);
+		}
+	}
+}
+
+class SWidgetRow : public STableRow<TSharedPtr<FBindingEntry>>
 {
 public:
-	static FName EnabledColumnName;
-	static FName CompileColumnName;
-	static FName ErrorColumnName;
-	static FName ViewModelColumnName;
-	static FName ModeColumnName;
-	static FName WidgetColumnName;
-	static FName WidgetColumName;
-	static FName UpdateColumnName;
-	static FName ConversionFunctionColumnName;
-	static FName DropDownOptionsColumnName;
-
-public:
-	SLATE_BEGIN_ARGS(SMVVMViewBindingListEntryRow) {}
+	SLATE_BEGIN_ARGS(SWidgetRow) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView, const FMVVMViewBindingListEntryPtr& InEntry, UMVVMBlueprintView* InBlueprintView, UWidgetBlueprint* InWidgetBlueprint)
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedPtr<FBindingEntry>& InEntry, UWidgetBlueprint* InWidgetBlueprint)
 	{
 		Entry = InEntry;
-		BlueprintView = InBlueprintView;
-		WidgetBlueprint = InWidgetBlueprint;
+		WidgetBlueprintWeak = InWidgetBlueprint;
 
-		OnBlueprintChangedHandle = WidgetBlueprint->OnChanged().AddSP(this, &SMVVMViewBindingListEntryRow::HandleBlueprintChanged);
+		STableRow<TSharedPtr<FBindingEntry>>::Construct(
+			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
+			.Padding(1.0f)
+			[
+				SNew(SBox)
+				.HeightOverride(30)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(2, 1)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Fill)
+					.AutoWidth()
+					[
+						SNew(SSourceSelector, InWidgetBlueprint)
+						.ShowClear(false)
+						.AutoRefresh(true)
+						.ViewModels(false)
+						.SelectedSource(this, &SWidgetRow::GetSelectedWidget)
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SSimpleButton)
+						.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+						.IsEnabled_Lambda([this]() { return !Entry->GetWidgetName().IsNone(); })
+						.OnClicked(this, &SWidgetRow::AddBinding)
 
-		FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
-
-		SMultiColumnTableRow<FMVVMViewBindingListEntryPtr>::Construct(
-			FSuperRowType::FArguments()
-			.Padding(1.0f),
+					]
+				]
+			],
 			OwnerTableView
 		);
 	}
 
-	~SMVVMViewBindingListEntryRow()
+private:
+
+	FBindingSource GetSelectedWidget() const
 	{
-		WidgetBlueprint->OnChanged().Remove(OnBlueprintChangedHandle);
+		return FBindingSource::CreateForWidget(WidgetBlueprintWeak.Get(), Entry->GetWidgetName());
 	}
 
-	FMVVMBlueprintViewBinding* GetThisViewBinding() const
+	FReply AddBinding() const
 	{
-		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintWeak.Get())
 		{
-			FMVVMBlueprintViewBinding* ViewBinding = BlueprintViewPtr->GetBindingAt(Entry->Index);
-			return ViewBinding;
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			FMVVMBlueprintViewBinding& Binding = EditorSubsystem->AddBinding(WidgetBlueprint);
+			FMVVMBlueprintPropertyPath Path;
+			Path.SetWidgetName(Entry->GetWidgetName());
+			EditorSubsystem->SetWidgetPropertyForBinding(WidgetBlueprint, Binding, Path);
 		}
 
-		return nullptr;
+		return FReply::Handled();
 	}
 
-	TArray<FMVVMBlueprintViewBinding*> GetThisViewBindingAsArray() const
+private:
+	TSharedPtr<FBindingEntry> Entry;
+	TWeakObjectPtr<UWidgetBlueprint> WidgetBlueprintWeak;
+};
+
+class SBindingRow : public STableRow<TSharedPtr<FBindingEntry>>
+{
+public:
+	SLATE_BEGIN_ARGS(SBindingRow) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedPtr<FBindingEntry>& InEntry, UMVVMBlueprintView* InBlueprintView, UWidgetBlueprint* InWidgetBlueprint)
 	{
-		TArray<FMVVMBlueprintViewBinding*> Result;
+		Entry = InEntry;
+		WidgetBlueprintWeak = InWidgetBlueprint;
+		BlueprintView = InBlueprintView;
 
-		FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding();
-		if (ViewBinding != nullptr)
-		{
-			Result.Add(ViewBinding);
-		}
+		OnBlueprintChangedHandle = InWidgetBlueprint->OnChanged().AddSP(this, &SBindingRow::HandleBlueprintChanged);
 
-		return Result;
-	}
-
-	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the list view. */
-	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
-	{
 		FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
 
-		if (ColumnName == CompileColumnName)
-		{
-			return SNew(SCheckBox)
-				.IsChecked(this, &SMVVMViewBindingListEntryRow::IsBindingCompiled)
-				.OnCheckStateChanged(this, &SMVVMViewBindingListEntryRow::OnIsBindingCompileChanged);
-		}
-		else if (ColumnName == ErrorColumnName)
-		{
-			return SNew(SSimpleButton)
-				.Icon(FAppStyle::Get().GetBrush("Icons.Error"))
-				.Visibility(this, &SMVVMViewBindingListEntryRow::GetErrorVisibility)
-				.ToolTipText(this, &SMVVMViewBindingListEntryRow::GetErrorToolTip)
-				.OnClicked(this, &SMVVMViewBindingListEntryRow::OnErrorButtonClicked);
-		}
-		if (ColumnName == ViewModelColumnName)
-		{
+		STableRow<TSharedPtr<FBindingEntry>>::Construct(
+			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
+			.Padding(1.0f)
+			[
+				SNew(SHorizontalBox)
 
-			return SNew(SBox)
-				.Padding(FMargin(2, 0))
+				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
 				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left) 
+				.AutoWidth()
 				[
-					SAssignNew(ViewModelFieldSelector, UE::MVVM::SFieldSelector, WidgetBlueprint, true)
-					.SelectedField(this, &SMVVMViewBindingListEntryRow::GetSelectedViewModelProperty)
-					.BindingMode(this, &SMVVMViewBindingListEntryRow::GetCurrentBindingMode)
-					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnViewModelPropertySelectionChanged)
-				];
-		}
-		else if (ColumnName == ModeColumnName)
-		{
-			UEnum* ModeEnum = StaticEnum<EMVVMBindingMode>();
-			for (int32 Index = 0; Index < ModeEnum->NumEnums() - 1; ++Index)
-			{
-				const bool bIsHidden = ModeEnum->HasMetaData(TEXT("Hidden"), Index);
-				if (!bIsHidden)
-				{
-					ModeNames.Add(ModeEnum->GetNameByIndex(Index));
-				}
-			}
+					SNew(SCheckBox)
+					.IsChecked(this, &SBindingRow::IsBindingCompiled)
+					.OnCheckStateChanged(this, &SBindingRow::OnIsBindingCompileChanged)
+				]
 
-			return 
-				SNew(SBox)
-				.Padding(FMargin(2, 0))
+				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
 				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left) 
+				.AutoWidth()
+				[
+					SNew(SSimpleButton)
+					.Icon(FAppStyle::Get().GetBrush("Icons.Error"))
+					.Visibility(this, &SBindingRow::GetErrorVisibility)
+					.ToolTipText(this, &SBindingRow::GetErrorToolTip)
+					.OnClicked(this, &SBindingRow::OnErrorButtonClicked)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(4, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill)
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.HeightOverride(28)
+					[
+						SAssignNew(WidgetMenuAnchor, SMenuAnchor)
+						.OnGetMenuContent(this, &SBindingRow::OnGetWidgetMenuContent)
+						[
+							SNew(SButton)
+							.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton").ButtonStyle)
+							.OnClicked(this, &SBindingRow::OnWidgetMenuAnchorClicked)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.VAlign(VAlign_Fill)
+								.AutoWidth()
+								[
+									SAssignNew(SelectedWidget, SFieldEntry)
+									.Field(GetSelectedWidgetProperty())
+								]
+								+ SHorizontalBox::Slot()
+								.Padding(4, 0, 0, 0)
+								.HAlign(HAlign_Right)
+								.VAlign(VAlign_Center)
+								.AutoWidth()
+								[
+									SNew(SImage)
+									.Image(FAppStyle::Get().GetBrush("Icons.ChevronDown"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
+							]
+						]
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(2, 1)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Left) 
+				.AutoWidth()
 				[
 					SNew(SComboBox<FName>)
-					.OptionsSource(&ModeNames)
-					.InitiallySelectedItem(ModeEnum->GetNameByValue((int64) ViewModelBinding->BindingType))
-					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnModeSelectionChanged)
-					.OnGenerateWidget(this, &SMVVMViewBindingListEntryRow::GenerateModeWidget)
+					.OptionsSource(Private::GetBindingModeNames())
+					.InitiallySelectedItem(StaticEnum<EMVVMBindingMode>()->GetNameByValue((int64) ViewModelBinding->BindingType))
+					.OnSelectionChanged(this, &SBindingRow::OnModeSelectionChanged)
+					.OnGenerateWidget(this, &SBindingRow::GenerateModeWidget)
 					.Content()
 					[
 						SNew(SBox)
@@ -170,76 +299,109 @@ public:
 						.HeightOverride(16)
 						[
 							SNew(SImage)
-							.Image(this, &SMVVMViewBindingListEntryRow::GetCurrentModeBrush)
+							.Image(this, &SBindingRow::GetCurrentModeBrush)
 						]
 					]
-				];
-		}
-		else if (ColumnName == WidgetColumName)
-		{
-			return SNew(SBox)
-				.Padding(FMargin(2, 0))
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew(WidgetFieldSelector, UE::MVVM::SFieldSelector, WidgetBlueprint, false)
-					.SelectedField(this, &SMVVMViewBindingListEntryRow::GetSelectedWidgetProperty)
-					.BindingMode(this, &SMVVMViewBindingListEntryRow::GetCurrentBindingMode)
-					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnWidgetPropertySelectionChanged)
-				];
-		}
-		else if (ColumnName == UpdateColumnName)
-		{
-			const UEnum* UpdateModeEnum = StaticEnum<EMVVMViewBindingUpdateMode>();
-			return SNew(SBox)
-				.Padding(FMargin(2, 0))
-				.VAlign(VAlign_Center)
-				[
-					SNew(SEnumComboBox, UpdateModeEnum)
-					.ContentPadding(FMargin(4, 0))
-					.OnEnumSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnUpdateModeSelectionChanged)
-					.CurrentValue(this, &SMVVMViewBindingListEntryRow::GetUpdateModeValue)
-				];
-		}
-		else if (ColumnName == ConversionFunctionColumnName)
-		{
-			return SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.AutoWidth()
-				[
-					SNew(SMVVMConversionPath, WidgetBlueprint, false)
-					.Bindings(this, &SMVVMViewBindingListEntryRow::GetThisViewBindingAsArray)
-					.OnFunctionChanged(this, &SMVVMViewBindingListEntryRow::OnConversionFunctionChanged, false)
 				]
+				
 				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill) 
+				.AutoWidth()
+				[
+					SAssignNew(ViewModelFieldSelector, SFieldSelector, InWidgetBlueprint, true)
+					.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
+					.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
+					.OnSelectionChanged(this, &SBindingRow::OnViewModelPropertySelectionChanged)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(2, 1)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Left)
+				.AutoWidth()
+				[
+					SNew(SEnumComboBox, StaticEnum<EMVVMViewBindingUpdateMode>())
+					.ContentPadding(FMargin(4, 0))
+					.OnEnumSelectionChanged(this, &SBindingRow::OnUpdateModeSelectionChanged)
+					.CurrentValue(this, &SBindingRow::GetUpdateModeValue)
+				]
+		
+				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
 				.AutoWidth()
 				[
-					SNew(SMVVMConversionPath, WidgetBlueprint, true)
-					.Bindings(this, &SMVVMViewBindingListEntryRow::GetThisViewBindingAsArray)
-					.OnFunctionChanged(this, &SMVVMViewBindingListEntryRow::OnConversionFunctionChanged, true)
-				];
-		}
-		else if (ColumnName == DropDownOptionsColumnName)
-		{
-			return SAssignNew(ContextMenuOptionHelper, SButton)
-				.ToolTipText(LOCTEXT("DropDownOptionsToolTip", "Context Menu for Binding"))
-				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
-				.OnClicked(this, &SMVVMViewBindingListEntryRow::HandleDropDownOptionsPressed)
+					SNew(SMVVMConversionPath, InWidgetBlueprint, false)
+					.Bindings(this, &SBindingRow::GetThisViewBindingAsArray)
+					.OnFunctionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.AutoWidth()
 				[
-					SNew(SBox)
-					.Padding(FMargin(3, 0))
+					SNew(SMVVMConversionPath, InWidgetBlueprint, true)
+					.Bindings(this, &SBindingRow::GetThisViewBindingAsArray)
+					.OnFunctionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
+				]
+
+				+ SHorizontalBox::Slot() 
+				.Padding(2, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					SAssignNew(ContextMenuOptionHelper, SButton)
+					.ToolTipText(LOCTEXT("DropDownOptionsToolTip", "Context Menu for Binding"))
+					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+					.OnClicked(this, &SBindingRow::HandleDropDownOptionsPressed)
 					[
-						SNew(SImage)
-						.Image(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SegmentedCombo.Right").DownArrowImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
+						SNew(SBox)
+						.Padding(FMargin(3, 0))
+						[
+							SNew(SImage)
+							.Image(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SegmentedCombo.Right").DownArrowImage)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
 					]
-				];
+				]
+			],
+			OwnerTableView
+		);
+	}
+
+	~SBindingRow()
+	{
+		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintWeak.Get())
+		{
+			WidgetBlueprint->OnChanged().Remove(OnBlueprintChangedHandle);
 		}
-		
-		return SNullWidget::NullWidget;
+	}
+
+	FMVVMBlueprintViewBinding* GetThisViewBinding() const
+	{
+		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+		{
+			FMVVMBlueprintViewBinding* ViewBinding = Entry->GetBinding(BlueprintViewPtr);
+			return ViewBinding;
+		}
+
+		return nullptr;
+	}
+
+	TArray<FMVVMBlueprintViewBinding*> GetThisViewBindingAsArray() const
+	{
+		TArray<FMVVMBlueprintViewBinding*> Result;
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			Result.Add(ViewBinding);
+		}
+		return Result;
 	}
 
 private:
@@ -296,7 +458,7 @@ private:
 				[
 					SNew(SListView<TSharedPtr<FText>>)
 					.ListItemsSource(&ErrorItems)
-					.OnGenerateRow(this, &SMVVMViewBindingListEntryRow::OnGenerateErrorRow)
+					.OnGenerateRow(this, &SBindingRow::OnGenerateErrorRow)
 				];
 
 			ErrorDialog->Show();
@@ -311,23 +473,86 @@ private:
 		return ViewModelBinding->BindingType;
 	}
 
-	UMVVMSubsystem::FConstDirectionalBindingArgs GetCurrentBindingArgs(bool bIsGetter) const
+	FReply OnWidgetMenuAnchorClicked()
 	{
-		const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
+		WidgetMenuAnchor->SetIsOpen(!WidgetMenuAnchor->IsOpen());
+		return FReply::Handled();
+	}
 
-		UMVVMSubsystem::FConstDirectionalBindingArgs Args;
-		if (bIsGetter)
+	TSharedRef<SWidget> OnGetWidgetMenuContent()
+	{
+		FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding();
+
+		UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintWeak.Get();
+
+		EFieldVisibility Flags;
+		if (UE::MVVM::IsForwardBinding(ViewBinding->BindingType))
 		{
-			Args.SourceBinding = ViewModelBinding->ViewModelPath.GetFields().Last();
-			Args.DestinationBinding = ViewModelBinding->WidgetPath.GetFields().Last();
-		}
-		else
-		{
-			Args.SourceBinding = ViewModelBinding->WidgetPath.GetFields().Last();
-			Args.DestinationBinding = ViewModelBinding->ViewModelPath.GetFields().Last();
+			Flags |= EFieldVisibility::Writable;
 		}
 
-		return MoveTemp(Args);
+		if (UE::MVVM::IsBackwardBinding(ViewBinding->BindingType))
+		{
+			Flags |= EFieldVisibility::Readable;
+
+			if (!UE::MVVM::IsOneTimeBinding(ViewBinding->BindingType))
+			{
+				Flags |= EFieldVisibility::Notify;
+			}
+		}
+
+		FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint, ViewBinding->WidgetPath.GetWidgetName());
+
+		WidgetFieldIterator = MakeShared<UE::MVVM::FFieldIterator_Bindable>(WidgetBlueprint, Flags);
+		
+		return SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.Padding(FMargin(8, 8, 8, 4))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(WidgetBindingList, SSourceBindingList, WidgetBlueprint)
+					.InitialSource(Source)
+					.ShowSearchBox(false)
+					.OnDoubleClicked(this, &SBindingRow::OnWidgetPropertySelectionChanged)
+					.FieldVisibilityFlags(Flags)
+				]
+				+ SVerticalBox::Slot()
+				.Padding(4, 4, 4, 0)
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					[
+						SNew(SButton)
+						.OnClicked(this, &SBindingRow::OnWidgetButtonClicked, false)
+						.HAlign(HAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("Cancel", "Cancel"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(4, 0, 0, 0)
+					[
+						SNew(SButton)
+						.OnClicked(this, &SBindingRow::OnWidgetClearButtonClicked)
+						.HAlign(HAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("Clear", "Clear"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(4, 0, 0, 0)
+					[
+						SNew(SPrimaryButton)
+						.OnClicked(this, &SBindingRow::OnWidgetButtonClicked, true)
+						.Text(LOCTEXT("Select", "Select"))
+					]
+				]
+			];
 	}
 
 	TSharedRef<ITableRow> OnGenerateErrorRow(TSharedPtr<FText> Text, const TSharedRef<STableViewBase>& TableView) const
@@ -349,19 +574,19 @@ private:
 
 			if (bSourceToDest)
 			{
-				EditorSubsystem->SetSourceToDestinationConversionFunction(WidgetBlueprint, *ViewBinding, Function);
+				EditorSubsystem->SetSourceToDestinationConversionFunction(WidgetBlueprintWeak.Get(), *ViewBinding, Function);
 			} 
 			else
 			{
-				EditorSubsystem->SetDestinationToSourceConversionFunction(WidgetBlueprint, *ViewBinding, Function);
+				EditorSubsystem->SetDestinationToSourceConversionFunction(WidgetBlueprintWeak.Get(), *ViewBinding, Function);
 			}
 		}
 	}
 
-	TArray<UE::MVVM::FBindingSource> GetAvailableViewModels() const
+	TArray<FBindingSource> GetAvailableViewModels() const
 	{
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		return EditorSubsystem->GetAllViewModels(WidgetBlueprint);
+		return EditorSubsystem->GetAllViewModels(WidgetBlueprintWeak.Get());
 	}
 
 	FMVVMBlueprintPropertyPath GetSelectedViewModelProperty() const
@@ -391,31 +616,50 @@ private:
 			if (ViewBinding->ViewModelPath != SelectedField)
 			{
 				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-				Subsystem->SetViewModelPropertyForBinding(WidgetBlueprint, *ViewBinding, SelectedField);
-
-				if (WidgetFieldSelector.IsValid())
-				{
-					WidgetFieldSelector->Refresh();
-				}
+				Subsystem->SetViewModelPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
 			}
 		}
 	}
 
-	void OnWidgetPropertySelectionChanged(FMVVMBlueprintPropertyPath SelectedField)
+	void OnWidgetPropertySelectionChanged(const FMVVMBlueprintPropertyPath& SelectedField)
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			if (ViewBinding->WidgetPath != SelectedField)
 			{
 				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-				Subsystem->SetWidgetPropertyForBinding(WidgetBlueprint, *ViewBinding, SelectedField);
+				Subsystem->SetWidgetPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
 
 				if (ViewModelFieldSelector.IsValid())
 				{
 					ViewModelFieldSelector->Refresh();
 				}
+
+				if (SelectedWidget.IsValid())
+				{
+					SelectedWidget->SetField(SelectedField);
+				}
 			}
 		}
+	}
+
+	FReply OnWidgetButtonClicked(bool bSelect)
+	{
+		if (bSelect)
+		{
+			OnWidgetPropertySelectionChanged(WidgetBindingList->GetSelectedProperty());
+		}
+
+		WidgetMenuAnchor->SetIsOpen(false);
+		return FReply::Handled();
+	}
+
+	FReply OnWidgetClearButtonClicked()
+	{
+		FMVVMBlueprintPropertyPath Path;
+		Path.SetWidgetName(Entry->GetWidgetName());
+		OnWidgetPropertySelectionChanged(Path);
+		return FReply::Handled();
 	}
 
 	void OnUpdateModeSelectionChanged(int32 Value, ESelectInfo::Type)
@@ -423,7 +667,7 @@ private:
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->SetUpdateModeForBinding(WidgetBlueprint, *ViewBinding, (EMVVMViewBindingUpdateMode) Value);
+			Subsystem->SetUpdateModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, (EMVVMViewBindingUpdateMode) Value);
 		}			
 	}
 
@@ -442,7 +686,7 @@ private:
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->SetEnabledForBinding(WidgetBlueprint, *ViewBinding, NewState == ECheckBoxState::Checked);
+			Subsystem->SetEnabledForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, NewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -456,7 +700,7 @@ private:
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->SetCompileForBinding(WidgetBlueprint, *ViewBinding, NewState == ECheckBoxState::Checked);
+			Subsystem->SetCompileForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, NewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -546,25 +790,20 @@ private:
 			EMVVMBindingMode NewMode = (EMVVMBindingMode) ModeEnum->GetValueByName(ValueName);
 
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->SetBindingTypeForBinding(WidgetBlueprint, *ViewBinding, NewMode);
+			Subsystem->SetBindingTypeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, NewMode);
 
 			if (ViewModelFieldSelector.IsValid())
 			{
 				ViewModelFieldSelector->Refresh();
-			}
-
-			if (WidgetFieldSelector.IsValid())
-			{
-				WidgetFieldSelector->Refresh();
 			}
 		}
 	}
 
 	FReply HandleDropDownOptionsPressed() 
 	{
-		if (TSharedPtr<ITypedTableView<FMVVMViewBindingListEntryPtr>> ListView = OwnerTablePtr.Pin())
+		if (TSharedPtr<ITypedTableView<TSharedPtr<FBindingEntry>>> ListView = OwnerTablePtr.Pin())
 		{
-			if (TSharedPtr<SMVVMViewBindingListView> ParentList = StaticCastSharedPtr<SMVVMViewBindingListView>(ListView->AsWidget()->GetParentWidget()))
+			if (TSharedPtr<SBindingsList> ParentList = StaticCastSharedPtr<SBindingsList>(ListView->AsWidget()->GetParentWidget()))
 			{
 				// Get the context menu content. If invalid, don't open a menu.
 				ListView->Private_SetItemSelection(Entry, true);
@@ -585,98 +824,49 @@ private:
 	void HandleBlueprintChanged(UBlueprint* Blueprint)
 	{
 		ViewModelFieldSelector->Refresh();
-		WidgetFieldSelector->Refresh();
 	}
 
 private:
-	FMVVMViewBindingListEntryPtr Entry;
+	TSharedPtr<FBindingEntry> Entry;
+	TWeakObjectPtr<UWidgetBlueprint> WidgetBlueprintWeak;
 	TWeakObjectPtr<UMVVMBlueprintView> BlueprintView;
-	UWidgetBlueprint* WidgetBlueprint = nullptr;
-	TSharedPtr<UE::MVVM::SFieldSelector> ViewModelFieldSelector;
-	TSharedPtr<UE::MVVM::SFieldSelector> WidgetFieldSelector;
+	TSharedPtr<SFieldSelector> ViewModelFieldSelector;
 	TSharedPtr<SWidget> ContextMenuOptionHelper;
 	TSharedPtr<SCustomDialog> ErrorDialog;
 	TArray<TSharedPtr<FText>> ErrorItems;
-	TArray<FName> ModeNames;
 	FDelegateHandle OnBlueprintChangedHandle;
+	TSharedPtr<UE::MVVM::FFieldIterator_Bindable> WidgetFieldIterator;
+	TSharedPtr<SMenuAnchor> WidgetMenuAnchor;
+	TSharedPtr<SSourceBindingList> WidgetBindingList;
+	TSharedPtr<SFieldEntry> SelectedWidget;
 };
 
-FName SMVVMViewBindingListEntryRow::EnabledColumnName = "Enabled";
-FName SMVVMViewBindingListEntryRow::CompileColumnName = "Compile";
-FName SMVVMViewBindingListEntryRow::ErrorColumnName = "Error";
-FName SMVVMViewBindingListEntryRow::ViewModelColumnName = "ViewModelProperty";
-FName SMVVMViewBindingListEntryRow::ModeColumnName = "Mode";
-FName SMVVMViewBindingListEntryRow::WidgetColumName = "WidgetProperty";
-FName SMVVMViewBindingListEntryRow::UpdateColumnName = "Update";
-FName SMVVMViewBindingListEntryRow::ConversionFunctionColumnName = "ConversionFunction";
-FName SMVVMViewBindingListEntryRow::DropDownOptionsColumnName = "DropdownOptions";
-
-/** */
-void SMVVMViewBindingListView::Construct(const FArguments& InArgs, TSharedPtr<SMVVMViewBindingPanel> Owner, UMVVMWidgetBlueprintExtension_View* InMVVMExtension)
+void SBindingsList::Construct(const FArguments& InArgs, TSharedPtr<SBindingsPanel> Owner, UMVVMWidgetBlueprintExtension_View* InMVVMExtension)
 {
 	BindingPanel = Owner;
 	MVVMExtension = InMVVMExtension;
 	check(InMVVMExtension);
 
-	MVVMExtension->OnBlueprintViewChangedDelegate().AddSP(this, &SMVVMViewBindingListView::RequestListRefresh);
-	MVVMExtension->GetBlueprintView()->OnBindingsUpdated.AddSP(this, &SMVVMViewBindingListView::RequestListRefresh);
-	MVVMExtension->GetBlueprintView()->OnViewModelsUpdated.AddSP(this, &SMVVMViewBindingListView::RequestListRefresh);
-
-	RequestListRefresh();
+	MVVMExtension->OnBlueprintViewChangedDelegate().AddSP(this, &SBindingsList::Refresh);
+	MVVMExtension->GetBlueprintView()->OnBindingsUpdated.AddSP(this, &SBindingsList::Refresh);
+	MVVMExtension->GetBlueprintView()->OnViewModelsUpdated.AddSP(this, &SBindingsList::Refresh);
 
 	ChildSlot
 	[
-		SAssignNew(ListView, SListView<FMVVMViewBindingListEntryPtr>)
-		.ListItemsSource(&SourceData)
+		SAssignNew(TreeView, STreeView<TSharedPtr<FBindingEntry>>)
+		.TreeItemsSource(&RootWidgets)
 		.SelectionMode(ESelectionMode::Single)
-		.OnGenerateRow(this, &SMVVMViewBindingListView::MakeSourceListViewWidget)
-		.OnContextMenuOpening(this, &SMVVMViewBindingListView::OnSourceConstructContextMenu)
-		.OnSelectionChanged(this, &SMVVMViewBindingListView::OnSourceListSelectionChanged)
-		.HeaderRow
-		(
-			SNew(SHeaderRow)
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::CompileColumnName)
-			.DefaultLabel(FText::GetEmpty())
-			.FixedWidth(25.f)
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::ErrorColumnName)
-			.DefaultLabel(FText::GetEmpty())
-			.FixedWidth(25.f)
-			.HeaderContent()
-			[
-				SNew(SBox)
-				.WidthOverride(16)
-				.HeightOverride(16)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("Icons.Error"))
-				]
-			]
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::ViewModelColumnName)
-			.FillWidth(0.25f)
-			.DefaultLabel(LOCTEXT("ViewModelProperty", "View Model Property"))
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::ModeColumnName)
-			.FixedWidth(52)
-			.DefaultLabel(LOCTEXT("Mode", "Mode"))
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::WidgetColumName)
-			.FillWidth(0.25f)
-			.DefaultLabel(LOCTEXT("WidgetProperty", "Widget Property"))
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::UpdateColumnName)
-			.FillWidth(0.05f)
-			.DefaultLabel(LOCTEXT("Update", "Update"))
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::ConversionFunctionColumnName)
-			.FillWidth(0.05f)
-			.DefaultLabel(LOCTEXT("Conversion", "Conversion"))
-			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::DropDownOptionsColumnName)
-			.FixedWidth(25.f)
-			.DefaultLabel(FText::GetEmpty())
-		)
+		.OnGenerateRow(this, &SBindingsList::GenerateEntryRow)
+		.OnGetChildren(this, &SBindingsList::GetChildrenOfEntry)
+		.OnContextMenuOpening(this, &SBindingsList::OnSourceConstructContextMenu)
+		.OnSelectionChanged(this, &SBindingsList::OnSourceListSelectionChanged)
+		.ItemHeight(32)
 	];
+
+	Refresh();
 }
 
-
-SMVVMViewBindingListView::~SMVVMViewBindingListView()
+SBindingsList::~SBindingsList()
 {
 	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
 	{
@@ -686,79 +876,135 @@ SMVVMViewBindingListView::~SMVVMViewBindingListView()
 	}
 }
 
-void SMVVMViewBindingListView::RequestListRefresh()
+void SBindingsList::GetChildrenOfEntry(TSharedPtr<FBindingEntry> Entry, TArray<TSharedPtr<FBindingEntry>>& OutChildren) const
 {
-	int32 SelectedIndex = -1;
-	if (ListView.IsValid())
+	TConstArrayView<TSharedPtr<FBindingEntry>> Children = Entry->GetChildren();
+	OutChildren.Append(Children.GetData(), Children.Num());
+}
+
+void SBindingsList::Refresh()
+{
+	UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get();
+	UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr ? MVVMExtensionPtr->GetBlueprintView() : nullptr;
+
+	// store the current binding index
+	TArray<FMVVMBlueprintViewBinding*, TInlineAllocator<8>> SelectedBindings;
+
+	if (TreeView.IsValid() && BlueprintView)
 	{
-		if (const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
+		TArray<TSharedPtr<FBindingEntry>> SelectedItems = TreeView->GetSelectedItems();
+		for (const TSharedPtr<FBindingEntry>& Entry : SelectedItems)
 		{
-			if (const UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
+			FMVVMBlueprintViewBinding* Binding = Entry->GetBinding(BlueprintView);
+			if (Binding != nullptr)
 			{
-				TArray<FMVVMViewBindingListEntryPtr> SelectedItems = ListView->GetSelectedItems();
-				for (const FMVVMViewBindingListEntryPtr& Entry : SelectedItems)
+				SelectedBindings.Add(Binding);
+			}
+		}
+	}
+
+	RootWidgets.Reset();
+
+	TArray<TSharedPtr<FBindingEntry>> SelectedEntries;
+
+	// generate our entries
+	// for each widget with bindings, create an entry at the root level
+	// then add all bindings that reference that widget as its children
+	if (BlueprintView)
+	{
+		TArrayView<FMVVMBlueprintViewBinding> Bindings = BlueprintView->GetBindings();
+		for (int32 BindingIndex = 0; BindingIndex < Bindings.Num(); ++BindingIndex)
+		{
+			const FMVVMBlueprintViewBinding& Binding = Bindings[BindingIndex];
+			
+			FName WidgetName = Binding.WidgetPath.GetWidgetName();
+
+			TSharedPtr<FBindingEntry> ExistingWidget;
+			for (TSharedPtr<FBindingEntry> Widget : RootWidgets)
+			{
+				if (WidgetName == Widget->GetWidgetName())
 				{
-					SelectedIndex = Entry->Index;
+					ExistingWidget = Widget;
 					break;
 				}
 			}
-		}
-	}
 
-	SourceData.Reset();
-	if (const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
-	{
-		if (const UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
-		{
-			const int32 Count = BlueprintView->GetBindings().Num();
-			for (int32 Index = 0; Index < Count; ++Index)
+			if (!ExistingWidget.IsValid())
 			{
-				SourceData.Add(MakeShared<FMVVMViewBindingListEntry>(Index));
+				ExistingWidget = RootWidgets.Add_GetRef(MakeShared<FBindingEntry>(WidgetName));
+			}
+
+			TSharedRef<FBindingEntry> NewBindingEntry = MakeShared<FBindingEntry>(BindingIndex);
+			ExistingWidget->AddChild(NewBindingEntry);
+
+			if (SelectedBindings.Contains(&Binding))
+			{
+				SelectedEntries.Add(NewBindingEntry);
 			}
 		}
 	}
 
-	if (ListView.IsValid())
+	if (TreeView.IsValid())
 	{
-		ListView->RequestListRefresh();
+		TreeView->RequestTreeRefresh();
 
-		if (SourceData.IsValidIndex(SelectedIndex))
+		TreeView->SetItemSelection(SelectedEntries, true);
+
+		for (const TSharedPtr<FBindingEntry>& Entry : RootWidgets)
 		{
-			ListView->SetItemSelection(SourceData[SelectedIndex], true);
+			Private::ExpandAll(TreeView, Entry);
 		}
 	}
 }
 
 
-TSharedRef<ITableRow> SMVVMViewBindingListView::MakeSourceListViewWidget(FMVVMViewBindingListEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable) const
+TSharedRef<ITableRow> SBindingsList::GenerateEntryRow(TSharedPtr<FBindingEntry> Entry, const TSharedRef<STableViewBase>& OwnerTable) const
 {
+	TSharedPtr<ITableRow> Row;
+
 	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
 	{
-		return SNew(SMVVMViewBindingListEntryRow, OwnerTable, Entry, MVVMExtensionPtr->GetBlueprintView(), MVVMExtensionPtr->GetWidgetBlueprint());
+		if (Entry->GetBinding(MVVMExtensionPtr->GetBlueprintView()) != nullptr)
+		{
+			Row = SNew(SBindingRow, OwnerTable, Entry, MVVMExtensionPtr->GetBlueprintView(), MVVMExtensionPtr->GetWidgetBlueprint());
+		}
+		else
+		{
+			Row = SNew(SWidgetRow, OwnerTable, Entry, MVVMExtensionPtr->GetWidgetBlueprint());
+		}
+
+		return Row.ToSharedRef();
 	}
-	return SNew(SMVVMViewBindingListEntryRow, OwnerTable, Entry, nullptr, nullptr);
+
+	ensureMsgf(false, TEXT("Failed to create binding or widget row."));
+	return SNew(STableRow<TSharedPtr<FBindingEntry>>, OwnerTable);
 }
 
-TSharedPtr<SWidget> SMVVMViewBindingListView::OnSourceConstructContextMenu()
+TSharedPtr<SWidget> SBindingsList::OnSourceConstructContextMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
 
-	TArray<FMVVMViewBindingListEntryPtr> Selection = ListView->GetSelectedItems();
+	TArray<TSharedPtr<FBindingEntry>> Selection = TreeView->GetSelectedItems();
 	if (Selection.Num() > 0)
 	{
 		FUIAction RemoveAction;
-		RemoveAction.ExecuteAction = FExecuteAction::CreateLambda([this, ToRemove = Selection[0]->Index]()
+		RemoveAction.ExecuteAction = FExecuteAction::CreateLambda([this, Selection]()
 			{
 				if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
 				{
-					if (TSharedPtr<SMVVMViewBindingPanel> BindingPanelPtr = BindingPanel.Pin())
+					if (TSharedPtr<SBindingsPanel> BindingPanelPtr = BindingPanel.Pin())
 					{
-						BindingPanelPtr->OnBindingListSelectionChanged(INDEX_NONE);
+						BindingPanelPtr->OnBindingListSelectionChanged(TConstArrayView<FMVVMBlueprintViewBinding*>());
 					}
 
-					UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView();
-					BlueprintView->RemoveBindingAt(ToRemove);
+					if (UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
+					{
+						for (const TSharedPtr<FBindingEntry>& Entry : Selection)
+						{
+							BlueprintView->RemoveBinding(Entry->GetBinding(BlueprintView));
+						}
+					}
 				}
 			});
 		MenuBuilder.AddMenuEntry(LOCTEXT("RemoveBinding", "Remove Binding"), LOCTEXT("RemoveBindingTooltip", "Remove this binding."), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"), RemoveAction);
@@ -767,7 +1013,7 @@ TSharedPtr<SWidget> SMVVMViewBindingListView::OnSourceConstructContextMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SMVVMViewBindingListView::OnSourceListSelectionChanged(FMVVMViewBindingListEntryPtr Entry, ESelectInfo::Type SelectionType) const
+void SBindingsList::OnSourceListSelectionChanged(TSharedPtr<FBindingEntry> Entry, ESelectInfo::Type SelectionType) const
 {
 	if (bSelectionChangedGuard)
 	{
@@ -775,11 +1021,29 @@ void SMVVMViewBindingListView::OnSourceListSelectionChanged(FMVVMViewBindingList
 	}
 	TGuardValue<bool> ReentrantGuard(bSelectionChangedGuard, true);
 
-	const int32 SelectionIndex = Entry ? Entry->Index : INDEX_NONE;
-	if (TSharedPtr<SMVVMViewBindingPanel> BindingPanelPtr = BindingPanel.Pin())
+	if (TSharedPtr<SBindingsPanel> BindingPanelPtr = BindingPanel.Pin())
 	{
-		BindingPanelPtr->OnBindingListSelectionChanged(SelectionIndex);
+		if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
+		{
+			if (UMVVMBlueprintView* View = MVVMExtensionPtr->GetBlueprintView())
+			{
+				TArray<TSharedPtr<FBindingEntry>> SelectedEntries = TreeView->GetSelectedItems();
+				TArray<FMVVMBlueprintViewBinding*> SelectedBindings;
+
+				for (const TSharedPtr<FBindingEntry>& SelectedEntry : SelectedEntries)
+				{
+					if (FMVVMBlueprintViewBinding* SelectedBinding = Entry->GetBinding(View))
+					{
+						SelectedBindings.Add(SelectedBinding);
+					}
+				}
+
+				BindingPanelPtr->OnBindingListSelectionChanged(SelectedBindings);
+			}
+		}
 	}
 }
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

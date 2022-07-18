@@ -8,36 +8,41 @@
 #include "Widgets/SCompoundWidget.h"
 
 class ITableRow;
-template <typename ItemType> class SListView;
+template <typename ItemType> class STreeView;
 class STableViewBase;
-class SMVVMViewBindingPanel;
 class UMVVMWidgetBlueprintExtension_View;
 
-struct FMVVMViewBindingListEntry;
-using FMVVMViewBindingListEntryPtr = TSharedPtr<FMVVMViewBindingListEntry>;
+namespace UE::MVVM
+{
+class SBindingsPanel;
 
-class SMVVMViewBindingListView : public SCompoundWidget
+struct FBindingEntry;
+
+class SBindingsList : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMViewBindingListView) {}
+	SLATE_BEGIN_ARGS(SBindingsList) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SMVVMViewBindingPanel> Owner, UMVVMWidgetBlueprintExtension_View* MVVMExtension);
-	~SMVVMViewBindingListView();
+	void Construct(const FArguments& InArgs, TSharedPtr<SBindingsPanel> Owner, UMVVMWidgetBlueprintExtension_View* MVVMExtension);
+	~SBindingsList();
 
-	void RequestListRefresh();
+	void Refresh();
 
 	/** Constructs context menu used for right click and dropdown button */
 	TSharedPtr<SWidget> OnSourceConstructContextMenu();
 
 private:
-	TSharedRef<ITableRow> MakeSourceListViewWidget(FMVVMViewBindingListEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable) const;
-	void OnSourceListSelectionChanged(FMVVMViewBindingListEntryPtr Entry, ESelectInfo::Type SelectionType) const;
+	TSharedRef<ITableRow> GenerateEntryRow(TSharedPtr<FBindingEntry> Entry, const TSharedRef<STableViewBase>& OwnerTable) const;
+	void OnSourceListSelectionChanged(TSharedPtr<FBindingEntry> Entry, ESelectInfo::Type SelectionType) const;
+	void GetChildrenOfEntry(TSharedPtr<FBindingEntry> Entry, TArray<TSharedPtr<FBindingEntry>>& OutChildren) const;
 
 private:
-	TWeakPtr<SMVVMViewBindingPanel> BindingPanel;
-	TSharedPtr<SListView<FMVVMViewBindingListEntryPtr>> ListView;
-	TArray<FMVVMViewBindingListEntryPtr> SourceData;
+	TWeakPtr<SBindingsPanel> BindingPanel;
+	TSharedPtr<STreeView<TSharedPtr<FBindingEntry>>> TreeView;
+	TArray<TSharedPtr<FBindingEntry>> RootWidgets;
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
 	mutable bool bSelectionChangedGuard = false;
 };
+
+} // namespace UE::MVVM
