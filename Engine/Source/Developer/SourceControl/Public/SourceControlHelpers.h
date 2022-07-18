@@ -518,13 +518,23 @@ public:
 	static bool AnnotateFile(ISourceControlProvider& InProvider, int32 InCheckInIdentifier, const FString& InFile, TArray<FAnnotationLine>& OutLines);
 
 	/**
-	 * Helper function to branch/integrate packages from one location to another
+	 * Helper function to branch/integrate packages from one location to another maintaining
+	 * a relationship between the files in source control (when possible)
 	 * @param	DestPackage			The destination package
 	 * @param	SourcePackage		The source package
 	 * @Param	StateCacheUsage		Whether to use the source control state cache
 	 * @return true if the file packages were successfully branched.
 	 */
 	static bool BranchPackage(UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage = EStateCacheUsage::ForceUpdate);
+
+	/**
+	 * Helper function to copy a package from one location to another
+	 * @param	DestPackage             The destination package
+	 * @param	SourcePackage           The source package
+	 * @Param	StateCacheUsage         Whether to use the source control state cache
+	 * @return true if the file packages were successfully branched.
+	 */
+	static bool CopyPackage(UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage = EStateCacheUsage::ForceUpdate);
 
 	/**
 	 * Helper function to get the ini filename for storing source control settings

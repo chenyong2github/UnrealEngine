@@ -1521,26 +1521,38 @@ bool USourceControlHelpers::CopyFileUnderSourceControl( const FString& InDestFil
 	return CheckoutOrMarkForAdd(InDestFile, InFileDescription, FOnPostCheckOut::CreateStatic(&Local::CopyFile, InSourceFile), OutFailReason);
 }
 
-
-bool USourceControlHelpers::BranchPackage( UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage )
+namespace
 {
-	if(ISourceControlModule::Get().IsEnabled())
+	bool CopyPackage_Internal(UPackage* DestPackage, UPackage* SourcePackage, FCopy::ECopyMethod CopyMethod, EStateCacheUsage::Type StateCacheUsage)
 	{
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-
-		const FString SourceFilename = PackageFilename(SourcePackage);
-		const FString DestFilename = PackageFilename(DestPackage);
-		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, StateCacheUsage);
-		if(SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
+		if (ISourceControlModule::Get().IsEnabled())
 		{
-			TSharedRef<FCopy, ESPMode::ThreadSafe> CopyOperation = ISourceControlOperation::Create<FCopy>();
-			CopyOperation->SetDestination(DestFilename);
-			
-			return (SourceControlProvider.Execute(CopyOperation, SourceFilename) == ECommandResult::Succeeded);
-		}
-	}
+			ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-	return false;
+			const FString SourceFilename = USourceControlHelpers::PackageFilename(SourcePackage);
+			FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(SourceFilename, StateCacheUsage);
+			if (SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
+			{
+				TSharedRef<FCopy, ESPMode::ThreadSafe> CopyOperation = ISourceControlOperation::Create<FCopy>();
+				CopyOperation->SetDestination(USourceControlHelpers::PackageFilename(DestPackage));
+				CopyOperation->CopyMethod = CopyMethod;
+
+				return (SourceControlProvider.Execute(CopyOperation, SourceFilename) == ECommandResult::Succeeded);
+			}
+		}
+
+		return false;
+	}
+}
+
+bool USourceControlHelpers::BranchPackage(UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage)
+{
+	return CopyPackage_Internal(DestPackage, SourcePackage, FCopy::ECopyMethod::Branch, StateCacheUsage);
+}
+
+bool USourceControlHelpers::CopyPackage(UPackage* DestPackage, UPackage* SourcePackage, EStateCacheUsage::Type StateCacheUsage)
+{
+	return CopyPackage_Internal(DestPackage, SourcePackage, FCopy::ECopyMethod::Add, StateCacheUsage);
 }
 
 

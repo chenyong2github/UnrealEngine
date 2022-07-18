@@ -506,6 +506,15 @@ public:
 		return Destination;
 	}
 
+	enum class ECopyMethod
+	{
+		Branch,  // The new file is branched from the original file
+		Add      // The new file has no relation to the original file
+	};
+
+	/** Whether a relationship to the original file should be maintained */
+	ECopyMethod CopyMethod = ECopyMethod::Branch; 
+
 protected:
 	/** Destination path of the copy operation */
 	FString Destination;

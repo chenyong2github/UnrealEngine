@@ -272,7 +272,7 @@ void AssetViewUtils::CopyAssets(const TArray<UObject*>& Assets, const FString& D
 		{
 			UObject* SourceAsset = Assets[ObjectIndex];
 			UObject* DestAsset = NewObjects[ObjectIndex];
-			SourceControlHelpers::BranchPackage(DestAsset->GetOutermost(), SourceAsset->GetOutermost());
+			SourceControlHelpers::CopyPackage(DestAsset->GetOutermost(), SourceAsset->GetOutermost());
 		}
 	}
 }

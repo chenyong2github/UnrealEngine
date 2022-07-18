@@ -7,6 +7,7 @@
 #include "Algo/IndexOf.h"
 #include "Algo/Transform.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "ISourceControlModule.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"
@@ -29,6 +30,14 @@ namespace
 DECLARE_DELEGATE_RetVal_OneParam(FPerforceSourceControlWorkerRef, FGetPerforceSourceControlWorker, FPerforceSourceControlProvider&)
 
 static TMap<FName, FGetPerforceSourceControlWorker> WorkersMap;
+
+bool GAlwaysBranchFilesOnCopy = false;
+static FAutoConsoleVariableRef CVarAlwaysBranchFilesOnCopy(
+	TEXT("p4.AlwaysBranchFilesOnCopy"),
+	GAlwaysBranchFilesOnCopy,
+	TEXT("Use legacy behavior of always branching a file in perforce when copying."),
+	ECVF_Default
+);
 }
 
 template<typename Type>
@@ -2313,22 +2322,33 @@ bool FPerforceCopyWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 		AppendChangelistParameter(GetSCCProvider(), Parameters);
 
-		Parameters.Append(InCommand.Files);
-		Parameters.Add(DestinationPath);
-
 		FP4RecordSet Records;
-		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("integrate"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
-
-		// We now need to do a p4 resolve.
-		// This is because when we copy a file in the Editor, we first make the copy on disk before attempting to branch. This causes a conflict in P4's eyes.
-		// We must do this to prevent the asset registry from picking up what it thinks is a newly-added file (which would be created by the p4 integrate command)
-		// and then the package system getting very confused about where to save the now-duplicated assets.
-		if(InCommand.bCommandSuccessful)
+		if (Operation->CopyMethod == FCopy::ECopyMethod::Branch || GAlwaysBranchFilesOnCopy)
 		{
-			TArray<FString> ResolveParameters;
-			ResolveParameters.Add(TEXT("-ay"));	// 'accept yours'
-			ResolveParameters.Add(MoveTemp(DestinationPath));
-			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("resolve"), ResolveParameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			Parameters.Append(InCommand.Files);
+			Parameters.Add(DestinationPath);
+
+			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("integrate"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+
+			// We now need to do a p4 resolve.
+			// This is because when we copy a file in the Editor, we first make the copy on disk before attempting to branch. This causes a conflict in P4's eyes.
+			// We must do this to prevent the asset registry from picking up what it thinks is a newly-added file (which would be created by the p4 integrate command)
+			// and then the package system getting very confused about where to save the now-duplicated assets.
+			if (InCommand.bCommandSuccessful)
+			{
+				TArray<FString> ResolveParameters;
+				ResolveParameters.Add(TEXT("-ay"));	// 'accept yours'
+				ResolveParameters.Add(MoveTemp(DestinationPath));
+				InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("resolve"), ResolveParameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+			}
+		}
+		else
+		{
+			Parameters.Add(MoveTemp(DestinationPath));
+
+			check(Operation->CopyMethod == FCopy::ECopyMethod::Add);
+
+			InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("add"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 		}
 	}
 	return InCommand.bCommandSuccessful;
