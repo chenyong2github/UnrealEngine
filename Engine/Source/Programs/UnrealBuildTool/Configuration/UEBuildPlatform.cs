@@ -850,6 +850,20 @@ namespace UnrealBuildTool
 		{
 		}
 
+		/// <summary>
+		/// Indicates whether this platform requires a .loadorder file to be generated for the build.
+		/// .loadorder files contain a list of dynamic modules and the exact order in which they should be loaded
+		/// to ensure that all dependencies are satisfied i.e. we don't attempt to load a module without loading
+		/// all its dependencies first.
+		/// As such, this file is only needed in modular builds on some platforms (depending on the way they implement dynamic modules such as DLLs).
+		/// </summary>
+		/// <param name="Target">The target rules in use</param>
+		/// <returns>True if .loadorder file should be generated</returns>
+		public virtual bool RequiresLoadOrderManifest(ReadOnlyTargetRules Target)
+		{
+			return false;
+		}
+
 
 		/// <summary>
 		/// Checks if platform is part of a given platform group

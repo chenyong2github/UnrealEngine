@@ -1493,6 +1493,74 @@ namespace UnrealBuildTool
 			return FileNameToModuleManifest;
 		}
 
+		Dictionary<FileReference, LoadOrderManifest> PrepareLoadOrderManifests(ILogger Logger)
+		{
+			Dictionary<FileReference, LoadOrderManifest> FileNameToManifest = new Dictionary<FileReference, LoadOrderManifest>();
+			
+			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
+
+			if (!bCompileMonolithic && BuildPlatform.RequiresLoadOrderManifest(Rules))
+			{
+				string ManifestFileName = LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture);
+
+				// Create a map module->binary for all primary modules.
+				Dictionary<UEBuildModule, UEBuildBinary> PrimaryModules =
+					Binaries
+						.Where(x => x.Type == UEBuildBinaryType.DynamicLinkLibrary)
+						.ToDictionary(x => x.PrimaryModule as UEBuildModule, x => x);
+
+				List<Tuple<UEBuildModule, UEBuildModule>> Dependencies = new List<Tuple<UEBuildModule, UEBuildModule>>();
+
+				// Gather information about all dependencies between primary modules (binaries).
+				foreach (KeyValuePair<UEBuildModule, UEBuildBinary> ModuleInfo in PrimaryModules)
+				{
+					// Combine Private and Public dependencies and add a graph edge for each that is a primary module of some binary
+					// i.e. we care only about dependencies between primary modules.
+					// We remove Circular dependencies because we need to have a directed acyclic graph to be able to sort it.
+					// The convention seems to be that if we have
+					//     A -> B and B -> A (Circular: B)
+					// B -> A is considered secondary i.e. less important and we choose to remove this one.
+					(ModuleInfo.Key.PrivateDependencyModules ?? new List<UEBuildModule>())
+						.Union(ModuleInfo.Key.PublicDependencyModules ?? new List<UEBuildModule>())
+						.Where(x => PrimaryModules.ContainsKey(x) && !ModuleInfo.Key.Rules.CircularlyReferencedDependentModules.Contains(x.Name))
+						.ToList()
+						.ForEach(x => Dependencies.Add(new Tuple<UEBuildModule, UEBuildModule>(x, ModuleInfo.Key)));
+				}
+
+				// Sort the dependencies to generate a sequence of libraries to load respecting all the given dependencies.
+				TopologicalSorter<UEBuildModule> Sorter = new TopologicalSorter<UEBuildModule>(Dependencies);
+				Sorter.CycleHandling = TopologicalSorter<UEBuildModule>.CycleMode.BreakWithInfo;
+				Sorter.Logger = Logger;
+				Sorter.NodeToString = Module => Module.Name;
+				
+				if (!Sorter.Sort())
+				{
+					Logger.LogError("Failed to generate {ManifestFileName}: Couldn't sort dynamic modules in a way that would respect all dependencies (probably circular dependencies)", ManifestFileName);
+
+					return FileNameToManifest;
+				}
+
+				// Create the load order manifest and fill the list of all binaries.
+				LoadOrderManifest Manifest = new LoadOrderManifest();
+
+				foreach (UEBuildModule Module in Sorter.GetResult())
+				{
+					UEBuildBinary? Binary;
+
+					PrimaryModules.TryGetValue(Module, out Binary);
+
+					Manifest.Libraries.Add(
+						Path.GetRelativePath(GetExecutableDir().ToString(), Binary!.OutputFilePath.ToString()).Replace(Path.DirectorySeparatorChar, '/')
+						);
+				}
+
+				FileReference ManifestPath = FileReference.Combine(GetExecutableDir(), ManifestFileName);
+
+				FileNameToManifest.Add(ManifestPath, Manifest);
+			}
+			return FileNameToManifest;
+		}
+
 		/// <summary>
 		/// Prepare all the receipts this target (all the .target and .modules files). See the VersionManifest class for an explanation of what these files are.
 		/// </summary>
@@ -2028,13 +2096,17 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, ModuleManifest> FileNameToModuleManifest = PrepareModuleManifests();
 				BuildProducts.AddRange(FileNameToModuleManifest.Select(x => new KeyValuePair<FileReference, BuildProductType>(x.Key, BuildProductType.RequiredResource)));
 
+				// Prepare load order manifests (if needed), and add them to the list of build products.
+				Dictionary<FileReference, LoadOrderManifest> FileNameToLoadOrderManifest = PrepareLoadOrderManifests(Logger);
+				BuildProducts.AddRange(FileNameToLoadOrderManifest.Select(x => new KeyValuePair<FileReference, BuildProductType>(x.Key, BuildProductType.RequiredResource)));
+
 				// Prepare the receipt
 				TargetReceipt Receipt = PrepareReceipt(TargetToolChain, BuildProducts, RuntimeDependencies);
 
 				// Create an action which to generate the module receipts
 				if (VersionFile == null)
 				{
-					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, null, null, ReceiptFileName, Receipt, FileNameToModuleManifest);
+					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, null, null, ReceiptFileName, Receipt, FileNameToModuleManifest, FileNameToLoadOrderManifest);
 					FileReference TargetInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "TargetMetadata.dat");
 					CreateWriteMetadataAction(MakefileBuilder, ReceiptFileName.GetFileName(), TargetInfoFile, TargetInfo, Makefile.OutputItems);
 				}
@@ -2070,11 +2142,11 @@ namespace UnrealBuildTool
 						}
 					}
 
-					WriteMetadataTargetInfo EngineInfo = new WriteMetadataTargetInfo(null, VersionFile, Receipt.Version, null, null, EngineFileToManifest);
+					WriteMetadataTargetInfo EngineInfo = new WriteMetadataTargetInfo(null, VersionFile, Receipt.Version, null, null, EngineFileToManifest, null);
 					FileReference EngineInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "EngineMetadata.dat");
 					CreateWriteMetadataAction(MakefileBuilder, VersionFile.GetFileName(), EngineInfoFile, EngineInfo, EnginePrereqItems);
 
-					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, null, ReceiptFileName, Receipt, TargetFileToManifest);
+					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, null, ReceiptFileName, Receipt, TargetFileToManifest, FileNameToLoadOrderManifest);
 					FileReference TargetInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "TargetMetadata.dat");
 					CreateWriteMetadataAction(MakefileBuilder, ReceiptFileName.GetFileName(), TargetInfoFile, TargetInfo, TargetPrereqItems);
 				}
@@ -2209,6 +2281,8 @@ namespace UnrealBuildTool
 		void CreateWriteMetadataAction(TargetMakefileBuilder MakefileBuilder, string StatusDescription, FileReference InfoFile, WriteMetadataTargetInfo Info, IEnumerable<FileItem> PrerequisiteItems)
 		{
 			List<FileReference> ProducedItems = new List<FileReference>(Info.FileToManifest.Keys);
+			ProducedItems.AddRange(Info.FileToLoadOrderManifest.Keys);
+
 			if (Info.Version != null && Info.VersionFile != null)
 			{
 				ProducedItems.Add(Info.VersionFile);
@@ -4138,6 +4212,13 @@ namespace UnrealBuildTool
 			// Compile in the names of the module manifests
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture, false)));
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
+
+			// Compile in the names of the loadorder manifests.
+			if (!bCompileMonolithic && BuildPlatform.RequiresLoadOrderManifest(Rules))
+			{
+				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture)));
+				GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_LOADORDER_MANIFEST_DEBUGGAME=\"{0}\"", LoadOrderManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture)));
+			}
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=" + Platform.ToString()));

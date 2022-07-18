@@ -51,6 +51,11 @@ namespace UnrealBuildTool
 		public Dictionary<FileReference, ModuleManifest> FileToManifest;
 
 		/// <summary>
+		/// Map of load order manifest filenames to their locations on disk (generally, at most one load oder manifest is expected).
+		/// </summary>
+		public Dictionary<FileReference, LoadOrderManifest> FileToLoadOrderManifest;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile"></param>
@@ -59,7 +64,8 @@ namespace UnrealBuildTool
 		/// <param name="ReceiptFile"></param>
 		/// <param name="Receipt"></param>
 		/// <param name="FileToManifest"></param>
-		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest)
+		/// <param name="FileToLoadOrderManifest"></param>
+		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest, Dictionary<FileReference, LoadOrderManifest>? FileToLoadOrderManifest)
 		{
 			this.ProjectFile = ProjectFile;
 			this.VersionFile = VersionFile;
@@ -67,6 +73,7 @@ namespace UnrealBuildTool
 			this.ReceiptFile = ReceiptFile;
 			this.Receipt = Receipt;
 			this.FileToManifest = FileToManifest;
+			this.FileToLoadOrderManifest = FileToLoadOrderManifest ?? new Dictionary<FileReference, LoadOrderManifest>();
 		}
 	}
 
@@ -158,6 +165,46 @@ namespace UnrealBuildTool
 					Manifest.BuildId = BuildId ?? String.Empty;
 
 					if(!FileReference.Exists(ManifestFile))
+					{
+						// If the file doesn't already exist, just write it out
+						DirectoryReference.CreateDirectory(ManifestFile.Directory);
+						Manifest.Write(ManifestFile);
+					}
+					else
+					{
+						// Otherwise write it to a buffer first
+						string OutputText;
+						using (StringWriter Writer = new StringWriter())
+						{
+							Manifest.Write(Writer);
+							OutputText = Writer.ToString();
+						}
+
+						// Check if the manifest has changed. Note that if a manifest is out of date, we should have generated a new build id causing the contents to differ.
+						if (bNoManifestChanges)
+						{
+							string CurrentText = FileReference.ReadAllText(ManifestFile);
+							if (CurrentText != OutputText)
+							{
+								Logger.LogError("Build modifies {File}. This is not permitted. Before:\n    {OldFile}\nAfter:\n    {NewFile}", ManifestFile, CurrentText.Replace("\n", "\n    "), OutputText.Replace("\n", "\n    "));
+							}
+						}
+
+						// Write it to disk
+						FileReference.WriteAllText(ManifestFile, OutputText);
+					}
+				}
+			}
+
+			// Write load order manifests out.
+			foreach (KeyValuePair<FileReference, LoadOrderManifest> Pair in TargetInfo.FileToLoadOrderManifest)
+			{
+				FileReference ManifestFile = Pair.Key;
+				if (!UnrealBuildTool.IsFileInstalled(ManifestFile))
+				{
+					LoadOrderManifest Manifest = Pair.Value;
+
+					if (!FileReference.Exists(ManifestFile))
 					{
 						// If the file doesn't already exist, just write it out
 						DirectoryReference.CreateDirectory(ManifestFile.Directory);
