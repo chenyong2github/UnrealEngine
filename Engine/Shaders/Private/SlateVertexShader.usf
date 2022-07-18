@@ -43,7 +43,7 @@ VertexToPixelInterpolants Main(
 	VertexParameters.VertexColor = VOut.Color;
 
 	// Init primitive flags to a good default.
-	VertexParameters.SceneData.Primitive.Flags = PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET;
+	VertexParameters.SceneData.Primitive.Flags = GetDefaultPrimitiveSceneDataFlags();
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 
