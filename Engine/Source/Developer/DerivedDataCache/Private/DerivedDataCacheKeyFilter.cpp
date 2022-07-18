@@ -3,7 +3,6 @@
 #include "DerivedDataCacheKeyFilter.h"
 
 #include "Algo/Find.h"
-#include "Containers/StringConv.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataSharedString.h"
 #include "Hash/xxhash.h"
@@ -60,7 +59,7 @@ bool Private::FCacheKeyFilterState::TryParseTypeRate(const FStringView TypeConfi
 		return false;
 	}
 
-	OutTypeRate.Type = FUtf8StringView(FTCHARToUTF8(TypeView));
+	OutTypeRate.Type = WriteToUtf8String<64>(TypeView);
 	OutTypeRate.Rate = ConvertMatchRate(Rate);
 	return true;
 }
@@ -159,41 +158,6 @@ bool FCacheKeyFilter::IsMatch(const FCacheKey& Key) const
 		return true;
 	}
 	return State->ApplySalt(GetTypeHash(Key.Hash)) < TargetRate;
-}
-
-bool FCacheKeyFilter::IsLegacyMatch(const TCHAR* LegacyKey) const
-{
-	using namespace UE::DerivedData::Private;
-
-	if (!State)
-	{
-		return false;
-	}
-
-	const FStringView LegacyKeyView(LegacyKey);
-	uint32 TargetRate = State->DefaultRate;
-
-	if (!State->Types.IsEmpty())
-	{
-		TUtf8StringBuilder<256> Bucket;
-		Bucket << LegacyKeyView.Left(String::FindFirstChar(LegacyKeyView, TEXT('_')));
-
-		using FTypeRate = FCacheKeyFilterState::FTypeRate;
-		if (const FTypeRate* TypeRate = Algo::FindBy(State->Types, Bucket.ToView(), &FTypeRate::Type))
-		{
-			TargetRate = TypeRate->Rate;
-		}
-	}
-
-	if (TargetRate == 0)
-	{
-		return false;
-	}
-	if (TargetRate == MAX_uint32)
-	{
-		return true;
-	}
-	return State->ApplySalt(uint32(FXxHash64::HashBuffer(MakeMemoryView(LegacyKeyView)).Hash)) < TargetRate;
 }
 
 } // UE::DerivedData

@@ -80,9 +80,6 @@ struct FBackendDebugOptions
 
 	bool ShouldSimulatePutMiss(const FCacheKey& Key);
 	bool ShouldSimulateGetMiss(const FCacheKey& Key);
-
-	bool ShouldSimulatePutMiss(const TCHAR* LegacyKey);
-	bool ShouldSimulateGetMiss(const TCHAR* LegacyKey);
 };
 
 class FDerivedDataBackend

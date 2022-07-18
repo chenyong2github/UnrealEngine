@@ -45,9 +45,6 @@ public:
 	/** Returns true if the filter matches the key. The output is the same until the salt changes. */
 	UE_API bool IsMatch(const FCacheKey& Key) const;
 
-	/** Returns true if the filter matches the legacy key. The output is the same until the salt changes. */
-	UE_API bool IsLegacyMatch(const TCHAR* LegacyKey) const;
-
 	/** Returns true if this filter can ever match a cache key. */
 	inline explicit operator bool() const { return State.IsValid(); }
 

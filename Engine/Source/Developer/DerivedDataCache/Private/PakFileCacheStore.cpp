@@ -259,7 +259,7 @@ void FPakFileCacheStore::Close()
 bool FPakFileCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-	if (bClosed || DebugOptions.ShouldSimulateGetMiss(CacheKey))
+	if (bClosed)
 	{
 		return false;
 	}
@@ -275,7 +275,7 @@ bool FPakFileCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
-	if (bClosed || DebugOptions.ShouldSimulateGetMiss(CacheKey))
+	if (bClosed)
 	{
 		return false;
 	}
@@ -331,7 +331,7 @@ bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Out
 void FPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
-	if (bWriting && !bClosed && !DebugOptions.ShouldSimulateGetMiss(CacheKey))
+	if (bWriting && !bClosed)
 	{
 		FWriteScopeLock ScopeLock(SynchronizationObject);
 		FString Key(CacheKey);

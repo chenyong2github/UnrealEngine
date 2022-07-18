@@ -1260,7 +1260,6 @@ struct Private::FBackendDebugMissState
 {
 	FCriticalSection Lock;
 	TMap<FCacheKey, EBackendDebugKeyState> Keys;
-	TMap<FName, EBackendDebugKeyState> LegacyKeys;
 };
 
 FBackendDebugOptions::FBackendDebugOptions()
@@ -1320,37 +1319,6 @@ bool FBackendDebugOptions::ParseFromTokens(FBackendDebugOptions& OutOptions, con
 	Prefix.RemoveAt(PrefixLen, Prefix.Len() - PrefixLen);
 
 	return true;
-}
-
-bool FBackendDebugOptions::ShouldSimulatePutMiss(const TCHAR* LegacyKey)
-{
-	if (!SimulateMissFilter.IsLegacyMatch(LegacyKey))
-	{
-		return false;
-	}
-
-	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
-	const FName Key(LegacyKey);
-	const uint32 KeyHash = GetTypeHash(Key);
-
-	FScopeLock Lock(&State.Lock);
-	State.LegacyKeys.AddByHash(KeyHash, Key, EBackendDebugKeyState::HitGet);
-	return false;
-}
-
-bool FBackendDebugOptions::ShouldSimulateGetMiss(const TCHAR* LegacyKey)
-{
-	if (!SimulateMissFilter.IsLegacyMatch(LegacyKey))
-	{
-		return false;
-	}
-
-	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
-	const FName Key(LegacyKey);
-	const uint32 KeyHash = GetTypeHash(Key);
-
-	FScopeLock Lock(&State.Lock);
-	return State.LegacyKeys.FindOrAddByHash(KeyHash, Key, EBackendDebugKeyState::MissGet) == EBackendDebugKeyState::MissGet;
 }
 
 bool FBackendDebugOptions::ShouldSimulatePutMiss(const FCacheKey& Key)
