@@ -632,7 +632,7 @@ public:
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FSceneView* View = Views[ViewIndex];
-			if (View->bIsReflectionCapture || View->bIsPlanarReflection)
+			if (View->bIsReflectionCapture)
 			{
 				continue;
 			}

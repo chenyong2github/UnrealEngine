@@ -664,6 +664,7 @@ bool FHairMaterialProcessor::Process(
 	FHairMaterialShaderElementData ShaderElementData(MacroGroupId, HairMaterialId, HairPrimitiveId, HairPrimitiveLightChannelMask);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
+	const bool bReverseCulling = ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->bIsPlanarReflection : false;
 	BuildMeshDrawCommands(
 		MeshBatch,
 		BatchElementMask,
@@ -673,7 +674,7 @@ bool FHairMaterialProcessor::Process(
 		DrawRenderState,
 		PassShaders,
 		ERasterizerFillMode::FM_Solid,
-		ERasterizerCullMode::CM_CCW,
+		bReverseCulling ? ERasterizerCullMode::CM_CW : ERasterizerCullMode::CM_CCW,
 		FMeshDrawCommandSortKey::Default,
 		EMeshPassFeatures::Default,
 		ShaderElementData);

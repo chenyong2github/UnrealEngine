@@ -190,7 +190,7 @@ void CreateHairStrandsMacroGroups(
 	FHairStrandsViewData& OutHairStrandsViewData)
 {
 	const bool bHasHairStrandsElements = View.HairStrandsMeshElements.Num() != 0 || Scene->HairStrandsSceneData.RegisteredProxies.Num() != 0;
-	if (!View.Family || !bHasHairStrandsElements || View.bIsPlanarReflection || View.bIsReflectionCapture)
+	if (!View.Family || !bHasHairStrandsElements || View.bIsReflectionCapture)
 	{
 		return;
 	}
