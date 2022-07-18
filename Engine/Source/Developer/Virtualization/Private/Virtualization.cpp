@@ -4,9 +4,6 @@
 
 #include "Features/IModularFeatures.h"
 #include "MessageLogModule.h"
-#include "Misc/DelayedAutoRegister.h"
-#include "PackageSubmissionChecks.h"
-#include "Serialization/EditorBulkData.h"
 #include "VirtualizationSourceControlUtilities.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"

@@ -15,7 +15,7 @@
 #include "Misc/ScopeLock.h"
 #include "PackageRehydrationProcess.h"
 #include "Misc/ScopedSlowTask.h"
-#include "PackageSubmissionChecks.h"
+#include "PackageVirtualizationProcess.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VirtualizationFilterSettings.h"
 
