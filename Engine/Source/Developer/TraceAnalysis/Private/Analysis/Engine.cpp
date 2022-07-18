@@ -1872,6 +1872,7 @@ public:
 		NotEnoughData,
 		EndOfStream,
 		Continue,
+		Sync,
 	};
 
 	struct FMachineContext
@@ -2826,21 +2827,24 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 		return Ret;
 	}
 
-	bool bNotEnoughData;
-
 	// Important events
 	Ret = OnDataImportant(Context);
 	if (Ret == EStatus::Error)
 	{
 		return Ret;
 	}
-	bNotEnoughData = (Ret != EStatus::EndOfStream);
+	bool bNotEnoughData = (Ret == EStatus::NotEnoughData);
 
 	// Normal events
 	Ret = OnDataNormal(Context);
 	if (Ret == EStatus::Error)
 	{
 		return Ret;
+	}
+	if (Ret == EStatus::Sync)
+	{
+		// After processing a SYNC packet, we need to read data once more.
+		return OnData(Reader, Context);
 	}
 	bNotEnoughData |= (Ret == EStatus::NotEnoughData);
 
@@ -3097,11 +3101,17 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnDataNormal(const FMachineContext& Co
 		NextSerial = EventDescHeap.HeapTop().EventDescs[0].Serial;
 	}
 
+	const bool bSync = (SyncCount != Transport.GetSyncCount());
 	DetectSerialGaps(EventDescHeap);
 
 	if (DispatchEvents(Context.Bridge, EventDescHeap) < 0)
 	{
 		return EStatus::Error;
+	}
+
+	if (bSync)
+	{
+		return EStatus::Sync;
 	}
 
 	return bNotEnoughData ? EStatus::NotEnoughData : EStatus::EndOfStream;
