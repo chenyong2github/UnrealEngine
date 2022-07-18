@@ -282,9 +282,25 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UConte
 // SceneBindings Blueprint Interface
 //------------------------------------------------------------------------------------------
 
+void UContextualAnimUtilities::BP_SceneBindings_GetSectionAndAnimSetIndices(const FContextualAnimSceneBindings& Bindings, int32& SectionIdx, int32& AnimSetIdx)
+{
+	SectionIdx = Bindings.GetSectionIdx();
+	AnimSetIdx = Bindings.GetAnimSetIdx();
+}
+
 const FContextualAnimSceneBinding& UContextualAnimUtilities::BP_SceneBindings_GetBindingByRole(const FContextualAnimSceneBindings& Bindings, FName Role)
 {
 	if(const FContextualAnimSceneBinding* SceneActorData = Bindings.FindBindingByRole(Role))
+	{
+		return *SceneActorData;
+	}
+
+	return FContextualAnimSceneBinding::InvalidBinding;
+}
+
+const FContextualAnimSceneBinding& UContextualAnimUtilities::BP_SceneBindings_GetBindingByActor(const FContextualAnimSceneBindings& Bindings, const AActor* Actor)
+{
+	if (const FContextualAnimSceneBinding* SceneActorData = Bindings.FindBindingByActor(Actor))
 	{
 		return *SceneActorData;
 	}
@@ -336,3 +352,17 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 	return Result;
 }
 
+FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRoleRelativeToPivot(const FContextualAnimSceneBindings& Bindings, FName Role, const FContextualAnimSetPivot& Pivot, float Time)
+{
+	FTransform Result = FTransform::Identity;
+
+	if (const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset())
+	{
+		if (const FContextualAnimSceneSection* Section = SceneAsset->GetSection(Bindings.GetSectionIdx()))
+		{
+			return Section->GetAlignmentTransformForRoleRelativeToPivot(Bindings.GetAnimSetIdx(), Role, Time) * Pivot.Transform;
+		}
+	}
+
+	return Result;
+}

@@ -46,12 +46,27 @@ FTransform FContextualAnimAlignmentTrackContainer::ExtractTransformAtTime(int32 
 
 float FContextualAnimTrack::GetSyncTimeForWarpSection(int32 WarpSectionIndex) const
 {
+	float StartTime, EndTime;
+	GetStartAndEndTimeForWarpSection(WarpSectionIndex, StartTime, EndTime);
+	return EndTime;
+}
+
+float FContextualAnimTrack::GetSyncTimeForWarpSection(const FName& WarpSectionName) const
+{
+	float StartTime, EndTime;
+	GetStartAndEndTimeForWarpSection(WarpSectionName, StartTime, EndTime);
+	return EndTime;
+}
+
+void FContextualAnimTrack::GetStartAndEndTimeForWarpSection(int32 WarpSectionIndex, float& OutStartTime, float& OutEndTime) const
+{
 	//@TODO: We need a better way to identify warping sections withing the animation. This is just a temp solution
 	//@TODO: We should cache this data
 
-	float Result = 0.f;
+	OutStartTime = 0.f;
+	OutEndTime = 0.f;
 
-	if(Animation && WarpSectionIndex >= 0)
+	if (Animation && WarpSectionIndex >= 0)
 	{
 		FName LastWarpTargetName = NAME_None;
 		int32 LastWarpSectionIndex = INDEX_NONE;
@@ -59,38 +74,41 @@ float FContextualAnimTrack::GetSyncTimeForWarpSection(int32 WarpSectionIndex) co
 		for (int32 Idx = 0; Idx < Animation->Notifies.Num(); Idx++)
 		{
 			const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Idx];
-			if(const UAnimNotifyState_MotionWarping* Notify = Cast<const UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
+			if (const UAnimNotifyState_MotionWarping* Notify = Cast<const UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
 			{
-				if(const URootMotionModifier_Warp* Modifier = Cast<const URootMotionModifier_Warp>(Notify->RootMotionModifier))
+				if (const URootMotionModifier_Warp* Modifier = Cast<const URootMotionModifier_Warp>(Notify->RootMotionModifier))
 				{
 					const FName WarpTargetName = Modifier->WarpTargetName;
-					if(WarpTargetName != NAME_None)
+					if (WarpTargetName != NAME_None)
 					{
 						// First valid warping window. Initialize everything
 						if (LastWarpSectionIndex == INDEX_NONE)
 						{
 							LastWarpTargetName = WarpTargetName;
-							Result = NotifyEvent.GetEndTriggerTime();
+							OutStartTime = NotifyEvent.GetTriggerTime();
+							OutEndTime = NotifyEvent.GetEndTriggerTime();
 							LastWarpSectionIndex = 0;
 						}
 						// If we hit another warping window but the sync point is the same as the previous, update SyncTime.
 						// This is to deal with cases where a first short window is used to face the alignment point and a second one to perform the rest of the warp
-						else if(WarpTargetName == LastWarpTargetName)
+						else if (WarpTargetName == LastWarpTargetName)
 						{
-							Result = NotifyEvent.GetEndTriggerTime();
+							OutStartTime = NotifyEvent.GetTriggerTime();
+							OutEndTime = NotifyEvent.GetEndTriggerTime();
 						}
 						// If we hit another warping window but with a different sync point name means that we have hit the first window of another warping section
 						else
 						{
 							// If we haven't reached the desired WarpSection yet. Update control vars and keep moving
-							if(WarpSectionIndex > LastWarpSectionIndex)
+							if (WarpSectionIndex > LastWarpSectionIndex)
 							{
 								LastWarpTargetName = WarpTargetName;
-								Result = NotifyEvent.GetEndTriggerTime();
+								OutStartTime = NotifyEvent.GetTriggerTime();
+								OutEndTime = NotifyEvent.GetEndTriggerTime();
 								LastWarpSectionIndex++;
 							}
 							// Otherwise, stop here and return the value of the last window we found
-							else 
+							else
 							{
 								break;
 							}
@@ -100,17 +118,18 @@ float FContextualAnimTrack::GetSyncTimeForWarpSection(int32 WarpSectionIndex) co
 			}
 		}
 	}
-
-	return Result;
 }
 
-float FContextualAnimTrack::GetSyncTimeForWarpSection(const FName& WarpSectionName) const
+void FContextualAnimTrack::GetStartAndEndTimeForWarpSection(const FName& WarpSectionName, float& OutStartTime, float& OutEndTime) const
 {
 	//@TODO: We need a better way to identify warping sections within the animation. This is just a temp solution
 	//@TODO: We should cache this data
 
-	float Result = 0.f;
+	OutStartTime = 0.f;
+	OutEndTime = 0.f;
 
+	int32 Index = INDEX_NONE;
+	float LastEndTime = 0.f;
 	if (Animation && WarpSectionName != NAME_None)
 	{
 		for (int32 Idx = 0; Idx < Animation->Notifies.Num(); Idx++)
@@ -124,9 +143,10 @@ float FContextualAnimTrack::GetSyncTimeForWarpSection(const FName& WarpSectionNa
 					if (WarpSectionName == WarpTargetName)
 					{
 						const float NotifyEndTriggerTime = NotifyEvent.GetEndTriggerTime();
-						if(NotifyEndTriggerTime > Result)
+						if(NotifyEndTriggerTime > LastEndTime)
 						{
-							Result = NotifyEndTriggerTime;
+							LastEndTime = NotifyEndTriggerTime;
+							Index = Idx;
 						}
 					}
 				}
@@ -134,7 +154,12 @@ float FContextualAnimTrack::GetSyncTimeForWarpSection(const FName& WarpSectionNa
 		}
 	}
 
-	return Result;
+	if(Index != INDEX_NONE)
+	{
+		const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Index];
+		OutStartTime = NotifyEvent.GetTriggerTime();
+		OutEndTime = NotifyEvent.GetEndTriggerTime();
+	}
 }
 
 float FContextualAnimTrack::FindBestAnimStartTime(const FVector& LocalLocation) const

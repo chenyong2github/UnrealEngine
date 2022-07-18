@@ -101,8 +101,12 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
 	int32 AnimTrackIdx = INDEX_NONE;
 
+	// DEPRECATED: Will go away soon
 	float GetSyncTimeForWarpSection(int32 WarpSectionIndex) const;
 	float GetSyncTimeForWarpSection(const FName& WarpSectionName) const;
+
+	void GetStartAndEndTimeForWarpSection(int32 WarpSectionIndex, float& OutStartTime, float& OutEndTime) const;
+	void GetStartAndEndTimeForWarpSection(const FName& WarpSectionName, float& OutStartTime, float& OutEndTime) const;
 
 	FORCEINLINE FTransform GetAlignmentTransformAtTime(float Time) const { return AlignmentData.ExtractTransformAtTime(0, Time); }
 	FORCEINLINE FTransform GetAlignmentTransformAtEntryTime() const { return AlignmentData.ExtractTransformAtTime(0, 0.f); }
