@@ -1336,7 +1336,6 @@ namespace UnrealBuildTool
 		/// <returns>True if the steps succeeded, false otherwise</returns>
 		public static void ExecuteCustomBuildSteps(FileReference[] ScriptFiles, ILogger Logger)
 		{
-			UnrealTargetPlatform HostPlatform = BuildHostPlatform.Current.Platform;
 			foreach(FileReference ScriptFile in ScriptFiles)
 			{
 				ProcessStartInfo StartInfo = new ProcessStartInfo();
@@ -1356,6 +1355,12 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("Custom build step {0} {1} terminated with exit code {2}", StartInfo.FileName, StartInfo.Arguments, ReturnCode);
 				}
+			}
+
+			if (ScriptFiles.Length > 0)
+			{
+				// We have to invalidate all cached file info after running the scripts, because we don't know what may have changed.
+				DirectoryItem.ResetAllCachedInfo_SLOW();
 			}
 		}
 

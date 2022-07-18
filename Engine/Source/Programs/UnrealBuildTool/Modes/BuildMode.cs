@@ -715,12 +715,8 @@ namespace UnrealBuildTool
 			bool bHasRunPreBuildScripts = false;
 			if(Makefile != null)
 			{
-				// Execute the scripts. We have to invalidate all cached file info after doing so, because we don't know what may have changed.
-				if(Makefile.PreBuildScripts.Length > 0)
-				{
-					Utils.ExecuteCustomBuildSteps(Makefile.PreBuildScripts, Logger);
-					DirectoryItem.ResetAllCachedInfo_SLOW();
-				}
+				// Execute the scripts.
+				Utils.ExecuteCustomBuildSteps(Makefile.PreBuildScripts, Logger);
 
 				// Don't run the pre-build steps again, even if we invalidate the makefile.
 				bHasRunPreBuildScripts = true;
