@@ -35,7 +35,7 @@ static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
 
 static TAutoConsoleVariable<int32> CVarRayTracingCullingUseMinDrawDistance(
 	TEXT("r.RayTracing.Culling.UseMinDrawDistance"),
-	0,
+	1,
 	TEXT("Use min draw distance for culling"),
 	ECVF_RenderThreadSafe);
 
