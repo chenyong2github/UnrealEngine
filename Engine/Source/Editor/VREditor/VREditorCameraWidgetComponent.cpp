@@ -1,17 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VREditorCameraWidgetComponent.h"
-#include "UObject/ConstructorHelpers.h"
+#include "IVREditorModule.h"
+#include "VREditorAssetContainer.h"
+#include "VREditorMode.h"
 
 UVREditorCameraWidgetComponent::UVREditorCameraWidgetComponent()
 	: Super()	
 {	
 	// Override this shader for VR camera viewfinders so that we get color-correct images.
-	// This shader does an sRGB -> Linear conversion and doesn't apply the "UI Brightness" setting .
+	 //This shader does an sRGB -> Linear conversion and doesn't apply the "UI Brightness" setting .
+
+	if (UNLIKELY(IsRunningDedicatedServer()) || HasAnyFlags(RF_ClassDefaultObject))   // @todo vreditor: early out to avoid loading font assets in the cooker on Linux
+	{
+		return;
+	}
+
 	if (!IsRunningCommandlet())
 	{
-		static ConstructorHelpers::FObjectFinder<UMaterialInterface> OpaqueMaterial_OneSided_Finder(TEXT("/Engine/EngineMaterials/Widget3DCameraPassThrough_Opaque_OneSided"));
-		OpaqueMaterial_OneSided = OpaqueMaterial_OneSided_Finder.Object;
+		if (IVREditorModule::IsAvailable())
+		{
+			IVREditorModule& VRModule = IVREditorModule::Get();
+
+			if (UVREditorMode* VRMode = VRModule.GetVRMode())
+			{
+				const UVREditorAssetContainer& VRAssetContainer = VRMode->GetAssetContainer();
+				{
+					OpaqueMaterial_OneSided = VRAssetContainer.CameraWidgetMaterial;
+				}
+			}
+		}
+
 	}
 }
 

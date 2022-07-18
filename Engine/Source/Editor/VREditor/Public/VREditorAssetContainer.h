@@ -163,6 +163,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Material)
 	TObjectPtr<UMaterialInterface> TranslucentTextMaterial;
 
+	UPROPERTY(EditAnywhere, Category = Material)
+	TObjectPtr<UMaterialInterface> WidgetMaterial;
+
+	//Specific material for camera widgets that operates in linear color space
+	UPROPERTY(EditAnywhere, Category = Material)
+	TObjectPtr<UMaterialInterface> CameraWidgetMaterial;
+
+
 	//
 	// Fonts
 	//
