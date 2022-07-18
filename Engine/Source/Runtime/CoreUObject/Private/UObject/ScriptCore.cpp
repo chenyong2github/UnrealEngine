@@ -1039,14 +1039,11 @@ IMPLEMENT_VM_FUNCTION(EX_CallMath, execCallMathFunction);
 void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 {
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
+	const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth);
+	SCOPE_CYCLE_UOBJECT(FunctionScope, bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
-#if STATS || ENABLE_STATNAMEDEVENTS
-	const bool bShouldTrackObject = GVerboseScriptStats && Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
-#endif
+	SCOPE_CYCLE_UOBJECT(ContextScope, GVerboseScriptStats ? this : nullptr);
 
 	checkSlow(Function);
 
@@ -1235,8 +1232,8 @@ void ProcessLocalFunction(UObject* Context, UFunction* Fn, FFrame& Stack, RESULT
 	else
 	{
 #if PER_FUNCTION_SCRIPT_STATS
-		const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
-		FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Fn : nullptr);
+		const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth);
+		SCOPE_CYCLE_UOBJECT(FunctionScope, bShouldTrackFunction ? Fn : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 		ProcessScriptFunction(Context, Fn, Stack, RESULT_PARAM, ProcessLocalScriptFunction);
 	}
@@ -1980,14 +1977,10 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	checkSlow((Function->ParmsSize == 0) || (Parms != NULL));
 
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
+	SCOPE_CYCLE_UOBJECT(FunctionScope, Function);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
-#if STATS || ENABLE_STATNAMEDEVENTS
-	const bool bShouldTrackObject = GVerboseScriptStats && Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
-#endif
+	SCOPE_CYCLE_UOBJECT(ContextScope, GVerboseScriptStats ? this : nullptr);
 
 #if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
 	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);

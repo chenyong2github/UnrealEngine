@@ -101,11 +101,7 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 	// This may delay the animation update by one frame.
 
 	{
-	#if STATS || ENABLE_STATNAMEDEVENTS
-		const bool bShouldTrackObject = Stats::IsThreadCollectingData();
-		FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
-	#endif
-
+		SCOPE_CYCLE_UOBJECT(ContextScope, this);
 
 		// Process animations for visible widgets
 		for (auto WidgetIter = WeakUserWidgetData.CreateIterator(); WidgetIter; ++WidgetIter)
@@ -143,9 +139,7 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			}
 			else
 			{
-	#if STATS || ENABLE_STATNAMEDEVENTS
-				FScopeCycleCounterUObject WidgetContextScope(bShouldTrackObject ? UserWidget : nullptr);
-	#endif
+				SCOPE_CYCLE_UOBJECT(WidgetContextScope, UserWidget);
 
 	#if WITH_EDITOR
 				const bool bTickAnimations = !UserWidget->IsDesignTime();

@@ -2354,6 +2354,7 @@ DECLARE_FLOAT_COUNTER_STAT_EXTERN(TEXT("Seconds Per Cycle"),STAT_SecondsPerCycle
 #if STATS || ENABLE_STATNAMEDEVENTS
 namespace Stats
 {
+	UE_DEPRECATED(5.2, "No replacement. Engine usage was redundant")
 	FORCEINLINE bool IsThreadCollectingData()
 	{
 #if STATS && CPUPROFILERTRACE_ENABLED
