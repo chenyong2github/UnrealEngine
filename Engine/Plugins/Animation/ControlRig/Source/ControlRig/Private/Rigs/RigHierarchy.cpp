@@ -4098,13 +4098,6 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 		}
 	}
 
-	if (Element)
-	{
-		Element->OwnedInstances = InCount;
-		Element->MetadataChangedDelegate.BindUObject(this, &URigHierarchy::OnMetadataChanged);
-		Element->MetadataTagChangedDelegate.BindUObject(this, &URigHierarchy::OnMetadataTagChanged);
-	}
-
 	return Element;
 }
 

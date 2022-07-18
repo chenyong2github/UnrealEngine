@@ -695,10 +695,8 @@ private:
 	template<typename T>
 	T* MakeElement()
 	{
-		T* Element = URigHierarchy::NewElement<T>();
+		T* Element = GetHierarchy()->NewElement<T>();
 		Element->CreatedAtInstructionIndex = CurrentInstructionIndex;
-		Element->MetadataChangedDelegate.BindUObject(GetHierarchy(), &URigHierarchy::OnMetadataChanged);
-		Element->MetadataTagChangedDelegate.BindUObject(GetHierarchy(), &URigHierarchy::OnMetadataTagChanged);
 		return Element;
 	}
 	
