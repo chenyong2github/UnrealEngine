@@ -340,10 +340,10 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
-	TArray<TSharedPtr<IPinTypeSelectorFilter>> CustomPinTypeFilters;
+	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
 	if (BlueprintEditor.IsValid())
 	{
-		BlueprintEditor.Pin()->GetPinTypeSelectorFilters(CustomPinTypeFilters);
+		CustomPinTypeFilter = BlueprintEditor.Pin()->GetImportedPinTypeSelectorFilter();
 	}
 	
 	const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -374,7 +374,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 			.TypeTreeFilter(ETypeTreeFilter::None)
 			.Font(DetailFontInfo)
 			.ToolTip(VarTypeTooltip)
-			.CustomFilters(CustomPinTypeFilters)
+			.CustomFilter(CustomPinTypeFilter)
 		];
 
 	TSharedPtr<SToolTip> ToolTipTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarToolTipTooltip", "Extra information about this variable, shown when cursor is over it."), NULL, DocLink, TEXT("Description"));
@@ -3109,7 +3109,7 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		TypeTreeFilter |= ETypeTreeFilter::AllowWildcard;
 	}
 
-	TArray<TSharedPtr<IPinTypeSelectorFilter>> CustomPinTypeFilters;
+	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
 	if (GraphActionDetailsPtr.IsValid())
 	{
 		TSharedPtr<SMyBlueprint> MyBlueprintPtr = GraphActionDetailsPtr.Pin()->GetMyBlueprint().Pin();
@@ -3118,7 +3118,7 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 			TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = MyBlueprintPtr->GetBlueprintEditor().Pin();
 			if (BlueprintEditorPtr.IsValid())
 			{
-				BlueprintEditorPtr->GetPinTypeSelectorFilters(CustomPinTypeFilters);
+				CustomPinTypeFilter = BlueprintEditorPtr->GetImportedPinTypeSelectorFilter();
 			}
 		}
 	}
@@ -3162,7 +3162,7 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 				.bAllowArrays(!ShouldPinBeReadOnly())
 				.IsEnabled(!ShouldPinBeReadOnly(true))
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
-				.CustomFilters(CustomPinTypeFilters)
+				.CustomFilter(CustomPinTypeFilter)
 		]
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)

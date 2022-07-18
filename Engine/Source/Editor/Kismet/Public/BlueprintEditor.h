@@ -244,9 +244,7 @@ public:
 	virtual void AnalyticsTrackNodeEvent(UBlueprint* Blueprint, UEdGraphNode *GraphNode, bool bNodeDelete = false) const override;
 	void AnalyticsTrackCompileEvent(UBlueprint* Blueprint, int32 NumErrors, int32 NumWarnings) const;
 	virtual TSharedPtr<class IClassViewerFilter> GetImportedClassViewerFilter() const override { return ImportedClassViewerFilter; }
-	UE_DEPRECATED(5.1, "Please use GetPinTypeSelectorFilters")
 	virtual TSharedPtr<class IPinTypeSelectorFilter> GetImportedPinTypeSelectorFilter() const override { return ImportedPinTypeSelectorFilter; }
-	virtual void GetPinTypeSelectorFilters(TArray<TSharedPtr<class IPinTypeSelectorFilter>>& OutFilters) const override;
 	virtual bool IsNonImportedObject(const UObject* InObject) const;
 	virtual bool IsNonImportedObject(const FSoftObjectPath& InObject) const;
 	//~ End IBlueprintEditor Interface
@@ -1417,12 +1415,6 @@ protected:
 	/** Filter used to restrict pin type selector widgets in the editor context to imported namespaces only */
 	TSharedPtr<class IPinTypeSelectorFilter> ImportedPinTypeSelectorFilter;
 
-	/** Filter used to restrict pin type selector widgets to those which permissions allow */
-	TSharedPtr<class IPinTypeSelectorFilter> PermissionsPinTypeSelectorFilter;
-
-	/** Filter used to compose multiple pin type filters together */
-	TSharedPtr<class IPinTypeSelectorFilter> CompositePinTypeSelectorFilter;
-	
 	FOnSetPinVisibility OnSetPinVisibility;
 
 	/** Has someone requested a deferred update of the saved document state? */

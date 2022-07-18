@@ -397,59 +397,6 @@ namespace BlueprintEditorImpl
 		bool bIsFilterEnabled;
 	};
 
-	/** Pin type filter for asset permissions */
-	class FPermissionsPinTypeSelectorFilter : public IPinTypeSelectorFilter, public TSharedFromThis<FPermissionsPinTypeSelectorFilter>
-	{
-	public:
-		FPermissionsPinTypeSelectorFilter(TConstArrayView<UBlueprint*> InBlueprints)
-		{
-			FAssetReferenceFilterContext Context;
-			Context.ReferencingAssets.Reserve(InBlueprints.Num());
-
-			for (UBlueprint* Blueprint : InBlueprints)
-			{
-				Context.ReferencingAssets.Add(FAssetData(Blueprint));
-			}
-
-			AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(Context);
-		}
-
-		// IPinTypeSelectorFilter interface
-		virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const override
-		{
-			const FSoftObjectPath& AssetReference = InItem->GetSubCategoryObjectAsset();
-			FTopLevelAssetPath TopLevelAssetPath;
-
-			if (AssetReference.IsAsset())
-			{
-				TopLevelAssetPath = FTopLevelAssetPath(AssetReference.GetLongPackageFName(), *AssetReference.GetAssetName());
-			}
-
-			// First check pin type permissions
-			if (!FBlueprintActionDatabase::IsPinTypeAllowed(InItem->GetPinType(false), TopLevelAssetPath))
-			{
-				return false;
-			}
-
-			// Then asset permissions
-			if(AssetReferenceFilter.IsValid() && AssetReference.IsValid())
-			{
-				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(AssetReference.GetAssetPathName());
-				if (!AssetReferenceFilter->PassesFilter(AssetData))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-	private:
-		/** Filter for asset references */
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter;
-	};
-
 	/**
 	 * Utility function that will check to see if the specified graph has any 
 	 * nodes other than those that come default, pre-placed, in the graph.
@@ -978,12 +925,6 @@ void FBlueprintEditor::AnalyticsTrackCompileEvent( UBlueprint* Blueprint, int32 
 		// Send Analytics event 
 		FEngineAnalytics::GetProvider().RecordEvent(FString::Printf(TEXT("Editor.Usage.%s.Compile"), *EditorName), Attributes);
 	}
-}
-
-void FBlueprintEditor::GetPinTypeSelectorFilters(TArray<TSharedPtr<IPinTypeSelectorFilter>>& OutFilters) const
-{ 
-	OutFilters.Add(ImportedPinTypeSelectorFilter);
-	OutFilters.Add(PermissionsPinTypeSelectorFilter);
 }
 
 void FBlueprintEditor::RefreshEditors(ERefreshBlueprintEditorReason::Type Reason)
@@ -1949,7 +1890,6 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 	// Create imported namespace type filters for value editing.
 	ImportedClassViewerFilter = MakeShared<BlueprintEditorImpl::FImportedClassViewerFilterProxy>(ImportedNamespaceHelper->GetClassViewerFilter());
 	ImportedPinTypeSelectorFilter = MakeShared<BlueprintEditorImpl::FImportedPinTypeSelectorFilterProxy>(ImportedNamespaceHelper->GetPinTypeSelectorFilter());
-	PermissionsPinTypeSelectorFilter = MakeShared<BlueprintEditorImpl::FPermissionsPinTypeSelectorFilter>(InitBlueprints);
 
 	// Make sure we know when tabs become active to update details tab
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe( FOnActiveTabChanged::FDelegate::CreateRaw(this, &FBlueprintEditor::OnActiveTabChanged) );
