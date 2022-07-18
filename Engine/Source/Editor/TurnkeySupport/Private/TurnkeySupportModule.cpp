@@ -1387,7 +1387,7 @@ static void MakeTurnkeyPlatformMenu(UToolMenu* ToolMenu, FName IniPlatformName, 
 	FString NoDevice;
 	if (SdkInfo.bCanInstallFullSdk || SdkInfo.bCanInstallAutoSdk)
 	{
-		if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::OutOfDate)
+		if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::OutOfDate || (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Valid && SdkInfo.bHasBestSdk == false))
 		{
 			SdkSection.AddMenuEntry(
 				NAME_None,
@@ -2071,6 +2071,7 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	}
 	SdkInfo.bCanInstallFullSdk = FlagsString.Contains(TEXT("Support_FullSdk"));
 	SdkInfo.bCanInstallAutoSdk = FlagsString.Contains(TEXT("Support_AutoSdk"));
+	SdkInfo.bHasBestSdk = FlagsString.Contains(TEXT("Sdk_HasBestVersion"));
 
 	SdkInfo.DeviceStatus = ETurnkeyDeviceStatus::Unknown;
 	if (FlagsString.Contains(TEXT("Device_InvalidPrerequisites")))

@@ -37,6 +37,7 @@ struct FTurnkeySdkInfo
 	TMap<FString, Version> SDKVersions;
 	bool bCanInstallFullSdk;
 	bool bCanInstallAutoSdk;
+	bool bHasBestSdk;
 };
 
 

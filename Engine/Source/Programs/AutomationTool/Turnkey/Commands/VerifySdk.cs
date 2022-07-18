@@ -81,11 +81,11 @@ namespace Turnkey.Commands
 				else
 				{
 					StatusString = "Valid";
-					ReportedState &= (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists | SdkUtils.LocalAvailability.Support_FullSdk | SdkUtils.LocalAvailability.Support_AutoSdk);
+					ReportedState &= (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists | SdkUtils.LocalAvailability.Support_FullSdk | SdkUtils.LocalAvailability.Support_AutoSdk | SdkUtils.LocalAvailability.Sdk_HasBestVersion);
 				}
 
 
-				// gather lisat of tags/values to write out
+				// gather list of tags/values to write out
 				SDKCollection SDKInfo = null;
 				List<string> PlatformProperties = new List<string>();
 				{
