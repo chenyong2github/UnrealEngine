@@ -11,9 +11,7 @@
 #include "Components/MeshComponent.h"
 #include "Exporters/Exporter.h"
 #include "Materials/Material.h"
-#include "Editor/UnrealEdEngine.h"
 #include "Components/DecalComponent.h"
-#include "UnrealEdGlobals.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -25,6 +23,10 @@
 #include "Styling/SlateIconFinder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #include "HAL/PlatformApplicationMisc.h"
 #include "ToolMenus.h"
@@ -1105,6 +1107,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, con
 		}
 		else
 		{
+			if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 			{
 				FToolMenuSection& Section = Menu->AddSection("ComponentCode", LOCTEXT("ComponentCodeHeading", "C++"));
 				if (FSourceCodeNavigation::IsCompilerAvailable())

@@ -321,6 +321,8 @@ private:
 
 	/** Callback used when the user clicks on a blueprint inherited variable */
 	void OnEditBlueprintClicked();
+
+	EVisibility GetEditNativeCppVisibility() const;
 	
 	/** Callback used when the user clicks on a native inherited variable */
 	void OnEditNativeCppClicked();

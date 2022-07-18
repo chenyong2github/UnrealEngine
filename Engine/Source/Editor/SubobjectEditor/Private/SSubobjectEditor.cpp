@@ -14,6 +14,9 @@
 #include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "GraphEditorActions.h"
 #include "Editor/EditorEngine.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
 #include "SubobjectEditorMenuContext.h"
 #include "Toolkits/ToolkitManager.h"
@@ -1736,7 +1739,8 @@ TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
 			.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 			.OnNavigate(this, &SSubobject_RowWidget::OnEditNativeCppClicked)
 			.Text(NativeCppLabel)
-			.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()));	
+			.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
+			.Visibility(this, &SSubobject_RowWidget::GetEditNativeCppVisibility);
 	}
 	// If the subobject is inherited and not native then it must be from a blueprint
 	else if(Data->IsInstancedInheritedComponent() || Data->IsBlueprintInheritedComponent())
@@ -1790,6 +1794,11 @@ void SSubobject_RowWidget::OnEditBlueprintClicked()
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 		}
 	}
+}
+
+EVisibility SSubobject_RowWidget::GetEditNativeCppVisibility() const
+{
+	return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SSubobject_RowWidget::OnEditNativeCppClicked()
