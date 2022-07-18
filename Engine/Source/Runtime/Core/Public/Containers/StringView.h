@@ -330,6 +330,18 @@ public:
 	 */
 	inline bool FindLastChar(CharType Search, int32& OutIndex) const;
 
+	/**
+	 * Tests if index is valid, i.e. greater than or equal to zero, and less than the number of characters in the string view.
+	 *
+	 * @param Index Index to test.
+	 *
+	 * @returns True if index is valid. False otherwise.
+	 */
+	UE_NODISCARD FORCEINLINE bool IsValidIndex(SizeType Index) const
+	{
+		return Index >= 0 && Index < Len();
+	}
+
 public:
 	/**
 	 * DO NOT USE DIRECTLY

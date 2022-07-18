@@ -2176,30 +2176,11 @@ void FPackageName::OnCoreUObjectInitialized()
 	FLongPackagePathsSingleton::Get().OnCoreUObjectInitialized();
 }
 
-bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath)
-{
-	if (InExportTextPath.Split(TEXT("'"), OutClassName, OutObjectPath, ESearchCase::CaseSensitive))
-	{
-		if ( OutObjectPath )
-		{
-			FString& OutObjectPathRef = *OutObjectPath;
-			if ( OutObjectPathRef.EndsWith(TEXT("'"), ESearchCase::CaseSensitive) )
-			{
-				OutObjectPathRef.LeftChopInline(1, false);
-			}
-		}
-
-		return true;
-	}
-	
-	return false;
-}
-
 template<class T>
 bool ParseExportTextPathImpl(const T& InExportTextPath, T* OutClassName, T* OutObjectPath)
 {
 	int32 Index;
-	if (InExportTextPath.FindChar('\'', Index))
+	if (InExportTextPath.FindChar('\'', Index) && InExportTextPath.IsValidIndex(Index + 1) && InExportTextPath[InExportTextPath.Len() - 1] == '\'') // IsValidIndex checks that the found ' isn't the same one that's at the end of the string
 	{
 		if (OutClassName)
 		{
@@ -2208,14 +2189,18 @@ bool ParseExportTextPathImpl(const T& InExportTextPath, T* OutClassName, T* OutO
 
 		if (OutObjectPath)
 		{
-			*OutObjectPath = InExportTextPath.Mid(Index + 1);
-			OutObjectPath->RemoveSuffix(OutObjectPath->EndsWith('\''));
+			*OutObjectPath = InExportTextPath.Mid(Index + 1, InExportTextPath.Len() - Index - 2); // -2 because we're stripping the first and last '
 		}
 
 		return true;
 	}
 	
 	return false;
+}
+
+bool FPackageName::ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath)
+{
+	return ParseExportTextPathImpl(InExportTextPath, OutClassName, OutObjectPath);
 }
 
 bool FPackageName::ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath)
