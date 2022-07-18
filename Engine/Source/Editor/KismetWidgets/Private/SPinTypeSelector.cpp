@@ -314,14 +314,22 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 	SelectorType = InArgs._SelectorType;
 
 	NumFilteredPinTypeItems = 0;
-	if (InArgs._CustomFilter.IsValid())
+
+	if(InArgs._CustomFilters.Num() > 0)
 	{
-		CustomFilter = MakeShared<FPinTypeSelectorCustomFilterProxy>(InArgs._CustomFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged));
+		for(const TSharedPtr<IPinTypeSelectorFilter>& Filter : InArgs._CustomFilters)
+		{
+			CustomFilters.Add(MakeShared<FPinTypeSelectorCustomFilterProxy>(Filter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged)));
+		}
+	}
+	else if (InArgs._CustomFilter.IsValid())
+	{
+		CustomFilters.Add(MakeShared<FPinTypeSelectorCustomFilterProxy>(InArgs._CustomFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged)));
 	}
 	else if (UClass* PinTypeSelectorFilterClass = GetDefault<UPinTypeSelectorFilter>()->FilterClass.LoadSynchronous() )
 	{
 		TSharedPtr<IPinTypeSelectorFilter> SelectorFilter = GetDefault<UPinTypeSelectorFilter>(PinTypeSelectorFilterClass)->GetPinTypeSelectorFilter();
-		CustomFilter = MakeShared<FPinTypeSelectorCustomFilterProxy>(SelectorFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged));
+		CustomFilters.Add(MakeShared<FPinTypeSelectorCustomFilterProxy>(SelectorFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged)));
 	}
 
 	bIsRightMousePressed = false;
@@ -1036,7 +1044,7 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 	GetChildrenWithSupportedTypes(TypeTreeRoot, FilteredBySupportedTypes);
 	TypeTreeRoot = FilteredBySupportedTypes;
 
-	if (CustomFilter.IsValid())
+	if (CustomFilters.Num() > 0)
 	{
 		NumFilteredPinTypeItems = 0;
 		FilteredTypeTreeRoot.Empty();
@@ -1063,12 +1071,21 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 			.OnTextChanged( this, &SPinTypeSelector::OnFilterTextChanged )
 			.OnTextCommitted( this, &SPinTypeSelector::OnFilterTextCommitted );
 
-		TSharedPtr<SWidget> CustomFilterOptionsWidget;
-		if (CustomFilter.IsValid())
+		TArray<TSharedPtr<SWidget>> CustomFilterOptionsWidgets;
+		for(const TSharedPtr<IPinTypeSelectorFilter>& CustomFilter : CustomFilters)
 		{
-			CustomFilterOptionsWidget = CustomFilter->GetFilterOptionsWidget();
+			if(CustomFilter.IsValid())
+			{
+				TSharedPtr<SWidget> CustomWidget = CustomFilter->GetFilterOptionsWidget();
+				if(CustomWidget.IsValid())
+				{
+					CustomFilterOptionsWidgets.Add(CustomWidget);
+				}
+			}
 		}
 
+		TSharedPtr<SHorizontalBox> CustomWidgetContainer;
+		
 		MenuContent = SAssignNew(PinTypeSelectorMenuOwner, SMenuOwner)
 			[
 				SNew(SListViewSelectorDropdownMenu<FPinTypeTreeItem>, FilterTextBox, TypeTreeView)
@@ -1096,9 +1113,9 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 					.Padding(8.f, 0.f, 8.f, 4.f)
 					[
 						SNew(SBox)
-						.Visibility(CustomFilter.IsValid() ? EVisibility::Visible : EVisibility::Collapsed)
+						.Visibility(CustomFilterOptionsWidgets.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed)
 						[
-							SNew(SHorizontalBox)
+							SAssignNew(CustomWidgetContainer, SHorizontalBox)
 							+SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
 							.FillWidth(1.f)
@@ -1106,17 +1123,24 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 								SNew(STextBlock)
 								.Text(this, &SPinTypeSelector::GetPinTypeItemCountText)
 							]
-							+SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								CustomFilterOptionsWidget.IsValid() ? CustomFilterOptionsWidget.ToSharedRef() : SNullWidget::NullWidget
-							]
+							
 						]
 					]
 				]
 			];
-			
+
+		if(CustomWidgetContainer.IsValid())
+		{
+			for(const TSharedPtr<SWidget>& CustomFilterOptionsWidget : CustomFilterOptionsWidgets)
+			{
+				CustomWidgetContainer->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					CustomFilterOptionsWidget.ToSharedRef()
+				];
+			}
+		}
 
 		if (bForSecondaryType)
 		{
@@ -1314,9 +1338,20 @@ bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, cons
 		// If children match the search filter, there's no need to do any additional checks
 		if (!bHasChildrenMatchingSearch)
 		{
-			// If valid, attempt to match the custom filter; otherwise, treat it as a match by default.
-			bFilterMatches = CustomFilter.IsValid() ? CustomFilter->ShouldShowPinTypeTreeItem(Item) : true;
+			// If valid, attempt to match the custom filters; otherwise, treat it as a match by default.
+			bool bHasValidCustomFilter = false;
+			bool bCustomFilterMatches = true;
+			for(const TSharedPtr<IPinTypeSelectorFilter>& CustomFilter : CustomFilters)
+			{
+				if(CustomFilter.IsValid())
+				{
+					bHasValidCustomFilter = true;
+					bCustomFilterMatches &= CustomFilter->ShouldShowPinTypeTreeItem(Item);
+				}
+			}
 
+			bFilterMatches = bHasValidCustomFilter ? bCustomFilterMatches : true;
+			
 			// If we didn't match the custom filter, or it's an empty search, let's not do any checks against the FilterTerms
 			if (bFilterMatches && !bIsEmptySearch)
 			{

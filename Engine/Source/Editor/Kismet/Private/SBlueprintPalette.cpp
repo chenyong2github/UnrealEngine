@@ -754,10 +754,10 @@ private:
 	{
 		OnTypeChanged = InArgs._OnTypeChanged;
 		
-		TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+		TArray<TSharedPtr<IPinTypeSelectorFilter>> CustomPinTypeFilters;
 		if (BlueprintEditorPtr.IsValid())
 		{
-			CustomPinTypeFilter = BlueprintEditorPtr.Pin()->GetImportedPinTypeSelectorFilter();
+			BlueprintEditorPtr.Pin()->GetPinTypeSelectorFilters(CustomPinTypeFilters);
 		}
 
 		const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -784,7 +784,7 @@ private:
 				.OnPinTypeChanged(this, &SPinTypeSelectorHelper::OnVarTypeChanged)
 				.TypeTreeFilter(ETypeTreeFilter::None)
 				.SelectorType(BlueprintEditorPtr.IsValid() ? SPinTypeSelector::ESelectorType::Partial : SPinTypeSelector::ESelectorType::None)
-				.CustomFilter(CustomPinTypeFilter)
+				.CustomFilters(CustomPinTypeFilters)
 			];	
 		}
 	}
