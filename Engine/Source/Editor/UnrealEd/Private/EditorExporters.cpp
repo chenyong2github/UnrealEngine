@@ -58,7 +58,6 @@
 #include "GameFramework/PhysicsVolume.h"
 #include "EngineUtils.h"
 #include "Editor.h"
-#include "MatineeExporter.h"
 #include "FbxExporter.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"

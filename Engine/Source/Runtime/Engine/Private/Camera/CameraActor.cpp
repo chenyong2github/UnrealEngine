@@ -4,7 +4,6 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraComponent.h"
-#include "Camera/CameraAnim.h"
 
 #define LOCTEXT_NAMESPACE "CameraActor"
 
@@ -74,18 +73,6 @@ void ACameraActor::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph
 			CameraComponent->SetupAttachment(RootComponent);
 			RootComponent->SetupAttachment(OldAttachParent, OldSocketName);
 		}
-	}
-}
-
-void ACameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PreviewedCameraAnim.IsValid() && CameraComponent)
-	{
-		PreviewedCameraAnim->BaseFOV = CameraComponent->FieldOfView;
-		PreviewedCameraAnim->BasePostProcessSettings = CameraComponent->PostProcessSettings;
-		PreviewedCameraAnim->BasePostProcessBlendWeight = CameraComponent->PostProcessBlendWeight;
 	}
 }
 

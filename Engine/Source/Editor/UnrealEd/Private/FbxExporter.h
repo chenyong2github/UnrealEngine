@@ -6,7 +6,7 @@
 #include "Misc/Guid.h"
 #include "EngineDefines.h"
 #include "Engine/StaticMesh.h"
-#include "MatineeExporter.h"
+#include "CinematicExporter.h"
 #include "MovieSceneSequenceID.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieSceneFwd.h"
@@ -18,16 +18,11 @@ class ABrush;
 class ACameraActor;
 class ALandscapeProxy;
 class ALight;
-class AMatineeActor;
 class ASkeletalMeshActor;
 class IMovieScenePlayer;
 class UAnimSequence;
 class UCameraComponent;
 class UInstancedStaticMeshComponent;
-class UInterpTrackFloatProp;
-class UInterpTrackInstMove;
-class UInterpTrackMove;
-class UInterpTrackMoveAxis;
 class ULightComponent;
 class UMaterialInterface;
 class UModel;
@@ -51,7 +46,7 @@ struct FMovieSceneSequenceTransform;
 
 namespace UnFbx
 {
-	/** Adapter interface which allows ExportAnimTrack to act on both sequencer and matinee data. */
+	/** Adapter interface which allows ExportAnimTrack to act on sequencer without a tight coupling. */
 	class UNREALED_API IAnimTrackAdapter
 	{
 	public:
@@ -68,18 +63,6 @@ namespace UnFbx
 		virtual float GetAnimTime(int32 LocalFrame) const { return 0.f; }
 	};
 
-	/** An anim track adapter for matinee. */
-	class UNREALED_API FMatineeAnimTrackAdapter : public IAnimTrackAdapter
-	{
-	public:
-		FMatineeAnimTrackAdapter(AMatineeActor* InMatineeActor);
-		virtual int32 GetLocalStartFrame() const override;
-		virtual int32 GetLength() const override;
-		virtual void UpdateAnimation(int32 LocalFrame) override;
-
-	private:
-		AMatineeActor* MatineeActor;
-	};
 	/** An anim track adapter for a level sequence. */
 	class UNREALED_API FLevelSequenceAnimTrackAdapter : public IAnimTrackAdapter
 	{
@@ -102,7 +85,7 @@ namespace UnFbx
 /**
  * Main FBX Exporter class.
  */
-class UNREALED_API FFbxExporter  : public MatineeExporter, public FGCObject
+class UNREALED_API FFbxExporter : public FCinematicExporter, public FGCObject
 {
 public:
 	/**
@@ -176,13 +159,6 @@ public:
 
 
 	/**
-	 * Exports the given Matinee sequence information into a FBX document.
-	 * 
-	 * @return	true, if sucessful
-	 */
-	virtual bool ExportMatinee(class AMatineeActor* InMatineeActor);
-
-	/**
 	 * Exports the given level sequence information into a FBX document.
 	 *
 	 * @return	true, if successful
@@ -195,16 +171,6 @@ public:
 	 * @return	true, if successful
 	 */
 	bool ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, FbxNode* FbxActor, UObject* BoundObject, const TArray<UMovieSceneTrack*>& Tracks, const FMovieSceneSequenceTransform& RootToLocalTransform);
-
-	/**
-	 * Exports all the animation sequences part of a single Group in a Matinee sequence
-	 * as a single animation in the FBX document.  The animation is created by sampling the
-	 * sequence at 30 updates/second and extracting the resulting bone transforms from the given
-	 * skeletal mesh
-	 * @param MatineeSequence The Matinee Sequence containing the group to export
-	 * @param SkeletalMeshComponent The Skeletal mesh that the animations from the Matinee group are applied to
-	 */
-	virtual void ExportMatineeGroup(class AMatineeActor* MatineeActor, USkeletalMeshComponent* SkeletalMeshComponent);
 
 
 	/**
@@ -250,21 +216,6 @@ public:
 	 * Exports a single UAnimSequence, and optionally a skeletal mesh
 	 */
 	FbxNode* ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshNames=NULL, FbxNode* ActorRootNode=NULL, const TArray<UMaterialInterface*>* OverrideMaterials = nullptr);
-
-	/**
-	 * Exports the list of UAnimSequences as a single animation based on the settings in the TrackKeys
-	 */
-	void ExportAnimSequencesAsSingle( USkeletalMesh* SkelMesh, const ASkeletalMeshActor* SkelMeshActor, const FString& ExportName, const TArray<UAnimSequence*>& AnimSeqList, const TArray<FAnimControlTrackKey>& TrackKeys );
-
-	/** A node name adapter for matinee. */
-	class UNREALED_API FMatineeNodeNameAdapter : public INodeNameAdapter
-	{
-	public:
-		FMatineeNodeNameAdapter( AMatineeActor* InMatineeActor );
-		virtual FString GetActorNodeName(const AActor* InActor) override;
-	private:
-		AMatineeActor* MatineeActor;
-	};
 
 	/** A node name adapter for a level sequence. */
 	class UNREALED_API FLevelSequenceNodeNameAdapter : public INodeNameAdapter
@@ -441,28 +392,6 @@ private:
 	 * rotation tracks to convert the angles into a more interpolation-friendly format.  
 	 */
 	void CorrectAnimTrackInterpolation( TArray<FbxNode*>& BoneNodes, FbxAnimLayer* AnimLayer );
-
-	/**
-	 * Exports the Matinee movement track into the FBX animation stack.
-	 */
-	void ExportMatineeTrackMove(FbxNode* FbxActor, UInterpTrackInstMove* MoveTrackInst, UInterpTrackMove* MoveTrack, float InterpLength);
-
-	/**
-	 * Exports the Matinee float property track into the FBX animation stack.
-	 */
-	void ExportMatineeTrackFloatProp(FbxNode* FbxActor, UInterpTrackFloatProp* PropTrack);
-
-	/**
-	 * Exports a given interpolation curve into the FBX animation curve.
-	 */
-	void ExportAnimatedVector(FbxAnimCurve* FbxCurve, const ANSICHAR* ChannelName, UInterpTrackMove* MoveTrack, UInterpTrackInstMove* MoveTrackInst, bool bPosCurve, int32 CurveIndex, bool bNegative, float InterpLength);
-	
-	/**
-	 * Exports a movement subtrack to an FBX curve
-	 */
-	void ExportMoveSubTrack(FbxAnimCurve* FbxCurve, const ANSICHAR* ChannelName, UInterpTrackMoveAxis* SubTrack, UInterpTrackInstMove* MoveTrackInst, bool bPosCurve, int32 CurveIndex, bool bNegative, float InterpLength);
-	
-	void ExportAnimatedFloat(FbxProperty* FbxProperty, FInterpCurveFloat* Curve, bool IsCameraFoV);
 
 	/**
 	 * Exports a level sequence 3D transform track into the FBX animation stack.

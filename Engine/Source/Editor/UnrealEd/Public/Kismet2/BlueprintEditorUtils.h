@@ -1099,10 +1099,10 @@ public:
 	static void SetBlueprintPropertyReadOnlyFlag(UBlueprint* Blueprint, const FName& VarName, const bool bVariableReadOnly);
 
 	/**
-	 * Sets the Interp flag on the variable with the specified name to make available to matinee
+	 * Sets the Interp flag on the variable with the specified name to make available to sequencer
 	 *
 	 * @param	VarName				Name of the var to set the flag on
-	 * @param	bInterp	true to make variable available to Matinee, false otherwise
+	 * @param	bInterp	true to make variable available to sequencer, false otherwise
 	 */
 	static void SetInterpFlag(UBlueprint* Blueprint, const FName& VarName, const bool bInterp);
 

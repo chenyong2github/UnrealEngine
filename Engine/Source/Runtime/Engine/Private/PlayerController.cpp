@@ -4599,25 +4599,6 @@ void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourc
 	}
 }
 
-void APlayerController::ClientPlayCameraAnim_Implementation( UCameraAnim* AnimToPlay, float Scale, float Rate,
-						float BlendInTime, float BlendOutTime, bool bLoop,
-						bool bRandomStartTime, ECameraShakePlaySpace Space, FRotator CustomPlaySpace )
-{
-	if (PlayerCameraManager != NULL)
-	{
-		PlayerCameraManager->PlayCameraAnim(AnimToPlay, Rate, Scale, BlendInTime, BlendOutTime, bLoop, bRandomStartTime, 0.f, Space, CustomPlaySpace);
-	}
-}
-
-void APlayerController::ClientStopCameraAnim_Implementation(UCameraAnim* AnimToStop)
-{
-	if (PlayerCameraManager != NULL)
-	{
-		PlayerCameraManager->StopAllInstancesOfCameraAnim(AnimToStop);
-	}
-}
-
-
 void APlayerController::ClientSpawnGenericCameraLensEffect_Implementation(TSubclassOf<class AActor> LensEffectEmitterClass)
 {
 	if (PlayerCameraManager != NULL)

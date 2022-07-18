@@ -154,7 +154,7 @@ public:
 	struct FFOscillator FOVOscillation;
 
 	/************************************************************
-	 * Parameters for defining CameraAnim-driven camera shakes
+	 * Parameters for defining sequencer-driven camera shakes
 	 ************************************************************/
 
 	/** Scalar defining how fast to play the anim. */
@@ -177,17 +177,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = AnimShake, meta = (ClampMin = "0.0", editcondition = "bRandomAnimSegment"))
 	float RandomAnimSegmentDuration;
 
-	/** Source camera animation to play. Can be null. */
-	UPROPERTY(EditAnywhere, Category = AnimShake)
-	TObjectPtr<class UCameraAnim> Anim;
-
-	/** Source camera animation sequence to play. Can be null, but can't have both Anim and AnimSequence. */
+	/** Source camera animation sequence to play. Can be null. */
 	UPROPERTY(EditAnywhere, Category = AnimShake)
 	TObjectPtr<class UCameraAnimationSequence> AnimSequence;
 
 	/**
-	* If true, play a random snippet of the animation of length Duration.  Implies bLoop and bRandomStartTime = true for the CameraAnim.
-	* If false, play the full anim once, non-looped. Useful for getting variety out of a single looped CameraAnim asset.
+	* If true, play a random snippet of the animation of length Duration.  Implies bLoop and bRandomStartTime = true for the AnimSequence.
+	* If false, play the full anim once, non-looped. Useful for getting variety out of a single looped AnimSequence asset.
 	*/
 	UPROPERTY(EditAnywhere, Category = AnimShake)
 	uint32 bRandomAnimSegment : 1;
@@ -197,10 +193,6 @@ public:
 	/** Time remaining for oscillation shakes. Less than 0.f means shake infinitely. */
 	UPROPERTY(transient, BlueprintReadOnly, Category = CameraShake)
 	float OscillatorTimeRemaining;
-
-	/** The playing instance of the CameraAnim-based shake, if any. */
-	UPROPERTY(transient, BlueprintReadOnly, Category = CameraShake)
-	TObjectPtr<class UCameraAnimInst> AnimInst;
 
 public:
 
@@ -246,12 +238,9 @@ public:
 	/** Returns true if this camera shake will loop forever */
 	bool IsLooping() const;
 
-	/** Sets current playback time and applies the shake (both oscillation and cameraanim) to the given POV. */
+	/** Sets current playback time and applies the shake (both oscillation and camera animation sequence) to the given POV. */
 	UE_DEPRECATED(4.27, "SetCurrentTimeAndApplyShake is deprecated, please use ScrubAndApplyCameraShake")
 	void SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV);
-	
-	/** Sets actor for playing camera anims */
-	void SetTempCameraAnimActor(AActor* Actor) { TempCameraActorForCameraAnims = Actor; }
 
 private:
 
@@ -281,9 +270,6 @@ protected:
 
 	/** Initial offset (could have been assigned at random). */
 	float InitialFOVSinOffset;
-
-	/** Temp actor to use for playing camera anims. Used when playing a camera anim in non-gameplay context, e.g. in the editor */
-	TWeakObjectPtr<AActor> TempCameraActorForCameraAnims;
 
 	/** Sequence shake pattern for when using a sequence instead of a camera anim */
 	UPROPERTY(Instanced)
@@ -329,20 +315,6 @@ private:
 /** Backwards compatible name for the Matinee camera shake, for C++ code. */
 UE_DEPRECATED(4.26, "Please use UMatineeCameraShake")
 typedef UMatineeCameraShake UCameraShake;
-
-/** Custom sequencer evaluation code for Matinee camera shakes */
-UCLASS()
-class UMovieSceneMatineeCameraShakeEvaluator : public UMovieSceneCameraShakeEvaluator
-{
-	GENERATED_BODY()
-
-	UMovieSceneMatineeCameraShakeEvaluator(const FObjectInitializer& ObjInit);
-
-	static UMovieSceneCameraShakeEvaluator* BuildMatineeShakeEvaluator(UCameraShakeBase* ShakeInstance);
-
-	virtual bool Setup(const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance) override;
-	virtual bool Evaluate(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, UCameraShakeBase* ShakeInstance) override;
-};
 
 /**
  * Blueprint function library for autocasting from a base camera shake to a matinee camera shake.

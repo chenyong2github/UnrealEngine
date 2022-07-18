@@ -3,8 +3,6 @@
 #include "TrackEditors/PropertyTrackEditors/FloatPropertyTrackEditor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
-#include "MatineeImportTools.h"
-#include "Matinee/InterpTrackFloatBase.h"
 #include "MovieSceneToolHelpers.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
 
@@ -22,15 +20,6 @@ void FFloatPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FProperty
 	const float KeyedValue = PropertyChangedParams.GetPropertyValue<float>();
 	const float NewValue   = RecomposeFloat(KeyedValue, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, NewValue, true));
-}
-
-
-void CopyInterpFloatTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackFloatBase* MatineeFloatTrack, UMovieSceneFloatTrack* FloatTrack)
-{
-	if (FMatineeImportTools::CopyInterpFloatTrack(MatineeFloatTrack, FloatTrack))
-	{
-		Sequencer.Get().NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
-	}
 }
 
 

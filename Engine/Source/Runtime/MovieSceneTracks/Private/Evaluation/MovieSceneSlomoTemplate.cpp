@@ -36,7 +36,7 @@ struct FSlomoTrackToken
 
 		if (WorldSettings)
 		{
-			WorldSettings->MatineeTimeDilation = SlomoValue;
+			WorldSettings->CinematicTimeDilation = SlomoValue;
 			WorldSettings->ForceNetUpdate();
 		}
 	}
@@ -75,7 +75,7 @@ struct FSlomoPreAnimatedGlobalTokenProducer : IMovieScenePreAnimatedGlobalTokenP
 	{
 		if (AWorldSettings* WorldSettings = Player.GetPlaybackContext()->GetWorld()->GetWorldSettings())
 		{
-			return FSlomoPreAnimatedGlobalToken(WorldSettings->MatineeTimeDilation);
+			return FSlomoPreAnimatedGlobalToken(WorldSettings->CinematicTimeDilation);
 		}
 		return IMovieScenePreAnimatedGlobalTokenPtr();
 	}

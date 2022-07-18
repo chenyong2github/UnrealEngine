@@ -758,7 +758,7 @@ void FSequencer::Tick(float InDeltaTime)
 
 	UObject* PlaybackContext = GetPlaybackContext();
 	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-	float Dilation = World ? World->GetWorldSettings()->MatineeTimeDilation : 1.f;
+	float Dilation = World ? World->GetWorldSettings()->CinematicTimeDilation : 1.f;
 
 	TimeController->Tick(InDeltaTime, PlaybackSpeed * Dilation);
 

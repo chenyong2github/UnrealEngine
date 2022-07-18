@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 
-class AMatineeActor;
 class SWindow;
 class SWidget;
 
@@ -125,17 +124,16 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForMapToLoadCommand);
 */
 DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForSpecifiedMapToLoadCommand, FString, MapName);
 
-
 /**
 * Force a matinee to not loop and request that it play
 */
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FPlayMatineeLatentCommand, AMatineeActor*, MatineeActor);
+DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FPlayMatineeLatentCommand, AActor*, MatineeActor);
 
 
 /**
 * Wait for a particular matinee actor to finish playing
 */
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForMatineeToCompleteLatentCommand, AMatineeActor*, MatineeActor);
+DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForMatineeToCompleteLatentCommand, AActor*, MatineeActor);
 
 
 /**

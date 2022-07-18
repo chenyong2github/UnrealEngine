@@ -25,8 +25,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "MatineeImportTools.h"
-#include "Matinee/InterpTrackAnimControl.h"
 #include "SequencerUtilities.h"
 #include "ISectionLayoutBuilder.h"
 #include "Styling/AppStyle.h"

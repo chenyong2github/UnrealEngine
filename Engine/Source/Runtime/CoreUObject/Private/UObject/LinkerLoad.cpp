@@ -639,22 +639,6 @@ void FLinkerLoad::InvalidateExport(UObject* OldObject)
 	}
 }
 
-FName FLinkerLoad::FindSubobjectRedirectName(const FName& Name, UClass* Class)
-{
-	const TMap<FString, FString>* ValueChanges = FCoreRedirects::GetValueRedirects(ECoreRedirectFlags::Type_Class, Class);
-
-	if (ValueChanges)
-	{
-		const FString* NewInstanceName = ValueChanges->Find(Name.ToString());
-		if (NewInstanceName)
-		{
-			return FName(**NewInstanceName);
-		}
-	}
-
-	return FName();
-}
-
 /**
  * Creates a FLinkerLoad object for async creation. Tick has to be called manually till it returns
  * true in which case the returned linker object has finished the async creation process.

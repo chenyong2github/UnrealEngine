@@ -9,8 +9,6 @@
 #include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
 #include "Camera/CameraShakeBase.h"
-#include "Camera/CameraAnim.h"
-#include "Camera/CameraAnimInst.h"
 #include "Components/ForceFeedbackComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Components/DecalComponent.h"
@@ -658,70 +656,6 @@ void FGameplayCueNotify_CameraShakeInfo::ValidateBurstAssets(UObject* Containing
 
 
 //////////////////////////////////////////////////////////////////////////
-// FGameplayCueNotify_CameraAnimInfo
-//////////////////////////////////////////////////////////////////////////
-FGameplayCueNotify_CameraAnimInfo::FGameplayCueNotify_CameraAnimInfo()
-{
-	CameraAnim = nullptr;
-	AnimScale = 1.0f;
-	PlayRate = 1.0f;
-
-	BlendInTime = 0.0f;
-	BlendOutTime = 0.0f;
-
-	PlaySpace = EGameplayCueNotify_EffectPlaySpace::CameraSpace;
-
-	bIsLooping = false;
-	bRandomStartTime = false;
-
-	bOverrideSpawnCondition = false;
-}
-
-bool FGameplayCueNotify_CameraAnimInfo::PlayCameraAnim(const FGameplayCueNotify_SpawnContext& SpawnContext, FGameplayCueNotify_SpawnResult& OutSpawnResult) const
-{
-	if (!CameraAnim || (AnimScale <= 0.0f) || (PlayRate <= 0.0f))
-	{
-		return false;
-	}
-
-	const FGameplayCueNotify_SpawnCondition& SpawnCondition = SpawnContext.GetSpawnCondition(bOverrideSpawnCondition, SpawnConditionOverride);
-
-	if (!SpawnCondition.ShouldSpawn(SpawnContext))
-	{
-		return false;
-	}
-
-	// Camera animations only play on the target actor when it is locally controlled.
-	APlayerController* TargetPC = SpawnContext.FindLocalPlayerController(EGameplayCueNotify_LocallyControlledSource::TargetActor);
-	if (TargetPC && TargetPC->PlayerCameraManager)
-	{
-		const ECameraShakePlaySpace CameraAnimPlaySpace = GetCameraShakePlaySpace(PlaySpace);
-
-		OutSpawnResult.CameraAnim = TargetPC->PlayerCameraManager->PlayCameraAnim(CameraAnim, PlayRate, AnimScale, BlendInTime, BlendOutTime, bIsLooping, bRandomStartTime, 0.0f, CameraAnimPlaySpace, FRotator::ZeroRotator);
-	}
-
-	return (OutSpawnResult.CameraAnim != nullptr);
-}
-
-void FGameplayCueNotify_CameraAnimInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
-{
-#if WITH_EDITORONLY_DATA
-	if (CameraAnim)
-	{
-		if (bIsLooping)
-		{
-			ValidationErrors.Add(FText::Format(
-				LOCTEXT("CameraAnim_ShouldNotLoop", "Camera animation [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
-				FText::AsCultureInvariant(CameraAnim->GetPathName()),
-				FText::AsCultureInvariant(Context),
-				FText::AsCultureInvariant(ContainingAsset->GetPathName())));
-		}
-	}
-#endif // #if WITH_EDITORONLY_DATA
-}
-
-
-//////////////////////////////////////////////////////////////////////////
 // FGameplayCueNotify_CameraLensEffectInfo
 //////////////////////////////////////////////////////////////////////////
 FGameplayCueNotify_CameraLensEffectInfo::FGameplayCueNotify_CameraLensEffectInfo()
@@ -1028,7 +962,6 @@ void FGameplayCueNotify_BurstEffects::ExecuteEffects(const FGameplayCueNotify_Sp
 	}
 
 	BurstCameraShake.PlayCameraShake(SpawnContext, OutSpawnResult);
-	BurstCameraAnim.PlayCameraAnim(SpawnContext, OutSpawnResult);
 	BurstCameraLensEffect.PlayCameraLensEffect(SpawnContext, OutSpawnResult);
 	BurstForceFeedback.PlayForceFeedback(SpawnContext, OutSpawnResult);
 	BurstDecal.SpawnDecal(SpawnContext, OutSpawnResult);
@@ -1047,7 +980,6 @@ void FGameplayCueNotify_BurstEffects::ValidateAssociatedAssets(UObject* Containi
 	}
 
 	BurstCameraShake.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraShake"), ValidationErrors);
-	BurstCameraAnim.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraAnim"), ValidationErrors);
 	BurstCameraLensEffect.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraLensEffect"), ValidationErrors);
 	BurstForceFeedback.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstForceFeedback"), ValidationErrors);
 }
@@ -1079,7 +1011,6 @@ void FGameplayCueNotify_LoopingEffects::StartEffects(const FGameplayCueNotify_Sp
 	}
 
 	LoopingCameraShake.PlayCameraShake(SpawnContext, OutSpawnResult);
-	LoopingCameraAnim.PlayCameraAnim(SpawnContext, OutSpawnResult);
 	LoopingCameraLensEffect.PlayCameraLensEffect(SpawnContext, OutSpawnResult);
 	LoopingForceFeedback.PlayForceFeedback(SpawnContext, OutSpawnResult);
 }
@@ -1132,13 +1063,6 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 			const bool bStopImmediately = false;
 			CameraShake->StopShake(bStopImmediately);
 		}
-	}
-
-	// Stop the camera animation.
-	if (SpawnResult.CameraAnim)
-	{
-		const bool bStopImmediately = false;
-		SpawnResult.CameraAnim->Stop(bStopImmediately);
 	}
 
 	// Stop the camera lens effect.

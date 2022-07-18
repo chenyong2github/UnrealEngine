@@ -930,7 +930,7 @@ void UTakeRecorder::PreRecord()
 	check(RecordingWorld);
 	if (AWorldSettings* WorldSettings = RecordingWorld->GetWorldSettings())
 	{
-		const float ExistingMatineeTimeDilation = WorldSettings->MatineeTimeDilation;
+		const float ExistingCinematicTimeDilation = WorldSettings->CinematicTimeDilation;
 
 		const bool bInvalidTimeDilation = Parameters.User.EngineTimeDilation == 0.f;
 
@@ -939,16 +939,16 @@ void UTakeRecorder::PreRecord()
 			UE_LOG(LogTakesCore, Warning, TEXT("Time dilation cannot be 0. Ignoring time dilation for this recording."));
 		}
 
-		if (Parameters.User.EngineTimeDilation != ExistingMatineeTimeDilation && !bInvalidTimeDilation)
+		if (Parameters.User.EngineTimeDilation != ExistingCinematicTimeDilation && !bInvalidTimeDilation)
 		{
-			WorldSettings->MatineeTimeDilation = Parameters.User.EngineTimeDilation;
+			WorldSettings->CinematicTimeDilation = Parameters.User.EngineTimeDilation;
 
 			// Restore it when we're done
-			auto RestoreTimeDilation = [ExistingMatineeTimeDilation, WeakWorldSettings = MakeWeakObjectPtr(WorldSettings)]
+			auto RestoreTimeDilation = [ExistingCinematicTimeDilation, WeakWorldSettings = MakeWeakObjectPtr(WorldSettings)]
 			{
 				if (AWorldSettings* CleaupWorldSettings = WeakWorldSettings.Get())
 				{
-					CleaupWorldSettings->MatineeTimeDilation = ExistingMatineeTimeDilation;
+					CleaupWorldSettings->CinematicTimeDilation = ExistingCinematicTimeDilation;
 				}
 			};
 			OnStopCleanup.Add(RestoreTimeDilation);

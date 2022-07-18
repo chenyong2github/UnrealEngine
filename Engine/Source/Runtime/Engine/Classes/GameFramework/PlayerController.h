@@ -37,7 +37,6 @@ class FDebugDisplayInfo;
 class UActorChannel;
 class UCheatManager;
 class UGameViewportClient;
-class UInterpTrackInstDirector;
 class ULocalMessage;
 class UNetConnection;
 class UPlayer;
@@ -238,10 +237,6 @@ public:
 	/** Used in net games so client can acknowledge it possessed a specific pawn. */
 	UPROPERTY()
 	TObjectPtr<APawn> AcknowledgedPawn;
-
-	/** Director track that's currently possessing this player controller, or none if not possessed. */
-	UPROPERTY(Transient)
-	TObjectPtr<UInterpTrackInstDirector> ControllingDirTrackInst;
 
 	/** Heads up display associated with this PlayerController. */
 	UPROPERTY()
@@ -1021,20 +1016,6 @@ public:
 	UFUNCTION(Reliable, Client)
 	void ClientMessage(const FString& S, FName Type = NAME_None, float MsgLifeTime = 0.f);
 
-	/** Play the indicated CameraAnim on this camera.
-	 * @param AnimToPlay - Camera animation to play
-	 * @param Scale - "Intensity" scalar.  This is the scale at which the anim was first played.
-	 * @param Rate -  Multiplier for playback rate.  1.0 = normal.
-	 * @param BlendInTime - Time to interpolate in from zero, for smooth starts
-	 * @param BlendOutTime - Time to interpolate out to zero, for smooth finishes
-	 * @param bLoop - True if the animation should loop, false otherwise
-	 * @param bRandomStartTime - Whether or not to choose a random time to start playing.  Only really makes sense for bLoop = true
-	 * @param Space - Animation play area
-	 * @param CustomPlaySpace - Matrix used when Space = CAPS_UserDefined
-	 */
-	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientPlayCameraAnim(class UCameraAnim* AnimToPlay, float Scale=1.f, float Rate=1.f, float BlendInTime=0.f, float BlendOutTime=0.f, bool bLoop=false, bool bRandomStartTime=false, ECameraShakePlaySpace Space=ECameraShakePlaySpace::CameraLocal, FRotator CustomPlaySpace=FRotator::ZeroRotator);
-
 	/** 
 	 * Play Camera Shake 
 	 * @param Shake - Camera shake animation to play
@@ -1199,10 +1180,6 @@ public:
 	/** Removes all Camera Lens Effects. */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
 	virtual void ClientClearCameraLensEffects();
-
-	/** Stop camera animation on client. */
-	UFUNCTION(Reliable, Client)
-	void ClientStopCameraAnim(class UCameraAnim* AnimToStop);
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")

@@ -9,8 +9,6 @@
 
 #include "CameraActor.generated.h"
 
-class UCameraAnim;
-
 /** 
  * A CameraActor is a camera viewpoint that can be placed in a level.
  */
@@ -34,9 +32,6 @@ private:
 	UPROPERTY(Category = CameraActor, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class USceneComponent> SceneComponent;
 public:
-
-	/** If this CameraActor is being used to preview a CameraAnim in the editor, this is the anim being previewed. */
-	TWeakObjectPtr<class UCameraAnim> PreviewedCameraAnim;
 
 	/** Returns index of the player for whom we auto-activate, or INDEX_NONE (-1) if disabled. */
 	UFUNCTION(BlueprintCallable, Category="AutoPlayerActivation")
@@ -65,8 +60,6 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
-
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	virtual class USceneComponent* GetDefaultAttachComponent() const override;

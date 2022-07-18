@@ -153,7 +153,7 @@ void FTransaction::FObjectRecord::SerializeObject( FArchive& Ar )
 
 void FTransaction::FObjectRecord::Restore( FTransaction* Owner )
 {
-	// only used by FMatineeTransaction:
+	// @TODO now that Matinee is gone, it's worth investigating removing this
 	if( !bRestored )
 	{
 		bRestored = true;

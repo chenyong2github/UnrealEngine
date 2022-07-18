@@ -253,8 +253,9 @@ protected:
 	/** The key object being edited in this transaction. For example the blueprint object. Can be NULL */
 	UObject* PrimaryObject = nullptr;
 
-	/** If true, on apply flip the direction of iteration over object records. The only client for which this is false is FMatineeTransaction */
+	/** If true, on apply flip the direction of iteration over object records. */
 	bool		bFlip = true;
+	// @TODO now that Matinee is gone, it's worth investigating removing this
 
 	/** Used to track direction to iterate over transaction's object records. Typically -1 for Undo, 1 for Redo */
 	int32		Inc = -1;

@@ -542,7 +542,6 @@ public:
 		enum EAnimReferenceType
 		{
 			ART_SkeletalMeshComponent, // Regular SkeletalMeshComponent - mostly from script
-			ART_Matinee, // From Matinee, cinematic animations
 			ART_Crowd, // From Crowd spawner, expected to be none or very small
 		};
 

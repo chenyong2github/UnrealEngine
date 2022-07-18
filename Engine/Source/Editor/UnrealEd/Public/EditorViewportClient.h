@@ -1082,18 +1082,6 @@ public:
 	/** @return true if a mouse button is down and it's movement being tracked for operations inside the viewport */
 	bool IsTracking() const { return bIsTracking; }
 
-	/**
-	 * Allows custom disabling of camera recoil
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void SetMatineeRecordingWindow(class IMatineeBase* InInterpEd) {}
-
-	/**
-	 * Returns true if camera recoil is currently allowed
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	bool IsMatineeRecordingWindow() const { return false; }
-	
 	EAxisList::Type GetCurrentWidgetAxis() const;
 
 	/** Overrides current cursor. */

@@ -38,7 +38,6 @@
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 #include "FbxImporter.h"
-#include "MatineeImportTools.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "MovieSceneToolsUserSettings.h"
 #include "CineCameraActor.h"
@@ -51,12 +50,6 @@
 #include "Editor/EditorEngine.h"
 #include "LevelEditorViewport.h"
 #include "AssetToolsModule.h"
-#include "Camera/CameraAnim.h"
-#include "Matinee/InterpGroup.h"
-#include "Matinee/InterpGroupInst.h"
-#include "Matinee/InterpTrackMove.h"
-#include "Matinee/InterpTrackMoveAxis.h"
-#include "Matinee/InterpTrackInstMove.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -1047,10 +1040,9 @@ bool ImportFBXPropertyToPropertyTrack(UMovieScene* MovieScene, const FGuid Prope
 		}
 
 		FFrameNumber KeyTime = (Key.Time * FrameRate).RoundToFrame();
-		FMatineeImportTools::SetOrAddKey(ChannelData, KeyTime, Key.Value, ArriveTangent, LeaveTangent,
-				MovieSceneToolHelpers::RichCurveInterpolationToMatineeInterpolation(Key.InterpMode, Key.TangentMode), FrameRate, Key.TangentWeightMode,
+		MovieSceneToolHelpers::SetOrAddKey(ChannelData, KeyTime, Key.Value, ArriveTangent, LeaveTangent,
+				Key.InterpMode, Key.TangentMode, FrameRate, Key.TangentWeightMode,
 				Key.ArriveTangentWeight, Key.LeaveTangentWeight);
-
 	}
 
 	Channel->AutoSetTangents();
@@ -1234,10 +1226,9 @@ void ImportTransformChannelToBezierChannel(const FRichCurve& Source, ChannelType
 
 		FFrameNumber KeyTime = (Key.Time * DestFrameRate).RoundToFrame();
 		float Value = !bNegateValue ? Key.Value : -Key.Value;
-		FMatineeImportTools::SetOrAddKey(ChannelData, KeyTime + StartFrame, Value, ArriveTangent, LeaveTangent,
-			MovieSceneToolHelpers::RichCurveInterpolationToMatineeInterpolation(Key.InterpMode, Key.TangentMode), DestFrameRate, Key.TangentWeightMode,
+		MovieSceneToolHelpers::SetOrAddKey(ChannelData, KeyTime + StartFrame, Value, ArriveTangent, LeaveTangent,
+			Key.InterpMode, Key.TangentMode, DestFrameRate, Key.TangentWeightMode,
 			Key.ArriveTangentWeight, Key.LeaveTangentWeight);
-
 	}
 
 	Dest->AutoSetTangents();
@@ -3634,54 +3625,6 @@ bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieSceneSequence* InSequence,
 	return true;
 }
 
-
-EInterpCurveMode MovieSceneToolHelpers::RichCurveInterpolationToMatineeInterpolation( ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode)
-{
-	switch ( InterpMode )
-	{
-	case ERichCurveInterpMode::RCIM_Constant:
-		return CIM_Constant;
-	case ERichCurveInterpMode::RCIM_Cubic:
-		if (TangentMode == RCTM_Auto)
-		{
-			return CIM_CurveAuto;
-		}
-		else if (TangentMode == RCTM_Break)
-		{
-			return CIM_CurveBreak;
-		}
-		return CIM_CurveUser;  
-	case ERichCurveInterpMode::RCIM_Linear:
-		return CIM_Linear;
-	default:
-		return CIM_CurveAuto;
-	}
-}
-
-void MovieSceneToolHelpers::CopyKeyDataToMoveAxis(const TMovieSceneChannelData<FMovieSceneDoubleValue>& Channel, UInterpTrackMoveAxis* MoveAxis, FFrameRate InFrameRate)
-{
-	MoveAxis->FloatTrack.Points.Reset();
-
-	static FName LookupName(NAME_None);
-	
-	TArrayView<const FFrameNumber>           Times  = Channel.GetTimes();
-	TArrayView<const FMovieSceneDoubleValue> Values = Channel.GetValues();
-
-	for (int32 KeyIndex = 0; KeyIndex < Times.Num(); ++KeyIndex)
-	{
-		const float Time = Times[KeyIndex] / InFrameRate;
-		const FMovieSceneDoubleValue& Value = Values[KeyIndex];
-
-		const int32 PointIndex = MoveAxis->FloatTrack.AddPoint(Time, Value.Value);
-		MoveAxis->LookupTrack.AddPoint(Time, LookupName);
-
-		FInterpCurvePoint<float>& Point = MoveAxis->FloatTrack.Points[PointIndex];
-		Point.ArriveTangent = Value.Tangent.ArriveTangent * InFrameRate.AsDecimal();
-		Point.LeaveTangent = Value.Tangent.LeaveTangent * InFrameRate.AsDecimal();
-		Point.InterpMode = RichCurveInterpolationToMatineeInterpolation(Value.InterpMode, Value.TangentMode);
-	}
-}
-
 bool MovieSceneToolHelpers::HasHiddenMobility(const UClass* ObjectClass)
 {
 	if (ObjectClass)
@@ -3747,7 +3690,7 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 
 	Exporter->CreateDocument();
-	Exporter->SetTrasformBaking(false);
+	Exporter->SetTransformBaking(false);
 	Exporter->SetKeepHierarchy(true);
 
 	ExportLevelMesh(Exporter, World->PersistentLevel, Player, Bindings, NodeNameAdapter, Template);
@@ -3820,7 +3763,7 @@ static void TickFrame(const FFrameNumber& FrameNumber,float DeltaTime, UMovieSce
 			BakeHelper->PreEvaluation(MovieScene, FrameNumber);
 		}
 	}
-	// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+	// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the sequence
 	int32 Index = FrameNumber.Value;
 	AnimTrackAdapter.UpdateAnimation(Index);
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
@@ -4495,6 +4438,44 @@ void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatV
 		NewKey.Tangent.TangentWeightMode = WeightedMode;
 		NewKey.Tangent.ArriveTangentWeight = 0.0f;
 		NewKey.Tangent.LeaveTangentWeight = 0.0f;
+		ChannelData.AddKey(Time, NewKey);
+	}
+}
+
+void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value, 
+		float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode, 
+		FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode, float ArriveTangentWeight, float LeaveTangentWeight)
+{
+	if (ChannelData.FindKey(Time) == INDEX_NONE)
+	{
+		FMovieSceneFloatValue NewKey(Value);
+
+		NewKey.InterpMode = InterpMode;
+		NewKey.TangentMode = TangentMode;
+		NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.TangentWeightMode = WeightedMode;
+		NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
+		NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
+		ChannelData.AddKey(Time, NewKey);
+	}
+}
+
+void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value, 
+		float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode, 
+		FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode, float ArriveTangentWeight, float LeaveTangentWeight)
+{
+	if (ChannelData.FindKey(Time) == INDEX_NONE)
+	{
+		FMovieSceneDoubleValue NewKey(Value);
+
+		NewKey.InterpMode = InterpMode;
+		NewKey.TangentMode = TangentMode;
+		NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.TangentWeightMode = WeightedMode;
+		NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
+		NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
 		ChannelData.AddKey(Time, NewKey);
 	}
 }

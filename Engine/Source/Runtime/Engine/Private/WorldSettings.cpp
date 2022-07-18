@@ -105,7 +105,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bReplicates = true;
 	bAlwaysRelevant = true;
 	TimeDilation = 1.0f;
-	MatineeTimeDilation = 1.0f;
+	CinematicTimeDilation = 1.0f;
 	DemoPlayTimeDilation = 1.0f;
 	PackedLightAndShadowMapTextureSize = 1024;
 	SetHidden(false);
@@ -324,7 +324,7 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 
 	DOREPLIFETIME( AWorldSettings, PauserPlayerState );
 	DOREPLIFETIME( AWorldSettings, TimeDilation );
-	DOREPLIFETIME( AWorldSettings, MatineeTimeDilation );
+	DOREPLIFETIME( AWorldSettings, CinematicTimeDilation );
 	DOREPLIFETIME( AWorldSettings, WorldGravityZ );
 	DOREPLIFETIME( AWorldSettings, bHighPriorityLoading );
 }
@@ -1030,7 +1030,7 @@ void AWorldSettings::RewindForReplay()
 
 	PauserPlayerState = nullptr;
 	TimeDilation = 1.0;
-	MatineeTimeDilation = 1.0;
+	CinematicTimeDilation = 1.0;
 	bWorldGravitySet = false;
 	bHighPriorityLoading = false;
 }

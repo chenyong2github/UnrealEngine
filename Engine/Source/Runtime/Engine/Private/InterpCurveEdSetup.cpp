@@ -8,7 +8,6 @@
 #include "Templates/Casts.h"
 #include "Distributions/DistributionFloat.h"
 #include "Distributions/DistributionVector.h"
-#include "Matinee/InterpTrack.h"
 
 
 void UInterpCurveEdSetup::PostLoad()
@@ -49,12 +48,6 @@ FCurveEdInterface* UInterpCurveEdSetup::GetCurveEdInterfacePointer(const FCurveE
 	if(VectorDist)
 	{
 		return VectorDist;
-	}
-
-	UInterpTrack* InterpTrack = Cast<UInterpTrack>(Entry.CurveObject);
-	if(InterpTrack)
-	{
-		return InterpTrack;
 	}
 
 	return NULL;

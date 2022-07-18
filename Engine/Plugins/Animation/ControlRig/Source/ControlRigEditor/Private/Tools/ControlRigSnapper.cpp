@@ -21,7 +21,6 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "MatineeImportTools.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "MovieSceneToolsModule.h"
 #include "Components/SkeletalMeshComponent.h"

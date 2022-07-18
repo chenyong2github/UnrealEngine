@@ -2,8 +2,6 @@
 
 #include "TrackEditors/PropertyTrackEditors/VectorPropertyTrackEditor.h"
 #include "Tracks/MovieSceneVectorTrack.h"
-#include "MatineeImportTools.h"
-#include "Matinee/InterpTrackVectorProp.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "MovieSceneToolHelpers.h"
@@ -95,14 +93,6 @@ void FFloatVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneFloatVector
 	if ( StructName == NAME_Vector4 )
 	{
 		NewTrack->SetNumChannelsUsed( 4 );
-	}
-}
-
-void CopyInterpVectorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackVectorProp* MatineeVectorTrack, UMovieSceneFloatVectorTrack* VectorTrack)
-{
-	if (FMatineeImportTools::CopyInterpVectorTrack(MatineeVectorTrack, VectorTrack))
-	{
-		Sequencer.Get().NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 	}
 }
 

@@ -683,17 +683,13 @@ void AGroupActor::UnlockSelectedGroups()
 
 void AGroupActor::ToggleGroupMode()
 {
-	// Group mode can only be toggled when not in InterpEdit mode
-	if( !GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit) )
-	{
-		UActorGroupingUtils::SetGroupingActive(!UActorGroupingUtils::IsGroupingActive());
+	UActorGroupingUtils::SetGroupingActive(!UActorGroupingUtils::IsGroupingActive());
 
-		// Update group selection in the editor to reflect the toggle
-		SelectGroupsInSelection();
-		GEditor->RedrawAllViewports();
+	// Update group selection in the editor to reflect the toggle
+	SelectGroupsInSelection();
+	GEditor->RedrawAllViewports();
 
-		GEditor->SaveConfig();
-	}
+	GEditor->SaveConfig();
 }
 
 

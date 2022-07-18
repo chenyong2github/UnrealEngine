@@ -54,7 +54,6 @@
 #include "K2Node_MacroInstance.h"
 #include "K2Node_MakeArray.h"
 #include "K2Node_MathExpression.h"
-#include "K2Node_MatineeController.h"
 #include "K2Node_RemoveDelegate.h"
 #include "K2Node_Select.h"
 #include "K2Node_Self.h"

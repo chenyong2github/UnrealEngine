@@ -565,7 +565,7 @@ private:
 	void OnUseDefaultShowFlags(bool bUseSavedDefaults = false);
 
 	/**
-	 * Called to toggle allowing matinee to use this viewport to preview in
+	 * Called to toggle allowing sequencer to use this viewport to preview in
 	 */
 	void OnToggleAllowCinematicPreview();
 

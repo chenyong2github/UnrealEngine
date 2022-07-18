@@ -20,7 +20,6 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
-#include "Matinee/MatineeActor.h"
 #include "ScopedTransaction.h"
 
 #include "LevelUtils.h"

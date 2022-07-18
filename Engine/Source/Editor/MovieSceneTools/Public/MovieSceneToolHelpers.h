@@ -23,7 +23,6 @@ class ISequencer;
 class UMovieScene;
 class UMovieSceneSection;
 class UMovieSceneSequence;
-class UInterpTrackMoveAxis;
 struct FMovieSceneObjectBindingID;
 class UMovieSceneTrack;
 struct FMovieSceneEvaluationTrack;
@@ -391,24 +390,6 @@ public:
 
 
 	/*
-	 * Rich curve interpolation to matinee interpolation
-	 *
-	 * @param InterpMode The rich curve interpolation to convert
-	 * @return The converted matinee interpolation
-	 */
-	static EInterpCurveMode RichCurveInterpolationToMatineeInterpolation( ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode);
-
-	/*
-	 * Copy key data to move axis
-	 *
-	 * @param KeyData The key data to copy from
-	 * @param MoveAxis The move axis to copy to
-	 * @param FrameRate The frame rate of the source channel
-	 */
-	static void CopyKeyDataToMoveAxis(const TMovieSceneChannelData<FMovieSceneDoubleValue>& KeyData, UInterpTrackMoveAxis* MoveAxis, FFrameRate FrameRate);
-
-
-	/*
 	 * Export the SkelMesh to an Anim Sequence for specified MovieScene and Player
 	 *
 	 * @param AnimSequence The sequence to save to.
@@ -544,6 +525,22 @@ public:
 	* @param Value  Value to Set
 	*/
 	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value);
+
+	/* 
+	* Set or add a key onto a float channel based on rich curve data.
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& Curve, FFrameNumber Time, float Value, 
+			float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode,
+			FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode = RCTWM_WeightedNone, 
+			float ArriveTangentWeight = 0.0f, float LeaveTangentWeight = 0.0f);
+
+	/*
+	* Set or add a key onto a double channel based on rich curve data.
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& Curve, FFrameNumber Time, double Value, 
+			float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode,
+			FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode = RCTWM_WeightedNone, 
+			float ArriveTangentWeight = 0.0f, float LeaveTangentWeight = 0.0f);
 	
 	/*
 	*  Get an actors world transforms at the specified times using a player

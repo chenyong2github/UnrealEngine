@@ -397,10 +397,6 @@ public:
 	/** Selects all actors using the same material(s) as the current selection */
 	TSharedPtr< FUICommandInfo > SelectAllWithSameMaterial;
 
-	/** Selects all actors used by currently selected matinee actor */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	TSharedPtr< FUICommandInfo > SelectAllActorsControlledByMatinee;
-
 	/** Selects all emitters using the same particle system as the current selection */
 	TSharedPtr< FUICommandInfo > SelectMatchingEmitter;
 

@@ -1078,18 +1078,11 @@ bool FAutomationAttachment::RunTest(const FString& Parameters)
 
 // ----------------------------------------------------------------------------------------------------------------
 
-#include "Matinee/MatineeActor.h"
-
-DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForMatineeToCompleteAndDoScreenshotsLatentCommand, AMatineeActor*, MatineeActor);
+DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForMatineeToCompleteAndDoScreenshotsLatentCommand, AActor*, MatineeActor);
 
 bool FWaitForMatineeToCompleteAndDoScreenshotsLatentCommand::Update()
 {
-	bool bTestComplete = true;
-	if (MatineeActor)
-	{
-		bTestComplete = !MatineeActor->bIsPlaying;
-	}
-	return bTestComplete;
+	return true;
 }
 
 ///**

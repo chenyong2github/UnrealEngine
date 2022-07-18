@@ -44,7 +44,6 @@
 #include "EdMode.h"
 #include "Dialogs/Dialogs.h"
 #include "UnrealEdGlobals.h"
-#include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -74,7 +73,6 @@
 #include "K2Node_Literal.h"
 #include "K2Node_MacroInstance.h"
 #include "K2Node_MathExpression.h"
-#include "K2Node_MatineeController.h"
 #include "K2Node_SpawnActorFromClass.h"
 #include "K2Node_StructOperation.h"
 #include "K2Node_TemporaryVariable.h"
@@ -8361,20 +8359,6 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 						TargetDelegate->AddDelegate(MoveTemp(Delegate), EventNode->EventOwner);
 					}
 				}
-			}
-		}
-
-		// Find matinee controller nodes and update node name
-		TArray<UK2Node_MatineeController*> MatineeControllers;
-		(*GraphIt)->GetNodesOfClass(MatineeControllers);
-
-		for( TArray<UK2Node_MatineeController*>::TConstIterator NodeIt(MatineeControllers); NodeIt; ++NodeIt )
-		{
-			const UK2Node_MatineeController* MatController = *NodeIt;
-
-			if(MatController->MatineeActor != nullptr)
-			{
-				MatController->MatineeActor->MatineeControllerName = MatController->GetFName();
 			}
 		}
 	}

@@ -18,15 +18,11 @@
 class AActor;
 class ACameraActor;
 class ALight;
-class AMatineeActor;
 class Error;
 class FSkeletalMeshImportData;
 class UActorComponent;
 class UAnimSequence;
 class UFbxSkeletalMeshImportData;
-class UInterpGroupInst;
-class UInterpTrackMove;
-class UInterpTrackMoveAxis;
 class ULightComponent;
 class UMaterial;
 class UMaterialInstanceConstant;
@@ -101,7 +97,6 @@ THIRD_PARTY_INCLUDES_END
 class FSkeletalMeshImportData;
 class FSkelMeshOptionalImportData;
 class ASkeletalMeshActor;
-class UInterpTrackMoveAxis;
 struct FbxSceneInfo;
 struct FExistingStaticMeshData;
 
@@ -1590,8 +1585,6 @@ protected:
 	* @param Scale scale factor for this skeleton node
 	*/
 	bool FillAnimSequenceByKey(FbxNode* Node, UAnimSequence* AnimSequence, const char* TakeName, FbxTime& Start, FbxTime& End, bool bIsRoot, FbxVector4 Scale);
-	/*bool CreateMatineeSkeletalAnimation(ASkeletalMeshActor* Actor, UAnimSet* AnimSet);
-	bool CreateMatineeAnimation(FbxNode* Node, AActor* Actor, bool bInvertOrient, bool bAddDirectorTrack);*/
 
 
 	// material
@@ -1760,87 +1753,15 @@ protected:
 	void LoadNodeKeyframeAnimation(FbxNode* NodeToQuery, FFbxCurvesAPI &CurvesAPI);
 	void SetupTransformForNode(FbxNode *Node);
 
-
-	//
-	// for matinee export
-	//
-public:
-	/**
-	 * Retrieves whether there are any unknown camera instances within the FBX document.
-	 */
-	UNREALED_API bool HasUnknownCameras( AMatineeActor* InMatineeActor ) const;
-	
-	/**
-	 * Sets the camera creation flag. Call this function before the import in order to enforce
-	 * the creation of FBX camera instances that do not exist in the current scene.
-	 */
-	inline void SetProcessUnknownCameras(bool bCreateMissingCameras)
-	{
-		bCreateUnknownCameras = bCreateMissingCameras;
-	}
-	
-	/**
-	 * Modifies the Matinee actor with the animations found in the FBX document.
-	 * 
-	 * @return	true, if sucessful
-	 */
-	UNREALED_API bool ImportMatineeSequence(AMatineeActor* InMatineeActor);
-
-
 	/** Create a new asset from the package and objectname and class */
 	static UObject* CreateAssetOfClass(UClass* AssetClass, FString ParentPackageName, FString ObjectName, bool bAllowReplace = false);
 
 	/* Templated function to create an asset with given package and name */
-	template< class T> 
-	static T * CreateAsset( FString ParentPackageName, FString ObjectName, bool bAllowReplace = false )
+	template< class T>
+	static T* CreateAsset(FString ParentPackageName, FString ObjectName, bool bAllowReplace = false)
 	{
 		return (T*)CreateAssetOfClass(T::StaticClass(), ParentPackageName, ObjectName, bAllowReplace);
 	}
-
-protected:
-	bool bCreateUnknownCameras;
-	
-	/**
-	 * Creates a Matinee group for a given actor within a given Matinee actor.
-	 */
-	UInterpGroupInst* CreateMatineeGroup(AMatineeActor* InMatineeActor, AActor* Actor, FString GroupName);
-	/**
-	 * Imports a FBX scene node into a Matinee actor group.
-	 */
-	float ImportMatineeActor(FbxNode* FbxNode, UInterpGroupInst* MatineeGroup);
-
-	/**
-	 * Imports an FBX transform curve into a movement subtrack
-	 */
-	void ImportMoveSubTrack( FbxAnimCurve* FbxCurve, int32 FbxDimension, UInterpTrackMoveAxis* SubTrack, int32 CurveIndex, bool bNegative, FbxAnimCurve* RealCurve, float DefaultVal );
-
-	/**
-	 * Imports a FBX animated element into a Matinee track.
-	 */
-	void ImportMatineeAnimated(FbxAnimCurve* FbxCurve, FInterpCurveVector& Curve, int32 CurveIndex, bool bNegative, FbxAnimCurve* RealCurve, float DefaultVal);
-	/**
-	 * Imports a FBX camera into properties tracks of a Matinee group for a camera actor.
-	 */
-	void ImportCamera(ACameraActor* Actor, UInterpGroupInst* MatineeGroup, FbxCamera* Camera);
-	/**
-	 * Imports a FBX animated value into a property track of a Matinee group.
-	 */
-	void ImportAnimatedProperty(float* Value, const TCHAR* ValueName, UInterpGroupInst* MatineeGroup, const float FbxValue, FbxProperty Property, bool bImportFOV = false, FbxCamera* Camera = NULL );
-	/**
-	 * Check if FBX node has transform animation (translation and rotation, not check scale animation)
-	 */
-	bool IsNodeAnimated(FbxNode* FbxNode, FbxAnimLayer* AnimLayer = NULL);
-
-	/** 
-	 * As movement tracks in Unreal cannot have differing interpolation modes for position & rotation,
-	 * we consolidate the two modes here.
-	 */
-	void ConsolidateMovementTrackInterpModes(UInterpTrackMove* MovementTrack);
-
-	/**
-	 * Get Unreal Interpolation mode from FBX interpolation mode
-	 */
-	EInterpCurveMode GetUnrealInterpMode(FbxAnimCurveKey FbxKey);
 
 	/**
 	 * Fill up and verify bone names for animation 

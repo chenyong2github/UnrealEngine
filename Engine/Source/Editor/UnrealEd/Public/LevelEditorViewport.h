@@ -590,29 +590,11 @@ public:
 	}
 
 	/** 
-	 * Set the actor locked to the viewport by Matinee.
-	 */
-	UE_DEPRECATED(4.27, "Matinee is being deprecated, use SetCinematicActorLock instead.")
-	void SetMatineeActorLock(AActor* Actor)
-	{
-		SetCinematicActorLock(Actor);
-	}
-
-	/** 
 	 * Check whether this viewport is locked to the specified actor
 	 */
 	bool IsLockedToActor(AActor* Actor) const
 	{
 		return ActorLocks.HasActorLocked(Actor);
-	}
-
-	/** 
-	 * Check whether this viewport is locked to display the matinee view
-	 */
-	UE_DEPRECATED(4.27, "Matinee is being deprecated, use IsLockedToCinematic instead.")
-	bool IsLockedToMatinee() const
-	{
-		return IsLockedToCinematic();
 	}
 
 	/**

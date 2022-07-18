@@ -16,8 +16,6 @@
 #include "CommonMovieSceneTools.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
-#include "Matinee/InterpTrackToggle.h"
-#include "MatineeImportTools.h"
 
 
 namespace AnimatableParticleEditorConstants
@@ -295,16 +293,6 @@ FKeyPropertyResult FParticleTrackEditor::AddKeyInternal( FFrameNumber KeyTime, U
 
 	return KeyPropertyResult;
 }
-
-
-void CopyInterpParticleTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackToggle* MatineeToggleTrack, UMovieSceneParticleTrack* ParticleTrack)
-{
-	if (FMatineeImportTools::CopyInterpParticleTrack(MatineeToggleTrack, ParticleTrack))
-	{
-		Sequencer.Get().NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
-	}
-}
-
 
 
 #undef LOCTEXT_NAMESPACE

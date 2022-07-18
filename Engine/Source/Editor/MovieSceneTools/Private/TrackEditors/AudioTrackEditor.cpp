@@ -31,8 +31,6 @@
 #include "ContentBrowserModule.h"
 #include "SequencerUtilities.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "MatineeImportTools.h"
-#include "Matinee/InterpTrackSound.h"
 #include "ISectionLayoutBuilder.h"
 #include "MovieSceneToolHelpers.h"
 
@@ -958,14 +956,6 @@ bool FAudioTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 	return TrackSupported == ETrackSupport::Supported;
 }
 
-
-void CopyInterpSoundTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackSound* MatineeSoundTrack, UMovieSceneAudioTrack* AudioTrack)
-{
-	if (FMatineeImportTools::CopyInterpSoundTrack(MatineeSoundTrack, AudioTrack))
-	{
-		Sequencer.Get().NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
-	}
-}
 
 const FSlateBrush* FAudioTrackEditor::GetIconBrush() const
 {

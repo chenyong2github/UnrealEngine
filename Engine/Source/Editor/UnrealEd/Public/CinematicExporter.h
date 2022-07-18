@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	Matinee exporter for Unreal Engine 3.
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -21,7 +17,7 @@ namespace fbxsdk
 	class FbxNode;
 }
 
-/** Adapter interface which allows finding the corresponding actor node name to act on both sequencer and matinee data. */
+/** Adapter interface which allows finding the corresponding actor node name to act on sequencer. */
 class INodeNameAdapter
 {
 public:
@@ -30,14 +26,15 @@ public:
 	virtual void AddFbxNode(UObject* InObject, fbxsdk::FbxNode* InFbxNode) {}
 	virtual fbxsdk::FbxNode* GetFbxNode(UObject* InObject) { return nullptr; }
 };
+
 /**
- * Main Matinee Exporter class.
+ * Base cinematic exporter class.
  * Except for CImporter, consider the other classes as private.
  */
-class MatineeExporter
+class FCinematicExporter
 {
 public:
-	virtual ~MatineeExporter() {}
+	virtual ~FCinematicExporter() {}
 
 	/**
 	* Load the export option from the last save state and show the dialog if bShowOptionDialog is true.
@@ -47,15 +44,14 @@ public:
 	*
 	* The function is saving the dialog state in a user ini file and reload it from there. It is not changing the CDO.
 	*/
-	virtual void FillExportOptions(bool BatchMode, bool bShowOptionDialog, const FString& FullPath, bool& OutOperationCanceled, bool& bOutExportAll) = 0;
+	virtual void FillExportOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& OutOperationCanceled, bool& bOutExportAll) = 0;
 
 	/**
 	 * Creates and readies an empty document for export.
 	 */
 	virtual void CreateDocument() = 0;
 	
-
-	void SetTrasformBaking(bool bBakeTransforms)
+	void SetTransformBaking(bool bBakeTransforms)
 	{
 		bBakeKeys = bBakeTransforms;
 	}
@@ -89,13 +85,6 @@ public:
 	 * Exports the mesh and the actor information for a static mesh actor.
 	 */
 	virtual void ExportStaticMesh( AActor* Actor, UStaticMeshComponent* StaticMeshComponent, INodeNameAdapter& NodeNameAdapter ) = 0;
-
-	/**
-	 * Exports the given Matinee sequence information into a file.
-	 * 
-	 * @return	true, if sucessful
-	 */
-	virtual bool ExportMatinee(class AMatineeActor* InMatineeActor) = 0;
 
 	/**
 	 * Writes the file to disk and releases it.

@@ -205,8 +205,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Animation/AnimSequenceBase.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
-#include "Camera/CameraAnim.h"
-#include "Camera/CameraAnimInst.h"
 #include "Camera/CameraModifier.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraModifier_CameraShake.h"

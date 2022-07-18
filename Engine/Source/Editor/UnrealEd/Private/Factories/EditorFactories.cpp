@@ -150,7 +150,6 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/DataAsset.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "Camera/CameraAnim.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveVector.h"
 #include "Engine/DataTable.h"

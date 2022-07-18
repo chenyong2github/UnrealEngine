@@ -21,9 +21,6 @@ namespace FBuiltinEditorModes
 	/** Placement mode */
 	EDITORFRAMEWORK_API extern const FEditorModeID EM_Placement;
 
-	/** Interpolation editing. */
-	EDITORFRAMEWORK_API extern const FEditorModeID EM_InterpEdit;
-
 	/** Mesh paint tool */
 	EDITORFRAMEWORK_API extern const FEditorModeID EM_MeshPaint;
 

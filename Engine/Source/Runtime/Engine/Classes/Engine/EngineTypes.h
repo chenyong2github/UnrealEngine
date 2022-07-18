@@ -2105,43 +2105,6 @@ enum EShadowMapFlags
 	SMF_Streamed		= 0x00000001
 };
 
-/** Reference to a specific material in a PrimitiveComponent, used by Matinee */
-USTRUCT()
-struct FPrimitiveMaterialRef
-{
-	GENERATED_BODY()
-
-	/** Material is on a primitive component */
-	UPROPERTY()
-	TObjectPtr<class UPrimitiveComponent> Primitive;
-
-	/** Material is on a decal component */
-	UPROPERTY()
-	TObjectPtr<class UDecalComponent> Decal;
-
-	/** Index into the material on the components data */
-	UPROPERTY()
-	int32 ElementIndex;
-
-	FPrimitiveMaterialRef()
-		: Primitive(nullptr)
-		, Decal(nullptr)
-		, ElementIndex(0)
-	{ }
-
-	FPrimitiveMaterialRef(UPrimitiveComponent* InPrimitive, int32 InElementIndex)
-		: Primitive(InPrimitive)
-		, Decal(nullptr)
-		, ElementIndex(InElementIndex)
-	{ 	}
-
-	FPrimitiveMaterialRef(UDecalComponent* InDecal, int32 InElementIndex)
-		: Primitive(nullptr)
-		, Decal(InDecal)
-		, ElementIndex(InElementIndex)
-	{ 	}
-};
-
 /** Whether to teleport physics body or not */
 UENUM()
 enum class ETeleportType : uint8
@@ -2177,21 +2140,6 @@ struct ENGINE_API FMTDResult
 	{
 		FMemory::Memzero(this, sizeof(FMTDResult));
 	}
-};
-
-/** Struct used for passing information from Matinee to an Actor for blending animations during a sequence. */
-USTRUCT()
-struct FAnimSlotInfo
-{
-	GENERATED_BODY()
-
-	/** Name of slot that we want to play the animtion in. */
-	UPROPERTY()
-	FName SlotName;
-
-	/** Strength of each Channel within this Slot. Channel indexs are determined by track order in Matinee. */
-	UPROPERTY()
-	TArray<float> ChannelWeights;
 };
 
 /** Used to indicate each slot name and how many channels they have. */

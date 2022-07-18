@@ -1995,7 +1995,7 @@ bool FLevelEditorViewportClient::ShouldLockPitch() const
 		return false;
 	}
 	// Else use the standard rules
-	return FEditorViewportClient::ShouldLockPitch() || !ModeTools->GetActiveMode(FBuiltinEditorModes::EM_InterpEdit) ;
+	return FEditorViewportClient::ShouldLockPitch() ;
 }
 
 void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)

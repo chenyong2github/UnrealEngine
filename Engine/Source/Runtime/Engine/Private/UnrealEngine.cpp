@@ -10974,13 +10974,13 @@ void UEngine::ClearOnScreenDebugMessages()
 }
 
 #if !UE_BUILD_SHIPPING
-void UEngine::PerformanceCapture(UWorld* World, const FString& MapName, const FString& MatineeName, float EventTime)
+void UEngine::PerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime)
 {
 	// todo
 	uint32 t = IStreamingManager::Get().StreamAllResources(5.0f);
 	ensure(!t);
 
-	LogPerformanceCapture(World, MapName, MatineeName, EventTime);
+	LogPerformanceCapture(World, MapName, SequenceName, EventTime);
 
 	// can be define by command line -BuildName="ByCustomBuildName" or "CL<changelist>"
 	FString BuildName = GetBuildNameForPerfTesting();
@@ -11017,7 +11017,7 @@ void UEngine::PerformanceCapture(UWorld* World, const FString& MapName, const FS
 	FScreenshotRequest::RequestScreenshot( ScreenshotName, bShowUI, bAddFilenameSuffix );
 }
 
-void UEngine::LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& MatineeName, float EventTime)
+void UEngine::LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime)
 {
 	const FString EventType = TEXT("PERF");
 	const int32 ChangeList = FEngineVersion::Current().GetChangelist();
@@ -11032,7 +11032,7 @@ void UEngine::LogPerformanceCapture(UWorld* World, const FString& MapName, const
 		PerfSnapshot.Changelist = FString::FromInt(ChangeList);
 		PerfSnapshot.BuildConfiguration = LexToString(FApp::GetBuildConfiguration());
 		PerfSnapshot.MapName = MapName;
-		PerfSnapshot.MatineeName = MatineeName;
+		PerfSnapshot.SequenceName = SequenceName;
 		PerfSnapshot.AverageFPS = FString::Printf(TEXT("%0.2f"), GAverageFPS);
 		PerfSnapshot.AverageFrameTime = FString::Printf(TEXT("%0.2f"), StatUnitData->FrameTime);
 		PerfSnapshot.AverageGameThreadTime = FString::Printf(TEXT("%0.2f"), StatUnitData->GameThreadTime);

@@ -116,7 +116,6 @@
 #include "LandscapeProxy.h"
 #include "Lightmass/PrecomputedVisibilityOverrideVolume.h"
 #include "Animation/AnimSet.h"
-#include "Matinee/InterpTrackAnimControl.h"
 #include "InstancedFoliageActor.h"
 #include "IMovieSceneCapture.h"
 #include "MovieSceneCaptureModule.h"
@@ -198,21 +197,6 @@ namespace
 		FString Name;
 		int32 Num;
 		int32 Size;
-	};
-
-	struct FAnimSequenceUsageInfo
-	{
-		FAnimSequenceUsageInfo( float InStartOffset, float InEndOffset, UInterpTrackAnimControl* InAnimControl, int32 InTrackKeyIndex )
-		: 	StartOffset( InStartOffset )
-		,	EndOffset( InEndOffset )
-		,	AnimControl( InAnimControl )
-		,	TrackKeyIndex( InTrackKeyIndex )
-		{}
-
-		float						StartOffset;
-		float						EndOffset;
-		UInterpTrackAnimControl*	AnimControl;
-		int32							TrackKeyIndex;
 	};
 }
 

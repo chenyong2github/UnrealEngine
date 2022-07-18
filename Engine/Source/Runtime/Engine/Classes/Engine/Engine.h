@@ -2543,15 +2543,15 @@ public:
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Capture screenshots and performance metrics
-	 * @param EventTime time of the Matinee event
+	 * @param EventTime time of the Sequencer event
 	 */
-	void PerformanceCapture(UWorld* World, const FString& MapName, const FString& MatineeName, float EventTime);
+	void PerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
 
 	/**
 	 * Logs performance capture for use in automation analytics
-	 * @param EventTime time of the Matinee event
+	 * @param EventTime time of the Sequencer event
 	 */
-	void LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& MatineeName, float EventTime);
+	void LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
 #endif	// UE_BUILD_SHIPPING
 
 	/**

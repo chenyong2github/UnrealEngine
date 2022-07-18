@@ -36,7 +36,6 @@
 
 class APlayerStart;
 class Error;
-class AMatineeActor;
 class FEditorViewportClient;
 class FEditorWorldManager;
 class FMessageLog;
@@ -2181,12 +2180,6 @@ public:
 	void DeselectLevelInLevelBrowser();
 
 	/**
-	 * Selects all actors controlled by currently selected MatineeActor
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void SelectAllActorsControlledByMatinee() {}
-
-	/**
 	 * Selects all actors with the same class as the current selection
 	 *
 	 * @param bArchetype	true to only select actors of the same class AND same Archetype
@@ -2361,35 +2354,6 @@ public:
 	 * @param ToClass	The class converting to
 	 */
 	void ConvertActorsFromClass( UClass* FromClass, UClass* ToClass );
-
-	/**
-	 * Gets a delegate that is executed when a matinee is requested to be opened
-	 *
-	 * The first parameter is the matinee actor
-	 *
-	 * @return The event delegate.
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldOpenMatineeCallback, AMatineeActor*)
-	FShouldOpenMatineeCallback& OnShouldOpenMatinee() { return ShouldOpenMatineeCallback; }
-
-	/** 
-	 * Show a (Suppressable) warning dialog to remind the user they are about to lose their undo buffer 
-	 *
-	 * @param MatineeActor	The actor we wish to check (can be null)
-	 * @returns true if the user wishes to proceed
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	bool ShouldOpenMatinee(AMatineeActor* MatineeActor) const { return false; }
-
-	/** 
-	 * Open the Matinee tool to edit the supplied MatineeActor. Will check that MatineeActor has an InterpData attached.
-	 *
-	 * @param MatineeActor	The actor we wish to edit
-	 * @param bWarnUser		If true, calls ShouldOpenMatinee as part of the open process
-	 */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void OpenMatinee(class AMatineeActor* MatineeActor, bool bWarnUser = true) {}
 
 	/**
 	* Update any outstanding reflection captures
@@ -2897,9 +2861,6 @@ private:
 	/** Broadcasts to allow selection of unloaded actors */
 	FSelectUnloadedActorsEvent SelectUnloadedActorsEvent;
 
-	/** Delegate to be called when a matinee is requested to be opened */
-	FShouldOpenMatineeCallback ShouldOpenMatineeCallback;	
-
 	/** Reference to owner of the current popup */
 	TWeakPtr<class SWindow> PopupWindow;
 
@@ -3162,10 +3123,6 @@ private:
 	TArray<FString> DeferredFilesToAddToSourceControl;
 
 protected:
-
-	/** Called when Matinee is opened */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	virtual void OnOpenMatinee(){};
 
 	/**
 	 * Invalidates all editor viewports and hit proxies, used when global changes like Undo/Redo may have invalidated state everywhere

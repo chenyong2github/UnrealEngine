@@ -17,10 +17,7 @@
 #include "LevelEditorViewport.h"
 #include "UnrealEdGlobals.h"
 #include "ISectionLayoutBuilder.h"
-#include "MatineeImportTools.h"
 #include "IKeyArea.h"
-#include "Matinee/InterpTrackMove.h"
-#include "Matinee/InterpTrackMoveAxis.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
@@ -100,43 +97,6 @@ bool F3DTransformTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Type )
 	return Type == UMovieScene3DTransformTrack::StaticClass();
 }
 
-
-void CopyInterpMoveTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackMove* MoveTrack, UMovieScene3DTransformTrack* TransformTrack)
-{
-	if (FMatineeImportTools::CopyInterpMoveTrack(MoveTrack, TransformTrack))
-	{
-		Sequencer.Get().NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
-	}
-}
-
-
-bool CanCopyInterpMoveTrack(UInterpTrackMove* MoveTrack, UMovieScene3DTransformTrack* TransformTrack)
-{
-	if (!MoveTrack || !TransformTrack)
-	{
-		return false;
-	}
-
-	bool bHasKeyframes = MoveTrack->GetNumKeyframes() != 0;
-
-	for (auto SubTrack : MoveTrack->SubTracks)
-	{
-		if (SubTrack->IsA(UInterpTrackMoveAxis::StaticClass()))
-		{
-			UInterpTrackMoveAxis* MoveSubTrack = Cast<UInterpTrackMoveAxis>(SubTrack);
-			if (MoveSubTrack)
-			{
-				if (MoveSubTrack->FloatTrack.Points.Num() > 0)
-				{
-					bHasKeyframes = true;
-					break;
-				}
-			}
-		}
-	}
-		
-	return bHasKeyframes;
-}
 
 void F3DTransformTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
 {

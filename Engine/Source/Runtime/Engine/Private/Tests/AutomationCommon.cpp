@@ -18,7 +18,6 @@
 #include "ShaderCompiler.h"
 #include "GameFramework/GameStateBase.h"
 #include "Scalability.h"
-#include "Matinee/MatineeActor.h"
 #include "StereoRendering.h"
 #include "Misc/PackageName.h"
 #include "TextureCompiler.h"
@@ -525,26 +524,13 @@ bool FWaitForAverageFrameRate::Update()
 
 bool FPlayMatineeLatentCommand::Update()
 {
-	if (MatineeActor)
-	{
-		UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("Triggering the matinee named: '%s'"), *MatineeActor->GetName())
-
-		//force this matinee to not be looping so it doesn't infinitely loop
-		MatineeActor->bLooping = false;
-		MatineeActor->Play();
-	}
 	return true;
 }
 
 
 bool FWaitForMatineeToCompleteLatentCommand::Update()
 {
-	bool bTestComplete = true;
-	if (MatineeActor)
-	{
-		bTestComplete = !MatineeActor->bIsPlaying;
-	}
-	return bTestComplete;
+	return true;
 }
 
 
@@ -597,53 +583,12 @@ bool FStreamAllResourcesLatentCommand::Update()
 
 bool FEnqueuePerformanceCaptureCommands::Update()
 {
-	//for every matinee actor in the level
-	for (TObjectIterator<AMatineeActor> It; It; ++It)
-	{
-		AMatineeActor* MatineeActor = *It;
-		if (MatineeActor && MatineeActor->GetName().Contains(TEXT("Automation")))
-		{
-			//add latent action to execute this matinee
-			ADD_LATENT_AUTOMATION_COMMAND(FPlayMatineeLatentCommand(MatineeActor));
-
-			//add action to wait until matinee is complete
-			ADD_LATENT_AUTOMATION_COMMAND(FWaitForMatineeToCompleteLatentCommand(MatineeActor));
-		}
-	}
-
 	return true;
 }
 
 
 bool FMatineePerformanceCaptureCommand::Update()
 {
-	//for every matinee actor in the level
-	for (TObjectIterator<AMatineeActor> It; It; ++It)
-	{
-		AMatineeActor* MatineeActor = *It;
-		FString MatineeFOOName = MatineeActor->GetName();
-		if (MatineeActor->GetName().Equals(MatineeName, ESearchCase::IgnoreCase))
-		{
-
-
-			//add latent action to execute this matinee
-			ADD_LATENT_AUTOMATION_COMMAND(FPlayMatineeLatentCommand(MatineeActor));
-
-			//Run the Stat FPS Chart command
-			ADD_LATENT_AUTOMATION_COMMAND(FExecWorldStringLatentCommand(TEXT("StartFPSChart")));
-
-			//add action to wait until matinee is complete
-			ADD_LATENT_AUTOMATION_COMMAND(FWaitForMatineeToCompleteLatentCommand(MatineeActor));
-
-			//Stop the Stat FPS Chart command
-			ADD_LATENT_AUTOMATION_COMMAND(FExecWorldStringLatentCommand(TEXT("StopFPSChart")));
-		}
-		else
-		{
-			UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("'%s' is not the matinee name that is being searched for."), *MatineeActor->GetName())
-		}
-	}
-
 	return true;
 
 }

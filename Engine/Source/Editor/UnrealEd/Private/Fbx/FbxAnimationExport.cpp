@@ -10,11 +10,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Animation/AnimTypes.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Matinee/InterpData.h"
-#include "Matinee/InterpTrackAnimControl.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-#include "Matinee/MatineeActor.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "FbxExporter.h"
 #include "Exporters/FbxExportOption.h"
@@ -552,98 +549,6 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 }
 
 
-void FFbxExporter::ExportAnimSequencesAsSingle( USkeletalMesh* SkelMesh, const ASkeletalMeshActor* SkelMeshActor, const FString& ExportName, const TArray<UAnimSequence*>& AnimSeqList, const TArray<struct FAnimControlTrackKey>& TrackKeys )
-{
-	if (Scene == NULL || SkelMesh == NULL || AnimSeqList.Num() == 0 || AnimSeqList.Num() != TrackKeys.Num()) return;
-
-	FbxNode* BaseNode = FbxNode::Create(Scene, Converter.ConvertToFbxString(ExportName));
-	Scene->GetRootNode()->AddChild(BaseNode);
-
-	if( SkelMeshActor )
-	{
-		// Set the default position of the actor on the transforms
-		// The Unreal transformation is different from FBX's Z-up: invert the Y-axis for translations and the Y/Z angle values in rotations.
-		BaseNode->LclTranslation.Set(Converter.ConvertToFbxPos(SkelMeshActor->GetActorLocation()));
-		BaseNode->LclRotation.Set(Converter.ConvertToFbxRot(SkelMeshActor->GetActorRotation().Euler()));
-		BaseNode->LclScaling.Set(Converter.ConvertToFbxScale(SkelMeshActor->GetRootComponent()->GetRelativeScale3D()));
-
-	}
-
-	// Create the Skeleton
-	TArray<FbxNode*> BoneNodes;
-	FbxNode* SkeletonRootNode = CreateSkeleton(SkelMesh, BoneNodes);
-	BaseNode->AddChild(SkeletonRootNode);
-
-	bool bAnyObjectMissingSourceData = false;
-	float ExportStartTime = 0.f;
-	for(int32 AnimSeqIndex = 0; AnimSeqIndex < AnimSeqList.Num(); ++AnimSeqIndex)
-	{
-		const UAnimSequence* AnimSeq = AnimSeqList[AnimSeqIndex];
-		const FAnimControlTrackKey& TrackKey = TrackKeys[AnimSeqIndex];
-
-		// Shift the anim sequences so the first one is at time zero in the FBX file
-		const float CurrentStartTime = TrackKey.StartTime - ExportStartTime;
-
-		ExportAnimSequenceToFbx(AnimSeq,
-			SkelMesh,
-			BoneNodes,
-			AnimLayer,
-			TrackKey.AnimStartOffset,
-			TrackKey.AnimEndOffset,
-			TrackKey.AnimPlayRate,
-			CurrentStartTime);
-	}
-
-	CorrectAnimTrackInterpolation(BoneNodes, AnimLayer);
-
-	if (bAnyObjectMissingSourceData)
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Exporter_Error_SourceDataUnavailable", "No source data available for some objects.  See the log for details.") );
-	}
-
-}
-
-
-
-/**
- * Exports all the animation sequences part of a single Group in a Matinee sequence
- * as a single animation in the FBX document.  The animation is created by sampling the
- * sequence at DEFAULT_SAMPLERATE updates/second and extracting the resulting bone transforms from the given
- * skeletal mesh
- */
-void FFbxExporter::ExportMatineeGroup(class AMatineeActor* MatineeActor, USkeletalMeshComponent* SkeletalMeshComponent)
-{
-	if (Scene == NULL || MatineeActor == NULL || SkeletalMeshComponent == NULL || MatineeActor->MatineeData->InterpLength == 0)
-	{
-		return;
-	}
-
-	FbxString NodeName("MatineeSequence");
-
-	FbxNode* BaseNode = FbxNode::Create(Scene, NodeName);
-	Scene->GetRootNode()->AddChild(BaseNode);
-
-	AActor* Owner = SkeletalMeshComponent->GetOwner();
-	if(Owner && Owner->GetRootComponent())
-	{
-		// Set the default position of the actor on the transforms
-		// The UE transformation is different from FBX's Z-up: invert the Y-axis for translations and the Y/Z angle values in rotations.
-		BaseNode->LclTranslation.Set(Converter.ConvertToFbxPos(Owner->GetActorLocation()));
-		BaseNode->LclRotation.Set(Converter.ConvertToFbxRot(Owner->GetActorRotation().Euler()));
-		BaseNode->LclScaling.Set(Converter.ConvertToFbxScale(Owner->GetRootComponent()->GetRelativeScale3D()));
-	}
-	// Create the Skeleton
-	TArray<FbxNode*> BoneNodes;
-	FbxNode* SkeletonRootNode = CreateSkeleton(SkeletalMeshComponent->GetSkeletalMesh(), BoneNodes);
-	FbxSkeletonRoots.Add(SkeletalMeshComponent, SkeletonRootNode);
-	BaseNode->AddChild(SkeletonRootNode);
-
-	static const float SamplingRate = 1.f / DEFAULT_SAMPLERATE;
-
-	FMatineeAnimTrackAdapter AnimTrackAdapter(MatineeActor);
-	ExportAnimTrack(AnimTrackAdapter, Owner, SkeletalMeshComponent, SamplingRate);
-}
-
 void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* InSkeletalMeshComponent, float SamplingRate)
 {
 	// show a status update every 1 second worth of samples
@@ -693,7 +598,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		int32 LocalFrame = LocalStartFrame + FrameCount;
 		float SampleTime = (StartFrame + FrameCount) / FrameRate;
 
-		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the sequence
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
 
 		if (FrameCount == 0)

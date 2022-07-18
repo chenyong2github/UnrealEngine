@@ -32,7 +32,6 @@
 #include "Engine/Font.h"
 #include "Engine/DataAsset.h"
 #include "Animation/AnimBlueprint.h"
-#include "Camera/CameraAnim.h"
 #include "Sound/DialogueVoice.h"
 #include "Sound/DialogueWave.h"
 #include "Exporters/Exporter.h"
@@ -97,7 +96,6 @@
 #include "ContentBrowserModule.h"
 
 #include "Slate/SlateBrushAsset.h"
-#include "Matinee/InterpData.h"
 #include "Framework/Styling/ButtonWidgetStyle.h"
 
 #include "Tests/AutomationCommon.h"

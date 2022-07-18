@@ -768,10 +768,6 @@ public:
 	 */
 	virtual bool CanSavePackage( UPackage* PackageToSave );
 
-	/** Converts kismet based matinees in the current level to matinees controlled via matinee actors */
-	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
-	void ConvertMatinees() {}
-
 	/**
 	 * Updates the volume actor visibility for all viewports based on the passed in volume class
 	 *
@@ -893,11 +889,6 @@ protected:
 
 	/** Instance responsible for monitoring this editor's performance */
 	FPerformanceMonitor* PerformanceMonitor;
-
-	/** Handle to the registered OnMatineeEditorClosed delegate. */
-	FDelegateHandle OnMatineeEditorClosedDelegateHandle;
-	/** Handle to the registered UpdateEdModeOnMatineeClose delegate. */
-	FDelegateHandle UpdateEdModeOnMatineeCloseDelegateHandle;
 
 	/** Whether the pivot has been moved independently */
 	bool bPivotMovedIndependently;

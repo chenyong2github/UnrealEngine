@@ -15,8 +15,6 @@ class UFXSystemComponent;
 class UAudioComponent;
 class USoundBase;
 class UCameraShakeBase;
-class UCameraAnim;
-class UCameraAnimInst;
 class ICameraLensEffectInterface;
 class UForceFeedbackEffect;
 class UForceFeedbackAttenuation;
@@ -264,7 +262,6 @@ public:
 		FxSystemComponents.Reset();
 		AudioComponents.Reset();
 		CameraShakes.Reset();
-		CameraAnim = nullptr;
 		CameraLensEffects.Reset();
 		ForceFeedbackComponent = nullptr;
 		ForceFeedbackTargetPC = nullptr;
@@ -284,10 +281,6 @@ public:
 	// List of camera shakes played.  There will be one camera shake per local player controller if shake is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
 	TArray<UCameraShakeBase*> CameraShakes;
-
-	// Camera animation played.
-	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	UCameraAnimInst* CameraAnim;
 
 	// List of camera len effects spawned.  There will be one camera lens effect per local player controller if the effect is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
@@ -502,68 +495,6 @@ public:
 
 
 /**
- * FGameplayCueNotify_CameraAnimInfo
- *
- *	Properties that specify how to play a camera animation.
- */
-USTRUCT(BlueprintType)
-struct FGameplayCueNotify_CameraAnimInfo
-{
-	GENERATED_BODY()
-
-public:
-
-	FGameplayCueNotify_CameraAnimInfo();
-
-	bool PlayCameraAnim(const FGameplayCueNotify_SpawnContext& SpawnContext, FGameplayCueNotify_SpawnResult& OutSpawnResult) const;
-
-	void ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const;
-
-public:
-
-	// Condition to check before playing the camera animation.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bOverrideSpawnCondition"))
-	FGameplayCueNotify_SpawnCondition SpawnConditionOverride;
-
-	// Camera animation to play.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	UCameraAnim* CameraAnim;
-
-	// Scale applied to the camera animation.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	float AnimScale;
-
-	// Rate to play the camera animation at.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	float PlayRate;
-
-	// Time (in seconds) used to blend in the camera animation.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	float BlendInTime;
-
-	// Time (in seconds) used to blend out the camera animation.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	float BlendOutTime;
-
-	// What coordinate space to play the camera animation relative to.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	EGameplayCueNotify_EffectPlaySpace PlaySpace;
-
-	// If enabled, the camera animation will be set to loop.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	uint32 bIsLooping : 1;
-
-	// If enabled, the camera animation will start at a random time.  Only used when looping.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bIsLooping"))
-	uint32 bRandomStartTime : 1;
-
-	// If enabled, use the spawn condition override and not the default one.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
-	uint32 bOverrideSpawnCondition : 1;
-};
-
-
-/**
  * FGameplayCueNotify_CameraLensEffectInfo
  *
  *	Properties that specify how to play a camera lens effect.
@@ -768,10 +699,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_CameraShakeInfo BurstCameraShake;
 
-	// Camera animation to be played on gameplay cue execution.  This should never use a looping effect!
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	FGameplayCueNotify_CameraAnimInfo BurstCameraAnim;
-
 	// Camera lens effect to be played on gameplay cue execution.  This should never use a looping effect!
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_CameraLensEffectInfo BurstCameraLensEffect;
@@ -818,10 +745,6 @@ protected:
 	// Camera shake to be played on gameplay cue loop start.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	FGameplayCueNotify_CameraShakeInfo LoopingCameraShake;
-
-	// Camera animation to be played on gameplay cue loop start.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	FGameplayCueNotify_CameraAnimInfo LoopingCameraAnim;
 
 	// Camera lens effect to be played on gameplay cue loop start.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)

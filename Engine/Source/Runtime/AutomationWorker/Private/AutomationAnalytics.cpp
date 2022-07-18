@@ -111,7 +111,7 @@ void FAutomationAnalytics::InititalizeAnalyticParameterNames()
 	AutomationParamNames.SetNum(EAutomationAnalyticParam::NUM_ENGINE_PARAMS);
 
 	AutomationParamNames[EAutomationAnalyticParam::MapName] = TEXT("MapName");
-	AutomationParamNames[EAutomationAnalyticParam::MatineeName] = TEXT("MatineeName");
+	AutomationParamNames[EAutomationAnalyticParam::SequenceName] = TEXT("SequenceName");
 	AutomationParamNames[EAutomationAnalyticParam::TimeStamp] = TEXT("TimeStamp");
 	AutomationParamNames[EAutomationAnalyticParam::Platform] = TEXT("Platform");
 	AutomationParamNames[EAutomationAnalyticParam::Spec] = TEXT("Spec");
@@ -188,7 +188,7 @@ void FAutomationAnalytics::FireEvent_FPSCapture(const FAutomationPerformanceSnap
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::CL), PerfSnapshot.Changelist));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::Spec), MachineSpec));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::MapName), PerfSnapshot.MapName));
-		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::MatineeName), PerfSnapshot.MatineeName));
+		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::SequenceName), PerfSnapshot.SequenceName));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::FPS), PerfSnapshot.AverageFPS));
 
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::BuildConfiguration), PerfSnapshot.BuildConfiguration));

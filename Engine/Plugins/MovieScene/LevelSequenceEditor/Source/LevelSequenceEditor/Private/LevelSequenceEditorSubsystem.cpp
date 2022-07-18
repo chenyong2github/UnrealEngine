@@ -20,7 +20,6 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieScene3DConstraintTrack.h"
-#include "Tracks/MovieSceneCameraAnimTrack.h"
 #include "Tracks/MovieSceneCameraShakeTrack.h"
 
 #include "ActorTreeItem.h"
@@ -835,26 +834,6 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FMovieSceneBindin
 				else
 				{
 					FocusedMovieScene->RemoveTrack(*TransformTrack);
-				}
-			}
-		}
-
-		// Disable or delete any camera anim tracks
-		for (UMovieSceneTrack* Track : FocusedMovieScene->FindTracks(UMovieSceneCameraAnimTrack::StaticClass(), Guid))
-		{
-			if (UMovieSceneCameraAnimTrack* CameraAnimTrack = Cast<UMovieSceneCameraAnimTrack>(Track))
-			{
-				if (bDisableSectionsAfterBaking)
-				{
-					for (UMovieSceneSection* CameraAnimSection : CameraAnimTrack->GetAllSections())
-					{
-						CameraAnimSection->Modify();
-						CameraAnimSection->SetIsActive(false);
-					}
-				}
-				else
-				{
-					FocusedMovieScene->RemoveTrack(*CameraAnimTrack);
 				}
 			}
 		}

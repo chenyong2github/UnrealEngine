@@ -724,10 +724,10 @@ public:
 	UPROPERTY(transient, replicated)
 	float TimeDilation;
 
-	// Additional time dilation used by Matinee (or Sequencer) slomo track.  Transient because this is often 
+	// Additional time dilation used by Sequencer slomo track.  Transient because this is often 
 	// temporarily modified by the editor when previewing slow motion effects, yet we don't want it saved or loaded from level packages.
 	UPROPERTY(transient, replicated)
-	float MatineeTimeDilation;
+	float CinematicTimeDilation;
 
 	// Additional TimeDilation used to control demo playback speed
 	UPROPERTY(transient)
@@ -817,7 +817,7 @@ public:
 
 	virtual float GetEffectiveTimeDilation() const
 	{
-		return TimeDilation * MatineeTimeDilation * DemoPlayTimeDilation;
+		return TimeDilation * CinematicTimeDilation * DemoPlayTimeDilation;
 	}
 
 	/**

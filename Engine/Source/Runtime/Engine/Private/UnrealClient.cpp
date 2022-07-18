@@ -15,7 +15,6 @@
 #include "Engine/LocalPlayer.h"
 #include "UnrealEngine.h"
 #include "Components/PostProcessComponent.h"
-#include "Matinee/MatineeActor.h"
 #include "HighResScreenshot.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HModel.h"

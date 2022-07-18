@@ -51,12 +51,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogAutomationEditorCommon, Log, All);
 
 UWorld* FAutomationEditorCommonUtils::CreateNewMap()
 {
-	// Change out of Matinee when opening new map, so we avoid editing data in the old one.
-	if ( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit) )
-	{
-		GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_InterpEdit);
-	}
-
 	// Also change out of Landscape mode to ensure all references are cleared.
 	if ( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Landscape) )
 	{

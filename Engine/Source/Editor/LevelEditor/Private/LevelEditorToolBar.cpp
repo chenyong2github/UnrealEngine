@@ -2084,7 +2084,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 
 void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 {
-	//The matinee editor will not tick unless the editor viewport is in realtime mode.
+	//The sequencer editor will not tick unless the editor viewport is in realtime mode.
 	//the scene outliner eats input, so we must close any popups manually.
 	FSlateApplication::Get().DismissAllMenus();
 

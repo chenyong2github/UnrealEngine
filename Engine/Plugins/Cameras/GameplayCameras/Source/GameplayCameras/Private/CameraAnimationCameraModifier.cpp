@@ -440,3 +440,29 @@ void UCameraAnimationCameraModifier::TickAnimation(FActiveCameraAnimationInfo& C
 	}
 }
 
+UCameraAnimationCameraModifier* UGameplayCamerasFunctionLibrary::Conv_CameraAnimationCameraModifier(APlayerCameraManager* PlayerCameraManager)
+{
+	return Cast<UCameraAnimationCameraModifier>(PlayerCameraManager->FindCameraModifierByClass(UCameraAnimationCameraModifier::StaticClass()));
+}
+
+ECameraShakePlaySpace UGameplayCamerasFunctionLibrary::Conv_CameraShakePlaySpace(ECameraAnimationPlaySpace CameraAnimationPlaySpace)
+{
+	switch (CameraAnimationPlaySpace)
+	{
+	case ECameraAnimationPlaySpace::CameraLocal: return ECameraShakePlaySpace::CameraLocal;
+	case ECameraAnimationPlaySpace::World: return ECameraShakePlaySpace::World;
+	case ECameraAnimationPlaySpace::UserDefined: return ECameraShakePlaySpace::UserDefined;
+	default: checkf(false, TEXT("Unsupported ECameraAnimationPlaySpace value")); return (ECameraShakePlaySpace)CameraAnimationPlaySpace;
+	}
+}
+
+ECameraAnimationPlaySpace UGameplayCamerasFunctionLibrary::Conv_CameraAnimationPlaySpace(ECameraShakePlaySpace CameraShakePlaySpace)
+{
+	switch (CameraShakePlaySpace)
+	{
+	case ECameraShakePlaySpace::CameraLocal: return ECameraAnimationPlaySpace::CameraLocal;
+	case ECameraShakePlaySpace::World: return ECameraAnimationPlaySpace::World;
+	case ECameraShakePlaySpace::UserDefined: return ECameraAnimationPlaySpace::UserDefined;
+	default: checkf(false, TEXT("Unsupported ECameraShakePlaySpace value")); return (ECameraAnimationPlaySpace)CameraShakePlaySpace;
+	}
+}

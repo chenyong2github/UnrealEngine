@@ -2,7 +2,6 @@
 
 #include "TrackEditors/PropertyTrackEditors/TransformPropertyTrackEditor.h"
 #include "TransformData.h"
-#include "MatineeImportTools.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Sections/TransformPropertySection.h"

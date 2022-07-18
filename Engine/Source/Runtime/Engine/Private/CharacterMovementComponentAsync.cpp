@@ -343,7 +343,7 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		// Update character state based on change from movement
 		UpdateCharacterStateAfterMovement(DeltaSeconds, Output);
 
-		if ((bAllowPhysicsRotationDuringAnimRootMotion || !RootMotion.bHasAnimRootMotion)/* && !CharacterOwner->IsMatineeControlled()*/)
+		if ((bAllowPhysicsRotationDuringAnimRootMotion || !RootMotion.bHasAnimRootMotion))
 		{
 			PhysicsRotation(DeltaSeconds, Output);
 		}

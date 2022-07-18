@@ -14,7 +14,7 @@ struct FAutomationPerformanceSnapshot
 	FString Changelist;
 	FString BuildConfiguration;
 	FString MapName;
-	FString MatineeName;
+	FString SequenceName;
 	FString AverageFPS;
 	FString AverageFrameTime;
 	FString AverageGameThreadTime;
@@ -31,7 +31,7 @@ struct FAutomationPerformanceSnapshot
 			Changelist + TEXT( "," ) +
 			BuildConfiguration + TEXT( "," ) +
 			MapName + TEXT( "," ) +
-			MatineeName + TEXT( "," ) +
+			SequenceName + TEXT( "," ) +
 			AverageFPS + TEXT( "," ) +
 			AverageFrameTime + TEXT( "," ) +
 			AverageGameThreadTime + TEXT( "," ) +
@@ -52,7 +52,7 @@ struct FAutomationPerformanceSnapshot
 		Changelist = Values[ NextValue++ ];
 		BuildConfiguration = Values[ NextValue++ ];
 		MapName = Values[ NextValue++ ];
-		MatineeName = Values[ NextValue++ ];
+		SequenceName = Values[ NextValue++ ];
 		AverageFPS = Values[ NextValue++ ];
 		AverageFrameTime = Values[ NextValue++ ];
 		AverageGameThreadTime = Values[ NextValue++ ];

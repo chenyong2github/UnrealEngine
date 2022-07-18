@@ -73,10 +73,6 @@ public:
 	void ModifyCamera(FEditorViewportViewModifierParams& Params);
 
 private:
-	ACameraActor* GetTempCameraActor();
-	void UpdateCameraAnimInstance(UCameraAnimInst& CameraAnimInstance, float DeltaTime, FMinimalViewInfo& InOutPOV);
-	void CleanUpCameraAnimInstances();
-
 	void AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight);
 
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
@@ -84,10 +80,6 @@ private:
 private:
 	APreviewPlayerCameraManager* PreviewCamera;
 	UCameraModifier_CameraShake* PreviewCameraShake;
-
-	/** Hidden camera actor and active camera anims for Matinee shakes specifically */
-	TWeakObjectPtr<ACameraActor> TempCameraActor;
-	TArray<UCameraAnimInst*> ActiveAnims;
 
 	TOptional<float> LastDeltaTime;
 
