@@ -10,8 +10,6 @@
 #include "CapsuleLightSampling.ush"
 #include "SobolRandom.ush"
 
-Texture2D DummyRectLightTextureForCapsuleCompilerWarning;
-
 // Should this be SH instead?
 float IntegrateLight( FCapsuleLight Capsule, bool bInverseSquared )
 {
