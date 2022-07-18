@@ -12,6 +12,7 @@
 #include "RenderGraphBuilder.h"
 #include "SceneUtils.h"
 #include "RaytracingDebugDefinitions.h"
+#include "RaytracingDebugTypes.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingTraversalStatistics.h"
@@ -25,6 +26,15 @@ static TAutoConsoleVariable<FString> CVarRayTracingDebugMode(
 	TEXT(""),
 	TEXT("Sets the ray tracing debug visualization mode (default = None - Driven by viewport menu) .\n")
 	);
+
+TAutoConsoleVariable<int32> CVarRayTracingDebugPickerDomain(
+	TEXT("r.RayTracing.Debug.PickerDomain"),
+	0,
+	TEXT("Changes the picker domain to highlight:\n")
+	TEXT("0 - Triangles (default)\n")
+	TEXT("1 - Instances\n"),
+	ECVF_RenderThreadSafe
+);
 
 TAutoConsoleVariable<int32> CVarRayTracingDebugModeOpaqueOnly(
 	TEXT("r.RayTracing.DebugVisualizationMode.OpaqueOnly"),
@@ -71,8 +81,14 @@ class FRayTracingDebugRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRayTracingDebugRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingDebugRGS, FGlobalShader)
 
+	class FEnablePicking : SHADER_PERMUTATION_BOOL("ENABLE_PICKING");
+	class FEnableInstanceDebugData : SHADER_PERMUTATION_BOOL("ENABLE_INSTANCE_DEBUG_DATA");
+	using FPermutationDomain = TShaderPermutationDomain<FEnablePicking, FEnableInstanceDebugData>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VisualizationMode)
+		SHADER_PARAMETER(uint32, UseDebugCHS)
+		SHADER_PARAMETER(uint32, PickerDomain)
 		SHADER_PARAMETER(int32, ShouldUsePreExposure)
 		SHADER_PARAMETER(float, TimingScale)
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -81,6 +97,8 @@ class FRayTracingDebugRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, OpaqueOnly)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InstancesDebugData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRayTracingPickingFeedback>, PickingBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -170,6 +188,55 @@ class FRayTracingDebugTraversalCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugTraversalCS, "/Engine/Private/RayTracing/RayTracingDebugTraversal.usf", "RayTracingDebugTraversalCS", SF_Compute);
 
+class FRayTracingPickingRGS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingPickingRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingPickingRGS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, PickingOutput)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InstancesDebugData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InstanceBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen);
+
+struct FRayTracingDebugResources : public FRenderResource
+{
+	const int32 MaxPickingBuffers = 4;
+	int32 PickingBufferWriteIndex = 0;
+	int32 PickingBufferNumPending = 0;
+	TArray<FRHIGPUBufferReadback*> PickingBuffers;
+
+	virtual void InitRHI() override
+	{
+		PickingBuffers.AddZeroed(MaxPickingBuffers);
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		for (int32 BufferIndex = 0; BufferIndex < PickingBuffers.Num(); ++BufferIndex)
+		{
+			if (PickingBuffers[BufferIndex])
+			{
+				delete PickingBuffers[BufferIndex];
+				PickingBuffers[BufferIndex] = nullptr;
+			}
+		}
+
+		PickingBuffers.Reset();
+	}
+};
+
+TGlobalResource<FRayTracingDebugResources> GRayTracingDebugResources;
+
 void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingPipelineState* PipelineState)
 {
 	const int32 NumTotalBindings = View.VisibleRayTracingMeshCommands.Num();
@@ -200,6 +267,7 @@ void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const F
 		Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
 		Binding.UniformBuffers = UniformBufferArray;
 		Binding.NumUniformBuffers = NumUniformBuffers;
+		Binding.UserData = VisibleMeshCommand.InstanceIndex;
 
 		Bindings[BindingIndex] = Binding;
 		BindingIndex++;
@@ -215,7 +283,11 @@ void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const F
 
 static bool RequiresRayTracingDebugCHS(uint32 DebugVisualizationMode)
 {
-	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES || DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES;
+	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES || 
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PROXY_TYPE ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER;
 }
 
 static bool IsRayTracingDebugTraversalMode(uint32 DebugVisualizationMode)
@@ -227,18 +299,133 @@ static bool IsRayTracingDebugTraversalMode(uint32 DebugVisualizationMode)
 		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRAVERSAL_STATISTICS;
 }
 
+static bool IsRayTracingPickingEnabled(uint32 DebugVisualizationMode)
+{
+	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER;
+}
+
 void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	bool bEnabled = ViewFamily.EngineShowFlags.RayTracingDebug && ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
 	if (bEnabled)
 	{
-		auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>();
-		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+		for (int32 EnablePicking = 0; EnablePicking < 2; ++EnablePicking)
+		{
+			for (int32 EnableInstanceDebugData = 0; EnableInstanceDebugData < 2; ++EnableInstanceDebugData)
+			{
+				FRayTracingDebugRGS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FRayTracingDebugRGS::FEnablePicking>((bool)EnablePicking);
+				PermutationVector.Set<FRayTracingDebugRGS::FEnableInstanceDebugData>((bool)EnableInstanceDebugData);
+
+				auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>(PermutationVector);
+				OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+			}			
+		}		
+
+		auto PickingRayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingPickingRGS>();
+		OutRayGenShaders.Add(PickingRayGenShader.GetRayTracingShader());
 	}
 }
 
-void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture)
+static FRDGBufferRef RayTracingPerformPicking(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FRayTracingPickingFeedback& PickingFeedback)
+{
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	auto RayGenShader = ShaderMap->GetShader<FRayTracingPickingRGS>();
+
+	FRayTracingPipelineStateInitializer Initializer;
+
+	FRHIRayTracingShader* RayGenShaderTable[] = { RayGenShader.GetRayTracingShader() };
+	Initializer.SetRayGenShaderTable(RayGenShaderTable);
+
+	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
+	FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader.GetRayTracingShader() };
+	Initializer.SetHitGroupTable(HitGroupTable);
+	Initializer.bAllowHitGroupIndexing = true; // Required for stable output using GetBaseInstanceIndex().
+	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
+	// TODO(UE-157946): This pipeline does not bind any miss shader and relies on the pipeline to do this automatically. This should be made explicit.
+	FRayTracingPipelineState* PickingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(GraphBuilder.RHICmdList, Initializer);
+
+	FRDGBufferDesc PickingBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FRayTracingPickingFeedback), 1);
+	PickingBufferDesc.Usage = EBufferUsageFlags(PickingBufferDesc.Usage | BUF_SourceCopy);
+	FRDGBufferRef PickingBuffer = GraphBuilder.CreateBuffer(PickingBufferDesc, TEXT("RayTracingDebug.PickingBuffer"));
+
+	FRayTracingPickingRGS::FParameters* RayGenParameters = GraphBuilder.AllocParameters<FRayTracingPickingRGS::FParameters>();
+	RayGenParameters->InstancesDebugData = GraphBuilder.CreateSRV(Scene->RayTracingScene.InstanceDebugBuffer); // TODO
+	RayGenParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
+	RayGenParameters->InstanceBuffer = GraphBuilder.CreateSRV(Scene->RayTracingScene.InstanceBuffer);
+	RayGenParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	RayGenParameters->PickingOutput = GraphBuilder.CreateUAV(PickingBuffer);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("RayTracingPicking"),
+		RayGenParameters,
+		ERDGPassFlags::Compute,
+		[RayGenParameters, RayGenShader, &View, PickingPipeline](FRHIRayTracingCommandList& RHICmdList)
+		{
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RayGenShader, *RayGenParameters);
+
+			BindRayTracingDebugCHSMaterialBindings(RHICmdList, View, PickingPipeline);
+			RHICmdList.SetRayTracingMissShader(View.GetRayTracingSceneChecked(), 0, PickingPipeline, 0 /* ShaderIndexInPipeline */, 0, nullptr, 0);
+
+			RHICmdList.RayTraceDispatch(PickingPipeline, RayGenShader.GetRayTracingShader(), View.GetRayTracingSceneChecked(), GlobalResources, 1, 1);
+		});
+
+	const int32 MaxPickingBuffers = GRayTracingDebugResources.MaxPickingBuffers;
+
+	int32& PickingBufferWriteIndex = GRayTracingDebugResources.PickingBufferWriteIndex;
+	int32& PickingBufferNumPending = GRayTracingDebugResources.PickingBufferNumPending;
+
+	TArray<FRHIGPUBufferReadback*>& PickingBuffers = GRayTracingDebugResources.PickingBuffers;
+
+	{
+		FRHIGPUBufferReadback* LatestPickingBuffer = nullptr;
+
+		// Find latest buffer that is ready
+		while (PickingBufferNumPending > 0)
+		{
+			uint32 Index = (PickingBufferWriteIndex + MaxPickingBuffers - PickingBufferNumPending) % MaxPickingBuffers;
+			if (PickingBuffers[Index]->IsReady())
+			{
+				--PickingBufferNumPending;
+				LatestPickingBuffer = PickingBuffers[Index];
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (LatestPickingBuffer != nullptr)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LockBuffer);
+			PickingFeedback = *((const FRayTracingPickingFeedback*)LatestPickingBuffer->Lock(sizeof(FRayTracingPickingFeedback)));
+			LatestPickingBuffer->Unlock();
+		}
+	}
+
+	// Skip when queue is full. It is NOT safe to EnqueueCopy on a buffer that already has a pending copy
+	if (PickingBufferNumPending != MaxPickingBuffers)
+	{
+		if (PickingBuffers[PickingBufferWriteIndex] == nullptr)
+		{
+			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("RayTracingDebug.PickingFeedback"));
+			PickingBuffers[PickingBufferWriteIndex] = GPUBufferReadback;
+		}
+
+		FRHIGPUBufferReadback* PickingReadback = PickingBuffers[PickingBufferWriteIndex];
+
+		AddEnqueueCopyPass(GraphBuilder, PickingReadback, PickingBuffer, 0u);
+
+		PickingBufferWriteIndex = (PickingBufferWriteIndex + 1) % MaxPickingBuffers;
+		PickingBufferNumPending = FMath::Min(PickingBufferNumPending + 1, MaxPickingBuffers);
+	}	
+
+	return PickingBuffer;
+}
+
+void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture, FRayTracingPickingFeedback& PickingFeedback)
 {
 	static TMap<FName, uint32> RayTracingDebugVisualizationModes;
 	if (RayTracingDebugVisualizationModes.Num() == 0)
@@ -274,6 +461,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal Triangle", "Traversal Triangle").ToString()),						RAY_TRACING_DEBUG_VIZ_TRAVERSAL_TRIANGLE);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal All", "Traversal All").ToString()),									RAY_TRACING_DEBUG_VIZ_TRAVERSAL_ALL);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Traversal Statistics", "Traversal Statistics").ToString()),					RAY_TRACING_DEBUG_VIZ_TRAVERSAL_STATISTICS);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Dynamic Instances", "Dynamic Instances").ToString()),							RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Proxy Type", "Proxy Type").ToString()),										RAY_TRACING_DEBUG_VIZ_PROXY_TYPE);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Picker", "Picker").ToString()),												RAY_TRACING_DEBUG_VIZ_PICKER);
 	}
 
 	uint32 DebugVisualizationMode;
@@ -367,13 +557,24 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		return;
 	}
 
+	FRDGBufferRef PickingBuffer = nullptr;
+	if (IsRayTracingPickingEnabled(DebugVisualizationMode) && Scene->RayTracingScene.InstanceDebugBuffer != nullptr)
+	{
+		PickingBuffer = RayTracingPerformPicking(GraphBuilder, Scene, View, PickingFeedback);
+	}
+
+	FRayTracingDebugRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRayTracingDebugRGS::FEnablePicking>(PickingBuffer != nullptr);
+	PermutationVector.Set<FRayTracingDebugRGS::FEnableInstanceDebugData>(Scene->RayTracingScene.InstanceDebugBuffer != nullptr);
+
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
+	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>(PermutationVector);
 
 	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 	bool bRequiresBindings = false;
 
-	if (RequiresRayTracingDebugCHS(DebugVisualizationMode))
+	const bool bRequiresDebugCHS = RequiresRayTracingDebugCHS(DebugVisualizationMode);
+	if (bRequiresDebugCHS)
 	{
 		FRayTracingPipelineStateInitializer Initializer;
 
@@ -393,10 +594,22 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	FRayTracingDebugRGS::FParameters* RayGenParameters = GraphBuilder.AllocParameters<FRayTracingDebugRGS::FParameters>();
 
 	RayGenParameters->VisualizationMode = DebugVisualizationMode;
+	RayGenParameters->UseDebugCHS = bRequiresDebugCHS;
+	RayGenParameters->PickerDomain = CVarRayTracingDebugPickerDomain.GetValueOnRenderThread();
 	RayGenParameters->ShouldUsePreExposure = View.Family->EngineShowFlags.Tonemapper;
 	RayGenParameters->TimingScale = CVarRayTracingDebugTimingScale.GetValueOnAnyThread() / 25000.0f;
 	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	
+	if (Scene->RayTracingScene.InstanceDebugBuffer)
+	{
+		RayGenParameters->InstancesDebugData = GraphBuilder.CreateSRV(Scene->RayTracingScene.InstanceDebugBuffer);
+	}
+
+	if (PickingBuffer)
+	{		
+		RayGenParameters->PickingBuffer = GraphBuilder.CreateSRV(PickingBuffer);
+	}	
+
 	if (Lumen::UseFarField(ViewFamily))
 	{
 		RayGenParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
@@ -437,5 +650,152 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	});
 }
 
+void FDeferredShadingSceneRenderer::RayTracingDisplayPicking(const FRayTracingPickingFeedback& PickingFeedback, FScreenMessageWriter& Writer)
+{
+	if (PickingFeedback.InstanceIndex == ~uint32(0))
+	{
+		return;
+	}
+	
+	int32 PickerDomain = CVarRayTracingDebugPickerDomain.GetValueOnRenderThread();
+	switch (PickerDomain)
+	{
+	case RAY_TRACING_DEBUG_PICKER_DOMAIN_TRIANGLE:
+		Writer.DrawLine(FText::FromString(TEXT("Domain [Triangle]")), 10, FColor::Yellow);
+		break;
+
+	case RAY_TRACING_DEBUG_PICKER_DOMAIN_SEGMENT:
+		Writer.DrawLine(FText::FromString(TEXT("Domain [Segment]")), 10, FColor::Yellow);
+		break;
+
+	case RAY_TRACING_DEBUG_PICKER_DOMAIN_INSTANCE:
+		Writer.DrawLine(FText::FromString(TEXT("Domain [Instance]")), 10, FColor::Yellow);
+		break;
+
+	default:
+		break; // Invalid picking domain
+	}
+
+	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(TEXT("(Use r.RayTracing.Debug.PickerDomain to change domain)")), 10, FColor::Yellow);
+
+	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(TEXT("[Hit]")), 10, FColor::Yellow);	
+
+	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Instance Index: %u"), PickingFeedback.InstanceIndex)), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Geometry Instance Index: %u"), PickingFeedback.GeometryInstanceIndex)), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Segment Index: %u"), PickingFeedback.GeometryIndex)), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Triangle Index: %u"), PickingFeedback.TriangleIndex)), 10, FColor::Yellow);
+
+	Writer.EmptyLine();
+
+	FRHIRayTracingGeometry* Geometry = nullptr;
+	for (const FRayTracingGeometryInstance& Instance : Scene->RayTracingScene.Instances)
+	{
+		if (Instance.GeometryRHI)
+		{
+			const uint64 GeometryAddress = uint64(Instance.GeometryRHI.GetReference());
+			if (PickingFeedback.GeometryAddress == GeometryAddress)
+			{
+				Geometry = Instance.GeometryRHI;
+				break;
+			}
+		}
+	}
+	
+	Writer.DrawLine(FText::FromString(TEXT("[BLAS]")), 10, FColor::Yellow);
+	Writer.EmptyLine();
+
+	if (Geometry)
+	{
+		const FRayTracingGeometryInitializer& Initializer = Geometry->GetInitializer();
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Name: %s"), *Initializer.DebugName.ToString())), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Num Segments: %d"), Initializer.Segments.Num())), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Total Primitive Count: %u"), Initializer.TotalPrimitiveCount)), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Fast Build: %d"), Initializer.bFastBuild)), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Allow Update: %d"), Initializer.bAllowUpdate)), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Allow Compaction: %d"), Initializer.bAllowCompaction)), 10, FColor::Yellow);
+
+		Writer.EmptyLine();
+
+		FRayTracingAccelerationStructureSize SizeInfo = Geometry->GetSizeInfo();
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Result Size: %u"), SizeInfo.ResultSize)), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Build Scratch Size: %u"), SizeInfo.BuildScratchSize)), 10, FColor::Yellow);
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Update Scratch Size: %u"), SizeInfo.UpdateScratchSize)), 10, FColor::Yellow);
+	}
+	else
+	{
+		Writer.DrawLine(FText::FromString(TEXT("UNKNOWN")), 10, FColor::Yellow);
+	}	
+
+	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(TEXT("[TLAS]")), 10, FColor::Yellow);
+
+	Writer.EmptyLine();
+
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("InstanceId: %u"), PickingFeedback.InstanceId)), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Mask: %u"), PickingFeedback.Mask)), 10, FColor::Yellow);
+	Writer.DrawLine(FText::FromString(FString::Printf(TEXT("ContributionToHitGroup: %u"), PickingFeedback.InstanceContributionToHitGroupIndex)), 10, FColor::Yellow);
+	{
+		const ERayTracingInstanceFlags Flags = (ERayTracingInstanceFlags)PickingFeedback.Flags;
+		FString FlagNames(TEXT(""));
+		if (EnumHasAnyFlags(Flags, ERayTracingInstanceFlags::TriangleCullDisable))
+		{
+			FlagNames += FString(TEXT("CullDisable "));
+		}
+
+		if (EnumHasAnyFlags(Flags, ERayTracingInstanceFlags::TriangleCullReverse))
+		{
+			FlagNames += FString(TEXT("CullReverse "));
+		}
+
+		if (EnumHasAnyFlags(Flags, ERayTracingInstanceFlags::ForceOpaque))
+		{
+			FlagNames += FString(TEXT("ForceOpaque "));
+		}
+
+		if (EnumHasAnyFlags(Flags, ERayTracingInstanceFlags::ForceNonOpaque))
+		{
+			FlagNames += FString(TEXT("ForceNonOpaque "));
+		}
+
+		Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Flags: %u - %s"), PickingFeedback.Flags, *FlagNames)), 10, FColor::Yellow);
+	}	
+
+	Writer.EmptyLine();
+}
+
+bool IsRayTracingInstanceDebugDataEnabled(const FViewInfo& View)
+{
+#if !UE_BUILD_SHIPPING	
+	static TArray<FName> RayTracingDebugVisualizationModes;
+	if (RayTracingDebugVisualizationModes.Num() == 0)
+	{
+		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Dynamic Instances", "Dynamic Instances").ToString());
+		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Proxy Type", "Proxy Type").ToString());
+		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Picker", "Picker").ToString());
+	}
+
+	FString ConsoleViewMode = CVarRayTracingDebugMode.GetValueOnRenderThread();
+	if (!ConsoleViewMode.IsEmpty())
+	{
+		return RayTracingDebugVisualizationModes.Contains(FName(*ConsoleViewMode));
+	}
+	else if (View.CurrentRayTracingDebugVisualizationMode != NAME_None)
+	{
+		return RayTracingDebugVisualizationModes.Contains(View.CurrentRayTracingDebugVisualizationMode);
+	}
+#endif
+	{
+		return false;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
+
 #endif

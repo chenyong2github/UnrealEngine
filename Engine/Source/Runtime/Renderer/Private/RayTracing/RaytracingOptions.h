@@ -75,6 +75,7 @@ extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
 extern int32 GetRayTracingCulling();
 extern float GetRayTracingCullingRadius();
+extern bool IsRayTracingInstanceDebugDataEnabled(const FViewInfo& View);
 
 extern bool CanUseRayTracingAMDHitToken();
 
@@ -151,6 +152,11 @@ FORCEINLINE float GetRayTracingCullingRadius()
 }
 
 FORCEINLINE bool CanUseRayTracingAMDHitToken()
+{
+	return false;
+}
+
+FORCEINLINE bool IsRayTracingInstanceDebugDataEnabled()
 {
 	return false;
 }

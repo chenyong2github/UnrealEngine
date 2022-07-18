@@ -189,6 +189,26 @@ void SetRayTracingInstanceTransform(inout FRayTracingInstanceDescriptor Desc, fl
 	Desc.Transform = LocalToWorld;
 }
 
+uint GetRayTracingInstanceDescriptorInstanceId(FRayTracingInstanceDescriptor Desc)
+{
+	return Desc.GetInstanceId();
+}
+
+uint GetRayTracingInstanceDescriptorMask(FRayTracingInstanceDescriptor Desc)
+{
+	return Desc.GetMask();
+}
+
+uint GetRayTracingInstanceDescriptorInstanceContributionToHitGroupIndex(FRayTracingInstanceDescriptor Desc)
+{
+	return Desc.GetInstanceContributionToHitGroupIndex();
+}
+
+uint GetRayTracingInstanceDescriptorFlags(FRayTracingInstanceDescriptor Desc)
+{
+	return Desc.GetFlags();
+}
+
 FRayTracingInstanceDescriptor BuildPlatformRayTracingInstanceDesc(uint InstanceMask, uint InstanceId, uint InstanceFlags, uint InstanceContributionToHitGroupIndex, float3x4 LocalToWorld, uint2 AccelerationStructureAddress)
 {
 	FRayTracingInstanceDescriptor Desc;

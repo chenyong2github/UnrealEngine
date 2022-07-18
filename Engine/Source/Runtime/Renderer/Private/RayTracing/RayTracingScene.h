@@ -15,6 +15,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "MeshPassProcessor.h"
 #include "RayTracingInstanceBufferUtil.h"
+#include "RayTracingDebugTypes.h"
 
 class FGPUScene;
 class FRHIRayTracingScene;
@@ -80,7 +81,8 @@ public:
 	RENDERER_API FRHIBuffer* GetBufferChecked() const;
 	
 	RENDERER_API FRHIShaderResourceView* GetLayerSRVChecked(ERayTracingSceneLayer Layer) const;
-
+	
+	void AddInstanceDebugData(const FRHIRayTracingGeometry* GeometryRHI, const FPrimitiveSceneProxy* Proxy, bool bDynamic);
 public:
 
 	// Public members for initial refactoring step (previously were public members of FViewInfo).
@@ -106,6 +108,10 @@ public:
 
 	FRDGBufferRef InstanceBuffer;
 	FRDGBufferRef BuildScratchBuffer;
+
+	// Special data for debugging purposes
+	FRDGBufferRef InstanceDebugBuffer = nullptr;
+	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
 
 private:
 	void WaitForTasks() const;

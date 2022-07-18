@@ -9,6 +9,7 @@
 #include "RayTracingDefinitions.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
+#include "RayTracingOptions.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)
@@ -176,6 +177,12 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 				InstanceUploadData,
 				TransformUploadData);
 		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+		
+		if (InstancesDebugData.Num() > 0)
+		{
+			check(InstancesDebugData.Num() == Instances.Num());
+			InstanceDebugBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("FRayTracingScene::InstanceDebugData"), InstancesDebugData);
+		}
 
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
 		PassParams->InstanceBuffer = GraphBuilder.CreateUAV(InstanceBuffer);
@@ -284,11 +291,24 @@ FRHIShaderResourceView* FRayTracingScene::GetLayerSRVChecked(ERayTracingSceneLay
 	return LayerSRVs[uint8(Layer)].GetReference();
 }
 
+void FRayTracingScene::AddInstanceDebugData(const FRHIRayTracingGeometry* GeometryRHI, const FPrimitiveSceneProxy* Proxy, bool bDynamic)
+{
+	FRayTracingInstanceDebugData& InstanceDebugData = InstancesDebugData.AddDefaulted_GetRef();
+	InstanceDebugData.Flags = bDynamic ? 1 : 0;
+	InstanceDebugData.GeometryAddress = uint64(GeometryRHI);
+
+	if (Proxy)
+	{
+		InstanceDebugData.ProxyHash = Proxy->GetTypeHash();
+	}
+}
+
 void FRayTracingScene::Reset()
 {
 	WaitForTasks();
 
 	Instances.Reset();
+	InstancesDebugData.Reset();
 	NumMissShaderSlots = 1;
 	NumCallableShaderSlots = 0;
 	CallableCommands.Reset();
@@ -299,6 +319,7 @@ void FRayTracingScene::Reset()
 	Allocator.Flush();
 
 	BuildScratchBuffer = nullptr;
+	InstanceDebugBuffer = nullptr;
 }
 
 void FRayTracingScene::ResetAndReleaseResources()
@@ -306,6 +327,7 @@ void FRayTracingScene::ResetAndReleaseResources()
 	Reset();
 
 	Instances.Empty();
+	InstancesDebugData.Empty();
 	CallableCommands.Empty();
 	UniformBuffers.Empty();
 	GeometriesToBuild.Empty();

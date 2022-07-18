@@ -10,11 +10,14 @@
 #include "RayTracingHitGroupCommon.ush"
 
 #include "/Engine/Shared/RayTracingDebugDefinitions.h"
+#include "/Engine/Shared/RayTracingDebugTypes.h"
 
 RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
+uint UseDebugCHS;
+uint PickerDomain;
 uint ShouldUsePreExposure;
 uint OpaqueOnly;
 float TimingScale;
@@ -22,6 +25,9 @@ float TimingScale;
 float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float3 FarFieldReferencePos;
+
+StructuredBuffer<FRayTracingInstanceDebugData> InstancesDebugData;
+StructuredBuffer<FRayTracingPickingFeedback> PickingBuffer;
 
 float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
 {
@@ -157,8 +163,12 @@ float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
 struct FRayTracingDebugPayload : FMinimalPayload
 {
 	uint InstanceHash;
-	uint TriangleHash;
+	uint TriangleIndex;
+	uint InstanceIndex;
+	uint GeometryInstanceIndex;
+
 	float3 WorldNormal;
+	uint GeometryIndex;
 };
 
 float4 DebugRayTracingInstance(RayDesc Ray)
@@ -180,17 +190,54 @@ float4 DebugRayTracingInstance(RayDesc Ray)
 
 	if (Payload.IsHit())
 	{
+		const float3 InstanceColor = IntToColor(Payload.InstanceHash);
+		const float3 TriangleColor = IntToColor(MurmurMix(Payload.InstanceHash + Payload.TriangleIndex));
+
 		switch (VisualizationMode)
 		{
 		default:
 		case RAY_TRACING_DEBUG_VIZ_INSTANCES:
-			Result.rgb = IntToColor(Payload.InstanceHash);
+			Result.rgb = InstanceColor;
 			break;
 		case RAY_TRACING_DEBUG_VIZ_TRIANGLES:
-			Result.rgb = IntToColor(Payload.TriangleHash);
+			Result.rgb = TriangleColor;
 			break;
+#if ENABLE_INSTANCE_DEBUG_DATA
+		case RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES:
+			Result.rgb = InstancesDebugData[Payload.GeometryInstanceIndex].Flags ? float3(0.25f, 0.50f, 0.25f) : float3(0.50f, 0.25f, 0.25f);
+			break;
+		case RAY_TRACING_DEBUG_VIZ_PROXY_TYPE:
+			Result.rgb = IntToColor(InstancesDebugData[Payload.GeometryInstanceIndex].ProxyHash);
+			break;
+#endif // ENABLE_INSTANCE_DEBUG_DATA
 		}
-		
+	
+#if ENABLE_PICKING
+		if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER)
+		{
+			const float ColorScale = 0.1f;
+			const float BrighterColorScale = 0.2f;
+			const float3 PickedColor = float3(1.0f, 0.0f, 1.0f);
+
+			const bool bSameTriangle = (PickingBuffer[0].TriangleIndex == Payload.TriangleIndex);
+			const bool bSameSegment = (PickingBuffer[0].GeometryIndex == Payload.GeometryIndex);
+			const bool bSameInstance = (PickingBuffer[0].InstanceIndex == Payload.InstanceIndex);
+
+			switch (PickerDomain)
+			{
+			case RAY_TRACING_DEBUG_PICKER_DOMAIN_TRIANGLE:
+				Result.rgb = bSameInstance ? (bSameSegment && bSameTriangle ? PickedColor : TriangleColor * BrighterColorScale) : TriangleColor * ColorScale;
+				break;				
+			case RAY_TRACING_DEBUG_PICKER_DOMAIN_SEGMENT:
+				Result.rgb = bSameInstance ? (bSameSegment ? PickedColor : InstanceColor * BrighterColorScale) : InstanceColor * ColorScale; // TODO
+				break;
+			case RAY_TRACING_DEBUG_PICKER_DOMAIN_INSTANCE:
+				Result.rgb = bSameInstance ? PickedColor : InstanceColor * ColorScale;
+				break;
+			}
+		}
+#endif // ENABLE_PICKING
+
 		// apply some shading based on the primitive normal (map dot product result from [0,1] to [0.75,1]).
 		Result.rgb *= dot(Payload.WorldNormal, normalize(float3(1.0f, 1.0f, 1.0f))) * 0.125f + 0.875;
 	}
@@ -208,7 +255,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 
 	float4 Result = (float4)0;
 
-	if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES || VisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES)
+	if (UseDebugCHS)
 	{
 		Result = DebugRayTracingInstance(Ray);
 	}
@@ -261,7 +308,56 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDebugMainCHS,
 	const int ScenePrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 	Payload.InstanceHash = MurmurAdd(ScenePrimitiveIndex, ScenePrimitiveInstanceIndex);
 
-	Payload.TriangleHash = MurmurMix(Payload.InstanceHash + PrimitiveIndex());
+	Payload.TriangleIndex = PrimitiveIndex();
 
 	Payload.WorldNormal = ComputeWorldNormal();
+	Payload.GeometryInstanceIndex = GetHitGroupUserData();
+	Payload.InstanceIndex = InstanceIndex();
+	Payload.GeometryIndex = 0; // GeometryIndex();
+}
+
+RWStructuredBuffer<FRayTracingPickingFeedback> PickingOutput;
+StructuredBuffer<FRayTracingInstanceDescriptor> InstanceBuffer;
+
+RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
+{
+	const uint2 PixelPos = (float2(View.CursorPosition) * View.ViewResolutionFraction);
+	float2 RenderTargetUV = (float2(PixelPos) + .5f) * View.BufferSizeAndInvSize.zw;
+
+	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+
+	FRayTracingDebugPayload Payload = (FRayTracingDebugPayload)0;
+	Payload.SetMiss();
+
+	TraceRay(
+		TLAS,
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES  /*RayFlags*/,
+		0xff /*InstanceInclusionMask*/,
+		0 /*RayContributionToHitGroupIndex*/,
+		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
+		0 /*MissShaderIndex*/,
+		Ray,
+		Payload);
+
+	FRayTracingPickingFeedback PickingFeedback = (FRayTracingPickingFeedback)0xFFFFFFFF;
+
+	if (Payload.IsHit())
+	{
+		FRayTracingInstanceDebugData InstanceDebugData = InstancesDebugData[Payload.GeometryInstanceIndex];
+		FRayTracingInstanceDescriptor InstanceDescriptor = InstanceBuffer[Payload.InstanceIndex];
+
+		PickingFeedback.GeometryAddress = InstanceDebugData.GeometryAddress;
+
+		PickingFeedback.InstanceIndex = Payload.InstanceIndex;
+		PickingFeedback.GeometryInstanceIndex = Payload.GeometryInstanceIndex;
+		PickingFeedback.TriangleIndex = Payload.TriangleIndex;
+		PickingFeedback.GeometryIndex = Payload.GeometryIndex;
+
+		PickingFeedback.InstanceId = GetRayTracingInstanceDescriptorInstanceId(InstanceDescriptor);
+		PickingFeedback.Flags = GetRayTracingInstanceDescriptorFlags(InstanceDescriptor);
+		PickingFeedback.Mask = GetRayTracingInstanceDescriptorMask(InstanceDescriptor);
+		PickingFeedback.InstanceContributionToHitGroupIndex = GetRayTracingInstanceDescriptorInstanceContributionToHitGroupIndex(InstanceDescriptor);
+	}
+
+	PickingOutput[0] = PickingFeedback;
 }

@@ -860,6 +860,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	};
 
 	const float CurrentWorldTime = View.Family->Time.GetWorldTimeSeconds();
+	const bool bEnableInstanceDebugData = IsRayTracingInstanceDebugDataEnabled(View);
 
 	// Consume output of the relevant primitive gathering task
 	RayTracingScene.UsedCoarseMeshStreamingHandles = MoveTemp(RelevantPrimitiveList.UsedCoarseMeshStreamingHandles);
@@ -1031,6 +1032,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
 					RayTracingInstance.GeometryRHI = Geometry->RayTracingGeometryRHI;
 					checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
+					
+					if (bEnableInstanceDebugData)
+					{
+						RayTracingScene.AddInstanceDebugData(RayTracingInstance.GeometryRHI, SceneProxy, true);
+					}					
 
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.Mask = Instance.Mask;
@@ -1156,6 +1162,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		const FScene& Scene;
 		TChunkedArray<FRayTracingRelevantPrimitive> RelevantStaticPrimitives;
 		const FRayTracingCullingParameters& CullingParameters;
+		const bool bEnableInstanceDebugData;
 
 		// Outputs
 
@@ -1164,11 +1171,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 		FRayTracingSceneAddInstancesTask(const FScene& InScene,
 											TChunkedArray<FRayTracingRelevantPrimitive> InRelevantStaticPrimitives,
-											const FRayTracingCullingParameters& InCullingParameters,
+											const FRayTracingCullingParameters& InCullingParameters, bool InEnableInstanceDebugData,
 											FRayTracingScene& InRayTracingScene, TArray<FVisibleRayTracingMeshCommand>& InVisibleRayTracingMeshCommands)
 			: Scene(InScene)
 			, RelevantStaticPrimitives(MoveTemp(InRelevantStaticPrimitives))
 			, CullingParameters(InCullingParameters)
+			, bEnableInstanceDebugData(InEnableInstanceDebugData)
 			, RayTracingScene(InRayTracingScene)
 			, VisibleRayTracingMeshCommands(InVisibleRayTracingMeshCommands)
 		{
@@ -1276,6 +1284,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 					RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
 
+					if (bEnableInstanceDebugData)
+					{
+						RayTracingScene.AddInstanceDebugData(SceneInfo->CachedRayTracingInstance.GeometryRHI, SceneInfo->Proxy, false);
+					}					
+
 					const Experimental::FHashElementId GroupId = Scene.PrimitiveRayTracingGroupIds[PrimitiveIndex];
 					const bool bUseGroupBounds = CullingParameters.bCullUsingGroupIds && GroupId.IsValid();
 
@@ -1374,9 +1387,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						}
 
 						FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
-
 						RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
 						checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
+
+						if (bEnableInstanceDebugData)
+						{
+							RayTracingScene.AddInstanceDebugData(RayTracingInstance.GeometryRHI, SceneInfo->Proxy, false);
+						}						
 
 						InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 						RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
@@ -1414,7 +1431,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	};
 
 	FGraphEventRef AddInstancesTask = TGraphTask<FRayTracingSceneAddInstancesTask>::CreateTask().ConstructAndDispatchWhenReady(
-		*Scene, MoveTemp(RelevantStaticPrimitives), View.RayTracingCullingParameters, // inputs 
+		*Scene, MoveTemp(RelevantStaticPrimitives), View.RayTracingCullingParameters, bEnableInstanceDebugData, // inputs 
 		RayTracingScene, View.VisibleRayTracingMeshCommands // outputs
 	);
 
@@ -3379,7 +3396,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			for (const FViewInfo& View : Views)
 			{
-				RenderRayTracingDebug(GraphBuilder, View, SceneTextures.Color.Target);
+				FRayTracingPickingFeedback PickingFeedback = {};
+				RenderRayTracingDebug(GraphBuilder, View, SceneTextures.Color.Target, PickingFeedback);
+
+				OnGetOnScreenMessages.AddLambda([this, PickingFeedback](FScreenMessageWriter& ScreenMessageWriter)->void
+					{
+						RayTracingDisplayPicking(PickingFeedback, ScreenMessageWriter);
+					});
 			}
 		}
 	}

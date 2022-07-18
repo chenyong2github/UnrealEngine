@@ -62,6 +62,9 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 
 	RayTracingDebugModeNames.Add(LOCTEXT("Triangles", "Triangles"));
 	RayTracingDebugModeNames.Add(LOCTEXT("FarField", "FarField"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Dynamic Instances", "Dynamic Instances"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Proxy Type", "Proxy Type"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Picker", "Picker"));
 
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
