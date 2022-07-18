@@ -109,6 +109,7 @@ public:
 	FName GetDisplayClassName() const;
 
 	virtual bool IsContainerInstance() const { return false; }
+	virtual FName GetLevelPackage() const { return NAME_None; }
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
