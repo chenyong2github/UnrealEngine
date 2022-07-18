@@ -82,10 +82,11 @@ private:
 		int32 VertexCount = TessellationBaseData->m_uiCoordSize / 3;
 		VertexArray.Reserve(VertexArray.Num() + VertexCount);
 
+		const double ScaleFactor = BodyUnit * FImportParameters::GUnitScale;
 		double* Coordinates = TessellationBaseData->m_pdCoords;
 		for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; ++Index)
 		{
-			Coordinates[Index] *= BodyUnit;
+			Coordinates[Index] *= ScaleFactor;
 		}
 
 		for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; Index += 3)

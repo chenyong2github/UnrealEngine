@@ -30,12 +30,13 @@ namespace CADLibrary
 		
 	public:
 		CADTOOLS_API static bool bGDisableCADKernelTessellation;
-		CADTOOLS_API static bool bGEnableTimeControl;
 		CADTOOLS_API static bool bGEnableCADCache;
+		CADTOOLS_API static bool bGEnableTimeControl;
 		CADTOOLS_API static bool bGOverwriteCache;
 		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
-		CADTOOLS_API static float GStitchingTolerance;
 		CADTOOLS_API static bool bGSewMeshIfNeeded;
+		CADTOOLS_API static float GStitchingTolerance;
+		CADTOOLS_API static float GUnitScale;
 
 	public:
 		FImportParameters(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)

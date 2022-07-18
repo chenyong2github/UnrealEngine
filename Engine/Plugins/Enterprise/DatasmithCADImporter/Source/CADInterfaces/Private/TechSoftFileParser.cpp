@@ -1679,7 +1679,7 @@ FMatrix FTechSoftFileParser::ExtractTransformation3D(const A3DMiscTransformation
 
 		FVector ZVector = XVector ^ YVector;
 
-		Origin *= InOutUnit;
+		Origin *= InOutUnit * FImportParameters::GUnitScale;
 
 		const A3DVector3dData& A3DScale = CartesianTransformationData->m_sScale;
 		FVector3d Scale(A3DScale.m_dX, A3DScale.m_dY, A3DScale.m_dZ);
@@ -1726,14 +1726,16 @@ FMatrix FTechSoftFileParser::ExtractGeneralTransformation(const A3DMiscTransform
 		FVector3d Scale = Transform.GetScale3D();
 		if (Scale.Equals(FVector3d::OneVector, KINDA_SMALL_NUMBER))
 		{
+			const double TranslationScale = InOutUnit * FImportParameters::GUnitScale;
 			for (Index = 0; Index < 3; ++Index, ++Index)
 			{
-				Matrix.M[3][Index] *= InOutUnit;
+				Matrix.M[3][Index] *= TranslationScale;
 			}
 			return Matrix;
 		}
 
 		FVector3d Translation = Transform.GetTranslation();
+		Translation *= FImportParameters::GUnitScale;
 
 		double UniformScale = TechSoftFileParserImpl::ExtractUniformScale(Scale);
 		InOutUnit *= UniformScale;

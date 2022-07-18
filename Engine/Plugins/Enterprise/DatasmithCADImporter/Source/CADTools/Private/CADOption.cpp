@@ -62,6 +62,14 @@ FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
 Default value of StitchingTolerance is 0.001 cm\n"),
 ECVF_Default);
 
+float FImportParameters::GUnitScale = 1.f;
+FAutoConsoleVariableRef GCADTranslatorUnitScale(
+	TEXT("ds.CADTranslator.UnitScale"),
+	FImportParameters::GUnitScale,
+	TEXT("Scale factor to change the unit of the DMU (Only applies to TechSoft import.)\n\
+Default value of UnitScale is 1 i.e. unit = cm\n"),
+ECVF_Default);
+
 bool FImportParameters::bGSewMeshIfNeeded = true;
 FAutoConsoleVariableRef GCADTranslatorSewMeshIfNeeded(
 	TEXT("ds.CADTranslator.SewMeshIfNeeded"),
