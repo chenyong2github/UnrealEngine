@@ -799,7 +799,7 @@ namespace Horde.Build.Jobs
 				JobStepBatchError? newError = null;
 				if (newState == JobStepBatchState.Complete && batch.AgentId != null)
 				{
-					if (batch.Steps.Any(x => x.State == JobStepState.Waiting || x.State == JobStepState.Ready))
+					if (batch.Steps.Any(x => x.State == JobStepState.Waiting || x.State == JobStepState.Ready || x.State == JobStepState.Running))
 					{
 						// Mark the batch as incomplete
 						newError = JobStepBatchError.Incomplete;
