@@ -2023,12 +2023,14 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	FPoseSearchCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
 
-	BuildQuery(SearchContext, Result.ComposedQuery);
+	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
 
 	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
 
 	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
-	if (IsCurrentResultFromThisDatabase)
+	
+	// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
+	if (IsCurrentResultFromThisDatabase && SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
 	{
 		Result.ContinuingPoseCost = ComparePoses(
 			SearchContext,
@@ -2036,56 +2038,71 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 			EPoseComparisonFlags::ContinuingPose,
 			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 			NormalizedQueryValues);
+
+		if (bSkipSearchIfPossible)
+		{
+			SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+		}
 	}
 
-	for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
+	// since any PoseCost calculated here is at least SearchIndex->MinCostAddend,
+	// there's no point in performing the search if CurrentBestTotalCost is already better than that
+	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex->MinCostAddend)
 	{
-		// we're offsetting the NonSelectableIdx by "-GroupSearchIndex.StartPoseIndex" to have the indexes in kdtree space rather than in PoseIdx database space (kdtree index 0 is PoseIdx of GroupSearchIndex.StartPoseIndex)
-		const int NonSelectableIdxUsedSize = IsCurrentResultFromThisDatabase ? PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, -GroupSearchIndex.StartPoseIndex) : 0;
-		TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
-		const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
-		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
-
-		check(NormalizedQueryValues.Num() == NumDimensions);
-
-		const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
-		const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
-
-		// transforming query values into PCA space to query the KDTree
-		const RowMajorVectorMapConst QueryValues(NormalizedQueryValues.GetData(), 1, NumDimensions);
-		WeightedQueryValues = QueryValues.array() * MapWeights.array();
-		CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
-		ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
-
-		GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
-
-		for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
+		for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
 		{
-			const int32 PoseIdx = ResultIndexes[ResultIndex] + GroupSearchIndex.StartPoseIndex;
+			// we're offsetting the NonSelectableIdx by "-GroupSearchIndex.StartPoseIndex" to have the indexes in kdtree space rather than in PoseIdx database space (kdtree index 0 is PoseIdx of GroupSearchIndex.StartPoseIndex)
+			const int NonSelectableIdxUsedSize = IsCurrentResultFromThisDatabase ? PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, -GroupSearchIndex.StartPoseIndex) : 0;
+			TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
+			const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
+			FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
 
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
+			check(NormalizedQueryValues.Num() == NumDimensions);
 
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
+			const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
+
+			// transforming query values into PCA space to query the KDTree
+			const RowMajorVectorMapConst QueryValues(NormalizedQueryValues.GetData(), 1, NumDimensions);
+			WeightedQueryValues = QueryValues.array() * MapWeights.array();
+			CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
+			ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
+
+			GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
+
+			for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
 			{
-				continue;
+				const int32 PoseIdx = ResultIndexes[ResultIndex] + GroupSearchIndex.StartPoseIndex;
+
+				const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
+
+				if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+				{
+					continue;
+				}
+
+				FPoseSearchCost PoseCost = ComparePoses(
+					SearchContext,
+					PoseIdx,
+					EPoseComparisonFlags::None,
+					GroupSearchIndex.GroupIndex,
+					NormalizedQueryValues);
+
+				if (PoseCost < BestPoseCost)
+				{
+					BestPoseCost = PoseCost;
+					BestPoseIdx = PoseIdx;
+				}
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+				SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+#endif
 			}
+		}
 
-			FPoseSearchCost PoseCost = ComparePoses(
-				SearchContext, 
-				PoseIdx, 
-				EPoseComparisonFlags::None,
-				GroupSearchIndex.GroupIndex,
-				NormalizedQueryValues);
-
-			if (PoseCost < BestPoseCost)
-			{
-				BestPoseCost = PoseCost;
-				BestPoseIdx = PoseIdx;
-			}
-
-			#if UE_POSE_SEARCH_TRACE_ENABLED
-			SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
-			#endif
+		if (bSkipSearchIfPossible && BestPoseCost.IsValid())
+		{
+			SearchContext.UpdateCurrentBestCost(BestPoseCost);
 		}
 	}
 
@@ -2114,7 +2131,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 	check(SearchIndex);
 
-	BuildQuery(SearchContext, Result.ComposedQuery);
+	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
 	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
 
 	constexpr int NonSelectableIdxDataSize = 128;
@@ -2123,12 +2140,21 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	const bool IsCurrentResultFromThisDatabase = !SearchContext.bForceInterrupt && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
 	if (IsCurrentResultFromThisDatabase)
 	{
-		Result.ContinuingPoseCost = ComparePoses(
-			SearchContext,
-			SearchContext.CurrentResult.PoseIdx,
-			EPoseComparisonFlags::ContinuingPose,
-			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
-			NormalizedQueryValues);
+		// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
+		if (SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
+		{
+			Result.ContinuingPoseCost = ComparePoses(
+				SearchContext,
+				SearchContext.CurrentResult.PoseIdx,
+				EPoseComparisonFlags::ContinuingPose,
+				SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
+				NormalizedQueryValues);
+
+			if (bSkipSearchIfPossible)
+			{
+				SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+			}
+		}
 
 		NonSelectableIdxUsedSize = PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext);
 	}
@@ -2137,48 +2163,59 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 
 	FPoseSearchCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
-	for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
+
+	// since any PoseCost calculated here is at least SearchIndex->MinCostAddend,
+	// there's no point in performing the search if CurrentBestTotalCost is already better than that
+	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex->MinCostAddend)
 	{
-		if (SearchContext.DatabaseTagQuery)
+		for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
 		{
-			if (!SearchContext.DatabaseTagQuery->Matches(*GetSourceAssetGroupTags(&Asset)))
+			if (SearchContext.DatabaseTagQuery)
 			{
-				continue;
+				if (!SearchContext.DatabaseTagQuery->Matches(*GetSourceAssetGroupTags(&Asset)))
+				{
+					continue;
+				}
+			}
+
+			const bool CheckForNonSelectableIdx = IsCurrentResultFromThisDatabase && (&Asset == SearchContext.CurrentResult.SearchIndexAsset);
+			const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
+			for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
+			{
+				const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
+
+				if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+				{
+					continue;
+				}
+
+				if (CheckForNonSelectableIdx && NonSelectableIdx.Contains(PoseIdx))
+				{
+					continue;
+				}
+
+				FPoseSearchCost PoseCost = ComparePoses(
+					SearchContext,
+					PoseIdx, 
+					EPoseComparisonFlags::None,
+					Asset.SourceGroupIdx,
+					NormalizedQueryValues);
+
+				if (PoseCost < BestPoseCost)
+				{
+					BestPoseCost = PoseCost;
+					BestPoseIdx = PoseIdx;
+				}
+
+				#if UE_POSE_SEARCH_TRACE_ENABLED
+				SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+				#endif
 			}
 		}
 
-		const bool CheckForNonSelectableIdx = IsCurrentResultFromThisDatabase && (&Asset == SearchContext.CurrentResult.SearchIndexAsset);
-		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
-		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
+		if (bSkipSearchIfPossible && BestPoseCost.IsValid())
 		{
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
-				continue;
-			}
-
-			if (CheckForNonSelectableIdx && NonSelectableIdx.Contains(PoseIdx))
-			{
-				continue;
-			}
-
-			FPoseSearchCost PoseCost = ComparePoses(
-				SearchContext,
-				PoseIdx, 
-				EPoseComparisonFlags::None,
-				Asset.SourceGroupIdx,
-				NormalizedQueryValues);
-
-			if (PoseCost < BestPoseCost)
-			{
-				BestPoseCost = PoseCost;
-				BestPoseIdx = PoseIdx;
-			}
-
-			#if UE_POSE_SEARCH_TRACE_ENABLED
-			SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
-			#endif
+			SearchContext.UpdateCurrentBestCost(BestPoseCost);
 		}
 	}
 
@@ -2207,6 +2244,37 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 
 	FSearchResult Result;
 	FPoseSearchCost ContinuingCost;
+
+	// evaluating the continuing pose before all the active entries
+	if (bEvaluateContinuingPoseFirst && 
+		SearchContext.bCanAdvance &&
+		!SearchContext.bForceInterrupt &&
+		SearchContext.CurrentResult.IsValid())
+	{
+		const UPoseSearchDatabase* Database = SearchContext.CurrentResult.Database.Get();
+		check(Database);
+		const FPoseSearchIndex* PoseSearchIndex = Database->GetSearchIndex();
+		check(PoseSearchIndex);
+
+		SearchContext.GetOrBuildQuery(Database, Result.ComposedQuery);
+
+		TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
+
+		const FPoseSearchIndexAsset* PoseSearchIndexAsset = PoseSearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx);
+		check(PoseSearchIndexAsset);
+
+		Result.ContinuingPoseCost = Database->ComparePoses(
+				SearchContext,
+				SearchContext.CurrentResult.PoseIdx,
+				EPoseComparisonFlags::ContinuingPose,
+				PoseSearchIndexAsset->SourceGroupIdx,
+				NormalizedQueryValues);
+
+		if (Database->bSkipSearchIfPossible)
+		{
+			SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+		}
+	}
 
 	for (const FPoseSearchDatabaseSetEntry& Entry : AssetsToSearch)
 	{
@@ -2331,7 +2399,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 	const FBoneIndexType BoneIndexType = SchemaBoneIdx >= 0 ? Schema->BoneIndices[SchemaBoneIdx] : RootBoneIdx;
 
 	// @todo: use an hashmap if we end up having too many entries
-	const CachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::CachedEntry& Entry)
+	const FCachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, BoneIndexType](const FSearchContext::FCachedEntry& Entry)
 	{
 		return Entry.SampleTime == SampleTime && Entry.BoneIndexType == BoneIndexType;
 	});
@@ -2354,7 +2422,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 			for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
 			{
 				// @todo: maybe add them with a single allocation with CachedEntries.AddDefaulted(Schema->BoneIndicesWithParents.Num())
-				CachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
+				FCachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
 				NewEntry.SampleTime = SampleTime;
 				NewEntry.BoneIndexType = NewEntryBoneIndexType;
 				NewEntry.Transform = SampledComponentPose[NewEntryBoneIndexType];
@@ -2371,7 +2439,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 	FTransform SampledRootTransform;
 	if (History->TrySampleLocalPose(-SampleTime, nullptr, nullptr, &SampledRootTransform))
 	{
-		CachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
+		FCachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
 		NewEntry.SampleTime = SampleTime;
 		NewEntry.BoneIndexType = BoneIndexType;
 		NewEntry.Transform = SampledRootTransform;
@@ -2387,6 +2455,41 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 void FSearchContext::ClearCachedEntries()
 {
 	CachedEntries.Reset();
+}
+
+void FSearchContext::ResetCurrentBestCost()
+{
+	CurrentBestTotalCost = MAX_flt;
+}
+
+void FSearchContext::UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost)
+{
+	check(PoseSearchCost.IsValid());
+
+	if (PoseSearchCost.GetTotalCost() < CurrentBestTotalCost)
+	{
+		CurrentBestTotalCost = PoseSearchCost.GetTotalCost();
+	};
+}
+
+bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
+{
+	const FSearchContext::FCachedQuery* CachedQuery = CachedQueries.FindByPredicate([Database](const FSearchContext::FCachedQuery& CachedQuery)
+	{
+		return CachedQuery.Database == Database;
+	});
+
+	if (CachedQuery)
+	{
+		FeatureVectorBuilder = CachedQuery->FeatureVectorBuilder;
+		return true;
+	}
+
+	FSearchContext::FCachedQuery& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
+	NewCachedQuery.Database = Database;
+	Database->BuildQuery(*this, NewCachedQuery.FeatureVectorBuilder);
+	FeatureVectorBuilder = NewCachedQuery.FeatureVectorBuilder;
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4940,6 +5043,7 @@ struct FDatabaseIndexingContext
 	void PrepareIndexers();
 	bool IndexAssets();
 	void JoinIndex();
+	float CalculateMinCostAddend() const;
 };
 
 void FDatabaseIndexingContext::PrepareSamplers()
@@ -5105,12 +5209,32 @@ bool FDatabaseIndexingContext::IndexAssets()
 	return true;
 }
 
+float FDatabaseIndexingContext::CalculateMinCostAddend() const
+{
+	float MinCostAddend = 0.f;
+
+	check(SearchIndex);
+	if (!SearchIndex->PoseMetadata.IsEmpty())
+	{
+		MinCostAddend = MAX_FLT;
+		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndex->PoseMetadata)
+		{
+			if (PoseMetadata.CostAddend < MinCostAddend)
+			{
+				MinCostAddend = PoseMetadata.CostAddend;
+			}
+		}
+	}
+	return MinCostAddend;
+}
+
 void FDatabaseIndexingContext::JoinIndex()
 {
 	// Write index info to asset and count up total poses and storage required
 	int32 TotalPoses = 0;
 	int32 TotalFloats = 0;
-	
+
+	check(SearchIndex);
 	SearchIndex->Groups.Reset();
 
 	if (SearchIndex->Assets.Num() > 0)
@@ -5163,6 +5287,7 @@ void FDatabaseIndexingContext::JoinIndex()
 
 	SearchIndex->NumPoses = TotalPoses;
 	SearchIndex->Schema = Database->Schema;
+	SearchIndex->MinCostAddend = CalculateMinCostAddend();
 }
 
 bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)

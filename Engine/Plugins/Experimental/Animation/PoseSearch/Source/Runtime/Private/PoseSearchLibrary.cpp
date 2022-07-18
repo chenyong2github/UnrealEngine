@@ -246,7 +246,7 @@ void UpdateMotionMatchingState(
 	// Check if we can advance. Includes the case where we can advance but only by switching to a follow up asset.
 	bool bAdvanceToFollowUpAsset = false;
 	FSearchResult FollowUpAsset;
-	bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime, bAdvanceToFollowUpAsset, FollowUpAsset);
+	const bool bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime, bAdvanceToFollowUpAsset, FollowUpAsset);
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
 	FSearchContext SearchContext;
@@ -259,6 +259,7 @@ void UpdateMotionMatchingState(
 		SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
 		SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
 		SearchContext.bForceInterrupt = bForceInterrupt;
+		SearchContext.bCanAdvance = bCanAdvance;
 
 #if WITH_EDITORONLY_DATA
 		SearchContext.DebugDrawParams.SearchCostHistoryBruteForce = &InOutMotionMatchingState.SearchCostHistoryBruteForce;
@@ -284,33 +285,12 @@ void UpdateMotionMatchingState(
 
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
+		const float ContinuingPoseCost = bCanAdvance && SearchResult.ContinuingPoseCost.IsValid() ? SearchResult.ContinuingPoseCost.GetTotalCost() : MAX_flt;
+		const float PoseCost = SearchResult.PoseCost.IsValid()  ? SearchResult.PoseCost.GetTotalCost() : MAX_flt;
 
-		if (SearchResult.IsValid())
+		if (PoseCost < ContinuingPoseCost)
 		{
-			// If the result is valid and we couldn't advance we should always jump to the search result
-			bool bJumpToPose = true;
-
-			// Otherwise we need to check if the result is a good improvement over the current pose
-			if (bCanAdvance)
-			{
-				// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
-				check(SearchResult.PoseCost.GetDissimilarity() >= 0.0f);
-				
-				if (SearchResult.ContinuingPoseCost.IsValid())
-				{
-					if ((SearchResult.ContinuingPoseCost.GetTotalCost() <= SearchResult.PoseCost.GetTotalCost()) ||
-						(SearchResult.ContinuingPoseCost.GetDissimilarity() <= SearchResult.PoseCost.GetDissimilarity()))
-					{
-						bJumpToPose = false;
-					}
-				}
-			}
-
-			// Jump to candidate pose if there was a better option
-			if (bJumpToPose)
-			{
-				InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
-			}
+			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 		}
 
 		// todo: cache the queries into TraceState, one per TraceState.DatabaseEntries or
@@ -340,7 +320,7 @@ void UpdateMotionMatchingState(
 	TArray<const UPoseSearchDatabase*> Databases;
 	while (!SearchContext.BestCandidates.IsEmpty())
 	{
-		FSearchContext::PoseCandidate PoseCandidate;
+		FSearchContext::FPoseCandidate PoseCandidate;
 		SearchContext.BestCandidates.Pop(PoseCandidate);
 
 		int32 DatabaseEntryIndex = 0;

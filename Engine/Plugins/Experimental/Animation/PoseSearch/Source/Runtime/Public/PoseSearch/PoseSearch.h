@@ -713,6 +713,10 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY()
 	TArray<FPoseSearchIndexAsset> Assets;
 
+	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
+	UPROPERTY()
+	float MinCostAddend = -MAX_FLT;
+
 	bool IsValid() const;
 	bool IsEmpty() const;
 
@@ -1113,6 +1117,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	EPoseSearchMode PoseSearchMode = EPoseSearchMode::BruteForce;
 
+	// if true, this database search will be skipped if cannot decrease the pose cost, and poses will not be listed into the PoseSearchDebugger
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bSkipSearchIfPossible = false;
+
 	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;
 
@@ -1328,14 +1336,22 @@ struct POSESEARCH_API FSearchContext
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
 	bool bForceInterrupt = false;
+	// can the continuing pose advance? (if not we skip evaluating it)
+	bool bCanAdvance = true;
 
 	FTransform TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error);
 	void ClearCachedEntries();
 
+	void ResetCurrentBestCost();
+	void UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost);
+	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
+
+	bool GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+
 	static constexpr int8 SchemaRootBoneIdx = -1;
 
 private:
-	struct CachedEntry
+	struct FCachedEntry
 	{
 		float SampleTime = 0.f;
 
@@ -1347,23 +1363,33 @@ private:
 	};
 
 	// @todo: make it a fixed size array (or hash map if we end up having many CachedEntry) to avoid allocations
-	TArray<CachedEntry> CachedEntries;
+	TArray<FCachedEntry> CachedEntries;
+	
+	struct FCachedQuery
+	{
+		const UPoseSearchDatabase* Database = nullptr;
+		FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
+	};
+
+	TArray<FCachedQuery> CachedQueries;
+
+	float CurrentBestTotalCost = MAX_flt;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 
 public:
-	struct PoseCandidate
+	struct FPoseCandidate
 	{
 		float Cost = 0.f;
 		int32 PoseIdx = 0;
 		const UPoseSearchDatabase* Database = nullptr;
 
-		bool operator<(const PoseCandidate& Other) const { return Cost > Other.Cost; }
+		bool operator<(const FPoseCandidate& Other) const { return Cost > Other.Cost; }
 	};
 
-	struct BestPoseCandidates : private TArray<PoseCandidate>
+	struct FBestPoseCandidates : private TArray<FPoseCandidate>
 	{
-		typedef TArray<PoseCandidate> Super;
+		typedef TArray<FPoseCandidate> Super;
 		using Super::IsEmpty;
 
 		int32 MaxPoseCandidates = 100;
@@ -1378,7 +1404,7 @@ public:
 					Pop(Unused);
 				}
 
-				FSearchContext::PoseCandidate PoseCandidate;
+				FSearchContext::FPoseCandidate PoseCandidate;
 				PoseCandidate.Cost = Cost;
 				PoseCandidate.PoseIdx = PoseIdx;
 				PoseCandidate.Database = Database;
@@ -1386,13 +1412,13 @@ public:
 			}
 		}
 
-		void Pop(PoseCandidate& OutItem)
+		void Pop(FPoseCandidate& OutItem)
 		{
 			HeapPop(OutItem, false);
 		}
 	};
 	
-	BestPoseCandidates BestCandidates;
+	FBestPoseCandidates BestCandidates;
 #endif
 };
 
@@ -1465,6 +1491,11 @@ class POSESEARCH_API UPoseSearchDatabaseSet : public UPoseSearchSearchableAsset
 public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TArray<FPoseSearchDatabaseSetEntry> AssetsToSearch;
+
+	// if there's a valid continuing pose and bEvaluateContinuingPoseFirst is true, the continuing pose will be evaluated as first search,
+	// otherwise it'll be evaluated with the related database: if the database is not active the continuing pose evaluation will be skipped
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bEvaluateContinuingPoseFirst = true;
 
 public:
 	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const override;
