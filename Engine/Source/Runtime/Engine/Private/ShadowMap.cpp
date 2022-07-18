@@ -576,6 +576,20 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 		const float LegacyValue = 1.0f / .05f;
 		InvUniformPenumbraSize = FVector4(LegacyValue, LegacyValue, LegacyValue, LegacyValue);
 	}
+
+	// The following codes will be DELETED after all assets are resaved.
+	bool PlaceHolderBool = false;
+	FVector2D PlaceHolderVector2D = FVector2D(0, 0);
+	if (Ar.UE4Ver() >= VER_UE4_UNUSED_523 && Ar.LicenseeUE4Ver() < VER_LIC_UNUSED_1)
+	{		
+		Ar << PlaceHolderBool << PlaceHolderVector2D << PlaceHolderVector2D;
+	}
+
+	if (Ar.LicenseeUE4Ver() >= VER_LIC_UNUSED_1)
+	{
+		Ar << PlaceHolderBool << PlaceHolderVector2D << PlaceHolderVector2D;
+	}
+	// Codes end
 }
 
 FShadowMapInteraction FShadowMap2D::GetInteraction() const

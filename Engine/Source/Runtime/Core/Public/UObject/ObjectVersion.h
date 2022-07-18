@@ -641,6 +641,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS,
 	// Fixed corrupt licensee flag in 4.26 assets
 	VER_UE4_CORRECT_LICENSEE_FLAG,
+	// Unused and will be DELETED after all assets are resaved
+	VER_UE4_UNUSED_523,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
@@ -653,6 +655,10 @@ enum EUnrealEngineObjectUE4Version
 enum EUnrealEngineObjectLicenseeUE4Version
 {
 	VER_LIC_NONE = 0,
+
+	// Unused and will be DELETED after all assets are resaved
+	VER_LIC_UNUSED_1,
+
 	// - this needs to be the last line (see note below)
 	VER_LIC_AUTOMATIC_VERSION_PLUS_ONE,
 	VER_LIC_AUTOMATIC_VERSION = VER_LIC_AUTOMATIC_VERSION_PLUS_ONE - 1
