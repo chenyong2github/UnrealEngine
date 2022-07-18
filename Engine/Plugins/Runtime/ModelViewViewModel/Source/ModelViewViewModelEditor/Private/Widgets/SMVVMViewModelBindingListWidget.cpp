@@ -130,6 +130,11 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
 		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked)
 	];
+
+	if (InArgs._InitialSource.IsValid())
+	{
+		AddSources(MakeArrayView(&InArgs._InitialSource, 1));
+	}
 }
 
 void SSourceBindingList::Clear()
@@ -190,6 +195,11 @@ void SSourceBindingList::AddViewModels(TArrayView<const FMVVMBlueprintViewModelC
 	}
 
 	AddSources(NewSources);
+}
+
+void SSourceBindingList::AddSource(const FBindingSource& InSource)
+{
+	AddSources(MakeArrayView(&InSource, 1));
 }
 
 void SSourceBindingList::AddSources(TArrayView<const FBindingSource> InSources)

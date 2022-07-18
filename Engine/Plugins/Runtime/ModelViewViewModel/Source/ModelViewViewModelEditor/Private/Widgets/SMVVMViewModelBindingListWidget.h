@@ -7,6 +7,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "MVVMPropertyPath.h"
 #include "Templates/SubclassOf.h"
+#include "Types/MVVMBindingSource.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
@@ -17,8 +18,6 @@ class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
-	struct FBindingSource;
-
 	enum class EFieldVisibility : uint8
 	{
 		None = 0,
@@ -54,6 +53,7 @@ namespace UE::MVVM
 		DECLARE_DELEGATE_OneParam(FOnDoubleClicked, const FMVVMBlueprintPropertyPath&);
 	
 		SLATE_BEGIN_ARGS(SSourceBindingList) {}
+			SLATE_ARGUMENT(FBindingSource, InitialSource)
 			SLATE_ARGUMENT_DEFAULT(bool, ShowSearchBox) = false;
 			SLATE_ARGUMENT_DEFAULT(EFieldVisibility, FieldVisibilityFlags) = EFieldVisibility::All;
 			SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked)
@@ -64,6 +64,7 @@ namespace UE::MVVM
 		void Clear();
 
 		void AddSource(UClass* Class, FName Name, FGuid Guid);
+		void AddSource(const FBindingSource& InSource);
 		void AddSources(TArrayView<const FBindingSource> InSources);
 
 		void AddWidgetBlueprint(const UWidgetBlueprint* WidgetBlueprint);
