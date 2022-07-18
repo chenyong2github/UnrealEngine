@@ -140,28 +140,28 @@ public:
 	/**
 	 * Set record volume
 	 *
-	 * @param Volume Value between 0.0 and 1.0
+	 * @param Volume Value between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual void SetAudioInputVolume(float Volume) = 0;
 
 	/**
 	 * Set playback volume
 	 *
-	 * @param Volume Value between 0.0 and 1.0
+	 * @param Volume Value between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual void SetAudioOutputVolume(float Volume) = 0;
 
 	/**
 	 * Get volume of audio input device
 	 *
-	 * @return Audio input device volume. Will be between 0.0 and 1.0
+	 * @return Audio input device volume between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual float GetAudioInputVolume() const = 0;
 
 	/**
 	 * Get volume of audio output device
 	 *
-	 * @return Audio output device volume. Will be between 0.0 and 1.0
+	 * @return Audio output device volume between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual float GetAudioOutputVolume() const = 0;
 
@@ -551,13 +551,13 @@ public:
 	 * Set player volume
 	 *
 	 * @param PlayerName Player to adjust the volume for
-	 * @param Volume Value between 0.0 and 1.0
+	 * @param Volume Value between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual void SetPlayerVolume(const FString& PlayerName, float Volume) = 0;
 
 	/**
 	 * @param PlayerName Player to get the volume of
-	 * @return volume for player
+	 * @return Volume Value between 0.0 and 2.0. 1.0 leaves the source volume unchanged.
 	 */
 	virtual float GetPlayerVolume(const FString& PlayerName) const = 0;
 

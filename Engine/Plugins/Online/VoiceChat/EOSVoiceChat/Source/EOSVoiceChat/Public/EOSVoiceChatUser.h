@@ -103,6 +103,8 @@ protected:
 		bool bBlocked = false;
 		// Desired mute state
 		bool bAudioMuted = false;
+		// Desired Volume
+		float Volume = 1.f;
 	};
 
 	/**
@@ -301,6 +303,7 @@ protected:
 	void ApplyAudioOutputOptions();
 	void ApplyPlayerBlock(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant);
 	void ApplyReceivingOptions(const FChannelSession& ChannelSession);
+	void ApplyPlayerReceivingOptions(const FString& PlayerName);
 	void ApplyPlayerReceivingOptions(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant);
 	void ApplySendingOptions();
 	void ApplySendingOptions(FChannelSession& ChannelSession);
@@ -326,6 +329,8 @@ protected:
 	void OnLeaveRoom(const EOS_RTC_LeaveRoomCallbackInfo* CallbackInfo);
 	static void EOS_CALL OnBlockParticipantStatic(const EOS_RTC_BlockParticipantCallbackInfo* CallbackInfo);
 	void OnBlockParticipant(const EOS_RTC_BlockParticipantCallbackInfo* CallbackInfo);
+	static void EOS_CALL OnUpdateParticipantVolumeStatic(const EOS_RTCAudio_UpdateParticipantVolumeCallbackInfo* CallbackInfo);
+	void OnUpdateParticipantVolume(const EOS_RTCAudio_UpdateParticipantVolumeCallbackInfo* CallbackInfo);
 	static void EOS_CALL OnUpdateReceivingAudioStatic(const EOS_RTCAudio_UpdateReceivingCallbackInfo* CallbackInfo);
 	void OnUpdateReceivingAudio(const EOS_RTCAudio_UpdateReceivingCallbackInfo* CallbackInfo);
 	static void EOS_CALL OnUpdateSendingAudioStatic(const EOS_RTCAudio_UpdateSendingCallbackInfo* CallbackInfo);
