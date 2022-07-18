@@ -32,7 +32,7 @@ public:
 	// We need access to the SyncLog when creating the Workspace
 	// TODO: think of a better way to do this
 	TSharedPtr<SLogWidget> GetSyncLog() const;
-	void SetSyncLogLocation(const FString& LogFileName);
+	bool SetSyncLogLocation(const FString& LogFileName);
 
 	void SetStreamPathText(FText StreamPath);
 	void SetChangelistText(FText Changelist);

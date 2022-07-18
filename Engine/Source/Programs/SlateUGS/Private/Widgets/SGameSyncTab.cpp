@@ -404,9 +404,9 @@ TSharedPtr<SLogWidget> SGameSyncTab::GetSyncLog() const
 	return SyncLog;
 }
 
-void SGameSyncTab::SetSyncLogLocation(const FString& LogFileName)
+bool SGameSyncTab::SetSyncLogLocation(const FString& LogFileName)
 {
-    SyncLog->OpenFile(*LogFileName);
+    return SyncLog->OpenFile(*LogFileName);
 }
 
 void SGameSyncTab::SetStreamPathText(FText StreamPath)

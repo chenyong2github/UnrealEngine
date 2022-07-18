@@ -86,14 +86,16 @@ void SLogWidget::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		[
-			 SAssignNew(MessagesTextBox, SMultiLineEditableTextBox)
+			SAssignNew(MessagesTextBox, SMultiLineEditableTextBox)
 				.Style(FAppStyle::Get(), "Log.TextBox")
 				.TextStyle(FAppStyle::Get(), "Log.Normal")
+				.Padding(10.0f)
 				.ForegroundColor(FLinearColor::Gray)
 				.Marshaller(MessagesTextMarshaller)
 				.IsReadOnly(true)
 				.AlwaysShowScrollbars(true)
 				.OnVScrollBarUserScrolled(this, &SLogWidget::OnScroll)
+
 		]
 	];
 
@@ -103,13 +105,14 @@ void SLogWidget::Construct(const FArguments& InArgs)
 bool SLogWidget::OpenFile(const TCHAR* NewLogFileName)
 {
 	CloseFile();
-	Clear();
+	// Clear(); // Todo: calling Clear() breaks some things (like causing the logs below to not be appended), but maybe we're doing something wrong?
 
 	TArray<FString> InitialLines;
 	if (FFileHelper::LoadFileToStringArray(InitialLines, NewLogFileName))
 	{
 		for (const FString& InitialLine : InitialLines)
 		{
+			fprintf(stderr, "\nLine appended: %s\n", TCHAR_TO_ANSI(*InitialLine));
 			AppendLine(InitialLine);
 		}
 	}

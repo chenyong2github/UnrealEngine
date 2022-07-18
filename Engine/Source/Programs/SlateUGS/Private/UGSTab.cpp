@@ -419,7 +419,7 @@ void UGSTab::UpdateGameTabBuildList()
 					Change.Number,
 					FText::FromString(DisplayTime.ToString()),
 					FText::FromString(FormatUserName(Change.User)),
-					FText::FromString(DescLines[0])}));
+					FText::FromString(DescLines[0].TrimStartAndEnd())}));
 			}
 		}
 	}
@@ -539,7 +539,8 @@ void UGSTab::SetupWorkspace()
 	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
 
 	FString LogFileName = DataFolder / FPaths::GetPath(ProjectFileName) + TEXT(".sync.log");
-	GameSyncTabView->SetSyncLogLocation(LogFileName);
+	GameSyncTabView->SetSyncLogLocation(LogFileName); // Todo: if SetSyncLogLocation fails, then it failed to create a log file and may need to handle that
+	GameSyncTabView->GetSyncLog()->AppendLine(TEXT("Creating log at: ") + LogFileName);
 
 	Workspace = MakeShared<FWorkspace>(
 		PerforceClient.ToSharedRef(),
