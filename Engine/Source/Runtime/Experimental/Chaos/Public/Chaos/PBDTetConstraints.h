@@ -12,7 +12,7 @@ class FPBDTetConstraints : public FPBDTetConstraintsBase
 	using Base::Constraints;
 
   public:
-	  FPBDTetConstraints(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FReal InStiffness = (FReal)1)
+	  FPBDTetConstraints(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1)
 	    : Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
 	virtual ~FPBDTetConstraints() override {}
 

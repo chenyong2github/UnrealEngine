@@ -1,0 +1,97 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
+#include "CoreMinimal.h"
+
+class UDeformableSolverComponent;
+
+namespace Chaos::Softs
+{
+	struct CHAOS_API FDeformableSolverProperties
+	{
+		FDeformableSolverProperties(
+			int32 InNumSolverSubSteps = 2,
+			int32 InNumSolverIterations = 5,
+			bool InFixTimeStep = false,
+			FSolverReal InTimeStepSize = (FSolverReal)0.05,
+			bool InCacheToFile = false,
+			bool InbEnableKinematics = true,
+			bool InbUseFloor = true,
+			bool InbDoSelfCollision = false)
+			: NumSolverSubSteps(InNumSolverSubSteps)
+			, NumSolverIterations(InNumSolverIterations)
+			, FixTimeStep(InFixTimeStep)
+			, TimeStepSize(InTimeStepSize)
+			, CacheToFile(InCacheToFile)
+			, bEnableKinematics(InbEnableKinematics)
+			, bUseFloor(InbUseFloor)
+			, bDoSelfCollision(InbDoSelfCollision)
+		{}
+
+		FDeformableSolverProperties(const FDeformableSolverProperties& InProp)
+			: NumSolverSubSteps(InProp.NumSolverSubSteps)
+			, NumSolverIterations(InProp.NumSolverIterations)
+			, FixTimeStep(InProp.FixTimeStep)
+			, TimeStepSize(InProp.TimeStepSize)
+			, CacheToFile(InProp.CacheToFile)
+			, bEnableKinematics(InProp.bEnableKinematics)
+			, bUseFloor(InProp.bUseFloor)
+			, bDoSelfCollision(InProp.bDoSelfCollision)
+		{}
+
+		int32 NumSolverSubSteps = 5;
+		int32 NumSolverIterations = 5;
+		bool FixTimeStep = false;
+		FSolverReal TimeStepSize = (FSolverReal)0.05;
+		bool CacheToFile = false;
+		bool bEnableKinematics = true;
+		bool bUseFloor = true;
+		bool bDoSelfCollision = false;
+	};
+
+
+	/*Data Transfer*/
+	typedef TSharedPtr<FThreadingProxy::FOutputBuffer> FOutputDataMapValue; // OutputBuffer
+	typedef TMap<FThreadingProxy::FKey, FOutputDataMapValue > FOutputDataMap; // <const UObject*,OutputBuffer>
+
+	struct CHAOS_API FOutputPackage {
+		FOutputPackage()
+		{}
+
+		FOutputPackage(int32 InFrame, FOutputDataMap&& InMap)
+			: Frame(InFrame)
+			, ObjectMap(InMap)
+		{}
+
+		int32 Frame = INDEX_NONE;
+		FOutputDataMap ObjectMap;
+	};
+
+	/* Accessor for the Game Thread*/
+	class CHAOS_API FGameThreadAccessor
+	{
+	public:
+		friend class UDeformableSolverComponent;
+#if PLATFORM_WINDOWS
+	protected:
+#endif
+		FGameThreadAccessor() {}
+	};
+
+
+	/* Accessor for the Physics Thread*/
+	class CHAOS_API FPhysicsThreadAccessor
+	{
+	public:
+		friend class UDeformableSolverComponent;
+#if PLATFORM_WINDOWS
+	protected:
+#endif
+		FPhysicsThreadAccessor() {}
+	};
+
+
+}; // namesapce Chaos::Softs

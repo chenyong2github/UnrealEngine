@@ -20,7 +20,7 @@ class FPBDVolumeConstraintBase
 		{
 			Com += InParticles.X(i);
 		}
-		Com /= InParticles.Size();
+		Com /= (FSolverReal)InParticles.Size();
 		RefVolume = (FSolverReal)0.;
 		for (const TVec3<int32>& Constraint : Constraints)
 		{
@@ -59,7 +59,7 @@ class FPBDVolumeConstraintBase
 		{
 			Com += InParticles.P(i);
 		}
-		Com /= InParticles.Size();
+		Com /= (FSolverReal)InParticles.Size();
 		TArray<FSolverVec3> Grads;
 		Grads.SetNum(InParticles.Size());
 		for (FSolverVec3& Elem : Grads)
@@ -95,7 +95,7 @@ class FPBDVolumeConstraintBase
 		{
 			Com += InParticles.P(i);
 		}
-		Com /= InParticles.Size();
+		Com /= (FSolverReal)InParticles.Size();
 		FSolverReal Volume = (FSolverReal)0.;
 		for (const TVec3<int32>& Constraint : Constraints)
 		{
