@@ -25,6 +25,12 @@ struct TIsUECoreVariant<T, TC, typename std::enable_if<TIsUECoreVariant<T>::Valu
 	enum { Value = true };
 };
 
+template <typename T, typename TC>
+struct TIsUECoreVariant<T, TC, typename std::enable_if<TIsUECoreVariant<T>::Value && std::is_same<TC, typename T::IntType>::value, void>::type>
+{
+	enum { Value = true };
+};
+
 /**
  * Traits class which tests if a type is part of the core types included in CoreMinimal.h.
  */

@@ -506,5 +506,14 @@ uint32 GetTypeHash(const TIntRect<IntType>& InRect)
 
 } //! namespace UE::Math
 
-template <> struct TIsUECoreType<FIntRect>  { enum { Value = true }; };
-template <> struct TIsUECoreType<FUintRect> { enum { Value = true }; };
+template <> struct TIsPODType<FInt32Rect> { enum { Value = true }; };
+template <> struct TIsPODType<FUint32Rect> { enum { Value = true }; };
+
+template <> struct TIsUECoreVariant<FInt32Rect>  { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint32Rect> { enum { Value = true }; };
+
+template <> struct TIsPODType<FInt64Rect> { enum { Value = true }; };
+template <> struct TIsPODType<FUint64Rect> { enum { Value = true }; };
+
+template <> struct TIsUECoreVariant<FInt64Rect> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint64Rect> { enum { Value = true }; };

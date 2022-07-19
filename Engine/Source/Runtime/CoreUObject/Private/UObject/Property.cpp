@@ -47,8 +47,8 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector3f);
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector3d);
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector);	// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPoint>
+template<typename T>
+struct TIntPointStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum 
 	{
@@ -56,12 +56,22 @@ struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPo
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
-UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntPoint);
+template<> struct TStructOpsTypeTraits<FInt32Point> : public TIntPointStructOpsTypeTraits<FInt32Point> {};
+template<> struct TStructOpsTypeTraits<FInt64Point> : public TIntPointStructOpsTypeTraits<FInt64Point> {};
+template<> struct TStructOpsTypeTraits<FUint32Point> : public TIntPointStructOpsTypeTraits<FUint32Point> {};
+template<> struct TStructOpsTypeTraits<FUint64Point> : public TIntPointStructOpsTypeTraits<FUint64Point> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int32Point);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int64Point);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint32Point);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint64Point);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntPoint);		// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", UintPoint);		// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntVector>
+template<typename T>
+struct TIntVectorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
@@ -69,22 +79,41 @@ struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntV
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
-UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector);
+template<> struct TStructOpsTypeTraits<FInt32Vector2> : public TIntVectorStructOpsTypeTraits<FInt32Vector2> {};
+template<> struct TStructOpsTypeTraits<FInt64Vector2> : public TIntVectorStructOpsTypeTraits<FInt64Vector2> {};
+template<> struct TStructOpsTypeTraits<FUint32Vector2> : public TIntVectorStructOpsTypeTraits<FUint32Vector2> {};
+template<> struct TStructOpsTypeTraits<FUint64Vector2> : public TIntVectorStructOpsTypeTraits<FUint64Vector2> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int32Vector2);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int64Vector2);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint32Vector2);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint64Vector2);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector2);		// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", UintVector2);	// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FIntVector4> : public TStructOpsTypeTraitsBase2<FIntVector4>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithSerializer = true,
-	};
-};
-UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector4);
+template<> struct TStructOpsTypeTraits<FInt32Vector3> : public TIntVectorStructOpsTypeTraits<FInt32Vector3> {};
+template<> struct TStructOpsTypeTraits<FInt64Vector3> : public TIntVectorStructOpsTypeTraits<FInt64Vector3> {};
+template<> struct TStructOpsTypeTraits<FUint32Vector3> : public TIntVectorStructOpsTypeTraits<FUint32Vector3> {};
+template<> struct TStructOpsTypeTraits<FUint64Vector3> : public TIntVectorStructOpsTypeTraits<FUint64Vector3> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int32Vector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int64Vector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint32Vector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint64Vector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector);		// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", UintVector);		// Aliased
+
+template<> struct TStructOpsTypeTraits<FInt32Vector4> : public TIntVectorStructOpsTypeTraits<FInt32Vector4> {};
+template<> struct TStructOpsTypeTraits<FInt64Vector4> : public TIntVectorStructOpsTypeTraits<FInt64Vector4> {};
+template<> struct TStructOpsTypeTraits<FUint32Vector4> : public TIntVectorStructOpsTypeTraits<FUint32Vector4> {};
+template<> struct TStructOpsTypeTraits<FUint64Vector4> : public TIntVectorStructOpsTypeTraits<FUint64Vector4> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int32Vector4);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Int64Vector4);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint32Vector4);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Uint64Vector4); 
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector4);		// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", UintVector4);	// Aliased
 
 template<typename T>
 struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>

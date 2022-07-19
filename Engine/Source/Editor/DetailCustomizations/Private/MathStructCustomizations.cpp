@@ -413,6 +413,21 @@ TSharedRef<SWidget> FMathStructCustomization::MakeChildWidget(
 		return MakeNumericWidget<int32>(StructurePropertyHandle, PropertyHandle);
 	}
 
+	if (PropertyClass == FInt64Property::StaticClass())
+	{
+		return MakeNumericWidget<int64>(StructurePropertyHandle, PropertyHandle);
+	}
+
+	if (PropertyClass == FUInt32Property::StaticClass())
+	{
+		return MakeNumericWidget<uint32>(StructurePropertyHandle, PropertyHandle);
+	}
+
+	if (PropertyClass == FUInt64Property::StaticClass())
+	{
+		return MakeNumericWidget<uint64>(StructurePropertyHandle, PropertyHandle);
+	}
+
 	if (PropertyClass == FByteProperty::StaticClass())
 	{
 		return MakeNumericWidget<uint8>(StructurePropertyHandle, PropertyHandle);

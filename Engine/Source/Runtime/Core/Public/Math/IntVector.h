@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Serialization/StructuredArchive.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 namespace UE::Math
 {
@@ -100,9 +101,9 @@ struct TIntVector3
 	 */
 	template <typename OtherIntType>
 	explicit TIntVector3(TIntVector3<OtherIntType> Other)
-		: X(IntCastChecked<OtherIntType>(Other.X))
-		, Y(IntCastChecked<OtherIntType>(Other.Y))
-		, Z(IntCastChecked<OtherIntType>(Other.Z))
+		: X(IntCastChecked<IntType>(Other.X))
+		, Y(IntCastChecked<IntType>(Other.Y))
+		, Z(IntCastChecked<IntType>(Other.Z))
 	{
 	}
 
@@ -469,6 +470,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << *this;
 		return true;
 	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 };
 
 template <>
@@ -569,8 +572,8 @@ struct TIntVector2
 	 */
 	template <typename OtherIntType>
 	explicit TIntVector2(TIntVector2<OtherIntType> Other)
-		: X(IntCastChecked<OtherIntType>(Other.X))
-		, Y(IntCastChecked<OtherIntType>(Other.Y))
+		: X(IntCastChecked<IntType>(Other.X))
+		, Y(IntCastChecked<IntType>(Other.Y))
 	{
 	}
 
@@ -609,6 +612,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return Ar << Vector.X << Vector.Y;
 	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << *this;
+		return true;
+	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -669,10 +680,10 @@ struct TIntVector4
 	 */
 	template <typename OtherIntType>
 	explicit TIntVector4(TIntVector4<OtherIntType> Other)
-		: X(IntCastChecked<OtherIntType>(Other.X))
-		, Y(IntCastChecked<OtherIntType>(Other.Y))
-		, Z(IntCastChecked<OtherIntType>(Other.Z))
-		, W(IntCastChecked<OtherIntType>(Other.W))
+		: X(IntCastChecked<IntType>(Other.X))
+		, Y(IntCastChecked<IntType>(Other.Y))
+		, Z(IntCastChecked<IntType>(Other.Z))
+		, W(IntCastChecked<IntType>(Other.W))
 	{
 	}
 
@@ -982,6 +993,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << *this;
 		return true;
 	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 };
 
 /**
@@ -1025,16 +1038,103 @@ uint32 GetTypeHash(const TIntVector4<T>& Vector)
 
 } //! namespace UE::Math
 
-template <> struct TIsPODType<FIntVector2>  { enum { Value = true }; };
-template <> struct TIsPODType<FUintVector2> { enum { Value = true }; };
-template <> struct TIsPODType<FIntVector3>  { enum { Value = true }; };
-template <> struct TIsPODType<FUintVector3> { enum { Value = true }; };
-template <> struct TIsPODType<FIntVector4>  { enum { Value = true }; };
-template <> struct TIsPODType<FUintVector4> { enum { Value = true }; };
+template <> struct TIsPODType<FInt32Vector2>  { enum { Value = true }; };
+template <> struct TIsPODType<FUint32Vector2> { enum { Value = true }; };
+template <> struct TIsPODType<FInt32Vector3>  { enum { Value = true }; };
+template <> struct TIsPODType<FUint32Vector3> { enum { Value = true }; };
+template <> struct TIsPODType<FInt32Vector4>  { enum { Value = true }; };
+template <> struct TIsPODType<FUint32Vector4> { enum { Value = true }; };
 
-template <> struct TIsUECoreType<FIntVector2>  { enum { Value = true }; };
-template <> struct TIsUECoreType<FUintVector2> { enum { Value = true }; };
-template <> struct TIsUECoreType<FIntVector3>  { enum { Value = true }; };
-template <> struct TIsUECoreType<FUintVector3> { enum { Value = true }; };
-template <> struct TIsUECoreType<FIntVector4>  { enum { Value = true }; };
-template <> struct TIsUECoreType<FUintVector4> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FInt32Vector2>  { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint32Vector2> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FInt32Vector3>  { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint32Vector3> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FInt32Vector4>  { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint32Vector4> { enum { Value = true }; };
+
+template <> struct TIsPODType<FInt64Vector2> { enum { Value = true }; };
+template <> struct TIsPODType<FUint64Vector2> { enum { Value = true }; };
+template <> struct TIsPODType<FInt64Vector3> { enum { Value = true }; };
+template <> struct TIsPODType<FUint64Vector3> { enum { Value = true }; };
+template <> struct TIsPODType<FInt64Vector4> { enum { Value = true }; };
+template <> struct TIsPODType<FUint64Vector4> { enum { Value = true }; };
+
+template <> struct TIsUECoreVariant<FInt64Vector2> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint64Vector2> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FInt64Vector3> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint64Vector3> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FInt64Vector4> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FUint64Vector4> { enum { Value = true }; };
+
+
+template<>
+inline bool FInt32Vector2::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector2, Int32Vector2, Int64Vector2);
+}
+
+template<>
+inline bool FInt64Vector2::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector2, Int64Vector2, Int32Vector2);
+}
+
+template<>
+inline bool FUint32Vector2::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector2, Uint32Vector2, Uint64Vector2);
+}
+
+template<>
+inline bool FUint64Vector2::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector2, Uint64Vector2, Uint32Vector2);
+}
+
+template<>
+inline bool FInt32Vector3::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector, Int32Vector, Int64Vector);
+}
+
+template<>
+inline bool FInt64Vector3::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector, Int64Vector, Int32Vector);
+}
+
+template<>
+inline bool FUint32Vector3::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector, Uint32Vector, Uint64Vector);
+}
+
+template<>
+inline bool FUint64Vector3::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector, Uint64Vector, Uint32Vector);
+}
+
+template<>
+inline bool FInt32Vector4::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector4, Int32Vector4, Int64Vector4);
+}
+
+template<>
+inline bool FInt64Vector4::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntVector4, Int64Vector4, Int32Vector4);
+}
+
+template<>
+inline bool FUint32Vector4::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector4, Uint32Vector4, Uint64Vector4);
+}
+
+template<>
+inline bool FUint64Vector4::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintVector4, Uint64Vector4, Uint32Vector4);
+}

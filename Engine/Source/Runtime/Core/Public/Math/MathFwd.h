@@ -83,22 +83,52 @@ using FRotator3f	= UE::Math::TRotator<float>;
 struct FColor;
 struct FLinearColor;
 
-using FIntPoint = UE::Math::TIntPoint<int32>;
-using FUintPoint = UE::Math::TIntPoint<uint32>;
+// Int vectors
+using FIntVector2 = UE::Math::TIntVector2<int32>;
+using FIntVector3 = UE::Math::TIntVector3<int32>;
+using FIntVector4 = UE::Math::TIntVector4<int32>;
+using FInt32Vector2 = UE::Math::TIntVector2<int32>;
+using FInt32Vector3 = UE::Math::TIntVector3<int32>;
+using FInt32Vector4 = UE::Math::TIntVector4<int32>;
+using FInt32Vector = FInt32Vector3;
+using FInt64Vector2 = UE::Math::TIntVector2<int64>;
+using FInt64Vector3 = UE::Math::TIntVector3<int64>;
+using FInt64Vector4 = UE::Math::TIntVector4<int64>;
+using FInt64Vector = FInt64Vector3;
+
+using FUintVector2 = UE::Math::TIntVector2<uint32>;
+using FUintVector3 = UE::Math::TIntVector3<uint32>;
+using FUintVector4 = UE::Math::TIntVector4<uint32>;
+using FUint32Vector2 = UE::Math::TIntVector2<uint32>;
+using FUint32Vector3 = UE::Math::TIntVector3<uint32>;
+using FUint32Vector4 = UE::Math::TIntVector4<uint32>;
+using FUint32Vector = FUint32Vector3;
+using FUint64Vector2 = UE::Math::TIntVector2<uint64>;
+using FUint64Vector3 = UE::Math::TIntVector3<uint64>;
+using FUint64Vector4 = UE::Math::TIntVector4<uint64>;
+using FUint64Vector = FUint64Vector3;
+
+using FIntVector = FInt32Vector3;
+using FUintVector = FUint32Vector3;
+
+// Int points
+using FInt32Point = UE::Math::TIntPoint<int32>;
+using FInt64Point = UE::Math::TIntPoint<int64>;
+using FUint32Point = UE::Math::TIntPoint<uint32>;
+using FUint64Point = UE::Math::TIntPoint<uint64>;
+
+using FIntPoint = FInt32Point;
+using FUintPoint = FUint32Point;
+
+// Int rects
+using FInt32Rect = UE::Math::TIntRect<int32>;
+using FInt64Rect = UE::Math::TIntRect<int64>;
+using FUint32Rect = UE::Math::TIntRect<uint32>;
+using FUint64Rect = UE::Math::TIntRect<uint64>;
 
 using FIntRect = UE::Math::TIntRect<int32>;
 using FUintRect = UE::Math::TIntRect<uint32>;
 
-using FIntVector3 = UE::Math::TIntVector3<int32>;
-using FUintVector3 = UE::Math::TIntVector3<uint32>;
-
-using FIntVector = FIntVector3;
-
-using FIntVector2 = UE::Math::TIntVector2<int32>;
-using FUintVector2 = UE::Math::TIntVector2<uint32>;
-
-using FIntVector4 = UE::Math::TIntVector4<int32>;
-using FUintVector4 = UE::Math::TIntVector4<uint32>;
 
 using FBoxSphereBounds3f = UE::Math::TBoxSphereBounds<float, float>;
 using FBoxSphereBounds3d = UE::Math::TBoxSphereBounds<double, double>;

@@ -8,6 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "Serialization/StructuredArchive.h"
 #include "Templates/TypeHash.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 namespace UE::Math
 {
@@ -87,8 +88,8 @@ struct TIntPoint
 	 */
 	template <typename OtherIntType>
 	explicit TIntPoint(TIntPoint<OtherIntType> Other)
-		: X(IntCastChecked<OtherIntType>(Other.X))
-		, Y(IntCastChecked<OtherIntType>(Other.Y))
+		: X(IntCastChecked<IntType>(Other.X))
+		, Y(IntCastChecked<IntType>(Other.Y))
 	{
 	}
 
@@ -481,17 +482,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	/**
-	 * Serialize the point.
-	 *
-	 * @param Slot The structured archive slot to serialize into.
-	 * @return true on success, false otherwise.
-	 */
-	bool Serialize(FStructuredArchive::FSlot Slot)
-	{
-		Slot << *this;
-		return true;
-	}
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 };
 
 template <typename IntType>
@@ -556,8 +547,39 @@ inline FString TIntPoint<uint8>::ToString() const
 
 } //! namespace UE::Math
 
-template <> struct TIsPODType<FIntPoint>  { enum { Value = true }; };
-template <> struct TIsPODType<FUintPoint> { enum { Value = true }; };
+template <> struct TIsPODType<FInt32Point>  { enum { Value = true }; };
+template <> struct TIsPODType<FUint32Point> { enum { Value = true }; };
 
-template<> struct TIsUECoreType<FIntPoint>  { enum { Value = true }; };
-template<> struct TIsUECoreType<FUintPoint> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FInt32Point>  { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FUint32Point> { enum { Value = true }; };
+
+template <> struct TIsPODType<FInt64Point> { enum { Value = true }; };
+template <> struct TIsPODType<FUint64Point> { enum { Value = true }; };
+
+template<> struct TIsUECoreVariant<FInt64Point> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FUint64Point> { enum { Value = true }; };
+
+
+template<>
+inline bool FInt32Point::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntPoint, Int32Point, Int64Point);
+}
+
+template<>
+inline bool FInt64Point::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, IntPoint, Int64Point, Int32Point);
+}
+
+template<>
+inline bool FUint32Point::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintPoint, Uint32Point, Uint64Point);
+}
+
+template<>
+inline bool FUint64Point::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, UintPoint, Uint64Point, Uint32Point);
+}

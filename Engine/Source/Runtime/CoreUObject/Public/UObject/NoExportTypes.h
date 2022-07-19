@@ -852,7 +852,179 @@ struct FIntPoint
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=IntPoint, SaveGame)
 	int32 Y;
+};
 
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt32Point
+{
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 Y;
+};
+
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt64Point
+{
+	UPROPERTY(EditAnywhere, Category=IntPoint, SaveGame)
+	int64 X;
+
+	UPROPERTY(EditAnywhere, Category=IntPoint, SaveGame)
+	int64 Y;
+};
+
+/**
+ * Screen coordinates.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntPoint.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUintPoint
+{
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 Y;
+};
+
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint32Point
+{
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int32 Y;
+};
+
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint64Point
+{
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntPoint, SaveGame)
+	int64 Y;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt32Vector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Y;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt64Vector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 Y;
+};
+
+/**
+ * An integer vector in 4D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FIntVector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Y;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint32Vector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Y;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint64Vector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 Y;
+};
+
+/**
+ * An integer vector in 4D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUintVector2
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Y;
+};
+
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt32Vector
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Z;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt64Vector
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 Z;
 };
 
 /**
@@ -870,6 +1042,99 @@ struct FIntVector
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=IntVector, SaveGame)
 	int32 Z;
+};
+
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint32Vector
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Z;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint64Vector
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 Z;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUintVector
+{
+	UPROPERTY(EditAnywhere, Category=IntVector, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category=IntVector, SaveGame)
+	uint32 Y;
+
+	UPROPERTY(EditAnywhere, Category=IntVector, SaveGame)
+	uint32 Z;
+};
+
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt32Vector4
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 Z;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int32 W;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FInt64Vector4
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 Z;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	int64 W;
 };
 
 /**
@@ -891,6 +1156,67 @@ struct FIntVector4
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IntVector4, SaveGame)
 	int32 W;
 };
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint32Vector4
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 Z;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint32 W;
+};
+
+/**
+ * An integer vector in 3D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUint64Vector4
+{
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 Z;
+
+	UPROPERTY(EditAnywhere, Category = IntVector, SaveGame)
+	uint64 W;
+};
+
+/**
+ * An integer vector in 4D space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\IntVector.h
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FUintVector4
+{
+	UPROPERTY(EditAnywhere, Category = IntVector4, SaveGame)
+	uint32 X;
+
+	UPROPERTY(EditAnywhere, Category = IntVector4, SaveGame)
+	uint32 Y;
+
+	UPROPERTY(EditAnywhere, Category = IntVector4, SaveGame)
+	uint32 Z;
+
+	UPROPERTY(EditAnywhere, Category = IntVector4, SaveGame)
+	uint32 W;
+};
+
 
 /**
  * Stores a color with 8 bits of precision per channel. (BGRA).

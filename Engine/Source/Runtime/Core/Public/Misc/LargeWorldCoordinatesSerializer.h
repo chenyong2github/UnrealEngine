@@ -15,7 +15,7 @@ inline bool IsPreLWC(const FStructuredArchive::FSlot& Slot) { return IsPreLWC(Sl
 
 // SerializeFromMismatchedTag helper for core type use only. DO NOT USE!
 template<typename FAltType, typename FType, typename FArSlot>
-bool SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot, FName BaseTag, FName ThisTag, FName AltTag)
+std::enable_if_t<std::is_floating_point_v<typename FType::FReal>, bool>  SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot, FName BaseTag, FName ThisTag, FName AltTag)
 {
 	if(StructTag == ThisTag || (StructTag == BaseTag && (TIsUECoreVariant<FType, double>::Value || IsPreLWC(ArSlot))))
 	{
@@ -28,6 +28,27 @@ bool SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot,
 		FAltType AsAlt;										// TODO: Could we derive this from FType?
 		const bool bResult = AsAlt.Serialize(ArSlot);
 		Target = static_cast<FType>(AsAlt);					// LWC_TODO: Log precision loss warning for TIsUECoreVariant<FType, float>? Could get spammy.
+		return bResult;
+	}
+
+	return false;
+}
+
+// SerializeFromMismatchedTag helper for core type use only. DO NOT USE!
+template<typename FAltType, typename FType, typename FArSlot>
+std::enable_if_t<std::is_integral_v<typename FType::IntType>, bool> SerializeFromMismatchedTag(FType& Target, FName StructTag, FArSlot& ArSlot, FName BaseTag, FName ThisTag, FName AltTag)
+{
+	if (StructTag == ThisTag || (StructTag == BaseTag && (TIsUECoreVariant<FType, int32>::Value || TIsUECoreVariant<FType, uint32>::Value)))
+	{
+		// Note: Unlike float types int retains a default of 32bits, so no conversion is necessary.
+		return Target.Serialize(ArSlot);
+	}
+	else if (StructTag == AltTag || StructTag == BaseTag)
+	{
+		// Convert from alt type
+		FAltType AsAlt;
+		const bool bResult = AsAlt.Serialize(ArSlot);
+		Target = static_cast<FType>(AsAlt);
 		return bResult;
 	}
 
