@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "SimModule/MotorModule.h"
 #include "SimModule/SimModuleTree.h"
 #include "VehicleUtility.h"

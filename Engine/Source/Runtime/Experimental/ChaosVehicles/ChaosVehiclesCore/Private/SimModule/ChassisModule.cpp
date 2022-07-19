@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "SimModule/ChassisModule.h"
 #include "SimModule/SimModuleTree.h"
 
