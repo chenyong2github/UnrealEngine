@@ -25,7 +25,7 @@ void SIKRetargetAssetBrowser::Construct(
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->AssetBrowserView = SharedThis(this);
+	EditorController.Pin()->SetAssetBrowserView(SharedThis(this));
 	
 	ChildSlot
     [
@@ -109,8 +109,8 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked()
 	// assemble the data for the assets we want to batch duplicate/retarget
 	FIKRetargetBatchOperationContext BatchContext = Dialog.Get().BatchContext;
 	BatchContext.NameRule.FolderPath = PrevBatchOutputPath;
-	BatchContext.SourceMesh = Controller->GetSourceSkeletalMesh();
-	BatchContext.TargetMesh = Controller->GetTargetSkeletalMesh();
+	BatchContext.SourceMesh = Controller->GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+	BatchContext.TargetMesh = Controller->GetSkeletalMesh(ERetargetSourceOrTarget::Target);
 	BatchContext.IKRetargetAsset = Controller->AssetController->GetAsset();
 	BatchContext.bRemapReferencedAssets = false;
 
@@ -186,7 +186,7 @@ bool SIKRetargetAssetBrowser::OnShouldFilterAsset(const struct FAssetData& Asset
 	}
 
 	// get source skeleton
-	const USkeleton* DesiredSkeleton = Controller->GetSourceSkeleton();
+	const USkeleton* DesiredSkeleton = Controller->GetSkeleton(ERetargetSourceOrTarget::Source);
 	if (!DesiredSkeleton)
 	{
 		return true;

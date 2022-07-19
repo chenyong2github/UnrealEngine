@@ -254,7 +254,7 @@ void FIKRetargetDefaultMode::Enter()
 	}
 
 	// record which skeleton is being viewed/edited
-	SkeletonMode = Controller->GetSkeletonMode();
+	SkeletonMode = Controller->GetSourceOrTarget();
 
 	// allow selection of meshes in this mode
 	Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(true);
@@ -301,7 +301,7 @@ UDebugSkelMeshComponent* FIKRetargetDefaultMode::GetCurrentlyEditedMesh() const
 		return nullptr; 
 	}
 	
-	return SkeletonMode == EIKRetargetSkeletonMode::Source ? Controller->SourceSkelMeshComponent : Controller->TargetSkelMeshComponent;
+	return SkeletonMode == ERetargetSourceOrTarget::Source ? Controller->SourceSkelMeshComponent : Controller->TargetSkelMeshComponent;
 }
 
 void FIKRetargetDefaultMode::ApplyOffsetToMeshTransform(const FVector& Offset, USceneComponent* Component)
@@ -328,7 +328,7 @@ void FIKRetargetDefaultMode::Tick(FEditorViewportClient* ViewportClient, float D
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (Controller.IsValid())
 	{
-		const bool bEditingSource = Controller->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
+		const bool bEditingSource = Controller->GetSourceOrTarget() == ERetargetSourceOrTarget::Source;
 		Controller->SourceSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
 		Controller->TargetSkelMeshComponent->SkeletonDrawMode = !bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
 	}

@@ -288,35 +288,6 @@ FAnimNode_PoseDriver* UAnimGraphNode_PoseDriver::GetPreviewPoseDriverNode() cons
 	return PreviewNode;
 }
 
-/** Util to return transform of a bone from the pose asset in component space, by walking up tracks in pose asset */
-FTransform GetComponentSpaceTransform(FName BoneName, TArray<FTransform>& LocalTransforms, UPoseAsset* PoseAsset)
-{
-	const FReferenceSkeleton& RefSkel = PoseAsset->GetSkeleton()->GetReferenceSkeleton();
-
-	// Init component space transform with local transform
-	FTransform ComponentSpaceTransform = FTransform::Identity;
-
-	// Start to walk up parent chain until we reach root (ParentIndex == INDEX_NONE)
-	int32 BoneIndex = RefSkel.FindBoneIndex(BoneName);
-	while (BoneIndex != INDEX_NONE)
-	{
-		BoneName = RefSkel.GetBoneName(BoneIndex);
-		int32 TrackIndex = PoseAsset->GetTrackIndexByName(BoneName);
-
-		// If a track for parent, get local space transform from that
-		// If not, get from ref pose
-		FTransform BoneLocalTM = (TrackIndex != INDEX_NONE) ? LocalTransforms[TrackIndex] : RefSkel.GetRefBonePose()[BoneIndex];
-
-		// Continue to build component space transform
-		ComponentSpaceTransform = ComponentSpaceTransform * BoneLocalTM;
-
-		// Now move up to parent
-		BoneIndex = RefSkel.GetParentIndex(BoneIndex);
-	}
-
-	return ComponentSpaceTransform;
-}
-
 void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 {
 	UPoseAsset* PoseAsset = Node.PoseAsset;
@@ -355,8 +326,8 @@ void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 						// If eval'ing in different space (and that space is valid)
 						if (Node.EvalSpaceBone.BoneName != NAME_None)
 						{
-							FTransform SourceCompSpace = GetComponentSpaceTransform(SourceBoneRef.BoneName, PoseTransforms, PoseAsset);
-							FTransform EvalCompSpace = GetComponentSpaceTransform(Node.EvalSpaceBone.BoneName, PoseTransforms, PoseAsset);
+							FTransform SourceCompSpace = PoseAsset->GetComponentSpaceTransform(SourceBoneRef.BoneName, PoseTransforms);
+							FTransform EvalCompSpace = PoseAsset->GetComponentSpaceTransform(Node.EvalSpaceBone.BoneName, PoseTransforms);
 
 							SourceBoneTransform = SourceCompSpace.GetRelativeTransform(EvalCompSpace);
 						}

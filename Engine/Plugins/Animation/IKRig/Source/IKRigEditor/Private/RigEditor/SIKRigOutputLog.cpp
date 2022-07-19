@@ -8,11 +8,8 @@
 
 void SIKRigOutputLog::Construct(
 	const FArguments& InArgs,
-	const FName& InLogName,
-	TSharedPtr<SIKRigOutputLog>& OutLog)
+	const FName& InLogName)
 {
-	OutLog = SharedThis(this);
-
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
 	if (MessageLogModule.IsRegisteredLogListing(InLogName))

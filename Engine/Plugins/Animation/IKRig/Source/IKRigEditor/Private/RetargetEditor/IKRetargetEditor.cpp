@@ -38,10 +38,6 @@ FIKRetargetEditor::FIKRetargetEditor()
 {
 }
 
-FIKRetargetEditor::~FIKRetargetEditor()
-{
-}
-
 void FIKRetargetEditor::InitAssetEditor(
 	const EToolkitMode::Type Mode,
     const TSharedPtr<IToolkitHost>& InitToolkitHost, 
@@ -111,13 +107,6 @@ void FIKRetargetEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InT
 void FIKRetargetEditor::BindCommands()
 {
 	const FIKRetargetCommands& Commands = FIKRetargetCommands::Get();
-
-	ToolkitCommands->MapAction(
-		Commands.GoToRetargetPose,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleGoToRetargetPose),
-		FCanExecuteAction(),
-		FCanExecuteAction(),
-		EUIActionRepeatMode::RepeatDisabled);
 	
 	ToolkitCommands->MapAction(
         Commands.EditRetargetPose,
@@ -129,7 +118,7 @@ void FIKRetargetEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.ResetAllBones,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetAllBones),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanResetPose),
+		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
@@ -147,14 +136,14 @@ void FIKRetargetEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.NewRetargetPose,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleNewPose),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FCanExecuteAction(),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.DuplicateRetargetPose,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleDuplicatePose),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FCanExecuteAction(),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
@@ -172,24 +161,26 @@ void FIKRetargetEditor::BindCommands()
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
+	const TSharedRef<FIKRetargetPoseExporter> PoseExporterRef = EditorController->PoseExporter.ToSharedRef();
+	
 	ToolkitCommands->MapAction(
 		Commands.ImportRetargetPose,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleImportPose),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FExecuteAction::CreateSP(PoseExporterRef, &FIKRetargetPoseExporter::HandleImportFromPoseAsset),
+		FCanExecuteAction(),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.ImportRetargetPoseFromAnim,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleImportPoseFromSequence),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FExecuteAction::CreateSP(PoseExporterRef, &FIKRetargetPoseExporter::HandleImportFromSequenceAsset),
+		FCanExecuteAction(),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.ExportRetargetPose,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleExportPose),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FExecuteAction::CreateSP(PoseExporterRef, &FIKRetargetPoseExporter::HandleExportPoseAsset),
+		FCanExecuteAction(),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 }
@@ -210,15 +201,11 @@ void FIKRetargetEditor::ExtendToolbar()
 
 void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
-	ToolbarBuilder.BeginSection("Go To Retarget Pose");
+	ToolbarBuilder.BeginSection("Show Retarget Pose");
 	{
-		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().GoToRetargetPose,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(),"GenericStop"));
+		// TODO debug section
 	}
+	
 	ToolbarBuilder.EndSection();
 }
 
@@ -310,6 +297,33 @@ void FIKRetargetEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			return 1.0f;
 		});
 	}
+
+	auto GetBorderColorAndOpacity = [this]()
+	{
+		// no processor or processor not initialized
+		const UIKRetargetProcessor* Processor = EditorController.Get().GetRetargetProcessor();
+		if (!Processor || !Processor->IsInitialized() )
+		{
+			return FLinearColor::Red;
+		}
+
+		const ERetargeterOutputMode OutputMode = EditorController.Get().GetRetargeterMode();
+		if (OutputMode == ERetargeterOutputMode::RunRetarget)
+		{
+			return FLinearColor::Transparent;
+		}
+
+		return FLinearColor::Blue;
+	};
+	
+	InViewport->AddOverlayWidget(
+		SNew(SBorder)
+		.BorderImage(FIKRetargetEditorStyle::Get().GetBrush( "IKRetarget.Viewport.Border"))
+		.BorderBackgroundColor_Lambda(GetBorderColorAndOpacity)
+		.Visibility(EVisibility::HitTestInvisible)
+		.Padding(0.0f)
+		.ShowEffectWhenDisabled(false)
+	);
 }
 
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
@@ -323,14 +337,14 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	EditorController->TargetSkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 
 	// setup an apply an anim instance to the skeletal mesh component
-	EditorController->SourceAnimInstance = NewObject<UAnimPreviewInstance>(EditorController->SourceSkelMeshComponent, TEXT("IKRetargetSourceAnimScriptInstance"));
+	EditorController->SourceAnimInstance = NewObject<UIKRetargetAnimInstance>(EditorController->SourceSkelMeshComponent, TEXT("IKRetargetSourceAnimScriptInstance"));
 	EditorController->TargetAnimInstance = NewObject<UIKRetargetAnimInstance>(EditorController->TargetSkelMeshComponent, TEXT("IKRetargetTargetAnimScriptInstance"));
 	SetupAnimInstance();
 	
 	// set the source and target skeletal meshes on the component
 	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* SourceMesh = EditorController->GetSourceSkeletalMesh();
-	USkeletalMesh* TargetMesh = EditorController->GetTargetSkeletalMesh();
+	USkeletalMesh* SourceMesh = EditorController->GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+	USkeletalMesh* TargetMesh = EditorController->GetSkeletalMesh(ERetargetSourceOrTarget::Target);
 	EditorController->SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
 	EditorController->TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
 
@@ -349,8 +363,12 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 void FIKRetargetEditor::SetupAnimInstance()
 {
-	// connect the retarget asset and the source component ot the target anim instance
-	EditorController->TargetAnimInstance->SetRetargetAssetAndSourceComponent(EditorController->AssetController->GetAsset(), EditorController->SourceSkelMeshComponent);
+	UIKRetargeter* Asset = EditorController->AssetController->GetAsset();
+	
+	// configure SOURCE anim instance (will only output retarget pose)
+	EditorController->SourceAnimInstance->ConfigureAnimInstance(ERetargetSourceOrTarget::Source, Asset, nullptr);
+	// configure TARGET anim instance (will output retarget pose AND retarget pose from source skel mesh component)
+	EditorController->TargetAnimInstance->ConfigureAnimInstance(ERetargetSourceOrTarget::Target, Asset, EditorController->SourceSkelMeshComponent);
 
 	EditorController->SourceSkelMeshComponent->PreviewInstance = EditorController->SourceAnimInstance.Get();
 	EditorController->TargetSkelMeshComponent->PreviewInstance = EditorController->TargetAnimInstance.Get();
@@ -361,9 +379,9 @@ void FIKRetargetEditor::SetupAnimInstance()
 
 void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView)
 {
-	EditorController->DetailsView = InDetailsView;
-	EditorController->DetailsView->OnFinishedChangingProperties().AddSP(this, &FIKRetargetEditor::OnFinishedChangingDetails);
-	EditorController->DetailsView->SetObject(EditorController->AssetController->GetAsset());
+	InDetailsView->OnFinishedChangingProperties().AddSP(this, &FIKRetargetEditor::OnFinishedChangingDetails);
+	InDetailsView->SetObject(EditorController->AssetController->GetAsset());
+	EditorController->SetDetailsView(InDetailsView);
 }
 
 void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
@@ -379,13 +397,13 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 	// if no override target mesh has been specified, update the override to reflect the mesh in the ik rig asset
 	if (bTargetIKRigChanged)
 	{
-		AssetController->OnTargetIKRigChanged();
+		AssetController->OnIKRigChanged(ERetargetSourceOrTarget::Target);
 	}
 
 	// if no override source mesh has been specified, update the override to reflect the mesh in the ik rig asset
 	if (bSourceIKRigChanged)
 	{
-		AssetController->OnSourceIKRigChanged();
+		AssetController->OnIKRigChanged(ERetargetSourceOrTarget::Source);
 	}
 
 	// if either IK Rig asset has been modified, rebind and refresh UI
@@ -405,8 +423,8 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 		
 		// set the source and target skeletal meshes on the component
 		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-		USkeletalMesh* SourceMesh = EditorController->GetSourceSkeletalMesh();
-		USkeletalMesh* TargetMesh = EditorController->GetTargetSkeletalMesh();
+		USkeletalMesh* SourceMesh = EditorController->GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+		USkeletalMesh* TargetMesh = EditorController->GetSkeletalMesh(ERetargetSourceOrTarget::Target);
 		EditorController->SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
 		EditorController->TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
 	
@@ -421,7 +439,7 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 	
 		SetupAnimInstance();
 
-		EditorController->RefreshAllViews();
+		AssetController->BroadcastNeedsReinitialized();
 	}
 }
 

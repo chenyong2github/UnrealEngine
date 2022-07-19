@@ -118,45 +118,4 @@ FString UIKRetargetFactory::GetDefaultNewAssetName() const
 	return FString(TEXT("NewIKRetargeter"));
 }
 
-/** Start URetargetPose Factory ...*/
-
-URetargetPoseFactory::URetargetPoseFactory()
-{
-	bCreateNew = true;
-	bEditAfterNew = true;
-	SupportedClass = URetargetPose::StaticClass();
-}
-
-FText URetargetPoseFactory::GetDisplayName() const
-{
-	return LOCTEXT("RetargetPose_DisplayName", "Retarget Pose");
-}
-
-uint32 URetargetPoseFactory::GetMenuCategories() const
-{
-	return EAssetTypeCategories::Animation;
-}
-
-FText URetargetPoseFactory::GetToolTip() const
-{
-	return LOCTEXT("RetargetPose_Tooltip", "Defines a set of bone transform offsets to create a pose for retargeting.");
-}
-
-FString URetargetPoseFactory::GetDefaultNewAssetName() const
-{
-	return FString(TEXT("NewRetargetPose"));
-}
-
-UObject* URetargetPoseFactory::FactoryCreateNew(
-	UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags,
-	UObject* Context, FFeedbackContext* Warn)
-{
-	return NewObject<URetargetPose>(InParent, Class, Name, Flags);
-}
-
-bool URetargetPoseFactory::ShouldShowInNewMenu() const
-{
-	return true;
-}
-
 #undef LOCTEXT_NAMESPACE

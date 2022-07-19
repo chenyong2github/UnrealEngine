@@ -37,7 +37,7 @@ class FIKRetargetEditor :
 public:
 
 	FIKRetargetEditor();
-	virtual ~FIKRetargetEditor() override;
+	virtual ~FIKRetargetEditor() override {};
 
 	void InitAssetEditor(
 		const EToolkitMode::Type Mode,

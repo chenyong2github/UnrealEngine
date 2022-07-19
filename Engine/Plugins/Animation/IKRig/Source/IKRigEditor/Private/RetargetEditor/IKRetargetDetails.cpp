@@ -33,7 +33,7 @@ FEulerTransform UIKRetargetBoneDetails::GetTransform(EIKRetargetTransformType Tr
 	}
 
 	// ensure we have a valid skeletal mesh
-	const bool bEditingSource = EditorController->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
+	const bool bEditingSource = EditorController->GetSourceOrTarget() == ERetargetSourceOrTarget::Source;
 	UDebugSkelMeshComponent* Mesh = bEditingSource ? Controller->SourceSkelMeshComponent : Controller->TargetSkelMeshComponent;
 	if (!(Mesh && Mesh->GetSkeletalMesh()))
 	{
@@ -78,8 +78,9 @@ FEulerTransform UIKRetargetBoneDetails::GetTransform(EIKRetargetTransformType Tr
 	case EIKRetargetTransformType::RelativeOffset:
 		{
 			// this is the only stored data we have for bone pose offsets
-			const FRotator LocalRotationDelta = EditorController->AssetController->GetRotationOffsetForRetargetPoseBone(SelectedBone).Rotator();
-			const FVector GlobalTranslationDelta = IsRootBone() ? EditorController->AssetController->GetTranslationOffsetOnRetargetRootBone() : FVector::Zero();
+			const ERetargetSourceOrTarget SourceOrTarget = EditorController->GetSourceOrTarget();
+			const FRotator LocalRotationDelta = EditorController->AssetController->GetRotationOffsetForRetargetPoseBone(SelectedBone, SourceOrTarget).Rotator();
+			const FVector GlobalTranslationDelta = IsRootBone() ? EditorController->AssetController->GetTranslationOffsetOnRetargetRootBone(SourceOrTarget) : FVector::Zero();
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
 
 			if (bLocalSpace)
@@ -280,7 +281,7 @@ void UIKRetargetBoneDetails::OnPasteFromClipboard(
 	};
 
 	FIKRigLogger* Log = nullptr;
-	if (const auto Processor = EditorController->GetRetargetProcessor())
+	if (UIKRetargetProcessor* Processor = EditorController->GetRetargetProcessor())
 	{
 		Log = &Processor->Log;
 	}
@@ -289,6 +290,8 @@ void UIKRetargetBoneDetails::OnPasteFromClipboard(
 	// get the transform of correct type and space
 	const bool bIsRelative = IsComponentRelative(Component, TransformType);
 	FEulerTransform Transform = GetTransform(TransformType, bIsRelative);
+
+	const ERetargetSourceOrTarget SourceOrTarget = EditorController->GetSourceOrTarget();
 
 	// create a transaction on the asset
 	FScopedTransaction Transaction(LOCTEXT("PasteTransform", "Paste Transform"));
@@ -303,7 +306,7 @@ void UIKRetargetBoneDetails::OnPasteFromClipboard(
 			if (Result && ErrorPipe.NumErrors == 0)
 			{
 				Transform.SetLocation(Data);
-				EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(Transform.GetLocation());
+				EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(Transform.GetLocation(), SourceOrTarget);
 			}
 			break;
 		}
@@ -314,7 +317,7 @@ void UIKRetargetBoneDetails::OnPasteFromClipboard(
 			if (Result && ErrorPipe.NumErrors == 0)
 			{
 				Transform.SetRotator(Data);
-				EditorController->AssetController->SetRotationOffsetForRetargetPoseBone(SelectedBone, Transform.GetRotation());
+				EditorController->AssetController->SetRotationOffsetForRetargetPoseBone(SelectedBone, Transform.GetRotation(), SourceOrTarget);
 			}
 			break;
 		}
@@ -378,7 +381,7 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 	}
 
 	// ensure we have a valid skeletal mesh
-	const bool bEditingSource = EditorController->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
+	const bool bEditingSource = EditorController->GetSourceOrTarget() == ERetargetSourceOrTarget::Source;
 	UDebugSkelMeshComponent* Mesh = bEditingSource ? EditorController->SourceSkelMeshComponent : EditorController->TargetSkelMeshComponent;
 	if (!(Mesh && Mesh->GetSkeletalMesh()))
 	{
@@ -393,13 +396,15 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 		return;
 	}
 
+	const ERetargetSourceOrTarget SourceOrTarget = EditorController->GetSourceOrTarget();
+
 	switch(Component)
 	{
 	case ESlateTransformComponent::Location:
 		{
 			const bool bIsTranslationLocal = RelativeOffsetTransformRelative[0];
 			FTransform CurrentGlobalOffset = FTransform::Identity;
-			CurrentGlobalOffset.SetTranslation(AssetController->GetTranslationOffsetOnRetargetRootBone());
+			CurrentGlobalOffset.SetTranslation(AssetController->GetTranslationOffsetOnRetargetRootBone(SourceOrTarget));
 			
 			if (bIsTranslationLocal)
 			{	
@@ -428,14 +433,14 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 			// store the new transform in the retarget pose
 			FScopedTransaction Transaction(LOCTEXT("EditRootTranslation", "Edit Retarget Root Pose Translation"));
 			EditorController->AssetController->GetAsset()->Modify();
-			EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(CurrentGlobalOffset.GetTranslation());
+			EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(CurrentGlobalOffset.GetTranslation(), SourceOrTarget);
 			
 			break;
 		}
 	case ESlateTransformComponent::Rotation:
 		{
 			const bool bIsRotationLocal = RelativeOffsetTransformRelative[1];
-			const FQuat LocalRotationDelta = AssetController->GetRotationOffsetForRetargetPoseBone(SelectedBone);
+			const FQuat LocalRotationDelta = AssetController->GetRotationOffsetForRetargetPoseBone(SelectedBone, SourceOrTarget);
 			FEulerTransform LocalDeltaTransform = FEulerTransform(FVector::ZeroVector, LocalRotationDelta.Rotator(), FVector::OneVector);
 			FQuat NewLocalRotationDelta;
 			
@@ -476,7 +481,7 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 			// store the new rotation in the retarget pose
 			FScopedTransaction Transaction(LOCTEXT("EditRootRotation", "Edit Retarget Pose Rotation"));
 			EditorController->AssetController->GetAsset()->Modify();
-			EditorController->AssetController->SetRotationOffsetForRetargetPoseBone(SelectedBone, NewLocalRotationDelta);
+			EditorController->AssetController->SetRotationOffsetForRetargetPoseBone(SelectedBone, NewLocalRotationDelta, SourceOrTarget);
 			break;
 		}
 	default:
@@ -486,8 +491,7 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 
 bool UIKRetargetBoneDetails::IsRootBone() const
 {
-	const bool bIsSource = EditorController->GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
-	const FName RootBone = bIsSource ? EditorController->AssetController->GetSourceRootBone() :  EditorController->AssetController->GetTargetRootBone();
+	const FName RootBone = EditorController->AssetController->GetRetargetRootBone(EditorController->GetSourceOrTarget());
 	return SelectedBone == RootBone;
 }
 
@@ -551,10 +555,9 @@ void FIKRetargetBoneDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 	const FIKRetargetEditorController& Controller = *Bones[0]->EditorController.Get();
 	const UIKRetargeterController* AssetController = Controller.AssetController;
 	
-	const bool bIsSourceMode = Controller.GetSkeletonMode() == EIKRetargetSkeletonMode::Source;
 	const bool bIsEditingPose = Controller.IsEditingPose();
 
-	const FName CurrentRootName = bIsSourceMode ?AssetController->GetSourceRootBone() : AssetController->GetTargetRootBone();
+	const FName CurrentRootName = AssetController->GetRetargetRootBone(Controller.GetSourceOrTarget());
 	const bool bIsRootSelected =  Bones[0]->SelectedBone == CurrentRootName;
 
 	FIKRetargetTransformUIData UIData;

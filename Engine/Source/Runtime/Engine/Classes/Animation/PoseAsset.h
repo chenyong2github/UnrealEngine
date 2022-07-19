@@ -284,6 +284,9 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// Return full (local space, non additive) pose. Will do conversion if PoseAsset is Additive. 
 	ENGINE_API bool GetFullPose(int32 PoseIndex, TArray<FTransform>& OutTransforms) const;
+	
+	// util to return transform of a bone from the pose asset in component space, by walking up tracks in pose asset */
+	ENGINE_API FTransform GetComponentSpaceTransform(FName TrackName, const TArray<FTransform>& LocalTransforms) const;
 
 	ENGINE_API int32 DeletePoses(TArray<FName> PoseNamesToDelete);
 	ENGINE_API int32 DeleteCurves(TArray<FName> CurveNamesToDelete);

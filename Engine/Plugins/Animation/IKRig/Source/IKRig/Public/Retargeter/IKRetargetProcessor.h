@@ -8,7 +8,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "IKRetargetProcessor.generated.h"
 
-enum class EIKRetargetSkeletonMode : uint8;
+enum class ERetargetTranslationMode : uint8;
+enum class ERetargetRotationMode : uint8;
 class URetargetChainSettings;
 class UIKRigDefinition;
 class UIKRigProcessor;
@@ -80,8 +81,6 @@ struct IKRIG_API FRetargetSkeleton
 	
 	bool IsParentOfChild(const int32 PotentialParentIndex, const int32 ChildBoneIndex) const;
 
-	FQuat GetRetargetPoseDeltaRotation(const FName BoneName, const FIKRetargetPose* InRetargetPose) const;
-
 private:
 	
 	/** One index per-bone. Lazy-filled on request. Stores the last element of the branch below the bone.
@@ -148,21 +147,23 @@ struct FRootTarget
 	float InitialHeight;
 };
 
+struct FRetargetRootSettings
+{
+	float GlobalScaleHorizontal = 1.0f;
+	float GlobalScaleVertical = 1.0f;
+	float BlendToSource = 0.0f;
+	FVector BlendToSourceWeights = FVector::OneVector;
+	FVector StaticOffset = FVector::ZeroVector;
+	FRotator StaticRotationOffset = FRotator::ZeroRotator;
+	
+	void CopySettingsFromAsset(const URetargetRootSettings* AssetRootSettings);
+};
+
 struct FRootRetargeter
 {	
 	FRootSource Source;
-	
 	FRootTarget Target;
-
-	float GlobalScaleHorizontal = 1.0f;
-
-	float GlobalScaleVertical = 1.0f;
-
-	FVector BlendToSource = FVector::ZeroVector;
-
-	FVector StaticOffset = FVector::ZeroVector;
-
-	FRotator StaticRotationOffset = FRotator::ZeroRotator;
+	FRetargetRootSettings Settings;
 
 	void Reset();
 	
@@ -182,7 +183,7 @@ struct FRootRetargeter
 
 	FVector GetGlobalScaleVector() const
 	{
-		return FVector(GlobalScaleHorizontal, GlobalScaleHorizontal, GlobalScaleVertical);
+		return FVector(Settings.GlobalScaleHorizontal, Settings.GlobalScaleHorizontal, Settings.GlobalScaleVertical);
 	}
 };
 
@@ -212,30 +213,7 @@ struct FRetargetChainSettings
 
 public:
 	
-	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings)
-	{
-		TargetChainName = AssetChainSettings->TargetChain;
-
-		CopyPoseUsingFK = AssetChainSettings->CopyPoseUsingFK;
-		RotationMode = AssetChainSettings->RotationMode;
-		RotationAlpha = AssetChainSettings->RotationAlpha;
-		TranslationMode = AssetChainSettings->TranslationMode;
-		TranslationAlpha = AssetChainSettings->TranslationAlpha;
-		
-		DriveIKGoal = AssetChainSettings->DriveIKGoal;
-		Extension = AssetChainSettings->Extension;
-		StaticOffset = AssetChainSettings->StaticOffset;
-		StaticLocalOffset = AssetChainSettings->StaticLocalOffset;
-		StaticRotationOffset = AssetChainSettings->StaticRotationOffset;
-		BlendToSource = AssetChainSettings->BlendToSource;
-		BlendToSourceWeights = AssetChainSettings->BlendToSourceWeights;
-
-		UseSpeedCurveToPlantIK = AssetChainSettings->UseSpeedCurveToPlantIK;
-		UnplantStiffness = AssetChainSettings->UnplantStiffness;
-		UnplantCriticalDamping = AssetChainSettings->UnplantCriticalDamping;
-		SpeedThreshold = AssetChainSettings->VelocityThreshold;
-		SpeedCurveName = AssetChainSettings->SpeedCurveName;
-	};
+	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings);
 };
 
 

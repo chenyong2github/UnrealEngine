@@ -19,7 +19,8 @@ void UIKRetargeter::GetSpeedCurveNames(TArray<FName>& OutSpeedCurveNames) const
 			OutSpeedCurveNames.Add(ChainSetting->SpeedCurveName);
 		}
 	}
-};
+}
+
 #endif
 
 UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
@@ -27,6 +28,8 @@ UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
 {
 	RootSettings = CreateDefaultSubobject<URetargetRootSettings>(TEXT("RootSettings"));
 	RootSettings->SetFlags(RF_Transactional);
+
+	CleanAndInitialize();
 }
 
 void UIKRetargeter::Serialize(FArchive& Ar)
@@ -82,39 +85,93 @@ void UIKRetargeter::PostLoad()
 			TargetMeshScale = TargetActorScale_DEPRECATED;
 		}
 	#endif
+
+
+	// load deprecated retarget poses (pre adding retarget poses for source)
+	if (!RetargetPoses_DEPRECATED.IsEmpty())
+	{
+		TargetRetargetPoses = RetargetPoses_DEPRECATED;
+		RetargetPoses_DEPRECATED.Empty();
+	}
+
+	// load deprecated current retarget pose (pre adding retarget poses for source)
+	if (CurrentRetargetPose_DEPRECATED != NAME_None)
+	{
+		CurrentTargetRetargetPose = CurrentRetargetPose_DEPRECATED;
+		CurrentRetargetPose_DEPRECATED = NAME_None;
+	}
 	
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	CleanAndInitialize();
+}
+
+void UIKRetargeter::CleanAndInitialize()
+{
 	// remove null settings
 	ChainSettings.Remove(nullptr);
 
-	// ensure current pose is valid
-	if (!RetargetPoses.Contains(CurrentRetargetPose))
+	// use default pose as current pose unless set to something else
+	if (CurrentSourceRetargetPose == NAME_None)
 	{
-		CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
+		CurrentSourceRetargetPose = GetDefaultPoseName();
 	}
+	if (CurrentTargetRetargetPose == NAME_None)
+	{
+		CurrentTargetRetargetPose = GetDefaultPoseName();
+	}
+
+	// enforce the existence of a default pose
+	if (!SourceRetargetPoses.Contains(GetDefaultPoseName()))
+	{
+		SourceRetargetPoses.Emplace(GetDefaultPoseName());
+	}
+	if (!TargetRetargetPoses.Contains(GetDefaultPoseName()))
+	{
+		TargetRetargetPoses.Emplace(GetDefaultPoseName());
+	}
+
+	// ensure current pose exists, otherwise set it to the default pose
+	if (!SourceRetargetPoses.Contains(CurrentSourceRetargetPose))
+	{
+		CurrentSourceRetargetPose = GetDefaultPoseName();
+	}
+	if (!TargetRetargetPoses.Contains(CurrentTargetRetargetPose))
+	{
+		CurrentTargetRetargetPose = GetDefaultPoseName();
+	}
+};
+
+FQuat FIKRetargetPose::GetDeltaRotationForBone(const FName BoneName) const
+{
+	const FQuat* BoneRotationOffset = BoneRotationOffsets.Find(BoneName);
+	return BoneRotationOffset != nullptr ? *BoneRotationOffset : FQuat::Identity;
 }
 
-void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta, const FIKRigSkeleton& Skeleton)
+void FIKRetargetPose::SetDeltaRotationForBone(FName BoneName, FQuat RotationDelta)
 {
 	FQuat* RotOffset = BoneRotationOffsets.Find(BoneName);
 	if (RotOffset == nullptr)
 	{
 		// first time this bone has been modified in this pose
 		BoneRotationOffsets.Emplace(BoneName, RotationDelta);
-		SortHierarchically(Skeleton);
 		return;
 	}
 
 	*RotOffset = RotationDelta;
 }
 
-void FIKRetargetPose::SetRootTranslationDelta(FVector TranslationDelta)
+FVector FIKRetargetPose::GetRootTranslationDelta() const
+{
+	return RootTranslationOffset;
+}
+
+void FIKRetargetPose::SetRootTranslationDelta(const FVector& TranslationDelta)
 {
 	RootTranslationOffset = TranslationDelta;
 }
 
-void FIKRetargetPose::AddToRootTranslationDelta(FVector TranslateDelta)
+void FIKRetargetPose::AddToRootTranslationDelta(const FVector& TranslateDelta)
 {
 	RootTranslationOffset += TranslateDelta;
 }
@@ -127,6 +184,11 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 	{
 		return Skeleton.GetBoneIndexFromName(A) > Skeleton.GetBoneIndexFromName(B);
 	});
+}
+
+const FIKRetargetPose* UIKRetargeter::GetCurrentRetargetPose(const ERetargetSourceOrTarget& SourceOrTarget) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? &SourceRetargetPoses[CurrentSourceRetargetPose] : &TargetRetargetPoses[CurrentTargetRetargetPose];
 }
 
 const FName UIKRetargeter::GetDefaultPoseName()

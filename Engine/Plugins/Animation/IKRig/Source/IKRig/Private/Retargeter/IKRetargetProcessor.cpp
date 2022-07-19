@@ -86,14 +86,14 @@ void FRetargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPo
 	if (RootBoneIndex != INDEX_NONE)
 	{
 		FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
-		RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
+		RootTransform.AddToTranslation(InRetargetPose->GetRootTranslationDelta());
 		UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
 	}
 
 	// apply bone rotation offsets
-	for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
+	for (const TTuple<FName, FQuat>& BoneDelta : InRetargetPose->GetAllDeltaRotations())
 	{
-		const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
+		const int32 BoneIndex = FindBoneIndexByName(BoneDelta.Key);
 		if (BoneIndex == INDEX_NONE)
 		{
 			// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
@@ -101,27 +101,11 @@ void FRetargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPo
 			continue;
 		}
 
-		const FQuat DeltaRotation = GetRetargetPoseDeltaRotation(BoneRotationOffset.Key, InRetargetPose);
-		const FQuat LocalBoneRotation = RefPoseLocal[BoneIndex].GetRotation() * DeltaRotation;
+		const FQuat LocalBoneRotation = RefPoseLocal[BoneIndex].GetRotation() * BoneDelta.Value;
 		RetargetLocalPose[BoneIndex].SetRotation(LocalBoneRotation);
 	}
 
 	UpdateGlobalTransformsBelowBone(-1, RetargetLocalPose, RetargetGlobalPose);
-}
-
-FQuat FRetargetSkeleton::GetRetargetPoseDeltaRotation(const FName BoneName, const FIKRetargetPose* InRetargetPose) const
-{
-	const int32 BoneIndex = FindBoneIndexByName(BoneName);
-	check(BoneIndex!=INDEX_NONE)
-	check(InRetargetPose)
-	
-	if (const FQuat* BoneRotationOffset = InRetargetPose->BoneRotationOffsets.Find(BoneNames[BoneIndex]))
-	{
-		return *BoneRotationOffset;
-
-	}
-
-	return FQuat::Identity;
 }
 
 int32 FRetargetSkeleton::FindBoneIndexByName(const FName InName) const
@@ -398,6 +382,31 @@ void FTargetSkeleton::SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRe
 	check(IsBoneRetargeted.IsValidIndex(BoneIndex));
 	IsBoneRetargeted[BoneIndex] = IsRetargeted;
 }
+
+void FRetargetChainSettings::CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings)
+{
+	TargetChainName = AssetChainSettings->TargetChain;
+
+	CopyPoseUsingFK = AssetChainSettings->CopyPoseUsingFK;
+	RotationMode = AssetChainSettings->RotationMode;
+	RotationAlpha = AssetChainSettings->RotationAlpha;
+	TranslationMode = AssetChainSettings->TranslationMode;
+	TranslationAlpha = AssetChainSettings->TranslationAlpha;
+		
+	DriveIKGoal = AssetChainSettings->DriveIKGoal;
+	Extension = AssetChainSettings->Extension;
+	StaticOffset = AssetChainSettings->StaticOffset;
+	StaticLocalOffset = AssetChainSettings->StaticLocalOffset;
+	StaticRotationOffset = AssetChainSettings->StaticRotationOffset;
+	BlendToSource = AssetChainSettings->BlendToSource;
+	BlendToSourceWeights = AssetChainSettings->BlendToSourceWeights;
+
+	UseSpeedCurveToPlantIK = AssetChainSettings->UseSpeedCurveToPlantIK;
+	UnplantStiffness = AssetChainSettings->UnplantStiffness;
+	UnplantCriticalDamping = AssetChainSettings->UnplantCriticalDamping;
+	SpeedThreshold = AssetChainSettings->VelocityThreshold;
+	SpeedCurveName = AssetChainSettings->SpeedCurveName;
+};
 
 bool FChainFK::Initialize(
 	const FRetargetSkeleton& Skeleton,
@@ -1222,6 +1231,16 @@ bool FRootRetargeter::InitializeTarget(
 	return true;
 }
 
+void FRetargetRootSettings::CopySettingsFromAsset(const URetargetRootSettings* AssetRootSettings)
+{
+	GlobalScaleHorizontal = AssetRootSettings->GlobalScaleHorizontal;
+	GlobalScaleVertical = AssetRootSettings->GlobalScaleVertical;
+	BlendToSource = AssetRootSettings->BlendToSource;
+	BlendToSourceWeights = AssetRootSettings->BlendToSourceWeights;
+	StaticOffset = AssetRootSettings->StaticOffset;
+	StaticRotationOffset = AssetRootSettings->StaticRotationOffset;
+}
+
 void FRootRetargeter::Reset()
 {
 	Source = FRootSource();
@@ -1240,21 +1259,21 @@ void FRootRetargeter::DecodePose(TArray<FTransform>& OutTargetGlobalPose) const
 {
 	// scale normalized position by root height
 	FVector RetargetedPosition = Source.CurrentPositionNormalized * Target.InitialHeight;// * GlobalScaleVertical;
-	RetargetedPosition.Z *= GlobalScaleVertical;
+	RetargetedPosition.Z *= Settings.GlobalScaleVertical;
 	// globally scale offset of root
-	const FVector RootOffset = (RetargetedPosition - Target.InitialPosition) * FVector(GlobalScaleHorizontal, GlobalScaleHorizontal, 1.0f);
+	const FVector RootOffset = (RetargetedPosition - Target.InitialPosition) * FVector(Settings.GlobalScaleHorizontal, Settings.GlobalScaleHorizontal, 1.0f);
 	RetargetedPosition = Target.InitialPosition + RootOffset;
 	// blend the retarget root position towards the source retarget root position
-	FVector Position = FMath::Lerp(RetargetedPosition, Source.CurrentPosition, BlendToSource);
+	FVector Position = FMath::Lerp(RetargetedPosition, Source.CurrentPosition, Settings.BlendToSource*Settings.BlendToSourceWeights);
 	// apply a static offset
-	Position += StaticOffset;
+	Position += Settings.StaticOffset;
 
 	// calc offset between initial source/target root rotations
 	const FQuat RotationDelta = Source.CurrentRotation * Source.InitialRotation.Inverse();
 	// add retarget pose delta to the current source rotation
 	FQuat Rotation = RotationDelta * Target.InitialRotation;
 	// add static rotation offset
-	Rotation = StaticRotationOffset.Quaternion() * Rotation;
+	Rotation = Settings.StaticRotationOffset.Quaternion() * Rotation;
 
 	// apply to target
 	FTransform& TargetRootTransform = OutTargetGlobalPose[Target.BoneIndex];
@@ -1287,6 +1306,9 @@ void UIKRetargetProcessor::Initialize(
 	ChainPairsIK.Reset();
 	RootRetargeter.Reset();
 
+	const UIKRigDefinition* SourceIKRig = RetargeterAsset->GetSourceIKRig();
+	const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig();
+
 	// check prerequisite assets
 	if (!SourceSkeletalMesh)
 	{
@@ -1298,17 +1320,17 @@ void UIKRetargetProcessor::Initialize(
 		Log.LogError(LOCTEXT("MissingTargetMesh", "IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
 		return;
 	}
-	if (!RetargeterAsset->GetSourceIKRig())
+	if (!SourceIKRig)
 	{
 		Log.LogError(LOCTEXT("MissingSourceIKRig", "IK Retargeter unable to initialize. Missing source IK Rig asset."));
 		return;
 	}
-	if (!RetargeterAsset->GetTargetIKRig())
+	if (!TargetIKRig)
 	{
 		Log.LogError(LOCTEXT("MissingTargetIKRig", "IK Retargeter unable to initialize. Missing target IK Rig asset."));
 		return;
 	}
-	if (!RetargeterAsset->GetCurrentRetargetPose())
+	if (!RetargeterAsset->GetCurrentRetargetPose(ERetargetSourceOrTarget::Target))
 	{
 		Log.LogError(LOCTEXT("MissingRetargetPose", "IK Retargeter unable to initialize. Missing retarget pose."));
 		return;
@@ -1317,14 +1339,14 @@ void UIKRetargetProcessor::Initialize(
 	// initialize skeleton data for source and target
 	SourceSkeleton.Initialize(
 		SourceSkeletalMesh,
-		RetargeterAsset->GetSourceIKRig()->GetRetargetChains(),
-		nullptr,
-		NAME_None);
+		SourceIKRig->GetRetargetChains(),
+		RetargeterAsset->GetCurrentRetargetPose(ERetargetSourceOrTarget::Source),
+		SourceIKRig->GetRetargetRoot());
 	TargetSkeleton.Initialize(
 		TargetSkeletalMesh,
-		RetargeterAsset->GetTargetIKRig()->GetRetargetChains(),
-		RetargeterAsset->GetCurrentRetargetPose(),
-		RetargeterAsset->GetTargetIKRig()->GetRetargetRoot());
+		TargetIKRig->GetRetargetChains(),
+		RetargeterAsset->GetCurrentRetargetPose(ERetargetSourceOrTarget::Target),
+		TargetIKRig->GetRetargetRoot());
 
 	// initialize roots
 	bRootsInitialized = InitializeRoots();
@@ -1336,7 +1358,7 @@ void UIKRetargetProcessor::Initialize(
 		// couldn't match up any BoneChain pairs, no limb retargeting possible
 		Log.LogWarning( FText::Format(
 			LOCTEXT("NoMappedChains", "IK Retargeter unable to map any bone chains between source, {0} and target, {1}"),
-			FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
+			FText::FromString(SourceSkeletalMesh->GetName()), FText::FromString(TargetSkeletalMesh->GetName())));
 	}
 
 	// initialize the IKRigProcessor for doing IK decoding
@@ -1346,7 +1368,7 @@ void UIKRetargetProcessor::Initialize(
 		// couldn't initialize the IK Rig, we don't disable the retargeter in this case, just warn the user
 		Log.LogWarning( FText::Format(
 			LOCTEXT("CouldNotInitializeIKRig", "IK Retargeter was unable to initialize the IK Rig, {0} for the Skeletal Mesh {1}. See previous warnings."),
-			FText::FromString(RetargeterAsset->GetTargetIKRig()->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
+			FText::FromString(TargetIKRig->GetName()), FText::FromString(TargetSkeletalMesh->GetName())));
 	}
 
 	// must have a mapped root bone OR at least a single mapped chain to be able to do any retargeting at all
@@ -1355,7 +1377,7 @@ void UIKRetargetProcessor::Initialize(
 		// confirm for the user that the IK Rig was initialized successfully
 		Log.LogInfo(FText::Format(
 				LOCTEXT("SuccessfulInit", "Success! The IK Retargeter is ready to transfer animation from the source, {0} to the target, {1}"),
-				FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
+				FText::FromString(SourceSkeletalMesh->GetName()), FText::FromString(TargetSkeletalMesh->GetName())));
 	}
 	
 	bIsInitialized = true;
@@ -1363,6 +1385,9 @@ void UIKRetargetProcessor::Initialize(
 
 bool UIKRetargetProcessor::InitializeRoots()
 {
+	// copy the retarget root settings
+	RootRetargeter.Settings.CopySettingsFromAsset(RetargeterAsset->GetRetargetRootSettings());
+	
 	// initialize root encoder
 	const FName SourceRootBoneName = RetargeterAsset->GetSourceIKRig()->GetRetargetRoot();
 	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton, Log);
@@ -1517,21 +1542,7 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(
 	const float DeltaTime)
 {
 	check(bIsInitialized);
-
-#if WITH_EDITOR
-	// in edit mode we just want to see the edited reference pose, not actually run the retargeting
-	// as long as the retargeter is reinitialized after every modification to the limb rotation offsets,
-	// then the TargetSkeleton.RetargetGlobalPose will contain the updated retarget pose.
-	const ERetargeterOutputMode CurrentMode = RetargeterAsset->GetOutputMode();
-	const bool bOutputRetargetPose = CurrentMode == ERetargeterOutputMode::EditRetargetPose || CurrentMode == ERetargeterOutputMode::ShowRetargetPose;
-	if (bOutputRetargetPose && RetargeterAsset->GetTargetIKRig())
-	{
-		const FName RootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
-		TargetSkeleton.GenerateRetargetPose(RetargeterAsset->GetCurrentRetargetPose(), RootBoneName);
-		return TargetSkeleton.RetargetGlobalPose; 
-	}
-#endif
-
+	
 	// start from retarget pose
 	TargetSkeleton.OutputGlobalPose = TargetSkeleton.RetargetGlobalPose;
 
@@ -1686,13 +1697,10 @@ void UIKRetargetProcessor::SetNeedsInitialized()
 
 void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 {
-	const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig();
-	if (!TargetIKRig)
+	if (const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig())
 	{
-		return;
+		IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(TargetIKRig);
 	}
-	
-	IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(TargetIKRig);
 
 	// copy most recent settings from asset for each chain
 	const TArray<TObjectPtr<URetargetChainSettings>>& AllChainSettings = RetargeterAsset->GetAllChainSettings();
@@ -1716,12 +1724,7 @@ void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 	}
 
 	// copy root settings
-	const URetargetRootSettings& RootSettings = *RetargeterAsset->GetRetargetRootSettings();
-	RootRetargeter.GlobalScaleHorizontal = RootSettings.GlobalScaleHorizontal;
-	RootRetargeter.GlobalScaleVertical = RootSettings.GlobalScaleVertical;
-	RootRetargeter.BlendToSource = RootSettings.BlendToSource;
-	RootRetargeter.StaticOffset = RootSettings.StaticOffset;
-	RootRetargeter.StaticRotationOffset = RootSettings.StaticRotationOffset;
+	RootRetargeter.Settings.CopySettingsFromAsset(RetargeterAsset->GetRetargetRootSettings());
 }
 
 bool UIKRetargetProcessor::IsBoneRetargeted(

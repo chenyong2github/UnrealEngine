@@ -2,16 +2,15 @@
 #pragma once
 
 #include "IKRetargetDetails.h"
-#include "IKRetargeterController.h"
+#include "IKRetargetPoseExporter.h"
 #include "IPersonaToolkit.h"
 #include "SIKRetargetAssetBrowser.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "Input/Reply.h"
-#include "Retargeter/IKRetargetProcessor.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SWindow.h"
 
+enum class ERetargetSourceOrTarget : uint8;
 class SIKRetargetHierarchy;
 class SIKRigOutputLog;
 class UIKRetargetProcessor;
@@ -20,33 +19,32 @@ class UIKRetargetAnimInstance;
 class FIKRetargetEditor;
 class UDebugSkelMeshComponent;
 class UIKRigDefinition;
+class UIKRetargeterController;
+class UIKRetargetBoneDetails;
+struct FRetargetSkeleton;
 
-// which skeleton are we editing/viewing?
-enum class EIKRetargetSkeletonMode : uint8
+
+// retarget editor modes
+enum class ERetargeterOutputMode : uint8
 {
-	/** Editing / viewing the SOURCE skeleton (copy FROM) */
-	Source,
-
-	/** Editing / viewing the TARGET skeleton (copy TO) */
-	Target,
+	RunRetarget,		// output the retargeted target pose
+	ShowRetargetPose,	// output the retarget pose for viewing purposes
+	EditRetargetPose,	// allow editing the retarget pose
 };
 
 enum class EBoneSelectionEdit : uint8
 {
-	/** add to selection set */
-	Add,
-
-	/** remove from selection */
-	Remove,
-
-	/** replace selection entirely*/
-	Replace
+	Add,	// add to selection set
+	Remove,	// remove from selection
+	Replace	// replace selection entirely
 };
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
 class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>, FGCObject
 {
 public:
+
+	virtual ~FIKRetargetEditorController() override {};
 
 	/** Initialize the editor */
 	void Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset);
@@ -62,7 +60,7 @@ public:
 	void OnRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const;
 	
 	/** all modifications to the data model should go through this controller */
-	UIKRetargeterController* AssetController;
+	TObjectPtr<UIKRetargeterController> AssetController;
 
 	/** Preview scene to be supplied by IHasPersonaToolkit::GetPersonaToolkit */
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
@@ -70,39 +68,46 @@ public:
 	/** the persona toolkit */
 	TWeakPtr<FIKRetargetEditor> Editor;
 
+	/** import / export retarget poses */
+	TSharedPtr<FIKRetargetPoseExporter> PoseExporter;
+
 	/** viewport skeletal mesh */
+	UDebugSkelMeshComponent* GetSkeletalMeshComponent(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	UDebugSkelMeshComponent* SourceSkelMeshComponent;
 	UDebugSkelMeshComponent* TargetSkelMeshComponent;
 
 	/** viewport anim instance */
+	UIKRetargetAnimInstance* GetAnimInstance(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	UPROPERTY(transient, NonTransactional)
-	TWeakObjectPtr<class UAnimPreviewInstance> SourceAnimInstance;
+	TWeakObjectPtr<class UIKRetargetAnimInstance> SourceAnimInstance;
 	UPROPERTY(transient, NonTransactional)
 	TWeakObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
-
-	/** asset properties tab */
-	TSharedPtr<IDetailsView> DetailsView;
-	/** chain list view */
-	TSharedPtr<SIKRetargetChainMapList> ChainsView;
-	/** asset browser view */
-	TSharedPtr<SIKRetargetAssetBrowser> AssetBrowserView;
-	/** output log view */
-	TSharedPtr<SIKRigOutputLog> OutputLogView;
-	/** hierarchy view */
-	TSharedPtr<SIKRetargetHierarchy> HierarchyView;
-	/** clear the output log */
-	void ClearOutputLog() const;
+	
+	/** store pointers to various tabs of UI,
+	 * have to manage access to these because they can be null if the tabs are closed */
+	void SetDetailsView(TSharedPtr<IDetailsView> InDetailsView) { DetailsView = InDetailsView; };
+	void SetChainsView(TSharedPtr<SIKRetargetChainMapList> InChainsView) { ChainsView = InChainsView; };
+	void SetAssetBrowserView(TSharedPtr<SIKRetargetAssetBrowser> InAssetBrowserView) { AssetBrowserView = InAssetBrowserView; };
+	void SetOutputLogView(TSharedPtr<SIKRigOutputLog> InOutputLogView) { OutputLogView = InOutputLogView; };
+	void SetHierarchyView(TSharedPtr<SIKRetargetHierarchy> InHierarchyView) { HierarchyView = InHierarchyView; };
+	
 	/** force refresh all views in the editor */
 	void RefreshAllViews() const;
+	void RefreshDetailsView() const;
+	void RefreshChainsView() const;
+	void RefreshAssetBrowserView() const;
+	void RefreshHierarchyView() const;
+	void RefreshPoseList() const;
+	void SetDetailsObject(UObject* DetailsObject) const;
+	void SetDetailsObjects(const TArray<UObject*>& DetailsObjects) const;
 
-	/** get the source skeletal mesh we are copying FROM */
-	USkeletalMesh* GetSourceSkeletalMesh() const;
-	/** get the target skeletal mesh we are copying TO */
-	USkeletalMesh* GetTargetSkeletalMesh() const;
-	/** get the source skeleton asset */
-	const USkeleton* GetSourceSkeleton() const;
-	/** get the target skeleton asset */
-	const USkeleton* GetTargetSkeleton() const;
+	/** clear the output log */
+	void ClearOutputLog() const;
+
+	/** get the USkeletalMesh we are transferring animation between (either source or target)*/
+	USkeletalMesh* GetSkeletalMesh(const ERetargetSourceOrTarget SourceOrTarget) const;
+	/** get the USkeleton we are transferring animation between (either source or target)*/
+	const USkeleton* GetSkeleton(const ERetargetSourceOrTarget SourceOrTarget) const;
 	/** get currently edited debug skeletal mesh */
 	UDebugSkelMeshComponent* GetEditedSkeletalMesh() const;
 	/** get the currently edited retarget skeleton */
@@ -110,7 +115,7 @@ public:
 	
 	/** get world space pose of a bone (with component scale / offset applied) */
 	FTransform GetGlobalRetargetPoseOfBone(
-		const FRetargetSkeleton& Skeleton,
+		const ERetargetSourceOrTarget SourceOrTarget,
 		const int32& BoneIndex,
 		const float& Scale,
 		const FVector& Offset) const;
@@ -133,17 +138,24 @@ public:
 
 	/** Sequence Browser**/
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
+	void PausePlayback();
+	void ResumePlayback();
+	UAnimationAsset* AnimThatWasPlaying = nullptr;
+	float TimeWhenPaused = 0.0f;
+	bool bWasPlayingAnim = false;
 	/** END Sequence Browser */
 
 	/** Set viewport / editor tool mode */
 	void SetRetargeterMode(ERetargeterOutputMode Mode);
-	UAnimationAsset* AnimThatWasPlaying = nullptr;
-	bool bWasPlayingAnim = false;
+	ERetargeterOutputMode GetRetargeterMode() const { return OutputMode; }
+	ERetargeterOutputMode PreviousMode;
+	float GetRetargetPoseAmount() const;
+	void SetRetargetPoseAmount(float InValue);
 	/** END viewport / editor tool mode */
 	
 	/** general editor mode can be either viewing/editing source or target */
-	EIKRetargetSkeletonMode GetSkeletonMode() const { return SkeletonMode; };
-	void SetSkeletonMode(EIKRetargetSkeletonMode Mode);
+	ERetargetSourceOrTarget GetSourceOrTarget() const { return CurrentlyEditingSourceOrTarget; };
+	void SetSourceOrTargetMode(ERetargetSourceOrTarget SourceOrTarget);
 
 	/** bone selection management (viewport or hierarchy view) */
 	void EditBoneSelection(
@@ -158,9 +170,9 @@ public:
 	void AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const;
 
 	/** determine if bone in the specified skeleton is part of the retarget (in a mapped chain) */
-	bool IsBoneRetargeted(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const;
+	bool IsBoneRetargeted(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const;
 	/** get the name of the chain that contains this bone */
-	FName GetChainNameFromBone(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const;
+	FName GetChainNameFromBone(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const;
 
 	/** factory to get/create bone details object */
 	TObjectPtr<UIKRetargetBoneDetails> GetDetailsObjectForBone(const FName& BoneName);
@@ -168,7 +180,9 @@ public:
 	/* START RETARGET POSES */
 	
 	/** go to retarget pose */
-	void HandleGoToRetargetPose();
+	FReply HandleShowRetargetPose();
+	bool CanShowRetargetPose() const;
+	bool IsShowingRetargetPose() const;
 	
 	/** toggle current retarget pose */
 	TArray<TSharedPtr<FName>> PoseNames;
@@ -184,7 +198,6 @@ public:
 	void HandleResetAllBones() const;
 	void HandleResetSelectedBones() const;
 	void HandleResetSelectedAndChildrenBones() const;
-	bool CanResetPose() const;
 	bool CanResetSelected() const;
 
 	/** create new retarget pose */
@@ -198,28 +211,8 @@ public:
 	void HandleDuplicatePose();
 	FReply CreateDuplicatePose() const;
 
-	/** import retarget pose from asset*/
-	void HandleImportPose();
-	FReply ImportRetargetPose() const;
-	void OnRetargetPoseSelected(const FAssetData& SelectedAsset);
-	FSoftObjectPath RetargetPoseToImport;
-	TSharedPtr<SWindow> ImportPoseWindow;
-
-	/** import retarget pose from animation sequence*/
-	void HandleImportPoseFromSequence();
-	bool OnShouldFilterSequenceToImport(const struct FAssetData& AssetData) const;
-	FReply OnImportPoseFromSequence();
-	void OnSequenceSelectedForPose(const FAssetData& SelectedAsset);
-	TSharedPtr<SWindow> ImportPoseFromSequenceWindow;
-	FSoftObjectPath SequenceToImportAsPose;
-	int32 FrameOfSequenceToImport;
-	FText ImportedPoseName;
-
-	/** export retarget pose to asset*/
-	void HandleExportPose();
-
 	/** delete retarget pose */
-	void HandleDeletePose() const;
+	void HandleDeletePose();
 	bool CanDeletePose() const;
 
 	/** rename retarget pose */
@@ -232,20 +225,30 @@ public:
 	/* END RETARGET POSES */
 
 	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
-	{
-		for (TTuple<FName, TObjectPtr<UIKRetargetBoneDetails>> Pair : AllBoneDetails)
-		{
-			Collector.AddReferencedObject(Pair.Value);
-		}
-	};
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("Retarget Editor"); };
 	/** END FGCObject interface */
 
 private:
+
+	/** asset properties tab */
+	TSharedPtr<IDetailsView> DetailsView;
+	/** chain list view */
+	TSharedPtr<SIKRetargetChainMapList> ChainsView;
+	/** asset browser view */
+	TSharedPtr<SIKRetargetAssetBrowser> AssetBrowserView;
+	/** output log view */
+	TSharedPtr<SIKRigOutputLog> OutputLogView;
+	/** hierarchy view */
+	TSharedPtr<SIKRetargetHierarchy> HierarchyView;
+
+	/** the current output mode of the retargeter */
+	ERetargeterOutputMode OutputMode;
+	/** slider value to blend between reference pose and retarget pose */
+	float RetargetPosePreviewBlend = 1.0f;
 	
 	/** which skeleton are we editing / viewing? */
-	EIKRetargetSkeletonMode SkeletonMode;
+	ERetargetSourceOrTarget CurrentlyEditingSourceOrTarget;
 
 	/** current selection set */
 	TArray<FName> SelectedBones;

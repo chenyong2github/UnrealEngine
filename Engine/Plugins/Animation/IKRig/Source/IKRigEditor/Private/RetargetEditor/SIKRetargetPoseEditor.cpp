@@ -6,6 +6,8 @@
 #include "RetargetEditor/IKRetargetEditor.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
+#include "Widgets/Layout/SSeparator.h"
+
 #define LOCTEXT_NAMESPACE "SIKRetargetPoseEditor"
 
 void SIKRetargetPoseEditor::Construct(
@@ -13,54 +15,126 @@ void SIKRetargetPoseEditor::Construct(
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	
-	// fill list of pose names
-	PoseNames.Reset();
-	for (const TTuple<FName, FIKRetargetPose>& Pose : EditorController.Pin()->AssetController->GetRetargetPoses())
-	{
-		PoseNames.Add(MakeShareable(new FName(Pose.Key)));
-	}
+
+	// the editor controller
+	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
 
 	// the commands for the menus
-	TSharedPtr<FUICommandList> Commands = EditorController.Pin()->Editor.Pin()->GetToolkitCommands();
+	TSharedPtr<FUICommandList> Commands = Controller->Editor.Pin()->GetToolkitCommands();
+	
+	// build the list of poses
+	Refresh();
 	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 
+		// poses
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
 		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
-
-			// add pose selection label
-			+SHorizontalBox::Slot()
-			.Padding(2.0f)
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
+			SNew(SBox)
+			.HAlign(HAlign_Center)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("CurrentPose", "Current Retarget Pose:"))
-			]
-
-			// add pose selection combo box
-			+SHorizontalBox::Slot()
-			.Padding(2.0f)
-			[
-				SNew(SComboBox<TSharedPtr<FName>>)
-				.OptionsSource(&PoseNames)
-				.OnGenerateWidget_Lambda([](TSharedPtr<FName> InItem)
-				{
-					return SNew(STextBlock).Text(FText::FromName(*InItem.Get()));
-				})
-				.OnSelectionChanged(EditorController.Pin().Get(), &FIKRetargetEditorController::OnPoseSelected)
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.Padding(4,0)
 				[
-					SNew(STextBlock).Text(EditorController.Pin().Get(), &FIKRetargetEditorController::GetCurrentPoseName)
+					SNew(SVerticalBox)
+
+					// add pose selection label and combobox
+					+SVerticalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(4,0)
+					[
+						SNew(STextBlock).MinDesiredWidth(180).Text(LOCTEXT("CurrentPose", "Current Retarget Pose:"))
+					]
+						
+					// pose selection combobox
+					+SVerticalBox::Slot()
+					[
+						SNew(SComboBox<TSharedPtr<FName>>)
+						.OptionsSource(&PoseNames)
+						.OnGenerateWidget_Lambda([](TSharedPtr<FName> InItem)
+						{
+							return SNew(STextBlock).Text(FText::FromName(*InItem.Get()));
+						})
+						.OnSelectionChanged(Controller, &FIKRetargetEditorController::OnPoseSelected)
+						.Content()
+						[
+							SNew(STextBlock).Text(Controller, &FIKRetargetEditorController::GetCurrentPoseName)
+						]
+					]
 				]
-			]
+
+				+SHorizontalBox::Slot()
+				.Padding(4,0)
+				[
+					SNew(SVerticalBox)
+
+					// show retarget pose / run retarget
+					+SVerticalBox::Slot()
+					.Padding(0,4)
+					[
+						SNew(SButton)
+						.OnClicked(Controller, &FIKRetargetEditorController::HandleShowRetargetPose)
+						.IsEnabled_Lambda([Controller]
+						{
+							return Controller->GetRetargeterMode() != ERetargeterOutputMode::EditRetargetPose;
+						})
+						.Content()
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.HAlign(HAlign_Left)
+							[
+								SNew(SImage)
+								.Image_Lambda([Controller]() -> const FSlateBrush*
+								{
+									if (Controller->GetRetargeterMode() == ERetargeterOutputMode::RunRetarget)
+									{
+										return FAppStyle::GetBrush("GenericPause");
+									}
+									return FAppStyle::GetBrush("GenericPlay");
+								})
+								.ColorAndOpacity(FSlateColor::UseForeground())
+							]
+				
+							+SHorizontalBox::Slot()
+							.HAlign(HAlign_Right)
+							.Padding(4,0)
+							[
+								SNew(STextBlock)
+								.ToolTipText(LOCTEXT("BlendPoseToolTip", "Pause playback and show the retarget pose. Use slider below to blend between reference pose (0) and retarget pose (1)."))
+								.Text_Lambda([Controller]() -> const FText
+								{
+									if (Controller->GetRetargeterMode() == ERetargeterOutputMode::RunRetarget)
+									{
+										return LOCTEXT("ShowPoseText", "Show Retarget Pose");
+									}
+									return LOCTEXT("RunRetargetText", "Run Retargeter");
+								})
+							]
+						]
+					]
+
+					// blend retarget pose slider
+					+SVerticalBox::Slot()
+					[
+						SNew(SSpinBox<float>)
+						.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
+						.MinValue(0.0f)
+						.MaxValue(1.0f)
+						.Value(Controller, &FIKRetargetEditorController::GetRetargetPoseAmount)
+						.OnValueChanged(Controller, &FIKRetargetEditorController::SetRetargetPoseAmount)
+					]
+				]
+			]	
 		]
 
+		// pose editing toolbar
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
 		.AutoHeight()
@@ -74,6 +148,20 @@ void SIKRetargetPoseEditor::Construct(
 			]
 		]
 	];
+}
+
+void SIKRetargetPoseEditor::Refresh()
+{
+	// get the retarget poses from the editor controller
+	const FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+	const TMap<FName, FIKRetargetPose>& RetargetPoses = Controller->AssetController->GetRetargetPoses(Controller->GetSourceOrTarget());
+
+	// fill list of pose names
+	PoseNames.Reset();
+	for (const TTuple<FName, FIKRetargetPose>& Pose : RetargetPoses)
+	{
+		PoseNames.Add(MakeShareable(new FName(Pose.Key)));
+	}
 }
 
 TSharedRef<SWidget>  SIKRetargetPoseEditor::MakeToolbar(TSharedPtr<FUICommandList> Commands)

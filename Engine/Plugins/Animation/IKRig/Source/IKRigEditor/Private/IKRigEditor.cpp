@@ -10,7 +10,6 @@
 #include "IKRigDefinition.h"
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
-#include "RetargetEditor/AssetTypeActions_RetargetPose.h"
 #include "RetargetEditor/IKRetargetCommands.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetDetails.h"
@@ -42,9 +41,6 @@ void FIKRigEditor::StartupModule()
 	//
 	IKRetargeterAssetAction = MakeShareable(new FAssetTypeActions_IKRetargeter);
 	ToolsModule.RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
-	//
-	RetargetPoseAssetAction = MakeShareable(new FAssetTypeActions_RetargetPose);
-	ToolsModule.RegisterAssetTypeActions(RetargetPoseAssetAction.ToSharedRef());
 
 	// extend the content browser menu
 	FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu();
@@ -90,11 +86,6 @@ void FIKRigEditor::ShutdownModule()
 		if (IKRetargeterAssetAction.IsValid())
 		{
 			ToolsModule.UnregisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
-		}
-		
-		if (RetargetPoseAssetAction.IsValid())
-		{
-			ToolsModule.UnregisterAssetTypeActions(RetargetPoseAssetAction.ToSharedRef());
 		}
 	}
 }

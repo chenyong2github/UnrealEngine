@@ -14,16 +14,15 @@ public:
 	
 	FIKRetargetEditorStyle() : FSlateStyleSet("IKRetargetEditorStyle")
 	{
-		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Animation/IKRig/Content"));
-		const FVector2D Icon10x10(10.0f, 10.0f);
-		const FVector2D Icon14x14(14.0f, 14.0f);
 		const FVector2D Icon16x16(16.0f, 16.0f);
-		const FVector2D Icon20x20(20.0f, 20.0f);
-		const FVector2D Icon24x24(24.0f, 24.0f);
-		const FVector2D Icon32x32(32.0f, 32.0f);
-		const FVector2D Icon40x40(40.0f, 40.0f);
-
+		
+		const FString IKRigPluginContentDir = FPaths::EnginePluginsDir() / TEXT("Animation/IKRig/Content");
+		SetContentRoot(IKRigPluginContentDir);
 		Set("IKRetarget.Tree.Bone", new IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
+
+		const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
+		SetContentRoot(EngineEditorSlateDir);
+		Set( "IKRetarget.Viewport.Border", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(1.0f,1.0f,1.0f,1.0f) ) );
 		
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}

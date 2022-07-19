@@ -18,7 +18,11 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRetargetEditorController> InEditorController);
 
+	void Refresh();
+	
 private:
+
+	TSharedPtr<SVerticalBox> Contents;
 	
 	TSharedRef<SWidget> MakeToolbar(TSharedPtr<FUICommandList> Commands);
 	TSharedRef<SWidget> GenerateResetMenuContent(TSharedPtr<FUICommandList> Commands);

@@ -35,7 +35,7 @@ TSharedRef<SWidget> FIKRetargetOutputLogTabSummoner::CreateTabBody(const FWorkfl
 	const TSharedRef<FIKRetargetEditorController>& Controller = IKRetargetEditor.Pin()->GetController();
 	const FName LogName = Controller->GetRetargetProcessor()->Log.GetLogTarget();
 	
-	return SNew(SIKRigOutputLog, LogName, Controller->OutputLogView);
+	return SNew(SIKRigOutputLog, LogName);
 }
 
 #undef LOCTEXT_NAMESPACE 

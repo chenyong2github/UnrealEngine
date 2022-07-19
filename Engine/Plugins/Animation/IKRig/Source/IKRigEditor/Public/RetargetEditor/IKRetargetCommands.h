@@ -19,7 +19,7 @@ public:
 	{}
 
 	/** reset retarget pose */
-	TSharedPtr< FUICommandInfo > GoToRetargetPose;
+	TSharedPtr< FUICommandInfo > ShowRetargetPose;
 	
 	/** edit retarget pose */
 	TSharedPtr< FUICommandInfo > EditRetargetPose;

@@ -82,8 +82,7 @@ private:
 	// render skeleton in viewport
 	void RenderSkeleton(
 		FPrimitiveDrawInterface* PDI,
-		const FIKRetargetEditorController* Controller,
-		const UIKRetargetProcessor* Processor);
+		const FIKRetargetEditorController* Controller);
 
 	void GetSelectedAndAffectedBones(
 		const FIKRetargetEditorController* Controller,
@@ -101,8 +100,7 @@ private:
 	BoneEdit BoneEdit;
 
 	// the skeleton currently being edited
-	const FRetargetSkeleton& GetCurrentlyEditedSkeleton(const UIKRetargetProcessor& Processor) const;
-	EIKRetargetSkeletonMode SkeletonMode;
+	ERetargetSourceOrTarget SourceOrTarget;
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;

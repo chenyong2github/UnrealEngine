@@ -664,8 +664,8 @@ void SRetargetAnimAssetsWindow::RetargeterAssigned(const FAssetData& InAssetData
 	UIKRetargeter* InRetargeter = Cast<UIKRetargeter>(InAssetData.GetAsset());
 	BatchContext.IKRetargetAsset = InRetargeter;
 	const UIKRetargeterController* Controller = UIKRetargeterController::GetController(InRetargeter);
-	SourceMeshAssigned(FAssetData(Controller->GetSourcePreviewMesh()));
-	TargetMeshAssigned(FAssetData(Controller->GetTargetPreviewMesh()));
+	SourceMeshAssigned(FAssetData(Controller->GetPreviewMesh(ERetargetSourceOrTarget::Source)));
+	TargetMeshAssigned(FAssetData(Controller->GetPreviewMesh(ERetargetSourceOrTarget::Target)));
 }
 
 ECheckBoxState SRetargetAnimAssetsWindow::IsRemappingReferencedAssets() const

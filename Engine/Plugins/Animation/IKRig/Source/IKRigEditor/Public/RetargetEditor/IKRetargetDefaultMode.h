@@ -61,7 +61,7 @@ private:
 
 	// the skeleton currently being edited
 	UDebugSkelMeshComponent* GetCurrentlyEditedMesh() const;
-	EIKRetargetSkeletonMode SkeletonMode;
+	ERetargetSourceOrTarget SkeletonMode;
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;

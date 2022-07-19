@@ -126,7 +126,7 @@ void SIKRetargetChainMapList::Construct(
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->ChainsView = SharedThis(this);
+	EditorController.Pin()->SetChainsView(SharedThis(this));
 	
 	ChildSlot
     [
@@ -259,7 +259,7 @@ FText SIKRetargetChainMapList::GetSourceRootBone() const
 		return FText::FromName(NAME_None); 
 	}
 	
-	return FText::FromName(RetargeterController->GetSourceRootBone());
+	return FText::FromName(RetargeterController->GetRetargetRootBone(ERetargetSourceOrTarget::Source));
 }
 
 FText SIKRetargetChainMapList::GetTargetRootBone() const
@@ -270,7 +270,7 @@ FText SIKRetargetChainMapList::GetTargetRootBone() const
 		return FText::FromName(NAME_None); 
 	}
 	
-	return FText::FromName(RetargeterController->GetTargetRootBone());
+	return FText::FromName(RetargeterController->GetRetargetRootBone(ERetargetSourceOrTarget::Target));
 }
 
 bool SIKRetargetChainMapList::IsChainMapEnabled() const
@@ -358,12 +358,12 @@ void SIKRetargetChainMapList::OnSelectionChanged()
 	if (SelectedChainSettings.IsEmpty())
 	{
 		// show asset settings in the details view
-		Controller->DetailsView->SetObject(Controller->AssetController->GetAsset());
+		Controller->SetDetailsObject(Controller->AssetController->GetAsset());
 	}
 	else
 	{
 		// show chain settings in the details view
-		Controller->DetailsView->SetObjects(SelectedChainSettings);
+		Controller->SetDetailsObjects(SelectedChainSettings);
 	}
 }
 
@@ -406,7 +406,7 @@ FReply SIKRetargetChainMapList::OnEditSettingsButtonClicked() const
 		return FReply::Unhandled();
 	}
 	
-	Controller->DetailsView->SetObject(RetargeterController->GetAsset()->GetRetargetRootSettings());
+	Controller->SetDetailsObject(RetargeterController->GetAsset()->GetRetargetRootSettings());
 	return FReply::Handled();
 }
 

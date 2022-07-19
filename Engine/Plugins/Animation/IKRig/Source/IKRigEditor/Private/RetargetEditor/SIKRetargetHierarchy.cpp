@@ -8,6 +8,8 @@
 #include "Retargeter/IKRetargetProcessor.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "SIKRetargetHierarchy"
 
@@ -25,7 +27,7 @@ FIKRetargetHierarchyElement::FIKRetargetHierarchyElement(
 TSharedRef<SWidget> SIKRetargetHierarchyRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	FName BoneName = WeakTreeElement.Pin()->Name;
-	EIKRetargetSkeletonMode CurrentSkeleton = EditorController.Pin()->GetSkeletonMode();
+	ERetargetSourceOrTarget CurrentSkeleton = EditorController.Pin()->GetSourceOrTarget();
 	const bool bIsBoneRetargeted = EditorController.Pin()->IsBoneRetargeted(BoneName, CurrentSkeleton);
 	const FText ChainName = FText::FromName(EditorController.Pin()->GetChainNameFromBone(BoneName, CurrentSkeleton));
 
@@ -115,7 +117,7 @@ void SIKRetargetHierarchy::Construct(
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->HierarchyView = SharedThis(this);
+	EditorController.Pin()->SetHierarchyView(SharedThis(this));
 	CommandList = MakeShared<FUICommandList>();
 	
 	ChildSlot
@@ -130,27 +132,41 @@ void SIKRetargetHierarchy::Construct(
 			.Padding(2.0f)
 			.HAlign(HAlign_Center)
 			[
-				SNew(SSegmentedControl<EIKRetargetSkeletonMode>)
+				SNew(SSegmentedControl<ERetargetSourceOrTarget>)
 				.Value_Lambda([this]()
 				{
-					return EditorController.Pin()->GetSkeletonMode();
+					return EditorController.Pin()->GetSourceOrTarget();
 				})
-				.OnValueChanged_Lambda([this](EIKRetargetSkeletonMode Mode)
+				.OnValueChanged_Lambda([this](ERetargetSourceOrTarget Mode)
 				{
-					EditorController.Pin()->SetSkeletonMode(Mode);
+					EditorController.Pin()->SetSourceOrTargetMode(Mode);
 				})
-				+SSegmentedControl<EIKRetargetSkeletonMode>::Slot(EIKRetargetSkeletonMode::Source)
+				+SSegmentedControl<ERetargetSourceOrTarget>::Slot(ERetargetSourceOrTarget::Source)
 				.Text(LOCTEXT("SourceSkeleton", "Source"))
-				+ SSegmentedControl<EIKRetargetSkeletonMode>::Slot(EIKRetargetSkeletonMode::Target)
+				+ SSegmentedControl<ERetargetSourceOrTarget>::Slot(ERetargetSourceOrTarget::Target)
 				.Text(LOCTEXT("TargetSkeleton", "Target"))
 			]
+		]
+
+		+SVerticalBox::Slot()
+		.Padding(2.0f)
+		.AutoHeight()
+		[
+			SNew(SSeparator)
 		]
 		
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
 		.AutoHeight()
 		[
-			SNew(SIKRetargetPoseEditor, InEditorController)
+			SAssignNew(EditPoseView, SIKRetargetPoseEditor, InEditorController)
+		]
+
+		+SVerticalBox::Slot()
+		.Padding(2.0f)
+		.AutoHeight()
+		[
+			SNew(SSeparator)
 		]
 
 		+SVerticalBox::Slot()
@@ -253,19 +269,25 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 	AllElements.Reset();
 
 	// validate we have a skeleton to load
-	const UIKRetargetProcessor* Processor = Controller->GetRetargetProcessor();
-	if (!(Processor && Processor->IsInitialized()))
+	const ERetargetSourceOrTarget SourceOrTarget = Controller->GetSourceOrTarget();
+	const USkeletalMesh* Mesh = Controller->GetSkeletalMesh(SourceOrTarget);
+	if (!Mesh)
 	{
 		TreeView->RequestTreeRefresh();
 		return;
 	}
 
 	// get the skeleton that is currently being viewed in the editor
-	const FTargetSkeleton& TargetSkeleton = Processor->GetTargetSkeleton();
-	const FRetargetSkeleton& SourceSkeleton = Processor->GetSourceSkeleton();
-	const bool bViewTarget = Controller->GetSkeletonMode() == EIKRetargetSkeletonMode::Target;
-	const TArray<FName>& BoneNames = bViewTarget ? TargetSkeleton.BoneNames : SourceSkeleton.BoneNames;
-	const TArray<int32>& ParentIndices = bViewTarget ? TargetSkeleton.ParentIndices : SourceSkeleton.ParentIndices;
+	const FReferenceSkeleton& Skeleton = Mesh->GetRefSkeleton();
+	TArray<FName> BoneNames;
+	TArray<int32> ParentIndices;
+	BoneNames.AddUninitialized(Skeleton.GetNum());
+	ParentIndices.AddUninitialized(Skeleton.GetNum());
+	for (int32 BoneIndex=0; BoneIndex<Skeleton.GetNum(); ++BoneIndex)
+	{
+		BoneNames[BoneIndex] = Skeleton.GetBoneName(BoneIndex);
+		ParentIndices[BoneIndex] = Skeleton.GetParentIndex(BoneIndex);
+	}
 	
 	// record bone element indices
 	TMap<FName, int32> BoneTreeElementIndices;

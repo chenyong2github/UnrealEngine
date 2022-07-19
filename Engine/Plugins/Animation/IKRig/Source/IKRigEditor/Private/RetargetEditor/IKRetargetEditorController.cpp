@@ -12,11 +12,11 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/PoseAsset.h"
+#include "Factories/PoseAssetFactory.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetEditPoseMode.h"
 #include "RetargetEditor/IKRetargetEditor.h"
-#include "RetargetEditor/IKRetargetFactory.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "RetargetEditor/SIKRetargetHierarchy.h"
 #include "Retargeter/IKRetargeter.h"
@@ -26,13 +26,21 @@
 
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
+
 void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset)
 {
 	Editor = InEditor;
 	AssetController = UIKRetargeterController::GetController(InAsset);
-	AssetController->SetEditorController(this);
-	SkeletonMode = EIKRetargetSkeletonMode::Target;
-	InAsset->SetOutputMode(ERetargeterOutputMode::ShowRetargetPose);
+	CurrentlyEditingSourceOrTarget = ERetargetSourceOrTarget::Target;
+	OutputMode = ERetargeterOutputMode::ShowRetargetPose;
+	PreviousMode = OutputMode;
+	PoseExporter = MakeShared<FIKRetargetPoseExporter>();
+	PoseExporter->Initialize(SharedThis(this));
+
+	// clean the asset before editing
+	const bool bForceReinitialization = false;
+	AssetController->CleanChainMapping(bForceReinitialization);
+	AssetController->CleanPoseLists(bForceReinitialization);
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
 	BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
@@ -98,11 +106,27 @@ void FIKRetargetEditorController::OnRetargeterNeedsInitialized(UIKRetargeter* Re
 	if (UIKRetargetProcessor* Processor = GetRetargetProcessor())
 	{
 		constexpr bool bSuppressWarnings = false;
-		Processor->Initialize(GetSourceSkeletalMesh(), GetTargetSkeletalMesh(), Retargeter, bSuppressWarnings);
+		Processor->Initialize(
+			GetSkeletalMesh(ERetargetSourceOrTarget::Source),
+			GetSkeletalMesh(ERetargetSourceOrTarget::Target),
+			Retargeter,
+			bSuppressWarnings);
 	}
 	
 	// refresh all the UI views
 	RefreshAllViews();
+}
+
+UDebugSkelMeshComponent* FIKRetargetEditorController::GetSkeletalMeshComponent(
+	const ERetargetSourceOrTarget& SourceOrTarget) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? SourceSkelMeshComponent : TargetSkelMeshComponent;
+}
+
+UIKRetargetAnimInstance* FIKRetargetEditorController::GetAnimInstance(
+	const ERetargetSourceOrTarget& SourceOrTarget) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? SourceAnimInstance.Get() : TargetAnimInstance.Get();
 }
 
 void FIKRetargetEditorController::AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const
@@ -130,7 +154,7 @@ void FIKRetargetEditorController::AddOffsetToMeshComponent(const FVector& Offset
 	MeshComponent->SetWorldScale3D(FVector(Scale,Scale,Scale));
 }
 
-bool FIKRetargetEditorController::IsBoneRetargeted(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const
+bool FIKRetargetEditorController::IsBoneRetargeted(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const
 {
 	// get an initialized processor
 	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
@@ -140,7 +164,7 @@ bool FIKRetargetEditorController::IsBoneRetargeted(const FName& BoneName, EIKRet
 	}
 
 	// get the bone index
-	const FRetargetSkeleton& Skeleton = WhichSkeleton == EIKRetargetSkeletonMode::Source ? Processor->GetSourceSkeleton() : Processor->GetTargetSkeleton();
+	const FRetargetSkeleton& Skeleton = SourceOrTarget == ERetargetSourceOrTarget::Source ? Processor->GetSourceSkeleton() : Processor->GetTargetSkeleton();
 	const int32 BoneIndex = Skeleton.FindBoneIndexByName(BoneName);
 	if (BoneIndex == INDEX_NONE)
 	{
@@ -148,10 +172,10 @@ bool FIKRetargetEditorController::IsBoneRetargeted(const FName& BoneName, EIKRet
 	}
 
 	// return if it's a retargeted bone
-	return Processor->IsBoneRetargeted(BoneIndex, (int8)WhichSkeleton);
+	return Processor->IsBoneRetargeted(BoneIndex, (int8)SourceOrTarget);
 }
 
-FName FIKRetargetEditorController::GetChainNameFromBone(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const
+FName FIKRetargetEditorController::GetChainNameFromBone(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const
 {
 	// get an initialized processor
 	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
@@ -161,14 +185,14 @@ FName FIKRetargetEditorController::GetChainNameFromBone(const FName& BoneName, E
 	}
 
 	// get the bone index
-	const FRetargetSkeleton& Skeleton = WhichSkeleton == EIKRetargetSkeletonMode::Source ? Processor->GetSourceSkeleton() : Processor->GetTargetSkeleton();
+	const FRetargetSkeleton& Skeleton = SourceOrTarget == ERetargetSourceOrTarget::Source ? Processor->GetSourceSkeleton() : Processor->GetTargetSkeleton();
 	const int32 BoneIndex = Skeleton.FindBoneIndexByName(BoneName);
 	if (BoneIndex == INDEX_NONE)
 	{
 		return NAME_None;
 	}
 
-	return Processor->GetChainNameForBone(BoneIndex, (int8)WhichSkeleton);
+	return Processor->GetChainNameForBone(BoneIndex, (int8)SourceOrTarget);
 }
 
 TObjectPtr<UIKRetargetBoneDetails> FIKRetargetEditorController::GetDetailsObjectForBone(const FName& BoneName)
@@ -194,29 +218,14 @@ TObjectPtr<UIKRetargetBoneDetails> FIKRetargetEditorController::CreateBoneDetail
 	return NewBoneDetails;
 }
 
-USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
+USkeletalMesh* FIKRetargetEditorController::GetSkeletalMesh(const ERetargetSourceOrTarget SourceOrTarget) const
 {
-	return AssetController ? AssetController->GetSourcePreviewMesh() : nullptr;
+	return AssetController ? AssetController->GetPreviewMesh(SourceOrTarget) : nullptr;
 }
 
-USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
+const USkeleton* FIKRetargetEditorController::GetSkeleton(const ERetargetSourceOrTarget SourceOrTarget) const
 {
-	return AssetController ? AssetController->GetTargetPreviewMesh() : nullptr;
-}
-
-const USkeleton* FIKRetargetEditorController::GetSourceSkeleton() const
-{
-	if (const USkeletalMesh* Mesh = GetSourceSkeletalMesh())
-	{
-		return Mesh->GetSkeleton();
-	}
-	
-	return nullptr;
-}
-
-const USkeleton* FIKRetargetEditorController::GetTargetSkeleton() const
-{
-	if (const USkeletalMesh* Mesh = GetTargetSkeletalMesh())
+	if (const USkeletalMesh* Mesh = GetSkeletalMesh(SourceOrTarget))
 	{
 		return Mesh->GetSkeleton();
 	}
@@ -226,24 +235,30 @@ const USkeleton* FIKRetargetEditorController::GetTargetSkeleton() const
 
 UDebugSkelMeshComponent* FIKRetargetEditorController::GetEditedSkeletalMesh() const
 {
-	return SkeletonMode == EIKRetargetSkeletonMode::Source ? SourceSkelMeshComponent : TargetSkelMeshComponent;
+	return CurrentlyEditingSourceOrTarget == ERetargetSourceOrTarget::Source ? SourceSkelMeshComponent : TargetSkelMeshComponent;
 }
 
 const FRetargetSkeleton& FIKRetargetEditorController::GetCurrentlyEditedSkeleton(const UIKRetargetProcessor& Processor) const
 {
-	return SkeletonMode == EIKRetargetSkeletonMode::Source ? Processor.GetSourceSkeleton() : Processor.GetTargetSkeleton();
+	return CurrentlyEditingSourceOrTarget == ERetargetSourceOrTarget::Source ? Processor.GetSourceSkeleton() : Processor.GetTargetSkeleton();
 }
 
 FTransform FIKRetargetEditorController::GetGlobalRetargetPoseOfBone(
-	const FRetargetSkeleton& Skeleton,
+	const ERetargetSourceOrTarget SourceOrTarget,
 	const int32& BoneIndex,
 	const float& Scale,
 	const FVector& Offset) const
 {
-	check(Skeleton.BoneNames.IsValidIndex(BoneIndex))
+	if (BoneIndex == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+	
+	const UIKRetargetAnimInstance* AnimInstance = GetAnimInstance(SourceOrTarget);
+	const TArray<FTransform>& GlobalRetargetPose = AnimInstance->GetGlobalRetargetPose();
 	
 	// get transform of bone
-	FTransform BoneTransform = Skeleton.RetargetGlobalPose[BoneIndex];
+	FTransform BoneTransform = GlobalRetargetPose[BoneIndex];
 
 	// scale and offset
 	BoneTransform.ScaleTranslation(Scale);
@@ -315,35 +330,79 @@ void FIKRetargetEditorController::ClearOutputLog() const
 	if (OutputLogView.IsValid())
 	{
 		OutputLogView.Get()->ClearLog();
-		GetRetargetProcessor()->Log.Clear();
+		if (const UIKRetargetProcessor* Processor = GetRetargetProcessor())
+		{
+			Processor->Log.Clear();
+		}
 	}
 }
 
 void FIKRetargetEditorController::RefreshAllViews() const
 {
 	Editor.Pin()->RegenerateMenusAndToolbars();
+	RefreshDetailsView();
+	RefreshChainsView();
+	RefreshAssetBrowserView();
+	RefreshHierarchyView();
+}
 
-	// refresh the details panel
+void FIKRetargetEditorController::RefreshDetailsView() const
+{
+	// refresh the details panel, cannot assume tab is not closed
 	if (DetailsView.IsValid())
 	{
 		DetailsView->ForceRefresh();
 	}
+}
 
-	// cannot assume chains view is always available
+void FIKRetargetEditorController::RefreshChainsView() const
+{
+	// refesh chains view, cannot assume tab is not closed
 	if (ChainsView.IsValid())
 	{
 		ChainsView.Get()->RefreshView();
 	}
+}
 
+void FIKRetargetEditorController::RefreshAssetBrowserView() const
+{
 	// refresh the asset browser to ensure it shows compatible sequences
 	if (AssetBrowserView.IsValid())
 	{
 		AssetBrowserView.Get()->RefreshView();
 	}
+}
 
+void FIKRetargetEditorController::RefreshHierarchyView() const
+{
 	if (HierarchyView.IsValid())
 	{
+		HierarchyView.Get()->RefreshPoseList();
 		HierarchyView.Get()->RefreshTreeView();
+	}
+}
+
+void FIKRetargetEditorController::RefreshPoseList() const
+{
+	if (HierarchyView.IsValid())
+	{
+		HierarchyView.Get()->RefreshPoseList();
+	}
+}
+
+void FIKRetargetEditorController::SetDetailsObject(UObject* DetailsObject) const
+{
+	if (DetailsView.IsValid())
+	{
+		DetailsView->SetObject(DetailsObject);
+	}
+}
+
+void FIKRetargetEditorController::SetDetailsObjects(const TArray<UObject*>& DetailsObjects) const
+{
+	if (DetailsView.IsValid())
+	{
+		DetailsView->SetObjects(DetailsObjects);
 	}
 }
 
@@ -359,10 +418,46 @@ void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPla
 	}
 }
 
-void FIKRetargetEditorController::SetSkeletonMode(EIKRetargetSkeletonMode NewMode)
+void FIKRetargetEditorController::PausePlayback()
+{
+	if (UAnimationAsset* CurrentAnim = SourceAnimInstance->GetAnimationAsset())
+	{
+		AnimThatWasPlaying = CurrentAnim;
+		TimeWhenPaused = SourceAnimInstance->GetCurrentTime();
+	}
+	
+	SourceAnimInstance->SetPlaying(false);
+	SourceAnimInstance->SetAnimationAsset(nullptr);
+}
+
+void FIKRetargetEditorController::ResumePlayback()
+{
+	SourceAnimInstance->SetAnimationAsset(AnimThatWasPlaying);
+	SourceAnimInstance->SetPlaying(true);
+	SourceAnimInstance->SetPosition(TimeWhenPaused);
+}
+
+float FIKRetargetEditorController::GetRetargetPoseAmount() const
+{
+	return RetargetPosePreviewBlend;
+}
+
+void FIKRetargetEditorController::SetRetargetPoseAmount(float InValue)
+{
+	if (OutputMode==ERetargeterOutputMode::RunRetarget)
+	{
+		SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+	}
+	
+	RetargetPosePreviewBlend = InValue;
+	SourceAnimInstance->SetRetargetPoseBlend(RetargetPosePreviewBlend);
+	TargetAnimInstance->SetRetargetPoseBlend(RetargetPosePreviewBlend);
+}
+
+void FIKRetargetEditorController::SetSourceOrTargetMode(ERetargetSourceOrTarget NewMode)
 {
 	// already in this mode, so do nothing
-	if (NewMode == SkeletonMode)
+	if (NewMode == CurrentlyEditingSourceOrTarget)
 	{
 		return;
 	}
@@ -371,25 +466,27 @@ void FIKRetargetEditorController::SetSkeletonMode(EIKRetargetSkeletonMode NewMod
 	ClearSelection();
 	
 	// store the new skeleton mode
-	SkeletonMode = NewMode;
+	CurrentlyEditingSourceOrTarget = NewMode;
 
-	const ERetargeterOutputMode Mode = AssetController->GetAsset()->GetOutputMode();
-	switch (Mode)
+	switch (GetRetargeterMode())
 	{
 		case ERetargeterOutputMode::EditRetargetPose:
 		{
-			// TODO restart pose editing on other skeleton once we support source pose editing
-			//FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
-			//FIKRetargetEditPoseMode* EditMode = EditorModeManager.GetActiveModeTyped<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName);
-			//EditMode->Enter();
-			SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+			FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
+			FIKRetargetEditPoseMode* EditMode = EditorModeManager.GetActiveModeTyped<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName);
+			if (EditMode)
+			{
+				// FIKRetargetEditPoseMode::Enter() is reentrant and written so we can switch between editing
+				// source / target skeleton without having to enter/exit the mode; just call Enter() again
+				EditMode->Enter();
+			}
 			break;
 		}
 		case ERetargeterOutputMode::ShowRetargetPose:
 		case ERetargeterOutputMode::RunRetarget:
 		{
 			// toggle visibility of currently active skeleton
-			const bool bEditingSource = NewMode == EIKRetargetSkeletonMode::Source;
+			const bool bEditingSource = NewMode == ERetargetSourceOrTarget::Source;
 			SourceSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
 			TargetSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::GreyedOut : ESkeletonDrawMode::Default;
 			break;
@@ -478,15 +575,15 @@ void FIKRetargetEditorController::EditBoneSelection(
 	DebugComponent->BonesOfInterest = SelectedBoneIndices;
 
 	// update hierarchy view
-	if (!bFromHierarchyView && HierarchyView.IsValid())
+	if (!bFromHierarchyView)
 	{
-		HierarchyView->RefreshTreeView();
+		RefreshHierarchyView();
 	}
 
 	// update details
 	if (SelectedBones.IsEmpty())
 	{
-		DetailsView->SetObject(AssetController->GetAsset());
+		SetDetailsObject(AssetController->GetAsset());
 	}
 	else
 	{
@@ -496,7 +593,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 			TObjectPtr<UIKRetargetBoneDetails> BoneDetails = GetDetailsObjectForBone(SelectedBone);
 			SelectedBoneDetails.Add(BoneDetails);
 		}
-		DetailsView->SetObjects(SelectedBoneDetails);
+		SetDetailsObjects(SelectedBoneDetails);
 	}
 }
 
@@ -506,7 +603,10 @@ void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
 	SetSelectedMesh(nullptr);
 	
 	// deselect all chains
-	ChainsView->ClearSelection();
+	if (ChainsView.IsValid())
+	{
+		ChainsView->ClearSelection();
+	}
 
 	// clear bone selection
 	if (!bKeepBoneSelection)
@@ -516,63 +616,92 @@ void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
 		EditBoneSelection(Empty, EBoneSelectionEdit::Replace, bFromHierarchy);
 
 		// show global details
-		DetailsView->SetObject(AssetController->GetAsset());
+		SetDetailsObject(AssetController->GetAsset());
 	}
 
-	DetailsView->ForceRefresh();
+	RefreshDetailsView();
 }
 
 void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 {
-	const bool bWasEditingPose = IsEditingPose();
+	if (OutputMode == Mode)
+	{
+		return;
+	}
+		
+	PreviousMode = OutputMode;
+	
 	FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
-	UIKRetargeter* Asset = AssetController->GetAsset();
 	
 	switch (Mode)
 	{
 		case ERetargeterOutputMode::EditRetargetPose:
-			bWasPlayingAnim = SourceAnimInstance->IsPlaying();
+			// enter edit mode
 			EditorModeManager.DeactivateMode(FIKRetargetDefaultMode::ModeName);
 			EditorModeManager.ActivateMode(FIKRetargetEditPoseMode::ModeName);
-			Asset->SetOutputMode(ERetargeterOutputMode::EditRetargetPose);
+			OutputMode = ERetargeterOutputMode::EditRetargetPose;
+			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::EditRetargetPose);
+			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::EditRetargetPose);
+			PausePlayback();
+			SetRetargetPoseAmount(1.0f);
 			break;
 		
 		case ERetargeterOutputMode::RunRetarget:
 			EditorModeManager.DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 			EditorModeManager.ActivateMode(FIKRetargetDefaultMode::ModeName);
-			Asset->SetOutputMode(ERetargeterOutputMode::RunRetarget);
-			if (bWasEditingPose)
+			OutputMode = ERetargeterOutputMode::RunRetarget;
+			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
+			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
+			if (PreviousMode == ERetargeterOutputMode::EditRetargetPose)
 			{
 				// must reinitialize after editing the retarget pose
 				AssetController->BroadcastNeedsReinitialized();
-				if (bWasPlayingAnim)
-				{
-					// continue playing whatever animation asset was last used
-					SourceAnimInstance->SetAnimationAsset(AnimThatWasPlaying);
-				}
 			}
+			ResumePlayback();
 			break;
 
 		case ERetargeterOutputMode::ShowRetargetPose:
 			EditorModeManager.DeactivateMode(FIKRetargetEditPoseMode::ModeName);
 			EditorModeManager.ActivateMode(FIKRetargetDefaultMode::ModeName);
-			Asset->SetOutputMode(ERetargeterOutputMode::ShowRetargetPose);
-			// stop playback of animations
-			SourceAnimInstance->SetPlaying(false);
-			// put source back in ref pose
-			SourceSkelMeshComponent->ShowReferencePose(true);
-			// have to move component back to offset position because ShowReferencePose() sets it back to origin
-			AddOffsetToMeshComponent(FVector::ZeroVector, SourceSkelMeshComponent);
+			OutputMode = ERetargeterOutputMode::ShowRetargetPose;
+			// show retarget pose
+			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::ShowRetargetPose);
+			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::ShowRetargetPose);
+			PausePlayback();
+			SetRetargetPoseAmount(1.0f);
 			break;
 
 		default:
 			checkNoEntry();
 	}
+
+	// details view displays differently depending on output mode
+	RefreshDetailsView();
 }
 
-void FIKRetargetEditorController::HandleGoToRetargetPose()
+FReply FIKRetargetEditorController::HandleShowRetargetPose()
 {
-	SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+	const ERetargeterOutputMode CurrentMode = GetRetargeterMode();
+	if (CurrentMode == ERetargeterOutputMode::ShowRetargetPose || CurrentMode == ERetargeterOutputMode::EditRetargetPose)
+	{
+		SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
+	}
+	else
+	{
+		SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+	}
+	
+	return FReply::Handled();
+}
+
+bool FIKRetargetEditorController::CanShowRetargetPose() const
+{
+	return GetRetargeterMode() != ERetargeterOutputMode::ShowRetargetPose;
+}
+
+bool FIKRetargetEditorController::IsShowingRetargetPose() const
+{
+	return GetRetargeterMode() == ERetargeterOutputMode::ShowRetargetPose;
 }
 
 void FIKRetargetEditorController::HandleEditPose()
@@ -580,7 +709,7 @@ void FIKRetargetEditorController::HandleEditPose()
 	if (IsEditingPose())
 	{
 		// stop pose editing
-		SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
+		SetRetargeterMode(PreviousMode);
 	}
 	else
 	{
@@ -591,28 +720,21 @@ void FIKRetargetEditorController::HandleEditPose()
 
 bool FIKRetargetEditorController::CanEditPose() const
 {
-	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
-	if (!Processor)
-	{
-		return false;
-	}
-
-	const bool bRetargeterIsReady = Processor->IsInitialized();
-	// TODO in the future, add support for editing source pose
-	const bool bEditingTarget = GetSkeletonMode() == EIKRetargetSkeletonMode::Target;
-	return bRetargeterIsReady && bEditingTarget;
+	return GetSkeletalMesh(GetSourceOrTarget()) != nullptr;
 }
 
 bool FIKRetargetEditorController::IsEditingPose() const
 {
-	return AssetController->GetAsset()->GetOutputMode() == ERetargeterOutputMode::EditRetargetPose;
+	return GetRetargeterMode() == ERetargeterOutputMode::EditRetargetPose;
 }
 
 void FIKRetargetEditorController::HandleNewPose()
 {
+	SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+	
 	// get a unique pose name to use as suggestion
 	const FString DefaultNewPoseName = LOCTEXT("NewRetargetPoseName", "CustomRetargetPose").ToString();
-	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultNewPoseName);
+	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultNewPoseName, GetSourceOrTarget());
 	
 	SAssignNew(NewPoseWindow, SWindow)
 	.Title(LOCTEXT("NewRetargetPoseOptions", "Create New Retarget Pose"))
@@ -682,19 +804,21 @@ bool FIKRetargetEditorController::CanCreatePose() const
 FReply FIKRetargetEditorController::CreateNewPose() const
 {
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
-	AssetController->AddRetargetPose(NewPoseName);
+	AssetController->AddRetargetPose(NewPoseName, nullptr, GetSourceOrTarget());
 	NewPoseWindow->RequestDestroyWindow();
-	DetailsView->ForceRefresh();
+	RefreshPoseList();
 	return FReply::Handled();
 }
 
 void FIKRetargetEditorController::HandleDuplicatePose()
 {
+	SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
+	
 	// get a unique pose name to use as suggestion for duplicate
 	const FString DuplicateSuffix = LOCTEXT("DuplicateSuffix", "_Copy").ToString();
 	FString CurrentPoseName = GetCurrentPoseName().ToString();
 	const FString DefaultDuplicatePoseName = CurrentPoseName.Append(*DuplicateSuffix);
-	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultDuplicatePoseName);
+	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultDuplicatePoseName, GetSourceOrTarget());
 	
 	SAssignNew(NewPoseWindow, SWindow)
 	.Title(LOCTEXT("DuplicateRetargetPoseOptions", "Duplicate Retarget Pose"))
@@ -759,503 +883,85 @@ void FIKRetargetEditorController::HandleDuplicatePose()
 
 FReply FIKRetargetEditorController::CreateDuplicatePose() const
 {
-	const FIKRetargetPose& PoseToDuplicate = AssetController->GetCurrentRetargetPose();
+	const FIKRetargetPose& PoseToDuplicate = AssetController->GetCurrentRetargetPose(CurrentlyEditingSourceOrTarget);
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
-	AssetController->AddRetargetPose(NewPoseName, &PoseToDuplicate);
+	AssetController->AddRetargetPose(NewPoseName, &PoseToDuplicate, GetSourceOrTarget());
 	NewPoseWindow->RequestDestroyWindow();
-	DetailsView->ForceRefresh();
+	RefreshPoseList();
 	return FReply::Handled();
 }
 
-void FIKRetargetEditorController::HandleImportPose()
+void FIKRetargetEditorController::HandleDeletePose()
 {
-	RetargetPoseToImport = nullptr;
-
-	// load the content browser module to display an asset picker
-	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-
-	// the asset picker will only show animation sequences
-	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassPaths.Add(URetargetPose::StaticClass()->GetClassPathName());
-	AssetPickerConfig.Filter.bRecursiveClasses = true;
-	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FIKRetargetEditorController::OnRetargetPoseSelected);
-	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
-
-	ImportPoseWindow = SNew(SWindow)
-	.Title(LOCTEXT("ImportRetargetPose", "Import Retarget Pose"))
-	.ClientSize(FVector2D(500, 600))
-	.SupportsMinimize(false) .SupportsMaximize(false)
-	[
-		SNew(SBorder)
-		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
-		[
-			SNew(SVerticalBox)
-			
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			[
-				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
-			]
-			
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			.AutoHeight()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "Button")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("ImportNewRetargetPoseButtonLabel", "Import New Retarget Pose"))
-					.OnClicked(this, &FIKRetargetEditorController::ImportRetargetPose)
-				]
-				
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "Button")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
-					.OnClicked_Lambda( [this]()
-					{
-						ImportPoseWindow->RequestDestroyWindow();
-						return FReply::Handled();
-					})
-				]
-			]	
-		]
-	];
-
-	GEditor->EditorAddModalWindow(ImportPoseWindow.ToSharedRef());
-	ImportPoseWindow.Reset();
-}
-
-FReply FIKRetargetEditorController::ImportRetargetPose() const
-{
-	ImportPoseWindow->RequestDestroyWindow();
+	SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
 	
-	if (RetargetPoseToImport.IsNull())
-	{
-		return FReply::Handled();
-	}
-
-	const TObjectPtr<URetargetPose> RetargetPose = Cast<URetargetPose>(RetargetPoseToImport.TryLoad());
-	if (!RetargetPose)
-	{
-		return FReply::Handled();
-	}
-
-	// create a new pose with the data from the selected retarget pose asset
-	FIKRetargetPose Pose;
-	RetargetPose->GetAsRetargetPose(Pose);
-	AssetController->AddRetargetPose(FName(RetargetPose->GetName()), &Pose);
-	
-	RefreshAllViews();
-	
-	return FReply::Unhandled();
-}
-
-void FIKRetargetEditorController::OnRetargetPoseSelected(const FAssetData& SelectedAsset)
-{
-	RetargetPoseToImport = SelectedAsset.ToSoftObjectPath();
-}
-
-void FIKRetargetEditorController::HandleImportPoseFromSequence()
-{
-	SequenceToImportAsPose = nullptr;
-
-	// get a unique pose name to use as suggestion
-	const FString DefaultImportedPoseName = LOCTEXT("ImportedRetargetPoseName", "ImportedRetargetPose").ToString();
-	const FName UniqueNewPoseName = AssetController->MakePoseNameUnique(DefaultImportedPoseName);
-	ImportedPoseName = FText::FromName(UniqueNewPoseName);
-
-	// load the content browser module to display an asset picker
-	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-
-	// the asset picker will only show animation sequences compatible with the preview mesh
-	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
-	AssetPickerConfig.Filter.ClassPaths.Add(UAnimMontage::StaticClass()->GetClassPathName());
-	AssetPickerConfig.Filter.ClassPaths.Add(UPoseAsset::StaticClass()->GetClassPathName());
-	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
-	AssetPickerConfig.bAddFilterUI = true;
-	AssetPickerConfig.bShowPathInColumnView = true;
-	AssetPickerConfig.bShowTypeInColumnView = true;
-	AssetPickerConfig.DefaultFilterMenuExpansion = EAssetTypeCategories::Animation;
-	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &FIKRetargetEditorController::OnShouldFilterSequenceToImport);
-	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FIKRetargetEditorController::OnSequenceSelectedForPose);
-	AssetPickerConfig.bAllowNullSelection = false;
-
-	// hide all asset registry columns by default (we only really want the name and path)
-	TArray<UObject::FAssetRegistryTag> AssetRegistryTags;
-	UAnimSequence::StaticClass()->GetDefaultObject()->GetAssetRegistryTags(AssetRegistryTags);
-	FName ColumnToKeep = FName("Number of Frames");
-	for(UObject::FAssetRegistryTag& AssetRegistryTag : AssetRegistryTags)
-	{
-		if (AssetRegistryTag.Name != ColumnToKeep)
-		{
-			AssetPickerConfig.HiddenColumnNames.Add(AssetRegistryTag.Name.ToString());
-		}
-	}
-
-	// Also hide the type column by default (but allow users to enable it, so don't use bShowTypeInColumnView)
-	AssetPickerConfig.HiddenColumnNames.Add(TEXT("Class"));
-	AssetPickerConfig.HiddenColumnNames.Add(TEXT("HasVirtualizedData"));
-	AssetPickerConfig.HiddenColumnNames.Add(TEXT("DiskSize"));
-
-	// create pop-up window for user to select animation sequence asset to import as a retarget pose]
-	ImportPoseFromSequenceWindow = SNew(SWindow)
-	.Title(LOCTEXT("ImportRetargetPoseFromSequenceAsset", "Import Retarget Pose from Sequence Asset"))
-	.ClientSize(FVector2D(500, 600))
-	.SupportsMinimize(false) .SupportsMaximize(false)
-	[
-		SNew(SBorder)
-		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
-		[
-			SNew(SVerticalBox)
-			
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			[
-				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
-			]
-
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			.AutoHeight()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ImportFrame_Label", "Sequence Frame: "))
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.Padding(2.0f, 0.0f)
-				[
-					SNew(SNumericEntryBox<int32>)
-					.ToolTipText(LOCTEXT("ArrayIndex", "Frame of sequence to import pose from."))
-					.AllowSpin(true)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.MinValue(0)
-					.Value_Lambda([this]
-					{
-						return FrameOfSequenceToImport;
-					})
-					.OnValueChanged(SNumericEntryBox<int32>::FOnValueChanged::CreateLambda([this](int32 Value)
-					{
-						FrameOfSequenceToImport = Value;
-					}))
-				]
-			]
-
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			.AutoHeight()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ImportName_Label", "Pose Name: "))
-				]
-				
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SEditableTextBox)
-					.Text(FText::FromName(UniqueNewPoseName))
-					.OnTextChanged(FOnTextChanged::CreateLambda([this](const FText InText)
-					{
-						ImportedPoseName = InText;
-					}))
-				]
-			]
-			
-			+ SVerticalBox::Slot()
-			.Padding(4)
-			.AutoHeight()
-			.HAlign(HAlign_Right)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "Button")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("ImportAsRetargetPoseButtonLabel", "Import As Retarget Pose"))
-					.OnClicked(this, &FIKRetargetEditorController::OnImportPoseFromSequence)
-				]
-				
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "Button")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("CancelButtonLabel", "Cancel"))
-					.OnClicked_Lambda( [this]()
-					{
-						ImportPoseFromSequenceWindow->RequestDestroyWindow();
-						return FReply::Handled();
-					})
-				]
-			]	
-		]
-	];
-
-	GEditor->EditorAddModalWindow(ImportPoseFromSequenceWindow.ToSharedRef());
-	ImportPoseFromSequenceWindow.Reset();
-}
-
-bool FIKRetargetEditorController::OnShouldFilterSequenceToImport(const struct FAssetData& AssetData) const
-{
-	// is this an animation asset?
-	if (!AssetData.IsInstanceOf(UAnimationAsset::StaticClass()))
-	{
-		return true;
-	}
-
-	// get target skeleton
-	constexpr bool bEditingTarget = true; // TODO in future allow editing source or target
-	const USkeleton* DesiredSkeleton = bEditingTarget ? GetTargetSkeleton() : GetSourceSkeleton();
-	if (!DesiredSkeleton)
-	{
-		return true;
-	}
-
-	return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
-}
-
-FReply FIKRetargetEditorController::OnImportPoseFromSequence()
-{
-	ImportPoseFromSequenceWindow->RequestDestroyWindow();
-	
-	if (SequenceToImportAsPose.IsNull())
-	{
-		return FReply::Handled();
-	}
-
-	const TObjectPtr<UAnimSequence> AnimSequence = Cast<UAnimSequence>(SequenceToImportAsPose.TryLoad());
-	if (!AnimSequence)
-	{
-		return FReply::Handled();
-	}
-	
-	USkeletalMesh* Mesh = GetTargetSkeletalMesh();
-	if (!Mesh)
-	{
-		return FReply::Handled();
-	}
-
-	UIKRetargetProcessor* Retargeter = GetRetargetProcessor();
-	if (!Retargeter)
-	{
-		return FReply::Handled();
-	}
-	
-	// ensure we evaluate the source animation using the skeletal mesh proportions that were evaluated in the viewport
-	FAnimPoseEvaluationOptions EvaluationOptions = FAnimPoseEvaluationOptions();
-	EvaluationOptions.OptionalSkeletalMesh = Mesh;
-
-	FrameOfSequenceToImport = FMath::Clamp(FrameOfSequenceToImport, 0, AnimSequence->GetNumberOfSampledKeys());
-	
-	// evaluate the sequence at the desired frame
-	FAnimPose ImportedPose;
-	UAnimPoseExtensions::GetAnimPoseAtFrame(AnimSequence, FrameOfSequenceToImport, EvaluationOptions, ImportedPose);
-
-	// record delta pose for all bones being retargeted
-	FIKRetargetPose ImportedRetargetPose;
-	
-	// get all imported bone transforms and record them in the retarget pose
-	FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
-	const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose();
-	const FTargetSkeleton& TargetSkeleton = Retargeter->GetTargetSkeleton();
-	int32 NumBones = RefSkeleton.GetNum();
-	const int32 RootBoneIndex = Retargeter->GetTargetRetargetRoot();
-	for (int32 BoneIndex = 0; BoneIndex < NumBones; BoneIndex++)
-	{
-		const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
-		const int32 RetargetBoneIndex = TargetSkeleton.FindBoneIndexByName(BoneName);
-		const bool bIsRetargetRoot = RetargetBoneIndex == RootBoneIndex;
-		
-		// if this is the retarget root, we want to record the translation delta as well
-		if (bIsRetargetRoot)
-		{
-			const FTransform GlobalTransformImported = UAnimPoseExtensions::GetBonePose(ImportedPose, BoneName, EAnimPoseSpaces::World);
-			const FTransform GlobalTransformReference = UAnimPoseExtensions::GetRefBonePose(ImportedPose, BoneName, EAnimPoseSpaces::World);
-			const FVector TranslationDelta = GlobalTransformImported.GetLocation() - GlobalTransformReference.GetLocation();
-			ImportedRetargetPose.RootTranslationOffset = TranslationDelta;
-
-			// rotation offsets are interpreted as relative to the parent (local), but in the case of the retarget root bone,
-			// when we generate the retarget pose, it's parents will be left at ref pose, so we need to generate a local
-			// rotation offset relative to the ref pose parent, NOT the (potentially) posed parent transform from the animation.
-			FTransform GlobalParentTransformInRefPose = FTransform::Identity;
-			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
-			if (ParentIndex != INDEX_NONE)
-			{
-				const FName& ParentBoneName = RefSkeleton.GetBoneName(ParentIndex);
-				GlobalParentTransformInRefPose = UAnimPoseExtensions::GetRefBonePose(ImportedPose, ParentBoneName, EAnimPoseSpaces::World);
-			}
-
-			// this is a bit crazy, but we have to generate a delta rotation in the local space of the retarget root
-			// bone while treating the root bone as being in global space since the retarget pose does not consider any
-			// bones above it.
-			const FQuat GlobalDeltaRotation = GlobalTransformImported.GetRotation() * GlobalTransformReference.GetRotation().Inverse();
-			const FQuat BoneGlobalOrig = GlobalTransformReference.GetRotation();
-			const FQuat BoneGlobalPlusOffset = GlobalDeltaRotation * BoneGlobalOrig;
-			const FQuat ParentInv = GlobalParentTransformInRefPose.GetRotation().Inverse();
-			const FQuat BoneLocal = ParentInv * BoneGlobalOrig;
-			const FQuat BoneLocalPlusOffset = ParentInv * BoneGlobalPlusOffset;
-			const FQuat BoneLocalOffset = BoneLocal * BoneLocalPlusOffset.Inverse();
-			
-			ImportedRetargetPose.BoneRotationOffsets.Add(BoneName, BoneLocalOffset.Inverse());
-		}
-		else
-		{
-			// record the delta rotation
-			const FTransform LocalTransformImported = UAnimPoseExtensions::GetBonePose(ImportedPose, BoneName, EAnimPoseSpaces::Local);
-			const FTransform LocalTransformReference = RefPose[BoneIndex];
-			const FQuat DeltaRotation = LocalTransformImported.GetRotation() * LocalTransformReference.GetRotation().Inverse();
-			// only if it's different than the ref pose
-			if (DeltaRotation.GetAngle() > KINDA_SMALL_NUMBER)
-			{
-				ImportedRetargetPose.BoneRotationOffsets.Add(BoneName, DeltaRotation);
-			}
-		}
-	}
-
-	// store the newly imported retarget pose in the asset
-	AssetController->AddRetargetPose(FName(ImportedPoseName.ToString()), &ImportedRetargetPose);
-	
-	return FReply::Unhandled();
-}
-
-void FIKRetargetEditorController::OnSequenceSelectedForPose(const FAssetData& SelectedAsset)
-{
-	SequenceToImportAsPose = SelectedAsset.ToSoftObjectPath();
-}
-
-void FIKRetargetEditorController::HandleExportPose()
-{
-	FSaveAssetDialogConfig SaveAssetDialogConfig;
-	SaveAssetDialogConfig.DefaultPath = AssetController->GetAsset()->GetPackage()->GetPathName();
-	SaveAssetDialogConfig.DefaultAssetName = GetCurrentPoseName().ToString();
-	SaveAssetDialogConfig.AssetClassNames.Add(URetargetPose::StaticClass()->GetClassPathName());
-	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
-	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("ExportRetargetPoseDialogTitle", "Export Retarget Pose");
-
-	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
-	if (SaveObjectPath.IsEmpty())
-	{
-		return;
-	}
-
-	const FString PackagePath = FPackageName::ObjectPathToPackageName(SaveObjectPath);
-	const FString AssetName = FPaths::GetBaseFilename(PackagePath, true);
-	URetargetPoseFactory* NewFactory = NewObject<URetargetPoseFactory>();
-	const FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
-	URetargetPose* NewPoseAsset =  Cast<URetargetPose>(AssetToolsModule.Get().CreateAsset(AssetName, PackagePath, URetargetPose::StaticClass(), NewFactory));
-	TArray<UObject*> ObjectsToSync;
-	ObjectsToSync.Add(NewPoseAsset);
-	GEditor->SyncBrowserToObjects(ObjectsToSync);
-	
-	// fill new pose asset with existing pose data
-	const FIKRetargetPose& CurrentRetargetPose = AssetController->GetCurrentRetargetPose();
-	NewPoseAsset->RootTranslationOffset = CurrentRetargetPose.RootTranslationOffset;
-	NewPoseAsset->BoneRotationOffsets = CurrentRetargetPose.BoneRotationOffsets;
-}
-
-void FIKRetargetEditorController::HandleDeletePose() const
-{
-	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
-	AssetController->RemoveRetargetPose(CurrentPose);
-	DetailsView->ForceRefresh();
+	const ERetargetSourceOrTarget SourceOrTarget = GetSourceOrTarget();
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName(SourceOrTarget);
+	AssetController->RemoveRetargetPose(CurrentPose, SourceOrTarget);
+	RefreshPoseList();
 }
 
 bool FIKRetargetEditorController::CanDeletePose() const
 {	
 	// cannot delete default pose
-	const bool bNotUsingDefaultPose = AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
-	// cannot delete pose while editing
-	return bNotUsingDefaultPose && !IsEditingPose();
+	return AssetController->GetCurrentRetargetPoseName(GetSourceOrTarget()) != UIKRetargeter::GetDefaultPoseName();
 }
 
 void FIKRetargetEditorController::HandleResetAllBones() const
 {
-	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName(CurrentlyEditingSourceOrTarget);
 	static TArray<FName> Empty; // empty list will reset all bones
-	AssetController->ResetRetargetPose(CurrentPose, Empty);
+	AssetController->ResetRetargetPose(CurrentPose, Empty, GetSourceOrTarget());
 }
 
 void FIKRetargetEditorController::HandleResetSelectedBones() const
 {
-	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
-	AssetController->ResetRetargetPose(CurrentPose, GetSelectedBones());
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName(CurrentlyEditingSourceOrTarget);
+	AssetController->ResetRetargetPose(CurrentPose, GetSelectedBones(), GetSourceOrTarget());
 }
 
 void FIKRetargetEditorController::HandleResetSelectedAndChildrenBones() const
 {
-	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName();
+	// get the reference skeleton we're operating on
+	const USkeletalMesh* SkeletalMesh = GetSkeletalMesh(GetSourceOrTarget());
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+	const FReferenceSkeleton RefSkeleton = SkeletalMesh->GetRefSkeleton();
 	
 	// get list of all children of selected bones
-	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
-	const FTargetSkeleton& Skeleton = Processor->GetTargetSkeleton();
 	TArray<int32> AllChildrenIndices;
 	for (const FName& SelectedBone : SelectedBones)
 	{
-		const int32 SelectedBoneIndex = Skeleton.FindBoneIndexByName(SelectedBone);
-		Skeleton.GetChildrenIndicesRecursive(SelectedBoneIndex, AllChildrenIndices);
+		const int32 SelectedBoneIndex = RefSkeleton.FindBoneIndex(SelectedBone);
+		AllChildrenIndices.Add(SelectedBoneIndex);
+		
+		for (int32 ChildIndex = 0; ChildIndex < RefSkeleton.GetNum(); ++ChildIndex)
+		{
+			const int32 ParentIndex = RefSkeleton.GetParentIndex(ChildIndex);
+			if (ParentIndex != INDEX_NONE && AllChildrenIndices.Contains(ParentIndex))
+			{
+				AllChildrenIndices.Add(ChildIndex);
+			}
+		}
 	}
 
 	// merge total list of all selected bones and their children
 	TArray<FName> BonesToReset = SelectedBones;
 	for (const int32 ChildIndex : AllChildrenIndices)
 	{
-		BonesToReset.AddUnique(Skeleton.BoneNames[ChildIndex]);
+		BonesToReset.AddUnique(RefSkeleton.GetBoneName(ChildIndex));
 	}
 	
-	// reset the bones
-	AssetController->ResetRetargetPose(CurrentPose, BonesToReset);
+	// reset the bones in the current pose
+	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName(CurrentlyEditingSourceOrTarget);
+	AssetController->ResetRetargetPose(CurrentPose, BonesToReset, GetSourceOrTarget());
 }
 
 bool FIKRetargetEditorController::CanResetSelected() const
 {
-	return CanResetPose() && !GetSelectedBones().IsEmpty();
-}
-
-bool FIKRetargetEditorController::CanResetPose() const
-{
-	// only allow reseting pose while editing to avoid confusion
-	return IsEditingPose();
+	return !GetSelectedBones().IsEmpty();
 }
 
 void FIKRetargetEditorController::HandleRenamePose()
@@ -1328,27 +1034,38 @@ FReply FIKRetargetEditorController::RenamePose() const
 	const FName NewPoseName = FName(NewNameEditableText.Get()->GetText().ToString());
 	RenamePoseWindow->RequestDestroyWindow();
 	
-	AssetController->RenameCurrentRetargetPose(NewPoseName);
-	DetailsView->ForceRefresh();
+	AssetController->RenameCurrentRetargetPose(NewPoseName, GetSourceOrTarget());
+	RefreshPoseList();
 	return FReply::Handled();
 }
 
 bool FIKRetargetEditorController::CanRenamePose() const
 {
 	// cannot rename default pose
-	const bool bNotUsingDefaultPose = AssetController->GetCurrentRetargetPoseName() != UIKRetargeter::GetDefaultPoseName();
+	const bool bNotUsingDefaultPose = AssetController->GetCurrentRetargetPoseName(GetSourceOrTarget()) != UIKRetargeter::GetDefaultPoseName();
 	// cannot rename pose while editing
 	return bNotUsingDefaultPose && !IsEditingPose();
 }
 
+void FIKRetargetEditorController::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (TTuple<FName, TObjectPtr<UIKRetargetBoneDetails>> Pair : AllBoneDetails)
+	{
+		Collector.AddReferencedObject(Pair.Value);
+	}
+};
+
 FText FIKRetargetEditorController::GetCurrentPoseName() const
 {
-	return FText::FromName(AssetController->GetCurrentRetargetPoseName());
+	return FText::FromName(AssetController->GetCurrentRetargetPoseName(GetSourceOrTarget()));
 }
 
-void FIKRetargetEditorController::OnPoseSelected(TSharedPtr<FName> InPosePose, ESelectInfo::Type SelectInfo) const
+void FIKRetargetEditorController::OnPoseSelected(TSharedPtr<FName> InPose, ESelectInfo::Type SelectInfo) const
 {
-	AssetController->SetCurrentRetargetPose(*InPosePose.Get());
+	if (InPose.IsValid())
+	{
+		AssetController->SetCurrentRetargetPose(*InPose.Get(), GetSourceOrTarget());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -160,9 +160,15 @@ class IKRIG_API URetargetRootSettings: public UObject
 	
 	URetargetRootSettings() = default;
 
-	/** Whether to modify the location of the retarget root bone. Default is true. */
-	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
-	bool RetargetRootTranslation = true;
+	/** Range 0 to 1. Default 0. Blends the retarget root's translation to the exact source location.
+	*  At 0 the root is placed at the retargeted location.
+	*  At 1 the root is placed at the location of the source's retarget root bone. */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float BlendToSource = 0.0f;
+
+	/** Per-axis weights for the Blend to Source. */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	FVector BlendToSourceWeights = FVector::OneVector;
 
 	/** Default 1. Scales the motion of the root position in the horizontal plane (X,Y). */
 	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (UIMin = "0.0", UIMax = "3.0"))
@@ -171,19 +177,13 @@ class IKRIG_API URetargetRootSettings: public UObject
 	/** Default 1. Scales the motion of the root position in the vertical direction (Z). */
 	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (UIMin = "0.0", UIMax = "3.0"))
 	float GlobalScaleVertical = 1.0f;
-	
-	/** Range 0 to 1. Default 0. Blends the retarget root's translation to the exact source location (per axis).
-	*  At 0 the root is placed at the retargeted location.
-	*  At 1 the root is placed at the location of the source's retarget root bone. */
-	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
-	FVector BlendToSource = FVector::ZeroVector;
 
 	/** Applies a static component-space translation offset to the retarget root.*/
 	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
 	FVector StaticOffset = FVector::ZeroVector;
 
 	/** Applies a static component-space rotation offset to the retarget root.*/
-	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (ClampMin = "-180.0", ClampMax = "180.0", UIMin = "-180.0", UIMax = "180.0"))
 	FRotator StaticRotationOffset = FRotator::ZeroRotator;
 };
 
@@ -196,6 +196,17 @@ public:
 	
 	FIKRetargetPose() = default;
 
+	FQuat GetDeltaRotationForBone(const FName BoneName) const;
+	void SetDeltaRotationForBone(FName BoneName, FQuat RotationOffset);
+	const TMap<FName, FQuat>& GetAllDeltaRotations() const { return BoneRotationOffsets; };
+
+	FVector GetRootTranslationDelta() const;
+	void SetRootTranslationDelta(const FVector& TranslationDelta);
+	void AddToRootTranslationDelta(const FVector& TranslationDelta);
+	
+	void SortHierarchically(const FIKRigSkeleton& Skeleton);
+
+private:
 	// a translational delta in GLOBAL space, applied only to the retarget root bone
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	FVector RootTranslationOffset = FVector::ZeroVector;
@@ -203,41 +214,16 @@ public:
 	// these are LOCAL-space rotation deltas to be applied to a bone to modify it's retarget pose
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	TMap<FName, FQuat> BoneRotationOffsets;
-	
-	void SetBoneRotationOffset(FName BoneName, FQuat RotationOffset, const FIKRigSkeleton& Skeleton);
-	void SetRootTranslationDelta(FVector TranslationDelta);
-	void AddToRootTranslationDelta(FVector TranslationDelta);
-	void SortHierarchically(const FIKRigSkeleton& Skeleton);
+
+	friend class UIKRetargeterController;
 };
 
-UCLASS(Blueprintable)
-class IKRIG_API URetargetPose: public UObject
+// which skeleton are we referring to?
+enum class ERetargetSourceOrTarget : uint8
 {
-	GENERATED_BODY()
-
-public:
-
-	UPROPERTY(EditAnywhere, Category = RetargetPose)
-	FVector RootTranslationOffset = FVector::ZeroVector;
-	
-	UPROPERTY(EditAnywhere, Category = RetargetPose)
-	TMap<FName, FQuat> BoneRotationOffsets;
-
-	void GetAsRetargetPose(FIKRetargetPose& OutPose) const
-	{
-		OutPose.RootTranslationOffset = RootTranslationOffset;
-		OutPose.BoneRotationOffsets = BoneRotationOffsets;
-	}
+	Source,	// the SOURCE skeleton (to copy FROM)
+	Target, // the TARGET skeleton (to copy TO)
 };
-
-#if WITH_EDITOR
-enum class ERetargeterOutputMode : uint8
-{
-	RunRetarget,
-	ShowRetargetPose,
-	EditRetargetPose
-};
-#endif
 
 UCLASS(Blueprintable)
 class IKRIG_API UIKRetargeter : public UObject
@@ -254,7 +240,7 @@ public:
 	const UIKRigDefinition* GetTargetIKRig() const { return TargetIKRigAsset.LoadSynchronous(); };
 	/** Get read-write access to the source IK Rig asset.
 	 * WARNING: do not use for editing the data model. Use Controller class instead. */
-	 UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset.LoadSynchronous(); };
+	UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset.LoadSynchronous(); };
 	/** Get read-write access to the target IK Rig asset.
 	 * WARNING: do not use for editing the data model. Use Controller class instead. */
 	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset.LoadSynchronous(); };
@@ -263,7 +249,7 @@ public:
 	/** Get access to the root settings */
 	URetargetRootSettings* GetRetargetRootSettings() const { return RootSettings; };
 	/** Get read-only access to a retarget pose */
-	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
+	const FIKRetargetPose* GetCurrentRetargetPose(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	/* Get name of default pose */
 	static const FName GetDefaultPoseName();
 
@@ -285,12 +271,9 @@ public:
 	void GetSpeedCurveNames(TArray<FName>& OutSpeedCurveNames) const;
 #endif
 
-#if WITH_EDITOR
-	ERetargeterOutputMode GetOutputMode() const { return bOutputMode; }
-	void SetOutputMode(const ERetargeterOutputMode InMode) { bOutputMode = InMode; }
-#endif
-
 private:
+
+	void CleanAndInitialize();
 
 	/** The rig to copy animation FROM.*/
 	UPROPERTY(EditAnywhere, Category = Source)
@@ -353,9 +336,6 @@ public:
 	float BoneDrawSize = 8.0f;
 	
 private:
-	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,
-	* rather than actually running the retarget and outputting the retargeted pose. Used in Edit-Pose mode.*/
-	ERetargeterOutputMode bOutputMode;
 
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
 	UPROPERTY(Transient)
@@ -363,9 +343,6 @@ private:
 #endif
 	
 private:
-	/** The set of retarget poses available as options for retargeting.*/
-	UPROPERTY()
-	TMap<FName, FIKRetargetPose> RetargetPoses;
 
 	/** (OLD VERSION) Mapping of chains to copy animation between source and target rigs.*/
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -377,9 +354,27 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<URetargetChainSettings>> ChainSettings;
 	
-	/** The set of retarget poses available as options for retargeting.*/
+	/** The set of retarget poses for the SOURCE skeleton.*/
 	UPROPERTY()
-	FName CurrentRetargetPose;
+	TMap<FName, FIKRetargetPose> SourceRetargetPoses;
+	/** The set of retarget poses for the TARGET skeleton.*/
+	UPROPERTY()
+	TMap<FName, FIKRetargetPose> TargetRetargetPoses;
+	
+	/** The current retarget pose to use for the SOURCE.*/
+	UPROPERTY()
+	FName CurrentSourceRetargetPose;
+	/** The current retarget pose to use for the TARGET.*/
+	UPROPERTY()
+	FName CurrentTargetRetargetPose;
+
+	/** (OLD VERSION) Before retarget poses were stored for target AND source.*/
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	TMap<FName, FIKRetargetPose> RetargetPoses_DEPRECATED;
+	UPROPERTY()
+	FName CurrentRetargetPose_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	friend class UIKRetargeterController;
 };

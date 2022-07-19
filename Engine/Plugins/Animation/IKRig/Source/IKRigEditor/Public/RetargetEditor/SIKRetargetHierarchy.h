@@ -6,10 +6,11 @@
 #include "EditorUndoClient.h"
 #include "IKRetargetEditorController.h"
 #include "SBaseHierarchyTreeView.h"
+#include "SIKRetargetPoseEditor.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SIKRetargetHierarchy;
+class SIKRetargetPoseEditor;
 
 class FIKRetargetHierarchyElement : public TSharedFromThis<FIKRetargetHierarchyElement>
 {
@@ -70,6 +71,8 @@ public:
 
 	void ShowItemAfterSelection(FName ItemKey);
 
+	void RefreshPoseList() const { EditPoseView.Get()->Refresh(); };
+
 private:
 	
 	/** centralized editor controls (facilitate cross-communication between multiple UI elements)*/
@@ -77,6 +80,9 @@ private:
 	
 	/** command list we bind to */
 	TSharedPtr<FUICommandList> CommandList;
+
+	/** edit pose widget */
+	TSharedPtr<SIKRetargetPoseEditor> EditPoseView;
 	
 	/** tree view widget */
 	TSharedPtr<SIKRetargetHierarchyTreeView> TreeView;
