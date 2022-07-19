@@ -8,9 +8,10 @@
 
 class AActor;
 class AStaticMeshActor;
-struct FDatasmithImportContext;
+class FDatasmithActorUniqueLabelProvider;
 class IDatasmithActorElement;
 class IDatasmithCameraActorElement;
+class IDatasmithClothActorElement;
 class IDatasmithCustomActorElement;
 class IDatasmithDecalActorElement;
 class IDatasmithEnvironmentElement;
@@ -27,7 +28,7 @@ class UHierarchicalInstancedStaticMeshComponent;
 class USceneComponent;
 class UStaticMeshComponent;
 struct FCachedActorLabels;
-class FDatasmithActorUniqueLabelProvider;
+struct FDatasmithImportContext;
 
 class FDatasmithActorImporter
 {
@@ -71,6 +72,8 @@ public:
 	static AStaticMeshActor* ImportStaticMeshActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMeshActorElement >& MeshActorElement );
 	static UStaticMeshComponent* ImportStaticMeshComponent( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMeshActorElement >& MeshActorElement, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
 
+	static AActor* ImportClothActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithClothActorElement >& ClothActorElement );
+
 	/**
 	 * Spawns a cine camera actor
 	 */
@@ -100,12 +103,12 @@ public:
 	 * Spawns a landscape actor
 	 */
 	static AActor* ImportLandscapeActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithLandscapeElement >& LandscapeActorElement );
-	
+
 	/**
 	 * Spawns an actor with a hierarchical instanced static mesh component
 	 */
 	static AActor* ImportHierarchicalInstancedStaticMeshAsActor( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >& HierarchicalInstancedStatictMeshActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
-	
+
 	static UHierarchicalInstancedStaticMeshComponent* ImportHierarchicalInstancedStaticMeshComponent( FDatasmithImportContext& ImportContext,
 		const TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >& HierarchicalInstancedStaticMeshActorElement, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );
 

@@ -3,7 +3,9 @@
 #include "DatasmithActorImporter.h"
 
 #include "DatasmithCameraImporter.h"
+#include "DatasmithClothImporter.h"
 #include "DatasmithImportContext.h"
+#include "DatasmithImporterModule.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithLandscapeImporter.h"
 #include "DatasmithLightImporter.h"
@@ -285,6 +287,65 @@ UStaticMeshComponent* FDatasmithActorImporter::ImportStaticMeshComponent( FDatas
 	return StaticMeshComponent;
 }
 
+AActor* FDatasmithActorImporter::ImportClothActor(FDatasmithImportContext& ImportContext, const TSharedRef<IDatasmithClothActorElement>& ClothActorElement)
+{
+	AActor* ImportedActor = ImportActor(AActor::StaticClass(), ClothActorElement, ImportContext, ImportContext.Options->StaticMeshActorImportPolicy);
+
+	if (ImportedActor)
+	{
+		// Find imported resource
+		// #ue_ds_cloth_todo: Can be converted to a FDatasmithImporterUtils::FindAsset call when the actual cloth asset type is known to the importer
+		const TCHAR* ClothName = ClothActorElement->GetCloth();
+		UObject* ClothAsset = nullptr;
+
+		// search in imported resources
+		for (const auto& ImportedAssetPair : ImportContext.ImportedClothes) // Algo::Find
+		{
+			if (FCString::Stricmp(ImportedAssetPair.Key->GetName(), ClothName) == 0)
+			{
+				ClothAsset = ImportedAssetPair.Value;
+				break;
+			}
+		}
+
+		// search in existing scene asset
+		if (ClothAsset == nullptr)
+		{
+			check(ImportContext.SceneAsset);
+			if (TSoftObjectPtr<UObject>* ClothAssetPtr = ImportContext.SceneAsset->Clothes.Find(FName(ClothName)))
+			{
+				ClothAsset = ClothAssetPtr->LoadSynchronous();
+			}
+		}
+
+		if (IDatasmithImporterExt* Ext = IDatasmithImporterModule::Get().GetClothImporterExtension())
+		{
+			if (USceneComponent* ClothComponent = Ext->MakeClothComponent(ImportedActor, ClothAsset))
+			{
+				ImportedActor->AddInstanceComponent(ClothComponent);
+				ClothComponent->SetupAttachment(ImportedActor->GetRootComponent());
+
+				ClothComponent->bVisualizeComponent = true;
+				ClothComponent->RegisterComponent();
+			}
+			else
+			{
+				ImportContext.LogError(FText::Format(LOCTEXT("ClothComponentCreationFailure", "Cannot create cloth component for asset {0} reauired by actor {1}."), FText::FromString(ClothName), FText::FromString(ClothActorElement->GetLabel())));
+			}
+		}
+		else
+		{
+			ImportContext.LogError(FText::Format(LOCTEXT("ClothImporterExtensionIssue", "Cannot find ClothImporterExtension, cannot import actor {0}."), FText::FromString(ClothActorElement->GetLabel())));
+		}
+
+		if (ClothAsset == nullptr)
+		{
+			ImportContext.LogError(FText::Format(LOCTEXT("MissingClothAsset", "Cannot find cloth asset {0} for actor {1}."), FText::FromString(ClothName), FText::FromString(ClothActorElement->GetLabel())));
+		}
+	}
+	return ImportedActor;
+}
+
 void FDatasmithActorImporter::SetupStaticMeshComponent( FDatasmithImportContext& ImportContext, UStaticMeshComponent* StaticMeshComponent, const TSharedRef< IDatasmithMeshActorElement >& MeshActorElement )
 {
 	if ( !StaticMeshComponent )
@@ -406,7 +467,7 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 		{
 			ImportContext.LogWarning(FText::Format(LOCTEXT("BadPropertyKey", "Cannot find Property '{0}' on actor {1}.")
 				, FText::FromString(PropStr)
-				, FText::FromString(InCustomActorElement->GetName() )) 
+				, FText::FromString(InCustomActorElement->GetName() ))
 			);
 			continue;
 		}
@@ -417,7 +478,7 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 			ImportContext.LogWarning(FText::Format(LOCTEXT("BadPropertyValue", "Cannot properly load value '{0}' on property '{1}' for actor {2}.")
 				, FText::FromStringView(KeyValueProperty->GetValue())
 				, FText::FromString(PropStr)
-				, FText::FromStringView(InCustomActorElement->GetName())) 
+				, FText::FromStringView(InCustomActorElement->GetName()))
 			);
 		}
 	}
@@ -730,7 +791,7 @@ void FDatasmithActorImporter::OverrideStaticMeshActorMaterial( const FDatasmithI
 	}
 }
 
-AActor * FDatasmithActorImporter::ImportDecalActor(FDatasmithImportContext& ImportContext, const TSharedRef<IDatasmithDecalActorElement>& DecalActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider)
+AActor* FDatasmithActorImporter::ImportDecalActor(FDatasmithImportContext& ImportContext, const TSharedRef<IDatasmithDecalActorElement>& DecalActorElement, FDatasmithActorUniqueLabelProvider& UniqueNameProvider)
 {
 	if (ImportContext.Options->OtherActorImportPolicy == EDatasmithImportActorPolicy::Ignore)
 	{

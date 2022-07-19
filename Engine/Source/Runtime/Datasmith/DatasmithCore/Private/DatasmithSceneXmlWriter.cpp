@@ -47,6 +47,7 @@ public:
 	static void WriteActorTags(const TSharedPtr< IDatasmithActorElement >& ActorElement, FArchive& Archive, int32 Indent);
 	static void WriteActorChildren(const TSharedPtr< IDatasmithActorElement >& ActorElement, FArchive& Archive, int32 Indent);
 	static void WriteMeshActorElement(const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement, FArchive& Archive, int32 Indent);
+	static void WriteClothActorElement(const TSharedPtr< IDatasmithClothActorElement >& ClothActorElement, FArchive& Archive, int32 Indent);
 
 	// Write the start of the actor element (Open the xml element and add the essential child elements for the mesh actor)
 	static void WriteBeginOfMeshActorElement(const TSharedPtr<IDatasmithMeshActorElement>& MeshActorElement, const FString& ElementTypeString, FArchive& Archive, int32 Indent);
@@ -570,6 +571,10 @@ void FDatasmithSceneXmlWriterImpl::WriteActorElement(const TSharedPtr< IDatasmit
 	{
 		WriteMeshActorElement(StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement), Archive, Indent);
 	}
+	else if ( ActorElement->IsA( EDatasmithElementType::ClothActor ) )
+	{
+		WriteClothActorElement(StaticCastSharedPtr< IDatasmithClothActorElement >(ActorElement), Archive, Indent);
+	}
 	else if ( ActorElement->IsA( EDatasmithElementType::Camera ) )
 	{
 		WriteCameraActorElement(StaticCastSharedPtr< IDatasmithCameraActorElement >(ActorElement), Archive, Indent);
@@ -675,6 +680,19 @@ void FDatasmithSceneXmlWriterImpl::WriteMeshActorElement(const TSharedPtr< IData
 	WriteBeginOfMeshActorElement(MeshActorElement, ElementTypeString, Archive, Indent);
 	WriteActorChildren(MeshActorElement, Archive, Indent);
 	WriteEndOfMeshActorElement(ElementTypeString, Archive, Indent);
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteClothActorElement(const TSharedPtr< IDatasmithClothActorElement >& Element, FArchive& Archive, int32 Indent)
+{
+	WriteIndent(Archive, Indent);
+	SerializeToArchive(Archive, FString(TEXT("<") DATASMITH_CLOTHACTORNAME TEXT(" name=\"")) + SanitizeXMLText(Element->GetName()) + TEXT("\""));
+	SerializeToArchive(Archive, GetLabelAndLayer(Element) + TEXT(">") LINE_TERMINATOR);
+
+	WriteIndent(Archive, Indent + 1);
+	SerializeToArchive(Archive, TEXT("<Cloth name=\"") + SanitizeXMLText(Element->GetCloth()) + TEXT("\"/>") LINE_TERMINATOR);
+
+	WriteIndent(Archive, Indent);
+	SerializeToArchive(Archive, TEXT("</") DATASMITH_CLOTHACTORNAME TEXT(">") LINE_TERMINATOR);
 }
 
 void FDatasmithSceneXmlWriterImpl::WriteBeginOfMeshActorElement(const TSharedPtr<IDatasmithMeshActorElement>& MeshActorElement, const FString& ElementTypeString, FArchive& Archive, int32 Indent)
@@ -1094,7 +1112,7 @@ void FDatasmithSceneXmlWriterImpl::WriteCameraActorElement(const TSharedPtr< IDa
 {
 	WriteIndent(Archive, Indent);
 
-	FString XmlString = TEXT("<") + FString(DATASMITH_CAMERANAME) + TEXT(" name=\"") + SanitizeXMLText( CameraElement->GetName() ) + ("\"");
+	FString XmlString = TEXT("<") + FString(DATASMITH_CAMERANAME) + TEXT(" name=\"") + SanitizeXMLText( CameraElement->GetName() ) + TEXT("\"");
 
 	XmlString += GetLabelAndLayer(CameraElement) + TEXT(">") + LINE_TERMINATOR;
 

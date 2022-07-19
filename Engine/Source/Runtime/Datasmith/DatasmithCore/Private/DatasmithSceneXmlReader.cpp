@@ -21,8 +21,18 @@ FDatasmithSceneXmlReader::FDatasmithSceneXmlReader() = default;
 FDatasmithSceneXmlReader::~FDatasmithSceneXmlReader() = default;
 
 
-const TCHAR* ActorTagsView[] = { DATASMITH_ACTORNAME, DATASMITH_ACTORMESHNAME, DATASMITH_CAMERANAME, DATASMITH_LIGHTNAME,
-DATASMITH_CUSTOMACTORNAME, DATASMITH_LANDSCAPENAME, DATASMITH_POSTPROCESSVOLUME, DATASMITH_ACTORHIERARCHICALINSTANCEDMESHNAME, DATASMITH_DECALACTORNAME };
+const TCHAR* ActorTagsView[] = {
+	DATASMITH_ACTORNAME,
+	DATASMITH_ACTORHIERARCHICALINSTANCEDMESHNAME,
+	DATASMITH_ACTORMESHNAME,
+	DATASMITH_CAMERANAME,
+	DATASMITH_CLOTHACTORNAME,
+	DATASMITH_CUSTOMACTORNAME,
+	DATASMITH_DECALACTORNAME,
+	DATASMITH_LANDSCAPENAME,
+	DATASMITH_LIGHTNAME,
+	DATASMITH_POSTPROCESSVOLUME,
+};
 
 template<>
 float FDatasmithSceneXmlReader::ValueFromString< float >( const FString& InString ) const
@@ -655,6 +665,12 @@ void FDatasmithSceneXmlReader::ParseActor(FXmlNode* InNode, TSharedPtr<IDatasmit
 		ParseMeshActor(InNode, MeshElement, Scene);
 		InOutElement = MeshElement;
 	}
+	else if (InNode->GetTag() == DATASMITH_CLOTHACTORNAME)
+	{
+		TSharedPtr< IDatasmithClothActorElement> Element = FDatasmithSceneFactory::CreateClothActor(*InNode->GetAttribute(TEXT("name")));
+		ParseClothActor(InNode, Element, Scene);
+		InOutElement = Element;
+	}
 	else if (InNode->GetTag() == DATASMITH_LIGHTNAME)
 	{
 		TSharedPtr< IDatasmithLightActorElement > LightElement;
@@ -808,6 +824,19 @@ void FDatasmithSceneXmlReader::ParseMeshActor(FXmlNode* InNode, TSharedPtr<IData
 			TSharedPtr< IDatasmithMaterialIDElement > MatElement = FDatasmithSceneFactory::CreateMaterialId(*ChildNode->GetAttribute(TEXT("name")));
 			MatElement->SetId(ValueFromString<int32>(ChildNode->GetAttribute(TEXT("id"))));
 			OutElement->AddMaterialOverride(MatElement);
+		}
+	}
+}
+
+void FDatasmithSceneXmlReader::ParseClothActor(FXmlNode* InNode, TSharedPtr<IDatasmithClothActorElement>& OutElement, TSharedRef< IDatasmithScene > Scene) const
+{
+	ParseElement(InNode, OutElement.ToSharedRef());
+
+	for (FXmlNode* ChildNode : InNode->GetChildrenNodes())
+	{
+		if (ChildNode->GetTag() == TEXT("Cloth"))
+		{
+			OutElement->SetCloth(*ChildNode->GetAttribute(TEXT("name")));
 		}
 	}
 }

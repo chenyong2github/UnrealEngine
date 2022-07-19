@@ -20,7 +20,9 @@ struct FDatasmithMeshElementPayload : public FDatasmithPayload
 };
 
 
-// #ue_ds_cloth_doc IDatasmithScene API
+/**
+ * Describes a Cloth element payload, which is the actual data to be imported.
+ */
 struct FDatasmithClothElementPayload : public FDatasmithPayload
 {
 	FDatasmithCloth Cloth;

@@ -387,7 +387,9 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithMaterialIDElement> MaterialSlots;
 };
 
-// #ue_ds_cloth_doc: Experimental Element that describes a cloth asset
+/*
+ * Experimental Element that describes a cloth asset.
+ */
 class FDatasmithClothElementImpl : public FDatasmithElementImpl< IDatasmithClothElement >
 {
 public:
@@ -1019,6 +1021,20 @@ private:
 	TReflected<FString> HeightmapFilePath;
 	TReflected<FString> MaterialPathName;
 };
+
+
+class FDatasmithClothActorElementImpl : public FDatasmithActorElementImpl<IDatasmithClothActorElement>
+{
+public:
+	FDatasmithClothActorElementImpl(const TCHAR* InName);
+
+	virtual void SetCloth(const TCHAR* InCloth) override { Cloth = InCloth; }
+	virtual const TCHAR* GetCloth() const override { return *(FString&)Cloth; }
+
+private:
+	TReflected<FString> Cloth;
+};
+
 
 class FDatasmithEnvironmentElementImpl : public FDatasmithLightActorElementImpl< IDatasmithEnvironmentElement >
 {

@@ -45,6 +45,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "EditorLevelUtils.h"
 #include "Engine/Engine.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "HAL/FileManager.h"
@@ -72,6 +73,7 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "SkinnedAssetCompiler.h"
 #include "SourceControlOperations.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
@@ -455,6 +457,7 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 						}
 					}
 
+					bool bShouldBuildAsset = false;
 					if (ExistingCloth)
 					{
 						if (ExistingCloth->GetOuter() != Outer)
@@ -480,9 +483,10 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 					else
 					{
 						ClothAsset = Ext->MakeClothAsset(Outer, *ClothName, ObjectFlags);
+						bShouldBuildAsset = true;
 					}
 
-					Ext->FillCloth(ClothAsset, ClothElement, DsCloth);
+					Ext->FillCloth(ClothAsset, ClothElement, DsCloth); // , bShouldBuildAsset);
 				}
 
 				ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);
@@ -574,8 +578,19 @@ UStaticMesh* FDatasmithImporter::FinalizeStaticMesh( UStaticMesh* SourceStaticMe
 UObject* FDatasmithImporter::FinalizeCloth(UObject* SourceCloth, const TCHAR* FolderPath, UObject* ExistingCloth, TMap<UObject*, UObject*>* ReferencesToRemap)
 {
 	// #ue_ds_cloth_note FDatasmithImporter::FinalizeCloth
+	if (Cast<USkinnedAsset>(ExistingCloth))
+	{
+		// #ue_ds_cloth_todo review if this step is legit
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({Cast<USkinnedAsset>(ExistingCloth)});
+	}
+
 	UObject* Asset = FDatasmithImporterImpl::FinalizeAsset(SourceCloth, FolderPath, ExistingCloth, ReferencesToRemap);
-// 	UChaosClothAsset* DestinationCloth = Cast<UChaosClothAsset>(Asset);
+
+	if (Cast<USkinnedAsset>(Asset))
+	{
+		// #ue_ds_cloth_todo review if this step is legit
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({Cast<USkinnedAsset>(Asset)});
+	}
 	return Asset;
 }
 
@@ -990,7 +1005,6 @@ void FDatasmithImporter::ImportActors( FDatasmithImportContext& ImportContext )
 	}
 	// end of the hotfix
 
-
 	ADatasmithSceneActor* ImportSceneActor = ImportContext.ActorsContext.ImportSceneActor;
 
 	// Create a scene actor to import with if we don't have one
@@ -1084,13 +1098,15 @@ AActor* FDatasmithImporter::ImportActor( FDatasmithImportContext& ImportContext,
 	AActor* ImportedActor = nullptr;
 	if (ActorElement->IsA(EDatasmithElementType::HierarchicalInstanceStaticMesh))
 	{
-		TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > HISMActorElement = StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >( ActorElement );
-		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, HISMActorElement, UniqueNameProvider );
+		ImportedActor =  FDatasmithActorImporter::ImportHierarchicalInstancedStaticMeshAsActor( ImportContext, StaticCastSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement >( ActorElement ), UniqueNameProvider );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 	{
-		TSharedRef< IDatasmithMeshActorElement > MeshActorElement = StaticCastSharedRef< IDatasmithMeshActorElement >( ActorElement );
-		ImportedActor = FDatasmithActorImporter::ImportStaticMeshActor( ImportContext, MeshActorElement );
+		ImportedActor = FDatasmithActorImporter::ImportStaticMeshActor( ImportContext, StaticCastSharedRef< IDatasmithMeshActorElement >( ActorElement ) );
+	}
+	else if (ActorElement->IsA(EDatasmithElementType::ClothActor))
+	{
+		ImportedActor = FDatasmithActorImporter::ImportClothActor(ImportContext, StaticCastSharedRef<IDatasmithClothActorElement>( ActorElement ) );
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::EnvironmentLight))
 	{
@@ -1346,9 +1362,9 @@ void FDatasmithImporter::FinalizeActors( FDatasmithImportContext& ImportContext,
 					continue;
 				}
 
-				const bool bActorIsRelatedToDestionScene = DestinationSceneActor->RelatedActors.Contains( SourceActorPair.Key );
+				const bool bActorIsRelatedToDestinationScene = DestinationSceneActor->RelatedActors.Contains( SourceActorPair.Key );
 				TSoftObjectPtr< AActor >& ExistingActorPtr = DestinationSceneActor->RelatedActors.FindOrAdd( SourceActorPair.Key );
-				const bool bShouldFinalizeActor = bShouldSpawnNonExistingActors || !bActorIsRelatedToDestionScene || ( ExistingActorPtr.Get() && !ExistingActorPtr.Get()->IsPendingKillPending() );
+				const bool bShouldFinalizeActor = bShouldSpawnNonExistingActors || !bActorIsRelatedToDestinationScene || ( ExistingActorPtr.Get() && !ExistingActorPtr.Get()->IsPendingKillPending() );
 
 				if ( bShouldFinalizeActor )
 				{

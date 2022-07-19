@@ -257,9 +257,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
 
-	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes; // #ue_ds_cloth_todo: UChaosClothAsset
+	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes; // #ue_ds_cloth_arch UChaosClothAsset
 
-	TArray< UObject* > ImportedClothPresets; // #ue_ds_cloth_todo: UChaosClothPreset // #ue_ds_cloth_todo: map with a dedicated element so that clothes can share parameters
+	TArray< UObject* > ImportedClothPresets; // #ue_ds_cloth_arch: UChaosClothPreset // #ue_ds_cloth_todo: map with a dedicated element so that clothes can share presets // #ue_ds_cloth_existing presets
 
 	/** Register IDatasmithMeshElement by their name so they can be searched faster */
 	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;

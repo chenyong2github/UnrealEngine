@@ -297,6 +297,13 @@ public:
 	virtual void SetStaticMeshPathName(const TCHAR* InStaticMeshPathName) = 0;
 };
 
+class DATASMITHCORE_API IDatasmithClothActorElement : public IDatasmithActorElement
+{
+public:
+	virtual void SetCloth(const TCHAR* Cloth) = 0;
+	virtual const TCHAR* GetCloth() const = 0;
+};
+
 class DATASMITHCORE_API IDatasmithHierarchicalInstancedStaticMeshActorElement : public IDatasmithMeshActorElement
 {
 public:

@@ -195,7 +195,13 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 	}
 }
 
-UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithMeshElementPayload& Payload, EObjectFlags ObjectFlags, const FDatasmithStaticMeshImportOptions& ImportOptions, FDatasmithAssetsImportContext& AssetsContext, UStaticMesh* ExistingMesh)
+UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(
+	const TSharedRef< IDatasmithMeshElement > MeshElement
+	, FDatasmithMeshElementPayload& Payload
+	, EObjectFlags ObjectFlags
+	, const FDatasmithStaticMeshImportOptions& ImportOptions
+	, FDatasmithAssetsImportContext& AssetsContext
+	, UStaticMesh* ExistingMesh)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithStaticMeshImporter::ImportStaticMesh);
 

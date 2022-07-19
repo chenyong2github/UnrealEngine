@@ -44,9 +44,11 @@ public:
 
 	static TSharedRef< IDatasmithMeshElement > CreateMesh( const TCHAR* InName );
 
+	static TSharedRef< IDatasmithMeshActorElement > CreateMeshActor(const TCHAR* InName);
+
 	static TSharedRef< IDatasmithClothElement > CreateCloth( const TCHAR* InName );
 
-	static TSharedRef< IDatasmithMeshActorElement > CreateMeshActor( const TCHAR* InName );
+	static TSharedRef< IDatasmithClothActorElement > CreateClothActor(const TCHAR* InName);
 
 	static TSharedRef< IDatasmithHierarchicalInstancedStaticMeshActorElement > CreateHierarchicalInstanceStaticMeshActor( const TCHAR* InName );
 

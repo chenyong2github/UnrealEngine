@@ -1503,3 +1503,9 @@ void FDatasmithSceneImpl::AttachActorToSceneRoot(const TSharedPtr< IDatasmithAct
 		DatasmithSceneImplInternal::AttachActorToSceneRoot(this, Child, AttachmentRule, FoundChildHierarchy);
 	}
 }
+
+FDatasmithClothActorElementImpl::FDatasmithClothActorElementImpl(const TCHAR* InName)
+	: FDatasmithActorElementImpl<IDatasmithClothActorElement>(InName, EDatasmithElementType::ClothActor)
+{
+	Store.RegisterParameter(Cloth, "Cloth");
+}
