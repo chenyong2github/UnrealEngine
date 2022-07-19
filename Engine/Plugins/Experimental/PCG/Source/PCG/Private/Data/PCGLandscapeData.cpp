@@ -79,54 +79,11 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 		// Compute the 4 points indices
 		const FVector2D ComponentLocalPoint(LocalPoint.X - ComponentMapKey.X * LandscapeInfo->ComponentSizeQuads, LocalPoint.Y - ComponentMapKey.Y * LandscapeInfo->ComponentSizeQuads);
 		const int32 X0Y0 = FMath::FloorToInt(ComponentLocalPoint.X) + FMath::FloorToInt(ComponentLocalPoint.Y) * (LandscapeInfo->ComponentSizeQuads + 1);
-		const int32 X1Y0 = X0Y0 + 1;
-		const int32 X0Y1 = X0Y0 + (LandscapeInfo->ComponentSizeQuads + 1);
-		const int32 X1Y1 = X0Y1 + 1;
 
 		const float FractionalX = FMath::Fractional(LocalPoint.X);
 		const float FractionalY = FMath::Fractional(LocalPoint.Y);
 
-		if (FractionalX < KINDA_SMALL_NUMBER && FractionalY < KINDA_SMALL_NUMBER)
-		{
-			LandscapeCacheEntry->GetPoint(X0Y0, OutPoint, OutMetadata);
-		}
-		else if (FractionalX < KINDA_SMALL_NUMBER && FractionalY > 1.0f - KINDA_SMALL_NUMBER)
-		{
-			LandscapeCacheEntry->GetPoint(X1Y0, OutPoint, OutMetadata);
-		}
-		else if (FractionalX > 1.0f - KINDA_SMALL_NUMBER && FractionalY < KINDA_SMALL_NUMBER)
-		{
-			LandscapeCacheEntry->GetPoint(X0Y1, OutPoint, OutMetadata);
-		}
-		else if (FractionalX > 1.0f - KINDA_SMALL_NUMBER && FractionalY < 1.0f - KINDA_SMALL_NUMBER)
-		{
-			LandscapeCacheEntry->GetPoint(X1Y1, OutPoint, OutMetadata);
-		}
-		else
-		{
-			FPCGPoint PX0Y0;
-			FPCGPoint PX1Y0;
-			FPCGPoint PX0Y1;
-			FPCGPoint PX1Y1;
-
-			LandscapeCacheEntry->GetPoint(X0Y0, PX0Y0, OutMetadata);
-			LandscapeCacheEntry->GetPoint(X1Y0, PX1Y0, OutMetadata);
-			LandscapeCacheEntry->GetPoint(X0Y1, PX0Y1, OutMetadata);
-			LandscapeCacheEntry->GetPoint(X1Y1, PX1Y1, OutMetadata);
-
-			PCGPointHelpers::Bilerp(
-				PX0Y0,
-				PX1Y0,
-				PX0Y1,
-				PX1Y1,
-				OutMetadata,
-				OutPoint,
-				OutMetadata,
-				FractionalX,
-				FractionalY);
-		}
-
-		return true;
+		return LandscapeCacheEntry->GetInterpolatedPoint(X0Y0, LandscapeInfo->ComponentSizeQuads + 1, FractionalX, FractionalY, OutPoint, OutMetadata);
 	}
 	else
 	{

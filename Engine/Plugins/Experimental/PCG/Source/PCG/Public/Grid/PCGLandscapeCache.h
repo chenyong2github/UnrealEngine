@@ -34,6 +34,7 @@ public:
 #endif
 
 	bool GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
+	bool GetInterpolatedPoint(int32 PointIndex, int32 PointLineStride, float XFactor, float YFactor, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 
 	// TODO: this isn't really needed
 	UPROPERTY()

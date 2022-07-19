@@ -122,6 +122,69 @@ bool FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UP
 	return true;
 }
 
+bool FPCGLandscapeCacheEntry::GetInterpolatedPoint(int32 BasePointIndex, int32 PointLineStride, float XFactor, float YFactor, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	if (BasePointIndex < 0 || 2 * BasePointIndex >= PositionsAndNormals.Num())
+	{
+		return false;
+	}
+
+	const int32 X0Y0 = BasePointIndex;
+	const int32 X1Y0 = X0Y0 + 1;
+	const int32 X0Y1 = X0Y0 + PointLineStride;
+	const int32 X1Y1 = X0Y1 + 1;
+
+	const FVector& PositionX0Y0 = PositionsAndNormals[2 * X0Y0];
+	const FVector& NormalX0Y0 = PositionsAndNormals[2 * X0Y0 + 1];
+	const FVector& PositionX1Y0 = PositionsAndNormals[2 * X1Y0];
+	const FVector& NormalX1Y0 = PositionsAndNormals[2 * X1Y0 + 1];
+	const FVector& PositionX0Y1 = PositionsAndNormals[2 * X0Y1];
+	const FVector& NormalX0Y1 = PositionsAndNormals[2 * X0Y1 + 1];
+	const FVector& PositionX1Y1 = PositionsAndNormals[2 * X1Y1];
+	const FVector& NormalX1Y1 = PositionsAndNormals[2 * X1Y1 + 1];
+
+	FVector LerpPositionY0 = FMath::Lerp(PositionX0Y0, PositionX1Y0, XFactor);
+	FVector LerpPositionY1 = FMath::Lerp(PositionX0Y1, PositionX1Y1, XFactor);
+	FVector Position = FMath::Lerp(LerpPositionY0, LerpPositionY1, YFactor);
+
+	FVector LerpNormalY0 = FMath::Lerp(NormalX0Y0, NormalX1Y0, XFactor);
+	FVector LerpNormalY1 = FMath::Lerp(NormalX0Y1, NormalX1Y1, XFactor);
+	FVector Normal = FMath::Lerp(LerpNormalY0, LerpNormalY1, YFactor);
+
+	// TODO: we could preserve normal length by lerping this too?
+	Normal.Normalize();
+
+	FVector TangentX;
+	FVector TangentY;
+	TangentX = FVector(Normal.Z, 0.f, -Normal.X);
+	TangentY = Normal ^ TangentX;
+
+	OutPoint.Transform = FTransform(TangentX, TangentY, Normal, Position);
+	OutPoint.BoundsMin = -PointHalfSize;
+	OutPoint.BoundsMax = PointHalfSize;
+	OutPoint.Seed = UPCGBlueprintHelpers::ComputeSeedFromPosition(Position);
+
+	if (OutMetadata && !LayerData.IsEmpty())
+	{
+		OutPoint.MetadataEntry = OutMetadata->AddEntry();
+
+		for (const FPCGLandscapeCacheLayer& Layer : LayerData)
+		{
+			if (FPCGMetadataAttributeBase* Attribute = OutMetadata->GetMutableAttribute(Layer.Name))
+			{
+				check(Attribute->GetTypeId() == PCG::Private::MetadataTypes<float>::Id);
+				float Y0Data = FMath::Lerp((float)Layer.Data[X0Y0] / 255.0f, (float)Layer.Data[X1Y0] / 255.0f, XFactor);
+				float Y1Data = FMath::Lerp((float)Layer.Data[X0Y1] / 255.0f, (float)Layer.Data[X1Y1] / 255.0f, XFactor);
+				float Data = FMath::Lerp(Y0Data, Y1Data, YFactor);
+
+				static_cast<FPCGMetadataAttribute<float>*>(Attribute)->SetValue(OutPoint.MetadataEntry, Data);
+			}
+		}
+	}
+
+	return true;
+}
+
 FPCGLandscapeCache::FPCGLandscapeCache(UObject* InOwner)
 	: Owner(InOwner)
 {
