@@ -1263,6 +1263,15 @@ void BlockRendering()
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
 	});
 
+	// Flush GT first in case it has any dependency on RT work to complete
+	FGraphEventRef GTBlockTask = FFunctionGraphTask::CreateAndDispatchWhenReady([BlockedTrigger]()
+		{
+			SetSharedContextGameCommand(BlockedTrigger);
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+
+	UE_LOG(LogAndroid, Log, TEXT("Waiting for game thread to release EGL context/surface."));
+	BlockedTrigger->Wait();
+
 	FGraphEventRef RTBlockTask = FFunctionGraphTask::CreateAndDispatchWhenReady([BlockedTrigger]()
 	{
 		BlockOnLostWindowRenderCommand(BlockedTrigger);
@@ -1270,14 +1279,6 @@ void BlockRendering()
 
 	// wait for the render thread to process.
 	UE_LOG(LogAndroid, Log, TEXT("Waiting for renderer to encounter blocking command."));
-	BlockedTrigger->Wait();
-
-	FGraphEventRef GTBlockTask = FFunctionGraphTask::CreateAndDispatchWhenReady([BlockedTrigger]()
-	{
-		SetSharedContextGameCommand(BlockedTrigger);
-	}, TStatId(), NULL, ENamedThreads::GameThread);
-
-	UE_LOG(LogAndroid, Log, TEXT("Waiting for game thread to encounter blocking command."));
 	BlockedTrigger->Wait();
 }
 
