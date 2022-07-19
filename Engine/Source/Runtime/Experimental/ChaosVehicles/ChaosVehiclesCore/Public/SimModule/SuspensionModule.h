@@ -100,5 +100,3 @@ namespace Chaos
 
 } // namespace Chaos
 
-
-PRAGMA_ENABLE_OPTIMIZATION
