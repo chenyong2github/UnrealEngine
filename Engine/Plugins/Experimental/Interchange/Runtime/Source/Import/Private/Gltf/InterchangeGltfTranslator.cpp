@@ -940,7 +940,7 @@ TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > UInterchangeGltf
 	const GLTF::FMesh& GltfMesh = GltfAsset.Meshes[ MeshIndex ];
 	GLTF::FMeshFactory MeshFactory;
 	MeshFactory.SetUniformScale( 100.f ); // GLTF is in meters while UE is in centimeters
-	MeshFactory.FillMeshDescription( GltfMesh, &StaticMeshPayloadData.MeshDescription );
+	MeshFactory.FillMeshDescription( GltfMesh, &StaticMeshPayloadData.MeshDescription, true );
 
 	// Patch polygon groups material slot names to match Interchange expectations (rename material slots from indices to material names)
 	{
