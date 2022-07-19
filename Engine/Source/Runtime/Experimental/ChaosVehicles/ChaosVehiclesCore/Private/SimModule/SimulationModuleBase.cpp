@@ -36,10 +36,13 @@ ISimulationModuleBase* ISimulationModuleBase::GetParent()
 
 ISimulationModuleBase* ISimulationModuleBase::GetFirstChild()
 {
-	const TSet<int32>& Children = SimModuleTree->GetChildren(SimTreeIndex);
-	for (int ChildIndex : Children)
-	{ 
-		return (SimModuleTree != nullptr) ? SimModuleTree->AccessSimModule(ChildIndex) : nullptr;
+	if (SimModuleTree)
+	{
+		const TSet<int32>& Children = SimModuleTree->GetChildren(SimTreeIndex);
+		for (const int ChildIndex : Children)
+		{ 
+			return SimModuleTree->AccessSimModule(ChildIndex);
+		}
 	}
 	return nullptr;
 }
