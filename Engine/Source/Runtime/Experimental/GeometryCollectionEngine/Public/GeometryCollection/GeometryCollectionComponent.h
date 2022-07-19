@@ -867,7 +867,8 @@ public:
 	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
 
 	const FGeometryDynamicCollection* GetDynamicCollection() const { return DynamicCollection.Get(); }
-	
+	FGeometryDynamicCollection* GetDynamicCollection() { return DynamicCollection.Get(); } // TEMP HACK?
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;

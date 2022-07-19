@@ -117,7 +117,10 @@ public:
 		FS_None = 0,
 
 		// identify nodes that should be removed from the simulation instead of becoming a fractured body
-		FS_RemoveOnFracture = 0x00000004
+		FS_RemoveOnFracture = 0x00000004,
+
+		FS_IgnoreCollisionInParentCluster = 0x00000008
+
 	};
 	//
 	//
@@ -246,7 +249,6 @@ public:
 
 	/** Connection of leaf geometry */
 	TArray<TArray<int32>> ConnectionGraph();
-
 
 	//
 	//
