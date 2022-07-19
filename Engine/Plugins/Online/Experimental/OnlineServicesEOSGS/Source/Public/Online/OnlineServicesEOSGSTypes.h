@@ -3,18 +3,12 @@
 #pragma once
 
 #include "Online/OnlineAsyncOp.h"
-#include "Online/OnlineError.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Async/Future.h"
 
 #include "EOSShared.h"
 
 namespace UE::Online {
-
-inline FOnlineError FromEOSError(EOS_EResult ResultCode)
-{
-	// Todo: make this for real.
-	return FOnlineError(Errors::Unknown());
-}
 
 namespace Private {
 

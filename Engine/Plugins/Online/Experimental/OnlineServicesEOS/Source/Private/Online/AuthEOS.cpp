@@ -216,7 +216,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		}
 		else
 		{
-			FOnlineError CopyUserInfoError(FromEOSError(CopyUserInfoResult));
+			FOnlineError CopyUserInfoError(Errors::FromEOSResult(CopyUserInfoResult));
 			UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::Login] Failure: EOS_UserInfo_CopyUserInfo %s"), *CopyUserInfoError.GetLogString());
 			InAsyncOp.SetError(Errors::Unknown(MoveTemp(CopyUserInfoError)));
 
@@ -308,7 +308,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthEOS::QueryExternal
 		}
 		else
 		{
-			InAsyncOp.SetError(Errors::Unknown(FromEOSError(Result)));
+			InAsyncOp.SetError(Errors::FromEOSResult(Result));
 		}
 	})
 	.Enqueue(GetSerialQueue());

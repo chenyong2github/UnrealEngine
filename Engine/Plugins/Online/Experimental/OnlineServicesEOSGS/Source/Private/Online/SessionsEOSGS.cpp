@@ -282,7 +282,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 		{
 			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::CreateSession] EOS_Sessions_CreateSessionModification failed with result [%s]"), *LexToString(ResultCode));
 
-			Op.SetError(FromEOSError(ResultCode));
+			Op.SetError(Errors::FromEOSResult(ResultCode));
 
 			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
 		}
@@ -580,7 +580,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 		{
 			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
 
-			Op.SetError(FromEOSError(ResultCode));
+			Op.SetError(Errors::FromEOSResult(ResultCode));
 
 			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
 		}
@@ -640,7 +640,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success && Result->ResultCode != EOS_EResult::EOS_Sessions_OutOfSync)
 		{
-			Promise.EmplaceValue(FromEOSError(Result->ResultCode));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -697,7 +697,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -846,7 +846,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 		{
 			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_Sessions_CreateSessionSearch failed with result [%s]"), *LexToString(ResultCode));
 
-			Op.SetError(FromEOSError(ResultCode));
+			Op.SetError(Errors::FromEOSResult(ResultCode));
 			Promise.EmplaceValue();
 			return;
 		}
@@ -867,7 +867,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 	{
 		if (FindCallbackInfoResult->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(FindCallbackInfoResult->ResultCode));
+			Op.SetError(Errors::FromEOSResult(FindCallbackInfoResult->ResultCode));
 			return;
 		}
 
@@ -985,7 +985,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		{
 			TryRemoveSession(OpParams.SessionName);
 
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 		
@@ -1047,7 +1047,7 @@ TResult<TSharedRef<const FSession>, FOnlineError> FSessionsEOSGS::BuildSessionFr
 	{
 		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromInvite] EOS_Sessions_CopySessionHandleByInviteId failed with result [%s]"), *LexToString(CopySessionHandleByInviteIdResult));
 
-		return TResult<TSharedRef<const FSession>, FOnlineError>(FromEOSError(CopySessionHandleByInviteIdResult));
+		return TResult<TSharedRef<const FSession>, FOnlineError>(Errors::FromEOSResult(CopySessionHandleByInviteIdResult));
 	}
 }
 
@@ -1069,7 +1069,7 @@ TResult<TSharedRef<const FSession>, FOnlineError> FSessionsEOSGS::BuildSessionFr
 	{
 		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::BuildSessionFromUIEvent] EOS_Sessions_CopySessionHandleByUiEventId failed with result [%s]"), *LexToString(CopySessionHandleByUiEventIdResult));
 
-		return TResult<TSharedRef<const FSession>, FOnlineError>(FromEOSError(CopySessionHandleByUiEventIdResult));
+		return TResult<TSharedRef<const FSession>, FOnlineError>(Errors::FromEOSResult(CopySessionHandleByUiEventIdResult));
 	}
 }
 
@@ -1107,7 +1107,7 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSend
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1150,7 +1150,7 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1212,7 +1212,7 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1280,7 +1280,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(FromEOSError(Result->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 

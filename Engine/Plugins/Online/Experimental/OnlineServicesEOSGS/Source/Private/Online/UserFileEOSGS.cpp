@@ -65,7 +65,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
-			Op.SetError(FromEOSError(Data->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 			return;
 		}
 
@@ -81,7 +81,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 		if (Result != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_GetFileMetadataCount failed with result=[%s]"), *LexToString(Result));
-			Op.SetError(FromEOSError(Result));
+			Op.SetError(Errors::FromEOSResult(Result));
 			return;
 		}
 
@@ -103,7 +103,7 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUs
 			if (Result != EOS_EResult::EOS_Success)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_CopyFileMetadataAtIndex failed with result=[%s]"), *LexToString(Result));
-				Op.SetError(FromEOSError(Result));
+				Op.SetError(Errors::FromEOSResult(Result));
 				return;
 			}
 
@@ -209,7 +209,7 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileEOSGS::ReadFile(FUserFileReadFi
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
-			Op.SetError(FromEOSError(Data->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 
 		if (const EOS_HPlayerDataStorageFileTransferRequest* RequestHandle = Op.Data.Get<EOS_HPlayerDataStorageFileTransferRequest>(RequestHandleKey))
@@ -306,7 +306,7 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileEOSGS::WriteFile(FUserFileWrit
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_WriteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
-			Op.SetError(FromEOSError(Data->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 
 		if (const EOS_HPlayerDataStorageFileTransferRequest* RequestHandle = Op.Data.Get<EOS_HPlayerDataStorageFileTransferRequest>(RequestHandleKey))
@@ -361,7 +361,7 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileEOSGS::CopyFile(FUserFileCopyFi
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_DuplicateFile failed with result=[%s]"), *LexToString(Data->ResultCode));
-			Op.SetError(FromEOSError(Data->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 	})
 	.Enqueue(GetSerialQueue());
@@ -409,7 +409,7 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileEOSGS::DeleteFile(FUserFileDe
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_PlayerDataStorage_DeleteFile failed with result=[%s]"), *LexToString(Data->ResultCode));
-			Op.SetError(FromEOSError(Data->ResultCode));
+			Op.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 	})
 	.Enqueue(GetSerialQueue());

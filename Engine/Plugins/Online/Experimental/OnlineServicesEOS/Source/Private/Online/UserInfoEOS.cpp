@@ -6,7 +6,7 @@
 #include "Online/OnlineServicesEOS.h"
 #include "Online/OnlineServicesEOSTypes.h"
 #include "Online/AuthEOS.h"
-#include "Online/ErrorsEOS.h"
+#include "Online/OnlineErrorEOSGS.h"
 
 #include "eos_userinfo.h"
 
@@ -69,7 +69,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 			if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_QueryUserInfo failed with result=[%s]"), *LexToString(CallbackInfo->ResultCode));
-				Op.SetError(FromEOSError(CallbackInfo->ResultCode));
+				Op.SetError(Errors::FromEOSResult(CallbackInfo->ResultCode));
 			}
 		});
 	}
@@ -112,7 +112,7 @@ TOnlineResult<FGetUserInfo> FUserInfoEOS::GetUserInfo(FGetUserInfo::Params&& Par
 	if(EosResult != EOS_EResult::EOS_Success)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("EOS_UserInfo_CopyUserInfo failed with result=[%s]"), *LexToString(EosResult));
-		return TOnlineResult<FGetUserInfo>(FromEOSError(EosResult));
+		return TOnlineResult<FGetUserInfo>(Errors::FromEOSResult(EosResult));
 	}
 
 	TSharedRef<FUserInfo> UserInfo = MakeShared<FUserInfo>();

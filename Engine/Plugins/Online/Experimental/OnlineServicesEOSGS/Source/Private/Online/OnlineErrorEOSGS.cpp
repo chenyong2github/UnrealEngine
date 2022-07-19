@@ -1,8 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineErrorEOSGS.h"
+#include "Online/OnlineErrorEOSGS.h"
+#include "Online/OnlineErrorDefinitions.h"
 
-namespace UE::Online {
+namespace UE::Online::Errors {
+
+class FOnlineErrorDetailsEOS : public IOnlineErrorDetails
+{
+public:
+	static const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& Get();
+
+	virtual FText GetText(const FOnlineError& OnlineError) const override;
+	virtual FString GetLogString(const FOnlineError& OnlineError) const override;
+};
 
 const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& FOnlineErrorDetailsEOS::Get()
 {
@@ -12,29 +22,52 @@ const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& FOnlineErrorDe
 
 FText FOnlineErrorDetailsEOS::GetText(const FOnlineError& OnlineError) const
 {
-	const EOS_EResult EosResult = EOS_EResult(OnlineError.GetValue());
-	return FText::FromStringView(FStringView(UTF8_TO_TCHAR(EOS_EResult_ToString(EosResult))));
+	return FText::FromString(LexToString(OnlineError.GetValue()));
 }
 
-FString FOnlineErrorDetailsEOS::GetLogString(const FOnlineError& OnlineError) const 
+FString FOnlineErrorDetailsEOS::GetLogString(const FOnlineError& OnlineError) const
 {
-	const EOS_EResult EosResult = EOS_EResult(OnlineError.GetValue());
-	return UTF8_TO_TCHAR(EOS_EResult_ToString(EosResult));
+	return LexToString(OnlineError.GetValue());
 }
 
-bool operator==(const UE::Online::FOnlineError& OnlineError, EOS_EResult EosResult)
+/** This doesn't wrap every single error in EOS, only the common ones that are strongly related to common errors */
+FOnlineError MapCommonEOSError(FOnlineError&& Error, EOS_EResult Result)
 {
-	return OnlineError.GetErrorCode() == CreateErrorCode(EosResult);
+	switch (Result)
+	{
+	case EOS_EResult::EOS_Success:				return Errors::Success(MoveTemp(Error));
+	case EOS_EResult::EOS_NoConnection:			return Errors::NoConnection(MoveTemp(Error));
+	case EOS_EResult::EOS_InvalidCredentials:	return Errors::InvalidCreds(MoveTemp(Error));
+	case EOS_EResult::EOS_InvalidUser:			return Errors::InvalidUser(MoveTemp(Error));
+	case EOS_EResult::EOS_InvalidAuth:			return Errors::InvalidAuth(MoveTemp(Error));
+	case EOS_EResult::EOS_AccessDenied:			return Errors::AccessDenied(MoveTemp(Error));
+	case EOS_EResult::EOS_MissingPermissions:	return Errors::AccessDenied(MoveTemp(Error));
+	case EOS_EResult::EOS_TooManyRequests:		return Errors::TooManyRequests(MoveTemp(Error));
+	case EOS_EResult::EOS_AlreadyPending:		return Errors::AlreadyPending(MoveTemp(Error));
+	case EOS_EResult::EOS_InvalidParameters:	return Errors::InvalidParams(MoveTemp(Error));
+	case EOS_EResult::EOS_InvalidRequest:		return Errors::InvalidParams(MoveTemp(Error));
+	case EOS_EResult::EOS_UnrecognizedResponse: return Errors::InvalidResults(MoveTemp(Error));
+	case EOS_EResult::EOS_IncompatibleVersion:	return Errors::IncompatibleVersion(MoveTemp(Error));
+	case EOS_EResult::EOS_NotConfigured:		return Errors::NotConfigured(MoveTemp(Error));
+	case EOS_EResult::EOS_NotImplemented:		return Errors::NotImplemented(MoveTemp(Error));
+	case EOS_EResult::EOS_Canceled:				return Errors::Cancelled(MoveTemp(Error));
+	case EOS_EResult::EOS_NotFound:				return Errors::NotFound(MoveTemp(Error));
+	case EOS_EResult::EOS_OperationWillRetry:	return Errors::WillRetry(MoveTemp(Error));
+	case EOS_EResult::EOS_VersionMismatch:		return Errors::IncompatibleVersion(MoveTemp(Error));
+	case EOS_EResult::EOS_LimitExceeded:		return Errors::TooManyRequests(MoveTemp(Error));
+	case EOS_EResult::EOS_TimedOut:				return Errors::Timeout(MoveTemp(Error));
+	default:									return Errors::Unknown(MoveTemp(Error));
+	}
 }
 
-ErrorCodeType CreateErrorCode(EOS_EResult EosResult)
+ErrorCodeType ErrorCodeFromEOSResult(EOS_EResult EosResult)
 {
 	return Errors::ErrorCode::Create(Errors::ErrorCode::Category::EOS_System, Errors::ErrorCode::Category::EOS, uint32(EosResult));
 }
 
-FOnlineError CreateOnlineError(EOS_EResult EosResult)
+FOnlineError FromEOSResult(EOS_EResult EosResult, FErrorMapperEosFn&& MapperFn)
 {
-	return FOnlineError(CreateErrorCode(EosResult), FOnlineErrorDetailsEOS::Get());
+	return MapperFn(FOnlineError(ErrorCodeFromEOSResult(EosResult), FOnlineErrorDetailsEOS::Get()), EosResult);
 }
 
-} /* namespace UE::Online */
+} /* namespace UE::Online::Errors */

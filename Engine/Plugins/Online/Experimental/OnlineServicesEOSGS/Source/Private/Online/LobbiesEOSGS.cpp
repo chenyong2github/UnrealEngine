@@ -129,7 +129,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: errors
-			InAsyncOp.SetError(Errors::Unknown(FromEOSError(Data->ResultCode)));
+			InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>().GetFuture();
 		}
 
@@ -1345,7 +1345,7 @@ TOnlineAsyncOpHandle<FLobbiesJoinLobbyMemberImpl> FLobbiesEOSGS::JoinLobbyMember
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// TODO: Error codes
-			InAsyncOp.SetError(Errors::Unknown(FromEOSError(Data->ResultCode)));
+			InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 		}
 	})
 	.Then([this](TOnlineAsyncOp<FLobbiesJoinLobbyMemberImpl>& InAsyncOp)
@@ -1428,7 +1428,7 @@ TFuture<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>> FLobbiesEOSGS::LeaveLobbyIm
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1465,7 +1465,7 @@ TFuture<TDefaultErrorResult<FLobbiesDestroyLobbyImpl>> FLobbiesEOSGS::DestroyLob
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1503,7 +1503,7 @@ TFuture<TDefaultErrorResult<FLobbiesInviteLobbyMemberImpl>> FLobbiesEOSGS::Invit
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1546,7 +1546,7 @@ TFuture<TDefaultErrorResult<FLobbiesDeclineLobbyInvitationImpl>> FLobbiesEOSGS::
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1586,7 +1586,7 @@ TFuture<TDefaultErrorResult<FLobbiesKickLobbyMemberImpl>> FLobbiesEOSGS::KickLob
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1626,7 +1626,7 @@ TFuture<TDefaultErrorResult<FLobbiesPromoteLobbyMemberImpl>> FLobbiesEOSGS::Prom
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Result->ResultCode)));
+			Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 			return;
 		}
 
@@ -1675,7 +1675,7 @@ TFuture<TDefaultErrorResult<FLobbiesModifyLobbyDataImpl>> FLobbiesEOSGS::ModifyL
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Future.Get())));
+			Promise.EmplaceValue(Errors::FromEOSResult(Future.Get()));
 			return;
 		}
 
@@ -1714,7 +1714,7 @@ TFuture<TDefaultErrorResult<FLobbiesModifyLobbyMemberDataImpl>> FLobbiesEOSGS::M
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
 		{
 			// Todo: Errors
-			Promise.EmplaceValue(Errors::Unknown(FromEOSError(Future.Get())));
+			Promise.EmplaceValue(Errors::FromEOSResult(Future.Get()));
 			return;
 		}
 

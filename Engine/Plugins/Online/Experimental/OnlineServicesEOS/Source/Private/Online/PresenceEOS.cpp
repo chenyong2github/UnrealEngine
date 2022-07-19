@@ -6,7 +6,7 @@
 #include "Online/OnlineServicesEOS.h"
 #include "Online/OnlineServicesEOSTypes.h"
 #include "Online/AuthEOS.h"
-#include "Online/ErrorsEOS.h"
+#include "Online/OnlineErrorEOSGS.h"
 
 #include "eos_presence.h"
 
@@ -144,7 +144,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 				}
 				else
 				{
-					InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode)); 
+					InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				}
 			})
 			.Enqueue(GetSerialQueue());
@@ -539,7 +539,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 				}
 				else
 				{
-					InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode)); 
+					InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 				}
 			})
 			.Enqueue(GetSerialQueue());

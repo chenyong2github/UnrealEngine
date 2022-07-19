@@ -762,7 +762,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOSGS::Login(FAuthLogin::Params&& Params)
 			}
 			else
 			{
-				FOnlineError ProductUserIdError(FromEOSError(ProductUserIdResult));
+				FOnlineError ProductUserIdError(Errors::FromEOSResult(ProductUserIdResult));
 				UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOSGS::Login] Failure: EOS_ProductUserId_ToString %s"), *ProductUserIdError.GetLogString());
 				InAsyncOp.SetError(Errors::Unknown(MoveTemp(ProductUserIdError)));
 
@@ -853,7 +853,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOSGS::Logout(FAuthLogout::Params&& Param
 			{
 				if (Data->ResultCode != EOS_EResult::EOS_Success)
 				{
-					FOnlineError DeletePersistentAuthError(FromEOSError(Data->ResultCode));
+					FOnlineError DeletePersistentAuthError(Errors::FromEOSResult(Data->ResultCode));
 					UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOSGS::Logout] Failure: DeletePersistentAuthResult %s"), *DeletePersistentAuthError.GetLogString());
 				}
 
@@ -1021,13 +1021,13 @@ TFuture<TDefaultErrorResult<FAuthLoginEASImpl>> FAuthEOSGS::LoginEASImpl(const F
 				}
 				else
 				{
-					Promise.SetValue(TDefaultErrorResult<FAuthLoginEASImpl>(FromEOSError(Data->ResultCode)));
+					Promise.SetValue(TDefaultErrorResult<FAuthLoginEASImpl>(Errors::FromEOSResult(Data->ResultCode)));
 				}
 			});
 		}
 		else
 		{
-			FOnlineError ResolvedError = (Data->ResultCode == EOS_EResult::EOS_InvalidAuth) ? Errors::InvalidCreds() : Errors::Unknown(FromEOSError(Data->ResultCode));
+			FOnlineError ResolvedError = Errors::FromEOSResult(Data->ResultCode);
 
 			const bool bShouldRemoveCachedToken =
 				Data->ResultCode == EOS_EResult::EOS_InvalidAuth ||
@@ -1045,7 +1045,7 @@ TFuture<TDefaultErrorResult<FAuthLoginEASImpl>> FAuthEOSGS::LoginEASImpl(const F
 				{
 					if (Data->ResultCode != EOS_EResult::EOS_Success)
 					{
-						FOnlineError DeletePersistentAuthError(FromEOSError(Data->ResultCode));
+						FOnlineError DeletePersistentAuthError(Errors::FromEOSResult(Data->ResultCode));
 						UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthEOS::LoginEASImpl] Failure: DeletePersistentAuthResult %s"), *DeletePersistentAuthError.GetLogString());
 					}
 
@@ -1082,7 +1082,7 @@ TFuture<TDefaultErrorResult<FAuthLogoutEASImpl>> FAuthEOSGS::LogoutEASImpl(const
 		}
 		else
 		{
-			Promise.SetValue(TDefaultErrorResult<FAuthLogoutEASImpl>(FromEOSError(Data->ResultCode)));
+			Promise.SetValue(TDefaultErrorResult<FAuthLogoutEASImpl>(Errors::FromEOSResult(Data->ResultCode)));
 		}
 	});
 
@@ -1111,7 +1111,7 @@ TDefaultErrorResult<FAuthGetExternalAuthTokenImpl> FAuthEOSGS::GetExternalAuthTo
 	}
 	else
 	{
-		return TDefaultErrorResult<FAuthGetExternalAuthTokenImpl>(FromEOSError(Result));
+		return TDefaultErrorResult<FAuthGetExternalAuthTokenImpl>(Errors::FromEOSResult(Result));
 	}
 }
 
@@ -1152,13 +1152,13 @@ TFuture<TDefaultErrorResult<FAuthLoginConnectImpl>> FAuthEOSGS::LoginConnectImpl
 				}
 				else
 				{
-					Promise.SetValue(TDefaultErrorResult<FAuthLoginConnectImpl>(FromEOSError(Data->ResultCode)));
+					Promise.SetValue(TDefaultErrorResult<FAuthLoginConnectImpl>(Errors::FromEOSResult(Data->ResultCode)));
 				}
 			});
 		}
 		else
 		{
-			Promise.SetValue(TDefaultErrorResult<FAuthLoginConnectImpl>(FromEOSError(Data->ResultCode)));
+			Promise.SetValue(TDefaultErrorResult<FAuthLoginConnectImpl>(Errors::FromEOSResult(Data->ResultCode)));
 		}
 	});
 
