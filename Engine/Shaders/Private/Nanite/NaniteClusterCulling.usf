@@ -538,13 +538,12 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	}
 
 	bool bWasOccluded = false;
-	bool bUseHWRaster = false;
 	float StreamingPriority = 0.0f;
 
 	BRANCH
 	if (bVisible)
 	{
-		float4 LODBounds	= HierarchyNodeSlice.LODBounds;
+		float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
 		BRANCH
 		if (bUseViewRangeDistanceCull)

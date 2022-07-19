@@ -2696,7 +2696,6 @@ FRasterContext InitRasterContext(
 static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef* MainAndPostNodesAndClusterBatchesBufferRef)
 {
 	const uint32 MaxNodes				=	Nanite::FGlobalResources::GetMaxNodes();
-	const uint32 MaxCandidateClusters	=	Nanite::FGlobalResources::GetMaxCandidateClusters();
 	const uint32 MaxCullingBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
 	check(MainAndPostNodesAndClusterBatchesBufferRef);
 
