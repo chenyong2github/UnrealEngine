@@ -54,7 +54,7 @@ namespace UE::MultiUserServer
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text_Lambda([this](){ return FText::AsNumber(Stats->MessageId); })
+						.Text(FText::AsNumber(Stats->MessageId))
 					];
 			}
 			if (HeaderIdName_SentSegments == ColumnName)
@@ -90,7 +90,7 @@ namespace UE::MultiUserServer
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text_Lambda([this](){ return FText::AsNumber(Stats->BytesToSend); })
+						.Text(FText::AsNumber(Stats->BytesToSend))
 					];
 			}
 			return SNullWidget::NullWidget;
@@ -101,14 +101,14 @@ namespace UE::MultiUserServer
 	{
 		StatsModel = InStatsModel;
 
-		StatsModel->OnTransferStatisticsUpdated().AddSP(this, &SClientTransferStatTable::OnTransferStatisticsUpdated);
+		StatsModel->OnTransferGroupsUpdated().AddSP(this, &SClientTransferStatTable::OnTransferStatisticsUpdated);
 
 		ChildSlot
 		[
 			SAssignNew(SegmenterListView, SListView<TSharedPtr<FTransferStatistics>>)
-			.ListItemsSource(&InStatsModel->GetSortedTransferStatistics())
+			.ListItemsSource(&InStatsModel->GetTransferStatsGroupedById())
 			.OnGenerateRow(this, &SClientTransferStatTable::OnGenerateActivityRowWidget)
-			.SelectionMode(ESelectionMode::None)
+			.SelectionMode(ESelectionMode::Multi)
 			.HeaderRow
 			(
 				SNew(SHeaderRow)

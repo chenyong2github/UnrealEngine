@@ -84,6 +84,7 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 	StyleSet->Set("Concert.Clients.ThumbnailAreaHoverBackground", new FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f));
 	StyleSet->Set("Concert.Clients.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
 	StyleSet->Set("Concert.Clients.ThumbnailTitle", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
+	StyleSet->Set("Concert.Clients.ThumbnailCurveBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 0.0f));
 	StyleSet->Set("Concert.Clients.ThumbnailFooter", new FSlateRoundedBoxBrush(FStyleColors::Panel, 0.0f));
 	StyleSet->Set("Concert.Clients.TileTableRow", FTableRowStyle()
 			.SetEvenRowBackgroundBrush(FSlateNoResource() )
@@ -99,6 +100,22 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 			.SetSelectedTextColor(FSlateColor())
 			);
 	StyleSet->Set("Concert.Clients.ClientNameTileFont", DEFAULT_FONT("Regular", 16));
+	
+	// Graph colours
+	// Blueish
+	StyleSet->Set("Concert.Clients.NetworkGraph.Sent.LineColor", 0.7f * FLinearColor(.24f, .38f, .76f, 0.f));
+	StyleSet->Set("Concert.Clients.NetworkGraph.Sent.FillColor",  0.4f * FLinearColor(.24f, .38f, .76f, 1.f));
+	// Reddish
+	StyleSet->Set("Concert.Clients.NetworkGraph.Received.LineColor", 0.7f * FLinearColor(.85f, .27f, .27f, 0.f));
+	StyleSet->Set("Concert.Clients.NetworkGraph.Received.FillColor",  0.4f * FLinearColor(.85f, .27f, .27f, 1.f));
+
+	constexpr float LineBrightness = 0.35f;
+	constexpr float TextBrightness = 0.5f;
+	StyleSet->Set("Concert.Clients.NetworkGraph.GraphSeparatorLine.Thickness", 3.f);
+	StyleSet->Set("Concert.Clients.NetworkGraph.GraphSeparatorLine.LineColor", FLinearColor(LineBrightness, LineBrightness, LineBrightness, 0.35f));
+	StyleSet->Set("Concert.Clients.NetworkGraph.HorizontalHelperLine.Thickness", 2.f);
+	StyleSet->Set("Concert.Clients.NetworkGraph.HorizontalHelperLine.LineColor", FLinearColor(LineBrightness, LineBrightness, LineBrightness, 0.35f));
+	StyleSet->Set("Concert.Clients.NetworkGraph.HorizontalHelperLine.TextColor", FLinearColor(TextBrightness, TextBrightness, TextBrightness));
 	
 	return StyleSet;
 }

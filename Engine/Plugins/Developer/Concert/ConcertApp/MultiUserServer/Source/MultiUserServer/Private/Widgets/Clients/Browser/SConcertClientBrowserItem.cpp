@@ -7,6 +7,7 @@
 #include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
 #include "SClientTransferStatTable.h"
+#include "Graph/SClientNetworkGraphs.h"
 #include "Models/ClientTransferStatisticsModel.h"
 #include "Models/IClientNetworkStatisticsModel.h"
 #include "Styling/StyleColors.h"
@@ -44,7 +45,7 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 				// Inside of thumbnail is darker
 				SNew(SBorder)
 				.BorderImage(FConcertServerStyle::Get().GetBrush("Concert.Clients.ThumbnailTitle"))
-				.Padding(4.f)
+				.Padding(2.f)
 				[
 					SNew(SVerticalBox)
 
@@ -57,7 +58,7 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 					
 					+SVerticalBox::Slot()
 					.FillHeight(1.f)
-					.Padding(0.f, 5.f, 0.f, 0.f)
+					.Padding(-2.f, 5.f, -2.f, 0.f)
 					[
 						CreateContentArea()
 					]
@@ -73,7 +74,7 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(-4.f, 5.f, -4.f, -4.f)
+					.Padding(-2.f, 5.f, -2.f, -2.f)
 					.VAlign(VAlign_Bottom)
 					[
 						CreateFooter()
@@ -137,10 +138,10 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateConten
 	return SNew(SOverlay)
 		+SOverlay::Slot()
 		[
-			// TODO: Graph
-			SNullWidget::NullWidget
+			SNew(SClientNetworkGraphs, TransferStatsModel.ToSharedRef())
+			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::NetworkGraph ? EVisibility::Visible : EVisibility::Collapsed; })
 		]
-		+SOverlay::Slot()
+		+SOverlay::Slot().Padding(4.f, 0.f)
 		[
 			SNew(SClientTransferStatTable, TransferStatsModel.ToSharedRef())
 			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::SegementTable ? EVisibility::Visible : EVisibility::Collapsed; })

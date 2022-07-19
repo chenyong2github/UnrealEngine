@@ -3,25 +3,52 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IMessageContext.h"
+#include "INetworkMessagingExtension.h"
 
 struct FMessageAddress;
-struct FTransferStatistics;
 
 namespace UE::MultiUserServer
 {
-	DECLARE_MULTICAST_DELEGATE(FOnTransferStatisticsUpdated);
+	enum class EConcertTransferStatistic
+	{
+		SentToClient,
+		ReceivedFromClient,
+
+		Count
+	};
+
+	DECLARE_MULTICAST_DELEGATE(FOnTransferTimelineUpdated);
+	DECLARE_MULTICAST_DELEGATE(FOnTransferGroupsUpdated);
 	
-	/** Keeps track of a single client's transferstatistics */
+	struct FConcertTransferSamplePoint
+	{
+		/** The time these stats were updated */
+		FDateTime LocalTime;
+
+		/** The number of bytes transferred, e.g. sent, received, etc. */
+		uint64 BytesTransferred;
+
+		FConcertTransferSamplePoint() = default;
+		explicit FConcertTransferSamplePoint(const FDateTime& Time, uint64 BytesTransferred = 0)
+			: LocalTime(Time)
+			, BytesTransferred(BytesTransferred)
+		{}
+	};
+	
+	/** Keeps track of a single client's transfer statistics */
 	class IClientTransferStatisticsModel
 	{
 	public:
 
-		/** Gets the transfer statistics sorted descending by message ID */
-		virtual const TArray<TSharedPtr<FTransferStatistics>>& GetSortedTransferStatistics() const = 0;
+		/** @return Contains the transfer statistics over time. Used for graphs. */
+		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const = 0;
+		/** @return Sorted descending by message ID. Every message ID is unique. Used for list views. */
+		virtual const TArray<TSharedPtr<FTransferStatistics>>& GetTransferStatsGroupedById() const = 0;
 
-		/** Called when the transfer statistics change */
-		virtual FOnTransferStatisticsUpdated& OnTransferStatisticsUpdated() = 0;
+		/** Called when GetTransferStatisticsGroupedById changes */
+		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) = 0;
+		/** Called when GetTransferStatisticsGroupedById changes */
+		virtual FOnTransferGroupsUpdated& OnTransferGroupsUpdated() = 0;
 
 		virtual ~IClientTransferStatisticsModel() = default;
 	};
