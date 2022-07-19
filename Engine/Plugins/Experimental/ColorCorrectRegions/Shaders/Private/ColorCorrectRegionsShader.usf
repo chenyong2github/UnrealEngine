@@ -81,8 +81,8 @@ struct FExternalExpressions
 
 MaterialFloat3 ProcessColor(in FExternalExpressions ExternalExpressions)
 {
-	MaterialFloat3 WorkingColor = sRGBtoAP1(ExternalExpressions.SceneTexture);
-	MaterialFloat3 BasicColorGrade = ComposureColorGradePerRange(WorkingColor, ExternalExpressions.ColorSaturation, ExternalExpressions.ColorContrast, ExternalExpressions.ColorGamma, ExternalExpressions.ColorGain, ExternalExpressions.ColorOffset);
+	MaterialFloat3 ColorAP1 = mul((float3x3)WorkingColorSpace.ToAP1, ExternalExpressions.SceneTexture.xyz);
+	MaterialFloat3 BasicColorGrade = ComposureColorGradePerRange(ColorAP1, ExternalExpressions.ColorSaturation, ExternalExpressions.ColorContrast, ExternalExpressions.ColorGamma, ExternalExpressions.ColorGain, ExternalExpressions.ColorOffset);
 	MaterialFloat3 FinalColor = BasicColorGrade;
 #if ADVANCED_CC	
 	{
@@ -106,7 +106,7 @@ MaterialFloat3 ProcessColor(in FExternalExpressions ExternalExpressions)
 		FinalColor = (Local13 + Local15);
 	}
 #endif
-	FinalColor = AP1toSRGB(FinalColor);
+	FinalColor = mul((float3x3)WorkingColorSpace.FromAP1, FinalColor.xyz);
 
 	// White temperature calculation.
 	MaterialFloat3 AfterTemperature = FinalColor;
