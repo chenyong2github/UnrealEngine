@@ -76,10 +76,10 @@ public:
 
 private:
 	/** When the view is spawn, create an instance of the viewmodel. */
-	UPROPERTY(VisibleAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = "MVVM")
 	FGuid ViewModelContextId;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "MVVM", NoClear, meta = (AllowedClasses = "/Script/UMG.NotifyFieldValueChanged", DisallowedClasses = "/Script/UMG.Widget"))
 	UClass* NotifyFieldValueClass = nullptr;
 
 	UPROPERTY()

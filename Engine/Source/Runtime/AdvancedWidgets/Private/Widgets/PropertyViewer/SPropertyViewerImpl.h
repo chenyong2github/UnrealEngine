@@ -197,6 +197,7 @@ private:
 	SPropertyViewer::FOnContextMenuOpening OnContextMenuOpening;
 	SPropertyViewer::FOnSelectionChanged OnSelectionChanged;
 	SPropertyViewer::FOnDoubleClicked OnDoubleClicked;
+	SPropertyViewer::FOnGenerateContainer OnGenerateContainer;
 	SPropertyViewer::EPropertyVisibility PropertyVisibility;
 	bool bSanitizeName = false;
 	bool bShowFieldIcon = false;
@@ -217,6 +218,7 @@ public:
 	void AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UScriptStruct* Struct, void* Data);
 	void Remove(SPropertyViewer::FHandle Identifier);
 	void RemoveAll();
+	TArray<SPropertyViewer::FSelectedItem> GetSelectedItems() const;
 	void SetRawFilterText(const FText& InFilterText);
 
 private:

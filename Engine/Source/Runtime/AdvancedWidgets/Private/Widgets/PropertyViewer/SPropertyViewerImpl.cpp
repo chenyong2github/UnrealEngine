@@ -395,8 +395,10 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	NotifyHook = InArgs._NotifyHook;
 	OnGetPreSlot = InArgs._OnGetPreSlot;
 	OnGetPostSlot = InArgs._OnGetPostSlot;
+	OnContextMenuOpening = InArgs._OnContextMenuOpening;
 	OnSelectionChanged = InArgs._OnSelectionChanged;
 	OnDoubleClicked = InArgs._OnDoubleClicked;
+	OnGenerateContainer = InArgs._OnGenerateContainer;
 	PropertyVisibility = InArgs._PropertyVisibility;
 	bSanitizeName = InArgs._bSanitizeName;
 	bShowFieldIcon = InArgs._bShowFieldIcon;
@@ -622,6 +624,43 @@ TSharedRef<SWidget> FPropertyViewerImpl::CreateSearch()
 }
 
 
+TArray<SPropertyViewer::FSelectedItem> FPropertyViewerImpl::GetSelectedItems() const
+{
+	TArray<SPropertyViewer::FSelectedItem> Result;
+
+	TArray<TSharedPtr<FTreeNode>> SelectedItem = TreeWidget->GetSelectedItems();
+	for (TSharedPtr<FTreeNode> Node : SelectedItem)
+	{
+		if (TSharedPtr<FContainer> Container = Node->GetContainer())
+		{
+			int32 FoundIndex = Result.IndexOfByPredicate([Container](const SPropertyViewer::FSelectedItem& Other) { return Other.Handle == Container->GetIdentifier(); });
+			if (FoundIndex == INDEX_NONE)
+			{
+				SPropertyViewer::FSelectedItem Item;
+				Item.Handle = Container->GetIdentifier();
+				FoundIndex = Result.Add(Item);
+			}
+			Result[FoundIndex].bIsContainerSelected = true;
+		}
+		else
+		{
+			if (TSharedPtr<FContainer> OwnerContainer = Node->GetOwnerContainer())
+			{
+				int32 FoundIndex = Result.IndexOfByPredicate([OwnerContainer](const SPropertyViewer::FSelectedItem& Other){ return Other.Handle == OwnerContainer->GetIdentifier(); });
+				if (FoundIndex == INDEX_NONE)
+				{
+					SPropertyViewer::FSelectedItem Item;
+					Item.Handle = OwnerContainer->GetIdentifier();
+					FoundIndex = Result.Add(Item);
+				}
+				Result[FoundIndex].Fields.Add(Node->GetFieldPath());
+			}
+		}
+	}
+	return Result;
+}
+
+
 void FPropertyViewerImpl::SetRawFilterText(const FText& InFilterText)
 {
 	SetRawFilterTextInternal(InFilterText);
@@ -752,7 +791,11 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 	TSharedPtr<SWidget> ItemWidget;
 	if (TSharedPtr<FContainer> ContainerPin = Item->GetContainer())
 	{
-		if (ContainerPin->IsValid())
+		if (OnGenerateContainer.IsBound())
+		{
+			ItemWidget = OnGenerateContainer.Execute(ContainerPin->GetIdentifier(), Item->GetOverrideDisplayName());
+		}
+		else if (ContainerPin->IsValid())
 		{
 			if (const UClass* Class = Cast<const UClass>(ContainerPin->GetStruct()))
 			{

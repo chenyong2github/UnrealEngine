@@ -41,6 +41,10 @@ public:
 		{
 			return Id != 0;
 		}
+		friend uint32 GetTypeHash(const FHandle& Other)
+		{
+			return GetTypeHash(Other.Id);
+		}
 	};
 
 	enum class EPropertyVisibility
@@ -50,11 +54,19 @@ public:
 		Editable,
 	};
 
+	struct FSelectedItem
+	{
+		FHandle Handle;
+		TArray<TArray<FFieldVariant>> Fields;
+		bool bIsContainerSelected = false;
+	};
+
 public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FGetFieldWidget, FHandle, TArrayView<const FFieldVariant>);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FOnContextMenuOpening, FHandle, TArrayView<const FFieldVariant>);
 	DECLARE_DELEGATE_ThreeParams(FOnSelectionChanged, FHandle, TArrayView<const FFieldVariant>, ESelectInfo::Type);
 	DECLARE_DELEGATE_TwoParams(FOnDoubleClicked, FHandle, TArrayView<const FFieldVariant>);
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<SWidget>, FOnGenerateContainer, FHandle, TOptional<FText> DisplayName);
 
 	SLATE_BEGIN_ARGS(SPropertyViewer)
 	{}
@@ -88,6 +100,8 @@ public:
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 		/** Delegate to invoke when an item is double-clicked. */
 		SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked);
+		/** Delegate to invoke when we generate the entry for an added container. */
+		SLATE_EVENT(FOnGenerateContainer, OnGenerateContainer)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -106,6 +120,8 @@ public:
 
 	void Remove(FHandle Identifier);
 	void RemoveAll();
+
+	TArray<FSelectedItem> GetSelectedItems() const;
 
 	void SetRawFilterText(const FText& InFilterText);
 

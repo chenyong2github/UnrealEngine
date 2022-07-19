@@ -100,6 +100,12 @@ void SPropertyViewer::RemoveAll()
 }
 
 
+TArray<SPropertyViewer::FSelectedItem> SPropertyViewer::GetSelectedItems() const
+{
+	return Implementation->GetSelectedItems();
+}
+
+
 void SPropertyViewer::SetRawFilterText(const FText& InFilterText)
 {
 	Implementation->SetRawFilterText(InFilterText);
