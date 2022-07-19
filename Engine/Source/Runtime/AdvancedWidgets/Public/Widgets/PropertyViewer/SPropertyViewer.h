@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Templates/TypeHash.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/Class.h"
 #include "UObject/Field.h"
