@@ -3,6 +3,8 @@
 
 #include "Chaos/Vector.h"
 #include "ChaosCheck.h"
+#include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/DynamicParticles.h"
 
 namespace Chaos
 {
@@ -141,8 +143,7 @@ class CHAOS_API TUniformGridBase
 			}
 		}
 		return Result;
-	}
-
+	} 
 #ifdef PLATFORM_COMPILER_CLANG
 	// Disable optimization (-ffast-math) since its currently causing regressions.
 	//		freciprocal-math:
@@ -305,6 +306,92 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 };
 
 template<class T>
+class CHAOS_API TMPMGrid : public TUniformGridBase<T, 3>
+{
+	using TUniformGridBase<T, 3>::MCells;
+	using TUniformGridBase<T, 3>::MMinCorner;
+	using TUniformGridBase<T, 3>::MMaxCorner;
+	using TUniformGridBase<T, 3>::MDx;
+
+public:
+	using TUniformGridBase<T, 3>::GetNumCells;
+	using TUniformGridBase<T, 3>::Location;
+
+	TMPMGrid() {}
+	TMPMGrid(const TVector<T, 3>& MinCorner, const TVector<T, 3>& MaxCorner, const TVector<int32, 3>& Cells, const uint32 GhostCells = 0)
+		: TUniformGridBase<T, 3>(MinCorner, MaxCorner, Cells, GhostCells) {}
+	TMPMGrid(std::istream& Stream)
+		: TUniformGridBase<T, 3>(Stream) {}
+	~TMPMGrid() {}
+
+	void BaseNodeIndex(const TVector<T, 3>& X, TVector<int32, 3>& Index, TVector<T, 3>& weights) const;
+	
+	inline T Nijk(T w, int32 ii) const {
+		if (interp == linear)
+			return T(1) - w + T(ii) * (T(2) * w - T(1));
+		else
+			return ((T(1.5) * (w * w - w) - T(0.25)) * (T(ii) - 1) + (T(0.5) * w - T(0.25))) * (T(ii) - 1) - w * w + w + T(0.5);
+	}
+
+	inline TVector<int32, 3> Loc2GlobIndex(const TVector<int32, 3>& IndexIn, const TVector<int32, 3>& LocalIndexIn) const {
+		TVector<int32, 3> Result;
+		if (interp == linear) {
+			for (uint32 i = 0; i < 3; ++i)
+				Result[i] = IndexIn[i] + LocalIndexIn[i];
+		}
+		else {
+			for (uint32 i = 0; i < 3; ++i)
+				Result[i] = IndexIn[i] + LocalIndexIn[i] - 1;
+		}
+		return Result;
+	}
+
+	inline int32 Size() const {
+		if (interp == linear)
+			return (MCells[0] * MCells[1] * MCells[2]);
+		else
+			return ((MCells[0] + 1) * (MCells[1] + 1) * (MCells[2] + 1));
+		return -1;
+	}
+
+	int32 Loc2GlobIndex(const int32 IndexIn, const TVector<int32, 3>& LocalIndexIn) const;
+
+	inline TVector<T, 3> Node(const TVector<int32, 3>& IndexIn) const {
+		TVector<T, 3> Result((T)0.);
+
+		if (interp == linear) {
+			for (int32 i = 0; i < 3; ++i) {
+				Result[i] = T(IndexIn[i]) * MDx[i] + MMinCorner[i];
+			}
+		}
+		else {
+			for (size_t i = 0; i < 3; ++i) {
+				Result[i] = (T(IndexIn[i]) + T(0.5)) * MDx[i] + MMinCorner[i];
+			}
+		}
+
+		return Result;
+	}
+
+	TVector<T, 3> Node(int32 FlatIndexIn) const;
+
+	int32 FlatIndex(const TVector<int32, 3>& Index) const;
+	TVector<int32, 3> Lin2MultiIndex(const int32 IndexIn) const;
+	const TVector<int32, 3> GetCells() const { return MCells; }
+	const TVector<T, 3> GetMinCorner() const { return MMinCorner; } 
+	void SetDx(const TVector<T, 3> DxIn) { MDx = DxIn; }
+	void UpdateGridFromPositions(const Chaos::TDynamicParticles<T, 3>& InParticles);
+	
+	enum InterpType { linear = 1, quadratic = 2 };
+	void SetInterp(InterpType InterpIn);
+
+	InterpType interp = linear;
+	uint32 NPerDir = 2;
+
+};
+
+
+template<class T>
 class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 {
 	using TUniformGridBase<T, 3>::MCells;
@@ -338,6 +425,7 @@ class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	bool IsValid(const TVector<int32, 3>& X) const;
 };
 
+
 template <typename T, int d>
 FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
 {
@@ -348,6 +436,8 @@ FArchive& operator<<(FArchive& Ar, TUniformGridBase<T, d>& Value)
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
 extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
+extern template class CHAOS_API Chaos::TMPMGrid<Chaos::FReal>;
+extern template class CHAOS_API Chaos::TMPMGrid<Chaos::FRealSingle>;
 extern template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
 #endif
 
