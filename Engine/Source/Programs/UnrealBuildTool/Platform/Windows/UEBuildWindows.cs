@@ -875,12 +875,8 @@ namespace UnrealBuildTool
 				Target.bDisableLinking = true;
 			}
 
-			 // Disable PCHs for PVS studio and clang static analyzer.
+			 // Disable PCHs for PVS studio analyzer.
 			if(Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
-			{
-				Target.bUsePCHFiles = false;
-			}
-			else if (Target.WindowsPlatform.Compiler.IsClang() && Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bUsePCHFiles = false;
 			}

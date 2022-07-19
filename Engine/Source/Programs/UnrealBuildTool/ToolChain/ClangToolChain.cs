@@ -279,6 +279,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch) => Info.ClangVersion < new Version(Major, Minor, Patch);
 
+		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) => StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create;
+
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// https://clang.llvm.org/cxx_status.html
@@ -731,7 +733,7 @@ namespace UnrealBuildTool
 			GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
 
 			// Add analysis flags to the argument list.
-			if (StaticAnalyzer == StaticAnalyzer.Default)
+			if (IsAnalyzing(CompileEnvironment))
 			{
 				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
 			}
@@ -819,7 +821,7 @@ namespace UnrealBuildTool
 			// Add the source file path to the command-line.
 			Arguments.Add(GetSourceFileArgument(SourceFile));
 
-			if (StaticAnalyzer != StaticAnalyzer.Default)
+			if (!IsAnalyzing(CompileEnvironment))
 			{
 				// Generate the timing info
 				if (CompileEnvironment.bPrintTimingInfo)
@@ -838,7 +840,7 @@ namespace UnrealBuildTool
 					CompileAction.ProducedItems.Add(DependencyListFile);
 				}
 			}
-			else if (StaticAnalyzer == StaticAnalyzer.Default)
+			else
 			{
 				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".analysis"));
 			}
@@ -891,7 +893,7 @@ namespace UnrealBuildTool
 			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			CompileAction.CommandPath = Info.Clang;
 			CompileAction.CommandVersion = Info.ClangVersionString;
-			CompileAction.CommandDescription = StaticAnalyzer == StaticAnalyzer.Default ? "Analyze" : "Compile";
+			CompileAction.CommandDescription = IsAnalyzing(CompileEnvironment) ? "Analyze" : "Compile";
 			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 			CompileAction.bIsGCCCompiler = true;
 

@@ -794,7 +794,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add analysis flags to the argument list.
-			if (StaticAnalyzer == StaticAnalyzer.Default)
+			if (IsAnalyzing(CompileEnvironment))
 			{
 				List<string> Arguments = new List<string>();
 				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
@@ -1406,7 +1406,7 @@ namespace UnrealBuildTool
 					string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
 					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					CompileAction.CommandDescription = StaticAnalyzer == StaticAnalyzer.Default ? "Analyze" : "Compile";
+					CompileAction.CommandDescription = IsAnalyzing(CompileEnvironment) ? "Analyze" : "Compile";
 					if (bExecuteCompilerThroughShell)
 					{
 						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, CompileAction.CommandDescription);

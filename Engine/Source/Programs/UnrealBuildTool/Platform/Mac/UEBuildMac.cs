@@ -121,11 +121,9 @@ namespace UnrealBuildTool
 			}
 
 			// Disable linking if we're using a static analyzer
-			// Disable PCHs for clang static analyzer.
 			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bDisableLinking = true;
-				Target.bUsePCHFiles = false;
 			}
 
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)

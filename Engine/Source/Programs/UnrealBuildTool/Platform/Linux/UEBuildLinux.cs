@@ -224,11 +224,9 @@ namespace UnrealBuildTool
 			}
 
 			// Disable linking if we're using a static analyzer
-			// Disable PCHs for clang static analyzer.
 			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bDisableLinking = true;
-				Target.bUsePCHFiles = false;
 			}
 
 			// Editor target types get overwritten in UEBuildTarget.cs so lets avoid adding this here. ResetTarget is called with

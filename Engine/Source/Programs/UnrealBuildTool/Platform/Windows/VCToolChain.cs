@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 				// compiler version of 19.xx).
 				Arguments.Add($"-fms-compatibility-version=19.{EnvVars.ToolChainVersion.GetComponent(1)}");
 				
-				if (Target.StaticAnalyzer == StaticAnalyzer.Default)
+				if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create)
 				{
 					// Enable the static analyzer but only via the backend. Using the frontend
 					// flag ('--analyze') will enable a suite of default checkers, some of which
