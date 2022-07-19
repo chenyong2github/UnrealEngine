@@ -211,7 +211,7 @@ public:
 			}
 		}
 
-		float fBufferWidth = ExactBandWidth * CellSize;
+		float fBufferWidth = float(ExactBandWidth) * CellSize;
 		if (ComputeMode == EComputeModes::NarrowBand_SpatialFloodFill)
 		{
 			fBufferWidth = (float)FMath::Max(fBufferWidth, float(NarrowBandMaxDistance));
@@ -303,7 +303,7 @@ private:
 
 	float upper_bound(const FDenseGrid3f& GridIn) const
 	{
-		return (float)((GridIn.GetDimensions().X + GridIn.GetDimensions().Y + GridIn.GetDimensions().Z) * CellSize);
+		return (float(GridIn.GetDimensions().X + GridIn.GetDimensions().Y + GridIn.GetDimensions().Z) * CellSize);
 	}
 
 	float cell_tri_dist(const FVector3i& Idx, int TID) const
@@ -744,7 +744,7 @@ private:
 		TArray<FCriticalSection> GridSections;
 		GridSections.SetNum(NumSections);
 		int64 TotalGridCellCount = NI * NJ * NK;
-		int64 SectionSize = FMath::CeilToInt(TotalGridCellCount / (float)NumSections);
+		int64 SectionSize = FMath::CeilToInt(float(TotalGridCellCount) / (float)NumSections);
 		
 		// this returns the FCriticalSection to use for the given span of values
 		auto GetGridSectionLock = [this, SectionSize, &Distances, &GridSections](FVector3i CellGridIndex) -> FCriticalSection*
@@ -1005,7 +1005,7 @@ private:
 			{
 				for (int I = i0; I != i1; I += di)
 				{
-					FVector3d gx(I * DX + Origin[0], J * DX + Origin[1], K * DX + Origin[2]);
+					FVector3d gx(float(I) * DX + Origin[0], float(J) * DX + Origin[1], float(K) * DX + Origin[2]);
 					check_neighbour(phi, closest_tri, gx, I, J, K, I - di, J, K);
 					check_neighbour(phi, closest_tri, gx, I, J, K, I, J - dj, K);
 					check_neighbour(phi, closest_tri, gx, I, J, K, I - di, J - dj, K);

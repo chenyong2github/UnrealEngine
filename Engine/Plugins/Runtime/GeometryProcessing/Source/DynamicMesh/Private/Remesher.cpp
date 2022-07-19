@@ -577,7 +577,7 @@ void FRemesher::ApplyVertexBuffer(bool bParallel)
 	{
 		// TODO: verify that this batching is still necessary, now that timestamps/locking situation has been improved
 		const int BatchSize = 1000;
-		const int NumBatches = FMath::CeilToInt(Mesh->MaxVertexID() / static_cast<float>(BatchSize));
+		const int NumBatches = FMath::CeilToInt32(static_cast<float>(Mesh->MaxVertexID()) / static_cast<float>(BatchSize));
 		ParallelFor(NumBatches, [this, BatchSize](int32 BatchID)
 		{
 			for (int VertexID = BatchID * BatchSize; VertexID < (BatchID + 1) * BatchSize; ++VertexID)

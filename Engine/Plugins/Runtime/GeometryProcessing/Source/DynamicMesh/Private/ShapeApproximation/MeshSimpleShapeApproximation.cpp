@@ -325,7 +325,7 @@ void FMeshSimpleShapeApproximation::Generate_ConvexHullDecompositions(FSimpleSha
 		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
 		// TODO: if (bSimplifyHulls), also consider simplifying the input?
 		FConvexDecomposition3 Decomposition(SourceMesh);
-		const int32 NumAdditionalSplits = FMath::FloorToInt32(ConvexDecompositionMaxPieces * ConvexDecompositionSearchFactor);
+		const int32 NumAdditionalSplits = FMath::FloorToInt32(float(ConvexDecompositionMaxPieces) * ConvexDecompositionSearchFactor);
 		Decomposition.Compute(ConvexDecompositionMaxPieces, NumAdditionalSplits, ConvexDecompositionErrorTolerance, ConvexDecompositionMinPartThickness);
 
 		for (int32 HullIdx = 0; HullIdx < Decomposition.NumHulls(); HullIdx++)

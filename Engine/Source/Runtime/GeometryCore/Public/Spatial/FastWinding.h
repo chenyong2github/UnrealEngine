@@ -159,7 +159,7 @@ namespace FastTriWinding
 			double R;
 		};
 
-		auto ExpansionTransform = [&, P = CentroidData.P](int64 TriangleSubsetIndex) -> OrderData
+		auto ExpansionTransform = [&, P = CentroidData.P](int32 TriangleSubsetIndex) -> OrderData
 		{
 			check(TriangleSubsetIndex < TriangleArray.Num());
 			int tid = TriangleArray[(int)TriangleSubsetIndex];

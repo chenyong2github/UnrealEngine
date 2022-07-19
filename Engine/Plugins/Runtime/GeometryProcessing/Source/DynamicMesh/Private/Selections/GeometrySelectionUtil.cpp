@@ -223,7 +223,7 @@ bool UE::Geometry::EnumerateTriangleSelectionVertices(
 	{
 		for (uint64 TriangleID : MeshSelection.Selection)
 		{
-			if (Mesh.IsTriangle(TriangleID))
+			if (Mesh.IsTriangle((int32)TriangleID))
 			{
 				FIndex3i Triangle = Mesh.GetTriangle((int32)TriangleID);
 				VertexFunc((uint64)Triangle.A, ApplyTransform.TransformPosition(Mesh.GetVertex(Triangle.A)));
@@ -252,7 +252,7 @@ bool UE::Geometry::EnumerateTriangleSelectionVertices(
 		{
 			if (Mesh.IsVertex((int32)VertexID))
 			{
-				VertexFunc((uint64)VertexID, ApplyTransform.TransformPosition(Mesh.GetVertex(VertexID)));
+				VertexFunc((uint64)VertexID, ApplyTransform.TransformPosition(Mesh.GetVertex((int32)VertexID)));
 			}
 		}
 	}
@@ -369,9 +369,9 @@ bool UE::Geometry::EnumerateTriangleSelectionTriangles(
 	{
 		for (uint64 TriangleID : MeshSelection.Selection)
 		{
-			if (Mesh.IsTriangle(TriangleID))
+			if (Mesh.IsTriangle((int32)TriangleID))
 			{
-				TriangleFunc(TriangleID);
+				TriangleFunc((int32)TriangleID);
 			}
 		}
 	}
@@ -391,7 +391,7 @@ bool UE::Geometry::EnumerateTriangleSelectionTriangles(
 	{
 		for (uint64 VertexID : MeshSelection.Selection)
 		{
-			Mesh.EnumerateVertexTriangles(VertexID, [&](int32 TriangleID)
+			Mesh.EnumerateVertexTriangles((int32)VertexID, [&](int32 TriangleID)
 			{
 				TriangleFunc(TriangleID);
 			});

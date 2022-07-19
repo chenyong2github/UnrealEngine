@@ -866,9 +866,9 @@ FVector3d FLinearStairGenerator::GenerateVertex(ESide Side, int VertexColumn, in
 		// Vertices are only generated for Right & Left sides.
 		check(false);
 	}
-	float X = VertexColumn * StepDepth;
+	float X = float(VertexColumn) * StepDepth;
 	float Y = (Side == ESide::Right ? float(0.5 * StepWidth) : -float(0.5 * StepWidth));
-	float Z = VertexRow * StepHeight;
+	float Z = float(VertexRow) * StepHeight;
 	return FVector3d(X, Y, Z);
 }
 
@@ -912,8 +912,8 @@ FVector2f FLinearStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Right:
 	case ESide::Left:
 	{
-		const float UScale = NumSteps * StepDepth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float UScale = float(NumSteps) * StepDepth * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		UV.X = FMathf::Lerp(-0.5f, 0.5f, float(Col % LeftSideColumnId) / float(NumSteps + 1)) * UScale + 0.5f;
 		UV.Y = FMathf::Lerp(-0.5f, 0.5f, float(Row) / float(NumSteps + 1)) * VScale + 0.5f;
 		break;
@@ -941,7 +941,7 @@ FVector2f FLinearStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Back:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;
 		UV.Y = FMathf::Lerp(-0.5f, 0.5f, float(Row) / float(NumSteps + 1));
 		UV.X = UV.X * UScale + 0.5f;
@@ -951,7 +951,7 @@ FVector2f FLinearStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Bottom:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = NumSteps * StepDepth * UVScale;
+		const float VScale = float(NumSteps) * StepDepth * UVScale;
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;
 		UV.Y = FMathf::Lerp(-0.5f, 0.5f, float(Col % LeftSideColumnId) / float(NumSteps + 1));
 		UV.X = UV.X * UScale + 0.5f;
@@ -964,7 +964,7 @@ FVector2f FLinearStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 
 float FLinearStairGenerator::GetMaxDimension()
 {
-	return FMathf::Max(FMathf::Max(NumSteps * StepDepth, NumSteps * StepHeight), StepWidth);
+	return FMathf::Max(FMathf::Max(float(NumSteps) * StepDepth, float(NumSteps) * StepHeight), StepWidth);
 }
 
 
@@ -979,9 +979,9 @@ FVector3d FFloatingStairGenerator::GenerateVertex(ESide Side, int VertexColumn, 
 		// Vertices are only generated for Right & Left sides.
 		check(false);
 	}
-	float X = VertexColumn * StepDepth;
+	float X = float(VertexColumn) * StepDepth;
 	float Y = (Side == ESide::Right ? float(0.5 * StepWidth) : -float(0.5 * StepWidth));
-	float Z = VertexColumn > 1 ? ((VertexColumn - 2) + VertexRow) * StepHeight : VertexRow * StepHeight;
+	float Z = VertexColumn > 1 ? float((VertexColumn - 2) + VertexRow) * StepHeight : float(VertexRow) * StepHeight;
 	return FVector3d(X, Y, Z);
 }
 
@@ -995,8 +995,8 @@ FVector2f FFloatingStairGenerator::GenerateUV(ESide Side, int Step, int VertexId
 	case ESide::Right:
 	case ESide::Left:
 	{
-		const float UScale = NumSteps * StepDepth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float UScale = float(NumSteps) * StepDepth * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		float X = float(Col % LeftSideColumnId);
 		float Y = X < 3.0f ? float(Row) : float(Row) + X - 2.0f;
 		X /= float(NumSteps + 1);
@@ -1008,7 +1008,7 @@ FVector2f FFloatingStairGenerator::GenerateUV(ESide Side, int Step, int VertexId
 	case ESide::Back:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		float Y = Step < NumSteps - 1 ? float(Row + Step) : float(Row + Step - 1);
 		Y /= float(NumSteps + 1);
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;
@@ -1037,7 +1037,7 @@ void FCurvedStairGenerator::ResetData()
 
 	bIsClockwise = CurveAngle > 0.0f;
 	CurveRadians = CurveAngle * TMathUtilConstants<float>::DegToRad;
-	CurveRadiansPerStep = CurveRadians / NumSteps;
+	CurveRadiansPerStep = CurveRadians / float(NumSteps);
 	OuterRadius = InnerRadius + StepWidth;
 	RadiusRatio = OuterRadius / InnerRadius;
 	BackNormal = FVector3f::Zero();
@@ -1052,10 +1052,10 @@ FVector3d FCurvedStairGenerator::GenerateVertex(ESide Side, int VertexColumn, in
 	}
 	float X = 0.0f;
 	float Y = 0.0f;
-	float Z = VertexRow * StepHeight;
+	float Z = float(VertexRow) * StepHeight;
 
-	float XCoeff = FMathf::Cos(VertexColumn * CurveRadiansPerStep);
-	float YCoeff = FMathf::Sin(VertexColumn * CurveRadiansPerStep);
+	float XCoeff = FMathf::Cos(float(VertexColumn) * CurveRadiansPerStep);
+	float YCoeff = FMathf::Sin(float(VertexColumn) * CurveRadiansPerStep);
 	if (bIsClockwise)
 	{
 		X = (Side == ESide::Right ? XCoeff * InnerRadius : XCoeff * OuterRadius);
@@ -1080,16 +1080,16 @@ FVector3f FCurvedStairGenerator::GenerateNormal(ESide Side, int VertexId)
 	case ESide::Right:
 	case ESide::Left:
 	{
-		float X = FMathf::Cos((Col % (NumSteps + 1)) * CurveRadiansPerStep);
-		float Y = FMathf::Sin((Col % (NumSteps + 1)) * CurveRadiansPerStep);
+		float X = FMathf::Cos(float(Col % (NumSteps + 1)) * CurveRadiansPerStep);
+		float Y = FMathf::Sin(float(Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		N = (Side == ESide::Right ? FVector3f(-X, -Y, 0.0f) : FVector3f(X, Y, 0.0f));
 		Normalize(N);
 		break;
 	}
 	case ESide::Front:
 	{
-		float X = FMathf::Cos((Col % (NumSteps + 1)) * CurveRadiansPerStep);
-		float Y = FMathf::Sin((Col % (NumSteps + 1)) * CurveRadiansPerStep);
+		float X = FMathf::Cos(float(Col % (NumSteps + 1)) * CurveRadiansPerStep);
+		float Y = FMathf::Sin(float(Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		N = FVector3f(Y, -X, 0.0f);
 		Normalize(N);
 		break;
@@ -1103,8 +1103,8 @@ FVector3f FCurvedStairGenerator::GenerateNormal(ESide Side, int VertexId)
 	{
 		if (BackNormal == FVector3f::Zero())
 		{
-			float X = FMathf::Cos(NumSteps * CurveRadiansPerStep);
-			float Y = FMathf::Sin(NumSteps * CurveRadiansPerStep);
+			float X = FMathf::Cos(float(NumSteps) * CurveRadiansPerStep);
+			float Y = FMathf::Sin(float(NumSteps) * CurveRadiansPerStep);
 			BackNormal = FVector3f(-Y, X, 0.0f);
 		}
 		N = BackNormal;
@@ -1130,7 +1130,7 @@ FVector2f FCurvedStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Left:
 	{
 		const float UScale = OuterRadius * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		UV.X = FMathf::Lerp(-0.5f, 0.5f, float(Col % LeftSideColumnId) / float(NumSteps + 1));
 		UV.Y = FMathf::Lerp(-0.5f, 0.5f, float(Row) / float(NumSteps + 1));
 
@@ -1161,7 +1161,7 @@ FVector2f FCurvedStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Top:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = OuterRadius / NumSteps * UVScale;
+		const float VScale = OuterRadius / float(NumSteps) * UVScale;
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;
 		UV.Y = (Col % LeftSideColumnId) > Step ? -0.5f : 0.5f;
 
@@ -1183,7 +1183,7 @@ FVector2f FCurvedStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Back:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;
 		UV.Y = FMathf::Lerp(-0.5f, 0.5f, float(Row) / float(NumSteps + 1));
 		UV.X = UV.X * UScale + 0.5f;
@@ -1223,7 +1223,7 @@ FVector2f FCurvedStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 float FCurvedStairGenerator::GetMaxDimension()
 {
 	float MaxDepth = FMathf::Abs(CurveRadians) * OuterRadius;
-	return FMathf::Max(FMathf::Max(MaxDepth, NumSteps * StepHeight), StepWidth);
+	return FMathf::Max(FMathf::Max(MaxDepth, float(NumSteps) * StepHeight), StepWidth);
 }
 
 
@@ -1240,10 +1240,10 @@ FVector3d FSpiralStairGenerator::GenerateVertex(ESide Side, int VertexColumn, in
 	}
 	float X = 0.0f;
 	float Y = 0.0f;
-	float Z = VertexColumn > 1 ? ((VertexColumn - 2) + VertexRow) * StepHeight : VertexRow * StepHeight;
+	float Z = VertexColumn > 1 ? float((VertexColumn - 2) + VertexRow) * StepHeight : float(VertexRow) * StepHeight;
 
-	float XCoeff = FMathf::Cos(VertexColumn * CurveRadiansPerStep);
-	float YCoeff = FMathf::Sin(VertexColumn * CurveRadiansPerStep);
+	float XCoeff = FMathf::Cos(float(VertexColumn) * CurveRadiansPerStep);
+	float YCoeff = FMathf::Sin(float(VertexColumn) * CurveRadiansPerStep);
 	if (bIsClockwise)
 	{
 		X = (Side == ESide::Right ? XCoeff * InnerRadius : XCoeff * OuterRadius);
@@ -1268,7 +1268,7 @@ FVector2f FSpiralStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Left:
 	{
 		const float UScale = OuterRadius * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		float X = float(Col % LeftSideColumnId);
 		float Y = X < 3.0f ? float(Row) : float(Row) + X - 2.0f;
 		UV.X = FMathf::Lerp(-0.5f, 0.5f, X / float(NumSteps + 1));
@@ -1291,7 +1291,7 @@ FVector2f FSpiralStairGenerator::GenerateUV(ESide Side, int Step, int VertexId, 
 	case ESide::Back:
 	{
 		const float UScale = StepWidth * UVScale;
-		const float VScale = NumSteps * StepHeight * UVScale;
+		const float VScale = float(NumSteps) * StepHeight * UVScale;
 		float Y = Step < NumSteps - 1 ? float(Row + Step) : float(Row + Step - 1);
 		Y /= float(NumSteps + 1);
 		UV.X = Col < LeftSideColumnId ? 0.5f : -0.5f;

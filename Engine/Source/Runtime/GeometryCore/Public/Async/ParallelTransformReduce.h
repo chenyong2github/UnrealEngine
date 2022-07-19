@@ -24,7 +24,7 @@ namespace Geometry {
 		// ParallelFor doesn't yet support int64 NumTasks, so cap it
 		const int32 NumTasks = (int32) FMath::Min(InNumTasks, MAX_int32);
 
-		const IntType NumPerTask = (IntType)FMathf::Ceil((float)Num / NumTasks);
+		const IntType NumPerTask = (IntType)FMathf::Ceil((float)Num / (float)NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);
@@ -72,7 +72,7 @@ namespace Geometry {
 		// ParallelFor doesn't yet support int64 NumTasks, so cap it
 		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
 
-		IntType NumPerTask = (IntType)FMathf::Ceil((float)Num / NumTasks);
+		IntType NumPerTask = (IntType)FMathf::Ceil((float)Num / (float)NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);
@@ -161,7 +161,7 @@ namespace Geometry {
 		// ParallelFor doesn't yet support int64 NumTasks, so cap it
 		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
 
-		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
+		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / (float)NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);
@@ -213,7 +213,7 @@ namespace Geometry {
 		// ParallelFor doesn't yet support int64 NumTasks, so cap it
 		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
 
-		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
+		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / (float)NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);

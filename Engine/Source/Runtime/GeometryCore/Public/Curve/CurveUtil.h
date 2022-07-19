@@ -257,7 +257,7 @@ using namespace UE::Math;
 					StartCur = 1;
 					StartPrev = 0;
 				}
-				RealType PrevDist = (Vertices[StartPrev][ClipDim] - ClipCoord) * SideSign;
+				RealType PrevDist = (Vertices[StartPrev][ClipDim] - ClipCoord) * RealType(SideSign);
 				if constexpr (!bLoop)
 				{
 					if (PrevDist >= 0)
@@ -267,7 +267,7 @@ using namespace UE::Math;
 				}
 				for (int32 CurIdx = StartCur, PrevIdx = StartPrev; CurIdx < VertNum; PrevIdx = CurIdx++)
 				{
-					RealType CurDist = (Vertices[CurIdx][ClipDim] - ClipCoord) * SideSign;
+					RealType CurDist = (Vertices[CurIdx][ClipDim] - ClipCoord) * RealType(SideSign);
 					if (CurDist >= 0)
 					{
 						if (PrevDist < 0 && CurDist > 0)

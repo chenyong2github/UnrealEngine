@@ -1171,7 +1171,7 @@ namespace AdaptiveTessellateLocals
 	{	
 		auto LerpElements = [](const RealType* Element1, const RealType* Element2, RealType* OutElement, RealType Alpha)
 		{
-			Alpha = FMath::Clamp(Alpha, 0.0, 1.0);
+			Alpha = FMath::Clamp(Alpha, RealType(0), RealType(1));
 			RealType OneMinusAlpha = (RealType)1 - Alpha;
 
 			for (int Idx = 0; Idx < ElementSize; ++Idx)
@@ -1228,7 +1228,7 @@ namespace AdaptiveTessellateLocals
 
 				for (int Index = 0; Index < IDBlock.Num(); ++Index)
 				{	
-					const double Alpha = CoordBlock[Index];
+					const RealType Alpha = (RealType)CoordBlock[Index];
 					const int ElementID = IDBlock[Index]; 
 					
 					LerpElements(Element1, Element2, Out, Alpha);
@@ -1247,7 +1247,7 @@ namespace AdaptiveTessellateLocals
 
 				for (int Index = 0; Index < IDBlock.Num(); ++Index)
 				{	
-					const double Alpha = CoordBlock[Index];
+					const RealType Alpha = (RealType)CoordBlock[Index];
 					const int ElementID = IDBlock[Index]; 
 					
 					LerpElements(Element1, Element2, Out, Alpha);
@@ -1275,7 +1275,7 @@ namespace AdaptiveTessellateLocals
 				const FVector3d Bary = CoordBlock[Index]; 
 				const int ElementID = IDBlock[Index];
 
-				BaryElements(Element1, Element2, Element3, Out, Bary[0], Bary[1], Bary[2]);
+				BaryElements(Element1, Element2, Element3, Out, RealType(Bary[0]), RealType(Bary[1]), RealType(Bary[2]));
 
 				MapE.Add(ElementID, ResultOverlay->AppendElement(Out));
 			}

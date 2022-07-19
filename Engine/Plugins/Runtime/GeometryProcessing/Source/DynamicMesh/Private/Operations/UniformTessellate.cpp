@@ -317,7 +317,7 @@ namespace UniformTessellateLocals
 				RealType OutElement[ElementSize];
 				for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 				{
-					const RealType Alpha = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
+					const RealType Alpha = (RealType)(VertexOffset + 1) / RealType(TessellationNum + 1);
 					LerpElements(Element1, Element2, OutElement, Alpha);
 					SetElementOnEdge(EdgeID, EdgeTri.A, VertexOffset, OutElement); 
 				}
@@ -393,7 +393,7 @@ namespace UniformTessellateLocals
 					RealType OutElement[ElementSize];
 					for (int VertexOffset = 0; VertexOffset < NumNewLevelVertices; ++VertexOffset) 
 					{
-						const RealType Alpha = RealType(VertexOffset + 1) / (NumNewLevelVertices + 1);
+						const RealType Alpha = RealType(VertexOffset + 1) / RealType(NumNewLevelVertices + 1);
 						LerpElements(Element1, Element2, OutElement, Alpha);
 						this->SetElementOnTriangle(TriangleID, ElementIDCounter, OutElement);
 						ElementIDCounter++;
@@ -882,7 +882,7 @@ namespace UniformTessellateLocals
 
 					for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 					{
-						const RealType Tau = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
+						const RealType Tau = (RealType)(VertexOffset + 1) / RealType(TessellationNum + 1);
 						this->LerpElements(Element1, Element2, Out, Tau);
 						this->SetElementOnEdge(EdgeID, EdgeTri.A, VertexOffset, Out);	
 					}
@@ -895,7 +895,7 @@ namespace UniformTessellateLocals
 					
 					for (int VertexOffset = 0; VertexOffset < TessellationNum; ++VertexOffset)
 					{
-						const RealType Tau = (RealType)(VertexOffset + 1) / (TessellationNum + 1);
+						const RealType Tau = (RealType)(VertexOffset + 1) / RealType(TessellationNum + 1);
 						this->LerpElements(Element1, Element2, Out, Tau);
 						this->SetElementOnEdge(EdgeID, EdgeTri.B, VertexOffset, Out);
 					}

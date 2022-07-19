@@ -251,10 +251,10 @@ protected:
 			int32 NextDupVertIdx = UVSection < NumSections ? UVSections[UVSection] : -1;
 			for (int32 VertSubIdx = 0; VertSubIdx < XVerts; UVSubIdx++)
 			{
-				float UVX = bEvenlySpaceUVs ? float(CrossSectionPercentages[VertSubIdx]) : VertSubIdx / float(XVerts);
+				float UVX = bEvenlySpaceUVs ? float(CrossSectionPercentages[VertSubIdx]) : float(VertSubIdx) / float(XVerts);
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : XIdx / float(NumCrossSections - 1);
+					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : float(XIdx) / float(NumCrossSections - 1);
 					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 
@@ -286,7 +286,7 @@ protected:
 				int32 VertSubIdx = 0;
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : XIdx / float(NumCrossSections - 1);
+					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : float(XIdx) / float(NumCrossSections - 1);
 					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 			}
@@ -587,7 +587,7 @@ public:
 		float LenAlong = ComputeSegLengths(Radii, Heights, AlongPercents);
 		for (int Idx = 0; Idx < 3; Idx++)
 		{
-			AdditionalLengthSamples[Idx] = (int)(.5f+AlongPercents[Idx + 1] * TargetSamples);
+			AdditionalLengthSamples[Idx] = (int)(.5f+AlongPercents[Idx + 1] * float(TargetSamples));
 		}
 	}
 
@@ -622,7 +622,7 @@ public:
 
 			for (int ExtraSeg = 1, NumExtraSegs = AdditionalLengthSamples[SegIdx] + 1; ExtraSeg < NumExtraSegs; ++ExtraSeg)
 			{
-				const float Along = ExtraSeg / float(NumExtraSegs);
+				const float Along = float(ExtraSeg) / float(NumExtraSegs);
 				SetVert(FMath::Lerp(SrcRadii[SegIdx], SrcRadii[SegIdx + 1], Along),
 						FMath::Lerp(SrcHeights[SegIdx], SrcHeights[SegIdx + 1], Along));
 			}

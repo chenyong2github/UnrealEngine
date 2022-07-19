@@ -525,7 +525,7 @@ void FProfileSweepGenerator::InitializeUvBuffer(const TArray<int32>& VertPositio
 	{
 		UScale = (UnitUVInWorldCoordinates != 0) ? 
 			// Get an average and convert to UV from world using the scale.
-			UScale / (NumProfilePoints * UnitUVInWorldCoordinates) 
+			UScale / (float(NumProfilePoints) * UnitUVInWorldCoordinates) 
 			: 0;
 	}
 	// Adjust
