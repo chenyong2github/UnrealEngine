@@ -388,7 +388,15 @@ public:
 	bool GetInitializedForReplication() const { return bInitializedForReplication; }
 
 	void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
-
+	
+	/** 
+	 * Traverses the parents of TransformGroupIdx counting number of levels,
+	 * and sets levels array value for TransformGroupIdx and its parents if not yet initialized.
+	 * If level is already set, retrieve stored level.
+	 * Uninitialized level array should be correct size and defaulted to zeros.
+	 */
+	static int32 CalculateAndSetLevel(int32 TransformGroupIdx, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels);
+	
 protected:
 	/**
 	* Compute damage threshold for a specific transform
@@ -416,14 +424,6 @@ protected:
 
 	void SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver);
 	void DirtyAllParticles(const Chaos::FPBDRigidsSolver& RigidsSolver);
-	
-	/** 
-	 * Traverses the parents of TransformGroupIdx counting number of levels,
-	 * and sets levels array value for TransformGroupIdx and its parents if not yet initialized.
-	 * If level is already set, retrieve stored level.
-	 * Uninitialized level array should be correct size and defaulted to zeros.
-	 */
-	static int32 CalculateAndSetLevel(int32 TransformGroupIdx, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels);
 
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
