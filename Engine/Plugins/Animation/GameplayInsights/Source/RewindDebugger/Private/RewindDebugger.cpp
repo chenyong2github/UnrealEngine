@@ -21,6 +21,8 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "ToolMenus.h"
 #include "RewindDebuggerSettings.h"
+#include "LevelEditor.h"
+#include "RewindDebuggerModule.h"
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {
@@ -46,7 +48,8 @@ FRewindDebugger::FRewindDebugger()  :
 	CurrentViewRange(0,0),
 	CurrentTraceRange(0,0),
 	RecordingIndex(0),
-	bTargetActorPositionValid(false)
+	bTargetActorPositionValid(false),
+	bIsDetailsPanelOpen(true)
 {
 	RecordingDuration.Set(0);
 
@@ -936,31 +939,43 @@ void FRewindDebugger::ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewi
 {
 	SelectedTrack = SelectedObject;
 
-	// todo: if not hidden (add a toggle button to toolbar to hide/show details)
-	TSharedPtr<SDockTab> DetailsTab = FGlobalTabmanager::Get()->TryInvokeTab(FName("RewindDebuggerDetails"));
-
-	TSharedPtr<SWidget> DetailsView;
-
-	if (SelectedObject)
+	if (bIsDetailsPanelOpen)
 	{
-		if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		TSharedPtr<SDockTab> DetailsTab = LevelEditorTabManager->TryInvokeTab(FRewindDebuggerModule::DetailsTabName);
+
+		if (DetailsTab.IsValid())
 		{
-			DetailsView = SelectedObject->GetDetailsView();
+			UpdateDetailsPanel(DetailsTab.ToSharedRef());
 		}
 	}
-	
-	if (DetailsView)
+}
+
+void FRewindDebugger::UpdateDetailsPanel(TSharedRef<SDockTab> DetailsTab)
+{
+	if (bIsDetailsPanelOpen)
 	{
-		DetailsTab->SetContent(DetailsView.ToSharedRef());
-	}
-	else
-	{
-		static TSharedPtr<SWidget> EmptyDetails;
-		if (EmptyDetails == nullptr)
+		TSharedPtr<SWidget> DetailsView;
+
+		if (SelectedTrack)
 		{
-			EmptyDetails = 	SNew(SSpacer);
+			DetailsView = SelectedTrack->GetDetailsView();
 		}
-		DetailsTab->SetContent(EmptyDetails.ToSharedRef());
+
+		if (DetailsView)
+		{
+			DetailsTab->SetContent(DetailsView.ToSharedRef());
+		}
+		else
+		{
+			static TSharedPtr<SWidget> EmptyDetails;
+			if (EmptyDetails == nullptr)
+			{
+				EmptyDetails = SNew(SSpacer);
+			}
+			DetailsTab->SetContent(EmptyDetails.ToSharedRef());
+		}
 	}
 }
 

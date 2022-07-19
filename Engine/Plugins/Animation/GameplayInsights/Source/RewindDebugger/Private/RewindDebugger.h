@@ -17,6 +17,7 @@ namespace TraceServices
 }
 
 class SWidget;
+class SDockTab;
 
 // Singleton class that handles the logic for the Rewind Debugger
 // handles:
@@ -104,12 +105,17 @@ public:
 	void ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject);
 	TSharedPtr<SWidget> BuildComponentContextMenu();
 
+	void UpdateDetailsPanel(TSharedRef<SDockTab> DetailsTab);
+
 	DECLARE_DELEGATE_OneParam( FOnTrackCursor, bool)
 	void OnTrackCursor(const FOnTrackCursor& TrackCursorCallback);
 
 	TBindableProperty<double>* GetTraceTimeProperty() { return &TraceTime; }
 	TBindableProperty<float>* GetRecordingDurationProperty() { return &RecordingDuration; }
 	TBindableProperty<FString, BindingType_Out>* GetDebugTargetActorProperty() { return &DebugTargetActor; }
+
+	void SetIsDetailsPanelOpen(bool bIsOpen) { bIsDetailsPanelOpen = bIsOpen; }
+	bool IsDetailsPanelOpen(bool bIsOpen) { return bIsDetailsPanelOpen; }
 
 private:
 	void RefreshDebugComponents(TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>& InTracks, TArray<TSharedPtr<FDebugObjectInfo>>& OutComponents);
@@ -181,4 +187,6 @@ private:
 
 	bool bTargetActorPositionValid;
 	FVector TargetActorPosition;
+
+	bool bIsDetailsPanelOpen;
 };
