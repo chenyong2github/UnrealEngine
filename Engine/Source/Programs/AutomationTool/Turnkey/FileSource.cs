@@ -390,7 +390,7 @@ namespace Turnkey
 			return null;
 		}
 
-		public bool DownloadOrInstall(UnrealTargetPlatform Platform, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended)
+		public bool DownloadOrInstall(UnrealTargetPlatform Platform, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended, bool bSdkAlreadyInstalled)
 		{
 			// standard variables
 			TurnkeyUtils.SetVariable("Platform", Platform.ToString());
@@ -417,7 +417,7 @@ namespace Turnkey
 			}
 
 			// let the platform decide how to install
-			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, TurnkeyContext, Device, bUnattended);
+			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, TurnkeyContext, Device, bUnattended, bSdkAlreadyInstalled);
 		}
 
 

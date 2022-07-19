@@ -314,7 +314,9 @@ namespace Turnkey.Commands
 						continue;
 					}
 
-					Sdk.DownloadOrInstall(Platform, TurnkeyContext, InstallDevice, false);
+					bool bSdkAlreadyInstalled = (InstallDevice == null) && (Sdk.Type == FileSource.SourceType.Full) && SDK.GetAllInstalledSDKVersions().Contains(Sdk.Version);
+
+					Sdk.DownloadOrInstall(Platform, TurnkeyContext, InstallDevice, false, bSdkAlreadyInstalled);
 				}
 			}
 		}

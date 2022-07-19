@@ -199,8 +199,10 @@ namespace Turnkey.Commands
 
 						foreach (FileSource Sdk in SdksToInstall)
 						{
+							bool bSdkAlreadyInstalled = Sdk.Type == FileSource.SourceType.Full && PlatformSDK.GetAllInstalledSDKVersions().Contains(Sdk.Version);
+
 							// attempt to fast switch to the best one if it's already fully installed, unless we are forcing a reinstall
-							if (!bForceSdkInstall && Sdk.Type == FileSource.SourceType.Full && PlatformSDK.GetAllInstalledSDKVersions().Contains(Sdk.Version))
+							if (!bForceSdkInstall && bSdkAlreadyInstalled)
 							{
 								bool bWasSwitched = PlatformSDK.SwitchToAlternateSDK(Sdk.Version, false);
 								if (bWasSwitched == true)
@@ -212,7 +214,7 @@ namespace Turnkey.Commands
 								}
 							}
 
-							if (Sdk.DownloadOrInstall(Platform, TurnkeyContext, null, bUnattended) == false)
+							if (Sdk.DownloadOrInstall(Platform, TurnkeyContext, null, bUnattended, bSdkAlreadyInstalled) == false)
 							{
 								TurnkeyUtils.Log("Failed to install {0}", Sdk.Name);
 								TurnkeyUtils.ExitCode = ExitCode.Error_SDKInstallFailed;
@@ -302,7 +304,7 @@ namespace Turnkey.Commands
 									}
 									else
 									{
-										if (MatchingInstallableSdk.DownloadOrInstall(Platform, TurnkeyContext, Device, bUnattended) == false)
+										if (MatchingInstallableSdk.DownloadOrInstall(Platform, TurnkeyContext, Device, bUnattended, false) == false)
 										{
 											TurnkeyUtils.Log("Failed to update Device '{0}' with '{0}'", Device.Name, MatchingInstallableSdk.Name);
 											TurnkeyUtils.ExitCode = ExitCode.Error_DeviceUpdateFailed;
