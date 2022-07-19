@@ -6,6 +6,8 @@
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/OnlineMeta.h"
 
+#define UE_LEADERBOARD_RANK_UNKNOWN -1
+
 namespace UE::Online {
 
 struct FLeaderboardEntry
@@ -24,6 +26,8 @@ struct FReadEntriesForUsers
 
 	struct Params
 	{
+		/* Local user id */
+		FOnlineAccountIdHandle LocalUserId;
 		/* The account ids of users */
 		TArray<FOnlineAccountIdHandle> UserIds;
 		/* The leaderboard name */
@@ -43,10 +47,12 @@ struct FReadEntriesAroundRank
 
 	struct Params
 	{
+		/* Local user id */
+		FOnlineAccountIdHandle LocalUserId;
 		/* The rank index to start read */
-		int32 Rank;
+		uint32 Rank;
 		/* How many entries to fetch */
-		int32 Limit;
+		uint32 Limit;
 		/* The leaderboard to read */
 		FString BoardName;
 	};
@@ -64,12 +70,14 @@ struct FReadEntriesAroundUser
 
 	struct Params
 	{
+		/* Local user id */
+		FOnlineAccountIdHandle LocalUserId;
 		/* The account id of specified user */
 		FOnlineAccountIdHandle UserId;
 		/* The offset to the rank of user */
 		int32 Offset;
 		/* How many entries to fetch */
-		int32 Limit;
+		uint32 Limit;
 		/* The leaderboard to read */
 		FString BoardName;
 	};
@@ -117,6 +125,7 @@ BEGIN_ONLINE_STRUCT_META(FLeaderboardEntry)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesForUsers::Params)
+	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, UserIds),
 	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, BoardName)
 END_ONLINE_STRUCT_META()
@@ -126,6 +135,7 @@ BEGIN_ONLINE_STRUCT_META(FReadEntriesForUsers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundRank::Params)
+	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, Rank),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, Limit),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, BoardName)
@@ -136,6 +146,7 @@ BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundRank::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundUser::Params)
+	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, UserId),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, Offset),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, Limit),
