@@ -6,7 +6,7 @@
 
 #include "Online/AuthNull.h"
 #include "Online/LobbiesNull.h"
-#include "Online/SessionsNull.h"
+#include "Online/SessionsLAN.h"
 #include "Online/CoreOnline.h"
 
 /**
@@ -27,7 +27,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineAccountIdH
 
 inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionIdHandle& SessionId)
 {
-	TArray<uint8> Data = FOnlineSessionIdRegistryNull::Get().ToReplicationData(SessionId);
+	TArray<uint8> Data = FOnlineSessionIdRegistryLAN::Get().ToReplicationData(SessionId);
 	Ar << Data.Num();
 	Ar.WriteBinary(Data.GetData(), Data.Num());
 }
@@ -61,7 +61,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionIdHan
 	Ar >> Size;
 	Ar.ReadBinaryArray(Data, Size);
 
-	SessionId = FOnlineSessionIdRegistryNull::Get().FromReplicationData(Data);
+	SessionId = FOnlineSessionIdRegistryLAN::Get().FromReplicationData(Data);
 }
 
 inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, TMap<FLobbyAttributeId, FLobbyVariant>& Map)

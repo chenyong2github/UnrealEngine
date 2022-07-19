@@ -1,21 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/LANBeacon.h"
 #include "Online/SessionsLAN.h"
 
 namespace UE::Online {
 
 class FOnlineServicesNull;
-
-class FOnlineSessionIdRegistryNull : public TOnlineSessionIdStringRegistry<EOnlineServices::Null>
-{
-public:
-	static FOnlineSessionIdRegistryNull& Get();
-
-	FOnlineSessionIdHandle GetNextSessionId();
-};
 
 typedef FSessionLAN FSessionNull;
 
@@ -26,15 +16,6 @@ public:
 
 	FSessionsNull(FOnlineServicesNull& InServices);
 	virtual ~FSessionsNull() = default;
-
-	virtual void Tick(float DeltaSeconds) override;
-
-	// ISessions
-	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 
 private:
 	// FSessionsLAN

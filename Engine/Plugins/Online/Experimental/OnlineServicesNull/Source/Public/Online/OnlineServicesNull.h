@@ -6,8 +6,6 @@
 
 namespace UE::Online {
 
-static FName CONNECT_STRING_TAG = TEXT("CONNECT_STRING");
-
 class ONLINESERVICESNULL_API FOnlineServicesNull : public FOnlineServicesCommon
 {
 public:

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Online/SessionsCommon.h"
+#include "Online/SessionsLAN.h"
+
 #include "Online/OnlineServicesEOSGSTypes.h"
-#include "IPAddress.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -24,6 +23,21 @@ public:
 };
 
 static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");
+
+struct FSessionModificationHandleEOSGS : FNoncopyable
+{
+	EOS_HSessionModification ModificationHandle;
+
+	FSessionModificationHandleEOSGS(EOS_HSessionModification InModificationHandle)
+		: ModificationHandle(InModificationHandle)
+	{
+	}
+
+	~FSessionModificationHandleEOSGS()
+	{
+		EOS_SessionModification_Release(ModificationHandle);
+	}
+};
 
 struct FSessionSearchHandleEOSGS : FNoncopyable
 {
@@ -55,11 +69,11 @@ struct FSessionDetailsHandleEOSGS : FNoncopyable
 	}
 };
 
-class FSessionEOSGS : public FSession
+class FSessionEOSGS : public FSessionLAN
 {
 public:
-	FSessionEOSGS();
-	FSessionEOSGS(const FSession& InSession);
+	FSessionEOSGS() = default;
+	FSessionEOSGS(const FSessionEOSGS& InSession) = default;
 	FSessionEOSGS(const EOS_HSessionDetails& SessionDetailsHandle);
 
 	static const FSessionEOSGS& Cast(const FSession& InSession);
@@ -76,7 +90,7 @@ struct FUpdateSessionImpl
 	struct Params
 	{
 		/** Handle for the session modification operation */
-		EOS_HSessionModification SessionModificationHandle;
+		TSharedRef<FSessionModificationHandleEOSGS> SessionModificationHandle;
 	};
 
 	struct Result
@@ -84,12 +98,12 @@ struct FUpdateSessionImpl
 	};
 };
 
-class ONLINESERVICESEOSGS_API FSessionsEOSGS : public FSessionsCommon
+class ONLINESERVICESEOSGS_API FSessionsEOSGS : public FSessionsLAN
 {
 public:
 	friend class FSessionEOSGS;
 
-	using Super = FSessionsCommon;
+	using Super = FSessionsLAN;
 
 	FSessionsEOSGS(FOnlineServicesEOSGS& InOwningSubsystem);
 	virtual ~FSessionsEOSGS() = default;
@@ -106,6 +120,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAddSessionMembers> AddSessionMembers(FAddSessionMembers::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FRemoveSessionMembers> RemoveSessionMembers(FRemoveSessionMembers::Params&& Params) override;
 
 protected:
 	void RegisterEventHandlers();
@@ -118,14 +134,19 @@ protected:
 	void SetBucketId(EOS_HSessionModification& SessionModHandle, const FString& NewBucketId);
 	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const uint32& NewMaxPlayers);
 
+	void SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& SessionSearchHandle, uint32 MaxResults);
+	void SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters);
+	void SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId);
+	void SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineAccountIdHandle& TargetUserId);
+
 	/**
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle
 	 */
 	void WriteCreateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FSessionSettings& SessionSettings);
 	/**
-	 * Writes only the new values for all updated settings to the SessionModificationHandle, as well as updating them on the passed SessionSettings
+	 * Writes only the new values for all updated settings to the SessionModificationHandle
 	 */
-	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, FSessionSettings& SessionSettings, const FSessionSettingsUpdate& NewSettings);
+	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings);
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 
 	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
@@ -147,21 +168,22 @@ protected:
 	 */
 	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const;
 
-protected:
-	FOnlineServicesEOSGS& Services;
+private:
+	/** Returns true if the named session is found and removed successfully, and false otherwise */
+	bool TryRemoveSession(const FName& SessionName);
 
+	// FSessionsLAN
+	virtual void AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session) override;
+	virtual void ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session) override;
+
+protected:
 	EOS_HSessions SessionsHandle = nullptr;
 
 	EOSEventRegistrationPtr OnSessionInviteReceivedEventRegistration;
 	EOSEventRegistrationPtr OnSessionInviteAcceptedEventRegistration;
 	EOSEventRegistrationPtr OnJoinSessionAcceptedEventRegistration;
 
-	TMap<FName, TSharedRef<FSessionEOSGS>> SessionsByName;
-	TMap<FOnlineSessionIdHandle, TSharedRef<FSessionEOSGS>> SessionsById;
-
 	TSharedPtr<FSessionSearchHandleEOSGS> CurrentSessionSearchHandleEOSGS;
-	TSharedPtr<FFindSessions::Result> CurrentSessionSearch;
-	TSharedPtr<TOnlineAsyncOp<FFindSessions>> CurrentSessionSearchAsyncOpHandle;
 };
 
 /* UE::Online */ }

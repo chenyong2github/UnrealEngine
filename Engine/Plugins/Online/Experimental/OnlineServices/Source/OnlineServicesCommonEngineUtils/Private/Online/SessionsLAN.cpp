@@ -10,18 +10,24 @@
 
 namespace UE::Online {
 
+/** FOnlineSessionIdRegistryLAN */
+
+FOnlineSessionIdRegistryLAN& FOnlineSessionIdRegistryLAN::Get()
+{
+	static FOnlineSessionIdRegistryLAN Instance;
+	return Instance;
+}
+
+FOnlineSessionIdHandle FOnlineSessionIdRegistryLAN::GetNextSessionId()
+{
+	return BasicRegistry.FindOrAddHandle(FGuid::NewGuid().ToString());
+}
+
 /** FSessionLAN */
 
 FSessionLAN::FSessionLAN()
 {
 	Initialize();
-}
-
-FSessionLAN::FSessionLAN(const FSessionLAN& InSession)
-	: FSession(InSession)
-	, OwnerInternetAddr(InSession.OwnerInternetAddr)
-{
-
 }
 
 void FSessionLAN::Initialize()
@@ -54,16 +60,12 @@ void FSessionLAN::Initialize()
 
 FSessionLAN& FSessionLAN::Cast(FSession& InSession)
 {
-	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Null);
-
-	return *static_cast<FSessionLAN*>(&InSession);
+	return static_cast<FSessionLAN&>(InSession);
 }
 
 const FSessionLAN& FSessionLAN::Cast(const FSession& InSession)
 {
-	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Null);
-
-	return *static_cast<const FSessionLAN*>(&InSession);
+	return static_cast<const FSessionLAN&>(InSession);
 }
 
 /** FSessionsLAN */
@@ -85,8 +87,236 @@ void FSessionsLAN::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 }
 
-bool FSessionsLAN::TryHostLANSession()
+TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession::Params&& Params)
 {
+	TOnlineAsyncOpRef<FCreateSession> Op = GetOp<FCreateSession>(MoveTemp(Params));
+	const FCreateSession::Params& OpParams = Op->GetParams();
+
+	FOnlineError ParamsCheck = CheckCreateSessionParams(OpParams);
+	if (ParamsCheck != Errors::Success())
+	{
+		Op->SetError(MoveTemp(ParamsCheck));
+		return Op->GetHandle();
+	}
+
+	// We'll only host on the LAN beacon for public sessions
+	if (OpParams.SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
+	{
+		if (TOptional<FOnlineError> TryHostLANSessionResult = TryHostLANSession())
+		{
+			Op->SetError(MoveTemp(TryHostLANSessionResult.GetValue()));
+			return Op->GetHandle();
+		}
+	}
+
+	Op->Then([this](TOnlineAsyncOp<FCreateSession>& Op)
+	{
+		const FCreateSession::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckCreateSessionState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			return;
+		}
+
+		TSharedRef<FSessionLAN> NewSessionLANRef = MakeShared<FSessionLAN>();
+		NewSessionLANRef->CurrentState = ESessionState::Valid;
+		NewSessionLANRef->OwnerUserId = OpParams.LocalUserId;
+		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::Get().GetNextSessionId();
+		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
+
+		// For LAN sessions, we'll add all the Session members manually instead of calling JoinSession since there is no API calls involved
+		NewSessionLANRef->SessionSettings.SessionMembers.Append(OpParams.LocalUsers);
+
+		SessionsByName.Add(OpParams.SessionName, NewSessionLANRef);
+		SessionsById.Add(NewSessionLANRef->SessionId, NewSessionLANRef);
+
+		Op.SetResult(FCreateSession::Result{ NewSessionLANRef });
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession::Params&& Params)
+{
+	TOnlineAsyncOpRef<FUpdateSession> Op = GetOp<FUpdateSession>(MoveTemp(Params));
+
+	Op->Then([this](TOnlineAsyncOp<FUpdateSession>& Op) mutable
+	{
+		const FUpdateSession::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckUpdateSessionState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			return;
+		}
+
+		// We'll check and update all settings one by one, with additional logic wherever required
+
+		TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(OpParams.SessionName);
+		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+		const FSessionSettingsUpdate& UpdatedSettings = OpParams.Mutations;
+
+		if (UpdatedSettings.JoinPolicy.IsSet())
+		{
+			// Changes in the join policy setting will mean we start or stop the LAN Beacon broadcasting the session information
+			// There is no FriendsLAN interface at the time of this implementation, hence the binary behavior (Public/Non-Public)
+			if (SessionSettings.JoinPolicy != ESessionJoinPolicy::Public && UpdatedSettings.JoinPolicy.GetValue() == ESessionJoinPolicy::Public)
+			{
+				if (TOptional<FOnlineError> TryHostLANSessionResult = TryHostLANSession())
+				{
+					Op.SetError(MoveTemp(TryHostLANSessionResult.GetValue()));
+					return;
+				}
+			}
+			else if (SessionSettings.JoinPolicy == ESessionJoinPolicy::Public && UpdatedSettings.JoinPolicy.GetValue() != ESessionJoinPolicy::Public)
+			{
+				StopLANSession();
+			}
+		}
+
+		SessionSettings += UpdatedSettings;
+
+		// We set the result and fire the event
+		Op.SetResult(FUpdateSession::Result{ FoundSession });
+
+		FSessionUpdated SessionUpdatedEvent{ FoundSession, UpdatedSettings };
+		SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FFindSessions> FSessionsLAN::FindSessions(FFindSessions::Params&& Params)
+{
+	TOnlineAsyncOpRef<FFindSessions> Op = GetOp<FFindSessions>(MoveTemp(Params));
+	const FFindSessions::Params& OpParams = Op->GetParams();
+
+	FOnlineError ParamsCheck = CheckFindSessionsParams(OpParams);
+	if (ParamsCheck != Errors::Success())
+	{
+		Op->SetError(MoveTemp(ParamsCheck));
+		return Op->GetHandle();
+	}
+
+	Op->Then([this](TOnlineAsyncOp<FFindSessions>& Op) mutable
+	{
+		const FFindSessions::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckFindSessionsState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			return;
+		}
+
+		CurrentSessionSearch = MakeShared<FFindSessions::Result>();
+		CurrentSessionSearchHandle = Op.AsShared();
+
+		FindLANSessions();
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Params&& Params)
+{
+	TOnlineAsyncOpRef<FJoinSession> Op = GetOp<FJoinSession>(MoveTemp(Params));
+	const FJoinSession::Params& OpParams = Op->GetParams();
+
+	FOnlineError ParamsCheck = CheckJoinSessionParams(OpParams);
+	if (ParamsCheck != Errors::Success())
+	{
+		Op->SetError(MoveTemp(ParamsCheck));
+		return Op->GetHandle();
+	}
+
+	// If no restrictions apply, we'll save our copy of the session, add the new players, and register it
+	Op->Then([this](TOnlineAsyncOp<FJoinSession>& Op) mutable
+	{
+		const FJoinSession::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckJoinSessionState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			return;
+		}
+
+		// TODO: This should retrieve an FSession from a cache and move it, instead of making a copy
+		TSharedRef<FSession> NewSessionRef = MakeShared<FSession>(*OpParams.Session);
+
+		SessionsByName.Add(OpParams.SessionName, NewSessionRef);
+		SessionsById.Add(NewSessionRef->SessionId, NewSessionRef);
+
+		Op.SetResult(FJoinSession::Result{ NewSessionRef });
+
+		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		LocalUserIds.Reserve(OpParams.LocalUsers.Num());
+		OpParams.LocalUsers.GenerateKeyArray(LocalUserIds);
+
+		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalUserIds), NewSessionRef };
+		
+		SessionEvents.OnSessionJoined.Broadcast(SessionJoinedEvent);
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Params&& Params)
+{
+	TOnlineAsyncOpRef<FLeaveSession> Op = GetOp<FLeaveSession>(MoveTemp(Params));
+
+	Op->Then([this](TOnlineAsyncOp<FLeaveSession>& Op) mutable
+	{
+		const FLeaveSession::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckLeaveSessionState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			return;
+		}
+
+		// This scope guarantees that FoundSession can't be used after its removal
+		{
+			TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(OpParams.SessionName);
+
+			// Only the host should stop the session at this point
+			if (FoundSession->OwnerUserId == OpParams.LocalUserId && FoundSession->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
+			{
+				StopLANSession();
+			}
+
+			// TODO: Remove all local users from session
+
+			SessionsById.Remove(FoundSession->SessionId);
+			SessionsByName.Remove(OpParams.SessionName);
+		}
+
+		Op.SetResult(FLeaveSession::Result{ });
+
+		FSessionLeft SessionLeftEvent;
+		SessionLeftEvent.LocalUserIds.Append(OpParams.LocalUsers);
+		SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+/** LANSessionManager methods */
+
+TOptional<FOnlineError> FSessionsLAN::TryHostLANSession()
+{
+	TOptional<FOnlineError> Result;
+
 	// The LAN Beacon can only broadcast one session at a time
 	if (LANSessionManager->GetBeaconState() == ELanBeaconState::NotUsingLanBeacon)
 	{
@@ -97,22 +327,24 @@ bool FSessionsLAN::TryHostLANSession()
 			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon hosting..."));
 
 			PublicSessionsHosted++;
-
-			return true;
 		}
 		else
 		{
 			UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon failed to host!"));
 
 			LANSessionManager->StopLANSession();
+
+			Result.Emplace(Errors::RequestFailure()); // TODO: May need a new error type
 		}
 	}
 	else
 	{
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FSessionsLAN::TryHostLANSession] LAN Beacon already in use!"));
+
+		Result.Emplace(Errors::RequestFailure()); // TODO: May need a new error type
 	}
 
-	return false;
+	return Result;
 }
 
 void FSessionsLAN::FindLANSessions()
@@ -168,9 +400,9 @@ void FSessionsLAN::StopLANSession()
 void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
 {
 	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (TMap<FName, TSharedRef<FSession>>::TConstIterator It(SessionsByName); It; ++It)
+	for (const TPair<FName, TSharedRef<FSession>>& Entry : SessionsByName)
 	{
-		const TSharedRef<FSession>& Session = It.Value();
+		const TSharedRef<FSession>& Session = Entry.Value;
 
 		if (Session->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
 		{
@@ -201,7 +433,7 @@ void FSessionsLAN::OnValidResponsePacketReceived(uint8* PacketData, int32 Packet
 		TSharedRef<FSessionLAN> Session = MakeShared<FSessionLAN>();
 
 		FNboSerializeFromBuffer Packet(PacketData, PacketLength);
-		ReadSessionFromPacket(Packet, FSessionLAN::Cast(*Session));
+		ReadSessionFromPacket(Packet, *Session);
 
 		CurrentSessionSearch->FoundSessions.Add(Session);
 	}

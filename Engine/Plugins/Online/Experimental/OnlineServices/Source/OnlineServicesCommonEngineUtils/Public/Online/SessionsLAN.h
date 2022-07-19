@@ -10,11 +10,19 @@ namespace UE::Online {
 
 class FOnlineServicesCommon;
 
+class ONLINESERVICESCOMMONENGINEUTILS_API FOnlineSessionIdRegistryLAN : public TOnlineSessionIdStringRegistry<EOnlineServices::Default>
+{
+public:
+	static FOnlineSessionIdRegistryLAN& Get();
+
+	FOnlineSessionIdHandle GetNextSessionId();
+};
+
 class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSession
 {
 public:
 	FSessionLAN();
-	FSessionLAN(const FSessionLAN& InSession);
+	FSessionLAN(const FSessionLAN& InSession) = default;
 
 	static FSessionLAN& Cast(FSession& InSession);
 	static const FSessionLAN& Cast(const FSession& InSession);
@@ -37,8 +45,15 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	// ISessions
+	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
+
 protected:
-	bool TryHostLANSession();
+	TOptional<FOnlineError> TryHostLANSession();
 	void FindLANSessions();
 	void StopLANSession();
 	void OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce);

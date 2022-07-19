@@ -172,9 +172,70 @@ void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr)
 	}
 }
 
+#define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
+	if (UpdatedSettings.Value.IsSet()) \
+	{ \
+		Value = UpdatedSettings.Value.GetValue(); \
+	} \
+
+FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsUpdate& UpdatedSettings)
+{
+	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
+	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxPublicConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(NumOpenPublicConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxPrivateConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(NumOpenPrivateConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
+	COPY_TOPTIONAL_VALUE_IF_SET(SessionIdOverride)
+	COPY_TOPTIONAL_VALUE_IF_SET(bIsDedicatedServerSession)
+	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
+	COPY_TOPTIONAL_VALUE_IF_SET(bAllowSanctionedPlayers)
+	COPY_TOPTIONAL_VALUE_IF_SET(bAllowUnregisteredPlayers)
+	COPY_TOPTIONAL_VALUE_IF_SET(bAntiCheatProtected)
+	COPY_TOPTIONAL_VALUE_IF_SET(bPresenceEnabled)
+		
+	for (const FName& Key : UpdatedSettings.RemovedCustomSettings)
+	{
+		CustomSettings.Remove(Key);
+	}
+
+	CustomSettings.Append(UpdatedSettings.UpdatedCustomSettings);
+
+	for (const FOnlineAccountIdHandle& Key : UpdatedSettings.RemovedRegisteredPlayers)
+	{
+		RegisteredPlayers.Remove(Key);
+	}
+
+	RegisteredPlayers.Append(UpdatedSettings.UpdatedRegisteredPlayers);
+
+	for (const FOnlineAccountIdHandle& Key : UpdatedSettings.RemovedSessionMembers)
+	{
+		SessionMembers.Remove(Key);
+	}
+
+	for (const TPair<FOnlineAccountIdHandle, FSessionMemberUpdate>& Entry : UpdatedSettings.UpdatedSessionMembers)
+	{
+		if (FSessionMember* SessionMember = SessionMembers.Find(Entry.Key))
+		{
+			const FSessionMemberUpdate& SessionMemberUpdate = Entry.Value;
+
+			for (const FName& Key : SessionMemberUpdate.RemovedMemberSettings)
+			{
+				SessionMember->MemberSettings.Remove(Key);
+			}
+
+			SessionMember->MemberSettings.Append(SessionMemberUpdate.UpdatedMemberSettings);
+		}
+	}
+
+	return *this;
+}
+
+#undef COPY_TOPTIONAL_VALUE_IF_SET
+
 FSessionMemberUpdate& FSessionMemberUpdate::operator+=(FSessionMemberUpdate&& UpdatedValue)
 {
-	for (TPair<FName, FCustomSessionSetting>& UpdatedMemberSetting : UpdatedValue.UpdatedMemberSettings)
+	for (const TPair<FName, FCustomSessionSetting>& UpdatedMemberSetting : UpdatedValue.UpdatedMemberSettings)
 	{
 		// If an update adds a modification to a setting that had previously been marked for removal, we'll keep the latest change
 		RemovedMemberSettings.Remove(UpdatedMemberSetting.Key);
@@ -191,79 +252,29 @@ FSessionMemberUpdate& FSessionMemberUpdate::operator+=(FSessionMemberUpdate&& Up
 	return *this;
 }
 
+#define MOVE_TOPTIONAL_IF_SET(Value) \
+	if (UpdatedValue.Value.IsSet()) \
+	{ \
+		Value = MoveTemp(UpdatedValue.Value); \
+	} \
+
 FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdate&& UpdatedValue)
 {
-	if (UpdatedValue.SchemaName.IsSet())
-	{
-		SchemaName = MoveTemp(UpdatedValue.SchemaName);
-	}
+	MOVE_TOPTIONAL_IF_SET(SchemaName)
+	MOVE_TOPTIONAL_IF_SET(NumMaxPublicConnections)
+	MOVE_TOPTIONAL_IF_SET(NumOpenPublicConnections)
+	MOVE_TOPTIONAL_IF_SET(NumMaxPrivateConnections)
+	MOVE_TOPTIONAL_IF_SET(NumOpenPrivateConnections)
+	MOVE_TOPTIONAL_IF_SET(JoinPolicy)
+	MOVE_TOPTIONAL_IF_SET(SessionIdOverride)
+	MOVE_TOPTIONAL_IF_SET(bIsDedicatedServerSession)
+	MOVE_TOPTIONAL_IF_SET(bAllowNewMembers)
+	MOVE_TOPTIONAL_IF_SET(bAllowSanctionedPlayers)
+	MOVE_TOPTIONAL_IF_SET(bAllowUnregisteredPlayers)
+	MOVE_TOPTIONAL_IF_SET(bAntiCheatProtected)
+	MOVE_TOPTIONAL_IF_SET(bPresenceEnabled)
 
-	if (UpdatedValue.NumMaxPublicConnections.IsSet())
-	{
-		NumMaxPublicConnections = MoveTemp(UpdatedValue.NumMaxPublicConnections);
-	}
-
-	if (UpdatedValue.NumOpenPublicConnections.IsSet())
-	{
-		NumOpenPublicConnections = MoveTemp(UpdatedValue.NumOpenPublicConnections);
-	}
-
-	if (UpdatedValue.NumMaxPrivateConnections.IsSet())
-	{
-		NumMaxPrivateConnections = MoveTemp(UpdatedValue.NumMaxPrivateConnections);
-	}
-
-	if (UpdatedValue.NumOpenPrivateConnections.IsSet())
-	{
-		NumOpenPrivateConnections = MoveTemp(UpdatedValue.NumOpenPrivateConnections);
-	}
-
-	if (UpdatedValue.JoinPolicy.IsSet())
-	{
-		JoinPolicy = MoveTemp(UpdatedValue.JoinPolicy);
-	}
-
-	if (UpdatedValue.SessionIdOverride.IsSet())
-	{
-		SessionIdOverride = MoveTemp(UpdatedValue.SessionIdOverride);
-	}
-
-	if (UpdatedValue.IsLANSession.IsSet())
-	{
-		IsLANSession = MoveTemp(UpdatedValue.IsLANSession);
-	}
-
-	if (UpdatedValue.IsDedicatedServerSession.IsSet())
-	{
-		IsDedicatedServerSession = MoveTemp(UpdatedValue.IsDedicatedServerSession);
-	}
-
-	if (UpdatedValue.bAllowNewMembers.IsSet())
-	{
-		bAllowNewMembers = MoveTemp(UpdatedValue.bAllowNewMembers);
-	}
-
-	if (UpdatedValue.bAllowSanctionedPlayers.IsSet())
-	{
-		bAllowSanctionedPlayers = MoveTemp(UpdatedValue.bAllowSanctionedPlayers);
-	}
-
-	if (UpdatedValue.bAllowUnregisteredPlayers.IsSet())
-	{
-		bAllowUnregisteredPlayers = MoveTemp(UpdatedValue.bAllowUnregisteredPlayers);
-	}
-
-	if (UpdatedValue.bAntiCheatProtected.IsSet())
-	{
-		bAntiCheatProtected = MoveTemp(UpdatedValue.bAntiCheatProtected);
-	}
-
-	if (UpdatedValue.bPresenceEnabled.IsSet())
-	{
-		UpdatedValue.bPresenceEnabled = MoveTemp(UpdatedValue.bPresenceEnabled);
-	}
-
-	for (TPair<FName, FCustomSessionSetting>& UpdatedCustomSetting : UpdatedValue.UpdatedCustomSettings)
+	for (const TPair<FName, FCustomSessionSetting>& UpdatedCustomSetting : UpdatedValue.UpdatedCustomSettings)
 	{
 		// If an update adds a modification to a setting that had previously been marked for removal, we'll keep the latest change
 		RemovedCustomSettings.Remove(UpdatedCustomSetting.Key);
@@ -293,22 +304,24 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 		RemovedSessionMembers.AddUnique(MoveTemp(Key));
 	}
 
-	for (TPair<FOnlineAccountIdHandle, FRegisteredUser>& UpdatedRegisteredUser : UpdatedValue.UpdatedRegisteredUsers)
+	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& UpdatedRegisteredPlayer : UpdatedValue.UpdatedRegisteredPlayers)
 	{
-		// If an update adds a modification to a registered user that had previously been marked for removal, we'll keep the latest change
-		RemovedRegisteredUsers.Remove(UpdatedRegisteredUser.Key);
+		// If an update adds a modification to a registered player that had previously been marked for removal, we'll keep the latest change
+		RemovedRegisteredPlayers.Remove(UpdatedRegisteredPlayer.Key);
 	}
-	UpdatedRegisteredUsers.Append(MoveTemp(UpdatedValue.UpdatedRegisteredUsers));
+	UpdatedRegisteredPlayers.Append(MoveTemp(UpdatedValue.UpdatedRegisteredPlayers));
 
-	for (FOnlineAccountIdHandle& Key : UpdatedValue.RemovedRegisteredUsers)
+	for (FOnlineAccountIdHandle& Key : UpdatedValue.RemovedRegisteredPlayers)
 	{
-		// If an update removes a registered user that had previously been modified, we'll keep the latest change
-		UpdatedRegisteredUsers.Remove(Key);
-		RemovedRegisteredUsers.AddUnique(MoveTemp(Key));
+		// If an update removes a registered player that had previously been modified, we'll keep the latest change
+		UpdatedRegisteredPlayers.Remove(Key);
+		RemovedRegisteredPlayers.AddUnique(MoveTemp(Key));
 	}
 
 	return *this;
 }
+
+#undef MOVE_TOPTIONAL_IF_SET
 
 FSession::FSession()
 {

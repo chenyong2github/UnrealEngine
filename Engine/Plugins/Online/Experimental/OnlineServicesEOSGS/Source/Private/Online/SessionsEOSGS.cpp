@@ -6,6 +6,7 @@
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
+#include "Online/NboSerializerEOSGSSvc.h"
 
 #include "eos_sessions.h"
 #include "eos_sessions_types.h"
@@ -36,19 +37,6 @@ FOnlineSessionIdRegistryEOSGS& FOnlineSessionIdRegistryEOSGS::Get()
 }
 
 /** FSessionEOSGS */
-
-FSessionEOSGS::FSessionEOSGS()
-	: FSessionEOSGS(FSession())
-{
-}
-
-FSessionEOSGS::FSessionEOSGS(const FSession& InSession)
-	: FSession(InSession)
-{
-	const FSessionEOSGS& Session = Cast(InSession);
-
-	SessionDetailsHandle = Session.SessionDetailsHandle;
-}
 
 FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 	: SessionDetailsHandle(MakeShared<FSessionDetailsHandleEOSGS>(InSessionDetailsHandle))
@@ -85,7 +73,6 @@ const FSessionEOSGS& FSessionEOSGS::Cast(const FSession& InSession)
 
 FSessionsEOSGS::FSessionsEOSGS(FOnlineServicesEOSGS& InServices)
 	: Super(InServices)
-	, Services(InServices)
 {
 }
 
@@ -214,48 +201,34 @@ void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcc
 
 TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSession::Params&& Params)
 {
+	// LAN Sessions
+	if (Params.SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::CreateSession(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
 	TOnlineAsyncOpRef<FCreateSession> Op = GetOp<FCreateSession>(MoveTemp(Params));
+	const FCreateSession::Params& OpParams = Op->GetParams();
+
+	FOnlineError ParamsCheck = CheckCreateSessionParams(OpParams);
+	if (ParamsCheck != Errors::Success())
+	{
+		Op->SetError(MoveTemp(ParamsCheck));
+		return Op->GetHandle();
+	}
 
 	Op->Then([this](TOnlineAsyncOp<FCreateSession>& Op)
 	{
 		const FCreateSession::Params& OpParams = Op.GetParams();
 
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+		FOnlineError StateCheck = CheckCreateSessionState(OpParams);
+		if (StateCheck != Errors::Success())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::CreateSession] Could not create session with name [%s]. A session with that name already exists"), *OpParams.SessionName.ToString());
-
-			Op.SetError(Errors::InvalidState()); // TODO: New error: Session with name %s already exists
+			Op.SetError(MoveTemp(StateCheck));
 
 			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-		}
-
-		if (OpParams.SessionSettings.NumMaxPrivateConnections == 0 && OpParams.SessionSettings.NumMaxPublicConnections == 0)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::CreateSession] Could not create session with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), OpParams.SessionSettings.NumMaxPrivateConnections, OpParams.SessionSettings.NumMaxPublicConnections);
-
-			Op.SetError(Errors::InvalidParams());
-
-			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-		}
-
-		if (!OpParams.SessionSettings.IsDedicatedServerSession)
-		{
-			IAuthPtr Auth = Services.GetAuthInterface();
-
-			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams { OpParams.LocalUserId };
-			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-			if (Result.IsOk())
-			{
-				if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::CreateSession] Could not create session with user [%s] not logged in"), *ToLogString(OpParams.LocalUserId));
-
-					Op.SetError(Errors::InvalidUser());
-
-					return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-				}
-			}
 		}
 
 		if (!OpParams.SessionSettings.SessionIdOverride.IsEmpty())
@@ -320,17 +293,15 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 		WriteCreateSessionModificationHandle(SessionModificationHandle, OpParams.SessionSettings);
 
 		// If the session modification handle is created successfully, we'll create the local session object
-		FSessionEOSGS NewSession = FSessionEOSGS();
-		NewSession.CurrentState = ESessionState::Creating;
-		NewSession.OwnerUserId = OpParams.LocalUserId;
-		NewSession.SessionSettings = OpParams.SessionSettings;
-
- 		TSharedRef<FSessionEOSGS> NewSessionEOSGSRef = MakeShared<FSessionEOSGS>(NewSession);
+ 		TSharedRef<FSessionEOSGS> NewSessionEOSGSRef = MakeShared<FSessionEOSGS>();
+		NewSessionEOSGSRef->CurrentState = ESessionState::Creating;
+		NewSessionEOSGSRef->OwnerUserId = OpParams.LocalUserId;
+		NewSessionEOSGSRef->SessionSettings = OpParams.SessionSettings;
 
  		SessionsByName.Add(OpParams.SessionName, NewSessionEOSGSRef);
- 		SessionsById.Add(NewSession.SessionId, NewSessionEOSGSRef);
+ 		SessionsById.Add(NewSessionEOSGSRef->SessionId, NewSessionEOSGSRef);
 
-		FUpdateSessionImpl::Params UpdateSessionImplParams { SessionModificationHandle };
+		FUpdateSessionImpl::Params UpdateSessionImplParams { MakeShared<FSessionModificationHandleEOSGS>(SessionModificationHandle) };
 		
 		return UpdateSessionImpl(MoveTemp(UpdateSessionImplParams));
 	})
@@ -340,27 +311,18 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 
 		if (Result.IsOk())
 		{
-			if (TSharedRef<FSessionEOSGS>* Session = SessionsByName.Find(OpParams.SessionName))
-			{
-				Session->Get().CurrentState = ESessionState::Valid;
+			TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(OpParams.SessionName);
+			FoundSession->CurrentState = ESessionState::Valid;
 
-				// TODO: Make additional local users join the created session
+			// TODO: Make additional local users join the created session
 
-				Op.SetResult(FCreateSession::Result{ *Session });
-			}
-			else
-			{
-				Op.SetError(Errors::NotFound());
-			}
+			Op.SetResult(FCreateSession::Result{ FoundSession });
+
 		}
 		else
 		{	
 			// If creation failed, we remove the session objects
-			if (TSharedRef<FSessionEOSGS>* Session = SessionsByName.Find(OpParams.SessionName))
-			{
-				SessionsByName.Remove(OpParams.SessionName);
-				SessionsById.Remove(Session->Get().SessionId);
-			}
+			TryRemoveSession(OpParams.SessionName);
 
 			Op.SetError(MoveTemp(Result.GetErrorValue()));
 		}
@@ -397,7 +359,7 @@ void FSessionsEOSGS::SetBucketId(EOS_HSessionModification& SessionModificationHa
 	EOS_EResult ResultCode = EOS_SessionModification_SetBucketId(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetMaxPlayers failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetBucketId failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -465,7 +427,7 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 // 	}
 }
 
-void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, FSessionSettings& SessionSettings, const FSessionSettingsUpdate& NewSettings)
+void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings)
 {
 	// TODO: We have the option to call EOS_SessionModification_SetHostAddress in EOS, useful if the session owner changes
 	
@@ -479,89 +441,31 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 // 	NewSetting.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
 // 
 // 	AddAttribute(SessionModificationHandle, EOS_SESSIONS_ALLOW_NEW_MEMBERS, NewSetting);
-
-	if (NewSettings.bAllowNewMembers.IsSet())
-	{
-		SessionSettings.bAllowNewMembers = NewSettings.bAllowNewMembers.GetValue();
-	}
-
-	if (NewSettings.bAllowSanctionedPlayers.IsSet())
-	{
-		SessionSettings.bAllowSanctionedPlayers = NewSettings.bAllowSanctionedPlayers.GetValue();
-	}
-
-	if (NewSettings.bAllowUnregisteredPlayers.IsSet())
-	{
-		SessionSettings.bAllowUnregisteredPlayers = NewSettings.bAllowUnregisteredPlayers.GetValue();
-	}
-
-	if (NewSettings.bAntiCheatProtected.IsSet())
-	{
-		SessionSettings.bAntiCheatProtected = NewSettings.bAntiCheatProtected.GetValue();
-	}
-
-	if (NewSettings.bPresenceEnabled.IsSet())
-	{
-		SessionSettings.bPresenceEnabled = NewSettings.bPresenceEnabled.GetValue();
-	}
-
-	if (NewSettings.IsDedicatedServerSession.IsSet())
-	{
-		SessionSettings.IsDedicatedServerSession = NewSettings.IsDedicatedServerSession.GetValue();
-	}
-
-	if (NewSettings.IsLANSession.IsSet())
-	{
-		SessionSettings.IsLANSession = NewSettings.IsLANSession.GetValue();
-	}
+	const TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(SessionName);
 
 	if (NewSettings.JoinPolicy.IsSet())
 	{
-		SessionSettings.JoinPolicy = NewSettings.JoinPolicy.GetValue();
-
-		SetPermissionLevel(SessionModificationHandle, SessionSettings.JoinPolicy);
+		SetPermissionLevel(SessionModificationHandle, NewSettings.JoinPolicy.GetValue());
 	}
 
-	bool bMaxPlayersUpdated = false;
-
-	if (NewSettings.NumMaxPrivateConnections.IsSet())
+	if (NewSettings.NumMaxPrivateConnections.IsSet() || NewSettings.NumMaxPublicConnections.IsSet())
 	{
-		SessionSettings.NumMaxPrivateConnections = NewSettings.NumMaxPrivateConnections.GetValue();
-		bMaxPlayersUpdated = true;
+		// We set MaxPlayers to the sum of any new values (if set) and old values (if not set)
+		uint32 DefaultNumMaxPrivateConnections = FoundSession->SessionSettings.NumMaxPrivateConnections;
+		uint32 DefaultNumMaxPublicConnections = FoundSession->SessionSettings.NumMaxPublicConnections;
+
+		SetMaxPlayers(SessionModificationHandle, NewSettings.NumMaxPrivateConnections.Get(DefaultNumMaxPrivateConnections) + NewSettings.NumMaxPublicConnections.Get(DefaultNumMaxPublicConnections));
 	}
 
-	if (NewSettings.NumMaxPublicConnections.IsSet())
+	// BucketId has its own set method on the API
+	const FCustomSessionSetting* NewBucketIdSetting = NewSettings.UpdatedCustomSettings.Find(EOS_SESSIONS_BUCKET_ID);
+	if (NewBucketIdSetting)
 	{
-		SessionSettings.NumMaxPublicConnections = NewSettings.NumMaxPublicConnections.GetValue();
-		bMaxPlayersUpdated = true;
+		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.Get<FString>());
 	}
 
-	if (bMaxPlayersUpdated)
-	{
-		SetMaxPlayers(SessionModificationHandle, SessionSettings.NumMaxPrivateConnections + SessionSettings.NumMaxPublicConnections);
-	}
-
-	if (NewSettings.NumOpenPrivateConnections.IsSet())
-	{
-		SessionSettings.NumOpenPrivateConnections = NewSettings.NumOpenPrivateConnections.GetValue();
-	}
-
-	if (NewSettings.NumOpenPublicConnections.IsSet())
-	{
-		SessionSettings.NumOpenPublicConnections = NewSettings.NumOpenPublicConnections.GetValue();
-	}
-
-	// TODO: We may need some additional logic for schema changes
-	if (NewSettings.SchemaName.IsSet())
-	{
-		SessionSettings.SchemaName = NewSettings.SchemaName.GetValue();
-	}
-
-	if (NewSettings.SessionIdOverride.IsSet())
-	{
-		SessionSettings.SessionIdOverride = NewSettings.SessionIdOverride.GetValue();
-	}
-
+	// TODO: This next section will be reactivated as part of the CL to add support for SchemaVariant
+#if 0
 	// Custom Settings
 
 	for (const FName& Key : NewSettings.RemovedCustomSettings)
@@ -578,21 +482,14 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 
 	SessionSettings.CustomSettings.Append(NewSettings.UpdatedCustomSettings);
 
-	// BucketId has its own set method on the API
-	const FCustomSessionSetting* NewBucketIdSetting = NewSettings.UpdatedCustomSettings.Find(EOS_SESSIONS_BUCKET_ID);
-	if (NewBucketIdSetting)
+	// registered players
+
+	for (const FOnlineAccountIdHandle& Key : NewSettings.RemovedRegisteredPlayers)
 	{
-		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.Get<FString>());
+		SessionSettings.RegisteredPlayers.Remove(Key);
 	}
 
-	// Registered Users
-
-	for (const FOnlineAccountIdHandle& Key : NewSettings.RemovedRegisteredUsers)
-	{
-		SessionSettings.RegisteredUsers.Remove(Key);
-	}
-
-	SessionSettings.RegisteredUsers.Append(NewSettings.UpdatedRegisteredUsers);
+	SessionSettings.RegisteredPlayers.Append(NewSettings.UpdatedRegisteredPlayers);
 
 	// Session Members
 
@@ -641,10 +538,20 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 			SessionMember->MemberSettings.Append(SessionMemberUpdate.UpdatedMemberSettings);
 		}
 	}
+#endif
 }
 
 TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSession::Params&& Params)
 {
+	// LAN Sessions
+	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
+	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::UpdateSession(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
 	TOnlineAsyncOpRef<FUpdateSession> Op = GetOp<FUpdateSession>(MoveTemp(Params));
 	const FUpdateSession::Params& OpParams = Op->GetParams();
 
@@ -652,65 +559,38 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 	{
 		const FUpdateSession::Params& OpParams = Op.GetParams();
 
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+		FOnlineError StateCheck = CheckUpdateSessionState(OpParams);
+		if (StateCheck != Errors::Success())
 		{
-			if (FoundSession->Get().CurrentState != ESessionState::Valid)
-			{
-				Op.SetError(Errors::InvalidState());
-
-				return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-			}
-
-			if (!FoundSession->Get().SessionSettings.IsDedicatedServerSession)
-			{
-				IAuthPtr Auth = Services.GetAuthInterface();
-
-				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId({ OpParams.LocalUserId });
-
-				if (Result.IsOk())
-				{
-					if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-					{
-						UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::UpdateSession] Could not update session with user [%s] not logged in"), *ToLogString(OpParams.LocalUserId));
-
-						Op.SetError(Errors::InvalidUser());
-
-						return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-					}
-				}
-			}
-
-			EOS_Sessions_UpdateSessionModificationOptions UpdateSessionModificationOptions = {};
-			UpdateSessionModificationOptions.ApiVersion = EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST;
-			static_assert(EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST == 1, "EOS_Sessions_UpdateSessionModificationOptions updated, check new fields");
-
-			FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
-			UpdateSessionModificationOptions.SessionName = SessionNameUtf8.Get();
-
-			EOS_HSessionModification SessionModificationHandle = nullptr;
-			EOS_EResult ResultCode = EOS_Sessions_UpdateSessionModification(SessionsHandle, &UpdateSessionModificationOptions, &SessionModificationHandle);
-			if (ResultCode != EOS_EResult::EOS_Success)
-			{
-				UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
-
-				Op.SetError(FromEOSError(ResultCode));
-
-				return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
-			}
-
-			// After creating the session modification handle, we'll add all the updated data to it
-			WriteUpdateSessionModificationHandle(SessionModificationHandle, FoundSession->Get().SessionSettings, OpParams.Mutations);
-
-			FUpdateSessionImpl::Params UpdateSessionImplParams{ SessionModificationHandle };
-
-			return UpdateSessionImpl(MoveTemp(UpdateSessionImplParams));
-		}
-		else
-		{
-			Op.SetError(Errors::NotFound());
+			Op.SetError(MoveTemp(StateCheck));
 
 			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
 		}
+
+		EOS_Sessions_UpdateSessionModificationOptions UpdateSessionModificationOptions = {};
+		UpdateSessionModificationOptions.ApiVersion = EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST;
+		static_assert(EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST == 1, "EOS_Sessions_UpdateSessionModificationOptions updated, check new fields");
+
+		FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
+		UpdateSessionModificationOptions.SessionName = SessionNameUtf8.Get();
+
+		EOS_HSessionModification SessionModificationHandle = nullptr;
+		EOS_EResult ResultCode = EOS_Sessions_UpdateSessionModification(SessionsHandle, &UpdateSessionModificationOptions, &SessionModificationHandle);
+		if (ResultCode != EOS_EResult::EOS_Success)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
+
+			Op.SetError(FromEOSError(ResultCode));
+
+			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
+		}
+
+		// After creating the session modification handle, we'll add all the updated data to it
+		WriteUpdateSessionModificationHandle(SessionModificationHandle, OpParams.SessionName, OpParams.Mutations);
+
+		FUpdateSessionImpl::Params UpdateSessionImplParams{ MakeShared<FSessionModificationHandleEOSGS>(SessionModificationHandle) };
+
+		return UpdateSessionImpl(MoveTemp(UpdateSessionImplParams));
 	})
 	.Then([this](TOnlineAsyncOp<FUpdateSession>& Op, TDefaultErrorResult<FUpdateSessionImpl>&& Result)
 	{
@@ -718,8 +598,11 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 		{
 			const FUpdateSession::Params& OpParams = Op.GetParams();
 
-			if (TSharedRef<FSessionEOSGS>* Session = SessionsByName.Find(OpParams.SessionName))
+			if (TSharedRef<FSession>* Session = SessionsByName.Find(OpParams.SessionName))
 			{
+				// Now that the API Session update has processed successfully, we'll update our local session with the same data
+				Session->Get().SessionSettings += OpParams.Mutations;
+
 				// We set the result and fire the event
 				Op.SetResult(FUpdateSession::Result{ *Session });
 
@@ -747,7 +630,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 	UpdateSessionOptions.ApiVersion = EOS_SESSIONS_UPDATESESSION_API_LATEST;
 	static_assert(EOS_SESSIONS_UPDATESESSION_API_LATEST == 1, "EOS_Sessions_UpdateSessionOptions updated, check new fields");
 
-	UpdateSessionOptions.SessionModificationHandle = Params.SessionModificationHandle;
+	UpdateSessionOptions.SessionModificationHandle = Params.SessionModificationHandle->ModificationHandle;
 
 	TPromise<TDefaultErrorResult<FUpdateSessionImpl>> Promise;
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
@@ -761,7 +644,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 			return;
 		}
 
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(FName(Result->SessionName)))
+		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(FName(Result->SessionName)))
 		{
 			// In session creation calls, we'll need to set the new id for the session
 			if (!FoundSession->Get().SessionId.IsValid())
@@ -778,31 +661,37 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 
 TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::Params&& Params)
 {
+	// LAN Sessions
+	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
+	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::LeaveSession(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
 	TOnlineAsyncOpRef<FLeaveSession> Op = GetOp<FLeaveSession>(MoveTemp(Params));
 
 	Op->Then([this](TOnlineAsyncOp<FLeaveSession>& Op, TPromise<const EOS_Sessions_DestroySessionCallbackInfo*>&& Promise)
 	{
 		const FLeaveSession::Params& OpParams = Op.GetParams();
 
-		// We do not check if OpParams.LocalUserId is logged in because it might be a dedicated server destroying the session
-
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+		FOnlineError StateCheck = CheckLeaveSessionState(OpParams);
+		if (StateCheck != Errors::Success())
 		{
-			EOS_Sessions_DestroySessionOptions DestroySessionOptions = {};
-			DestroySessionOptions.ApiVersion = EOS_SESSIONS_DESTROYSESSION_API_LATEST;
-			static_assert(EOS_SESSIONS_DESTROYSESSION_API_LATEST == 1, "EOS_Sessions_DestroySessionOptions updated, check new fields");
-
-			FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
-			DestroySessionOptions.SessionName = SessionNameUtf8.Get();
-
-			EOS_Async(EOS_Sessions_DestroySession, SessionsHandle, DestroySessionOptions, MoveTemp(Promise));
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
 			return;
 		}
-		else
-		{
-			Op.SetError(Errors::NotFound());
-		}
-		Promise.EmplaceValue();
+
+		EOS_Sessions_DestroySessionOptions DestroySessionOptions = {};
+		DestroySessionOptions.ApiVersion = EOS_SESSIONS_DESTROYSESSION_API_LATEST;
+		static_assert(EOS_SESSIONS_DESTROYSESSION_API_LATEST == 1, "EOS_Sessions_DestroySessionOptions updated, check new fields");
+
+		FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
+		DestroySessionOptions.SessionName = SessionNameUtf8.Get();
+
+		EOS_Async(EOS_Sessions_DestroySession, SessionsHandle, DestroySessionOptions, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FLeaveSession>& Op, const EOS_Sessions_DestroySessionCallbackInfo* Result)
 	{
@@ -814,11 +703,8 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 
 		const FLeaveSession::Params& OpParams = Op.GetParams();
 
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+		if (TryRemoveSession(OpParams.SessionName))
 		{
-			SessionsById.Remove((*FoundSession)->SessionId);
-			SessionsByName.Remove(OpParams.SessionName);
-
 			Op.SetResult(FLeaveSession::Result{ });
 
 			FSessionLeft SessionLeftEvent;
@@ -836,58 +722,75 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 	return Op->GetHandle();
 }
 
+void FSessionsEOSGS::SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& SessionSearchHandle, uint32 MaxResults)
+{
+	EOS_SessionSearch_SetMaxResultsOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONSEARCH_SETMAXSEARCHRESULTS_API_LATEST;
+	static_assert(EOS_SESSIONSEARCH_SETMAXSEARCHRESULTS_API_LATEST == 1, "EOS_SessionSearch_SetMaxResultsOptions updated, check new fields");
+
+	// We truncate the max results parameter up to the value of EOS_SESSIONS_MAX_SEARCH_RESULTS
+	Options.MaxSearchResults = FMath::Clamp(MaxResults, 1, EOS_SESSIONS_MAX_SEARCH_RESULTS);
+
+	EOS_EResult ResultCode = EOS_SessionSearch_SetMaxResults(SessionSearchHandle.SearchHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchMaxResults] EOS_SessionSearch_SetMaxResults failed with result [%s]"), *LexToString(ResultCode));
+	}
+}
+
+void FSessionsEOSGS::SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters)
+{
+	// TODO: Pending SchemaVariant work
+	// Here we'll call EOS_SessionSearch_SetParameter
+}
+
+void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId)
+{
+	EOS_SessionSearch_SetSessionIdOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST;
+	static_assert(EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST == 1, "EOS_SessionSearch_SetSessionIdOptions updated, check new fields");
+
+	FTCHARToUTF8 SessionIdUtf8(FOnlineSessionIdRegistryEOSGS::Get().ToLogString(SessionId));
+	Options.SessionId = SessionIdUtf8.Get();
+
+	EOS_EResult ResultCode = EOS_SessionSearch_SetSessionId(SessionSearchHandle.SearchHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchSessionId] EOS_SessionSearch_SetSessionId failed with result [%s]"), *LexToString(ResultCode));
+	}
+}
+
+void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineAccountIdHandle& TargetUserId)
+{
+	EOS_SessionSearch_SetTargetUserIdOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST;
+	static_assert(EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST == 1, "EOS_SessionSearch_SetTargetUserIdOptions updated, check new fields");
+	Options.TargetUserId = GetProductUserIdChecked(TargetUserId);
+
+	EOS_EResult ResultCode = EOS_SessionSearch_SetTargetUserId(SessionSearchHandle.SearchHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchTargetId] EOS_SessionSearch_SetTargetUserId failed with result [%s]"), *LexToString(ResultCode));
+	}
+}
+
 void FSessionsEOSGS::WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params)
 {
-	if (Params.MaxResults > 0)
-	{
-		EOS_SessionSearch_SetMaxResultsOptions Options = { };
-		Options.ApiVersion = EOS_SESSIONSEARCH_SETMAXSEARCHRESULTS_API_LATEST;
-		static_assert(EOS_SESSIONSEARCH_SETMAXSEARCHRESULTS_API_LATEST == 1, "EOS_SessionSearch_SetMaxResultsOptions updated, check new fields");
-
-		// We truncate the max results parameter up to the value of EOS_SESSIONS_MAX_SEARCH_RESULTS
-		Options.MaxSearchResults = FMath::Clamp(Params.MaxResults, 1, EOS_SESSIONS_MAX_SEARCH_RESULTS);
-
-		EOS_EResult ResultCode = EOS_SessionSearch_SetMaxResults(SessionSearchHandle.SearchHandle, &Options);
-		if (ResultCode != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::WriteSessionSearchHandle] EOS_SessionSearch_SetMaxResults failed with result [%s]"), *LexToString(ResultCode));
-		}
-	}
+	SetSessionSearchMaxResults(SessionSearchHandle, Params.MaxResults);
 
 	if (!Params.Filters.IsEmpty())
 	{
-		// TODO: Pending SchemaVariant work
-		// Here we'll call EOS_SessionSearch_SetParameter
+		SetSessionSearchParameters(SessionSearchHandle, Params.Filters);
 	}
 
 	if (Params.SessionId.IsSet())
 	{
-		EOS_SessionSearch_SetSessionIdOptions Options = { };
-		Options.ApiVersion = EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST;
-		static_assert(EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST == 1, "EOS_SessionSearch_SetSessionIdOptions updated, check new fields");
-
-		FTCHARToUTF8 SessionIdUtf8(FOnlineSessionIdRegistryEOSGS::Get().ToLogString(*Params.SessionId));
-		Options.SessionId = SessionIdUtf8.Get();
-
-		EOS_EResult ResultCode = EOS_SessionSearch_SetSessionId(SessionSearchHandle.SearchHandle, &Options);
-		if (ResultCode != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::WriteSessionSearchHandle] EOS_SessionSearch_SetSessionId failed with result [%s]"), *LexToString(ResultCode));
-		}
+		SetSessionSearchSessionId(SessionSearchHandle, Params.SessionId.GetValue());
 	}
 
 	if (Params.TargetUser.IsSet())
 	{
-		EOS_SessionSearch_SetTargetUserIdOptions Options = { };
-		Options.ApiVersion = EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST;
-		static_assert(EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST == 1, "EOS_SessionSearch_SetTargetUserIdOptions updated, check new fields");
-		Options.TargetUserId = GetProductUserIdChecked(*Params.TargetUser);
-
-		EOS_EResult ResultCode = EOS_SessionSearch_SetTargetUserId(SessionSearchHandle.SearchHandle, &Options);
-		if (ResultCode != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::WriteSessionSearchHandle] EOS_SessionSearch_SetTargetUserId failed with result [%s]"), *LexToString(ResultCode));
-		}
+		SetSessionSearchTargetId(SessionSearchHandle, Params.TargetUser.GetValue());
 	}
 }
 
@@ -898,78 +801,67 @@ FOnlineSessionIdHandle FSessionsEOSGS::CreateSessionId(const FString& SessionId)
 
 TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::Params&& Params)
 {
+	// LAN Sessions
+	if (Params.bFindLANSessions)
+	{
+		return FSessionsLAN::FindSessions(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
 	TOnlineAsyncOpRef<FFindSessions> Op = GetOp<FFindSessions>(MoveTemp(Params));
 	const FFindSessions::Params& OpParams = Op->GetParams();
 
-	// We check if the user is logged in
-	IAuthPtr Auth = Services.GetAuthInterface();
-	TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId({ OpParams.LocalUserId });
-
-	if (Result.IsOk())
+	FOnlineError ParamsCheck = CheckFindSessionsParams(OpParams);
+	if (ParamsCheck != Errors::Success())
 	{
-		if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::FindSessions] Could not find sessions with user [%s] not logged in"), *ToLogString(OpParams.LocalUserId));
-
-			Op->SetError(Errors::InvalidUser());
-			return Op->GetHandle();
-		}
-	}
-
-	// We check if MaxResults has a valid value
-	if (OpParams.MaxResults > 0 && OpParams.MaxResults < EOS_SESSIONS_MAX_SEARCH_RESULTS)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] FFindSessions::Params::MaxResults had invalid value [%d]. Value must be between [0-%d]"), Params.MaxResults, EOS_SESSIONS_MAX_SEARCH_RESULTS);
-
-		Op->SetError(Errors::InvalidParams());
+		Op->SetError(MoveTemp(ParamsCheck));
 		return Op->GetHandle();
 	}
 
 	// We start the find operation
 	Op->Then([this](TOnlineAsyncOp<FFindSessions>& Op, TPromise<const EOS_SessionSearch_FindCallbackInfo*>&& Promise)
 	{
-		if (!CurrentSessionSearch.IsValid())
+		const FFindSessions::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckFindSessionsState(OpParams);
+		if (StateCheck != Errors::Success())
 		{
-			CurrentSessionSearch = MakeShared<FFindSessions::Result>();
-			CurrentSessionSearchAsyncOpHandle = Op.AsShared();
-
-			const FFindSessions::Params& OpParams = Op.GetParams();
-
-			EOS_Sessions_CreateSessionSearchOptions CreateSessionSearchOptions = { };
-			CreateSessionSearchOptions.ApiVersion = EOS_SESSIONS_CREATESESSIONSEARCH_API_LATEST;
-			static_assert(EOS_SESSIONS_CREATESESSIONSEARCH_API_LATEST == 1, "EOS_Sessions_CreateSessionSearchOptions updated, check new fields");
-			CreateSessionSearchOptions.MaxSearchResults = FMath::Clamp(OpParams.MaxResults, 0, EOS_SESSIONS_MAX_SEARCH_RESULTS);
-
-			EOS_HSessionSearch SearchHandle = nullptr;
-			EOS_EResult ResultCode = EOS_Sessions_CreateSessionSearch(SessionsHandle, &CreateSessionSearchOptions, &SearchHandle);
-			if (ResultCode != EOS_EResult::EOS_Success)
-			{
-				UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_Sessions_CreateSessionSearch failed with result [%s]"), *LexToString(ResultCode));
-
-				Op.SetError(FromEOSError(ResultCode));
-
-				Promise.EmplaceValue();
-				return;
-			}
-
-			CurrentSessionSearchHandleEOSGS = MakeShared<FSessionSearchHandleEOSGS>(SearchHandle);
-
-			// We write the search attributes
-			WriteSessionSearchHandle(*CurrentSessionSearchHandleEOSGS, OpParams);
-
-			EOS_SessionSearch_FindOptions FindOptions = { };
-			FindOptions.ApiVersion = EOS_SESSIONSEARCH_FIND_API_LATEST;
-			static_assert(EOS_SESSIONSEARCH_FIND_API_LATEST == 2, "EOS_SessionSearch_FindOptions updated, check new fields");
-			FindOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
-
-			EOS_Async(EOS_SessionSearch_Find, CurrentSessionSearchHandleEOSGS->SearchHandle, FindOptions, MoveTemp(Promise));
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
 			return;
 		}
-		else
+
+		CurrentSessionSearch = MakeShared<FFindSessions::Result>();
+		CurrentSessionSearchHandle = Op.AsShared();
+
+		EOS_Sessions_CreateSessionSearchOptions CreateSessionSearchOptions = { };
+		CreateSessionSearchOptions.ApiVersion = EOS_SESSIONS_CREATESESSIONSEARCH_API_LATEST;
+		static_assert(EOS_SESSIONS_CREATESESSIONSEARCH_API_LATEST == 1, "EOS_Sessions_CreateSessionSearchOptions updated, check new fields");
+		CreateSessionSearchOptions.MaxSearchResults = FMath::Clamp(OpParams.MaxResults, 0, EOS_SESSIONS_MAX_SEARCH_RESULTS);
+
+		EOS_HSessionSearch SearchHandle = nullptr;
+		EOS_EResult ResultCode = EOS_Sessions_CreateSessionSearch(SessionsHandle, &CreateSessionSearchOptions, &SearchHandle);
+		if (ResultCode != EOS_EResult::EOS_Success)
 		{
-			Op.SetError(Errors::AlreadyPending());
+			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_Sessions_CreateSessionSearch failed with result [%s]"), *LexToString(ResultCode));
+
+			Op.SetError(FromEOSError(ResultCode));
+			Promise.EmplaceValue();
+			return;
 		}
-		Promise.EmplaceValue();
+
+		CurrentSessionSearchHandleEOSGS = MakeShared<FSessionSearchHandleEOSGS>(SearchHandle);
+
+		// We write the search attributes
+		WriteSessionSearchHandle(*CurrentSessionSearchHandleEOSGS, OpParams);
+
+		EOS_SessionSearch_FindOptions FindOptions = { };
+		FindOptions.ApiVersion = EOS_SESSIONSEARCH_FIND_API_LATEST;
+		static_assert(EOS_SESSIONSEARCH_FIND_API_LATEST == 2, "EOS_SessionSearch_FindOptions updated, check new fields");
+		FindOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+
+		EOS_Async(EOS_SessionSearch_Find, CurrentSessionSearchHandleEOSGS->SearchHandle, FindOptions, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FFindSessions>& Op, const EOS_SessionSearch_FindCallbackInfo*&& FindCallbackInfoResult)
 	{
@@ -998,9 +890,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			if (CopySearchResultByIndexResult == EOS_EResult::EOS_Success)
 			{
 				// All session attributes get extracted with the SessionDetailsHandle
-				FSessionEOSGS NewSession = FSessionEOSGS(SessionDetailsHandle);
-
-				TSharedRef<FSessionEOSGS> NewSessionEOSGSRef = MakeShared<FSessionEOSGS>(NewSession);
+				const TSharedRef<FSessionEOSGS>& NewSessionEOSGSRef = MakeShared<FSessionEOSGS>(SessionDetailsHandle);
 
 				CurrentSessionSearch->FoundSessions.Add(NewSessionEOSGSRef);
 			}
@@ -1022,19 +912,16 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Params&& Params)
 {
+	// LAN Sessions
+	if (Params.Session->SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::JoinSession(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
 	TOnlineAsyncOpRef<FJoinSession> Op = GetOp<FJoinSession>(MoveTemp(Params));
 	const FJoinSession::Params& OpParams = Op->GetParams();
-
-	// TODO: Call CheckJoinSessionParams after it's submitted, add the state check to it
-	// 
-	// We check that the passed session is valid
-	if (Params.Session->CurrentState != ESessionState::Valid)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::FJoinSession] Could not join session with invalid session state [%s]"), *LexToString(Params.Session->CurrentState));
-
-		Op->SetError(Errors::InvalidParams());
-		return Op->GetHandle();
-	}
 
 	// We check that the passed session has a valid details handle
 	const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*Params.Session);
@@ -1046,23 +933,32 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		return Op->GetHandle();
 	}
 
-	// TODO: Routine JoinSession checks
+	FOnlineError ParamsCheck = CheckJoinSessionParams(OpParams);
+	if (ParamsCheck != Errors::Success())
+	{
+		Op->SetError(MoveTemp(ParamsCheck));
+		return Op->GetHandle();
+	}
 
 	// We start the join operation
 	Op->Then([this](TOnlineAsyncOp<FJoinSession>& Op, TPromise<const EOS_Sessions_JoinSessionCallbackInfo*>&& Promise)
 	{
 		const FJoinSession::Params& OpParams = Op.GetParams();
 
-		// TODO: Call CheckJoinSessionState after it's submitted
+		FOnlineError StateCheck = CheckJoinSessionState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
+			return;
+		}
 
-		// We make a copy of the Session object
-		FSessionEOSGS NewSession = FSessionEOSGS(*OpParams.Session);
-		NewSession.CurrentState = ESessionState::Joining;
+		// We make a copy of the Session object		
+		TSharedRef<FSession> NewSessionRef = MakeShared<FSession>(*OpParams.Session);
+		NewSessionRef->CurrentState = ESessionState::Joining;
 
-		TSharedRef<FSessionEOSGS> NewSessionEOSGSRef = MakeShared<FSessionEOSGS>(NewSession);
-
-		SessionsByName.Add(OpParams.SessionName, NewSessionEOSGSRef);
-		SessionsById.Add(NewSession.SessionId, NewSessionEOSGSRef);
+		SessionsByName.Add(OpParams.SessionName, NewSessionRef);
+		SessionsById.Add(NewSessionRef->SessionId, NewSessionRef);
 
 		// We start setup for the API call
 		EOS_Sessions_JoinSessionOptions JoinSessionOptions = { };
@@ -1087,18 +983,13 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
-			// If join failed, we remove the session objects
-			if (TSharedRef<FSessionEOSGS>* Session = SessionsByName.Find(OpParams.SessionName))
-			{
-				SessionsByName.Remove(OpParams.SessionName);
-				SessionsById.Remove(Session->Get().SessionId);
-			}
+			TryRemoveSession(OpParams.SessionName);
 
 			Op.SetError(FromEOSError(Result->ResultCode));
 			return;
 		}
 		
-		if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(OpParams.SessionName))
 		{
 			FoundSession->Get().CurrentState = ESessionState::Valid;
 
@@ -1186,12 +1077,17 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSend
 {
 	TOnlineAsyncOpRef<FSendSessionInvite> Op = GetOp<FSendSessionInvite>(MoveTemp(Params));
 
-	// TODO: Param checks
 	Op->Then([this](TOnlineAsyncOp<FSendSessionInvite>& Op, TPromise<const EOS_Sessions_SendInviteCallbackInfo*>&& Promise)
 	{
 		const FSendSessionInvite::Params& OpParams = Op.GetParams();
 
-		// TODO: State checks
+		FOnlineError StateCheck = CheckSendSessionInviteState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
+			return;
+		}
 
 		EOS_Sessions_SendInviteOptions SendInviteOptions = { };
 		SendInviteOptions.ApiVersion = EOS_SESSIONS_SENDINVITE_API_LATEST;
@@ -1204,7 +1100,7 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSend
 
 		SendInviteOptions.TargetUserId = GetProductUserIdChecked(OpParams.TargetUsers[0]); // TODO: Multiple user invitations using WhenAll like JoinLobbyImpl
 
-		EOS_Async<EOS_Sessions_SendInviteCallbackInfo>(EOS_Sessions_SendInvite, SessionsHandle, SendInviteOptions, MoveTemp(Promise));
+		EOS_Async(EOS_Sessions_SendInvite, SessionsHandle, SendInviteOptions, MoveTemp(Promise));
 		return;
 	})
 	.Then([this](TOnlineAsyncOp<FSendSessionInvite>& Op, const EOS_Sessions_SendInviteCallbackInfo* Result)
@@ -1226,12 +1122,17 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 {
 	TOnlineAsyncOpRef<FRejectSessionInvite> Op = GetOp<FRejectSessionInvite>(MoveTemp(Params));
 
-	// TODO: Param checks
 	Op->Then([this](TOnlineAsyncOp<FRejectSessionInvite>& Op, TPromise<const EOS_Sessions_RejectInviteCallbackInfo*>&& Promise)
 	{
 		const FRejectSessionInvite::Params& OpParams = Op.GetParams();
 
-		// TODO: State checks
+		FOnlineError StateCheck = CheckRejectSessionInviteState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
+			return;
+		}
 
 		EOS_Sessions_RejectInviteOptions RejectInviteOptions = { };
 		RejectInviteOptions.ApiVersion = EOS_SESSIONS_REJECTINVITE_API_LATEST;
@@ -1242,7 +1143,7 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 		const FTCHARToUTF8 InviteIdUtf8(OpParams.SessionInvite->InviteId);
 		RejectInviteOptions.InviteId = InviteIdUtf8.Get();
 
-		EOS_Async<EOS_Sessions_RejectInviteCallbackInfo>(EOS_Sessions_RejectInvite, SessionsHandle, RejectInviteOptions, MoveTemp(Promise));
+		EOS_Async(EOS_Sessions_RejectInvite, SessionsHandle, RejectInviteOptions, MoveTemp(Promise));
 		return;
 	})
 	.Then([this](TOnlineAsyncOp<FRejectSessionInvite>& Op, const EOS_Sessions_RejectInviteCallbackInfo* Result)
@@ -1258,6 +1159,188 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 	.Enqueue(GetSerialQueue()); // TODO: Use the parallel queue instead when possible
 
 	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddSessionMembers::Params&& Params)
+{
+	// LAN Sessions
+	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
+	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::AddSessionMembers(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
+	TOnlineAsyncOpRef<FAddSessionMembers> Op = GetOp<FAddSessionMembers>(MoveTemp(Params));
+
+	Op->Then([this](TOnlineAsyncOp<FAddSessionMembers>& Op, TPromise<const EOS_Sessions_RegisterPlayersCallbackInfo*>&& Promise)
+	{
+		const FAddSessionMembers::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckAddSessionMembersState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
+			return;
+		}
+
+		EOS_Sessions_RegisterPlayersOptions Options = { };
+		Options.ApiVersion = EOS_SESSIONS_REGISTERPLAYERS_API_LATEST;
+		static_assert(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST == 2, "EOS_Sessions_RegisterPlayersOptions updated, check new fields");
+
+		Options.PlayersToRegisterCount = OpParams.NewSessionMembers.Num();
+
+		TArray<EOS_ProductUserId> PlayersToRegister;
+		TArray<FOnlineAccountIdHandle> SessionMemberIds;
+		OpParams.NewSessionMembers.GenerateKeyArray(SessionMemberIds);		
+		for (FOnlineAccountIdHandle IdHandle : SessionMemberIds)
+		{
+			// TODO: Do this with ResolveAccountIds instead
+			PlayersToRegister.Add(GetProductUserIdChecked(IdHandle));
+		}
+
+		Options.PlayersToRegister = PlayersToRegister.GetData();
+
+		FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
+		Options.SessionName = SessionNameUtf8.Get();
+
+		EOS_Async(EOS_Sessions_RegisterPlayers, SessionsHandle, Options, MoveTemp(Promise));
+	})
+	.Then([this](TOnlineAsyncOp<FAddSessionMembers>& Op, const EOS_Sessions_RegisterPlayersCallbackInfo* Result)
+	{
+		if (Result->ResultCode != EOS_EResult::EOS_Success)
+		{
+			Op.SetError(FromEOSError(Result->ResultCode));
+			return;
+		}
+
+		TOnlineResult<FAddSessionMembers> ImplResult = AddSessionMembersImpl(Op.GetParams());
+		if (ImplResult.IsOk())
+		{
+			Op.SetResult(MoveTemp(ImplResult.GetOkValue()));
+		}
+		else
+		{
+			Op.SetError(MoveTemp(ImplResult.GetErrorValue()));
+		}
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers(FRemoveSessionMembers::Params&& Params)
+{
+	// LAN Sessions
+	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
+	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	{
+		return FSessionsLAN::RemoveSessionMembers(MoveTemp(Params));
+	}
+
+	// EOSGS Sessions
+
+	TOnlineAsyncOpRef<FRemoveSessionMembers> Op = GetOp<FRemoveSessionMembers>(MoveTemp(Params));
+
+	Op->Then([this](TOnlineAsyncOp<FRemoveSessionMembers>& Op, TPromise<const EOS_Sessions_UnregisterPlayersCallbackInfo*>&& Promise)
+	{
+		const FRemoveSessionMembers::Params& OpParams = Op.GetParams();
+
+		FOnlineError StateCheck = CheckRemoveSessionMembersState(OpParams);
+		if (StateCheck != Errors::Success())
+		{
+			Op.SetError(MoveTemp(StateCheck));
+			Promise.EmplaceValue();
+			return;
+		}
+
+		EOS_Sessions_UnregisterPlayersOptions Options = { };
+		Options.ApiVersion = EOS_SESSIONS_UNREGISTERPLAYERS_API_LATEST;
+		static_assert(EOS_SESSIONS_UNREGISTERPLAYERS_API_LATEST == 2, "EOS_Sessions_UnregisterPlayersOptions updated, check new fields");
+
+		Options.PlayersToUnregisterCount = OpParams.SessionMemberIds.Num();
+
+		TArray<EOS_ProductUserId> PlayersToUnregister;
+		for (FOnlineAccountIdHandle IdHandle : OpParams.SessionMemberIds)
+		{
+			// TODO: Do this with ResolveAccountIds instead
+			PlayersToUnregister.Add(GetProductUserIdChecked(IdHandle));
+		}
+
+		Options.PlayersToUnregister = PlayersToUnregister.GetData();
+
+		FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
+		Options.SessionName = SessionNameUtf8.Get();
+
+		EOS_Async(EOS_Sessions_UnregisterPlayers, SessionsHandle, Options, MoveTemp(Promise));
+	})
+	.Then([this](TOnlineAsyncOp<FRemoveSessionMembers>& Op, const EOS_Sessions_UnregisterPlayersCallbackInfo* Result)
+	{
+		if (Result->ResultCode != EOS_EResult::EOS_Success)
+		{
+			Op.SetError(FromEOSError(Result->ResultCode));
+			return;
+		}
+
+		TOnlineResult<FRemoveSessionMembers> ImplResult = RemoveSessionMembersImpl(Op.GetParams());
+		if (ImplResult.IsOk())
+		{
+			Op.SetResult(MoveTemp(ImplResult.GetOkValue()));
+		}
+		else
+		{
+			Op.SetError(MoveTemp(ImplResult.GetErrorValue()));
+		}
+	})
+	.Enqueue(GetSerialQueue());
+
+	return Op->GetHandle();
+}
+
+bool FSessionsEOSGS::TryRemoveSession(const FName& SessionName)
+{
+	if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(SessionName))
+	{
+		SessionsById.Remove((*FoundSession)->SessionId);
+		SessionsByName.Remove(SessionName);
+
+		return true;
+	}
+
+	return false;
+}
+
+/** FSessionsLAN */
+
+void FSessionsEOSGS::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session)
+{
+	using namespace NboSerializerEOSGSSvc;
+
+	// We won't save CurrentState in the packet as all advertised sessions will be Valid
+	SerializeToBuffer(Packet, Session.OwnerUserId);
+	SerializeToBuffer(Packet, Session.SessionId);
+	Packet << *Session.OwnerInternetAddr;
+
+	// TODO: Write session settings to packet, after SchemaVariant work
+}
+
+void FSessionsEOSGS::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session)
+{
+	using namespace NboSerializerEOSGSSvc;
+
+	SerializeFromBuffer(Packet, Session.OwnerUserId);
+	SerializeFromBuffer(Packet, Session.SessionId);
+	Packet >> *Session.OwnerInternetAddr;
+
+	// We'll set the connect address for the remote session as a custom parameter, so it can be read in OnlineServices' GetResolvedConnectString
+	FCustomSessionSetting ConnectString;
+	ConnectString.Data.Set<FString>(Session.OwnerInternetAddr->ToString(true));
+	ConnectString.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
+	Session.SessionSettings.CustomSettings.Add(CONNECT_STRING_TAG, ConnectString);
+
+	// TODO:: Read session settings from packet, after SchemaVariant work
 }
 
 /* UE::Online */ }

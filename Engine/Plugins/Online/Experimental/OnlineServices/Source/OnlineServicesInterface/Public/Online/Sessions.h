@@ -70,6 +70,7 @@ struct FCustomSessionSetting
 
 using FCustomSessionSettingsMap = TMap<FName, FCustomSessionSetting>;
 
+/** A member is a player that is part of the session, and it stops being a member when they leave it */
 struct FSessionMember
 {
 	FCustomSessionSettingsMap MemberSettings;
@@ -108,33 +109,81 @@ enum class ESessionJoinPolicy : uint8
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionJoinPolicy Value);
 ONLINESERVICESINTERFACE_API void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr);
 
-struct FRegisteredUser
+/** A player registered with the session, whether they are in it or not */
+struct FRegisteredPlayer
 {
-	/* Whether a slot was reserved for this user upon registration */
+	/* Whether a slot was reserved for this player upon registration */
 	bool bHasReservedSlot = false;
 
-	/* Whether the user is currently in the session */
+	/* Whether the player is currently in the session */
 	bool bIsInSession = false;
 };
 
-using FRegisteredUsersMap = TMap<FOnlineAccountIdHandle, FRegisteredUser>;
+using FRegisteredPlayersMap = TMap<FOnlineAccountIdHandle, FRegisteredPlayer>;
 
-struct FSessionSettings
+struct FSessionSettingsUpdate
+{
+	/** Set with an updated value if the SchemaName field will be changed in the update operation */
+	TOptional<FName> SchemaName;
+	/** Set with an updated value if the NumMaxPublicConnections field will be changed in the update operation */
+	TOptional<uint32> NumMaxPublicConnections;
+	/** Set with an updated value if the NumOpenPublicConnections field will be changed in the update operation */
+	TOptional<uint32> NumOpenPublicConnections;
+	/** Set with an updated value if the NumMaxPrivateConnections field will be changed in the update operation */
+	TOptional<uint32> NumMaxPrivateConnections;
+	/** Set with an updated value if the NumOpenPrivateConnections field will be changed in the update operation */
+	TOptional<uint32> NumOpenPrivateConnections;
+	/** Set with an updated value if the JoinPolicy field will be changed in the update operation */
+	TOptional<ESessionJoinPolicy> JoinPolicy;
+	/** Set with an updated value if the SessionIdOverride field will be changed in the update operation */
+	TOptional<FString> SessionIdOverride;
+	/** Set with an updated value if the bIsDedicatedServerSession field will be changed in the update operation */
+	TOptional<bool> bIsDedicatedServerSession;
+	/** Set with an updated value if the bAllowNewMembers field will be changed in the update operation */
+	TOptional<bool> bAllowNewMembers;
+	/** Set with an updated value if the bAllowSanctionedPlayers field will be changed in the update operation */
+	TOptional<bool> bAllowSanctionedPlayers;
+	/** Set with an updated value if the bAllowUnregisteredPlayers field will be changed in the update operation */
+	TOptional<bool> bAllowUnregisteredPlayers;
+	/** Set with an updated value if the bAntiCheatProtected field will be changed in the update operation */
+	TOptional<bool> bAntiCheatProtected;
+	/** Set with an updated value if the bPresenceEnabled field will be changed in the update operation */
+	TOptional<bool> bPresenceEnabled;
+
+	/** Updated values for custom settings to change in the update operation*/
+	FCustomSessionSettingsMap UpdatedCustomSettings;
+	/** Names of custom settings to be removed in the update operation*/
+	TArray<FName> RemovedCustomSettings;
+
+	/** Updated values for session member info to change in the update operation*/
+	FSessionMemberUpdatesMap UpdatedSessionMembers;
+	/** Id handles for session members to be removed in the update operation*/
+	TArray<FOnlineAccountIdHandle> RemovedSessionMembers;
+
+	/** Updated values for registered players to change in the update operation*/
+	FRegisteredPlayersMap UpdatedRegisteredPlayers;
+	/** Id handles for registered players to be removed in the update operation*/
+	TArray<FOnlineAccountIdHandle> RemovedRegisteredPlayers;
+
+	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
+};
+
+struct ONLINESERVICESINTERFACE_API FSessionSettings
 {
 	/* The schema which will be applied to the session */
 	FName SchemaName;
 
 	/* Maximum number of public slots for session members */
-	uint32 NumMaxPublicConnections;
+	uint32 NumMaxPublicConnections = 0;
 
 	/* Number of available public slots for session members */
-	uint32 NumOpenPublicConnections;
+	uint32 NumOpenPublicConnections = 0;
 
 	/* Maximum number of private slots for session members */
-	uint32 NumMaxPrivateConnections;
+	uint32 NumMaxPrivateConnections = 0;
 
 	/* Number of available private slots for session members */
-	uint32 NumOpenPrivateConnections;
+	uint32 NumOpenPrivateConnections = 0;
 
 	/* Enum value describing the level of restriction to join the session */
 	ESessionJoinPolicy JoinPolicy;
@@ -142,26 +191,26 @@ struct FSessionSettings
  	/* In platforms that support this feature, it will set the session id to this value. Might be subject to minimum and maximum length */
  	FString SessionIdOverride;
 
-	/* Whether the session is only available in the local network and not via internet connection. Only available in some platforms */
-	bool IsLANSession;
+	/* Whether the session is only available in the local network and not via internet connection. Only available in some platforms. False by default */
+	bool bIsLANSession = false;
 
-	/* Whether the session is configured to run as a dedicated server. Only available in some platforms */
-	bool IsDedicatedServerSession;
+	/* Whether the session is configured to run as a dedicated server. Only available in some platforms. False by default */
+	bool bIsDedicatedServerSession = false;
 
-	/* Whether new members are accepted in the session. Can vary depending on various factors, like the number of free slots available, or Join-In-Progress preferences when the session has started */
-	bool bAllowNewMembers;
+	/* Whether players (registered or not) are accepted as new members in the session. Can vary depending on various factors, like the number of free slots available, or Join-In-Progress preferences when the session has started. True by default */
+	bool bAllowNewMembers = true;
 
-	/* Whether this session will allow sanctioned players to join it */
-	bool bAllowSanctionedPlayers;
+	/* Whether this session will allow sanctioned players to join it. True by default */
+	bool bAllowSanctionedPlayers = true;
 
-	/* Whether this session will allow unregistered players to join it */
-	bool bAllowUnregisteredPlayers;
+	/* Whether this session will allow unregistered players to join it. True by default */
+	bool bAllowUnregisteredPlayers = true;
 
-	/*Whether this is a secure session protected by anti-cheat services */
-	bool bAntiCheatProtected;
+	/*Whether this is a secure session protected by anti-cheat services. False by default */
+	bool bAntiCheatProtected = false;
 
-	/* Whether this session will show its information in presence updates. Can only be set in one session at a time */
-	bool bPresenceEnabled;
+	/* Whether this session will show its information in presence updates. Can only be set in one session at a time. False by default */
+	bool bPresenceEnabled = false;
   
  	/* Map of user-defined settings to be passed to the platform APIs as additional information for various purposes */
  	FCustomSessionSettingsMap CustomSettings;
@@ -169,37 +218,10 @@ struct FSessionSettings
  	/* Map of session member ids to their corresponding user-defined settings */
  	FSessionMembersMap SessionMembers;
  
- 	/* Map of registered users for this session. Can only be altered via RegisterPlayers and UnregisterPlayers */
- 	FRegisteredUsersMap RegisteredUsers;
-};
+ 	/* Map of registered players for this session. Can only be altered via RegisterPlayers and UnregisterPlayers */
+ 	FRegisteredPlayersMap RegisteredPlayers;
 
-struct FSessionSettingsUpdate
-{
-	TOptional<FName> SchemaName;
-	TOptional<uint32> NumMaxPublicConnections;
-	TOptional<uint32> NumOpenPublicConnections;
-	TOptional<uint32> NumMaxPrivateConnections;
-	TOptional<uint32> NumOpenPrivateConnections;
-	TOptional<ESessionJoinPolicy> JoinPolicy;
-	TOptional<FString> SessionIdOverride;
-	TOptional<bool> IsLANSession;
-	TOptional<bool> IsDedicatedServerSession;
-	TOptional<bool> bAllowNewMembers;
-	TOptional<bool> bAllowSanctionedPlayers;
-	TOptional<bool> bAllowUnregisteredPlayers;
-	TOptional<bool> bAntiCheatProtected;
-	TOptional<bool> bPresenceEnabled;
-
-	FCustomSessionSettingsMap UpdatedCustomSettings;
-	TArray<FName> RemovedCustomSettings;
-
-	FSessionMemberUpdatesMap UpdatedSessionMembers;
-	TArray<FOnlineAccountIdHandle> RemovedSessionMembers;
-
-	FRegisteredUsersMap UpdatedRegisteredUsers;
-	TArray<FOnlineAccountIdHandle> RemovedRegisteredUsers;
-
-	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
+	FSessionSettings& operator+=(const FSessionSettingsUpdate& UpdatedValue);
 };
 
 struct ONLINESERVICESINTERFACE_API FSession
@@ -374,6 +396,9 @@ struct FFindSessions
 		/* Maximum number of results to return in one search */
 		uint32 MaxResults;
 
+		/** Whether we want to look for LAN sessions or Online sessions */
+		bool bFindLANSessions;
+
 		/* Filters to apply when searching for sessions. */
 		TArray<FFindSessionsSearchFilter> Filters;
 
@@ -435,7 +460,7 @@ struct FJoinSession
 		/* A reference to the session to be joined. */
 		TSharedRef<const FSession> Session; // TODO: FOnlineSessionIdHandle to be used after we cache search results
 
-		/* Information for all local users who will join the session (includes the session creator)*/
+		/* Information for all local users who will join the session (includes the session creator). Any player that wants to join the session needs defined information to become a new member */
 		FSessionMembersMap LocalUsers;
 	};
 
@@ -444,6 +469,56 @@ struct FJoinSession
 		TSharedRef<const FSession> Session;
 
 		Result() = delete; // cannot default construct due to TSharedRef
+	};
+};
+
+struct FAddSessionMembers
+{
+	static constexpr TCHAR Name[] = TEXT("AddSessionMembers");
+
+	struct Params
+	{
+		/* The local user agent */
+		FOnlineAccountIdHandle LocalUserId;
+
+		/* Local name for the session */
+		FName SessionName;
+
+		/** Information for the session members to be added to the session. Any player that joins the session becomes a new member in doing so */
+		FSessionMembersMap NewSessionMembers;
+
+		/** Whether or not the new session members should also be added to the list of registered players. True by default*/
+		bool bRegisterPlayers = true;
+	};
+
+	struct Result
+	{
+
+	};
+};
+
+struct FRemoveSessionMembers
+{
+	static constexpr TCHAR Name[] = TEXT("RemoveSessionMembers");
+
+	struct Params
+	{
+		/* The local user agent */
+		FOnlineAccountIdHandle LocalUserId;
+
+		/* Local name for the session */
+		FName SessionName;
+
+		/* Id handles for the session members to be removed from the session */
+		TArray<FOnlineAccountIdHandle> SessionMemberIds;
+
+		/** Whether or not the session members should also be removed from the list of registered players. True by default*/
+		bool bUnregisterPlayers = true;
+	};
+
+	struct Result
+	{
+
 	};
 };
 
@@ -499,7 +574,7 @@ struct FRegisterPlayers
 		/* Array of users which will be registered */
 		TArray<FOnlineAccountIdHandle> TargetUsers;
 
-		/* Whether a slot should be saved for the registered users */
+		/* Whether a slot should be saved for the registered players */
 		bool bReserveSlot;
 	};
 
@@ -671,6 +746,28 @@ public:
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) = 0;
 
 	/**
+	 * Adds a set of new session members to the named session
+	 * Session member information passed will be saved in the session settings
+	 * Number of open slots in the session will decrease accordingly
+	 * If indicated, players will also be registered in the session
+	 * 
+	 * @params Parameters for the AddSessionMember call
+	 * @return
+	 */
+	virtual TOnlineAsyncOpHandle<FAddSessionMembers> AddSessionMembers(FAddSessionMembers::Params&& Params) = 0;
+
+	/**
+	 * Removes a set of session member from the named session
+	 * Session member information for them will be removed from session settings
+	 * Number of open slots in the session will increase accordingly
+	 * If indicated, players will also be unregistered from the session
+	 *
+	 * @params Parameters for the RemoveSessionMember call
+	 * @return
+	 */
+	virtual TOnlineAsyncOpHandle<FRemoveSessionMembers> RemoveSessionMembers(FRemoveSessionMembers::Params&& Params) = 0;
+
+	/**
 	 * Sends an invite to the named session to all given users.
 	 *
 	 * @param Parameters for the SendSessionInvite call
@@ -687,7 +784,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) = 0;
 
 	/**
-	 * Registers given players in the named session.
+	 * Registers given players in the named session
+	 * If indicated, and if any are available, a slot in the session will be reserved for them
 	 *
 	 * @param Parameters for the RegisterPlayers call
 	 * @return
@@ -696,6 +794,7 @@ public:
 
 	/**
 	 * Unregisters given players from the named session.
+	 * If indicated, and if they are members of it, players will also be removed from the session
 	 *
 	 * @param Parameters for the UnregisterPlayers call
 	 * @return
@@ -762,9 +861,9 @@ BEGIN_ONLINE_STRUCT_META(FSessionMemberUpdate)
 	ONLINE_STRUCT_FIELD(FSessionMemberUpdate, RemovedMemberSettings)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FRegisteredUser)
-	ONLINE_STRUCT_FIELD(FRegisteredUser, bHasReservedSlot),
-	ONLINE_STRUCT_FIELD(FRegisteredUser, bIsInSession)
+BEGIN_ONLINE_STRUCT_META(FRegisteredPlayer)
+	ONLINE_STRUCT_FIELD(FRegisteredPlayer, bHasReservedSlot),
+	ONLINE_STRUCT_FIELD(FRegisteredPlayer, bIsInSession)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionSettings)
@@ -775,8 +874,8 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettings)
 	ONLINE_STRUCT_FIELD(FSessionSettings, NumOpenPrivateConnections),
 	ONLINE_STRUCT_FIELD(FSessionSettings, JoinPolicy),
 	ONLINE_STRUCT_FIELD(FSessionSettings, SessionIdOverride),
-	ONLINE_STRUCT_FIELD(FSessionSettings, IsLANSession),
-	ONLINE_STRUCT_FIELD(FSessionSettings, IsDedicatedServerSession),
+	ONLINE_STRUCT_FIELD(FSessionSettings, bIsLANSession),
+	ONLINE_STRUCT_FIELD(FSessionSettings, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowSanctionedPlayers),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowUnregisteredPlayers),
@@ -784,7 +883,7 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettings)
 	ONLINE_STRUCT_FIELD(FSessionSettings, bPresenceEnabled),
 	ONLINE_STRUCT_FIELD(FSessionSettings, CustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettings, SessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettings, RegisteredUsers)
+	ONLINE_STRUCT_FIELD(FSessionSettings, RegisteredPlayers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
@@ -795,8 +894,7 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumOpenPrivateConnections),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, JoinPolicy),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, SessionIdOverride),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, IsLANSession),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, IsDedicatedServerSession),
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowSanctionedPlayers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowUnregisteredPlayers),
@@ -806,8 +904,8 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedSessionMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedSessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedRegisteredUsers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedRegisteredUsers)
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedRegisteredPlayers),
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedRegisteredPlayers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSession)
@@ -880,6 +978,7 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FFindSessions::Params)
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, MaxResults),
+	ONLINE_STRUCT_FIELD(FFindSessions::Params, bFindLANSessions),	
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, Filters),
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, TargetUser),
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, SessionId)
@@ -910,6 +1009,26 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Result)
 	ONLINE_STRUCT_FIELD(FJoinSession::Result, Session)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAddSessionMembers::Params)
+	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, NewSessionMembers),
+	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, bRegisterPlayers)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAddSessionMembers::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FRemoveSessionMembers::Params)
+	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, SessionMemberIds),
+	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, bUnregisterPlayers)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FRemoveSessionMembers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Params)

@@ -12,6 +12,8 @@ public class OnlineServicesEOSGS : ModuleRules
 				"Core",
 				"OnlineServicesInterface",
 				"OnlineServicesCommon",
+				"OnlineServicesCommonEngineUtils",
+				"OnlineBase",
 			}
 		);
 

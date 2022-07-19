@@ -115,6 +115,66 @@ namespace UE::Online {
 		return Operation->GetHandle();
 	}
 
+	TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsCommon::AddSessionMembers(FAddSessionMembers::Params&& Params)
+	{
+		TOnlineAsyncOpRef<FAddSessionMembers> Op = GetOp<FAddSessionMembers>(MoveTemp(Params));
+
+		Op->Then([this](TOnlineAsyncOp<FAddSessionMembers>& Op) mutable
+		{
+			const FAddSessionMembers::Params& OpParams = Op.GetParams();
+
+			FOnlineError StateCheck = CheckAddSessionMembersState(OpParams);
+			if (StateCheck != Errors::Success())
+			{
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
+
+			TOnlineResult<FAddSessionMembers> Result = AddSessionMembersImpl(OpParams);
+			if (Result.IsOk())
+			{
+				Op.SetResult(MoveTemp(Result.GetOkValue()));
+			}
+			else
+			{
+				Op.SetError(MoveTemp(Result.GetErrorValue()));
+			}
+		})
+		.Enqueue(GetSerialQueue());
+
+		return Op->GetHandle();
+	}
+
+	TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsCommon::RemoveSessionMembers(FRemoveSessionMembers::Params&& Params)
+	{
+		TOnlineAsyncOpRef<FRemoveSessionMembers> Op = GetOp<FRemoveSessionMembers>(MoveTemp(Params));
+
+		Op->Then([this](TOnlineAsyncOp<FRemoveSessionMembers>& Op) mutable
+		{
+			const FRemoveSessionMembers::Params& OpParams = Op.GetParams();
+
+			FOnlineError StateCheck = CheckRemoveSessionMembersState(OpParams);
+			if (StateCheck != Errors::Success())
+			{
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
+
+			TOnlineResult<FRemoveSessionMembers> Result = RemoveSessionMembersImpl(OpParams);
+			if (Result.IsOk())
+			{
+				Op.SetResult(MoveTemp(Result.GetOkValue()));
+			}
+			else
+			{
+				Op.SetError(MoveTemp(Result.GetErrorValue()));
+			}
+		})
+		.Enqueue(GetSerialQueue());
+
+		return Op->GetHandle();
+	}
+
 	TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsCommon::SendSessionInvite(FSendSessionInvite::Params&& Params)
 	{
 		TOnlineAsyncOpRef<FSendSessionInvite> Operation = GetOp<FSendSessionInvite>(MoveTemp(Params));
@@ -138,45 +198,21 @@ namespace UE::Online {
 		{
 			const FRegisterPlayers::Params& OpParams = Op.GetParams();
 
-			if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+			FOnlineError StateCheck = CheckRegisterPlayersState(OpParams);
+			if (StateCheck != Errors::Success())
 			{
-				FSessionSettings& SessionSettings = FoundSession->Get().SessionSettings;
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
 
-				for (const FOnlineAccountIdHandle& User : OpParams.TargetUsers)
-				{
-					FRegisteredUser& RegisteredUser = SessionSettings.RegisteredUsers.FindOrAdd(User);
-
-					// RegisterPlayers will not revoke a slot reserved for a registered user
-					if (!RegisteredUser.bHasReservedSlot && OpParams.bReserveSlot)
-					{
-						bool bSlotReserved = false;
-						if (SessionSettings.NumOpenPublicConnections > 0)
-						{
-							SessionSettings.NumOpenPublicConnections--;
-							bSlotReserved = true;
-						}
-						else if (SessionSettings.NumOpenPrivateConnections > 0)
-						{
-							SessionSettings.NumOpenPrivateConnections--;
-							bSlotReserved = true;
-						}
-
-						RegisteredUser.bHasReservedSlot = bSlotReserved;
-					}
-
-					if (const FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(User))
-					{
-						RegisteredUser.bIsInSession = true;
-					}
-				}
-
-				Op.SetResult(FRegisterPlayers::Result{});
+			TOnlineResult<FRegisterPlayers> Result = RegisterPlayersImpl(OpParams);
+			if (Result.IsOk())
+			{
+				Op.SetResult(MoveTemp(Result.GetOkValue()));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::RegisterPlayers] Unable to register players. Session with name [%s] not found"), *OpParams.SessionName.ToString());
-
-				Op.SetError(Errors::NotFound());
+				Op.SetError(MoveTemp(Result.GetErrorValue()));
 			}
 		})
 		.Enqueue(GetSerialQueue());
@@ -193,52 +229,21 @@ namespace UE::Online {
 		{
 			const FUnregisterPlayers::Params& OpParams = Op.GetParams();
 
-			if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(OpParams.SessionName))
+			FOnlineError StateCheck = CheckUnregisterPlayersState(OpParams);
+			if (StateCheck != Errors::Success())
 			{
-				FSessionSettings& SessionSettings = FoundSession->Get().SessionSettings;
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
 
-				for (const FOnlineAccountIdHandle& User : OpParams.TargetUsers)
-				{
-					if (const FRegisteredUser* RegisteredUser = SessionSettings.RegisteredUsers.Find(User))
-					{
-						SessionSettings.RegisteredUsers.Remove(User);
-
-						// TODO: This logic will move to RemoveSessionMember
-						bool bRemoveUserFromSession = RegisteredUser->bIsInSession && OpParams.bRemoveUnregisteredPlayers;
-
-						if (bRemoveUserFromSession)
-						{
-							SessionSettings.SessionMembers.Remove(User);
-						}
-
-						if (RegisteredUser->bHasReservedSlot || bRemoveUserFromSession)
-						{
-							if (SessionSettings.NumOpenPublicConnections < SessionSettings.NumMaxPublicConnections)
-							{
-								SessionSettings.NumOpenPublicConnections++;
-							}
-							else if (SessionSettings.NumOpenPrivateConnections < SessionSettings.NumMaxPrivateConnections)
-							{
-								SessionSettings.NumOpenPrivateConnections++;
-							}
-						}
-					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::UnregisterPlayers] Unable to unregister player with id [%s]. Player not registered"), *ToLogString(User));
-
-						Op.SetError(Errors::NotFound());
-						return;
-					}
-				}
-
-				Op.SetResult(FUnregisterPlayers::Result{});
+			TOnlineResult<FUnregisterPlayers> Result = UnregisterPlayersImpl(OpParams);
+			if (Result.IsOk())
+			{
+				Op.SetResult(MoveTemp(Result.GetOkValue()));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::UnregisterPlayers] Unable to unregister players. Session with name [%s] not found"), *OpParams.SessionName.ToString());
-
-				Op.SetError(Errors::NotFound());
+				Op.SetError(MoveTemp(Result.GetErrorValue()));
 			}
 		})
 		.Enqueue(GetSerialQueue());
@@ -271,6 +276,201 @@ namespace UE::Online {
 		return SessionEvents.OnUISessionJoinRequested;
 	}
 
+	TOnlineResult<FAddSessionMembers> FSessionsCommon::AddSessionMembersImpl(const FAddSessionMembers::Params& Params)
+	{
+		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+
+		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+
+		for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : Params.NewSessionMembers)
+		{
+			const FOnlineAccountIdHandle& SessionMemberId = Entry.Key;
+			const FSessionMember& SessionMember = Entry.Value;
+
+			// If the user was already registered in the session, we'll update it and reserve a slot for it
+			if (FRegisteredPlayer* RegisteredPlayer = SessionSettings.RegisteredPlayers.Find(SessionMemberId))
+			{
+				RegisteredPlayer->bIsInSession = true;
+
+				if (!RegisteredPlayer->bHasReservedSlot)
+				{
+					bool bSlotReserved = false;
+
+					if (SessionSettings.NumOpenPublicConnections > 0)
+					{
+						SessionSettings.NumOpenPublicConnections--;
+						bSlotReserved = true;
+					}
+					else
+					{
+						return TOnlineResult<FAddSessionMembers>(Errors::InvalidState());
+					}
+
+					// TODO: Discuss usage for Private Connections
+
+					RegisteredPlayer->bHasReservedSlot = bSlotReserved;
+				}
+			}
+			else if (Params.bRegisterPlayers) // If it wasn't and the parameters dictate it, we'll register them with a reserved slot
+			{
+				FRegisterPlayers::Params RegisterPlayerParams = { Params.SessionName, { SessionMemberId }, true };
+
+				TOnlineResult<FRegisterPlayers> Result = RegisterPlayersImpl(RegisterPlayerParams);
+				if (Result.IsError())
+				{
+					return TOnlineResult<FAddSessionMembers>(MoveTemp(Result.GetErrorValue()));
+				}
+			}
+			else // Even if the new session member is not a registered player, we'll still need to decrease the number of open slots
+			{
+				if (SessionSettings.NumOpenPublicConnections > 0)
+				{
+					SessionSettings.NumOpenPublicConnections--;
+				}
+				else
+				{
+					return TOnlineResult<FAddSessionMembers>(Errors::InvalidState());
+				}
+
+				// TODO: Discuss usage for Private Connections
+			}
+
+			SessionSettings.SessionMembers.Emplace(SessionMemberId, SessionMember);
+		}
+
+		return TOnlineResult<FAddSessionMembers>();
+	}
+
+	TOnlineResult<FRemoveSessionMembers> FSessionsCommon::RemoveSessionMembersImpl(const FRemoveSessionMembers::Params& Params)
+	{
+		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+
+		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+
+		for (const FOnlineAccountIdHandle& SessionMemberId : Params.SessionMemberIds)
+		{
+			if (Params.bUnregisterPlayers) // If the parameters dictate it, well unregister the player as well
+			{
+				FUnregisterPlayers::Params UnregisterPlayersParams = { Params.SessionName, { SessionMemberId }, false };
+
+				TOnlineResult<FUnregisterPlayers> Result = UnregisterPlayersImpl(UnregisterPlayersParams);
+				if (Result.IsError())
+				{
+					return TOnlineResult<FRemoveSessionMembers>(MoveTemp(Result.GetErrorValue()));
+				}
+			}
+			else if (FRegisteredPlayer* RegisteredPlayer = SessionSettings.RegisteredPlayers.Find(SessionMemberId)) // If the removed session member is still registered, we'll update it and keep their reserved slot
+			{
+				RegisteredPlayer->bIsInSession = false;
+			}
+			else  // If the removed session member is not a registered player with a reserved slot, we'll increase the number of open slots
+			{
+				if (SessionSettings.NumOpenPublicConnections < SessionSettings.NumMaxPublicConnections)
+				{
+					SessionSettings.NumOpenPublicConnections++;
+				}
+				else
+				{
+					return TOnlineResult<FRemoveSessionMembers>(Errors::InvalidState());
+				}
+
+				// TODO: Discuss usage for Private Connections
+			}
+
+			SessionSettings.SessionMembers.Remove(SessionMemberId);
+		}
+
+		return TOnlineResult<FRemoveSessionMembers>();
+	}
+
+	TOnlineResult<FRegisterPlayers> FSessionsCommon::RegisterPlayersImpl(const FRegisterPlayers::Params& Params)
+	{
+		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+
+		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+
+		for (const FOnlineAccountIdHandle& User : Params.TargetUsers)
+		{
+			FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(User);
+
+			if (const FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(User))
+			{
+				RegisteredPlayer.bIsInSession = true;
+			}
+
+			// RegisterPlayers will not revoke a slot reserved for a registered player
+			if (!RegisteredPlayer.bIsInSession && !RegisteredPlayer.bHasReservedSlot && Params.bReserveSlot)
+			{
+				bool bSlotReserved = false;
+				
+				if (SessionSettings.NumOpenPublicConnections > 0)
+				{
+					SessionSettings.NumOpenPublicConnections--;
+					bSlotReserved = true;
+				}
+				else
+				{
+					return TOnlineResult<FRegisterPlayers>(Errors::InvalidState());
+				}
+
+				// TODO: Discuss usage for Private Connections
+
+				RegisteredPlayer.bHasReservedSlot = bSlotReserved;
+			}			
+		}
+
+		return TOnlineResult<FRegisterPlayers>();
+	}
+
+	TOnlineResult<FUnregisterPlayers> FSessionsCommon::UnregisterPlayersImpl(const FUnregisterPlayers::Params& Params)
+	{
+		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+
+		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+
+		for (const FOnlineAccountIdHandle& User : Params.TargetUsers)
+		{
+			if (const FRegisteredPlayer* RegisteredPlayer = SessionSettings.RegisteredPlayers.Find(User))
+			{
+				// If the registered player had a reserved slot, we'll remove it
+				if (RegisteredPlayer->bHasReservedSlot)
+				{
+					if (SessionSettings.NumOpenPublicConnections < SessionSettings.NumMaxPublicConnections)
+					{
+						SessionSettings.NumOpenPublicConnections++;
+					}
+					else
+					{
+						return TOnlineResult<FUnregisterPlayers>(Errors::InvalidState());
+					}
+
+					// TODO: Discuss usage for Private Connections
+				}
+
+				if (RegisteredPlayer->bIsInSession && Params.bRemoveUnregisteredPlayers)
+				{
+					FRemoveSessionMembers::Params RemoveSessionMembersParams = { User, Params.SessionName, Params.TargetUsers, false };
+
+					TOnlineResult<FRemoveSessionMembers> Result = RemoveSessionMembersImpl(RemoveSessionMembersParams);
+					if (Result.IsError())
+					{
+						return TOnlineResult<FUnregisterPlayers>(MoveTemp(Result.GetErrorValue()));
+					}
+				}
+
+				SessionSettings.RegisteredPlayers.Remove(User);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::UnregisterPlayers] Unable to unregister player with id [%s]. Player not registered"), *ToLogString(User));
+
+				return TOnlineResult<FUnregisterPlayers>(Errors::NotFound());
+			}
+		}
+
+		return TOnlineResult<FUnregisterPlayers>();
+	}
+
 	FOnlineError FSessionsCommon::CheckCreateSessionParams(const FCreateSession::Params& Params)
 	{
 		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
@@ -292,20 +492,15 @@ namespace UE::Online {
 			return Errors::InvalidState();
 		}
 
-		if (!Params.SessionSettings.IsDedicatedServerSession)
+		if (Params.SessionSettings.bPresenceEnabled)
 		{
-			IAuthPtr Auth = Services.GetAuthInterface();
-
-			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
-			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-			if (Result.IsOk())
+			for (const TPair<FName, TSharedRef<FSession>>& Entry : SessionsByName)
 			{
-				if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
+				if (Entry.Value->SessionSettings.bPresenceEnabled)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
+					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
 
-					return Errors::InvalidUser();
+					return Errors::InvalidState();
 				}
 			}
 		}
@@ -319,17 +514,11 @@ namespace UE::Online {
 
 		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 		{
-			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
-			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-			if (Result.IsOk())
+			if (!Auth->IsLoggedIn(LocalUserId))
 			{
-				if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with user [%s] not logged in"), *ToLogString(LocalUserId));
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with user [%s] not logged in"), *ToLogString(LocalUserId));
 
-					return Errors::InvalidUser();
-				}
+				return Errors::InvalidUser();
 			}
 		}
 
@@ -340,21 +529,13 @@ namespace UE::Online {
 	{
 		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
 		{
-			if (!FoundSession->Get().SessionSettings.IsDedicatedServerSession)
+			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
 			{
-				IAuthPtr Auth = Services.GetAuthInterface();
-
-				FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
-				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-				if (Result.IsOk())
+				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
 				{
-					if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-					{
-						UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckUpdateSessionState] Could not update session with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
+					UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckUpdateSessionState] Could not update session with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
 
-						return Errors::InvalidUser();
-					}
+					return Errors::InvalidUser();
 				}
 			}
 		}
@@ -383,19 +564,11 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckFindSessionsState(const FFindSessions::Params& Params)
 	{
 		// User login check
-		IAuthPtr Auth = Services.GetAuthInterface();
-
-		FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
-		TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-		if (Result.IsOk())
+		if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
 		{
-			if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckFindSessionsState] Could not find sessions with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckFindSessionsState] Could not find sessions with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
 
-				return Errors::InvalidUser();
-			}
+			return Errors::InvalidUser();
 		}
 
 		// Ongoing search check
@@ -412,6 +585,13 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckJoinSessionParams(const FJoinSession::Params& Params)
 	{
 		const FSessionSettings& SessionSettings = Params.Session->SessionSettings;
+
+		if (Params.Session->CurrentState != ESessionState::Valid)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::FJoinSession] Could not join session with invalid session state [%s]"), LexToString(Params.Session->CurrentState));
+
+			return Errors::InvalidParams();
+		}
 
 		TArray<FOnlineAccountIdHandle> LocalUserIds;
 		LocalUserIds.Reserve(Params.LocalUsers.Num());
@@ -438,7 +618,7 @@ namespace UE::Online {
 		{
 			for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 			{
-				if (!SessionSettings.RegisteredUsers.Contains(LocalUserId))
+				if (!SessionSettings.RegisteredPlayers.Contains(LocalUserId))
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. bAllowUnregisteredPlayers is set to false and user [%s] is not registered"), *ToLogString(LocalUserId));
 
@@ -449,14 +629,14 @@ namespace UE::Online {
 
 		if (SessionSettings.NumMaxPublicConnections > 0 && SessionSettings.NumOpenPublicConnections < (uint32)LocalUserIds.Num())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPublicConnections [%s] for the amount of joining players [%d]"), SessionSettings.NumOpenPublicConnections, LocalUserIds.Num());
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPublicConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPublicConnections, LocalUserIds.Num());
 
 			return Errors::AccessDenied();
 		}
 
 		if (SessionSettings.NumMaxPrivateConnections > 0 && SessionSettings.NumOpenPrivateConnections < (uint32)LocalUserIds.Num())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPrivateConnections [%s] for the amount of joining players [%d]"), SessionSettings.NumOpenPrivateConnections, LocalUserIds.Num());
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPrivateConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPrivateConnections, LocalUserIds.Num());
 
 			return Errors::AccessDenied();
 		}
@@ -483,18 +663,38 @@ namespace UE::Online {
 
 		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
 		{
-			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
-			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-			if (Result.IsOk())
+			if(!Auth->IsLoggedIn(LocalUserId))
 			{
-				if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with user [%s] not logged in"), *ToLogString(LocalUserId));
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with user [%s] not logged in"), *ToLogString(LocalUserId));
 
-					return Errors::InvalidUser();
-				}
+				return Errors::InvalidUser();
 			}
+		}
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckAddSessionMembersState(const FAddSessionMembers::Params& Params)
+	{
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckAddSessionMembersState] Could not add session member to session with name [%s]. Session not found"), *Params.SessionName.ToString());
+
+			return Result.GetValue();
+		}
+
+		// TODO: Check if there are enough slots available if Params::bReserveSlot is true
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckRemoveSessionMembersState(const FRemoveSessionMembers::Params& Params)
+	{
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckRemoveSessionMembersState] Could not remove session member from session with name [%s]. Session not found"), *Params.SessionName.ToString());
+
+			return Result.GetValue();
 		}
 
 		return Errors::Success();
@@ -503,53 +703,107 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckLeaveSessionState(const FLeaveSession::Params& Params)
 	{
 		// User login check for main caller, session check
-		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
-		{
-			if (!FoundSession->Get().SessionSettings.IsDedicatedServerSession)
-			{
-				IAuthPtr Auth = Services.GetAuthInterface();
-
-				FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ Params.LocalUserId };
-				TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-				if (Result.IsOk())
-				{
-					if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
-					{
-						UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckLeaveSessionState] Could not leave session with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
-
-						return Errors::InvalidUser();
-					}
-				}
-			}
-		}
-		else
+		if (!SessionsByName.Contains(Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckLeaveSessionState] Could not leave session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
 			return Errors::NotFound();
 		}
 
-		// User login check for all local users
 		IAuthPtr Auth = Services.GetAuthInterface();
 
+		// User login check for all local users
 		for (const FOnlineAccountIdHandle& LocalUserId : Params.LocalUsers)
 		{
-			FAuthGetLocalOnlineUserByOnlineAccountId::Params GetLocalOnlineUserByOnlineAccountIdParams{ LocalUserId };
-			TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> Result = Auth->GetLocalOnlineUserByOnlineAccountId(MoveTemp(GetLocalOnlineUserByOnlineAccountIdParams));
-
-			if (Result.IsOk())
+			if (!Auth->IsLoggedIn(LocalUserId))
 			{
-				if (Result.GetOkValue().AccountInfo->LoginStatus == ELoginStatus::NotLoggedIn)
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckLeaveSessionState] Could not leave session with user [%s] not logged in"), *ToLogString(LocalUserId));
+
+				return Errors::InvalidUser();
+			}
+		}
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckSendSessionInviteState(const FSendSessionInvite::Params& Params)
+	{
+		// User login check for main caller, session check
+		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
+		{
+			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
+			{
+				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckLeaveSessionState] Could not leave session with user [%s] not logged in"), *ToLogString(LocalUserId));
+					UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckSendSessionInviteState] Could not send session invite with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
 
 					return Errors::InvalidUser();
 				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckSendSessionInviteState] Could not send session invite for session with name [%s]. Session not found"), *Params.SessionName.ToString());
+
+			return Errors::NotFound();
+		}
+
+		// TODO: check if Session Invite Id is valid
 
 		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckRejectSessionInviteState(const FRejectSessionInvite::Params& Params)
+	{
+		if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckRejectSessionInviteState] Could not send session invite with user [%s] not logged in"), *ToLogString(Params.LocalUserId));
+
+			return Errors::InvalidUser();
+		}
+
+		// TODO: check if Session Invite Id is valid
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckRegisterPlayersState(const FRegisterPlayers::Params& Params)
+	{
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckRegisterPlayersState] Could not register players in session with name [%s]. Session not found"), *Params.SessionName.ToString());
+
+			return Result.GetValue();
+		}
+
+		// TODO: Check if there are enough slots available if Params::bReserveSlot is true
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckUnregisterPlayersState(const FUnregisterPlayers::Params& Params)
+	{
+		if(TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUnregisterPlayersState] Could not unregister players from session with name [%s]. Session not found"), *Params.SessionName.ToString());
+
+			return Result.GetValue();
+		}
+
+		return Errors::Success();
+	}
+
+	// TODO: Have all Check methods return TOptional too, change call sites, and write Macro for repeating code structure
+	TOptional<FOnlineError> FSessionsCommon::CheckSessionExistsByName(const FName& SessionName)
+	{
+		TOptional<FOnlineError> Result;
+
+		if (!SessionsByName.Contains(SessionName))
+		{
+			Result.Emplace(Errors::NotFound());
+		}
+
+		return Result;
 	}
 
 /* UE::Online */ }

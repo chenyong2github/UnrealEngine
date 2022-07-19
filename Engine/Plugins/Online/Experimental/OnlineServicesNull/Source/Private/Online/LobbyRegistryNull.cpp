@@ -31,7 +31,7 @@ FOnlineLobbyIdHandle FOnlineLobbyIdRegistryNull::FindOrAdd(FString LobbyId)
 
 UE::Online::FOnlineLobbyIdHandle FOnlineLobbyIdRegistryNull::GetNext()
 {
-	return FindOrAdd(FGuid().ToString());
+	return FindOrAdd(FGuid::NewGuid().ToString());
 }
 
 
