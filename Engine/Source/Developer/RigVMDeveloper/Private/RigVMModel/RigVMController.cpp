@@ -3450,7 +3450,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 		for(int32 SubNodeIndex=0; SubNodeIndex < SubNodes.Num(); SubNodeIndex++)
 		{
-			if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(CreatedNode))
+			if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(SubNodes[SubNodeIndex]))
 			{
 				// make sure the update preferred type pairs
 				// from string to index - since indices may
@@ -3484,12 +3484,12 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 				}
 				
 				{
-					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetGraph(), bSetupUndoRedo);
-					UpdateLibraryTemplate(OuterNode, bSetupUndoRedo);
+					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetGraph(), false);
+					UpdateLibraryTemplate(OuterNode, false);
 				}
 				{
-					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetContainedGraph(), bSetupUndoRedo);
-					RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
+					FRigVMControllerGraphGuard GraphGuard(this, OuterNode->GetContainedGraph(), false);
+					RecomputeAllTemplateFilteredPermutations(false);
 				}
 				
 			};
@@ -3648,8 +3648,8 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 							VariableNodeName = TargetPin->GetBoundVariableNode()->GetName();
 							BindingPath = TargetPin->GetBoundVariablePath();
 
-							// The current situation is that the outter pin has an injection info, and the injected node exists
-							// but the injected node is not linked to the outter pin. BreakAllLinks will try to unbind the outter pin,
+							// The current situation is that the outer pin has an injection info, and the injected node exists
+							// but the injected node is not linked to the outer pin. BreakAllLinks will try to unbind the outer pin,
 							// for that to be successful, the binding needs to be complete
 							// Connect it so that the unbound is successful
 							if (!SourcePin->IsLinkedTo(TargetPin))
@@ -3657,6 +3657,11 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 								Graph->Links.Add(CreatedLink);
 								SourcePin->Links.Add(CreatedLink);
 								TargetPin->Links.Add(CreatedLink);
+							}
+
+							if (TargetPin->IsBoundToVariable())
+							{
+								UnbindPinFromVariable(TargetPin, bSetupUndoRedo);
 							}
 						}
 						

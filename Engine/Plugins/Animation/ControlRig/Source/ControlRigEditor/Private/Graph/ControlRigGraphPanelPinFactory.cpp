@@ -39,7 +39,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 			{
 				if (ModelPin->IsBoundToVariable())
 				{
-					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(RigGraph->GetOuter()))
+					if (UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
 					{
 						return SNew(SControlRigGraphPinVariableBinding, InPin)
 							.ModelPins({ModelPin})

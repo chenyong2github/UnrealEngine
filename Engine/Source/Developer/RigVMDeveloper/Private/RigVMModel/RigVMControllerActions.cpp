@@ -840,12 +840,20 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 		{
 			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Pin->GetInjectedNodes()[0]->Node))
 			{
-				FRigVMAddVariableNodeAction AddVariableNodeAction(VariableNode);
-				FRigVMAddLinkAction AddLinkAction(VariableNode->GetValuePin(), Pin);
-				FRigVMInjectNodeIntoPinAction InjectAction(Pin->GetInjectedNodes()[0]);
-				InverseAction.AddAction(AddVariableNodeAction, InController);
-				InverseAction.AddAction(AddLinkAction, InController);
-				InverseAction.AddAction(InjectAction, InController);
+				if (!InNode->IsA<URigVMLibraryNode>())
+				{
+					FRigVMAddVariableNodeAction AddVariableNodeAction(VariableNode);
+					FRigVMAddLinkAction AddLinkAction(VariableNode->GetValuePin(), Pin);
+					FRigVMInjectNodeIntoPinAction InjectAction(Pin->GetInjectedNodes()[0]);
+					InverseAction.AddAction(AddVariableNodeAction, InController);
+					InverseAction.AddAction(AddLinkAction, InController);
+					InverseAction.AddAction(InjectAction, InController);
+				}
+				else
+				{
+					FRigVMAddLinkAction AddLinkAction(VariableNode->GetValuePin(), Pin);
+					InverseAction.AddAction(AddLinkAction, InController);
+				}
 			}
 		}
 	}
@@ -1748,14 +1756,14 @@ bool FRigVMImportNodeFromTextAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->RemoveNodeByName(*NodePath, false);
+	return InController->RemoveNodeByName(*NodePath, false, true);
 }
 
 bool FRigVMImportNodeFromTextAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
 	TArray<FName> NodeNames = InController->ImportNodesFromText(ExportedText, false);
-	if (NodeNames.Num() == 1)
+	if (NodeNames.Num() > 0)
 	{
 		return FRigVMBaseAction::Redo(InController);
 	}
