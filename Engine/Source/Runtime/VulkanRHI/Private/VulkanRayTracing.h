@@ -10,27 +10,10 @@ class FVulkanCommandListContext;
 class FVulkanResourceMultiBuffer;
 class FVulkanRayTracingLayout;
 
-#define ENUM_VK_ENTRYPOINTS_RAYTRACING(EnumMacro) \
-	EnumMacro(PFN_vkCreateAccelerationStructureKHR, vkCreateAccelerationStructureKHR) \
-	EnumMacro(PFN_vkDestroyAccelerationStructureKHR, vkDestroyAccelerationStructureKHR) \
-	EnumMacro(PFN_vkCmdBuildAccelerationStructuresKHR, vkCmdBuildAccelerationStructuresKHR) \
-	EnumMacro(PFN_vkGetAccelerationStructureBuildSizesKHR, vkGetAccelerationStructureBuildSizesKHR) \
-	EnumMacro(PFN_vkGetAccelerationStructureDeviceAddressKHR, vkGetAccelerationStructureDeviceAddressKHR) \
-	EnumMacro(PFN_vkCmdTraceRaysKHR, vkCmdTraceRaysKHR) \
-	EnumMacro(PFN_vkCreateRayTracingPipelinesKHR, vkCreateRayTracingPipelinesKHR) \
-	EnumMacro(PFN_vkGetRayTracingShaderGroupHandlesKHR, vkGetRayTracingShaderGroupHandlesKHR) \
-	EnumMacro(PFN_vkGetBufferDeviceAddressKHR, vkGetBufferDeviceAddressKHR)
-
-// Declare ray tracing entry points
-namespace VulkanDynamicAPI
-{
-	ENUM_VK_ENTRYPOINTS_RAYTRACING(DECLARE_VK_ENTRYPOINTS);
-}
-
 class FVulkanRayTracingPlatform
 {
 public:
-	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
+	static bool CheckVulkanInstanceFunctions(VkInstance inInstance);
 };
 
 struct FVkRtAllocation
