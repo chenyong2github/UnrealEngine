@@ -627,7 +627,7 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 		switch (static_cast<EHeightfieldSource>(CVarLandscapeShowCollisionMesh.GetValueOnAnyThread()))
 		{
 		case EHeightfieldSource::Simple:
-			if (RenderComponent->SimpleCollisionMipLevel > RenderComponent->CollisionMipLevel)
+			if (RenderComponent.IsValid() && (RenderComponent->SimpleCollisionMipLevel > RenderComponent->CollisionMipLevel))
 			{
 				if (HeightfieldRef->HeightfieldSimple.IsValid())
 				{
