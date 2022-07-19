@@ -2,6 +2,8 @@
 
 #include "Sound/AudioFormatSettings.h"
 #include "Algo/Transform.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Containers/UnrealString.h"
 
 namespace Audio
 {

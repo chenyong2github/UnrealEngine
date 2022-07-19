@@ -1,6 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "UObject/NameTypes.h"
+
+class FString;
+class FConfigCacheIni;
+
 namespace Audio
 {
 	class ENGINE_API FAudioFormatSettings
