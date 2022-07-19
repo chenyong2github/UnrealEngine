@@ -282,7 +282,7 @@ static void ValidateScissorRect(const D3D11_VIEWPORT& Viewport, const D3D11_RECT
 void FD3D11DynamicRHI::RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ)
 {
 	// Set up both viewports
-	D3D11_VIEWPORT StereoViewports[2] = { 0 };
+	D3D11_VIEWPORT StereoViewports[2] = {};
 
 	StereoViewports[0].TopLeftX = FMath::FloorToInt(LeftMinX);
 	StereoViewports[0].TopLeftY = FMath::FloorToInt(LeftMinY);

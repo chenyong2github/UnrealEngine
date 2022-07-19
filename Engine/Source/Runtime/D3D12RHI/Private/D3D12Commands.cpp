@@ -744,7 +744,7 @@ void FD3D12CommandContext::RHISetViewport(float MinX, float MinY, float MinZ, fl
 void FD3D12CommandContext::RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ)
 {
 	// Set up both viewports
-	D3D12_VIEWPORT Viewports[2] = {0};
+	D3D12_VIEWPORT Viewports[2] = {};
 
 	Viewports[0].TopLeftX = FMath::FloorToInt(LeftMinX);
 	Viewports[0].TopLeftY = FMath::FloorToInt(LeftMinY);
