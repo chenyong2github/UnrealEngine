@@ -2,6 +2,7 @@
 
 #include "Online/LeaderboardsEOSGS.h"
 #include "Online/AuthEOSGS.h"
+#include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
@@ -74,7 +75,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_Leaderboards_IngestStat failed with result=[%s]"), *LexToString(Data->ResultCode));
-			InAsyncOp.SetError(FromEOSError(Data->ResultCode));
+			InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 			return;
 		}
 
@@ -183,7 +184,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundRank> FLeaderboardsEOSGS::ReadEntriesArou
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_Leaderboards_QueryLeaderboardRanks failed with result=[%s]"), *LexToString(Data->ResultCode));
-			InAsyncOp.SetError(FromEOSError(Data->ResultCode));
+			InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 			return;
 		}
 
@@ -224,7 +225,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundUser> FLeaderboardsEOSGS::ReadEntriesArou
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_Leaderboards_QueryLeaderboardRanks failed with result=[%s]"), *LexToString(Data->ResultCode));
-			InAsyncOp.SetError(FromEOSError(Data->ResultCode));
+			InAsyncOp.SetError(Errors::FromEOSResult(Data->ResultCode));
 			return;
 		}
 

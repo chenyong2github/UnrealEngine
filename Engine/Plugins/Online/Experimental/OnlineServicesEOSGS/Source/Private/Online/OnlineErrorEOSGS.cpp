@@ -3,6 +3,8 @@
 #include "Online/OnlineErrorEOSGS.h"
 #include "Online/OnlineErrorDefinitions.h"
 
+#include "EOSShared.h"
+
 namespace UE::Online::Errors {
 
 class FOnlineErrorDetailsEOS : public IOnlineErrorDetails
@@ -22,12 +24,14 @@ const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& FOnlineErrorDe
 
 FText FOnlineErrorDetailsEOS::GetText(const FOnlineError& OnlineError) const
 {
-	return FText::FromString(LexToString(OnlineError.GetValue()));
+	const EOS_EResult EosResult = EOS_EResult(OnlineError.GetValue());
+	return FText::FromString(LexToString(EosResult));
 }
 
 FString FOnlineErrorDetailsEOS::GetLogString(const FOnlineError& OnlineError) const
 {
-	return LexToString(OnlineError.GetValue());
+	const EOS_EResult EosResult = EOS_EResult(OnlineError.GetValue());
+	return LexToString(EosResult);
 }
 
 /** This doesn't wrap every single error in EOS, only the common ones that are strongly related to common errors */
