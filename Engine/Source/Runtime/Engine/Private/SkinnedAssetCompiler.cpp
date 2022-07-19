@@ -55,7 +55,7 @@ namespace SkinnedAssetCompilingManagerImpl
 				TEXT("skinnedasset"),
 				CVarAsyncSkinnedAssetStandard.AsyncCompilation,
 				CVarAsyncSkinnedAssetStandard.AsyncCompilationMaxConcurrency,
-				GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableAsyncSkeletalMeshCompilation)); // TODO: rename to SkinnedAsset
+				GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableAsyncSkinnedAssetCompilation));
 		}
 	}
 }

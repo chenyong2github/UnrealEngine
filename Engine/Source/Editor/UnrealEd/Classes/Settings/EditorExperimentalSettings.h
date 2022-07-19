@@ -29,8 +29,13 @@ public:
 	bool bEnableAsyncStaticMeshCompilation;
 
 	/** Enable async skeletal mesh compilation to improve import and map load time performance when compilation is required */
-	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async skeletal mesh compilation and loading"))
+	UE_DEPRECATED(5.1, "Deprecated & replaced by bEnableAsyncSkinnedAssetCompilation.")
+	UPROPERTY(/*EditAnywhere - deprecated & replaced by bEnableAsyncSkinnedAssetCompilation, */config/*, Category = Performance, meta = (DisplayName = "Enable async skeletal mesh compilation and loading")*/)
 	bool bEnableAsyncSkeletalMeshCompilation;
+
+	/** Enable async skinned asset compilation to improve import and map load time performance when compilation is required */
+	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async skinned asset compilation and loading"))
+	bool bEnableAsyncSkinnedAssetCompilation;
 
 	/** Enable async sound compilation to improve import and map load time performance when compilation is required */
 	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async sound compilation and loading"))

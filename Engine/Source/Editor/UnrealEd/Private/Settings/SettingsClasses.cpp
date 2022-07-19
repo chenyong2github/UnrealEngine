@@ -191,7 +191,8 @@ UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializ
 	: Super(ObjectInitializer)
 	, bEnableAsyncTextureCompilation(false)
 	, bEnableAsyncStaticMeshCompilation(false)
-	, bEnableAsyncSkeletalMeshCompilation(false)
+	, bEnableAsyncSkeletalMeshCompilation(true)	// This was false and set to True in /Engine/Config/BaseEditorPerProjectUserSettings.ini. The setting is removed from .ini so change it to default True.
+	, bEnableAsyncSkinnedAssetCompilation(false)
 	, bEnableAsyncSoundWaveCompilation(false)
 	, bHDREditor(false)
 	, HDREditorNITLevel(160.0f)
@@ -204,6 +205,16 @@ UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializ
 
 void UEditorExperimentalSettings::PostInitProperties()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// bEnableAsyncSkeletalMeshCompilation's default to True (see comment in constructor above).
+	// To be backwards compatible, if a user project overrides it to False, pass on the value to bEnableAsyncSkinnedAssetCompilation.
+	if (!bEnableAsyncSkeletalMeshCompilation)
+	{
+		UE_LOG(LogSettingsClasses, Warning, TEXT("bEnableAsyncSkeletalMeshCompilation is deprecated and replaced with bEnableAsyncSkinnedAssetCompilation. Please update the config. Setting bEnableAsyncSkinnedAssetCompilation to False."));
+		bEnableAsyncSkinnedAssetCompilation = false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
 	CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
 	Super::PostInitProperties();
