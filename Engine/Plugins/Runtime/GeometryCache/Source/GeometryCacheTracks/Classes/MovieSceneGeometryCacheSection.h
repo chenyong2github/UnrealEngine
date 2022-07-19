@@ -11,7 +11,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "MovieSceneGeometryCacheSection.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
  struct GEOMETRYCACHETRACKS_API FMovieSceneGeometryCacheParams
 {
 	GENERATED_BODY()
