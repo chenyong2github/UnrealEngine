@@ -59,8 +59,18 @@ static TAutoConsoleVariable<int32> CVarHairStrandsSimulation(
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsNonVisibleShadowCasting(
-	TEXT("r.HairStrands.Shadow.CastShadowWhenNonVisible"), 0,
+	TEXT("r.HairStrands.Shadow.CastShadowWhenNonVisible"), 1,
 	TEXT("Enable shadow casting for hair strands even when culled out from the primary view"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarHairStrandsNonVisibleShadowCasting_CullDistance(
+	TEXT("r.HairStrands.Visibility.NonVisibleShadowCasting.CullDistance"), 2000,
+	TEXT("Cull distance at which shadow casting starts to be disabled for non-visible hair strands instances."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHairStrandsNonVisibleShadowCasting_Debug(
+	TEXT("r.HairStrands.Visibility.NonVisibleShadowCasting.Debug"), 0,
+	TEXT("Enable debug rendering for non-visible hair strands instance, casting shadow."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsContinuousDecimationReordering(
@@ -413,35 +423,70 @@ bool IsHairStrandsNonVisibleShadowCastingEnable()
 
 bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInstance& Instance)
 {
+	const bool bDebugEnable = CVarHairStrandsNonVisibleShadowCasting_Debug.GetValueOnRenderThread() > 0;
+	FHairStrandsDebugData::FCullData* CullingData = nullptr;
+	if (bDebugEnable)
+	{
+		CullingData = const_cast<FHairStrandsDebugData::FCullData*>(&View.HairStrandsViewData.DebugData.CullData);
+		CullingData->bIsValid = true;
+		CullingData->ViewFrustum = View.ViewFrustum;
+	}
+
 	bool bIsVisibleInShadow = false;
 	if (const FHairGroupPublicData* HairData = Instance.GetHairData())
 	{
 		const int32 LODIndex = FMath::CeilToInt(HairData->LODIndex);
 		const bool bIsStrands = LODIndex >= 0 && HairData->IsVisible(LODIndex) && HairData->GetGeometryType(LODIndex) == EHairGeometryType::Strands;
-		if (bIsStrands)
+		if (!bIsStrands)
 		{
-			if (const FBoxSphereBounds* Bounds = Instance.GetBounds())
-			{
-				{
-					for (const FLightSceneInfo* LightInfo : View.HairStrandsViewData.VisibleShadowCastingLights)
-					{
-						// Influence radius check
-						if (LightInfo->Proxy->AffectsBounds(*Bounds))
-						{
-							bIsVisibleInShadow = true;
-							break;
-						}
-					}
-				}
+			return false;
+		}
 
-				if (!bIsVisibleInShadow)
+		if (const FBoxSphereBounds* Bounds = Instance.GetBounds())
+		{
+			// Local lights
+			for (const FLightSceneInfo* LightInfo : View.HairStrandsViewData.VisibleShadowCastingLights)
+			{
+				if (LightInfo->Proxy->AffectsBounds(*Bounds))
 				{
-					for (const FSphere& LightBound : View.HairStrandsViewData.VisibleShadowCastingBounds)
+					bIsVisibleInShadow = true;
+					break;
+				}
+			}
+
+			// Directional lights
+			if (!bIsVisibleInShadow)
+			{
+				const float CullDistance = FMath::Max(0.f, CVarHairStrandsNonVisibleShadowCasting_CullDistance.GetValueOnAnyThread());
+				for (const FHairStrandsViewData::FDirectionalLightCullData& CullData : View.HairStrandsViewData.VisibleShadowCastingDirectionalLights)
+				{
+					// Transform frustum into light space
+					const FMatrix& WorldToLight = CullData.LightInfo->Proxy->GetWorldToLight();
+					
+					// Transform groom bound into light space, and extend it along the light direction
+					FBoxSphereBounds BoundsInLightSpace = Bounds->TransformBy(WorldToLight);
+					BoundsInLightSpace.BoxExtent.X += CullDistance;
+
+					const bool bIntersect = CullData.ViewFrustumInLightSpace.IntersectBox(BoundsInLightSpace.Origin, BoundsInLightSpace.BoxExtent);
+					if (bDebugEnable)
 					{
-						// Influence radius check
-						if (Bounds->GetSphere().Intersects(LightBound))
+						FHairStrandsDebugData::FCullData::FLight& LightData = CullingData->DirectionalLights.AddDefaulted_GetRef();
+						LightData.WorldToLight = WorldToLight;
+						LightData.LightToWorld = CullData.LightInfo->Proxy->GetLightToWorld();
+						LightData.Center = FVector3f(CullData.LightInfo->Proxy->GetBoundingSphere().Center);
+						LightData.Extent = FVector3f(CullData.LightInfo->Proxy->GetBoundingSphere().W);
+						LightData.ViewFrustumInLightSpace = CullData.ViewFrustumInLightSpace;
+						LightData.InstanceBoundInLightSpace.Add({FVector3f(BoundsInLightSpace.GetBox().Min), FVector3f(BoundsInLightSpace.GetBox().Max)});
+						LightData.InstanceBoundInWorldSpace.Add({ FVector3f(Bounds->GetBox().Min), FVector3f(Bounds->GetBox().Max)});
+						LightData.InstanceIntersection.Add(bIntersect ? 1u : 0u);
+					}
+
+					// Ensure the extended groom bound interest the frustum
+					if (bIntersect)
+					{
+						bIsVisibleInShadow = true;
+						if (!bDebugEnable)
 						{
-							bIsVisibleInShadow = true;
 							break;
 						}
 					}
@@ -715,26 +760,37 @@ FHairGroupPublicData* GetHairData(const FMeshBatch* Mesh)
 
 void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo)
 {
+	const uint8 LightType = LightSceneInfo->Proxy->GetLightType();
 	for (FViewInfo& View : Views)
 	{
-		// If any hair data are registered, track which lights are visible so that hair strands can cast shadow even if not visibible in primary view
+		// If any hair data are registered, track which lights are visible so that hair strands can cast shadow even if not visible in primary view
+		// 
+		// Actual intersection test is done in IsHairStrandsVisibleInShadows():
+		// * For local lights, shadow casting is determined based on light influence radius
+		// * For directional light, view frustum and hair instance bounds are transformed in light space to determined potential intersections
 		if (Scene.HairStrandsSceneData.RegisteredProxies.Num() > 0)
 		{
-			View.HairStrandsViewData.VisibleShadowCastingLights.Add(LightSceneInfo);
-			break;
-		}
-	}
-}
+			if (LightType == ELightComponentType::LightType_Directional)
+			{
+				FHairStrandsViewData::FDirectionalLightCullData& Data = View.HairStrandsViewData.VisibleShadowCastingDirectionalLights.AddDefaulted_GetRef();
 
-void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds)
-{
-	for (FViewInfo& View : Views)
-	{
-		// If any hair data are registered, track which lights are visible so that hair strands can cast shadow even if not visibible in primary view
-		if (Scene.HairStrandsSceneData.RegisteredProxies.Num() > 0)
-		{
-			View.HairStrandsViewData.VisibleShadowCastingBounds.Add(Bounds);
-			break;
+				// Transform view frustum into light space
+				const FMatrix& WorldToLight = LightSceneInfo->Proxy->GetWorldToLight();
+				const uint32 PlaneCount = View.ViewFrustum.Planes.Num();
+				Data.ViewFrustumInLightSpace.Planes.SetNum(PlaneCount);
+				for (uint32 PlaneIt = 0; PlaneIt < PlaneCount; ++PlaneIt)
+				{
+					Data.ViewFrustumInLightSpace.Planes[PlaneIt] = View.ViewFrustum.Planes[PlaneIt].TransformBy(WorldToLight);
+				}
+				Data.ViewFrustumInLightSpace.Init();
+				Data.LightInfo = LightSceneInfo;
+				break;
+			}
+			else
+			{
+				View.HairStrandsViewData.VisibleShadowCastingLights.Add(LightSceneInfo);
+				break;
+			}
 		}
 	}
 }

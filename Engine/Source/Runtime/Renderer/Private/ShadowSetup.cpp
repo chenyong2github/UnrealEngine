@@ -3985,7 +3985,7 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 			// Register visible lights for allowing hair strands to cast shadow (directional light)
 			if (bHairStrands && LightIt->LightType == ELightComponentType::LightType_Directional)
 			{
-				HairStrands::AddVisibleShadowCastingLight(*Scene, Views, ProjectedShadowInfo.ShadowBounds);
+				HairStrands::AddVisibleShadowCastingLight(*Scene, Views, LightIt->LightSceneInfo);
 			}
 		}
 	}

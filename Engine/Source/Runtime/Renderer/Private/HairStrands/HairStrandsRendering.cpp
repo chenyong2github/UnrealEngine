@@ -160,7 +160,7 @@ void RenderHairBasePass(
 			const bool bDebugSamplingEnable = GetHairStrandsSkyLightingDebugEnable();
 			if (bDebugSamplingEnable)
 			{
-				View.HairStrandsViewData.DebugData.Resources = FHairStrandsDebugData::CreateData(GraphBuilder);
+				View.HairStrandsViewData.DebugData.PlotData = FHairStrandsDebugData::CreatePlotData(GraphBuilder);
 			}
 		}
 		
