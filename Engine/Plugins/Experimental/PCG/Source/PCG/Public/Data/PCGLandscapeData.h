@@ -8,6 +8,8 @@
 #include "PCGLandscapeData.generated.h"
 
 class ALandscapeProxy;
+class ULandscapeInfo;
+struct FPCGLandscapeCache;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGLandscapeData : public UPCGSurfaceData
@@ -41,4 +43,9 @@ public:
 protected:
 	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);
+
+private:
+	// Transient data
+	ULandscapeInfo* LandscapeInfo = nullptr;
+	FPCGLandscapeCache* LandscapeCache = nullptr;
 };

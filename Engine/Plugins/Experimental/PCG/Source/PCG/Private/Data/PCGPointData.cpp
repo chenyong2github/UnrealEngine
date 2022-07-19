@@ -105,7 +105,7 @@ namespace PCGPointHelpers
 		OutPoint.Color = FMath::Lerp(A.Color, B.Color, Ratio);
 		OutPoint.Steepness = FMath::Lerp(A.Steepness, B.Steepness, Ratio);
 
-		if (OutMetadata)
+		if (OutMetadata && SourceMetadata && SourceMetadata->GetAttributeCount() > 0)
 		{
 			UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, ((Ratio <= 0.5f) ? A : B), SourceMetadata);
 			OutMetadata->ResetPointWeightedAttributes(OutPoint);
@@ -114,47 +114,79 @@ namespace PCGPointHelpers
 		}
 	}
 
-	void Bilerp(const FPCGPoint& X0Y0, const FPCGPoint& X1Y0, const FPCGPoint& X0Y1, const FPCGPoint& X1Y1, const UPCGMetadata* SourceMetadata, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata, float XFactor, float YFactor)
+	void BilerpWithSnapping(const FPCGPoint& X0Y0, const FPCGPoint& X1Y0, const FPCGPoint& X0Y1, const FPCGPoint& X1Y1, const UPCGMetadata* SourceMetadata, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata, float XFactor, float YFactor)
 	{
-		const FPCGPoint* SelectedPoint = nullptr;
+		const bool bIsOnLeftEdge = (XFactor < KINDA_SMALL_NUMBER);
+		const bool bIsOnRightEdge = (XFactor > 1.0f - KINDA_SMALL_NUMBER);
+		const bool bIsOnTopEdge = (YFactor < KINDA_SMALL_NUMBER);
+		const bool bIsOnBottomEdge = (YFactor > 1.0f - KINDA_SMALL_NUMBER);
 
-		// First, check preexisting points as interpolation might be costly
-		if (XFactor < KINDA_SMALL_NUMBER && YFactor < KINDA_SMALL_NUMBER)
+		auto CopyPoint = [&OutPoint, &OutMetadata, &SourceMetadata](const FPCGPoint& PointToCopy)
 		{
-			SelectedPoint = &X0Y0;
-		}
-		else if (XFactor > 1.0f - KINDA_SMALL_NUMBER && YFactor < KINDA_SMALL_NUMBER)
-		{
-			SelectedPoint = &X1Y0;
-		}
-		else if (XFactor < KINDA_SMALL_NUMBER && YFactor > 1.0f - KINDA_SMALL_NUMBER)
-		{
-			SelectedPoint = &X0Y1;
-		}
-		else if (XFactor > 1.0f - KINDA_SMALL_NUMBER && YFactor > 1.0f - KINDA_SMALL_NUMBER)
-		{
-			SelectedPoint = &X1Y1;
-		}
-
-		if (SelectedPoint)
-		{
-			OutPoint = *SelectedPoint;
+			OutPoint = PointToCopy;
 			if (OutMetadata)
 			{
-				OutMetadata->SetPointAttributes(*SelectedPoint, SourceMetadata, OutPoint);
+				OutMetadata->SetPointAttributes(PointToCopy, SourceMetadata, OutPoint);
+			}
+		};
+
+		if (bIsOnLeftEdge || bIsOnRightEdge || bIsOnTopEdge || bIsOnBottomEdge)
+		{
+			if (bIsOnLeftEdge)
+			{
+				if (bIsOnTopEdge)
+				{
+					CopyPoint(X0Y0);
+				}
+				else if (bIsOnBottomEdge)
+				{
+					CopyPoint(X0Y1);
+				}
+				else
+				{
+					Lerp(X0Y0, X0Y1, YFactor, SourceMetadata, OutPoint, OutMetadata);
+				}
+			}
+			else if (bIsOnRightEdge)
+			{
+				if (bIsOnTopEdge)
+				{
+					CopyPoint(X1Y0);
+				}
+				else if (bIsOnBottomEdge)
+				{
+					CopyPoint(X1Y1);
+				}
+				else
+				{
+					Lerp(X1Y0, X1Y1, YFactor, SourceMetadata, OutPoint, OutMetadata);
+				}
+			}
+			else if (bIsOnTopEdge)
+			{
+				Lerp(X0Y0, X1Y0, XFactor, SourceMetadata, OutPoint, OutMetadata);
+			}
+			else // bIsOnBottomEdge
+			{
+				Lerp(X0Y1, X1Y1, XFactor, SourceMetadata, OutPoint, OutMetadata);
 			}
 		}
 		else
 		{
-			// Interpolate X0Y0-X1Y0 and X0Y1-X1Y1 using XFactor
-			FPCGPoint Y0Lerp;
-			FPCGPoint Y1Lerp;
-
-			Lerp(X0Y0, X1Y0, XFactor, SourceMetadata, Y0Lerp, OutMetadata);
-			Lerp(X0Y1, X1Y1, XFactor, SourceMetadata, Y1Lerp, OutMetadata);
-			// Interpolate between the two points using YFactor
-			Lerp(Y0Lerp, Y1Lerp, YFactor, SourceMetadata, OutPoint, OutMetadata);
+			Bilerp(X0Y0, X1Y0, X0Y1, X1Y1, SourceMetadata, OutPoint, OutMetadata, XFactor, YFactor);
 		}
+	}
+
+	void Bilerp(const FPCGPoint& X0Y0, const FPCGPoint& X1Y0, const FPCGPoint& X0Y1, const FPCGPoint& X1Y1, const UPCGMetadata* SourceMetadata, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata, float XFactor, float YFactor)
+	{
+		// Interpolate X0Y0-X1Y0 and X0Y1-X1Y1 using XFactor
+		FPCGPoint Y0Lerp;
+		FPCGPoint Y1Lerp;
+
+		Lerp(X0Y0, X1Y0, XFactor, SourceMetadata, Y0Lerp, OutMetadata);
+		Lerp(X0Y1, X1Y1, XFactor, SourceMetadata, Y1Lerp, OutMetadata);
+		// Interpolate between the two points using YFactor
+		Lerp(Y0Lerp, Y1Lerp, YFactor, SourceMetadata, OutPoint, OutMetadata);
 	}
 }
 

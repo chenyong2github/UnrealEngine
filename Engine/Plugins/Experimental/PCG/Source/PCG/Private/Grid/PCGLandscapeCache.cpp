@@ -24,6 +24,7 @@
 #if WITH_EDITOR
 void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent, UObject* Owner)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::BuildCacheData);
 	check(Owner && !Component.Get() && InComponent && PositionsAndNormals.Num() == 0);
 	Component = InComponent;
 
@@ -85,6 +86,7 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 
 bool FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::GetPoint);
 	if (PointIndex < 0 || 2 * PointIndex >= PositionsAndNormals.Num())
 	{
 		return false;

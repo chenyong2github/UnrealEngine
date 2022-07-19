@@ -18,47 +18,75 @@ namespace FPCGAsync
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing);
 		check(NumAvailableTasks > 0 && MinIterationsPerTask > 0 && NumIterations >= 0);
+		if (NumAvailableTasks <= 0 || MinIterationsPerTask <= 0 || NumIterations <= 0)
+		{
+			return;
+		}
+
 		// Get number of available threads from the context
 		const int32 NumTasks = FMath::Min(NumAvailableTasks, FMath::Max(1, NumIterations / MinIterationsPerTask));
 		const int32 IterationsPerTask = NumIterations / NumTasks;
-
+		const int32 NumFutures = NumTasks - 1;
+		 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::AllocatingArray);
 			// Pre-reserve the out points array
 			OutPoints.SetNum(NumIterations);
 		}
 
+		auto IterationInnerLoop = [&PointFunc, &OutPoints](int32 StartIndex, int32 EndIndex) -> int32
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
+			int32 NumPointsWritten = 0;
+
+			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+			{
+				if (PointFunc(Index, OutPoints[StartIndex + NumPointsWritten]))
+				{
+					++NumPointsWritten;
+				}
+			}
+
+			return NumPointsWritten;
+		};
+
 		// Setup [current, last, nb points] data per dispatch
-		// Execute
 		TArray<TFuture<int32>> AsyncTasks;
-		AsyncTasks.Reserve(NumTasks);
+		AsyncTasks.Reserve(NumFutures);
 
 		// Launch the async tasks
-		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+		for (int32 TaskIndex = 0; TaskIndex < NumFutures; ++TaskIndex)
 		{
 			const int32 StartIndex = TaskIndex * IterationsPerTask;
-			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
+			const int32 EndIndex = StartIndex + IterationsPerTask;
 
-			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex, &OutPoints]()
+			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&IterationInnerLoop, StartIndex, EndIndex]()
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
-				int32 NumPointsWritten = 0;
-
-				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-				{
-					if (PointFunc(Index, OutPoints[StartIndex + NumPointsWritten]))
-					{
-						++NumPointsWritten;
-					}
-				}
-
-				return NumPointsWritten;
+				return IterationInnerLoop(StartIndex, EndIndex);
 			}));
 		}
+
+		// Execute last batch locally
+		int32 NumPointsWrittenOnThisThread = IterationInnerLoop(NumFutures * IterationsPerTask, NumIterations);
 
 		// Wait/Gather results & collapse points
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::WaitAndCollapseArray);
+
+			auto CollapsePoints = [&OutPoints](int32 RangeIndex, int32 StartPointsIndex, int32 NumPointsToCollapse)
+			{
+				// Move points from [StartsPointIndex, StartsPointIndex + NumberPointsAdded] to [RangeIndex, RangeIndex + NumberPointsAdded]
+				if (StartPointsIndex != RangeIndex)
+				{
+					for (int32 MoveIndex = 0; MoveIndex < NumPointsToCollapse; ++MoveIndex)
+					{
+						OutPoints[RangeIndex + MoveIndex] = MoveTemp(OutPoints[StartPointsIndex + MoveIndex]);
+					}
+				}
+
+				return RangeIndex + NumPointsToCollapse;
+			};
+
 			int RangeIndex = 0;
 			for (int32 AsyncIndex = 0; AsyncIndex < AsyncTasks.Num(); ++AsyncIndex)
 			{
@@ -66,19 +94,12 @@ namespace FPCGAsync
 
 				TFuture<int32>& AsyncTask = AsyncTasks[AsyncIndex];
 				AsyncTask.Wait();
-				int32 NumberOfPointsAdded = AsyncTask.Get();
-
-				// Move points from [StartsPointIndex, StartsPointIndex + NumberPointsAdded] to [RangeIndex, RangeIndex + NumberPointsAdded]
-				if (StartPointsIndex != RangeIndex)
-				{
-					for (int32 MoveIndex = 0; MoveIndex < NumberOfPointsAdded; ++MoveIndex)
-					{
-						OutPoints[RangeIndex + MoveIndex] = MoveTemp(OutPoints[StartPointsIndex + MoveIndex]);
-					}
-				}
-
-				RangeIndex += NumberOfPointsAdded;
+				const int32 NumberOfPointsAdded = AsyncTask.Get();
+				RangeIndex = CollapsePoints(RangeIndex, StartPointsIndex, NumberOfPointsAdded);
 			}
+
+			// Finally, add current thread points
+			RangeIndex = CollapsePoints(RangeIndex, NumFutures * IterationsPerTask, NumPointsWrittenOnThisThread);
 
 			OutPoints.SetNum(RangeIndex);
 		}
@@ -94,9 +115,15 @@ namespace FPCGAsync
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointFilterProcessing);
 		check(NumAvailableTasks > 0 && MinIterationsPerTask > 0 && NumIterations >= 0);
+		if (NumAvailableTasks <= 0 || MinIterationsPerTask <= 0 || NumIterations <= 0)
+		{
+			return;
+		}
+
 		// Get number of available threads from the context
 		const int32 NumTasks = FMath::Min(NumAvailableTasks, FMath::Max(1, NumIterations / MinIterationsPerTask));
 		const int32 IterationsPerTask = NumIterations / NumTasks;
+		const int32 NumFutures = NumTasks - 1;
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::AllocatingArray);
@@ -105,52 +132,54 @@ namespace FPCGAsync
 			OutFilterPoints.SetNum(NumIterations);
 		}
 
+		auto IterationInnerLoop = [&PointFunc, &InFilterPoints, &OutFilterPoints](int32 StartIndex, int32 EndIndex) -> TPair<int32, int32>
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
+			int32 NumPointsInWritten = 0;
+			int32 NumPointsOutWritten = 0;
+
+			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+			{
+				if (PointFunc(Index, InFilterPoints[StartIndex + NumPointsInWritten], OutFilterPoints[StartIndex + NumPointsOutWritten]))
+				{
+					++NumPointsInWritten;
+				}
+				else
+				{
+					++NumPointsOutWritten;
+				}
+			}
+
+			return TPair<int32, int32>(NumPointsInWritten, NumPointsOutWritten);
+		};
+
 		// Setup [current, last, nb points] data per dispatch
-		// Execute
 		TArray<TFuture<TPair<int32, int32>>> AsyncTasks;
-		AsyncTasks.Reserve(NumTasks);
+		AsyncTasks.Reserve(NumFutures);
 
 		// Launch the async tasks
-		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+		for (int32 TaskIndex = 0; TaskIndex < NumFutures; ++TaskIndex)
 		{
 			const int32 StartIndex = TaskIndex * IterationsPerTask;
-			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
+			const int32 EndIndex = StartIndex + IterationsPerTask;
 
-			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex, &InFilterPoints, &OutFilterPoints]()
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
-					int32 NumPointsInWritten = 0;
-					int32 NumPointsOutWritten = 0;
-
-					for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-					{
-						if (PointFunc(Index, InFilterPoints[StartIndex + NumPointsInWritten], OutFilterPoints[StartIndex + NumPointsOutWritten]))
-						{
-							++NumPointsInWritten;
-						}
-						else
-						{
-							++NumPointsOutWritten;
-						}
-					}
-
-					return TPair<int32, int32>(NumPointsInWritten, NumPointsOutWritten);
-				}));
+			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&IterationInnerLoop, StartIndex, EndIndex]() -> TPair<int32, int32>
+			{
+				return IterationInnerLoop(StartIndex, EndIndex);
+			}));
 		}
+
+		// Launch remainder on current thread
+		TPair<int32, int32> NumPointsWrittenOnThisThread = IterationInnerLoop(NumFutures * IterationsPerTask, NumIterations);
 
 		// Wait/Gather results & collapse points
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointFilterProcessing::WaitAndCollapseArray);
-			int InFilterRangeIndex = 0;
-			int OutFilterRangeIndex = 0;
 
-			for (int32 AsyncIndex = 0; AsyncIndex < AsyncTasks.Num(); ++AsyncIndex)
+			auto CollapsePoints = [&InFilterPoints, &OutFilterPoints](const TPair<int32, int32>& RangeIndices, int32 StartPointsIndex, const TPair<int32, int32>& NumberOfPointsAdded) -> TPair<int32, int32>
 			{
-				const int32 StartPointsIndex = AsyncIndex * IterationsPerTask;
-
-				TFuture<TPair<int32, int32>>& AsyncTask = AsyncTasks[AsyncIndex];
-				AsyncTask.Wait();
-				TPair<int32, int32> NumberOfPointsAdded = AsyncTask.Get();
+				int32 InFilterRangeIndex = RangeIndices.Key;
+				int32 OutFilterRangeIndex = RangeIndices.Value;
 
 				// Move in-filter points
 				{
@@ -181,10 +210,27 @@ namespace FPCGAsync
 
 					OutFilterRangeIndex += NumOutFilterPoints;
 				}
+
+				return TPair<int32, int32>(InFilterRangeIndex, OutFilterRangeIndex);
+			};
+
+			TPair<int32, int32> RangeIndices = TPair<int32, int32>(0, 0);
+			for (int32 AsyncIndex = 0; AsyncIndex < AsyncTasks.Num(); ++AsyncIndex)
+			{
+				const int32 StartPointsIndex = AsyncIndex * IterationsPerTask;
+
+				TFuture<TPair<int32, int32>>& AsyncTask = AsyncTasks[AsyncIndex];
+				AsyncTask.Wait();
+				TPair<int32, int32> NumberOfPointsAdded = AsyncTask.Get();
+
+				RangeIndices = CollapsePoints(RangeIndices, StartPointsIndex, NumberOfPointsAdded);
 			}
 
-			InFilterPoints.SetNum(InFilterRangeIndex);
-			OutFilterPoints.SetNum(OutFilterRangeIndex);
+			// Finally, add this thread results
+			RangeIndices = CollapsePoints(RangeIndices, NumFutures * IterationsPerTask, NumPointsWrittenOnThisThread);
+
+			InFilterPoints.SetNum(RangeIndices.Key);
+			OutFilterPoints.SetNum(RangeIndices.Value);
 		}
 	}
 
@@ -198,32 +244,45 @@ namespace FPCGAsync
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing);
 		check(NumAvailableTasks > 0 && MinIterationsPerTask > 0 && NumIterations >= 0);
+		if (NumAvailableTasks <= 0 || MinIterationsPerTask <= 0 || NumIterations <= 0)
+		{
+			return;
+		}
+
 		// Get number of available threads from the context
 		const int32 NumTasks = FMath::Min(NumAvailableTasks, FMath::Max(1, NumIterations / MinIterationsPerTask));
 		const int32 IterationsPerTask = NumIterations / NumTasks;
+		const int32 NumFutures = NumTasks - 1;
+
+		auto IterationInnerLoop = [&PointFunc](int32 StartIndex, int32 EndIndex) -> TArray<FPCGPoint>
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing::InnerLoop);
+			TArray<FPCGPoint> OutPoints;
+
+			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+			{
+				OutPoints.Append(PointFunc(Index));
+			}
+
+			return OutPoints;
+		};
 
 		TArray<TFuture<TArray<FPCGPoint>>> AsyncTasks;
-		AsyncTasks.Reserve(NumTasks);
+		AsyncTasks.Reserve(NumFutures);
 
 		// Launch the async tasks
-		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+		for (int32 TaskIndex = 0; TaskIndex < NumFutures; ++TaskIndex)
 		{
 			const int32 StartIndex = TaskIndex * IterationsPerTask;
-			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
+			const int32 EndIndex = StartIndex + IterationsPerTask;
 
-			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex]()
+			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&IterationInnerLoop, StartIndex, EndIndex]() -> TArray<FPCGPoint>
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncMultiPointProcessing::InnerLoop);
-				TArray<FPCGPoint> OutPoints;
-
-				for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-				{
-					OutPoints.Append(PointFunc(Index));
-				}
-
-				return OutPoints;
+				return IterationInnerLoop(StartIndex, EndIndex);
 			}));
 		}
+
+		TArray<FPCGPoint> PointsFromThisThread = IterationInnerLoop(NumFutures * IterationsPerTask, NumIterations);
 
 		// Wait/Gather results & collapse points
 		{
@@ -233,6 +292,8 @@ namespace FPCGAsync
 				AsyncTask.Wait();
 				OutPoints.Append(AsyncTask.Get());
 			}
+
+			OutPoints.Append(PointsFromThisThread);
 		}
 	}
 }

@@ -22,25 +22,23 @@ void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InB
 
 	Transform = Landscape->GetActorTransform();
 
-	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
-	if (Landscape->GetWorld())
-	{
-		if (UPCGSubsystem* Subsystem = Landscape->GetWorld()->GetSubsystem<UPCGSubsystem>())
-		{
-			if (FPCGLandscapeCache* LandscapeCache = Subsystem->GetLandscapeCache())
-			{
-				const TArray<FName> Layers = Subsystem->GetLandscapeCache()->GetLayerNames(Landscape.Get());
+	// Cache additional data
+	LandscapeInfo = Landscape ? Landscape->GetLandscapeInfo() : nullptr;
+	LandscapeCache = Landscape && Landscape->GetWorld() && Landscape->GetWorld()->GetSubsystem<UPCGSubsystem>() ? Landscape->GetWorld()->GetSubsystem<UPCGSubsystem>()->GetLandscapeCache() : nullptr;
 
-				for (const FName& Layer : Layers)
-				{
-					Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
-				}
-			}
-			else
-			{
-				UE_LOG(LogPCG, Error, TEXT("Landscape is unable to access the landscape cache"));
-			}
+	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
+	if (LandscapeCache)
+	{
+		const TArray<FName> Layers = LandscapeCache->GetLayerNames(Landscape.Get());
+
+		for (const FName& Layer : Layers)
+		{
+			Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
 		}
+	}
+	else
+	{
+		UE_LOG(LogPCG, Error, TEXT("Landscape is unable to access the landscape cache"));
 	}
 }
 
@@ -58,24 +56,8 @@ FBox UPCGLandscapeData::GetStrictBounds() const
 
 bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	if (!Landscape || !Landscape->GetWorld())
-	{
-		return false;
-	}
-
-	UPCGSubsystem* Subsystem = Landscape->GetWorld()->GetSubsystem<UPCGSubsystem>();
-
-	if (!Subsystem || !Subsystem->GetLandscapeCache())
-	{
-		UE_LOG(LogPCG, Error, TEXT("PCG Subsystem or landscape cache are not initialized"));
-		return false;
-	}
-
-	// Compute landscape-centric coordinates from the transform
-	// TODO: support bounds tests/interpolation
-	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-
-	if (!LandscapeInfo)
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::SamplePoint);
+	if (!LandscapeInfo || !LandscapeCache)
 	{
 		return false;
 	}
@@ -87,8 +69,7 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 
 	if (ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey))
 	{
-		check(Subsystem->GetLandscapeCache());
-		const FPCGLandscapeCacheEntry* LandscapeCacheEntry = Subsystem->GetLandscapeCache()->GetCacheEntry(LandscapeComponent, ComponentMapKey);
+		const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentMapKey);
 
 		if (!LandscapeCacheEntry)
 		{
@@ -102,27 +83,48 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 		const int32 X0Y1 = X0Y0 + (LandscapeInfo->ComponentSizeQuads + 1);
 		const int32 X1Y1 = X0Y1 + 1;
 
-		FPCGPoint PX0Y0;
-		FPCGPoint PX1Y0;
-		FPCGPoint PX0Y1;
-		FPCGPoint PX1Y1;
+		const float FractionalX = FMath::Fractional(LocalPoint.X);
+		const float FractionalY = FMath::Fractional(LocalPoint.Y);
 
-		LandscapeCacheEntry->GetPoint(X0Y0, PX0Y0, OutMetadata);
-		LandscapeCacheEntry->GetPoint(X1Y0, PX1Y0, OutMetadata);
-		LandscapeCacheEntry->GetPoint(X0Y1, PX0Y1, OutMetadata);
-		LandscapeCacheEntry->GetPoint(X1Y1, PX1Y1, OutMetadata);
+		if (FractionalX < KINDA_SMALL_NUMBER && FractionalY < KINDA_SMALL_NUMBER)
+		{
+			LandscapeCacheEntry->GetPoint(X0Y0, OutPoint, OutMetadata);
+		}
+		else if (FractionalX < KINDA_SMALL_NUMBER && FractionalY > 1.0f - KINDA_SMALL_NUMBER)
+		{
+			LandscapeCacheEntry->GetPoint(X1Y0, OutPoint, OutMetadata);
+		}
+		else if (FractionalX > 1.0f - KINDA_SMALL_NUMBER && FractionalY < KINDA_SMALL_NUMBER)
+		{
+			LandscapeCacheEntry->GetPoint(X0Y1, OutPoint, OutMetadata);
+		}
+		else if (FractionalX > 1.0f - KINDA_SMALL_NUMBER && FractionalY < 1.0f - KINDA_SMALL_NUMBER)
+		{
+			LandscapeCacheEntry->GetPoint(X1Y1, OutPoint, OutMetadata);
+		}
+		else
+		{
+			FPCGPoint PX0Y0;
+			FPCGPoint PX1Y0;
+			FPCGPoint PX0Y1;
+			FPCGPoint PX1Y1;
 
+			LandscapeCacheEntry->GetPoint(X0Y0, PX0Y0, OutMetadata);
+			LandscapeCacheEntry->GetPoint(X1Y0, PX1Y0, OutMetadata);
+			LandscapeCacheEntry->GetPoint(X0Y1, PX0Y1, OutMetadata);
+			LandscapeCacheEntry->GetPoint(X1Y1, PX1Y1, OutMetadata);
 
-		PCGPointHelpers::Bilerp(
-			PX0Y0,
-			PX1Y0,
-			PX0Y1,
-			PX1Y1,
-			OutMetadata,
-			OutPoint,
-			OutMetadata,
-			FMath::Fractional(LocalPoint.X),
-			FMath::Fractional(LocalPoint.Y));
+			PCGPointHelpers::Bilerp(
+				PX0Y0,
+				PX1Y0,
+				PX0Y1,
+				PX1Y1,
+				OutMetadata,
+				OutPoint,
+				OutMetadata,
+				FractionalX,
+				FractionalY);
+		}
 
 		return true;
 	}
@@ -136,23 +138,9 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::CreatePointData);
 
-	if (!Landscape || !Landscape->GetWorld())
+	if (!LandscapeInfo || !LandscapeCache)
 	{
-		return nullptr;
-	}
-
-	UPCGSubsystem* Subsystem = Landscape->GetWorld()->GetSubsystem<UPCGSubsystem>();
-
-	if (!Subsystem || !Subsystem->GetLandscapeCache())
-	{
-		UE_LOG(LogPCG, Error, TEXT("PCG Subsystem or landscape cache are not initialized"));
-		return nullptr;
-	}
-
-	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-
-	if (!LandscapeInfo)
-	{
+		UE_LOG(LogPCG, Error, TEXT("PCG Landscape cache or Landscape info are not initialized"));
 		return nullptr;
 	}
 
@@ -208,7 +196,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 			FIntPoint ComponentMapKey(ComponentX, ComponentY);
 			if (ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey))
 			{
-				const FPCGLandscapeCacheEntry* LandscapeCacheEntry = Subsystem->GetLandscapeCache()->GetCacheEntry(LandscapeComponent, ComponentMapKey);
+				const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentMapKey);
 
 				if (!LandscapeCacheEntry)
 				{
