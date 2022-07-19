@@ -437,15 +437,22 @@ void FControlRigParameterTrackEditor::UnbindControlRig(UControlRig* ControlRig)
 		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 		ControlRig->ControlSelected().RemoveAll(this);
 		BoundControlRigs.Remove(ControlRig);
+		ClearOutAllSpaceDelegates(ControlRig);
 	}
 }
 void FControlRigParameterTrackEditor::UnbindAllControlRigs()
 {
+	ClearOutAllSpaceDelegates();
 	for (TWeakObjectPtr<UControlRig>& ObjectPtr : BoundControlRigs)
 	{
 		if (ObjectPtr.IsValid())
 		{
 			UControlRig* ControlRig = ObjectPtr.Get();
+			UMovieSceneControlRigParameterTrack* Track = FindTrack(ControlRig);
+			if (Track)
+			{
+				Track->SpaceChannelAdded().RemoveAll(this);
+			}
 			ControlRig->ControlModified().RemoveAll(this);
 			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 			ControlRig->ControlSelected().RemoveAll(this);
@@ -2278,6 +2285,40 @@ void FControlRigParameterTrackEditor::HandleSpaceKeyMoved(UMovieSceneControlRigP
 		{
 			FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(Section->GetControlRig(), ControlName, SpaceChannel, Section,
 				MoveEventItem.Frame, MoveEventItem.NewFrame);
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::ClearOutAllSpaceDelegates(UControlRig* InOptionalControlRig)
+{
+	if (GetSequencer().IsValid())
+	{
+		UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
+		{
+			if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None)))
+			{
+				if (InOptionalControlRig && Track->GetControlRig() != InOptionalControlRig)
+				{
+					continue;
+				}
+				for (UMovieSceneSection* Section : Track->GetAllSections())
+				{
+					if (Section)
+					{
+						if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+						{
+							TArray<FSpaceControlNameAndChannel>& Channels = CRSection->GetSpaceChannels();
+							for (FSpaceControlNameAndChannel& SpaceAndChannel : Channels)
+							{
+								SpaceAndChannel.SpaceCurve.OnKeyMovedEvent().Clear();
+								SpaceAndChannel.SpaceCurve.OnKeyDeletedEvent().Clear();
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
