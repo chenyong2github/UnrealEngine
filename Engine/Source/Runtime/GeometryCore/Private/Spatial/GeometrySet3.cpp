@@ -186,7 +186,7 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 	int NearestIndex = -1;
 	int NearestSegmentIdx = -1;
 	double NearestSegmentParam = 0;
-	double NearestWithinTolDist = TNumericLimits<double>::Max();
+	double NearestMetric = TNumericLimits<double>::Max();
 
 	FCriticalSection Critical;
 
@@ -225,31 +225,16 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 		if (CurveMinRayParamT < TNumericLimits<double>::Max())
 		{
 			Critical.Lock();
-			// we want to take points closer to the ray origin, but also still prefer a further
-			// point more closely hit by the ray...this is tricky. Use a ball, ie (ray_t + radius),
-			// to make decision for closer-T and closer-Point cases
-			bool bTakePoint = false;
-			if (NearestID == -1)
-			{
-				bTakePoint = true;
-			}
-			else if ( (CurveMinRayParamT + CurveNearestDist) < (MinRayParamT + NearestWithinTolDist))
-			{
-				bTakePoint = true;
-			}
-			else if ( Distance(Ray.PointAt(MinRayParamT), CurveNearestPosition) < NearestWithinTolDist && CurveNearestDist < NearestWithinTolDist)
-			{
-				bTakePoint = true;
-			}
-
-			if (bTakePoint)
+			// try to balance preference for closer-to-ray-origin and closer-to-segment
+			double DistanceMetric = FMathd::Abs(VectorUtil::Area(Ray.Origin, CurveNearestPosition, Ray.PointAt(CurveMinRayParamT)));
+			if (DistanceMetric < NearestMetric)
 			{
 				MinRayParamT = CurveMinRayParamT;
 				NearestIndex = ci;
 				NearestID = Curve.ID;
 				NearestSegmentIdx = CurveNearestSegmentIdx;
 				NearestSegmentParam = CurveNearestSegmentParam;
-				NearestWithinTolDist = CurveNearestDist;
+				NearestMetric = DistanceMetric;
 			}
 			Critical.Unlock();
 		}
