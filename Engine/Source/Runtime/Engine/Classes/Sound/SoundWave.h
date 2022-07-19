@@ -860,6 +860,8 @@ public:
 
 	bool IsAsyncWorkComplete() const;
 
+	void PostImport();
+
 private:
 	friend class FSoundWaveCompilingManager;
 	/**  Utility function used internally to change task priority while maintaining thread-safety. */

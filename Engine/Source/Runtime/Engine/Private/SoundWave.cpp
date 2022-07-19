@@ -533,6 +533,14 @@ bool USoundWave::IsAsyncWorkComplete() const
 	return SoundWaveDataPtr == nullptr || SoundWaveDataPtr->RunningPlatformData.IsAsyncWorkComplete();
 }
 
+void USoundWave::PostImport()
+{
+	if (SoundWaveDataPtr)
+	{
+		SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
+	}
+}
+
 bool USoundWave::RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority)
 {
 	return SoundWaveDataPtr ? SoundWaveDataPtr->RunningPlatformData.RescheduleAsyncTask(InThreadPool, InPriority) : false;

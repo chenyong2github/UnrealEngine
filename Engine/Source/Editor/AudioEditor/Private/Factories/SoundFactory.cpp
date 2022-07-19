@@ -578,6 +578,8 @@ UObject* USoundFactory::CreateObject
 			Sound->LoadZerothChunk();
 		}
 
+		Sound->PostImport();
+
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, Sound);
 
 		if (ExistingSound && bUseExistingSettings)
