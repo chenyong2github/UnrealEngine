@@ -116,12 +116,11 @@ const UWorldPartition* UWorldPartitionSubsystem::GetWorldPartition() const
 }
 
 #if WITH_EDITOR
-bool UWorldPartitionSubsystem::IsRunningConvertWorldPartitionCommandlet() const
+bool UWorldPartitionSubsystem::IsRunningConvertWorldPartitionCommandlet()
 {
 	static UClass* WorldPartitionConvertCommandletClass = FindObject<UClass>(nullptr, TEXT("/Script/UnrealEd.WorldPartitionConvertCommandlet"), true);
 	check(WorldPartitionConvertCommandletClass);
-	static const bool bIsRunningWorldPartitionConvertCommandlet = GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionConvertCommandletClass);
-	return bIsRunningWorldPartitionConvertCommandlet;
+	return GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionConvertCommandletClass);
 }
 #endif
 
@@ -130,7 +129,8 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
-	if (IsRunningConvertWorldPartitionCommandlet())
+	bIsRunningConvertWorldPartitionCommandlet = IsRunningConvertWorldPartitionCommandlet();
+	if(bIsRunningConvertWorldPartitionCommandlet)
 	{
 		return;
 	}
@@ -143,7 +143,7 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UWorldPartitionSubsystem::Deinitialize()
 {
 #if WITH_EDITOR
-	if (IsRunningConvertWorldPartitionCommandlet())
+	if (bIsRunningConvertWorldPartitionCommandlet)
 	{
 		Super::Deinitialize();
 		return;

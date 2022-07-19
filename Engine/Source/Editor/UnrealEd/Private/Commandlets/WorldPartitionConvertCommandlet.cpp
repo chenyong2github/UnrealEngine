@@ -1183,9 +1183,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UWorld* SubWorld = SubLevel->GetTypedOuter<UWorld>();
 		UPackage* SubPackage = SubLevel->GetPackage();
 
-		SubWorld->PersistentLevel->Model->MarkAsGarbage();
-		SubWorld->PersistentLevel->Model = nullptr;
-
 		RemapSoftObjectPaths.Add(FSoftObjectPath(SubWorld).ToString(), FSoftObjectPath(MainWorld).ToString());
 		RemapSoftObjectPaths.Add(FSoftObjectPath(SubLevel).ToString(), FSoftObjectPath(MainLevel).ToString());
 		RemapSoftObjectPaths.Add(FSoftObjectPath(SubPackage).ToString(), FSoftObjectPath(MainPackage).ToString());
@@ -1292,6 +1289,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			LevelInstanceActor->DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::LevelStreaming;
 			LevelInstanceActor->SetActorTransform(LevelTransform);
 			LevelInstanceActor->SetWorldAsset(SubLevelWorld);
+			LevelInstanceActor->SetActorLabel(SubLevelWorld->GetName());
 		}
 		else
 		{
@@ -1377,6 +1375,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 				PackagesToDelete.Add(SubLevel->GetPackage());
 			}
+		}
+		else
+		{
+			// Rebuild Model to clear refs to actors that were converted
+			GEditor->RebuildLevel(*SubLevel);
 		}
 	}
 
@@ -1494,6 +1497,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		MainWorld->WorldComposition = nullptr;
 		MainLevel->bIsPartitioned = !bOnlyMergeSubLevels;
+		GEditor->RebuildLevel(*MainLevel);
 
 		if (bDeleteSourceLevels)
 		{

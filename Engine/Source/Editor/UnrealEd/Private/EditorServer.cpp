@@ -1748,7 +1748,10 @@ void UEditorEngine::RebuildLevel(ULevel& Level)
 		}
 	}
 	
-	GLevelEditorModeTools().MapChangeNotify();
+	if (!IsRunningCommandlet())
+	{
+		GLevelEditorModeTools().MapChangeNotify();
+	}
 }
 
 void UEditorEngine::RebuildModelFromBrushes(UModel* Model, bool bSelectedBrushesOnly, bool bTreatMovableBrushesAsStatic)

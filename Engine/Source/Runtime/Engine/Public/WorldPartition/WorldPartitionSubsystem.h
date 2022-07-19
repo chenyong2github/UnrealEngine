@@ -49,12 +49,11 @@ public:
 
 #if WITH_EDITOR
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
+
+	static bool IsRunningConvertWorldPartitionCommandlet();
 #endif
 
 private:
-#if WITH_EDITOR
-	bool IsRunningConvertWorldPartitionCommandlet() const;
-#endif
 
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
@@ -73,4 +72,8 @@ private:
 	// GC backup values
 	int32 LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
 	int32 LevelStreamingForceGCAfterLevelStreamedOut;
+
+#if WITH_EDITOR
+	bool bIsRunningConvertWorldPartitionCommandlet;
+#endif
 };
