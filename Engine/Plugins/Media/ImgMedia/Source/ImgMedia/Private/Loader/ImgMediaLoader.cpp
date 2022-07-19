@@ -91,7 +91,6 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, bFillGapsInSequence(bInFillGapsInSequence)
-	, bIsTiled(false)
 	, TilingDescription()
 	, NumLoadAhead(0)
 	, NumLoadBehind(0)
@@ -924,22 +923,6 @@ void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& Ou
 	// locate image sequence files
 	TArray<FString> FoundFiles;
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
-
-	// If we did not find any files, then maybe we have tile directories.
-	// If we already have tiles then don't do anything.
-	if (bIsTiled == false)
-	{
-		bIsTiled = FoundFiles.Num() == 0;
-		if (bIsTiled)
-		{
-			IFileManager::Get().FindFiles(FoundFiles, *(SequencePath / TEXT("*")), false, true);
-			if (FoundFiles.Num() == 0)
-			{
-				// We really got nothing.
-				bIsTiled = false;
-			}
-		}
-	}
 
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
 

@@ -486,9 +486,6 @@ private:
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
 	const bool bFillGapsInSequence;
 
-	/** True if this sequence contains tiles. */
-	bool bIsTiled;
-
 	/** Tiling description. */
 	FMediaTextureTilingDescription TilingDescription;
 
