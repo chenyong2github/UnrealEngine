@@ -381,12 +381,6 @@ void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& InCol
 	FKeyType SrcKey = FManagedArrayCollection::MakeMapKey(SrcName, Group);
 	FKeyType DestKey = FManagedArrayCollection::MakeMapKey(DestName, Group);
 
-	// fail gracefully
-	if (!(ensureMsgf(HasAttribute(SrcName, Group), TEXT("Missing managed array collection attribute"))))
-	{
-		return;
-	}
-
 	if (!HasAttribute(DestName, Group))
 	{
 		const FValueType& V = InCollection.Map[SrcKey];
