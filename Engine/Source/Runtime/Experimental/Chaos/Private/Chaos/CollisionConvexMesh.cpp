@@ -35,6 +35,41 @@ namespace Chaos
 		return BuildMethod == EBuildMethod::ConvexHull3;
 	}
 
+	void FConvexBuilder::BuildIndices(const TArray<FVec3Type>& InVertices, TArray<int32>& OutResultIndexData, EBuildMethod BuildMethod)
+	{
+		if (UseConvexHull3(BuildMethod))
+		{
+			UE::Geometry::TConvexHull3<FRealType> HullCompute;
+			if (HullCompute.Solve<FVec3Type>(InVertices))
+			{
+				const TArray<UE::Geometry::FIndex3i>& HullTriangles = HullCompute.GetTriangles();
+				OutResultIndexData.Reserve(HullTriangles.Num() * 3);
+				for (const UE::Geometry::FIndex3i& Tri : HullTriangles)
+				{
+					// Winding is backwards from what Chaos expects
+					OutResultIndexData.Add(Tri[0]);
+					OutResultIndexData.Add(Tri[2]);
+					OutResultIndexData.Add(Tri[1]);
+				}
+			}
+		}
+		else
+		{
+			TArray<Chaos::TVec3<int32>> Triangles;
+			Params BuildParams;
+			BuildParams.HorizonEpsilon = SuggestEpsilon(InVertices);
+			BuildConvexHull(InVertices, Triangles, BuildParams);
+			OutResultIndexData.Reserve(Triangles.Num() * 3);
+			for (Chaos::TVec3<int32> Tri : Triangles)
+			{
+				OutResultIndexData.Add(Tri[0]);
+				OutResultIndexData.Add(Tri[1]);
+				OutResultIndexData.Add(Tri[2]);
+			}
+		}
+
+	}
+
 	void FConvexBuilder::Build(const TArray<FVec3Type>& InVertices, TArray <FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds, EBuildMethod BuildMethod)
 	{
 		OutPlanes.Reset();
