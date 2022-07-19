@@ -537,6 +537,7 @@ void UGSTab::SetupWorkspace()
 
 	FString ProjectLogBaseName = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
 	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
+	FString SelectedProjectIdentifier = DetectSettings->NewSelectedProjectIdentifier;
 
 	FString LogFileName = DataFolder / FPaths::GetPath(ProjectFileName) + TEXT(".sync.log");
 	GameSyncTabView->SetSyncLogLocation(LogFileName); // Todo: if SetSyncLogLocation fails, then it failed to create a log file and may need to handle that
@@ -548,6 +549,7 @@ void UGSTab::SetupWorkspace()
 		ProjectFileName,
 		DetectSettings->BranchClientPath,
 		DetectSettings->NewSelectedClientFileName,
+		SelectedProjectIdentifier,
 		CurrentChangeNumber,
 		WorkspaceSettings->LastBuiltChangeNumber,
 		TelemetryProjectIdentifier,
@@ -590,7 +592,6 @@ void UGSTab::SetupWorkspace()
 	// Setup our Perforce and Event monitoring threads
 	FString BranchClientPath = DetectSettings->BranchDirectoryName;
 	FString SelectedClientFileName = DetectSettings->NewSelectedClientFileName;
-	FString SelectedProjectIdentifier = DetectSettings->NewSelectedProjectIdentifier;
 
 	// TODO create callback functions that will be queued for the main thread to generate and update the main table view
 	PerforceMonitor = MakeShared<FPerforceMonitor>(PerforceClient.ToSharedRef(), BranchClientPath, SelectedClientFileName, SelectedProjectIdentifier, ProjectLogBaseName + ".p4.log");

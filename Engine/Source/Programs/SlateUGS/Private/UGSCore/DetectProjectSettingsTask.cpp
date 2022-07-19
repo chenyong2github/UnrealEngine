@@ -216,7 +216,7 @@ TSharedRef<FModalTaskResult> FDetectProjectSettingsTask::RunInternal(FEvent* Abo
 		{
 			return FModalTaskResult::Failure(FText::Format(LOCTEXT("FailedToGetStreamInfo", "Failed to get stream info for {0}"), FText::FromString(StreamName)));
 		}
-		NewSelectedProjectIdentifier = FString::Printf(TEXT("{0}/{1}"), *StreamPrefix, *NewSelectedClientFileName.Mid(ExpectedPrefix.Len()));
+		NewSelectedProjectIdentifier = FString::Printf(TEXT("%s/%s"), *StreamPrefix, *NewSelectedClientFileName.Mid(ExpectedPrefix.Len()));
 	}
 	else
 	{

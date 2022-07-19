@@ -145,13 +145,14 @@ FWorkspaceSyncCategory::FWorkspaceSyncCategory(const FGuid& InUniqueId, const TC
 
 //// FWorkspace ////
 
-FWorkspace::FWorkspace(TSharedRef<FPerforceConnection> InPerforce, const FString& InLocalRootPath, const FString& InSelectedLocalFileName, const FString& InClientRootPath, const FString& InSelectedClientFileName, int InInitialChangeNumber, int InLastBuiltChangeNumber, const FString& InTelemetryProjectPath, TSharedRef<FLineBasedTextWriter> InLog)
+FWorkspace::FWorkspace(TSharedRef<FPerforceConnection> InPerforce, const FString& InLocalRootPath, const FString& InSelectedLocalFileName, const FString& InClientRootPath, const FString& InSelectedClientFileName, const FString& InSelectedProjectIdentifier, int InInitialChangeNumber, int InLastBuiltChangeNumber, const FString& InTelemetryProjectPath, TSharedRef<FLineBasedTextWriter> InLog)
 	: Perforce(InPerforce)
 	, SyncPaths(GetSyncPaths(InClientRootPath, InSelectedClientFileName))
 	, LocalRootPath(InLocalRootPath)
 	, SelectedLocalFileName(InSelectedLocalFileName)
 	, ClientRootPath(InClientRootPath)
 	, SelectedClientFileName(InSelectedClientFileName)
+	, SelectedProjectIdentifier(InSelectedProjectIdentifier)
 	, TelemetryProjectPath(InTelemetryProjectPath)
 	, CurrentChangeNumber(InInitialChangeNumber)
 	, PendingChangeNumber(InInitialChangeNumber)
@@ -163,11 +164,33 @@ FWorkspace::FWorkspace(TSharedRef<FPerforceConnection> InPerforce, const FString
 	, WorkerThread(nullptr)
 {
 	ProjectStreamFilter = ReadProjectStreamFilter(InPerforce.Get(), ProjectConfigFile.Get(), AbortEvent, InLog.Get());
+	UpdateStatusPanel();
 }
 
 FWorkspace::~FWorkspace()
 {
 	CancelUpdate();
+}
+
+void FWorkspace::UpdateStatusPanel()
+{
+	TSharedPtr<const FCustomConfigSection> ProjectSection = ProjectConfigFile->FindSection(*SelectedProjectIdentifier);
+
+	if (ProjectSection.IsValid())
+	{
+		PanelColor   = ProjectSection->GetValue(TEXT("StatusPanelColor"), TEXT(""));
+		AlertMessage = ProjectSection->GetValue(TEXT("Message"), TEXT(""));
+	}
+}
+
+FString FWorkspace::GetPanelColor() const
+{
+	return PanelColor;
+}
+
+FString FWorkspace::GetAlertMessage() const
+{
+	return AlertMessage;
 }
 
 TMap<FGuid, FWorkspaceSyncCategory> FWorkspace::GetSyncCategories() const

@@ -78,11 +78,12 @@ public:
 	const FString SelectedLocalFileName;
 	const FString ClientRootPath;
 	const FString SelectedClientFileName;
+	const FString SelectedProjectIdentifier;
 	const FString TelemetryProjectPath;
 
 	TFunction<void(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe>, EWorkspaceUpdateResult, const FString&)> OnUpdateComplete;
 
-	FWorkspace(TSharedRef<FPerforceConnection> InPerforce, const FString& InLocalRootPath, const FString& InSelectedLocalFileName, const FString& InClientRootPath, const FString& InSelectedClientFileName, int InInitialChangeNumber, int InLastBuiltChangeNumber, const FString& InTelemetryProjectPath, TSharedRef<FLineBasedTextWriter> InLog);
+	FWorkspace(TSharedRef<FPerforceConnection> InPerforce, const FString& InLocalRootPath, const FString& InSelectedLocalFileName, const FString& InClientRootPath, const FString& InSelectedClientFileName, const FString& InSelectedProjectIdentifier, int InInitialChangeNumber, int InLastBuiltChangeNumber, const FString& InTelemetryProjectPath, TSharedRef<FLineBasedTextWriter> InLog);
 	~FWorkspace();
 
 	TMap<FGuid, FWorkspaceSyncCategory> GetSyncCategories() const;
@@ -97,6 +98,9 @@ public:
 
 	void Update(const TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe>& Context);
 	void CancelUpdate();
+
+	FString GetPanelColor() const;
+	FString GetAlertMessage() const;
 
 private:
 	static const TCHAR* DefaultBuildTargets[];
@@ -118,6 +122,9 @@ private:
 	FRunnableThread* WorkerThread;
 	FProgressValue Progress;
 
+	FString PanelColor;
+	FString AlertMessage;
+	
 	static FWorkspace* ActiveWorkspace;
 
 	virtual uint32 Run() override;
@@ -128,6 +135,8 @@ private:
 	static TSharedRef<FCustomConfigFile, ESPMode::ThreadSafe> ReadProjectConfigFile(const FString& LocalRootPath, const FString& SelectedLocalFileName, FLineBasedTextWriter& Log);
 	static TArray<FString> ReadProjectStreamFilter(FPerforceConnection& Perforce, const FCustomConfigFile& ProjectConfigFile, FEvent* AbortEvent, FLineBasedTextWriter& Log);
 	static FString FormatTime(long Seconds);
+
+	void UpdateStatusPanel();
 	
 	bool HasModifiedSourceFiles() const;
 	bool FindUnresolvedFiles(TArray<FPerforceFileRecord>& OutUnresolvedFiles) const;
