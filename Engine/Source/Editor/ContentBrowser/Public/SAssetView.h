@@ -785,28 +785,14 @@ private:
 	 */
 	bool PerformQuickJump(const bool bWasJumping);
 	
-	/** Generates the column filtering menu */
-	void FillToggleColumnsMenu(FMenuBuilder& MenuBuilder);
-
 	/** Resets the column filtering state to make them all visible */
 	void ResetColumns();
 
 	/** Export columns to CSV */
 	void ExportColumns();
 
-	/** Toggle the column at ColumnIndex */
-	void ToggleColumn(const FString ColumnName);
-	/** Sets the column visibility by removing/inserting the column*/
-	void SetColumnVisibility(const FString ColumnName, const bool bShow);
-
-	/** Whether or not a column can be toggled, has to be valid column and mandatory minimum number of columns = 1*/
-	bool CanToggleColumn(const FString ColumnName) const;
-
-	/** Whether or not a column is visible to show it's state in the filtering menu */
-	bool IsColumnVisible(const FString ColumnName) const;
-
-	/** Creates the row header context menu allowing for hiding individually clicked columns*/
-	TSharedRef<SWidget> CreateRowHeaderMenuContent(const FString ColumnName);
+	/** Called when a column is shown/hidden in the column view */
+	void OnHiddenColumnsChanged();
 
 	/** Will compute the max row size from all its children for the specified column id*/
 	FVector2D GetMaxRowSizeForColumn(const FName& ColumnId);
@@ -1137,7 +1123,6 @@ private:
 	/** Column filtering state */
 	TArray<FString> DefaultHiddenColumnNames;
 	TArray<FString> HiddenColumnNames;
-	int32 NumVisibleColumns;
 
 	TArray<FAssetViewCustomColumn> CustomColumns;
 public:
