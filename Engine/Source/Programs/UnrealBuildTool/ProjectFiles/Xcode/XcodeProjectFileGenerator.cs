@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +33,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		string AppName = "";
 
+		/// <summary>
+		/// Whether or not to use the new .xcconfig file 
+		/// </summary>
+		private bool bUseXcconfig = false;
+
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
@@ -48,6 +53,11 @@ namespace UnrealBuildTool
 			if (CommandLine.HasValue("-appname="))
 			{
 				AppName = CommandLine.GetString("-appname=");
+			}
+
+			if (CommandLine.HasOption("-xcconfig"))
+			{
+				bUseXcconfig = true;
 			}
 		}
 
@@ -110,7 +120,14 @@ namespace UnrealBuildTool
 		/// <returns>The newly allocated project file object</returns>
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
+			if (bUseXcconfig)
+			{
+				return new XcodeProjectXcconfig.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
+			}
+			else
+			{
+				return new XcodeProjectLegacy.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
+			}
 		}
 
 		private bool WriteWorkspaceSettingsFile(string Path, ILogger Logger)
@@ -167,7 +184,7 @@ namespace UnrealBuildTool
 			WorkspaceDataContent.Append("<Workspace" + ProjectFileGenerator.NewLine);
 			WorkspaceDataContent.Append("   version = \"1.0\">" + ProjectFileGenerator.NewLine);
 
-			List<XcodeProjectFile> BuildableProjects = new List<XcodeProjectFile>();
+			List<ProjectFile> BuildableProjects = new List<ProjectFile>();
 
 			System.Action< List<PrimaryProjectFolder> /* Folders */, string /* Ident */ >? AddProjectsFunction = null;
 			AddProjectsFunction = (FolderList, Ident) =>
@@ -180,12 +197,12 @@ namespace UnrealBuildTool
 						AddProjectsFunction!(CurFolder.SubFolders, Ident + "   ");
 				
 						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
-						IEnumerable<XcodeProjectFile> SupportedProjects =
-								CurFolder.ChildProjects.OfType<XcodeProjectFile>()
-									.Where(P => P.ShouldIncludeProjectInWorkspace(Logger))
+						IEnumerable<ProjectFile> SupportedProjects =
+								CurFolder.ChildProjects.Where(P => P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile) || P.GetType() == typeof(XcodeProjectLegacy.XcodeProjectFile))
+									.Where(P => XcodeProjectXcconfig.XcodeProjectFile.ShouldIncludeProjectInWorkspace(P, Logger))
 									.OrderBy(P => P.ProjectFilePath.GetFileName());
 
-						foreach (XcodeProjectFile XcodeProject in SupportedProjects)
+						foreach (ProjectFile XcodeProject in SupportedProjects)
 						{
 							WorkspaceDataContent.Append(Ident + "      <FileRef" + ProjectFileGenerator.NewLine);
 							WorkspaceDataContent.Append(Ident + "         location = \"group:" + XcodeProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath) + "\">" + ProjectFileGenerator.NewLine);
@@ -220,7 +237,7 @@ namespace UnrealBuildTool
 				return TargetA.Name.CompareTo(TargetB.Name);
 			});
 
-			foreach (XcodeProjectFile XcodeProject in BuildableProjects)
+			foreach (ProjectFile XcodeProject in BuildableProjects)
 			{
 				FileReference SchemeManagementFile = XcodeProject.ProjectFilePath + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist";
 				if (FileReference.Exists(SchemeManagementFile))
