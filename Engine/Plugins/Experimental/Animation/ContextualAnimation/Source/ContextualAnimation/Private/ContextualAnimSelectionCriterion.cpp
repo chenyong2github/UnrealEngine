@@ -17,6 +17,23 @@ UContextualAnimSceneAsset* UContextualAnimSelectionCriterion::GetSceneAssetOwner
 	return Cast<UContextualAnimSceneAsset>(GetOuter());
 }
 
+// UContextualAnimSelectionCriterion_Blueprint
+//===========================================================================
+UContextualAnimSelectionCriterion_Blueprint::UContextualAnimSelectionCriterion_Blueprint(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer) 
+{
+}
+
+const UContextualAnimSceneAsset* UContextualAnimSelectionCriterion_Blueprint::GetSceneAsset() const
+{
+	return GetSceneAssetOwner();
+}
+
+bool UContextualAnimSelectionCriterion_Blueprint::DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
+{
+	return BP_DoesQuerierPassCondition(Primary, Querier);
+}
+
 // UContextualAnimSelectionCriterion_TriggerArea
 //===========================================================================
 
