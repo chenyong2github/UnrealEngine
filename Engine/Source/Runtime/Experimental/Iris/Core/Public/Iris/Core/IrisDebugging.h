@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Iris/ReplicationSystem/NetHandle.h"
 
 class UReplicationSystem;

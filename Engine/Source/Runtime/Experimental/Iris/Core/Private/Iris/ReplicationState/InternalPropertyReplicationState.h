@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 
 namespace UE::Net::Private
