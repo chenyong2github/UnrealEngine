@@ -43,7 +43,7 @@ public:
 		}
 		friend uint32 GetTypeHash(const FHandle& Other)
 		{
-			return GetTypeHash(Other.Id);
+			return ::GetTypeHash(Other.Id);
 		}
 	};
 
