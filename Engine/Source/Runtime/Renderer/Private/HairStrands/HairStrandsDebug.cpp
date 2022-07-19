@@ -91,9 +91,9 @@ bool IsHairStrandsClusterDebugAABBEnable()
 	return GHairStrandsClusterDebug > 1;
 }
 
-FHairStrandsDebugData::FPlotData FHairStrandsDebugData::CreatePlotData(FRDGBuilder& GraphBuilder)
+FHairStrandsDebugData::Data FHairStrandsDebugData::CreateData(FRDGBuilder& GraphBuilder)
 {
-	FHairStrandsDebugData::FPlotData Out;
+	FHairStrandsDebugData::Data Out;
 	Out.ShadingPointBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShadingInfo), MaxShadingPointCount), TEXT("Hair.DebugShadingPoint"));
 	Out.ShadingPointCounter = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.DebugShadingPointCounter"));
 	Out.SampleBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(Sample), MaxSampleCount), TEXT("Hair.DebugSample"));
@@ -103,7 +103,7 @@ FHairStrandsDebugData::FPlotData FHairStrandsDebugData::CreatePlotData(FRDGBuild
 	return Out;
 }
 
-void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData::FPlotData& In, FHairStrandsDebugData::FWriteParameters& Out)
+void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FWriteParameters& Out)
 {
 	Out.Debug_MaxSampleCount = FHairStrandsDebugData::MaxSampleCount;
 	Out.Debug_MaxShadingPointCount = FHairStrandsDebugData::MaxShadingPointCount;
@@ -113,7 +113,7 @@ void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHair
 	Out.Debug_SampleCounter = GraphBuilder.CreateUAV(In.SampleCounter, PF_R32_UINT);
 }
 
-void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData::FPlotData& In, FHairStrandsDebugData::FReadParameters& Out)
+void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHairStrandsDebugData::Data& In, FHairStrandsDebugData::FReadParameters& Out)
 {
 	Out.Debug_MaxSampleCount = FHairStrandsDebugData::MaxSampleCount;
 	Out.Debug_MaxShadingPointCount = FHairStrandsDebugData::MaxShadingPointCount;
@@ -367,19 +367,12 @@ static void AddDebugHairPrintPass(
 		const FHairStrandsMacroGroupData& MacroGroup = MacroGroupDatas[MacroGroupIndex];
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 		{
-			if (PrimitiveInfo.PrimitiveSceneProxy)
+			uint32 PrimitiveID = ~0u;
+			if (const FPrimitiveSceneInfo* SceneInfo = PrimitiveInfo.PrimitiveSceneProxy->GetPrimitiveSceneInfo())
 			{
-				uint32 PrimitiveID = ~0u;
-				if (const FPrimitiveSceneInfo* SceneInfo = PrimitiveInfo.PrimitiveSceneProxy->GetPrimitiveSceneInfo())
-				{
-					PrimitiveID = SceneInfo->GetIndex();
-				}
-				InstanceIDs.Add(PrimitiveID);
+				PrimitiveID = SceneInfo->GetIndex();
 			}
-			else
-			{
-				InstanceIDs.Add(0u);
-			}
+			InstanceIDs.Add(PrimitiveID);
 		}
 	}
 	FRDGBufferRef InstancesIDBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceIDs"), FRDGBufferDesc::CreateBufferDesc(4, InstanceIDs.Num()), InstanceIDs.GetData(), 4u * InstanceIDs.Num());
@@ -422,112 +415,6 @@ static void AddDebugHairPrintPass(
 		ComputeShader,
 		Parameters,
 		FIntVector(1, 1, 1));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairDebugShadowCullingCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairDebugShadowCullingCS);
-	SHADER_USE_PARAMETER_STRUCT(FHairDebugShadowCullingCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, InstanceCount)
-		SHADER_PARAMETER(FVector3f, LightCenter)
-		SHADER_PARAMETER(FVector3f, LightExtent)
-		SHADER_PARAMETER(FMatrix44f, LightToWorld)
-		SHADER_PARAMETER(FMatrix44f, ViewWorldToProj)
-		SHADER_PARAMETER(FMatrix44f, ViewProjToWorld)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InstanceBoundInWorldSpace)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InstanceBoundInLightSpace)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InstanceIntersection)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Skip optimization for avoiding long compilation time due to large UAV writes
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
-		OutEnvironment.SetDefine(TEXT("SHADER_SHADOW_CULLING"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairDebugShadowCullingCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainCS", SF_Compute);
-
-static void AddDebugHairShadowCullingPass(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo* View)
-{
-	if (!Scene || !View || !View->HairStrandsViewData.UniformBuffer) return;
-
-	const uint32 LightCount = View->HairStrandsViewData.DebugData.CullData.DirectionalLights.Num();
-	uint32 InstanceCount = 0;
-	for (auto It : View->HairStrandsViewData.DebugData.CullData.DirectionalLights)
-	{
-		InstanceCount += It.InstanceBoundInLightSpace.Num();
-	}
-
-	if (LightCount == 0 || InstanceCount == 0)
-	{
-		return;
-	}
-
-	if (!TryEnableShaderDrawAndShaderPrint(*View, 2000u, 2000u))
-	{
-		return;
-	}
-
-	auto CreateBoundBuffer = [&](const TArray<FHairStrandsDebugData::FCullData::FBound>& In)
-	{
-		TArray<float> Bound; Bound.Reserve(In.Num() * 6);
-		for (auto& B : In)
-		{
-			Bound.Add(B.Min.X);
-			Bound.Add(B.Min.Y);
-			Bound.Add(B.Min.Z);
-			Bound.Add(B.Max.X);
-			Bound.Add(B.Max.Y);
-			Bound.Add(B.Max.Z);
-		}
-		return CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceBounds"), FRDGBufferDesc::CreateBufferDesc(4, Bound.Num()), Bound.GetData(), 4u * Bound.Num());
-	};
-
-	uint32 LightIndex = 0;
-	for (auto It : View->HairStrandsViewData.DebugData.CullData.DirectionalLights)
-	{
-		FRDGBufferRef InstanceBoundInLightSpaceBuffer = CreateBoundBuffer(It.InstanceBoundInLightSpace);
-		FRDGBufferRef InstanceBoundInWorldSpaceBuffer = CreateBoundBuffer(It.InstanceBoundInWorldSpace);
-		FRDGBufferRef InstanceIntersectionBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceIntersection"), FRDGBufferDesc::CreateBufferDesc(4, It.InstanceIntersection.Num()), It.InstanceIntersection.GetData(), 4u * It.InstanceIntersection.Num());
-
-		FHairDebugShadowCullingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugShadowCullingCS::FParameters>();
-		Parameters->InstanceCount = InstanceCount;
-		Parameters->LightCenter = It.Center;
-		Parameters->LightExtent = It.Extent;
-		Parameters->LightToWorld = FMatrix44f(It.LightToWorld);
-		Parameters->ViewWorldToProj = FMatrix44f(View->ViewMatrices.GetViewProjectionMatrix());
-		Parameters->ViewProjToWorld = FMatrix44f(View->ViewMatrices.GetInvViewProjectionMatrix());
-		Parameters->InstanceBoundInLightSpace = GraphBuilder.CreateSRV(InstanceBoundInLightSpaceBuffer, PF_R32_FLOAT);
-		Parameters->InstanceBoundInWorldSpace = GraphBuilder.CreateSRV(InstanceBoundInWorldSpaceBuffer, PF_R32_FLOAT);
-		Parameters->InstanceIntersection = GraphBuilder.CreateSRV(InstanceIntersectionBuffer, PF_R32_UINT);
-		Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
-		ShaderPrint::SetParameters(GraphBuilder, View->ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
-		Parameters->HairStrands = View->HairStrandsViewData.UniformBuffer;
-		TShaderMapRef<FHairDebugShadowCullingCS> ComputeShader(View->ShaderMap);
-
-		ClearUnusedGraphResources(ComputeShader, Parameters);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("HairStrands::DebugShadowCulling(%d/%d)", LightIndex++, LightCount),
-			ComputeShader,
-			Parameters,
-			FIntVector(1, 1, 1));
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1087,7 +974,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsPlotSamplePS, "/Engine/Private/HairStrands/H
 static void AddPlotSamplePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FHairStrandsDebugData::FPlotData& DebugData,
+	const FHairStrandsDebugData::Data& DebugData,
 	FRDGTextureRef& OutputTexture)
 {
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
@@ -1404,16 +1291,11 @@ static void InternalRenderHairStrandsDebugInfo(
 		}
 		if (HairData.DebugData.IsPlotDataValid())
 		{
-			AddPlotSamplePass(GraphBuilder, View, HairData.DebugData.PlotData, SceneColorTexture);
+			AddPlotSamplePass(GraphBuilder, View, HairData.DebugData.Resources, SceneColorTexture);
 		}	
 	}
 
 	float ClusterY = 38;
-
-	if (View.HairStrandsViewData.DebugData.CullData.bIsValid)
-	{
-		AddDebugHairShadowCullingPass(GraphBuilder, Scene, &View);
-	}
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
@@ -1500,13 +1382,13 @@ static void InternalRenderHairStrandsDebugInfo(
 		ShaderPrint::SetEnabled(true);
 		ShaderPrint::RequestSpaceForCharacters(256);
 
-		const FIntPoint PPLLResolution = HairData.DebugData.PPLLData.NodeIndexTexture->Desc.Extent;
+		const FIntPoint PPLLResolution = HairData.DebugData.PPLLNodeIndexTexture->Desc.Extent;
 		FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
 		PassParameters->PPLLMeanListElementCountPerPixel = GetHairStrandsMeanSamplePerPixel();
-		PassParameters->PPLLMaxTotalListElementCount = HairData.DebugData.PPLLData.NodeDataBuffer->Desc.NumElements;
-		PassParameters->PPLLCounter = HairData.DebugData.PPLLData.NodeCounterTexture;
-		PassParameters->PPLLNodeIndex = HairData.DebugData.PPLLData.NodeIndexTexture;
-		PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(HairData.DebugData.PPLLData.NodeDataBuffer));
+		PassParameters->PPLLMaxTotalListElementCount = HairData.DebugData.PPLLNodeDataBuffer->Desc.NumElements;
+		PassParameters->PPLLCounter = HairData.DebugData.PPLLNodeCounterTexture;
+		PassParameters->PPLLNodeIndex = HairData.DebugData.PPLLNodeIndexTexture;
+		PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(HairData.DebugData.PPLLNodeDataBuffer));
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);

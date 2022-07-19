@@ -4142,9 +4142,9 @@ void RenderHairStrandsVisibilityBuffer(
 				// Extract texture for debug visualization
 				if (GHairStrandsDebugPPLL > 0)
 				{
-					View.HairStrandsViewData.DebugData.PPLLData.NodeCounterTexture = PPLLNodeCounterTexture;
-					View.HairStrandsViewData.DebugData.PPLLData.NodeIndexTexture = PPLLNodeIndexTexture;
-					View.HairStrandsViewData.DebugData.PPLLData.NodeDataBuffer = PPLLNodeDataBuffer;
+					View.HairStrandsViewData.DebugData.PPLLNodeCounterTexture = PPLLNodeCounterTexture;
+					View.HairStrandsViewData.DebugData.PPLLNodeIndexTexture = PPLLNodeIndexTexture;
+					View.HairStrandsViewData.DebugData.PPLLNodeDataBuffer = PPLLNodeDataBuffer;
 				}
 			#endif
 			}
