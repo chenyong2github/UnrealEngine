@@ -65,7 +65,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			BaseMaterialName += TEXT("VT");
 		}
 
-		const FString BaseMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s"), *BaseMaterialName, *BaseMaterialName );
+		const FString BaseMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s'"), *BaseMaterialName, *BaseMaterialName );
 
 		if ( UMaterialInterface* BaseMaterial = Cast< UMaterialInterface >( FSoftObjectPath( BaseMaterialPath ).TryLoad() ) )
 		{
