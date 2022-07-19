@@ -123,6 +123,18 @@ using namespace std;
 
 // note this is very old C code being compiled as C++
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4242)
+#pragma warning(disable : 4244)
+#endif
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
+#endif
+
 // float version
 namespace ShewchukExactPredicatesFloat
 {
@@ -140,3 +152,11 @@ namespace ShewchukExactPredicates
 #include "Predicates.inl"
 
 } // namespace ShewchukExactPredicates
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
