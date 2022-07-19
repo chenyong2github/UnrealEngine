@@ -5,7 +5,10 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "Engine/World.h"
+
+#if WITH_EDITOR
 #include "PackageTools.h"
+#endif
 
 #if WITH_DEV_AUTOMATION_TESTS
 
