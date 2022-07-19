@@ -275,9 +275,8 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	{
 		// Hardcoding output 0 as we don't have the UI to specify any other output
 		const int32 OutputIndex = 0;
-		const uint32 Output0Type = Expression->GetOutputType(OutputIndex);
 		int32 PreviewCodeChunk = INDEX_NONE;
-		if (Output0Type != MCT_Strata)
+		if (!Expression->Outputs.IsEmpty() && Expression->GetOutputType(OutputIndex) != MCT_Strata)
 		{
 			PreviewCodeChunk = Expression->CompilePreview(Compiler, OutputIndex);
 		}
