@@ -104,14 +104,14 @@ protected:
 	virtual void RegisterApplicationModes(UDMXLibrary* DMXLibrary, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false);
 
 private:
-	UDMXLibrary* GetEditableDMXLibrary() const;
+	/** Exports the DMX Library */
+	void ExportDMXLibrary() const;
 
 	//~ Generate Editor widgets for tabs
 	TSharedRef<SDMXLibraryEditorTab> CreateDMXLibraryEditorTab();
 	TSharedRef<SDMXFixtureTypeEditor> CreateFixtureTypeEditor();
 	TSharedRef<SDMXFixturePatchEditor> CreateFixturePatchEditor();
 
-private:
 	/** The toolbar builder class */
 	TSharedPtr<FDMXEditorToolbar> Toolbar;
 

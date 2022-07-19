@@ -18,7 +18,7 @@ void UDMXMVRAssetImportData::SetSourceFile(const FString& FilePathAndName)
 		return;
 	}
 
-	RawZipFile.Reset();
-	FFileHelper::LoadFileToArray(RawZipFile, *FilePathAndName);
+	RawSourceData.ByteArray.Reset();
+	FFileHelper::LoadFileToArray(RawSourceData.ByteArray, *FilePathAndName);
 }
 #endif // WITH_EDITOR

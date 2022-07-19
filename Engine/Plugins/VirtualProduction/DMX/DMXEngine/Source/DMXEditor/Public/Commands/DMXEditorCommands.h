@@ -19,7 +19,9 @@ public:
 	// Documentation related
 	TSharedPtr<FUICommandInfo> GoToDocumentation;
 
-	// Entity Editor related
+	// DMX Library related
+	TSharedPtr<FUICommandInfo> ExportDMXLibrary;
+
 	TSharedPtr<FUICommandInfo> AddNewEntityFixtureType;
 	TSharedPtr<FUICommandInfo> AddNewEntityFixturePatch;
 	

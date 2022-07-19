@@ -6,6 +6,7 @@
 #include "Factories/DMXLibraryFromMVRFactory.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -180,7 +181,9 @@ void FDatasmithMVRNativeTranslator::ReplaceMVRActorsWithMVRSceneActor(TSharedRef
 		return;
 	}
 
-	for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription->GetMVRFixtures())
+	TArray<UDMXMVRFixtureNode*> FixtureNodes;
+	GeneralSceneDescription->GetFixtureNodes(FixtureNodes);
+	for (const UDMXMVRFixtureNode* MVRFixture : FixtureNodes)
 	{
 		for (int32 MetaDataIndex = 0; MetaDataIndex < NumMetaDatas; MetaDataIndex++)
 		{
@@ -214,7 +217,7 @@ void FDatasmithMVRNativeTranslator::ReplaceMVRActorsWithMVRSceneActor(TSharedRef
 				continue;
 			}
 
-			if (MetaDataMVRUUID == MVRFixture.UUID)
+			if (MetaDataMVRUUID == MVRFixture->UUID)
 			{
 				const TSharedPtr<IDatasmithElement> AssociatedElementToRemove = MetaDataElement->GetAssociatedElement();
 

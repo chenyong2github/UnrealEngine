@@ -10,6 +10,7 @@
 #include "MVR/DMXMVRFixtureActorLibrary.h"
 #include "MVR/DMXMVRAssetUserData.h"
 #include "MVR/DMXMVRFixtureActorInterface.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "DatasmithAssetUserData.h"
 #include "Components/SceneComponent.h"
@@ -197,15 +198,13 @@ void ADMXMVRSceneActor::SetDMXLibrary(UDMXLibrary* NewDMXLibrary)
 		}
 
 		const FGuid& MVRFixtureUUID = FixturePatch->GetMVRFixtureUUID();
-		const FDMXMVRFixture* MVRFixturePtr = GeneralSceneDescription->FindMVRFixture(MVRFixtureUUID);
-		if (!MVRFixturePtr)
+		const UDMXMVRFixtureNode* FixtureNode = GeneralSceneDescription->FindFixtureNode(MVRFixtureUUID);
+		if (!FixtureNode)
 		{
 			continue;
 		}
-		const FDMXMVRFixture& MVRFixture = *MVRFixturePtr;
 
-		const FTransform Transform = MVRFixture.Transform.IsSet() ? MVRFixture.Transform.GetValue() : FTransform::Identity;
-
+		const FTransform Transform = FixtureNode->GetTransformAbsolute();
 		SpawnMVRActor(ActorClass, FixturePatch, Transform);
 	}
 }

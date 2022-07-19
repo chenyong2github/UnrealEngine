@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "DMXTypes.h"
+
 #include "CoreMinimal.h"
 #include "EditorFramework/AssetImportData.h"
 
 #include "DMXMVRAssetImportData.generated.h"
 
+class FDMXXmlFile;
 class UDMXMVRGeneralSceneDescription;
 
 
@@ -24,8 +27,8 @@ public:
 	/** Returns the Asset Import Data */
 	FORCEINLINE UAssetImportData* GetAssetImportData() { return AssetImportData;};
 
-	/** Returns the raw zip file the asset was generated from */
-	FORCEINLINE const TArray<uint8>& GetRawZipFile() const { return RawZipFile; }
+	/** Returns the raw source file as byte array, as it was imported */
+	FORCEINLINE const TArray64<uint8>& GetRawSourceData() const { return RawSourceData.ByteArray; }
 #endif // WITH_EDITOR 
 
 private:
@@ -34,8 +37,8 @@ private:
 	UPROPERTY()
 	UAssetImportData* AssetImportData;
 
-	/** The raw GDTF zip file as byte array */
+	/** The raw source file as byte array, as it was imported */
 	UPROPERTY()
-	TArray<uint8> RawZipFile;
+	FDMXByteArray64 RawSourceData;
 #endif // WITH_EDITORONLY_DATA
 };

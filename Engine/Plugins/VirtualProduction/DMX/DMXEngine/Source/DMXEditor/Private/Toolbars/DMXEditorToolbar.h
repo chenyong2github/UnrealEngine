@@ -28,7 +28,7 @@ public:
 	FText GetStatusTooltip() const;
 
 private:
-	void FillCompileToolbar(FToolBarBuilder& ToolbarBuilder);
+	void FillDMXLibraryToolbar(FToolBarBuilder& ToolbarBuilder);
 
 protected:
 	/** Pointer back to the blueprint editor tool that owns us */

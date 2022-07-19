@@ -12,6 +12,8 @@
 #include "Styling/StyleColors.h"
 
 
+#define EDITOR_IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush(FPaths::EngineContentDir() / "Editor/Slate" / RelativePath + TEXT(".svg"), __VA_ARGS__ )
+
 FDMXEditorStyle::FDMXEditorStyle()
 	: FSlateStyleSet("DMXEditorStyle")
 {
@@ -75,9 +77,10 @@ FDMXEditorStyle::FDMXEditorStyle()
 	{ 
 		Set("Icons.DMXLibrary", new IMAGE_BRUSH_SVG("DMXLibrary_20", Icon20x20));
 
-		{
-			Set("Icons.DMXLibrarySettings", new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings", Icon16x16));
-		}
+		Set("Icons.DMXLibrarySettings", new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings", Icon16x16));
+
+		Set("Icons.DMXLibraryToolbar.Export", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/Export", Icon20x20));
+
 		Set("Icons.FixtureType", new IMAGE_BRUSH_SVG("FixtureType_16", Icon16x16));
 		Set("Icons.FixturePatch", new IMAGE_BRUSH_SVG("FixturePatch_16", Icon16x16));
 
@@ -139,6 +142,7 @@ FDMXEditorStyle::FDMXEditorStyle()
 			.SetArrowsImage(FSlateNoResource()));
 	}
 
+	// Fixture List
 	{
 		Set("MVRFixtureList.Row", FTableRowStyle()
 			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.f, 1.f, 1.f, .2f)))
@@ -198,3 +202,5 @@ void FDMXEditorStyle::ReloadTextures()
 		FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
 	}
 }
+
+#undef EDITOR_IMAGE_BRUSH_SVG

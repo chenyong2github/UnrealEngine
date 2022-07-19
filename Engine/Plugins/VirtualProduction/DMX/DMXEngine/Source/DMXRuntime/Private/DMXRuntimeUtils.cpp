@@ -8,6 +8,139 @@
 
 #define LOCTEXT_NAMESPACE "FDMXRuntimeUtils"
 
+FDMXOptionalTransform FDMXRuntimeUtils::ParseGDTFMatrix(const FString& String)
+{
+	auto GetVectorStringsFromMatrixStringLambda([](const FString& MatrixString) -> TArray<FString>
+		{
+			TArray<FString> Result;
+			int32 SubstringIndex = 0;
+			for (int32 SubStringNumber = 0; SubStringNumber < 4; SubStringNumber++)
+			{
+				SubstringIndex = MatrixString.Find(TEXT("{"), ESearchCase::IgnoreCase, ESearchDir::FromStart, SubstringIndex) + 1;
+				const int32 EndIndex = MatrixString.Find(TEXT("}"), ESearchCase::IgnoreCase, ESearchDir::FromStart, SubstringIndex);
+
+				const FString SubString = MatrixString.Mid(SubstringIndex, EndIndex - SubstringIndex);
+
+				if (!SubString.IsEmpty())
+				{
+					Result.Add(SubString);
+				}
+			}
+
+			return Result;
+		});
+
+	auto GetVectorFromVectorStringLambda([](const FString& VectorString) -> FVector
+		{
+			const int32 XIndex = 0;
+			const int32 YIndex = VectorString.Find(TEXT(","), ESearchCase::IgnoreCase, ESearchDir::FromStart, 0) + 1;
+			const int32 ZIndex = VectorString.Find(TEXT(","), ESearchCase::IgnoreCase, ESearchDir::FromStart, YIndex) + 1;
+
+			const FString XString = "X=" + VectorString.Mid(XIndex, YIndex - XIndex);
+			const FString YString = "Y=" + VectorString.Mid(YIndex, ZIndex - YIndex);
+			const FString ZString = "Z=" + VectorString.Mid(ZIndex, VectorString.Len() - ZIndex);
+
+			FVector Vector;
+			if (Vector.InitFromString(XString + YString + ZString))
+			{
+				return Vector;
+			}
+
+			return FVector::ZeroVector;
+		});
+
+	FDMXOptionalTransform OptionalResult;
+	const TArray<FString> SubStrings = GetVectorStringsFromMatrixStringLambda(String);
+	if (SubStrings.Num() != 4)
+	{
+		return OptionalResult;
+	}
+
+	// From millimeters to centimeters
+	const FVector U = GetVectorFromVectorStringLambda(SubStrings[0]) / 10.0;
+	const FVector V = GetVectorFromVectorStringLambda(SubStrings[1]) / 10.0;
+	const FVector W = GetVectorFromVectorStringLambda(SubStrings[2]) / 10.0;
+	const FVector O = GetVectorFromVectorStringLambda(SubStrings[3]) / 10.0;
+
+	FMatrix Matrix;
+	Matrix.M[0][0] = U.X; 
+	Matrix.M[0][1] = U.Y;
+	Matrix.M[0][2] = U.Z;
+	Matrix.M[0][3] = 0.0;
+
+	Matrix.M[1][0] = V.X;
+	Matrix.M[1][1] = V.Y;
+	Matrix.M[1][2] = V.Z;
+	Matrix.M[1][3] = 0.0;
+
+	Matrix.M[2][0] = W.X;
+	Matrix.M[2][1] = W.Y;
+	Matrix.M[2][2] = W.Z;
+	Matrix.M[2][3] = 0.0;
+
+	Matrix.M[3][0] = O.X;
+	Matrix.M[3][1] = -O.Y; // From GDTF's right hand to UE's left hand coordinate system
+	Matrix.M[3][2] = O.Z;
+	Matrix.M[3][3] = 1.0;
+
+	FTransform Result(Matrix);
+
+	// Mm to cm does not affect scale
+	Result.SetScale3D(Result.GetScale3D() * 10.0);
+
+	// GDTFs are facing down on the Z-Axis, but UE Actors are facing up 
+	const FQuat InvertUpRotationQuaternion = FQuat(Result.GetRotation().GetAxisY(), PI);
+	Result.SetRotation(Result.GetRotation() * InvertUpRotationQuaternion);
+
+	OptionalResult = Result;
+	return OptionalResult;
+}
+
+FString FDMXRuntimeUtils::ConvertTransformToGDTF4x3MatrixString(FTransform Transform)
+{
+	if (!ensureAlwaysMsgf(Transform.IsValid(), TEXT("Got invalid tranform when trying to generate a GDTF Matrix String from it.")))
+	{
+		Transform = FTransform::Identity;
+	}
+
+	// GDTFs are facing down on the Z-Axis, but UE Actors are facing up 
+	const FQuat InvertUpRotationQuaternion = FQuat(Transform.GetRotation().GetAxisY(), PI);
+	Transform.SetRotation(Transform.GetRotation() * InvertUpRotationQuaternion);
+
+	FMatrix Matrix = Transform.ToMatrixWithScale();
+	Matrix.M[3][1] = -Matrix.M[3][1]; // From UE's left hand to GDTF's right hand coordinate system
+
+	FString Result;
+	constexpr int32 FractionalDigits = 6; // As other soft- and hardwares
+
+	Result += TEXT("{");
+	Result += FString::SanitizeFloat(Matrix.M[0][0], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[0][1], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[0][2], FractionalDigits);
+	Result += TEXT("}");
+
+	Result += TEXT("{");
+	Result += FString::SanitizeFloat(Matrix.M[1][0], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[1][1], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[1][2], FractionalDigits);
+	Result += TEXT("}");
+
+	Result += TEXT("{");
+	Result += FString::SanitizeFloat(Matrix.M[2][0], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[2][1], FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[2][2], FractionalDigits);
+	Result += TEXT("}");
+
+	// From centimeters to milimeters
+	Result += TEXT("{");
+	Result += FString::SanitizeFloat(Matrix.M[3][0] * 10.0, FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[3][1] * 10.0, FractionalDigits) + TEXT(",");
+	Result += FString::SanitizeFloat(Matrix.M[3][2] * 10.0, FractionalDigits);
+	Result += TEXT("}");
+
+	return Result;
+}
+
 FString FDMXRuntimeUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
 	if (!InBaseName.IsEmpty() && !InExistingNames.Contains(InBaseName))

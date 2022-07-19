@@ -12,6 +12,8 @@ void FDMXEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(GoToDocumentation, "View Documentation", "View documentation about DMX editor", EUserInterfaceActionType::Button, FInputChord());
 
+	UI_COMMAND(ExportDMXLibrary, "Export", "Exports the DMX Library", EUserInterfaceActionType::Button, FInputChord());
+
 	UI_COMMAND(AddNewEntityFixtureType, "New Fixture Type", "Creates a new Fixture Type in this library", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddNewEntityFixturePatch, "Add Fixture", "Creates a new Fixture Patch in this library", EUserInterfaceActionType::Button, FInputChord());
 

@@ -8,7 +8,8 @@
 #if WITH_EDITOR
 FString UDMXGDTFAssetImportData::GetSourceFilePathAndName() const
 {
-	return GetFirstFilename();
+	// Not GetFirstFilename(), we want the name even if the file doesn't exist on disk locally.
+	return SourceData.SourceFiles.Num() > 0 ? SourceData.SourceFiles[0].RelativeFilename : FString();
 }
 #endif // WITH_EDITOR
 
@@ -24,7 +25,7 @@ void UDMXGDTFAssetImportData::SetSourceFile(const FString& FilePathAndName)
 		return;
 	}
 
-	RawZipFile.Reset();
-	FFileHelper::LoadFileToArray(RawZipFile, *FilePathAndName);
+	RawSourceData.ByteArray.Reset();
+	FFileHelper::LoadFileToArray(RawSourceData.ByteArray, *FilePathAndName);
 }
 #endif // WITH_EDITOR

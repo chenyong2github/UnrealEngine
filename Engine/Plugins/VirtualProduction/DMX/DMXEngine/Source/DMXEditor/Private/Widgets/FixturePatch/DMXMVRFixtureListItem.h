@@ -5,6 +5,7 @@
 #include "MVR/DMXMVRGeneralSceneDescription.h"
 
 #include "CoreMinimal.h"
+#include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtr.h"
 
 class FDMXEditor;
@@ -12,11 +13,13 @@ class FDMXFixturePatchSharedData;
 class UDMXEntityFixturePatch;
 class UDMXEntityFixtureType;
 class UDMXLibrary;
+class UDMXMVRFixtureNode;
 
 
 /** An MVR Fixture as an Item in a List. A Primary Items is the first MVR Fixture in a Patch. Secondary Items are subsequent MVR Fixtures */
 class FDMXMVRFixtureListItem
-	: public TSharedFromThis<FDMXMVRFixtureListItem>
+	: public FGCObject
+	, public TSharedFromThis<FDMXMVRFixtureListItem>
 {
 public:	
 	/** Constructor */
@@ -91,18 +94,28 @@ public:
 	/** Error Status Text of the Item */
 	FText ErrorStatusText;
 
+protected:
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDMXMVRFixtureListItem");
+	}
+	// End of FGCObject interface
+
+
 private:
 	/** Duplicates Fixture Patches */
 	static void DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor> WeakDMXEditor, const TArray<UDMXEntityFixturePatch*>& FixturePatchesToDuplicate, const FText& TransactionText);
 
-	/** Returns the live MVR Fixture in the library */
-	FDMXMVRFixture* FindMVRFixture() const;
+	/** Returns the MVR Fixture Node that corresponds to this item */
+	UDMXMVRFixtureNode* FindMVRFixture() const;
 
 	/** True if this is in an even group */
 	bool bIsEvenGroup = false;
 
-	/** Cached MVR Fixture to speed up getters. Should not be used by setters. Use RefreshCachedMVRFixture to update. */
-	FDMXMVRFixture CachedMVRFixture;
+	/** Cached MVR Fixture to speed up getters. */
+	UDMXMVRFixtureNode* MVRFixtureNode = nullptr;
 
 	/** The MVRFixtureUUID this Item handles */
 	FGuid MVRFixtureUUID;

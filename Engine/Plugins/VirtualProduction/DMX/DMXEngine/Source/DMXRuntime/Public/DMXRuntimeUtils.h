@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DMXOptionalTypes.h"
 #include "Library/DMXEntityFixtureType.h"
 
 #include "CoreMinimal.h"
@@ -15,6 +16,12 @@ class UDMXLibrary;
 class DMXRUNTIME_API FDMXRuntimeUtils
 {
 public:
+	/** Parses a GDTF (or MVR) Transformation Matrix from a String. Result is optional and set if parsing succeeded. */
+	static FDMXOptionalTransform ParseGDTFMatrix(const FString& String);
+
+	/** Converts a UE transform to a GDTF style string */
+	static FString ConvertTransformToGDTF4x3MatrixString(FTransform Transform);
+
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
 	 * existing names. If InBaseName is an empty String, it returns "Default name".

@@ -27,6 +27,7 @@ public class DMXEditor : ModuleRules
 				"AssetTools",
 				"ContentBrowser",
 				"CoreUObject",
+				"DesktopPlatform",
 				"EditorFramework",
 				"EditorStyle",
 				"EditorWidgets",
@@ -45,8 +46,8 @@ public class DMXEditor : ModuleRules
 				"SlateCore",
 				"TakesCore",
 				"TakeRecorder",
-				"ToolWidgets",
 				"TakeTrackRecorders",
+				"ToolWidgets",
 				"UnrealEd",
 				"XmlParser",
 			}

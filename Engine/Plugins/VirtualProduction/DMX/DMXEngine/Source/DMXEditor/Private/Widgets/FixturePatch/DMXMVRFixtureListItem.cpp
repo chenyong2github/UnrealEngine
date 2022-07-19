@@ -7,6 +7,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "ScopedTransaction.h"
 
@@ -41,11 +42,7 @@ FDMXMVRFixtureListItem::FDMXMVRFixtureListItem(TWeakPtr<FDMXEditor> InDMXEditor,
 		WeakFixturePatch = *FixturePatchPtr;
 	}
 	
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
-	if (MVRFixturePtr)
-	{
-		CachedMVRFixture = *MVRFixturePtr;
-	}
+	MVRFixtureNode = FindMVRFixture();
 }
 
 const FGuid& FDMXMVRFixtureListItem::GetMVRUUID() const
@@ -98,47 +95,39 @@ void FDMXMVRFixtureListItem::SetFixturePatchName(const FString& InDesiredName, F
 
 int32 FDMXMVRFixtureListItem::GetUnitNumber() const
 {
-	return CachedMVRFixture.UnitNumber;
+	return MVRFixtureNode->UnitNumber;
 }
 
 void FDMXMVRFixtureListItem::SetUnitNumber(int32 InUnitNumber)
 {
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
-	if (MVRFixturePtr && DMXLibrary)
+	if (MVRFixtureNode && DMXLibrary)
 	{
 		const FScopedTransaction SetMVRFixtureUnitNumberTransaction(LOCTEXT("SetMVRFixtureUnitNumberTransaction", "Set MVR Fixture UnitNumber"));
 		DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetGeneralSceneDescriptionPropertyName()));
 
-		MVRFixturePtr->UnitNumber = InUnitNumber;
+		MVRFixtureNode->UnitNumber = InUnitNumber;
 
 		DMXLibrary->PostEditChange();
-
-		// Update Cache for Getter
-		CachedMVRFixture = *MVRFixturePtr;
 	}
 }	
 
 const FString& FDMXMVRFixtureListItem::GetMVRFixtureName() const
 {
-	return CachedMVRFixture.Name;
+	return MVRFixtureNode->Name;
 }
 
 bool FDMXMVRFixtureListItem::SetMVRFixtureName(const FString& Name)
 {
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
-	if (!Name.IsEmpty() && MVRFixturePtr && DMXLibrary)
+	if (!Name.IsEmpty() && MVRFixtureNode && DMXLibrary)
 	{
 		const FScopedTransaction SetMVRFixtureNameTransaction(LOCTEXT("SetMVRFixtureNameTransaction", "Set MVR Fixture Name"));
 		DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetGeneralSceneDescriptionPropertyName()));
 
-		MVRFixturePtr->Name = Name;
+		MVRFixtureNode->Name = Name;
 
 		DMXLibrary->PostEditChange();
-
-		// Update Cache for Getter
-		CachedMVRFixture = *MVRFixturePtr;
 	}
 
 	return false;
@@ -158,9 +147,8 @@ void FDMXMVRFixtureListItem::SetFixtureType(UDMXEntityFixtureType* FixtureType)
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	UDMXEntityFixturePatch* FixturePatch = WeakFixturePatch.Get();
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
 
-	if (DMXLibrary && FixturePatch && MVRFixturePtr)
+	if (DMXLibrary && FixturePatch)
 	{
 		if (FixturePatch->GetFixtureType() == FixtureType)
 		{
@@ -190,9 +178,8 @@ void FDMXMVRFixtureListItem::SetModeIndex(int32 ModeIndex)
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	UDMXEntityFixturePatch* FixturePatch = WeakFixturePatch.Get();
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
 
-	if (DMXLibrary && FixturePatch && MVRFixturePtr)
+	if (DMXLibrary && FixturePatch)
 	{
 		if (ModeIndex == FixturePatch->GetActiveModeIndex())
 		{
@@ -233,9 +220,8 @@ void FDMXMVRFixtureListItem::SetAddresses(int32 Universe, int32 Address)
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	UDMXEntityFixturePatch* FixturePatch = WeakFixturePatch.Get();
-	FDMXMVRFixture* MVRFixturePtr = FindMVRFixture();
 
-	if (DMXLibrary && FixturePatch && MVRFixturePtr)
+	if (DMXLibrary && FixturePatch)
 	{
 		if (FixturePatch->GetUniverseID() == Universe &&
 			FixturePatch->GetStartingChannel() == Address)
@@ -261,7 +247,6 @@ void FDMXMVRFixtureListItem::SetAddresses(int32 Universe, int32 Address)
 		FixturePatch->SetStartingChannel(Address);
 
 		FixturePatch->PostEditChange();
-
 
 		// Select the universe in Fixture Patch Shared Data
 		FixturePatchSharedData->SelectUniverse(Universe);
@@ -358,6 +343,11 @@ UDMXLibrary* FDMXMVRFixtureListItem::GetDMXLibrary() const
 	return nullptr;
 }
 
+void FDMXMVRFixtureListItem::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(MVRFixtureNode);
+}
+
 void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor> WeakDMXEditor, const TArray<UDMXEntityFixturePatch*>& FixturePatchesToDuplicate, const FText& TransactionText)
 {
 	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
@@ -437,19 +427,6 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 		UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(ConstructionParams, FixturePatchToDuplicate->Name);
 		NewFixturePatches.Add(NewFixturePatch);
 
-		// Duplicate the MVR Fixture if it exists
-		UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
-		if (ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to duplicate MVR Fixture in the General Scene Description of '%s', but the General Scene Desription is not valid."), *DMXLibrary->GetName()))
-		{
-			FDMXMVRFixture* SourceMVRFixturePtr = GeneralSceneDescription->FindMVRFixture(FixturePatchToDuplicate->GetMVRFixtureUUID());
-			if (SourceMVRFixturePtr)
-			{
-				FDMXMVRFixture MVRFixture = *SourceMVRFixturePtr;
-				MVRFixture.UUID = NewFixturePatch->GetMVRFixtureUUID();
-				DMXLibrary->GetLazyGeneralSceneDescription()->AddMVRFixture(MVRFixture);
-			}
-		}
-
 		Address += ChannelSpan;
 	}
 
@@ -461,7 +438,7 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 	}
 }
 
-FDMXMVRFixture* FDMXMVRFixtureListItem::FindMVRFixture() const
+UDMXMVRFixtureNode* FDMXMVRFixtureListItem::FindMVRFixture() const
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 
@@ -477,7 +454,7 @@ FDMXMVRFixture* FDMXMVRFixtureListItem::FindMVRFixture() const
 		return nullptr;
 	}
 
-	return GeneralSceneDescription->FindMVRFixture(MVRFixtureUUID);
+	return GeneralSceneDescription->FindFixtureNode(MVRFixtureUUID);
 }
 
 #undef LOCTEXT_NAMESPACE

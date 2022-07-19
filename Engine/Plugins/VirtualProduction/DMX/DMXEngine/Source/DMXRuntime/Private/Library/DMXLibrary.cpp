@@ -569,15 +569,12 @@ void UDMXLibrary::UpdatePorts()
 
 void UDMXLibrary::SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* NewGeneralSceneDescription)
 {
-	// Remove all Fixture Patches that don't exist in the General Scene Description
-	Entities.RemoveAll([NewGeneralSceneDescription](UDMXEntity* Entity)
-		{
-			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-			{
-				return NewGeneralSceneDescription->FindMVRFixture(FixturePatch->GetMVRFixtureUUID()) == nullptr;
-			}
-			return false;
-		});
+	// Remove all Fixture Patches
+	TArray<UDMXEntityFixturePatch*> FixturePatches = GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	{
+		UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary(FDMXEntityFixturePatchRef(FixturePatch));
+	}
 
 	GeneralSceneDescription = NewGeneralSceneDescription;
 }

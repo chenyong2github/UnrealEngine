@@ -4,18 +4,17 @@
 
 #include "CoreMinimal.h"
 
-#include "MVR/DMXMVRFixture.h"
-
 #include "Misc/Optional.h"
 #include "Serialization/Archive.h"
 
 #include "DMXMVRGeneralSceneDescription.generated.h"
 
+class FXmlFile;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 class UDMXMVRAssetImportData;
-
-class FXmlFile;
+class UDMXMVRRootNode;
+class UDMXMVRFixtureNode;
 
 
 /** MVR General Scene Description Object */
@@ -29,38 +28,31 @@ public:
 	/** Constructor */
 	UDMXMVRGeneralSceneDescription();
 
+	/** Gets the MVR Fixture Nodes in this General Scene Description */
+	void GetFixtureNodes(TArray<UDMXMVRFixtureNode*>& OutFixtureNodes) const;
+
+	/** Returns the Fixture Node corresponding to the UUID, or nullptr if it cannot be found */
+	UDMXMVRFixtureNode* FindFixtureNode(const FGuid& FixtureUUID) const;
+
 #if WITH_EDITOR
 	/** Creates an MVR General Scene Description from an Xml File */
 	static UDMXMVRGeneralSceneDescription* CreateFromXmlFile(TSharedRef<FXmlFile> GeneralSceneDescriptionXml, UObject* Outer, FName Name, EObjectFlags Flags = RF_NoFlags);
 
 	/** Creates an MVR General Scene Description from a DMX Library */
 	static UDMXMVRGeneralSceneDescription* CreateFromDMXLibrary(const UDMXLibrary& DMXLibrary, UObject* Outer, FName Name, EObjectFlags Flags = RF_NoFlags);
-#endif 
 
-	/** Returns a pointer to the MVR Fixture with corresponding UUID or nullptr if not found */
-	FDMXMVRFixture* FindMVRFixture(const FGuid& MVRFixtureUUID);
-
-	/** Adds an MVR Fixture to the General Scene Description */
-	void AddMVRFixture(FDMXMVRFixture& MVRFixture);
-
-#if WITH_EDITOR
 	/**
 	 * Writes the Library to the General Scene Description, effectively removing inexisting and adding
 	 * new MVR Fixtures, according to what MVR Fixture UUIDs the Fixture Patches of the Library contain.
 	 */
 	void WriteDMXLibraryToGeneralSceneDescription(const UDMXLibrary& DMXLibrary);
 
-	/** Returns the MVR Fixtures of the General Scene Description */
-	FORCEINLINE const TArray<FDMXMVRFixture>& GetMVRFixtures() const { return MVRFixtures; }
+	/** Creates an General Scene Description Xml File from this. */
+	TSharedPtr<FXmlFile> CreateXmlFile() const;
 
 	/** Returns MVR Asset Import Data for this asset */
 	FORCEINLINE UDMXMVRAssetImportData* GetMVRAssetImportData() const { return MVRAssetImportData; }
 #endif
-
-protected:
-	//~ Begin UObject interface
-	virtual void Serialize(FArchive& Ar) override;
-	//~ End UObject interface
 
 private:
 #if WITH_EDITOR
@@ -74,8 +66,9 @@ private:
 	/** Returns the Unit Numbers currently in use, sorted from lowest to highest */
 	TArray<int32> GetUnitNumbersInUse(const UDMXLibrary& DMXLibrary);
 
-	/** The MVR Fixtures of the General Scene Description */
-	TArray<FDMXMVRFixture> MVRFixtures;
+	/** The Root Node of the General Scene Description */
+	UPROPERTY()
+	UDMXMVRRootNode* RootNode;
 
 #if WITH_EDITORONLY_DATA
 	/** Import Data for this asset */

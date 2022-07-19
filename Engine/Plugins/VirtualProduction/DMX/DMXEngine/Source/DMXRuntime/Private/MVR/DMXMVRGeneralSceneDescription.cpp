@@ -10,18 +10,46 @@
 #include "Library/DMXImportGDTF.h"
 #include "Library/DMXLibrary.h"
 #include "MVR/DMXMVRAssetImportData.h"
+#include "MVR/Types/DMXMVRChildListNode.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
+#include "MVR/Types/DMXMVRGroupObjectNode.h"
+#include "MVR/Types/DMXMVRLayerNode.h"
+#include "MVR/Types/DMXMVRLayersNode.h"
+#include "MVR/Types/DMXMVRParametricObjectNodeBase.h"
+#include "MVR/Types/DMXMVRRootNode.h"
+#include "MVR/Types/DMXMVRSceneNode.h"
 
 #include "XmlFile.h"
-#include "XmlNode.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
 
 
 UDMXMVRGeneralSceneDescription::UDMXMVRGeneralSceneDescription()
 {
+	RootNode = CreateDefaultSubobject<UDMXMVRRootNode>("MVRRootNode");
+
 #if WITH_EDITORONLY_DATA
-	MVRAssetImportData = NewObject<UDMXMVRAssetImportData>(this, TEXT("MVRAssetImportData"), RF_Public);
+	MVRAssetImportData = CreateDefaultSubobject<UDMXMVRAssetImportData>(TEXT("MVRAssetImportData"));
 #endif
+}
+
+void UDMXMVRGeneralSceneDescription::GetFixtureNodes(TArray<UDMXMVRFixtureNode*>& OutFixtureNodes) const
+{
+	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
+
+	OutFixtureNodes.Reset();
+	RootNode->GetFixtureNodes(OutFixtureNodes);
+}
+
+UDMXMVRFixtureNode* UDMXMVRGeneralSceneDescription::FindFixtureNode(const FGuid& FixtureUUID) const
+{
+	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
+
+	if (UDMXMVRParametricObjectNodeBase** ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(FixtureUUID))
+	{
+		return Cast<UDMXMVRFixtureNode>(*ObjectNodePtr);
+	}
+	return nullptr;
 }
 
 #if WITH_EDITOR
@@ -44,35 +72,9 @@ UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromDMXLib
 }
 #endif // WITH_EDITOR
 
-FDMXMVRFixture* UDMXMVRGeneralSceneDescription::FindMVRFixture(const FGuid& MVRFixtureUUID)
-{
-	return MVRFixtures.FindByPredicate([MVRFixtureUUID](const FDMXMVRFixture& MVRFixture)
-		{
-			return MVRFixture.UUID == MVRFixtureUUID;
-		});
-}
-
-void UDMXMVRGeneralSceneDescription::AddMVRFixture(FDMXMVRFixture& MVRFixture)
-{
-	if (ensureAlwaysMsgf(MVRFixture.UUID.IsValid(), TEXT("Trying to add MVR Fixture '%s' to General Scene Description, but the UUID is invalid."), *MVRFixture.Name))
-	{
-		return;
-	}
-
-	const bool bUUIDAlreadyContained = FindMVRFixture(MVRFixture.UUID) != nullptr;
-	if (ensureAlwaysMsgf(bUUIDAlreadyContained, TEXT("Trying to add MVR Fixture '%s' to General Scene Description, but its UUID is already containted in the General Scene Description."), *MVRFixture.Name))
-	{
-		return;
-	}
-
-	MVRFixtures.Add(MVRFixture);
-}
-
 #if WITH_EDITOR
 void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(const UDMXLibrary& DMXLibrary)
 {
-	TArray<FDMXMVRFixture> MVRFixturesInDMXLibrary;
-
 	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary.GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	FixturePatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
 		{
@@ -83,17 +85,21 @@ void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(co
 			return bUniverseIsSmaller || (bUniverseIsEqual && bAddressIsSmaller);
 		});
 
+	// Remove Fixture Nodes no longer defined in the DMX Library
 	TArray<FGuid> MVRFixtureUUIDsInUse;
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
 	{
 		MVRFixtureUUIDsInUse.Add(FixturePatch->GetMVRFixtureUUID());
 	}
-
-	// Remove entries no longer present in the DMX Library
-	MVRFixtures.RemoveAll([&MVRFixtureUUIDsInUse](const FDMXMVRFixture& MVRFixture)
+	TArray<UDMXMVRFixtureNode*> FixtureNodes;
+	RootNode->GetFixtureNodes(FixtureNodes);
+	for (UDMXMVRFixtureNode* FixtureNode : FixtureNodes)
+	{
+		if (!FixtureNode || !MVRFixtureUUIDsInUse.Contains(FixtureNode->UUID))
 		{
-			return !MVRFixtureUUIDsInUse.Contains(MVRFixture.UUID);
-		});
+			RootNode->RemoveParametricObjectNode(FixtureNode);
+		}
+	}
 
 	// Create or update MVR Fixtures for each Fixture Patch's MVR Fixture UUIDs
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
@@ -106,128 +112,98 @@ void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(co
 }
 #endif // WITH_EDITOR
 
-void UDMXMVRGeneralSceneDescription::Serialize(FArchive& Ar)
+#if WITH_EDITOR
+TSharedPtr<FXmlFile> UDMXMVRGeneralSceneDescription::CreateXmlFile() const
 {
-	Super::Serialize(Ar);
-
-	Ar << MVRFixtures;
+	return RootNode ? RootNode->CreateXmlFile() : nullptr;
 }
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(const UDMXEntityFixturePatch& FixturePatch)
 {
-	if (const UDMXLibrary* DMXLibrary = FixturePatch.GetParentLibrary())
+	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
+
+	const UDMXLibrary* DMXLibrary = FixturePatch.GetParentLibrary();
+	if (!DMXLibrary)
 	{
-		const FGuid& MVRFixtureUUID = FixturePatch.GetMVRFixtureUUID();
-		FDMXMVRFixture* MVRFixturePtr = FindMVRFixture(MVRFixtureUUID);
+		return;
+	}
 
-		FDMXMVRFixture MVRFixture;
-		if (MVRFixturePtr)
+	const FGuid& MVRFixtureUUID = FixturePatch.GetMVRFixtureUUID();
+	UDMXMVRParametricObjectNodeBase** ParametricObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID);
+
+	UDMXMVRFixtureNode* MVRFixtureNode = nullptr;
+	if (ParametricObjectNodePtr)
+	{
+		MVRFixtureNode = Cast<UDMXMVRFixtureNode>(*ParametricObjectNodePtr);
+	}
+
+	if (!MVRFixtureNode)
+	{
+		UDMXMVRChildListNode& AnyChildList = RootNode->GetOrCreateFirstChildListNode();
+		MVRFixtureNode = AnyChildList.CreateParametricObject<UDMXMVRFixtureNode>();
+
+		const TArray<int32> UnitNumbersInUse = GetUnitNumbersInUse(*DMXLibrary);
+		const int32 UnitNumber = UnitNumbersInUse.Num() > 0 ? UnitNumbersInUse.Last() + 1 : 1;
+
+		MVRFixtureNode->Name = FixturePatch.Name;
+		MVRFixtureNode->UUID = MVRFixtureUUID;
+
+		// Create a new Unit Number and add it to the array of Unit Numbers in use
+		MVRFixtureNode->UnitNumber = UnitNumber;
+	}
+	check(MVRFixtureNode);
+
+	MVRFixtureNode->SetUniverseID(FixturePatch.GetUniverseID());
+	MVRFixtureNode->SetStartingChannel(FixturePatch.GetStartingChannel());
+
+	bool bSetGDTFSpec = false;
+	if (UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType())
+	{
+		if (UDMXImportGDTF* GDTF = FixtureType->GDTF)
 		{
-			MVRFixture = *MVRFixturePtr;
-		}
-		else
-		{
-			const TArray<int32> UnitNumbersInUse = GetUnitNumbersInUse(*DMXLibrary);
-			const int32 UnitNumber = UnitNumbersInUse.Num() > 0 ? UnitNumbersInUse.Last() + 1 : 1;
-
-			MVRFixture.Name = FixturePatch.Name;
-			MVRFixture.UUID = MVRFixtureUUID;
-
-			// Create a new Unit Number and add it to the array of Unit Numbers in use
-			MVRFixture.UnitNumber = UnitNumbersInUse.Last() + 1;
-		}
-
-		MVRFixture.SetUniverseID(FixturePatch.GetUniverseID());
-		MVRFixture.SetStartingChannel(FixturePatch.GetStartingChannel());
-
-		bool bSetGDTFSpec = false;
-		if (UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType())
-		{
-			if (UDMXImportGDTF* GDTF = FixtureType->GDTF)
+			const FString SourceFilename = [GDTF]()
 			{
-				const FString SourceFilename = [GDTF]()
+				if (GDTF && GDTF->GetGDTFAssetImportData())
 				{
-					if (GDTF && GDTF->GetGDTFAssetImportData())
-					{
-						return GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
-					}
-					return FString();
-				}();
-				MVRFixture.GDTFSpec = FPaths::GetBaseFilename(SourceFilename);
-			}
-
-			const int32 ModeIndex = FixturePatch.GetActiveModeIndex();
-			if (ensureAlwaysMsgf(FixtureType->Modes.IsValidIndex(ModeIndex), TEXT("Trying to write Active Mode of to General Scene Description, but the Mode Index is invalid")))
-			{
-				MVRFixture.GDTFMode = FixtureType->Modes[ModeIndex].ModeName;
-			}
+					return GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+				}
+				return FString();
+			}();
+			MVRFixtureNode->GDTFSpec = FPaths::GetCleanFilename(SourceFilename);
+			bSetGDTFSpec = true;
 		}
 
-		if (!bSetGDTFSpec)
+		const int32 ModeIndex = FixturePatch.GetActiveModeIndex();
+		if (ensureAlwaysMsgf(FixtureType->Modes.IsValidIndex(ModeIndex), TEXT("Trying to write Active Mode of to General Scene Description, but the Mode Index is invalid")))
 		{
-			// No point to set a mode when there's no GDTF
-			MVRFixture.GDTFMode = TEXT("");
-			MVRFixture.GDTFSpec = TEXT("");
+			MVRFixtureNode->GDTFMode = FixtureType->Modes[ModeIndex].ModeName;
 		}
+	}
 
-		if (MVRFixturePtr)
-		{
-			(*MVRFixturePtr) = MVRFixture;
-		}
-		else
-		{
-			MVRFixtures.Add(MVRFixture);
-		}
+	if (!bSetGDTFSpec)
+	{
+		// Don't set a mode when there's no GDTF
+		MVRFixtureNode->GDTFMode = TEXT("");
+		MVRFixtureNode->GDTFSpec = TEXT("");
 	}
 }
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescription)
+void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml)
 {
-	if (const FXmlNode* RootNode = GeneralSceneDescription->GetRootNode())
-	{
-		static const FString NodeName_Scene = TEXT("Scene");
-		if (const FXmlNode* SceneNode = RootNode->FindChildNode(NodeName_Scene))
-		{
-			static const FString NodeName_Layers = TEXT("Layers");
-			if (const FXmlNode* LayersNode = SceneNode->FindChildNode(NodeName_Layers))
-			{
-				for (const FXmlNode* LayerNode : LayersNode->GetChildrenNodes())
-				{
-					static const FString NodeName_Layer = TEXT("Layer");
-					if (LayerNode->GetTag() == NodeName_Layer)
-					{
-						for (const FXmlNode* ChildListNode : LayerNode->GetChildrenNodes())
-						{
-							static const FString NodeName_ChildList = TEXT("ChildList");
-							if (ChildListNode->GetTag() == NodeName_ChildList)
-							{
-								for (const FXmlNode* FixtureNode : ChildListNode->GetChildrenNodes())
-								{
-									static const FString NodeName_Fixture = TEXT("Fixture");
-									if (FixtureNode->GetTag() == NodeName_Fixture)
-									{
-										FDMXMVRFixture MVRFixture(FixtureNode);
-										if (MVRFixture.IsValid())
-										{
-											MVRFixtures.Add(MoveTemp(MVRFixture));
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
+
+	RootNode->InitializeFromGeneralSceneDescriptionXml(GeneralSceneDescriptionXml);
 }
 #endif // WITH_EDITOR
 
 TArray<int32> UDMXMVRGeneralSceneDescription::GetUnitNumbersInUse(const UDMXLibrary& DMXLibrary)
 {
+	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
+
 	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary.GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 
 	TArray<FGuid> MVRFixtureUUIDsInUse;
@@ -236,27 +212,22 @@ TArray<int32> UDMXMVRGeneralSceneDescription::GetUnitNumbersInUse(const UDMXLibr
 		MVRFixtureUUIDsInUse.Add(FixturePatch->GetMVRFixtureUUID());
 	}
 
-	// Fetch Unit Numbers in use to create new ones when adding new MVR Fixtures
 	TArray<int32> UnitNumbersInUse;
 	for (const FGuid& MVRFixtureUUID : MVRFixtureUUIDsInUse)
 	{
-		const FDMXMVRFixture* MVRFixturePtr = FindMVRFixture(MVRFixtureUUID);
-		if (MVRFixturePtr)
+		if (UDMXMVRParametricObjectNodeBase** ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID))
 		{
-			UnitNumbersInUse.Add(MVRFixturePtr->UnitNumber);
+			if (UDMXMVRFixtureNode* FixtureNode = Cast<UDMXMVRFixtureNode>(*ObjectNodePtr))
+			{
+				UnitNumbersInUse.Add(FixtureNode->UnitNumber);
+			}
 		}
 	}
-	if (UnitNumbersInUse.Num() == 0)
-	{
-		UnitNumbersInUse.Add(0);
-	}
-	else
-	{
-		UnitNumbersInUse.Sort([](int32 UnitNumberA, int32 UnitNumberB)
-			{
-				return UnitNumberA < UnitNumberB;
-			});
-	}
+
+	UnitNumbersInUse.Sort([](int32 UnitNumberA, int32 UnitNumberB)
+		{
+			return UnitNumberA < UnitNumberB;
+		});
 
 	return UnitNumbersInUse;
 }

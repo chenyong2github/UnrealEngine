@@ -126,11 +126,16 @@ class UDMXEditorSettings : public UObject
 	GENERATED_BODY()
 
 
-	// MVR Fixture List
+	// MVR
 public:
 	UPROPERTY(Config)
-	FDMXMVRFixtureListSettings MVRFixtureListSettings;
+	FString LastMVRImportPath;
 
+	UPROPERTY(Config)
+	FString LastMVRExportPath;
+
+	UPROPERTY(Config)
+	FDMXMVRFixtureListSettings MVRFixtureListSettings;
 
 	// Fixture Type Functions Editor
 public:
