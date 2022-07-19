@@ -76,10 +76,14 @@ const FString& FXmlNode::GetContent() const
 	return Content;
 }
 
-
 void FXmlNode::SetContent( const FString& InContent )
 {
 	Content = InContent;
+}
+
+void FXmlNode::SetAttributes(const TArray<FXmlAttribute>& InAttributes)
+{
+	Attributes = InAttributes;
 }
 
 FString FXmlNode::GetAttribute(const FString& InTag) const
@@ -94,11 +98,12 @@ FString FXmlNode::GetAttribute(const FString& InTag) const
 	return FString();
 }
 
-void FXmlNode::AppendChildNode(const FString& InTag, const FString& InContent)
+void FXmlNode::AppendChildNode(const FString& InTag, const FString& InContent, const TArray<FXmlAttribute>& InAttributes)
 {
 	auto NewNode = new FXmlNode;
 	NewNode->Tag = InTag;
 	NewNode->Content = InContent;
+	NewNode->Attributes = InAttributes;
 
 	auto NumChildren = Children.Num();
 	if (NumChildren != 0)

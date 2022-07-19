@@ -67,6 +67,8 @@ public:
 	const FString& GetContent() const;
 	/** Sets the new value of the node */
 	void SetContent(const FString& InContent);
+	/** Sets the attributes of the node */
+	void SetAttributes(const TArray<FXmlAttribute>& InAttributes);
 
 	/**
 	 * Gets all of the attributes in this node
@@ -80,8 +82,14 @@ public:
 
 	/** Gets an attribute that corresponds with the passed-in tag */
 	FString GetAttribute(const FString& InTag) const;
-	/** Adds a simple tag with content to the current node */
-	void AppendChildNode(const FString& InTag, const FString& InContent);
+
+	/**
+	 *  Adds a child node to this node  
+	 * @param	InTag				The tag of the child node
+	 * @param	InContent			(optional) The content of the child node
+	 * @param	InAttributes		(optional) An array of attributes of the child node
+	 */
+	void AppendChildNode(const FString& InTag, const FString& InContent = FString(), const TArray<FXmlAttribute>& InAttributes = TArray<FXmlAttribute>());
 private:
 
 	/** The list of children nodes */
