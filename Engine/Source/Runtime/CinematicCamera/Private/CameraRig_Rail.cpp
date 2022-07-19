@@ -148,9 +148,13 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 		// make visualization of the mount follow the contour of the rail
 		if (PreviewMesh_Mount)
 		{
-			float const SplineLen = RailSplineComponent->GetSplineLength();
-			FQuat const RailRot = RailSplineComponent->GetQuaternionAtDistanceAlongSpline(CurrentPositionOnRail*SplineLen, ESplineCoordinateSpace::World);
-			PreviewMesh_Mount->SetWorldRotation(RailRot);
+			if (bLockOrientationToRail)
+			{
+				float const SplineLen = RailSplineComponent->GetSplineLength();
+				FQuat const RailRot = RailSplineComponent->GetQuaternionAtDistanceAlongSpline(CurrentPositionOnRail*SplineLen, ESplineCoordinateSpace::World);
+				PreviewMesh_Mount->SetWorldRotation(RailRot);
+			}
+			
 			PreviewMesh_Mount->SetVisibility(bShowRailVisualization);
 			PreviewMesh_Mount->SetWorldScale3D(FVector(PreviewMeshScale, PreviewMeshScale, PreviewMeshScale));
 		}
