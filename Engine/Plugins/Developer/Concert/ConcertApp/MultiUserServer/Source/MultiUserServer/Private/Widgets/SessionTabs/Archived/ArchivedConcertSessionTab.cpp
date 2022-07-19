@@ -19,7 +19,9 @@
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
 #include "Dialog/SMessageDialog.h"
+#include "Settings/MultiUserServerUserPreferences.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Util/SDoNotShowAgainDialog.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FArchivedConcertSessionTab"
 
@@ -117,8 +119,44 @@ FCanPerformActionResult FArchivedConcertSessionTab::CanDeleteActivities(const TS
 
 void FArchivedConcertSessionTab::OnRequestMuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToMute) const
 {
-	constexpr bool bShouldMute = true;
-	SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToMute);
+	using namespace UE::MultiUserServer;
+	
+	if (UMultiUserServerUserPreferences::GetSettings()->bWarnUserAboutMuting)
+	{
+		const TSharedRef<SDoNotShowAgainDialog> Dialog =
+		SNew(SDoNotShowAgainDialog)
+			.Title(LOCTEXT("MuteTitle", "Caution: Muting"))
+			.Buttons({
+				SCustomDialog::FButton(LOCTEXT("Continue", "Continue"))
+					.SetPrimary(true)
+					.SetOnClicked(FSimpleDelegate::CreateLambda([this, ActivitiesToMute]()
+					{
+						constexpr bool bShouldMute = true;
+						SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToMute);
+					})),
+				SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+			})
+			.DoNotShowAgainCallback(SDoNotShowAgainDialog::FOnClosed::CreateLambda([](bool bDoNotShowAgain)
+			{
+				UMultiUserServerUserPreferences* UserPreferences = UMultiUserServerUserPreferences::GetSettings();
+				UserPreferences->bWarnUserAboutMuting = !bDoNotShowAgain;
+				UserPreferences->SaveConfig();
+			}))
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MuteWarning", "Muted activities are not sent to clients. Activities you select are analysed for dependencies.\nExample: Muting the creation of a map also mutes editing an actor in that level.\n\nMuting is not always safe.\n\nDependency analysis cannot detect all cases:\nsometimes transactions may depend on other transaction activities having occured before.\nThis cannot be detected."))
+			];
+
+		FConcertServerUIModule::Get()
+			.GetModalWindowManager()
+			->ShowFakeModalWindow(Dialog);
+	}
+	else
+	{
+		constexpr bool bShouldMute = true;
+		SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToMute);
+	}	
 }
 
 FCanPerformActionResult FArchivedConcertSessionTab::CanMuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
@@ -146,8 +184,44 @@ FCanPerformActionResult FArchivedConcertSessionTab::CanMuteActivities(const TSet
 
 void FArchivedConcertSessionTab::OnRequestUnmuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToUnmute) const
 {
-	constexpr bool bShouldMute = false;
-	SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToUnmute);
+	using namespace UE::MultiUserServer;
+	
+	if (UMultiUserServerUserPreferences::GetSettings()->bWarnUserAboutUnmuting)
+	{
+		const TSharedRef<SDoNotShowAgainDialog> Dialog =
+		SNew(SDoNotShowAgainDialog)
+			.Title(LOCTEXT("UnmuteTitle", "Caution: Unmuting"))
+			.Buttons({
+				SCustomDialog::FButton(LOCTEXT("Continue", "Continue"))
+					.SetPrimary(true)
+					.SetOnClicked(FSimpleDelegate::CreateLambda([this, ActivitiesToUnmute]()
+					{
+						constexpr bool bShouldMute = false;
+						SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToUnmute);
+					})),
+				SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+			})
+			.DoNotShowAgainCallback(SDoNotShowAgainDialog::FOnClosed::CreateLambda([](bool bDoNotShowAgain)
+			{
+				UMultiUserServerUserPreferences* UserPreferences = UMultiUserServerUserPreferences::GetSettings();
+				UserPreferences->bWarnUserAboutUnmuting = !bDoNotShowAgain;
+				UserPreferences->SaveConfig();
+			}))
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("UnmuteWarning", "Unmuting is not always safe\nPay attention if this session had muted activities, was unarchived, and now you're unmuting said activities again.\n\nExample of conflict:\n1. Create package Foo\nNow mute 1 and unarchive session.\n1. Create package Foo (muted)\n2. Create package Foo\nArchive the session, and try to unmute 1. You'd end up with a history that creates Foo twice, which is not valid.\n\nSimilar invalid cases can happen with transaction activities."))
+			];
+
+		FConcertServerUIModule::Get()
+			.GetModalWindowManager()
+			->ShowFakeModalWindow(Dialog);
+	}
+	else
+	{
+		constexpr bool bShouldMute = false;
+		SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToUnmute);
+	}	
 }
 
 FCanPerformActionResult FArchivedConcertSessionTab::CanUnmuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
