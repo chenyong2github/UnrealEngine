@@ -507,6 +507,7 @@ bool UInterchangeManager::RegisterFactory(const UClass* FactoryClass)
 
 bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 {
+#if WITH_EDITOR
 	if (!WriterClass)
 	{
 		return false;
@@ -522,6 +523,7 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 		return false;
 	}
 	RegisteredWriters.Add(WriterClass, WriterToRegister);
+#endif
 	return true;
 }
 
