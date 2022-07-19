@@ -47,7 +47,7 @@ public class IntelTBB : ModuleRules
 				if (bIncludeDLLRuntimeDependencies)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
-					RuntimeDependencies.Add(Path.Combine(LibDirTBB, "tbb_debug.pdb"), StagedFileType.DebugNonUFS);
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.pdb"), Path.Combine(LibDirTBB, "tbb_debug.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 			else
@@ -57,7 +57,7 @@ public class IntelTBB : ModuleRules
 				if (bIncludeDLLRuntimeDependencies)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "tbb.pdb"), StagedFileType.DebugNonUFS);
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.pdb"), Path.Combine(IntelTBBBinaries, "tbb.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 		}
