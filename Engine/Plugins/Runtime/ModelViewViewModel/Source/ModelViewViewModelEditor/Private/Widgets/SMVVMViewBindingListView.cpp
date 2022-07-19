@@ -485,7 +485,7 @@ private:
 
 		UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintWeak.Get();
 
-		EFieldVisibility Flags;
+		EFieldVisibility Flags = EFieldVisibility::None;
 		if (UE::MVVM::IsForwardBinding(ViewBinding->BindingType))
 		{
 			Flags |= EFieldVisibility::Writable;
