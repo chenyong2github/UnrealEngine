@@ -1,0 +1,42 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(NumStiffnessWeights);
+uint DI_LOCAL(NumDampingWeights);
+float DI_LOCAL(Stiffness);
+float DI_LOCAL(Damping);
+Buffer<float> DI_LOCAL(StiffnessWeightsBuffer);
+Buffer<float> DI_LOCAL(DampingWeightsBuffer);
+
+
+DI_IMPL_READ(ReadNumVertices, uint, void)
+{
+	return DI_LOCAL(NumVertices);
+}
+
+DI_IMPL_READ(ReadStiffness, float, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+	if(VertexIndex < DI_LOCAL(NumStiffnessWeights))
+		return DI_LOCAL(StiffnessWeightsBuffer)[VertexIndex] * DI_LOCAL(Stiffness);
+	else
+		return DI_LOCAL(Stiffness);
+#else
+	return 0.0;
+#endif
+}
+
+DI_IMPL_READ(ReadDamping, float, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+	if(VertexIndex < DI_LOCAL(NumDampingWeights))
+		return DI_LOCAL(DampingWeightsBuffer)[VertexIndex] * DI_LOCAL(Damping);
+	else
+		return DI_LOCAL(Damping);
+#else
+	return 0.0;
+#endif
+}
+

@@ -124,8 +124,14 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	// Create local storage for deformer graph variables.
 	Variables = NewObject<UOptimusVariableContainer>(this);
 	Variables->Descriptions.Reserve(InDeformer->GetVariables().Num());
+	TSet<const UOptimusVariableDescription*> Visited;
 	for (const UOptimusVariableDescription* VariableDescription : InDeformer->GetVariables())
 	{
+		if (!VariableDescription)
+			continue;
+		if (Visited.Contains(VariableDescription))
+			continue;
+		Visited.Add(VariableDescription);
 		UOptimusVariableDescription* VariableDescriptionCopy = NewObject<UOptimusVariableDescription>();
 		VariableDescriptionCopy->Guid = VariableDescription->Guid;
 		VariableDescriptionCopy->VariableName = VariableDescription->VariableName;

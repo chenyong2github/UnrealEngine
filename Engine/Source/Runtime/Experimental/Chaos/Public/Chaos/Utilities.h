@@ -783,14 +783,13 @@ namespace Chaos
 			}
 		}
 
+		/**
+		 * @brief Generate a tetrahedral mesh from a Freudenthal lattice defined on a 3 dimensional grid.
+		 */
 		template <class T, class TV, class TV_INT4>
 		void TetMeshFromGrid(const TUniformGrid<T, 3>& Grid, TArray<TV_INT4>& Mesh, TArray<TV>& X)
 		{
-			//mesh.resize(20 * (grid.grid_N[0] - 1) * (grid.grid_N[1] - 1) * (grid.grid_N[2] - 1));
-			Mesh.SetNum(
-				//20 * (Grid.Counts()[0] - 1) * (Grid.Counts()[1] - 1) * (Grid.Counts()[2] - 1) / 4);
-				20 * Grid.GetNumCells() / 4);
-			//TVector<int32,4>(INDEX_NONE,INDEX_NONE,INDEX_NONE,INDEX_NONE));
+			Mesh.SetNum(20 * Grid.GetNumCells() / 4);
 			int32* MeshPtr = &Mesh[0][0];
 
 			const int32 NumNodes = Grid.GetNumNodes();
