@@ -11,6 +11,8 @@
 #include "Math/Vector2D.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Templates/Function.h"
+#include "Misc/EnumClassFlags.h"
 
 class FAutoConsoleVariableRef;
 class FFeedbackContext;
@@ -37,6 +39,30 @@ struct FShowInputDeviceSelectorParams
 	FPlatformUserId PlatformUserId;
 };
 typedef TFunction<void(const FShowInputDeviceSelectorParams&)> FShowInputDeviceSelectorComplete;
+
+/**
+ * Callback for when ShowPlatformUserSelector has completed.
+ */
+struct FPlatformUserSelectionCompleteParams
+{
+	FPlatformUserId SelectedUserId;
+	bool bSuccess;
+};
+typedef TFunction<void(const FPlatformUserSelectionCompleteParams& Params)> FPlatformUserSelectionComplete;
+
+/*
+ * Options for ShowPlatformUserSelector. Not all platforms will support all flags
+ */
+enum class EPlatformUserSelectorFlags : uint8
+{
+	None                         = 0,
+	RequiresOnlineEnabledProfile = (1 << 1), // whether to only show profiles that have an online account
+	ShowSkipButton               = (1 << 2), // display a 'skip' button
+	AllowGuests                  = (1 << 4), // temporary guest accounts, throwaways etc.
+
+	Default                      = ShowSkipButton, // most commonly used options
+};
+ENUM_CLASS_FLAGS(EPlatformUserSelectorFlags);
 
 
 struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
@@ -336,6 +362,21 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	 * @return false if the platform does not support an input device selection API, or it is not currently available (the callback will not be called)
 	 */
 	static bool ShowInputDeviceSelector( FPlatformUserId InitiatingUserId, FShowInputDeviceSelectorComplete OnShowInputDeviceSelectorComplete )
+	{
+		// no default implementation
+		return false;
+	}
+
+	/**
+	 * Asyncronously display the platform-specific user selection UI, if supported.
+	 * 
+	 * @param InitiatingInputDeviceId The input device that prompted showing the UI, if applicable. The input device may be re-paired with the newly-selected user, depending on the platform
+	 * @param Flags customization options for the user selection UI.
+	 * @param OnUserSelectionComplete callback for when the user selection operation has completed
+	 * @return true if the UI will be shown and the callback will be called
+	 * @return false if the platform does not support a user-selection API, or it is not currently available (the callback will not be called)
+	 */
+	static bool ShowPlatformUserSelector(FInputDeviceId InitiatingInputDeviceId, EPlatformUserSelectorFlags Flags, FPlatformUserSelectionComplete OnUserSelectionComplete)
 	{
 		// no default implementation
 		return false;
