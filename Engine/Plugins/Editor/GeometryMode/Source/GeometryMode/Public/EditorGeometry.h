@@ -267,7 +267,7 @@ public:
 
 	void CompileSelectionOrder();
 
-	/** Master lists.  All lower data types refer to the contents of these pools through indices. */
+	/** Main lists.  All lower data types refer to the contents of these pools through indices. */
 	TArray<FGeomVertex> VertexPool;
 	TArray<FGeomEdge> EdgePool;
 	TArray<FGeomPoly> PolyPool;
