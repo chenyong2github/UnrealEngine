@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "DerivedDataRequest.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
 #include "Templates/Invoke.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -11,9 +13,9 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+namespace UE::DerivedData { class IRequest; }
 template <typename FuncType> class TUniqueFunction;
 
-namespace UE::DerivedData { class IRequest; }
 namespace UE::DerivedData { enum class EPriority : uint8; }
 
 namespace UE::DerivedData

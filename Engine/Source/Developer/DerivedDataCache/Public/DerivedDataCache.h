@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePolicy.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequestTypes.h"
 #include "DerivedDataSharedString.h"
+#include "DerivedDataSharedStringFwd.h"
 #include "DerivedDataValue.h"
 #include "DerivedDataValueId.h"
+#include "IO/IoHash.h"
 #include "Math/NumericLimits.h"
 #include "Memory/SharedBuffer.h"
 #include "Templates/Function.h"
@@ -19,7 +22,6 @@
 
 class FCbFieldView;
 class FCbWriter;
-
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheGetChunkRequest; }

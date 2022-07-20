@@ -5,12 +5,14 @@
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataRequest.h"
+#include "HAL/Platform.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
-namespace UE::DerivedData { struct FBuildSchedulerParams; }
 namespace UE::DerivedData { class IBuildJobSchedule; }
 namespace UE::DerivedData { class IRequestOwner; }
+namespace UE::DerivedData { struct FBuildSchedulerParams; }
+namespace UE { namespace DerivedData { class IBuildJob; } }
 
 namespace UE::DerivedData
 {

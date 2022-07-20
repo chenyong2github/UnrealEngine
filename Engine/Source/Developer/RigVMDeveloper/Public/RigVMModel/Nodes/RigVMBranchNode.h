@@ -2,8 +2,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
 #include "RigVMModel/RigVMNode.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMBranchNode.generated.h"
+
+class UObject;
 
 /**
  * A branch node is used to branch between two blocks of execution

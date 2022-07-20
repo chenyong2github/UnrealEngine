@@ -2,13 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Misc/Guid.h"
-#include "Misc/SecureHash.h"
-#include "HAL/ThreadSafeBool.h"
-#include "IDirectoryWatcher.h"
+#include "Delegates/IDelegateInstance.h"
 #include "FileCacheUtilities.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/ThreadSafeBool.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "IDirectoryWatcher.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/DateTime.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "Misc/SecureHash.h"
+#include "Serialization/Archive.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+struct FFileChangeData;
+struct FGuid;
 
 namespace DirectoryWatcher
 {

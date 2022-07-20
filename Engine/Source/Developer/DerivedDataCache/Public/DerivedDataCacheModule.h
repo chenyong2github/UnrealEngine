@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
 
 class FDerivedDataCacheInterface;

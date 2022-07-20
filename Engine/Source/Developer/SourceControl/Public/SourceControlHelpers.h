@@ -2,16 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "ISourceControlRevision.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "ISourceControlProvider.h"
+#include "ISourceControlRevision.h"
+#include "ISourceControlState.h"
+#include "Internationalization/Text.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/TextProperty.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "SourceControlHelpers.generated.h"
 
-
+class FAnnotationLine;
+class FName;
 class ISourceControlProvider;
+class UPackage;
+class USourceControlHelpers;
+struct FAssetData;
+struct FFrame;
 
 /**
  * Snapshot of source control state of for a file

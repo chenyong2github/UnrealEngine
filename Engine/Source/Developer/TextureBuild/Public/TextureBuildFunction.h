@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
-
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataBuildVersion.h"
+#include "Misc/Guid.h"
 
 class ITextureFormat;
+namespace UE { namespace DerivedData { class FBuildVersionBuilder; } }
 
 class FTextureBuildFunction : public UE::DerivedData::IBuildFunction
 {

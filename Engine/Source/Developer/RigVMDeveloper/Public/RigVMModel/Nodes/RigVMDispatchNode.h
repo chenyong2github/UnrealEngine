@@ -2,9 +2,24 @@
 
 #pragma once
 
-#include "RigVMModel/Nodes/RigVMTemplateNode.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "RigVMCore/RigVMDispatchFactory.h"
+#include "RigVMCore/RigVMStructUpgradeInfo.h"
+#include "RigVMCore/RigVMTemplate.h"
+#include "RigVMModel/Nodes/RigVMTemplateNode.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMDispatchNode.generated.h"
+
+class UObject;
+class URigVMPin;
+class UScriptStruct;
+struct FRigVMDispatchFactory;
 
 /**
  * The Struct Node represents a Function Invocation of a RIGVM_METHOD

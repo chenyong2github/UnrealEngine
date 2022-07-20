@@ -2,7 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
+
 #include "VisualGraphElement.generated.h"
 
 class FVisualGraph;

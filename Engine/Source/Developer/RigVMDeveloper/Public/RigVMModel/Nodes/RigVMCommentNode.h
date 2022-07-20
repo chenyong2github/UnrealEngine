@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "RigVMModel/RigVMNode.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMCommentNode.generated.h"
+
+class UObject;
+struct FFrame;
 
 /**
  * Comment Nodes can be used to annotate a Graph by adding

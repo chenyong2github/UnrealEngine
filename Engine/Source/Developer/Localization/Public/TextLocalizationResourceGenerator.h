@@ -2,11 +2,16 @@
 
 #pragma once 
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
+#include "HAL/Platform.h"
 #include "Internationalization/TextKey.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
 
 class FLocTextHelper;
+class FName;
 class FTextLocalizationMetaDataResource;
 class FTextLocalizationResource;
 

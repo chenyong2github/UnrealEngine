@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "Misc/Optional.h"
+
+template <typename FuncType> class TFunctionRef;
 
 // Forward declaration
 enum class EProjectType : uint8

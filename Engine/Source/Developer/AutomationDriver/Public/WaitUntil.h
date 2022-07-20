@@ -2,6 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/Timespan.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 class IElementLocator;
 

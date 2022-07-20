@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Templates/Function.h"
+
+#include <atomic>
 
 struct FLerpVert;
 

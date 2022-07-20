@@ -6,6 +6,8 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 
+class FString;
+
 class SOURCECONTROL_API FSourceControlInitSettings
 {
 public:

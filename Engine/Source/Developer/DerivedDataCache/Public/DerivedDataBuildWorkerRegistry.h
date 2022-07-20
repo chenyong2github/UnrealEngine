@@ -5,10 +5,9 @@
 #include "CoreTypes.h"
 #include "DerivedDataSharedStringFwd.h"
 
-struct FGuid;
-
 namespace UE::DerivedData { class FBuildWorker; }
 namespace UE::DerivedData { class IBuildWorkerExecutor; }
+struct FGuid;
 
 namespace UE::DerivedData
 {

@@ -2,14 +2,18 @@
 
 #pragma once
 
-#include "TraceServices/Model/AnalysisSession.h"
-#include "Serialization/LoadTimeTrace.h"
-#include "TraceServices/Containers/Timelines.h"
-#include "TraceServices/Containers/Tables.h"
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Serialization/LoadTimeTrace.h"
+#include "TraceServices/Containers/Tables.h"
+#include "TraceServices/Containers/Timelines.h"
+#include "TraceServices/Model/AnalysisSession.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {
+template <typename RowType> class ITable;
 
 struct FFileInfo
 {

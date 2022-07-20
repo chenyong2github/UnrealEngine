@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "Containers/BitArray.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {

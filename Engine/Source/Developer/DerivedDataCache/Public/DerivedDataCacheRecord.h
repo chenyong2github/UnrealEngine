@@ -2,24 +2,33 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataValueId.h"
+#include "HAL/Platform.h"
 #include "Memory/MemoryFwd.h"
 #include "Misc/ScopeExit.h"
+#include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
+#include "Templates/RemoveReference.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+
+class FCbWriter;
+class FCompositeBuffer;
+class FSharedBuffer;
 
 #define UE_API DERIVEDDATACACHE_API
 
 class FCbObject;
 class FCbPackage;
-
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalCacheRecord; }
 namespace UE::DerivedData { class FValue; }
 namespace UE::DerivedData { class FValueWithId; }
 namespace UE::DerivedData { class IRequestOwner; }
+
 namespace UE::DerivedData { using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

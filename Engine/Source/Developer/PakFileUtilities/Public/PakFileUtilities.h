@@ -2,8 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Optional.h"
+#include "Templates/Tuple.h"
 
+class FArchive;
 struct FFileRegion;
 struct FKeyChain;
 struct FPakEntryPair;

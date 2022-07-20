@@ -3,7 +3,10 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {

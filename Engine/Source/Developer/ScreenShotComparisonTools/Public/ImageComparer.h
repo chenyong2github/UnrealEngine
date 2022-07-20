@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+
 #include "ImageComparer.generated.h"
 
 class Error;

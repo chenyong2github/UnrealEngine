@@ -2,14 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
-#include "Internationalization/InternationalizationManifest.h"
+#include "HAL/Platform.h"
 #include "Internationalization/InternationalizationArchive.h"
+#include "Internationalization/InternationalizationManifest.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
+
 #include "LocTextHelper.generated.h"
 
+class FArchiveEntry;
+class FInternationalizationArchive;
 class FLocMetadataObject;
+class FText;
 
 /** Flags controlling the behavior used when loading manifests and archives into FLocTextHelper */
 enum class ELocTextHelperLoadFlags : uint8

@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "InputCoreTypes.h"
 #include "Engine/DeveloperSettings.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "GameplayDebuggerConfig.generated.h"
 
+class FArchive;
 struct FGameplayDebuggerInputModifier;
 
 UENUM()

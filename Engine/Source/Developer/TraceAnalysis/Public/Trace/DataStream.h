@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreFwd.h"
+#include "HAL/Platform.h"
 #include "Templates/UniquePtr.h"
+
+class IFileHandle;
 
 namespace UE {
 namespace Trace {

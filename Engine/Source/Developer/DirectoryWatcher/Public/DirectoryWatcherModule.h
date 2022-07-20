@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-class IDirectoryWatcher;
 class FDirectoryWatcherProxy;
-
+class IDirectoryWatcher;
 struct FFileChangeData;
 
 class FDirectoryWatcherModule : public IModuleInterface

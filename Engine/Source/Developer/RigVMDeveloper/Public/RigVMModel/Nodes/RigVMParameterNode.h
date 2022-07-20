@@ -2,10 +2,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMTypeUtils.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMParameterNode.generated.h"
+
+class UObject;
+struct FFrame;
 
 /**
  * The parameter description is used to convey information

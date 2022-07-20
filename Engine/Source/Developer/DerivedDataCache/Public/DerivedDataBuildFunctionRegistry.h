@@ -5,9 +5,9 @@
 #include "Containers/StringFwd.h"
 #include "Templates/Function.h"
 
-struct FGuid;
-
 namespace UE::DerivedData { class IBuildFunction; }
+struct FGuid;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE::DerivedData
 {

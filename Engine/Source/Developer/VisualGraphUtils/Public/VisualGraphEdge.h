@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
 #include "VisualGraphElement.h"
+
 #include "VisualGraphEdge.generated.h"
+
+class FVisualGraph;
 
 UENUM()
 enum class EVisualGraphEdgeDirection : uint8

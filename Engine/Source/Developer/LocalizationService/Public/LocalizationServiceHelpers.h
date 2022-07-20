@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class FString;
 class ILocalizationServiceProvider;
 
 namespace LocalizationServiceHelpers

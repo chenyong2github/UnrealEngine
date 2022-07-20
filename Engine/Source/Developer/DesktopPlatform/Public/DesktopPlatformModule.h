@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IDesktopPlatform.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "IDesktopPlatform.h"
+
+class IDesktopPlatform;
 
 class FDesktopPlatformModule : public IModuleInterface
 {

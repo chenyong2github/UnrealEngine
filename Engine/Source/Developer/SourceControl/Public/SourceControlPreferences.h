@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "SourceControlPreferences.generated.h"
+
+class FName;
+class UObject;
 
 
 /** Settings for the Source Control Integration */

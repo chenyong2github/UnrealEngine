@@ -2,18 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-
+#include "CoreTypes.h"
+#include "Math/Vector2D.h"
+#include "Misc/SecureHash.h"
 #include "StaticMeshOperations.h"
 
+class FName;
 struct FMeshDescription;
+struct FOverlappingCorners;
 struct FRawMesh;
 struct FUVMapParameters;
-struct FOverlappingCorners;
+
 enum class ELightmapUVVersion : int32;
-struct FVertexInstanceID;
 struct FPolygonGroupID;
 struct FVertexID;
+struct FVertexInstanceID;
 
 
 //////////////////////////////////////////////////////////////////////////

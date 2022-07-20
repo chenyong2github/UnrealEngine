@@ -2,11 +2,14 @@
 
 #pragma  once
 
-#include "TraceServices/Model/AnalysisSession.h"
+#include "Containers/ContainersFwd.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/Function.h"
-#include "Delegates/Delegate.h"
-#include "Containers/ContainersFwd.h"
+#include "TraceServices/Model/AnalysisSession.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {

@@ -2,13 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Containers/StringFwd.h"
-#include "Memory/SharedBuffer.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "ISourceControlChangelist.h"
-#include "SourceControlPreferences.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Memory/SharedBuffer.h"
 #include "SourceControlOperationBase.h"
+#include "SourceControlPreferences.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "SourceControl"
 

@@ -2,11 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "ISourceControlChangelistState.h"
 #include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "UncontrolledChangelist.h"
+
+class FJsonObject;
 
 class FUncontrolledChangelistState : public TSharedFromThis<FUncontrolledChangelistState, ESPMode::ThreadSafe>
 {

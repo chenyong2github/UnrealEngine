@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GameplayDebuggerAddonBase.h"
 

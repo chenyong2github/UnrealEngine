@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
+class FLocMetadataObject;
 
 class LOCALIZATION_API FJsonInternationalizationMetaDataSerializer
 {

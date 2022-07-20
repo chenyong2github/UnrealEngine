@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "HAL/Platform.h"
 #include "LatentActions.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
 
 struct FLatentActionInfo;
 

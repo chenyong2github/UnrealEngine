@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
 #include "DerivedDataSharedStringFwd.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/UnrealMemory.h"
+#include "Misc/CString.h"
+
 #include <atomic>
 
 #define UE_API DERIVEDDATACACHE_API

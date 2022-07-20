@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
+#include "CoreTypes.h"
 #include "DerivedDataValueId.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/RefCounting.h"
+#include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
 
 #define UE_API DERIVEDDATACACHE_API
@@ -15,11 +17,9 @@
 class FCbFieldView;
 class FCbObjectView;
 class FCbWriter;
-
-template <typename FuncType> class TFunctionRef;
-
-namespace UE::DerivedData { class FOptionalCacheRecordPolicy; }
 namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
+namespace UE::DerivedData { class FOptionalCacheRecordPolicy; }
+template <typename FuncType> class TFunctionRef;
 
 namespace UE::DerivedData
 {

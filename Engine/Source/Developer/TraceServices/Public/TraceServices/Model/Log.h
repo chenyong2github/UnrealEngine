@@ -3,12 +3,16 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "TraceServices/Containers/Tables.h"
+#include "Logging/LogVerbosity.h"
 #include "Templates/Function.h"
+#include "TraceServices/Containers/Tables.h"
+#include "TraceServices/Model/AnalysisSession.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {
+class IUntypedTable;
 
 struct FLogCategoryInfo
 {

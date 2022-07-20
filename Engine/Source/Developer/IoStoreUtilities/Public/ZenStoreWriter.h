@@ -6,26 +6,48 @@
 #include "Async/Future.h"
 #include "Compression/CompressedBuffer.h"
 #include "Compression/OodleDataCompression.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "IO/IoContainerId.h"
 #include "IO/IoDispatcher.h"
 #include "IO/PackageStore.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "PackageStoreManifest.h"
 #include "PackageStoreWriter.h"
 #include "Serialization/AsyncLoading2.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/PackageWriter.h"
+#include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
+class FAssetRegistryState;
+class FCompressedBuffer;
+class FIoBuffer;
+class FLargeMemoryWriter;
+class FSharedBuffer;
+class ITargetPlatform;
+struct FFileRegion;
+template <typename FuncType> class TFunction;
 
 namespace UE {
 	class FZenStoreHttpClient;
 }
 
+class FCbAttachment;
+class FCbPackage;
+class FCbWriter;
 class FPackageStoreOptimizer;
 class FZenFileSystemManifest;
-class FCbPackage;
-class FCbAttachment;
-class FCbWriter;
 
 /** 
  * A PackageStoreWriter that saves cooked packages for use by IoStore, and stores them in the Zen storage service.
@@ -144,6 +166,7 @@ private:
 	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
 	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
 	struct FZenCommitInfo;
+
 	void CommitPackageInternal(FZenCommitInfo&& CommitInfo);
 	FCbAttachment CreateAttachment(FSharedBuffer Buffer);
 	FCbAttachment CreateAttachment(FIoBuffer Buffer);
@@ -182,6 +205,7 @@ private:
 	FOodleDataCompression::ECompressionLevel	CompressionLevel;	
 	
 	class FCommitQueue;
+
 	TUniquePtr<FCommitQueue>			CommitQueue;
 	TFuture<void>						CommitThread;
 

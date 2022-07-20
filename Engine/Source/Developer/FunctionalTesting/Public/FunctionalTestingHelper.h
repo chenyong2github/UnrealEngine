@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
 
 /* Wait for all running functional tests to finish */

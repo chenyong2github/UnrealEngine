@@ -2,15 +2,21 @@
 
 #pragma once
 
-#include "Model/MonotonicTimeline.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "TraceServices/Containers/Timelines.h"
-#include "TraceServices/Containers/Tables.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
+#include "HAL/PlatformMath.h"
+#include "Model/MonotonicTimeline.h"
+#include "TraceServices/Containers/Tables.h"
+#include "TraceServices/Containers/Timelines.h"
+#include "TraceServices/Model/AnalysisSession.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {
+template <typename InEventType> class IEditableTimeline;
+template <typename RowType> class ITable;
 
 struct FTimingProfilerTimer
 {

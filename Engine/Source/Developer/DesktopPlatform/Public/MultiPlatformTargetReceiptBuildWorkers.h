@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "TargetReceiptBuildWorker.h"
 #include "Templates/TypeCompatibleBytes.h"
+
+class FTargetReceiptBuildWorker;
 
 /**
  * Globally registers a UE::DerivedData::IBuildWorkerFactory instance for each platform that build workers can be supported.

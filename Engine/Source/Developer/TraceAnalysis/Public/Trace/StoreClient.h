@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "HAL/Platform.h"
 #include "Templates/UniquePtr.h"

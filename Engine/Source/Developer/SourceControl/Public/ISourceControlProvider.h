@@ -2,12 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "ISourceControlOperation.h"
-#include "ISourceControlChangelist.h"
-#include "ISourceControlState.h"
-#include "ISourceControlChangelistState.h"
+#include "Delegates/Delegate.h"
 #include "Features/IModularFeature.h"
+#include "HAL/Platform.h"
+#include "ISourceControlChangelist.h"
+#include "ISourceControlChangelistState.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlState.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+
+class FName;
+class UPackage;
+template <typename FuncType> class TFunctionRef;
 
 #ifndef SOURCE_CONTROL_WITH_SLATE
 	#error "SOURCE_CONTROL_WITH_SLATE must be defined. Did you forget a dependency on the 'SourceControl' module?"

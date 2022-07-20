@@ -2,8 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
 #include "RigVMModel/RigVMNode.h"
+#include "RigVMModel/RigVMPin.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMEnumNode.generated.h"
+
+class UEnum;
+class UObject;
+struct FFrame;
 
 /**
  * The Enum Node represents a constant enum value for use within the graph.

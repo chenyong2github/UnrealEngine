@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "DatasmithExportOptions.h"
+#include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 class FDatasmithMesh;
 class IDatasmithMeshElement;

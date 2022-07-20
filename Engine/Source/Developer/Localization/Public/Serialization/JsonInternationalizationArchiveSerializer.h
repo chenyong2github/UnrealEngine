@@ -2,10 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Internationalization/InternationalizationManifest.h"
-#include "Internationalization/InternationalizationArchive.h"
 #include "Dom/JsonObject.h"
+#include "Internationalization/InternationalizationArchive.h"
+#include "Internationalization/InternationalizationManifest.h"
+#include "Templates/SharedPointer.h"
+
+class FInternationalizationArchive;
+class FInternationalizationManifest;
+class FJsonObject;
 
 /**
  * Used to arrange Internationalization archive data in a hierarchy based on namespace prior to json serialization.

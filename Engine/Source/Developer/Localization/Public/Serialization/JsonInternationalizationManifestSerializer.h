@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Internationalization/InternationalizationManifest.h"
 #include "Dom/JsonObject.h"
+#include "Internationalization/InternationalizationManifest.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FInternationalizationManifest;
 
 struct FStructuredEntry
 {

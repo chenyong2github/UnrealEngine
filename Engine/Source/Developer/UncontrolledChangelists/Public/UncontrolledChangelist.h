@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "ISourceControlChangelist.h"
 #include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+
+class FText;
 
 class FUncontrolledChangelist : public TSharedFromThis<FUncontrolledChangelist, ESPMode::ThreadSafe>
 {

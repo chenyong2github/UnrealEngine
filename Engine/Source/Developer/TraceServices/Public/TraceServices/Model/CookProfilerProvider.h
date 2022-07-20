@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "TraceServices/Model/AnalysisSession.h"
 #include "Common/ProviderLock.h"
+#include "HAL/Platform.h"
 #include "Templates/Function.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {

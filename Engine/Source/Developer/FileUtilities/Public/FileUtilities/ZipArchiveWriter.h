@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/DateTime.h"
 
 #if WITH_ENGINE
 

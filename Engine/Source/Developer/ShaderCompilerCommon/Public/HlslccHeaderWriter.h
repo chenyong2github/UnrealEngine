@@ -2,13 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CrossCompilerCommon.h"
-
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
 
 // Forward declaration from <spirv_reflect.h>
-struct SpvReflectInterfaceVariable;
 struct SpvReflectBlockVariable;
+struct SpvReflectInterfaceVariable;
 struct SpvReflectTypeDescription;
 
 // Cross compiler support/common functionality

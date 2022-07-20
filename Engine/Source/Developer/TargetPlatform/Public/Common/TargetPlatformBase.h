@@ -2,15 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformMisc.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Internationalization/Text.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "PlatformInfo.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class IDeviceManagerCustomPlatformWidgetCreator;
+class IPlugin;
+struct FDataDrivenPlatformInfo;
 
 // Forward declare.
 namespace Audio 

@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "SceneTypes.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 /** Structure extending EMaterialProperty to allow detailed information about custom output */
 struct FMaterialPropertyEx

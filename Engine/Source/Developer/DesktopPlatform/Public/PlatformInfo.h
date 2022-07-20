@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "Internationalization/Text.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "UObject/NameTypes.h"
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 

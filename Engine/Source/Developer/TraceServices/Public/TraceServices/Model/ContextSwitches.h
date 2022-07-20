@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "TraceServices/Model/AnalysisSession.h"
 #include "Common/PagedArray.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {

@@ -5,15 +5,20 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IO/IoHash.h"
 #include "Misc/Guid.h"
 #include "Templates/Tuple.h"
 #include "Templates/TypeCompatibleBytes.h"
 
-struct FTargetReceipt;
+#include <atomic>
+
 class FTargetReceiptBuildWorkerFactory;
+struct FIoHash;
+struct FTargetReceipt;
 
 /**
  * Globally registers a UE::DerivedData::IBuildWorkerFactory instance that runs an executable built by UnrealBuildTool.

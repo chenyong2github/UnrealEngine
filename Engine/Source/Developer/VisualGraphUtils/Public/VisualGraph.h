@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "VisualGraphEdge.h"
 #include "VisualGraphElement.h"
 #include "VisualGraphNode.h"
-#include "VisualGraphEdge.h"
 
 class FVisualGraph;
 

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "TraceServices/Model/AnalysisSession.h"
-
 #include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {

@@ -2,11 +2,16 @@
 
 #pragma once 
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+
 #include "PortableObjectPipeline.generated.h"
 
-class FLocTextHelper;
 class FLocMetadataObject;
+class FLocTextHelper;
 class FPortableObjectEntry;
 class FPortableObjectFormatDOM;
 

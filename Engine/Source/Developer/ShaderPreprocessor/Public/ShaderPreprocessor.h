@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "ShaderCore.h"
 
+class FShaderCompilerDefinitions;
+class FString;
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;
 

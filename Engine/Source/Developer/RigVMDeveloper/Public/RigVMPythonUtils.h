@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
+#include "Math/Vector2D.h"
 #include "RigVMDeveloperModule.h"
 #include "UObject/Class.h"
+#include "UObject/ReflectedTypeAccessors.h"
+
+class UEnum;
 
 namespace RigVMPythonUtils
 {

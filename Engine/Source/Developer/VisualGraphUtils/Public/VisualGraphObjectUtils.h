@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "VisualGraph.h"
+
+class UClass;
+class UObject;
 
 class VISUALGRAPHUTILS_API FVisualGraphObjectUtils
 {

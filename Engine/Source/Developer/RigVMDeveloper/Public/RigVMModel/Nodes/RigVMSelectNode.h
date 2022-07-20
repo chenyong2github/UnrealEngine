@@ -2,8 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
 #include "RigVMTemplateNode.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMSelectNode.generated.h"
+
+class UObject;
+class URigVMPin;
+struct FRigVMTemplate;
 
 /**
  * A select node is used to select between multiple values

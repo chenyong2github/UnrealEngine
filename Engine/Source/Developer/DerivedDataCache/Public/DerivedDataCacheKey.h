@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
 #include "IO/IoHash.h"
 #include "Misc/AsciiSet.h"
+#include "Misc/CString.h"
 #include "Templates/TypeHash.h"
+
+template <typename CharType> class TStringBuilderBase;
 
 #define UE_API DERIVEDDATACACHE_API
 

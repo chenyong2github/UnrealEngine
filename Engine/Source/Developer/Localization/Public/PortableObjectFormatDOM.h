@@ -2,8 +2,17 @@
 
 #pragma once 
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/CulturePointer.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Misc/CString.h"
+#include "Templates/SharedPointer.h"
+
+class FText;
 
 /**
 * Class for handling language codes used in the Portable Object format.

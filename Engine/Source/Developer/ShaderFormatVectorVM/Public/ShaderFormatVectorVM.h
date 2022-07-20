@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
 #include "VectorVM.h"
+#include "VectorVMCommon.h"
 
 /** Ordered table of functions actually called by the VM script. */
 struct FCalledVMFunction

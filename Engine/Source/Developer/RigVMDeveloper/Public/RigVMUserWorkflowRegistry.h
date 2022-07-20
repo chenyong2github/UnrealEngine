@@ -2,10 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMModel/RigVMNode.h"
+#include "Templates/Tuple.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "RigVMUserWorkflowRegistry.generated.h"
+
+class UScriptStruct;
+struct FFrame;
 
 DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(TArray<FRigVMUserWorkflow>, FRigVMUserWorkflowProvider, const UObject*, InSubject);
 

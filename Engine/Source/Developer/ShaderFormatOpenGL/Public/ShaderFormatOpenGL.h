@@ -2,17 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "RHIDefinitions.h"
+#include "Templates/SharedPointer.h"
 #include "hlslcc.h"
+
+class FArchive;
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
 
+class FShaderCompilerFlags;
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;
-class FShaderCompilerFlags;
 
 enum GLSLVersion 
 {

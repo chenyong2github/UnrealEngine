@@ -2,12 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
-// Insights
+#include "HAL/PlatformMath.h"
 #include "Insights/ViewModels/GraphTrackEvent.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 
 class FTimingTrackViewport;
+struct FGraphSeriesEvent;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

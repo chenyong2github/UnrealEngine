@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 
 THIRD_PARTY_INCLUDES_START
 	#include "spirv_reflect.h"

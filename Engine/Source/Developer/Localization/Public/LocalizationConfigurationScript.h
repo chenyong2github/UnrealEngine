@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Optional.h"
 
 class ULocalizationTarget;
 

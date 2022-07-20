@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
 #include "VisualGraphElement.h"
+
+class FVisualGraph;
 
 class VISUALGRAPHUTILS_API FVisualGraphNode : public FVisualGraphElement
 {

@@ -2,17 +2,18 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "DatasmithTypes.h"
-#include "IDatasmithSceneElements.h"
 #include "DatasmithUtils.h"
-
+#include "IDatasmithSceneElements.h"
 #include "Math/Color.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 
 class FDatasmithLogger;
-class IDatasmithProgressManager;
 class FDatasmithSceneExporterImpl;
+class IDatasmithProgressManager;
+class IDatasmithScene;
 
 /**
  * This is the export for a DatasmithScene. Call PreExport, then Export to finish the export process.

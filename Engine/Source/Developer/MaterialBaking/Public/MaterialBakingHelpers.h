@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
 
 struct FColor;
 

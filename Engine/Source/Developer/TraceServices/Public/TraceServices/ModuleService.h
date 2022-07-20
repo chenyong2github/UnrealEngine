@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
 
 class FName;
 
@@ -11,6 +14,7 @@ namespace TraceServices
 {
 
 class IAnalysisSession;
+
 extern TRACESERVICES_API const FName ModuleFeatureName;
 
 struct FModuleInfo

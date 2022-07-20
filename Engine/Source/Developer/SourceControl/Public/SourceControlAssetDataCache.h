@@ -2,12 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "AssetRegistry/AssetData.h"
+#include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/Queue.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlState.h"
+#include "Templates/SharedPointer.h"
+
+#include <atomic>
+
+struct FAssetData;
 
 typedef TSharedPtr<TArray<FAssetData>> FAssetDataArrayPtr;
 

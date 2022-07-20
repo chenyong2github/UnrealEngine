@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "TraceServices/Model/AnalysisSession.h"
+#include "HAL/Platform.h"
 #include "Templates/Function.h"
+#include "TraceServices/Model/AnalysisSession.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace TraceServices
 {

@@ -2,8 +2,17 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
 #include "RigVMTemplateNode.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RigVMIfNode.generated.h"
+
+class UObject;
+struct FRigVMTemplate;
 
 /**
  * A if node is used to pick between two values
