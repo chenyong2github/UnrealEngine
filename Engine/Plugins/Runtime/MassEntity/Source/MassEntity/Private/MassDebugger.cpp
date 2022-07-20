@@ -14,10 +14,6 @@
 #include "Engine/Engine.h"
 
 
-DEFINE_ENUM_TO_STRING(EMassFragmentAccess, "/Script/MassEntity");
-DEFINE_ENUM_TO_STRING(EMassFragmentPresence, "/Script/MassEntity");
-DEFINE_ENUM_TO_STRING(EMassProcessingPhase, "/Script/MassEntity");
-
 namespace UE::Mass::Debug
 {
 

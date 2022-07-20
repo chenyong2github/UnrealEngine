@@ -232,7 +232,7 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 			FStringOutputDevice Ar;
 			Phase.PhaseProcessor->DebugOutputDescription(Ar);
 			UE_VLOG_UELOG(this, LogMass, Log, TEXT("Enabling phase %s tick:\n%s")
-				, *EnumToString(Phase.Phase), *Ar);
+				, *UEnum::GetValueAsString(Phase.Phase), *Ar);
 		}
 #endif // WITH_MASSENTITY_DEBUG		
 	}
@@ -287,7 +287,7 @@ void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase P
 		FStringOutputDevice Ar;
 		PhaseProcessor->DebugOutputDescription(Ar);
 		UE_VLOG(this, LogMass, Log, TEXT("Setting new group processor for phase %s:\n%s")
-			, *EnumToString(Phase), *Ar);
+			, *UEnum::GetValueAsString(Phase), *Ar);
 #endif // WITH_MASSENTITY_DEBUG
 	}
 	else

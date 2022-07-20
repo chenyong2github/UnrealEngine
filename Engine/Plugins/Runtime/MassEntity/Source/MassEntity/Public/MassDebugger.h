@@ -6,7 +6,6 @@
 
 #if WITH_MASSENTITY_DEBUG
 #include "Containers/ContainersFwd.h"
-#include "VisualLogger/VisualLoggerTypes.h"
 #include "MassEntityQuery.h"
 #include "MassProcessor.h"
 
@@ -19,10 +18,6 @@ struct FMassArchetypeHandle;
 struct FMassFragmentRequirementDescription;
 enum class EMassFragmentAccess : uint8;
 enum class EMassFragmentPresence : uint8;
-
-MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassFragmentAccess);
-MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassFragmentPresence);
-MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassProcessingPhase);
 
 namespace UE::Mass::Debug
 {
