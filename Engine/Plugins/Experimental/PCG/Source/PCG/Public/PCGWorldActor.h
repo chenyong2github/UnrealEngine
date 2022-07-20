@@ -46,6 +46,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = CachedData)
 	FPCGLandscapeCache LandscapeCache;
 
+	/** Disable creation of Partition Actors on the Z axis. Can improve performances if 3D partitioning is not needed. */
+	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
+	bool bUse2DGrid = false;
+
 private:
 	void RegisterToSubsystem();
 	void UnregisterFromSubsystem();

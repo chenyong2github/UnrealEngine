@@ -148,12 +148,12 @@ namespace PCGHelpers
 		return Landscape;
 	}
 
-#if WITH_EDITOR
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld)
 	{
 		return (InWorld && InWorld->GetSubsystem<UPCGSubsystem>()) ? InWorld->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor() : nullptr;
 	}
 
+#if WITH_EDITOR
 	bool CanBeExpanded(UClass* ObjectClass)
 	{
 		// There shouldn't be any need to dig through Niagara assets + there are some issues (most likely related to loading) with parsing all their dependencies

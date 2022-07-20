@@ -221,10 +221,6 @@ void UPCGComponent::GenerateLocal(bool bForce, EPCGComponentGenerationTrigger Re
 	{
 		bIsGenerating = true;
 	}
-	else
-	{
-		OnProcessGraphAborted();
-	}
 }
 
 FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& TaskDependencies)
@@ -253,10 +249,11 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationT
 	const FBox NewBounds = GetGridBounds();
 	if (!NewBounds.IsValid)
 	{
+		OnProcessGraphAborted();
 		return InvalidPCGTaskId;
 	}
 
-	return GetSubsystem()->ScheduleComponent(this, /*bSave=*/false, TaskDependencies);
+	return GetSubsystem()->ScheduleComponent(this, /*bSave=*/bForce, TaskDependencies);
 }
 
 bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds)

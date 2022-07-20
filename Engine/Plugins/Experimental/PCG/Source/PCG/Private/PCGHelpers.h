@@ -35,9 +35,9 @@ namespace PCGHelpers
 
 	bool IsRuntimeOrPIE();
 
-#if WITH_EDITOR
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld);
 
+#if WITH_EDITOR
 	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies);
 	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies);
 #endif

@@ -99,7 +99,7 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 		return;
 	}
 
-	// First gather all the PCG components that linked to PCGPartitionActor and generated
+	// First gather all the PCG components that linked to PCGPartitionActor
 	TSet<TObjectPtr<UPCGComponent>> AllPartitionedComponents;
 	
 	bool bAllSafeToDelete = true;
@@ -116,7 +116,7 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 
 		for (UPCGComponent* PCGComponent : PartitionActor->GetAllOriginalPCGComponents())
 		{
-			if (PCGComponent && PCGComponent->bGenerated)
+			if (PCGComponent)
 			{
 				AllPartitionedComponents.Add(PCGComponent);
 			}
@@ -138,7 +138,7 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 	// Then delete all PCGPartitionActors
 	PCGSubsystem->DeletePartitionActors();
 
-	// And finally, refresh all components that were generated.
+	// And finally, refresh all components
 	for (TObjectPtr<UPCGComponent> PCGComponent : AllPartitionedComponents)
 	{
 		PCGComponent->DirtyGenerated();
@@ -148,7 +148,8 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 
 void APCGWorldActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(APCGWorldActor, PartitionGridSize))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(APCGWorldActor, PartitionGridSize) 
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(APCGWorldActor, bUse2DGrid))
 	{
 		OnPartitionGridSizeChanged();
 	}

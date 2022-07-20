@@ -100,5 +100,5 @@ public:
 	/**
 	 * Return the grid cell coordinates on the PCG partition grid given a position and the grid size.
 	 */
-	static FIntVector GetCellCoord(FVector InPosition, int InGridSize);
+	static FIntVector GetCellCoord(FVector InPosition, int InGridSize, bool bUse2DGrid);
 };

@@ -385,15 +385,16 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 	return NewActor;
 }
 
-FIntVector UPCGActorHelpers::GetCellCoord(FVector InPosition, int InGridSize)
+FIntVector UPCGActorHelpers::GetCellCoord(FVector InPosition, int InGridSize, bool bUse2DGrid)
 {
 	check(InGridSize > 0);
 
 	FVector Temp = InPosition / InGridSize;
 
+	// In case of 2D grid, Z coordinate is always 0
 	return FIntVector(
 		FMath::FloorToInt(Temp.X),
 		FMath::FloorToInt(Temp.Y),
-		FMath::FloorToInt(Temp.Z)
+		bUse2DGrid ? 0 : FMath::FloorToInt(Temp.Z)
 	);
 }

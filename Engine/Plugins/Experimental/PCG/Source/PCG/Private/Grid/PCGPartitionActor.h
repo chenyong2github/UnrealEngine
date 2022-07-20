@@ -46,6 +46,9 @@ public:
 	FBox GetFixedBounds() const;
 	FIntVector GetGridCoord() const;
 
+	uint32 GetGridSize() const { return PCGGridSize; }
+	bool IsUsing2DGrid() const { return bUse2DGrid; }
+
 	void AddGraphInstance(UPCGComponent* OriginalComponent);
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
 	bool CleanupDeadGraphInstances();
@@ -85,6 +88,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = WorldPartition)
 	uint32 PCGGridSize;
+
+	UPROPERTY(VisibleAnywhere, Category = WorldPartition)
+	bool bUse2DGrid;
 
 #if WITH_EDITORONLY_DATA
 	/** Box component to draw the Partition actor bounds in the Editor viewport */

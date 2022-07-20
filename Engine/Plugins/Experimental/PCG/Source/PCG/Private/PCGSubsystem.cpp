@@ -89,7 +89,7 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
 {
 #if WITH_EDITOR
-	if (!PCGWorldActor)
+	if (!PCGWorldActor && !PCGHelpers::IsRuntimeOrPIE())
 	{
 		PCGWorldActorLock.Lock();
 		if (!PCGWorldActor)
@@ -545,18 +545,25 @@ void UPCGSubsystem::UnregisterPartitionActor(APCGPartitionActor* Actor)
 
 void UPCGSubsystem::FindAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const
 {
-	// No World actor nor any PA registered, just early out. Same for invalid bounds.
-	if (!PCGWorldActor || PartitionActorsMap.IsEmpty() || !InBounds.IsValid)
+
+	// No PCGWorldActor just early out. Same for invalid bounds.
+	if (!PCGWorldActor || !InBounds.IsValid)
 	{
 		return;
 	}
 
 	const uint32 GridSize = PCGWorldActor->PartitionGridSize;
-	const FIntVector MinCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Min, GridSize);
-	const FIntVector MaxCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Max, GridSize);
+	const bool bUse2DGrid = PCGWorldActor->bUse2DGrid;
+	FIntVector MinCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Min, GridSize, bUse2DGrid);
+	FIntVector MaxCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Max, GridSize, bUse2DGrid);
 
 	{
 		FReadScopeLock ReadLock(PartitionActorsMapLock);
+
+		if (PartitionActorsMap.IsEmpty())
+		{
+			return;
+		}
 
 		for (int32 z = MinCellCoords.Z; z <= MaxCellCoords.Z; z++)
 		{
@@ -590,12 +597,29 @@ namespace PCGSubsystem
 			return InvalidPCGTaskId;
 		}
 
+		APCGWorldActor* PCGWorldActor = PCGHelpers::GetPCGWorldActor(World);
+
+		check(PCGWorldActor);
+
+		// In case of 2D grid, we are clamping our bounds in Z to be within 0 and PartitionGridSize
+		// By doing so, WP will tie all the partition actors to [0, PartitionGridSize[ interval, generating a "2D grid" instead of 3D.
+		FBox ModifiedInBounds = InBounds;
+		if (PCGWorldActor->bUse2DGrid)
+		{
+			FVector MinBounds = InBounds.Min;
+			FVector MaxBounds = InBounds.Max;
+
+			MinBounds.Z = 0;
+			MaxBounds.Z = FMath::Max<FVector::FReal>(0.0, PCGWorldActor->PartitionGridSize - 1.0); // -1 to be just below the PartitionGridSize
+			ModifiedInBounds = FBox(MinBounds, MaxBounds);
+		}
+
 		TArray<FPCGTaskId> CellTasks;
 
-		auto CellLambda = [&CellTasks, GraphExecutor, World, bCreateActor, bLoadCell, bSaveActors, InBounds, &InOperation](const UActorPartitionSubsystem::FCellCoord& CellCoord, const FBox& CellBounds)
+		auto CellLambda = [&CellTasks, GraphExecutor, World, bCreateActor, bLoadCell, bSaveActors, ModifiedInBounds, &InOperation](const UActorPartitionSubsystem::FCellCoord& CellCoord, const FBox& CellBounds)
 		{
 			UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(World);
-			FBox IntersectedBounds = InBounds.Overlap(CellBounds);
+			FBox IntersectedBounds = ModifiedInBounds.Overlap(CellBounds);
 
 			if (IntersectedBounds.IsValid)
 			{
@@ -717,7 +741,7 @@ namespace PCGSubsystem
 
 		// TODO: accumulate last phases of every cell + run a GC at the end?
 		//  or add some mechanism on the graph executor side to run GC every now and then
-		FActorPartitionGridHelper::ForEachIntersectingCell(APCGPartitionActor::StaticClass(), InBounds, World->PersistentLevel, CellLambda);
+		FActorPartitionGridHelper::ForEachIntersectingCell(APCGPartitionActor::StaticClass(), ModifiedInBounds, World->PersistentLevel, CellLambda);
 
 		// Finally, create a dummy generic task to wait on all cells
 		if (!CellTasks.IsEmpty())
@@ -732,100 +756,90 @@ namespace PCGSubsystem
 
 } // end namepsace PCGSubsystem
 
-FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, bool bGenerate, bool bSave)
+FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, EOperation InOperation, bool bSave)
 {
-	check(Component && (InPreviousBounds.IsValid || InNewBounds.IsValid));
+	check(Component);
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
 
 	// TODO: optimal implementation would find the difference between the previous bounds and the new bounds
 	// and process these only. This is esp. important because of the CreateActor parameter.
-	auto ScheduleTask = [this, ComponentPtr, InPreviousBounds, InNewBounds, bGenerate](APCGPartitionActor* PCGActor, const FBox& InBounds, const TArray<FPCGTaskId>& TaskDependencies){
-		auto UnpartitionTask = [ComponentPtr, PCGActor]() {
+	auto ScheduleTask = [this, ComponentPtr, InOperation](APCGPartitionActor* PCGActor, const FBox& InBounds, const TArray<FPCGTaskId>& TaskDependencies){
+		TWeakObjectPtr<APCGPartitionActor> PCGActorPtr(PCGActor);
+
+		auto UnpartitionTask = [ComponentPtr, PCGActorPtr]() {
 			// TODO: PCG actors that become empty could be deleted, but we also need to keep track
 			// of packages that would need to be deleted from SCC.
-			if (UPCGComponent* Component = ComponentPtr.Get())
+			if (APCGPartitionActor* PCGActor = PCGActorPtr.Get())
 			{
-				PCGActor->RemoveGraphInstance(Component);
-			}
-			else
-			{
-#if WITH_EDITOR
-				PCGActor->CleanupDeadGraphInstances();
-#endif
-			}
-			return true;
-		};
-
-		auto PartitionTask = [ComponentPtr, PCGActor]() {
-			if (UPCGComponent* Component = ComponentPtr.Get())
-			{
-				PCGActor->AddGraphInstance(Component);
-			}			
-			return true;
-		};
-
-		auto ScheduleGraph = [this, PCGActor, ComponentPtr, &TaskDependencies]() {
-			if (UPCGComponent* Component = ComponentPtr.Get())
-			{
-				// Ensure that the PCG actor has a matching local component.
-				// This is done immediately, but technically we could add it as a task
-				PCGActor->AddGraphInstance(Component);
-
-				UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component);
-
-				if (!LocalComponent)
+				if (UPCGComponent* Component = ComponentPtr.Get())
 				{
+					PCGActor->RemoveGraphInstance(Component);
+				}
+				else
+				{
+#if WITH_EDITOR
+					PCGActor->CleanupDeadGraphInstances();
+#endif
+				}
+			}
+			return true;
+		};
+
+		auto PartitionTask = [ComponentPtr, PCGActorPtr]() {
+			if (APCGPartitionActor* PCGActor = PCGActorPtr.Get())
+			{
+				if (UPCGComponent* Component = ComponentPtr.Get())
+				{
+					PCGActor->AddGraphInstance(Component);
+				}
+			}
+
+			return true;
+		};
+
+		auto ScheduleGraph = [this, PCGActorPtr, ComponentPtr, &TaskDependencies]() {
+			if (APCGPartitionActor* PCGActor = PCGActorPtr.Get())
+			{
+				if (UPCGComponent* Component = ComponentPtr.Get())
+				{
+					// Ensure that the PCG actor has a matching local component.
+					// This is done immediately, but technically we could add it as a task
+					PCGActor->AddGraphInstance(Component);
+
+					UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component);
+
+					if (!LocalComponent)
+					{
+						return InvalidPCGTaskId;
+					}
+
+					return LocalComponent->GenerateInternal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnDemand, TaskDependencies);
+				}
+				else
+				{
+					UE_LOG(LogPCG, Error, TEXT("[ProcessGraph] PCG Component on PCG Actor is null"));
 					return InvalidPCGTaskId;
 				}
-
-				return LocalComponent->GenerateInternal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnDemand, TaskDependencies);
 			}
-			else
-			{
-				UE_LOG(LogPCG, Error, TEXT("[ProcessGraph] PCG Component on PCG Actor is null"));
-				return InvalidPCGTaskId;
-			}
+			
+			return InvalidPCGTaskId;
 		};
 
-		const bool bIsInOldBounds = InPreviousBounds.IsValid && InBounds.Intersect(InPreviousBounds);
-		const bool bIsInNewBounds = InNewBounds.IsValid && InBounds.Intersect(InNewBounds);
-
-		// 4 cases here:
-		// old & new -> generate only
-		// old & !new -> unpartition
-		// !old & new -> partition & generate
-		// !old & !new -> nothing to do
-		if (bIsInOldBounds && !bIsInNewBounds)
+		switch (InOperation)
 		{
+		case EOperation::Unpartition:
 			return GraphExecutor->ScheduleGeneric(UnpartitionTask, TaskDependencies);
-		}
-		else if (!bIsInOldBounds && bIsInNewBounds)
-		{
-			// Here, we should try to schedule the local component, but it doesn't exist yet.
-			// what to do? in practice, it's not a problem to not execute the Partition in a separate process,
-			// since there won't be any dependencies there in this case; but, we should execute it in a task
-			// if it's the only thing we do, otherwise we'll have issues with the other operations (save, etc.)
-			if (bGenerate)
-			{
-				return ScheduleGraph();
-			}
-			else
-			{
-				return GraphExecutor->ScheduleGeneric(PartitionTask, TaskDependencies);
-			}
-		}
-		else if (bIsInOldBounds && bIsInNewBounds && bGenerate)
-		{
+		case EOperation::Partition:
+			return GraphExecutor->ScheduleGeneric(PartitionTask, TaskDependencies);
+		case EOperation::Generate:
+		default:
 			return ScheduleGraph();
-		}
-		else
-		{
-			return InvalidPCGTaskId;
 		}
 	};
 
 	FBox UnionBounds = InPreviousBounds + InNewBounds;
-	const bool bCreateActors = (!UnionBounds.Equals(InPreviousBounds));
+	const bool bGenerate = InOperation == EOperation::Generate;
+	const bool bCreateActors = InOperation != EOperation::Unpartition;
 	const bool bLoadCell = (bGenerate && bSave); // TODO: review this
 	const bool bSaveActors = (bSave);
 
@@ -1151,30 +1165,30 @@ void UPCGSubsystem::ResetPartitionActorsMap()
 ///////////////////////////////////////////////////////////////////////////////////////////
 void UPCGSubsystem::DelayPartitionGraph(UPCGComponent* Component)
 {
-	DelayProcessGraph(Component, /*bGenerate=*/false, /*bSave=*/false, /*bUseEmptyNewBounds=*/false);
+	DelayProcessGraph(Component, EOperation::Partition, /*bSave=*/false);
 }
 
 void UPCGSubsystem::DelayUnpartitionGraph(UPCGComponent* Component)
 {
-	DelayProcessGraph(Component, /*bGenerate=*/false, /*bSave=*/false, /*bUseEmptyNewBounds=*/true);
+	DelayProcessGraph(Component, EOperation::Unpartition, /*bSave=*/false);
 }
 
 FPCGTaskId UPCGSubsystem::DelayGenerateGraph(UPCGComponent* Component, bool bSave)
 {
-	return DelayProcessGraph(Component, /*bGenerate=*/true, bSave, /*bUseEmptyNewBounds=*/false);
+	return DelayProcessGraph(Component, EOperation::Generate, bSave);
 }
 
-FPCGTaskId UPCGSubsystem::DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds)
+FPCGTaskId UPCGSubsystem::DelayProcessGraph(UPCGComponent* Component, EOperation InOperation, bool bSave)
 {
 	check(Component && Component->IsPartitioned());
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
 
-	auto ExecuteProcessGraph = [this, ComponentPtr, bGenerate, bSave, bUseEmptyNewBounds]() {
+	auto ExecuteProcessGraph = [this, ComponentPtr, InOperation, bSave]() {
 		if (UPCGComponent* Component = ComponentPtr.Get())
 		{
 			const FBox PreviousBounds = Component->LastGeneratedBounds;
-			FBox NewBounds = bUseEmptyNewBounds ? FBox(EForceInit::ForceInit) : Component->GetGridBounds();
-			/*FPCGTaskId GraphTaskId = */ ProcessGraph(Component, PreviousBounds, NewBounds, bGenerate, bSave);
+			const FBox NewBounds = Component->GetGridBounds();
+			/*FPCGTaskId GraphTaskId = */ ProcessGraph(Component, PreviousBounds, NewBounds, InOperation, bSave);
 		}
 
 		return true;

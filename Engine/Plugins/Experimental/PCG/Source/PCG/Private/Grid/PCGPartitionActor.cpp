@@ -112,13 +112,22 @@ FBox APCGPartitionActor::GetFixedBounds() const
 {
 	const FVector Center = GetActorLocation();
 	const FVector::FReal HalfGridSize = PCGGridSize / 2.0;
-	return FBox(Center - HalfGridSize, Center + HalfGridSize);
+
+	FVector Extent(HalfGridSize, HalfGridSize, HalfGridSize);
+
+	// In case of 2D grid, it's like the actor has infinite bounds on the Z axis
+	if (bUse2DGrid)
+	{
+		Extent.Z = HALF_WORLD_MAX1;
+	}
+
+	return FBox(Center - Extent, Center + Extent);
 }
 
 FIntVector APCGPartitionActor::GetGridCoord() const
 {
 	const FVector Center = GetActorLocation();
-	return UPCGActorHelpers::GetCellCoord(Center, PCGGridSize);
+	return UPCGActorHelpers::GetCellCoord(Center, PCGGridSize, bUse2DGrid);
 }
 
 void APCGPartitionActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
@@ -256,8 +265,19 @@ void APCGPartitionActor::PostCreation()
 {
 	PCGGridSize = GridSize;
 
+	// Put in cache if we use the 2D grid or not.
+	if (APCGWorldActor* PCGActor = PCGHelpers::GetPCGWorldActor(GetWorld()))
+	{
+		bUse2DGrid = PCGActor->bUse2DGrid;
+	}
+	else
+	{
+		bUse2DGrid = false;
+	}
+
 #if WITH_EDITOR
-	if (BoundsComponent)
+	// Since we have infinite bounds in 2D, we just disable the bounds
+	if (BoundsComponent && !bUse2DGrid)
 	{
 		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
 	}

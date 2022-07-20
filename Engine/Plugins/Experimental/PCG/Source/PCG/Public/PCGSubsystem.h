@@ -125,10 +125,18 @@ public:
 	void ClearLandscapeCache();
 
 private:
-	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds);
-	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, bool bGenerate, bool bSave);
+	enum class EOperation : uint32
+	{
+		Partition,
+		Unpartition,
+		Generate
+	};
+
+	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, EOperation InOperation, bool bSave);
+	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, EOperation InOperation, bool bSave);
 #endif // WITH_EDITOR
 	
+private:
 	// Schedule multiple graphs
 	TArray<FPCGTaskId> ScheduleMultipleComponent(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TArray<FPCGTaskId>& Dependencies);
 
