@@ -649,8 +649,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bPassesAssetReferenceFilter = true;
 	if (AssetReferenceFilter.IsValid() && bIsBlueprintBase)
 	{
-		FName BlueprintPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
-		bPassesAssetReferenceFilter = AssetReferenceFilter->PassesFilter(AssetRegistry.GetAssetByObjectPath(BlueprintPath));
+		FName BlueprintAssetPath = FName(*GeneratedClassPathString);
+		FAssetData BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(BlueprintAssetPath);
+		if (!BlueprintAssetData.IsValid())
+		{
+			BlueprintAssetPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
+			BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(BlueprintAssetPath);
+		}
+
+		if (BlueprintAssetData.IsValid())
+		{
+			bPassesAssetReferenceFilter = AssetReferenceFilter->PassesFilter(BlueprintAssetData);
+		}
+		else
+		{
+			UE_LOG(LogEditorClassViewer, Warning, TEXT("Blueprint class cannot be found: %s"), *GeneratedClassPathString);
+		}
 	}
 
 	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter 

@@ -11,6 +11,8 @@ class IClassViewerFilter;
 class IPropertyHandle;
 class SWidget;
 
+DEFINE_LOG_CATEGORY_STATIC(LogEditorClassViewer, Log, All);
+
 /** Delegate used with the Class Viewer in 'class picking' mode.  You'll bind a delegate when the
     class viewer widget is created, which will be fired off when a class is selected in the list */
 DECLARE_DELEGATE_OneParam( FOnClassPicked, UClass* );

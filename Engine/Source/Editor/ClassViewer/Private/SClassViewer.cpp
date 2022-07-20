@@ -78,8 +78,6 @@
 
 #define LOCTEXT_NAMESPACE "SClassViewer"
 
-DEFINE_LOG_CATEGORY_STATIC(LogEditorClassViewer, Log, All);
-
 //////////////////////////////////////////////////////////////
 
 struct FClassViewerNodeNameLess
