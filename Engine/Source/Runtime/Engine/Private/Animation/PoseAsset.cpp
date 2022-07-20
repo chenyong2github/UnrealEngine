@@ -1625,7 +1625,7 @@ bool UPoseAsset::GetFullPose(int32 PoseIndex, TArray<FTransform>& OutTransforms)
 	return true;
 }
 
-FTransform UPoseAsset::GetComponentSpaceTransform(FName TrackName, const TArray<FTransform>& LocalTransforms) const
+FTransform UPoseAsset::GetComponentSpaceTransform(FName BoneName, const TArray<FTransform>& LocalTransforms) const
 {
 	const FReferenceSkeleton& RefSkel = GetSkeleton()->GetReferenceSkeleton();
 
@@ -1633,11 +1633,11 @@ FTransform UPoseAsset::GetComponentSpaceTransform(FName TrackName, const TArray<
 	FTransform ComponentSpaceTransform = FTransform::Identity;
 
 	// Start to walk up parent chain until we reach root (ParentIndex == INDEX_NONE)
-	int32 BoneIndex = RefSkel.FindBoneIndex(TrackName);
+	int32 BoneIndex = RefSkel.FindBoneIndex(BoneName);
 	while (BoneIndex != INDEX_NONE)
 	{
-		TrackName = RefSkel.GetBoneName(BoneIndex);
-		const int32 TrackIndex = GetTrackIndexByName(TrackName);
+		BoneName = RefSkel.GetBoneName(BoneIndex);
+		int32 TrackIndex = GetTrackIndexByName(BoneName);
 
 		// If a track for parent, get local space transform from that
 		// If not, get from ref pose
