@@ -121,8 +121,10 @@ void AddSkinUpdatePass(
 	class FSkinWeightVertexBuffer* SkinWeight,
 	class FSkeletalMeshLODRenderData& RenderData,
 	FRDGBufferRef BoneMatrices,
+	FRDGBufferRef PreviousBoneMatrices,
 	FRDGBufferRef MatrixOffsets,
-	FRDGBufferRef OutDeformedosition);
+	FRDGBufferRef OutDeformedosition,
+	FRDGBufferRef OutPreviousDeformedosition);
 
 void AddHairMeshesRBFInterpolationPass(
 	FRDGBuilder& GraphBuilder,

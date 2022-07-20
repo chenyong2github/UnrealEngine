@@ -42,31 +42,55 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void BuildBoneMatrices(const USkeletalMeshComponent* SkeletalMeshComponent, const FSkeletalMeshLODRenderData& LODData,
-	const uint32 LODIndex, TArray<uint32>& MatrixOffsets, TArray<FVector4f>& BoneMatrices)
-{
-	TArray<FMatrix44f> BoneTransforms;
-	SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
+ENGINE_API void UpdateRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
+ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
 
-	MatrixOffsets.SetNum(LODData.GetNumVertices());
+static void BuildBoneMatrices(
+	const USkeletalMeshComponent* SkeletalMeshComponent, 
+	const FSkeletalMeshRenderData* RenderData,
+	const FSkeletalMeshLODRenderData& LODData,
+	const uint32 LODIndex, 
+	const bool bNeedPreviousPosition,
+	TArray<uint32>& OutMatrixOffsets, 
+	TArray<FVector4f>& OutBoneMatrices,
+	TArray<FVector4f>& OutPrevBoneMatrices)
+{
+	//SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
+	check(RenderData->LODRenderData.IsValidIndex(LODIndex));
+
+	TArray<FMatrix44f> BoneTransforms;
+	UpdateRefToLocalMatrices(BoneTransforms, SkeletalMeshComponent, RenderData, LODIndex, nullptr);
+
+	TArray<FMatrix44f> PrevBoneTransforms;
+	if (bNeedPreviousPosition)
+	{
+		UpdatePreviousRefToLocalMatrices(PrevBoneTransforms, SkeletalMeshComponent, RenderData, LODIndex, nullptr);
+	}
+	
+	OutMatrixOffsets.SetNum(LODData.GetNumVertices());
 	uint32 BonesOffset = 0;
 	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 	{
 		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
 		for (uint32 SectionVertex = 0; SectionVertex < Section.NumVertices; ++SectionVertex)
 		{
-			MatrixOffsets[Section.BaseVertexIndex + SectionVertex] = BonesOffset;
+			OutMatrixOffsets[Section.BaseVertexIndex + SectionVertex] = BonesOffset;
 		}
 		BonesOffset += Section.BoneMap.Num();
 	}
-	BoneMatrices.SetNum(BonesOffset * 3);
+	OutBoneMatrices.SetNum(BonesOffset * 3);
+	OutPrevBoneMatrices.SetNum(BonesOffset * 3);
 	BonesOffset = 0;
 	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 	{
 		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
 		for (int32 BoneIdx = 0; BoneIdx < Section.BoneMap.Num(); ++BoneIdx, ++BonesOffset)
 		{
-			BoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&BoneMatrices[3 * BonesOffset].X);
+			BoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&OutBoneMatrices[3 * BonesOffset].X);
+			if (bNeedPreviousPosition)
+			{
+				PrevBoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&OutPrevBoneMatrices[3 * BonesOffset].X);
+			}
 		}
 	}
 }
@@ -89,19 +113,20 @@ static void BuildBoneMatrices(const USkeletalMeshComponent* SkeletalMeshComponen
 			FSkeletalMeshRenderData* RenderData = SkeletalMeshComponent->GetSkeletalMesh()->GetResourceForRendering();
 			FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
 
+			const bool bNeedPreviousPosition = IsHairStrandContinuousDecimationReorderingEnabled();
+
 			TArray<uint32> MatrixOffsets;
 			TArray<FVector4f> BoneMatrices;
-			BuildBoneMatrices(SkeletalMeshComponent, LODData, LODIndex, MatrixOffsets, BoneMatrices);
-
-			const bool bNeedPreviousPosition = IsHairStrandContinuousDecimationReorderingEnabled();
+			TArray<FVector4f> PrevBoneMatrices;
+			BuildBoneMatrices(SkeletalMeshComponent, RenderData, LODData, LODIndex, bNeedPreviousPosition, MatrixOffsets, BoneMatrices, PrevBoneMatrices);
 
 			FRDGBufferRef DeformedPositionsBuffer			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPositions"));
 			FRDGBufferRef DeformedPreviousPositionsBuffer	= bNeedPreviousPosition ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPreviousPositions")) : nullptr;
 			FRDGBufferRef BoneMatricesBuffer				= CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(), BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num());
+			FRDGBufferRef PreviousBoneMatricesBuffer		= bNeedPreviousPosition ? CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedPreviousBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(), BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num()) : nullptr;
 			FRDGBufferRef MatrixOffsetsBuffer				= CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedMatrixOffsets"), sizeof(uint32), MatrixOffsets.Num(), MatrixOffsets.GetData(), sizeof(uint32) * MatrixOffsets.Num());
 
-			// TODO previous bone matrices
-			AddSkinUpdatePass(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer);
+			AddSkinUpdatePass(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, PreviousBoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer, DeformedPreviousPositionsBuffer);
 
 			Out.DeformedPositionBuffer = DeformedPositionsBuffer;
 			Out.DeformedPreviousPositionBuffer = DeformedPreviousPositionsBuffer;

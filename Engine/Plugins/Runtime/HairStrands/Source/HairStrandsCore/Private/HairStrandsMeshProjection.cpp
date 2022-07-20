@@ -75,10 +75,12 @@ class FSkinUpdateCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FSkinUpdateCS);
 	SHADER_USE_PARAMETER_STRUCT(FSkinUpdateCS, FGlobalShader);
 
-	class FUnlimitedBoneInfluence : SHADER_PERMUTATION_INT("GPUSKIN_UNLIMITED_BONE_INFLUENCE", 2);
-	class FUseExtraInfluence : SHADER_PERMUTATION_INT("GPUSKIN_USE_EXTRA_INFLUENCES", 2);
-	class FIndexUint16 : SHADER_PERMUTATION_INT("GPUSKIN_BONE_INDEX_UINT16", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FUnlimitedBoneInfluence, FUseExtraInfluence, FIndexUint16>;
+	
+	class FPrevious : SHADER_PERMUTATION_BOOL("PERMUTATION_PREV");
+	class FUnlimitedBoneInfluence : SHADER_PERMUTATION_BOOL("GPUSKIN_UNLIMITED_BONE_INFLUENCE");
+	class FUseExtraInfluence : SHADER_PERMUTATION_BOOL("GPUSKIN_USE_EXTRA_INFLUENCES");
+	class FIndexUint16 : SHADER_PERMUTATION_BOOL("GPUSKIN_BONE_INDEX_UINT16");
+	using FPermutationDomain = TShaderPermutationDomain<FUnlimitedBoneInfluence, FUseExtraInfluence, FIndexUint16, FPrevious>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, IndexSize)
@@ -86,12 +88,13 @@ class FSkinUpdateCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, WeightStride)
 		SHADER_PARAMETER_SRV(Buffer<uint>, WeightLookup)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, BoneMatrices)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, PrevBoneMatrices)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MatrixOffsets)
 		SHADER_PARAMETER_SRV(Buffer<uint>, VertexWeights)
 		SHADER_PARAMETER_SRV(Buffer<float>, RestPositions)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, DeformedPositions)
-
-		END_SHADER_PARAMETER_STRUCT()
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, PrevDeformedPositions)
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
@@ -105,32 +108,41 @@ void AddSkinUpdatePass(
 	FSkinWeightVertexBuffer* SkinWeight,
 	FSkeletalMeshLODRenderData& RenderData,
 	FRDGBufferRef BoneMatrices,
+	FRDGBufferRef PrevBoneMatrices,
 	FRDGBufferRef MatrixOffsets,
-	FRDGBufferRef OutDeformedosition)
+	FRDGBufferRef OutDeformedPosition,
+	FRDGBufferRef OutPrevDeformedPosition)
 {
-	FSkinUpdateCS::FParameters* Parameters = GraphBuilder.AllocParameters<FSkinUpdateCS::FParameters>();
+	const bool bPrevPosition = OutPrevDeformedPosition != nullptr && PrevBoneMatrices != nullptr;
 
+	FSkinUpdateCS::FParameters* Parameters = GraphBuilder.AllocParameters<FSkinUpdateCS::FParameters>();
 	Parameters->IndexSize = SkinWeight->GetBoneIndexByteSize();
 	Parameters->NumVertices = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 	Parameters->WeightStride = SkinWeight->GetConstantInfluencesVertexStride();
 	Parameters->WeightLookup = SkinWeight->GetLookupVertexBuffer()->GetSRV();
-	Parameters->BoneMatrices = GraphBuilder.CreateSRV(BoneMatrices);//BoneBuffer.VertexBufferSRV;
-	Parameters->MatrixOffsets = GraphBuilder.CreateSRV(MatrixOffsets);//BoneBuffer.VertexBufferSRV;
+	Parameters->BoneMatrices = GraphBuilder.CreateSRV(BoneMatrices);
+	Parameters->MatrixOffsets = GraphBuilder.CreateSRV(MatrixOffsets);
 	Parameters->VertexWeights = SkinWeight->GetDataVertexBuffer()->GetSRV();
 	Parameters->RestPositions = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetSRV();
-	Parameters->DeformedPositions = GraphBuilder.CreateUAV(OutDeformedosition, PF_R32_FLOAT);
+	Parameters->DeformedPositions = GraphBuilder.CreateUAV(OutDeformedPosition, PF_R32_FLOAT);
+	if (bPrevPosition)
+	{
+		Parameters->PrevBoneMatrices = GraphBuilder.CreateSRV(BoneMatrices);
+		Parameters->PrevDeformedPositions = GraphBuilder.CreateUAV(OutPrevDeformedPosition, PF_R32_FLOAT);
+	}
 
 	FSkinUpdateCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FSkinUpdateCS::FUnlimitedBoneInfluence>(SkinWeight->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
 	PermutationVector.Set<FSkinUpdateCS::FUseExtraInfluence>(SkinWeight->GetMaxBoneInfluences() > MAX_INFLUENCES_PER_STREAM);
 	PermutationVector.Set<FSkinUpdateCS::FIndexUint16>(SkinWeight->Use16BitBoneIndex());
+	PermutationVector.Set<FSkinUpdateCS::FPrevious>(bPrevPosition);
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(), 64);
 	check(DispatchGroupCount.X < 65536);
 	TShaderMapRef<FSkinUpdateCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("UpdateSkinPosition"),
+		RDG_EVENT_NAME("HairStrands::UpdateSkinPosition(%s)", bPrevPosition ? TEXT("Curr,Prev") : TEXT("Curr")),
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
