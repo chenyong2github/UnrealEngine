@@ -30,6 +30,19 @@ void UPCGIntersectionData::Initialize(const UPCGSpatialData* InA, const UPCGSpat
 
 	CachedBounds = PCGHelpers::OverlapBounds(A->GetBounds(), B->GetBounds());
 	CachedStrictBounds = PCGHelpers::OverlapBounds(A->GetStrictBounds(), B->GetStrictBounds());
+
+	check(Metadata);
+	// Note: this should behave the same way as the ToPointData
+	if (A->GetDimension() <= B->GetDimension())
+	{
+		Metadata->Initialize(A->Metadata);
+		Metadata->AddAttributes(B->Metadata);
+	}
+	else
+	{
+		Metadata->Initialize(B->Metadata);
+		Metadata->AddAttributes(A->Metadata);
+	}
 }
 
 int UPCGIntersectionData::GetDimension() const
@@ -75,7 +88,7 @@ bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox
 
 	if (OutMetadata)
 	{
-		OutMetadata->MergePointAttributes(PointFromX, PointFromY, OutPoint, EPCGMetadataOp::Min);
+		OutMetadata->MergePointAttributesSubset(PointFromX, OutMetadata, X->Metadata, PointFromY, OutMetadata, Y->Metadata, OutPoint, EPCGMetadataOp::Min);
 	}
 
 	return true;
@@ -146,7 +159,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 
 		if (Data->Metadata)
 		{
-			Data->Metadata->MergePointAttributes(Point, SourcePointData->Metadata, PointFromY, Data->Metadata, OutPoint, EPCGMetadataOp::Min);
+			Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromY, Data->Metadata, Y->Metadata, OutPoint, EPCGMetadataOp::Min);
 		}
 
 		return true;

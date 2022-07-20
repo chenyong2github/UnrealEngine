@@ -40,6 +40,7 @@ void UPCGUnionData::Initialize(const UPCGSpatialData* InA, const UPCGSpatialData
 void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 {
 	check(InData);
+	check(Metadata);
 
 	Data.Add(InData);
 
@@ -49,12 +50,14 @@ void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 		CachedBounds = InData->GetBounds();
 		CachedStrictBounds = InData->GetStrictBounds();
 		CachedDimension = InData->GetDimension();
+		Metadata->Initialize(InData->Metadata);
 	}
 	else
 	{
 		CachedBounds += InData->GetBounds();
 		CachedStrictBounds = PCGHelpers::OverlapBounds(CachedStrictBounds, InData->GetStrictBounds());
 		CachedDimension = FMath::Max(CachedDimension, InData->GetDimension());
+		Metadata->AddAttributes(InData->Metadata);
 	}
 
 	if (!FirstNonTrivialTransformData && InData->HasNonTrivialTransform())
@@ -128,7 +131,7 @@ bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 				// Merge properties into OutPoint
 				if (OutMetadata)
 				{
-					OutMetadata->MergePointAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+					OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, Data[DataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
 				}
 			}
 			
@@ -294,7 +297,7 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 
 					if (PointData->Metadata)
 					{
-						PointData->Metadata->MergePointAttributes(OutPoint, PointInData, OutPoint, EPCGMetadataOp::Max);
+						PointData->Metadata->MergePointAttributesSubset(OutPoint, PointData->Metadata, PointData->Metadata, PointInData, PointData->Metadata, Data[FollowingDataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
 					}
 					else if (OutPoint.Density >= 1.0f)
 					{

@@ -31,6 +31,9 @@ void UPCGDifferenceData::Initialize(const UPCGSpatialData* InData)
 	check(InData);
 	Source = InData;
 	TargetActor = InData->TargetActor;
+
+	check(Metadata);
+	Metadata->Initialize(Source->Metadata);
 }
 
 void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
@@ -123,7 +126,7 @@ bool UPCGDifferenceData::SamplePoint(const FTransform& InTransform, const FBox& 
 		// Color?
 		if (OutMetadata && OutPoint.Density > 0)
 		{
-			OutMetadata->MergePointAttributes(PointFromSource, PointFromDiff, OutPoint, EPCGMetadataOp::Sub);
+			OutMetadata->MergePointAttributesSubset(PointFromSource, OutMetadata, Source->Metadata, PointFromDiff, OutMetadata, Difference->Metadata, OutPoint, EPCGMetadataOp::Sub);
 		}
 
 		return OutPoint.Density > 0;
@@ -180,7 +183,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 
 			if (Data->Metadata && OutPoint.Density > 0)
 			{
-				Data->Metadata->MergePointAttributes(Point, SourcePointData->Metadata, PointFromDiff, Data->Metadata, OutPoint, EPCGMetadataOp::Sub);
+				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromDiff, Data->Metadata, Difference->Metadata, OutPoint, EPCGMetadataOp::Sub);
 			}
 
 #if WITH_EDITORONLY_DATA

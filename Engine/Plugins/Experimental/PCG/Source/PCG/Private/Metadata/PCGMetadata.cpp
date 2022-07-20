@@ -633,7 +633,17 @@ void UPCGMetadata::MergePointAttributes(const FPCGPoint& InPointA, const FPCGPoi
 	MergeAttributes(InPointA.MetadataEntry, this, InPointB.MetadataEntry, this, OutPoint.MetadataEntry, Op);
 }
 
+void UPCGMetadata::MergePointAttributesSubset(const FPCGPoint& InPointA, const UPCGMetadata* InMetadataA, const UPCGMetadata* InMetadataSubsetA, const FPCGPoint& InPointB, const UPCGMetadata* InMetadataB, const UPCGMetadata* InMetadataSubsetB, FPCGPoint& OutPoint, EPCGMetadataOp Op)
+{
+	MergeAttributesSubset(InPointA.MetadataEntry, InMetadataA, InMetadataSubsetA, InPointB.MetadataEntry, InMetadataB, InMetadataSubsetB, OutPoint.MetadataEntry, Op);
+}
+
 void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
+{
+	MergeAttributesSubset(InKeyA, InMetadataA, InMetadataA, InKeyB, InMetadataB, InMetadataB, OutKey, Op);
+}
+
+void UPCGMetadata::MergeAttributesSubset(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, const UPCGMetadata* InMetadataSubsetA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, const UPCGMetadata* InMetadataSubsetB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
 {
 	// Early out: nothing to do if both input metadata are null / points have no assigned metadata
 	if (!InMetadataA && !InMetadataB)
@@ -651,7 +661,11 @@ void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadat
 		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
 
 		// Get attribute from A
-		const FPCGMetadataAttributeBase* AttributeA = InMetadataA ? InMetadataA->GetConstAttribute(AttributeName) : nullptr;
+		const FPCGMetadataAttributeBase* AttributeA = nullptr;
+		if (InMetadataA && ((InMetadataA == InMetadataSubsetA) || (InMetadataSubsetA && InMetadataSubsetA->HasAttribute(AttributeName))))
+		{
+			AttributeA = InMetadataA->GetConstAttribute(AttributeName);
+		}
 
 		if (AttributeA && AttributeA->GetTypeId() != Attribute->GetTypeId())
 		{
@@ -660,7 +674,11 @@ void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadat
 		}
 
 		// Get attribute from B
-		const FPCGMetadataAttributeBase* AttributeB = InMetadataB ? InMetadataB->GetConstAttribute(AttributeName) : nullptr;
+		const FPCGMetadataAttributeBase* AttributeB = nullptr;
+		if (InMetadataB && ((InMetadataB == InMetadataSubsetB) || (InMetadataSubsetB && InMetadataSubsetB->HasAttribute(AttributeName))))
+		{
+			AttributeB = InMetadataB->GetConstAttribute(AttributeName);
+		}
 
 		if (AttributeB && AttributeB->GetTypeId() != Attribute->GetTypeId())
 		{

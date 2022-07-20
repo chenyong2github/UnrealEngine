@@ -67,16 +67,12 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 			continue;
 		}
 
-		if (FLandscapeLayer* EditLayer = Landscape->GetLayer(Landscape->GetLayerIndex(Layer.LayerName)))
+		FLandscapeComponentDataInterface CDI(InComponent, 0, /*bUseEditingLayer=*/true);
+		if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/true))
 		{
-			FScopedSetLandscapeEditingLayer Scope(Landscape, EditLayer->Guid);
-			FLandscapeComponentDataInterface CDI(InComponent, 0, /*bUseEditingLayer=*/true);
-			if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/true))
-			{
-				FPCGLandscapeCacheLayer& PCGLayer = LayerData.Emplace_GetRef();
-				PCGLayer.Name = Layer.LayerName;
-				PCGLayer.Data = LayerCache;
-			}
+			FPCGLandscapeCacheLayer& PCGLayer = LayerData.Emplace_GetRef();
+			PCGLayer.Name = Layer.LayerName;
+			PCGLayer.Data = LayerCache;
 		}
 
 		LayerCache.Reset();
@@ -258,7 +254,9 @@ void FPCGLandscapeCache::PrimeCache()
 				}
 			});
 		}
-	}	
+	}
+
+	CacheLayerNames();
 #endif
 }
 
@@ -329,8 +327,7 @@ void FPCGLandscapeCache::SetupLandscapeCallbacks()
 
 	for (AActor* FoundLandscape : FoundLandscapes)
 	{
-		ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(FoundLandscape);
-		check(Landscape);
+		ALandscapeProxy* Landscape = CastChecked<ALandscapeProxy>(FoundLandscape);
 
 		Landscapes.Add(Landscape);
 		Landscape->OnComponentDataChanged.AddRaw(this, &FPCGLandscapeCache::OnLandscapeChanged);
@@ -374,6 +371,8 @@ void FPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FL
 
 void FPCGLandscapeCache::CacheLayerNames()
 {
+	CachedLayerNames.Reset();
+
 	for (TWeakObjectPtr<ALandscapeProxy> Landscape : Landscapes)
 	{
 		if (Landscape.Get())
@@ -391,6 +390,12 @@ void FPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* Landscape)
 	{
 		for (const FLandscapeInfoLayerSettings& Layer : LandscapeInfo->Layers)
 		{
+			ULandscapeLayerInfoObject* LayerInfo = Layer.LayerInfoObj;
+			if (!LayerInfo)
+			{
+				continue;
+			}
+
 			CachedLayerNames.Add(Layer.LayerName);
 		}
 	}

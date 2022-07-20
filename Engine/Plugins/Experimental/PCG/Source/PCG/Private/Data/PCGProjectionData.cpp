@@ -94,7 +94,7 @@ bool UPCGProjectionData::SamplePoint(const FTransform& InTransform, const FBox& 
 	if (OutMetadata)
 	{
 		//METADATA TODO Review op
-		OutMetadata->MergePointAttributes(PointFromSource, PointFromTarget, OutPoint, EPCGMetadataOp::Max);
+		OutMetadata->MergePointAttributesSubset(PointFromSource, OutMetadata, Source->Metadata, PointFromTarget, OutMetadata, Target->Metadata, OutPoint, EPCGMetadataOp::Max);
 	}
 
 	return true;
@@ -115,6 +115,8 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGProjectionData*>(this));
 	PointData->InitializeFromData(this, SourcePointData->Metadata);
+	check(PointData->Metadata);
+	PointData->Metadata->AddAttributes(Target->Metadata);
 
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
@@ -142,7 +144,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		if (PointData->Metadata)
 		{
 			//METADATA TODO review op
-			PointData->Metadata->MergePointAttributes(SourcePoint, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, OutPoint, EPCGMetadataOp::Max);
+			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, Target->Metadata, OutPoint, EPCGMetadataOp::Max);
 		}
 
 		return true;

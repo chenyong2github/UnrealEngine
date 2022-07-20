@@ -220,7 +220,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 			if (OutMetadata)
 			{
 				//TODO review op
-				OutMetadata->MergePointAttributes(SplinePoint, SurfacePoint, OutPoint, EPCGMetadataOp::Max);
+				OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, EPCGMetadataOp::Max);
 			}
 
 			return true;
