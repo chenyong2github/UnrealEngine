@@ -74,6 +74,14 @@ static bool IsInstanceFrustumCullingEnable()
 
 bool NeedsUpdateCardsMeshTriangles();
 
+static bool IsSkeletalMeshEvaluationEnabled()
+{
+	// When deferred skel. mesh update is enabled, hair strands skeletal mesh deformation is not allowed, as skin-cached update happen after 
+	// the PreInitView calls, which causes hair LOD selection and hair simulation to have invalid value & resources
+	static const auto CVarSkelMeshGDME = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DeferSkeletalDynamicDataUpdateUntilGDME"));
+	return CVarSkelMeshGDME ? CVarSkelMeshGDME->GetValueOnAnyThread() == 0 : true;
+}
+
 // Returns the cached geometry of the underlying geometry on which a hair instance is attached to
 FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder, 
@@ -85,18 +93,21 @@ FCachedGeometry GetCacheGeometryForHair(
 	FCachedGeometry Out;
 	if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 	{
-		if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
+		if (IsSkeletalMeshEvaluationEnabled())
 		{
-			if (SkinCache)
+			if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
 			{
-				Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
-			}
+				if (SkinCache)
+				{
+					Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
+				}
 
-			if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
-			{
-				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
-				// Actual populate the cache with only the needed part based on the groom projection data. At the moment it recompute everything ...
-				BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, bOutputTriangleData, Out);
+				if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
+				{
+					//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
+					// Actual populate the cache with only the needed part based on the groom projection data. At the moment it recompute everything ...
+					BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, bOutputTriangleData, Out);
+				}
 			}
 		}
 	}
