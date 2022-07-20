@@ -534,8 +534,8 @@ void ALODActor::PostRegisterAllComponents()
 		{
 			if (AActor* Actor = ActorPtr.Get())
 			{
-				Actor->OnEndPlay.AddDynamic(this, &ALODActor::OnSubActorEndPlay);
-			}		
+				Actor->OnEndPlay.AddUniqueDynamic(this, &ALODActor::OnSubActorEndPlay);
+			}
 		}
 	}
 
