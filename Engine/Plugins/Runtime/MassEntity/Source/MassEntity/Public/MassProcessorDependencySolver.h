@@ -57,7 +57,7 @@ struct MASSENTITY_API FMassExecutionRequirements
 	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
 	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;
 	TMassExecutionAccess<FMassSharedFragmentBitSet> SharedFragments;
-	TMassExecutionAccess<FMassExternalSubystemBitSet> RequiredSubsystems;
+	TMassExecutionAccess<FMassExternalSubsystemBitSet> RequiredSubsystems;
 	FMassTagBitSet RequiredAllTags;
 	FMassTagBitSet RequiredAnyTags;
 	FMassTagBitSet RequiredNoneTags;

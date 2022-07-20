@@ -7,7 +7,7 @@ DEFINE_TYPEBITSET(FMassFragmentBitSet);
 DEFINE_TYPEBITSET(FMassTagBitSet);
 DEFINE_TYPEBITSET(FMassChunkFragmentBitSet);
 DEFINE_TYPEBITSET(FMassSharedFragmentBitSet);
-DEFINE_TYPEBITSET(FMassExternalSubystemBitSet);
+DEFINE_TYPEBITSET(FMassExternalSubsystemBitSet);
 
 uint32 FMassArchetypeSharedFragmentValues::CalculateHash() const
 {

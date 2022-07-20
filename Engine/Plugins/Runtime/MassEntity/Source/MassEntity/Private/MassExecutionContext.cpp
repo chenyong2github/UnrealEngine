@@ -21,7 +21,7 @@ void FMassExecutionContext::ClearExecutionData()
 	MutableSubsystemsBitSet.Reset();
 }
 
-void FMassExecutionContext::SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems)
+void FMassExecutionContext::SetSubsystemRequirements(const FMassExternalSubsystemBitSet& RequiredConstSubsystems, const FMassExternalSubsystemBitSet& RequiredMutableSubsystems)
 {
 	ConstSubsystemsBitSet = RequiredConstSubsystems;
 	MutableSubsystemsBitSet = RequiredMutableSubsystems;

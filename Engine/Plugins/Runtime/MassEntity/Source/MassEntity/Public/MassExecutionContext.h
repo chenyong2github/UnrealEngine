@@ -34,8 +34,8 @@ private:
 	using FSharedFragmentView = TFragmentView<FStructView>;
 	TArray<FSharedFragmentView, TInlineAllocator<4>> SharedFragmentViews;
 
-	FMassExternalSubystemBitSet ConstSubsystemsBitSet;
-	FMassExternalSubystemBitSet MutableSubsystemsBitSet;
+	FMassExternalSubsystemBitSet ConstSubsystemsBitSet;
+	FMassExternalSubsystemBitSet MutableSubsystemsBitSet;
 	TArray<TObjectPtr<USubsystem>> Subsystems;
 	
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
@@ -75,7 +75,7 @@ public:
 		: DeltaTimeSeconds(InDeltaTimeSeconds)
 		, bFlushDeferredCommands(bInFlushDeferredCommands)
 	{
-		Subsystems.AddZeroed(FMassExternalSubystemBitSet::GetMaxNum());
+		Subsystems.AddZeroed(FMassExternalSubsystemBitSet::GetMaxNum());
 	}
 
 	FMassExecutionContext()
@@ -244,7 +244,7 @@ public:
 	T* GetMutableSubsystem(const UWorld* World)
 	{
 		// @todo consider getting this directly from entity subsystem - it should cache all the used system
-		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
+		const uint32 SystemIndex = FMassExternalSubsystemBitSet::GetTypeIndex<T>();
 		if (ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex);
@@ -264,7 +264,7 @@ public:
 	template<typename T>
 	const T* GetSubsystem(const UWorld* World)
 	{
-		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
+		const uint32 SystemIndex = FMassExternalSubsystemBitSet::GetTypeIndex<T>();
 		if (ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex);
@@ -284,7 +284,7 @@ public:
 	T* GetMutableSubsystem(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
 	{
 		// @todo consider getting this directly from entity subsystem - it should cache all the used system
-		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex(**SubsystemClass);
+		const uint32 SystemIndex = FMassExternalSubsystemBitSet::GetTypeIndex(**SubsystemClass);
 		if (ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex, SubsystemClass);
@@ -304,7 +304,7 @@ public:
 	template<typename T>
 	const T* GetSubsystem(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
 	{
-		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex(**SubsystemClass);
+		const uint32 SystemIndex = FMassExternalSubsystemBitSet::GetTypeIndex(**SubsystemClass);
 		if (ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
 		{
 			return GetSubsystemInternal<T>(World, SystemIndex, SubsystemClass);
@@ -342,7 +342,7 @@ public:
 	}
 
 protected:
-	void SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems);
+	void SetSubsystemRequirements(const FMassExternalSubsystemBitSet& RequiredConstSubsystems, const FMassExternalSubsystemBitSet& RequiredMutableSubsystems);
 
 	void SetRequirements(TConstArrayView<FMassFragmentRequirementDescription> InRequirements, 
 		TConstArrayView<FMassFragmentRequirementDescription> InChunkRequirements, 

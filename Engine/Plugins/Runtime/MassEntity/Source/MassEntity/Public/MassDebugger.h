@@ -35,8 +35,8 @@ struct MASSENTITY_API FQueryRequirementsView
 	const FMassTagBitSet& RequiredAllTags;
 	const FMassTagBitSet& RequiredAnyTags;
 	const FMassTagBitSet& RequiredNoneTags;
-	const FMassExternalSubystemBitSet& RequiredConstSubsystems;
-	const FMassExternalSubystemBitSet& RequiredMutableSubsystems;
+	const FMassExternalSubsystemBitSet& RequiredConstSubsystems;
+	const FMassExternalSubsystemBitSet& RequiredMutableSubsystems;
 };
 
 FString DebugGetFragmentAccessString(EMassFragmentAccess Access);

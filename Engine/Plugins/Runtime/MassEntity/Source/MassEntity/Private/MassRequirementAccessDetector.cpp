@@ -19,7 +19,7 @@ void FMassRequirementAccessDetector::Initialize()
 	AddDetectors(FMassFragmentBitSet::FStructTrackerWrapper::StructTracker);
 	AddDetectors(FMassChunkFragmentBitSet::FStructTrackerWrapper::StructTracker);
 	AddDetectors(FMassSharedFragmentBitSet::FStructTrackerWrapper::StructTracker);
-	AddDetectors(FMassExternalSubystemBitSet::FStructTrackerWrapper::StructTracker);
+	AddDetectors(FMassExternalSubsystemBitSet::FStructTrackerWrapper::StructTracker);
 }
 
 void FMassRequirementAccessDetector::AddDetectors(const FStructTracker& StructTracker)

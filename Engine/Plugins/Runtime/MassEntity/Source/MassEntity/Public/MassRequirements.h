@@ -138,8 +138,8 @@ public:
 	void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
 
 protected:
-	FMassExternalSubystemBitSet RequiredConstSubsystems;
-	FMassExternalSubystemBitSet RequiredMutableSubsystems;
+	FMassExternalSubsystemBitSet RequiredConstSubsystems;
+	FMassExternalSubsystemBitSet RequiredMutableSubsystems;
 
 private:
 	bool bRequiresGameThreadExecution = false;
