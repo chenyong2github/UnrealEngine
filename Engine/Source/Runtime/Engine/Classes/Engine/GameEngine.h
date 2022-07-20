@@ -72,8 +72,16 @@ public:
 
 	static void SafeFrameChanged();
 
+	/** 
+	 * Enables/disables game window resolution setting overrides specified on the command line (true by default) 
+	 * @note Does not trigger a refresh of the game window based on the newly effective settings
+	 * @note Not thread-safe; must be called from the main thread
+	 */
+	static void EnableGameWindowSettingsOverride(bool bEnabled);
+
 	/**
 	 * Modifies the game window resolution settings if any overrides have been specified on the command line
+	 * and overrides are enabled (see EnableGameWindowSettingsOverride)
 	 *
 	 * @param ResolutionX	[in/out] Width of the game window, in pixels
 	 * @param ResolutionY	[in/out] Height of the game window, in pixels

@@ -700,13 +700,10 @@ void UGameUserSettings::ResetToCurrentSettings()
 		// Set the current dynamic resolution state
 		SetDynamicResolutionEnabled(GEngine->GetDynamicResolutionUserSetting());
 
-		// Reset to confirmed settings
-		FullscreenMode = LastConfirmedFullscreenMode;
-		ResolutionSizeX = LastUserConfirmedResolutionSizeX;
-		ResolutionSizeY = LastUserConfirmedResolutionSizeY;
-
-		DesiredScreenWidth = LastUserConfirmedDesiredScreenWidth;
-		DesiredScreenHeight = LastUserConfirmedDesiredScreenHeight;
+		// Reset confirmed settings
+		ConfirmVideoMode();
+		LastUserConfirmedDesiredScreenWidth = DesiredScreenWidth;
+		LastUserConfirmedDesiredScreenHeight = DesiredScreenHeight;
 
 		// Reset the quality settings to the current levels
 		ScalabilityQuality = Scalability::GetQualityLevels();
