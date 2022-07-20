@@ -6,7 +6,6 @@
 #include "PCGSettings.h"
 #include "Tests/PCGTestsCommon.h"
 
-class AActor;
 class UPCGComponent;
 class UPCGData;
 class UPCGSpatialData;
@@ -20,11 +19,11 @@ namespace PCGDeterminismTests
 	{
 		constexpr static int32 Seed = 42;
 		constexpr static int32 NumPointsToGenerate = 1;
-		constexpr static int32 NumTestPointsToGenerate = 1000;
+		constexpr static int32 NumTestPointsToGenerate = 100;
 		constexpr static int32 NumPolyLinePointsToGenerate = 6;
-		constexpr static int32 NumTestPolyLinePointsToGenerate = 12;
+		constexpr static int32 NumTestPolyLinePointsToGenerate = 6;
 		constexpr static int32 NumSamplingStepsPerDimension = 100;
-		constexpr static int32 NumMultipleTestDataSets = 2;
+		constexpr static int32 NumTestInputsPerPin = 2;
 
 		constexpr static FVector::FReal SmallDistance = 50.0;
 		constexpr static FVector::FReal MediumDistance = 200.0;
@@ -39,33 +38,73 @@ namespace PCGDeterminismTests
 		const FBox TestingVolume = FBox(-1.2 * LargeVector, 1.2 * LargeVector);
 	}
 
+	constexpr static EPCGDataType TestableDataTypes[6] =
+	{
+		EPCGDataType::None,
+		EPCGDataType::Point,
+		EPCGDataType::Volume,
+		EPCGDataType::PolyLine,
+		EPCGDataType::Primitive,
+		EPCGDataType::Landscape
+	};
+
+	// This will include multiple values of different meanings, but we use an enum to facilitate data passing
+	UENUM()
+	enum class EDeterminismLevel : uint8
+	{
+		None = 0u,
+		NoDeterminism = None,
+		Basic,
+		OrderOrthogonal,
+		OrderConsistent,
+		OrderIndependent,
+		Deterministic = OrderIndependent
+	};
+
 	struct FNodeTestResult
 	{
 		int32 Index = -1;
-		EPCGDataType DataTypesTested = EPCGDataType::None;
 		FName NodeTitle = TEXT("Untitled");
 		FString NodeNameString = TEXT("Unnamed");
-		TMap<FName, bool> TestResults;
+		// TODO: Add the seed to the UI widget
+		int32 Seed = -1;
+		EPCGDataType DataTypesTested = EPCGDataType::None;
+		TMap<FName, EDeterminismLevel> TestResults;
 		TArray<FString> AdditionalDetails;
 		bool bFlagRaised = false;
 		// TODO: Chrono Duration of how long the tests took
 	};
 
 	/** A default delegate to report an unset test */
-	bool LogInvalidTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	bool LogInvalidTest(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult);
 
-	typedef TFunction<bool(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)> TestFunction;
+	typedef TFunction<bool(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult)> TestFunction;
 
 	struct FNodeTestInfo
 	{
 		FNodeTestInfo(FText Label, TestFunction Delegate, float LabelWidth = 140.f) :
 			TestLabel(Label),
+			TestName(Label.ToString()),
 			TestDelegate(Delegate),
 			TestLabelWidth(LabelWidth) {}
 
 		FText TestLabel = NSLOCTEXT("PCGDeterminism", "UnnamedTest", "Unnamed Test");
+		const FName TestName;
 		TestFunction TestDelegate = LogInvalidTest;
 		float TestLabelWidth = 140.f;
+	};
+
+	struct FNodeAndOptions
+	{
+		explicit FNodeAndOptions(const UPCGNode* PCGNode, const int32 Seed, bool bMultipleOptionsPerPin) :
+			PCGNode(PCGNode),
+			Seed(Seed),
+			bMultipleOptionsPerPin(bMultipleOptionsPerPin) {}
+
+		const UPCGNode* PCGNode;
+		const int32 Seed;
+		const bool bMultipleOptionsPerPin;
+		TArray<TArray<EPCGDataType>> BaseOptionsByPin;
 	};
 
 	/** Validates if a PCGNode is deterministic */
@@ -74,21 +113,24 @@ namespace PCGDeterminismTests
 	/** Adds the basic set of determinism tests to the passed in array */
 	PCG_API void RetrieveBasicTests(TArray<FNodeTestInfo>& OutBasicTests);
 
-	/** Validates node determinism against the same single test data */
-	bool RunSingleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
-	/** Validates node determinism against two identical single test data */
-	bool RunSingleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
-	/** Validates node determinism with the same multiple sets of test data */
-	bool RunMultipleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
-	/** Validates node determinism with two identical multiple sets of test data */
-	bool RunMultipleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
-	/** Validates node determinism with multiple sets of test data, shuffling the order of the second set's data collection */
-	bool RunDataCollectionOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
-	/** Validates node determinism with multiple sets of test data, shuffling all internal data */
-	bool RunAllDataOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates all the generic determinism tests for any given node */
+	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult);
+
+	/** Validates the various levels of order independence for any given node */
+	bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult);
+
+	/** Validates minimal node determinism against the same single test data */
+	bool RunBasicSelfTest(const FNodeAndOptions& NodeAndOptions);
+	/** Validates minimal node determinism against two identical single test data */
+	bool RunBasicCopiedSelfTest(const FNodeAndOptions& NodeAndOptions);
+
+	/** Conducts tests on all permutations and determines the highest level of determinism */
+	EDeterminismLevel GetHighestDeterminismLevel(const FNodeAndOptions& NodeAndOptions,
+		int32 NumInputsPerPin = Defaults::NumTestInputsPerPin,
+		EDeterminismLevel MaxLevel = EDeterminismLevel::OrderIndependent);
 
 	/** Adds input data to test data, based on input pins' allowed types */
-	void AddInputDataBasedOnPins(PCGTestsCommon::FTestData& TestData, const UPCGNode* InPCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	void AddRandomizedInputData(PCGTestsCommon::FTestData& TestData, EPCGDataType DataType, const FName& PinName = Defaults::TestPinName);
 
 	/** Helper for adding PointData with a single Point to an InputData */
 	void AddSinglePointInputData(FPCGDataCollection& InputData, const FVector& Location, const FName& PinName = Defaults::TestPinName);
@@ -100,6 +142,8 @@ namespace PCGDeterminismTests
 	void AddPolyLineInputData(FPCGDataCollection& InputData, USplineComponent* SplineComponent, const FName& PinName = Defaults::TestPinName);
 	/** Helper for adding PrimitiveData to an InputData */
 	void AddPrimitiveInputData(FPCGDataCollection& InputData, UPrimitiveComponent* SplineComponent, const FVector& VoxelSize, const FName& PinName = Defaults::TestPinName);
+	/** Helper for adding LandscapeData to an InputData */
+	void AddLandscapeInputData(FPCGDataCollection& InputData);
 
 	/** Adds randomized PointData with a single Point */
 	void AddRandomizedSinglePointInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum = Defaults::NumPointsToGenerate, const FName& PinName = Defaults::TestPinName);
@@ -113,9 +157,21 @@ namespace PCGDeterminismTests
 	void AddRandomizedPolyLineInputData(PCGTestsCommon::FTestData& TestData, int32 PointNum = Defaults::NumPolyLinePointsToGenerate, const FName& PinName = Defaults::TestPinName);
 	/** Adds randomized Primitive Spatial Data */
 	void AddRandomizedPrimitiveInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName = Defaults::TestPinName);
+	/** Adds randomized Landscape Spatial Data */
+	void AddRandomizedLandscapeInputData(PCGTestsCommon::FTestData& TestData, const FName& PinName = Defaults::TestPinName);
 
-	/** Validates whether two DataCollection objects are identical */
+	/** Validates whether two DataCollection objects are exactly identical */
 	bool DataCollectionsAreIdentical(const FPCGDataCollection& FirstCollection, const FPCGDataCollection& SecondCollection);
+	/** Validates whether two DataCollection objects have data in order relative to their inputs */
+	bool DataCollectionsAreConsistent(const FPCGDataCollection& FirstCollection, const FPCGDataCollection& SecondCollection, int32 NumInputs);
+	/** Validates whether two DataCollection objects contain all the same data */
+	bool DataCollectionsContainSameData(const FPCGDataCollection& FirstCollection, const FPCGDataCollection& SecondCollection);
+	/** Validates the data collections match and delivers matched indices and offsets */
+	bool DataCollectionsMatch(const FPCGDataCollection& FirstCollection,
+		const FPCGDataCollection& SecondCollection,
+		TArray<int32>& OutIndexOffsets);
+	/** Validates whether the internal data within the two DataCollection objects are consistent */
+	bool InternalDataMatches(const UPCGData* FirstData, const UPCGData* SecondData, TArray<int32>& OutIndexOffsets);
 
 	/** Validates whether two SpatialData objects are identical */
 	bool SpatialDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
@@ -131,9 +187,18 @@ namespace PCGDeterminismTests
 	bool PrimitiveDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
 	/** Validates whether two SpatialData objects are identical via Point Sampling */
 	bool SampledSpatialDataIsIdentical(const UPCGSpatialData* FirstSpatialData, const UPCGSpatialData* SecondSpatialData);
-
 	/** Validates the basics of SpatialData are identical */
-	bool SpatialBasicsAreIdentical(const UPCGSpatialData* FirstSpatialData, const UPCGSpatialData* SecondSpatialData);
+	bool SpatialBasicsAreIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
+
+	/** Validates whether two SpatialData objects are consistent */
+	bool SpatialDataIsConsistent(const UPCGData* FirstData, const UPCGData* SecondData);
+	/** Validates whether two PointData objects are consistent */
+	bool PointDataIsConsistent(const UPCGData* FirstData, const UPCGData* SecondData);
+
+	/** Validates whether two SpatialData objects contain the same spatial data */
+	bool SpatialDataIsOrthogonal(const UPCGData* FirstData, const UPCGData* SecondData);
+	/** Validates whether two PointData objects contain the same points */
+	bool PointDataIsOrthogonal(const UPCGData* FirstData, const UPCGData* SecondData);
 
 	/** A catch function for unimplemented comparisons */
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData);
@@ -147,16 +212,43 @@ namespace PCGDeterminismTests
 
 	/** Randomizes the order of InputData collections */
 	void ShuffleInputOrder(PCGTestsCommon::FTestData& TestData);
+	/** Randomizes the order of OutputData collections */
+	void ShuffleOutputOrder(PCGTestsCommon::FTestData& TestData);
 	/** Randomizes the order of all internal data */
 	void ShuffleAllInternalData(PCGTestsCommon::FTestData& TestData);
+	/** Shifts the order of InputData collections */
+	void ShiftInputOrder(PCGTestsCommon::FTestData& TestData, int32 NumShifts = 1);
 
-	/** Gets a comparison function to compare two of a specific DataType */
-	TFunction<bool(const UPCGData*, const UPCGData*)> GetCompareFunction(EPCGDataType DataType);
+	/** Gets an array of the union between an InputPin's allowed types and testable types */
+	TArray<EPCGDataType> FilterTestableDataTypes(EPCGDataType AllowedDataTypes, int32 NumMultipleInputs = 1);
+	/** Given input pins, updates an array with a permutation base of options */
+	void RetrieveBaseOptionsPerPin(TArray<TArray<EPCGDataType>>& InBaseOptionsArray,
+		const TArray<TObjectPtr<UPCGPin>>& InputPins,
+		EPCGDataType& OutDataTypesTested,
+		int32 NumMultipleInputs = 1);
+	/** Gets the number of permutations from a base set of options */
+	int32 GetNumPermutations(const TArray<TArray<EPCGDataType>>& BaseOptionsArray);
+	/** Gets the index of a pin's permutation based on the permutation iteration */
+	EPCGDataType GetPermutation(int32 PermutationIteration, int32 PinIndex, const TArray<TArray<EPCGDataType>>& BaseOptionsPerPin);
 
-	/** Execute the elements for each valid input and compare if all the outputs are identical */
-	bool ExecutionIsDeterministic(const PCGTestsCommon::FTestData& FirstTestData, const PCGTestsCommon::FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
-	/** Execute the same element twice compare if all the outputs are identical */
-	bool ExecutionIsDeterministicSameData(PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode = nullptr);
+	/** Helper to update a tests' outgoing results */
+	void UpdateTestResults(FName TestName, FNodeTestResult& OutResult, EDeterminismLevel DeterminismLevel);
+
+	/** Gets a comparison function to compare two data objects */
+	TFunction<bool(const UPCGData*, const UPCGData*)> GetDataCompareFunction(EPCGDataType DataType, EDeterminismLevel DeterminismLevel);
+	/** Gets a comparison function to compare two data collection entry basics */
+	TFunction<bool(const UPCGData*, const UPCGData*)> GetDataCollectionCompareFunction(EPCGDataType DataType);
+
+	/** Executes the element with given test data */
+	void ExecuteWithTestData(PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode);
+	/** Executes the element with given test data against itself */
+	void ExecuteWithSameTestData(const PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode, FPCGDataCollection& OutFirstOutputData, FPCGDataCollection& OutSecondOutputData);
+	/** Executes the element with given test data against itself, with the same element */
+	void ExecuteWithSameTestDataSameElement(const PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode, FPCGDataCollection& OutFirstOutputData, FPCGDataCollection& OutSecondOutputData);
+	/** Execute the elements for each valid input and compare if all the outputs are at least orthogonally deterministic */
+	bool ExecutionIsDeterministic(PCGTestsCommon::FTestData& FirstTestData, PCGTestsCommon::FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
+	/** Execute the same element twice compare if all the outputs are at least orthogonally deterministic */
+	bool ExecutionIsDeterministicSameData(const PCGTestsCommon::FTestData& TestData, const UPCGNode* PCGNode = nullptr);
 
 	/** Generates settings based upon a UPCGSettings subclass */
 	template<typename SettingsType>
@@ -185,7 +277,7 @@ namespace PCGDeterminismTests
 	{
 		check(FirstData && SecondData);
 
-		return (Cast<const DataType>(FirstData) != nullptr && Cast<const DataType>(SecondData) != nullptr);
+		return Cast<const DataType>(FirstData) != nullptr && Cast<const DataType>(SecondData) != nullptr;
 	}
 
 	template<typename DataType>
@@ -201,5 +293,36 @@ namespace PCGDeterminismTests
 				Array.Swap(I, Index);
 			}
 		}
+	}
+
+	template<typename DataType>
+	void ShiftArrayElements(TArray<DataType>& Array, int32 NumShifts = 1)
+	{
+		if (Array.Num() < 2)
+		{
+			return;
+		}
+
+		int32 Count = Array.Num();
+		NumShifts %= Count;
+		if (NumShifts < 0)
+		{
+			NumShifts += Count;
+		}
+
+		TArray<DataType> TempArray;
+		TempArray.SetNum(Count);
+
+		for (int32 I = 0; I < NumShifts; ++I)
+		{
+			TempArray[I] = Array[I + Count - NumShifts];
+		}
+
+		for (int32 I = NumShifts; I < Count; ++I)
+		{
+			TempArray[I] = Array[I - NumShifts];
+		}
+
+		Array = MoveTemp(TempArray);
 	}
 }

@@ -20,13 +20,16 @@ namespace
 	const FText TEXT_DataTypesTested(LOCTEXT("DataTypesTested_Label", "Input Data"));
 	const FText TEXT_AdditionalDetails(LOCTEXT("AdditionalDetails_Label", "Additional Details"));
 
-	const FText TEXT_Yes(LOCTEXT("Yes", "Yes"));
-	const FText TEXT_No(LOCTEXT("No", "No"));
+	const FText TEXT_NotDeterministic(LOCTEXT("NotDeterministic", "Fail"));
+	const FText TEXT_Consistent(LOCTEXT("OrderConsistent", "Order Consistent"));
+	const FText TEXT_Independent(LOCTEXT("OrderIndependent", "Order Independent"));
+	const FText TEXT_Orthogonal(LOCTEXT("OrderOrthogonal", "Order Orthogonal"));
+	const FText TEXT_Basic(LOCTEXT("BasicDeterminism", "Pass"));
 
-	constexpr static float SmallManualWidth = 25.f;
-	constexpr static float MediumManualWidth = 70.f;
-	constexpr static float LargeManualWidth = 160.f;
-	constexpr static float ListViewRowHeight = 36.f;
+	constexpr float SmallManualWidth = 25.f;
+	constexpr float MediumManualWidth = 70.f;
+	constexpr float LargeManualWidth = 160.f;
+	constexpr float ListViewRowHeight = 36.f;
 }
 
 void SPCGEditorGraphDeterminismRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGNodeTestResultPtr& Item)
@@ -41,10 +44,10 @@ TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const
 
 	FText CellText = LOCTEXT("UnknownColumn", "Unknown");
 
-	auto ReturnColorCodedResultBlock = [this](const FText& CellText)
+	auto ReturnColorCodedResultBlock = [this](const FText& OutCellText)
 	{
 		return SNew(STextBlock)
-			.Text(CellText)
+			.Text(OutCellText)
 			.ColorAndOpacity(CurrentItem->bFlagRaised ? FColor::Red : FColor::Green);
 	};
 
@@ -72,13 +75,34 @@ TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const
 		FString FullDetails = FString::Join(CurrentItem->AdditionalDetails, TEXT(", "));
 		CellText = FText::FromString(FullDetails);
 	}
+
 	// Test columns
-	else if (bool* bResultPtr = CurrentItem->TestResults.Find(ColumnId))
+	if (PCGDeterminismTests::EDeterminismLevel* DeterminismLevel = CurrentItem->TestResults.Find(ColumnId))
 	{
-		bool bTestWasSuccessful = bResultPtr && *bResultPtr;
-		return SNew(STextBlock)
-			.Text(bTestWasSuccessful ? TEXT_Yes : TEXT_No)
-			.ColorAndOpacity(bTestWasSuccessful ? FColor::Green : FColor::Red);
+		switch (*DeterminismLevel)
+		{
+		case PCGDeterminismTests::EDeterminismLevel::OrderOrthogonal:
+			return SNew(STextBlock)
+				.Text(TEXT_Orthogonal)
+				.ColorAndOpacity(FColor::Orange);
+		case PCGDeterminismTests::EDeterminismLevel::OrderConsistent:
+			return SNew(STextBlock)
+				.Text(TEXT_Consistent)
+				.ColorAndOpacity(FColor::Yellow);
+		case PCGDeterminismTests::EDeterminismLevel::OrderIndependent:
+			return SNew(STextBlock)
+				.Text(TEXT_Independent)
+				.ColorAndOpacity(FColor::Green);
+		case PCGDeterminismTests::EDeterminismLevel::Basic:
+			return SNew(STextBlock)
+				.Text(TEXT_Basic)
+				.ColorAndOpacity(FColor::Turquoise);
+		case PCGDeterminismTests::EDeterminismLevel::NoDeterminism:
+		default:
+			return SNew(STextBlock)
+				.Text(TEXT_NotDeterministic)
+				.ColorAndOpacity(FColor::Red);
+		}
 	}
 
 	return SNew(STextBlock)

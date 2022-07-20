@@ -21,18 +21,19 @@ struct FPCGPoint;
 
 namespace PCGTestsCommon
 {
-	static const int TestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+	constexpr int TestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
 
 	struct FTestData
 	{
 		FTestData(int32 Seed, UPCGSettings* DefaultSettings = nullptr, TSubclassOf<AActor> ActorClass = AActor::StaticClass());
 		~FTestData();
 
-		void Reset();
+		void Reset(UPCGSettings* InSettings = nullptr);
 
 		AActor* TestActor;
 		UPCGComponent* TestPCGComponent;
 		FPCGDataCollection InputData;
+		FPCGDataCollection OutputData;
 		UPCGSettings* Settings;
 		int32 Seed;
 		FRandomStream RandomStream;

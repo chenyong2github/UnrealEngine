@@ -70,12 +70,13 @@ namespace PCGTestsCommon
 #endif // WITH_EDITOR
 	}
 
-	void FTestData::Reset()
+	void FTestData::Reset(UPCGSettings* InSettings)
 	{
 		// Clear all the data
 		RandomStream.Reset();
 		InputData.TaggedData.Empty();
-		Settings = nullptr;
+		OutputData.TaggedData.Empty();
+		Settings = InSettings;
 	}
 
 	AActor* CreateTemporaryActor()
