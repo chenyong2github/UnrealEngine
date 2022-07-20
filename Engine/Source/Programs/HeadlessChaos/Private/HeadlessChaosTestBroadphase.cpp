@@ -864,6 +864,14 @@ namespace ChaosTest
 		FReal CurrentLength = 146.779785f;
 	}
 
+	namespace LargeSweep
+	{
+		const FVec3 QueryHalfExtents{34, 34, 90};
+		const FVec3 StartPoint{5000000000270, 11630, 187.15000295639038};
+		const FVec3 Dir{-1.0000000172032004, 0, 0.00000000000040509186487903264};
+		const FReal CurrentLength = 4999999913984;
+	};
+	
 	void AABBTreeDirtyGridFunctionsWithEdgeCase()
 	{
 		constexpr FReal DirtyElementGridCellSize = 1000.0;
@@ -872,13 +880,21 @@ namespace ChaosTest
 
 		TArray<TVec2<FReal>> VisitedCells;
 		// this should report only be as much as 4 hits as teh grid is 2D and the ray downward vertical and the halfextends are smaller than a cell size
-		DoForSweepIntersectCells(EdgeCase::QueryHalfExtents, EdgeCase::StartPoint, EdgeCase::Dir, EdgeCase::CurrentLength, DirtyElementGridCellSize, DirtyElementGridCellSizeInv,
-			[&VisitedCells](FReal X, FReal Y)
-			{
-				VisitedCells.Add({ X,Y });
-				EXPECT_TRUE(VisitedCells.Num() <= 4 );
-			});
-		EXPECT_TRUE(VisitedCells.Num() <= 4);
+		{
+			DoForSweepIntersectCells(EdgeCase::QueryHalfExtents, EdgeCase::StartPoint, EdgeCase::Dir, EdgeCase::CurrentLength, DirtyElementGridCellSize, DirtyElementGridCellSizeInv,
+				[&VisitedCells](FReal X, FReal Y)
+				{
+					VisitedCells.Add({ X,Y });
+					EXPECT_TRUE(VisitedCells.Num() <= 4 );
+				});
+			EXPECT_TRUE(VisitedCells.Num() <= 4);
+		}
+
+		// 50 trillions unit long sweep test reporting that there's not too many cells
+		{
+			const bool bTooManyCell = TooManySweepQueryCells(LargeSweep::QueryHalfExtents, LargeSweep::StartPoint, LargeSweep::Dir, LargeSweep::CurrentLength, DirtyElementGridCellSizeInv, DirtyElementMaxGridCellQueryCount);
+			EXPECT_TRUE(bTooManyCell);
+		}
 	}
 	
 	void BroadphaseCollectionTest()

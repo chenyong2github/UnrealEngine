@@ -244,10 +244,11 @@ namespace Chaos
 			return true;
 		}
 
-		int EstimatedNumberOfCells = ((int32)(QueryHalfExtents.X * 2 * DirtyElementGridCellSizeInv) + 2) * ((int32)(QueryHalfExtents.Y * 2 * DirtyElementGridCellSizeInv) + 2) +
-			((int32)(FMath::Max(QueryHalfExtents.X, QueryHalfExtents.Y) * 2 * DirtyElementGridCellSizeInv) + 2) * ((int32)(Length * DirtyElementGridCellSizeInv) + 2);
+		const uint64 EstimatedNumberOfCells =
+			((uint64)(QueryHalfExtents.X * 2 * DirtyElementGridCellSizeInv) + 2) * ((uint64)(QueryHalfExtents.Y * 2 * DirtyElementGridCellSizeInv) + 2) +
+			((uint64)(FMath::Max(QueryHalfExtents.X, QueryHalfExtents.Y) * 2 * DirtyElementGridCellSizeInv) + 2) * ((uint64)(Length * DirtyElementGridCellSizeInv) + 2);
 
-		return EstimatedNumberOfCells > DirtyElementMaxGridCellQueryCount;
+		return EstimatedNumberOfCells > (uint64)DirtyElementMaxGridCellQueryCount;
 	}
 
 
