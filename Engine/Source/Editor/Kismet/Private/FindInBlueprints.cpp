@@ -1050,7 +1050,8 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 		TreeView->RequestTreeRefresh();
 		HighlightText = FText::FromString( InSearchString );
 
-		if (bInIsFindWithinBlueprint)
+		if (bInIsFindWithinBlueprint
+			&& ensureMsgf(BlueprintEditorPtr.IsValid(), TEXT("A local search was requested, but this widget does not support it.")))
 		{
 			const double StartTime = FPlatformTime::Seconds();
 

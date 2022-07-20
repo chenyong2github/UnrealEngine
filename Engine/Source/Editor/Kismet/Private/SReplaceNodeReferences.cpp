@@ -405,6 +405,7 @@ void SReplaceNodeReferences::SetSourceVariable(FProperty* InProperty)
 	else
 	{
 		SourceProperty = nullptr;
+		SelectedTargetReferenceItem.Reset();
 	}
 
 	// Reset the FindInBlueprints results
@@ -693,9 +694,10 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 	if (SourceProperty != nullptr && SelectedTargetReferenceItem.IsValid())
 	{
 		FMemberReference SourceVariableReference;
-		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
+		UClass* SourcePropertyScope = SourceProperty->GetOwnerClass();
+		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourcePropertyScope);
 		FMemberReference TargetVariableReference;
-		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourceProperty->GetOwnerClass()))
+		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourcePropertyScope))
 		{
 			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
 			if (PinnedEditor.IsValid())
@@ -706,17 +708,22 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 					const FScopedTransaction Transaction(GetTransactionTitle(TargetVariableReference));
 					Blueprint->Modify();
 
+					// Note: SourceProperty will be reset after this step! This occurs via a Refresh() that's triggered by an OnBlueprintChanged event.
 					FReplaceNodeReferencesHelper::ReplaceReferences(SourceVariableReference, TargetVariableReference, Blueprint, InRawDataList);
 
 					if (bShowReplacementsWhenFinished)
 					{
+						// @todo - Possibly move this into a local SFindInBlueprints context that's separate from the replacement context.
+						// That way we could limit the results to just the local Blueprint if 'bFindWithinBlueprint' is toggled on. For now
+						// we're just utilizing one of the "floating" global FiB nomad tabs to display the results, which will not have an
+						// associated Blueprint editor context, so we cannot perform a local Blueprint search there.
 						TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
 						if (GlobalResults)
 						{
 							FStreamSearchOptions SearchOptions;
 							SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
 							SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-							GlobalResults->MakeSearchQuery(TargetVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+							GlobalResults->MakeSearchQuery(TargetVariableReference.GetReferenceSearchString(SourcePropertyScope), /*bInIsFindWithinBlueprint =*/ false, SearchOptions);
 						}
 					}
 				}

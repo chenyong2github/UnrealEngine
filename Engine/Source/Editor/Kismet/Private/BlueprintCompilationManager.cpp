@@ -2522,6 +2522,13 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	else
 	{
 		Ret = CastChecked<UBlueprintGeneratedClass>(*(BP->SkeletonGeneratedClass));
+
+		// If we're changing the parent class, first validate variable names against the inherited set to avoid collisions when we create properties.
+		if (Ret->GetSuperClass() != ParentClass)
+		{
+			CompilerContext.ValidateVariableNames();
+		}
+
 		CompilerContext.CleanAndSanitizeClass(Ret, Ret->ClassDefaultObject);
 	}
 	
