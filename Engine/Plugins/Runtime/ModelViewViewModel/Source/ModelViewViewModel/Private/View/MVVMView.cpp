@@ -340,8 +340,11 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 	TScriptInterface<INotifyFieldValueChanged> Source = FindSource(Binding, true);
 	if (Source.GetInterface() == nullptr)
 	{
-		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Error(FText::Format(LOCTEXT("RegisterBindingInvalidSourceInstance", "Can't register binding '{0}'. The source is invalid."), FText::FromString(Binding.ToString())));
+		if (!Binding.IsRegistrationOptional())
+		{
+			UE::MVVM::FMessageLog Log(GetUserWidget());
+			Log.Error(FText::Format(LOCTEXT("RegisterBindingInvalidSourceInstance", "Can't register binding '{0}'. The source is invalid."), FText::FromString(Binding.ToString())));
+		}
 		return false;
 	}
 

@@ -47,7 +47,7 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeInstance(FName In
 }
 
 
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName InName, UClass* InNotifyFieldValueChangedClass, FMVVMVCompiledFieldPath InFieldPath)
+FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName InName, UClass* InNotifyFieldValueChangedClass, FMVVMVCompiledFieldPath InFieldPath, bool bOptional)
 {
 	FMVVMViewClass_SourceCreator Result;
 	if (ensure(InNotifyFieldValueChangedClass&& InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
@@ -57,14 +57,14 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName I
 			Result.PropertyName = InName;
 			Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
 			Result.FieldPath = InFieldPath;
-			Result.bOptional = false;
+			Result.bOptional = bOptional;
 		}
 	}
 	return Result;
 }
 
 
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FName InName, FMVVMViewModelContext InContext)
+FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FName InName, FMVVMViewModelContext InContext, bool bOptional)
 {
 	FMVVMViewClass_SourceCreator Result;
 	if (ensure(InContext.ContextClass && InContext.ContextClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
@@ -72,7 +72,7 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FNa
 		Result.PropertyName = InName;
 		Result.ExpectedSourceType = InContext.ContextClass;
 		Result.GlobalViewModelInstance = MoveTemp(InContext);
-		Result.bOptional = false;
+		Result.bOptional = bOptional;
 	}
 	return Result;
 }

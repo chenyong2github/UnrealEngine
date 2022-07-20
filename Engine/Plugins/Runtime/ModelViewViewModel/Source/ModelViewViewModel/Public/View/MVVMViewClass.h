@@ -42,8 +42,8 @@ struct FMVVMViewClass_SourceCreator
 public:
 	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeManual(FName Name, UClass* NotifyFieldValueChangedClass);
 	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeInstance(FName Name, UClass* NotifyFieldValueChangedClass);
-	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeFieldPath(FName Name, UClass* NotifyFieldValueChangedClass, FMVVMVCompiledFieldPath FieldPath);
-	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeGlobalContext(FName Name, FMVVMViewModelContext Context);
+	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeFieldPath(FName Name, UClass* NotifyFieldValueChangedClass, FMVVMVCompiledFieldPath FieldPath, bool bOptional);
+	MODELVIEWVIEWMODEL_API static FMVVMViewClass_SourceCreator MakeGlobalContext(FName Name, FMVVMViewModelContext Context, bool bOptional);
 
 	UObject* CreateInstance(const UMVVMViewClass* ViewClass, UMVVMView* View, UUserWidget* UserWidget) const;
 
@@ -135,6 +135,12 @@ public:
 		return (Flags & EBindingFlags::EnabledByDefault) != 0;
 	}
 
+	/** @return true if the binding . */
+	bool IsRegistrationOptional() const
+	{
+		return (Flags & EBindingFlags::RegistrationOptional) != 0;
+	}
+
 	/** @return a human readable version of the binding that can be use for debugging purposes. */
 	FString ToString() const;
 
@@ -159,6 +165,7 @@ private:
 		TwoWayBinding = 1 << 1, // The binding is one part of a 2 ways binding.
 		OneTime = 1 << 2,
 		EnabledByDefault = 1 << 3,
+		RegistrationOptional = 1 << 4,	// The source (viewmodel) can be nullptr and the binding could failed without warning.
 	};
 
 	UPROPERTY()

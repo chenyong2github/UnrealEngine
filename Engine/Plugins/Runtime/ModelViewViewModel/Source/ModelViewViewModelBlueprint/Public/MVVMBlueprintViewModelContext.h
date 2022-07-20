@@ -105,9 +105,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay, meta = (EditCondition = "CreationType == EMVVMBlueprintViewModelContextCreationType::PropertyPath"))
 	FString ViewModelPropertyPath;
 
-	/** Generate a setter function for this viewmodel. */
-	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
+	/**
+	 * Generate a setter function for this viewmodel.
+	 * @note Always true when the Creation Type is Manual.
+	 */
+	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay, meta = (EditCondition = "CreationType != EMVVMBlueprintViewModelContextCreationType::Manual"))
 	bool bCreateSetterFunction = false;
+
+	/**
+	 * Optional. Will not warn if the instance is not set or found.
+	 * @note Always true when the Creation Type is Manual.
+	 */
+	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay, meta = (EditCondition = "CreationType == EMVVMBlueprintViewModelContextCreationType::GlobalViewModelCollection || CreationType == EMVVMBlueprintViewModelContextCreationType::PropertyPath"))
+	bool bOptional = false;
 };
 
 template<>
