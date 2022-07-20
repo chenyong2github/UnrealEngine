@@ -91,12 +91,8 @@ TSharedRef<SDockTab> FAssetPlacementEdModeToolkit::CreateAssetPalette(const FSpa
 {
 	return SNew(SDockTab)
 		[
-			SNew(SScrollBox)
-			+ SScrollBox::Slot()
-			[
-				SNew(SAssetPlacementPalette)
-				.ItemDetailsView(PaletteItemDetailsView)
-			]
+			SNew(SAssetPlacementPalette)
+			.ItemDetailsView(PaletteItemDetailsView)
 		];
 }
 
