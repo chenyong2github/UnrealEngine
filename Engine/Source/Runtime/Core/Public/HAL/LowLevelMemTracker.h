@@ -2,14 +2,8 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMisc.h"
 #include "ProfilingDebugging/TagTrace.h"
-#include "UObject/UnrealNames.h"
-
-#include <atomic>
 
 #ifndef ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST
 	#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
@@ -48,9 +42,14 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+#include <atomic>
 
 #if DO_CHECK
 
