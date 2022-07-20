@@ -473,12 +473,12 @@ void FContextualAnimViewModel::AddNewIKTarget(const UContextualAnimNewIKTargetPa
 	SceneAsset->MarkPackageDirty();
 }
 
-void FContextualAnimViewModel::ToggleSimulateMode() 
-{ 
-	bIsSimulateModeActive = !bIsSimulateModeActive; 
-
-	if(bIsSimulateModeActive)
+void FContextualAnimViewModel::ToggleSimulateMode()
+{
+	if (SimulateModeState == ESimulateModeState::Inactive)
 	{
+		SimulateModeState = ESimulateModeState::Paused;
+
 		if (SceneInstance.IsValid())
 		{
 			SceneInstance->Stop();
@@ -486,7 +486,9 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 	}
 	else
 	{
-		if(SceneInstance.IsValid())
+		SimulateModeState = ESimulateModeState::Inactive;
+
+		if (SceneInstance.IsValid())
 		{
 			for (auto& Binding : SceneInstance->GetBindings())
 			{
@@ -517,6 +519,8 @@ void FContextualAnimViewModel::StartSimulation()
 		UE_LOG(LogContextualAnim, Warning, TEXT("Can't start scene"));
 		return;
 	}
+
+	SimulateModeState = ESimulateModeState::Playing;
 }
 
 UWorld* FContextualAnimViewModel::GetWorld() const
@@ -756,15 +760,16 @@ FText FContextualAnimViewModel::GetSelectionDebugText() const
 
 bool FContextualAnimViewModel::ProcessInputDelta(FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
-	if(IsSimulateModeActive())
+	if (IsSimulateModePaused())
 	{
+		// In Simulate Mode (while paused) the user can drag the preview actor around to simulate the interaction from different start positions
 		if (AActor* SelectedActor = GetSelectedActor())
 		{
 			SelectedActor->SetActorLocationAndRotation(SelectedActor->GetActorLocation() + InDrag, SelectedActor->GetActorRotation() + InRot);
 			return true;
 		}
 	}
-	else
+	else if (IsSimulateModeInactive())
 	{
 		if (UContextualAnimSelectionCriterion_TriggerArea* Spatial = Cast<UContextualAnimSelectionCriterion_TriggerArea>(GetSelectedSelectionCriterion()))
 		{
@@ -837,14 +842,16 @@ bool FContextualAnimViewModel::GetCustomDrawingCoordinateSystem(FMatrix& InMatri
 
 bool FContextualAnimViewModel::ShouldPreviewSceneDrawWidget() const
 {
-	const UContextualAnimSelectionCriterion* SelectionCriterion = GetSelectedSelectionCriterion();
-	if (SelectionCriterion && SelectionCriterion->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>())
+	// When Simulate Mode is inactive we show the widget if an editable selection criterion is selected (only Trigger Area for now) or if an actor is selected
+	if (IsSimulateModeInactive())
 	{
-		return true;
+		const UContextualAnimSelectionCriterion* SelectionCriterion = GetSelectedSelectionCriterion();
+		return ((SelectionCriterion && SelectionCriterion->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>()) || GetSelectedActor());
 	}
-	else if (GetSelectedActor())
+	// When Simulate Mode is Paused we show the widget if an actor is selected, so the user can modify the position of any of the actor before triggering the interaction
+	else if (IsSimulateModePaused())
 	{
-		return true;
+		return GetSelectedActor() != nullptr;
 	}
 
 	return false;

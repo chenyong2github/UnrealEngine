@@ -180,7 +180,7 @@ void FContextualAnimAssetEditorToolkit::ToggleSimulateMode()
 
 bool FContextualAnimAssetEditorToolkit::IsSimulateModeActive() const
 {
-	return (ViewModel.IsValid()) ? ViewModel->IsSimulateModeActive() : false;
+	return (ViewModel.IsValid() && !ViewModel->IsSimulateModeInactive());
 }
 
 void FContextualAnimAssetEditorToolkit::ExtendToolbar()

@@ -39,6 +39,13 @@ public:
 		Notifies
 	};
 
+	enum class ESimulateModeState : uint8
+	{
+		Inactive,	// Simulate Mode Inactive
+		Paused,		// Simulate Mode Active but interaction is not playing
+		Playing		// Simulate Mode Active and interaction playing
+	};
+
 	FContextualAnimViewModel();
 	virtual ~FContextualAnimViewModel();
 
@@ -76,7 +83,9 @@ public:
 	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
 
 	void ToggleSimulateMode();
-	bool IsSimulateModeActive() { return bIsSimulateModeActive; }
+	bool IsSimulateModeInactive()	const { return SimulateModeState == ESimulateModeState::Inactive; }
+	bool IsSimulateModePaused()		const { return SimulateModeState == ESimulateModeState::Paused; }
+	bool IsSimulateModePlaying()	const { return SimulateModeState == ESimulateModeState::Playing; }
 	void StartSimulation();
 
 	void UpdatePreviewActorTransform(const FContextualAnimSceneBinding& Binding, float Time);
@@ -157,7 +166,7 @@ private:
 	/** Flag for preventing OnAnimNotifyChanged from updating tracks when the change to the animation came from us */
 	bool bUpdatingAnimationFromSequencer = false;
 
-	bool bIsSimulateModeActive = false;
+	ESimulateModeState SimulateModeState = ESimulateModeState::Inactive;
 
 	FContextualAnimStartSceneParams StartSceneParams;
 
