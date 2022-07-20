@@ -312,7 +312,7 @@ UWorld* UEditorLevelLibrary::GetGameWorld()
 {
 	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
-	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetEditorWorld() : nullptr;
+	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetGameWorld() : nullptr;
 }
 
 TArray<UWorld*> UEditorLevelLibrary::GetPIEWorlds(bool bIncludeDedicatedServer)
