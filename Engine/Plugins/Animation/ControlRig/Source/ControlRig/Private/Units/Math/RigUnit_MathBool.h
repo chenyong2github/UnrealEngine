@@ -144,8 +144,23 @@ struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryAggre
 /**
  * Returns true if both conditions are false
  */
-USTRUCT(meta=(DisplayName="Nand", TemplateName="Nand"))
+USTRUCT(meta=(DisplayName="Nand", Deprecated="5.1"))
 struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Returns false if both conditions are true
+ */
+USTRUCT(meta=(DisplayName="Nand", TemplateName="Nand"))
+struct CONTROLRIG_API FRigUnit_MathBoolNand2 : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 

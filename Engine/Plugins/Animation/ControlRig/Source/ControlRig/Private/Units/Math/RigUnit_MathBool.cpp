@@ -31,6 +31,21 @@ FRigUnit_MathBoolNand_Execute()
 	Result = (!A) && (!B);
 }
 
+FRigUnit_MathBoolNand2_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = !(A && B);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathBoolNand::GetUpgradeInfo() const
+{
+	FRigUnit_MathBoolNand2 NewNode;
+	NewNode.A = A;
+	NewNode.B = B;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_MathBoolOr_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
