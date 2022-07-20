@@ -11,6 +11,9 @@ class HEADMOUNTEDDISPLAY_API FXRTrackingSystemDelegates
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FXRTrackingOriginChanged, const IXRTrackingSystem* /*TrackingSystem*/);
 	static FXRTrackingOriginChanged OnXRTrackingOriginChanged;
+
+	DECLARE_MULTICAST_DELEGATE(FXRPlayAreaChanged);
+	static FXRPlayAreaChanged OnXRPlayAreaChanged;
 };
 
 /** 
@@ -179,6 +182,11 @@ protected:
 	virtual void OnTrackingOriginChanged()
 	{
 		FXRTrackingSystemDelegates::OnXRTrackingOriginChanged.Broadcast(this);
+	}
+
+	virtual void OnPlayAreaChanged()
+	{
+		FXRTrackingSystemDelegates::OnXRPlayAreaChanged.Broadcast();
 	}
 
 	/**

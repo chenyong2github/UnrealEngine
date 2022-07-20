@@ -50,6 +50,21 @@ public:
 		XrPath Path;
 	};
 
+	class FTrackingSpace
+	{
+	public:
+		FTrackingSpace(XrReferenceSpaceType InType);
+		FTrackingSpace(XrReferenceSpaceType InType, XrPosef InBasePose);
+		~FTrackingSpace();
+
+		bool CreateSpace(XrSession InSession);
+		void DestroySpace();
+
+		XrReferenceSpaceType Type;
+		XrSpace Handle;
+		XrPosef BasePose;
+	};
+
 	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
 	// when the game thread progresses to the next frame while the render thread is still working on the previous frame.
 	struct FPipelinedFrameState
@@ -58,7 +73,7 @@ public:
 		XrViewState ViewState{XR_TYPE_VIEW_STATE};
 		TArray<XrView> Views;
 		TArray<XrSpaceLocation> DeviceLocations;
-		XrSpace TrackingSpace;
+		TSharedPtr<FTrackingSpace> TrackingSpace;
 		float WorldToMetersScale = 100.0f;
 
 		TArray<XrViewConfigurationView> ViewConfigs;
@@ -129,18 +144,23 @@ public:
 	virtual float GetInterpupillaryDistance() const override;
 	virtual bool GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, FQuat& OutOrientation, FVector& OutPosition) override;
 
-	virtual void ResetOrientationAndPosition(float yaw = 0.f) override;
+	virtual void ResetOrientationAndPosition(float Yaw = 0.f) override;
 	virtual void ResetOrientation(float Yaw = 0.f) override;
 	virtual void ResetPosition() override;
+	virtual void Recenter(EOrientPositionSelector::Type Selector, float Yaw = 0.f);
 
 	virtual bool GetIsTracked(int32 DeviceId);
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition) override;
 	virtual bool GetPoseForTime(int32 DeviceId, FTimespan Timespan, bool& OutTimeWasUsed, FQuat& CurrentOrientation, FVector& CurrentPosition, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration, float WorldToMetersScale);
-	virtual void SetBaseRotation(const FRotator& BaseRot) override;
+	
+	virtual void SetBaseRotation(const FRotator& InBaseRotation) override;
 	virtual FRotator GetBaseRotation() const override;
 
-	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
+	virtual void SetBaseOrientation(const FQuat& InBaseOrientation) override;
 	virtual FQuat GetBaseOrientation() const override;
+
+	virtual void SetBasePosition(const FVector& InBasePosition) override;
+	virtual FVector GetBasePosition() const override;
 
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) override
 	{
@@ -173,6 +193,8 @@ public:
 	virtual float GetWorldToMetersScale() const override;
 
 	virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
+	virtual bool GetPlayAreaRect(FTransform& OutTransform, FVector2D& OutExtent) const override;
+	virtual bool GetTrackingOriginTransform(TEnumAsByte<EHMDTrackingOrigin::Type> Origin, FTransform& OutTransform)  const override;
 
 protected:
 
@@ -197,6 +219,9 @@ protected:
 
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha, ERenderTargetActions RTAction) const;
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const;
+
+	// Used with FCoreDelegates
+	void VRHeadsetRecenterDelegate();
 
 public:
 	/** IXRTrackingSystem interface */
@@ -297,11 +322,8 @@ public:
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
 	OPENXRHMD_API XrSystemId GetSystem() { return System; }
 	OPENXRHMD_API XrSession GetSession() { return Session; }
-	OPENXRHMD_API XrSpace GetTrackingSpace()
-	{
-		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE) ? StageSpace : LocalSpace;
-	}
 	OPENXRHMD_API XrTime GetDisplayTime() const;
+	OPENXRHMD_API XrSpace GetTrackingSpace() const;
 	OPENXRHMD_API TArray<IOpenXRExtensionPlugin*>& GetExtensionPlugins() { return ExtensionPlugins; }
 
 	OPENXRHMD_API bool IsStandaloneStereoOnlyDevice() const { return bIsStandaloneStereoOnlyDevice; }
@@ -358,4 +380,8 @@ private:
 
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 	TArray<FHMDViewMesh>	VisibleAreaMeshes;
+
+	bool					bTrackingSpaceInvalid;
+	FQuat					BaseOrientation;
+	FVector					BasePosition;
 };

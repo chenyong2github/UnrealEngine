@@ -592,6 +592,25 @@ FVector2D UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds(TEnumAsByte<EHMD
 	return FVector2D::ZeroVector;
 }
 
+bool UHeadMountedDisplayFunctionLibrary::GetTrackingOriginTransform(TEnumAsByte<EHMDTrackingOrigin::Type> Origin, FTransform& OutTransform)
+{
+	if (GEngine->XRSystem.IsValid())
+	{
+		return GEngine->XRSystem->GetTrackingOriginTransform(Origin, OutTransform);
+	}
+	return false;
+}
+
+bool UHeadMountedDisplayFunctionLibrary::GetPlayAreaRect(FTransform& OutTransform, FVector2D& OutRect)
+{
+	if (GEngine->XRSystem.IsValid())
+	{
+		return GEngine->XRSystem->GetPlayAreaRect(OutTransform, OutRect);
+	}
+	return false;
+}
+
+
 void UHeadMountedDisplayFunctionLibrary::BreakKey(FKey InKey, FString& InteractionProfile, EControllerHand& Hand, FName& MotionSource, FString& Indentifier, FString& Component)
 {
 	TArray<FString> Tokens;
