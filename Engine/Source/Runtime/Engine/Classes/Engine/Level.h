@@ -793,20 +793,29 @@ public:
 
 #if WITH_EDITOR
 	ENGINE_API static bool GetLevelBoundsFromAsset(const FAssetData& Asset, FBox& OutLevelBounds);
-	ENGINE_API static bool GetIsLevelPartitionedFromAsset(const FAssetData& Asset);
-	ENGINE_API static bool GetIsLevelUsingExternalActorsFromAsset(const FAssetData& Asset);
-	ENGINE_API static bool GetIsUsingActorFoldersFromAsset(const FAssetData& Asset);
-	ENGINE_API static bool GetIsStreamingDisabledFromAsset(const FAssetData& Asset);
-
 	ENGINE_API static bool GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds);
+
+	ENGINE_API static bool GetLevelScriptExternalActorsReferencesFromAsset(const FAssetData& Asset, TArray<FGuid>& OutLevelScriptExternalActorsReferences);
+	ENGINE_API static bool GetLevelScriptExternalActorsReferencesFromPackage(FName LevelPackage, TArray<FGuid>& OutLevelScriptExternalActorsReferences);
+
+	ENGINE_API static bool GetIsLevelPartitionedFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetIsLevelPartitionedFromPackage(FName LevelPackage);
+
+	ENGINE_API static bool GetIsLevelUsingExternalActorsFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
+
+	ENGINE_API static bool GetIsUsingActorFoldersFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetIsUsingActorFoldersFromPackage(FName LevelPackage);
+
+	ENGINE_API static bool GetIsStreamingDisabledFromAsset(const FAssetData& Asset);	
 	ENGINE_API static bool GetIsStreamingDisabledFromPackage(FName LevelPackage);
+
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage);
+
 	ENGINE_API static FVector GetLevelInstancePivotOffsetFromAsset(const FAssetData& Asset);
 	ENGINE_API static FVector GetLevelInstancePivotOffsetFromPackage(FName LevelPackage);
+
 	ENGINE_API static const FName LoadAllExternalObjectsTag;
 	ENGINE_API static const FName DontLoadExternalObjectsTag;
 

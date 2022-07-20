@@ -34,6 +34,8 @@
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
 #include "LocationVolume.h"
+#include "Engine/LevelScriptBlueprint.h"
+#include "Engine/Public/ActorReferencesUtils.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
@@ -1314,6 +1316,26 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	{
 		static const FName NAME_PartitionedLevelCanBeUsedByLevelInstance(TEXT("PartitionedLevelCanBeUsedByLevelInstance"));
 		OutTags.Add(FAssetRegistryTag(NAME_PartitionedLevelCanBeUsedByLevelInstance, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+	}
+
+	// Append level script references so we can perform changelists validations without loading the world
+	if (const ULevelScriptBlueprint* LevelScriptBlueprint = GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
+	{
+		TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences((UObject*)LevelScriptBlueprint);
+		
+		if (LevelScriptExternalActorReferences.Num())
+		{
+			FStringBuilderBase StringBuilder;
+			for (const AActor* Actor : LevelScriptExternalActorReferences)
+			{
+				StringBuilder.Append(Actor->GetActorGuid().ToString(EGuidFormats::Short));
+				StringBuilder.AppendChar(TEXT(','));
+			}
+			StringBuilder.RemoveSuffix(1);
+
+			static const FName NAME_LevelScriptExternalActorsReferences(TEXT("LevelScriptExternalActorsReferences"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelScriptExternalActorsReferences, StringBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
+		}
 	}
 }
 

@@ -21,6 +21,7 @@
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "HAL/FileManager.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
@@ -491,30 +492,14 @@ class FWorldPartitionStreamingGenerator
 	{
 		if (bIsMainContainer)
 		{
+			TArray<FGuid> LevelScriptReferences;
 			if (UWorld* World = ContainerDescriptor.Container->GetWorld())
 			{
 				// Gather all references to external actors from the level script and make them always loaded
 				if (ULevelScriptBlueprint* LevelScriptBlueprint = World->PersistentLevel->GetLevelScriptBlueprint(true))
 				{
 					TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
-
-					for (AActor* Actor : LevelScriptExternalActorReferences)
-					{
-						if (FWorldPartitionActorDescView* ActorDescView = ContainerDescriptor.ActorDescViewMap.FindByGuid(Actor->GetActorGuid()))
-						{
-							if (ActorDescView->GetIsSpatiallyLoaded())
-							{
-								ErrorHandler->OnInvalidReferenceLevelScriptStreamed(*ActorDescView);
-								ActorDescView->SetForcedNonSpatiallyLoaded();
-							}
-
-							if (ActorDescView->GetRuntimeDataLayers().Num())
-							{
-								ErrorHandler->OnInvalidReferenceLevelScriptDataLayers(*ActorDescView);
-								ActorDescView->SetInvalidDataLayers();
-							}
-						}
-					}
+					Algo::Transform(LevelScriptExternalActorReferences, LevelScriptReferences, [](const AActor* Actor) { return Actor->GetActorGuid(); });
 				}
 
 				// Validate data layers
@@ -525,6 +510,28 @@ class FWorldPartitionStreamingGenerator
 						DataLayerInstance->Validate(ErrorHandler);
 						return true;
 					});
+				}
+			}
+			else
+			{
+				ULevel::GetLevelScriptExternalActorsReferencesFromPackage(ContainerDescriptor.Container->GetContainerPackage(), LevelScriptReferences);
+			}
+
+			for (const FGuid& LevelScriptReferenceActorGuid : LevelScriptReferences)
+			{
+				if (FWorldPartitionActorDescView* ActorDescView = ContainerDescriptor.ActorDescViewMap.FindByGuid(LevelScriptReferenceActorGuid))
+				{
+					if (ActorDescView->GetIsSpatiallyLoaded())
+					{
+						ErrorHandler->OnInvalidReferenceLevelScriptStreamed(*ActorDescView);
+						ActorDescView->SetForcedNonSpatiallyLoaded();
+					}
+
+					if (ActorDescView->GetRuntimeDataLayers().Num())
+					{
+						ErrorHandler->OnInvalidReferenceLevelScriptDataLayers(*ActorDescView);
+						ActorDescView->SetInvalidDataLayers();
+					}
 				}
 			}
 		}
