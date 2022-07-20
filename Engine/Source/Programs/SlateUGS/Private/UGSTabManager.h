@@ -12,11 +12,11 @@ public:
 
 	void Tick();
 
-	bool CanSpawnTab() const;
-	int GetMaxTabs() const;
 	TSharedRef<SDockTab> SpawnTab(int Index, const FSpawnTabArgs& Args);
+	void ActivateTab();
+	FName GetTabId(int TabIndex) const;
 
 private:
-	static constexpr int MaxTabs = 1;
+	static constexpr int MaxTabs = 10;
 	TStaticArray<UGSTab, MaxTabs> Tabs;
 };

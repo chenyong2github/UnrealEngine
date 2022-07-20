@@ -4,6 +4,7 @@
 
 #include "UGSLog.h"
 #include "ChangeInfo.h"
+#include "UGSTabManager.h"
 
 #include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
@@ -25,8 +26,18 @@ UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   GameSyncTabView(SNew(SGameSyncTab).Tab(this)),
 				   bHasQueuedMessages(false)
 {
+	Initialize();
+}
+
+void UGSTab::Initialize()
+{
 	TabWidget->SetContent(EmptyTabView);
 	TabWidget->SetLabel(FText(LOCTEXT("TabName", "Select a Project")));
+}
+
+void UGSTab::SetTabManager(UGSTabManager* InTabManager)
+{
+	TabManager = InTabManager;
 }
 
 const TSharedRef<SDockTab> UGSTab::GetTabWidget()
@@ -46,72 +57,6 @@ FSpawnTabArgs UGSTab::GetTabArgs() const
 
 namespace
 {
-	// Todo: may need this, was in GameSyncController.h
-	/*
-	#include "Perforce.h"
-	#include "CustomConfigFile.h"
-	#include "Misc/EnumClassFlags.h"
-
-	enum class EWorkspaceUpdateOptions
-	{
-		Sync = 0x01,
-		SyncSingleChange = 0x02,
-		AutoResolveChanges = 0x04,
-		GenerateProjectFiles = 0x08,
-		SyncArchives = 0x10,
-		Build = 0x20,
-		UseIncrementalBuilds = 0x40,
-		ScheduledBuild = 0x80,
-		RunAfterSync = 0x100,
-		OpenSolutionAfterSync = 0x200,
-		ContentOnly = 0x400
-	};
-
-	ENUM_CLASS_FLAGS(EWorkspaceUpdateOptions)
-
-	enum class EWorkspaceUpdateResult
-	{
-		Canceled,
-		FailedToSync,
-		FilesToResolve,
-		FilesToClobber,
-		FailedToCompile,
-		FailedToCompileWithCleanWorkspace,
-		Success,
-	};
-
-	FString ToString(EWorkspaceUpdateResult WorkspaceUpdateResult);
-	bool TryParse(const TCHAR* Text, EWorkspaceUpdateResult& OutWorkspaceUpdateResult);
-
-	struct FWorkspaceUpdateContext
-	{
-		FDateTime StartTime;
-		int ChangeNumber;
-		EWorkspaceUpdateOptions Options;
-		TArray<FString> SyncFilter;
-		TMap<FString, FString> ArchiveTypeToDepotPath;
-		TMap<FString, bool> ClobberFiles;
-		TMap<FGuid,FCustomConfigObject> DefaultBuildSteps;
-		TArray<FCustomConfigObject> UserBuildStepObjects;
-		TSet<FGuid> CustomBuildSteps;
-		TMap<FString, FString> Variables;
-		FPerforceSyncOptions PerforceSyncOptions;
-
-		FWorkspaceUpdateContext(int InChangeNumber, EWorkspaceUpdateOptions InOptions, const TArray<FString>& InSyncFilter, const TMap<FGuid, FCustomConfigObject>& InDefaultBuildSteps, const TArray<FCustomConfigObject>& InUserBuildSteps, const TSet<FGuid>& InCustomBuildSteps, const TMap<FString, FString>& InVariables);
-	};
-
-	struct FWorkspaceSyncCategory
-	{
-		FGuid UniqueId;
-		bool bEnable;
-		FString Name;
-		TArray<FString> Paths;
-
-		FWorkspaceSyncCategory(const FGuid& InUniqueId);
-		FWorkspaceSyncCategory(const FGuid& InUniqueId, const TCHAR* InName, const TCHAR* InPaths);
-	};
-	*/
-
 	// TODO super hacky... fix up later
 	#if PLATFORM_WINDOWS
 		const TCHAR* HostPlatform = TEXT("Win64");
@@ -235,7 +180,7 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 
 		SetupWorkspace();
 		GameSyncTabView->SetStreamPathText(FText::FromString(DetectSettings->StreamName));
-		GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(WorkspaceSettings->CurrentChangeNumber)));
+		GameSyncTabView->SetChangelistText(WorkspaceSettings->CurrentChangeNumber);
 		GameSyncTabView->SetProjectPathText(FText::FromString(ProjectFileName));
 		TabWidget->SetContent(GameSyncTabView);
 		TabWidget->SetLabel(FText::FromString(DetectSettings->StreamName));
@@ -409,17 +354,30 @@ void UGSTab::UpdateGameTabBuildList()
 					}
 				}
 
-				TArray<FString> DescLines;
+				if (ChangeIdx == 0 ||
+					Changes[ChangeIdx - 1]->Date.GetDayOfYear() != Changes[ChangeIdx]->Date.GetDayOfYear())
+				{
+					TSharedPtr<FChangeInfo> HeaderRow = MakeShareable(new FChangeInfo);
+
+					HeaderRow->Time = DisplayTime;
+					HeaderRow->bHeaderRow = true;
+
+					ChangeInfos.Add(HeaderRow);
+				}
 
 				// split on \n so we can just take the first line
+				TArray<FString> DescLines;
 				Change.Description.ParseIntoArray(DescLines, TEXT("\n"));
 
-				ChangeInfos.Add(MakeShareable(new FChangeInfo{
+				ChangeInfos.Add(MakeShareable(new FChangeInfo
+				{
+					DisplayTime,
+					false,
 					Status,
 					Change.Number,
-					FText::FromString(DisplayTime.ToString()),
 					FText::FromString(FormatUserName(Change.User)),
-					FText::FromString(DescLines[0].TrimStartAndEnd())}));
+					FText::FromString(DescLines[0].TrimStartAndEnd())
+				}));
 			}
 		}
 	}
@@ -474,6 +432,11 @@ const TArray<FString>& UGSTab::GetCombinedSyncFilter() const
 	return CombinedSyncFilter;
 }
 
+UGSTabManager* UGSTab::GetTabManager()
+{
+	return TabManager;
+}
+
 // This is getting called on a thread, lock our stuff up
 void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
 {
@@ -489,7 +452,7 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode
 
 	// Queue up setting the changelist text on the main thread
 	QueueMessageForMainThread([this] {
-		GameSyncTabView->SetChangelistText(FText::FromString(FString::FromInt(WorkspaceSettings->CurrentChangeNumber)));
+		GameSyncTabView->SetChangelistText(WorkspaceSettings->CurrentChangeNumber);
 	});
 
 	UserSettings->Save();

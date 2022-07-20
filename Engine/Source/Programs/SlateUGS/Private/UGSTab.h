@@ -14,6 +14,7 @@ struct FUserSettings;
 class FDetectProjectSettingsTask;
 class FPerforceMonitor;
 class FEventMonitor;
+class UGSTabManager;
 
 enum SyncCategoryType
 {
@@ -24,12 +25,14 @@ enum SyncCategoryType
 class UGSTab
 {
 public:
-	UGSTab();  // Todo: change all _Args to InArgs
+	UGSTab();
+	void Initialize();
 
-	const TSharedRef<SDockTab> GetTabWidget(); // Todo: check const-correctness of this (is the pointer const or is what it's pointing to const)
-
-	void SetTabArgs(FSpawnTabArgs InTabArgs);
+	const TSharedRef<SDockTab> GetTabWidget();
 	FSpawnTabArgs GetTabArgs() const;
+
+	void SetTabManager(UGSTabManager* InTabManager);
+	void SetTabArgs(FSpawnTabArgs InTabArgs);
 
 	void Tick();
 
@@ -50,6 +53,7 @@ public:
 	const TArray<FString>& GetCombinedSyncFilter() const;
 	TArray<FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
+	UGSTabManager* GetTabManager();
 private:
 
 	void OnWorkspaceSyncComplete(
@@ -75,6 +79,7 @@ private:
 	TSharedRef<SGameSyncTab> GameSyncTabView;
 
 	// Core data
+	UGSTabManager* TabManager = nullptr;
 	FString ProjectFileName;
 	TSharedPtr<FWorkspace> Workspace;
 	TSharedPtr<FPerforceConnection> PerforceClient;

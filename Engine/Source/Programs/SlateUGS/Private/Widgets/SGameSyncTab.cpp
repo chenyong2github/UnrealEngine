@@ -15,12 +15,12 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Colors/SSimpleGradient.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #include "Styling/AppStyle.h"
 
 #include "UGSTab.h"
-
-#include "Math/RandomStream.h" // Todo: Delete
+#include "UGSTabManager.h"
 
 #define LOCTEXT_NAMESPACE "UGSWindow"
 
@@ -43,8 +43,7 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 {
 	if (ColumnId == HordeTableColumnStatus)
 	{
-		TSharedRef<SImage> StatusCircle = SNew(SImage)
-			.Image(FAppStyle::Get().GetBrush("Icons.FilledCircle"));
+		TSharedRef<SImage> StatusCircle = SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.FilledCircle"));
 
 		switch (CurrentItem->ReviewStatus)
 		{
@@ -75,12 +74,10 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 	if (ColumnId == HordeTableColumnChange)
 	{
 		TextItem->SetText(FText::FromString(FString::FromInt(CurrentItem->Changelist)));
-		TextItem->SetJustification(ETextJustify::Center);
 	}
 	if (ColumnId == HordeTableColumnTime)
 	{
-		TextItem->SetText(CurrentItem->Time);
-		TextItem->SetJustification(ETextJustify::Center);
+		TextItem->SetText(FText::FromString(CurrentItem->Time.ToString(TEXT("%h:%M %A"))));
 	}
 	if (ColumnId == HordeTableColumnAuthor)
 	{
@@ -101,6 +98,33 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 
 TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<FChangeInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 {
+	if (InItem->bHeaderRow)
+	{
+		return SNew(STableRow<TSharedPtr<FChangeInfo>>, InOwnerTable)
+		.ShowSelection(false)
+		[
+			SNew(SBox)
+			.Padding(5.0f)
+			[
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("Font.Large.Bold"))
+					.ColorAndOpacity(FLinearColor::White)
+					.Text(FText::FromString(InItem->Time.ToFormattedString(TEXT("%A, %B %e, %Y"))))
+				]
+				+SVerticalBox::Slot()
+				.VAlign(VAlign_Bottom)
+				[
+					SNew(SSeparator)
+					.SeparatorImage(FAppStyle::GetBrush("Header.Post"))
+				]
+			]
+		];
+	}
+
 	return SNew(SBuildDataRow, InOwnerTable, InItem);
 }
 
@@ -131,7 +155,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.FillHeight(0.05f)
 		// .MaxHeight(35.0f)
-		.Padding(20.0f, 5.0f)
+		.Padding(10.0f, 5.0f)
 		[
 			SNew(SBorder)
 			.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
@@ -153,6 +177,13 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							MakeSyncButtonDropdown()
 						]
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SPositiveActionButton)
+						.Text(LOCTEXT("NewProjectButton", "New Project")) // Todo: replace with new tab button eventually
+						.OnClicked_Lambda([this] { Tab->GetTabManager()->ActivateTab(); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -237,7 +268,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		]
 		// Stream banner
 		+SVerticalBox::Slot()
-		.Padding(20.0f, 5.0f)
+		.Padding(0.0f, 5.0f)
 		.FillHeight(0.2f)
 		[
 			SNew(SOverlay)
@@ -245,7 +276,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 			[
 				SNew(SSimpleGradient) // Todo: save literals in class and use different colors depending on stream (Fortnite, UE5, etc)
 				.StartColor(FLinearColor(161.0f / 255.0f, 57.0f / 255.0f, 191.0f / 255.0f))
-				.EndColor(FLinearColor(27.0f / 255.0f, 27.0f / 255.0f, 27.0f / 255.0f))
+				.EndColor(FLinearColor(36.0f / 255.0f, 36.0f / 255.0f, 36.0f / 255.0f))
 			]
 			+SOverlay::Slot()
 			[
@@ -277,12 +308,15 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("StreamText", "STREAM"))
+							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
 							SAssignNew(StreamPathText, STextBlock)
 							.Text(LOCTEXT("StreamTextValue", "No stream path found"))
+							.ColorAndOpacity(FLinearColor::White)
 						]
 					]
 					+SVerticalBox::Slot()
@@ -295,12 +329,15 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ChangelistText", "CHANGELIST"))
+							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
 							SAssignNew(ChangelistText, STextBlock)
 							.Text(LOCTEXT("ChangelistTextValue", "No changelist found"))
+							.ColorAndOpacity(FLinearColor::White)
 						]
 					]
 					+SVerticalBox::Slot()
@@ -313,12 +350,15 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ProjectText", "PROJECT"))
+							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
 							SAssignNew(ProjectPathText, STextBlock)
 							.Text(LOCTEXT("ProjectValue", "No project path found"))
+							.ColorAndOpacity(FLinearColor::White)
 						]
 					]
 				]
@@ -348,7 +388,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		]
 		// Horde builds
 		+SVerticalBox::Slot()
-		.Padding(20.0f, 5.0f)
+		.Padding(0.0f, 5.0f)
 		.FillHeight(0.45f)
 		[
 			SAssignNew(HordeBuildsView, SListView<TSharedPtr<FChangeInfo>>)
@@ -364,10 +404,10 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 				.FixedWidth(35.0f)
 				+SHeaderRow::Column(HordeTableColumnChange)
 				.DefaultLabel(LOCTEXT("HordeHeaderChange", "Change"))
-				.FixedWidth(100.0f)
+				.FillWidth(0.1f)
 				+SHeaderRow::Column(HordeTableColumnTime)
 				.DefaultLabel(LOCTEXT("HordeHeaderTime", "Time"))
-				.FillWidth(0.2f)
+				.FillWidth(0.1f)
 				+SHeaderRow::Column(HordeTableColumnAuthor)
 				.DefaultLabel(LOCTEXT("HordeHeaderAuthor", "Author"))
 				.FillWidth(0.15f)
@@ -377,24 +417,10 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		]
 		// Log
 		+SVerticalBox::Slot()
-		.Padding(10.0f, 5.0f, 10.0f, 10.0f)
+		.Padding(0.0f, 5.0f, 0.0f, 10.0f)
 		.FillHeight(0.3f)
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 4.0f, 0.0f, 8.0f)
-			[
-				SNew(SHeader)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Log", "Log"))
-				]
-			]
-			+SVerticalBox::Slot()
-			[
-				SAssignNew(SyncLog, SLogWidget)
-			]
+			SAssignNew(SyncLog, SLogWidget)
 		]
 	];
 }
@@ -414,9 +440,16 @@ void SGameSyncTab::SetStreamPathText(FText StreamPath)
 	StreamPathText->SetText(StreamPath);
 }
 
-void SGameSyncTab::SetChangelistText(FText Changelist)
+void SGameSyncTab::SetChangelistText(int Changelist)
 {
-	ChangelistText->SetText(Changelist);
+	if (Changelist > 0)
+	{
+		ChangelistText->SetText(FText::FromString(FString::FromInt(Changelist)));
+	}
+	else
+	{
+		ChangelistText->SetText(FText::FromString(TEXT("Unknown")));
+	}
 }
 
 void SGameSyncTab::SetProjectPathText(FText ProjectPath)
@@ -437,6 +470,12 @@ TSharedPtr<SWidget> SGameSyncTab::OnRightClickedBuild()
 	TArray<TSharedPtr<FChangeInfo>> SelectedItems = HordeBuildsView->GetSelectedItems(); // Todo: since I disabled multi select, I might be able to assume the array size is always 1?
 	if (SelectedItems.IsValidIndex(0))
 	{
+		// Don't show menu items for header rows; OnContextMenuOpening handles nullptr by not showing a menu
+		if (SelectedItems[0]->bHeaderRow)
+		{
+			return nullptr;
+		}
+
 		MenuBuilder.AddMenuEntry(
 			FText::FromString(TEXT("Sync")),
 			FText::FromString("Sync to CL " + FString::FromInt(SelectedItems[0]->Changelist)),

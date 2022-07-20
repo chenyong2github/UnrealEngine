@@ -6,10 +6,13 @@
 
 struct FChangeInfo
 {
-	EReviewVerdict ReviewStatus;
-	int Changelist;
-	FText Time;
+	FDateTime Time;
+	bool bHeaderRow = false;
+
+	EReviewVerdict ReviewStatus = EReviewVerdict::Unknown;
+	int Changelist = 0;
 	FText Author;
 	FText Description;
+
 	// Todo: add Horde badges
 };

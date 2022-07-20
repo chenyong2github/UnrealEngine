@@ -35,7 +35,7 @@ public:
 	bool SetSyncLogLocation(const FString& LogFileName);
 
 	void SetStreamPathText(FText StreamPath);
-	void SetChangelistText(FText Changelist);
+	void SetChangelistText(int Changelist);
 	void SetProjectPathText(FText ProjectPath);
 
 	void AddHordeBuilds(const TArray<TSharedPtr<FChangeInfo>>& Builds);

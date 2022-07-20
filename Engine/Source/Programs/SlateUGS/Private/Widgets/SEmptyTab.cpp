@@ -24,11 +24,13 @@ void SEmptyTab::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(10.0f, 0.0f)
 			[
 				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("AboutScreen.UnrealLogo")) // Todo: figure out how to get logo to show up
+				.Image(FAppStyle::Get().GetBrush("AppIcon.Small"))
+				.DesiredSizeOverride(CoreStyleConstants::Icon64x64)
 			]
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Left)
