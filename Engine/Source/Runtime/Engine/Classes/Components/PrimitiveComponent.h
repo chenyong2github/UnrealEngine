@@ -2283,7 +2283,7 @@ public:
 	/**
 	 * Pushes new selection state to the render thread primitive proxy
 	 */
-	void PushSelectionToProxy();
+	virtual void PushSelectionToProxy();
 
 	/**
 	 * Pushes new LevelInstance editing state to the render thread primitive proxy.
