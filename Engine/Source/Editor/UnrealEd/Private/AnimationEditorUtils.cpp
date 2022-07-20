@@ -876,8 +876,16 @@ namespace AnimationEditorUtils
 					if (UAnimBlueprintGeneratedClass* AnimBPGenClass = Cast<UAnimBlueprintGeneratedClass>(*AnimBlueprint->GeneratedClass))
 					{
 						// Find the insertion point from the debugging data
-						int32 LinkID = AnimBPGenClass->GetLinkIDForNode<FAnimNode_Base>(TargetNode);
-						AnimBPGenClass->GetAnimBlueprintDebugData().AddPoseWatch(LinkID, PoseWatch);
+						const int32 LinkID = AnimBPGenClass->GetLinkIDForNode<FAnimNode_Base>(TargetNode);
+
+						for (const TObjectPtr<UPoseWatchElement>& PoseWatchElement : PoseWatch->GetElements())
+						{
+							if (UPoseWatchPoseElement* PoseWatchPoseElement = Cast<UPoseWatchPoseElement>(PoseWatchElement.Get()))
+							{
+								AnimBPGenClass->GetAnimBlueprintDebugData().AddPoseWatch(LinkID, PoseWatchPoseElement);
+							}
+						}
+
 						OnPoseWatchesChangedDelegate.Broadcast(AnimBlueprint, TargetNode);
 					}
 				}
@@ -931,6 +939,7 @@ namespace AnimationEditorUtils
 		UPoseWatch* NewPoseWatch = NewObject<UPoseWatch>(AnimBlueprint);
 		NewPoseWatch->Node = Node;
 		NewPoseWatch->SetUniqueDefaultLabel();
+		NewPoseWatch->AddElement<UPoseWatchPoseElement>(LOCTEXT("PoseWatchElementLabel_PoseWatch", "Pose Watch"), TEXT("ClassIcon.PoseAsset"));
 		AnimBlueprint->PoseWatches.Add(NewPoseWatch);
 		SetPoseWatch(NewPoseWatch, AnimBlueprint);
 		return NewPoseWatch;

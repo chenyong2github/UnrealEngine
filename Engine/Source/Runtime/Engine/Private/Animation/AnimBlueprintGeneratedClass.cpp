@@ -229,7 +229,7 @@ void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, const UBlen
 	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPosition, InFilteredPosition);
 }
 
-void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, UPoseWatch* InPoseWatch)
+void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, UPoseWatchPoseElement* const InPoseWatchPoseElement)
 {
 	for (FAnimNodePoseWatch& PoseWatch : AnimNodePoseWatch)
 	{
@@ -239,11 +239,14 @@ void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, UPoseWatch* InPoseWatch
 		}
 	}
 
+	check(InPoseWatchPoseElement != nullptr); // Expect a valid pointer.
+
 	//Not found so make new one
 	AnimNodePoseWatch.Add(FAnimNodePoseWatch());
 	FAnimNodePoseWatch& NewAnimNodePoseWatch = AnimNodePoseWatch.Last();
 	NewAnimNodePoseWatch.NodeID = NodeID;
-	NewAnimNodePoseWatch.PoseWatch = InPoseWatch;
+	NewAnimNodePoseWatch.PoseWatch = InPoseWatchPoseElement->GetParent();
+	NewAnimNodePoseWatch.PoseWatchPoseElement = InPoseWatchPoseElement;
 	NewAnimNodePoseWatch.PoseInfo = MakeShareable(new FCompactHeapPose());
 	NewAnimNodePoseWatch.Object = nullptr;
 }
@@ -260,16 +263,16 @@ void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
 	}
 }
 
-void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatch(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const
+void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const
 {
 	for (const FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
 	{
-		if (const UPoseWatch* PoseWatch = PoseWatchNode.PoseWatch.Get())
+		if (const UPoseWatchPoseElement* PoseWatchPoseElement = PoseWatchNode.PoseWatchPoseElement.Get())
 		{
-			if (PoseWatch->GetIsEnabled() && PoseWatch->GetIsVisible())
+			if (PoseWatchPoseElement->GetIsEnabled() && PoseWatchPoseElement->GetIsVisible())
 			{
 				FPoseWatchDebugData DrawData;
-				DrawData.PoseWatch = PoseWatch;
+				DrawData.PoseWatchPoseElement = PoseWatchPoseElement;
 				DrawData.PoseInfo = PoseWatchNode.PoseInfo;
 
 				InFunction(DrawData);

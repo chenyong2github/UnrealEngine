@@ -156,6 +156,40 @@ void FAnimationBlueprintEditor::NotifyAllNodesOnSelection(const bool bInIsSelect
 	}
 }
 
+void FAnimationBlueprintEditor::NotifyAllNodesOnPoseWatchChanged(const bool IsPoseWatchEnabled)
+{
+	UAnimBlueprint* const AnimBP = GetAnimBlueprint();
+
+	if (AnimBP)
+	{
+		FEditorModeTools& ModeTools = GetEditorModeManager();
+
+		for (TObjectPtr<UPoseWatch> CurrentPoseWatch : AnimBP->PoseWatches)
+		{
+			UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = Cast<UAnimGraphNode_Base>(CurrentPoseWatch->Node.Get());
+			FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr);
+
+			// Note: Potentially passing a null PreviewNode ptr when IsPoseWatchEnabled is false is required to un-watch nodes that no longer exist.
+			if (CurrentAnimGraphNodePtr && (!IsPoseWatchEnabled || PreviewNode))
+			{
+				CurrentAnimGraphNodePtr->OnPoseWatchChanged(IsPoseWatchEnabled, CurrentPoseWatch, ModeTools, PreviewNode);
+			}
+		}
+	}
+}
+
+void FAnimationBlueprintEditor::ReleaseAllManagedNodes()
+{
+	NotifyAllNodesOnSelection(false);
+	NotifyAllNodesOnPoseWatchChanged(false);
+}
+
+void FAnimationBlueprintEditor::AcquireAllManagedNodes()
+{
+	NotifyAllNodesOnSelection(true);
+	NotifyAllNodesOnPoseWatchChanged(true);
+}
+
 /////////////////////////////////////////////////////
 // SAnimBlueprintPreviewPropertyEditor
 
@@ -741,6 +775,8 @@ bool FAnimationBlueprintEditor::CanTogglePoseWatch()
 
 void FAnimationBlueprintEditor::OnTogglePoseWatch()
 {
+	ReleaseAllManagedNodes();
+
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	UAnimBlueprint* AnimBP = GetAnimBlueprint();
 
@@ -773,6 +809,8 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 			}
 		}
 	}
+
+	AcquireAllManagedNodes();
 }
 
 // Helper function for node conversions
@@ -1522,7 +1560,7 @@ void FAnimationBlueprintEditor::ClearSelectedActor()
 
 void FAnimationBlueprintEditor::ClearSelectedAnimGraphNodes()
 {
-	NotifyAllNodesOnSelection(false);
+	ReleaseAllManagedNodes();
 
 	SelectedAnimGraphNodes.Empty();
 }
@@ -1882,7 +1920,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 			SortedContainerDifference(OldSelectionSorted, NewSelectionSorted, AddSelection, RemSelection, SortPredicate);
 		}
 		
-		NotifyAllNodesOnSelection(false); // Register de-selection with all the previously selected nodes.
+		ReleaseAllManagedNodes(); // Register de-selection with all the previously selected nodes.
 
 
 		// Remove all the nodes that are no longer selected.
@@ -1897,7 +1935,7 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 			SelectedAnimGraphNodes.Add(CurrentAnimGraphNode);
 		}
 
-		NotifyAllNodesOnSelection(true); // Register re-selection with all the currently selected nodes.
+		AcquireAllManagedNodes(); // Register re-selection with all the currently selected nodes.
 	}
 
 	bSelectRegularNode = false;
@@ -1934,6 +1972,8 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 	if (FocusedGraphEd.IsValid())
 	{
+		ReleaseAllManagedNodes(); // Register de-selection with all the previously selected nodes.
+
 		UAnimBlueprint* AnimBP = GetAnimBlueprint();
 		TArray<UEdGraphNode*> AllNodes = FocusedGraphEd->GetCurrentGraph()->Nodes;
 
@@ -1962,6 +2002,8 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 				}
 			}
 		}
+
+		AcquireAllManagedNodes(); // Register re-selection with all the currently selected nodes.
 	}
 }
 
@@ -1970,6 +2012,8 @@ void FAnimationBlueprintEditor::RemoveAllSelectionPoseWatches()
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 	if (FocusedGraphEd.IsValid())
 	{
+		ReleaseAllManagedNodes(); // Register de-selection with all the previously selected nodes.
+
 		UAnimBlueprint* AnimBP = GetAnimBlueprint();
 		TArray<UEdGraphNode*> AllNodes = FocusedGraphEd->GetCurrentGraph()->Nodes;
 
@@ -1985,6 +2029,8 @@ void FAnimationBlueprintEditor::RemoveAllSelectionPoseWatches()
 				}
 			}
 		}
+
+		AcquireAllManagedNodes(); // Register re-selection with all the currently selected nodes.
 	}
 }
 void FAnimationBlueprintEditor::OnPostCompile()

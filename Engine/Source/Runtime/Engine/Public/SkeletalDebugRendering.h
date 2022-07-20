@@ -7,6 +7,7 @@
 #include "BoneIndices.h"
 
 class UPoseWatch;
+class UPoseWatchPoseElement;
 class FPrimitiveDrawInterface;
 struct FCompactHeapPose;
 struct FReferenceSkeleton;
@@ -116,7 +117,7 @@ ENGINE_API void DrawBonesFromPoseWatch(
 	const FCompactHeapPose& Pose,
 	USkeletalMeshComponent* MeshComponent,
 	FPrimitiveDrawInterface* PDI,
-	const UPoseWatch* PoseWatch);
+	const UPoseWatchPoseElement* PoseWatch);
 
 
 /**

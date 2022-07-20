@@ -10,6 +10,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "IPoseWatchManager.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "PoseWatchManagerElementTreeItem.h"
 #include "PoseWatchManagerPoseWatchTreeItem.h"
 #include "Engine/PoseWatch.h"
 
@@ -21,9 +22,9 @@ public:
 	SLATE_BEGIN_ARGS(SColorBoxWidget) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FPoseWatchManagerPoseWatchTreeItem* InPoseWatchTreeItem)
+	void Construct(const FArguments& InArgs, IPoseWatchManagerTreeItem* InTreeItem)
 	{
-		PoseWatchTreeItem = InPoseWatchTreeItem;
+		TreeItem = InTreeItem;
 
 		ChildSlot
 		[
@@ -57,17 +58,17 @@ public:
 
 	FLinearColor OnGetColorForColorBlock() const
 	{
-		return PoseWatchTreeItem->PoseWatch->GetColor();
+		return TreeItem->GetColor();
 	}
 
 	void OnSetColorFromColorPicker(FLinearColor NewColor)
 	{
-		PoseWatchTreeItem->PoseWatch->SetColor(NewColor.ToFColorSRGB());
+		TreeItem->SetColor(NewColor.ToFColorSRGB());
 	}
 
 	void OnColorPickerCancelled(FLinearColor OriginalColor)
 	{
-		PoseWatchTreeItem->PoseWatch->SetColor(OriginalColor.ToFColorSRGB());
+		TreeItem->SetColor(OriginalColor.ToFColorSRGB());
 	}
 
 	FReply OnMouseButtonDownColorBlock(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -78,7 +79,7 @@ public:
 			PickerArgs.DisplayGamma = TAttribute<float>::Create(TAttribute<float>::FGetter::CreateUObject(GEngine, &UEngine::GetDisplayGamma));
 			PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &SColorBoxWidget::OnSetColorFromColorPicker);
 			PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &SColorBoxWidget::OnColorPickerCancelled);
-			PickerArgs.InitialColorOverride = PoseWatchTreeItem->PoseWatch->GetColor();
+			PickerArgs.InitialColorOverride = TreeItem->GetColor();
 			PickerArgs.ParentWidget = ColorPickerParentWidget;
 			PickerArgs.OptionalOwningDetailsView = ColorPickerParentWidget;
 			FWidgetPath ParentWidgetPath;
@@ -101,7 +102,7 @@ public:
 	}
 
 private:
-	FPoseWatchManagerPoseWatchTreeItem* PoseWatchTreeItem;
+	IPoseWatchManagerTreeItem* TreeItem;
 	TSharedPtr<SWidget> ColorPickerParentWidget;
 	TSharedPtr<SWidget > ColorWidgetBackgroundBorder;
 };
@@ -126,9 +127,9 @@ SHeaderRow::FColumn::FArguments FPoseWatchManagerColumnColor::ConstructHeaderRow
 
 const TSharedRef<SWidget> FPoseWatchManagerColumnColor::ConstructRowWidget(FPoseWatchManagerTreeItemRef TreeItem, const STableRow<FPoseWatchManagerTreeItemPtr>& Row)
 {
-	if (FPoseWatchManagerPoseWatchTreeItem* PoseWatchTreeItem = TreeItem->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+	if (TreeItem->ShouldDisplayColorPicker())
 	{
-		return SNew(SColorBoxWidget, PoseWatchTreeItem);
+		return SNew(SColorBoxWidget, TreeItem->CastTo<IPoseWatchManagerTreeItem>());
 	}
 	return SNullWidget::NullWidget;
 }

@@ -37,9 +37,8 @@
 #include "AnimationEditorUtils.h"
 #include "PoseWatchManagerDefaultHierarchy.h"
 #include "PoseWatchManagerDefaultMode.h"
-
+#include "PoseWatchManagerElementTreeItem.h"
 #include "PoseWatchManagerPoseWatchTreeItem.h"
-
 #include "PoseWatchManagerColumnVisibility.h"
 #include "PoseWatchManagerColumnColor.h"
 #include "PoseWatchManagerColumnLabel.h"
@@ -391,7 +390,12 @@ void SPoseWatchManager::RepopulateEntireTree()
 		if (Item && Item->IsValid())
 		{
 			AddPendingItem(Item);
-			if (FPoseWatchManagerFolderTreeItem* FolderItem = Item->CastTo<FPoseWatchManagerFolderTreeItem>())
+
+			if (FPoseWatchManagerPoseWatchTreeItem* PoseWatchItem = Item->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+			{
+				PoseWatchManagerTreeView->SetItemExpansion(Item, PoseWatchItem->PoseWatch->GetIsExpanded());
+			}
+			else if (FPoseWatchManagerFolderTreeItem* FolderItem = Item->CastTo<FPoseWatchManagerFolderTreeItem>())
 			{
 				PoseWatchManagerTreeView->SetItemExpansion(Item, FolderItem->PoseWatchFolder->GetIsExpanded());
 			}
@@ -420,7 +424,7 @@ FPoseWatchManagerTreeItemPtr SPoseWatchManager::EnsureParentForItem(FPoseWatchMa
 	{
 		return Parent;
 	}
-		
+
 	// Try to find the parent in the pending items
 	Parent = Mode->Hierarchy->FindParent(*Item, PendingTreeItemMap);
 	if (Parent.IsValid())
@@ -726,9 +730,8 @@ void SPoseWatchManager::OnManagerTreeItemScrolledIntoView(FPoseWatchManagerTreeI
 
 void SPoseWatchManager::OnItemExpansionChanged(FPoseWatchManagerTreeItemPtr TreeItem, bool bIsExpanded) const
 {
-	check(TreeItem.Get()->IsA<FPoseWatchManagerFolderTreeItem>());
-	FPoseWatchManagerFolderTreeItem* FolderTreeItem = TreeItem.Get()->CastTo<FPoseWatchManagerFolderTreeItem>();
-	FolderTreeItem->PoseWatchFolder->SetIsExpanded(bIsExpanded);
+	check(TreeItem.Get()->IsA<FPoseWatchManagerFolderTreeItem>() || TreeItem.Get()->IsA<FPoseWatchManagerPoseWatchTreeItem>());
+	TreeItem->SetIsExpanded(bIsExpanded);
 }
 
 void SPoseWatchManager::OnHierarchyChangedEvent(FPoseWatchManagerHierarchyChangedData Event)
@@ -962,9 +965,19 @@ uint32 SPoseWatchManager::GetTypeSortPriority(const IPoseWatchManagerTreeItem& I
 
 void SPoseWatchManager::OnManagerTreeDoubleClick(FPoseWatchManagerTreeItemPtr TreeItem)
 {
+	UPoseWatch* PoseWatch = nullptr;
+
 	if (FPoseWatchManagerPoseWatchTreeItem* PoseWatchTreeItem = TreeItem->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
 	{
-		UPoseWatch* PoseWatch = PoseWatchTreeItem->PoseWatch.Get();
+		PoseWatch = PoseWatchTreeItem->PoseWatch.Get();
+	}
+	else if (FPoseWatchManagerElementTreeItem* ElementTreeItem = TreeItem->CastTo<FPoseWatchManagerElementTreeItem>())
+	{
+		PoseWatch = ElementTreeItem->PoseWatchElement->GetParent();
+	}
+
+	if (PoseWatch)
+	{
 		BlueprintEditor->JumpToHyperlink(PoseWatch->Node.Get(), false);
 	}
 }

@@ -1587,9 +1587,9 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 			if (Blueprint->GetObjectBeingDebugged())
 			{
 				const FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-				DebugData.ForEachActiveVisiblePoseWatch([MeshComponent, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
+				DebugData.ForEachActiveVisiblePoseWatchPoseElement([MeshComponent, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
 				{
-					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), MeshComponent, PDI, PoseWatchDebugData.PoseWatch);
+					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), MeshComponent, PDI, PoseWatchDebugData.PoseWatchPoseElement);
 				});
 			}
 		}

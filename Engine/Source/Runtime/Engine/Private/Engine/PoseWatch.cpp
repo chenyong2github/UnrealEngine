@@ -9,29 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "PoseWatch"
 
-UPoseWatchFolder::UPoseWatchFolder(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
 #if WITH_EDITOR
-	Label = GetDefaultLabel();
-#endif
-}
-
-UPoseWatch::UPoseWatch(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-#if WITH_EDITOR
-	Label = GetDefaultLabel();
-	SetColor(PoseWatchUtil::ChoosePoseWatchColor());
-	ViewportMask = nullptr;
-	bInvertViewportMask = false;
-	BlendScaleThreshold = 0.f;
-	ViewportOffset = FVector3d::ZeroVector;
-#endif
-}
-
-#if WITH_EDITOR
-
 
 // PoseWatchUtil
 
@@ -65,34 +43,18 @@ TSet<UPoseWatchFolder*> PoseWatchUtil::GetChildrenPoseWatchFoldersOf(const UPose
 	return Children;
 }
 
-template <typename T>
-T* PoseWatchUtil::FindInFolderInCollection(const FName& Label, UPoseWatchFolder* InFolder, const TArray<TObjectPtr<T>>& PoseWatchCollection)
+template <typename TParent, typename TItem> FText PoseWatchUtil::FindUniqueNameInParent(TParent* InParent, const TItem* InItem)
 {
-	for (const TObjectPtr<T>& PoseWatchItem : PoseWatchCollection)
+	static const FTextFormat LabelFormat = FTextFormat::FromString("{0}{1}");
+
+	FText NewLabel = InItem->GetLabel();
+
+	for (uint32 Counter = 1; !InItem->IsLabelUniqueInParent(NewLabel, InParent); ++Counter)
 	{
-		if (PoseWatchItem->IsIn(InFolder) && PoseWatchItem->GetLabel().ToString().Equals(Label.ToString()))
-		{
-			return PoseWatchItem;
-		}
+		NewLabel = FText::Format(LabelFormat, InItem->GetLabel(), FText::AsNumber(Counter));
 	}
-	return nullptr;
-}
 
-template <typename T>
-FText PoseWatchUtil::FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, const TArray<TObjectPtr<T>>& Collection)
-{
-	FName NewName(Item->GetLabel().ToString());
-	FString BaseLabel = Item->GetLabel().ToString();
-	int32 Index = 0;
-	T* ConflictingItem = nullptr;
-	do
-	{
-		++Index;
-		NewName = *FString::Printf(TEXT("%s%d"), *BaseLabel, Index);
-		ConflictingItem = FindInFolderInCollection(NewName, InParent, Collection);
-	} while (ConflictingItem != nullptr && ConflictingItem != Item);
-
-	return FText::FromName(NewName);
+	return NewLabel;
 }
 
 FColor PoseWatchUtil::ChoosePoseWatchColor()
@@ -100,8 +62,19 @@ FColor PoseWatchUtil::ChoosePoseWatchColor()
 	return FColor::MakeRandomColor();
 }
 
+#endif // WITH_EDITOR
 
 // UPoseWatchFolder
+
+UPoseWatchFolder::UPoseWatchFolder(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Label = GetDefaultLabel();
+#endif
+}
+
+#if WITH_EDITOR
 
 const FText UPoseWatchFolder::GetPath() const
 {
@@ -134,22 +107,22 @@ UPoseWatchFolder* UPoseWatchFolder::GetParent() const
 
 bool UPoseWatchFolder::SetParent(UPoseWatchFolder* InParent, bool bForce)
 {
-	if (IsFolderLabelUniqueInFolder(Label, InParent))
+	if (IsLabelUniqueInParent(Label, InParent))
 	{
 		Parent = InParent;
 		return true;
 	}
 	else if (bForce)
 	{
-		Label = FindUniqueNameInFolder(InParent);
-		check(IsFolderLabelUniqueInFolder(Label, InParent))
+		Label = FindUniqueNameInParent(InParent);
+		check(IsLabelUniqueInParent(Label, InParent))
 		Parent = InParent;
 		return true;
 	}
 	return false;
 }
 
-bool UPoseWatchFolder::IsFolderLabelUniqueInFolder(const FText& InLabel, UPoseWatchFolder* InFolder) const
+bool UPoseWatchFolder::IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const
 {
 	for (UPoseWatchFolder* SomeChildFolder : PoseWatchUtil::GetChildrenPoseWatchFoldersOf(InFolder, GetAnimBlueprint()))
 	{
@@ -162,6 +135,8 @@ bool UPoseWatchFolder::IsFolderLabelUniqueInFolder(const FText& InLabel, UPoseWa
 		}
 	}
 	return true;
+
+	// TODO - folders can contain folders AND node watches ... don't we need to check against node watch names as well ?
 }
 
 void UPoseWatchFolder::MoveTo(UPoseWatchFolder* InFolder)
@@ -172,7 +147,7 @@ void UPoseWatchFolder::MoveTo(UPoseWatchFolder* InFolder)
 bool UPoseWatchFolder::SetLabel(const FText& InLabel)
 {
 	FText NewLabel = FText::TrimPrecedingAndTrailing(InLabel);
-	if (IsFolderLabelUniqueInFolder(NewLabel, Parent.Get()))
+	if (IsLabelUniqueInParent(NewLabel, Parent.Get()))
 	{
 		Label = NewLabel;
 		return true;
@@ -299,7 +274,8 @@ bool UPoseWatchFolder::ValidateLabelRename(const FText& InLabel, FText& OutError
 		OutErrorMessage = LOCTEXT("PoseWatchFolderNameEmpty", "A pose watch folder must have a label");
 		return false;
 	}
-	if (!IsFolderLabelUniqueInFolder(UseLabel, Parent.Get()))
+
+	if (!IsLabelUniqueInParent(UseLabel, Parent.Get()))
 	{
 		OutErrorMessage = LOCTEXT("PoseWatchFolderNameTaken", "A folder already has this name at this level");
 		return false;
@@ -323,12 +299,12 @@ bool UPoseWatchFolder::HasChildren() const
 void UPoseWatchFolder::SetUniqueDefaultLabel()
 {
 	Label = GetDefaultLabel();
-	Label = FindUniqueNameInFolder(Parent.Get());
+	Label = FindUniqueNameInParent(Parent.Get());
 }
 
-FText UPoseWatchFolder::FindUniqueNameInFolder(UPoseWatchFolder* InParent) const
+FText UPoseWatchFolder::FindUniqueNameInParent(UPoseWatchFolder* InFolder) const
 {
-	return PoseWatchUtil::FindUniqueNameInFolder(InParent, this, GetAnimBlueprint()->PoseWatchFolders);
+	return PoseWatchUtil::FindUniqueNameInParent(InFolder, this);
 }
 
 bool UPoseWatchFolder::HasPoseWatchChildren() const
@@ -352,7 +328,187 @@ bool UPoseWatchFolder::HasPoseWatchDescendents() const
 	return false;
 }
 
+// UPoseWatchElement
+
+FText UPoseWatchElement::GetDefaultLabel() const
+{
+	return LOCTEXT("NewPoseWatchElement", "NewPoseWatchElement");
+}
+
+FText UPoseWatchElement::GetLabel() const
+{
+	return Label;
+}
+
+bool UPoseWatchElement::GetIsVisible() const
+{
+	return bIsVisible;
+}
+
+bool UPoseWatchElement::GetIsEnabled() const
+{
+	return true;
+}
+
+UPoseWatch* UPoseWatchElement::GetParent() const
+{
+	return Parent.Get();
+}
+
+void UPoseWatchElement::SetParent(UPoseWatch* InParent)
+{
+	Parent = InParent;
+}
+
+bool UPoseWatchElement::SetLabel(const FText& InLabel)
+{
+	if (Parent.IsValid() && IsLabelUniqueInParent(InLabel, Parent.Get()))
+	{
+		Label = InLabel;
+		return true;
+	}
+
+	return false;
+}
+
+void UPoseWatchElement::SetIsVisible(bool bInIsVisible)
+{
+	bIsVisible = bInIsVisible;
+
+	if (Parent.IsValid())
+	{
+		Parent->UpdateVisibility();
+	}
+}
+
+bool UPoseWatchElement::ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage)
+{
+	if (!IsLabelUniqueInParent(InLabel, Parent.Get()))
+	{
+		OutErrorMessage = LOCTEXT("PoseWatchElementNameTaken", "A element already has this name in this node watch");
+		return false;
+	}
+
+	return true;
+}
+
+bool UPoseWatchElement::IsLabelUniqueInParent(const FText& InLabel, UPoseWatch* InParent) const
+{
+	for (TObjectPtr<UPoseWatchElement>& Element : InParent->GetElements())
+	{
+		if (Element->GetLabel().ToString().Equals(InLabel.ToString()))
+		{
+			if (Element != this)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void UPoseWatchElement::SetUniqueDefaultLabel()
+{
+	Label = GetDefaultLabel();
+	Label = FindUniqueNameInParent(Parent.Get());
+}
+
+void UPoseWatchElement::SetUniqueLabel(const FText& InLabel)
+{
+	Label = InLabel;
+	Label = FindUniqueNameInParent(Parent.Get());
+}
+
+FColor UPoseWatchElement::GetColor() const
+{
+	return Color;
+}
+
+void UPoseWatchElement::SetColor(const FColor& InColor)
+{
+	Color = InColor;
+}
+
+bool UPoseWatchElement::HasColor() const
+{
+	return bHasColor;
+}
+
+void UPoseWatchElement::SetHasColor(const bool bInHasColor)
+{
+	bHasColor = bInHasColor;
+}
+
+FName UPoseWatchElement::GetIconName() const
+{
+	return IconName;
+}
+
+void UPoseWatchElement::SetIconName(const FName InIconName)
+{
+	IconName = InIconName;
+}
+
+void UPoseWatchElement::ToggleIsVisible()
+{
+	SetIsVisible(!bIsVisible);
+}
+
+FText UPoseWatchElement::FindUniqueNameInParent(UPoseWatch* InParent) const
+{
+	if (InParent)
+	{
+		return PoseWatchUtil::FindUniqueNameInParent(InParent, this);
+	}
+	return FText();
+}
+
+#endif // WITH_EDITOR
+
+// UPoseWatchPoseElement
+
+UPoseWatchPoseElement::UPoseWatchPoseElement(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	ViewportMask = nullptr;
+	bInvertViewportMask = false;
+	BlendScaleThreshold = 0.f;
+	ViewportOffset = FVector3d::ZeroVector;
+#endif
+}
+
+#if WITH_EDITOR
+
+bool UPoseWatchPoseElement::GetIsEnabled() const
+{
+	return Parent.Get() && Parent->GetIsNodeEnabled();
+}
+
+#endif // WITH_EDITOR
+
 // UPoseWatch
+
+UPoseWatch::UPoseWatch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR
+	Label = GetDefaultLabel();
+	SetColor(PoseWatchUtil::ChoosePoseWatchColor());
+#endif
+}
+
+#if WITH_EDITOR
+
+void UPoseWatch::SetIsExpanded(bool bInIsExpanded)
+{
+	bIsExpanded = bInIsExpanded;
+}
+
+bool UPoseWatch::GetIsExpanded() const
+{
+	return bIsExpanded;
+}
 
 const FText UPoseWatch::GetPath() const
 {
@@ -383,6 +539,24 @@ bool UPoseWatch::GetIsVisible() const
 	return bIsVisible;
 }
 
+bool UPoseWatch::GetIsNodeEnabled() const
+{
+	return bIsNodeEnabled;
+}
+
+bool UPoseWatch::GetIsEnabled() const
+{
+ 	bool bIsEnabled = false;
+  
+	// Set visible if any child component is visible.
+	for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
+	{
+  		bIsEnabled |= PoseWatchElement->GetIsEnabled();
+	}
+  
+	return bIsEnabled;
+}
+
 FColor UPoseWatch::GetColor() const
 {
 	return Color;
@@ -400,7 +574,6 @@ void UPoseWatch::OnRemoved()
 	
 	AnimationEditorUtils::RemovePoseWatch(this, AnimBlueprint);
 
-
 	if (Parent.IsValid())
 	{
 		Parent->UpdateVisibility();
@@ -416,13 +589,13 @@ UPoseWatchFolder* UPoseWatch::GetParent() const
 
 bool UPoseWatch::SetParent(UPoseWatchFolder* InParent, bool bForce)
 {
-	if (!IsPoseWatchLabelUniqueInFolder(Label, InParent))
+	if (!IsLabelUniqueInParent(Label, InParent))
 	{
 		if (!bForce)
 		{
 			return false;
 		}
-		Label = FindUniqueNameInFolder(InParent);
+		Label = FindUniqueNameInParent(InParent);
 	}
 
 	UPoseWatchFolder* OldParent = Parent.Get();
@@ -442,14 +615,9 @@ bool UPoseWatch::SetParent(UPoseWatchFolder* InParent, bool bForce)
 	return true;
 }
 
-bool UPoseWatch::GetIsEnabled() const
+void UPoseWatch::SetIsNodeEnabled(const bool bInIsNodeEnabled)
 {
-	return bIsEnabled;
-}
-
-void UPoseWatch::SetIsEnabled(bool bInIsEnabled)
-{
-	bIsEnabled = bInIsEnabled;
+	bIsNodeEnabled = bInIsNodeEnabled;
 }
 
 void UPoseWatch::MoveTo(UPoseWatchFolder* InFolder)
@@ -460,16 +628,23 @@ void UPoseWatch::MoveTo(UPoseWatchFolder* InFolder)
 bool UPoseWatch::SetLabel(const FText& InLabel)
 {
 	FText NewLabel = FText::TrimPrecedingAndTrailing(InLabel);
-	if (IsPoseWatchLabelUniqueInFolder(NewLabel, Parent.Get()))
+
+	if (IsLabelUniqueInParent(NewLabel, Parent.Get()))
 	{
 		Label = NewLabel;
 		return true;
 	}
+
 	return false;
 }
 
 void UPoseWatch::SetIsVisible(bool bInIsVisible)
 {
+	for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
+	{
+		PoseWatchElement->SetIsVisible(bInIsVisible);
+	}
+
 	bIsVisible = bInIsVisible;
 
 	if (Parent.IsValid())
@@ -481,6 +656,11 @@ void UPoseWatch::SetIsVisible(bool bInIsVisible)
 void UPoseWatch::SetColor(const FColor& InColor)
 {
 	Color = InColor;
+
+	for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
+	{
+		PoseWatchElement->SetColor(InColor);
+	}
 }
 
 void UPoseWatch::SetShouldDeleteOnDeselect(const bool bInDeleteOnDeselection)
@@ -511,7 +691,8 @@ bool UPoseWatch::ValidateLabelRename(const FText& InLabel, FText& OutErrorMessag
 		OutErrorMessage = LOCTEXT("PoseWatchNameEmpty", "A pose watch must have a label");
 		return false;
 	}
-	if (!IsPoseWatchLabelUniqueInFolder(UseLabel, Parent.Get()))
+
+	if (!IsLabelUniqueInParent(UseLabel, Parent.Get()))
 	{
 		OutErrorMessage = LOCTEXT("PoseWatchNameTaken", "A pose watch already has this name at this level");
 		return false;
@@ -519,7 +700,7 @@ bool UPoseWatch::ValidateLabelRename(const FText& InLabel, FText& OutErrorMessag
 	return true;
 }
 
-bool UPoseWatch::IsPoseWatchLabelUniqueInFolder(const FText& InLabel, UPoseWatchFolder* InFolder) const
+bool UPoseWatch::IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const
 {
 	for (UPoseWatch* SomePoseWatch : PoseWatchUtil::GetChildrenPoseWatchOf(InFolder, GetAnimBlueprint()))
 	{
@@ -537,7 +718,18 @@ bool UPoseWatch::IsPoseWatchLabelUniqueInFolder(const FText& InLabel, UPoseWatch
 void UPoseWatch::SetUniqueDefaultLabel()
 {
 	Label = GetDefaultLabel();
-	Label = FindUniqueNameInFolder(Parent.Get());
+	Label = FindUniqueNameInParent(Parent.Get());
+}
+
+void UPoseWatch::UpdateVisibility()
+{
+	bIsVisible = false;
+
+	// Set visible if any child component is visible.
+	for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
+	{
+		bIsVisible |= PoseWatchElement->GetIsVisible();
+	}
 }
 
 UAnimBlueprint* UPoseWatch::GetAnimBlueprint() const
@@ -545,11 +737,42 @@ UAnimBlueprint* UPoseWatch::GetAnimBlueprint() const
 	return  CastChecked<UAnimBlueprint>(GetOuter());
 }
 
-FText UPoseWatch::FindUniqueNameInFolder(UPoseWatchFolder* InParent) const
+FText UPoseWatch::FindUniqueNameInParent(UPoseWatchFolder* InParent) const
 {
-	return PoseWatchUtil::FindUniqueNameInFolder(InParent, this, GetAnimBlueprint()->PoseWatches);
+	return PoseWatchUtil::FindUniqueNameInParent(InParent, this);
+}
+
+TObjectPtr<UPoseWatchElement> UPoseWatch::AddElement(const FText InLabel, const FName InIconName)
+{
+	return AddElement<UPoseWatchElement>(InLabel, InIconName);
 }
 
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+void UPoseWatch::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::PoseWatchMigrateSkeletonDrawParametersToPoseElement)
+	{
+		// Initialize all PoseWatchElement's Skeleton Draw Parameters from those defined in the parent Pose Watch.
+		for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
+		{
+			UPoseWatchPoseElement* const PoseWatchPoseElement = Cast<UPoseWatchPoseElement>(PoseWatchElement.Get());
+
+			if (PoseWatchPoseElement)
+			{
+				PoseWatchPoseElement->ViewportMask = ViewportMask_DEPRECATED;
+				PoseWatchPoseElement->bInvertViewportMask = bInvertViewportMask_DEPRECATED;
+				PoseWatchPoseElement->BlendScaleThreshold = BlendScaleThreshold_DEPRECATED;
+				PoseWatchPoseElement->ViewportOffset = ViewportOffset_DEPRECATED;
+			}
+		}
+	}
+}
+#endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE

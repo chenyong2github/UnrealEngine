@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseWatchManagerDefaultHierarchy.h"
+#include "PoseWatchManagerElementTreeItem.h"
 #include "PoseWatchManagerFolderTreeItem.h"
 #include "PoseWatchManagerPoseWatchTreeItem.h"
 #include "PoseWatchManagerDefaultMode.h"
@@ -13,33 +14,34 @@ FPoseWatchManagerDefaultHierarchy::FPoseWatchManagerDefaultHierarchy(FPoseWatchM
 
 FPoseWatchManagerTreeItemPtr FPoseWatchManagerDefaultHierarchy::FindParent(const IPoseWatchManagerTreeItem& Item, const TMap<FObjectKey, FPoseWatchManagerTreeItemPtr>& Items) const
 {
-	UPoseWatchFolder* ParentFolder = nullptr;
+	FObjectKey ParentIdentifier = nullptr;
+
 	if (const FPoseWatchManagerFolderTreeItem* FolderTreeItem = Item.CastTo<FPoseWatchManagerFolderTreeItem>())
 	{
-		ParentFolder = FolderTreeItem->PoseWatchFolder->GetParent();
-
+		ParentIdentifier = FolderTreeItem->PoseWatchFolder->GetParent();
 	}
 	else if (const FPoseWatchManagerPoseWatchTreeItem* PoseWatchTreeItem = Item.CastTo<FPoseWatchManagerPoseWatchTreeItem>())
 	{
-		ParentFolder = PoseWatchTreeItem->PoseWatch->GetParent();
+		ParentIdentifier = PoseWatchTreeItem->PoseWatch->GetParent();
+	}
+	else if (const FPoseWatchManagerElementTreeItem* ElementTreeItem = Item.CastTo<FPoseWatchManagerElementTreeItem>())
+	{
+		ParentIdentifier = ElementTreeItem->PoseWatchElement->GetParent();
 	}
 
-	if (ParentFolder)
+	const FPoseWatchManagerTreeItemPtr* ParentTreeItem = Items.Find(ParentIdentifier);
+	if (ParentTreeItem)
 	{
-		const FPoseWatchManagerTreeItemPtr* ParentTreeItem = Items.Find(ParentFolder);
-		if (ParentTreeItem)
-		{
-			return *ParentTreeItem;
-		}
+		return *ParentTreeItem;
 	}
-	
+
 	return nullptr;
 }
 
 void FPoseWatchManagerDefaultHierarchy::CreateItems(TArray<FPoseWatchManagerTreeItemPtr>& OutItems) const
 {
 	UAnimBlueprint* AnimBlueprint = Mode->PoseWatchManager->AnimBlueprint;
-	for (int32 Index = 0; Index <  AnimBlueprint->PoseWatchFolders.Num(); ++Index)
+	for (int32 Index = 0; Index < AnimBlueprint->PoseWatchFolders.Num(); ++Index)
 	{
 		TObjectPtr<UPoseWatchFolder>& PoseWatchFolder = AnimBlueprint->PoseWatchFolders[Index];
 		if (PoseWatchFolder)
@@ -60,7 +62,14 @@ void FPoseWatchManagerDefaultHierarchy::CreateItems(TArray<FPoseWatchManagerTree
 			if (!PoseWatch->GetShouldDeleteOnDeselect())
 			{
 				FPoseWatchManagerTreeItemPtr PoseWatchItem = Mode->PoseWatchManager->CreateItemFor<FPoseWatchManagerPoseWatchTreeItem>(PoseWatch);
+
 				OutItems.Add(PoseWatchItem);
+
+				for (TObjectPtr<UPoseWatchElement> CurrentElement : PoseWatch->GetElements())
+				{
+					FPoseWatchManagerTreeItemPtr ElementItem = Mode->PoseWatchManager->CreateItemFor<FPoseWatchManagerElementTreeItem>(CurrentElement);
+					OutItems.Add(ElementItem);
+				}
 			}
 		}
 		else

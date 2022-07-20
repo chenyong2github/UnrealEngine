@@ -332,6 +332,9 @@ public:
 	 */
 	virtual void OnNodeSelected(bool bInIsSelected, class FEditorModeTools& InModeTools, struct FAnimNode_Base* InRuntimeNode);
 
+	/** Pose Watch change notification callback. Should be called every time a pose watch on this node is created or destroyed. */
+	virtual void OnPoseWatchChanged(const bool IsPoseWatchEnabled, TObjectPtr<class UPoseWatch> InPoseWatch, FEditorModeTools& InModeTools, FAnimNode_Base* InRuntimeNode);
+
 	/**
 	 * Override this function to push an editor mode when this node is selected
 	 * @return the editor mode to use when this node is selected
@@ -340,8 +343,16 @@ public:
 
 	// Draw function for supporting visualization
 	virtual void Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent * PreviewSkelMeshComp) const {}
+	/**
+	 *	Draw function called on nodes that are selected and / or have a pose watch enabled.
+	 *	Default implementation calls the basic draw function for selected nodes and does nothing for pose watched nodes. Nodes
+	 *	that should render something when a pose watch is enabled but they are not selected should override this function.
+	 */
+	virtual void Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp, const bool bIsSelected, const bool bIsPoseWatchEnabled) const;
+
 	// Canvas draw function to draw to viewport
 	virtual void DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas, USkeletalMeshComponent * PreviewSkelMeshComp) const {}
+
 	// Function to collect strings from nodes to display in the viewport.
 	// Use this rather than DrawCanvas when adding general text to the viewport.
 	virtual void GetOnScreenDebugInfo(TArray<FText>& DebugInfo, FAnimNode_Base* RuntimeAnimNode, USkeletalMeshComponent* PreviewSkelMeshComp) const {}

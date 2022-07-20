@@ -229,6 +229,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Added water HLOD material
 		WaterHLODSupportAdded,
 
+		// Moved parameters affecting Skeleton pose rendering from the PoseWatch class to the PoseWatchPoseElement class.
+		PoseWatchMigrateSkeletonDrawParametersToPoseElement,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

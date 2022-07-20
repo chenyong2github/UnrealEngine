@@ -145,7 +145,7 @@ struct FAnimBlueprintDebugData_NodeVisit
 
 struct FPoseWatchDebugData
 {
-	const UPoseWatch* PoseWatch;
+	const UPoseWatchPoseElement* PoseWatchPoseElement;
 	TSharedPtr<FCompactHeapPose> PoseInfo;
 };
 
@@ -317,9 +317,9 @@ public:
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
 	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpace* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition);
 
-	void AddPoseWatch(int32 NodeID, UPoseWatch*);
+	void AddPoseWatch(int32 NodeID, UPoseWatchPoseElement* const InPoseWatchPoseElement);
 	void RemovePoseWatch(int32 NodeID);
-	void ForEachActiveVisiblePoseWatch(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const;
+	void ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const;
 
 	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif

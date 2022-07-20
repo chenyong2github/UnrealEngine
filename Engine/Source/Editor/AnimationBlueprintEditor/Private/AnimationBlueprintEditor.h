@@ -279,6 +279,15 @@ private:
 	/** Call OnNodeSelected for each selected node **/
 	void NotifyAllNodesOnSelection(const bool bInIsSelected);
 
+	/** Call OnPoseWatchChanged for each pose watched node **/
+	void NotifyAllNodesOnPoseWatchChanged(const bool IsPoseWatchActive);
+
+	/** Called to notify all Nodes before any change to node selection or pose watch status **/
+	void ReleaseAllManagedNodes();
+
+	/** Called to notify all Nodes after any change to node selection or pose watch status **/
+	void AcquireAllManagedNodes();
+
 	/** Helper function used to keep skeletal controls in preview & instance in sync */
 	struct FAnimNode_Base* FindAnimNode(class UAnimGraphNode_Base* AnimGraphNode) const;
 
@@ -297,7 +306,7 @@ private:
 	/** Enable/disable pose watch on selected nodes */
 	void HandlePoseWatchSelectedNodes();
 
-	/** Removes all pose watches created by selectionfrom the current view */
+	/** Removes all pose watches created by selection from the current view */
 	void RemoveAllSelectionPoseWatches();
 
     /**
@@ -314,7 +323,7 @@ private:
 
 	void HandleUpdateSettings(const UAnimationBlueprintEditorSettings* AnimationBlueprintEditorSettings, EPropertyChangeType::Type ChangeType);
 
-	/** Chooses a suitable pose watch colour automatically - i.e. one that isn't already in use (if possible) */
+	/** Chooses a suitable pose watch color automatically - i.e. one that isn't already in use (if possible) */
 	FColor ChoosePoseWatchColor() const;
 
 	// Pose pin UI handlers

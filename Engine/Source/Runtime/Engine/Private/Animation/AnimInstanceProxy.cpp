@@ -498,7 +498,7 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 			PoseWatchEntriesForThisFrame = DebugData->AnimNodePoseWatch;
 			for (FAnimNodePoseWatch& PoseWatch : PoseWatchEntriesForThisFrame)
 			{
-				PoseWatch.PoseWatch.Get()->SetIsEnabled(false);
+				PoseWatch.PoseWatch.Get()->SetIsNodeEnabled(false);
 			}
 		}
 	}
@@ -3150,7 +3150,7 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 			{
 				PoseWatch.PoseInfo->CopyBonesFrom(Pose);
 				PoseWatch.Object = GetAnimInstanceObject();
-				PoseWatch.PoseWatch->SetIsEnabled(true);
+				PoseWatch.PoseWatch->SetIsNodeEnabled(true);
 				break;
 			}
 		}
@@ -3169,7 +3169,7 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, 
 				FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(Pose, TempPose);
 				PoseWatch.PoseInfo->CopyBonesFrom(TempPose);
 				PoseWatch.Object = GetAnimInstanceObject();
-				PoseWatch.PoseWatch->SetIsEnabled(true);
+				PoseWatch.PoseWatch->SetIsNodeEnabled(true);
 				break;
 			}
 		}

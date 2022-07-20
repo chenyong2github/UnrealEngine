@@ -656,9 +656,41 @@ void UAnimGraphNode_Base::OnNodeSelected(bool bInIsSelected, FEditorModeTools& I
 	}
 }
 
+void UAnimGraphNode_Base::OnPoseWatchChanged(const bool IsPoseWatchEnabled, TObjectPtr<class UPoseWatch> InPoseWatch, FEditorModeTools& InModeTools, FAnimNode_Base* InRuntimeNode)
+{
+	const FEditorModeID ModeID = GetEditorMode();
+	if (ModeID != NAME_None)
+	{
+		if (IsPoseWatchEnabled)
+		{
+			InModeTools.ActivateMode(ModeID);
+			if (FEdMode* EdMode = InModeTools.GetActiveMode(ModeID))
+			{
+				static_cast<IAnimNodeEditMode*>(EdMode)->RegisterPoseWatchedNode(this, InRuntimeNode);
+			}
+		}
+		else
+		{
+			if (FEdMode* EdMode = InModeTools.GetActiveMode(ModeID))
+			{
+				static_cast<IAnimNodeEditMode*>(EdMode)->ExitMode();
+			}
+			InModeTools.DeactivateMode(ModeID);
+		}
+	}
+}
+
 FEditorModeID UAnimGraphNode_Base::GetEditorMode() const
 {
 	return AnimNodeEditModes::AnimNode;
+}
+
+void UAnimGraphNode_Base::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp, const bool IsSelected, const bool IsPoseWatchEnabled) const
+{
+	if (IsSelected)
+	{
+		Draw(PDI, PreviewSkelMeshComp); 
+	}
 }
 
 FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* InPreviewSkelMeshComp) const

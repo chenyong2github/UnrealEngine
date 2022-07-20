@@ -6,36 +6,36 @@
 #include "Widgets/SWidget.h"
 #include "IPoseWatchManagerTreeItem.h"
 
-class UPoseWatch;
-class UPoseWatchFolder;
+class UPoseWatchElement;
 
-struct FPoseWatchManagerFolderTreeItem : IPoseWatchManagerTreeItem
+struct FPoseWatchManagerElementTreeItem : IPoseWatchManagerTreeItem
 {
 public:
-	FPoseWatchManagerFolderTreeItem(UPoseWatchFolder* InPoseWatchFolder);
+	FPoseWatchManagerElementTreeItem(TWeakObjectPtr<UPoseWatchElement> InPoseWatchElement);
 
 	/** Constant identifier for this tree item */
 	const FObjectKey ID;
-	
-	/** The pose watch folder this item is describing */
-	TWeakObjectPtr<UPoseWatchFolder> PoseWatchFolder;
-	
+
+	/** The node watch component this item is describing */
+	TWeakObjectPtr<UPoseWatchElement> PoseWatchElement;
+
 	/** Static type identifier for this tree item class */
 	static const EPoseWatchTreeItemType Type;
 
-	bool IsValid() const override { return PoseWatchFolder.IsValid(); }
+	bool IsValid() const override { return PoseWatchElement.IsValid(); }
 
 	/* Begin IPoseWatchManagerTreeItem Implementation */
 	virtual FObjectKey GetID() const override;
 	virtual FString GetDisplayString() const override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(IPoseWatchManager& Outliner, const STableRow<FPoseWatchManagerTreeItemPtr>& InRow) override;
-	virtual TSharedPtr<SWidget> CreateContextMenu() override;
 	virtual bool GetVisibility() const override;
-	virtual bool IsAssignedFolder() const override;
+	virtual bool IsAssignedFolder() const;
 	virtual void SetIsVisible(const bool bVisible) override;
-	virtual bool HasChildren() const override;
+	virtual TSharedPtr<SWidget> CreateContextMenu() override;
 	virtual void OnRemoved() override;
-	virtual void SetIsExpanded(const bool bIsExpanded) override;
-	virtual bool IsExpanded() const override;
+	virtual bool IsEnabled() const override;
+	virtual FColor GetColor() const override;
+	virtual void SetColor(const FColor& InColor) override;
+	virtual bool ShouldDisplayColorPicker() const override;
 	/* End IPoseWatchManagerTreeItem Implementation */
 };

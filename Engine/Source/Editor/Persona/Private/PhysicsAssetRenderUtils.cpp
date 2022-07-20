@@ -5,6 +5,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/Material.h"
+#include "Math/UnrealMathVectorCommon.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
@@ -639,9 +640,40 @@ uint32 UPhysicsAssetRenderUtilities::GetPathNameHash(const FString& InPhysicsAss
 }
 
 // class FPhysicsAssetRenderInterface
-void FPhysicsAssetRenderInterface::DebugDraw(class USkeletalMeshComponent* const SkeletalMeshComponent, class UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI)
+void FPhysicsAssetRenderInterface::DebugDraw(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI)
 {
 	PhysicsAssetRender::DebugDraw(SkeletalMeshComponent, PhysicsAsset, PDI);
+}
+
+void FPhysicsAssetRenderInterface::DebugDrawBodies(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI, const FColor& PrimitiveColorOverride)
+{
+	auto TransformFn = [](const UPhysicsAsset* PhysicsAsset, const FTransform& BoneTM, const int32 BodyIndex, const EAggCollisionShape::Type PrimType, const int32 PrimIndex, const float Scale) { return PhysicsAssetRender::GetPrimitiveTransform(PhysicsAsset, BoneTM, BodyIndex, PrimType, PrimIndex, Scale);  };
+	auto HitProxyFn  = [](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex) { return nullptr; };
+
+	auto MaterialFn = [](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings)
+	{ 
+		return PhysicsAssetRender::GetPrimitiveMaterial(BodyIndex, PrimitiveType, PrimitiveIndex, Settings); 
+	};
+
+	auto ColorFn = [&PrimitiveColorOverride](const int32 BodyIndex, const EAggCollisionShape::Type PrimitiveType, const int32 PrimitiveIndex, const FPhysicsAssetRenderSettings& Settings)
+	{ 
+		if (PrimitiveColorOverride.A > (1.0f - KINDA_SMALL_NUMBER))
+		{
+			return PrimitiveColorOverride;
+		}
+
+		const FLinearColor LinearOverride = PrimitiveColorOverride.ReinterpretAsLinear();
+		return FMath::Lerp(PhysicsAssetRender::GetPrimitiveColor(BodyIndex, PrimitiveType, PrimitiveIndex, Settings).ReinterpretAsLinear(), LinearOverride, LinearOverride.A).QuantizeRound();
+	};
+
+	PhysicsAssetRender::DebugDrawBodies(SkeletalMeshComponent, PhysicsAsset, PDI, ColorFn, MaterialFn, TransformFn, HitProxyFn);
+}
+
+void FPhysicsAssetRenderInterface::DebugDrawConstraints(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI)
+{
+	auto HitProxyFn   = [](const int32) { return nullptr; };
+	auto IsSelectedFn = [](const uint32) { return false; };
+	PhysicsAssetRender::DebugDrawConstraints(SkeletalMeshComponent, PhysicsAsset, PDI, IsSelectedFn, false, HitProxyFn);
 }
 
 void FPhysicsAssetRenderInterface::SaveConfig()

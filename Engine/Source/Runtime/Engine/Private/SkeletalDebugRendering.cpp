@@ -175,29 +175,29 @@ void DrawBonesFromPoseWatch(
 	const FCompactHeapPose& Pose,
 	USkeletalMeshComponent* MeshComponent,
 	FPrimitiveDrawInterface* PDI,
-	const UPoseWatch* PoseWatch)
+	const UPoseWatchPoseElement* PoseWatchPoseElement)
 {
 #if WITH_EDITOR
 	if (Pose.GetNumBones() == 0 ||
 		Pose.GetBoneContainer().GetCompactPoseNumBones() == 0 ||
 		!MeshComponent ||
 		!MeshComponent->GetSkeletalMesh() ||
-		!PoseWatch
+		!PoseWatchPoseElement
 		)
 	{
 		return;
 	}
 
 	// optionally override draw color
-	const FLinearColor BoneColor = FLinearColor(PoseWatch->GetColor());
+	const FLinearColor BoneColor = FLinearColor(PoseWatchPoseElement->GetColor());
 
 	TArray<FTransform> WorldTransforms;
 	WorldTransforms.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
 
 	TArray<uint16> RequiredBones;
-	const UBlendProfile* ViewportMask = PoseWatch->ViewportMask;
+	const UBlendProfile* ViewportMask = PoseWatchPoseElement->ViewportMask;
 
-	const FVector RelativeOffset = MeshComponent->GetComponentRotation().RotateVector(PoseWatch->ViewportOffset);
+	const FVector RelativeOffset = MeshComponent->GetComponentRotation().RotateVector(PoseWatchPoseElement->ViewportOffset);
 
 	// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this
 	for (FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
@@ -223,8 +223,8 @@ void DrawBonesFromPoseWatch(
 		else
 		{
 			const FName& BoneName = MeshComponent->GetBoneName(MeshBoneIndex.GetInt());
-			const bool bBoneBlendScaleMeetsThreshold = ViewportMask->GetBoneBlendScale(BoneName) > PoseWatch->BlendScaleThreshold;
-			if ((!PoseWatch->bInvertViewportMask && bBoneBlendScaleMeetsThreshold) || (PoseWatch->bInvertViewportMask && !bBoneBlendScaleMeetsThreshold))
+			const bool bBoneBlendScaleMeetsThreshold = ViewportMask->GetBoneBlendScale(BoneName) > PoseWatchPoseElement->BlendScaleThreshold;
+			if ((!PoseWatchPoseElement->bInvertViewportMask && bBoneBlendScaleMeetsThreshold) || (PoseWatchPoseElement->bInvertViewportMask && !bBoneBlendScaleMeetsThreshold))
 			{
 				RequiredBones.Add(MeshBoneIndex.GetInt());
 			}

@@ -4,7 +4,9 @@
 #include "AnimNodeEditModes.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "BoneControllers/AnimNode_RigidBody.h"
+#include "EditorModeManager.h"
 #include "IPhysicsAssetRenderInterface.h"
+#include "IAnimNodeEditMode.h"
 
 // Details includes
 #include "PropertyHandle.h"
@@ -48,14 +50,54 @@ void UAnimGraphNode_RigidBody::ValidateAnimNodeDuringCompilation(USkeleton* ForS
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 
-void UAnimGraphNode_RigidBody::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
+void UAnimGraphNode_RigidBody::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp, const bool bIsSelected, const bool bIsPoseWatchEnabled) const
 {
 	if (const FAnimNode_RigidBody* const RuntimeRigidBodyNode = GetDebuggedAnimNode<FAnimNode_RigidBody>())
 	{
 		if (UPhysicsAsset* const PhysicsAsset = RuntimeRigidBodyNode->GetPhysicsAsset())
 		{
 			IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
-			PhysicsAssetRenderInterface.DebugDraw(PreviewSkelMeshComp, PhysicsAsset, PDI);
+
+			// Draw Bodies.
+			if (bIsSelected || (bIsPoseWatchEnabled && PoseWatchElementBodies.IsValid() && PoseWatchElementBodies->GetIsVisible()))
+			{
+				FColor PrimitiveColorOverride = FColor::Transparent;
+
+				// Get primitive color from pose watch component.
+				if (!bIsSelected)
+				{
+					PrimitiveColorOverride = PoseWatchElementBodies->GetColor();
+					PrimitiveColorOverride.A = 255;
+				}
+
+				PhysicsAssetRenderInterface.DebugDrawBodies(PreviewSkelMeshComp, PhysicsAsset, PDI, PrimitiveColorOverride);
+			}
+
+			// Draw Constraints.
+			if (bIsSelected || (bIsPoseWatchEnabled && PoseWatchElementConstraints.IsValid() && PoseWatchElementConstraints->GetIsVisible()))
+			{
+				PhysicsAssetRenderInterface.DebugDrawConstraints(PreviewSkelMeshComp, PhysicsAsset, PDI);
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_RigidBody::OnPoseWatchChanged(const bool IsPoseWatchEnabled, TObjectPtr<UPoseWatch> InPoseWatch, FEditorModeTools& InModeTools, FAnimNode_Base* InRuntimeNode)
+{
+	Super::OnPoseWatchChanged(IsPoseWatchEnabled, InPoseWatch, InModeTools, InRuntimeNode);
+
+	UPoseWatch* const PoseWatch = InPoseWatch.Get();
+
+	if (PoseWatch && !(PoseWatch->Contains(PoseWatchElementBodies.Get()) && PoseWatch->Contains(PoseWatchElementConstraints.Get())))
+	{
+		// A new pose watch has been created for this node - add node specific pose watch components.
+		PoseWatchElementBodies = InPoseWatch.Get()->AddElement(FText(LOCTEXT("PoseWatchElementLabel_RigidBody_PhysicsBodies", "Physics Bodies")), TEXT("PhysicsAssetEditor.Tree.Body"));
+		PoseWatchElementConstraints = InPoseWatch.Get()->AddElement(FText(LOCTEXT("PoseWatchElementLabel__RigidBody_PhysicsConstraints", "Physics Constraints")), TEXT("PhysicsAssetEditor.Tree.Constraint"));
+
+		check(PoseWatchElementConstraints.IsValid()); // Expect to find a valid component;
+		if (PoseWatchElementConstraints.IsValid())
+		{
+			PoseWatchElementConstraints->SetHasColor(false);
 		}
 	}
 }

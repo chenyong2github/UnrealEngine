@@ -121,7 +121,7 @@ void FAnimDynamicsEditMode::ExitMode()
 {
 	SelectedViewportObjects.Empty();
 
-	for (const EditorRuntimeNodePair& CurrentNodePair : AnimNodes)
+	for (const EditorRuntimeNodePair& CurrentNodePair : SelectedAnimNodes)
 	{
 		if (const UAnimGraphNode_AnimDynamics* const EditorAnimDynamicsNode = CastChecked<UAnimGraphNode_AnimDynamics>(CurrentNodePair.EditorAnimNode))
 		{
@@ -144,7 +144,7 @@ void FAnimDynamicsEditMode::Render(const FSceneView* View, FViewport* Viewport, 
 	check(PDI);
 	check(PreviewSkelMeshComp);
 
-	for (const EditorRuntimeNodePair& CurrentNodePair : AnimNodes)
+	for (const EditorRuntimeNodePair& CurrentNodePair : SelectedAnimNodes)
 	{
 		const UAnimGraphNode_AnimDynamics* const EditorAnimDynamicsNode = CastChecked<UAnimGraphNode_AnimDynamics>(CurrentNodePair.EditorAnimNode);
 
@@ -531,7 +531,7 @@ FName FAnimDynamicsEditMode::GetSelectedBone() const
 
 const UAnimGraphNode_AnimDynamics* const FAnimDynamicsEditMode::FindSelectedEditorAnimNode(const int32 InEditorNodeId) const
 {
-	const FAnimNodeEditMode::EditorRuntimeNodePair* const FoundNodePair = AnimNodes.FindByPredicate([InEditorNodeId](const FAnimNodeEditMode::EditorRuntimeNodePair& Element) { return Element.EditorAnimNode && Element.EditorAnimNode->GetUniqueID() == InEditorNodeId; });
+	const FAnimNodeEditMode::EditorRuntimeNodePair* const FoundNodePair = SelectedAnimNodes.FindByPredicate([InEditorNodeId](const FAnimNodeEditMode::EditorRuntimeNodePair& Element) { return Element.EditorAnimNode && Element.EditorAnimNode->GetUniqueID() == InEditorNodeId; });
 
 	if (FoundNodePair)
 	{
@@ -543,7 +543,7 @@ const UAnimGraphNode_AnimDynamics* const FAnimDynamicsEditMode::FindSelectedEdit
 
 UAnimGraphNode_AnimDynamics* const FAnimDynamicsEditMode::FindSelectedEditorAnimNode(const int32 InEditorNodeId)
 {
-	const FAnimNodeEditMode::EditorRuntimeNodePair* const FoundNodePair = AnimNodes.FindByPredicate([InEditorNodeId](const FAnimNodeEditMode::EditorRuntimeNodePair& Element) { return Element.EditorAnimNode && Element.EditorAnimNode->GetUniqueID() == InEditorNodeId; });
+	const FAnimNodeEditMode::EditorRuntimeNodePair* const FoundNodePair = SelectedAnimNodes.FindByPredicate([InEditorNodeId](const FAnimNodeEditMode::EditorRuntimeNodePair& Element) { return Element.EditorAnimNode && Element.EditorAnimNode->GetUniqueID() == InEditorNodeId; });
 
 	if (FoundNodePair)
 	{
@@ -788,7 +788,7 @@ void FAnimDynamicsEditMode::Tick(FEditorViewportClient* ViewportClient, float De
 
 	USkeletalMeshComponent* const PreviewSkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 
-	for (const EditorRuntimeNodePair& CurrentNodePair : AnimNodes)
+	for (const EditorRuntimeNodePair& CurrentNodePair : SelectedAnimNodes)
 	{
 		const UAnimGraphNode_AnimDynamics* const EditorAnimDynamicsNode = CastChecked<UAnimGraphNode_AnimDynamics>(CurrentNodePair.EditorAnimNode);
 

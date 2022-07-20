@@ -234,8 +234,8 @@ public:
 	UPROPERTY()
 	TArray<FAnimParentNodeAssetOverride> ParentAssetOverrides;
 
-	// Array of active pose watches (pose watch allows us to see the bone pose at a 
-	// particular point of the anim graph) 
+	// Array of active pose watches (pose watches allows us to see the bone pose at a 
+	// particular point of the anim graph and control debug draw for unselected anim nodes).
 	UPROPERTY()
 	TArray<TObjectPtr<UPoseWatchFolder>> PoseWatchFolders;
 	

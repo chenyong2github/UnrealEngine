@@ -37,6 +37,9 @@ public:
 	/** Sets this tree item's visibility */
 	virtual void SetIsVisible(const bool bVisible) = 0;
 
+	/** Sets whether or not this tree item is expanded  */
+	virtual void SetIsExpanded(const bool bIsExpanded) {}
+
 	/** Add a child to this tree item */
 	void AddChild(FPoseWatchManagerTreeItemRef Child)
 	{
@@ -98,6 +101,15 @@ public:
 
 	virtual void OnRemoved() = 0;
 
+	/** Returns the view port render color */
+	virtual FColor GetColor() const { return FColor(); }
+
+	/** Sets the view port render color */
+	virtual void SetColor(const FColor& InColor) {}
+
+	/** Returns true if the view port render color for this item can be changed */
+	virtual bool ShouldDisplayColorPicker() const { return false; }
+
 protected:
 	/** This item's parent tree item */
 	TWeakPtr<IPoseWatchManagerTreeItem> Parent;
@@ -111,3 +123,13 @@ protected:
 	/** Tree item type identifier */
 	EPoseWatchTreeItemType TreeType;
 };
+
+template <> inline const IPoseWatchManagerTreeItem* IPoseWatchManagerTreeItem::CastTo<IPoseWatchManagerTreeItem>() const
+{
+	return this;
+}
+
+template <> inline IPoseWatchManagerTreeItem* IPoseWatchManagerTreeItem::CastTo<IPoseWatchManagerTreeItem>()
+{
+	return this;
+}

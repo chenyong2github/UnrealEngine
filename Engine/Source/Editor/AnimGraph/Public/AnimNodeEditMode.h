@@ -53,6 +53,22 @@ public:
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	virtual void Exit() override;
 
+	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode);
+
+	struct EditorRuntimeNodePair
+	{
+		EditorRuntimeNodePair(UAnimGraphNode_Base* InEditorAnimNode, FAnimNode_Base* InRuntimeAnimNode)
+			: EditorAnimNode(InEditorAnimNode)
+			, RuntimeAnimNode(InRuntimeAnimNode)
+		{}
+
+		/** The node we are operating on */
+		UAnimGraphNode_Base* EditorAnimNode;
+
+		/** The runtime node in the preview scene */
+		FAnimNode_Base* RuntimeAnimNode;
+	};
+
 protected:
 	// local conversion functions for drawing
 	static void ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space);
@@ -71,23 +87,8 @@ protected:
 
 	const bool IsManipulatingWidget() const { return bManipulating; }
 
-protected:
-
-	struct EditorRuntimeNodePair
-	{
-		EditorRuntimeNodePair(UAnimGraphNode_Base* InEditorAnimNode, FAnimNode_Base* InRuntimeAnimNode)
-			: EditorAnimNode(InEditorAnimNode)
-			, RuntimeAnimNode(InRuntimeAnimNode)
-		{}
-
-		/** The node we are operating on */
-		UAnimGraphNode_Base* EditorAnimNode;
-
-		/** The runtime node in the preview scene */
-		FAnimNode_Base* RuntimeAnimNode;
-	};
-
-	TArray< EditorRuntimeNodePair > AnimNodes;
+	TArray< EditorRuntimeNodePair > SelectedAnimNodes;	// Selected Anim Graph Nodes
+	TArray< EditorRuntimeNodePair > PoseWatchedAnimNodes; 	// Pose Watched Anim Graph Nodes. 
 
 private:
 	bool bManipulating;

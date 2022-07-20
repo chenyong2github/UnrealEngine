@@ -18,7 +18,8 @@ typedef TMap<FObjectKey, FPoseWatchManagerTreeItemPtr> FPoseWatchManagerTreeItem
 enum EPoseWatchTreeItemType
 {
 	PoseWatch,
-	Folder
+	Folder,
+	Element
 };
 
 struct PERSONA_API FPoseWatchManagerCommonLabelData

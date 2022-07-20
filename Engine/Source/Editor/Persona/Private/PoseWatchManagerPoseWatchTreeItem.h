@@ -34,5 +34,9 @@ public:
 	virtual TSharedPtr<SWidget> CreateContextMenu() override;
 	virtual void OnRemoved() override;
 	virtual bool IsEnabled() const override;
+	virtual void SetIsExpanded(const bool bIsExpanded) override;
+	virtual bool IsExpanded() const override;
+	virtual FColor GetColor() const override;
+	virtual void SetColor(const FColor& InColor) override;
 	/* End IPoseWatchManagerTreeItem Implementation */
 };

@@ -13,8 +13,9 @@
 enum class EPhysicsAssetEditorConstraintViewMode : uint8;
 enum class EPhysicsAssetEditorCollisionViewMode : uint8;
 
-class UPhysicsAsset;
 class HHitProxy;
+class UPhysicsAsset;
+class USkeletalMeshComponent;
 
 //////////////////////////////////////////////////////////////////////////
 // FPhysicsAssetRenderSettings
@@ -196,12 +197,14 @@ namespace PhysicsAssetRender
 class FPhysicsAssetRenderInterface : public IPhysicsAssetRenderInterface
 {
 public:
-	virtual void DebugDraw(class USkeletalMeshComponent* const SkeletalMeshComponent, class UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI) override;
+	virtual void DebugDraw(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI) override;
+	virtual void DebugDrawBodies(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI, const FColor& PrimitiveColorOverride) override;
+	virtual void DebugDrawConstraints(USkeletalMeshComponent* const SkeletalMeshComponent, UPhysicsAsset* const PhysicsAsset, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void SaveConfig() override;
 
-	virtual void ToggleShowAllBodies(class UPhysicsAsset* const PhysicsAsset) override;
-	virtual void ToggleShowAllConstraints(class UPhysicsAsset* const PhysicsAsset) override;
-	virtual bool AreAnyBodiesHidden(class UPhysicsAsset* const PhysicsAsset) override;
-	virtual bool AreAnyConstraintsHidden(class UPhysicsAsset* const PhysicsAsset) override;
+	virtual void ToggleShowAllBodies(UPhysicsAsset* const PhysicsAsset) override;
+	virtual void ToggleShowAllConstraints(UPhysicsAsset* const PhysicsAsset) override;
+	virtual bool AreAnyBodiesHidden(UPhysicsAsset* const PhysicsAsset) override;
+	virtual bool AreAnyConstraintsHidden(UPhysicsAsset* const PhysicsAsset) override;
 };
