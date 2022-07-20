@@ -8,12 +8,23 @@
 
 #include "VCamModifier.generated.h"
 
+class UInputAction;
 class UInputMappingContext;
 class UVCamComponent;
 class UVCamModifierContext;
 class UInputComponent;
 
 struct FModifierStackEntry;
+
+USTRUCT(BlueprintType)
+struct VCAMCORE_API FVCamModifierConnectionPoint
+{
+	GENERATED_BODY()
+
+	// An optional action to associate with this connection point
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connection")
+	TObjectPtr<UInputAction> AssociatedAction;
+};
 
 UCLASS(Blueprintable, Abstract, EditInlineNew)
 class VCAMCORE_API UVCamModifier : public UObject
@@ -54,6 +65,9 @@ public:
 	// The Input Priority of the mapping context will be set by reference
 	virtual const UInputMappingContext* GetInputMappingContext(int32& InputPriority) const;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VCam Connection Points")
+	TMap<FName, FVCamModifierConnectionPoint> ConnectionPoints;
+	
 private:
 	FModifierStackEntry* GetCorrespondingStackEntry() const;
 
