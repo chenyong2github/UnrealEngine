@@ -149,7 +149,7 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(STextBlock)
-				.Text(FText::AsNumber(WidgetInfo->GetWidgetLayerId()))
+				.Text(FText::Format(LOCTEXT("WidgetLayerIds", "[{0}, {1}]"), FText::AsNumber(WidgetInfo->GetWidgetLayerId()), FText::AsNumber(WidgetInfo->GetWidgetLayerIdOut())))
 			];
 	}
 	else if (ColumnName == NAME_ForegroundColor )

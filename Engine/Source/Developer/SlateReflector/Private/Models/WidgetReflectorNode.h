@@ -80,6 +80,7 @@ public:
 	 * @return The LayerId the widget were painted from
 	 */
 	virtual int32 GetWidgetLayerId() const = 0;
+	virtual int32 GetWidgetLayerIdOut() const = 0;
 
 	/**
 	 * @return The bool indicating whether or not the widget we were initialized from reports as Focusable
@@ -287,6 +288,7 @@ public:
 	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual int32 GetWidgetLayerId() const override;
+	virtual int32 GetWidgetLayerIdOut() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual bool GetWidgetNeedsTick() const override;
 	virtual bool GetWidgetIsVolatile() const override;
@@ -346,6 +348,7 @@ public:
 	virtual FText GetWidgetVisibilityText() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual int32 GetWidgetLayerId() const override;
+	virtual int32 GetWidgetLayerIdOut() const override;
 	virtual bool GetWidgetVisible() const override;
 	virtual bool GetWidgetVisibilityInherited() const override;
 	virtual bool GetWidgetFocusable() const override;
@@ -426,6 +429,7 @@ private:
 
 	/** The LayerId of the widget */
 	int32 CachedWidgetLayerId;
+	int32 CachedWidgetLayerIdOut;
 
 	/** The human readable location (source file for C++ widgets, asset name for UMG widgets) of the widget at the point it was passed to Initialize */
 	FText CachedWidgetReadableLocation;
@@ -573,6 +577,7 @@ public:
 	 * @return The current LayerId for the given widget
 	 */
 	static int32 GetWidgetLayerId(const TSharedPtr<const SWidget>& InWidget);
+	static int32 GetWidgetLayerIdOut(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	* @return The current focusability for the given widget
