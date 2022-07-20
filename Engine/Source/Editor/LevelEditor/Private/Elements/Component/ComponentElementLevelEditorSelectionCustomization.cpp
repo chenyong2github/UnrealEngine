@@ -46,8 +46,8 @@ FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelec
 		{
 			while (ConsideredActor->IsChildActor())
 			{
-				ConsideredActor = ConsideredActor->GetParentActor();
 				ConsideredComponent = ConsideredActor->GetParentComponent();
+				ConsideredActor = ConsideredActor->GetParentActor();
 			}
 
 			// If the component selected is a visualization component, we want to select the non-visualization component it's attached to
