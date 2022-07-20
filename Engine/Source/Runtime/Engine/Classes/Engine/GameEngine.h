@@ -8,9 +8,11 @@
 #include "Widgets/SViewport.h"
 #include "Engine/Engine.h"
 #include "Runtime/MovieSceneCapture/Public/MovieSceneCaptureHandle.h"
+#include "Templates/PimplPtr.h"
 #include "GameEngine.generated.h"
 
 class Error;
+class FEngineConsoleCommandExecutor;
 class FSceneViewport;
 class UGameViewportClient;
 class UNetDriver;
@@ -182,6 +184,8 @@ private:
 
 	/** Last time the logs have been flushed. */
 	double LastTimeLogsFlushed;
+
+	TPimplPtr<FEngineConsoleCommandExecutor> CmdExec;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

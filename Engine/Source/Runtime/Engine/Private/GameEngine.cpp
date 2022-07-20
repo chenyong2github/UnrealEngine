@@ -14,6 +14,7 @@
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
+#include "Engine/EngineConsoleCommandExecutor.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/PlatformInterfaceBase.h"
@@ -1083,7 +1084,11 @@ public:
 void UGameEngine::Init(IEngineLoop* InEngineLoop)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UGameEngine Init"), STAT_GameEngineStartup, STATGROUP_LoadTime);
-	
+
+	if (!GIsEditor)
+	{
+		CmdExec = MakePimpl<FEngineConsoleCommandExecutor>(this);
+	}
 
 	// Call base.
 	UEngine::Init(InEngineLoop);
@@ -1235,6 +1240,8 @@ void UGameEngine::FinishDestroy()
 	}
 
 	Super::FinishDestroy();
+
+	CmdExec.Reset();
 }
 
 //@todo: unify this and the driver version
