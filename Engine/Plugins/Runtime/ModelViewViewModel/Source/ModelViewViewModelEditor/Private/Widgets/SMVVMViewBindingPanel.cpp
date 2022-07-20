@@ -2,10 +2,6 @@
 
 #include "Widgets/SMVVMViewBindingPanel.h"
 
-#include "Widgets/SMVVMManageViewModelsWidget.h"
-#include "Widgets/SMVVMViewModelContextListWidget.h"
-#include "Widgets/SMVVMViewBindingListView.h"
-
 #include "WidgetBlueprintEditor.h"
 #include "WidgetBlueprintToolMenuContext.h"
 #include "MVVMBlueprintView.h"
@@ -16,21 +12,25 @@
 #include "Styling/AppStyle.h"
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
+#include "StatusBarSubsystem.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
+#include "Tabs/MVVMBindingSummoner.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/MVVMEditorStyle.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/SNullWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/SMVVMManageViewModelsWidget.h"
+#include "Widgets/SMVVMViewModelContextListWidget.h"
+#include "Widgets/SMVVMViewBindingListView.h"
+#include "Widgets/SNullWidget.h"
+#include "SPositiveActionButton.h"
 
-#include "StatusBarSubsystem.h"
-#include "Tabs/MVVMBindingSummoner.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "BindingPanel"
 
@@ -116,25 +116,9 @@ bool SBindingsPanel::SupportsKeyboardFocus() const
 
 void SBindingsPanel::HandleBlueprintViewChangedDelegate()
 {
-	UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get();
-
-	bool bHasExtension = MVVMExtensionPtr && MVVMExtensionPtr->GetBlueprintView() != nullptr;
 	ChildSlot
 	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			bHasExtension ? GenerateEditViewWidget() : GenerateCreateViewWidget()
-		]
-		+SOverlay::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Top)
-		.Padding(FMargin(bHasExtension ? 160.0 : 24.0, 10.0))
-		[
-			CreateDrawerDockButton()
-		]
+		GenerateEditViewWidget()
 	];
 }
 
@@ -155,16 +139,19 @@ void SBindingsPanel::OnBindingListSelectionChanged(TConstArrayView<FMVVMBlueprin
 	}
 }
 
-void SBindingsPanel::AddDefaultBinding()
+
+FReply SBindingsPanel::AddDefaultBinding()
 {
 	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
 	{
 		if (UMVVMBlueprintView* EditorData = MVVMExtensionPtr->GetBlueprintView())
 		{
+			check(BindingsList);
 			EditorData->AddDefaultBinding();
 			BindingsList->Refresh();
 		}
 	}
+	return FReply::Handled();
 }
 
 bool SBindingsPanel::CanAddBinding() const
@@ -196,31 +183,31 @@ TSharedRef<SWidget> SBindingsPanel::CreateDrawerDockButton()
 {
 	if (bIsDrawerTab)
 	{
-		return 
+		return
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-			.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks MVVM drawer in tab."))
-			.ContentPadding(FMargin(1, 0))
+			.ToolTipText(LOCTEXT("BindingDockInLayout_Tooltip", "Docks the binding drawer in tab."))
+			.ContentPadding(FMargin(1.f, 0.f))
 			.OnClicked(this, &SBindingsPanel::CreateDrawerDockButtonClicked)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(4.0, 0.0f)
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("EditorViewport.SubMenu.Layouts"))
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(4.0, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("DockInLayout", "Dock in Layout"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0, 0.0f)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+			]
+		+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(4.0, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DockInLayout", "Dock in Layout"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			]
 			];
 	}
 
@@ -288,39 +275,18 @@ void SBindingsPanel::RegisterSettingsMenu()
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVMEditor.Panel.Toolbar.Settings");
 }
 
-TSharedRef<SWidget> SBindingsPanel::GenerateCreateViewWidget()
-{
-	return SNew(SBorder)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.HAlign(EHorizontalAlignment::HAlign_Center)
-			.VAlign(EVerticalAlignment::VAlign_Center)
-			[
-				SNew(SButton)
-				.OnClicked(this, &SBindingsPanel::HandleCreateViewClicked)
-				.Text(LOCTEXT("AddViewModelButtonText", "Add View Model"))
-			]
-		];
-}
 
 TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 {
 	FSlimHorizontalToolBarBuilder ToolbarBuilderGlobal(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
 	{
 		ToolbarBuilderGlobal.BeginSection("Binding");
-		ToolbarBuilderGlobal.AddToolBarButton(
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SBindingsPanel::AddDefaultBinding),
-				FCanExecuteAction::CreateSP(this, &SBindingsPanel::CanAddBinding),
-				FGetActionCheckState()
-			),
-			NAME_None,
-			LOCTEXT("AddBinding", "Add Binding"),
-			TAttribute<FText>(this, &SBindingsPanel::GetAddBindingToolTip),
-			FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BindingView.AddBinding"),
-			EUserInterfaceActionType::Button
+		ToolbarBuilderGlobal.AddWidget(
+			SNew(SPositiveActionButton)
+			.OnClicked(this, &SBindingsPanel::AddDefaultBinding)
+			.Text(LOCTEXT("AddWidget", "Add Widget"))
+			.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
+			.IsEnabled(this, &SBindingsPanel::CanAddBinding)
 		);
 		ToolbarBuilderGlobal.EndSection();
 	}
@@ -330,6 +296,8 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 	}
 
 	{
+		ToolbarBuilderGlobal.AddWidget(CreateDrawerDockButton());
+
 		ToolbarBuilderGlobal.BeginSection("Options");
 		ToolbarBuilderGlobal.AddComboButton(
 			FUIAction(
@@ -346,6 +314,14 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 		ToolbarBuilderGlobal.EndSection();
 	}
 
+	BindingsList = nullptr;
+	if (MVVMExtension.Get())
+	{
+		BindingsList = SNew(SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get());
+	}
+
+	TSharedRef<SWidget> BindingWidget = BindingsList ? BindingsList.ToSharedRef() : SNullWidget::NullWidget;
+
 	return SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
@@ -355,7 +331,7 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 			ToolbarBuilderGlobal.MakeWidget()
 		]
 
-		+ SVerticalBox::Slot()
+		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
 			SNew(SBorder)
@@ -364,13 +340,13 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 			[
 				SNew(SSplitter)
 				.Orientation(EOrientation::Orient_Horizontal)
-
+	
 				+ SSplitter::Slot()
 				.Value(0.75f)
 				[
-					SAssignNew(BindingsList, SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get())
+					BindingWidget
 				]
-
+	
 				+ SSplitter::Slot()
 				.Value(0.25f)
 				[
@@ -381,75 +357,6 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 				]
 			]
 		];
-}
-
-
-FReply SBindingsPanel::HandleCreateViewClicked()
-{
-	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
-	{
-		UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj();
-		check(WidgetBlueprint);
-
-		WidgetBlueprint->OnExtensionAdded.RemoveAll(this);
-		UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = UMVVMWidgetBlueprintExtension_View::RequestExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
-		check(MVVMExtensionPtr);
-		MVVMExtension = MVVMExtensionPtr;
-
-		if (!BlueprintViewChangedDelegateHandle.IsValid())
-		{
-			BlueprintViewChangedDelegateHandle = MVVMExtensionPtr->OnBlueprintViewChangedDelegate().AddSP(this, &SBindingsPanel::HandleBlueprintViewChangedDelegate);
-		}
-
-		if (MVVMExtensionPtr->GetBlueprintView() == nullptr)
-		{
-			MVVMExtensionPtr->CreateBlueprintViewInstance();
-		}
-
-		HandleBlueprintViewChangedDelegate();
-
-		ShowManageViewModelsWindow();
-	}
-
-	return FReply::Handled();
-}
-
-void SBindingsPanel::ShowManageViewModelsWindow()
-{
-	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
-	{
-		if (UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
-		{
-			TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> LocalMVVMExtension = MVVMExtension;
-			FOnViewModelContextsPicked ViewModelContextsPickedDelegate = FOnViewModelContextsPicked::CreateLambda
-			(
-				[LocalMVVMExtension](TArray<FMVVMBlueprintViewModelContext> UpdatedContexts)
-				{
-					UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = LocalMVVMExtension.Get();
-					if (ensure(MVVMExtensionPtr))
-					{
-						if (UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
-						{
-							BlueprintView->SetViewModels(UpdatedContexts);
-						}
-					}
-				}
-			);
-
-			TSharedRef<SWindow> ManageViewModelsWindow = SNew(SWindow)
-				.Title(LOCTEXT("MVVMManageViewMoedlsWindowHeader", "Manage ViewModels"))
-				.SupportsMaximize(false)
-				.ClientSize(FVector2D(800.0f, 600.0f));
-
-			TSharedRef<SMVVMManageViewModelsWidget> ManageViewModelsWidget = SNew(SMVVMManageViewModelsWidget)
-				.ParentWindow(ManageViewModelsWindow)
-				.OnViewModelContextsPickedDelegate(ViewModelContextsPickedDelegate)
-				.WidgetBlueprint(WeakBlueprintEditor.Pin()->GetWidgetBlueprintObj());
-
-			ManageViewModelsWindow->SetContent(ManageViewModelsWidget);
-			GEditor->EditorAddModalWindow(ManageViewModelsWindow);
-		}
-	}
 }
 
 } // namespace UE::MVVM

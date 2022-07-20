@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
+
 
 struct FMVVMBlueprintViewBinding;
 class FWidgetBlueprintEditor;
@@ -42,12 +43,9 @@ public:
 private:
 	void HandleBlueprintViewChangedDelegate();
 
-	TSharedRef<SWidget> GenerateCreateViewWidget();
-	FReply HandleCreateViewClicked();
-
 	TSharedRef<SWidget> GenerateEditViewWidget();
 
-	void AddDefaultBinding();
+	FReply AddDefaultBinding();
 	bool CanAddBinding() const;
 	FText GetAddBindingToolTip() const;
 
@@ -57,7 +55,6 @@ private:
 	FReply CreateDrawerDockButtonClicked();
 
 	void HandleExtensionAdded(UBlueprintExtension* NewExtension);
-	void ShowManageViewModelsWindow();
 
 private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;

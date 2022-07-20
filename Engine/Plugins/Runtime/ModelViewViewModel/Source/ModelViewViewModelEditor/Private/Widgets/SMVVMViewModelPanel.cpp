@@ -242,6 +242,16 @@ void SMVVMViewModelPanel::HandleAddMenuViewModel(const UClass* SelectedClass)
 				{
 					UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 					check(EditorSubsystem);
+
+					UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get();
+					if (!CurrentBlueprintView)
+					{
+						EditorSubsystem->RequestView(WidgetBlueprint);
+						CurrentBlueprintView = EditorSubsystem->GetView(WidgetBlueprint);
+						WeakBlueprintView = CurrentBlueprintView;
+						ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
+					}
+
 					EditorSubsystem->AddViewModel(WidgetBlueprint, SelectedClass);
 				}
 			}

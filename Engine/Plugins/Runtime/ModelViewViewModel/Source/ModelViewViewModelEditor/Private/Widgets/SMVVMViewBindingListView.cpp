@@ -846,6 +846,7 @@ void SBindingsList::Construct(const FArguments& InArgs, TSharedPtr<SBindingsPane
 	BindingPanel = Owner;
 	MVVMExtension = InMVVMExtension;
 	check(InMVVMExtension);
+	check(InMVVMExtension->GetBlueprintView());
 
 	MVVMExtension->OnBlueprintViewChangedDelegate().AddSP(this, &SBindingsList::Refresh);
 	MVVMExtension->GetBlueprintView()->OnBindingsUpdated.AddSP(this, &SBindingsList::Refresh);

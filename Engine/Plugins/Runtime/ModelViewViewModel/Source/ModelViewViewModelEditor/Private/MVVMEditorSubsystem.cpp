@@ -15,6 +15,7 @@
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_FunctionResult.h"
 #include "K2Node_VariableGet.h"
+#include "MVVMBlueprintView.h"
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "ScopedTransaction.h"
@@ -186,7 +187,12 @@ FName UMVVMEditorSubsystem::GetConversionFunctionWrapperName(const UWidgetBluepr
 
 UMVVMBlueprintView* UMVVMEditorSubsystem::RequestView(UWidgetBlueprint* WidgetBlueprint) const
 {
-	return UMVVMWidgetBlueprintExtension_View::RequestExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint)->GetBlueprintView();
+	UMVVMWidgetBlueprintExtension_View* Extension = UMVVMWidgetBlueprintExtension_View::RequestExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
+	if (Extension->GetBlueprintView() == nullptr)
+	{
+		Extension->CreateBlueprintViewInstance();
+	}
+	return Extension->GetBlueprintView();
 }
 
 UMVVMBlueprintView* UMVVMEditorSubsystem::GetView(const UWidgetBlueprint* WidgetBlueprint) const
