@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "Misc/VarArgs.h"
 #include "Misc/OutputDevice.h"
