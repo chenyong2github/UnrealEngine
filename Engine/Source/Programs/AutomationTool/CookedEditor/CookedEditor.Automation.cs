@@ -481,7 +481,11 @@ public class MakeCookedEditor : BuildCommand
 		// project shaders
 		if (Context.bStageShaderDirs)
 		{
-			Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(DirectoryReference.Combine(Context.ProjectDirectory, "Shaders"), "*", SearchOption.AllDirectories));
+			DirectoryReference ProjectShaders = DirectoryReference.Combine(Context.ProjectDirectory, "Shaders");
+			if (DirectoryReference.Exists(ProjectShaders))
+			{
+				Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(ProjectShaders, "*", SearchOption.AllDirectories));
+			}		
 		}
 
 		StagePlatformExtensionFiles(Params, SC, Context, Context.ProjectDirectory);
