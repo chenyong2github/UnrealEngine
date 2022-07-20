@@ -18,7 +18,10 @@ void UAbilityTask_PlayMontageAndWait::OnMontageBlendingOut(UAnimMontage* Montage
 	{
 		if (Montage == MontageToPlay)
 		{
-			AbilitySystemComponent->ClearAnimatingAbility(Ability);
+			if (UAbilitySystemComponent* ASC = AbilitySystemComponent.Get())
+			{
+				ASC->ClearAnimatingAbility(Ability);
+			}
 
 			// Reset AnimRootMotionTranslationScale
 			ACharacter* Character = Cast<ACharacter>(GetAvatarActor());
