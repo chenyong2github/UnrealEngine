@@ -2,8 +2,8 @@
 
 #include "MVVMViewModelBase.h"
 
-#include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 #include "Bindings/MVVMBindingHelper.h"
+#include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 
 #define LOCTEXT_NAMESPACE "MVVMViewModelBase"
 
@@ -78,12 +78,27 @@ void UMVVMViewModelBase::FFieldNotificationClassDescriptor::ForEachField(const U
 }
 
 
-void UMVVMViewModelBase::NotifyFieldValudChanged(UE::FieldNotification::FFieldId InFieldId)
+void UMVVMViewModelBase::MarkRepDirty(int32 InRepIndex)
 {
-	// Execute replication call
+#if WITH_PUSH_MODEL
+	check(InRepIndex >= 0 && InRepIndex < GetClass()->ClassReps.Num());
+	if (IS_PUSH_MODEL_ENABLED())
+	{
+		MARK_PROPERTY_DIRTY_UNSAFE(this, InRepIndex);
+	}
+#endif
+}
 
-	// Execute Broadcast call
-	BroadcastFieldValueChanged(InFieldId);
+
+void UMVVMViewModelBase::MarkRepDirty(FProperty* InProperty)
+{
+#if WITH_PUSH_MODEL
+	check(InProperty);
+	if (IS_PUSH_MODEL_ENABLED() && InProperty->RepIndex >= 0)
+	{
+		MARK_PROPERTY_DIRTY(this, InProperty);
+	}
+#endif
 }
 
 
@@ -146,7 +161,8 @@ DEFINE_FUNCTION(UMVVMViewModelBase::execK2_SetPropertyValue)
 			{
 				// Set the value then notify that the value changed.
 				TargetProperty->SetValue_InContainer(ViewModelContext, SourceValuePtr);
-				ViewModelContext->NotifyFieldValudChanged(FieldId);
+				ViewModelContext->MarkRepDirty(TargetProperty);
+				ViewModelContext->BroadcastFieldValueChanged(FieldId);
 			}
 		}
 

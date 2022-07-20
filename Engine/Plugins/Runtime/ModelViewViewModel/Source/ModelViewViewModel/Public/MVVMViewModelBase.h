@@ -9,26 +9,32 @@
 #include "FieldNotification/FieldNotificationDeclaration.h"
 #include "FieldNotification/FieldMulticastDelegate.h"
 #include "FieldNotification/IFieldValueChanged.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMBindingName.h"
 
 #include "MVVMViewModelBase.generated.h"
 
-/** After a field value changed. Execute all the notification (replication and broadcast). */
-#define UE_MVVM_NOTIFY_FIELD_VALUE_CHANGED(MemberName) \
-	NotifyFieldValudChanged(ThisClass::FFieldNotificationClassDescriptor::MemberName)
-
 /** After a field value changed. Broadcast the event (doesn't execute the replication code). */
 #define UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(MemberName) \
 	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::MemberName)
 
-/** Set the new value and notify if the property value changed. */
+/** After a field value changed. Replicate and broadcast the event. */
+#define UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED_WITH_REP(MemberName ) \
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, this, MemberName); \
+	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::MemberName)
+
+/** If the property value changed then set the new value and notify. */
 #define UE_MVVM_SET_PROPERTY_VALUE(MemberName, NewValue) \
 	SetPropertyValue(MemberName, NewValue, ThisClass::FFieldNotificationClassDescriptor::MemberName)
+	
+/** If the property value changed then set the new value, replicate and notify. */
+#define UE_MVVM_SET_PROPERTY_VALUE_WITH_REP(MemberName, NewValue) \
+	SetPropertyValue(MemberName, NewValue, ThisClass::FFieldNotificationClassDescriptor::MemberName, ThisClass::ENetFields_Private::MemberName)
 
 
 /** Base class for MVVM viewmodel. */
-UCLASS(Blueprintable, Abstract, DisplayName="MVVM ViewModel")
+UCLASS(Abstract, DisplayName="MVVM ViewModel")
 class MODELVIEWVIEWMODEL_API UMVVMViewModelBase : public UObject, public INotifyFieldValueChanged
 {
 	GENERATED_BODY()
@@ -50,8 +56,10 @@ public:
 
 
 protected:
-	/** Execute all the notification (replication and broadcast). */
-	void NotifyFieldValudChanged(UE::FieldNotification::FFieldId InFieldId);
+	/** Execute the replication code. */
+	void MarkRepDirty(FProperty* InProperty);
+private:
+	void MarkRepDirty(int32 InRepIndex);
 
 protected:
 	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged", BlueprintInternalUseOnly="true"))
@@ -65,8 +73,8 @@ protected:
 	bool K2_SetPropertyValue(UPARAM(ref) const int32& OldValue, UPARAM(ref) const int32& NewValue);
 
 	/** Set the new value and notify if the property value changed. */
-	template<typename T>
-	bool SetPropertyValue(T& Value, const T& NewValue, UE::FieldNotification::FFieldId FieldId)
+	template<typename T, typename U>
+	bool SetPropertyValue(T& Value, const U& NewValue, UE::FieldNotification::FFieldId FieldId)
 	{
 		if (Value == NewValue)
 		{
@@ -74,7 +82,22 @@ protected:
 		}
 
 		Value = NewValue;
-		NotifyFieldValudChanged(FieldId);
+		BroadcastFieldValueChanged(FieldId);
+		return true;
+	}
+
+	/** Set the new value and notify if the property value changed. */
+	template<typename T, typename U, typename NetFieldsEnum>
+	bool SetPropertyValue(T& Value, const U& NewValue, UE::FieldNotification::FFieldId FieldId, NetFieldsEnum InRepIndex)
+	{
+		if (Value == NewValue)
+		{
+			return false;
+		}
+
+		Value = NewValue;
+		MarkRepDirty((int32)InRepIndex);
+		BroadcastFieldValueChanged(FieldId);
 		return true;
 	}
 

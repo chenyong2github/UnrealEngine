@@ -13,7 +13,6 @@
 #include "MVVMEditorSubsystem.generated.h"
 
 class UEdGraph;
-class UMVVMViewModelBase;
 class UWidgetBlueprint;
 
 /** */
