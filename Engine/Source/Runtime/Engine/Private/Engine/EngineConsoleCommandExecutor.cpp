@@ -4,6 +4,7 @@
 
 #include "Engine/GameEngine.h"
 #include "Engine/LocalPlayer.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "EngineConsoleCommandExecutor"
 
@@ -107,6 +108,11 @@ bool FEngineConsoleCommandExecutor::AllowMultiLine() const
 }
 
 FInputChord FEngineConsoleCommandExecutor::GetHotKey() const
+{
+	return {};
+}
+
+FInputChord FEngineConsoleCommandExecutor::GetIterateExecutorHotKey() const
 {
 	return {};
 }

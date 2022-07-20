@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "HAL/IConsoleManager.h"
 
 class UGameEngine;
@@ -24,6 +26,7 @@ public:
 	bool AllowHotKeyClose() const final;
 	bool AllowMultiLine() const final;
 	FInputChord GetHotKey() const final;
+	FInputChord GetIterateExecutorHotKey() const final;
 
 private:
 	bool ExecInternal(const TCHAR* Input) const;
