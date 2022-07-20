@@ -1539,11 +1539,6 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 	TRACE_BOOKMARK(TEXT("RequestLevelComplete - %s"), *InPackageName.ToString());
 }
 
-bool ULevelStreaming::IsLevelVisible() const
-{
-	return LoadedLevel != NULL && LoadedLevel->bIsVisible;
-}
-
 bool ULevelStreaming::IsStreamingStatePending() const
 {
 	UWorld* PersistentWorld = GetWorld();

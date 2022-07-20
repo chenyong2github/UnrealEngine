@@ -460,7 +460,7 @@ public:
 
 	/** Returns whether streaming level is visible */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	bool IsLevelVisible() const;
+	bool IsLevelVisible() const { return LoadedLevel && LoadedLevel->bIsVisible; }
 
 	/** Returns whether streaming level is loaded */
 	UFUNCTION(BlueprintCallable, Category="Game")
