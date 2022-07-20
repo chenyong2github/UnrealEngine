@@ -120,7 +120,7 @@ public class ModifyStageContext
 		IniPlatformName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 		bIsDLC = Params.DLCFile != null && SC.MetadataDir != null; // MetadataDir needs to be set for DLC
 
-		Console.WriteLine("---> eleaeOverrideDir = {0}, MetadataDrir = {1}", Params.BasedOnReleaseVersionPathOverride, SC.MetadataDir);
+		Console.WriteLine("---> releaeOverrideDir = {0}, MetadataDrir = {1}", Params.BasedOnReleaseVersionPathOverride, SC.MetadataDir);
 
 
 		// cache info for DLC against a release
@@ -1018,6 +1018,12 @@ public class MakeCookedEditor : BuildCommand
 			TargetName = ProjectFile.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
 		}
 
+		string OverrideBasedOnReleaseVersion = ParseParamValue("BasedOnReleaseVersion", null);
+		if (!string.IsNullOrEmpty(OverrideBasedOnReleaseVersion))
+		{
+			Params.BasedOnReleaseVersion = OverrideBasedOnReleaseVersion;
+		}
+
 		// control the server/client taregts
 		Params.ServerCookedTargets.Clear();
 		Params.ClientCookedTargets.Clear();
@@ -1060,18 +1066,17 @@ public class MakeCookedEditor : BuildCommand
 			string ReleaseTargetName = GetReleaseTargetName(Platform, ReleaseType);
 
 			Params.AdditionalCookerOptions += " -CookAgainstFixedBase";
-			Params.AdditionalCookerOptions += $" -DevelopmentAssetRegistryPlatformOverride={ReleaseTargetName}";
-			Params.AdditionalIoStoreOptions += $" -DevelopmentAssetRegistryPlatformOverride={ReleaseTargetName}";
+
+			string DevelopmentAssetRegistryPlatformOverride = ParseParamValue("DevelopmentAssetRegistryPlatformOverride", ReleaseTargetName);
+			Params.AdditionalCookerOptions += $" -DevelopmentAssetRegistryPlatformOverride={DevelopmentAssetRegistryPlatformOverride}";
+			Params.AdditionalIoStoreOptions += $" -DevelopmentAssetRegistryPlatformOverride={DevelopmentAssetRegistryPlatformOverride}";
 
 			// point to where the premade asset registry can be found
 			Params.BasedOnReleaseVersionPathOverride = GetReleaseVersionPath(BasedOnReleaseVersion, ReleaseTargetName);
 
 			Params.DLCOverrideStagedSubDir = "";
 			Params.DLCIncludeEngineContent = true;
-
 		}
-
-
 
 		// set up override functions
 		Params.PreModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { PreModifyDeploymentContext(P, SC); });
