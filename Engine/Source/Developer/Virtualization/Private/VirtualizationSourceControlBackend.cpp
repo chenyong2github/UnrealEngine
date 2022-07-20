@@ -266,7 +266,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 
 	// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.
 	// This allows us to check for the existence of the file to confirm that the depot root is indeed valid.
-	const FString PayloadMetaInfoPath = FString::Printf(TEXT("%spayload_metainfo.txt"), *DepotRoot);
+	const FString PayloadMetaInfoPath = WriteToString<512>(DepotRoot, TEXT("payload_metainfo.txt")).ToString();
 
 #if IS_SOURCE_CONTROL_THREAD_SAFE
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
@@ -274,7 +274,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	{
 		FMessageLog Log("LogVirtualization");
 
-		Log.Warning(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
 					FText::FromString(DepotRoot)));
 		
 		OnConnectionError();
@@ -286,7 +286,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	{
 		FMessageLog Log("LogVirtualization");
 
-		Log.Warning(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
 					FText::FromString(DepotRoot)));
 		
 		OnConnectionError();
@@ -299,7 +299,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	{
 		FMessageLog Log("LogVirtualization");
 
-		Log.Warning(	FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
+		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
 					FText::FromString(DepotRoot)));
 
 		OnConnectionError();
@@ -720,6 +720,11 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("'DepotRoot=' not found in the config file"));
 		return false;
+	}
+
+	if (!DepotRoot.EndsWith(TEXT("/")))
+	{
+		DepotRoot.AppendChar(TEXT('/'));
 	}
 
 	// Now parse the optional config values
