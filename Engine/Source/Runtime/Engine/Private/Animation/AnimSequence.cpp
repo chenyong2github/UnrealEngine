@@ -1091,7 +1091,7 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if(!IsTemplate())
+	if(!IsTemplate() && !FUObjectThreadContext::Get().IsRoutingPostLoad)
 	{
 		// Make sure package is marked dirty when doing stuff like adding/removing notifies
 		MarkPackageDirty();
@@ -5357,7 +5357,7 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		}
 	};
 
-	bool bShouldMarkPackageDirty = true;
+	bool bShouldMarkPackageDirty = !FUObjectThreadContext::Get().IsRoutingPostLoad;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	switch (NotifyType)

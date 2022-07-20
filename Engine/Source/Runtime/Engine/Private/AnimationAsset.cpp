@@ -13,6 +13,7 @@
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Animation/AnimNodeBase.h"
+#include "UObject/UObjectThreadContext.h"
 
 #define LOCTEXT_NAMESPACE "AnimationAsset"
 
@@ -476,7 +477,10 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 		}
 
 		PostEditChange();
-		MarkPackageDirty();
+		if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+		{
+		    MarkPackageDirty();
+		}
 		return true;
 	}
 
