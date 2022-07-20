@@ -7,7 +7,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
-#include "WorldPartition/WorldPartitionActorCluster.h"
+#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
@@ -267,14 +267,16 @@ struct FSquare2DGridHelper
 				DataLayersID = FDataLayersID(DataLayers);
 			}
 
-			void AddActor(FActorInstance ActorInstance) { Actors.Add(MoveTemp(ActorInstance)); }
-			const TSet<FActorInstance>& GetActors() const { return Actors; }
+			void AddActorSetInstance(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance) { ActorSetInstances.Add(ActorSetInstance); }
+			const TArray<const IStreamingGenerationContext::FActorSetInstance*>& GetActorSetInstances() const { return ActorSetInstances; }
 			bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 			const TArray<const UDataLayerInstance*>& GetDataLayers() const { return DataLayers; }
 			const FDataLayersID& GetDataLayersID() const { return DataLayersID; }
+			bool operator==(const FGridCellDataChunk& InGridCellDataChunk) const { return DataLayersID == InGridCellDataChunk.DataLayersID;}
+			friend uint32 GetTypeHash(const FGridCellDataChunk& InGridCellDataChunk) { return GetTypeHash(InGridCellDataChunk.DataLayersID);}
 
 		private:
-			TSet<FActorInstance> Actors;
+			TArray<const IStreamingGenerationContext::FActorSetInstance*> ActorSetInstances;
 			TArray<const UDataLayerInstance*> DataLayers;
 			FDataLayersID DataLayersID;
 		};
@@ -285,23 +287,17 @@ struct FSquare2DGridHelper
 				: Coords(InCoords)
 			{}
 
-			void AddActors(const TSet<FGuid>& InActors, const FActorContainerInstance* ContainerInstance, const TArray<const UDataLayerInstance*>& InDataLayers)
+			void AddActorSetInstance(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance)
 			{
-				for (const FGuid& Actor : InActors)
-				{
-					FActorInstance ActorInstance(Actor, ContainerInstance);
-
-					FDataLayersID DataLayersID = FDataLayersID(InDataLayers);
-					FGridCellDataChunk* ActorDataChunk = Algo::FindByPredicate(DataChunks, [&](FGridCellDataChunk& InDataChunk) { return InDataChunk.GetDataLayersID() == DataLayersID; });
-					if (!ActorDataChunk)
-					{
-						ActorDataChunk = &DataChunks.Emplace_GetRef(InDataLayers);
-					}
-					ActorDataChunk->AddActor(MoveTemp(ActorInstance));
-				}
+				const FDataLayersID DataLayersID = FDataLayersID(ActorSetInstance->DataLayers);
+				FGridCellDataChunk& ActorDataChunk = DataChunks.FindOrAddByHash(DataLayersID.GetHash(), FGridCellDataChunk(ActorSetInstance->DataLayers));
+				ActorDataChunk.AddActorSetInstance(ActorSetInstance);
 			}
 
-			const TArray<FGridCellDataChunk>& GetDataChunks() const { return DataChunks; }
+			const TSet<FGridCellDataChunk>& GetDataChunks() const
+			{
+				return DataChunks;
+			}
 
 			const FGridCellDataChunk* GetNoDataLayersDataChunk() const
 			{
@@ -322,7 +318,7 @@ struct FSquare2DGridHelper
 
 		private:
 			FGridCellCoord Coords;
-			TArray<FGridCellDataChunk> DataChunks;
+			TSet<FGridCellDataChunk> DataChunks;
 		};
 #endif
 
@@ -464,11 +460,6 @@ struct FSquare2DGridHelper
 	 */
 	int32 ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FGridCellCoord&)> InOperation, int32 InStartLevel = 0) const;
 
-#if WITH_EDITOR
-	// Validates that actor is not referenced by multiple cells
-	void ValidateSingleActorReferer();
-#endif
-
 public:
 	FBox WorldBounds;
 	FVector Origin;
@@ -478,5 +469,5 @@ public:
 
 #if WITH_EDITOR
 FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int64 GridCellSize);
-FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const FActorClusterInstance*>& GridActors);
+FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const IStreamingGenerationContext::FActorSetInstance*>& ActorSetInstances);
 #endif // #if WITH_EDITOR

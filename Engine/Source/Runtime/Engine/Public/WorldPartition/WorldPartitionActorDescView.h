@@ -5,6 +5,7 @@
 #include "Misc/Optional.h"
 
 #if WITH_EDITOR
+class AActor;
 class FWorldPartitionActorDesc;
 class UActorDescContainer;
 class UWorldPartition;
@@ -58,6 +59,8 @@ public:
 	void SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences);
 
 	bool IsResaveNeeded() const;
+
+	AActor* GetActor() const;
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{

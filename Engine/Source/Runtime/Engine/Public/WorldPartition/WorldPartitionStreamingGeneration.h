@@ -78,6 +78,11 @@ public:
 		return nullptr;
 	}
 
+	const FWorldPartitionActorDescView& FindByGuidChecked(const FGuid& InGuid) const
+	{
+		return *ActorDescViewsByGuid.FindChecked(InGuid);
+	}
+
 	template <class ClassType>
 	TArray<const FWorldPartitionActorDescView*> FindByExactNativeClass() const
 	{

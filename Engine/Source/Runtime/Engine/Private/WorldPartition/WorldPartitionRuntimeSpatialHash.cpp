@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 
+#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
@@ -777,7 +778,7 @@ void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 	MainGrid.DebugColor = FLinearColor::Gray;
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreamingPolicy* StreamingPolicy, const FActorClusterContext& ActorClusterContext, TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
@@ -797,20 +798,12 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	TArray<FSpatialHashRuntimeGrid> AllGrids;
 	AllGrids.Append(Grids);
 
-	const FActorContainerInstance* ContainerInstance = ActorClusterContext.GetClusterInstance(WorldPartition);
-	check(ContainerInstance);
-
-	for (auto& ActorDescViewPair : ContainerInstance->ActorDescViewMap)
+	TArray<const FWorldPartitionActorDescView*> SpatialHashRuntimeGridInfos = StreamingGenerationContext->GetMainWorldContainer()->ActorDescViewMap->FindByExactNativeClass<ASpatialHashRuntimeGridInfo>();
+	for (const FWorldPartitionActorDescView* SpatialHashRuntimeGridInfo : SpatialHashRuntimeGridInfos)
 	{
-		const FWorldPartitionActorDescView& ActorDescView = *ActorDescViewPair.Value;
-		if (ActorDescView.GetActorNativeClass()->IsChildOf<ASpatialHashRuntimeGridInfo>())
-		{
-			FWorldPartitionReference Ref(WorldPartition, ActorDescView.GetGuid());
-			if (ASpatialHashRuntimeGridInfo* RuntimeGridActor = Cast<ASpatialHashRuntimeGridInfo>(Ref->GetActor()))
-			{
-				AllGrids.Add(RuntimeGridActor->GridSettings);
-			}
-		}
+		FWorldPartitionReference Ref(WorldPartition, SpatialHashRuntimeGridInfo->GetGuid());
+		ASpatialHashRuntimeGridInfo* RuntimeGridActor = CastChecked<ASpatialHashRuntimeGridInfo>(SpatialHashRuntimeGridInfo->GetActor());
+		AllGrids.Add(RuntimeGridActor->GridSettings);
 	}
 
 	TMap<FName, int32> GridsMapping;
@@ -822,27 +815,27 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 		GridsMapping.Add(Grid.GridName, i);
 	}
 
-	TArray<TArray<const FActorClusterInstance*>> GridActors;
-	GridActors.InsertDefaulted(0, AllGrids.Num());
+	TArray<TArray<const IStreamingGenerationContext::FActorSetInstance*>> GridActorSetInstances;
+	GridActorSetInstances.InsertDefaulted(0, AllGrids.Num());
 
-	for (const FActorClusterInstance& ClusterInstance : ActorClusterContext.GetClusterInstances())
+	StreamingGenerationContext->ForEachActorSetInstance([&GridsMapping, &GridActorSetInstances](const IStreamingGenerationContext::FActorSetInstance& ActorSetInstance)
 	{
-		check(ClusterInstance.Cluster);
-		int32* FoundIndex = GridsMapping.Find(ClusterInstance.Cluster->RuntimeGrid);
+		int32* FoundIndex = GridsMapping.Find(ActorSetInstance.RuntimeGrid);
 		if (!FoundIndex)
 		{
-			UE_LOG(LogWorldPartition, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ClusterInstance.Cluster->RuntimeGrid.ToString());
+			//@todo_ow should this be done upstream?
+			UE_LOG(LogWorldPartition, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ActorSetInstance.RuntimeGrid.ToString());
 		}
 
 		int32 GridIndex = FoundIndex ? *FoundIndex : 0;
-		GridActors[GridIndex].Add(&ClusterInstance);
-	}
+		GridActorSetInstances[GridIndex].Add(&ActorSetInstance);
+	});
 	
-	const FBox WorldBounds = ActorClusterContext.GetClusterInstance(WorldPartition)->Bounds;
+	const FBox WorldBounds = StreamingGenerationContext->GetWorldBounds();
 	for (int32 GridIndex=0; GridIndex < AllGrids.Num(); GridIndex++)
 	{
 		const FSpatialHashRuntimeGrid& Grid = AllGrids[GridIndex];
-		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActors[GridIndex]);
+		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActorSetInstances[GridIndex]);
 		if (!CreateStreamingGrid(Grid, PartionedActors, StreamingPolicy, OutPackagesToGenerate))
 		{
 			return false;
@@ -980,7 +973,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	// Move actors into the final streaming grids
 	CurrentStreamingGrid.GridLevels.Reserve(PartionedActors.Levels.Num());
 
-	TArray<FActorInstance> FilteredActors;
 	int32 Level = INDEX_NONE;
 	for (const FSquare2DGridHelper::FGridLevel& TempLevel : PartionedActors.Levels)
 	{
@@ -1001,16 +993,16 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				// Cell cannot be treated as always loaded if it has data layers
 				const bool bIsCellAlwaysLoaded = (&TempCell == &PartionedActors.GetAlwaysLoadedCell()) && !GridCellDataChunk.HasDataLayers();
 				
-				FilteredActors.SetNum(0, false);
-				FilteredActors.Reset(GridCellDataChunk.GetActors().Num());
-				if (GridCellDataChunk.GetActors().Num())
+				TArray<IStreamingGenerationContext::FActorInstance> FilteredActors;
+				FWorldPartitionLoadingContext::FDeferred LoadingContext;
+
+				for (const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance : GridCellDataChunk.GetActorSetInstances())
 				{
-					FWorldPartitionLoadingContext::FDeferred LoadingContext;
-					for (const FActorInstance& ActorInstance : GridCellDataChunk.GetActors())
+					for (const FGuid& ActorGuid : ActorSetInstance->ActorSet->Actors)
 					{
 						if (bIsMainWorldPartition && !IsRunningCookCommandlet())
 						{
-							const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+							const FWorldPartitionActorDescView& ActorDescView = ActorSetInstance->ContainerInstance->ActorDescViewMap->FindByGuidChecked(ActorGuid);
 
 							// In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
 							// This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
@@ -1019,10 +1011,11 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							// will unload actors that were not already loaded in the non PIE world.
 							if (bIsCellAlwaysLoaded)
 							{
-								if (ActorInstance.ContainerInstance->Container == WorldPartition)
+								if (ActorSetInstance->ContainerID.IsMainContainer())
 								{
 									// This will load the actor if it isn't already loaded
-									FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);									
+									FWorldPartitionReference Reference(WorldPartition, ActorGuid);				
+
 									if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
 									{
 										AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
@@ -1041,8 +1034,8 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							}
 						}
 
-						FilteredActors.Add(ActorInstance);
-					}
+						FilteredActors.Emplace(ActorGuid, ActorSetInstance);
+					}					
 				}
 
 				if (!FilteredActors.Num())
@@ -1084,10 +1077,8 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
 				StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
 
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
-
 				check(!StreamingCell->UnsavedActorsContainer);
-				for (const FActorInstance& ActorInstance : FilteredActors)
+				for (const IStreamingGenerationContext::FActorInstance& ActorInstance : FilteredActors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 					if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
@@ -1102,15 +1093,15 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				}
 
 				FVector2D CellMinMaxZ(UE_BIG_NUMBER, -UE_BIG_NUMBER);
-				for (const FActorInstance& ActorInstance : FilteredActors)
+				for (const IStreamingGenerationContext::FActorInstance& ActorInstance : FilteredActors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
-					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
+					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.GetContainerID(), ActorInstance.GetTransform(), ActorInstance.GetActorDescContainer());
 					
 					CellMinMaxZ.X = FMath::Min(CellMinMaxZ.X, ActorDescView.GetBounds().Min.Z);
 					CellMinMaxZ.Y = FMath::Max(CellMinMaxZ.Y, ActorDescView.GetBounds().Max.Z);
 
-					if (ActorInstance.ContainerInstance->ID.IsMainContainer() && StreamingCell->UnsavedActorsContainer)
+					if (ActorInstance.GetContainerID().IsMainContainer() && StreamingCell->UnsavedActorsContainer)
 					{
 						if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
 						{
@@ -1126,7 +1117,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							});
 						}
 					}
-					UE_LOG(LogWorldPartition, Verbose, TEXT("  Actor : %s (%s) (Container %s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), *ActorInstance.ContainerInstance->ID.ToString());
 				}
 				StreamingCell->SetMinMaxZ(CellMinMaxZ);
 

@@ -23,7 +23,15 @@ public:
 		return !(*this == Other);
 	}
 
-	uint32 GetHash() const { return Hash; }
+	uint32 GetHash() const
+	{
+		return Hash;
+	}
+
+	friend uint32 GetTypeHash(const FDataLayersID& InDataLayersID)
+	{
+		return InDataLayersID.Hash;
+	}
 
 private:
 	uint32 Hash;

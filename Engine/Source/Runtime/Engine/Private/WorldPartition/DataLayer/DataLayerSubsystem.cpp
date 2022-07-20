@@ -180,6 +180,26 @@ void UDataLayerSubsystem::GetUserLoadedInEditorStates(TArray<FName>& OutDataLaye
 		return true;
 	});
 }
+
+TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetRuntimeDataLayerInstances(UWorld* InWorld, const TArray<FName>& DataLayerInstanceNames)
+{
+	TArray<const UDataLayerInstance*> DataLayerInstances;
+	if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InWorld))
+	{
+		for (const FName& DataLayerInstanceName : DataLayerInstanceNames)
+		{
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName))
+			{
+				if (ensure(DataLayerInstance->IsRuntime()))
+				{
+					DataLayerInstances.Add(DataLayerInstance);
+				}
+			}
+		}
+	}
+	return DataLayerInstances;
+}
+
 #endif
 
 TSet<FName> UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const

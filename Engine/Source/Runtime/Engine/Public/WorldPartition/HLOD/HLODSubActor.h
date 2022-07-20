@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Misc/Guid.h"
-#include "WorldPartition/WorldPartitionActorCluster.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "HLODSubActor.generated.h"
 
 USTRUCT()

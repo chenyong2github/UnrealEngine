@@ -51,3 +51,10 @@ private:
 
 	int32 Indentation;
 };
+
+#if NO_LOGGING
+#define UE_SCOPED_INDENT_LOG_ARCHIVE(Code)
+#else
+#define UE_SCOPED_INDENT_LOG_ARCHIVE(Code) \
+	FHierarchicalLogArchive::FIndentScope BODY_MACRO_COMBINE(Scoped,Indent,_,__LINE__) = Code
+#endif

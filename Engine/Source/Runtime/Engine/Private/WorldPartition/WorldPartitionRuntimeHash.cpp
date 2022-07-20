@@ -10,6 +10,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"

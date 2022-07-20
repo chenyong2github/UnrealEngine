@@ -99,7 +99,7 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 	return Ar.GetCrc();
 }
 
-TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayerInstance*>& InDataLayersInstances)
+TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TArray<IStreamingGenerationContext::FActorInstance>& InActors, const TArray<const UDataLayerInstance*>& InDataLayersInstances)
 {
 	struct FSubActorsInfo
 	{
@@ -108,7 +108,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 	};
 	TMap<UHLODLayer*, FSubActorsInfo> SubActorsInfos;
 
-	for (const FActorInstance& ActorInstance : InActors)
+	for (const IStreamingGenerationContext::FActorInstance& ActorInstance : InActors)
 	{
 		const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 		if (ActorDescView.GetActorIsHLODRelevant())
@@ -118,7 +118,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			{
 				FSubActorsInfo& SubActorsInfo = SubActorsInfos.FindOrAdd(HLODLayer);
 
-				SubActorsInfo.SubActors.Emplace(ActorDescView.GetGuid(), ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Container->GetContainerPackage(), ActorInstance.ContainerInstance->Transform);
+				SubActorsInfo.SubActors.Emplace(ActorDescView.GetGuid(), ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), ActorInstance.GetContainerID(), ActorInstance.GetActorDescContainer()->GetContainerPackage(), ActorInstance.GetTransform());
 				if (ActorDescView.GetIsSpatiallyLoaded())
 				{
 					SubActorsInfo.bIsSpatiallyLoaded = true;

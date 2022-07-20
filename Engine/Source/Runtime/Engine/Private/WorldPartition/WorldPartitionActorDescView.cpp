@@ -192,4 +192,9 @@ bool FWorldPartitionActorDescView::IsResaveNeeded() const
 {
 	return ActorDesc->IsResaveNeeded();
 }
+
+AActor* FWorldPartitionActorDescView::GetActor() const
+{
+	return ActorDesc->GetActor();
+}
 #endif

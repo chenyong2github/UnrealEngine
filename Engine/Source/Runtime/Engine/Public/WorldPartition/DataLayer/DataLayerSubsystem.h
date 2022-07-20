@@ -89,6 +89,8 @@ public:
 
 	void UpdateDataLayerEditorPerProjectUserSettings() const;
 	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
+	
+	static TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(UWorld* InWorld, const TArray<FName>& DataLayerInstanceNames);
 
 	void PushActorEditorContext() const;
 	void PopActorEditorContext() const;
