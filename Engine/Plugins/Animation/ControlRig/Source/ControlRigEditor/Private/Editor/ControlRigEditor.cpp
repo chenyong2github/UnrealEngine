@@ -2580,8 +2580,7 @@ bool FControlRigEditor::CanStartWatchingPin() const
 		if (URigVMPin* ModelPin = GetFocusedModel()->FindPin(Pin->GetName()))
 		{
 			return ModelPin->GetParentPin() == nullptr &&
-					!ModelPin->RequiresWatch() &&
-					!ModelPin->GetGraph()->GetRootGraph()->IsA<URigVMFunctionLibrary>();
+					!ModelPin->RequiresWatch();
 		}
 	}
 	return false;

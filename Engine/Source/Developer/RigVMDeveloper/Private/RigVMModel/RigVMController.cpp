@@ -7161,12 +7161,6 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->GetRootGraph()->IsA<URigVMFunctionLibrary>())
-	{
-		ReportError(TEXT("Cannot watch pins in function library graphs."));
-		return false;
-	}
-
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMSetPinWatchAction Action;
 	if (bSetupUndoRedo)
