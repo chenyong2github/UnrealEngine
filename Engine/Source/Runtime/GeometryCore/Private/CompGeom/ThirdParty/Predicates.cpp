@@ -119,6 +119,7 @@
 #include <cstdlib>
 #include <cmath>
 
+
 using namespace std;
 
 // note this is very old C code being compiled as C++
@@ -129,6 +130,16 @@ using namespace std;
 #pragma warning(disable : 4244)
 #endif
 
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+	#if __has_warning("-Wimplicit-int-float-conversion")
+		#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+	#endif
+	#if __has_warning("-Wimplicit-float-conversion")
+	#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
+	#endif
+#endif
 
 // float version
 namespace ShewchukExactPredicatesFloat
@@ -148,6 +159,10 @@ namespace ShewchukExactPredicates
 
 } // namespace ShewchukExactPredicates
 
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #if defined(_MSC_VER)
 #pragma warning(pop)

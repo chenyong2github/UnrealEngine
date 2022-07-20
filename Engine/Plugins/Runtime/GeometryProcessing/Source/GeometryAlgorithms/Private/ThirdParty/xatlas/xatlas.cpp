@@ -41,7 +41,15 @@ Copyright (c) 2012 Brandon Pelfrey
 #pragma warning(disable : 4242)
 #endif
 
-
+#if defined(__clang__)
+#pragma clang diagnostic push
+	#if __has_warning("-Wimplicit-float-conversion")
+		#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
+	#endif 
+	#if __has_warning("-Wimplicit-int-float-conversion")
+		#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+	#endif
+#endif
 
 #include "ThirdParty/xatlas/xatlas.h"
 #ifndef XATLAS_C_API
@@ -10058,7 +10066,9 @@ void xatlasPackOptionsInit(xatlasPackOptions *packOptions)
 #endif
 #endif // XATLAS_C_API
 
-
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
