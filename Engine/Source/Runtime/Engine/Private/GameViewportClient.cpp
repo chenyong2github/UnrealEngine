@@ -2084,12 +2084,14 @@ void UGameViewportClient::LostFocus(FViewport* InViewport)
 	// We need to reset some key inputs, since keyup events will sometimes not be processed (such as going into immersive/maximized mode).
 	// Resetting them will prevent them from "sticking"
 	UWorld* const ViewportWorld = GetWorld();
+	const bool bShouldFlush = GetDefault<UInputSettings>()->bShouldFlushPressedKeysOnViewportFocusLost;
+	
 	if (ViewportWorld && !ViewportWorld->bIsTearingDown)
 	{
 		for (FConstPlayerControllerIterator Iterator = ViewportWorld->GetPlayerControllerIterator(); Iterator; ++Iterator)
 		{
 			APlayerController* const PlayerController = Iterator->Get();
-			if (PlayerController)
+			if (PlayerController && (bShouldFlush || PlayerController->ShouldFlushKeysWhenViewportFocusChanges()))
 			{
 				PlayerController->FlushPressedKeys();
 			}

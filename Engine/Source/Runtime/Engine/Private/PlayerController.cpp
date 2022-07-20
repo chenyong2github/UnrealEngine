@@ -154,7 +154,8 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 
 	bIsPlayerController = true;
 	bIsLocalPlayerController = false;
-	bDisableHaptics = false;	
+	bDisableHaptics = false;
+	bShouldFlushInputWhenViewportFocusChanges = true;
 
 	ClickEventKeys.Add(EKeys::LeftMouseButton);
 
@@ -5739,6 +5740,7 @@ void APlayerController::SetInputMode(const FInputModeDataBase& InData)
 	if ( GameViewportClient && LocalPlayer )
 	{
 		InData.ApplyInputMode( LocalPlayer->GetSlateOperations(), *GameViewportClient );
+		bShouldFlushInputWhenViewportFocusChanges = InData.ShouldFlushInputOnViewportFocus();
 	}
 }
 

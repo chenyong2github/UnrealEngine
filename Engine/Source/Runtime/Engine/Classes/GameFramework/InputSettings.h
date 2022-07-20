@@ -69,6 +69,16 @@ class ENGINE_API UInputSettings
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	uint8 bFilterInputByPlatformUser:1;
+
+	/**
+	 * If true, then the Player Controller will have it's Pressed Keys flushed when the input mode is changed
+	 * to Game and UI mode or the game viewport loses focus. The default behavior is true.
+	 * 
+	 * @see UGameViewportClient::LostFocus
+	 * @see APlayerController::ShouldFlushKeysWhenViewportFocusChanges
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bShouldFlushPressedKeysOnViewportFocusLost:1;
 	
 	/** Should the touch input interface be shown always, or only when the platform has a touch screen? */
 	UPROPERTY(config, EditAnywhere, Category="Mobile")

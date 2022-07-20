@@ -111,6 +111,8 @@ protected:
 	/** Derived classes override this function to apply the necessary settings for the desired input mode */
 	virtual void ApplyInputMode(class FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const = 0;
 
+	virtual bool ShouldFlushInputOnViewportFocus() const { return true; };
+
 	/** Utility functions for derived classes. */
 	void SetFocusAndLocking(FReply& SlateOperations, TSharedPtr<class SWidget> InWidgetToFocus, bool bLockMouseToViewport, TSharedRef<class SViewport> InViewportWidget) const;
 
@@ -176,6 +178,8 @@ struct ENGINE_API FInputModeGameAndUI : public FInputModeDataBase
 
 	/** Whether to hide the cursor during temporary mouse capture caused by a mouse down */
 	FInputModeGameAndUI& SetHideCursorDuringCapture(bool InHideCursorDuringCapture) { bHideCursorDuringCapture = InHideCursorDuringCapture; return *this; }
+
+	virtual bool ShouldFlushInputOnViewportFocus() const override { return false; }
 
 	FInputModeGameAndUI()
 		: WidgetToFocus()
@@ -1675,6 +1679,12 @@ public:
 	/** Flushes the current key state. */
 	virtual void FlushPressedKeys();
 
+	/**
+	 * If true, then the GameViewportClient should call FlushPressedKeys on this controller when it loses focus.
+	 * The default behavior here is to return true if the PlayerController is in any input mode other than GameAndUI
+	 */
+	virtual bool ShouldFlushKeysWhenViewportFocusChanges() const { return bShouldFlushInputWhenViewportFocusChanges; }
+
 	UFUNCTION(BlueprintCallable, Category = Input)
 	TSubclassOf<UPlayerInput> GetOverridePlayerInputClass() const;
 
@@ -2138,6 +2148,14 @@ public:
 private:
 	/** If true, prevent any haptic effects from playing */
 	bool bDisableHaptics : 1;
+
+	/**
+	 * If true, then the GameViewportCliet will call FlushPressedKeys when it loses focus ( UGameViewportClient::LostFocus ).
+	 * By default this is true for all Input Modes except for GameAndUI. When you are using the "GameAndUI" input mode 
+	 * then you don't normally want the input to be flushed because it would reset the player controller's inputs if you bring
+	 * up any in-game UI.
+	 */
+	bool bShouldFlushInputWhenViewportFocusChanges : 1;
 
 public: 
 
