@@ -460,6 +460,7 @@ protected:
 					.Padding(0.0f)
 					.IsChecked(this, &SFilter::IsChecked)
 					.OnCheckStateChanged(this, &SFilter::FilterToggled)
+					.CheckBoxContentUsesAutoWidth(false)
 					.OnGetMenuContent(this, &SFilter::GetRightClickMenuContent)
 					[
 						SNew(SHorizontalBox)

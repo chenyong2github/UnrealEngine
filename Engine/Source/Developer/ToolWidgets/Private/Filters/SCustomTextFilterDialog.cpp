@@ -5,6 +5,7 @@
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBox.h"
 #include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "CustomTextFilter"
@@ -112,16 +113,20 @@ void SCustomTextFilterDialog::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				.Padding(21, 0, 0, 0)
 				[
-					SAssignNew(FilterLabelTextBox, SEditableTextBox)
-					.MinDesiredWidth(254)
-					.Text_Lambda([this] ()
-					{
-						return this->FilterData.FilterLabel;
-					})
-					.OnTextChanged_Lambda([this] (const FText& InText)
-					{
-						this->FilterData.FilterLabel = InText;
-					})
+					SNew(SBox)
+					.WidthOverride(254)
+					[
+						SAssignNew(FilterLabelTextBox, SEditableTextBox)
+						.Text_Lambda([this] ()
+						{
+							return this->FilterData.FilterLabel;
+						})
+						.OnTextChanged_Lambda([this] (const FText& InText)
+						{
+							this->FilterData.FilterLabel = InText;
+						})
+					]
+					
 				]
 
 				// Filter Color Text
@@ -170,16 +175,20 @@ void SCustomTextFilterDialog::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				.Padding(21, 0, 0, 0)
 				[
-					SNew(SEditableTextBox)
-					.MinDesiredWidth(556)
-					.Text_Lambda([this] ()
-					{
-						return this->FilterData.FilterString;
-					})
-					.OnTextChanged_Lambda([this] (const FText& InText)
-					{
-						this->FilterData.FilterString = InText;
-					})
+					SNew(SBox)
+					.WidthOverride(556)
+					[
+						SNew(SEditableTextBox)
+						.Text_Lambda([this] ()
+						{
+							return this->FilterData.FilterString;
+						})
+						.OnTextChanged_Lambda([this] (const FText& InText)
+						{
+							this->FilterData.FilterString = InText;
+						})
+					]
+					
 				]
 			]
 			// Buttons

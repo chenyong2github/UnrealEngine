@@ -842,6 +842,18 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		);
 	}
 
+	// Filter Widgets
+	{
+		FSearchBoxStyle FilterSearchBoxStyle = Style->GetWidgetStyle<FSearchBoxStyle>("SearchBox");
+		FEditableTextBoxStyle FilterTextBoxStyle = FilterSearchBoxStyle.TextBoxStyle;
+
+		// Extra padding on the right to account for the Save Search button
+		FilterTextBoxStyle.SetPadding(FMargin(8.0f, 3.0f, 30.0f, 4.0f));
+		FilterSearchBoxStyle.SetTextBoxStyle(FilterTextBoxStyle);
+
+		Style->Set("FilterBar.SearchBox", FilterSearchBoxStyle);
+	}
+	
 	// Project Launcher
 	{
 		Style->Set("Launcher.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/ProjectLauncher", Icon16x16));

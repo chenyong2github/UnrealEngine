@@ -33,6 +33,7 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 			+ SOverlay::Slot()
 			[
 				SAssignNew(SearchBox, SSearchBox)
+				.Style(&FAppStyle::GetWidgetStyle<FSearchBoxStyle>("FilterBar.SearchBox"))
 				.InitialText(InArgs._InitialText)
 				.HintText(InArgs._HintText)
 				.OnTextChanged(this, &SFilterSearchBox::HandleTextChanged)
