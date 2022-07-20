@@ -65,6 +65,16 @@ bool UInterchangeLightFactoryNode::SetCustomAttenuationRadius(float AttributeVal
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeLightFactoryNode, AttenuationRadius, float, ULocalLightComponent)
 }
 
+bool UInterchangeLightFactoryNode::GetCustomIESTexture(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(IESTexture, FString);
+}
+
+bool UInterchangeLightFactoryNode::SetCustomIESTexture(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IESTexture, FString)
+}
+
 bool UInterchangePointLightFactoryNode::GetCustomUseInverseSquaredFalloff(bool& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(bUseInverseSquaredFalloff, bool)

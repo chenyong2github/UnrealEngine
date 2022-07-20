@@ -70,6 +70,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LightFactory")
 	bool SetCustomAttenuationRadius(float AttributeValue, bool bAddApplyDelegate = true);
+	
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LightFactory")
+	bool GetCustomIESTexture(FString& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LightFactory")
+	bool SetCustomIESTexture(const FString& AttributeValue);
 
 private:
 

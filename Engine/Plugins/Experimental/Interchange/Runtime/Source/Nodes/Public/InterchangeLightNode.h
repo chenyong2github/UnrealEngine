@@ -82,10 +82,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LocalLight")
 	bool SetCustomAttenuationRadius(float AttributeValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LocalLight")
+	bool GetCustomIESTexture(FString& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LocalLight")
+	bool SetCustomIESTexture(const FString& AttributeValue);
+
 private:
 
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(IntensityUnits)
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AttenuationRadius)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(IESTexture)
 };
 
 UCLASS(BlueprintType)

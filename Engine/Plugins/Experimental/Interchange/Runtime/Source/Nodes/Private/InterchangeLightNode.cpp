@@ -77,6 +77,16 @@ bool UInterchangeLightNode::SetCustomAttenuationRadius(float AttributeValue)
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AttenuationRadius, float)
 }
 
+bool UInterchangeLightNode::GetCustomIESTexture(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(IESTexture, FString)
+}
+
+bool UInterchangeLightNode::SetCustomIESTexture(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IESTexture, FString)
+}
+
 FString UInterchangePointLightNode::GetTypeName() const
 {
 	return TEXT("PointLightNode");

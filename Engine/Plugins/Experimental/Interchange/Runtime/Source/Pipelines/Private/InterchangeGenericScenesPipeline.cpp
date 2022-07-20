@@ -256,6 +256,11 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 						LightFactoryNode->SetCustomAttenuationRadius(AttenuationRadius);
 					}
 
+					if(FString IESTexture; LightNode->GetCustomIESTexture(IESTexture))
+					{
+						LightFactoryNode->SetCustomIESTexture(IESTexture);
+					}
+
 					// RectLight
 					if(const UInterchangeRectLightNode* RectLightNode = Cast<UInterchangeRectLightNode>(LightNode))
 					{
