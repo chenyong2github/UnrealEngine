@@ -83,6 +83,11 @@ void FBehaviorTreeInstance::Initialize(UBehaviorTreeComponent& OwnerComp, UBTCom
 
 void FBehaviorTreeInstance::Cleanup(UBehaviorTreeComponent& OwnerComp, EBTMemoryClear::Type CleanupType)
 {
+	if (!ensureMsgf(OwnerComp.KnownInstances.IsValidIndex(InstanceIdIndex), TEXT("Expected InstanceIdIndex to be in known instances (Root:%s, Num:%i, Index:%i)"), *GetNameSafe(RootNode->GetTreeAsset()), OwnerComp.KnownInstances.Num(), InstanceIdIndex))
+	{
+		return;
+	}
+
 	FBehaviorTreeInstanceId& Info = OwnerComp.KnownInstances[InstanceIdIndex];
 	if (Info.FirstNodeInstance >= 0)
 	{

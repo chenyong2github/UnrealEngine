@@ -2710,6 +2710,11 @@ void UBehaviorTreeComponent::RemoveAllInstances()
 		StopTree(EBTStopMode::Forced);
 	}
 
+	if (!ensureMsgf(InstanceStack.Num() == 0, TEXT("Queued stop could not cleanup the instance stack, CurrentRoot(%s), AssetToStart(%s)"), *GetNameSafe(GetRootTree()), *GetNameSafe(TreeStartInfo.Asset)))
+	{
+		InstanceStack.Reset();
+	}
+
 	FBehaviorTreeInstance DummyInstance;
 	for (int32 Idx = 0; Idx < KnownInstances.Num(); Idx++)
 	{
