@@ -281,6 +281,14 @@ bool UBlendSpace::UpdateBlendSamples(const FVector& InBlendSpacePosition, float 
 	return bResult;
 }
 
+void UBlendSpace::ForEachImmutableSample(const TFunctionRef<void(const FBlendSample&)> Func) const
+{
+	for (const FBlendSample & Sample : SampleData)
+	{
+		Func(Sample);
+	}
+}
+
 void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const
 {
 	check(Instance.BlendSpace.BlendSampleDataCache);

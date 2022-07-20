@@ -449,7 +449,7 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	/** Whether the supplied root motion mode can be used for the current asset */
 	bool CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const;
 
-	/** Whether the current asset is using root motion */
+	/** Whether the current asset or animation blueprint is using root motion */
 	bool DoesCurrentAssetHaveRootMotion() const;
 
 	/** Whether the current LOD of the debug mesh is being synced with the attached (preview) mesh instance. */

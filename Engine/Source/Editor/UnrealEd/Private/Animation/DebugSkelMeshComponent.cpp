@@ -217,7 +217,7 @@ void UDebugSkelMeshComponent::ConsumeRootMotion(const FVector& FloorMin, const F
 		return FTransform::Identity;
 	};
 
-	// Force ProcessRootMotionMode to Ignore if the current asset is not using root motion. 
+	// Force ProcessRootMotionMode to Ignore if the current asset/animation blueprint is not using root motion. 
 	if(ProcessRootMotionMode != EProcessRootMotionMode::Ignore && DoesCurrentAssetHaveRootMotion() == false)
 	{
 		SetProcessRootMotionMode(EProcessRootMotionMode::Ignore);
@@ -356,11 +356,42 @@ EProcessRootMotionMode UDebugSkelMeshComponent::GetProcessRootMotionMode() const
 
 bool UDebugSkelMeshComponent::DoesCurrentAssetHaveRootMotion() const
 {
-	if(PreviewInstance)
+	if (PreviewInstance)
 	{
-		if(UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset()))
+		// Allow root motion if current asset is sequence
+		if(const UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset()))
 		{
 			return AnimSequenceBase->HasRootMotion();
+		}
+		
+		// Allow root motion if current blend-space references any sequences with root motion
+		if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(PreviewInstance->GetCurrentAsset()))
+		{
+			bool bIsRootMotionUsedInBlendSpace = false;
+			
+			BlendSpace->ForEachImmutableSample([&bIsRootMotionUsedInBlendSpace](const FBlendSample & Sample)
+			{
+				const TObjectPtr<UAnimSequence> Sequence = Sample.Animation;
+				
+				if (IsValid(Sequence) && Sequence->HasRootMotion())
+				{
+					bIsRootMotionUsedInBlendSpace = true;
+				}
+			});
+			
+			if (bIsRootMotionUsedInBlendSpace)
+			{
+				return true;
+			}
+		}
+
+		// Allow previewing an animation blueprint with root motion
+		if (!PreviewInstance->GetCurrentAsset())
+		{
+			if (PreviewInstance->RootMotionMode == ERootMotionMode::RootMotionFromEverything || PreviewInstance->RootMotionMode == ERootMotionMode::RootMotionFromMontagesOnly)
+			{
+				return true;
+			}
 		}
 	}
 
@@ -374,7 +405,7 @@ bool UDebugSkelMeshComponent::CanUseProcessRootMotionMode(EProcessRootMotionMode
 		return false;
 	}
 	
-	// Disable Loop modes if the current asset doesn't have root motion
+	// Disable Loop modes if the current asset or animation blueprint doesn't have root motion
 	if(Mode != EProcessRootMotionMode::Ignore)
 	{
 		if(!DoesCurrentAssetHaveRootMotion())
@@ -383,10 +414,10 @@ bool UDebugSkelMeshComponent::CanUseProcessRootMotionMode(EProcessRootMotionMode
 		}
 	}
 
-	// Disable Loop and Reset mode for blend spaces
+	// Disable Loop and Reset mode for blend spaces and animation blueprints
 	if (Mode == EProcessRootMotionMode::LoopAndReset)
 	{
-		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(PreviewInstance->GetCurrentAsset()))
+		if (Cast<UBlendSpace>(PreviewInstance->GetCurrentAsset()) || !PreviewInstance->GetCurrentAsset())
 		{
 			return false;
 		}

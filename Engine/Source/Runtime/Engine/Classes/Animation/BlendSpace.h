@@ -541,7 +541,13 @@ public:
 	 * @param	InDeltaTime				The tick time for this update
 	 */
 	ENGINE_API bool UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache, int32& InOutCachedTriangulationIndex) const;
-
+	
+	/**
+	 * Allows the user to iterate through all the data samples available in the blend space.
+	 * @param Func The function to run for each blend sample
+	 */
+	ENGINE_API void ForEachImmutableSample(const TFunctionRef<void(const FBlendSample&)> Func) const;
+	
 	/** Interpolate BlendInput based on Filter data **/
 	ENGINE_API FVector FilterInput(FBlendFilter* Filter, const FVector& BlendInput, float DeltaTime) const;
 
