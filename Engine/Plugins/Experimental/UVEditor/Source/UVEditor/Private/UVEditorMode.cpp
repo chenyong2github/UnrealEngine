@@ -736,6 +736,12 @@ void UUVEditorMode::BindCommands()
 			return UVToolViewportButtonsAPI && UVToolViewportButtonsAPI->AreSelectionButtonsEnabled();
 		}));
 
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVToolViewportButtonsAPI* UVToolViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
+	if (UVToolViewportButtonsAPI)
+	{
+		UVToolViewportButtonsAPI->OnInitiateFocusCameraOnSelection.AddUObject(this, &UUVEditorMode::FocusLivePreviewCameraOnSelection);
+	}
 }
 
 void UUVEditorMode::Exit()
@@ -834,7 +840,11 @@ void UUVEditorMode::InitializeAssetEditorContexts(UContextObjectStore& ContextSt
 			LivePreviewModeManager.GetInteractiveToolsContext()->InputRouter,
 			[LivePreviewViewportClientPtr = &LivePreviewViewportClient](FViewCameraState& CameraStateOut) {
 				GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut);
-			});
+			},
+			[LivePreviewViewportClientPtr = &LivePreviewViewportClient](const FAxisAlignedBox3d& BoundingBox) {
+				LivePreviewViewportClientPtr->FocusViewportOnBox((FBox)BoundingBox, true);
+			}
+			);
 		ContextStore.AddContextObject(LivePreviewAPI);
 	}
 
@@ -1193,6 +1203,39 @@ void UUVEditorMode::UpdatePreviewMaterialBasedOnBackground()
 			ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = BackgroundMaterialOverride;
 		}
 	}
+}
+
+void UUVEditorMode::FocusLivePreviewCameraOnSelection()
+{
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
+	if (!LivePreviewAPI)
+	{
+		return;
+	}
+
+	FAxisAlignedBox3d SelectionBoundingBox;
+
+	const TArray<FUVToolSelection>& CurrentSelections = SelectionAPI->GetSelections();
+	const TArray<FUVToolSelection>& CurrentUnsetSelections = SelectionAPI->GetUnsetElementAppliedMeshSelections();
+
+	for (const FUVToolSelection& Selection : CurrentSelections)
+	{
+		SelectionBoundingBox.Contain(Selection.ToBoundingBox(*Selection.Target->AppliedCanonical));
+	}
+	for (const FUVToolSelection& Selection : CurrentUnsetSelections)
+	{
+		SelectionBoundingBox.Contain(Selection.ToBoundingBox(*Selection.Target->AppliedCanonical));
+	}
+	if (CurrentSelections.Num() == 0 && CurrentUnsetSelections.Num() == 0)
+	{
+		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
+		{
+			SelectionBoundingBox.Contain(ToolInputObjects[AssetID]->AppliedCanonical->GetBounds());
+		}
+	}
+	
+	LivePreviewAPI->SetLivePreviewCameraToLookAtVolume(SelectionBoundingBox);
 }
 
 void UUVEditorMode::ModeTick(float DeltaTime)

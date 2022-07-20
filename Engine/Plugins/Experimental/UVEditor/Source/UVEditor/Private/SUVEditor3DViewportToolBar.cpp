@@ -92,6 +92,15 @@ TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FEx
 			TAttribute<FSlateIcon>(FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.FlyCamera")), FlyCameraName);
 
 		ToolbarBuilder.EndBlockGroup();
+
+		ToolbarBuilder.BeginBlockGroup();
+
+		// Focus Camera
+		static FName FocusCameraName = FName(TEXT("FocusCamera"));
+		ToolbarBuilder.AddToolBarButton(FUVEditorCommands::Get().SetFocusCamera, NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+			TAttribute<FSlateIcon>(FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.FocusCamera")), FocusCameraName);
+
+		ToolbarBuilder.EndBlockGroup();
 	}
 
 	ToolbarBuilder.EndSection();

@@ -29,6 +29,15 @@ void SUVEditor3DViewport::BindCommands()
 			}),
 		FCanExecuteAction::CreateLambda([this]() { return true; }),
 		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FUVEditor3DViewportClient>(Client)->GetCameraMode() == EUVEditor3DViewportClientCameraMode::Fly; }));
+
+	CommandList->MapAction(
+		CommandInfos.SetFocusCamera,
+		FExecuteAction::CreateLambda([this]() {
+			StaticCastSharedPtr<FUVEditor3DViewportClient>(Client)->FocusCameraOnSelection();
+		}),
+		FCanExecuteAction::CreateLambda([this]() { 
+			return true;
+		}));
 }
 
 TSharedPtr<SWidget> SUVEditor3DViewport::MakeViewportToolbar()

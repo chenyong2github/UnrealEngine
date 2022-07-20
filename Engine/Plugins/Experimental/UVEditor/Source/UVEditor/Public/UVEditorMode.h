@@ -262,6 +262,7 @@ protected:
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 	void UpdatePreviewMaterialBasedOnBackground();
+	void FocusLivePreviewCameraOnSelection();
 
 	void UpdateActiveUDIMs();
 	int32 UDIMsChangedWatcherId;

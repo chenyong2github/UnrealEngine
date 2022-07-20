@@ -93,6 +93,13 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	UVEditorModule->OnRegisterLayoutExtensions().Broadcast(*LayoutExtender);
 	StandaloneDefaultLayout->ProcessExtensions(*LayoutExtender);
 
+	// This API object serves as a communication point between the viewport toolbars and the tools.
+    // We create it here so that we can pass it both into the 2d & 3d viewports and when we initialize 
+    // the mode.
+	ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
+
+	UVTool2DViewportAPI = NewObject<UUVTool2DViewportAPI>();
+
 	// We could create the preview scenes in CreateEditorViewportClient() the way that FBaseAssetToolkit
 	// does, but it seems more intuitive to create them right off the bat and pass it in later. 
 	FPreviewScene::ConstructionValues PreviewSceneArgs;
@@ -106,7 +113,7 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 
 	LivePreviewTabContent = MakeShareable(new FEditorViewportTabContent());
 	LivePreviewViewportClient = MakeShared<FUVEditor3DViewportClient>(
-		LivePreviewEditorModeManager.Get(), LivePreviewScene.Get());
+		LivePreviewEditorModeManager.Get(), LivePreviewScene.Get(), nullptr, ViewportButtonsAPI);
 
 	LivePreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
@@ -114,12 +121,7 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 			.EditorViewportClient(LivePreviewViewportClient);
 	};
 
-	// This API object serves as a communication point between the viewport toolbars and the tools.
-	// We create it here so that we can pass it both into the 2d viewport and when we initialize 
-	// the mode.
-	ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
 
-	UVTool2DViewportAPI = NewObject<UUVTool2DViewportAPI>();
 }
 
 FUVEditorToolkit::~FUVEditorToolkit()

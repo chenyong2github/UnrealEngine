@@ -119,6 +119,46 @@ bool FUVToolSelection::IsAllSelected(const FDynamicMesh3& Mesh) const
 	return AreElementsPresentInMesh(Mesh);
 }
 
+FAxisAlignedBox3d FUVToolSelection::ToBoundingBox(const FDynamicMesh3& Mesh) const
+{
+	FAxisAlignedBox3d BoundingBox;
+
+	switch (Type)
+	{
+	case EType::Vertex:
+		for (int32 Vid : SelectedIDs)
+		{
+			if (Mesh.IsVertex(Vid))
+			{
+				BoundingBox.Contain(Mesh.GetVertexRef(Vid));
+			}
+		}
+		break;
+	case EType::Edge:
+		for (int32 Eid : SelectedIDs)
+		{
+			if (Mesh.IsEdge(Eid))
+			{
+				BoundingBox.Contain(Mesh.GetVertexRef(Mesh.GetEdgeRef(Eid).Vert.A));
+				BoundingBox.Contain(Mesh.GetVertexRef(Mesh.GetEdgeRef(Eid).Vert.B));
+			}
+		}
+		break;
+	case EType::Triangle:
+		for (int32 Tid : SelectedIDs)
+		{
+			if (Mesh.IsTriangle(Tid))
+			{
+				BoundingBox.Contain(Mesh.GetVertexRef(Mesh.GetTriangleRef(Tid).A));
+				BoundingBox.Contain(Mesh.GetVertexRef(Mesh.GetTriangleRef(Tid).B));
+				BoundingBox.Contain(Mesh.GetVertexRef(Mesh.GetTriangleRef(Tid).C));
+			}
+		}
+		break;
+	}
+	return BoundingBox;
+}
+
 FUVToolSelection FUVToolSelection::GetConvertedSelection(const FDynamicMesh3& Mesh, FUVToolSelection::EType ExpectedSelectionType) const
 {
 	if (Type == ExpectedSelectionType)

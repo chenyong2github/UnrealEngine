@@ -107,7 +107,8 @@ class UVEDITORTOOLS_API UUVToolLivePreviewAPI : public UUVToolContextObject
 public:
 
 	void Initialize(UWorld* WorldIn, UInputRouter* RouterIn,
-		TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFuncIn);
+		TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFuncIn,
+		TUniqueFunction<void(const UE::Geometry::FAxisAlignedBox3d& BoundingBox)> SetLivePreviewCameraToLookAtVolumeFuncIn);
 
 	UWorld* GetLivePreviewWorld() { return World.Get(); }
 	UInputRouter* GetLivePreviewInputRouter() { return InputRouter.Get(); }
@@ -116,6 +117,14 @@ public:
 		if (GetLivePreviewCameraStateFunc)
 		{
 			GetLivePreviewCameraStateFunc(CameraStateOut);
+		}
+	}
+
+	void SetLivePreviewCameraToLookAtVolume(const UE::Geometry::FAxisAlignedBox3d& BoundingBox)
+	{
+		if (SetLivePreviewCameraToLookAtVolumeFunc)
+		{
+			SetLivePreviewCameraToLookAtVolumeFunc(BoundingBox);
 		}
 	}
 
@@ -143,6 +152,7 @@ protected:
 	TWeakObjectPtr<UInputRouter> InputRouter;
 
 	TUniqueFunction<void(FViewCameraState& CameraStateOut)> GetLivePreviewCameraStateFunc;
+	TUniqueFunction<void(const UE::Geometry::FAxisAlignedBox3d& BoundingBox)> SetLivePreviewCameraToLookAtVolumeFunc;
 };
 
 USTRUCT()

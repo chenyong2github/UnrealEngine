@@ -74,11 +74,19 @@ public:
 		return SelectionMode;
 	}
 
+	void InitiateFocusCameraOnSelection() const
+	{
+		OnInitiateFocusCameraOnSelection.Broadcast();
+	}
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoModeChange, EGizmoMode NewGizmoMode);
 	FOnGizmoModeChange OnGizmoModeChange;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionModeChange, ESelectionMode NewSelectionMode);
 	FOnSelectionModeChange OnSelectionModeChange;
+
+	DECLARE_MULTICAST_DELEGATE(FOnInitiateFocusCameraOnSelection);
+	FOnInitiateFocusCameraOnSelection OnInitiateFocusCameraOnSelection;
 
 	virtual void OnToolEnded(UInteractiveTool* DeadTool) override 
 	{
