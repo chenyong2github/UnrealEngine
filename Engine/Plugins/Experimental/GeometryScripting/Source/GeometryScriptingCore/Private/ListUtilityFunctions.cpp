@@ -29,6 +29,17 @@ int UGeometryScriptLibrary_ListUtilityFunctions::GetIndexListItem(FGeometryScrip
 	return -1;
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::SetIndexListItem(FGeometryScriptIndexList& IndexList, int Index, int NewValue, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (IndexList.List.IsValid() && Index >= 0 && Index < IndexList.List->Num())
+	{
+		bIsValidIndex = true;
+		(*IndexList.List)[Index] = NewValue;
+	}
+}
+
+
 void UGeometryScriptLibrary_ListUtilityFunctions::ConvertIndexListToArray(FGeometryScriptIndexList IndexList, TArray<int>& IndexArray)
 {
 	IndexArray.Reset();
@@ -44,6 +55,18 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToIndexList(const 
 	IndexList.List->Append(IndexArray);
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::DuplicateIndexList(FGeometryScriptIndexList IndexList, FGeometryScriptIndexList& DuplicateList)
+{
+	DuplicateList.Reset(IndexList.IndexType);
+	*DuplicateList.List = *IndexList.List;
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ClearIndexList(FGeometryScriptIndexList& IndexList, int ClearValue)
+{
+	int32 Num = IndexList.List->Num();
+	IndexList.Reset(IndexList.IndexType);
+	IndexList.List->Init(ClearValue, Num);
+}
 
 
 
@@ -234,6 +257,16 @@ FVector2D UGeometryScriptLibrary_ListUtilityFunctions::GetUVListItem(FGeometrySc
 	return FVector2D::ZeroVector;
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::SetUVListItem(FGeometryScriptUVList& UVList, int Index, FVector2D NewUV, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (UVList.List.IsValid() && Index >= 0 && Index < UVList.List->Num())
+	{
+		bIsValidIndex = true;
+		(*UVList.List)[Index] = NewUV;
+	}
+}
+
 void UGeometryScriptLibrary_ListUtilityFunctions::ConvertUVListToArray(FGeometryScriptUVList UVList, TArray<FVector2D>& UVArray)
 {
 	UVArray.Reset();
@@ -249,6 +282,18 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToUVList(const TAr
 	UVList.List->Append(UVArray);
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::DuplicateUVList(FGeometryScriptUVList UVList, FGeometryScriptUVList& DuplicateList)
+{
+	DuplicateList.Reset();
+	*DuplicateList.List = *UVList.List;
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ClearUVList(FGeometryScriptUVList& UVList, FVector2D ClearUV)
+{
+	int32 Num = UVList.List->Num();
+	UVList.Reset();
+	UVList.List->Init(ClearUV, Num);
+}
 
 
 
@@ -274,6 +319,17 @@ FLinearColor UGeometryScriptLibrary_ListUtilityFunctions::GetColorListItem(FGeom
 	return FLinearColor::White;
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::SetColorListItem(FGeometryScriptColorList& ColorList, int Index, FLinearColor NewColor, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (ColorList.List.IsValid() && Index >= 0 && Index < ColorList.List->Num())
+	{
+		bIsValidIndex = true;
+		(*ColorList.List)[Index] = NewColor;
+	}
+}
+
+
 void UGeometryScriptLibrary_ListUtilityFunctions::ConvertColorListToArray(FGeometryScriptColorList ColorList, TArray<FLinearColor>& ColorArray)
 {
 	ColorArray.Reset();
@@ -288,6 +344,21 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToColorList(const 
 	ColorList.Reset();
 	ColorList.List->Append(ColorArray);
 }
+
+
+void UGeometryScriptLibrary_ListUtilityFunctions::DuplicateColorList(FGeometryScriptColorList ColorList, FGeometryScriptColorList& DuplicateList)
+{
+	DuplicateList.Reset();
+	*DuplicateList.List = *ColorList.List;
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ClearColorList(FGeometryScriptColorList& ColorList, FLinearColor ClearColor)
+{
+	int32 Num = ColorList.List->Num();
+	ColorList.Reset();
+	ColorList.List->Init(ClearColor, Num);
+}
+
 
 void UGeometryScriptLibrary_ListUtilityFunctions::ExtractColorListChannel(FGeometryScriptColorList ColorList, FGeometryScriptScalarList& ScalarList, int32 ChannelIndex)
 {
