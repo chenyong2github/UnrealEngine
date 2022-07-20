@@ -55,6 +55,8 @@ private:
 
 	void ConditionalUpdate() const;
 
+	void DestroyImpl();
+
 	template<typename T>
 	TArrayView<T* const> GetExtensions() const
 	{
