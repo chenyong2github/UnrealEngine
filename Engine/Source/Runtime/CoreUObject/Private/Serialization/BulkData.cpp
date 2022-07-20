@@ -1375,7 +1375,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					check(IsInSeparateFile());
 					check(Package != nullptr);
 					BulkMeta.SetFlags(EBulkDataFlags(BulkMeta.GetFlags() | BULKDATA_UsesIoDispatcher));
-					BulkChunkId = FBulkDataChunkId::FromPackageId(Package->GetPackageId());
+					BulkChunkId = FBulkDataChunkId::FromPackageId(Package->GetPackageIdToLoad());
 				}
 			}
 			else
