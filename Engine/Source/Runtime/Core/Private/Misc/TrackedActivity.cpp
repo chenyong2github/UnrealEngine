@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/TrackedActivity.h"
-
+#include "Containers/UnrealString.h"
 
 // Singleton class that keep track of all the existing activities and their stacks
 class FTrackedActivityManager
