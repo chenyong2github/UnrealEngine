@@ -12,6 +12,7 @@
 #include "Engine/StaticMesh.h"
 #include "EditorDirectories.h"
 #include "Framework/Application/SlateApplication.h"
+#include "MeshDescription.h"
 #include "Misc/MessageDialog.h"
 #include "ComponentReregisterContext.h"
 #include "Logging/TokenizedMessage.h"
@@ -47,8 +48,48 @@ DEFINE_LOG_CATEGORY_STATIC(LogExportMeshUtils, Log, All);
 
 namespace FbxMeshUtils
 {
+	namespace Private
+	{
+		void SetupFbxImportOptions(const UStaticMesh* BaseStaticMesh, UnFbx::FBXImportOptions* ImportOptions)
+		{
+			check(BaseStaticMesh);
+
+			UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(BaseStaticMesh->AssetImportData);
+			if (ImportData != nullptr)
+			{
+
+				UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
+				ReimportUI->MeshTypeToImport = FBXIT_StaticMesh;
+				UnFbx::FBXImportOptions::ResetOptions(ImportOptions);
+				// Import data already exists, apply it to the fbx import options
+				ReimportUI->StaticMeshImportData = ImportData;
+				ApplyImportUIToImportOptions(ReimportUI, *ImportOptions);
+			}
+			else if (BaseStaticMesh->IsSourceModelValid(0))
+			{
+				// Use the lod 0 to set the import settings
+				const FStaticMeshSourceModel& SourceModel = BaseStaticMesh->GetSourceModel(0);
+				ImportOptions->NormalGenerationMethod = SourceModel.BuildSettings.bUseMikkTSpace ? EFBXNormalGenerationMethod::MikkTSpace : EFBXNormalGenerationMethod::BuiltIn;
+				ImportOptions->bComputeWeightedNormals = SourceModel.BuildSettings.bComputeWeightedNormals;
+				ImportOptions->DistanceFieldResolutionScale = SourceModel.BuildSettings.DistanceFieldResolutionScale;
+				ImportOptions->bRemoveDegenerates = SourceModel.BuildSettings.bRemoveDegenerates;
+				ImportOptions->bBuildReversedIndexBuffer = SourceModel.BuildSettings.bBuildReversedIndexBuffer;
+				ImportOptions->bGenerateLightmapUVs = SourceModel.BuildSettings.bGenerateLightmapUVs;
+			}
+
+			// Set a couple of settings that shouldn't change while importing a lod
+			ImportOptions->bBuildNanite = BaseStaticMesh->NaniteSettings.bEnabled;
+			ImportOptions->StaticMeshLODGroup = BaseStaticMesh->LODGroup;
+			ImportOptions->bIsImportCancelable = false;
+			ImportOptions->bImportMaterials = false;
+			ImportOptions->bImportTextures = false;
+
+			ImportOptions->bAutoComputeLodDistances = true; //Setting auto compute distance to true will avoid changing the staticmesh flag
+		}
+	}
+
 	/** Helper function used for retrieving data required for importing static mesh LODs */
-	void PopulateFBXStaticMeshLODList(UnFbx::FFbxImporter* FFbxImporter, FbxNode* Node, TArray< TArray<FbxNode*>* >& LODNodeList, int32& MaxLODCount, bool bUseLODs)
+	void PopulateFBXStaticMeshLODList(UnFbx::FFbxImporter* FFbxImporter, FbxNode* Node, TArray< TUniquePtr<TArray<FbxNode*>> >& LODNodeList, int32& MaxLODCount, bool bUseLODs)
 	{
 		// Check for LOD nodes, if one is found, add it to the list
 		if (bUseLODs && Node->GetNodeAttribute() && Node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eLODGroup)
@@ -57,8 +98,7 @@ namespace FbxMeshUtils
 			{
 				if ((LODNodeList.Num() - 1) < ChildIdx)
 				{
-					TArray<FbxNode*>* NodeList = new TArray<FbxNode*>;
-					LODNodeList.Add(NodeList);
+					LODNodeList.Add(MakeUnique<TArray<FbxNode*>>());
 				}
 				FFbxImporter->FindAllLODGroupNode(*(LODNodeList[ChildIdx]), Node, ChildIdx);
 			}
@@ -75,8 +115,7 @@ namespace FbxMeshUtils
 			{
 				if (LODNodeList.Num() == 0)
 				{
-					TArray<FbxNode*>* NodeList = new TArray<FbxNode*>;
-					LODNodeList.Add(NodeList);
+					LODNodeList.Add(MakeUnique<TArray<FbxNode*>>());
 				}
 
 				LODNodeList[0]->Add(Node);
@@ -90,7 +129,7 @@ namespace FbxMeshUtils
 		}
 	}
 
-	bool ImportStaticMeshLOD( UStaticMesh* BaseStaticMesh, const FString& Filename, int32 LODLevel)
+	bool ImportStaticMeshLOD( UStaticMesh* BaseStaticMesh, const FString& Filename, int32 LODLevel )
 	{
 		if (!BaseStaticMesh)
 		{
@@ -143,39 +182,12 @@ namespace FbxMeshUtils
 		UnFbx::FFbxLoggerSetter Logger(FFbxImporter);
 
 		UnFbx::FBXImportOptions* ImportOptions = FFbxImporter->GetImportOptions();
-		
-		bool IsReimport = BaseStaticMesh->GetRenderData()->LODResources.Num() > LODLevel;
+		Private::SetupFbxImportOptions(BaseStaticMesh, ImportOptions);
+
 		UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(BaseStaticMesh->AssetImportData);
-		if (ImportData != nullptr)
-		{
-			
-			UFbxImportUI* ReimportUI = NewObject<UFbxImportUI>();
-			ReimportUI->MeshTypeToImport = FBXIT_StaticMesh;
-			UnFbx::FBXImportOptions::ResetOptions(ImportOptions);
-			// Import data already exists, apply it to the fbx import options
-			ReimportUI->StaticMeshImportData = ImportData;
-			ApplyImportUIToImportOptions(ReimportUI, *ImportOptions);
-		}
-		else if (BaseStaticMesh->IsSourceModelValid(0))
-		{
-			// Use the lod 0 to set the import settings
-			FStaticMeshSourceModel& SourceModel = BaseStaticMesh->GetSourceModel(0);
-			ImportOptions->NormalGenerationMethod = SourceModel.BuildSettings.bUseMikkTSpace ? EFBXNormalGenerationMethod::MikkTSpace : EFBXNormalGenerationMethod::BuiltIn;
-			ImportOptions->bComputeWeightedNormals = SourceModel.BuildSettings.bComputeWeightedNormals;
-			ImportOptions->DistanceFieldResolutionScale = SourceModel.BuildSettings.DistanceFieldResolutionScale;
-			ImportOptions->bRemoveDegenerates = SourceModel.BuildSettings.bRemoveDegenerates;
-			ImportOptions->bBuildReversedIndexBuffer = SourceModel.BuildSettings.bBuildReversedIndexBuffer;
-			ImportOptions->bGenerateLightmapUVs = SourceModel.BuildSettings.bGenerateLightmapUVs;
-		}
 
-		// Set a couple of settings that shouldn't change while importing a lod
-		ImportOptions->bBuildNanite = BaseStaticMesh->NaniteSettings.bEnabled;
-		ImportOptions->StaticMeshLODGroup = BaseStaticMesh->LODGroup;
-		ImportOptions->bIsImportCancelable = false;
-		ImportOptions->bImportMaterials = false;
-		ImportOptions->bImportTextures = false;
+		const bool bIsReimport = BaseStaticMesh->GetRenderData()->LODResources.Num() > LODLevel;
 
-		ImportOptions->bAutoComputeLodDistances = true; //Setting auto compute distance to true will avoid changing the staticmesh flag
 		if ( !FFbxImporter->ImportFromFile( *Filename, FPaths::GetExtension( Filename ), true ) )
 		{
 			// Log the error message and fail the import.
@@ -192,7 +204,7 @@ namespace FbxMeshUtils
 
 			bool bUseLODs = true;
 			int32 MaxLODLevel = 0;
-			TArray< TArray<FbxNode*>* > LODNodeList;
+			TArray< TUniquePtr<TArray<FbxNode*>> > LODNodeList;
 
 			// Create a list of LOD nodes
 			PopulateFBXStaticMeshLODList(FFbxImporter, FFbxImporter->Scene->GetRootNode(), LODNodeList, MaxLODLevel, bUseLODs);
@@ -217,7 +229,7 @@ namespace FbxMeshUtils
 			}
 
 			TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr;
-			if (IsReimport)
+			if (bIsReimport)
 			{
 				ExistMeshDataPtr = StaticMeshImportUtils::SaveExistingStaticMeshData(BaseStaticMesh, FFbxImporter->ImportOptions, LODLevel);
 			}
@@ -253,7 +265,7 @@ namespace FbxMeshUtils
 					TArray<int32> ReimportLodList;
 					ReimportLodList.Add(LODLevel);
 					StaticMeshImportUtils::UpdateSomeLodsImportMeshData(BaseStaticMesh, &ReimportLodList);
-					if(IsReimport)
+					if(bIsReimport)
 					{
 						StaticMeshImportUtils::RestoreExistingMeshData(ExistMeshDataPtr, BaseStaticMesh, LODLevel, false, ImportOptions->bResetToFbxOnMaterialConflict);
 					}
@@ -286,13 +298,118 @@ namespace FbxMeshUtils
 					bSuccess = false;
 				}
 			}
+		}
+		FFbxImporter->ReleaseScene();
 
-			// Cleanup
-			for (int32 i = 0; i < LODNodeList.Num(); ++i)
+		return bSuccess;
+	}
+
+	bool ImportStaticMeshHiResSourceModel(UStaticMesh* BaseStaticMesh, const FString& Filename)
+	{
+		if (!BaseStaticMesh)
+		{
+			UE_LOG(LogExportMeshUtils, Log, TEXT("Cannot import custom high res mesh because the staticmesh is NULL."));
+			return false;
+		}
+
+		bool bSuccess = false;
+
+		UE_LOG(LogExportMeshUtils, Log, TEXT("Fbx Mesh loading"));
+
+		UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
+		UnFbx::FFbxLoggerSetter Logger(FFbxImporter);
+
+		UnFbx::FBXImportOptions* ImportOptions = FFbxImporter->GetImportOptions();
+		Private::SetupFbxImportOptions(BaseStaticMesh, ImportOptions);
+		ImportOptions->StaticMeshLODGroup = NAME_None;
+		ImportOptions->bImportLOD = false;
+
+		UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(BaseStaticMesh->AssetImportData);
+
+		const bool bPreventMaterialNameClash = true;
+		if (!FFbxImporter->ImportFromFile(*Filename, FPaths::GetExtension(Filename), bPreventMaterialNameClash))
+		{
+			FFbxImporter->FlushToTokenizedErrorMessage(EMessageSeverity::Error);
+		}
+		else
+		{
+			FFbxImporter->FlushToTokenizedErrorMessage(EMessageSeverity::Warning);
+			if (ImportData)
 			{
-				delete LODNodeList[i];
+				FFbxImporter->ApplyTransformSettingsToFbxNode(FFbxImporter->Scene->GetRootNode(), ImportData);
+			}
+
+			constexpr int32 TempLODLevel = 0; // We are importing as LOD0 in a temporary mesh then transferring the geometry to the high res source model
+			int32 MaxLODLevel = 0;
+			TArray< TUniquePtr<TArray<FbxNode*>> > MeshNodeList;
+
+			const bool bUseLODs = false;
+			PopulateFBXStaticMeshLODList(FFbxImporter, FFbxImporter->Scene->GetRootNode(), MeshNodeList, MaxLODLevel, bUseLODs);
+
+			// Nothing found, error out
+			if (MeshNodeList.Num() == 0)
+			{
+				FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText(LOCTEXT("HiResImport_NoMeshFound", "No meshes were found in file."))), FFbxErrors::Generic_Mesh_MeshNotFound);
+
+				FFbxImporter->ReleaseScene();
+				return bSuccess;
+			}
+
+			{
+				UStaticMesh* TempStaticMesh = NULL;
+
+				if (MeshNodeList.IsValidIndex(0))
+				{
+					TempStaticMesh = (UStaticMesh*)FFbxImporter->ImportStaticMeshAsSingle(GetTransientPackage(), *(MeshNodeList[0]), NAME_None, RF_Transient,
+						ImportData, BaseStaticMesh, TempLODLevel);
+				}
+
+				// Add the imported mesh to the existing model
+				if (TempStaticMesh && TempStaticMesh->IsSourceModelValid(0))
+				{
+					BaseStaticMesh->Modify();
+
+					FMeshDescription* HiResMeshDescription = BaseStaticMesh->GetHiResMeshDescription();
+					if (HiResMeshDescription == nullptr)
+					{
+						HiResMeshDescription = BaseStaticMesh->CreateHiResMeshDescription();
+					}
+					check(HiResMeshDescription);
+
+					BaseStaticMesh->ModifyHiResMeshDescription();
+
+					FMeshDescription* LOD0MeshDescription = TempStaticMesh->GetMeshDescription(0);
+					check(LOD0MeshDescription);
+
+					*HiResMeshDescription = MoveTemp(*LOD0MeshDescription);
+
+					BaseStaticMesh->CommitHiResMeshDescription();
+
+					BaseStaticMesh->PostEditChange();
+					BaseStaticMesh->MarkPackageDirty();
+
+					FNotificationInfo NotificationInfo(FText::GetEmpty());
+					NotificationInfo.Text = FText::Format(LOCTEXT("HiResMeshImportSuccessful", "High res mesh imported successfully!"), FText::AsNumber(0));
+					NotificationInfo.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+
+					FStaticMeshSourceModel& SourceModel = BaseStaticMesh->GetHiResSourceModel();
+					SourceModel.SourceImportFilename = UAssetImportData::SanitizeImportFilename(Filename, nullptr);
+					SourceModel.bImportWithBaseMesh = false;
+
+					bSuccess = true;
+				}
+
+				if (!bSuccess) // Import failed
+				{
+					FNotificationInfo NotificationInfo(FText::GetEmpty());
+					NotificationInfo.Text = FText::Format(LOCTEXT("HiResMeshImportFail", "Failed to import high res mesh!"), FText::AsNumber(0));
+					NotificationInfo.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				}
 			}
 		}
+
 		FFbxImporter->ReleaseScene();
 
 		return bSuccess;
@@ -845,6 +962,72 @@ namespace FbxMeshUtils
 			{
 				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(StaticMesh, LODLevel);
 			}
+		}
+
+		return bImportSuccess;
+	}
+
+	bool ImportStaticMeshHiResSourceModelDialog( UStaticMesh* StaticMesh )
+	{
+		if (!StaticMesh)
+		{
+			return false;
+		}
+
+		// TODO: Interchange support
+
+		FString FilenameToImport("");
+
+		const FStaticMeshSourceModel& SourceModel = StaticMesh->GetHiResSourceModel();
+		FilenameToImport = SourceModel.SourceImportFilename.IsEmpty() ?
+			SourceModel.SourceImportFilename :
+			UAssetImportData::ResolveImportFilename(SourceModel.SourceImportFilename, nullptr);
+
+		// Check if the file exists first
+		const bool bSourceFileExists = FPaths::FileExists(FilenameToImport);
+
+		// We'll give the user a chance to choose a new file if a previously set file fails to import
+		const bool bPromptOnFail = bSourceFileExists;
+
+		if (!bSourceFileExists || FilenameToImport.IsEmpty())
+		{
+			FText PromptTitle;
+
+			if (FilenameToImport.IsEmpty())
+			{
+				PromptTitle = LOCTEXT("HiResImportPrompt_NoSource", "Choose a file to import for the High Resolution Mesh");
+			}
+			else if (!bSourceFileExists)
+			{
+				PromptTitle = LOCTEXT("HiResImportPrompt_SourceNotFound", "High Resolution Mesh Source file not found. Choose a new file.");
+			}
+
+			FilenameToImport = PromptForLODImportFile(PromptTitle);
+		}
+
+		bool bImportSuccess = false;
+
+		if (!FilenameToImport.IsEmpty())
+		{
+			bImportSuccess = ImportStaticMeshHiResSourceModel(StaticMesh, FilenameToImport);
+		}
+
+		if (!bImportSuccess && bPromptOnFail)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HiResImport_SourceMissingDialog", "Failed to import the High Resolution Mesh as the source file failed to import, please select a new source file."));
+
+			FText PromptTitle = LOCTEXT("HiResImportPrompt_SourceFailed", "Failed to import source file for the High Resolution Mesh, choose a new file");
+			FilenameToImport = PromptForLODImportFile(PromptTitle);
+
+			if (FilenameToImport.Len() > 0 && FPaths::FileExists(FilenameToImport))
+			{
+				bImportSuccess = ImportStaticMeshHiResSourceModel(StaticMesh, FilenameToImport);
+			}
+		}
+
+		if (!bImportSuccess && !FilenameToImport.IsEmpty())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HiResImport_Failure", "Failed to import the High Resolution Mesh"));
 		}
 
 		return bImportSuccess;

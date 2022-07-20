@@ -66,6 +66,16 @@ private:
 
 	/** Handler for calling import methods */
 	static void ExecuteImportMeshLOD(UObject* Mesh, int32 LOD);
+
+	/** Builds the High Res mesh sub-menu as part of the LOD menu */
+	void GetImportHiResMenu(class FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<UStaticMesh>> Objects);
+
+	/** Handles import and reimport of the high res source model */
+	static void ExecuteImportHiResMesh(UStaticMesh* Mesh);
+
+	/** Handles removing the high res source model from the mesh */
+	static void ExecuteRemoveHiResMesh(UStaticMesh* Mesh);
+
 private:
 
 	TWeakObjectPtr<UStaticMesh> LODCopyMesh;	
