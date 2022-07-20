@@ -12,6 +12,7 @@
 #include "VRNotificationsComponent.generated.h"
 
 class UObject;
+
 class IXRTrackingSystem;
 
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = HeadMountedDisplay)
