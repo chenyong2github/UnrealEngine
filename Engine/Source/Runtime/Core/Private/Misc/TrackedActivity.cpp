@@ -2,6 +2,9 @@
 
 #include "Misc/TrackedActivity.h"
 #include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/StringBuilder.h"
 
 // Singleton class that keep track of all the existing activities and their stacks
 class FTrackedActivityManager
