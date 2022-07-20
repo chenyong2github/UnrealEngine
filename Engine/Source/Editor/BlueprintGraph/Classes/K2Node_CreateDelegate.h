@@ -44,7 +44,7 @@ public:
 	virtual ERedirectType DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const override;
 	// End of UK2Node interface
 
-	bool IsValid(FString* OutMsg = NULL, bool bDontUseSkeletalClassForSelf = false) const;
+	bool IsValid(FString* OutMsg = nullptr, bool bDontUseSkeletalClassForSelf = false) const;
 
 	/** Set new Function name (Without notifying about the change) */
 	BLUEPRINTGRAPH_API void SetFunction(FName Name);
@@ -62,5 +62,5 @@ public:
 	BLUEPRINTGRAPH_API void ValidationAfterFunctionsAreCreated(class FCompilerResultsLog& MessageLog, bool bFullCompile) const;
 
 	// return Graph and Blueprint, when they should be notified about change. It allows to call BroadcastChanged only once per blueprint.
-	BLUEPRINTGRAPH_API void HandleAnyChange(UEdGraph* & OutGraph, UBlueprint* & OutBlueprint);
+	BLUEPRINTGRAPH_API void HandleAnyChange(UEdGraph*& OutGraph, UBlueprint*& OutBlueprint);
 };
