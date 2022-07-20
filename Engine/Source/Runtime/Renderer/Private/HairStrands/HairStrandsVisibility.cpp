@@ -55,7 +55,11 @@ static float GHairStrandsViewHairCountDepthDistanceThreshold = 30.f;
 static FAutoConsoleVariableRef CVarHairStrandsViewHairCountDepthDistanceThreshold(TEXT("r.HairStrands.Visibility.HairCount.DistanceThreshold"), GHairStrandsViewHairCountDepthDistanceThreshold, TEXT("Distance threshold defining if opaque depth get injected into the 'view-hair-count' buffer."));
 
 int32 GHairVisibilityComputeRaster_Culling = 0;
-int32 GHairVisibilityComputeRaster_MaxTiles = 8192;
+// This value was previously at 8192 but extending the binning algorithm to support segments longer than three tiles revealed a problem: Each binner allocates and writes its own tiles,
+// which often leads to lots of partially filled tiles for the same position in the tile grid. Without increasing the tile limit, we quickly run out of tiles to allocate when we get close
+// to a groom and the strand count and segment length increase. This new value was found empirically.
+// TODO: Find an efficient alternative algorithm where the binners output into shared tiles.
+int32 GHairVisibilityComputeRaster_MaxTiles = 65536;
 int32 GHairVisibilityComputeRaster_TileSize = 32;
 int32 GHairVisibilityComputeRaster_NumBinners = 32;
 int32 GHairVisibilityComputeRaster_NumRasterizers = 256;
@@ -2816,9 +2820,9 @@ class FVisiblityRasterComputeBinningCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairMaterialId)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VisTileBinningGrid)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, VisTileBinningGrid)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTilePrims)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutVisTileBinningGrid)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutVisTileBinningGrid)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisTileDepthGrid)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTileArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutVisTileData)
@@ -2895,7 +2899,7 @@ class FVisiblityRasterComputeDebugCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, PrimitiveInfoIndex)
 		SHADER_PARAMETER(uint32, TotalPrimitiveInfoCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisTileDepthGrid)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VisTileBinningGrid)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, VisTileBinningGrid)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
@@ -2950,15 +2954,15 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	AddClearUAVPass(GraphBuilder, DepthCovTextureUAV, ClearValues);
 	AddClearUAVPass(GraphBuilder, HairCountTextureUAV, ClearValues);
 
-	//set up buffers for binning and raster
-	const uint32 MaxTiles = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_MaxTiles, 1024), 65536);
+	// Set up buffers for binning and raster.
 
+	// See the comment on the GHairVisibilityComputeRaster_MaxTiles declaration for an explanation for the large upper bound.
+	const uint32 MaxTiles = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_MaxTiles, 1024), 262144);
 	const uint32 TileSize = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_TileSize, 8),32);
 	const uint32 NumBinners = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_NumBinners, 1), 256);
 	const uint32 NumRasterizers = FMath::Min(FMath::Max(GHairVisibilityComputeRaster_NumRasterizers, 1), 1024);
 
 	const FIntPoint TileGridRes = FIntPoint((InResolution.X + (TileSize-1)) / TileSize, ((InResolution.Y + (TileSize - 1)) / TileSize)*1);
-	const FIntVector TileGridRes3D = FIntVector(TileGridRes.X, TileGridRes.Y, NumBinners * 2);
 
 	FRDGBufferRef OutVisTilePrims = nullptr;
 	FRDGTextureRef OutVisTileBinningGrid = nullptr;
@@ -2976,7 +2980,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	
 	OutVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTiles*1024), TEXT("Hair.OutVisTilePrims"));
 
-	FRDGTextureDesc DescBinningGrid = FRDGTextureDesc::Create3D(TileGridRes3D, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
+	FRDGTextureDesc DescBinningGrid = FRDGTextureDesc::Create2DArray(TileGridRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource, NumBinners * 3);
 	OutVisTileBinningGrid = GraphBuilder.CreateTexture(DescBinningGrid, TEXT("Hair.VisTileBinningGrid"));
 
 	FRDGTextureDesc DescDepthGrid = FRDGTextureDesc::Create2D(TileGridRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
