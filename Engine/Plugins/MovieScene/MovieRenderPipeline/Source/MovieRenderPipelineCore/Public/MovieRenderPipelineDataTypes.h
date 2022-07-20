@@ -830,6 +830,10 @@ struct FMoviePipelineFilenameResolveParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	bool bForceRelativeFrameNumbers;
 
+	/** Optional. If specified this is the filename that will be used instead of automatically building it from the Job's Output Setting. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	FString FileNameOverride;
+
 	/** 
 	* A map between "{format}" tokens and their values. These are applied after the auto-generated ones from the system,
 	* which allows the caller to override things like {.ext} depending or {render_pass} which have dummy names by default.

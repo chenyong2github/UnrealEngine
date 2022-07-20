@@ -16,8 +16,14 @@
 #include "MoviePipelineBlueprintLibrary.h"
 
 // Forward Declare
-static TArray<FText> GetErrorTexts();
-static bool HasMultipleRenderPasses(const TArray<FMoviePipelineShotOutputData>& InData);
+namespace UE
+{
+namespace MoviePipeline
+{
+	static TArray<FText> GetErrorTexts();
+	static bool HasMultipleRenderPasses(const TArray<FMoviePipelineShotOutputData>& InData);
+}
+}
 
 UMoviePipelineCommandLineEncoder::UMoviePipelineCommandLineEncoder()
 {
@@ -69,7 +75,7 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 
 	// Early out if there's any errors
 	{
-		TArray<FText> ErrorTexts = GetErrorTexts();
+		TArray<FText> ErrorTexts = UE::MoviePipeline::GetErrorTexts();
 		for (const FText& ErrorText : ErrorTexts)
 		{
 			UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("%s"), *ErrorText.ToString());
@@ -87,7 +93,7 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 	
 	// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 	// overwrite the same file multiple times. 
-	const bool bIncludeRenderPass = HasMultipleRenderPasses(InOutData);
+	const bool bIncludeRenderPass = UE::MoviePipeline::HasMultipleRenderPasses(InOutData);
 	const bool bTestFrameNumber = false;
 
 	UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
@@ -166,6 +172,19 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 			FormatOverrides.Add(TEXT("shot_name"), Shot->OuterName);
 			FormatOverrides.Add(TEXT("camera_name"), Shot->InnerName);
 		}
+
+		// We must manually resolve {version} tokens because they're intended to be per-shot/global (ie: individual file names
+		// don't have versions when using image sequences).
+		{
+			FMoviePipelineFilenameResolveParams ResolveParams;
+			ResolveParams.InitializationTime = GetPipeline()->GetInitializationTime();
+			ResolveParams.Job = GetPipeline()->GetCurrentJob();
+			ResolveParams.ShotOverride = RenderPass.Value.Shot.Get();
+			ResolveParams.FileNameOverride = FileNameFormatString;
+			int32 VersionNumber = UMoviePipelineBlueprintLibrary::ResolveVersionNumber(ResolveParams);
+			FileNameFormatString.ReplaceInline(TEXT("{version}"), *FString::Printf(TEXT("v%0*d"), 3, VersionNumber));
+		}
+
 		FMoviePipelineFormatArgs FinalFormatArgs;
 
 		FString FinalFilePath;
@@ -416,55 +435,61 @@ FString UMoviePipelineCommandLineEncoder::GetQualitySettingString() const
 	return FString();
 }
 
-static TArray<FText> GetErrorTexts()
+namespace UE
 {
-	TArray<FText> OutErrors;
-	const UMoviePipelineCommandLineEncoderSettings* EncoderSettings = GetDefault<UMoviePipelineCommandLineEncoderSettings>();
-	if (EncoderSettings->ExecutablePath.Len() == 0)
-	{
-		OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingExecutable", "No encoder executable has been specified in the Project Settings. Please set an encoder executable in Project Settings > Movie Pipeline CLI Encoder"));
-	}
-	if (EncoderSettings->VideoCodec.Len() == 0)
-	{
-		OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingVideoCodec", "No video encoding codec has been specified in the Project Settings. Please set an video codec in Project Settings > Movie Pipeline CLI Encoder"));
-	}
-	if (EncoderSettings->AudioCodec.Len() == 0)
-	{
-		OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingAudioCodec", "No audio encoding codec has been specified in the Project Settings. Please set an audio codec in Project Settings > Movie Pipeline CLI Encoder"));
-	}
-	if (EncoderSettings->OutputFileExtension.Len() == 0)
-	{
-		OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingFileExtension", "No file extension has been specified in the Project Settings. Please set a file extension in Project Settings > Movie Pipeline CLI Encoder"));
-	}
-
-	return OutErrors;
-}
-
-static bool HasMultipleRenderPasses(const TArray<FMoviePipelineShotOutputData>& InData)
+namespace MoviePipeline
 {
-	bool bHasMultipleRenderPasses = false;
-	for (const FMoviePipelineShotOutputData& Data : InData)
+	static TArray<FText> GetErrorTexts()
 	{
-		int32 RenderPassCount = 0;
-		for (const TTuple<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData>& Pair : Data.RenderPassData)
+		TArray<FText> OutErrors;
+		const UMoviePipelineCommandLineEncoderSettings* EncoderSettings = GetDefault<UMoviePipelineCommandLineEncoderSettings>();
+		if (EncoderSettings->ExecutablePath.Len() == 0)
 		{
-			if (Pair.Key.Name != TEXT("Audio"))
-			{
-				RenderPassCount++;
-			}
+			OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingExecutable", "No encoder executable has been specified in the Project Settings. Please set an encoder executable in Project Settings > Movie Pipeline CLI Encoder"));
+		}
+		if (EncoderSettings->VideoCodec.Len() == 0)
+		{
+			OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingVideoCodec", "No video encoding codec has been specified in the Project Settings. Please set an video codec in Project Settings > Movie Pipeline CLI Encoder"));
+		}
+		if (EncoderSettings->AudioCodec.Len() == 0)
+		{
+			OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingAudioCodec", "No audio encoding codec has been specified in the Project Settings. Please set an audio codec in Project Settings > Movie Pipeline CLI Encoder"));
+		}
+		if (EncoderSettings->OutputFileExtension.Len() == 0)
+		{
+			OutErrors.Add(NSLOCTEXT("MovieRenderPipeline", "CommandLineEncode_MissingFileExtension", "No file extension has been specified in the Project Settings. Please set a file extension in Project Settings > Movie Pipeline CLI Encoder"));
 		}
 
-		bHasMultipleRenderPasses |= RenderPassCount > 1;
+		return OutErrors;
 	}
 
-	return bHasMultipleRenderPasses;
+	static bool HasMultipleRenderPasses(const TArray<FMoviePipelineShotOutputData>& InData)
+	{
+		bool bHasMultipleRenderPasses = false;
+		for (const FMoviePipelineShotOutputData& Data : InData)
+		{
+			int32 RenderPassCount = 0;
+			for (const TTuple<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData>& Pair : Data.RenderPassData)
+			{
+				if (Pair.Key.Name != TEXT("Audio"))
+				{
+					RenderPassCount++;
+				}
+			}
+
+			bHasMultipleRenderPasses |= RenderPassCount > 1;
+		}
+
+		return bHasMultipleRenderPasses;
+	}
+}
 }
 
 void UMoviePipelineCommandLineEncoder::ValidateStateImpl()
 {
 	Super::ValidateStateImpl();
 
-	TArray<FText> Errors = GetErrorTexts();
+	TArray<FText> Errors = UE::MoviePipeline::GetErrorTexts();
 	for (const FText& Error : Errors)
 	{
 		ValidationResults.Add(Error);

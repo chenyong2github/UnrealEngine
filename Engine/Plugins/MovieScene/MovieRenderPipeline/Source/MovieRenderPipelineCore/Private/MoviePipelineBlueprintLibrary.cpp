@@ -761,7 +761,7 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenam
 	}
 
 	// Calculate a version number by looking at the output path and then scanning for a version token.
-	FString FileNameFormatString = OutputSettings->OutputDirectory.Path / OutputSettings->FileNameFormat;
+	FString FileNameFormatString = InParams.FileNameOverride.Len() > 0 ? InParams.FileNameOverride : OutputSettings->OutputDirectory.Path / OutputSettings->FileNameFormat;
 
 	FString FinalPath;
 	FMoviePipelineFormatArgs FinalFormatArgs;
@@ -998,7 +998,9 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		NamedArgs.Add(Argument.Key, Argument.Value);
 	}
 
-	FString BaseFilename = FString::Format(*InFormatString, NamedArgs);
+	FString FileNameFormatString = InParams.FileNameOverride.Len() > 0 ? InParams.FileNameOverride : InFormatString;
+
+	FString BaseFilename = FString::Format(*FileNameFormatString, NamedArgs);
 	FPaths::NormalizeFilename(BaseFilename);
 
 
@@ -1023,7 +1025,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		NamedArgs.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
 
 		// Re-resolve the format string now that we've reassigned frame_dup to a number.
-		ThisTry = FString::Format(*InFormatString, NamedArgs) + Extension;
+		ThisTry = FString::Format(*FileNameFormatString, NamedArgs) + Extension;
 
 		// If the file doesn't exist, we can use that, else, increment the index and try again
 		if (CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
