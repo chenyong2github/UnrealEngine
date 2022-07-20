@@ -28,7 +28,7 @@
 #define D3D12RHI_USE_D3DDISASSEMBLE 1
 #endif
 
-// D3D12RHI PSO file cache doesn't work anymore. Use FPipelineFileCache instead
+// D3D12RHI PSO file cache doesn't work anymore. Use FPipelineFileCacheManager instead
 static TAutoConsoleVariable<int32> CVarPipelineStateDiskCache(
 	TEXT("D3D12.PSO.DiskCache"),
 	0,

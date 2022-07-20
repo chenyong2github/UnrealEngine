@@ -206,7 +206,7 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	if(Init.bFromPSOFileCache)
 	{
 		// Let the cache know so it hopefully won't give out this one again
-		FPipelineFileCache::RegisterPSOCompileFailure(GetTypeHash(Init), Init);
+		FPipelineFileCacheManager::RegisterPSOCompileFailure(GetTypeHash(Init), Init);
 	}
 	else
 	{
@@ -1398,11 +1398,11 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 
 	if (WasFound == false)
 	{
-		FPipelineFileCache::CacheComputePSO(GetTypeHash(ComputeShader), ComputeShader);
+		FPipelineFileCacheManager::CacheComputePSO(GetTypeHash(ComputeShader), ComputeShader);
 
 		// create new graphics state
 		OutCachedState = new FComputePipelineState(ComputeShader);
-		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(ComputeShader));
+		OutCachedState->Stats = FPipelineFileCacheManager::RegisterPSOStats(GetTypeHash(ComputeShader));
 
 		if (!bFromFileCache)
 		{
@@ -1449,7 +1449,7 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 	bool WasFound = GComputePipelineCache.FindOrAdd(ComputeShader, OutCachedState, [&RHICmdList, &ComputeShader, &DoAsyncCompile] {
 			// create new graphics state
 			TSharedPtr<FComputePipelineState> PipelineState(new FComputePipelineState(ComputeShader));
-			PipelineState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(ComputeShader));
+			PipelineState->Stats = FPipelineFileCacheManager::RegisterPSOStats(GetTypeHash(ComputeShader));
 
 			// create a compilation task, or just do it now...
 			if (DoAsyncCompile)
@@ -1632,7 +1632,7 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 	}
 	else
 	{
-		FPipelineFileCache::CacheRayTracingPSO(InInitializer);
+		FPipelineFileCacheManager::CacheRayTracingPSO(InInitializer);
 
 		// Copy the initializer as we may want to patch it below
 		FRayTracingPipelineStateInitializer Initializer = InInitializer;
@@ -1799,11 +1799,11 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 
 	if (bWasFound == false)
 	{
-		FPipelineFileCache::CacheGraphicsPSO(GetTypeHash(Initializer), Initializer);
+		FPipelineFileCacheManager::CacheGraphicsPSO(GetTypeHash(Initializer), Initializer);
 
 		// create new graphics state
 		OutCachedState = new FGraphicsPipelineState();
-		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(Initializer));
+		OutCachedState->Stats = FPipelineFileCacheManager::RegisterPSOStats(GetTypeHash(Initializer));
 
 		if (!Initializer.bFromPSOFileCache)
 		{
@@ -2006,7 +2006,7 @@ void PipelineStateCache::Shutdown()
 		
 		GGraphicsPipelineCache.DiscardAndSwap();
 	}
-	FPipelineFileCache::Shutdown();
+	FPipelineFileCacheManager::Shutdown();
 
 	for (auto Pair : GVertexDeclarationCache)
 	{

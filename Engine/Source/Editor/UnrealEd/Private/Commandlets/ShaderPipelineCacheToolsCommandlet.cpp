@@ -412,7 +412,7 @@ int32 DumpPSOSC(FString& Token, const FString& StableKeyFileDir)
 	TSet<FPipelineCacheFileFormatPSO> PSOs;
 
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loading %s...."), *Token);
-	if (!FPipelineFileCache::LoadPipelineFileCacheInto(Token, PSOs))
+	if (!FPipelineFileCacheManager::LoadPipelineFileCacheInto(Token, PSOs))
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Could not load %s or it was empty."), *Token);
 		return 1;
@@ -922,7 +922,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loading %s...."), *Tokens[Index]);
 			TSet<FPipelineCacheFileFormatPSO> TempPSOs;
-			if (!FPipelineFileCache::LoadPipelineFileCacheInto(Tokens[Index], TempPSOs))
+			if (!FPipelineFileCacheManager::LoadPipelineFileCacheInto(Tokens[Index], TempPSOs))
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Could not load %s or it was empty."), *Tokens[Index]);
 				continue;
@@ -1965,7 +1965,7 @@ int32 SaveBinaryPipelineCacheFile(const FString& OutputFilename, const EShaderPl
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Could not delete %s"), *OutputFilename);
 		}
-		if (!FPipelineFileCache::SavePipelineFileCacheFrom(FShaderPipelineCache::GetGameVersionForPSOFileCache(), ShaderPlatform, OutputFilename, PSOs))
+		if (!FPipelineFileCacheManager::SavePipelineFileCacheFrom(FShaderPipelineCache::GetGameVersionForPSOFileCache(), ShaderPlatform, OutputFilename, PSOs))
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Failed to save %s"), *OutputFilename);
 			return 1;
@@ -2024,9 +2024,12 @@ int32 SaveBinaryPipelineCacheFile(const FString& OutputFilename, const EShaderPl
 			ChunkIds.Add(kInvalidChunkId);
 		}
 
+		// This should be passed in.
+		FString ChunkDir = FPaths::GetPath(OutputFilename);
+
 		// prepare everything necessary to split the PSOs
 		ParallelFor(ChunkInfoFilenames.Num(),
-			[&ChunkInfoFilenames, &ChunkIds, &ChunkIdsAndResultAccessLock, &OverallResult, &StableNameMap, &StableMapConvTask, &ShaderPlatform, &ShaderFormat, &PSOs, &SaveSingleCacheFile](int32 Index)
+			[&ChunkDir, &ChunkInfoFilenames, &ChunkIds, &ChunkIdsAndResultAccessLock, &OverallResult, &StableNameMap, &StableMapConvTask, &ShaderPlatform, &ShaderFormat, &PSOs, &SaveSingleCacheFile](int32 Index)
 			{
 				int32 ChunkId;
 				FString OutputFilename;
@@ -2110,7 +2113,8 @@ int32 SaveBinaryPipelineCacheFile(const FString& OutputFilename, const EShaderPl
 
 				if (PSOsInChunk.Num())
 				{
-					int32 Result = SaveSingleCacheFile(OutputFilename, ShaderPlatform, PSOsInChunk);
+					FString FinalPath = FPaths::Combine(ChunkDir, OutputFilename);
+					int32 Result = SaveSingleCacheFile(FinalPath, ShaderPlatform, PSOsInChunk);
 					if (Result != 0)
 					{
 						FScopeLock Locker(&ChunkIdsAndResultAccessLock);

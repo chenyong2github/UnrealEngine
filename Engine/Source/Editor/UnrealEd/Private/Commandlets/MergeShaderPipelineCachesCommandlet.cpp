@@ -21,20 +21,20 @@ int32 UMergeShaderPipelineCachesCommandlet::Main(const FString& Params)
 
 	bool bOK = (Tokens.Num() >= 3);
 	
-	FPipelineFileCache::PSOOrder Order = FPipelineFileCache::PSOOrder::Default;
+	FPipelineFileCacheManager::PSOOrder Order = FPipelineFileCacheManager::PSOOrder::Default;
 	if (const FString* OrderVal = ParamVals.Find(FString(TEXT("Sort"))))
 	{
 		if(*OrderVal == TEXT("Default"))
 		{
-			Order = FPipelineFileCache::PSOOrder::Default;
+			Order = FPipelineFileCacheManager::PSOOrder::Default;
 		}
 		else if(*OrderVal == TEXT("FirstUsed"))
 		{
-			Order = FPipelineFileCache::PSOOrder::FirstToLatestUsed;
+			Order = FPipelineFileCacheManager::PSOOrder::FirstToLatestUsed;
 		}
 		else if(*OrderVal == TEXT("MostUsed"))
 		{
-			Order = FPipelineFileCache::PSOOrder::MostToLeastUsed;
+			Order = FPipelineFileCacheManager::PSOOrder::MostToLeastUsed;
 		}
 		else
 		{
@@ -61,5 +61,5 @@ int32 UMergeShaderPipelineCachesCommandlet::Main(const FString& Params)
 		return 0;
 	}
 	
-	return !FPipelineFileCache::MergePipelineFileCaches(A, B, Order, Output);
+	return !FPipelineFileCacheManager::MergePipelineFileCaches(A, B, Order, Output);
 }

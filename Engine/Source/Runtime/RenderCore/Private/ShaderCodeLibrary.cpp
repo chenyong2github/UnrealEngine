@@ -1989,6 +1989,7 @@ public:
 
 		bool bResult = false;
 
+		TSet<int32> NewComponentIDs;
 		if (IsLibraryInitializedForRuntime())
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
@@ -2026,8 +2027,7 @@ public:
 			}
 			else // attempt to open a chunked library
 			{
-				int32 PrevNumComponents = Library->GetNumComponents();
-
+				TSet<int32> PrevComponentSet = Library->PresentChunks;
 				{
 					FScopeLock KnownPakFilesLocker(&FMountedPakFileInfo::KnownPakFilesAccessLock);
 					for (TSet<FMountedPakFileInfo>::TConstIterator Iter(FMountedPakFileInfo::KnownPakFiles); Iter; ++Iter)
@@ -2035,8 +2035,9 @@ public:
 						Library->OnPakFileMounted(*Iter);
 					}
 				}
-
-				bResult = (Library->GetNumComponents() > PrevNumComponents);
+				NewComponentIDs = Library->PresentChunks.Difference(PrevComponentSet);
+				bResult = !NewComponentIDs.IsEmpty();
+				UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' component count %d, new components: %d"), *Name, Library->GetNumComponents(), NewComponentIDs.Num());
 
 #if UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
 				if (!bResult)
@@ -2072,7 +2073,8 @@ public:
 								}
 							}
 
-							bResult = (Library->GetNumComponents() > PrevNumComponents);
+							NewComponentIDs = Library->PresentChunks.Difference(PrevComponentSet);
+							bResult = !NewComponentIDs.IsEmpty();
 						}
 						else
 						{
@@ -2106,7 +2108,11 @@ public:
 				// Inform the pipeline cache that the state of loaded libraries has changed (unless we had to delete the duplicate)
 				if (Library != nullptr)
 				{
-					FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Opened, ShaderPlatform, Name);
+					FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Opened, ShaderPlatform, Name, INDEX_NONE);
+					for (int32 ComponentID : NewComponentIDs)
+					{
+						FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::OpenedComponent, ShaderPlatform, Name, ComponentID);
+					}
 				}
 			}
 		}
@@ -2148,7 +2154,7 @@ public:
 		}
 
 		// Inform the pipeline cache that the state of loaded libraries has changed
-		FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Closed, ShaderPlatform, Name);
+		FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Closed, ShaderPlatform, Name, -1);
 
 #if WITH_EDITOR
 		for (uint32 i = 0; i < EShaderPlatform::SP_NumPlatforms; i++)
@@ -2170,10 +2176,25 @@ public:
 	{		
 		if (IsLibraryInitializedForRuntime())
 		{
-			FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
-			for (TTuple<FString, TUniquePtr<UE::ShaderLibrary::Private::FNamedShaderLibrary>>& NamedLibraryPair : NamedLibrariesStack)
+			TArray<TUniqueFunction<void()>> ShaderLibraryStateChanges;
 			{
-				NamedLibraryPair.Value->OnPakFileMounted(MountInfo);
+				FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
+				for (TTuple<FString, TUniquePtr<UE::ShaderLibrary::Private::FNamedShaderLibrary>>& NamedLibraryPair : NamedLibrariesStack)
+				{
+					TSet<int32> PrevComponentSet = NamedLibraryPair.Value->PresentChunks;
+					NamedLibraryPair.Value->OnPakFileMounted(MountInfo);
+					for (int32 ComponentID : NamedLibraryPair.Value->PresentChunks.Difference(PrevComponentSet))
+					{
+						// Defer these for outside of the lock, ShaderPipelineCache may want to inspect shader library.
+						ShaderLibraryStateChanges.Add([ShaderPlatform = NamedLibraryPair.Value->ShaderPlatform, LogicalName = NamedLibraryPair.Value->LogicalName, ComponentID]() {
+							FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::OpenedComponent, ShaderPlatform, LogicalName, ComponentID);
+						});
+					}
+				}
+			}
+			for (TUniqueFunction<void()>& OnShaderLibraryStateChange : ShaderLibraryStateChanges)
+			{
+				OnShaderLibraryStateChange();
 			}
 		}
 	}
