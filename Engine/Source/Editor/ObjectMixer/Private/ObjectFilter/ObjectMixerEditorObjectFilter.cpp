@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
 #include "GameFramework/Actor.h"
