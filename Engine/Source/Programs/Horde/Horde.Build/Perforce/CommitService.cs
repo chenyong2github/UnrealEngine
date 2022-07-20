@@ -874,7 +874,7 @@ namespace Horde.Build.Perforce
 		/// <returns></returns>
 		static RefName GetRefName(StreamId streamId, int change, string? filter, bool revisionsOnly)
 		{
-			StringBuilder builder = new StringBuilder($"v1/{streamId}/{change}");
+			StringBuilder builder = new StringBuilder($"v2/{streamId}/{change}");
 			if (filter != null)
 			{
 				builder.Append($"_filter_{IoHash.Compute(Encoding.UTF8.GetBytes(filter))}");
