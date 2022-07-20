@@ -114,10 +114,10 @@ struct FCachedGeometry
 		uint32 TotalVertexCount = 0;
 		uint32 TotalIndexCount = 0;
 		uint32 SectionIndex = 0;
-		int32 LODIndex = 0;
+		int32 LODIndex = -1;
 	};
 
-	int32 LODIndex = 0;
+	int32 LODIndex = -1;
 	TArray<Section> Sections;
 	FRDGBufferRef DeformedPositionBuffer = nullptr;
 	FRDGBufferRef DeformedPreviousPositionBuffer = nullptr;

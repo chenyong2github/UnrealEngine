@@ -2148,6 +2148,7 @@ FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId, EGPUSkinCac
 						Out.Sections.Add(CachedSection);
 					}
 					Out.LocalToWorld = FTransform(Entry->GPUSkin->GetTransform());
+					Out.LODIndex = LODIndex;
 					return true;
 				}
 			}

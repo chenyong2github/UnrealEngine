@@ -79,12 +79,13 @@ FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder, 
 	FHairGroupInstance* Instance, 
 	const FGPUSkinCache* SkinCache, 
-	FGlobalShaderMap* ShaderMap)
+	FGlobalShaderMap* ShaderMap,
+	const bool bOutputTriangleData)
 {
 	FCachedGeometry Out;
 	if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 	{
-		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
+		if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
 		{
 			if (SkinCache)
 			{
@@ -94,16 +95,16 @@ FCachedGeometry GetCacheGeometryForHair(
 			if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
 			{
 				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
-				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
-				BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, Out);
+				// Actual populate the cache with only the needed part based on the groom projection data. At the moment it recompute everything ...
+				BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, bOutputTriangleData, Out);
 			}
 		}
 	}
 	else if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::GeometryCache)
 	{
-		if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+		if (const UGeometryCacheComponent* GeometryCacheComponent = Cast<const UGeometryCacheComponent>(Instance->Debug.MeshComponent))
 		{
-			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, Out);
+			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, bOutputTriangleData, Out);
 		}
 	}
 	return Out;
@@ -113,7 +114,7 @@ FCachedGeometry GetCacheGeometryForHair(
 // Return -1 if the hair are not bound of if the underlying geometry is invalid
 static int32 GetCacheGeometryLODIndex(const FCachedGeometry& In)
 {
-	int32 MeshLODIndex = -1;
+	int32 MeshLODIndex = In.LODIndex;
 	for (const FCachedGeometry::Section& Section : In.Sections)
 	{
 		// Ensure all mesh's sections have the same LOD index
@@ -155,7 +156,7 @@ static void RunInternalHairStrandsInterpolation(
 		check(Instance->HairGroupPublicData);
 
 		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
-		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap, true);
 		for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
 		{
 			// Ensure all mesh's sections have the same LOD index
@@ -707,7 +708,7 @@ static void RunHairLODSelection(
 
 		check(Instance);
 		check(Instance->HairGroupPublicData);
-		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap, false);
 		const int32 MeshLODIndex = GetCacheGeometryLODIndex(CachedGeometry);
 
 		// Perform LOD selection based on all the views	

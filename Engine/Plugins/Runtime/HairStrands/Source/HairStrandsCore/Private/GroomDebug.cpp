@@ -69,6 +69,13 @@ static FAutoConsoleVariableRef CVarHairStrandsControlPointDebug(TEXT("r.HairStra
 
 bool IsHairStrandsSkinCacheEnable();
 
+FCachedGeometry GetCacheGeometryForHair(
+	FRDGBuilder& GraphBuilder,
+	FHairGroupInstance* Instance,
+	const FGPUSkinCache* SkinCache,
+	FGlobalShaderMap* ShaderMap,
+	const bool bOutputTriangleData);
+
 static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -84,26 +91,7 @@ static void GetGroomInterpolationData(
 		if (!Instance || !Instance->Debug.MeshComponent)
 			continue;
 
-		FCachedGeometry CachedGeometry;
-		if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
-		{
-			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
-			{
-				if (SkinCache)
-				{
-					CachedGeometry = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
-				}
-
-				if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
-				{
-					BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, CachedGeometry);
-				}
-			}
-		}
-		else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
-		{
-			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
-		}
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache,ShaderMap, true);
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
 
@@ -814,13 +802,6 @@ static const TCHAR* ToString(EHairLODSelectionType In)
 	}
 	return TEXT("None");
 }
-
-FCachedGeometry GetCacheGeometryForHair(
-	FRDGBuilder& GraphBuilder,
-	FHairGroupInstance* Instance,
-	const FGPUSkinCache* SkinCache,
-	FGlobalShaderMap* ShaderMap);
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

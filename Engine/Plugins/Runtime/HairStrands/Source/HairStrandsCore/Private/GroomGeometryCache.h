@@ -12,16 +12,20 @@
 #include "HairStrandsMeshProjection.h"
 #include "GPUSkinCache.h"
 
+class UGeometryCacheComponent;
+
 FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In, const FTransform& T);
 
 void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
-	USkeletalMeshComponent* SkeletalMeshComponent, 
-	FCachedGeometry& CachedGeometry);
+	const USkeletalMeshComponent* SkeletalMeshComponent, 
+	const bool bOutputTriangleData,
+	FCachedGeometry& OutCachedGeometry);
 
 void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
-	class UGeometryCacheComponent* GeometryCacheComponent, 
-	FCachedGeometry& CachedGeometry);
+	const UGeometryCacheComponent* GeometryCacheComponent,
+	const bool bOutputTriangleData,
+	FCachedGeometry& OutCachedGeometry);
