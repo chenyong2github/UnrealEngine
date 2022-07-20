@@ -15,7 +15,7 @@ namespace Audio
 		ReadConfiguration(InConfigSystem, InConfigFilename, InPlatformIdentifierForLogging);
 	}
 
-	FName FAudioFormatSettings::GetWaveFormat(const class USoundWave* Wave) const
+	FName FAudioFormatSettings::GetWaveFormat(const USoundWave* Wave) const
 	{
 		FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
 		if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)

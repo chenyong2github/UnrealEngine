@@ -6,6 +6,7 @@
 
 class FString;
 class FConfigCacheIni;
+class USoundWave;
 
 namespace Audio
 {
@@ -15,7 +16,7 @@ namespace Audio
 		FAudioFormatSettings(FConfigCacheIni* InConfigSystem, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging);
 		~FAudioFormatSettings() = default;
 
-		FName GetWaveFormat(const class USoundWave* Wave) const;
+		FName GetWaveFormat(const USoundWave* Wave) const;
 		void GetAllWaveFormats(TArray<FName>& OutFormats) const;
 		void GetWaveFormatModuleHints(TArray<FName>& OutHints) const;
 
