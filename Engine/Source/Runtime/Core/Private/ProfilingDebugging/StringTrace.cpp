@@ -6,8 +6,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_EVENT_DEFINE(Strings, StaticString);
 UE_TRACE_EVENT_DEFINE(Strings, FName);
-UE_TRACE_EVENT_DEFINE(Strings, StaticStringNoSync);
-UE_TRACE_EVENT_DEFINE(Strings, FNameNoSync);
 
 #if UE_TRACE_ENABLED
 

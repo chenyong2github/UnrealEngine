@@ -14,8 +14,6 @@ void FStringsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	Context.InterfaceBuilder.RouteEvent(RouteId_StaticString, "Strings", "StaticString");
 	Context.InterfaceBuilder.RouteEvent(RouteId_FName, "Strings", "FName");
-	Context.InterfaceBuilder.RouteEvent(RouteId_StaticStringNoSync, "Strings", "StaticStringNoSync");
-	Context.InterfaceBuilder.RouteEvent(RouteId_FNameNoSync, "Strings", "FNameNoSync");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,8 +25,6 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 		// The layout of these two events is identical so they can be handled using the same code.
 	case RouteId_StaticString:
 	case RouteId_FName:
-	case RouteId_StaticStringNoSync:
-	case RouteId_FNameNoSync:
 		{
 			const FEventData& EventData = Context.EventData;
 			IDefinitionProvider* DefinitionProvider = GetDefinitionProvider(Session);

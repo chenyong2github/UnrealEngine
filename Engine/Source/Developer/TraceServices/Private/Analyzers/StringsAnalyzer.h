@@ -19,8 +19,6 @@ private:
 	{
 		RouteId_StaticString,
 		RouteId_FName,
-		RouteId_StaticStringNoSync,
-		RouteId_FNameNoSync,
 	};
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
