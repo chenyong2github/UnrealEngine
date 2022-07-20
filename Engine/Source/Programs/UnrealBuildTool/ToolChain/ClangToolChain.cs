@@ -187,6 +187,9 @@ namespace UnrealBuildTool
 		protected StaticAnalyzer StaticAnalyzer = StaticAnalyzer.None;
 		protected StaticAnalyzerMode StaticAnalyzerMode = StaticAnalyzerMode.Deep;
 		protected StaticAnalyzerOutputType StaticAnalyzerOutputType = StaticAnalyzerOutputType.Text;
+		protected IReadOnlyList<string> StaticAnalyzerCheckers = new List<string>();
+		protected IReadOnlyList<string> StaticAnalyzerDisabledCheckers = new List<string>();
+		protected IReadOnlyList<string> StaticAnalyzerAdditionalCheckers = new List<string>();
 
 		static ClangToolChain()
 		{
@@ -213,6 +216,9 @@ namespace UnrealBuildTool
 			StaticAnalyzer = Target.StaticAnalyzer;
 			StaticAnalyzerMode = Target.StaticAnalyzerMode;
 			StaticAnalyzerOutputType = Target.StaticAnalyzerOutputType;
+			StaticAnalyzerCheckers = Target.StaticAnalyzerCheckers;
+			StaticAnalyzerDisabledCheckers = Target.StaticAnalyzerDisabledCheckers;
+			StaticAnalyzerAdditionalCheckers = Target.StaticAnalyzerAdditionalCheckers;
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
@@ -681,21 +687,65 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Compile arguments for running clang-analyze. Currently unsupported.
+		/// Compile arguments for running clang-analyze.
 		/// </summary>
 		/// <param name="CompileEnvironment"></param>
 		/// <param name="Arguments"></param>
 		protected virtual void GetCompileArguments_Analyze(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-Wno-unused-command-line-argument");
-			Arguments.Add("--analyze");
+			if (StaticAnalyzerCheckers.Count == 0)
+			{
+				// Enable the static analyzer with default checkers.
+				Arguments.Add("--analyze");
+			}
+			else
+			{
+				// Enable the static analyzer but only via the backend to disable all default checkers.
+				Arguments.Add("-Xclang -analyze");
+			}
+
+			// Ensure the compiler sets the __clang_analyzer__ macro correctly.
+			Arguments.Add("-Xclang -setup-static-analyzer");
+
+			// Make sure we check inside nested blocks (e.g. 'if ((foo = getchar()) == 0) {}')
+			Arguments.Add("-Xclang -analyzer-opt-analyze-nested-blocks");
+
+			// Write out a pretty web page with navigation to understand how the analysis was derived if HTML is enabled.
 			Arguments.Add($"-Xclang -analyzer-output={StaticAnalyzerOutputType.ToString().ToLowerInvariant()}");
+
+			// Needed for some of the C++ checkers.
+			Arguments.Add("-Xclang -analyzer-config -Xclang aggressive-binary-operation-simplification=true");
+
+			// If writing to HTML, use the source filename as a basis for the report filename.
 			Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
 			Arguments.Add("-Xclang -analyzer-config -Xclang report-in-main-source-file=true");
 			Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
-			Arguments.Add("-Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores");
-			Arguments.Add("-Xclang -analyzer-disable-checker -Xclang security.FloatLoopCounter");
+
+			// Run shallow analyze if requested.
 			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+
+			if (StaticAnalyzerCheckers.Count > 0)
+			{
+				// Only enable specific checkers.
+				foreach (string Checker in StaticAnalyzerCheckers)
+				{
+					Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
+				}
+			}
+			else
+			{
+				// Disable default checkers.
+				foreach (string Checker in StaticAnalyzerDisabledCheckers)
+				{
+					Arguments.Add($"-Xclang -analyzer-disable-checker -Xclang {Checker}");
+				}
+				// Enable additional non-default checkers.
+				foreach (string Checker in StaticAnalyzerAdditionalCheckers)
+				{
+					Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
+				}
+			}
 		}
 
 		/// <summary>

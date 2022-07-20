@@ -269,63 +269,59 @@ namespace UnrealBuildTool
 				
 				if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create)
 				{
-					// Enable the static analyzer but only via the backend. Using the frontend
-					// flag ('--analyze') will enable a suite of default checkers, some of which
-					// we don't want (like deadcode.DeadStore)
-					Arguments.Add("-Xclang -analyze");
+					Arguments.Add("-Wno-unused-command-line-argument");
 
-					// Make sure we get textual output and not XML.
-					if (Target.StaticAnalyzerOutputType == StaticAnalyzerOutputType.Html)
+					if (Target.StaticAnalyzerCheckers.Count == 0)
 					{
-						// Write out a pretty web page with navigation to understand how the analysis was derived.
-						Arguments.Add("-Xclang -analyzer-output=html");
-						
-						// If writing to HTML, use the source filename as a basis for the report filename. 
-						Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
+						// Enable the static analyzer with default checkers.
+						Arguments.Add("--analyze");
 					}
 					else
 					{
-						Arguments.Add("-Xclang -analyzer-output=text");
+						// Enable the static analyzer but only via the backend to disable all default checkers.
+						Arguments.Add("-Xclang -analyze");
 					}
-
-					// Make sure we check inside nested blocks (e.g. 'if ((foo = getchar()) == 0) {}')
-					Arguments.Add("-Xclang -analyzer-opt-analyze-nested-blocks");
-
-					// Needed for some of the C++ checkers.
-					Arguments.Add("-Xclang -analyzer-config -Xclang aggressive-binary-operation-simplification=true");
 
 					// Ensure the compiler sets the __clang_analyzer__ macro correctly.
 					Arguments.Add("-Xclang -setup-static-analyzer");
 
-					// Enable only specific checkers of families of checkers
-					// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
-					//    'clang -Xclang -analyzer-checker-help' 
-					// or: 
-					//    'clang -Xclang -analyzer-checker-help-alpha' 
-					// for the list of experimental checkers.
-					String[] EnabledCheckers = 
-					{
-						"core",
-						"unix.Malloc",
-						"unix.MallocSizeof",
-						"cplusplus",
-						"optin.cplusplus.UninitializedObject",
-						"optin.cplusplus.VirtualCall",
-						// "deadstore",					// Check for dead stores (noisy in UE).
-						// "security.FloatLoopCounter",	// Check if using floats for loop counters
-						// Experimental checkers (as of clang 11.0)
-						// "alpha.core.Conversion",		// Sign conversion (noisy)
-						// "alpha.core.PointerArithm",	// Sketchy pointer arithmetic
-						// "alpha.cplusplus.DeleteWithNonVirtualDtor",
-						// "alpha.cplusplus.InvalidatedIterator",
-						// "alpha.cplusplus.IteratorRange",
-						// "alpha.cplusplus.MismatchedIterator",
-						// "alpha.cplusplus.InvalidatedIterator",
-					};
+					// Make sure we check inside nested blocks (e.g. 'if ((foo = getchar()) == 0) {}')
+					Arguments.Add("-Xclang -analyzer-opt-analyze-nested-blocks");
 
-					foreach (String Checker in EnabledCheckers)
+					// Write out a pretty web page with navigation to understand how the analysis was derived if HTML is enabled.
+					Arguments.Add($"-Xclang -analyzer-output={Target.StaticAnalyzerOutputType.ToString().ToLowerInvariant()}");
+
+					// Needed for some of the C++ checkers.
+					Arguments.Add("-Xclang -analyzer-config -Xclang aggressive-binary-operation-simplification=true");
+
+					// If writing to HTML, use the source filename as a basis for the report filename. 
+					Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
+					Arguments.Add("-Xclang -analyzer-config -Xclang report-in-main-source-file=true");
+					Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
+
+					// Run shallow analyze if requested.
+					if (Target.StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+
+					if (Target.StaticAnalyzerCheckers.Count > 0)
 					{
-						Arguments.Add($"-Xclang -analyzer-checker={Checker}");
+						// Only enable specific checkers.
+						foreach (string Checker in Target.StaticAnalyzerCheckers)
+						{
+							Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
+						}
+					}
+					else
+					{
+						// Disable default checkers.
+						foreach (string Checker in Target.StaticAnalyzerDisabledCheckers)
+						{
+							Arguments.Add($"-Xclang -analyzer-disable-checker -Xclang {Checker}");
+						}
+						// Enable additional non-default checkers.
+						foreach (string Checker in Target.StaticAnalyzerAdditionalCheckers)
+						{
+							Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
+						}
 					}
 				}
 			}
