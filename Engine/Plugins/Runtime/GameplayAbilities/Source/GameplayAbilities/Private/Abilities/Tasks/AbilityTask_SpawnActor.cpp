@@ -66,7 +66,10 @@ void UAbilityTask_SpawnActor::FinishSpawningActor(UGameplayAbility* OwningAbilit
 			}
 		if (!bTransformSet)
 		{
-			SpawnTransform = AbilitySystemComponent->GetOwner()->GetTransform();
+			if (UAbilitySystemComponent* ASC = AbilitySystemComponent.Get())
+			{
+				SpawnTransform = ASC->GetOwner()->GetTransform();
+			}
 		}
 
 		SpawnedActor->FinishSpawning(SpawnTransform);

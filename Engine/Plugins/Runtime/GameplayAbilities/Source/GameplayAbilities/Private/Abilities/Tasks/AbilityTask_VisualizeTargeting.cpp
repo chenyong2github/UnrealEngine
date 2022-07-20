@@ -93,11 +93,12 @@ bool UAbilityTask_VisualizeTargeting::BeginSpawningActor(UGameplayAbility* Ownin
 
 void UAbilityTask_VisualizeTargeting::FinishSpawningActor(UGameplayAbility* OwningAbility, AGameplayAbilityTargetActor* SpawnedActor)
 {
-	if (SpawnedActor)
+	UAbilitySystemComponent* ASC = AbilitySystemComponent.Get();
+	if (SpawnedActor && ASC)
 	{
 		check(TargetActor == SpawnedActor);
 
-		const FTransform SpawnTransform = AbilitySystemComponent->GetOwner()->GetTransform();
+		const FTransform SpawnTransform = ASC->GetOwner()->GetTransform();
 
 		SpawnedActor->FinishSpawning(SpawnTransform);
 
@@ -142,7 +143,10 @@ void UAbilityTask_VisualizeTargeting::FinalizeTargetActor(AGameplayAbilityTarget
 	check(SpawnedActor);
 	check(Ability);
 
-	AbilitySystemComponent->SpawnedTargetActors.Push(SpawnedActor);
+	if (UAbilitySystemComponent* ASC = AbilitySystemComponent.Get())
+	{
+		ASC->SpawnedTargetActors.Push(SpawnedActor);
+	}
 
 	SpawnedActor->StartTargeting(Ability);
 }

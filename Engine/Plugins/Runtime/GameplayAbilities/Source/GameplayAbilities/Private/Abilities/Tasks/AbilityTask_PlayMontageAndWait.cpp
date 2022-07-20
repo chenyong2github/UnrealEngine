@@ -101,13 +101,13 @@ void UAbilityTask_PlayMontageAndWait::Activate()
 
 	bool bPlayedMontage = false;
 
-	if (AbilitySystemComponent.IsValid())
+	if (UAbilitySystemComponent* ASC = AbilitySystemComponent.Get())
 	{
 		const FGameplayAbilityActorInfo* ActorInfo = Ability->GetCurrentActorInfo();
 		UAnimInstance* AnimInstance = ActorInfo->GetAnimInstance();
 		if (AnimInstance != nullptr)
 		{
-			if (AbilitySystemComponent->PlayMontage(Ability, Ability->GetCurrentActivationInfo(), MontageToPlay, Rate, StartSection, StartTimeSeconds) > 0.f)
+			if (ASC->PlayMontage(Ability, Ability->GetCurrentActivationInfo(), MontageToPlay, Rate, StartSection, StartTimeSeconds) > 0.f)
 			{
 				// Playing a montage could potentially fire off a callback into game code which could kill this ability! Early out if we are  pending kill.
 				if (ShouldBroadcastAbilityTaskDelegates() == false)
@@ -157,8 +157,6 @@ void UAbilityTask_PlayMontageAndWait::Activate()
 
 void UAbilityTask_PlayMontageAndWait::ExternalCancel()
 {
-	check(AbilitySystemComponent.IsValid());
-
 	if (ShouldBroadcastAbilityTaskDelegates())
 	{
 		OnCancelled.Broadcast();
@@ -206,10 +204,11 @@ bool UAbilityTask_PlayMontageAndWait::StopPlayingMontage()
 
 	// Check if the montage is still playing
 	// The ability would have been interrupted, in which case we should automatically stop the montage
-	if (AbilitySystemComponent.IsValid() && Ability)
+	UAbilitySystemComponent* ASC = AbilitySystemComponent.Get();
+	if (ASC && Ability)
 	{
-		if (AbilitySystemComponent->GetAnimatingAbility() == Ability
-			&& AbilitySystemComponent->GetCurrentMontage() == MontageToPlay)
+		if (ASC->GetAnimatingAbility() == Ability
+			&& ASC->GetCurrentMontage() == MontageToPlay)
 		{
 			// Unbind delegates so they don't get called as well
 			FAnimMontageInstance* MontageInstance = AnimInstance->GetActiveInstanceForMontage(MontageToPlay);
@@ -219,7 +218,7 @@ bool UAbilityTask_PlayMontageAndWait::StopPlayingMontage()
 				MontageInstance->OnMontageEnded.Unbind();
 			}
 
-			AbilitySystemComponent->CurrentMontageStop();
+			ASC->CurrentMontageStop();
 			return true;
 		}
 	}
