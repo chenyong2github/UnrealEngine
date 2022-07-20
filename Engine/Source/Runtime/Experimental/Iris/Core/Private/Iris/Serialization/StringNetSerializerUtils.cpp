@@ -123,7 +123,6 @@ void FStringNetSerializerBase::Dequantize(FNetSerializationContext& Context, con
 
 		if (OutLength == 0 || TempString.GetData()[OutLength - 1] != 0)
 		{
-			// $IRIS TODO: Bad decoding? Report an error?
 			OutLength += 1U;
 		}
 
