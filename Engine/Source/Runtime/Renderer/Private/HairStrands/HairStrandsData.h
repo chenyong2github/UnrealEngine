@@ -10,6 +10,7 @@
 #include "RendererInterface.h"
 #include "RHIGPUReadback.h"
 #include "Shader.h"
+#include "ConvexVolume.h"
 
 class FLightSceneInfo;
 class FPrimitiveSceneProxy;
@@ -358,6 +359,7 @@ struct FHairStrandsDebugData
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Debug_SampleCounter)
 	END_SHADER_PARAMETER_STRUCT()
 
+	// Plot Data
 	struct ShadingInfo
 	{
 		FVector3f	BaseColor;
@@ -378,32 +380,62 @@ struct FHairStrandsDebugData
 	static const uint32 MaxShadingPointCount = 32;
 	static const uint32 MaxSampleCount = 1024 * 32;
 
-	struct Data
+	struct FPlotData
 	{
 		FRDGBufferRef ShadingPointBuffer = nullptr;
 		FRDGBufferRef ShadingPointCounter = nullptr;
 		FRDGBufferRef SampleBuffer = nullptr;
 		FRDGBufferRef SampleCounter = nullptr;
-	} Resources;
+	} PlotData;
 
 	bool IsPlotDataValid() const
 	{
-		return Resources.ShadingPointBuffer && Resources.ShadingPointCounter && Resources.SampleBuffer && Resources.SampleCounter;
+		return PlotData.ShadingPointBuffer && PlotData.ShadingPointCounter && PlotData.SampleBuffer && PlotData.SampleCounter;
 	}
 
-	static Data CreateData(FRDGBuilder& GraphBuilder);
-	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FWriteParameters& Out);
-	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FReadParameters& Out);
+	static FPlotData CreatePlotData(FRDGBuilder& GraphBuilder);
+	static void SetParameters(FRDGBuilder& GraphBuilder, const FPlotData& In, FWriteParameters& Out);
+	static void SetParameters(FRDGBuilder& GraphBuilder, const FPlotData& In, FReadParameters& Out);
 
 	// PPLL debug data
+	struct FPPLLData
+	{
+		FRDGTextureRef	NodeCounterTexture = nullptr;
+		FRDGTextureRef	NodeIndexTexture = nullptr;
+		FRDGBufferRef	NodeDataBuffer = nullptr;
+	} PPLLData;
+
 	bool IsPPLLDataValid() const 
 	{ 
-		return PPLLNodeCounterTexture && PPLLNodeIndexTexture && PPLLNodeDataBuffer; 
+		return PPLLData.NodeCounterTexture && PPLLData.NodeIndexTexture && PPLLData.NodeDataBuffer;
 	}
 
-	FRDGTextureRef	PPLLNodeCounterTexture = nullptr;
-	FRDGTextureRef	PPLLNodeIndexTexture = nullptr;
-	FRDGBufferRef	PPLLNodeDataBuffer = nullptr;
+	// Instance cull data
+	struct FCullData
+	{
+		struct FBound
+		{
+			FVector3f Min;
+			FVector3f Max;
+		};
+
+		struct FLight
+		{
+			FMatrix WorldToLight;
+			FMatrix LightToWorld;
+			FVector3f Center;
+			FVector3f Extent;
+			FConvexVolume ViewFrustumInLightSpace;
+			TArray<FBound> InstanceBoundInLightSpace;
+			TArray<FBound> InstanceBoundInWorldSpace;
+			TArray<uint32> InstanceIntersection;
+		};
+
+		bool bIsValid = false;
+		TArray<FLight> DirectionalLights;
+		FConvexVolume ViewFrustum;
+	} CullData;
+
 };
 
 typedef TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator> FHairStrandsMacroGroupDatas;
@@ -424,8 +456,9 @@ struct FHairStrandsViewData
 	FHairStrandsDebugData DebugData;
 
 	// Transient: store all light visible in primary view(s)
+	struct FDirectionalLightCullData { const FLightSceneInfo* LightInfo = nullptr; FConvexVolume ViewFrustumInLightSpace; };
 	TArray<const FLightSceneInfo*> VisibleShadowCastingLights;
-	TArray<FSphere> VisibleShadowCastingBounds;
+	TArray<FDirectionalLightCullData> VisibleShadowCastingDirectionalLights;
 };
 
 // View State data (i.e., persistent across frame)
@@ -476,5 +509,4 @@ namespace HairStrands
 	bool HasHairStrandsVisible(const TArray<FViewInfo>& Views);
 
 	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
-	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds);
 }

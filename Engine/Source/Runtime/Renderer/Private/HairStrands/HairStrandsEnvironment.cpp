@@ -317,7 +317,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	const FHairStrandsVoxelResources& VirtualVoxelResources,
 	const FRDGTextureRef SceneColorTexture,
 	const EHairLightingSourceType LightingType,
-	const FHairStrandsDebugData::Data* DebugData)
+	const FHairStrandsDebugData::FPlotData* DebugData)
 {
 	if (!Scene)
 	{
@@ -509,7 +509,7 @@ static void InternalRenderHairStrandsEnvironmentLighting(
 		return;
 	}
 	
-	AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, nullptr, LightingType, View.HairStrandsViewData.DebugData.IsPlotDataValid() ? &View.HairStrandsViewData.DebugData.Resources : nullptr);
+	AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, nullptr, LightingType, View.HairStrandsViewData.DebugData.IsPlotDataValid() ? &View.HairStrandsViewData.DebugData.PlotData : nullptr);
 }
 
 void RenderHairStrandsLumenLighting(
