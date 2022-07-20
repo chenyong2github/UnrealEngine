@@ -929,6 +929,8 @@ protected:
 
 	/** Use this if you don't want your tiles to start at (0,0,0) */
 	FVector RcNavMeshOrigin;
+
+	double RebuildAllStartTime = 0;
 	
 	uint32 bInitialized:1;
 

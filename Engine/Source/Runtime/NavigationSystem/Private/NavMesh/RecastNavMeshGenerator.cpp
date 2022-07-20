@@ -4754,6 +4754,10 @@ bool FRecastNavMeshGenerator::RebuildAll()
 		// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
 		DestNavMesh->RequestDrawingUpdate();
 	}
+	else
+	{
+		RebuildAllStartTime = FPlatformTime::Seconds();
+	}
 
 	return true;
 }
@@ -6370,6 +6374,12 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksAndGetUpdatedTiles(
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_OnNavMeshGenerationFinished);
 
+		if (RebuildAllStartTime != 0)
+		{
+			UE_LOG(LogNavigationDataBuild, Display, TEXT("   %s build time: %.2fs"), ANSI_TO_TCHAR(__FUNCTION__), (FPlatformTime::Seconds() - RebuildAllStartTime));
+			RebuildAllStartTime = 0;
+		}
+		
 		DestNavMesh->OnNavMeshGenerationFinished();
 	}
 

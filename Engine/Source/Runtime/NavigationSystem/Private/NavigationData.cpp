@@ -541,9 +541,7 @@ void ANavigationData::RebuildAll()
 		}
 #endif // WITH_EDITOR
 
-		const double BuildTime = FPlatformTime::Seconds();
 		NavDataGenerator->RebuildAll();
-		UE_LOG(LogNavigationDataBuild, Display, TEXT("   %s NavDataGenerator->RebuildAll() time: %.2fs"), ANSI_TO_TCHAR(__FUNCTION__), (FPlatformTime::Seconds() - BuildTime));
 	}
 }
 
