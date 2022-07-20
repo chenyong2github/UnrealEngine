@@ -33,7 +33,10 @@ void SImage::Construct( const FArguments& InArgs )
 
 	DesiredSizeOverrideAttribute.Assign(*this, InArgs._DesiredSizeOverride);
 
-	SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
+	if (InArgs._OnMouseButtonDown.IsBound())
+	{
+		SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
+	}
 }
 
 int32 SImage::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const

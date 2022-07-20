@@ -112,7 +112,10 @@ void STextBlock::Construct( const FArguments& InArgs )
 
 	bSimpleTextMode = InArgs._SimpleTextMode;
 
-	SetOnMouseDoubleClick(InArgs._OnDoubleClicked);
+	if (InArgs._OnDoubleClicked.IsBound())
+	{
+		SetOnMouseDoubleClick(InArgs._OnDoubleClicked);
+	}
 
 	SetText(InArgs._Text);
 
