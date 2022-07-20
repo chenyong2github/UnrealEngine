@@ -96,27 +96,6 @@ void FNiagaraSystemInstanceController::NotifyRenderersComplete(FNiagaraSystemRen
 	}
 }
 
-int32 FNiagaraSystemInstanceController::GetNumMaterials() const
-{
-	TArray<UMaterialInterface*> UsedMaterials;
-	if (SystemInstance)
-	{
-		for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance->GetEmitters())
-		{
-			if (FVersionedNiagaraEmitterData* EmitterData = EmitterInst->GetCachedEmitterData())
-			{
-				EmitterData->ForEachEnabledRenderer([&](UNiagaraRendererProperties* Properties)
-					{
-						Properties->GetUsedMaterials(EmitterInst.Get(), UsedMaterials);
-					}
-				);
-			}
-		}
-	}
-
-	return UsedMaterials.Num();
-}
-
 void FNiagaraSystemInstanceController::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials)
 {
 	if (!SystemInstance.IsValid())

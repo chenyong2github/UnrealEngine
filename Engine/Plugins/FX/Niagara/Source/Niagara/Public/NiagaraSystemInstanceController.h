@@ -76,8 +76,7 @@ public:
 	FNiagaraSystemSimulationPtr GetSoloSystemSimulation() const { return ensure(IsValid() && SystemInstance->IsSolo()) ? SystemInstance->GetSystemSimulation() : nullptr; }
 
 	FNiagaraSystemInstanceID GetSystemInstanceID() const { ensure(IsValid()); return SystemInstance->GetId(); }
-
-	int32 GetNumMaterials() const;
+	
 	void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials);
 	UMaterialInterface* GetMaterialOverride(const UNiagaraRendererProperties* InProps, int32 InMaterialSubIndex) const;
 	void SetOnMaterialsUpdated(const FOnMaterialsUpdated& Delegate) { OnMaterialsUpdatedDelegate = Delegate; }

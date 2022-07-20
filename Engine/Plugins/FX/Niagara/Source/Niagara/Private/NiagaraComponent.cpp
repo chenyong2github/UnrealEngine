@@ -1928,14 +1928,10 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 int32 UNiagaraComponent::GetNumMaterials() const
 {
-	if (SystemInstanceController)
-	{
-		return SystemInstanceController->GetNumMaterials();
-	}
-
+	// we don't really care for the materials used by the component here
+	// technically should be the number of materials used by each enabled renderer of each enabled emitter
 	return 0;
 }
-
 
 FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
