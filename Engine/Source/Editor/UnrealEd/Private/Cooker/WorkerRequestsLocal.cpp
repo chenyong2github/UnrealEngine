@@ -127,4 +127,9 @@ ECookMode::Type FWorkerRequestsLocal::GetDirectorCookMode(UCookOnTheFlyServer& C
 	return COTFS.GetCookMode();
 }
 
+void FWorkerRequestsLocal::LogAllRequestedFiles()
+{
+	ExternalRequests.LogAllRequestedFiles();
+}
+
 }

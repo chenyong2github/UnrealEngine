@@ -9458,6 +9458,11 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 			}
 		}
 	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("List")))
+	{
+		WorkerRequests->LogAllRequestedFiles();
+	}
 }
 
 void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& BeginContext)

@@ -123,6 +123,9 @@ public:
 	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
+	/* Prints a list of all files in the RequestMap to the log */
+	void LogAllRequestedFiles();
+
 public:
 	/** An FEvent the scheduler can sleep on when waiting for new cookonthefly requests. */
 	TUniquePtr<FEvent, FFreeFEvent> CookRequestEvent;

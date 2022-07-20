@@ -167,4 +167,9 @@ void FWorkerRequestsRemote::LogCalledEditorActionError(const TCHAR* FunctionName
 	UE_LOG(LogCook, Error, TEXT("Calling %s (an editor-mode-only function) is not allowed in a CookWorker."), FunctionName);
 }
 
+void FWorkerRequestsRemote::LogAllRequestedFiles()
+{
+	ExternalRequests.LogAllRequestedFiles();
+}
+
 }

@@ -80,6 +80,9 @@ public:
 	virtual void GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings) = 0;
 	virtual void GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext) = 0;
 	virtual ECookMode::Type GetDirectorCookMode(UCookOnTheFlyServer& COTFS) = 0;
+
+	/* Prints a list of all files in the RequestMap to the log */
+	virtual void LogAllRequestedFiles() = 0;
 };
 
 }

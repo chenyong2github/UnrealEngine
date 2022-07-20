@@ -324,4 +324,13 @@ void FExternalRequests::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITarge
 	}
 }
 
+void FExternalRequests::LogAllRequestedFiles()
+{
+	UE_LOG(LogCook, Display, TEXT("Listing initially requested set of files to be cooked (does not include list of transitive dependencies):"));
+	for (const TPair<FName, FFilePlatformRequest>& KVPair : RequestMap)
+	{
+		UE_LOG(LogCook, Display, TEXT("%s"), *KVPair.Value.ToString());
+	}
+	UE_LOG(LogCook, Display, TEXT("----------------------------------------------------------\n\n"));
+}
 }

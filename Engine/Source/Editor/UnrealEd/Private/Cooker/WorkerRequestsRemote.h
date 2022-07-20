@@ -42,6 +42,8 @@ public:
 	virtual void GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext) override;
 	virtual ECookMode::Type GetDirectorCookMode(UCookOnTheFlyServer& COTFS) override;
 
+	virtual void LogAllRequestedFiles() override;
+
 private:
 	void LogCalledCookByTheBookError(const TCHAR* FunctionName) const;
 	void LogCalledCookOnTheFlyError(const TCHAR* FunctionName) const;
