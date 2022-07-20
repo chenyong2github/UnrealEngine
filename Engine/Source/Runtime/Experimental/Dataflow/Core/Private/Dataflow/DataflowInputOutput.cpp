@@ -25,6 +25,7 @@ bool FDataflowInput::AddConnection(FDataflowConnection* InOutput)
 	if (ensure(InOutput->GetType() == this->GetType()))
 	{
 		Connection = (FDataflowOutput*)InOutput;
+		GetOwningNode()->Invalidate();
 		return true;
 	}
 	return false;
@@ -35,6 +36,7 @@ bool FDataflowInput::RemoveConnection(FDataflowConnection* InOutput)
 	if (ensure(Connection == (FDataflowOutput*)InOutput))
 	{
 		Connection = nullptr;
+		GetOwningNode()->Invalidate();
 		return true;
 	}
 	return false;
@@ -62,7 +64,7 @@ const TArray< const FDataflowOutput* > FDataflowInput::GetConnectedOutputs() con
 
 void FDataflowInput::Invalidate()
 {
-	OwningNode->InvalidateOutputs();
+	OwningNode->Invalidate();
 }
 
 //
@@ -120,13 +122,9 @@ bool FDataflowOutput::RemoveConnection(FDataflowConnection* InInput)
 
 void FDataflowOutput::Invalidate()
 {
-	if (CacheKeyValue != UINT_MAX)
+	for (FDataflowConnection* Con : GetConnections())
 	{
-		CacheKeyValue = UINT_MAX;
-		for (FDataflowConnection* Con : GetConnections())
-		{
-			Con->Invalidate();
-		}
+		Con->Invalidate();
 	}
 }
 

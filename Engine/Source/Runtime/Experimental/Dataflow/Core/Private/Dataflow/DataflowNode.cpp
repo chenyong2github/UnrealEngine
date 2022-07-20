@@ -193,6 +193,12 @@ TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 	return RetVal;
 }
 
+void FDataflowNode::Invalidate()
+{
+	LastModifiedTimestamp = FDateTime::Now(); // @todo(dataflow) Now() has ms precision; might need higher
+	InvalidateOutputs();
+}
+
 void FDataflowNode::InvalidateOutputs()
 {
 	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)

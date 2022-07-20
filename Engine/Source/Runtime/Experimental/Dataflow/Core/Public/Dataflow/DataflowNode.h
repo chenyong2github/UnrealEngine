@@ -39,6 +39,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	FGuid Guid;
 	FName Name;
+	FDateTime LastModifiedTimestamp;
 
 	TMap< int, FDataflowInput* > Inputs;
 	TMap< int, FDataflowOutput* > Outputs;
@@ -49,12 +50,14 @@ struct DATAFLOWCORE_API FDataflowNode
 	FDataflowNode()
 		: Guid(FGuid())
 		, Name("Invalid")
+		, LastModifiedTimestamp(0)
 	{
 	}
 
 	FDataflowNode(const Dataflow::FNodeParameters& Param, FGuid InGuid = FGuid::NewGuid())
 		: Guid(InGuid)
 		, Name(Param.Name)
+		, LastModifiedTimestamp(0)
 	{
 	}
 
@@ -158,6 +161,8 @@ struct DATAFLOWCORE_API FDataflowNode
 		checkSlow(FindOutput(Reference));
 		FindOutput(Reference)->template SetValue<T>(Value, Context);
 	}
+
+	void Invalidate();
 
 	void InvalidateOutputs();
 

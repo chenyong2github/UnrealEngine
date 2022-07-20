@@ -3,55 +3,69 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/UnrealType.h"
+#include "Templates/UniquePtr.h"
 
 class  UDataflow;
 
 namespace Dataflow
 {
-	struct ContextCacheBase 
+	struct FContextCacheBase 
 	{
-		ContextCacheBase(FProperty* InProperty = nullptr, void* InData = nullptr)
+		FContextCacheBase(FProperty* InProperty = nullptr, FDateTime InTimestamp = 0)
 			: Property(InProperty)
-			, Data(InData)
+			, Timestamp(InTimestamp)
 		{}
-		virtual ~ContextCacheBase() {}
+		virtual ~FContextCacheBase() {}
 
+		template<typename T>
+		const T& GetTypedData(const FProperty* PropertyIn) const;
+		
 		FProperty* Property = nullptr;
-		void* Data = nullptr;
+		FDateTime Timestamp = FDateTime(0);
 	};
 
 	template<class T>
-	struct ContextCache : public ContextCacheBase 
+	struct FContextCache : public FContextCacheBase 
 	{
-		ContextCache(FProperty* InProperty = nullptr, void* InData = nullptr)
-			: ContextCacheBase(InProperty,InData)
+		FContextCache(FProperty* InProperty, const T& InData, FDateTime Timestamp)
+			: FContextCacheBase(InProperty, Timestamp)
+			, Data(InData)
 		{}
-		virtual ~ContextCache() 
-		{ 
-			delete (T*)Data; 
-		}
+
+		FContextCache(FProperty* InProperty, T&& InData, FDateTime Timestamp)
+			: FContextCacheBase(InProperty, Timestamp)
+			, Data(InData)
+		{}
+		
+		const T Data;
 	};
 
+	template<class T>
+	const T& FContextCacheBase::GetTypedData(const FProperty* PropertyIn) const
+	{
+		check(PropertyIn);
+		// check(PropertyIn->IsA<T>()); // @todo(dataflow) compile error for non-class T; find alternatives
+		check(Property->SameType(PropertyIn));
+		return static_cast<const FContextCache<T>&>(*this).Data;
+	}
+	
 	class DATAFLOWCORE_API FContext
 	{
-		TMap<int64, ContextCacheBase*> DataStore;
+		TMap<int64, TUniquePtr<FContextCacheBase>> DataStore;
+		
+		FContext(FContext&&) = default;
+		FContext& operator=(FContext&&) = default;
+		
+		FContext(const FContext&) = delete;
+		FContext& operator=(const FContext&) = delete;
 
 	public:
-
-
 
 		FContext(float InTime, FString InType = FString(""))
 			: Timestamp(InTime)
 			, Type(StaticType().Append(InType))
 		{}
-
-		~FContext()
-		{
-			for (TTuple<int64, ContextCacheBase*> Elem : DataStore)
-			{
-				delete Elem.Value;
-			}
-		}
 
 		float Timestamp = 0.f;
 		FString Type;
@@ -72,51 +86,36 @@ namespace Dataflow
 			return nullptr;
 		}
 
-		void SetData(size_t Key, ContextCacheBase* InData)
+		template<typename T>
+		void SetData(size_t Key, FProperty* Property, const T& Value)
 		{
 			int64 IntKey = (int64)Key;
-			if (!DataStore.Contains(IntKey))
-			{
-				DataStore.Add(IntKey, InData);
-			}
-			else
-			{
-				DataStore[IntKey] = InData;
-			}
+			TUniquePtr<FContextCache<T>> DataStoreEntry = MakeUnique<FContextCache<T>>(Property, Value, FDateTime::Now());
+			DataStore.Emplace(IntKey, MoveTemp(DataStoreEntry));
 		}
 
-		template<class T>
-		bool GetData(size_t Key, T& OutData)
+		template<typename T>
+		void SetData(size_t Key, FProperty* Property, T&& Value)
 		{
 			int64 IntKey = (int64)Key;
-
-			if (DataStore.Contains(IntKey))
-			{
-				// @todo(dataflow) : type check
-				OutData = *(T*)DataStore[IntKey]->Data;
-				return true;
-			}
-			return false;
+			TUniquePtr<FContextCache<T>> DataStoreEntry = MakeUnique<FContextCache<T>>(Property, Forward<T>(Value), FDateTime::Now());
+			DataStore.Emplace(IntKey, MoveTemp(DataStoreEntry));
 		}
-
+		
 		template<class T>
-		const T& GetDataReference(size_t Key, const T& Default)
+		const T& GetData(size_t Key, FProperty* Property, const T& Default = T())
 		{
-			int64 IntKey = (int64)Key;
-
-			if (DataStore.Contains(Key))
+			if (TUniquePtr<FContextCacheBase>* Cache = DataStore.Find(Key))
 			{
-				// @todo(dataflow) : type check
-				return *(T*)DataStore[Key]->Data;
+				return (*Cache)->GetTypedData<T>(Property);
 			}
 			return Default;
 		}
 
-		bool HasData(size_t Key)
+		bool HasData(size_t Key, FDateTime StoredAfter = -1)
 		{
 			int64 IntKey = (int64)Key;
-
-			return DataStore.Contains(IntKey);
+			return DataStore.Contains(IntKey) && DataStore[Key]->Timestamp >= StoredAfter;
 		}
 	};
 

@@ -125,7 +125,7 @@ public:
 	{
 		if (Property)
 		{
-			Context.SetData(CacheKey(), new Dataflow::ContextCache<T>(Property, new T(InVal)));
+			Context.SetData(CacheKey(), Property, InVal);
 		}
 	}
 
@@ -133,13 +133,12 @@ public:
 	{
 		if (!this->Evaluate<T>(Context))
 		{
-			Context.SetData(CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
+			Context.SetData(CacheKey(), Property, Default);
 		}
-
 
 		if (Context.HasData(CacheKey()))
 		{
-			return Context.GetDataReference<T>(CacheKey(), Default);
+			return Context.GetData(CacheKey(), Property, Default);
 		}
 
 		return Default;
@@ -157,15 +156,15 @@ const T& FDataflowInput::GetValue(Dataflow::FContext& Context, const T& Default)
 	if (GetConnectedOutputs().Num())
 	{
 		ensure(GetConnectedOutputs().Num() == 1);
-		if (const FDataflowOutput* ConnectionBase = GetConnection())
+		if (const FDataflowOutput* ConnectionOut = GetConnection())
 		{
-			if (!ConnectionBase->Evaluate<T>(Context))
+			if (!ConnectionOut->Evaluate<T>(Context))
 			{
-				Context.SetData(ConnectionBase->CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
+				Context.SetData(ConnectionOut->CacheKey(), Property, Default);
 			}
-			if (Context.HasData(ConnectionBase->CacheKey()))
+			if (Context.HasData(ConnectionOut->CacheKey()))
 			{
-				const T& data = Context.GetDataReference<T>(ConnectionBase->CacheKey(), Default);
+				const T& data = Context.GetData(ConnectionOut->CacheKey(), Property, Default);
 				return data;
 			}
 		}
@@ -180,17 +179,27 @@ bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
  
 	if (OwningNode->bActive)
 	{
+		// check if the cache has a valid version
+		if(Context.HasData(CacheKey(), OwningNode->LastModifiedTimestamp))
+		{
+			return true;
+		}
+		// if not, evaluate
 		OwningNode->Evaluate(Context, this);
+		// Validation
+		if (!Context.HasData(CacheKey()))
+		{
+			ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
+			return false;
+		}
+		return true;
 	}
 	else if(const FDataflowInput* PassthroughInput = OwningNode->FindInput(GetPassthroughRealAddress()))
 	{
-		SetValue<T>(PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress())), Context);
+		T PassthroughData = PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress()));
+		SetValue<T>(PassthroughData, Context);
+		return true;
 	}
  
-	// Validation
-	if (!Context.HasData(CacheKey()))
-	{
-		ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
-	}
-	return true;
+	return false;
 }
