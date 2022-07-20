@@ -382,8 +382,6 @@ protected:
 	void SetEditedSplineComponent(const USplineComponent* InSplineComponent);
 
 	void CreateSplineGeneratorPanel();
-	
-	void OnDeselectedInEditor(TObjectPtr<USplineComponent> SplineComponent);
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
@@ -428,8 +426,6 @@ protected:
 	ESplineComponentSnapMode SnapToActorMode;
 
 	FProperty* SplineCurvesProperty;
-
-	FDelegateHandle DeselectedInEditorDelegateHandle;
 
 private:
 	TSharedPtr<SSplineGeneratorPanel> SplineGeneratorPanel;

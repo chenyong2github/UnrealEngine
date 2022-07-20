@@ -290,10 +290,6 @@ public:
 	/** Width of spline in editor for use with scale visualization */
 	UPROPERTY(EditAnywhere, Category = Editor, meta=(EditCondition="bShouldVisualizeScale"))
 	float ScaleVisualizationWidth;
-
-	/** Delegate that's called when this component is deselected in the editor */
-	DECLARE_MULTICAST_DELEGATE_OneParam(DeselectedInEditorDelegate, TObjectPtr<USplineComponent>)
-	DeselectedInEditorDelegate OnDeselectedInEditor;
 #endif
 
 	//~ Begin UObject Interface
@@ -312,14 +308,8 @@ public:
 #if UE_ENABLE_DEBUG_DRAWING
 	//~ Begin UPrimitiveComponent Interface.
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-#endif
-	
-#if WITH_EDITOR
-	virtual void PushSelectionToProxy() override;
-#endif
 	//~ End UPrimitiveComponent Interface.
 
-#if UE_ENABLE_DEBUG_DRAWING
 	//~ Begin USceneComponent Interface
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
