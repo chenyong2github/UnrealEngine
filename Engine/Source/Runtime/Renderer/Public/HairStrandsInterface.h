@@ -470,6 +470,13 @@ enum class EHairStrandsBookmark : uint8
 	ProcessEndOfFrame
 };
 
+enum EHairInstanceCount : uint8
+{
+	HairInstanceCount_StrandsPrimaryView = 0,
+	HairInstanceCount_StrandsShadowView = 1,
+	HairInstanceCount_CardsOrMeshes = 2,
+};
+
 struct FHairStrandsBookmarkParameters
 {
 	class FGPUSkinCache* SkinCache = nullptr;
@@ -484,6 +491,8 @@ struct FHairStrandsBookmarkParameters
 	TArray<const FSceneView*> AllViews;
 	FRDGTextureRef SceneColorTexture = nullptr;
 	FRDGTextureRef SceneDepthTexture = nullptr; 
+
+	FUintVector4 InstanceCountPerType = FUintVector4(0);
 
 	bool bHzbRequest = false;
 	uint32 FrameIndex = ~0;

@@ -1091,6 +1091,9 @@ void AddNewLine(float2 OriginalPos, inout float2 Pos)
 
 int2					MaxResolution;
 uint					InstanceCount;
+uint					InstanceCount_StrandsPrimaryView;
+uint					InstanceCount_StrandsShadowView;
+uint					InstanceCount_CardsOrMeshes;
 
 Buffer<uint>			Infos;
 
@@ -1121,23 +1124,32 @@ struct FInstanceInfo
 	uint UniqueSection;
 	uint RootCount;
 	uint ControlPointCount;
+
+	uint bIsVisibleInPrimaryView;
+	uint bIsVisibleInShadowView;
 };
 
 FInstanceInfo ReadInstanceInfo(uint Index)
 {
-	const uint Index8 = Index * 8;
+	const uint Index12 = Index * 12;
 
 	uint4 Data0 = 0;
-	Data0.x = Infos[Index8 + 0];
-	Data0.y = Infos[Index8 + 1];
-	Data0.z = Infos[Index8 + 2];
-	Data0.w = Infos[Index8 + 3];
+	Data0.x = Infos[Index12 + 0];
+	Data0.y = Infos[Index12 + 1];
+	Data0.z = Infos[Index12 + 2];
+	Data0.w = Infos[Index12 + 3];
 
 	uint4 Data1 = 0;
-	Data1.x = Infos[Index8 + 4];
-	Data1.y = Infos[Index8 + 5];
-	Data1.z = Infos[Index8 + 6];
-	Data1.w = Infos[Index8 + 7];
+	Data1.x = Infos[Index12 + 4];
+	Data1.y = Infos[Index12 + 5];
+	Data1.z = Infos[Index12 + 6];
+	Data1.w = Infos[Index12 + 7];
+
+	uint4 Data2 = 0;
+	Data2.x = Infos[Index12 + 8];
+	Data2.y = Infos[Index12 + 9];
+	Data2.z = Infos[Index12 + 10];
+	Data2.w = Infos[Index12 + 11];
 
 	FInstanceInfo Out = (FInstanceInfo)0;
 	Out.GroupIndex = (Data0.x >> 0) & 0xFF;
@@ -1159,6 +1171,9 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.UniqueTriangle		= Data1.y;
 	Out.RootCount			= Data1.z;
 	Out.ControlPointCount	= Data1.w;
+
+	Out.bIsVisibleInPrimaryView = Data2.x & 0x1;
+	Out.bIsVisibleInShadowView	= Data2.x & 0x2;
 
 	return Out;
 }
@@ -1238,22 +1253,38 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		}
 	}
 
-	Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
-	Pos = Print(Pos, TotalGroup, FontYellow, 8);
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
+		Pos = Print(Pos, TotalGroup, FontYellow, 8);
+		AddNewLine(OriginalPos, Pos);
+
+		Pos = ShaderPrintText(Pos, TEXT("Total Strand Curves : "), FontWhite);
+		Pos = Print(Pos, TotalStrandsCount, FontOrange, 8);
+		AddNewLine(OriginalPos, Pos);
+
+		Pos = ShaderPrintText(Pos, TEXT("Total Strand Vertex : "), FontWhite);
+		Pos = Print(Pos, TotalVertexCount, FontSilver, 8);
+		AddNewLine(OriginalPos, Pos);
+	}
 	AddNewLine(OriginalPos, Pos);
 
-	Pos = ShaderPrintText(Pos, TEXT("Total Strand Curves : "), FontWhite);
-	Pos = Print(Pos, TotalStrandsCount, FontOrange, 8);
-	AddNewLine(OriginalPos, Pos);
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Total Strand primary: "), FontWhite);
+		Pos = Print(Pos, InstanceCount_StrandsPrimaryView, FontYellow, 8);
+		AddNewLine(OriginalPos, Pos);
 
-	Pos = ShaderPrintText(Pos, TEXT("Total Strand Vertex : "), FontWhite);
-	Pos = Print(Pos, TotalVertexCount, FontSilver, 8);
-	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT("Total Strand shadow : "), FontWhite);
+		Pos = Print(Pos, InstanceCount_StrandsShadowView, FontYellow, 8);
+		AddNewLine(OriginalPos, Pos);
 
+		Pos = ShaderPrintText(Pos, TEXT("Total Cards / Meshes: "), FontWhite);
+		Pos = Print(Pos, InstanceCount_CardsOrMeshes, FontYellow, 8);
+		AddNewLine(OriginalPos, Pos);
+	}
 	AddNewLine(OriginalPos, Pos);
 
 	// Draw instance details
-	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Name"));
+	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Primary Shadow Name"));
 	AddNewLine(OriginalPos, Pos);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1317,6 +1348,21 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrintText(Pos, TEXT("      "));
 		Pos = Print(Pos, Info.UniqueSection, FontSilver, 8);
 		Pos = ShaderPrintText(Pos, TEXT("     "));
+
+		// Primary view
+		if (Info.bIsVisibleInPrimaryView)
+			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+		else
+			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
+		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
+
+		// Shadow view
+		Pos = ShaderPrintText(Pos, TEXT("  "));
+		if (Info.bIsVisibleInShadowView)
+			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+		else
+			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
+		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
 
 		// Name
 		Pos = PrintInstanceName(Pos, InstanceIndex, FontWhite);

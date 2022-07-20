@@ -836,6 +836,9 @@ class FHairDebugPrintInstanceCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, InstanceCount)
 		SHADER_PARAMETER(uint32, NameInfoCount)
 		SHADER_PARAMETER(uint32, NameCharacterCount)
+		SHADER_PARAMETER(uint32, InstanceCount_StrandsPrimaryView)
+		SHADER_PARAMETER(uint32, InstanceCount_StrandsShadowView)
+		SHADER_PARAMETER(uint32, InstanceCount_CardsOrMeshes)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, NameInfos)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, Names)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, Infos)
@@ -868,7 +871,8 @@ static void AddHairDebugPrintInstancePass(
 	FRDGBuilder& GraphBuilder, 
 	FGlobalShaderMap* ShaderMap,
 	const FShaderPrintData* ShaderPrintData,
-	const FHairStrandsInstances& Instances)
+	const FHairStrandsInstances& Instances,
+	const FUintVector4& InstanceCountPerType)
 {
 	const uint32 InstanceCount = Instances.Num();
 
@@ -891,6 +895,7 @@ static void AddHairDebugPrintInstancePass(
 	{
 		FUintVector4 Data0;
 		FUintVector4 Data1;
+		FUintVector4 Data2;
 	};
 	TArray<FInstanceInfos> Infos;
 	Infos.Reserve(InstanceCount);
@@ -922,6 +927,7 @@ static void AddHairDebugPrintInstancePass(
 
 		FUintVector4 Data0 = { 0,0,0,0 };
 		FUintVector4 Data1 = { 0,0,0,0 };
+		FUintVector4 Data2 = { 0,0,0,0 };
 		Data0.X =
 			((Instance->Debug.GroupIndex & 0xFF)) |
 			((Instance->Debug.GroupCount & 0xFF) << 8) |
@@ -950,6 +956,13 @@ static void AddHairDebugPrintInstancePass(
 					Data1.Z = Instance->Strands.RestRootResource->BulkData.RootCount;
 					Data1.W = Instance->Strands.RestRootResource->BulkData.PointCount;
 				}
+
+				{
+					Data2.X = InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 3 : 2; // Visible in primary & shadow (3) or only in shadow (2)
+					Data2.Y = 0;
+					Data2.Z = 0;
+					Data2.W = 0;
+				}
 			}
 			break;
 		case EHairGeometryType::Cards:
@@ -957,6 +970,7 @@ static void AddHairDebugPrintInstancePass(
 			{
 				Data0.Z = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
 				Data0.W = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
+				Data2.X = 3; // Visible in primary & shadow
 			}
 			break;
 		case EHairGeometryType::Meshes:
@@ -964,10 +978,11 @@ static void AddHairDebugPrintInstancePass(
 			{
 				Data0.Z = 0;
 				Data0.W = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
+				Data2.X = 3; // Visible in primary & shadow
 			}
 			break;
 		}
-		Infos.Add({Data0, Data1});
+		Infos.Add({Data0, Data1, Data2 });
 	}
 
 	if (NameInfos.IsEmpty())
@@ -992,6 +1007,9 @@ static void AddHairDebugPrintInstancePass(
 	{
 		FHairDebugPrintInstanceCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintInstanceCS::FParameters>();
 		Parameters->InstanceCount = InstanceCount;
+		Parameters->InstanceCount_StrandsPrimaryView = InstanceCountPerType[HairInstanceCount_StrandsPrimaryView];
+		Parameters->InstanceCount_StrandsShadowView = InstanceCountPerType[HairInstanceCount_StrandsShadowView];
+		Parameters->InstanceCount_CardsOrMeshes = InstanceCountPerType[HairInstanceCount_CardsOrMeshes];
 		Parameters->NameInfoCount = NameInfos.Num();
 		Parameters->NameCharacterCount = Names.Num();
 		Parameters->Names = GraphBuilder.CreateSRV(NameBuffer, PF_R8_UINT);
@@ -1043,6 +1061,7 @@ void RunHairStrandsDebug(
 	FGlobalShaderMap* ShaderMap,
 	const FSceneView& View,
 	const FHairStrandsInstances& Instances,
+	const FUintVector4& InstanceCountPerType,
 	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FRDGTextureRef SceneColorTexture,
@@ -1054,7 +1073,7 @@ void RunHairStrandsDebug(
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
-		AddHairDebugPrintInstancePass(GraphBuilder, ShaderMap, ShaderPrintData, Instances);
+		AddHairDebugPrintInstancePass(GraphBuilder, ShaderMap, ShaderPrintData, Instances, InstanceCountPerType);
 	}
 
 	if (HairDebugMode == EHairDebugMode::MeshProjection)
