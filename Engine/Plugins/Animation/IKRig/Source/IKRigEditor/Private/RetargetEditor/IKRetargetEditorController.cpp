@@ -652,11 +652,8 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			OutputMode = ERetargeterOutputMode::RunRetarget;
 			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
-			if (PreviousMode == ERetargeterOutputMode::EditRetargetPose)
-			{
-				// must reinitialize after editing the retarget pose
-				AssetController->BroadcastNeedsReinitialized();
-			}
+			// must reinitialize after editing the retarget pose
+			AssetController->BroadcastNeedsReinitialized();
 			ResumePlayback();
 			break;
 
