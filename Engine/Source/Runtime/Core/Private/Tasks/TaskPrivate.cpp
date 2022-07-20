@@ -46,6 +46,93 @@ namespace UE::Tasks
 			LowLevelTasks::FScheduler::Get().TryLaunch(LowLevelTask, LowLevelTasks::EQueuePreference::GlobalQueuePreference, /*bWakeUpWorker=*/ true);
 		}
 
+		void FTaskBase::Wait()
+		{
+			if (IsCompleted())
+			{
+				return;
+			}
+
+			TaskTrace::FWaitingScope WaitingScope(GetTraceId());
+			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
+
+			if (!IsAwaitable())
+			{
+				UE_LOG(LogTemp, Fatal, TEXT("Deadlock detected! A task can't be waited here, e.g. because it's being executed by the currect thread"));
+				return;
+			}
+
+			if (TryRetractAndExecute())
+			{
+				return;
+			}
+
+			// if we are on a named thread, handle waiting in TaskGraph-specific style
+			if (TryWaitOnNamedThread(*this))
+			{
+				return;
+			}
+
+			FEventRef CompletionEvent;
+			auto WaitingTaskBody = [&CompletionEvent] { CompletionEvent->Trigger(); };
+			using FWaitingTask = TExecutableTask<decltype(WaitingTaskBody)>;
+
+			// the task is stored on the stack as we can guarantee that it's out of the system by the end of the call
+			FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter*/, EExtendedTaskPriority::Inline };
+			WaitingTask.AddPrerequisites(*this);
+
+			if (WaitingTask.TryLaunch())
+			{	// was executed inline
+				check(WaitingTask.IsCompleted());
+			}
+			else
+			{
+				CompletionEvent->Wait();
+			}
+
+			// the waiting task will be destroyed leaving this scope, wait for the internal reference to it to be released
+			while (WaitingTask.GetRefCount() != 1)
+			{
+				FPlatformProcess::Yield();
+			}
+		}
+
+		bool FTaskBase::Wait(FTimespan InTimeout)
+		{
+			TaskTrace::FWaitingScope WaitingScope(GetTraceId());
+			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
+
+			FTimeout Timeout{ InTimeout };
+
+			if (TryRetractAndExecute())
+			{
+				return true;
+			}
+
+			if (GetCurrentTask() == this)
+			{
+				UE_LOG(LogTemp, Fatal, TEXT("A task waiting for itself detected"));
+				return true;
+			}
+
+			// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can 
+			// time out before the waiting task is completed
+			FSharedEventRef CompletionEvent;
+			auto WaitingTaskBody = [CompletionEvent] { CompletionEvent->Trigger(); };
+			using FWaitingTask = TExecutableTask<decltype(WaitingTaskBody)>;
+
+			TRefCountPtr<FWaitingTask> WaitingTask{ FWaitingTask::Create(TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter*/, EExtendedTaskPriority::Inline), /*bAddRef=*/ false };
+			WaitingTask->AddPrerequisites(*this);
+
+			if (WaitingTask->TryLaunch())
+			{	// was executed inline
+				check(WaitingTask->IsCompleted());
+				return true;
+			}
+
+			return CompletionEvent->Wait((uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
+		}
+
 		FTaskBase* FTaskBase::TryPushIntoPipe()
 		{
 			return GetPipe()->PushIntoPipe(*this);
