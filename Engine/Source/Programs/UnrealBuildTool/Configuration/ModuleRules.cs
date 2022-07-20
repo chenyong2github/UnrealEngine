@@ -818,6 +818,11 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Whether to merge module and generated unity files for faster compilation.
+		/// </summary>
+		public bool bMergeUnityFiles = true;
+
+		/// <summary>
 		/// The number of source files in this module before unity build will be activated for that module.  If set to
 		/// anything besides -1, will override the default setting which is controlled by MinGameModuleSourceFilesForUnityBuild
 		/// </summary>

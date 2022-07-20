@@ -559,7 +559,7 @@ namespace UnrealBuildTool
 
 				if (GeneratedFiles.Count > 0)
 				{
-					bool bMergeUnityFiles = Target.bMergeModuleAndGeneratedUnityFiles;
+					bool bMergeUnityFiles = Target.bMergeModuleAndGeneratedUnityFiles && Rules.bMergeUnityFiles;
 
 					// Create a compile environment for the generated files. We can disable creating debug info here to improve link times.
 					CppCompileEnvironment GeneratedCPPCompileEnvironment = CompileEnvironment;
