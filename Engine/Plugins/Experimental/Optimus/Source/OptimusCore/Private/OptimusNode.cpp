@@ -130,17 +130,34 @@ UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 	return Cast<UOptimusNodeGraph>(GetOuter());
 }
 
-bool UOptimusNode::CanConnect(
+bool UOptimusNode::CanConnectPinToPin(
 	const UOptimusNodePin& InThisNodesPin,
 	const UOptimusNodePin& InOtherNodesPin,
 	FString* OutReason
 	) const
 {
-	return CanConnect(&InOtherNodesPin, InThisNodesPin.GetDirection(), OutReason);
+	if (!CanConnectPinToNode(&InOtherNodesPin, InThisNodesPin.GetDirection(), OutReason))
+	{
+		return false;
+	}
+	
+	// Check with overridden implementations on the node themselves.
+	if (!ValidateConnection(InThisNodesPin, InOtherNodesPin, OutReason))
+	{
+		return false;
+	}
+
+	// Check with overridden implementations on the node themselves.
+	if (!InOtherNodesPin.GetOwningNode()->ValidateConnection(InOtherNodesPin, InThisNodesPin, OutReason))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 
-bool UOptimusNode::CanConnect(
+bool UOptimusNode::CanConnectPinToNode(
 	const UOptimusNodePin* InOtherPin,
 	EOptimusNodePinDirection InConnectionDirection,
 	FString* OutReason) const
@@ -234,18 +251,18 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 		return *PinPtrPtr;
 	}
 
-	const TArray<UOptimusNodePin*>* CurrentPins = &Pins;
+	TArrayView<UOptimusNodePin* const> CurrentPins = Pins;
 	UOptimusNodePin* FoundPin = nullptr;
 
 	for (FName PinName : InPinPath)
 	{
-		if (CurrentPins == nullptr || CurrentPins->IsEmpty())
+		if (CurrentPins.IsEmpty())
 		{
 			FoundPin = nullptr;
 			break;
 		}
 
-		UOptimusNodePin* const* FoundPinPtr = CurrentPins->FindByPredicate(
+		UOptimusNodePin* const* FoundPinPtr = CurrentPins.FindByPredicate(
 		    [&PinName](const UOptimusNodePin* Pin) {
 			    return Pin->GetFName() == PinName;
 		    });
@@ -257,7 +274,7 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 		}
 
 		FoundPin = *FoundPinPtr;
-		CurrentPins = &FoundPin->GetSubPins();
+		CurrentPins = FoundPin->GetSubPins();
 	}
 
 	CachedPinLookup.Add(InPinPath, FoundPin);
@@ -345,7 +362,7 @@ void UOptimusNode::PostCreateNode()
 
 void UOptimusNode::Serialize(FArchive& Ar)
 {
-	UObject::Serialize(Ar);
+	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
 }
@@ -353,10 +370,34 @@ void UOptimusNode::Serialize(FArchive& Ar)
 
 void UOptimusNode::PostLoad()
 {
-	UObject::PostLoad();
+	Super::PostLoad();
 
 	// Earlier iterations didn't set this flag. 
 	SetFlags(RF_Transactional);
+
+	// FIXME: The TypeObject should probably be a TSoftObjectPtr
+	auto FixPinType = [](UOptimusNodePin* InPin)
+	{
+		InPin->ConditionalPostLoad();
+		if (!InPin->DataType.TypeName.IsNone() && InPin->DataType.TypeObject == nullptr)
+		{
+			const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
+			FOptimusDataTypeHandle TypeHandle = Registry.FindType(InPin->DataType.TypeName);
+			if (TypeHandle.IsValid())
+			{
+				InPin->DataType.TypeObject = TypeHandle->TypeObject;
+			}
+		}
+	};
+	// Make sure all pins have their types resolved. Otherwise comparison will fail when trying to connect.
+	for(UOptimusNodePin* Pin: Pins)
+	{
+		FixPinType(Pin);
+		for (UOptimusNodePin* SubPin: Pin->GetSubPinsRecursively())
+		{
+			FixPinType(SubPin);
+		}
+	}
 }
 
 
@@ -392,7 +433,8 @@ UOptimusNodePin* UOptimusNode::AddPin(
 	EOptimusNodePinDirection InDirection,
 	FOptimusNodePinStorageConfig InStorageConfig,
 	FOptimusDataTypeRef InDataType,
-	UOptimusNodePin* InBeforePin
+	UOptimusNodePin* InBeforePin,
+	UOptimusNodePin* InGroupingPin
 	)
 {
 	if (!bDynamicPins)
@@ -408,16 +450,29 @@ UOptimusNodePin* UOptimusNode::AddPin(
 			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin before one that does not belong to this node: %s"), *InBeforePin->GetPinPath());
 			return nullptr;
 		}
-		// TODO: Revisit if/when we add pin groups.
-		if (InBeforePin->GetParentPin() != nullptr)
+		if (InBeforePin->GetParentPin() != nullptr || (InBeforePin->GetParentPin() && !InBeforePin->GetParentPin()->IsGroupingPin()))
 		{
-			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin before one that is not a top-level pin: %s"), *InBeforePin->GetPinPath());
+			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin before one that is not a top-level pin or inside a grouping pin: %s"), *InBeforePin->GetPinPath());
+			return nullptr;
+		}
+	}
+	if (InGroupingPin)
+	{
+		if (InGroupingPin->GetOwningNode() != this)
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin under a group pin that does not belong to this node: %s"), *InGroupingPin->GetPinPath());
+			return nullptr;
+		}
+
+		if (InBeforePin && !InGroupingPin->GetSubPins().Contains(InBeforePin))
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Before pin is not a part of the given group: %s"), *InBeforePin->GetPinPath());
 			return nullptr;
 		}
 	}
 
 	FOptimusNodeAction_AddPin *AddPinAction = new FOptimusNodeAction_AddPin(
-		this, InName, InDirection, InStorageConfig, InDataType, InBeforePin); 
+		this, InName, InDirection, InStorageConfig, InDataType, InBeforePin, InGroupingPin); 
 	if (!GetActionStack()->RunAction(AddPinAction))
 	{
 		return nullptr;
@@ -474,19 +529,53 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 }
 
 
+UOptimusNodePin* UOptimusNode::AddGroupingPin(
+	FName InName,
+	EOptimusNodePinDirection InDirection,
+	UOptimusNodePin* InBeforePin
+	)
+{
+	if (!bDynamicPins)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Attempting to add a pin to a non-dynamic node: %s"), *GetNodePath());
+		return nullptr;
+	}
+
+	if (InBeforePin)
+	{
+		if (InBeforePin->GetOwningNode() != this)
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin before one that does not belong to this node: %s"), *InBeforePin->GetPinPath());
+			return nullptr;
+		}
+		if (InBeforePin->GetParentPin() != nullptr)
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("Attempting to place a pin before one that is not a top-level pin: %s"), *InBeforePin->GetPinPath());
+			return nullptr;
+		}
+	}
+	
+	FOptimusNodeAction_AddGroupingPin *AddPinAction = new FOptimusNodeAction_AddGroupingPin(this, InName, InDirection, InBeforePin); 
+	if (!GetActionStack()->RunAction(AddPinAction))
+	{
+		return nullptr;
+	}
+
+	return AddPinAction->GetPin(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
 UOptimusNodePin* UOptimusNode::AddGroupingPinDirect(
 	FName InName,
 	EOptimusNodePinDirection InDirection,
-	UOptimusNodePin* InBeforePin,
-	UOptimusNodePin* InParentPin
+	UOptimusNodePin* InBeforePin
 	)
 {
-	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
-	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
+	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(this, InName);
 
 	Pin->InitializeWithGrouping(InDirection);
 
-	InsertPinIntoHierarchy(Pin, InParentPin, InBeforePin);
+	InsertPinIntoHierarchy(Pin, nullptr, InBeforePin);
 	
 	return Pin;
 }
@@ -526,9 +615,9 @@ bool UOptimusNode::RemovePin(UOptimusNodePin* InPin)
 		return false;
 	}
 
-	if (InPin->GetParentPin() != nullptr)
+	if (InPin->GetParentPin() != nullptr && !InPin->GetParentPin()->IsGroupingPin())
 	{
-		UE_LOG(LogOptimusCore, Error, TEXT("Attempting to remove a non-root pin: %s"), *InPin->GetPinPath());
+		UE_LOG(LogOptimusCore, Error, TEXT("Attempting to remove a non-root or non-group pin: %s"), *InPin->GetPinPath());
 		return false;
 	}
 
@@ -546,6 +635,16 @@ bool UOptimusNode::RemovePin(UOptimusNodePin* InPin)
 		for (const UOptimusNodeLink *Link: Graph->GetPinLinks(Pin))
 		{
 			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+		}
+	}
+
+	// We need to explicitly remove sub-pins of grouping pins, since the action relies
+	// on sub-pin recreation to be done only for nested types.
+	if (InPin->IsGroupingPin())
+	{
+		for (UOptimusNodePin* Pin: InPin->GetSubPins())
+		{
+			Action->AddSubAction<FOptimusNodeAction_RemovePin>(Pin);
 		}
 	}
 
@@ -576,7 +675,14 @@ bool UOptimusNode::RemovePinDirect(UOptimusNodePin* InPin)
 	}
 
 	// We only notify on the root pin once we're no longer reachable.
-	Pins.Remove(InPin);
+	if (InPin->GetParentPin() == nullptr)
+	{
+		Pins.Remove(InPin); 
+	}
+	else
+	{
+		InPin->GetParentPin()->SubPins.Remove(InPin);
+	}
 	InPin->Notify(EOptimusGraphNotifyType::PinRemoved);
 	
 	for (UOptimusNodePin* Pin: PinsToRemove)
@@ -591,6 +697,78 @@ bool UOptimusNode::RemovePinDirect(UOptimusNodePin* InPin)
 
 	return true;
 }
+
+
+bool UOptimusNode::MovePin(
+	UOptimusNodePin* InPinToMove,
+	const UOptimusNodePin* InPinBefore
+	)
+{
+	if (!InPinToMove || InPinToMove == InPinBefore)
+	{
+		return false;
+	}
+	if (!InPinBefore)
+	{
+		// Is no before target given and we're already the last pin?
+		if (InPinToMove->GetParentPin() == nullptr)
+		{
+			if (GetPins().Last() == InPinToMove)
+			{
+				return false;
+			}
+		}
+		else if (InPinToMove->GetParentPin())
+		{
+			if (InPinToMove->GetParentPin()->GetSubPins().Last() == InPinToMove)
+			{
+				return false;
+			}
+		}
+	}
+	if (InPinBefore && InPinBefore->GetParentPin() != InPinToMove->GetParentPin())
+	{
+		UE_LOG(LogOptimusCore, Warning, TEXT("Attempting to move a pin before a non-sibling pin: %s"), *InPinToMove->GetPinPath());
+		return false;
+	}
+
+	return GetActionStack()->RunAction<FOptimusNodeAction_MovePin>(InPinToMove, InPinBefore);
+}
+
+
+bool UOptimusNode::MovePinDirect(
+	UOptimusNodePin* InPinToMove,
+	const UOptimusNodePin* InPinBefore
+	)
+{
+	TArray<UOptimusNodePin*> *MovablePins;
+	if (UOptimusNodePin* ParentPin = InPinToMove->GetParentPin())
+	{
+		MovablePins = &ParentPin->SubPins;
+	}
+	else
+	{
+		MovablePins = &Pins;
+	}
+	
+	const int32 PinIndex = MovablePins->IndexOfByKey(InPinToMove);
+	if (InPinBefore)
+	{
+		MovablePins->RemoveAt(PinIndex);
+		
+		const int32 BeforeIndex = MovablePins->IndexOfByKey(InPinBefore);
+		MovablePins->Insert(InPinToMove, BeforeIndex);
+	}
+	else
+	{
+		MovablePins->RemoveAt(PinIndex);
+		MovablePins->Add(InPinToMove);
+	}
+
+	InPinToMove->Notify(EOptimusGraphNotifyType::PinMoved);
+	return true;
+}
+
 
 bool UOptimusNode::SetPinDataType
 (
@@ -802,11 +980,19 @@ void UOptimusNode::SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded
 	FName Name = InPin->GetUniqueName();
 	if (bInExpanded)
 	{
-		ExpandedPins.Add(Name);
+		if (!ExpandedPins.Contains(Name))
+		{
+			ExpandedPins.Add(Name);
+			InPin->Notify(EOptimusGraphNotifyType::PinExpansionChanged);
+		}
 	}
 	else
 	{
-		ExpandedPins.Remove(Name);
+		if (ExpandedPins.Contains(Name))
+		{
+			ExpandedPins.Remove(Name);
+			InPin->Notify(EOptimusGraphNotifyType::PinExpansionChanged);
+		}
 	}
 }
 

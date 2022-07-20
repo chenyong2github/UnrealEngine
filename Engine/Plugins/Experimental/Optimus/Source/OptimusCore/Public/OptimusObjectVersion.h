@@ -16,6 +16,7 @@ struct OPTIMUSCORE_API FOptimusObjectVersion
 		ReparentResourcesAndVariables,
 		SwitchToParameterBindingArrayStruct,
 		AddBindingsToGraph,
+		ComponentProviderSupport,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

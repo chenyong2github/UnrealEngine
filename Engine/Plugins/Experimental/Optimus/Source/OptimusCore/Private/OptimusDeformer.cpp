@@ -35,7 +35,11 @@
 
 // FIXME: We should not be accessing nodes directly.
 #include "OptimusValueContainer.h"
+#include "Actions/OptimusComponentBindingActions.h"
+#include "ComponentSources/OptimusSkeletalMeshComponentSource.h"
+#include "Nodes/OptimusNode_ComponentSource.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
+#include "Nodes/OptimusNode_DataInterface.h"
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_ResourceAccessorBase.h"
 
@@ -54,6 +58,7 @@ UOptimusDeformer::UOptimusDeformer()
 	UpdateGraph->SetGraphType(EOptimusNodeGraphType::Update);
 	Graphs.Add(UpdateGraph);
 
+	Bindings = CreateDefaultSubobject<UOptimusComponentSourceBindingContainer>(TEXT("@Bindings"));
 	Variables = CreateDefaultSubobject<UOptimusVariableContainer>(TEXT("@Variables"));
 	Resources = CreateDefaultSubobject<UOptimusResourceContainer>(TEXT("@Resources"));
 
@@ -152,6 +157,9 @@ UOptimusVariableDescription* UOptimusDeformer::AddVariable(
 		return nullptr;
 	}
 
+	// Ensure the name is unique.
+	InName = Optimus::GetUniqueNameForScope(Variables, InName);
+
 	FOptimusVariableAction_AddVariable* AddVariabAction =
 	    new FOptimusVariableAction_AddVariable(InDataTypeRef, InName);
 
@@ -184,50 +192,10 @@ bool UOptimusDeformer::RemoveVariable(
 }
 
 
-void UOptimusDeformer::CreateVariableNodePinRenamesActions
-(
-	FOptimusCompoundAction* InAction,		
-	const UOptimusVariableDescription* InVariableDesc,
-	FName InNewName
-	) const
-{
-	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
-	for (UOptimusNode* Node: AllVariableNodes)
-	{
-		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
-		if (VariableNode->GetVariableDescription() == InVariableDesc)
-		{
-			if (ensure(VariableNode->GetPins().Num() == 1))
-			{
-				InAction->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
-			}
-		}	
-	}
-}
-
-
-bool UOptimusDeformer::UpdateVariableNodesPinNames(
-	UOptimusVariableDescription* InVariableDesc, 
-	FName InNewName
-	)
-{
-	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Update Variable Nodes' Pin Names"));
-
-	CreateVariableNodePinRenamesActions(Action, InVariableDesc, InNewName);
-	
-	if (!GetActionStack()->RunAction(Action))
-	{
-		return false;
-	}
-
-	Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
-	return true;
-}
-
-
 bool UOptimusDeformer::RenameVariable(	
 	UOptimusVariableDescription* InVariableDesc, 
-	FName InNewName
+	FName InNewName,
+	bool bInForceChange
 	)
 {
 	if (!ensure(InVariableDesc))
@@ -245,15 +213,40 @@ bool UOptimusDeformer::RenameVariable(
 		return false;
 	}
 
+	if (!bInForceChange && InNewName == InVariableDesc->VariableName)
+	{
+		return true;
+	}
+	
 	// Ensure we can rename to that name, update the name if necessary.
-	InNewName = Optimus::GetUniqueNameForScope(Variables, InNewName);
+	if (InNewName != InVariableDesc->VariableName)
+	{
+		InNewName = Optimus::GetUniqueNameForScope(Variables, InNewName);
+	}
 	
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Variable"));
 	
-	CreateVariableNodePinRenamesActions(Action, InVariableDesc, InNewName);
+	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
+	for (UOptimusNode* Node: AllVariableNodes)
+	{
+		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
+		if (VariableNode->GetVariableDescription() == InVariableDesc)
+		{
+			if (ensure(VariableNode->GetPins().Num() == 1))
+			{
+				Action->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
+			}
+		}	
+	}
 
-	Action->AddSubAction<FOptimusVariableAction_RenameVariable>(InVariableDesc, InNewName);
-
+	if (InNewName == InVariableDesc->VariableName)
+	{
+		Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
+	}
+	else
+	{
+		Action->AddSubAction<FOptimusVariableAction_RenameVariable>(InVariableDesc, InNewName);
+	}
 	return GetActionStack()->RunAction(Action);
 }
 
@@ -261,7 +254,8 @@ bool UOptimusDeformer::RenameVariable(
 
 bool UOptimusDeformer::SetVariableDataType(
 	UOptimusVariableDescription* InVariableDesc,
-	FOptimusDataTypeRef InDataType
+	FOptimusDataTypeRef InDataType,
+	bool bInForceChange
 	)
 {
 	if (!ensure(InVariableDesc))
@@ -278,6 +272,11 @@ bool UOptimusDeformer::SetVariableDataType(
 	{
 		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type"));
 		return false;
+	}
+
+	if (!bInForceChange && InDataType == InVariableDesc->DataType)
+	{
+		return true;
 	}
 	
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Variable Type"));
@@ -302,13 +301,15 @@ bool UOptimusDeformer::SetVariableDataType(
 				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
 
 				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
-				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
-					Links.Add({Pin, ConnectedPin});
-				}
-				else
-				{
-					Links.Add({ConnectedPin, Pin});
+					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+					{
+						Links.Add({Pin, ConnectedPin});
+					}
+					else
+					{
+						Links.Add({ConnectedPin, Pin});
+					}
 				}
 			}
 		}	
@@ -323,8 +324,20 @@ bool UOptimusDeformer::SetVariableDataType(
 	{
 		Action->AddSubAction<FOptimusVariableAction_SetDataType>(InVariableDesc, InDataType);
 	}
+	else
+	{
+		Notify(EOptimusGlobalNotifyType::VariableTypeChanged, InVariableDesc);
+	}
 
-	return GetActionStack()->RunAction(Action);
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return false;
+	}
+	
+	// Make sure the value data container is still large enough to hold the property value.
+	InVariableDesc->ValueData.Reset();
+	InVariableDesc->ResetValueDataSize();
+	return true;
 }
 
 
@@ -347,11 +360,11 @@ UOptimusVariableDescription* UOptimusDeformer::CreateVariableDirect(
 	FName InName
 	)
 {
-	if (InName.IsNone())
+	if (!ensure(!InName.IsNone()))
 	{
-		InName = DefaultResourceName;
+		return nullptr;
 	}
-
+	
 	UOptimusVariableDescription* Variable = NewObject<UOptimusVariableDescription>(
 		Variables, 
 		UOptimusVariableDescription::StaticClass(), 
@@ -395,13 +408,13 @@ bool UOptimusDeformer::RemoveVariableDirect(
 	)
 {
 	// Do we actually own this variable?
-	int32 ResourceIndex = Variables->Descriptions.IndexOfByKey(InVariableDesc);
-	if (ResourceIndex == INDEX_NONE)
+	const int32 VariableIndex = Variables->Descriptions.IndexOfByKey(InVariableDesc);
+	if (VariableIndex == INDEX_NONE)
 	{
 		return false;
 	}
 
-	Variables->Descriptions.RemoveAt(ResourceIndex);
+	Variables->Descriptions.RemoveAt(VariableIndex);
 
 	Notify(EOptimusGlobalNotifyType::VariableRemoved, InVariableDesc);
 
@@ -541,49 +554,10 @@ bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDes
 }
 
 
-void UOptimusDeformer::CreateResourceNodePinRenamesActions(
-	FOptimusCompoundAction* InAction,
-	const UOptimusResourceDescription* InResourceDesc,
-	FName InNewName
-	) const
-{
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
-	{
-		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
-		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
-			{
-				InAction->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[0], InNewName);
-			}
-		}	
-	}	
-}
-
-
-bool UOptimusDeformer::UpdateResourceNodesPinNames(
-	UOptimusResourceDescription* InResourceDesc,
-	FName InNewName
-	)
-{
-	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Update Resource Nodes' Pin Names"));
-
-	CreateResourceNodePinRenamesActions(Action, InResourceDesc, InNewName);
-	
-	if (!GetActionStack()->RunAction(Action))
-	{
-		return false;
-	}
-
-	Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);
-	return true;
-}
-
-
 bool UOptimusDeformer::RenameResource(
 	UOptimusResourceDescription* InResourceDesc, 
-	FName InNewName
+	FName InNewName,
+	bool bInForceChange
 	)
 {
 	if (!ensure(InResourceDesc))
@@ -602,22 +576,49 @@ bool UOptimusDeformer::RenameResource(
 		return false;
 	}
 
+	if (!bInForceChange && InNewName == InResourceDesc->ResourceName)
+	{
+		return true;
+	}
+
 	// Ensure we can rename to that name, update the name if necessary.
-	InNewName = Optimus::GetUniqueNameForScope(Resources, InNewName);
+	if (InNewName != InResourceDesc->ResourceName)
+	{
+		InNewName = Optimus::GetUniqueNameForScope(Resources, InNewName);
+	}
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Resource"));
 
-	CreateResourceNodePinRenamesActions(Action, InResourceDesc, InNewName);
+	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
+	for (UOptimusNode* Node: AllResourceNodes)
+	{
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
+		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		{
+			if (ensure(ResourceNode->GetPins().Num() == 1))
+			{
+				Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[0], InNewName);
+			}
+		}	
+	}	
 
-	Action->AddSubAction<FOptimusResourceAction_RenameResource>(InResourceDesc, InNewName);
-
+	if (InNewName == InResourceDesc->ResourceName)
+	{
+		// Make sure we update the explorer.
+		Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);
+	}
+	else
+	{
+		Action->AddSubAction<FOptimusResourceAction_RenameResource>(InResourceDesc, InNewName);
+	}
 	return GetActionStack()->RunAction(Action);
 }
 
 
 bool UOptimusDeformer::SetResourceDataType(
 	UOptimusResourceDescription* InResourceDesc,
-	FOptimusDataTypeRef InDataType
+	FOptimusDataTypeRef InDataType,
+	bool bInForceChange
 	)
 {
 	if (!ensure(InResourceDesc))
@@ -629,11 +630,16 @@ bool UOptimusDeformer::SetResourceDataType(
 		UE_LOG(LogOptimusCore, Error, TEXT("Resource not owned by this deformer."));
 		return false;
 	}
-	
+
 	if (!InDataType.IsValid())
 	{
 		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type"));
 		return false;
+	}
+
+	if (!bInForceChange && InDataType == InResourceDesc->DataType)
+	{
+		return true;
 	}
 	
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Resource Type"));
@@ -703,14 +709,11 @@ UOptimusResourceDescription* UOptimusDeformer::CreateResourceDirect(
 	FName InName
 	)
 {
-	if (InName.IsNone())
+	if (!ensure(!InName.IsNone()))
 	{
-		InName = DefaultResourceName;
+		return nullptr;
 	}
-
-	// If there's already an object with this name, then attempt to make the name unique.
-	InName = Optimus::GetUniqueNameForScope(Resources, InName);
-
+	
 	// The resource is actually owned by the "Resources" container to avoid name clashing as
 	// much as possible.
 	UOptimusResourceDescription* Resource = NewObject<UOptimusResourceDescription>(
@@ -719,8 +722,6 @@ UOptimusResourceDescription* UOptimusDeformer::CreateResourceDirect(
 		InName, 
 		RF_Transactional);
 
-	(void)MarkPackageDirty();
-	
 	return Resource;
 }
 
@@ -740,9 +741,9 @@ bool UOptimusDeformer::AddResourceDirect(
 	}
 
 	Resources->Descriptions.Add(InResourceDesc);
-
 	Notify(EOptimusGlobalNotifyType::ResourceAdded, InResourceDesc);
-
+	(void)MarkPackageDirty();
+	
 	return true;
 }
 
@@ -822,26 +823,352 @@ bool UOptimusDeformer::SetResourceDataTypeDirect(
 	return true;
 }
 
+// === Component bindings
+UOptimusComponentSourceBinding* UOptimusDeformer::AddComponentBinding(
+	const UOptimusComponentSource* InComponentSource,
+	FName InName
+	)
+{
+	if (!InComponentSource)
+	{
+		InComponentSource = UOptimusSkeletalMeshComponentSource::StaticClass()->GetDefaultObject<UOptimusComponentSource>();		
+	}
+
+	if (InName.IsNone())
+	{
+		InName = InComponentSource->GetBindingName();
+	}
+
+	InName = Optimus::GetUniqueNameForScope(Bindings, InName);
+
+	FOptimusComponentBindingAction_AddBinding *AddComponentBindingAction = 	
+		new FOptimusComponentBindingAction_AddBinding(InComponentSource, InName);
+
+	if (!GetActionStack()->RunAction(AddComponentBindingAction))
+	{
+		return nullptr;
+	}
+	
+	return AddComponentBindingAction->GetComponentBinding(this);
+}
+
+
+UOptimusComponentSourceBinding* UOptimusDeformer::CreateComponentBindingDirect(
+	const UOptimusComponentSource* InComponentSource,
+	FName InName
+	)
+{
+	if (!ensure(InComponentSource) && !ensure(!InName.IsNone()))
+	{
+		return nullptr;
+	}
+
+	UOptimusComponentSourceBinding* Binding = NewObject<UOptimusComponentSourceBinding>(
+		Bindings, 
+		UOptimusComponentSourceBinding::StaticClass(), 
+		InName, 
+		RF_Transactional);
+
+	Binding->ComponentType = InComponentSource->GetClass();
+	Binding->BindingName = InName;
+
+	return Binding;
+}
+
+
+bool UOptimusDeformer::AddComponentBindingDirect(
+	UOptimusComponentSourceBinding* InComponentBinding
+	)
+{
+	if (!ensure(InComponentBinding))
+	{
+		return false;
+	}
+	if (!ensure(InComponentBinding->GetOuter() == Bindings))
+	{
+		return false;
+	}
+
+	if (Bindings->Bindings.IsEmpty())
+	{
+		InComponentBinding->bIsPrimaryBinding = true;
+	}
+	
+	Bindings->Bindings.Add(InComponentBinding);
+
+	Notify(EOptimusGlobalNotifyType::ComponentBindingAdded, InComponentBinding);
+
+	(void)MarkPackageDirty();
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RemoveComponentBinding(
+	UOptimusComponentSourceBinding* InBinding
+	)
+{
+	if (!ensure(InBinding))
+	{
+		return false;
+	}
+	if (InBinding->GetOuter() != Bindings)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Component binding not owned by this deformer."));
+		return false;
+	}
+	if (InBinding->bIsPrimaryBinding)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("The primary binding cannot be removed."));
+		return false;
+	}
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Remove Binding"));
+	
+	TMap<const UOptimusNodeGraph*, TArray<UOptimusNode*>> NodesByGraph;
+	
+	TArray<UOptimusNode*> AllComponentSourceNodes = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
+	for (UOptimusNode* Node: AllComponentSourceNodes)
+	{
+		UOptimusNode_ComponentSource* ComponentNode = Cast<UOptimusNode_ComponentSource>(Node);
+		if (ComponentNode->GetComponentSourceBinding() == InBinding)
+		{
+			NodesByGraph.FindOrAdd(ComponentNode->GetOwningGraph()).Add(ComponentNode);
+		}	
+	}
+
+	for (const TTuple<const UOptimusNodeGraph*, TArray<UOptimusNode*>>& GraphNodes: NodesByGraph)
+	{
+		const UOptimusNodeGraph* Graph = GraphNodes.Key;
+		Graph->RemoveNodesToAction(Action, GraphNodes.Value);
+	}
+
+	Action->AddSubAction<FOptimusComponentBindingAction_RemoveBinding>(InBinding);
+
+	return GetActionStack()->RunAction(Action);
+}
+
+
+bool UOptimusDeformer::RemoveComponentBindingDirect(UOptimusComponentSourceBinding* InBinding)
+{
+	// Do we actually own this binding?
+	const int32 BindingIndex = Bindings->Bindings.IndexOfByKey(InBinding);
+	if (BindingIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	Bindings->Bindings.RemoveAt(BindingIndex);
+
+	Notify(EOptimusGlobalNotifyType::ComponentBindingRemoved, InBinding);
+
+	InBinding->Rename(nullptr, GetTransientPackage());
+	InBinding->MarkAsGarbage();
+
+	(void)MarkPackageDirty();
+	
+	return true;
+}
+
+
+bool UOptimusDeformer::RenameComponentBinding(
+	UOptimusComponentSourceBinding* InBinding, 
+	FName InNewName,
+	bool bInForceChange
+	)
+{
+	if (!ensure(InBinding))
+	{
+		return false;
+	}
+	if (InBinding->GetOuter() != Bindings)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Binding not owned by this deformer."));
+		return false;
+	}
+	
+	if (InNewName.IsNone())
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid binding name"));
+		return false;
+	}
+
+	if (!bInForceChange && InNewName == InBinding->BindingName)
+	{
+		return true;
+	}
+
+	// Ensure we can rename to that name, update the name if necessary.
+	if (InNewName != InBinding->BindingName)
+	{
+		InNewName = Optimus::GetUniqueNameForScope(Resources, InNewName);
+	}
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Component Binding"));
+
+	TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
+	for (UOptimusNode* Node: AllComponentSourceNode)
+	{
+		UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
+		if (ComponentSourceNode->GetComponentSourceBinding() == InBinding)
+		{
+			Action->AddSubAction<FOptimusNodeAction_RenameNode>(ComponentSourceNode, FText::FromName(InNewName));
+		}	
+	}	
+
+	if (InNewName == InBinding->BindingName)
+	{
+		Notify(EOptimusGlobalNotifyType::ComponentBindingRenamed, InBinding);
+	}
+	else
+	{
+		Action->AddSubAction<FOptimusComponentBindingAction_RenameBinding>(InBinding, InNewName);
+	}
+	
+	return GetActionStack()->RunAction(Action);
+}
+
+
+
+bool UOptimusDeformer::RenameComponentBindingDirect(
+	UOptimusComponentSourceBinding* InBinding,
+	FName InNewName
+	)
+{
+	// Do we actually own this binding?
+	if (Bindings->Bindings.IndexOfByKey(InBinding) == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	if (InBinding->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
+	{
+		InBinding->BindingName = InNewName;
+		Notify(EOptimusGlobalNotifyType::ComponentBindingRenamed, InBinding);
+		(void)MarkPackageDirty();
+		return true;
+	}
+	
+	return false;
+}
+
+
+bool UOptimusDeformer::SetComponentBindingSource(
+	UOptimusComponentSourceBinding* InBinding,
+	const UOptimusComponentSource* InComponentSource,
+	bool bInForceChange
+	)
+{
+	if (!ensure(InBinding))
+	{
+		return false;
+	}
+	if (InBinding->GetOuter() != Bindings)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Binding not owned by this deformer."));
+		return false;
+	}
+	
+	if (!InComponentSource)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid component source"));
+		return false;
+	}
+
+	if (!bInForceChange && InBinding->ComponentType == InComponentSource->GetClass())
+	{
+		return true;
+	}
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Component Binding Source"));
+	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
+	TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
+	for (UOptimusNode* Node: AllComponentSourceNode)
+	{
+		const UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
+		if (ComponentSourceNode->GetComponentSourceBinding() == InBinding)
+		{
+			UOptimusNodePin* ComponentSourcePin = ComponentSourceNode->GetComponentPin();
+
+			const UOptimusNodeGraph* Graph = ComponentSourceNode->GetOwningGraph();
+
+			for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(ComponentSourcePin))
+			{
+				// Will this connection be invalid once the source is changed?
+				if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(ConnectedPin->GetOwningNode()))
+				{
+					if (!DataInterfaceNode->IsComponentSourceCompatible(InComponentSource))
+					{
+						Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ComponentSourcePin, ConnectedPin);
+					}
+				}
+			}
+
+			// Change the pin name _after_ the links are removed, since the link remove action uses the pin path, including
+			// the old name to resolve the pin.
+			Action->AddSubAction<FOptimusNodeAction_SetPinName>(ComponentSourcePin, InComponentSource->GetBindingName());
+		}	
+	}
+	
+	if (InBinding->ComponentType != InComponentSource->GetClass())
+	{
+		Action->AddSubAction<FOptimusComponentBindingAction_SetComponentSource>(InBinding, InComponentSource);
+	}
+	else
+	{
+		Notify(EOptimusGlobalNotifyType::ComponentBindingSourceChanged, InBinding);
+	}
+
+	return GetActionStack()->RunAction(Action);
+}
+
+
+bool UOptimusDeformer::SetComponentBindingSourceDirect(
+	UOptimusComponentSourceBinding* InBinding,
+	const UOptimusComponentSource* InComponentSource
+	)
+{
+	// Do we actually own this binding?
+	if (Bindings->Bindings.IndexOfByKey(InBinding) == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (InBinding->ComponentType != InComponentSource->GetClass())
+	{
+		InBinding->ComponentType = InComponentSource->GetClass();
+		Notify(EOptimusGlobalNotifyType::ComponentBindingSourceChanged, InBinding);
+		(void)MarkPackageDirty();
+	}
+	
+	return true;
+}
+
+
+UOptimusComponentSourceBinding* UOptimusDeformer::ResolveComponentBinding(
+	FName InBindingName
+	) const
+{
+	for (UOptimusComponentSourceBinding* Binding : GetComponentBindings())
+	{
+		if (Binding->GetFName() == InBindingName)
+		{
+			return Binding;
+		}
+	}
+	return nullptr;
+}
+
+
 
 // Do a breadth-first collection of nodes starting from the seed nodes (terminal data interfaces).
-struct FNodeWithTraversalContext
-{
-	const UOptimusNode* Node;
-	FOptimusPinTraversalContext TraversalContext;
-
-	bool operator ==(FNodeWithTraversalContext const& RHS) const
-	{
-		return Node == RHS.Node;
-	}
-};
-
 static void CollectNodes(
 	const TArray<const UOptimusNode*>& InSeedNodes,
-	TArray<FNodeWithTraversalContext>& OutCollectedNodes
+	TArray<FOptimusRoutedConstNode>& OutCollectedNodes
 	)
 {
 	TSet<const UOptimusNode*> VisitedNodes;
-	TQueue<FNodeWithTraversalContext> WorkingSet;
+	TQueue<FOptimusRoutedConstNode> WorkingSet;
 
 	for (const UOptimusNode* Node: InSeedNodes)
 	{
@@ -850,7 +1177,31 @@ static void CollectNodes(
 		OutCollectedNodes.Add({Node, FOptimusPinTraversalContext{}});
 	}
 
-	FNodeWithTraversalContext WorkItem;
+	auto CollectFromInputPins = [&WorkingSet, &VisitedNodes, &OutCollectedNodes](const FOptimusRoutedConstNode& InWorkItem, const UOptimusNodePin* InPin)
+	{
+		for (const FOptimusRoutedNodePin& ConnectedPin: InPin->GetConnectedPinsWithRouting(InWorkItem.TraversalContext))
+		{
+			if (ensure(ConnectedPin.NodePin != nullptr))
+			{
+				const UOptimusNode *NextNode = ConnectedPin.NodePin->GetOwningNode();
+				FOptimusRoutedConstNode CollectedNode{NextNode, ConnectedPin.TraversalContext};
+				WorkingSet.Enqueue(CollectedNode);
+				if (!VisitedNodes.Contains(NextNode))
+				{
+					VisitedNodes.Add(NextNode);
+					OutCollectedNodes.Add(CollectedNode);
+				}
+				else
+				{
+					// Push the node to the back because to ensure that it is scheduled  earlier then it's referencing node.
+					OutCollectedNodes.RemoveSingle(CollectedNode);
+					OutCollectedNodes.Add(CollectedNode);
+				}
+			}
+		}
+	};
+
+	FOptimusRoutedConstNode WorkItem;
 	while (WorkingSet.Dequeue(WorkItem))
 	{
 		// Traverse in the direction of input pins (up the graph).
@@ -858,31 +1209,21 @@ static void CollectNodes(
 		{
 			if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
 			{
-				for (const FOptimusRoutedNodePin& ConnectedPin: Pin->GetConnectedPinsWithRouting(WorkItem.TraversalContext))
+				if (Pin->IsGroupingPin())
 				{
-					if (ensure(ConnectedPin.NodePin != nullptr))
+					for (const UOptimusNodePin* SubPin: Pin->GetSubPins())
 					{
-						const UOptimusNode *NextNode = ConnectedPin.NodePin->GetOwningNode();
-						FNodeWithTraversalContext CollectedNode{NextNode, ConnectedPin.TraversalContext};
-						WorkingSet.Enqueue(CollectedNode);
- 						if (!VisitedNodes.Contains(NextNode))
- 						{
-							VisitedNodes.Add(NextNode);
-							OutCollectedNodes.Add(CollectedNode);
- 						}
- 						else
- 						{
-							// Push the node to the back because to ensure that it is scheduled  earlier then it's referencing node.
- 							OutCollectedNodes.RemoveSingle(CollectedNode);
- 							OutCollectedNodes.Add(CollectedNode);
- 						}
+						CollectFromInputPins(WorkItem, SubPin);
 					}
+				}
+				else
+				{
+					CollectFromInputPins(WorkItem, Pin);
 				}
 			}
 		}	
 	}	
 }
-
 
 
 bool UOptimusDeformer::Compile()
@@ -891,7 +1232,7 @@ bool UOptimusDeformer::Compile()
 	{
 		FOptimusCompilerDiagnostic Diagnostic;
 		Diagnostic.Level = EOptimusDiagnosticLevel::Error;
-		Diagnostic.Diagnostic = LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.").ToString();
+		Diagnostic.Message = LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.");
 
 		CompileBeginDelegate.Broadcast(this);
 		CompileMessageDelegate.Broadcast(Diagnostic);
@@ -906,27 +1247,40 @@ bool UOptimusDeformer::Compile()
 	// Wait for rendering to be done.
 	FlushRenderingCommands();
 
+	bool bCompilationFailed = false;
+	auto ErrorReporter = [this, &bCompilationFailed](
+		EOptimusDiagnosticLevel InDiagnosticLevel, 
+		FText InMessage,
+		const UObject* InObject)
+	{
+		FOptimusCompilerDiagnostic Diagnostic;
+		Diagnostic.Level = InDiagnosticLevel;
+		Diagnostic.Message = InMessage;
+		Diagnostic.Object = InObject;
+		CompileMessageDelegate.Broadcast(Diagnostic);
+		bCompilationFailed = true;
+	};
+
 	for (const UOptimusNodeGraph* Graph: Graphs)
 	{
-		FOptimusCompileResult Result = CompileNodeGraphToComputeGraph(Graph);
-		if (Result.IsType<UOptimusComputeGraph*>())
+		if (UOptimusComputeGraph* ComputeGraph = CompileNodeGraphToComputeGraph(Graph, ErrorReporter))
 		{
 			FOptimusComputeGraphInfo Info;
 			Info.GraphType = Graph->GraphType;
 			Info.GraphName = Graph->GetFName();
-			Info.ComputeGraph = Result.Get<UOptimusComputeGraph*>();
+			Info.ComputeGraph = ComputeGraph;
 			ComputeGraphs.Add(Info);
-		}
-		else if (Result.IsType<FOptimusCompilerDiagnostic>())
-		{
-			ComputeGraphs.Reset();
-			CompileMessageDelegate.Broadcast(Result.Get<FOptimusCompilerDiagnostic>());
-			break;
 		}
 	}
 	
 	CompileEndDelegate.Broadcast(this);
 
+	if (bCompilationFailed)
+	{
+		ComputeGraphs.Reset();
+		return false;
+	}
+	
 	for (const FOptimusComputeGraphInfo& ComputeGraphInfo: ComputeGraphs)
 	{
 		ComputeGraphInfo.ComputeGraph->UpdateResources();
@@ -965,11 +1319,36 @@ TArray<UOptimusNode*> UOptimusDeformer::GetAllNodesOfClass(UClass* InNodeClass) 
 }
 
 
-UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComputeGraph(
-	const UOptimusNodeGraph* InNodeGraph
+UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
+	const UOptimusNodeGraph* InNodeGraph,
+	TFunction<void(EOptimusDiagnosticLevel, FText, const UObject*)> InErrorReporter
 	)
 {
-	FOptimusCompileResult Result;
+	auto AddDiagnostic = [ErrorReporter=InErrorReporter](
+		EOptimusDiagnosticLevel InLevel, 
+		FText InMessage,
+		const UOptimusNode* InNode = nullptr)
+	{
+		// Only raise the diagnostic level.
+		if (InNode && InNode->GetDiagnosticLevel() < InLevel)
+		{
+			const_cast<UOptimusNode*>(InNode)->SetDiagnosticLevel(InLevel);
+		}
+
+		ErrorReporter(InLevel, InMessage, InNode);
+	};
+	
+	// No nodes in the graph, nothing to do.
+	if (InNodeGraph->GetAllNodes().IsEmpty())
+	{
+		return nullptr;
+	}
+
+	// Clear the error state of all nodes.
+	for (UOptimusNode* Node: InNodeGraph->GetAllNodes())
+	{
+		Node->SetDiagnosticLevel(EOptimusDiagnosticLevel::None);
+	}
 
 	// Terminal nodes are data providers that contain only input pins. Any graph with no
 	// written output is a null graph.
@@ -985,6 +1364,12 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		{
 			for (const UOptimusNodePin* Pin: Node->GetPins())
 			{
+				// NOTE: No grouping pins on data interfaces (yet).
+				if (!ensure(!Pin->IsGroupingPin()))
+				{
+					continue;
+				}
+				
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Input && Pin->GetConnectedPins().Num())
 				{
 					bConnectedInput = true;
@@ -1004,23 +1389,36 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 
 	if (TerminalNodes.IsEmpty())
 	{
-		FOptimusCompilerDiagnostic Diagnostic;
-		Diagnostic.Level = EOptimusDiagnosticLevel::Error;
-		Diagnostic.Diagnostic = LOCTEXT("NoOutputDataInterfaceFound", "No connected output data interface nodes found. Compilation aborted.").ToString();
-		Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
-		return Result;
+		AddDiagnostic(EOptimusDiagnosticLevel::Error, LOCTEXT("NoOutputDataInterfaceFound", "No connected output data interface nodes found. Compilation aborted."));
+		return nullptr;
 	}
 
-	const FName GraphName = MakeUniqueObjectName(this, UOptimusComputeGraph::StaticClass(), InNodeGraph->GetFName());
-	UOptimusComputeGraph* ComputeGraph = NewObject<UOptimusComputeGraph>(this, GraphName);
-
-	TArray<FNodeWithTraversalContext> ConnectedNodes;
+	TArray<FOptimusRoutedConstNode> ConnectedNodes;
 	CollectNodes(TerminalNodes, ConnectedNodes);
 
 	// Since we now have the connected nodes in a breadth-first list, reverse the list which
 	// will give use the same list but topologically sorted in kernel execution order.
 	Algo::Reverse(ConnectedNodes.GetData(), ConnectedNodes.Num());
 
+	// Go through all the nodes and check if their state is valid for compilation.
+	bool bValidationFailed = false;
+	for (FOptimusRoutedConstNode ConnectedNode: ConnectedNodes)
+	{
+		TOptional<FText> ErrorMessage = ConnectedNode.Node->ValidateForCompile();
+		if (ErrorMessage.IsSet())
+		{
+			bValidationFailed = true;
+			AddDiagnostic(EOptimusDiagnosticLevel::Error, *ErrorMessage, ConnectedNode.Node);
+		}
+	}
+	if (bValidationFailed)
+	{
+		return nullptr;
+	}
+
+	const FName GraphName = MakeUniqueObjectName(this, UOptimusComputeGraph::StaticClass(), InNodeGraph->GetFName());
+	UOptimusComputeGraph* ComputeGraph = NewObject<UOptimusComputeGraph>(this, GraphName);
+	
 	// Find all data interface nodes and create their data interfaces.
 	FOptimus_NodeToDataInterfaceMap NodeDataInterfaceMap;
 
@@ -1032,7 +1430,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	// Find all value nodes (constant and variable) 
 	TArray<const UOptimusNode *> ValueNodes; 
 
-	for (FNodeWithTraversalContext ConnectedNode: ConnectedNodes)
+	for (FOptimusRoutedConstNode ConnectedNode: ConnectedNodes)
 	{
 		if (const IOptimusDataInterfaceProvider* DataInterfaceNode = Cast<const IOptimusDataInterfaceProvider>(ConnectedNode.Node))
 		{
@@ -1103,9 +1501,12 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		FOptimus_InterfaceBindingMap InputDataBindings;
 		FOptimus_InterfaceBindingMap OutputDataBindings;
 	};
+
+	// The component binding for the graph data is the primary binding on the deformer.
+	UOptimusComponentSourceBinding* GraphDataComponentBinding = Bindings->Bindings[0];
 	
 	TArray<FKernelWithDataBindings> BoundKernels;
-	for (FNodeWithTraversalContext ConnectedNode: ConnectedNodes)
+	for (FOptimusRoutedConstNode ConnectedNode: ConnectedNodes)
 	{
 		if (const IOptimusComputeKernelProvider *KernelProvider = Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node))
 		{
@@ -1114,33 +1515,30 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			BoundKernel.KernelNodeIndex = InNodeGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
-			UComputeKernelSource *KernelSource = KernelProvider->CreateComputeKernel(
+			FOptimus_ComputeKernelResult KernelSourceResult = KernelProvider->CreateComputeKernel(	
 				BoundKernel.Kernel, ConnectedNode.TraversalContext,
 				NodeDataInterfaceMap, LinkDataInterfaceMap,
-				ValueNodes, GraphDataInterface,
+				ValueNodes,
+				GraphDataInterface, GraphDataComponentBinding,
 				BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
 			);
-			if (!KernelSource)
+			if (FText* ErrorMessage = KernelSourceResult.TryGet<FText>())
 			{
-				FOptimusCompilerDiagnostic Diagnostic;
-				Diagnostic.Level = EOptimusDiagnosticLevel::Error;
-				Diagnostic.Diagnostic = LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted.").ToString();
-				Diagnostic.Object = ConnectedNode.Node;
-				Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
-				return Result;
+				AddDiagnostic(EOptimusDiagnosticLevel::Error,
+					FText::Format(LOCTEXT("CantCreateKernelWithError", "{0}. Compilation aborted."), *ErrorMessage),
+					ConnectedNode.Node);
+				return nullptr;
 			}
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
-				FOptimusCompilerDiagnostic Diagnostic;
-				Diagnostic.Level = EOptimusDiagnosticLevel::Error;
-				Diagnostic.Diagnostic = LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted.").ToString();
-				Diagnostic.Object = ConnectedNode.Node;
-				Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
-				return Result;
+				AddDiagnostic(EOptimusDiagnosticLevel::Error,
+				LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."),
+					ConnectedNode.Node);
+				return nullptr;
 			}
 			
-			BoundKernel.Kernel->KernelSource = KernelSource;
+			BoundKernel.Kernel->KernelSource = KernelSourceResult.Get<UOptimusKernelSource*>();
 
 			BoundKernels.Add(BoundKernel);
 
@@ -1149,15 +1547,74 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		}
 	}
 
+	// Create a map from the data interfaces to the component bindings.
+	// FIXME: Instead of collecting this during compilation, we should do this when we collect data interfaces instead.
+	TMap<const UComputeDataInterface*, int32> DataInterfaceToBindingIndexMap;
+	for (int32 KernelIndex = 0; KernelIndex < ComputeGraph->KernelInvocations.Num(); KernelIndex++)
+	{
+		const FKernelWithDataBindings& BoundKernel = BoundKernels[KernelIndex];
+
+		for (const TPair<int32, FOptimus_InterfaceBinding>& DataBinding: BoundKernel.InputDataBindings)
+		{
+			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
+			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const UOptimusComponentSourceBinding* ComponentBinding = InterfaceBinding.ComponentBinding; 
+
+			if (ensure(ComponentBinding))
+			{
+				int32 BindingIndex = Bindings->Bindings.IndexOfByKey(ComponentBinding);
+				if (ensure(BindingIndex != INDEX_NONE))
+				{
+					if (DataInterfaceToBindingIndexMap.Contains(DataInterface) &&
+						DataInterfaceToBindingIndexMap[DataInterface] != BindingIndex)
+					{
+						UE_LOG(LogOptimusCore, Error, TEXT("Datainterface found with different component bindings?"));
+					}
+					DataInterfaceToBindingIndexMap.Add(DataInterface, BindingIndex);
+				}
+			}
+		}
+		for (const TPair<int32, FOptimus_InterfaceBinding>& DataBinding: BoundKernel.OutputDataBindings)
+		{
+			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
+			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const UOptimusComponentSourceBinding* ComponentBinding = InterfaceBinding.ComponentBinding; 
+
+			if (ensure(ComponentBinding))
+			{
+				int32 BindingIndex = Bindings->Bindings.IndexOfByKey(ComponentBinding);
+				if (ensure(BindingIndex != INDEX_NONE))
+				{
+					if (DataInterfaceToBindingIndexMap.Contains(DataInterface) &&
+						DataInterfaceToBindingIndexMap[DataInterface] != BindingIndex)
+					{
+						UE_LOG(LogOptimusCore, Error, TEXT("Datainterface found with different component bindings?"));
+					}
+					DataInterfaceToBindingIndexMap.Add(DataInterface, BindingIndex);
+				}
+			}
+		}
+	}
+	
+	// Create the binding objects.
+	for (const UOptimusComponentSourceBinding* Binding: Bindings->Bindings)
+	{
+		ComputeGraph->Bindings.Add(Binding->GetComponentSource()->GetComponentClass());
+	}
+
 	// Now that we've collected all the pieces, time to line them up.
 	ComputeGraph->DataInterfaces.Add(GraphDataInterface);
+	ComputeGraph->DataInterfaceToBinding.Add(0);		// Graph data interface always uses the primary binding.
+
 	for (TPair<const UOptimusNode*, UOptimusComputeDataInterface*>& Item : NodeDataInterfaceMap)
 	{
 		ComputeGraph->DataInterfaces.Add(Item.Value);
+		ComputeGraph->DataInterfaceToBinding.Add(DataInterfaceToBindingIndexMap[Item.Value]);
 	}
 	for (TPair<const UOptimusNodePin *, UOptimusComputeDataInterface *>&Item: LinkDataInterfaceMap)
 	{
 		ComputeGraph->DataInterfaces.Add(Item.Value);
+		ComputeGraph->DataInterfaceToBinding.Add(DataInterfaceToBindingIndexMap[Item.Value]);
 	}
 
 	// Create the graph edges.
@@ -1174,6 +1631,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
 			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
 			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
+			const FString BindingFunctionNamespace = InterfaceBinding.BindingFunctionNamespace;
 
 			// FIXME: Collect this beforehand.
 			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
@@ -1189,6 +1647,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 				GraphEdge.DataInterfaceIndex = ComputeGraph->DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
 				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
+				GraphEdge.BindingFunctionNamespace = BindingFunctionNamespace;
 				ComputeGraph->GraphEdges.Add(GraphEdge);
 			}
 		}
@@ -1201,6 +1660,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
 			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
 			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
+			const FString BindingFunctionNamespace = InterfaceBinding.BindingFunctionNamespace;
 
 			// FIXME: Collect this beforehand.
 			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
@@ -1216,22 +1676,17 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 				GraphEdge.DataInterfaceIndex = ComputeGraph->DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
 				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
+				GraphEdge.BindingFunctionNamespace = BindingFunctionNamespace;
 				ComputeGraph->GraphEdges.Add(GraphEdge);
 			}
 		}
 	}
 
-	// Create default graph bindings.
-	// Initially we bind everything through a single UMeshComponent object but we will extend that per data interface later.
-	ComputeGraph->Bindings.Add(UMeshComponent::StaticClass());
-	ComputeGraph->DataInterfaceToBinding.AddZeroed(ComputeGraph->DataInterfaces.Num());
-
 #if PRINT_COMPILED_OUTPUT
 	
 #endif
 
-	Result.Set<UOptimusComputeGraph*>(ComputeGraph);
-	return Result;
+	return ComputeGraph;
 }
 
 void UOptimusDeformer::OnDataTypeChanged(FName InTypeName)
@@ -1405,6 +1860,14 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 		checkSlow(Cast<UOptimusNodeGraph>(InObject) != nullptr);
 		break;
 
+	case EOptimusGlobalNotifyType::ComponentBindingAdded:
+	case EOptimusGlobalNotifyType::ComponentBindingRemoved:
+	case EOptimusGlobalNotifyType::ComponentBindingIndexChanged:
+	case EOptimusGlobalNotifyType::ComponentBindingRenamed:
+	case EOptimusGlobalNotifyType::ComponentBindingSourceChanged:
+		checkSlow(Cast<UOptimusComponentSourceBinding>(InObject) != nullptr);
+		break;
+		
 	case EOptimusGlobalNotifyType::ResourceAdded:
 	case EOptimusGlobalNotifyType::ResourceRemoved:
 	case EOptimusGlobalNotifyType::ResourceIndexChanged:
@@ -1471,6 +1934,12 @@ void UOptimusDeformer::PostLoad()
 {
 	Super::PostLoad();
 
+	if (!Container)
+	{
+		Container = NewObject<UTestContainment>(this);
+		Container->Array.AddDefaulted();
+	}
+
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ReparentResourcesAndVariables)
 	{
 		// Move any resource or variable descriptor owned by this deformer to their own container.
@@ -1492,6 +1961,22 @@ void UOptimusDeformer::PostLoad()
 			}
 		}
 	}
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ComponentProviderSupport)
+	{
+		if (ensure(Bindings->Bindings.IsEmpty()))
+		{
+			// Create a default skeletal mesh binding. This is always created for skeletal mesh deformers.
+			UOptimusComponentSource* ComponentSource = UOptimusSkeletalMeshComponentSource::StaticClass()->GetDefaultObject<UOptimusComponentSource>();
+			UOptimusComponentSourceBinding* Binding = CreateComponentBindingDirect(ComponentSource, ComponentSource->GetBindingName());
+			Binding->bIsPrimaryBinding = true;
+			Bindings->Bindings.Add(Binding);
+
+			(void)MarkPackageDirty();
+		}
+
+		// Fix up any data providers to ensure they have a binding.
+		PostLoadFixupMissingComponentBindingsCompat();
+	}
 
 	// Fixup any empty array entries.
 	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
@@ -1508,6 +1993,115 @@ void UOptimusDeformer::PostLoad()
 			Optimus::RenameObject(ClassObject, nullptr, GetPackage());
 		}
 	}	
+}
+
+
+void UOptimusDeformer::PostLoadFixupMissingComponentBindingsCompat()
+{
+	for (UOptimusNodeGraph* Graph: GetGraphs())
+	{
+		if (!Optimus::IsExecutionGraphType(Graph->GetGraphType()))
+		{
+			continue;
+		}
+
+		FVector2D::FReal MinimumPosX = std::numeric_limits<FVector2D::FReal>::max(), AccumulatedPosY = 0;
+
+		TMap<UOptimusNode_DataInterface*, UOptimusComponentSourceBinding*> InterfaceBindingMap;  
+		
+		for (UOptimusNode* Node: Graph->GetAllNodes())
+		{
+			MinimumPosX = FMath::Min(MinimumPosX, Node->GetGraphPosition().X);
+			AccumulatedPosY += Node->GetGraphPosition().Y;
+
+			if (UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(Node))
+			{
+				// Do we have a compatible binding?
+				if (ensure(DataInterfaceNode->DataInterfaceClass))
+				{
+					const UOptimusComputeDataInterface* DataInterface = DataInterfaceNode->DataInterfaceClass->GetDefaultObject<UOptimusComputeDataInterface>();
+					UOptimusComponentSourceBinding* Binding = FindCompatibleBindingWithInterface(DataInterface);
+					if (!Binding)
+					{
+						if (const UOptimusComponentSource* ComponentSource = UOptimusComponentSource::GetSourceFromDataInterface(DataInterface))
+						{
+							Binding = AddComponentBinding(ComponentSource);
+						}
+					}
+
+					if (Binding)
+					{
+						InterfaceBindingMap.Add(DataInterfaceNode, Binding);
+
+						// Make sure the component input pin has been created.
+						DataInterfaceNode->ConditionalPostLoad();
+					}
+				}
+			}
+		}
+
+		if (!InterfaceBindingMap.IsEmpty())
+		{
+			static const FVector2D NodeSize(160.0, 40.0); 
+			static const FVector2D NodeMargins(40.0, 20.0); 
+			
+			// Create component source nodes with the requested binding and connect them to the data interface nodes. 
+			TMap<UOptimusComponentSourceBinding*, UOptimusNode_ComponentSource*> BindingToNodeMap;
+			for (const TPair<UOptimusNode_DataInterface*, UOptimusComponentSourceBinding*>& Item: InterfaceBindingMap)
+			{
+				BindingToNodeMap.Add(Item.Value, nullptr);
+			}
+
+			MinimumPosX -= NodeSize.X + NodeMargins.X;
+			AccumulatedPosY /= Graph->GetAllNodes().Num();
+			AccumulatedPosY -= NodeSize.Y * 0.5 + (BindingToNodeMap.Num() - 1) * (NodeSize.Y + NodeMargins.Y);
+			
+			for (const TPair<UOptimusNode_DataInterface*, UOptimusComponentSourceBinding*>& Item: InterfaceBindingMap)
+			{
+				UOptimusNode_ComponentSource** ComponentSourceNodePtr = BindingToNodeMap.Find(Item.Value);
+				
+				if (*ComponentSourceNodePtr == nullptr)
+				{
+					*ComponentSourceNodePtr = Cast<UOptimusNode_ComponentSource>(Graph->AddComponentBindingGetNode(Item.Value, FVector2D(MinimumPosX, AccumulatedPosY)));					AccumulatedPosY += NodeSize.Y + NodeMargins.Y;
+				}
+
+				UOptimusNodePin* ComponentSourcePin = (*ComponentSourceNodePtr)->GetComponentPin();
+
+				Graph->AddLink(ComponentSourcePin, Item.Key->GetComponentPin());
+			}
+		}
+	}
+	(void)MarkPackageDirty();
+}
+
+
+UOptimusComponentSourceBinding* UOptimusDeformer::FindCompatibleBindingWithInterface(
+	const UOptimusComputeDataInterface* InDataInterface) const
+{
+	if (!ensure(InDataInterface))
+	{
+		return nullptr;
+	}
+	
+	for (UOptimusComponentSourceBinding* Binding: GetComponentBindings())
+	{
+		if (!ensure(Binding->GetComponentSource()))
+		{
+			continue;
+		}
+
+		// If the binding comp class is the same or a sub-class of the interface comp class, then
+		// they're compatible (e.g. if the interface requires only USceneComponent but the binding class
+		// is a USkinnedMeshComponent, then the USkinnedMeshComponent will suffice).
+		const UClass* BindingComponentClass = Binding->GetComponentSource()->GetComponentClass();
+		const UClass* InterfaceComponentClass = InDataInterface->GetRequiredComponentClass();
+		if (BindingComponentClass->IsChildOf(InterfaceComponentClass))
+		{
+			return Binding;
+		}
+	}
+
+	return nullptr;
 }
 
 void UOptimusDeformer::BeginDestroy()
@@ -1532,19 +2126,44 @@ void UOptimusDeformer::PostRename(UObject* OldOuter, const FName OldName)
 	}
 }
 
-UMeshDeformerInstance* UOptimusDeformer::CreateInstance(UMeshComponent* InMeshComponent)
+#if WITH_EDITOR
+void UOptimusDeformer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+}
+#endif
+
+
+UMeshDeformerInstanceSettings* UOptimusDeformer::CreateSettingsInstance(UMeshComponent* InMeshComponent)
+{
+	const FName SettingsName(GetName() + TEXT("_Settings"));
+	UOptimusDeformerInstanceSettings *Settings = NewObject<UOptimusDeformerInstanceSettings>(InMeshComponent, SettingsName);
+	Settings->InitializeSettings(this, InMeshComponent);
+	return Settings;
+}
+
+
+UMeshDeformerInstance* UOptimusDeformer::CreateInstance(
+	UMeshComponent* InMeshComponent,
+	UMeshDeformerInstanceSettings* InSettings
+	)
 {
 	if (InMeshComponent == nullptr)
 	{
 		return nullptr;
 	}
 
-	UOptimusDeformerInstance* Instance = NewObject<UOptimusDeformerInstance>();
+	const FName InstanceName(GetName() + TEXT("_Instance"));
+	UOptimusDeformerInstance* Instance = NewObject<UOptimusDeformerInstance>(InMeshComponent, InstanceName);
 	Instance->SetMeshComponent(InMeshComponent);
+	Instance->SetInstanceSettings(Cast<UOptimusDeformerInstanceSettings>(InSettings));
 	Instance->SetupFromDeformer(this);
 
 	// Make sure all the instances know when we finish compiling so they can update their local state to match.
-	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer);
+	CompileEndDelegate.AddLambda([Instance](UOptimusDeformer* InDeformer)
+	{
+		constexpr bool bRefreshBindings = true;
+		Instance->SetupFromDeformer(InDeformer, bRefreshBindings);
+	});
 	ConstantValueUpdateDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetConstantValueDirect);
 	SetAllInstancesCanbeActiveDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetCanBeActive);
 

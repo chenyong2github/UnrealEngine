@@ -55,3 +55,12 @@ UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterfac
 	
 	return Description->DataInterface;
 }
+
+UOptimusComponentSourceBinding* UOptimusNode_ResourceAccessorBase::GetComponentBinding() const
+{
+	if (const UOptimusResourceDescription* Description = ResourceDesc.Get())
+	{
+		return Description->ComponentBinding.Get();
+	}
+	return nullptr;
+}

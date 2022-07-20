@@ -48,12 +48,14 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 	SLATE_BEGIN_ARGS(SOptimusEditorExpanderArrow) {}
 
 	SLATE_ARGUMENT(bool, LeftAligned)
+	SLATE_ARGUMENT(bool, AlwaysVisible)
 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedPtr<class ITableRow>& TableRow)
 	{
 		bLeftAligned = InArgs._LeftAligned;
+		bAlwaysVisible = InArgs._AlwaysVisible;
 
 		SExpanderArrow::Construct(
 		    SExpanderArrow::FArguments()
@@ -68,6 +70,10 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 		    SNew(SImage)
 		        .Image(this, &SOptimusEditorExpanderArrow::GetExpanderImage_Extended)
 		        .ColorAndOpacity(FSlateColor::UseForeground()));
+
+		// Override visibility so that groups can have an expander arrow despite having no children.
+		ExpanderArrow->SetVisibility(
+			TAttribute<EVisibility>(this, &SOptimusEditorExpanderArrow::GetExpanderVisibility_Extended));
 	}
 
 	FMargin GetExpanderPadding_Extended() const
@@ -76,12 +82,21 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 		const float Indent = IndentAmount.Get(8.0f);
 		return bLeftAligned ? FMargin(NestingDepth * Indent, 0, 0, 0) : FMargin(0, 0, NestingDepth * Indent, 0);
 	}
+	
+	EVisibility GetExpanderVisibility_Extended() const
+	{
+		if (bAlwaysVisible)
+		{
+			return EVisibility::Visible;
+		}
+		return SExpanderArrow::GetExpanderVisibility();
+	}
 
 	const FSlateBrush* GetExpanderImage_Extended() const
 	{
 		const bool bIsItemExpanded = OwnerRowPtr.Pin()->IsItemExpanded();
 
-		// FIXME: COllapse to a table.
+		// FIXME: Collapse to a table.
 		FName ResourceName;
 		if (bIsItemExpanded)
 		{
@@ -123,6 +138,7 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 	}
 
 	bool bLeftAligned;
+	bool bAlwaysVisible;
 };
 
 
@@ -145,9 +161,8 @@ public:
 		const bool bIsLeaf = InGraphPin->SubPins.Num() == 0;
 		const bool bIsInput = InGraphPin->Direction == EGPD_Input;
 		const bool bLeftAligned = bIsInput;
-
-		const FName TextStyle =
-			InGraphPin->PinType.PinCategory == UOptimusEditorGraphNode::GroupTypeName ? NAME_GroupLabel_TextStyle : NAME_PinLabel_TextStyle;
+		const bool bIsGroupPin = InGraphPin->PinType.PinCategory == UOptimusEditorGraphNode::GroupTypeName; 
+		const FName TextStyle = bIsGroupPin ? NAME_GroupLabel_TextStyle : NAME_PinLabel_TextStyle;
 		
 		const TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
 			.Text(InArgs._PinLabel)
@@ -202,13 +217,13 @@ public:
 
 		SHorizontalBox::FSlot* InnerContentSlotNativePtr = nullptr;
 
-		
 		TSharedPtr<SWidget> ExpanderWidget;
 		if (InOptionalOwnerRow.IsValid())
 		{
 			ExpanderWidget =
 				SNew(SOptimusEditorExpanderArrow, InOptionalOwnerRow)
-					.LeftAligned(bLeftAligned);
+					.LeftAligned(bLeftAligned)
+					.AlwaysVisible(bIsGroupPin);
 		}
 		else
 		{
@@ -336,7 +351,7 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 
 static void SetTreeExpansion_Recursive(
 	TSharedPtr<STreeView<UOptimusNodePin*>>& InTreeWidget, 
-	const TArray<UOptimusNodePin*> &InItems
+	TArrayView<UOptimusNodePin* const> InItems
 	)
 {
 	for (UOptimusNodePin *Pin: InItems)
@@ -376,7 +391,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 			SAssignNew(InputTree, STreeView<UOptimusNodePin*>)
 	        .Visibility(this, &SOptimusEditorGraphNode::GetInputTreeVisibility)
 	        .TreeViewStyle(&FOptimusEditorStyle::Get().GetWidgetStyle<FTableViewStyle>("Node.PinTreeView"))
-	        .TreeItemsSource(EditorGraphNode->GetTopLevelInputPins())
+	        .TreeItemsSource(&EditorGraphNode->GetTopLevelInputPins())
 	        .SelectionMode(ESelectionMode::None)
 	        .OnGenerateRow(this, &SOptimusEditorGraphNode::MakeTableRowWidget)
 	        .OnGetChildren(this, &SOptimusEditorGraphNode::HandleGetChildrenForTree)
@@ -391,7 +406,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 			SAssignNew(OutputTree, STreeView<UOptimusNodePin*>)
 			.Visibility(this, &SOptimusEditorGraphNode::GetOutputTreeVisibility)
 	        .TreeViewStyle(&FOptimusEditorStyle::Get().GetWidgetStyle<FTableViewStyle>("Node.PinTreeView"))
-			.TreeItemsSource(EditorGraphNode->GetTopLevelOutputPins())
+			.TreeItemsSource(&EditorGraphNode->GetTopLevelOutputPins())
 			.SelectionMode(ESelectionMode::None)
 			.OnGenerateRow(this, &SOptimusEditorGraphNode::MakeTableRowWidget)
 			.OnGetChildren(this, &SOptimusEditorGraphNode::HandleGetChildrenForTree)
@@ -432,10 +447,8 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 				];
 		}
 	}
-	
-	// FIXME: Do expansion from stored expansion data.
-	SetTreeExpansion_Recursive(InputTree, *EditorGraphNode->GetTopLevelInputPins());
-	SetTreeExpansion_Recursive(OutputTree, *EditorGraphNode->GetTopLevelOutputPins());
+
+	UpdatePinExpansionFromGraphPins();
 
 	EditorGraphNode->OnNodeTitleDirtied().BindLambda([this]()
 	{
@@ -446,6 +459,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 	});
 
 	EditorGraphNode->OnNodePinsChanged().BindSP(this, &SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins);
+	EditorGraphNode->OnNodePinExpansionChanged().BindSP(this, &SOptimusEditorGraphNode::UpdatePinExpansionFromGraphPins);
 }
 
 EVisibility SOptimusEditorGraphNode::GetTitleVisibility() const
@@ -606,6 +620,15 @@ void SOptimusEditorGraphNode::UpdatePinIcon(
 	}
 }
 
+void SOptimusEditorGraphNode::UpdatePinExpansionFromGraphPins()
+{
+	if (const UOptimusEditorGraphNode *EditorGraphNode = Cast<UOptimusEditorGraphNode>(GraphNode))
+	{
+		SetTreeExpansion_Recursive(InputTree, EditorGraphNode->GetTopLevelInputPins());
+		SetTreeExpansion_Recursive(OutputTree, EditorGraphNode->GetTopLevelOutputPins());
+	}
+}
+
 
 TSharedPtr<SGraphPin> SOptimusEditorGraphNode::GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const
 {
@@ -698,6 +721,7 @@ TSharedPtr<SGraphPin> SOptimusEditorGraphNode::GetPinWidget(UEdGraphPin* InGraph
 }
 
 
+
 void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
 {
 	// Collect graph pins to delete. We do this here because this widget is the only entity
@@ -756,8 +780,8 @@ void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
 	// Nix any pins left in this map. They're most likely hidden sub-pins.
 	PinsToKeep.Reset();
 
-	InputTree->RequestTreeRefresh();
-	OutputTree->RequestTreeRefresh();
+	InputTree->RebuildList();
+	OutputTree->RebuildList();
 }
 
 
@@ -765,14 +789,14 @@ EVisibility SOptimusEditorGraphNode::GetInputTreeVisibility() const
 {
 	const UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 	
-	return EditorGraphNode && !EditorGraphNode->GetTopLevelInputPins()->IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+	return EditorGraphNode && !EditorGraphNode->GetTopLevelInputPins().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SOptimusEditorGraphNode::GetOutputTreeVisibility() const
 {
 	const UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 
-	return EditorGraphNode && !EditorGraphNode->GetTopLevelOutputPins()->IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+	return EditorGraphNode && !EditorGraphNode->GetTopLevelOutputPins().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 

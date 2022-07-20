@@ -47,6 +47,7 @@ void FOptimusEditorGraphExplorerCommands::RegisterCommands()
 	UI_COMMAND(CreateSetupGraph, "Add New Setup Graph", "Create a new setup graph and show it in the editor.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateTriggerGraph, "Add New Trigger Graph", "Create a new external trigger graph and show it in the editor.", EUserInterfaceActionType::Button, FInputChord());
 
+	UI_COMMAND(CreateBinding, "Add New Component Binding", "Create a component binding.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateResource, "Add New Resource", "Create a shader resource.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateVariable, "Add New Variable", "Create a variable on the asset.", EUserInterfaceActionType::Button, FInputChord());
 
@@ -122,7 +123,11 @@ void SOptimusEditorGraphExplorer::RegisterCommands()
 		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateTriggerGraph),
 		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateTriggerGraph));
 
-		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateResource,
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateBinding,
+			FExecuteAction::CreateLambda([this]() { OnCreateBinding(nullptr); }),
+			FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateBinding));
+
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateResource,	
 		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateResource),
 		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateResource));
 
@@ -288,6 +293,7 @@ void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
 
+	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateBinding);
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
 
@@ -297,7 +303,7 @@ void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 
 TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
 {
-	return SNew(SOptimusEditorGraphEplorerItem, InCreateData, OptimusEditor.Pin());
+	return SNew(SOptimusEditorGraphExplorerItem, InCreateData, OptimusEditor.Pin());
 }
 
 static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)	
@@ -335,16 +341,22 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 
 		CollectChildGraphActions(OutAllActions, Graph, GraphCategory);
 	}
+	
+	for (UOptimusComponentSourceBinding* Binding : Deformer->GetComponentBindings())
+	{
+		TSharedPtr<FOptimusSchemaAction_Binding> BindingAction = MakeShared<FOptimusSchemaAction_Binding>(Binding, /*Grouping=*/2);
+		OutAllActions.AddAction(BindingAction);
+	}
 
 	for (UOptimusResourceDescription* Resource : Deformer->GetResources())
 	{
-		TSharedPtr<FOptimusSchemaAction_Resource> ResourceAction = MakeShared<FOptimusSchemaAction_Resource>(Resource, /*Grouping=*/2);
+		TSharedPtr<FOptimusSchemaAction_Resource> ResourceAction = MakeShared<FOptimusSchemaAction_Resource>(Resource, /*Grouping=*/3);
 		OutAllActions.AddAction(ResourceAction);
 	}
 
 	for (UOptimusVariableDescription* Variable : Deformer->GetVariables())
 	{
-		TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/3);
+		TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/4);
 		OutAllActions.AddAction(VariableAction);
 	}
 }
@@ -388,6 +400,7 @@ void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSec
 	if (IsShowingEmptySections())
 	{
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Graphs));
+		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Bindings));
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Resources));
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Variables));
 	}
@@ -408,7 +421,14 @@ FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdG
 		return FReply::Unhandled();
 	}
 
-	if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+	if (Action->GetTypeId() == FOptimusSchemaAction_Binding::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Binding* BindingAction = static_cast<FOptimusSchemaAction_Binding*>(Action.Get());
+		UOptimusComponentSourceBinding* Binding = Editor->GetDeformer()->ResolveComponentBinding(BindingAction->BindingName);
+
+		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Binding::New(Action, Binding));
+	}
+	else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
 	{
 		FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
 		UOptimusVariableDescription* VariableDesc = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
@@ -463,6 +483,15 @@ void SOptimusEditorGraphExplorer::OnActionSelected(
 		if (NodeGraph)
 		{
 			Editor->InspectObject(NodeGraph);
+		}
+	}
+	else if (Action->GetTypeId() == FOptimusSchemaAction_Binding::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Binding* BindingAction = static_cast<FOptimusSchemaAction_Binding*>(Action.Get());
+		UOptimusComponentSourceBinding* Binding = Editor->GetDeformer()->ResolveComponentBinding(BindingAction->BindingName);
+		if (Binding)
+		{
+			Editor->InspectObject(Binding);
 		}
 	}
 	else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
@@ -575,7 +604,8 @@ bool SOptimusEditorGraphExplorer::CanRenameAction(TSharedPtr<FEdGraphSchemaActio
 				return NodeGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger;
 			}
 		}
-		else if (InAction->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId() ||
+		else if (InAction->GetTypeId() == FOptimusSchemaAction_Binding::StaticGetTypeId() ||
+			     InAction->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId() ||
 				 InAction->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
 		{
 			// Resources and variables can always be renamed.
@@ -597,6 +627,9 @@ FText SOptimusEditorGraphExplorer::OnGetSectionTitle(int32 InSectionID)
 
 	case EOptimusSchemaItemGroup::Graphs:
 		return NSLOCTEXT("GraphActionNode", "Graphs", "Graphs");
+
+	case EOptimusSchemaItemGroup::Bindings:
+		return NSLOCTEXT("GraphActionNode", "ComponentBindings", "Component Bindings");
 
 	case EOptimusSchemaItemGroup::Resources:
 		return NSLOCTEXT("GraphActionNode", "Resources", "Resources");
@@ -620,9 +653,13 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		break;
 
 	case EOptimusSchemaItemGroup::Graphs:
-		AddNewTooltipText = LOCTEXT("AddNewGraphHelp", "Create a new Setup or Trigger graph");
+		AddNewTooltipText = LOCTEXT("AddNewGraphHelp", "Create a new graph");
 		break;
 
+	case EOptimusSchemaItemGroup::Bindings:
+		AddNewTooltipText = LOCTEXT("AddNewBindingHelp", "Create a new component binding");
+		break;
+		
 	case EOptimusSchemaItemGroup::Resources:
 		AddNewTooltipText = LOCTEXT("AddNewResourceHelp", "Create a new shader resource");
 		break;
@@ -641,48 +678,70 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		ToolKitCommandList = Editor->GetToolkitCommands();
 	}
 
-
-	TArray<TSharedPtr<FUICommandInfo>> SubCommands = GetSectionMenuCommands(InSectionID);
-	if (SubCommands.Num() > 1)
+	TSharedPtr<FUICommandInfo> AddCommand;
+	TSharedPtr<SWidget> AddMenuWidget;
+	
+	switch (EOptimusSchemaItemGroup(InSectionID))
 	{
-		if (CanAddNewElementToSection(InSectionID))
-		{
-			TSharedPtr<SWidget> AddMenuWidget;
+	case EOptimusSchemaItemGroup::InvalidGroup:
+		checkNoEntry();
+		return SNullWidget::NullWidget;
 
-			if (ensure(ToolKitCommandList))
+	case EOptimusSchemaItemGroup::Graphs:
+		{
+			FMenuBuilder MenuBuilder(true, ToolKitCommandList);
+			MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
+			MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+			AddMenuWidget = MenuBuilder.MakeWidget();
+		}
+		break;
+
+	case EOptimusSchemaItemGroup::Bindings:
+		{
+			FMenuBuilder MenuBuilder(true, ToolKitCommandList);
+			TArray<const UOptimusComponentSource*> Sources = UOptimusComponentSource::GetAllSources();
+			Algo::Sort(Sources, [](const UOptimusComponentSource* ItemA, const UOptimusComponentSource* ItemB)
 			{
-				FMenuBuilder MenuBuilder(true, ToolKitCommandList);
-
-				for (TSharedPtr<FUICommandInfo> CommandIndo : SubCommands)
-				{
-					MenuBuilder.AddMenuEntry(CommandIndo);
-				}
-
-				AddMenuWidget = MenuBuilder.MakeWidget();
+				return ItemA->GetDisplayName().CompareTo(ItemB->GetDisplayName()) < 0;
+			});
+			for (const UOptimusComponentSource* Source: Sources)
+			{
+				FUIAction Action(FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateBinding, Source));
+				MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("AddComponentBinding", "Create {0} Binding"), Source->GetDisplayName()), FText(), FSlateIcon(), Action);
 			}
+			AddMenuWidget = MenuBuilder.MakeWidget();
+		}
+		break;
 
-			return SNew(SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
-				.ButtonStyle(FAppStyle::Get(), "RoundButton")
-			    .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
-			    .ContentPadding(FMargin(2, 0))
-				.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
-				.HasDownArrow(false)
-			    .HAlign(HAlign_Center)
-			    .VAlign(VAlign_Center)
-				.ButtonContent()
-				[
-					SNew(SImage)
-					.Image(FAppStyle::GetBrush("Plus"))
-					.ToolTipText(AddNewTooltipText)
-				];
-		}
-		else
-		{
-			return SNullWidget::NullWidget;
-		}
+	case EOptimusSchemaItemGroup::Resources:
+		AddCommand = FOptimusEditorGraphExplorerCommands::Get().CreateResource;
+		break;
+
+	case EOptimusSchemaItemGroup::Variables:
+		AddCommand = FOptimusEditorGraphExplorerCommands::Get().CreateVariable;
+		break;
 	}
-	else
+
+	if (AddMenuWidget.IsValid())
+	{
+		return SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
+		    .ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+		    .ContentPadding(FMargin(2, 0))
+			.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
+			.IsEnabled(this, &SOptimusEditorGraphExplorer::CanAddNewElementToSection, InSectionID)
+			.HasDownArrow(false)
+		    .HAlign(HAlign_Center)
+		    .VAlign(VAlign_Center)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Plus"))
+				.ToolTipText(AddNewTooltipText)
+			];
+	}
+	else if (AddCommand.IsValid())
 	{
 		return SNew(SButton)
 		    .ButtonStyle(FAppStyle::Get(), "RoundButton")
@@ -697,6 +756,10 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 				.Image(FAppStyle::GetBrush("Plus"))
 		        .ToolTipText(AddNewTooltipText)
 			];
+	}
+	else
+	{
+		return SNullWidget::NullWidget;
 	}
 }
 
@@ -713,6 +776,10 @@ FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionI
 			// Handled by the submenu.
 			break;
 
+		case EOptimusSchemaItemGroup::Bindings:
+			Editor->GetToolkitCommands()->ExecuteAction(FOptimusEditorGraphExplorerCommands::Get().CreateBinding.ToSharedRef());
+			break;
+			
 		case EOptimusSchemaItemGroup::Resources:
 			Editor->GetToolkitCommands()->ExecuteAction(FOptimusEditorGraphExplorerCommands::Get().CreateResource.ToSharedRef());
 			break;
@@ -730,30 +797,6 @@ FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionI
 bool SOptimusEditorGraphExplorer::CanAddNewElementToSection(int32 InSectionID) const
 {
 	return true;
-}
-
-
-TArray<TSharedPtr<FUICommandInfo>> SOptimusEditorGraphExplorer::GetSectionMenuCommands(int32 InSectionID) const
-{
-	TArray<TSharedPtr<FUICommandInfo>> Commands;
-
-	switch (EOptimusSchemaItemGroup(InSectionID))
-	{
-	case EOptimusSchemaItemGroup::Graphs: 
-		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
-		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
-		break;
-
-	case EOptimusSchemaItemGroup::Resources:
-		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
-		break;
-
-	case EOptimusSchemaItemGroup::Variables:
-		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
-		break;
-	}
-
-	return Commands;
 }
 
 
@@ -779,7 +822,7 @@ TSharedPtr<FEdGraphSchemaAction> SOptimusEditorGraphExplorer::GetFirstSelectedAc
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
 
-	TSharedPtr<FEdGraphSchemaAction> SelectedAction(SelectedActions.Num() > 0 ? SelectedActions[0] : NULL);
+	TSharedPtr<FEdGraphSchemaAction> SelectedAction(SelectedActions.Num() > 0 ? SelectedActions[0] : nullptr);
 	if (SelectedAction.IsValid() && 
 		(SelectedAction->GetTypeId() == InTypeName || InTypeName == NAME_None))
 	{
@@ -862,6 +905,28 @@ bool SOptimusEditorGraphExplorer::CanCreateTriggerGraph()
 }
 
 
+void SOptimusEditorGraphExplorer::OnCreateBinding(const UOptimusComponentSource* InComponentSource)
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
+
+		if (Deformer)
+		{
+			// Go with the default type.
+			Deformer->AddComponentBinding(InComponentSource);
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanCreateResource()
+{
+	return OptimusEditor.IsValid();
+}
+
+
 void SOptimusEditorGraphExplorer::OnCreateResource()
 {
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
@@ -878,7 +943,7 @@ void SOptimusEditorGraphExplorer::OnCreateResource()
 }
 
 
-bool SOptimusEditorGraphExplorer::CanCreateResource()
+bool SOptimusEditorGraphExplorer::CanCreateBinding()
 {
 	return OptimusEditor.IsValid();
 }
@@ -923,6 +988,15 @@ void SOptimusEditorGraphExplorer::OnDeleteEntry()
 				Deformer->RemoveGraph(NodeGraph);
 			}
 		}
+		else if (FOptimusSchemaAction_Binding* BindingAction = SelectionAsType<FOptimusSchemaAction_Binding>())
+		{
+			UOptimusComponentSourceBinding* Binding = Deformer->ResolveComponentBinding(BindingAction->BindingName);
+
+			if (Binding)
+			{
+				Deformer->RemoveComponentBinding(Binding);
+			}
+		}
 		else if (FOptimusSchemaAction_Resource* ResourceAction = SelectionAsType<FOptimusSchemaAction_Resource>())
 		{
 			UOptimusResourceDescription* Resource = Deformer->ResolveResource(ResourceAction->ResourceName);
@@ -960,7 +1034,8 @@ bool SOptimusEditorGraphExplorer::CanDeleteEntry()
 				return NodeGraph->GetGraphType() != EOptimusNodeGraphType::Update;
 			}
 		}
-		else if (SelectionAsType<FOptimusSchemaAction_Resource>() || 
+		else if (SelectionAsType<FOptimusSchemaAction_Binding>() ||
+				 SelectionAsType<FOptimusSchemaAction_Resource>() || 
 				 SelectionAsType<FOptimusSchemaAction_Variable>())
 		{
 			return true;

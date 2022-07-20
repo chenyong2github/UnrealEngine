@@ -2,17 +2,24 @@
 
 #include "OptimusNode_CustomComputeKernel.h"
 
+#include "OptimusComponentSource.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusHelpers.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "OptimusNode_DataInterface.h"
 #include "OptimusObjectVersion.h"
+#include "ComponentSources/OptimusSkeletalMeshComponentSource.h"
+#include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
+#include "DataInterfaces/OptimusDataInterfaceSkinnedMeshExec.h"
 #include "Engine/UserDefinedStruct.h"
 
-static const FName DefaultKernelName = FName("MyKernel");
-static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
-static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
+static const FName DefaultKernelName("MyKernel");
+static const FName DefaultGroupName("Group"); 
+static const FName InputBindingsName= GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
+static const FName OutputBindingsName = GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
+static const FName ExtraInputBindingGroupsName = GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, SecondaryInputBindingGroups);
 
 static FString GetShaderValueTypeFriendlyName(const FOptimusDataTypeRef& InDataType)
 {
@@ -23,6 +30,24 @@ static FString GetShaderValueTypeFriendlyName(const FOptimusDataTypeRef& InDataT
 	}
 	return InDataType->ShaderValueType->ToString(FriendlyName);
 }
+
+
+static bool IsConnectableInputPin(const UOptimusNodePin *InPin)
+{
+	return InPin->GetDirection() == EOptimusNodePinDirection::Input && !InPin->IsGroupingPin();
+}
+
+static bool IsConnectableOutputPin(const UOptimusNodePin *InPin)
+{
+	return InPin->GetDirection() == EOptimusNodePinDirection::Output && !InPin->IsGroupingPin();
+}
+
+static bool IsGroupingInputPin(const UOptimusNodePin *InPin)
+{
+	return InPin->GetDirection() == EOptimusNodePinDirection::Input && InPin->IsGroupingPin();
+}
+
+
 
 UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 {
@@ -36,6 +61,19 @@ UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 FString UOptimusNode_CustomComputeKernel::GetKernelSourceText() const
 {
 	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName.ToString(), GroupSize);
+}
+
+TArray<const UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetPrimaryGroupInputPins() const
+{
+	TArray<const UOptimusNodePin*> PrimaryGroupInputPins;
+	for (const UOptimusNodePin* Pin: GetPins())
+	{
+		if (IsConnectableInputPin(Pin))
+		{
+			PrimaryGroupInputPins.Add(Pin);
+		}
+	}
+	return PrimaryGroupInputPins;
 }
 
 #if WITH_EDITOR
@@ -96,7 +134,7 @@ bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(
 	FString* OutReason
 	) const
 {
-	if (!CanConnect(InSourcePin, InNewPinDirection, OutReason))
+	if (!CanConnectPinToNode(InSourcePin, InNewPinDirection, OutReason))
 	{
 		return false;
 	}
@@ -177,6 +215,31 @@ FName UOptimusNode_CustomComputeKernel::GetSanitizedNewPinName(
 	return NewName;
 }
 
+TArray<FName> UOptimusNode_CustomComputeKernel::GetExecutionDomains() const
+{
+	// Find all component sources for the primary pins. If we end up with any other number
+	// than one, then something's gone wrong and we can't determine the execution domains.
+	TSet<UOptimusComponentSourceBinding*> PrimaryBindings;
+
+	const UOptimusNodeGraph* Graph = GetOwningGraph();
+	for (const UOptimusNodePin* Pin: GetPins())
+	{
+		if (IsConnectableInputPin(Pin))
+		{
+			PrimaryBindings.Append(Graph->GetComponentSourceBindingsForPin(Pin));
+		}
+	}
+
+	if (PrimaryBindings.Num() == 1)
+	{
+		return PrimaryBindings.Array()[0]->GetComponentSource()->GetExecutionContexts();
+	}
+	else
+	{
+		return {};
+	}
+}
+
 void UOptimusNode_CustomComputeKernel::OnDataTypeChanged(FName InTypeName)
 {
 	Super::OnDataTypeChanged(InTypeName);
@@ -192,131 +255,649 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const FName BasePropertyName = (PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None);
-	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
-
 	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ValueSet)
 	{
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, KernelName))
-		{
-			SetDisplayName(FText::FromName(KernelName));
-			UpdatePreamble();
-		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBinding, Name))
-		{
-			if (BasePropertyName == InputBindingsName)
-			{
-				UpdatePinNames(EOptimusNodePinDirection::Input);
-			}
-			else if (BasePropertyName == OutputBindingsName)
-			{
-				UpdatePinNames(EOptimusNodePinDirection::Output);
-			}
-			UpdatePreamble();
-		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusDataTypeRef, TypeName))
-		{
-			if (BasePropertyName == InputBindingsName)
-			{
-				UpdatePinTypes(EOptimusNodePinDirection::Input);
-			}
-			else if (BasePropertyName == OutputBindingsName)
-			{
-				UpdatePinTypes(EOptimusNodePinDirection::Output);
-			}
-			UpdatePreamble();
-		}
-		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBinding, DataDomain))
-		{
-			if (BasePropertyName == InputBindingsName)
-			{
-				UpdatePinDataDomains(EOptimusNodePinDirection::Input);
-			}
-			else if (BasePropertyName == OutputBindingsName)
-			{
-				UpdatePinDataDomains(EOptimusNodePinDirection::Output);
-			}
-			UpdatePreamble();
-		}
-		else if (PropertyName == InputBindingsName || PropertyName == OutputBindingsName)
-		{
-			RefreshBindingPins(PropertyName);
-		}
+		PropertyValueChanged(PropertyChangedEvent);
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayAdd)
 	{
-		EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
-		FOptimusParameterBinding *Binding = nullptr;
-		FName Name;
-		FOptimusNodePinStorageConfig StorageConfig;
-
-		if (BasePropertyName == InputBindingsName)
-		{
-			Direction = EOptimusNodePinDirection::Input;
-			Binding = &InputBindingArray.Last();
-			Name = FName("Input");
-
-			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
-		}
-		else if (BasePropertyName == OutputBindingsName)
-		{
-			Direction = EOptimusNodePinDirection::Output;
-			Binding = &OutputBindingArray.Last();
-			Name = FName("Output");
-
-			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
-		}
-
-		if (Binding != nullptr)
-		{
-			Binding->Name = Optimus::GetUniqueNameForScope(this, Name);
-			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
-
-			AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType);
-
-			UpdatePreamble();
-		}
+		PropertyArrayItemAdded(PropertyChangedEvent);
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayRemove)
 	{
-		TMap<FName, UOptimusNodePin *> RemovedPins;
-		if (BasePropertyName == InputBindingsName)
-		{
-			RemovedPins = GetNamedPinsByDirection(EOptimusNodePinDirection::Input);
-			
-			for (const FOptimusParameterBinding& Binding: InputBindingArray)
-			{
-				RemovedPins.Remove(Binding.Name);
-			}
-		}
-		else if (BasePropertyName == OutputBindingsName)
-		{
-			RemovedPins = GetNamedPinsByDirection(EOptimusNodePinDirection::Output);
-			
-			for (const FOptimusParameterBinding& Binding: OutputBindingArray)
-			{
-				RemovedPins.Remove(Binding.Name);
-			}
-		}
-
-		if (RemovedPins.Num())
-		{
-			for (TMap<FName, UOptimusNodePin*>::TIterator It = RemovedPins.CreateIterator(); It; ++It)
-			{
-				RemovePin(It.Value());
-			}
-			UpdatePreamble();
-		}
+		PropertyArrayItemRemoved(PropertyChangedEvent);
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayClear)
 	{
-		ClearBindingPins(BasePropertyName);
+		PropertyArrayCleared(PropertyChangedEvent);
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayMove)
 	{
-		RefreshBindingPins(BasePropertyName);
+		PropertyArrayItemMoved(PropertyChangedEvent);
 	}
 }
+
+void UOptimusNode_CustomComputeKernel::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
+}
+
+
+void UOptimusNode_CustomComputeKernel::PropertyValueChanged(
+	const FPropertyChangedEvent& InPropertyChangedEvent
+	)
+{
+	auto UpdatePinNamesFromBindings = [this](
+		UObject* InNameScope,
+		TArrayView<UOptimusNodePin* const> InPins,
+		TFunction<bool(const UOptimusNodePin*)> InPinFilter,
+		FOptimusParameterBindingArray &InBindings,
+		TFunction<void(UObject*, FOptimusParameterBinding&, UOptimusNodePin*)> InApplyFunc
+		)
+	{
+		int32 Index = 0;
+		for (UOptimusNodePin* Pin: InPins)
+		{
+			if (InPinFilter(Pin))
+			{
+				FOptimusParameterBinding& Binding = InBindings[Index];
+
+				InApplyFunc(InNameScope, Binding, Pin);
+
+				Index++;
+			}
+		}
+	};
+
+	auto UpdateAllBindings = [&](
+		TFunction<void(UObject*, FOptimusParameterBinding&, UOptimusNodePin*)> InApplyFunc
+		) -> bool
+	{
+		if (InPropertyChangedEvent.GetMemberPropertyName() == InputBindingsName)
+		{
+			UpdatePinNamesFromBindings(this, GetPins(), IsConnectableInputPin, InputBindingArray, InApplyFunc);
+			return true;
+		}
+		if (InPropertyChangedEvent.GetMemberPropertyName() == OutputBindingsName)
+		{
+			UpdatePinNamesFromBindings(this, GetPins(), IsConnectableOutputPin, OutputBindingArray, InApplyFunc);
+			return true;
+		}
+		if (InPropertyChangedEvent.GetMemberPropertyName() == ExtraInputBindingGroupsName)
+		{
+			int32 GroupIndex = 0;
+			for (UOptimusNodePin* GroupPin: GetPins())
+			{
+				if (IsGroupingInputPin(GroupPin))
+				{
+					FOptimusSecondaryInputBindingsGroup& BindingsGroup = SecondaryInputBindingGroups[GroupIndex];
+					UpdatePinNamesFromBindings(GroupPin, GroupPin->GetSubPins(), IsConnectableInputPin, BindingsGroup.BindingArray, InApplyFunc);
+
+					GroupIndex++;
+				}
+			}
+			return true;
+		}
+
+		return false;
+	};
+	
+	
+	if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, KernelName))
+	{
+		SetDisplayName(FText::FromName(KernelName));
+		UpdatePreamble();
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, SecondaryInputBindingGroups) &&
+			 InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusValidatedName, Name))
+	{
+		// The group name or secondary pin names changed.
+		int32 Index = 0;
+		bool bUpdatePreamble = false;
+		for (UOptimusNodePin* GroupPin: GetPins())
+		{
+			if (IsGroupingInputPin(GroupPin))
+			{
+				FOptimusSecondaryInputBindingsGroup& SecondaryGroup = SecondaryInputBindingGroups[Index++]; 
+				if (GroupPin->GetFName() != SecondaryGroup.GroupName)
+				{
+					SecondaryGroup.GroupName = Optimus::GetUniqueNameForScope(this, SecondaryGroup.GroupName);
+					SetPinName(GroupPin, SecondaryGroup.GroupName);
+					bUpdatePreamble = true;
+				}
+			}
+		}
+
+		auto UpdateName = [this](UObject* InNameScope, FOptimusParameterBinding& InBinding, UOptimusNodePin* InPin)
+		{
+			if (InPin->GetFName() != InBinding.Name)
+			{
+				InBinding.Name = Optimus::GetUniqueNameForScope(InNameScope, InBinding.Name);
+				SetPinName(InPin, InBinding.Name);
+			}
+		};
+
+		if (bUpdatePreamble || UpdateAllBindings(UpdateName))
+		{
+			UpdatePreamble();
+		}
+	}
+	else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusValidatedName, Name))
+	{
+		auto UpdateName = [this](UObject* InNameScope, FOptimusParameterBinding& InBinding, UOptimusNodePin* InPin)
+		{
+			if (InPin->GetFName() != InBinding.Name)
+			{
+				InBinding.Name = Optimus::GetUniqueNameForScope(InNameScope, InBinding.Name);
+				SetPinName(InPin, InBinding.Name);
+			}
+		};
+
+		if (UpdateAllBindings(UpdateName))
+		{
+			UpdatePreamble();
+			return;
+		}
+	}
+	else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusDataTypeRef, TypeName))
+	{
+		auto UpdatePinType = [this](UObject* , FOptimusParameterBinding& InBinding, UOptimusNodePin* InPin)
+		{
+			const FOptimusDataTypeHandle DataType = InBinding.DataType.Resolve();
+			if (InPin->GetDataType() != DataType)
+			{
+				SetPinDataType(InPin, DataType);
+			}
+		};
+
+		if (UpdateAllBindings(UpdatePinType))
+		{
+			UpdatePreamble();
+			return;
+		}
+	}
+	else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBinding, DataDomain))
+	{
+		auto UpdatePinDataDomain = [this](UObject* , FOptimusParameterBinding& InBinding, UOptimusNodePin* InPin)
+		{
+			if (InPin->GetDataDomainLevelNames() != InBinding.DataDomain.LevelNames)
+			{
+				SetPinDataDomain(InPin, InBinding.DataDomain.LevelNames);
+			}
+		};
+
+		if (UpdateAllBindings(UpdatePinDataDomain))
+		{
+			UpdatePreamble();
+			return;
+		}
+	}
+}
+
+
+void UOptimusNode_CustomComputeKernel::PropertyArrayItemAdded(
+	const FPropertyChangedEvent& InPropertyChangedEvent
+	)
+{
+	auto GetArrayIndex = [Event=InPropertyChangedEvent](
+		const FString& InArrayName,
+		const auto& InArray
+		) -> int32
+	{
+		int32 ArrayIndex = Event.GetArrayIndex(InArrayName);
+		if (ArrayIndex == INDEX_NONE)
+		{
+			ArrayIndex = InArray.Num() - 1;
+		}
+		return ArrayIndex;
+	};
+	auto AddPinForBinding = [this](
+		FOptimusParameterBinding& InBinding,
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		UOptimusNodePin* InBeforePin = nullptr,
+		UOptimusNodePin* InGroupPin = nullptr
+	) -> void
+	{
+		InBinding.Name = Optimus::GetUniqueNameForScope(InGroupPin ? Cast<UObject>(InGroupPin) : this, InName);
+		InBinding.DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+
+		// FIXME: Get a better default. May need an "Undefined" domain for when groups don't have a component
+		// source to pick from.
+		const FOptimusNodePinStorageConfig StorageConfig({Optimus::DomainName::Vertex});			
+		AddPin(InBinding.Name, InDirection, StorageConfig, InBinding.DataType, InBeforePin, InGroupPin);
+
+		UpdatePreamble();
+	};
+
+	// Find the top-level pin before the index of the given direction. If we reach a group pin, return that so that
+	// we can insert before the group pin.
+	auto FindTopLevelBeforePin = [this](
+		EOptimusNodePinDirection InDirection,
+		int32 InsertIndex
+		) -> UOptimusNodePin * 
+	{
+		for (UOptimusNodePin *Pin: GetPins())
+		{
+			if (Pin->IsGroupingPin())
+			{
+				return Pin;
+			}
+			if (Pin->GetDirection() == InDirection)
+			{
+				if (InsertIndex-- == 0)
+				{
+					return Pin;
+				}
+			}
+		}
+		return nullptr;
+	};
+
+	if (InPropertyChangedEvent.GetMemberPropertyName() == ExtraInputBindingGroupsName)
+	{
+		if (InPropertyChangedEvent.GetPropertyName() == ExtraInputBindingGroupsName)
+		{
+			const int32 GroupIndex = InPropertyChangedEvent.GetArrayIndex(ExtraInputBindingGroupsName.ToString());
+			if (!ensure(GroupIndex != INDEX_NONE))
+			{
+				return;
+			}
+
+			// If adding to the list of groups before the last, then we need to specify the before-pin otherwise
+			// we just add the pin to the end.
+			UOptimusNodePin* BeforePin = nullptr;
+			if (GroupIndex < (SecondaryInputBindingGroups.Num() - 1))
+			{
+				BeforePin = GetPins()[InputBindingArray.Num() + OutputBindingArray.Num() + GroupIndex];
+			}
+			
+			const FName GroupName = Optimus::GetUniqueNameForScope(this, DefaultGroupName);
+
+			AddGroupingPin(GroupName, EOptimusNodePinDirection::Input, BeforePin);
+
+			SecondaryInputBindingGroups[GroupIndex].GroupName = GroupName;
+
+			UpdatePreamble();
+		}
+		else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray))
+		{
+			// Unfortunately, we don't get told which group index we're under. So find the group where the binding
+			// count is one greater than the pin count.
+			if (!ensure(!SecondaryInputBindingGroups.IsEmpty()))
+			{
+				return;
+			}
+			
+			int32 GroupIndex = 0;
+			UOptimusNodePin* GroupPin = nullptr;
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->IsGroupingPin())
+				{
+					if (SecondaryInputBindingGroups[GroupIndex].BindingArray.Num() == (Pin->GetSubPins().Num() + 1))
+					{
+						GroupPin = Pin;
+						break;
+					}
+					GroupIndex++;
+				}
+			}
+
+			if (!ensure(GroupPin))
+			{
+				return;
+			}
+			
+			const int32 BindingIndex = InPropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBindingArray, InnerArray));
+
+			FOptimusSecondaryInputBindingsGroup& BindingGroup = SecondaryInputBindingGroups[GroupIndex];
+			
+			UOptimusNodePin* BeforePin = nullptr;
+			if (BindingIndex < (BindingGroup.BindingArray.Num() - 1))
+			{
+				BeforePin = GroupPin->GetSubPins()[BindingIndex];
+			}
+
+			AddPinForBinding(BindingGroup.BindingArray[BindingIndex], "Input", EOptimusNodePinDirection::Input, BeforePin, GroupPin);
+			
+			// Make sure the group pin is expanded so that the change is visible in the graph.
+			GroupPin->SetIsExpanded(true);
+		}
+	}
+	if (InPropertyChangedEvent.GetMemberPropertyName() == InputBindingsName)
+	{
+		const int32 BindingIndex = GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBindingArray, InnerArray), InputBindingArray);
+		
+		UOptimusNodePin* BeforePin = FindTopLevelBeforePin(EOptimusNodePinDirection::Input, BindingIndex);
+
+		AddPinForBinding(InputBindingArray[BindingIndex], "Input", EOptimusNodePinDirection::Input, BeforePin);
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == OutputBindingsName)
+	{
+		const int32 BindingIndex = GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBindingArray, InnerArray), OutputBindingArray);
+
+		UOptimusNodePin* BeforePin = FindTopLevelBeforePin(EOptimusNodePinDirection::Output, BindingIndex);
+		
+		AddPinForBinding(OutputBindingArray[BindingIndex], "Output", EOptimusNodePinDirection::Output, BeforePin);
+	}
+}
+
+
+void UOptimusNode_CustomComputeKernel::PropertyArrayItemRemoved(const FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	auto RemoveTopLevelPinByIndex = [this, Event=InPropertyChangedEvent](EOptimusNodePinDirection InPinDirection)
+	{
+		int32 PinIndex = Event.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBindingArray, InnerArray));
+		if (!ensure(PinIndex != INDEX_NONE))
+		{
+			return;
+		}
+		
+		for (UOptimusNodePin *Pin: GetPins())
+		{
+			if (Pin->GetDirection() == InPinDirection && !Pin->IsGroupingPin())
+			{
+				if (PinIndex-- == 0)
+				{
+					RemovePin(Pin);
+					UpdatePreamble();
+					return;
+				}
+			}
+		}
+	};
+	
+	if (InPropertyChangedEvent.GetMemberPropertyName() == ExtraInputBindingGroupsName)
+	{
+		if (InPropertyChangedEvent.GetPropertyName() == ExtraInputBindingGroupsName)
+		{
+			int32 GroupIndex = InPropertyChangedEvent.GetArrayIndex(ExtraInputBindingGroupsName.ToString());
+			if (!ensure(GroupIndex != INDEX_NONE))
+			{
+				return;
+			}
+
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->IsGroupingPin())
+				{
+					if (GroupIndex-- == 0)
+					{
+						RemovePin(Pin);
+						UpdatePreamble();
+						return;
+					}
+				}
+			}
+		}
+		else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray))
+		{
+			// Unfortunately, we don't get told which group index we're under. So find the group where the binding
+			// count is one less than the pin count.
+			if (!ensure(!SecondaryInputBindingGroups.IsEmpty()))
+			{
+				return;
+			}
+			
+			int32 GroupIndex = 0;
+			UOptimusNodePin* GroupPin = nullptr;
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->IsGroupingPin())
+				{
+					if (SecondaryInputBindingGroups[GroupIndex].BindingArray.Num() == (Pin->GetSubPins().Num() - 1))
+					{
+						GroupPin = Pin;
+						break;
+					}
+					GroupIndex++;
+				}
+			}
+
+			if (!ensure(GroupPin))
+			{
+				return;
+			}
+
+			if (SecondaryInputBindingGroups[GroupIndex].BindingArray.IsEmpty())
+			{
+				// If the group goes empty, collapse the pin for consistent look.
+				GroupPin->SetIsExpanded(false);
+			}
+			
+			const int32 BindingIndex = InPropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBindingArray, InnerArray));
+			if (ensure(GroupPin->GetSubPins().IsValidIndex(BindingIndex)))
+			{
+				RemovePin(GroupPin->GetSubPins()[BindingIndex]);
+				UpdatePreamble();
+			}
+		}
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == InputBindingsName)
+	{
+		RemoveTopLevelPinByIndex(EOptimusNodePinDirection::Input);
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == OutputBindingsName)
+	{
+		RemoveTopLevelPinByIndex(EOptimusNodePinDirection::Output);
+	}
+}
+
+void UOptimusNode_CustomComputeKernel::PropertyArrayCleared(
+	const FPropertyChangedEvent& InPropertyChangedEvent
+	)
+{
+	auto RemoveAllPinsByPredicate = [this](
+		TArrayView<UOptimusNodePin* const> InPins,
+		TFunction<bool(const UOptimusNodePin*)> InPredicate)
+	{
+		// Make a copy of the pins, since we're removing from the array represented by the view.
+		for (UOptimusNodePin* Pin: TArray<UOptimusNodePin*>(InPins))
+		{
+			if (InPredicate(Pin))
+			{
+				RemovePin(Pin);
+			}
+		}
+		UpdatePreamble();
+	};
+	
+	if (InPropertyChangedEvent.GetMemberPropertyName() == ExtraInputBindingGroupsName)
+	{
+		if (InPropertyChangedEvent.GetPropertyName() == ExtraInputBindingGroupsName)
+		{
+			RemoveAllPinsByPredicate(GetPins(), IsGroupingInputPin);
+			UpdatePreamble();
+		}
+		else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray))
+		{
+			// Unfortunately, we don't get told which group index we're under. So find the group where the binding
+			// count is one less than the pin count.
+			if (!ensure(!SecondaryInputBindingGroups.IsEmpty()))
+			{
+				return;
+			}
+			
+			int32 GroupIndex = 0;
+			UOptimusNodePin* GroupPin = nullptr;
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->IsGroupingPin())
+				{
+					// If the binding array is empty but the pins are still there, then that's our group.
+					if (SecondaryInputBindingGroups[GroupIndex].BindingArray.IsEmpty() && !Pin->GetSubPins().IsEmpty())
+					{
+						GroupPin = Pin;
+						break;
+					}
+					GroupIndex++;
+				}
+			}
+
+			if (!ensure(GroupPin))
+			{
+				return;
+			}
+
+			// Since  the group is empty, collapse the pin for consistent look.
+			GroupPin->SetIsExpanded(false);
+			
+			RemoveAllPinsByPredicate(GroupPin->GetSubPins(), IsConnectableInputPin);
+			UpdatePreamble();
+		}
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == InputBindingsName)
+	{
+		RemoveAllPinsByPredicate(GetPins(), IsConnectableInputPin);
+		UpdatePreamble();
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == OutputBindingsName)
+	{
+		RemoveAllPinsByPredicate(GetPins(), IsConnectableOutputPin);
+		UpdatePreamble();
+	}
+}
+
+void UOptimusNode_CustomComputeKernel::PropertyArrayItemMoved(
+	const FPropertyChangedEvent& InPropertyChangedEvent
+	)
+{
+	auto FindMovedBindingAndMoveMatchingPin = [this](
+		TArrayView<UOptimusNodePin* const> InPins,
+		const TArray<FName>& BindingNameArray,
+		TFunction<bool(const UOptimusNodePin *)> InPinPredicate
+		)
+	{
+		int32 BindingIndex = 0;
+		
+		// Find the first entry that's different. That's an element we can consider moved. Since array move only
+		// deals with a single item moving either forward or backward.
+		for (const UOptimusNodePin* Pin: InPins)
+		{
+			if (InPinPredicate(Pin))
+			{
+				if (Pin->GetFName() != BindingNameArray[BindingIndex])
+				{
+					break;
+				}
+				
+				BindingIndex++;
+				
+				if (BindingIndex == BindingNameArray.Num())
+				{
+					// Nothing got moved.
+					return;
+				}
+			}
+		}
+
+		UOptimusNodePin* MovedPin = *InPins.FindByPredicate([Name=BindingNameArray[BindingIndex]](const UOptimusNodePin* InPin)
+		{
+			return InPin->GetFName() == Name;
+		});
+
+		const UOptimusNodePin* NextPin = nullptr;
+		const FName NextPinName = (BindingIndex < (BindingNameArray.Num() - 1)) ? BindingNameArray[BindingIndex + 1] : NAME_None;
+		if (!NextPinName.IsNone())
+		{
+			NextPin = *InPins.FindByPredicate([NextPinName](const UOptimusNodePin* InPin)
+			{
+				return InPin->GetFName() == NextPinName;
+			});
+		}
+
+		MovePin(MovedPin, NextPin);
+	};
+
+	auto MakeBindingNameArray = [](const FOptimusParameterBindingArray& InBindings) -> TArray<FName>
+	{
+		TArray<FName> Result;
+		for (const FOptimusParameterBinding& Binding: InBindings)
+		{
+			Result.Add(Binding.Name);
+		}
+		return Result;
+	};
+	
+	if (InPropertyChangedEvent.GetMemberPropertyName() == ExtraInputBindingGroupsName)
+	{
+		if (InPropertyChangedEvent.GetPropertyName() == ExtraInputBindingGroupsName)
+		{
+			TArray<FName> GroupNames;
+			for (const FOptimusSecondaryInputBindingsGroup& BindingsGroup: SecondaryInputBindingGroups)
+			{
+				GroupNames.Add(BindingsGroup.GroupName);
+			}
+			
+			FindMovedBindingAndMoveMatchingPin(GetPins(), GroupNames, IsGroupingInputPin);
+			UpdatePreamble();
+			
+		}
+		else if (InPropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray))
+		{
+			// Unfortunately, we don't get told which group index we're under. So find the group where the binding
+			// count is one less than the pin count.
+			if (!ensure(!SecondaryInputBindingGroups.IsEmpty()))
+			{
+				return;
+			}
+
+			auto PinsAndBindingsDiffer = [](const FOptimusParameterBindingArray& InBindings, TArrayView<UOptimusNodePin* const> InPins)
+			{
+				if (ensure(InBindings.Num() == InPins.Num()))
+				{
+					for (int32 Index = 0; Index < InBindings.Num(); Index++)
+					{
+						if (InBindings[Index].Name != InPins[Index]->GetFName())
+						{
+							return true;
+						}
+					}
+				}
+				return false;
+			};
+			
+			int32 GroupIndex = 0;
+			UOptimusNodePin* GroupPin = nullptr;
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->IsGroupingPin())
+				{
+					// If the binding array is empty but the pins are still there, then that's our group.
+					if (PinsAndBindingsDiffer(SecondaryInputBindingGroups[GroupIndex].BindingArray, Pin->GetSubPins()))
+					{
+						GroupPin = Pin;
+						break;
+					}
+					GroupIndex++;
+				}
+			}
+
+			if (!ensure(GroupPin))
+			{
+				return;
+			}
+
+			FindMovedBindingAndMoveMatchingPin(
+				GroupPin->GetSubPins(), MakeBindingNameArray(SecondaryInputBindingGroups[GroupIndex].BindingArray),
+				IsConnectableInputPin);
+			UpdatePreamble();
+		}
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == InputBindingsName)
+	{
+		FindMovedBindingAndMoveMatchingPin(GetPins(), MakeBindingNameArray(InputBindingArray), IsConnectableInputPin);
+		UpdatePreamble();
+	}
+	else if (InPropertyChangedEvent.GetMemberPropertyName() == OutputBindingsName)
+	{
+		FindMovedBindingAndMoveMatchingPin(GetPins(), MakeBindingNameArray(OutputBindingArray), IsConnectableOutputPin);
+		UpdatePreamble();
+	}
+}
+
 #endif
 
 void UOptimusNode_CustomComputeKernel::PostLoad()
@@ -327,7 +908,7 @@ void UOptimusNode_CustomComputeKernel::PostLoad()
 		InputBindingArray.InnerArray = InputBindings_DEPRECATED;
 		OutputBindingArray.InnerArray = OutputBindings_DEPRECATED;
 	}
-
+	
 	if (!Parameters_DEPRECATED.IsEmpty())
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS		
@@ -349,6 +930,42 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	
 	Super::PostLoad();
+	
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ComponentProviderSupport)
+	{
+		ExecutionDomain.Name = UOptimusSkeletalMeshComponentSource::Contexts::Vertex;
+		
+		// Check if there's an execution node connected and grab the domain from it.
+		FOptimusDataTypeHandle IntVector3Type = FOptimusDataTypeRegistry::Get().FindType(Optimus::GetTypeName(TBaseStructure<FIntVector3>::Get()));
+
+		for (const UOptimusNodePin* Pin: GetPins())
+		{
+			if (Pin->GetDirection() == EOptimusNodePinDirection::Input && Pin->GetDataType() == IntVector3Type)
+			{
+				TArray<FOptimusRoutedNodePin> ConnectedPins = Pin->GetConnectedPinsWithRouting();
+				if (ConnectedPins.Num() == 1)
+				{
+					if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(ConnectedPins[0].NodePin->GetOwningNode()))
+					{
+						if (const UOptimusSkinnedMeshExecDataInterface* ExecDataInterface = Cast<UOptimusSkinnedMeshExecDataInterface>(DataInterfaceNode->GetDataInterface(GetTransientPackage())))
+						{
+							switch(ExecDataInterface->Domain)
+							{
+							default:
+							case EOptimusSkinnedMeshExecDomain::Vertex:
+								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Contexts::Vertex;
+								break;
+							case EOptimusSkinnedMeshExecDomain::Triangle:
+								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Contexts::Triangle;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
 }
 
 
@@ -366,231 +983,38 @@ void UOptimusNode_CustomComputeKernel::ConstructNode()
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
 	}
+
+	// FIXME: Group pins.
+	for (const FOptimusSecondaryInputBindingsGroup& InputGroup: SecondaryInputBindingGroups)
+	{
+		UOptimusNodePin* GroupPin = AddGroupingPinDirect(InputGroup.GroupName, EOptimusNodePinDirection::Input);
+
+		for (const FOptimusParameterBinding& Binding: InputGroup.BindingArray)
+		{
+			const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
+			AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType, nullptr, GroupPin);
+		}
+	}
 }
 
-void UOptimusNode_CustomComputeKernel::RefreshBindingPins(FName InBindingPropertyName)
+
+bool UOptimusNode_CustomComputeKernel::ValidateConnection(
+	const UOptimusNodePin& InThisNodesPin,
+	const UOptimusNodePin& InOtherNodesPin,
+	FString* OutReason
+	) const
 {
-	// This event can indicate that a reordering action was applied to an array
-	if (!IsParameterBinding(InBindingPropertyName))
-	{
-		return;
-	}
 	
-	TArray<FOptimusParameterBinding>* ParameterBindingArray = nullptr;
-	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Input;;
-	if (InBindingPropertyName == InputBindingsName)
-	{
-		Direction = EOptimusNodePinDirection::Input;
-		ParameterBindingArray = &InputBindingArray.InnerArray;
-	}
-	else /* if (InBindingPropertyName == OutputBindingsName) */
-	{
-		Direction = EOptimusNodePinDirection::Output;
-		ParameterBindingArray = &OutputBindingArray.InnerArray;
-	}
-
-	const TMap<FName, UOptimusNodePin *> RemovedPins = GetNamedPinsByDirection(Direction);
-
-	// Save the links and readd them later when new pins are created
-	TMap<FName, TArray<UOptimusNodePin*>> ConnectedPinsMap;
-	for (const TTuple<FName, UOptimusNodePin*>& Pin : RemovedPins.Array())
-	{
-		ConnectedPinsMap.FindOrAdd(Pin.Key) = Pin.Value->GetConnectedPins();
-	}
-	
-	ClearBindingPins(InBindingPropertyName);
-
-	TArray<UOptimusNodePin*> AddedPins;
-	for (const FOptimusParameterBinding& Binding: *ParameterBindingArray)
-	{
-		AddedPins.Add(AddPin(Binding.Name, Direction, Binding.DataDomain.LevelNames, Binding.DataType, nullptr));
-	}
-
-	for (UOptimusNodePin* AddedPin : AddedPins)
-	{
-		if (TArray<UOptimusNodePin*>* ConnectedPins = ConnectedPinsMap.Find(AddedPin->GetFName()))
-		{
-			for (UOptimusNodePin* ConnectedPin : *ConnectedPins)
-			{
-				if (Direction == EOptimusNodePinDirection::Input)
-				{
-					GetOwningGraph()->AddLink(ConnectedPin, AddedPin);
-				}
-				else if (Direction == EOptimusNodePinDirection::Output)
-				{
-					GetOwningGraph()->AddLink(AddedPin, ConnectedPin);
-				}
-			}
-		}
-	}
-		
-	UpdatePreamble();
+	return true;
 }
 
-void UOptimusNode_CustomComputeKernel::ClearBindingPins(FName InBindingPropertyName)
+TOptional<FText> UOptimusNode_CustomComputeKernel::ValidateForCompile() const
 {
-	if (!IsParameterBinding(InBindingPropertyName))
+	if (TOptional<FText> Result = Super::ValidateForCompile(); Result.IsSet())
 	{
-		return;
+		return Result;
 	}
-
-	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Input;;
-	if (InBindingPropertyName == InputBindingsName)
-	{
-		Direction = EOptimusNodePinDirection::Input;
-	}
-	else /* if (InBindingPropertyName == OutputBindingsName) */
-	{
-		Direction = EOptimusNodePinDirection::Output;
-	}
-
-
-	const TMap<FName, UOptimusNodePin *> RemovedPins = GetNamedPinsByDirection(Direction);
-	for (const TTuple<FName, UOptimusNodePin*>& Pin : RemovedPins.Array())
-	{
-		RemovePin(Pin.Value);
-	}
-		
-	UpdatePreamble();
-}
-
-
-bool UOptimusNode_CustomComputeKernel::IsParameterBinding(FName InBindingPropertyName)
-{
-	return InBindingPropertyName == InputBindingsName || InBindingPropertyName == OutputBindingsName;
-}
-
-
-void UOptimusNode_CustomComputeKernel::UpdatePinTypes(
-	EOptimusNodePinDirection InPinDirection
-	)
-{
-	TArray<FOptimusDataTypeHandle> DataTypes;
-
-	if (InPinDirection == EOptimusNodePinDirection::Input)
-	{
-		for (const FOptimusParameterBinding& Binding: InputBindingArray)
-		{
-			DataTypes.Add(Binding.DataType.Resolve());
-		}
-	}
-	else if (InPinDirection == EOptimusNodePinDirection::Output)
-	{
-		for (const FOptimusParameterBinding& Binding: OutputBindingArray)
-		{
-			DataTypes.Add(Binding.DataType.Resolve());
-		}
-	}	
-	
-	// Let's try and figure out which pin got changed.
-	const TArray<UOptimusNodePin *> KernelPins = GetPinsByDirection(InPinDirection);
-
-	if (ensure(DataTypes.Num() == KernelPins.Num()))
-	{
-		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
-		{
-			if (KernelPins[Index]->GetDataType() != DataTypes[Index])
-			{
-				SetPinDataType(KernelPins[Index], DataTypes[Index]);
-			}
-		}
-	}
-}
-
-
-void UOptimusNode_CustomComputeKernel::UpdatePinNames(
-	EOptimusNodePinDirection InPinDirection
-	)
-{
-	TArray<FName> Names;
-
-	if (InPinDirection == EOptimusNodePinDirection::Input)
-	{
-		for (const FOptimusParameterBinding& Binding: InputBindingArray)
-		{
-			Names.Add(Binding.Name);
-		}
-	}
-	else if (InPinDirection == EOptimusNodePinDirection::Output)
-	{
-		for (const FOptimusParameterBinding& Binding: OutputBindingArray)
-		{
-			Names.Add(Binding.Name);
-		}
-	}	
-	
-	// Let's try and figure out which pin got changed.
-	TArray<UOptimusNodePin*> KernelPins = GetPinsByDirection(InPinDirection);
-
-	bool bNameChanged = false;
-	if (ensure(Names.Num() == KernelPins.Num()))
-	{
-		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
-		{
-			if (KernelPins[Index]->GetFName() != Names[Index])
-			{
-				FName NewName = Optimus::GetUniqueNameForScope(this, Names[Index]);
-
-				SetPinName(KernelPins[Index], NewName);
-
-				if (NewName != Names[Index])
-				{
-					bNameChanged = true;  
-				}
-			}
-		}
-	}
-
-	if (bNameChanged)
-	{
-		if (InPinDirection == EOptimusNodePinDirection::Input)
-		{
-			for (int32 Index = 0; Index < Names.Num(); Index++)
-			{
-				InputBindingArray[Index].Name = Names[Index];
-			}
-		}
-		else if (InPinDirection == EOptimusNodePinDirection::Output)
-		{
-			for (int32 Index = 0; Index < Names.Num(); Index++)
-			{
-				OutputBindingArray[Index].Name = Names[Index];
-			}
-		}
-	}
-}
-
-void UOptimusNode_CustomComputeKernel::UpdatePinDataDomains(
-	EOptimusNodePinDirection InPinDirection
-	)
-{
-	TArray<TArray<FName>> PinDataDomains;
-
-	if (InPinDirection == EOptimusNodePinDirection::Input)
-	{
-		for (const FOptimusParameterBinding& Binding: InputBindingArray)
-		{
-			PinDataDomains.Add(Binding.DataDomain.LevelNames);
-		}
-	}
-	else if (InPinDirection == EOptimusNodePinDirection::Output)
-	{
-		for (const FOptimusParameterBinding& Binding: OutputBindingArray)
-		{
-			PinDataDomains.Add(Binding.DataDomain.LevelNames);
-		}
-	}	
-	
-	// Let's try and figure out which pin got changed.
-	const TArray<UOptimusNodePin *> KernelPins = GetPinsByDirection(InPinDirection);
-
-	if (ensure(PinDataDomains.Num() == KernelPins.Num()))
-	{
-		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
-		{
-			SetPinDataDomain(KernelPins[Index], PinDataDomains[Index]);
-		}
-	}
+	return {};
 }
 
 
@@ -637,6 +1061,10 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 
 	CollectStructs(InputBindingArray);
 	CollectStructs(OutputBindingArray);
+	for (const FOptimusSecondaryInputBindingsGroup& InputGroup: SecondaryInputBindingGroups)
+	{
+		CollectStructs(InputGroup.BindingArray);
+	}
 	
 	TArray<FString> Declarations;
 
@@ -654,8 +1082,6 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	};
 	
 	TSet<TArray<FName>> SeenDataDomains;
-	TArray<FOptimusParameterBinding> Bindings = InputBindingArray.InnerArray;
-	Bindings.Sort(ContextsPredicate);
 
 	auto AddCountFunctionIfNeeded = [&Declarations, &SeenDataDomains](const TArray<FName>& InContextNames)
 	{
@@ -671,26 +1097,33 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 			SeenDataDomains.Add(InContextNames);
 		}
 	};
-	
-	for (const FOptimusParameterBinding& Binding: Bindings)
-	{
-		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
-		
-		TArray<FString> Indexes;
-		for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
-		{
-			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
-		}
 
-		if (Binding.DataType->ShaderValueType.IsValid())
+	auto AddInputBindings = [&](const TArray<FOptimusParameterBinding>& InBindings)
+	{
+		for (const FOptimusParameterBinding& Binding: InBindings)
 		{
-			Declarations.Add(GetDeclarationForBinding(Binding, true));
+			AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
+		
+			TArray<FString> Indexes;
+			for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
+			{
+				Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
+			}
+
+			if (Binding.DataType->ShaderValueType.IsValid())
+			{
+				Declarations.Add(GetDeclarationForBinding(Binding, true));
+			}
+			else
+			{
+				Declarations.Add(FString::Printf(TEXT("// Error: Binding \"%s\" is not supported"), *Binding.Name.ToString()) );
+			}
 		}
-		else
-		{
-			Declarations.Add(FString::Printf(TEXT("// Error: Binding \"%s\" is not supported"), *Binding.Name.ToString()) );
-		}
-	}
+	};
+
+	TArray<FOptimusParameterBinding> Bindings = InputBindingArray.InnerArray;
+	Bindings.Sort(ContextsPredicate);
+	AddInputBindings(Bindings);
 
 	Bindings = OutputBindingArray.InnerArray;
 	Bindings.Sort(ContextsPredicate);
@@ -707,6 +1140,18 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 		Declarations.Add(GetDeclarationForBinding(Binding, false));
 	}
 
+	for (const FOptimusSecondaryInputBindingsGroup& InputGroup: SecondaryInputBindingGroups)
+	{
+		Bindings = InputGroup.BindingArray.InnerArray;
+		if (!Bindings.IsEmpty())
+		{
+			Bindings.Sort(ContextsPredicate);
+			Declarations.Add(FString::Printf(TEXT("namespace %s {"), *InputGroup.GroupName.ToString()));
+			AddInputBindings(Bindings);
+			Declarations.Add("}");
+		}
+	}
+	
 	ShaderSource.Declarations.Reset();
 	if (!Structs.IsEmpty())
 	{
@@ -721,6 +1166,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	ShaderSource.Declarations += "\n// Resource Indexing\n";
 	ShaderSource.Declarations += "uint Index;	// From SV_DispatchThreadID.x\n";
 }
+
 
 FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput)
 {
@@ -740,36 +1186,4 @@ FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimu
 		return FString::Printf(TEXT("void Write%s(%s, %s Value);"),
 					*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *GetShaderValueTypeFriendlyName(Binding.DataType));
 	}
-}
-
-
-TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetPinsByDirection(
-	EOptimusNodePinDirection InPinDirection
-	) const
-{
-	TArray<UOptimusNodePin*> FilteredPins;
-	for (UOptimusNodePin* Pin : GetPins())
-	{
-		if (InPinDirection == EOptimusNodePinDirection::Unknown || Pin->GetDirection() == InPinDirection)
-		{
-			FilteredPins.Add(Pin);
-		}
-	}
-
-	return FilteredPins;
-}
-
-TMap<FName, UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetNamedPinsByDirection(
-	EOptimusNodePinDirection InDirection
-	) const
-{
-	TMap<FName, UOptimusNodePin *> FilteredPins;
-	for (UOptimusNodePin *Pin: GetPins())
-	{
-		if (Pin->GetDirection() == InDirection)
-		{
-			FilteredPins.Add(Pin->GetFName(), Pin);
-		}
-	}
-	return FilteredPins;
 }

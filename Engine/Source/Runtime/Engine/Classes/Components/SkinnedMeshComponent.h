@@ -28,6 +28,7 @@ struct FSkelMeshRenderSection;
 class FPositionVertexBuffer;
 class UMeshDeformer;
 class UMeshDeformerInstance;
+class UMeshDeformerInstanceSettings;
 class USkinnedAsset;
 
 DECLARE_DELEGATE_OneParam(FOnAnimUpdateRateParamsCreated, FAnimUpdateRateParameters*)
@@ -293,6 +294,9 @@ public:
 	/** Object containing state for the bound MeshDeformer. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Deformer")
 	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, DisplayName = "Settings", Category = "Deformer", meta=(EditInline, EditCondition="MeshDeformerInstanceSettings!=nullptr", HideEditConditionToggle, EditConditionHides))
+	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -964,6 +968,7 @@ public:
 	virtual FString GetDetailedInfoInternal() const override;
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 protected:

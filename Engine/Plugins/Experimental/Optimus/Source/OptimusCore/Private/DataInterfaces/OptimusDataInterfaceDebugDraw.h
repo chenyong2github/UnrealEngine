@@ -47,7 +47,8 @@ public:
 	FString GetDisplayName() const override;
 	FName GetCategory() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
-	void RegisterTypes() const override;
+	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
+	void RegisterTypes() override;
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface

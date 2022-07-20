@@ -8,6 +8,7 @@
 
 #include "OptimusNodePin.generated.h"
 
+class UOptimusComponentSourceBinding;
 class UOptimusActionStack;
 class UOptimusNode;
 enum class EOptimusGraphNotifyType;
@@ -73,6 +74,10 @@ public:
 	UOptimusNodePin* GetParentPin();
 	const UOptimusNodePin* GetParentPin() const;
 
+	/// Returns the next sibling of this pin, or nullptr if it is the last pin of its siblings.
+	UOptimusNodePin* GetNextPin();
+	const UOptimusNodePin* GetNextPin() const;
+
 	/// Returns the root pin of this pin hierarchy.
 	UOptimusNodePin* GetRootPin();
 	const UOptimusNodePin* GetRootPin() const;
@@ -114,6 +119,11 @@ public:
 		return StorageType == EOptimusNodePinStorageType::Resource ? DataDomain.LevelNames : TArray<FName>();
 	}
 
+	/** Return all component source bindings that flow into this input pin. If the pin is an
+	 *  output pin, it always returns an empty array.
+	 */
+	TSet<UOptimusComponentSourceBinding*> GetComponentSourceBindings() const;
+
 	/** Returns the FProperty object for this pin. This can be used to directly address the
 	  * node data represented by this pin. Not all pins have an underlying resource so this can
 	  * return nullptr.
@@ -132,7 +142,7 @@ public:
 
 	/// Returns the sub-pins of this pin. For example for a pin representing the FVector type, 
 	/// this will return pins for the X, Y, and Z components of it (as float values).
-	const TArray<UOptimusNodePin*> &GetSubPins() const { return SubPins; }
+	TArrayView<UOptimusNodePin* const> GetSubPins() const { return SubPins; }
 
 	/// Returns all sub-pins of this pin, recursively. In the returned list, the parent pins
 	/// are listed before their child pins.
@@ -154,7 +164,7 @@ public:
 	 *  off and the connection will _not_ be included).
 	 */
 	TArray<FOptimusRoutedNodePin> GetConnectedPinsWithRouting(
-		const FOptimusPinTraversalContext& InContext
+		const FOptimusPinTraversalContext& InContext = {}
 		) const;
 
 	/// Ask this pin if it allows a connection from the other pin. 
@@ -198,7 +208,7 @@ protected:
 	bool SetName(
 	    FName InName);
 
-	void Notify(EOptimusGraphNotifyType InNotifyType);
+	void Notify(EOptimusGraphNotifyType InNotifyType) const;
 
 private:
 	uint8 *GetPropertyValuePtr() const;

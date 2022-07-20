@@ -13,11 +13,11 @@
 
 FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
 	UOptimusNode* InNode, 
-	FString InNewName
+	FText InNewName
 	)
 {
 	NodePath = InNode->GetNodePath();
-	NewName = FText::FromString(InNewName);
+	NewName = InNewName;
 	OldName = InNode->GetDisplayName();
 
 	SetTitlef(TEXT("Rename %s"), *InNode->GetDisplayName().ToString());
@@ -321,18 +321,50 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
 	EOptimusNodePinDirection InDirection,
 	FOptimusNodePinStorageConfig InStorageConfig,
 	FOptimusDataTypeRef InDataType,
-	UOptimusNodePin* InBeforePin
+	const UOptimusNodePin* InBeforePin,
+	const UOptimusNodePin* InParentPin
 	)
 {
 	if (ensure(InNode) &&
 		ensure(!InBeforePin || InBeforePin->GetOwningNode() == InNode) &&
-		ensure(!InBeforePin || InBeforePin->GetParentPin() == nullptr))
+		ensure(!InBeforePin || InBeforePin->GetParentPin() == InParentPin) &&
+		ensure(!InParentPin || InParentPin->GetOwningNode() == InNode) &&
+		ensure(!InParentPin || InParentPin->IsGroupingPin()))
 	{
 		NodePath = InNode->GetNodePath();
 		PinName = InName;
 		Direction = InDirection;
 		StorageConfig = InStorageConfig;
 		DataType = InDataType.TypeName;
+
+		// New pins are always created in a non-expanded state.
+		bExpanded = false;
+
+		if (InBeforePin)
+		{
+			BeforePinPath = InBeforePin->GetPinPath();
+		}
+		if (InParentPin)
+		{
+			ParentPinPath = InParentPin->GetPinPath();
+		}
+	}
+}
+
+FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
+	UOptimusNode* InNode,
+	FName InName,
+	EOptimusNodePinDirection InDirection,
+	const UOptimusNodePin* InBeforePin
+	)
+{
+	if (ensure(InNode) &&
+		ensure(!InBeforePin || InBeforePin->GetOwningNode() == InNode))
+	{
+		NodePath = InNode->GetNodePath();
+		PinName = InName;
+		Direction = InDirection;
+		bIsGroupingPin = true;
 
 		// New pins are always created in a non-expanded state.
 		bExpanded = false;
@@ -353,21 +385,36 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 		PinPath = InPin->GetPinPath();
 		PinName = InPin->GetFName();
 		Direction = InPin->GetDirection();
-		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+		bIsGroupingPin = InPin->IsGroupingPin();
+
+		if (!bIsGroupingPin)
 		{
-			StorageConfig = FOptimusNodePinStorageConfig(InPin->GetDataDomainLevelNames());
+			if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+			{
+				StorageConfig = FOptimusNodePinStorageConfig(InPin->GetDataDomainLevelNames());
+			}
+			else
+			{
+				StorageConfig = FOptimusNodePinStorageConfig();
+			}
+			DataType = InPin->GetDataType()->TypeName;
 		}
-		else
-		{
-			StorageConfig = FOptimusNodePinStorageConfig();
-		}
-		DataType = InPin->GetDataType()->TypeName;
 
 		// Store the expansion info.
 		bExpanded = InPin->GetIsExpanded();
 
-		// Capture the before pin.
-		const TArray<UOptimusNodePin*>& Pins = InPin->GetOwningNode()->GetPins();
+		// Capture the before and parent pin (if any).
+		TArrayView<UOptimusNodePin* const> Pins;
+		if (InPin->GetParentPin())
+		{
+			Pins = InPin->GetParentPin()->GetSubPins();
+
+			ParentPinPath = InPin->GetParentPin()->GetPinPath();
+		}
+		else
+		{
+			Pins = InPin->GetOwningNode()->GetPins();
+		}
 		const int32 PinIndex = Pins.IndexOfByKey(InPin);
 		if (ensure(Pins.IsValidIndex(PinIndex)))
 		{
@@ -389,9 +436,6 @@ bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusPathResolver* InRoot)
 		return false;
 	}
 
-	FOptimusDataTypeRef TypeRef;
-	TypeRef = FOptimusDataTypeRegistry::Get().FindType(DataType);
-
 	UOptimusNodePin *BeforePin = nullptr;
 	if (!BeforePinPath.IsEmpty())
 	{
@@ -401,8 +445,32 @@ bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusPathResolver* InRoot)
 			return false;
 		}
 	}
+	UOptimusNodePin *ParentPin = nullptr;
+	if (!ParentPinPath.IsEmpty())
+	{
+		ParentPin = InRoot->ResolvePinPath(ParentPinPath);
+		if (!ParentPin)
+		{
+			return false;
+		}
+	}
+
+	UOptimusNodePin *Pin;
+	if (bIsGroupingPin)
+	{
+		Pin = Node->AddGroupingPinDirect(PinName, Direction, BeforePin);
+	}
+	else
+	{
+		const FOptimusDataTypeRef TypeRef = FOptimusDataTypeRegistry::Get().FindType(DataType);
+		if (!TypeRef.IsValid())
+		{
+			return false;
+		}
+		
+		Pin = Node->AddPinDirect(PinName, Direction, StorageConfig, TypeRef, BeforePin, ParentPin);
+	}
 	
-	UOptimusNodePin *Pin = Node->AddPinDirect(PinName, Direction, StorageConfig, TypeRef, BeforePin);
 	if (!Pin)
 	{
 		return false;
@@ -433,4 +501,57 @@ bool FOptimusNodeAction_AddRemovePin::RemovePin(IOptimusPathResolver* InRoot) co
 UOptimusNodePin* FOptimusNodeAction_AddPin::GetPin(IOptimusPathResolver* InRoot) const
 {
 	return InRoot->ResolvePinPath(PinPath);
+}
+
+UOptimusNodePin* FOptimusNodeAction_AddGroupingPin::GetPin(IOptimusPathResolver* InRoot) const
+{
+	return InRoot->ResolvePinPath(PinPath);
+}
+
+
+
+FOptimusNodeAction_MovePin::FOptimusNodeAction_MovePin(
+	UOptimusNodePin* InPinToMove,
+	const UOptimusNodePin* InPinBefore
+	)
+{
+	if (ensure(InPinToMove))
+	{
+		PinPath = InPinToMove->GetPinPath();
+
+		const UOptimusNodePin* NextPin = InPinToMove->GetNextPin();
+		if (NextPin)
+		{
+			OldBeforePinPath = NextPin->GetPinPath(); 
+		}
+
+		if (InPinBefore)
+		{
+			NewBeforePinPath = InPinBefore->GetPinPath(); 
+		}
+	}
+}
+
+bool FOptimusNodeAction_MovePin::MovePin(
+	IOptimusPathResolver* InRoot,
+	const FString& InBeforePinPath
+	)
+{
+	UOptimusNodePin* Pin = InRoot->ResolvePinPath(PinPath);
+	if (!Pin)
+	{
+		return false;
+	}
+
+	const UOptimusNodePin* BeforePin = nullptr; 
+	if (!InBeforePinPath.IsEmpty())
+	{
+		BeforePin = InRoot->ResolvePinPath(InBeforePinPath);
+		if (!BeforePin)
+		{
+			return false;
+		}
+	}
+
+	return Pin->GetOwningNode()->MovePinDirect(Pin, BeforePin);
 }

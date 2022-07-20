@@ -28,7 +28,12 @@ TArray<FOptimusCDIPinDefinition> UOptimusDebugDrawDataInterface::GetPinDefinitio
 	return Defs;
 }
 
-void UOptimusDebugDrawDataInterface::RegisterTypes() const 
+TSubclassOf<UActorComponent> UOptimusDebugDrawDataInterface::GetRequiredComponentClass() const
+{
+	return UPrimitiveComponent::StaticClass();
+}
+
+void UOptimusDebugDrawDataInterface::RegisterTypes() 
 {
 	FOptimusDataTypeRegistry::Get().RegisterType(
 		FName("FDebugDraw"),

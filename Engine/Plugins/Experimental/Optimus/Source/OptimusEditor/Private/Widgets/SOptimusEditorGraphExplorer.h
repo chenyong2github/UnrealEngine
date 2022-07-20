@@ -8,6 +8,7 @@
 #include "Framework/Commands/Commands.h"
 
 
+class UOptimusComponentSource;
 class UOptimusNodeGraph;
 class FMenuBuilder;
 class FOptimusEditor;
@@ -29,6 +30,7 @@ public:
 	TSharedPtr<FUICommandInfo> CreateSetupGraph;
 	TSharedPtr<FUICommandInfo> CreateTriggerGraph;
 
+	TSharedPtr<FUICommandInfo> CreateBinding;
 	TSharedPtr<FUICommandInfo> CreateResource;
 	TSharedPtr<FUICommandInfo> CreateVariable;
 
@@ -84,7 +86,6 @@ private:
 
 	FReply OnAddButtonClickedOnSection(int32 InSectionID);
 	bool CanAddNewElementToSection(int32 InSectionID) const;
-	TArray<TSharedPtr<FUICommandInfo>> GetSectionMenuCommands(int32 InSectionID) const;
 
 	/** Support functions for view options for Show Empty Sections */
 	void OnToggleShowEmptySections();
@@ -110,6 +111,9 @@ private:
 	void OnCreateTriggerGraph();
 	bool CanCreateTriggerGraph();
 
+	void OnCreateBinding(const UOptimusComponentSource* InComponentSource);
+	bool CanCreateBinding();
+	
 	void OnCreateResource();
 	bool CanCreateResource();
 

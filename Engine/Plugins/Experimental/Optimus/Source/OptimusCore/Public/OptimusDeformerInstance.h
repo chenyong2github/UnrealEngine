@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IOptimusComponentBindingsProvider.h"
 #include "Animation/MeshDeformerInstance.h"
 #include "ComputeFramework/ComputeGraphInstance.h"
 
@@ -11,10 +12,12 @@ enum class EOptimusNodeGraphType;
 struct FOptimusPersistentStructuredBuffer;
 class FRDGBuffer;
 class FRDGBuilder;
+class UActorComponent;
 class UMeshComponent;
 class UOptimusDeformer;
 class UOptimusVariableContainer;
 class UOptimusVariableDescription;
+class UOptimusComponentSourceBinding;
 
 class FOptimusPersistentBufferPool
 {
@@ -47,10 +50,14 @@ struct FOptimusDeformerInstanceExecInfo
 {
 	GENERATED_BODY()
 
+	FOptimusDeformerInstanceExecInfo();
+
 	/** The name of the graph */
+	UPROPERTY()
 	FName GraphName;
 
-	/** The graph type. */ 
+	/** The graph type. */
+	UPROPERTY()
 	EOptimusNodeGraphType GraphType;
 	
 	/** The ComputeGraph asset. */
@@ -62,12 +69,69 @@ struct FOptimusDeformerInstanceExecInfo
 	FComputeGraphInstance ComputeGraphInstance;
 };
 
+
+/** Defines a binding between a component provider in the graph and an actor component in the component hierarchy on
+ *  the actor whose deformable component we're bound to.
+ */
+USTRUCT(BlueprintType)
+struct FOptimusDeformerInstanceComponentBinding
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(VisibleAnywhere, Category="Binding")
+	FName ProviderName;
+	
+	UPROPERTY(EditAnywhere, Category="Binding")
+	TSoftObjectPtr<UActorComponent> ActorComponent;
+};
+
+
+UCLASS(Blueprintable, BlueprintType)
+class OPTIMUSCORE_API UOptimusDeformerInstanceSettings :
+	public UMeshDeformerInstanceSettings,
+	public IOptimusComponentBindingsProvider
+{
+	GENERATED_BODY()
+
+public:
+	/** */
+	UPROPERTY(EditAnywhere, Category="Deformer|Settings", EditFixedSize, meta=(NoResetToDefault, EditFixedOrder))
+	TArray<FOptimusDeformerInstanceComponentBinding> Bindings;
+
+	void RefreshComponentBindings(
+		UOptimusDeformer* InDeformer,
+		UMeshComponent* InMeshComponent
+		);
+
+	// -- IOptimusComponentBindingsProvider
+	TArray<UActorComponent*> GetBoundComponents() const override;
+	AActor* GetActor() const override;
+	UOptimusComponentSourceBinding* GetComponentBindingByName(FName InBindingName) const override;
+
+#if WITH_EDITOR
+	// -- UObject
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	
+protected:
+	friend class UOptimusDeformer;
+
+	void InitializeSettings(
+		UOptimusDeformer* InDeformer,
+		UMeshComponent* InMeshComponent);
+
+private:
+	UPROPERTY()
+	TWeakObjectPtr<UOptimusDeformer> Deformer; 
+};
+
+
 /** 
  * Class representing an instance of an Optimus Mesh Deformer.
  * This implements the UMeshDeformerInstance interface to enqueue the graph execution.
  * It also contains the per instance deformer variable state and local state for each of the graphs in the deformer.
  */
-UCLASS(Blueprintable, BlueprintType, EditInlineNew)
+UCLASS(Blueprintable, BlueprintType)
 class UOptimusDeformerInstance :
 	public UMeshDeformerInstance
 {
@@ -81,11 +145,20 @@ public:
 	void SetMeshComponent(UMeshComponent* InMeshComponent);
 
 	/** 
+	 * Set the instance settings that control this deformer instance. The deformer instance is transient whereas
+	 * the settings are persistent.
+	 */
+	void SetInstanceSettings(UOptimusDeformerInstanceSettings* InInstanceSettings);
+	
+	/** 
 	 * Setup the instance. 
 	 * Needs to be called after the UOptimusDeformer creates this instance, and whenever the instance is invalidated.
 	 * Invalidation happens whenever any bound Data Providers become invalid.
 	 */
-	void SetupFromDeformer(UOptimusDeformer* InDeformer);
+	void SetupFromDeformer(
+		UOptimusDeformer* InDeformer,
+		const bool bInRefreshBindings = false
+		);
 
 	/** Set the value of a boolean variable. */
 	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (bool)"))
@@ -123,7 +196,7 @@ public:
 	FOptimusPersistentBufferPoolPtr GetBufferPool() const { return BufferPool; }
 
 	void SetCanBeActive(bool bInCanBeActive);
-	
+
 protected:
 	/** Implementation of UMeshDeformerInstance. */
 	void AllocateResources() override;
@@ -136,6 +209,10 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<UMeshComponent> MeshComponent;
 
+	/** The Mesh Component that owns this Mesh Deformer Instance. */
+	UPROPERTY()
+	TWeakObjectPtr<UOptimusDeformerInstanceSettings> InstanceSettings;
+	
 	/** An array of state. One for each graph owned by the deformer. */
 	UPROPERTY()
 	TArray<FOptimusDeformerInstanceExecInfo> ComputeGraphExecInfos;

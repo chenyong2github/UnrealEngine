@@ -55,6 +55,7 @@ const TCHAR* HlslKeywords[] =
 	TEXT("packoffset"),
 	TEXT("numthreads"),
 	TEXT("nointerpolation"),
+	TEXT("namespace"),
 	TEXT("matrix"),
 	TEXT("int4x4"),
 	TEXT("int4x3"),

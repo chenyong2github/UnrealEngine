@@ -25,6 +25,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusMorphTargetDataInterface::GetPinDefinit
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusMorphTargetDataInterface::GetRequiredComponentClass() const
+{
+	return USkeletalMeshComponent::StaticClass();
+}
+
+
 void UOptimusMorphTargetDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()

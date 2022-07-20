@@ -22,7 +22,12 @@ UObject* UOptimusDeformerFactory::FactoryCreateNew(
 	FFeedbackContext* OutWarn
 	)
 {
-	return NewObject<UOptimusDeformer>(InParent, InClass, InName, InFlags);
+	UOptimusDeformer* Deformer = NewObject<UOptimusDeformer>(InParent, InClass, InName, InFlags);
+	
+	// Create a default primary binding.
+	Deformer->AddComponentBinding(nullptr);
+
+	return Deformer;
 }
 
 

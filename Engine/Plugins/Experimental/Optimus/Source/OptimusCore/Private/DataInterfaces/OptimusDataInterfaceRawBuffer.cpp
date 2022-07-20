@@ -32,7 +32,7 @@ void UOptimusRawBufferDataInterface::FillProviderFromComponent(
 	
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData->GetPendingFirstLOD(0);
 
-	if (DataDomain.Name == Optimus::DomainName::Triangle)
+	if (DataDomain.LevelNames[0] == Optimus::DomainName::Triangle)
 	{
 		for (const FSkelMeshRenderSection& RenderSection: LodRenderData->RenderSections)
 		{
@@ -57,11 +57,19 @@ bool UOptimusRawBufferDataInterface::SupportsAtomics() const
 
 TArray<FOptimusCDIPinDefinition> UOptimusRawBufferDataInterface::GetPinDefinitions() const
 {
+	// FIXME: Multi-level support by proxying through a data interface.
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"ValueIn", "ReadValue", DataDomain.Name, "ReadNumValues"});
-	Defs.Add({"ValueOut", "WriteValue", DataDomain.Name, "ReadNumValues"});
+	Defs.Add({"ValueIn", "ReadValue", DataDomain.LevelNames[0], "ReadNumValues"});
+	Defs.Add({"ValueOut", "WriteValue", DataDomain.LevelNames[0], "ReadNumValues"});
 	return Defs;
 }
+
+
+TSubclassOf<UActorComponent> UOptimusRawBufferDataInterface::GetRequiredComponentClass() const
+{
+	return USceneComponent::StaticClass();
+}
+
 
 void UOptimusRawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {

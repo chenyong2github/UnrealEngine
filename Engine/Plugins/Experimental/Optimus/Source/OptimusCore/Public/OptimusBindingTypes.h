@@ -3,6 +3,7 @@
 #pragma once
 #include "OptimusDataDomain.h"
 #include "OptimusDataType.h"
+#include "OptimusValidatedName.h"
 
 #include "OptimusBindingTypes.generated.h"
 
@@ -31,7 +32,7 @@ struct FOptimusParameterBinding
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Binding)
-	FName Name;
+	FOptimusValidatedName Name;
 
 	UPROPERTY(EditAnywhere, Category = Binding, meta=(UseInResource))
 	FOptimusDataTypeRef DataType;
@@ -39,7 +40,7 @@ struct FOptimusParameterBinding
 	/** Returns true if the binding is valid and has defined entries */
 	bool IsValid() const
 	{
-		return !Name.IsNone() && DataType.IsValid();
+		return !Name.Name.IsNone() && DataType.IsValid();
 	}
 	
 	UPROPERTY(EditAnywhere, Category = Binding)

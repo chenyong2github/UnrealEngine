@@ -179,6 +179,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusAnimAttributeDataInterface::GetPinDefin
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusAnimAttributeDataInterface::GetRequiredComponentClass() const
+{
+	return USkeletalMeshComponent::StaticClass();
+}
+
+
 void UOptimusAnimAttributeDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	for (int32 Index = 0; Index < AttributeArray.Num(); Index++)

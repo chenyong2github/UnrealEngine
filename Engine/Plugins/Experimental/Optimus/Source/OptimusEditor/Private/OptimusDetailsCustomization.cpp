@@ -6,11 +6,15 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
+#include "IOptimusComponentBindingsProvider.h"
+#include "IOptimusExecutionDomainProvider.h"
 #include "IOptimusParameterBindingProvider.h"
 #include "IPropertyTypeCustomization.h"
 #include "OptimusBindingTypes.h"
 #include "OptimusComputeDataInterface.h"
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusDeformer.h"
+#include "OptimusDeformerInstance.h"
 #include "OptimusEditorStyle.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
 #include "OptimusNode.h"
@@ -23,6 +27,7 @@
 #include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateIconFinder.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -203,29 +208,39 @@ FText FOptimusDataTypeRefCustomization::GetDeclarationText() const
 
 // =============================================================================================
 
-TSharedRef<IPropertyTypeCustomization> FOptimusDataDomainCustomization::MakeInstance()
+TSharedRef<IPropertyTypeCustomization> FOptimusExecutionDomainCustomization::MakeInstance()
 {
-	return MakeShared<FOptimusDataDomainCustomization>();
+	return MakeShared<FOptimusExecutionDomainCustomization>();
 }
 
 
-FOptimusDataDomainCustomization::FOptimusDataDomainCustomization()
+FOptimusExecutionDomainCustomization::FOptimusExecutionDomainCustomization()
 {
-	for (FName Name: UOptimusComputeDataInterface::GetUniqueAllTopLevelContexts())
-	{
-		ContextNames.Add(Name);
-	}
-	ContextNames.Sort(FNameLexicalLess());
 }
 
 
-void FOptimusDataDomainCustomization::CustomizeHeader(
+void FOptimusExecutionDomainCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
 	FDetailWidgetRow& InHeaderRow,
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	TSharedPtr<IPropertyHandle> ContextNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDataDomain, Name));
+	TSharedPtr<IPropertyHandle> ContextNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusExecutionDomain, Name));
+
+	TArray<UObject*> OwningObjects;
+	InPropertyHandle->GetOuterObjects(OwningObjects);
+
+	// FIXME: Support multiple objects.
+	const IOptimusExecutionDomainProvider* ExecutionDomainProvider = Cast<IOptimusExecutionDomainProvider>(OwningObjects[0]);
+	ContextNames.Reset();
+	if (ExecutionDomainProvider)
+	{
+		ContextNames = ExecutionDomainProvider->GetExecutionDomains();
+	}
+	else
+	{
+		ContextNames.Add(NAME_None);
+	}
 	
 	InHeaderRow.NameContent()
 	[
@@ -234,7 +249,7 @@ void FOptimusDataDomainCustomization::CustomizeHeader(
 	.ValueContent()
 	[
 		SNew(SComboBox<FName>)
-			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a resource context from the list of available contexts."))
+			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select an execution context from the list of available contexts."))
 			.OptionsSource(&ContextNames)
 			.IsEnabled_Lambda([InPropertyHandle]() -> bool
 			{
@@ -242,8 +257,9 @@ void FOptimusDataDomainCustomization::CustomizeHeader(
 			})
 			.OnGenerateWidget_Lambda([](FName InName)
 			{
+				const FText NameText = InName.IsNone() ? LOCTEXT("NoneName", "<None>") : FText::FromName(InName);
 				return SNew(STextBlock)
-					.Text(FText::FromName(InName))
+					.Text(NameText)
 					.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
 			})
 			.OnSelectionChanged_Lambda([ContextNameProperty](FName InName, ESelectInfo::Type)
@@ -255,9 +271,9 @@ void FOptimusDataDomainCustomization::CustomizeHeader(
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
 				.Text_Lambda([ContextNameProperty]()
 				{
-					FName Value;
-					ContextNameProperty->GetValue(Value);
-					return FText::FromName(Value);
+					FName Name;
+					ContextNameProperty->GetValue(Name);
+					return Name.IsNone() ? LOCTEXT("NoneName", "<None>") : FText::FromName(Name);
 				})
 			]
 	];
@@ -282,6 +298,14 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
+	static const TArray<TSharedRef<FString>> Multipliers = {
+		MakeShared<FString>(TEXT("x1")),
+		MakeShared<FString>(TEXT("x2")),
+		MakeShared<FString>(TEXT("x3")),
+		MakeShared<FString>(TEXT("x4")),
+		MakeShared<FString>(TEXT("x8")),
+	};	
+	
 	auto FormatNames = [](const TArray<FName>& InNames) -> FText
 	{
 		if (InNames.IsEmpty())
@@ -689,7 +713,8 @@ void FOptimusParameterBindingCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
 	TSharedRef<IPropertyHandle>& BindingPropertyHandle = InPropertyHandle;
-	const TSharedPtr<IPropertyHandle> NameProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, Name));
+	const TSharedPtr<IPropertyHandle> ValidatedNameProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, Name));
+	const TSharedPtr<IPropertyHandle> NameProperty = ValidatedNameProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusValidatedName, Name));
 	
 	InHeaderRow
 	.NameContent()
@@ -699,7 +724,34 @@ void FOptimusParameterBindingCustomization::CustomizeHeader(
 		+SHorizontalBox::Slot()
 		.Padding(0,0,10,0)
 		[
-			NameProperty->CreatePropertyValueWidget()
+			SNew(SEditableTextBox)
+			.Font(InCustomizationUtils.GetRegularFont())
+			.Text_Lambda([NameProperty]()
+			{
+				FName Value;
+				NameProperty->GetValue(Value);
+				return FText::FromName(Value);
+			})
+			.OnTextCommitted_Lambda([NameProperty](const FText& InText, ETextCommit::Type InTextCommit)
+			{
+				NameProperty->SetValue(FName(InText.ToString()));
+			})
+			.OnVerifyTextChanged_Lambda([NameProperty](const FText& InNewText, FText& OutErrorMessage) -> bool
+			{
+				if (InNewText.IsEmpty())
+				{
+					OutErrorMessage = LOCTEXT("NameEmpty", "Name can't be empty.");
+					return false;
+				}
+					
+				FText FailureContext = LOCTEXT("NameFailure", "Name");
+				if (!FOptimusValidatedName::IsValid(InNewText.ToString(), &OutErrorMessage, &FailureContext))
+				{
+					return false;
+				}
+					
+				return true;
+			})
 		]
 	]
 	.ValueContent()
@@ -861,7 +913,7 @@ void FOptimusParameterBindingArrayCustomization::CustomizeHeader(TSharedRef<IPro
 {
 	const bool bAllowParameters = InPropertyHandle->HasMetaData(UOptimusNode::PropertyMeta::AllowParameters);
 	const TSharedPtr<IPropertyHandle> ArrayHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray), false);
-	
+
 	ArrayBuilder = FOptimusParameterBindingArrayBuilder::MakeInstance(ArrayHandle.ToSharedRef(), ColumnSizeData, bAllowParameters);
 	// use the top level property instead of "InnerArray"
 	ArrayBuilder->GenerateWrapperStructHeaderRowContent(InHeaderRow,InPropertyHandle->CreatePropertyNameWidget());
@@ -932,7 +984,7 @@ void FOptimusValidatedNameCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
 	const TSharedPtr<IPropertyHandle> NameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusValidatedName, Name));
-
+	
 	InHeaderRow
 	.NameContent()
 	[
@@ -1021,6 +1073,142 @@ FText FOptimusSourceDetailsCustomization::GetText() const
 void FOptimusSourceDetailsCustomization::OnTextChanged(const FText& InValue)
 {
 	OptimusSource->SetSource(InValue.ToString());
+}
+
+
+
+TSharedRef<IPropertyTypeCustomization> FOptimusDeformerInstanceComponentBindingCustomization::MakeInstance()
+{
+	return MakeShareable(new FOptimusDeformerInstanceComponentBindingCustomization);
+}
+
+FOptimusDeformerInstanceComponentBindingCustomization::FOptimusDeformerInstanceComponentBindingCustomization()
+{
+}
+
+FOptimusDeformerInstanceComponentBindingCustomization::~FOptimusDeformerInstanceComponentBindingCustomization()
+{
+}
+
+void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils
+	)
+{
+	const TSharedPtr<IPropertyHandle> NameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ProviderName));
+	const TSharedPtr<IPropertyHandle> ComponentProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDeformerInstanceComponentBinding, ActorComponent));
+	
+	FName BindingName;
+	NameProperty->GetValue(BindingName);
+
+	UObject* SelectedComponent;
+	ComponentProperty->GetValue(SelectedComponent);
+	
+	TArray<UObject*> OuterObjects;
+	InPropertyHandle->GetOuterObjects(OuterObjects);
+
+	const IOptimusComponentBindingsProvider* BindingProvider = Cast<IOptimusComponentBindingsProvider>(OuterObjects[0]);
+	const UOptimusComponentSourceBinding* Binding = nullptr;
+
+	FComponentHandle SelectedComponentHandle;
+
+	if (BindingProvider)
+	{
+		const AActor* OwningActor = BindingProvider->GetActor();
+		Binding = BindingProvider->GetComponentBindingByName(BindingName);
+		
+		if (OwningActor && Binding)
+		{
+			TArray<UActorComponent*> FilteredComponents;
+			OwningActor->GetComponents(Binding->GetComponentSource()->GetComponentClass(), FilteredComponents);
+			for (const UActorComponent* Component: FilteredComponents)
+			{
+				ComponentHandles.Add(MakeShared<FSoftObjectPath>(FSoftObjectPath::GetOrCreateIDForObject(Component)));
+				if (Component == SelectedComponent)
+				{
+					SelectedComponentHandle = ComponentHandles.Last();
+				}
+			}
+		}
+	}
+
+	InHeaderRow
+	.NameContent()
+	[
+		NameProperty->CreatePropertyNameWidget(FText::FromName(BindingName))
+	]
+	.ValueContent()
+	[
+		SNew(SComboBox<FComponentHandle>)
+		.IsEnabled(Binding && !Binding->IsPrimaryBinding())
+		.OptionsSource(&ComponentHandles)
+		.InitiallySelectedItem(SelectedComponentHandle)
+		.OnGenerateWidget_Lambda([](const FComponentHandle InComponentHandle)
+		{
+			const UActorComponent* Component = Cast<UActorComponent>(InComponentHandle->ResolveObject());
+			
+			return SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FSlateIconFinder::FindIconBrushForClass(Component ? Component->GetClass() : nullptr, TEXT("SCS.Component")))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0)
+				.Padding(2.0f, 0, 0, 0)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromName(Component ? Component->GetFName() : FName("<Invalid>")))
+				];
+		})
+		.OnSelectionChanged_Lambda([ComponentProperty](const FComponentHandle InComponentHandle, ESelectInfo::Type InInfo)
+		{
+			if (InInfo != ESelectInfo::Direct)
+			{
+				const UActorComponent* Component = Cast<UActorComponent>(InComponentHandle->ResolveObject());
+				ComponentProperty->SetValue(Component);
+			}
+		})
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.Image_Lambda([ComponentProperty]()-> const FSlateBrush*
+				{
+					if (UObject* ComponentObject = nullptr; ComponentProperty->GetValue(ComponentObject) == FPropertyAccess::Success && ComponentObject)
+					{
+						return FSlateIconFinder::FindIconBrushForClass(ComponentObject->GetClass(), TEXT("SCS.Component"));
+					}
+					return nullptr;
+				})
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0)
+			.Padding(2.0f, 0, 0, 0)
+			[
+				SNew(STextBlock)
+				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+				.Text_Lambda([ComponentProperty]()
+				{
+					if (UObject* ComponentObject = nullptr; ComponentProperty->GetValue(ComponentObject) == FPropertyAccess::Success && ComponentObject)
+					{
+						return FText::FromName(ComponentObject->GetFName());
+					}
+					return FText::GetEmpty();
+				})
+			]
+		]
+	];
 }
 
 #undef LOCTEXT_NAMESPACE

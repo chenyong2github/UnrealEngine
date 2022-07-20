@@ -71,7 +71,7 @@ void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 			}
 		}
 
-		if (IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(ModelNode))
+		if (const IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(ModelNode))
 		{
 			CreateAdderPins(this);
 		}
@@ -223,6 +223,12 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 		// Notify the node widget that the pins have changed.
 		(void)NodePinsChanged.ExecuteIfBound();
 	}
+}
+
+void UOptimusEditorGraphNode::SynchronizeGraphPinExpansionWithModelPin(const UOptimusNodePin* InModelPin)
+{
+	// For now, we just use a big sledgehammer.
+	(void)NodePinExpansionChanged.ExecuteIfBound();
 }
 
 
@@ -438,6 +444,41 @@ bool UOptimusEditorGraphNode::ModelPinRemoved(const UOptimusNodePin* InModelPin)
 	{
 		return false;
 	}
+}
+
+bool UOptimusEditorGraphNode::ModelPinMoved(
+	const UOptimusNodePin* InModelPin
+	)
+{
+	const UOptimusNodePin* NextModelPin = InModelPin->GetNextPin();
+	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
+	UEdGraphPin* NextGraphPin = NextModelPin ? FindGraphPinFromModelPin(NextModelPin) : nullptr;
+	
+	if (ensure(GraphPin))
+	{
+		Pins.RemoveSingle(GraphPin);
+		if (NextGraphPin)
+		{
+			const int32 BeforeIndex = Pins.IndexOfByKey(NextGraphPin);
+			Pins.Insert(GraphPin, BeforeIndex);
+		}
+		else
+		{
+			Pins.Add(GraphPin);
+		}
+
+		UpdateTopLevelPins();
+
+		// Update the Slate node so that the pin layout on the widget match the graph node's.
+		(void)NodePinsChanged.ExecuteIfBound();
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+	
 }
 
 

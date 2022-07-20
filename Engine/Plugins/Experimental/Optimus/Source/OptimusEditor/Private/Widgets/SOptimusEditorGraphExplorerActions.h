@@ -5,10 +5,36 @@
 #include "CoreMinimal.h"
 #include "GraphEditorDragDropAction.h"
 
+class UOptimusComponentSourceBinding;
 class UOptimusNodeGraph;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
 struct FEdGraphSchemaAction;
+
+
+class FOptimusEditorGraphDragAction_Binding :
+	public FGraphSchemaActionDragDropAction
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FOptimusEditorGraphDragAction_Binding, FGraphSchemaActionDragDropAction)
+
+	static TSharedRef<FOptimusEditorGraphDragAction_Binding> New(
+		TSharedPtr<FEdGraphSchemaAction> InAction, 
+		UOptimusComponentSourceBinding *InBinding
+		);
+
+	// FGraphEditorDragDropAction overrides
+	FReply DroppedOnPanel(
+		const TSharedRef<SWidget>& InPanel, 
+		FVector2D InScreenPosition, 
+		FVector2D InGraphPosition, 
+		UEdGraph& InGraph
+		) override;
+	
+private:
+	TWeakObjectPtr<UOptimusComponentSourceBinding> WeakBinding;
+};
+
 
 class FOptimusEditorGraphDragAction_Variable :
 	public FGraphSchemaActionDragDropAction
@@ -24,7 +50,7 @@ public:
 	// FGraphEditorDragDropAction overrides
 	void HoverTargetChanged() override;
 	FReply DroppedOnPanel(
-		const TSharedRef<class SWidget>& InPanel, 
+		const TSharedRef<SWidget>& InPanel, 
 		FVector2D InScreenPosition, 
 		FVector2D InGraphPosition, 
 		UEdGraph& InGraph
@@ -59,7 +85,7 @@ public:
 	// FGraphEditorDragDropAction overrides
 	void HoverTargetChanged() override;
 	FReply DroppedOnPanel(
-	    const TSharedRef<class SWidget>& InPanel,
+	    const TSharedRef<SWidget>& InPanel,
 	    FVector2D InScreenPosition,
 	    FVector2D InGraphPosition,
 	    UEdGraph& InGraph) override;

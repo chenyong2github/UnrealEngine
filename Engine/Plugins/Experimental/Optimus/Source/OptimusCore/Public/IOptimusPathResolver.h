@@ -7,12 +7,13 @@
 #include "IOptimusPathResolver.generated.h"
 
 
-class UOptimusVariableDescription;
-class UOptimusResourceDescription;
 class IOptimusNodeGraphCollectionOwner;
+class UOptimusComponentSourceBinding;
 class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
+class UOptimusResourceDescription;
+class UOptimusVariableDescription;
 
 
 UINTERFACE()
@@ -47,4 +48,6 @@ public:
 	virtual UOptimusResourceDescription* ResolveResource(FName InResourceName) const = 0;
 	
 	virtual UOptimusVariableDescription* ResolveVariable(FName InVariableName) const = 0;
+
+	virtual UOptimusComponentSourceBinding* ResolveComponentBinding(FName InBindingName) const = 0;
 };

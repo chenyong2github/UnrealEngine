@@ -26,6 +26,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusSkeletonDataInterface::GetPinDefinition
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusSkeletonDataInterface::GetRequiredComponentClass() const
+{
+	return USkinnedMeshComponent::StaticClass();
+}
+
+
 void UOptimusSkeletonDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()

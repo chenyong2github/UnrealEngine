@@ -31,8 +31,8 @@ MLDEFORMER_GRAPH_IMPLEMENT_BASICS(
 
 namespace UE::LegacyVertexDeltaModel
 {
-	FLegacyVertexDeltaModelDataProviderProxy::FLegacyVertexDeltaModelDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent)
-		: UE::MLDeformer::FMLDeformerGraphDataProviderProxy(SkeletalMeshComponent, DeformerComponent)
+	FLegacyVertexDeltaModelDataProviderProxy::FLegacyVertexDeltaModelDataProviderProxy(UMLDeformerComponent* DeformerComponent)
+		: UE::MLDeformer::FMLDeformerGraphDataProviderProxy(DeformerComponent)
 	{
 		const UMLDeformerModel* Model = DeformerComponent->GetDeformerAsset()->GetModel();
 		const ULegacyVertexDeltaModel* VertexDeltaModel = Cast<ULegacyVertexDeltaModel>(Model);

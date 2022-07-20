@@ -56,7 +56,7 @@ namespace UE::LegacyVertexDeltaModel
 		: public UE::MLDeformer::FMLDeformerGraphDataProviderProxy
 	{
 	public:
-		FLegacyVertexDeltaModelDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent);
+		FLegacyVertexDeltaModelDataProviderProxy(UMLDeformerComponent* DeformerComponent);
 
 		// FComputeDataProviderRenderProxy overrides.
 		virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;

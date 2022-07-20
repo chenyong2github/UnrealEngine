@@ -6,11 +6,13 @@
 #include "AssetViewUtils.h"
 #include "EdGraphUtilities.h"
 #include "IAssetTools.h"
+#include "IOptimusExecutionDomainProvider.h"
 #include "ObjectTools.h"
 #include "OptimusBindingTypes.h"
 #include "OptimusDataType.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformerAssetActions.h"
+#include "OptimusDeformerInstance.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
 #include "OptimusEditorClipboard.h"
@@ -172,14 +174,15 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	};
 
 	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
-	RegisterPropertyCustomization(FOptimusDataDomain::StaticStruct()->GetFName(), &FOptimusDataDomainCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusExecutionDomain::StaticStruct()->GetFName(), &FOptimusExecutionDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusMultiLevelDataDomain::StaticStruct()->GetFName(), &FOptimusMultiLevelDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusShaderText::StaticStruct()->GetFName(), &FOptimusShaderTextCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
 	RegisterPropertyCustomization(UOptimusValueContainer::StaticClass()->GetFName(), &FOptimusValueContainerCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusValidatedName::StaticStruct()->GetFName(), &FOptimusValidatedNameCustomization::MakeInstance);
-
+	RegisterPropertyCustomization(FOptimusDeformerInstanceComponentBinding::StaticStruct()->GetFName(), &FOptimusDeformerInstanceComponentBindingCustomization::MakeInstance);
+	
 	auto RegisterDetailCustomization = [&](FName InStructName, auto InCustomizationFactory)
 	{
 		PropertyModule.RegisterCustomClassLayout(

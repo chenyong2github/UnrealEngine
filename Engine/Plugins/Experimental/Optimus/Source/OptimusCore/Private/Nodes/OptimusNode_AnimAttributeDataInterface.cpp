@@ -110,7 +110,7 @@ void UOptimusNode_AnimAttributeDataInterface::UpdatePinTypes()
 	const int32 NumAttributes = Interface->AttributeArray.Num(); 
 
 	// Let's try and figure out which pin got changed.
-	const TArray<UOptimusNodePin *> NodePins = GetPins();
+	TArrayView<UOptimusNodePin* const> NodePins = GetPins();
 	
 	if (ensure(NumAttributes == NodePins.Num()))
 	{
@@ -132,7 +132,7 @@ void UOptimusNode_AnimAttributeDataInterface::UpdatePinNames()
 	TArray<FOptimusCDIPinDefinition> PinDefinitions = Interface->GetPinDefinitions();
 	
 	// Let's try and figure out which pin got changed.
-	TArray<UOptimusNodePin*> NodePins = GetPins();
+	TArrayView<UOptimusNodePin* const> NodePins = GetPins();
 
 	if (ensure(PinDefinitions.Num() == NodePins.Num()))
 	{
@@ -149,9 +149,7 @@ void UOptimusNode_AnimAttributeDataInterface::UpdatePinNames()
 
 void UOptimusNode_AnimAttributeDataInterface::ClearPins()
 {
-	TArray<UOptimusNodePin*> NodePins = GetPins();
-
-	for (UOptimusNodePin* Pin : NodePins)
+	for (UOptimusNodePin* Pin : GetPins())
 	{
 		RemovePin(Pin);
 	}

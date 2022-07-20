@@ -142,7 +142,7 @@ namespace FAnimUpdateRateManager
 	{
 		if (!SkinnedComponent)
 		{
-			return NULL;
+			return nullptr;
 		}
 		UObject* TrackerIndex = GetMapIndexForComponent(SkinnedComponent);
 
@@ -561,7 +561,7 @@ void USkinnedMeshComponent::OnRegister()
 	UpdateLODStatus();
 	InvalidateCachedBounds();
 
-	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this) : nullptr;
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 
 	RefreshExternalMorphTargetWeights();
 }
@@ -768,7 +768,7 @@ void USkinnedMeshComponent::DestroyRenderState_Concurrent()
 		// Begin a deferred delete of MeshObject.  BeginCleanup will call MeshObject->FinishDestroy after the above release resource
 		// commands execute in the rendering thread.
 		BeginCleanup(MeshObject);
-		MeshObject = NULL;
+		MeshObject = nullptr;
 	}
 }
 
@@ -790,7 +790,7 @@ FString USkinnedMeshComponent::GetDetailedInfoInternal() const
 {
 	FString Result;  
 
-	if(GetSkinnedAsset() != NULL )
+	if(GetSkinnedAsset() != nullptr )
 	{
 		Result = GetSkinnedAsset()->GetDetailedInfoInternal();
 	}
@@ -932,11 +932,31 @@ bool USkinnedMeshComponent::CanEditChange(const FProperty* InProperty) const
 	return Super::CanEditChange(InProperty);
 }
 
+void USkinnedMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (const FProperty* Property = PropertyChangedEvent.Property)
+	{
+		if ( Property->GetFName() == GET_MEMBER_NAME_CHECKED( USkinnedMeshComponent, MeshDeformer ) )
+		{
+			if (MeshDeformer)
+			{
+				MeshDeformerInstanceSettings = MeshDeformer->CreateSettingsInstance(this);
+			}
+			else
+			{
+				MeshDeformerInstanceSettings = nullptr;
+			}
+		}
+	}
+}
+
 #endif // WITH_EDITOR
 
 void USkinnedMeshComponent::InitLODInfos()
 {
-	if (GetSkinnedAsset() != NULL)
+	if (GetSkinnedAsset() != nullptr)
 	{
 		if (GetSkinnedAsset()->GetLODNum() != LODInfo.Num())
 		{
@@ -1217,7 +1237,7 @@ bool USkinnedMeshComponent::ShouldUpdateBoneVisibility() const
 }
 void USkinnedMeshComponent::RebuildVisibilityArray()
 {
-	// BoneVisibility needs update if LeaderComponent == NULL
+	// BoneVisibility needs update if LeaderComponent == nullptr
 	// if MaterComponent, it should follow MaterPoseComponent
 	if ( ShouldUpdateBoneVisibility())
 	{
@@ -1315,7 +1335,7 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector3f& RootOffse
 
 	// Can only use the PhysicsAsset to calculate the bounding box if we are not non-uniformly scaling the mesh.
 	const USkinnedAsset* SkinnedAssetConst = GetSkinnedAsset();
-	const bool bCanUsePhysicsAsset = DrawScale.IsUniform() && (GetSkinnedAsset() != NULL)
+	const bool bCanUsePhysicsAsset = DrawScale.IsUniform() && (GetSkinnedAsset() != nullptr)
 		// either space base exists or child component
 		&& ( (GetNumComponentSpaceTransforms() == SkinnedAssetConst->GetRefSkeleton().GetNum()) || (LeaderPhysicsAsset) );
 
@@ -1554,7 +1574,7 @@ int32 USkinnedMeshComponent::GetBoneIndex( FName BoneName) const
 
 FName USkinnedMeshComponent::GetBoneName(int32 BoneIndex) const
 {
-	return (GetSkinnedAsset() != NULL && GetSkinnedAsset()->GetRefSkeleton().IsValidIndex(BoneIndex)) ? GetSkinnedAsset()->GetRefSkeleton().GetBoneName(BoneIndex) : NAME_None;
+	return (GetSkinnedAsset() != nullptr && GetSkinnedAsset()->GetRefSkeleton().IsValidIndex(BoneIndex)) ? GetSkinnedAsset()->GetRefSkeleton().GetBoneName(BoneIndex) : NAME_None;
 }
 
 
@@ -1684,7 +1704,7 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
 {
-	if (GetSkinnedAsset() == NULL)
+	if (GetSkinnedAsset() == nullptr)
 	{
 		// no mesh, so no bones
 		BoneNames.Empty();
@@ -1765,7 +1785,7 @@ USkeletalMesh* USkinnedMeshComponent::GetSkeletalMesh_DEPRECATED() const
 
 void USkinnedMeshComponent::SetSkinnedAsset(USkinnedAsset* InSkinnedAsset, bool /*bReinitPose*/)
 {
-	// NOTE: InSkinnedAsset may be NULL (useful in the editor for removing the skeletal mesh associated with
+	// NOTE: InSkinnedAsset may be nullptr (useful in the editor for removing the skeletal mesh associated with
 	//   this component on-the-fly)
 
 	if (InSkinnedAsset == GetSkinnedAsset())
@@ -1838,7 +1858,8 @@ USkinnedAsset* USkinnedMeshComponent::GetSkinnedAsset() const
 void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
 {
 	MeshDeformer = InMeshDeformer;
-	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this) : nullptr;
+	MeshDeformerInstanceSettings = MeshDeformer->CreateSettingsInstance(this);
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 	MarkRenderDynamicDataDirty();
 }
 
@@ -1854,7 +1875,7 @@ FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() cons
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -1863,7 +1884,7 @@ bool USkinnedMeshComponent::AllocateTransformData()
 	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/TransformData"));
 
 	// Allocate transforms if not present.
-	if (GetSkinnedAsset() != NULL && LeaderPoseComponent == NULL )
+	if (GetSkinnedAsset() != nullptr && LeaderPoseComponent == nullptr )
 	{
 		const int32 NumBones = GetSkinnedAsset()->GetRefSkeleton().GetNum();
 
@@ -2155,12 +2176,12 @@ void USkinnedMeshComponent::SetSelectedEditorMaterial(int32 InSelectedEditorMate
 
 UMorphTarget* USkinnedMeshComponent::FindMorphTarget( FName MorphTargetName ) const
 {
-	if(GetSkinnedAsset() != NULL )
+	if(GetSkinnedAsset() != nullptr )
 	{
 		return GetSkinnedAsset()->FindMorphTarget(MorphTargetName);
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 bool USkinnedMeshComponent::GetMissingLeaderBoneRelativeTransform(int32 InBoneIndex, FMissingLeaderBoneCacheEntry& OutInfo) const
@@ -2555,7 +2576,7 @@ FVector USkinnedMeshComponent::GetBoneAxis( FName BoneName, EAxis::Type Axis ) c
 
 bool USkinnedMeshComponent::HasAnySockets() const
 {
-	return (GetSkinnedAsset() != NULL) && (
+	return (GetSkinnedAsset() != nullptr) && (
 #if WITH_EDITOR
 		(GetSkinnedAsset()->GetActiveSocketList().Num() > 0) ||
 #endif
@@ -2564,7 +2585,7 @@ bool USkinnedMeshComponent::HasAnySockets() const
 
 void USkinnedMeshComponent::QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const
 {
-	if (GetSkinnedAsset() != NULL)
+	if (GetSkinnedAsset() != nullptr)
 	{
 		// Grab all the mesh and skeleton sockets
 		const TArray<USkeletalMeshSocket*> AllSockets = GetSkinnedAsset()->GetActiveSocketList();
@@ -2652,9 +2673,9 @@ void USkinnedMeshComponent::TransformFromBoneSpace(FName BoneName, FVector InPos
 
 FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* BoneLocation, float IgnoreScale, bool bRequirePhysicsAsset) const
 {
-	if (GetSkinnedAsset() == NULL)
+	if (GetSkinnedAsset() == nullptr)
 	{
-		if (BoneLocation != NULL)
+		if (BoneLocation != nullptr)
 		{
 			*BoneLocation = FVector::ZeroVector;
 		}
@@ -2666,7 +2687,7 @@ FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* Bone
 		const UPhysicsAsset* PhysAsset = GetPhysicsAsset();
 		if (bRequirePhysicsAsset && !PhysAsset)
 		{
-			if (BoneLocation != NULL)
+			if (BoneLocation != nullptr)
 			{
 				*BoneLocation = FVector::ZeroVector;
 			}
@@ -2706,7 +2727,7 @@ FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* Bone
 
 		if (BestIndex == -1)
 		{
-			if (BoneLocation != NULL)
+			if (BoneLocation != nullptr)
 			{
 				*BoneLocation = FVector::ZeroVector;
 			}
@@ -2715,7 +2736,7 @@ FName USkinnedMeshComponent::FindClosestBone(FVector TestLocation, FVector* Bone
 		else
 		{
 			// transform the bone location into world space
-			if (BoneLocation != NULL)
+			if (BoneLocation != nullptr)
 			{
 				*BoneLocation = (CompSpaceTransforms[BestIndex] * GetComponentTransform()).GetLocation();
 			}

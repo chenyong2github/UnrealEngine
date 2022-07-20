@@ -4,11 +4,13 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "UObject/Interface.h"
+#include "Misc/TVariant.h"
 
 #include "IOptimusComputeKernelProvider.generated.h"
 
 class UComputeDataInterface;
 class UOptimusComputeDataInterface;
+class UOptimusComponentSourceBinding;
 class UOptimusKernelSource;
 class UOptimusNode;
 class UOptimusNodePin;
@@ -19,9 +21,11 @@ struct FOptimusPinTraversalContext;
 // during kernel compilation to read/write values from/to that data interface's resource.
 struct FOptimus_InterfaceBinding
 {
-	UComputeDataInterface const* DataInterface;
+	const UComputeDataInterface* DataInterface;
+	const UOptimusComponentSourceBinding* ComponentBinding;
 	int32 DataInterfaceBindingIndex;
 	FString BindingFunctionName;
+	FString BindingFunctionNamespace;
 };
 using FOptimus_InterfaceBindingMap = TMap<int32 /* Kernel Index */, FOptimus_InterfaceBinding>;
 
@@ -47,6 +51,8 @@ using FOptimus_NodeToDataInterfaceMap =  TMap<const UOptimusNode*, UOptimusCompu
 using FOptimus_PinToDataInterfaceMap = TMap<const UOptimusNodePin*, UOptimusComputeDataInterface*>;
 
 
+using FOptimus_ComputeKernelResult = TVariant<UOptimusKernelSource* /* Kernel */, FText /* Error */>;
+
 UINTERFACE()
 class OPTIMUSCORE_API UOptimusComputeKernelProvider :
 	public UInterface
@@ -66,21 +72,28 @@ public:
 	 * Return an UOptimusKernelSource object, from a compute kernel node state that implements
 	 * this interface.
 	 * @param InKernelSourceOuter The outer object that will own the new kernel source.
+	 * @param InTraversalContext
 	 * @param InNodeDataInterfaceMap
 	 * @param InLinkDataInterfaceMap
 	 * @param InValueNodes
-	 * @param OutParameterBindings
+	 * @param InGraphDataInterface
 	 * @param OutInputDataBindings
 	 * @param OutOutputDataBindings
 	 */
-	virtual UOptimusKernelSource* CreateComputeKernel(
+	virtual FOptimus_ComputeKernelResult CreateComputeKernel(
 		UObject* InKernelSourceOuter,
 		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		const TArray<const UOptimusNode*>& InValueNodes,
-		const UComputeDataInterface* GraphDataInterface,
+		const UComputeDataInterface* InGraphDataInterface,
+		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const = 0;
+
+	/** Returns the input pins of the primary group only. Used for traversing up the graph to identify the component
+	 *  source.
+	 */
+	virtual TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const = 0; 
 };

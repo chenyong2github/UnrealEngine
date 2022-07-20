@@ -10,6 +10,7 @@
 
 #include "OptimusNodeGraph.generated.h"
 
+class UOptimusComponentSourceBinding;
 struct FOptimusCompoundAction;
 struct FOptimusPinTraversalContext;
 struct FOptimusRoutedNodePin;
@@ -41,7 +42,7 @@ enum class EOptimusNodeGraphType
 
 namespace Optimus
 {
-static bool IsExecutionGraph(EOptimusNodeGraphType InGraphType)
+static bool IsExecutionGraphType(EOptimusNodeGraphType InGraphType)
 {
 	return InGraphType == EOptimusNodeGraphType::Setup ||
 		   InGraphType == EOptimusNodeGraphType::Update ||
@@ -85,7 +86,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool IsExecutionGraph() const
 	{
-		return Optimus::IsExecutionGraph(GraphType); 
+		return Optimus::IsExecutionGraphType(GraphType); 
 	}
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
@@ -139,6 +140,13 @@ public:
 	    UOptimusVariableDescription* InVariableDesc,
 	    const FVector2D& InPosition
 	    );
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddComponentBindingGetNode(
+		UOptimusComponentSourceBinding* InComponentBinding,
+		const FVector2D& InPosition
+		);
+	
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool RemoveNode(
@@ -262,7 +270,14 @@ public:
 		const UOptimusNodePin* InNodePin,
 		const FOptimusPinTraversalContext& InContext
 		) const;
-	
+
+
+	/** Get all unique component bindings that lead to this pin. Note that only pins with a zero or single bindings
+	 *  are considered valid. We return all of them however for error messaging.
+	 */
+	TSet<UOptimusComponentSourceBinding*> GetComponentSourceBindingsForPin(
+		const UOptimusNodePin* InNodePin
+		) const;
 		
 	TArray<const UOptimusNodeLink *> GetPinLinks(const UOptimusNodePin* InNodePin) const;
 
@@ -366,7 +381,7 @@ protected:
 		GraphType = InType;
 	}
 
-	void Notify(EOptimusGraphNotifyType InNotifyType, UObject *InSubject);
+	void Notify(EOptimusGraphNotifyType InNotifyType, UObject *InSubject) const;
 	void GlobalNotify(EOptimusGlobalNotifyType InNotifyType, UObject *InSubject) const;
 
 	// The type of graph this represents. 

@@ -33,16 +33,23 @@ public:
 	virtual TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const { return {}; }
 	
 	// IOptimusComputeKernelProvider
-	UOptimusKernelSource* CreateComputeKernel(
+	FOptimus_ComputeKernelResult CreateComputeKernel(
 		UObject* InKernelSourceOuter,
 		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		const TArray<const UOptimusNode*>& InValueNodes,
-		const UComputeDataInterface* GraphDataInterface,
-		FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
+		const UComputeDataInterface* InGraphDataInterface,
+		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
+		FOptimus_InterfaceBindingMap& OutInputDataBindings,
+		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const override;
 
+	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetPrimaryGroupInputPins, return {}; );  
+
+	// -- UOptimusNode overrides
+	TOptional<FText> ValidateForCompile() const override;
+	
 protected:
 	static TArray<FString> GetIndexNamesFromDataDomainLevels(
 		const TArray<FName> &InLevelNames
@@ -67,20 +74,22 @@ protected:
 	
 private:
 	void ProcessInputPinForComputeKernel(
+		const FOptimusPinTraversalContext& InTraversalContext,
 		const UOptimusNodePin* InInputPin,
-		const UOptimusNodePin* InOutputPin,
+		const FString& InGroupName,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		const TArray<const UOptimusNode*>& InValueNodes,
-		const UComputeDataInterface* GraphDataInterface,
+		const UComputeDataInterface* InGraphDataInterface,
+		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
 		UOptimusKernelSource* InKernelSource,
 		TArray<FString>& OutGeneratedFunctions,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings
 		) const;
 
 	void ProcessOutputPinForComputeKernel(
+		const FOptimusPinTraversalContext& InTraversalContext,
 		const UOptimusNodePin* InOutputPin,
-		const TArray<UOptimusNodePin *>& InInputPins,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		UOptimusKernelSource* InKernelSource,

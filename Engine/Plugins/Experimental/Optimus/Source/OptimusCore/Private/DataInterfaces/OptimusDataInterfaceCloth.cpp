@@ -28,6 +28,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusClothDataInterface::GetPinDefinitions()
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusClothDataInterface::GetRequiredComponentClass() const
+{
+	return USkeletalMeshComponent::StaticClass();
+}
+
+
 void UOptimusClothDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()

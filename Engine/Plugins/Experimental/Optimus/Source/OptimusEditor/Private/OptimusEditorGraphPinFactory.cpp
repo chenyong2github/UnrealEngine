@@ -3,10 +3,12 @@
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorGraph.h"
 
+#include "EdGraphSchema_K2.h"
 #include "NodeFactory.h"
+#include "SGraphPin.h"
 
 
-TSharedPtr<class SGraphPin> FOptimusEditorGraphPinFactory::CreatePin(class UEdGraphPin* InPin) const
+TSharedPtr<SGraphPin> FOptimusEditorGraphPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
 	if (InPin)
 	{
@@ -19,7 +21,12 @@ TSharedPtr<class SGraphPin> FOptimusEditorGraphPinFactory::CreatePin(class UEdGr
 			}
 		}
 
-		// FIXME: Add specializations here.
+		if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+		{
+			// Override the "object" type because otherwise we get a pin with an object selector
+			// which is not what we want.
+			return SNew(SGraphPin, InPin);
+		}
 	}
 
 	TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);

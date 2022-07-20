@@ -25,6 +25,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusSceneDataInterface::GetPinDefinitions()
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusSceneDataInterface::GetRequiredComponentClass() const
+{
+	return USceneComponent::StaticClass();
+}
+
+
 void UOptimusSceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()

@@ -367,13 +367,19 @@ void UComputeGraph::ReleaseRenderProxy(FComputeGraphRenderProxy* InRenderProxy) 
 namespace
 {
 	/** Add HLSL code to implement an external function. */
-	void GetFunctionShimHLSL(FShaderFunctionDefinition const& FnImpl, FShaderFunctionDefinition const& FnWrap, TCHAR const* UID, TCHAR const *WrapNameOverride, FString& InOutHLSL)
+	void GetFunctionShimHLSL(FShaderFunctionDefinition const& FnImpl, FShaderFunctionDefinition const& FnWrap, TCHAR const* UID, TCHAR const *WrapNameOverride, TCHAR const* Namespace, FString& InOutHLSL)
 	{
 		const bool bHasReturn = FnWrap.bHasReturnType;
 		const int32 NumParams = FnWrap.ParamTypes.Num();
 
 		TStringBuilder<512> StringBuilder;
 
+		if (Namespace)
+		{
+			StringBuilder.Append(TEXT("namespace "));
+			StringBuilder.Append(Namespace);
+			StringBuilder.Append(TEXT(" { "));
+		}
 		StringBuilder.Append(bHasReturn ? *FnWrap.ParamTypes[0].TypeDeclaration : TEXT("void"));
 		StringBuilder.Append(TEXT(" "));
 		StringBuilder.Append(WrapNameOverride ? WrapNameOverride : *FnWrap.Name);
@@ -397,7 +403,13 @@ namespace
 			StringBuilder.Append((ParameterIndex < NumParams - 1) ? TEXT(", ") : TEXT(""));
 		}
 
-		StringBuilder.Append(TEXT("); }\n"));
+		StringBuilder.Append(TEXT(");"));
+		
+		if (Namespace)
+		{
+			StringBuilder.Append(TEXT(" }"));
+		}
+		StringBuilder.Append(TEXT(" }\n"));
 
 		InOutHLSL += StringBuilder.ToString();
 	}
@@ -506,14 +518,15 @@ FString UComputeGraph::BuildKernelSource(
 		{
 			FString NamePrefix = GetUniqueDataInterfaceName(DataInterfaces[GraphEdge.DataInterfaceIndex], GraphEdge.DataInterfaceIndex);
 
-			TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
+			TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride;
+			TCHAR const* WrapNamespace = GraphEdge.BindingFunctionNamespace.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNamespace;
 			if (GraphEdge.bKernelInput)
 			{
 				TArray<FShaderFunctionDefinition> DataProviderFunctions;
 				DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
 				FShaderFunctionDefinition const& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
 				FShaderFunctionDefinition const& KernelFunction = InKernelSource.ExternalInputs[GraphEdge.KernelBindingIndex];
-				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
+				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, WrapNamespace, HLSL);
 			}
 			else
 			{
@@ -521,7 +534,7 @@ FString UComputeGraph::BuildKernelSource(
 				DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
 				FShaderFunctionDefinition const&  DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
 				FShaderFunctionDefinition const& KernelFunction = InKernelSource.ExternalOutputs[GraphEdge.KernelBindingIndex];
-				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
+				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, WrapNamespace, HLSL);
 			}
 		}
 	}

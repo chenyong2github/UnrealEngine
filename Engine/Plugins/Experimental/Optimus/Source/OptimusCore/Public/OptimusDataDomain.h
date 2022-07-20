@@ -18,24 +18,6 @@ namespace Optimus::DomainName
 	extern OPTIMUSCORE_API const FName Index2;
 }
 
-/** A struct to hold onto a single-level data domain such as kernel execution domain and 
-  * user-defined resources. The reason it's in a struct is so that we can apply a property 
-  * panel customization for it to make it easier to select from a pre-defined list of data 
-  * domains.
-*/
-USTRUCT()
-struct OPTIMUSCORE_API FOptimusDataDomain
-{
-	GENERATED_BODY()
-
-	FOptimusDataDomain() = default;
-	FOptimusDataDomain(FName InDataDomainName) : Name(InDataDomainName) {}
-
-	// The name of the context that this resource/kernel applies to.
-	UPROPERTY(EditAnywhere, Category = Domain)
-	FName Name = Optimus::DomainName::Vertex;
-};
-
 /** A struct to hold onto a multi-level data domain, as defined by compute kernels and data
 *   interfaces. A multi-level data domain is used to describe a nested levels of data domains
 *   where each element in a higher domain hold a series of elements in another domain (e.g.

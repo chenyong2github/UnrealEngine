@@ -70,7 +70,8 @@ public:
 	FString GetKernelSourceText() const override;
 
 	void ConstructNode() override;
-
+	
+	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override { return {}; }
 private:
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *GetGeneratorClass() const;
 };

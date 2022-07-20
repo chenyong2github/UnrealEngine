@@ -2,6 +2,7 @@
 
 #include "OptimusEditorGraphSchemaActions.h"
 
+#include "OptimusComponentSource.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 
@@ -115,6 +116,24 @@ FOptimusSchemaAction_Graph::FOptimusSchemaAction_Graph(
 		GraphType(InGraph->GetGraphType())
 {
 	GraphPath = InGraph->GetGraphPath();
+}
+
+
+FOptimusSchemaAction_Binding::FOptimusSchemaAction_Binding(
+	UOptimusComponentSourceBinding* InBinding,
+	int32 InGrouping
+	) :
+	FEdGraphSchemaAction(
+			FText::GetEmpty(),
+			FText::FromString(InBinding->GetName()),
+			FText::GetEmpty(),
+			InGrouping,
+			FText(),
+			int32(EOptimusSchemaItemGroup::Bindings)
+		)
+
+{
+	BindingName = InBinding->GetFName();
 }
 
 

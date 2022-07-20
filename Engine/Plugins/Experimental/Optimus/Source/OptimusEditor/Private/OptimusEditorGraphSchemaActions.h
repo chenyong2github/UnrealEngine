@@ -11,6 +11,7 @@
 #include "OptimusEditorGraphSchemaActions.generated.h"
 
 
+class UOptimusComponentSourceBinding;
 class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusResourceDescription;
@@ -22,6 +23,7 @@ enum class EOptimusSchemaItemGroup
 {
 	InvalidGroup = 0,
 	Graphs,
+	Bindings,
 	Variables,
 	Resources,
 };
@@ -115,6 +117,32 @@ struct FOptimusSchemaAction_Graph :
 
 	// FEdGraphSchemaAction overrides
 	bool IsParentable() const override { return true; }
+};
+
+
+/// Reference to a UOptimusComponentSourceBinding.
+USTRUCT()
+struct FOptimusSchemaAction_Binding : public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	static FName StaticGetTypeId()
+	{
+		static FName Type("FOptimusSchemaAction_Binding");
+		return Type;
+	}
+	FName GetTypeId() const override { return StaticGetTypeId(); }
+
+	FName BindingName;
+
+	FOptimusSchemaAction_Binding() = default;
+
+	FOptimusSchemaAction_Binding(
+		UOptimusComponentSourceBinding* InBinding,
+		int32 InGrouping);
+
+	// FEdGraphSchemaAction overrides
+	bool IsParentable() const override { return false; }
 };
 
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IOptimusExecutionDomainProvider.h"
 #include "IOptimusNodeAdderPinProvider.h"
 #include "IOptimusParameterBindingProvider.h"
 #include "IOptimusShaderTextProvider.h"
@@ -17,12 +18,26 @@
 enum class EOptimusNodePinDirection : uint8;
 
 
+USTRUCT()
+struct FOptimusSecondaryInputBindingsGroup
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category=Group)
+	FOptimusValidatedName GroupName;
+	
+	UPROPERTY(EditAnywhere, Category=Group, DisplayName = "Bindings", meta=(AllowParameters))
+	FOptimusParameterBindingArray BindingArray;
+};
+
+
 UCLASS()
 class UOptimusNode_CustomComputeKernel :
 	public UOptimusNode_ComputeKernelBase,
 	public IOptimusShaderTextProvider,
 	public IOptimusParameterBindingProvider,
-	public IOptimusNodeAdderPinProvider
+	public IOptimusNodeAdderPinProvider,
+	public IOptimusExecutionDomainProvider
 {
 	GENERATED_BODY()
 
@@ -34,8 +49,8 @@ public:
 	{
 		return CategoryName::Deformers;
 	}
-	
-	virtual void OnDataTypeChanged(FName InTypeName) override;
+
+	void OnDataTypeChanged(FName InTypeName) override;
 
 	// UOptimusNode_ComputeKernelBase overrides
 	FString GetKernelName() const override { return KernelName.ToString(); }
@@ -43,6 +58,9 @@ public:
 	FString GetKernelSourceText() const override;
 	TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const override { return AdditionalSources; }
 
+	// IOptimusComputeKernelProvider
+	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override;
+	
 #if WITH_EDITOR
 	// IOptimusShaderTextProvider overrides
 	FString GetNameForShaderTextEditor() const override;
@@ -53,16 +71,31 @@ public:
 #endif
 	
 	// IOptimusParameterBindingProvider
-	virtual FString GetBindingDeclaration(FName BindingName) const override;
+	FString GetBindingDeclaration(FName BindingName) const override;
 
 	// IOptimusNodeAdderPinProvider
-	virtual bool CanAddPinFromPin(const UOptimusNodePin* InSourcePin, EOptimusNodePinDirection InNewPinDirection, FString* OutReason = nullptr) const override;
+	bool CanAddPinFromPin(
+		const UOptimusNodePin* InSourcePin,
+		EOptimusNodePinDirection InNewPinDirection,
+		FString* OutReason = nullptr
+		) const override;
 
-	virtual UOptimusNodePin* TryAddPinFromPin(UOptimusNodePin* InSourcePin, FName InNewPinName) override;
+	UOptimusNodePin* TryAddPinFromPin(
+		UOptimusNodePin* InSourcePin,
+		FName InNewPinName
+		) override;
 	
-	virtual bool RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove) override;
+	bool RemoveAddedPin(
+		UOptimusNodePin* InAddedPinToRemove
+		) override;
+	
+	FName GetSanitizedNewPinName(
+		FName InPinName
+		) override;
 
-	virtual FName GetSanitizedNewPinName(FName InPinName) override;
+	// IOptimusExecutionDomainProvider
+	TArray<FName> GetExecutionDomains() const override;
+	
 	
 	// FIXME: Use drop-down with a preset list + allow custom entry.
 	UPROPERTY(EditAnywhere, Category=Settings)
@@ -72,6 +105,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	FOptimusValidatedName KernelName;
 
+	/** The execution domain that this kernel operates on. The size of the domain is governed by
+	 *  the component binding that flows into the primary input group of this kernel.
+	 */
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FOptimusExecutionDomain ExecutionDomain;
+	
 	/** 
 	 * Number of threads in a thread group. 
 	 * Thread groups have 3 dimensions. 
@@ -95,13 +134,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FOptimusParameterBinding> OutputBindings_DEPRECATED;	
 
 	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
-	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Input Bindings", meta=(AllowParameters))
+	UPROPERTY(EditAnywhere, Category = "Primary Bindings", DisplayName = "Input Bindings", meta=(AllowParameters))
 	FOptimusParameterBindingArray InputBindingArray;
 
 	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
-	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Output Bindings")
+	UPROPERTY(EditAnywhere, Category = "Primary Bindings", DisplayName = "Output Bindings")
 	FOptimusParameterBindingArray OutputBindingArray;
 
+	/** Secondary bindings.*/
+	UPROPERTY(EditAnywhere, Category = "Secondary Input Bindings Groups", DisplayName = "Secondary Input Bindings")
+	TArray<FOptimusSecondaryInputBindingsGroup> SecondaryInputBindingGroups;
+	
 	/** Additional source includes. */
 	UPROPERTY(EditAnywhere, Category = Source)
 	TArray<TObjectPtr<UComputeSource>> AdditionalSources;
@@ -114,42 +157,28 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FOptimusShaderText ShaderSource;
 
 #if WITH_EDITOR
-	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	void Serialize(FArchive& Ar) override;
 	void PostLoad() override;
 	
 protected:
 	void ConstructNode() override;
-
+	bool ValidateConnection(const UOptimusNodePin& InThisNodesPin, const UOptimusNodePin& InOtherNodesPin, FString* OutReason) const override;
+	TOptional<FText> ValidateForCompile() const override;
+	
 private:
-
-
-	static bool IsParameterBinding(FName InBindingPropertyName);
 	
-	void RefreshBindingPins(FName InBindingPropertyName);
-	void ClearBindingPins(FName InBindingPropertyName);
-	
-	void UpdatePinTypes(
-		EOptimusNodePinDirection InPinDirection
-		);
-
-	void UpdatePinNames(
-	    EOptimusNodePinDirection InPinDirection);
-
-	void UpdatePinDataDomains(
-		EOptimusNodePinDirection InPinDirection
-		);
+#if WITH_EDITOR
+	void PropertyValueChanged(const FPropertyChangedEvent& InPropertyChangedEvent);
+	void PropertyArrayItemAdded(const FPropertyChangedEvent& InPropertyChangedEvent);
+	void PropertyArrayItemRemoved(const FPropertyChangedEvent& InPropertyChangedEvent);
+	void PropertyArrayCleared(const FPropertyChangedEvent& InPropertyChangedEvent);
+	void PropertyArrayItemMoved(const FPropertyChangedEvent& InPropertyChangedEvent);
+#endif
 	
 	void UpdatePreamble();
 
 	static FString GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput);
-
-	TArray<UOptimusNodePin *> GetPinsByDirection(
-		EOptimusNodePinDirection InPinDirection
-		) const;
-	
-	TMap<FName, UOptimusNodePin*> GetNamedPinsByDirection(
-		EOptimusNodePinDirection InDirection
-		) const;
 };

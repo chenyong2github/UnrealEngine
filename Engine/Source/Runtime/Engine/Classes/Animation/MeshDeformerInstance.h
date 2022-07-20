@@ -7,6 +7,12 @@
 
 class FSceneInterface;
 
+UCLASS(Abstract, EditInlineNew)
+class ENGINE_API UMeshDeformerInstanceSettings : public UObject
+{
+	GENERATED_BODY()
+};
+
 /** 
  * Base class for mesh deformers instances.
  * This contains the per instance state for a UMeshDeformer.

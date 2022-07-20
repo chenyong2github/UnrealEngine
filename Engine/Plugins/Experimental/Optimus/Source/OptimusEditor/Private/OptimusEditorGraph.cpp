@@ -166,7 +166,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::NodeRemoved:
 		{
-			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			const UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 
 			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
 
@@ -183,9 +183,9 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		case EOptimusGraphNotifyType::LinkAdded:
 		case EOptimusGraphNotifyType::LinkRemoved:
 		{
-			UOptimusNodeLink *ModelNodeLink = Cast<UOptimusNodeLink>(InSubject);
-			UOptimusEditorGraphNode* OutputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeOutputPin()->GetOwningNode());
-			UOptimusEditorGraphNode* InputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeInputPin()->GetOwningNode());
+			const UOptimusNodeLink *ModelNodeLink = Cast<UOptimusNodeLink>(InSubject);
+			const UOptimusEditorGraphNode* OutputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeOutputPin()->GetOwningNode());
+			const UOptimusEditorGraphNode* InputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeInputPin()->GetOwningNode());
 
 			if (ensure(OutputGraphNode) && ensure(InputGraphNode))
 			{
@@ -210,7 +210,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::NodeDisplayNameChanged:
 		{
-			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			const UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
 
 			GraphNode->SyncGraphNodeNameWithModelNodeName();
@@ -219,7 +219,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::NodePositionChanged:
 		{
-			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			const UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
 
 			if (ensure(GraphNode))
@@ -232,7 +232,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::NodeDiagnosticLevelChanged:
 		{
-			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			const UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
 
 			GraphNode->SyncDiagnosticStateWithModelNode();
@@ -242,7 +242,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 	    case EOptimusGraphNotifyType::PinAdded:
 		{
-		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
 			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
@@ -257,7 +257,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::PinRemoved:
 		{
-			UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+			const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 			if (ensure(ModelPin))
 			{
 				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
@@ -269,10 +269,25 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			}
 			break;
 		}
+
+		case EOptimusGraphNotifyType::PinMoved:
+		{
+			const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+			if (ensure(ModelPin))
+			{
+				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
+
+				if (ensure(GraphNode))
+				{
+					GraphNode->ModelPinMoved(ModelPin);
+				}
+			}
+			break;
+		}
 		
 		case EOptimusGraphNotifyType::PinRenamed:
 		{
-		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
 			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
@@ -290,7 +305,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			// The pin's value was changed on the model pin itself. The model pin has already
 			// updated the stored node value. We just need to ensure that the graph node shows
 			// the same value (which may now include clamping and sanitizing).
-			UOptimusNodePin *ModelPin = Cast<UOptimusNodePin>(InSubject);
+			const UOptimusNodePin *ModelPin = Cast<UOptimusNodePin>(InSubject);
 			if (ensure(ModelPin))
 			{
 			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
@@ -309,7 +324,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		{
 			// The pin type has changed. We may need to reconstruct the pin, especially if it
 			// had sub-pins before but doesn't now, or the other way around. 
-		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+		    const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
 			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
@@ -318,8 +333,23 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			    {
 				    GraphNode->SynchronizeGraphPinTypeWithModelPin(ModelPin);
 			    }
+			}
+			break;
 		}
-		break;
+
+		case EOptimusGraphNotifyType::PinExpansionChanged:
+	    {
+			const UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+			if (ensure(ModelPin))
+			{
+				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
+
+				if (ensure(GraphNode))
+				{
+					GraphNode->SynchronizeGraphPinExpansionWithModelPin(ModelPin);
+				}
+			}
+			break;
 	    }
 	}
 }

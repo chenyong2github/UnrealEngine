@@ -33,6 +33,7 @@ public:
 	// IOptimusDataInterfaceProvider implementations
 	UOptimusComputeDataInterface* GetDataInterface(UObject *InOuter) const override;
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override { return INDEX_NONE; }
+	UOptimusComponentSourceBinding* GetComponentBinding() const override;
 	
 private:
 	UPROPERTY()

@@ -9,6 +9,7 @@
 
 class UOptimusNodePin;
 class UOptimusComputeDataInterface;
+class UOptimusComponentSourceBinding;
 
 
 UINTERFACE()
@@ -40,4 +41,7 @@ public:
 	 *   INDEX_NONE if it doesn't represent a function (or if the pin isn't top-level).
 	 */
 	virtual int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const = 0;
+
+	/** Returns the component binding that this data interface is bound to (or nullptr if unbound) */
+	virtual UOptimusComponentSourceBinding* GetComponentBinding() const = 0;
 };

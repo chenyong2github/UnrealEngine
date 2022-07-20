@@ -65,6 +65,7 @@ public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
@@ -89,7 +90,7 @@ class UOptimusJiggleSpringDataProvider : public UComputeDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	UPROPERTY()
 	FOptimusJiggleSpringParameters JiggleSpringParameters;
@@ -105,7 +106,7 @@ class FOptimusJiggleSpringDataProviderProxy : public FComputeDataProviderRenderP
 public:
 	//FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 	FOptimusJiggleSpringDataProviderProxy(
-		USkeletalMeshComponent* SkeletalMeshComponent,
+		USkinnedMeshComponent* SkeletalMeshComponent,
 		FOptimusJiggleSpringParameters const& InJiggleSpringParameters);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface

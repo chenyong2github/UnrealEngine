@@ -5,12 +5,14 @@
 #include "OptimusDataType.h"
 
 #include "CoreMinimal.h"
+#include "OptimusComponentSource.h"
 #include "OptimusDataDomain.h"
 #include "UObject/Object.h"
 
 #include "OptimusResourceDescription.generated.h"
 
 
+class UOptimusComponentSourceBinding;
 class UOptimusDeformer;
 class UOptimusPersistentBufferDataInterface;
 
@@ -35,10 +37,13 @@ public:
 	UPROPERTY(EditAnywhere, Category=ResourceDescription, meta=(UseInResource))
 	FOptimusDataTypeRef DataType;
 
-	/** The data domain. Only a single level is allowed since we can only allocate the resource
-	 *  as a flat array, rather than array-of-arrays and deeper. */
+	/** The component binding that this resource description is bound to */
+	UPROPERTY(VisibleAnywhere, Category=ResourceDescription)
+	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentBinding;
+	
+	/** The data domain for this resource. */
 	UPROPERTY(EditAnywhere, Category=ResourceDescription)
-	FOptimusDataDomain DataDomain;
+	FOptimusMultiLevelDataDomain DataDomain;
 
 	UPROPERTY()
 	TObjectPtr<UOptimusPersistentBufferDataInterface> DataInterface;

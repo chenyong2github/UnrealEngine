@@ -4,7 +4,12 @@
 
 #include "ComputeFramework/ComputeDataInterface.h"
 
+#include "Templates/SubclassOf.h"
+
 #include "OptimusComputeDataInterface.generated.h"
+
+
+class UActorComponent;
 
 
 struct FOptimusCDIPinDefinition
@@ -114,8 +119,15 @@ public:
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
 
-	// Registers any types from 
-	virtual void RegisterTypes() const {};
+	/**
+	 * @return Returns the component type that this data interface operates on.
+	 */
+	virtual TSubclassOf<UActorComponent> GetRequiredComponentClass() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetRequiredComponent, return nullptr;)
+
+	/**
+	 * Register any additional data types provided by this data interface. 
+	 */
+	 virtual void RegisterTypes() {}
 
 	/// Returns the list of top-level contexts from this data interface. These can be used to
 	/// define driver contexts and resource contexts on a kernel. Each nested context will be

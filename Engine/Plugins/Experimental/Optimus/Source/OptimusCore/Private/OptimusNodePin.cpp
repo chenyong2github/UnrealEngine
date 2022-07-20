@@ -38,6 +38,24 @@ const UOptimusNodePin* UOptimusNodePin::GetParentPin() const
 	return Cast<const UOptimusNodePin>(GetOuter());
 }
 
+UOptimusNodePin* UOptimusNodePin::GetNextPin()
+{
+	const TArrayView<UOptimusNodePin* const> Pins = GetParentPin() ? GetParentPin()->GetSubPins() : GetOwningNode()->GetPins();
+	if (Pins.Last() == this)
+		return nullptr;
+	
+	return Pins[Pins.IndexOfByKey(this) + 1];
+}
+
+const UOptimusNodePin* UOptimusNodePin::GetNextPin() const
+{
+	const TArrayView<UOptimusNodePin* const> Pins = GetParentPin() ? GetParentPin()->GetSubPins() : GetOwningNode()->GetPins();
+	if (Pins.Last() == this)
+		return nullptr;
+	
+	return Pins[Pins.IndexOfByKey(this) + 1];
+}
+
 
 UOptimusNodePin* UOptimusNodePin::GetRootPin()
 {
@@ -168,6 +186,12 @@ TArray<FName> UOptimusNodePin::GetPinNamePathFromString(const FStringView InPinP
 		PinPath.Emplace(PinPathPart, FNAME_Find);
 	}
 	return PinPath;
+}
+
+
+TSet<UOptimusComponentSourceBinding*> UOptimusNodePin::GetComponentSourceBindings() const
+{
+	return GetOwningNode()->GetOwningGraph()->GetComponentSourceBindingsForPin(this);
 }
 
 
@@ -398,7 +422,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// Check connection at the node level
-	if (!GetOwningNode()->CanConnect(*this, *InOtherPin, OutReason))
+	if (!GetOwningNode()->CanConnectPinToPin(*this, *InOtherPin, OutReason))
 	{
 		return false;
 	}
@@ -553,11 +577,11 @@ bool UOptimusNodePin::SetName(FName InName)
 }
 
 
-void UOptimusNodePin::Notify(EOptimusGraphNotifyType InNotifyType)
+void UOptimusNodePin::Notify(EOptimusGraphNotifyType InNotifyType) const
 {
-	UOptimusNodeGraph *Graph = GetOwningNode()->GetOwningGraph();
+	const UOptimusNodeGraph *Graph = GetOwningNode()->GetOwningGraph();
 
-	Graph->Notify(InNotifyType, this);
+	Graph->Notify(InNotifyType, const_cast<UOptimusNodePin*>(this));
 }
 
 

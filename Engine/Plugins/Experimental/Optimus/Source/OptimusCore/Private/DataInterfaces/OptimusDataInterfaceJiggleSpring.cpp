@@ -97,6 +97,11 @@ UOptimusJiggleSpringDataInterface::GetPinDefinitions() const
 	return Defs;
 }
 
+TSubclassOf<UActorComponent> UOptimusJiggleSpringDataInterface::GetRequiredComponentClass() const
+{
+	return USkinnedMeshComponent::StaticClass();
+}
+
 void 
 UOptimusJiggleSpringDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
@@ -158,7 +163,7 @@ UComputeDataProvider*
 UOptimusJiggleSpringDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusJiggleSpringDataProvider* Provider = NewObject<UOptimusJiggleSpringDataProvider>();
-	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 	Provider->JiggleSpringParameters = JiggleSpringParameters;
 	return Provider;
 }
@@ -171,8 +176,8 @@ bool
 UOptimusJiggleSpringDataProvider::IsValid() const
 {
 	return 
-		SkeletalMesh != nullptr &&
-		SkeletalMesh->MeshObject != nullptr;
+		SkinnedMesh != nullptr &&
+		SkinnedMesh->MeshObject != nullptr;
 }
 
 FComputeDataProviderRenderProxy* 
@@ -183,7 +188,7 @@ UOptimusJiggleSpringDataProvider::GetRenderProxy()
 		JiggleSpringParameters.ReadWeightsFile(JiggleSpringParameters.StiffnessWeightsFile, JiggleSpringParameters.StiffnessWeights);
 	if(!JiggleSpringParameters.DampingWeights.Num() && !JiggleSpringParameters.DampingWeightsFile.FilePath.IsEmpty())
 		JiggleSpringParameters.ReadWeightsFile(JiggleSpringParameters.DampingWeightsFile, JiggleSpringParameters.DampingWeights);
-	return new FOptimusJiggleSpringDataProviderProxy(SkeletalMesh, JiggleSpringParameters);
+	return new FOptimusJiggleSpringDataProviderProxy(SkinnedMesh, JiggleSpringParameters);
 }
 
 //
@@ -191,10 +196,10 @@ UOptimusJiggleSpringDataProvider::GetRenderProxy()
 //
 
 FOptimusJiggleSpringDataProviderProxy::FOptimusJiggleSpringDataProviderProxy(
-	USkeletalMeshComponent* SkeletalMeshComponent, 
+	USkinnedMeshComponent* SkinnedMeshComponent, 
 	FOptimusJiggleSpringParameters const& InJiggleSpringParameters)
 {
-	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
 	JiggleSpringParameters = InJiggleSpringParameters;
 }
 

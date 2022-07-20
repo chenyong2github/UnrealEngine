@@ -7,6 +7,7 @@
 
 class UMeshComponent;
 class UMeshDeformerInstance;
+class UMeshDeformerInstanceSettings;
 
 /** 
  * Base class for mesh deformer assets.
@@ -19,6 +20,17 @@ class ENGINE_API UMeshDeformer : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Create persistent settings for the mesh deformer instance */ 
+	virtual UMeshDeformerInstanceSettings* CreateSettingsInstance(
+		UMeshComponent* InMeshComponent
+		)
+	{
+		return nullptr;
+	}
+	
 	/** Create an instance of the mesh deformer. */
-	virtual UMeshDeformerInstance* CreateInstance(UMeshComponent* InMeshComponent) PURE_VIRTUAL(, return nullptr;);
+	virtual UMeshDeformerInstance* CreateInstance(
+		UMeshComponent* InMeshComponent,
+		UMeshDeformerInstanceSettings* InSettings
+		) PURE_VIRTUAL(, return nullptr;);
 };

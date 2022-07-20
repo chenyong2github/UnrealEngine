@@ -41,7 +41,9 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 		{
 			VariableName = Optimus::GetUniqueNameForScope(GetOuter(), VariableName);
 			Rename(*VariableName.ToString(), nullptr);
-			Deformer->UpdateVariableNodesPinNames(this, VariableName);
+
+			constexpr bool bForceChange = true;
+			Deformer->RenameVariable(this, VariableName, bForceChange);
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataType, TypeName))
@@ -51,12 +53,9 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 		{
 			// Set the variable type again, so that we can remove any links that are now
 			// type-incompatible.
-			Deformer->SetVariableDataType(this, DataType);
+			constexpr bool bForceChange = true;
+			Deformer->SetVariableDataType(this, DataType, bForceChange);
 		}
-
-		// Make sure the value data container is still large enough to hold the property value.
-		ValueData.Reset();
-		ResetValueDataSize();
 	}
 }
 

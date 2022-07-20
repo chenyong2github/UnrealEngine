@@ -52,12 +52,10 @@ class USkeletalMeshComponent;
 	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
 	{ \
 		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InBinding); \
-		if (Provider->SkeletalMeshComponent) \
+		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding); \
+		if (Provider->DeformerComponent) \
 		{ \
-			AActor* Actor = Provider->SkeletalMeshComponent->GetOwner(); \
-			UMLDeformerComponent* DeformerComponent = (Actor != nullptr) ? Cast<UMLDeformerComponent>(Actor->GetComponentByClass(UMLDeformerComponent::StaticClass())) : nullptr; \
-			Provider->DeformerAsset = (DeformerComponent != nullptr) ? DeformerComponent->GetDeformerAsset() : nullptr; \
+			Provider->DeformerAsset = Provider->DeformerComponent->GetDeformerAsset(); \
 		} \
 		MLDEFORMER_EDITORDATA_ONLY( \
 			if (Provider->DeformerAsset != nullptr) \
@@ -74,8 +72,8 @@ class USkeletalMeshComponent;
 	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
 	{ \
 		MLDEFORMER_EDITORDATA_ONLY( \
-			DataProviderProxyClassName* Proxy = new DataProviderProxyClassName(SkeletalMeshComponent, DeformerAsset, this); \
-			const float SampleTime = SkeletalMeshComponent->GetPosition(); \
+			DataProviderProxyClassName* Proxy = new DataProviderProxyClassName(DeformerComponent, DeformerAsset, this); \
+			const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition(); \
 			UMLDeformerModel* Model = DeformerAsset->GetModel(); \
 			Model->SampleGroundTruthPositions(SampleTime, Proxy->GetGroundTruthPositions()); \
 			Proxy->HandleZeroGroundTruthPositions(); \
@@ -98,6 +96,7 @@ public:
 	// UOptimusComputeDataInterface overrides.
 	virtual FString GetDisplayName() const override;
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	virtual TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	// ~END UOptimusComputeDataInterface overrides.
 
 	// UComputeDataInterface overrides.
@@ -126,7 +125,7 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
+	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
@@ -140,7 +139,7 @@ namespace UE::MLDeformer
 		: public FComputeDataProviderRenderProxy
 	{
 	public:
-		FMLDeformerGraphDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerAsset* DeformerAsset, UMLDeformerGraphDebugDataProvider* InProvider);
+		FMLDeformerGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UMLDeformerGraphDebugDataProvider* InProvider);
 
 		virtual void HandleZeroGroundTruthPositions();
 

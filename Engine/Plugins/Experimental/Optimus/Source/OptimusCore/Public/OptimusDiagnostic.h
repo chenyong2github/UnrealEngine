@@ -24,7 +24,7 @@ struct FOptimusCompilerDiagnostic
 	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::None;
 
 	// The actual diagnostic message
-	FString Diagnostic;
+	FText Message;
 
 	// Line location in source
 	int32 Line = INDEX_NONE;

@@ -12,11 +12,11 @@
 class FOptimusEditor;
 
 
-class SOptimusEditorGraphEplorerItem : 
+class SOptimusEditorGraphExplorerItem : 
 	public SGraphPaletteItem
 {
 public:
-	SLATE_BEGIN_ARGS(SOptimusEditorGraphEplorerItem)
+	SLATE_BEGIN_ARGS(SOptimusEditorGraphExplorerItem)
 	{}
 
 	SLATE_END_ARGS()
@@ -26,7 +26,7 @@ public:
 		FCreateWidgetForActionData* const InCreateData, 
 		TWeakPtr<FOptimusEditor> InOptimusEditor);
 
-	TSharedRef<SWidget> CreateIconWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly);
+	TSharedRef<SWidget> CreateIconWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bInIsReadOnly);
 
 	// SWidget overrides
 	// virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;

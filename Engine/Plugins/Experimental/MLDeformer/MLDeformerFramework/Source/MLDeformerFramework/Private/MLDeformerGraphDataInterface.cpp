@@ -23,6 +23,11 @@ TArray<FOptimusCDIPinDefinition> UMLDeformerGraphDataInterface::GetPinDefinition
 	return Defs;
 }
 
+TSubclassOf<UActorComponent> UMLDeformerGraphDataInterface::GetRequiredComponentClass() const
+{
+	return UMLDeformerComponent::StaticClass();
+}
+
 void UMLDeformerGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
@@ -47,33 +52,9 @@ MLDEFORMER_GRAPH_IMPLEMENT_BASICS(
 	TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphDataInterface.ush\"\n"),
 	TEXT("ML Deformer"))
 
-UMLDeformerComponent* UMLDeformerGraphDataProvider::GetDeformerComponent() const
-{
-	UMLDeformerComponent* DeformerComponent = nullptr;
-	if (ComponentTag != NAME_None)
-	{
-		TArray<UActorComponent*> Components = SkeletalMeshComponent->GetOwner()->GetComponentsByTag(UMLDeformerComponent::StaticClass(), ComponentTag);
-		if (Components.Num())
-		{
-			DeformerComponent = Cast<UMLDeformerComponent>(Components[0]);
-		}
-	}
-	else
-	{
-		DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
-	}
-	
-	return DeformerComponent;
-}
 
 bool UMLDeformerGraphDataProvider::IsValid() const
 {
-	if (SkeletalMeshComponent == nullptr || SkeletalMeshComponent->MeshObject == nullptr)
-	{
-		return false;
-	}
-	
-	UMLDeformerComponent* DeformerComponent = GetDeformerComponent();
 	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr)
 	{
 		return false;
@@ -84,16 +65,15 @@ bool UMLDeformerGraphDataProvider::IsValid() const
 
 namespace UE::MLDeformer
 {
-	FMLDeformerGraphDataProviderProxy::FMLDeformerGraphDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent)
+	FMLDeformerGraphDataProviderProxy::FMLDeformerGraphDataProviderProxy(UMLDeformerComponent* DeformerComponent)
 	{
 		using namespace UE::MLDeformer;
-
-		SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 
 		const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
 		const UMLDeformerModel* Model = DeformerAsset->GetModel();
 		const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
-
+		
+		SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
 		NeuralNetwork = Model->GetNeuralNetwork();
 		NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
 		bCanRunNeuralNet = ModelInstance->IsCompatible();

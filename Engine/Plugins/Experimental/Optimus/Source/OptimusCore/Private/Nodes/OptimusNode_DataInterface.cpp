@@ -5,12 +5,97 @@
 #include "OptimusCoreModule.h"
 #include "OptimusNodePin.h"
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusNodeGraph.h"
+#include "OptimusNode_ComponentSource.h"
+#include "OptimusObjectVersion.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
 
+#define LOCTEXT_NAMESPACE "OptimusNode_DataInterface"
+
+
 UOptimusNode_DataInterface::UOptimusNode_DataInterface()
 {
+}
+
+
+bool UOptimusNode_DataInterface::ValidateConnection(
+	const UOptimusNodePin& InThisNodesPin,
+	const UOptimusNodePin& InOtherNodesPin,
+	FString* OutReason
+	) const
+{
+	// FIXME: Once we have connection evaluation, use that.
+	if (!GetPins().IsEmpty() && &InThisNodesPin == GetPins()[0])
+	{
+		const UOptimusNode_ComponentSource* SourceNode = Cast<UOptimusNode_ComponentSource>(InOtherNodesPin.GetOwningNode());
+		if (!SourceNode)
+		{
+			if (OutReason)
+			{
+				*OutReason = TEXT("Other node should be a Component Source node");
+			}
+			return false;
+		}
+
+		const UOptimusComponentSource* ComponentSource = SourceNode->GetComponentSourceBinding()->GetComponentSource();
+		if (!IsComponentSourceCompatible(ComponentSource))
+		{
+			if (OutReason)
+			{
+				*OutReason = FString::Printf(TEXT("This data interface requires a %s which is not a child class of %s from the Component Source."),
+					*DataInterfaceData->GetRequiredComponentClass()->GetName(),
+					*ComponentSource->GetComponentClass()->GetName());
+			}
+			return false;
+		}
+	}
+
+	return true;
+}
+
+TOptional<FText> UOptimusNode_DataInterface::ValidateForCompile() const
+{
+	// Ensure that we have something connected to the component binding input pin.
+	UOptimusComponentSourceBinding* PrimaryBinding = GetComponentBinding();
+	if (PrimaryBinding == nullptr)
+	{
+		return FText::Format(LOCTEXT("NoBindingConnected", "No component binding connected to the {0} pin"), FText::FromName(GetComponentPin()->GetUniqueName()));
+	}
+
+	// Are all the other connected _input_ pins using the same binding?
+	const UOptimusNodeGraph* Graph = GetOwningGraph();
+	for (const UOptimusNodePin* Pin: GetPins())
+	{
+		if (Pin->GetDirection() == EOptimusNodePinDirection::Input && Pin != GetComponentPin())
+		{
+			TSet<UOptimusComponentSourceBinding*> Bindings = Graph->GetComponentSourceBindingsForPin(Pin);
+			if (Bindings.Num() > 1)
+			{
+				return FText::Format(LOCTEXT("MultipleBindingsOnPin", "Multiple bindings found for pin {0}"), FText::FromName(Pin->GetUniqueName()));
+			}
+
+			if (Bindings.Num() == 1 && !Bindings.Contains(PrimaryBinding))
+			{
+				return FText::Format(LOCTEXT("IncompatibleBinding", "Bindings for pin {0} are not the same as for the {1} pin"), 
+							FText::FromName(Pin->GetUniqueName()), FText::FromName(GetComponentPin()->GetUniqueName()));
+			}
+		}
+	}
+	
+	return {};
+}
+
+bool UOptimusNode_DataInterface::IsComponentSourceCompatible(const UOptimusComponentSource* InComponentSource) const
+{
+	return InComponentSource && InComponentSource->GetComponentClass()->IsChildOf(DataInterfaceData->GetRequiredComponentClass());
+}
+
+void UOptimusNode_DataInterface::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
 }
 
 
@@ -80,6 +165,19 @@ void UOptimusNode_DataInterface::SetDataInterfaceClass(
 	DataInterfaceData = NewObject<UOptimusComputeDataInterface>(this, DataInterfaceClass);
 }
 
+UOptimusComponentSourceBinding* UOptimusNode_DataInterface::GetComponentBinding() const
+{
+	const UOptimusNodeGraph* Graph = GetOwningGraph();
+	TSet<UOptimusComponentSourceBinding*> Bindings = Graph->GetComponentSourceBindingsForPin(GetComponentPin());
+	
+	if (!Bindings.IsEmpty() && ensure(Bindings.Num() == 1))
+	{
+		return Bindings.Array()[0];
+	}
+	
+	return nullptr;
+}
+
 
 void UOptimusNode_DataInterface::PostLoad()
 {
@@ -90,18 +188,24 @@ void UOptimusNode_DataInterface::PostLoad()
 	{
 		DataInterfaceData = NewObject<UOptimusComputeDataInterface>(this, DataInterfaceClass);
 	}
+
+	// Add in the component pin.
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ComponentProviderSupport)
+	{
+		CreateComponentPin();
+	}
 }
 
 
 void UOptimusNode_DataInterface::ConstructNode()
 {
-	if (ensure(!DataInterfaceClass.IsNull()))
+	// Create the component pin.
+	if (ensure(!DataInterfaceClass.IsNull()) &&
+		ensure(DataInterfaceData))
 	{
-		if (ensure(DataInterfaceData))
-		{
-			SetDisplayName(FText::FromString(DataInterfaceData->GetDisplayName()));
-			CreatePinsFromDataInterface(DataInterfaceData);
-		}
+		SetDisplayName(FText::FromString(DataInterfaceData->GetDisplayName()));
+		CreateComponentPin();
+		CreatePinsFromDataInterface(DataInterfaceData);
 	}
 }
 
@@ -118,7 +222,7 @@ void UOptimusNode_DataInterface::PostDuplicate(EDuplicateMode::Type DuplicateMod
 
 
 void UOptimusNode_DataInterface::CreatePinsFromDataInterface(
-	UOptimusComputeDataInterface* InDataInterface
+	const UOptimusComputeDataInterface* InDataInterface
 	)
 {
 	// A data interface provides read and write functions. A data interface node exposes
@@ -144,7 +248,7 @@ void UOptimusNode_DataInterface::CreatePinsFromDataInterface(
 	{
 		WriteFunctionMap.Add(Def.Name, &Def);
 	}
-	
+
 	for (const FOptimusCDIPinDefinition& Def: PinDefinitions)
 	{
 		if (ensure(!Def.PinName.IsNone()))
@@ -154,14 +258,12 @@ void UOptimusNode_DataInterface::CreatePinsFromDataInterface(
 	}
 }
 
-
 void UOptimusNode_DataInterface::CreatePinFromDefinition(
 	const FOptimusCDIPinDefinition& InDefinition,
 	const TMap<FString, const FShaderFunctionDefinition*>& InReadFunctionMap,
 	const TMap<FString, const FShaderFunctionDefinition*>& InWriteFunctionMap
-	)
+	)	
 {
-	// TBD: Context
 	const FOptimusDataTypeRegistry& TypeRegistry = FOptimusDataTypeRegistry::Get();
 
 	// If there's no count function, then we have a value pin. The data function should
@@ -276,3 +378,28 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			*InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
 	}
 }
+
+void UOptimusNode_DataInterface::CreateComponentPin()
+{
+	const FOptimusDataTypeRegistry& TypeRegistry = FOptimusDataTypeRegistry::Get();
+	FOptimusDataTypeRef ComponentSourceType = TypeRegistry.FindType(*UOptimusComponentSourceBinding::StaticClass());
+
+	const UOptimusComponentSource* ComponentSource = UOptimusComponentSource::GetSourceFromDataInterface(DataInterfaceData);
+	if (ensure(ComponentSourceType.IsValid()) &&
+		ensure(ComponentSource))
+	{
+		// For back-comp: If we're coming in here from PostLoad and pins already exist, make sure to inject this new pin
+		// as the first pin in the list.
+		UOptimusNodePin* BeforePin = GetPins().IsEmpty() ? nullptr : GetPins()[0];
+		
+		AddPinDirect(ComponentSource->GetBindingName(), EOptimusNodePinDirection::Input, {}, ComponentSourceType, BeforePin);
+	}
+}
+
+UOptimusNodePin* UOptimusNode_DataInterface::GetComponentPin() const
+{
+	// Is always the first pin, per CreateComponentPin.
+	return GetPins()[0];
+}
+
+#undef LOCTEXT_NAMESPACE

@@ -22,7 +22,7 @@ public:
 
 	FOptimusNodeAction_RenameNode(
 		UOptimusNode* InNode,
-		FString InNewName
+		FText InNewName
 	);
 
 protected:
@@ -247,9 +247,17 @@ struct FOptimusNodeAction_AddRemovePin :
 		EOptimusNodePinDirection InDirection,
 		FOptimusNodePinStorageConfig InStorageConfig,
 		FOptimusDataTypeRef InDataType,
-		UOptimusNodePin* InBeforePin = nullptr
+		const UOptimusNodePin* InBeforePin = nullptr,
+		const UOptimusNodePin* InParentPin = nullptr
 	);
 
+	FOptimusNodeAction_AddRemovePin(
+		UOptimusNode* InNode,
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		const UOptimusNodePin* InBeforePin = nullptr
+	);
+	
 	FOptimusNodeAction_AddRemovePin(
 		UOptimusNodePin *InPin
 		);
@@ -268,15 +276,21 @@ protected:
 	// The pin direction (input or output)
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
+	// Is it a grouping pin?
+	bool bIsGroupingPin = false;
+
 	// The storage configuration (value vs resource, etc.)
 	FOptimusNodePinStorageConfig StorageConfig;
 
 	// The data type of the pin to create
 	FName DataType = NAME_None;
 
-	// (Optional) The pin that will be be located right after this new pin.  
+	// (Optional) The pin that will be located right after this new pin.  
 	FString BeforePinPath;
 
+	// (Optional) The pin that will be the parent of this new new pin.  
+	FString ParentPinPath;
+	
 	// The path of the newly created pin
 	FString PinPath;
 
@@ -309,8 +323,37 @@ struct FOptimusNodeAction_AddPin :
 		EOptimusNodePinDirection InDirection,
 		FOptimusNodePinStorageConfig InStorageConfig,
 		FOptimusDataTypeRef InDataType,
-		UOptimusNodePin* InBeforePin = nullptr
-	) : FOptimusNodeAction_AddRemovePin(InNode, InName, InDirection, InStorageConfig, InDataType, InBeforePin)
+		const UOptimusNodePin* InBeforePin = nullptr,
+		const UOptimusNodePin* InParentPin = nullptr
+	) :
+		FOptimusNodeAction_AddRemovePin(InNode, InName, InDirection, InStorageConfig, InDataType, InBeforePin, InParentPin)
+	{
+	}
+
+	// Called to retrieve the pin that was created by Do after it has been called.
+	UOptimusNodePin* GetPin(IOptimusPathResolver* InRoot) const;
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override { return AddPin(InRoot); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return RemovePin(InRoot); }
+};
+
+
+USTRUCT()
+struct FOptimusNodeAction_AddGroupingPin :
+	public FOptimusNodeAction_AddRemovePin
+{
+	GENERATED_BODY()
+
+	FOptimusNodeAction_AddGroupingPin() = default;
+
+	FOptimusNodeAction_AddGroupingPin(
+		UOptimusNode* InNode,
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		const UOptimusNodePin* InBeforePin = nullptr
+	) :
+		FOptimusNodeAction_AddRemovePin(InNode, InName, InDirection, InBeforePin)
 	{
 	}
 
@@ -340,4 +383,38 @@ struct FOptimusNodeAction_RemovePin :
 protected:
 	bool Do(IOptimusPathResolver* InRoot) override { return RemovePin(InRoot); }
 	bool Undo(IOptimusPathResolver* InRoot) override { return AddPin(InRoot); }
+};
+
+
+USTRUCT()
+struct FOptimusNodeAction_MovePin :
+	public FOptimusAction
+{
+	GENERATED_BODY()
+	
+	FOptimusNodeAction_MovePin() = default;
+
+	FOptimusNodeAction_MovePin(
+		UOptimusNodePin *InPinToMove,
+		const UOptimusNodePin* InPinBefore
+		);
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override { return MovePin(InRoot, NewBeforePinPath); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return MovePin(InRoot, OldBeforePinPath); }
+
+private:
+	bool MovePin(
+		IOptimusPathResolver* InRoot,
+		const FString& InBeforePinPath
+		);
+	
+	// The path of the pin to move
+	FString PinPath;
+	
+	// The pin that this pin was next before, before the move. Empty string if it was the last pin.  
+	FString OldBeforePinPath;
+
+	// The pin that this pin will be next before, after the move. Empty string if it will be the last pin.
+	FString NewBeforePinPath;
 };

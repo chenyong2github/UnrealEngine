@@ -63,13 +63,12 @@ class UMLDeformerModel;
 	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
 	{ \
 		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InBinding); \
-		Provider->ComponentTag = ComponentTag; \
+		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding); \
 		return Provider; \
 	} \
 	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
 	{ \
-		return new DataProviderProxyClassName(SkeletalMeshComponent, GetDeformerComponent()); \
+		return new DataProviderProxyClassName(DeformerComponent); \
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -89,6 +88,7 @@ public:
 	// UOptimusComputeDataInterface overrides.
 	virtual FString GetDisplayName() const override;
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	virtual TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	// ~END UOptimusComputeDataInterface overrides.
 
 	// UComputeDataInterface overrides.
@@ -98,10 +98,6 @@ public:
 	virtual void GetHLSL(FString& OutHLSL) const override;
 	virtual UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	// ~END UComputeDataInterface overrides.
-
-	/** When set we bind only with to a MLDeformer Component with the same tag. */
-	UPROPERTY(EditAnywhere, Category = Binding)
-	FName ComponentTag;
 };
 
 /** Compute Framework Data Provider for MLDeformer data. */
@@ -113,17 +109,12 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerGraphDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
-
-	FName ComponentTag;
+	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
 
 	// UComputeDataProvider overrides.
 	virtual bool IsValid() const override;
 	virtual FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	// ~END UComputeDataProvider overrides.
-
-protected:
-	UMLDeformerComponent* GetDeformerComponent() const;
 };
 
 namespace UE::MLDeformer
@@ -133,7 +124,7 @@ namespace UE::MLDeformer
 		: public FComputeDataProviderRenderProxy
 	{
 	public:
-		FMLDeformerGraphDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent);
+		FMLDeformerGraphDataProviderProxy(UMLDeformerComponent* DeformerComponent);
 
 		// FComputeDataProviderRenderProxy overrides.
 		virtual void AllocateResources(FRDGBuilder& GraphBuilder) override;

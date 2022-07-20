@@ -335,7 +335,7 @@ void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnost
 		// Create message with line number.
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
 			Severity,
-			FText::Format(LOCTEXT("CompileMessageWithLine", "{0} (line {1})"), FText::FromString(Diagnostic.Diagnostic), FText::AsNumber(Diagnostic.Line)));
+			FText::Format(LOCTEXT("CompileMessageWithLine", "{0} (line {1})"), Diagnostic.Message, FText::AsNumber(Diagnostic.Line)));
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
@@ -355,9 +355,7 @@ void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnost
 	else
 	{
 		// Create message.
-		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
-			Severity,
-			FText::FromString(Diagnostic.Diagnostic));
+		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity, Diagnostic.Message);
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
@@ -1064,23 +1062,30 @@ void FOptimusEditor::OnDeformerModified(
 		RefreshEvent.Broadcast();
 		break;
 
+	case EOptimusGlobalNotifyType::ComponentBindingAdded:
 	case EOptimusGlobalNotifyType::ResourceAdded:
 	case EOptimusGlobalNotifyType::VariableAdded:
 		InspectObject(InModifiedObject);
 		RefreshEvent.Broadcast();
 		break;
 
+	case EOptimusGlobalNotifyType::ComponentBindingRemoved:
 	case EOptimusGlobalNotifyType::ResourceRemoved:
 	case EOptimusGlobalNotifyType::VariableRemoved:
 		InspectObject(UpdateGraph);
 		RefreshEvent.Broadcast();
 		break;
 
+	case EOptimusGlobalNotifyType::ComponentBindingRenamed:
+	case EOptimusGlobalNotifyType::ComponentBindingIndexChanged:
+	case EOptimusGlobalNotifyType::ComponentBindingSourceChanged:
 	case EOptimusGlobalNotifyType::ResourceRenamed:
 	case EOptimusGlobalNotifyType::ResourceIndexChanged:
 	case EOptimusGlobalNotifyType::VariableRenamed:
 	case EOptimusGlobalNotifyType::VariableIndexChanged:
 	case EOptimusGlobalNotifyType::ConstantValueChanged:
+	case EOptimusGlobalNotifyType::NodeTypeAdded: 
+	case EOptimusGlobalNotifyType::NodeTypeRemoved: 
 		RefreshEvent.Broadcast();
 		break;
 		

@@ -47,7 +47,7 @@ static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwn
 	if (!Matcher.FindNext())
 	{
 		Diagnostic.Level = EOptimusDiagnosticLevel::Info;
-		Diagnostic.Diagnostic = InMessage;
+		Diagnostic.Message = FText::FromString(InMessage);
 		//Diagnostic.Object = InKernelNode;
 	}
 	else
@@ -67,7 +67,7 @@ static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwn
 
 		const FString MessageStr = Matcher.GetCaptureGroup(7);
 		const bool bShowPathInMessage = Diagnostic.Object == nullptr;
-		Diagnostic.Diagnostic = bShowPathInMessage ? FString::Printf(TEXT("%s: %s"), *Path, *MessageStr) : MessageStr;
+		Diagnostic.Message = FText::FromString(bShowPathInMessage ? FString::Printf(TEXT("%s: %s"), *Path, *MessageStr) : MessageStr);
 
 		const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
 		const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));

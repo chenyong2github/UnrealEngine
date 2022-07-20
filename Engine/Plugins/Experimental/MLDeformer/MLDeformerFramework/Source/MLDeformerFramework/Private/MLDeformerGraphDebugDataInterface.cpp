@@ -32,6 +32,11 @@ TArray<FOptimusCDIPinDefinition> UMLDeformerGraphDebugDataInterface::GetPinDefin
 	return Defs;
 }
 
+TSubclassOf<UActorComponent> UMLDeformerGraphDebugDataInterface::GetRequiredComponentClass() const
+{
+	return UMLDeformerComponent::StaticClass();
+}
+
 void UMLDeformerGraphDebugDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
@@ -71,12 +76,6 @@ MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS_WITH_PROXY(
 bool UMLDeformerGraphDebugDataProvider::IsValid() const
 {
 #if WITH_EDITORONLY_DATA
-	if (SkeletalMeshComponent == nullptr || SkeletalMeshComponent->MeshObject == nullptr)
-	{
-		return false;
-	}
-	
-	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
 	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr)
 	{
 		return false;
@@ -91,15 +90,16 @@ bool UMLDeformerGraphDebugDataProvider::IsValid() const
 #if WITH_EDITORONLY_DATA
 namespace UE::MLDeformer
 {
-	FMLDeformerGraphDebugDataProviderProxy::FMLDeformerGraphDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerAsset* DeformerAsset, UMLDeformerGraphDebugDataProvider* InProvider)
+	FMLDeformerGraphDebugDataProviderProxy::FMLDeformerGraphDebugDataProviderProxy(UMLDeformerComponent* DeformerComponent, UMLDeformerAsset* DeformerAsset, UMLDeformerGraphDebugDataProvider* InProvider)
 		: FComputeDataProviderRenderProxy()
 	{
-		SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 		Provider = InProvider;
 
 		UMLDeformerModel* Model = DeformerAsset->GetModel();	
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 
+		SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
 		VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
 		HeatMapMode = (int32)VizSettings->GetHeatMapMode();
 		HeatMapMax = 1.0f / FMath::Max(VizSettings->GetHeatMapMax(), 0.00001f);

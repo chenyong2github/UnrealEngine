@@ -8,6 +8,7 @@
 
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
+#include "OptimusNodePin.h"
 
 #include "OptimusNode.generated.h"
 
@@ -102,7 +103,7 @@ public:
 	UOptimusNodeGraph *GetOwningGraph() const;
 
 	/** Returns the list of all the pins on this node */
-	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
+	TArrayView<UOptimusNodePin* const> GetPins() const { return Pins; }
 
 	/**
 	 * Preliminary check for whether valid connection can be made between two existing pins.
@@ -112,7 +113,7 @@ public:
 	 * @param OutReason The reason that the connection is cannot be made if it is invalid
 	 * @return true if the other Pin can be connected to the specified side of the node.
 	 */
-	virtual bool CanConnect(
+	bool CanConnectPinToPin(
 		const UOptimusNodePin& InThisNodesPin,
 		const UOptimusNodePin& InOtherNodesPin,
 		FString* OutReason = nullptr
@@ -126,7 +127,11 @@ public:
 	 * @param OutReason The reason that the connection is cannot be made if it is invalid
 	 * @return true if the other Pin can be connected to the specified side of the node.
 	 */
-	bool CanConnect(const UOptimusNodePin* InOtherPin, EOptimusNodePinDirection InConnectionDirection, FString* OutReason = nullptr) const;
+	bool CanConnectPinToNode(
+		const UOptimusNodePin* InOtherPin,
+		EOptimusNodePinDirection InConnectionDirection,
+		FString* OutReason = nullptr
+		) const;
 	
 	/**
 	 * Returns the node's diagnostic level (e.g. error state). For a node, only None, Warning,
@@ -182,6 +187,7 @@ protected:
 	friend class UOptimusDeformer;
 	friend struct FOptimusNodeAction_AddRemovePin;
 	friend struct FOptimusNodeAction_MoveNode;
+	friend struct FOptimusNodeAction_MovePin;
 	friend struct FOptimusNodeAction_SetPinType;
 	friend struct FOptimusNodeAction_SetPinName;
 	friend struct FOptimusNodeAction_SetPinDataDomain;
@@ -194,6 +200,25 @@ protected:
 	// Called when the node is being constructed
 	virtual void ConstructNode();
 
+	virtual bool ValidateConnection(
+		const UOptimusNodePin& InThisNodesPin,
+		const UOptimusNodePin& InOtherNodesPin,
+		FString* OutReason
+		) const
+	{
+		return true;
+	}
+
+	/** Optional: Perform local node validation for compilation. If failed, return the
+	 *  reason as a part of the optional return value. If success return an empty optional
+	 *  object.
+	 */
+	virtual TOptional<FText> ValidateForCompile() const
+	{
+		return {};
+	}
+	
+
 	void EnableDynamicPins();
 
 	virtual void OnDataTypeChanged(FName InTypeName) {};
@@ -203,7 +228,8 @@ protected:
 		EOptimusNodePinDirection InDirection,
 		FOptimusNodePinStorageConfig InStorageConfig,
 		FOptimusDataTypeRef InDataType,
-		UOptimusNodePin* InBeforePin = nullptr
+		UOptimusNodePin* InBeforePin = nullptr,
+		UOptimusNodePin* InGroupingPin = nullptr
 		);
 
 	/** Create a pin and add it to the node in the location specified. */ 
@@ -224,12 +250,17 @@ protected:
 		);
 
 	/** Add a new grouping pin. This is a pin that takes no connections but is shown as
-	  * collapsible in the node UI. */ 
+	  * collapsible in the node UI. */
+	UOptimusNodePin* AddGroupingPin(
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		UOptimusNodePin* InBeforePin = nullptr
+		);
+	
 	UOptimusNodePin* AddGroupingPinDirect(
 		FName InName,
 		EOptimusNodePinDirection InDirection,
-		UOptimusNodePin* InBeforePin = nullptr,
-		UOptimusNodePin* InParentPin = nullptr
+		UOptimusNodePin* InBeforePin = nullptr
 		);
 
 	// Remove a pin.
@@ -240,6 +271,17 @@ protected:
 	// Remove the pin with no undo.
 	bool RemovePinDirect(
 		UOptimusNodePin* InPin
+		);
+
+	/** Swap two sibling pins */
+	bool MovePin(
+		UOptimusNodePin* InPinToMove,
+		const UOptimusNodePin* InPinBefore
+		);
+	
+	bool MovePinDirect(
+		UOptimusNodePin* InPinToMove,
+		const UOptimusNodePin* InPinBefore
 		);
 	
 	/** Set the pin data type. */

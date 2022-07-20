@@ -13,6 +13,7 @@ class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
 class FOptimusPersistentBufferPool;
+class UOptimusComponentSourceBinding;
 class UOptimusRawBufferDataProvider;
 class USkinnedMeshComponent;
 
@@ -28,6 +29,7 @@ public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	bool IsVisible() const override	{ return false;	}
+	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
@@ -41,9 +43,12 @@ public:
 	UPROPERTY()
 	FShaderValueTypeHandle ValueType;
 
+	UPROPERTY()
+	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentBinding;
+	
 	/** The data domain this buffer covers */
 	UPROPERTY()
-	FOptimusDataDomain DataDomain;
+	FOptimusMultiLevelDataDomain DataDomain;
 
 protected:
 	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, UOptimusRawBufferDataProvider* InProvider) const;

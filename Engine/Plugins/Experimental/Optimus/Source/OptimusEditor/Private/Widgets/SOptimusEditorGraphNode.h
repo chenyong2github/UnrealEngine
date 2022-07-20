@@ -39,6 +39,7 @@ private:
 	TSharedPtr<SGraphPin> GetPinWidget(UEdGraphPin* InGraphPin);
 	void UpdatePinIcon(const TSharedRef<SGraphPin>& PinToAdd) const;
 
+	void UpdatePinExpansionFromGraphPins();
 	void SyncPinWidgetsWithGraphPins();
 	
 	EVisibility GetTitleVisibility() const;

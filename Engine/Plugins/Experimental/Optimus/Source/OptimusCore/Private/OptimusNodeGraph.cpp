@@ -27,13 +27,14 @@
 #include <limits>
 
 #include "OptimusNodeSubGraph.h"
-#include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Nodes/OptimusNode_CustomComputeKernel.h"
 #include "Nodes/OptimusNode_FunctionReference.h"
 #include "Nodes/OptimusNode_GraphTerminal.h"
 #include "Nodes/OptimusNode_SubGraphReference.h"
+#include "Nodes/OptimusNode_ComponentSource.h"
 
 #include "DataInterfaces/OptimusDataInterfaceAnimAttribute.h"
+#include "Nodes/OptimusNode_ComponentSource.h"
 
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -88,7 +89,7 @@ void UOptimusNodeGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 			}
 
 			// Save pin connections
-			TArray<UOptimusNodePin*> Pins = ConstantNode->GetPins();
+			TArrayView<UOptimusNodePin* const> Pins = ConstantNode->GetPins();
 
 			TMap<FName, TArray<UOptimusNodePin*>> ConnectedPinsMap;
 			
@@ -343,6 +344,19 @@ UOptimusNode* UOptimusNodeGraph::AddVariableGetNode(
 		[InVariableDesc](UOptimusNode *InNode)
 		{
 			Cast<UOptimusNode_GetVariable>(InNode)->SetVariableDescription(InVariableDesc);			
+		});
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddComponentBindingGetNode(
+	UOptimusComponentSourceBinding* InComponentBinding,
+	const FVector2D& InPosition
+	)
+{
+	return AddNodeInternal(UOptimusNode_ComponentSource::StaticClass(), InPosition,
+		[InComponentBinding](UOptimusNode *InNode)
+		{
+			Cast<UOptimusNode_ComponentSource>(InNode)->SetComponentSourceBinding(InComponentBinding);
 		});
 }
 
@@ -1356,13 +1370,11 @@ TArray<FOptimusRoutedNodePin> UOptimusNodeGraph::GetConnectedPinsWithRouting(
 		{
 			if (ensure(ConnectedPin != nullptr))
 			{
-				const IOptimusNodePinRouter* RouterNode = Cast<IOptimusNodePinRouter>(ConnectedPin->GetOwningNode());
-
 				// If this connection leads to a router node, find the matching pin on the other side and
 				// add it to the queue. Otherwise we're done, and we add the connected pin and the
 				// context to the result (in case the user wants to traverse further via that node through
 				// the given pin).
-				if (RouterNode)
+				if (const IOptimusNodePinRouter* RouterNode = Cast<IOptimusNodePinRouter>(ConnectedPin->GetOwningNode()))
 				{
 					const FOptimusRoutedNodePin RoutedPin = RouterNode->GetPinCounterpart(ConnectedPin, WorkingPin.TraversalContext);
 					if (RoutedPin.NodePin != nullptr)
@@ -1379,6 +1391,86 @@ TArray<FOptimusRoutedNodePin> UOptimusNodeGraph::GetConnectedPinsWithRouting(
 	}
 
 	return RoutedNodePins;
+}
+
+
+TSet<UOptimusComponentSourceBinding*> UOptimusNodeGraph::GetComponentSourceBindingsForPin(
+	const UOptimusNodePin* InNodePin
+	) const
+{
+	TSet<const UOptimusNode*> VisitedNodes;
+	TSet<UOptimusComponentSourceBinding*> Bindings;
+	
+	TQueue<FOptimusRoutedConstNode> WorkingSet;
+
+	// If given an input pin, find the other side.
+	const UOptimusNode* StartNode;
+	if (InNodePin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		TArray<FOptimusRoutedNodePin> RoutedPins = GetConnectedPinsWithRouting(InNodePin, {});
+		if (RoutedPins.IsEmpty())
+		{
+			return {};
+		}
+		
+		check(RoutedPins.Num() == 1);
+		StartNode = RoutedPins[0].NodePin->GetOwningNode();
+	}
+	else
+	{
+		StartNode = InNodePin->GetOwningNode();
+	}
+
+	WorkingSet.Enqueue({StartNode, FOptimusPinTraversalContext{}});
+	
+	FOptimusRoutedConstNode WorkItem;
+	while (WorkingSet.Dequeue(WorkItem))
+	{
+		TArray<const UOptimusNodePin*> InputPins; 
+		const UOptimusNode* Node = WorkItem.Node;
+
+		if (const UOptimusNode_ComponentSource* ComponentSource = Cast<const UOptimusNode_ComponentSource>(Node))
+		{
+			Bindings.Add(ComponentSource->GetComponentSourceBinding());
+			continue;
+		}
+		
+		if (const IOptimusComputeKernelProvider* KernelProvider = Cast<const IOptimusComputeKernelProvider>(Node))
+		{
+			InputPins = KernelProvider->GetPrimaryGroupInputPins();
+		}
+		else
+		{
+			// Grab all inputs.
+			for (const UOptimusNodePin* Pin: Node->GetPins())
+			{
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+				{
+					InputPins.Add(Pin);
+				}
+			}
+		}
+		
+		// Traverse in the direction of inputs to outputs (up the graph).
+		for (const UOptimusNodePin* Pin: InputPins)
+		{
+			for (const FOptimusRoutedNodePin& ConnectedPin: Pin->GetConnectedPinsWithRouting(WorkItem.TraversalContext))
+			{
+				if (ensure(ConnectedPin.NodePin != nullptr))
+				{
+					const UOptimusNode *NextNode = ConnectedPin.NodePin->GetOwningNode();
+					FOptimusRoutedConstNode CollectedNode{NextNode, ConnectedPin.TraversalContext};
+					WorkingSet.Enqueue(CollectedNode);
+					if (!VisitedNodes.Contains(NextNode))
+					{
+						VisitedNodes.Add(NextNode);
+					}
+				}
+			}
+		}
+	}
+
+	return Bindings;
 }
 
 
@@ -1475,9 +1567,9 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNode* InOutputNode, cons
 }
 
 
-void UOptimusNodeGraph::Notify(EOptimusGraphNotifyType InNotifyType, UObject* InSubject)
+void UOptimusNodeGraph::Notify(EOptimusGraphNotifyType InNotifyType, UObject* InSubject) const
 {
-	GraphNotifyDelegate.Broadcast(InNotifyType, this, InSubject);
+	GraphNotifyDelegate.Broadcast(InNotifyType, const_cast<UOptimusNodeGraph*>(this), InSubject);
 }
 
 

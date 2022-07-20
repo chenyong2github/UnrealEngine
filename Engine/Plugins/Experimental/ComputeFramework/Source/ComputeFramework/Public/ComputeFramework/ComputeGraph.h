@@ -43,6 +43,9 @@ struct FComputeGraphEdge
 	// something other than the interface's bind name. Leave empty to go with the default. 
 	UPROPERTY()
 	FString BindingFunctionNameOverride;
+	// Optional namespace to wrap the binding function in. A blank mean global namespace.
+	UPROPERTY()
+	FString BindingFunctionNamespace;
 
 	FComputeGraphEdge()
 		: KernelIndex(0)

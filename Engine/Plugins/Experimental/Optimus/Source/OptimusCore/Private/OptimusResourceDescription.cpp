@@ -29,11 +29,13 @@ void UOptimusResourceDescription::PostEditChangeProperty(
 		{
 			// Rename the object itself and update the nodes. A lot of this is covered by
 			// UOptimusDeformer::RenameResource but since we're inside of a transaction, which
-			// has already snapshotted this object, we have to do the remaining operations on
-			// this object under the transaction scope.
+			// has already taken a snapshot of this object, we have to do the remaining 
+			// operations on this object under the transaction scope.
 			ResourceName = Optimus::GetUniqueNameForScope(GetOuter(), ResourceName);
 			Rename(*ResourceName.ToString(), nullptr);
-			Deformer->UpdateResourceNodesPinNames(this, ResourceName);
+			
+			constexpr bool bForceChange = true;
+			Deformer->RenameResource(this, ResourceName, bForceChange);
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataTypeRef, TypeName))
@@ -43,7 +45,8 @@ void UOptimusResourceDescription::PostEditChangeProperty(
 		{
 			// Set the resource type again, so that we can remove any links that are now
 			// type-incompatible.
-			Deformer->SetResourceDataType(this, DataType);
+			constexpr bool bForceChange = true;
+			Deformer->SetResourceDataType(this, DataType, bForceChange);
 		}
 	}
 }

@@ -22,6 +22,7 @@ public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
@@ -45,7 +46,7 @@ class UOptimusConnectivityDataProvider : public UComputeDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -58,7 +59,7 @@ public:
 class FOptimusConnectivityDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FOptimusConnectivityDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod);
+	FOptimusConnectivityDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;

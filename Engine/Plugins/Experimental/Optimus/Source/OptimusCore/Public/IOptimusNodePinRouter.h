@@ -8,6 +8,7 @@
 
 
 class IOptimusNodePinRouter;
+class UOptimusNode;
 class UOptimusNodePin;
 
 
@@ -21,6 +22,29 @@ struct FOptimusPinTraversalContext
 	TArray<const IOptimusNodePinRouter*, TInlineAllocator<4>> ReferenceNesting;
 };
 
+/** A utility struct for when traversing the graph through routed nodes. */
+struct FOptimusRoutedNode
+{
+	UOptimusNode* Node = nullptr;
+	FOptimusPinTraversalContext TraversalContext;
+
+	bool operator==(FOptimusRoutedNode const& RHS) const
+	{
+		return Node == RHS.Node;
+	}
+};
+
+struct FOptimusRoutedConstNode
+{
+	const UOptimusNode* Node = nullptr;
+	FOptimusPinTraversalContext TraversalContext;
+
+	bool operator==(FOptimusRoutedConstNode const& RHS) const
+	{
+		return Node == RHS.Node;
+	}
+};
+
 
 /** A utility structure to store information on routed pins when getting routed connections.
   * The traversal context can be subsequently passed into the GetConnectedPinsWithRouting 
@@ -31,6 +55,22 @@ struct FOptimusRoutedNodePin
 {
 	UOptimusNodePin* NodePin = nullptr;
 	FOptimusPinTraversalContext TraversalContext;
+	
+	bool operator==(FOptimusRoutedNodePin const& RHS) const
+	{
+		return NodePin == RHS.NodePin;
+	}
+};
+
+struct FOptimusRoutedConstNodePin
+{
+	const UOptimusNodePin* NodePin = nullptr;
+	FOptimusPinTraversalContext TraversalContext;
+	
+	bool operator==(FOptimusRoutedConstNodePin const& RHS) const
+	{
+		return NodePin == RHS.NodePin;
+	}
 };
 
 

@@ -8,6 +8,7 @@
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusComponentSource.h"
 
 #include "Animation/MeshDeformer.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
@@ -16,6 +17,7 @@
 
 #include "OptimusDeformer.generated.h"
 
+class UOptimusComponentDataProvider;
 class UOptimusPersistentBufferDataInterface;
 class UComputeGraph;
 class USkeletalMesh;
@@ -24,6 +26,7 @@ class UOptimusComputeGraph;
 class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
+enum class EOptimusDiagnosticLevel : uint8;
 struct FOptimusCompilerDiagnostic;
 struct FOptimusCompoundAction;
 
@@ -47,6 +50,20 @@ struct FOptimusComputeGraphInfo
 
 	UPROPERTY()
 	TObjectPtr<UOptimusComputeGraph> ComputeGraph = nullptr;
+};
+
+/** A container class that owns component source bindings. This is used to ensure we don't end up
+  * with a namespace clash between graphs, variables, bindings and resources.
+  */
+UCLASS()
+class UOptimusComponentSourceBindingContainer :
+	public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	UPROPERTY()
+	TArray<TObjectPtr<UOptimusComponentSourceBinding>> Bindings;
 };
 
 /** A container class that owns variable descriptors. This is used to ensure we don't end up
@@ -78,12 +95,49 @@ public:
 	TArray<TObjectPtr<UOptimusResourceDescription>> Descriptions;
 };
 
+USTRUCT()
+struct FTestArrayItem
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category="Items")
+	int32 ItemA = 0;
+
+	UPROPERTY(EditAnywhere, Category="Items");
+	float ItemB = 0;
+};
+
+UCLASS(EditInlineNew)
+class UTestContainment : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category="Items", meta=(EditInline))
+	int32 ItemA = 0;
+	
+	UPROPERTY(EditAnywhere, Category="Array");
+	TArray<FTestArrayItem> Array;
+};
+
+USTRUCT()
+struct FContainerContainer
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = "Container")
+	FString Name;
+
+	UPROPERTY(VisibleAnywhere, Category="Container", meta=(EditInline));
+	TObjectPtr<UTestContainment> Container = nullptr;
+};
+
 
 /**
   * A Deformer Graph is an asset that is used to create and control custom deformations on 
   * skeletal meshes.
   */
-UCLASS(Blueprintable, BlueprintType, EditInlineNew)
+UCLASS(Blueprintable, BlueprintType)
 class OPTIMUSCORE_API UOptimusDeformer :
 	public UMeshDeformer,
 	public IInterface_PreviewMeshProvider,
@@ -119,7 +173,6 @@ public:
 
 	/// Returns the update graph. The update graph will always exist, and there is only one.
 	UOptimusNodeGraph* GetUpdateGraph() const;
-
 	/** Remove a graph and delete it. */
 	bool RemoveGraph(UOptimusNodeGraph* InGraph);
 
@@ -135,11 +188,14 @@ public:
 
 	bool RenameVariable(
 	    UOptimusVariableDescription* InVariableDesc,
-	    FName InNewName);
+	    FName InNewName,
+		bool bInForceChange = false
+	    );
 	    
 	bool SetVariableDataType(
 		UOptimusVariableDescription* InVariableDesc,
-		FOptimusDataTypeRef InDataType
+		FOptimusDataTypeRef InDataType,
+		bool bInForceChange = false
 		);
 
 	UFUNCTION(BlueprintGetter)
@@ -161,11 +217,14 @@ public:
 
 	bool RenameResource(
 	    UOptimusResourceDescription* InResourceDesc,
-	    FName InNewName);
+	    FName InNewName,
+	    bool bInForceChange = false
+	    );
 
 	bool SetResourceDataType(
 		UOptimusResourceDescription* InResourceDesc,
-		FOptimusDataTypeRef InDataType
+		FOptimusDataTypeRef InDataType,
+		bool bInForceChange = false
 		);
 
 	UFUNCTION(BlueprintGetter)
@@ -175,6 +234,36 @@ public:
 		FName InResourceName
 		) const override;
 
+	// Component Bindings
+	UOptimusComponentSourceBinding* AddComponentBinding(
+		const UOptimusComponentSource *InComponentSource,
+		FName InName = NAME_None
+		);
+
+	bool RemoveComponentBinding(
+		UOptimusComponentSourceBinding* InBinding
+		);
+
+	bool RenameComponentBinding(
+		UOptimusComponentSourceBinding* InBinding,
+		FName InNewName,
+		bool bInForceChange = false
+		);
+
+	bool SetComponentBindingSource(
+		UOptimusComponentSourceBinding* InBinding,
+		const UOptimusComponentSource *InComponentSource,
+		bool bInForceChange = false
+		);
+	
+	UFUNCTION(BlueprintGetter)
+	const TArray<UOptimusComponentSourceBinding*>& GetComponentBindings() const { return Bindings->Bindings; }
+
+	UOptimusComponentSourceBinding* ResolveComponentBinding(
+		FName InBindingName
+		) const override;
+
+	
 	/// Graph compilation
 	bool Compile();
 
@@ -196,8 +285,19 @@ public:
 	// have to manually perform the move/rename, to avoid invalid reference to the old package
 	void PostRename(UObject* OldOuter, const FName OldName) override;
 	
+#if WITH_EDITOR
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	// UMeshDeformer overrides
-	UMeshDeformerInstance* CreateInstance(UMeshComponent* InMeshComponent) override;
+	UMeshDeformerInstanceSettings* CreateSettingsInstance(
+		UMeshComponent* InMeshComponent
+		) override;
+	
+	UMeshDeformerInstance* CreateInstance(
+		UMeshComponent* InMeshComponent,
+		UMeshDeformerInstanceSettings* InSettings
+		) override;
 	
 	// IInterface_PreviewMeshProvider overrides
 	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
@@ -244,12 +344,23 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category=Preview)
 	USkeletalMesh *Mesh = nullptr;
+
+	UPROPERTY(VisibleAnywhere, Category="Container", meta=(EditInline));
+	TObjectPtr<UTestContainment> Container = nullptr;
+	
+	// UPROPERTY(EditAnywhere, Category=Test, meta=(ShowOnlyInnerProperties))
+	// FContainerContainer Container;
 	
 protected:
-	friend class UOptimusNodeGraph;
+	friend class UOptimusComponentSourceBinding;
 	friend class UOptimusDeformerInstance;
+	friend class UOptimusNodeGraph;
 	friend class UOptimusResourceDescription;
 	friend class UOptimusVariableDescription;
+	friend struct FOptimusComponentBindingAction_AddBinding;
+	friend struct FOptimusComponentBindingAction_RemoveBinding;
+	friend struct FOptimusComponentBindingAction_RenameBinding;
+	friend struct FOptimusComponentBindingAction_SetComponentSource;
 	friend struct FOptimusResourceAction_AddResource;
 	friend struct FOptimusResourceAction_RemoveResource;
 	friend struct FOptimusResourceAction_RenameResource;
@@ -272,11 +383,6 @@ protected:
 
 	bool RemoveResourceDirect(
 		UOptimusResourceDescription* InResourceDesc
-		);
-
-	bool UpdateResourceNodesPinNames(
-		UOptimusResourceDescription* InResourceDesc,
-		FName InNewName
 		);
 
 	bool RenameResourceDirect(
@@ -305,11 +411,6 @@ protected:
 		UOptimusVariableDescription* InVariableDesc
 		);
 
-	bool UpdateVariableNodesPinNames(
-		UOptimusVariableDescription* InVariableDesc,
-		FName InNewName
-		);
-
 	bool RenameVariableDirect(
 		UOptimusVariableDescription* InVariableDesc,
 		FName InNewName
@@ -319,6 +420,29 @@ protected:
 		UOptimusVariableDescription* InResourceDesc,
 		FOptimusDataTypeRef InDataType
 		);
+
+	UOptimusComponentSourceBinding* CreateComponentBindingDirect(
+		const UOptimusComponentSource *InComponentSource,
+		FName InName = NAME_None
+		);
+
+	bool AddComponentBindingDirect(
+		UOptimusComponentSourceBinding* InComponentBinding
+		);
+
+	bool RemoveComponentBindingDirect(
+		UOptimusComponentSourceBinding* InBinding
+		);
+
+	bool RenameComponentBindingDirect(
+		UOptimusComponentSourceBinding* InBinding,
+		FName InNewName);
+	
+	bool SetComponentBindingSourceDirect(
+		UOptimusComponentSourceBinding* InBinding,
+		const UOptimusComponentSource *InComponentSource
+		);
+
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
 
@@ -327,32 +451,23 @@ protected:
 	TArray<FOptimusComputeGraphInfo> ComputeGraphs;
 	
 private:
+	void PostLoadFixupMissingComponentBindingsCompat();
+
+	/** Find a compatible binding with the given data interface. Returns nullptr if no such binding exists */
+	UOptimusComponentSourceBinding* FindCompatibleBindingWithInterface(
+		const UOptimusComputeDataInterface* InDataInterface
+		) const;
+	
 	UOptimusNodeGraph* ResolveGraphPath(const FStringView InPath, FStringView& OutRemainingPath) const;
 	UOptimusNode* ResolveNodePath(const FStringView InPath, FStringView& OutRemainingPath) const;
 	int32 GetUpdateGraphIndex() const;
 
-	template<typename T>
-	bool SetVariableValue(FName InVariableName, FName InTypeName, const T& InValue);
-
 	TArray<UOptimusNode*> GetAllNodesOfClass(UClass* InNodeClass) const;
 	
-	void CreateVariableNodePinRenamesActions(
-		FOptimusCompoundAction* InAction,		
-		const UOptimusVariableDescription* InVariableDesc,
-		FName InNewName
-		) const;
-	
-	void CreateResourceNodePinRenamesActions(
-		FOptimusCompoundAction* InAction,		
-		const UOptimusResourceDescription* InResourceDesc,
-		FName InNewName
-		) const;
-	
-	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
-	// the error message to pass back, if the compilation failed.
-	using FOptimusCompileResult = TVariant<FEmptyVariantState, UOptimusComputeGraph*, FOptimusCompilerDiagnostic>;
-	FOptimusCompileResult CompileNodeGraphToComputeGraph(
-		const UOptimusNodeGraph *InNodeGraph
+	/// Compile a node graph to a compute graph. Returns a complete compute graph if compilation succeeded. 
+	UOptimusComputeGraph* CompileNodeGraphToComputeGraph(
+		const UOptimusNodeGraph *InNodeGraph,
+		TFunction<void(EOptimusDiagnosticLevel, FText, const UObject*)> InErrorReporter
 		);
 
 	void OnDataTypeChanged(FName InTypeName);
@@ -362,6 +477,9 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusNodeGraph>> Graphs;
+
+	UPROPERTY()
+	TObjectPtr<UOptimusComponentSourceBindingContainer> Bindings;
 
 	UPROPERTY()
 	TObjectPtr<UOptimusVariableContainer> Variables;

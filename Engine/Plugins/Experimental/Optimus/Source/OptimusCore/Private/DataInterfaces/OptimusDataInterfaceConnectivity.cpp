@@ -138,6 +138,13 @@ TArray<FOptimusCDIPinDefinition> UOptimusConnectivityDataInterface::GetPinDefini
 	return Defs;
 }
 
+
+TSubclassOf<UActorComponent> UOptimusConnectivityDataInterface::GetRequiredComponentClass() const
+{
+	return USkinnedMeshComponent::StaticClass();
+}
+
+
 void UOptimusConnectivityDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
@@ -182,13 +189,13 @@ UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TObj
 {
 	UOptimusConnectivityDataProvider* Provider = NewObject<UOptimusConnectivityDataProvider>();
 
-	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 
-	if (Provider->SkeletalMesh != nullptr)
+	if (Provider->SkinnedMesh != nullptr)
 	{
 		// Build adjacency and store with the provider.
 		// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
-		FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkeletalMesh->GetSkeletalMeshRenderData();
+		FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkinnedMesh->GetSkeletalMeshRenderData();
 		if (SkeletalMeshRenderData != nullptr)
 		{
 			Provider->AdjacencyBufferPerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
@@ -207,19 +214,19 @@ UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TObj
 bool UOptimusConnectivityDataProvider::IsValid() const
 {
 	return
-		SkeletalMesh != nullptr &&
-		SkeletalMesh->MeshObject != nullptr &&
+		SkinnedMesh != nullptr &&
+		SkinnedMesh->MeshObject != nullptr &&
 		AdjacencyBufferPerLod.Num();
 }
 
 FComputeDataProviderRenderProxy* UOptimusConnectivityDataProvider::GetRenderProxy()
 {
-	return new FOptimusConnectivityDataProviderProxy(SkeletalMesh, AdjacencyBufferPerLod);
+	return new FOptimusConnectivityDataProviderProxy(SkinnedMesh, AdjacencyBufferPerLod);
 }
 
 
-FOptimusConnectivityDataProviderProxy::FOptimusConnectivityDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod)
-	: SkeletalMeshObject(SkeletalMeshComponent->MeshObject)
+FOptimusConnectivityDataProviderProxy::FOptimusConnectivityDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent, TArray< TArray<uint32> >& InAdjacencyBufferPerLod)
+	: SkeletalMeshObject(SkinnedMeshComponent->MeshObject)
 	, AdjacencyBufferPerLod(InAdjacencyBufferPerLod)
 {
 }

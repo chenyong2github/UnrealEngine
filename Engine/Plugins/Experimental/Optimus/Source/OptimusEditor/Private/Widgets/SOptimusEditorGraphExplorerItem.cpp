@@ -14,10 +14,12 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusVariableDescription.h"
+#include "PacketHandler.h"
 #include "SOptimusDataTypeSelector.h"
 
 #include "Widgets/Images/SImage.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 
@@ -113,8 +115,74 @@ private:
 };
 
 
+class SBindingSourceSelectorHelper : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SBindingSourceSelectorHelper) {}
+	SLATE_END_ARGS()
 
-void SOptimusEditorGraphEplorerItem::Construct(
+	void Construct(const FArguments& InArgs, UOptimusComponentSourceBinding* InBinding, TAttribute<bool> bInEnabled)
+	{
+		UOptimusComponentSource* CurrentSource = InBinding->ComponentType->GetDefaultObject<UOptimusComponentSource>();
+		TSharedPtr<FString> CurrentSelection;
+		for (const UOptimusComponentSource* Source: UOptimusComponentSource::GetAllSources())
+		{
+			TSharedPtr<FString> SourceName = MakeShared<FString>(Source->GetDisplayName().ToString());
+			if (Source == CurrentSource)
+			{
+				CurrentSelection = SourceName;
+			}
+			ComponentSources.Add(SourceName);
+		}
+		Algo::Sort(ComponentSources, [](TSharedPtr<FString> ItemA, TSharedPtr<FString> ItemB)
+		{
+			return ItemA->Compare(*ItemB) < 0;
+		});
+		
+		WeakBinding = InBinding;
+
+		ChildSlot
+		[
+			SNew(STextComboBox)
+				.OptionsSource(&ComponentSources)
+				.InitiallySelectedItem(CurrentSelection)
+				.OnSelectionChanged(this, &SBindingSourceSelectorHelper::ComponentSourceChanged)
+		];
+
+		if (InBinding->IsPrimaryBinding())
+		{
+			SetEnabled(false);
+		}
+		else
+		{
+			SetEnabled(TAttribute<bool>::Create([bInEnabled]() { return !bInEnabled.Get(); }));
+		}
+	}
+
+private:
+	void ComponentSourceChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo)
+	{
+		UOptimusComponentSourceBinding* Binding = WeakBinding.Get();
+		UOptimusDeformer* Deformer = Binding->GetOwningDeformer();
+		
+		for (const UOptimusComponentSource* Source: UOptimusComponentSource::GetAllSources())
+		{
+			if (*Selection == Source->GetDisplayName().ToString())
+			{
+				Deformer->SetComponentBindingSource(Binding, Source);
+				return;
+			}
+		}
+	}
+	
+	TArray<TSharedPtr<FString>> ComponentSources;
+	
+	
+	TWeakObjectPtr<UOptimusComponentSourceBinding> WeakBinding;
+};
+
+
+void SOptimusEditorGraphExplorerItem::Construct(
 	const FArguments& InArgs, 
 	FCreateWidgetForActionData* const InCreateData, 
 	TWeakPtr<FOptimusEditor> InOptimusEditor
@@ -138,26 +206,55 @@ void SOptimusEditorGraphEplorerItem::Construct(
 
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
-	ChildSlot
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+	if (GraphAction->GetTypeId() != FOptimusSchemaAction_Binding::StaticGetTypeId())
+	{
+		ChildSlot
 		[
-			CreateIconWidget(InCreateData, bIsReadOnly)
-		]
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.f)
-		.VAlign(VAlign_Center)
-		.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				CreateIconWidget(InCreateData, bIsReadOnly)
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
+			[
+				CreateTextSlotWidget(InCreateData, bIsReadOnly )
+			]		
+		];	
+	}
+	else
+	{
+		TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+		FOptimusSchemaAction_Binding* BindingAction = static_cast<FOptimusSchemaAction_Binding*>(GraphAction.Get());
+		IOptimusPathResolver* PathResolver = Editor->GetDeformerInterface<IOptimusPathResolver>();
+		UOptimusComponentSourceBinding* Binding = PathResolver->ResolveComponentBinding(BindingAction->BindingName);
+		
+		ChildSlot
 		[
-			CreateTextSlotWidget(InCreateData, bIsReadOnly )
-		]		
-	];
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.6f)
+			.VAlign(VAlign_Center)
+			.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
+			[
+				CreateTextSlotWidget(InCreateData, bIsReadOnly )
+			]		
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBindingSourceSelectorHelper, Binding, bIsReadOnly)
+			]
+		];	
+	}
 }
 
 
-TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
+TSharedRef<SWidget> SOptimusEditorGraphExplorerItem::CreateIconWidget(
+	FCreateWidgetForActionData* const InCreateData,
+	TAttribute<bool> bInIsReadOnly)
 {
 	TSharedPtr<FEdGraphSchemaAction> Action = InCreateData->Action;
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
@@ -184,7 +281,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 			if (ensure(Resource))
 			{
 				
-				IconWidget = SNew(SResourceDataTypeSelectorHelper, Resource, InbIsReadOnly);
+				IconWidget = SNew(SResourceDataTypeSelectorHelper, Resource, bInIsReadOnly);
 			}
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
@@ -193,7 +290,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 			UOptimusVariableDescription* Variable = PathResolver->ResolveVariable(VariableAction->VariableName);
 			if (ensure(Variable))
 			{
-				IconWidget = SNew(SVariableDataTypeSelectorHelper, Variable, InbIsReadOnly);
+				IconWidget = SNew(SVariableDataTypeSelectorHelper, Variable, bInIsReadOnly);
 			}
 		}
 	}
@@ -208,7 +305,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 	}
 }
 
-TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(
+TSharedRef<SWidget> SOptimusEditorGraphExplorerItem::CreateTextSlotWidget(
 	FCreateWidgetForActionData* const InCreateData, 
 	TAttribute<bool> InbIsReadOnly
 	)
@@ -222,8 +319,8 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(
 	}
 	else
 	{
-		OnVerifyTextChanged.BindSP(this, &SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged);
-		OnTextCommitted.BindSP(this, &SOptimusEditorGraphEplorerItem::OnNameTextCommitted);
+		OnVerifyTextChanged.BindSP(this, &SOptimusEditorGraphExplorerItem::OnNameTextVerifyChanged);
+		OnTextCommitted.BindSP(this, &SOptimusEditorGraphExplorerItem::OnNameTextCommitted);
 	}
 
 	if (InCreateData->bHandleMouseButtonDown)
@@ -234,7 +331,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(
 	// FIXME: Tooltips
 
 	TSharedPtr<SInlineEditableTextBlock> EditableTextElement = SNew(SInlineEditableTextBlock)
-	    .Text(this, &SOptimusEditorGraphEplorerItem::GetDisplayText)
+	    .Text(this, &SOptimusEditorGraphExplorerItem::GetDisplayText)
 	    .HighlightText(InCreateData->HighlightText)
 	    // .ToolTip(ToolTipWidget)
 	    .OnVerifyTextChanged(OnVerifyTextChanged)
@@ -250,7 +347,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(
 }
 
 
-FText SOptimusEditorGraphEplorerItem::GetDisplayText() const
+FText SOptimusEditorGraphExplorerItem::GetDisplayText() const
 {
 	const UOptimusEditorGraphSchema* Schema = GetDefault<UOptimusEditorGraphSchema>();
 	if (MenuDescriptionCache.IsOutOfDate(Schema))
@@ -264,7 +361,7 @@ FText SOptimusEditorGraphEplorerItem::GetDisplayText() const
 }
 
 
-bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
+bool SOptimusEditorGraphExplorerItem::OnNameTextVerifyChanged(
 	const FText& InNewText, 
 	FText& OutErrorMessage
 	)
@@ -272,6 +369,7 @@ bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
 	TSharedPtr<FEdGraphSchemaAction> Action = ActionPtr.Pin();
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 
+	// FIXME: This whole thing is broken since we're pointing at the incorrect owner.
 	if (ensure(Action) && ensure(Editor))
 	{
 		FString NameStr = InNewText.ToString();
@@ -290,6 +388,13 @@ bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
 				NamespaceObject = Cast<UObject>(NodeGraph->GetCollectionOwner());
 				NamespaceClass = UOptimusNodeGraph::StaticClass();
 			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Binding::StaticGetTypeId())
+		{
+			const FOptimusSchemaAction_Binding* BindingAction = static_cast<FOptimusSchemaAction_Binding*>(Action.Get());
+			OriginalName = BindingAction->BindingName;
+			NamespaceObject = Editor->GetDeformer();
+			NamespaceClass = UOptimusComponentSourceBinding::StaticClass();
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
 		{
@@ -329,7 +434,7 @@ bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
 }
 
 
-void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(
+void SOptimusEditorGraphExplorerItem::OnNameTextCommitted(
 	const FText& InNewText, 
 	ETextCommit::Type InTextCommit
 	)
@@ -349,6 +454,15 @@ void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(
 			if (ensure(NodeGraph))
 			{
 				NodeGraph->GetCollectionOwner()->RenameGraph(NodeGraph, NameStr);
+			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Binding::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Binding* BindingAction = static_cast<FOptimusSchemaAction_Binding*>(Action.Get());
+			UOptimusComponentSourceBinding* Binding = Editor->GetDeformer()->ResolveComponentBinding(BindingAction->BindingName);
+			if (ensure(Binding))
+			{
+				Editor->GetDeformer()->RenameComponentBinding(Binding, FName(NameStr));
 			}
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())

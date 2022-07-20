@@ -2,6 +2,7 @@
 
 #include "SOptimusEditorGraphExplorerActions.h"
 
+#include "OptimusComponentSource.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
 
@@ -39,6 +40,51 @@ static bool GetIconAndColorFromDataType(
 	}
 }
 
+
+TSharedRef<FOptimusEditorGraphDragAction_Binding> FOptimusEditorGraphDragAction_Binding::New(
+	TSharedPtr<FEdGraphSchemaAction> InAction,
+	UOptimusComponentSourceBinding* InBinding
+	)
+{
+	TSharedRef<FOptimusEditorGraphDragAction_Binding> Operation = MakeShared<FOptimusEditorGraphDragAction_Binding>();
+
+	Operation->SourceAction = InAction;
+	Operation->WeakBinding = InBinding;
+	Operation->Construct();
+	return Operation;
+}
+
+
+FReply FOptimusEditorGraphDragAction_Binding::DroppedOnPanel(
+	const TSharedRef<SWidget>& InPanel,
+	FVector2D InScreenPosition,
+	FVector2D InGraphPosition,
+	UEdGraph& InGraph
+	)
+{
+	if (!InGraph.GetSchema()->IsA<UOptimusEditorGraphSchema>())
+	{
+		return FReply::Unhandled();
+	}
+
+	UOptimusComponentSourceBinding* Binding = WeakBinding.Get();
+	if (!Binding)
+	{
+		return FReply::Unhandled();
+	}
+
+	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(&InGraph);
+	if (!ensure(Graph))
+	{
+		return FReply::Unhandled();
+	}
+
+	UOptimusNodeGraph* ModelGraph = Graph->GetModelGraph();
+
+	ModelGraph->AddComponentBindingGetNode(Binding, InGraphPosition);
+
+	return FReply::Handled();
+}
 
 
 TSharedRef<FOptimusEditorGraphDragAction_Variable> FOptimusEditorGraphDragAction_Variable::New(

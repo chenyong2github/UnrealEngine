@@ -49,13 +49,13 @@ private:
 };
 
 
-class FOptimusDataDomainCustomization :
+class FOptimusExecutionDomainCustomization :
 	public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	FOptimusDataDomainCustomization();
+	FOptimusExecutionDomainCustomization();
 
 	// IPropertyTypeCustomization overrides
 	void CustomizeHeader(
@@ -301,4 +301,35 @@ private:
 
 	FText GetText() const;
 	void OnTextChanged(const FText& InValue);
+};
+
+/** UI customization for FOptimusDeformerInstanceComponentBinding */
+class FOptimusDeformerInstanceComponentBindingCustomization :
+	public IPropertyTypeCustomization
+{
+public:
+	virtual ~FOptimusDeformerInstanceComponentBindingCustomization() override;
+	
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+protected:
+	FOptimusDeformerInstanceComponentBindingCustomization();
+
+	// -- IPropertyTypeCustomization overrides
+	void CustomizeHeader(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		FDetailWidgetRow& InHeaderRow,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	void CustomizeChildren(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		IDetailChildrenBuilder& InChildBuilder,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override
+	{ }
+
+	void ComponentsReplaced(const TMap<UObject*, UObject*>& InReplacementMap);
+	
+private:
+	using FComponentHandle = TSharedPtr<FSoftObjectPath>; 
+	TArray<FComponentHandle> ComponentHandles;
 };

@@ -91,7 +91,15 @@ public:
 
 	// Register a complex type that has only has correspondence on the UE side.
 	OPTIMUSCORE_API bool RegisterType(
+		UScriptStruct *InStructType,
+		const FText& InDisplayName,
+		TOptional<FLinearColor> InPinColor,
+		EOptimusDataTypeUsageFlags InUsageFlags
+		);
+	
+	OPTIMUSCORE_API bool RegisterType(
 	    UClass* InClassType,
+		const FText& InDisplayName,
 	    TOptional<FLinearColor> InPinColor,
 	    EOptimusDataTypeUsageFlags InUsageFlags
 		);
@@ -137,6 +145,11 @@ public:
 	*/
 	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(const FFieldClass& InFieldType) const;
 
+	/** Find the registered type associated with the given object class. Returns an invalid
+	  * handle if no registered type is associated.
+	*/
+	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(const UClass& InClassType) const;
+	
 	/** Find the registered type with the given name. Returns an invalid handle if no registered 
 	  * type with that name exists.
 	*/

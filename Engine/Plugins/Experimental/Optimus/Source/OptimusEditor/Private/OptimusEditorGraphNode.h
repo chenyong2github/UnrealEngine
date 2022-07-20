@@ -13,6 +13,7 @@ class UOptimusNodePin;
 
 DECLARE_DELEGATE(FOptimusNodeTitleDirtied);
 DECLARE_DELEGATE(FOptimusNodePinsChanged);
+DECLARE_DELEGATE(FOptimusNodePinExpansionChanged);
 
 UCLASS()
 class UOptimusEditorGraphNode : public UEdGraphNode
@@ -32,6 +33,7 @@ public:
 	void SynchronizeGraphPinNameWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinValueWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinTypeWithModelPin(const UOptimusNodePin* InModelPin);
+	void SynchronizeGraphPinExpansionWithModelPin(const UOptimusNodePin* InModelPin);
 	
 	void SyncGraphNodeNameWithModelNodeName();
 	void SyncDiagnosticStateWithModelNode();
@@ -39,6 +41,7 @@ public:
 	FOptimusNodeTitleDirtied& OnNodeTitleDirtied() { return NodeTitleDirtied; }
 
 	FOptimusNodePinsChanged& OnNodePinsChanged() { return NodePinsChanged; }
+	FOptimusNodePinExpansionChanged& OnNodePinExpansionChanged() { return NodePinExpansionChanged; }
 	
 	// UEdGraphNode overrides
 	bool CanUserDeleteNode() const override;
@@ -54,8 +57,8 @@ protected:
 	friend class UOptimusEditorGraph;
 	friend class SOptimusEditorGraphNode;
 
-	const TArray<UOptimusNodePin*>* GetTopLevelInputPins() const { return &TopLevelInputPins; }
-	const TArray<UOptimusNodePin*>* GetTopLevelOutputPins() const { return &TopLevelOutputPins; }
+	const TArray<UOptimusNodePin*>& GetTopLevelInputPins() const { return TopLevelInputPins; }
+	const TArray<UOptimusNodePin*>& GetTopLevelOutputPins() const { return TopLevelOutputPins; }
 
 	/** Called when a model pin is added after the node creation */
 	bool ModelPinAdded(
@@ -65,6 +68,11 @@ protected:
 	/** Called when a model pin is being removed */
 	bool ModelPinRemoved(
 	    const UOptimusNodePin* InModelPin
+		);
+
+	/** Called after a model pin has been moved */
+	bool ModelPinMoved(
+		const UOptimusNodePin* InModelPin
 		);
 
 private:
@@ -89,4 +97,5 @@ private:
 
 	FOptimusNodeTitleDirtied NodeTitleDirtied;
 	FOptimusNodePinsChanged NodePinsChanged;
+	FOptimusNodePinExpansionChanged NodePinExpansionChanged;
 };
