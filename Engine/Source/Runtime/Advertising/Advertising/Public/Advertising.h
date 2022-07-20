@@ -2,10 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
+#include "HAL/Platform.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 
 class IAdvertisingProvider;
 

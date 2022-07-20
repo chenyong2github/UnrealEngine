@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "VectorTypes.h"
+#include "HalfspaceTypes.h"
 #include "IndexTypes.h"
 #include "LineTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MathUtil.h"
 #include "PlaneTypes.h"
-#include "HalfspaceTypes.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 #include "Util/ProgressCancel.h"
+#include "VectorTypes.h"
+
+class FProgressCancel;
 
 namespace UE {
 namespace Geometry {

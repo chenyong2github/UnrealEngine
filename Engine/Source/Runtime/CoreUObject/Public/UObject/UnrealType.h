@@ -6,37 +6,74 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Concepts/GetTypeHashable.h"
-#include "Containers/List.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Serialization/SerializedPropertyScope.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/List.h"
+#include "Containers/Map.h"
+#include "Containers/ScriptArray.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "CoreMinimal.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryImage.h"
+#include "Serialization/SerializedPropertyScope.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/Casts.h"
+#include "Templates/EnableIf.h"
 #include "Templates/Greater.h"
-#include "Templates/IsUEnumClass.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
+#include "Templates/IsPODType.h"
 #include "Templates/IsSigned.h"
+#include "Templates/IsTriviallyDestructible.h"
+#include "Templates/IsUEnumClass.h"
+#include "Templates/MemoryOps.h"
 #include "Templates/Models.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
 #include "UObject/CoreNetTypes.h"
+#include "UObject/Field.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/PersistentObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/PropertyTag.h"
+#include "UObject/ScriptDelegates.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SparseDelegate.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/Field.h"
 
 class FBlake3;
+class FOutputDevice;
+class UPackageMap;
 class UPropertyWrapper;
+struct CGetTypeHashable;
+struct FUObjectSerializeContext;
+template <typename FuncType> class TFunctionRef;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
 

@@ -2,19 +2,50 @@
 
 #pragma once
 
-#include "RenderGraphResources.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RenderGraphAllocator.h"
 #include "RenderGraphBuilder.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderGraphEvent.h"
+#include "RenderGraphResources.h"
+#include "RendererInterface.h"
 #include "Shader.h"
-#include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
+#include "ShaderParameterStruct.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/Invoke.h"
+#include "Templates/RefCounting.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "RHIGPUReadback.h"
 #endif
 #include "PipelineStateCache.h"
 
+#include <initializer_list>
+
 class FGlobalShaderMap;
-class FRHIGPUTextureReadback;
 class FRHIGPUBufferReadback;
+class FRHIGPUTextureReadback;
+class FShaderParametersMetadata;
 
 /** Returns whether the resource was produced by a prior pass. */
 inline bool HasBeenProduced(FRDGViewableResource* Resource)

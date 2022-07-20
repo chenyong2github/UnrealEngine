@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "MeshAttributeArray.h"
 #include "MeshAttributes.h"
-#include "StaticMeshAttributes.h"
+#include "MeshDescription.h"
 #include "SkinWeightsAttributesRef.h"
+#include "StaticMeshAttributes.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+template <typename AttributeType> class TArrayAttribute;
 
 //Add any skeletalmesh specific attributes here
 

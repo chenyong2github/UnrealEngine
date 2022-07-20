@@ -10,8 +10,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
-#include "Delegates/IDelegateInstance.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformMisc.h"
@@ -24,7 +22,6 @@
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/SharedPointerInternals.h"
 
 class AActor;
 class Error;

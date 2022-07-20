@@ -2,9 +2,22 @@
 
 #pragma once
 
-#include "MeshDescription.h"
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
 #include "MeshAttributes.h"
+#include "MeshDescription.h"
+#include "MeshTypes.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MeshDescriptionBase.generated.h"
+
+class FArchive;
+struct FFrame;
+template <typename ElementIDType> class TAttributesSet;
 
 
 

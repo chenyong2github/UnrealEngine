@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "InteractiveToolChange.h"
-#include "VectorTypes.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
+#include "InteractiveToolChange.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "VectorTypes.h"
+
 #include "MeshChange.generated.h"
+
+class UObject;
+namespace UE { namespace Geometry { class FDynamicMesh3; } }
 
 //class FDynamicMeshChange;		// need to refactor this out of DynamicMeshChangeTracker
 

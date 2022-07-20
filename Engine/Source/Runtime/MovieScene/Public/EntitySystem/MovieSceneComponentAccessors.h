@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "MovieSceneEntityIDs.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "EntitySystem/MovieSceneSystemTaskDependencies.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "EntitySystem/EntityAllocationIterator.h"
 #include "EntitySystem/MovieSceneComponentPtr.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneSystemTaskDependencies.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneEntityIDs.h"
+#include "Templates/Tuple.h"
 
 #include <initializer_list>
 
@@ -14,6 +20,7 @@ namespace UE
 {
 namespace MovieScene
 {
+class FEntityManager;
 
 
 struct FComponentAccess

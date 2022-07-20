@@ -2,14 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTemplate.h"
-#include "Misc/InlineValue.h"
+#include "Algo/BinarySearch.h"
 #include "Channels/MovieSceneChannelEditorDataEntry.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/InlineValue.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
 
-struct FMovieSceneChannelProxyData;
+struct FMovieSceneChannel;
+struct FMovieSceneChannelMetaData;
 struct FMovieSceneChannelProxy;
+struct FMovieSceneChannelProxyData;
 
 /**
  * An entry within FMovieSceneChannelProxy that contains all channels (and editor data) for any given channel type

@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Math/Axis.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
 
-struct FInterpCurveVector;
-struct FInterpCurveQuat;
 struct FInterpCurveFloat;
+struct FInterpCurveQuat;
+struct FInterpCurveVector;
 
 /** Outputs a float given a float input */
 DECLARE_DELEGATE_RetVal_OneParam(float, FFloatMapping, float);

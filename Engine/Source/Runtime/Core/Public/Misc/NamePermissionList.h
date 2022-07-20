@@ -8,6 +8,7 @@
 #include "Containers/StringView.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 

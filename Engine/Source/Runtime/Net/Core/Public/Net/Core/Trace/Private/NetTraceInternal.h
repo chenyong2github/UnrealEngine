@@ -2,14 +2,20 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Net/Core/Trace/NetTraceConfig.h"
 
 #if UE_NET_TRACE_ENABLED
 
-#include "Net/Core/Trace/NetDebugName.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Misc/NetworkGuid.h"
+#include "Net/Core/Trace/NetDebugName.h"
 #include "Templates/ChooseClass.h"
+#include "UObject/NameTypes.h"
+
+class FNetTraceCollector;
 
 // $TODO: Implement pooling of TraceCollectors
 // $TODO: Add disconnect reason to connection

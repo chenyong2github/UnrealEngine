@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "SteeringUtility.h"
 #include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
-#include "SteeringUtility.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_DISABLE_OPTIMIZATION

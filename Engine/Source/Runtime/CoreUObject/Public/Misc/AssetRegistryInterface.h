@@ -2,12 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
+#include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 #include "UObject/TopLevelAssetPath.h"
+
+class FLinkerSave;
+class FStructuredArchiveRecord;
+class ITargetPlatform;
+class UObject;
+class UPackage;
 
 namespace EAssetRegistryDependencyType
 {

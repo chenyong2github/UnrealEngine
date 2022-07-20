@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 #include "VideoDecoder.h"
+
 #include <HAL/ThreadSafeBool.h>
+
+class FThreadSafeCounter;
 
 namespace AVEncoder
 {
+	struct FVideoDecoderInfo;
 
 	class AVENCODER_API FVideoDecoderFactory
 	{

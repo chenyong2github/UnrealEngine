@@ -2,11 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "VideoCommon.h"
 #include "VideoEncoder.h"
-#include <HAL/ThreadSafeBool.h>
+
+class FThreadSafeCounter;
 
 namespace AVEncoder
 {
+	class FVideoEncoderInput;
 
 	class AVENCODER_API FVideoEncoderFactory
 	{

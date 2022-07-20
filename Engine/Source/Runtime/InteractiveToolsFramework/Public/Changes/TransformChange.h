@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "InteractiveToolChange.h"
+#include "Math/Transform.h"
+#include "Templates/Function.h"
+
+class UObject;
 
 
 /**

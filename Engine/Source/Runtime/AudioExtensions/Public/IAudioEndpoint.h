@@ -2,13 +2,29 @@
 
 #pragma once
 
+#include "AudioMixerNullDevice.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-//#include "Sound/SoundEffectBase.h"
-#include "Features/IModularFeatures.h"
-//#include "AudioMixer.h"
-#include "ISoundfieldFormat.h"
+#include "CoreTypes.h"
 #include "DSP/MultithreadedPatching.h"
+#include "Features/IModularFeature.h"
+#include "Features/IModularFeatures.h"
+#include "HAL/CriticalSection.h"
+#include "ISoundfieldFormat.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "IAudioEndpoint.generated.h"
+
+class UClass;
+struct FAudioPluginInitializationParams;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioEndpoints, Display, All);
 

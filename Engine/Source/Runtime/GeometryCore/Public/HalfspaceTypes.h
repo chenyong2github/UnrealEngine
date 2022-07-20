@@ -4,6 +4,7 @@
 
 #include "Math/UnrealMath.h"
 #include "VectorTypes.h"
+#include "VectorUtil.h"
 
 namespace UE
 {

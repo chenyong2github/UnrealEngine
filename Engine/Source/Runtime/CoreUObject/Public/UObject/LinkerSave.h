@@ -2,22 +2,38 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "IO/IoHash.h"
+#include "Serialization/Archive.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/FileRegions.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/Linker.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectThreadContext.h"
 
+class FBulkData;
 class FIoChunkId;
 class FObjectPostSaveContext;
-class FBulkData;
-
+class FOutputDevice;
+class FPackagePath;
+class UObject;
+class UPackage;
 namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
+namespace UE { class FPackageTrailerBuilder; }
+struct FLazyObjectPtr;
+struct FUObjectSerializeContext;
 
 /*----------------------------------------------------------------------------
 	FLinkerSave.

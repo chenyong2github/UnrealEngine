@@ -5,8 +5,11 @@
 #include "BaseMediaSource.h"
 #include "Containers/UnrealString.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "StreamMediaSource.generated.h"
+
+class UObject;
 
 
 UCLASS(BlueprintType)

@@ -2,13 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Misc/Guid.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsPointer.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "WebJSFunction.generated.h"
 
 class FWebJSScripting;
+class UObject;
+class UStruct;
 
 struct WEBBROWSER_API FWebJSParam
 {

@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/Point.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 
 namespace CADKernel
 {
-	class FNode;
 	class FModelMesh;
+	class FNode;
 	class FTopologicalEntity;
 
 	class CADKERNEL_API FMesh : public FEntityGeom

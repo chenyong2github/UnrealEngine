@@ -4,11 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MeshReconstructorBase.generated.h"
 
 class IMRMesh;
 class UMRMeshComponent;
+struct FFrame;
 
 USTRUCT(BlueprintType)
 struct FMRMeshConfiguration

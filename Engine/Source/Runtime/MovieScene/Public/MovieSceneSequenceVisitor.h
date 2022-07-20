@@ -2,15 +2,16 @@
 
 #pragma once
 #include "Evaluation/MovieSceneSequenceTransform.h"
-#include "MovieSceneSequenceID.h"
+#include "HAL/Platform.h"
+#include "Math/Range.h"
 #include "Misc/FrameNumber.h"
+#include "MovieSceneSequenceID.h"
 
-struct FGuid;
-struct FMovieSceneBinding;
-
-class UMovieSceneTrack;
 class UMovieSceneSection;
 class UMovieSceneSequence;
+class UMovieSceneTrack;
+struct FGuid;
+struct FMovieSceneBinding;
 
 /*
 * Implements a visitor pattern to allow external code to easily iterate through a sequence hierarchy,

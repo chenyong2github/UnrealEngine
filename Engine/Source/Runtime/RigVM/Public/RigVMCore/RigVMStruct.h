@@ -2,14 +2,32 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "RigVMDefines.h"
-#include "RigVMCore/RigVMRegistry.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMCore/RigVMFunction.h"
+#include "RigVMCore/RigVMRegistry.h"
+#include "RigVMCore/RigVMStructUpgradeInfo.h"
 #include "RigVMCore/RigVMTraits.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
-#include "RigVMCore/RigVMStructUpgradeInfo.h"
+#include "RigVMDefines.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnum.h"
+#include "Templates/Models.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/UnrealNames.h"
+
 #include "RigVMStruct.generated.h"
+
+class FProperty;
+class UObject;
 
 // delegates used for variable introspection / creation
 DECLARE_DELEGATE_RetVal(TArray<FRigVMExternalVariable>, FRigVMGetExternalVariablesDelegate)

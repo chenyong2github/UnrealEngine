@@ -6,10 +6,22 @@
 
 #pragma once
 
-#include "RenderResource.h"
 #include "GlobalShader.h"
-#include "ShaderParameterStruct.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
 #include "PipelineStateCache.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "RenderResource.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderParameterMacros.h"
+#include "ShaderParameterStruct.h"
+#include "Templates/UnrealTemplate.h"
+
+class FPointerTableBase;
+class FRDGTexture;
 
 
 /** The vertex data used to filter a texture. */

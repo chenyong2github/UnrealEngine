@@ -10,6 +10,7 @@
 #include "UObject/Package.h"
 
 class ITargetPlatform;
+class UPackage;
 
 #define UE_WITH_PACKAGE_ACCESS_TRACKING UE_WITH_OBJECT_HANDLE_TRACKING
 

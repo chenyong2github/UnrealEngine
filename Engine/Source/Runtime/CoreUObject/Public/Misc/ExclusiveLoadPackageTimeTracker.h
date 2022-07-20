@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealNames.h"
+
+class FString;
 
 #define WITH_LOADPACKAGE_TIME_TRACKER STATS
 

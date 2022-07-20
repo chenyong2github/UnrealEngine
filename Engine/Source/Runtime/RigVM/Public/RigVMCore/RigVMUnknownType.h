@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "RigVMDefines.h"
+#include "UObject/ObjectMacros.h"
+
 #include "RigVMUnknownType.generated.h"
 
 /**

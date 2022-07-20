@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "UObject/NameTypes.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
 
-class UObject;
 class CORE_API FString;
+class UObject;
 
 /* 
  * A struct that can reference a top level asset such as '/Path/To/Package.AssetName'

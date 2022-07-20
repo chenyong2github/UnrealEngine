@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/CoreNet.h"
 #include "Delegates/Delegate.h"
+
+class FArchive;
+class UObject;
 
 /**
  * This class is used to store meta data about properties that is shared between connections,

@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-
 #include "CudaWrapper.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 DECLARE_MULTICAST_DELEGATE(FOnPostCUDAInit)
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCUDA, Log, All);

@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
+#include "Containers/EnumAsByte.h"
+#include "Curves/RichCurve.h"
+#include "KeyParams.h"
 #include "Misc/FrameNumber.h"
 #include "MovieSceneChannel.h"
 #include "MovieSceneChannelData.h"
 #include "MovieSceneChannelTraits.h"
-#include "KeyParams.h"
-#include "Curves/RichCurve.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MovieSceneCurveChannelCommon.generated.h"
+
+class FArchive;
+template <typename T> struct TIsPODType;
 
 
 /**

@@ -2,8 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AxisSources.generated.h"
 
 class USceneComponent;

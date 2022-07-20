@@ -2,6 +2,15 @@
 
 #pragma once
 #include "AI/Navigation/NavigationTypes.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Math/Box.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class UObject;
 
 
 NAVIGATIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogNavigationDirtyArea, Warning, All);

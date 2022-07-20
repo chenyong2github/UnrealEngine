@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/CString.h"
 #include "Serialization/JsonTypes.h"
+#include "Templates/SharedPointer.h"
 
 class FJsonObject;
 

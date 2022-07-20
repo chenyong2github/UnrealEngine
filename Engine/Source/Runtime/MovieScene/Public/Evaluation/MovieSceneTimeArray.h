@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
 #include "MovieSceneSequenceTransform.h"
 #include "MovieSceneTimeTransform.h"
 #include "MovieSceneTimeWarping.h"

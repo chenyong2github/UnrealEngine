@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Async/Future.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "IImageWrapper.h"
 #include "MediaSampleQueue.h"
 #include "Misc/Timespan.h"

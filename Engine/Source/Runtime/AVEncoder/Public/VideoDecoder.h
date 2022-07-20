@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 #include "VideoCommon.h"
-#include "VideoDecoderInput.h"
 #include "VideoDecoderAllocationTypes.h"
+#include "VideoDecoderInput.h"
 
 namespace AVEncoder
 {
+	class FVideoDecoderInput;
+	class FVideoDecoderOutput;
+
 	class FVideoDecoder
 	{
 	public:

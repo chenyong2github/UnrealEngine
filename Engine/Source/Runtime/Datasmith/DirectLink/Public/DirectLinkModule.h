@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 

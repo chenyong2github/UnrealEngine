@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
+#include "HAL/PlatformMath.h"
 #include "Interfaces/IHttpRequest.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class FHttpManager;
+class FOutputDevice;
+class IHttpRequest;
+class UWorld;
 
 /**
  * Module for Http request implementations

@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "RHI.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+class FRHICommandListImmediate;
 
 //-------------------------------------------------------------------------------------------------
 // FXRSwapChain

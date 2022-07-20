@@ -2,49 +2,71 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
-#include "Misc/Timecode.h"
+#include "Containers/Map.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Evaluation/MovieSceneCompletionMode.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
-#include "MovieSceneFrameMigration.h"
-#include "MovieSceneSignedObject.h"
-#include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "EventHandlers/ISectionEventHandler.h"
 #include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "Misc/Timecode.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneSequenceID.h"
+#include "MovieSceneSignedObject.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "Evaluation/MovieSceneEvaluationCustomVersion.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "Generators/MovieSceneEasingFunction.h"
+#include "KeyParams.h"
 #include "Misc/FrameTime.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneFwd.h"
-#include "KeyParams.h"
 #include "MovieScene.h"
-#include "Generators/MovieSceneEasingFunction.h"
-#include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneFrameMigration.h"
-#include "Evaluation/MovieSceneEvaluationCustomVersion.h"
-#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "MovieSceneFwd.h"
+#include "UObject/ObjectMacros.h"
 #endif
 
 #include "MovieSceneSection.generated.h"
 
-class IMovieSceneEasingFunction;
-struct FMovieSceneBlendTypeField;
-struct FQualifiedFrameTime;
-struct FMovieSceneSequenceHierarchy;
-
+class FArchive;
 class FStructOnScope;
-
-struct FKeyHandle;
+class IMovieSceneEasingFunction;
+class IMovieScenePlayer;
+class UMovieSceneEntitySystemLinker;
+class UObject;
+namespace UE { namespace MovieScene { class ISectionEventHandler; } }
 struct FEasingComponentData;
+struct FFrame;
+struct FFrameRate;
+struct FGuid;
+struct FKeyHandle;
+struct FMovieSceneBlendTypeField;
 struct FMovieSceneChannelProxy;
 struct FMovieSceneEvalTemplatePtr;
+struct FMovieSceneSequenceHierarchy;
 struct FMovieSceneSequenceID;
-struct FFrameRate;
+struct FPropertyChangedEvent;
+struct FQualifiedFrameTime;
 
-class UMovieSceneEntitySystemLinker;
-class IMovieScenePlayer;
 enum class ECookOptimizationFlags;
 
 namespace UE
@@ -52,8 +74,8 @@ namespace UE
 namespace MovieScene
 {
 	struct FEntityImportParams;
-	struct FImportedEntity;
 	struct FFixedObjectBindingID;
+	struct FImportedEntity;
 }
 }
 

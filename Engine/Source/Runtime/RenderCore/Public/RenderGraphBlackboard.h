@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "RenderGraphDefinitions.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/GeneratedTypeName.h"
+#include "RenderGraphAllocator.h"
+#include "RenderGraphDefinitions.h"
+#include "Templates/UnrealTemplate.h"
 
 /** Declares a struct for use by the RDG blackboard. */
 #define RDG_REGISTER_BLACKBOARD_STRUCT(StructType)										\

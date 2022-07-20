@@ -11,8 +11,8 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformProcess.h" // IWYU pragma: export
 #include "HAL/PlatformMisc.h"
-#include "Unix/UnixSystemIncludes.h" // IWYU pragma: export
 #include "Misc/AssertionMacros.h"
+#include "Unix/UnixSystemIncludes.h" // IWYU pragma: export
 
 class Error;
 

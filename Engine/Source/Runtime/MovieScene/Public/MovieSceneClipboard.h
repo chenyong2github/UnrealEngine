@@ -2,9 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "MovieSceneTrack.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/DateTime.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
 #include "Misc/InlineValue.h"
+#include "Misc/Optional.h"
+#include "MovieSceneTrack.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
 
 #if WITH_EDITOR
 

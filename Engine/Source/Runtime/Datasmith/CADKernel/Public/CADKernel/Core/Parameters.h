@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/Types.h"
-
 #include "CADKernel/Core/Parameter.h"
-
+#include "CADKernel/Core/Types.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Serialization/Archive.h"
+
+class FArchive;
 
 namespace CADKernel
 {

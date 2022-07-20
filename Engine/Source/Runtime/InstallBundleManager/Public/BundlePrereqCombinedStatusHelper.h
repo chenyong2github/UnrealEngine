@@ -1,10 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InstallBundleManagerInterface.h"
-#include "InstallBundleUtils.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Containers/Ticker.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "InstallBundleManagerInterface.h"
+#include "InstallBundleTypes.h"
+#include "InstallBundleUtils.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+class FName;
+class IInstallBundleManager;
+struct FInstallBundlePauseInfo;
+struct FInstallBundleProgress;
+struct FInstallBundleRequestResultInfo;
 
 //Handles calculating the bundle status by combining progress from all of its
 //Prerequisites. Allows you to display one progress percent that is weighted based on all

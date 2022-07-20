@@ -2,11 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "EdGraph/EdGraph.h"
 #include "Dataflow/DataflowCore.h"
+#include "EdGraph/EdGraph.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "DataflowObject.generated.h"
+
+class FArchive;
+class UDataflow;
+class UObject;
+namespace Dataflow { class FGraph; }
 
 
 /**

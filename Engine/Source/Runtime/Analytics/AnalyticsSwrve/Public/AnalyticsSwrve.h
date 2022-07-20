@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "AnalyticsProviderConfigurationDelegate.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IAnalyticsProviderModule.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 class IAnalyticsProvider;
 

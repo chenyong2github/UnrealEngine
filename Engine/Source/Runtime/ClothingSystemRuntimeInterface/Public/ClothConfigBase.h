@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothConfigBase.generated.h"
 
 /**

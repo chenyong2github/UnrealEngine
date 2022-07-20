@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IMotionController.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Timespan.h"
+#include "UObject/NameTypes.h"
 
 enum class EControllerHand : uint8;
 

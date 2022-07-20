@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Templates/Casts.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ContextObjectStore.generated.h"
+
+class UClass;
 
 /**
  * A context object store allows tools to get access to arbitrary objects which expose data or APIs to enable additional functionality.

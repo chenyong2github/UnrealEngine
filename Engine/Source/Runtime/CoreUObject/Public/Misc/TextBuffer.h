@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/OutputDevice.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
+class FArchive;
 
 /**
  * Implements an object that buffers text.

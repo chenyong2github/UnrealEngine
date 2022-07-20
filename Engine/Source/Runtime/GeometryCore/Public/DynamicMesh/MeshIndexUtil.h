@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
+#include "HAL/Platform.h"
+#include "IndexTypes.h"
+#include "Misc/AssertionMacros.h"
 
 namespace UE
 {

@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "Delegates/Delegate.h"
-#include "Logging/LogMacros.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Templates/UnrealTemplate.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(AsyncLoadingFlush, Log, All);
 

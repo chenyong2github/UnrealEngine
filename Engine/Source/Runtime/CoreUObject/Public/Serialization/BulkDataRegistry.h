@@ -2,15 +2,19 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Delegates/DelegateBase.h"
 #include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "UObject/NameTypes.h"
 
 #if WITH_EDITOR
 
 #include "Async/Future.h"
-#include "Containers/Array.h"
-#include "Containers/Set.h"
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "Delegates/Delegate.h"
 #include "HAL/CriticalSection.h"
 #include "IO/IoHash.h"
@@ -18,9 +22,9 @@
 
 class IBulkDataRegistry;
 class UPackage;
+namespace UE::Serialization { class FEditorBulkData; }
 struct FEndLoadPackageContext;
 struct FGuid;
-namespace UE::Serialization { class FEditorBulkData; }
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogBulkDataRegistry, Log, All);
 DECLARE_DELEGATE_RetVal(IBulkDataRegistry*, FSetBulkDataRegistry);
@@ -151,6 +155,7 @@ private:
 // Temporary interface for tunneling the EditorBuildInputResolver into CoreUObject.
 // In the future this will be implemented as part of the BuildAPI
 namespace UE::DerivedData { class IBuildInputResolver; }
+
 COREUOBJECT_API UE::DerivedData::IBuildInputResolver* GetGlobalBuildInputResolver();
 COREUOBJECT_API void SetGlobalBuildInputResolver(UE::DerivedData::IBuildInputResolver* InResolver);
 

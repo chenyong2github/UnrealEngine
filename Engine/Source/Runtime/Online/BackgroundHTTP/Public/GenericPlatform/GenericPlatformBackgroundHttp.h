@@ -3,8 +3,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
+#include "HAL/Platform.h"
 #include "Interfaces/IBackgroundHttpRequest.h"
 
 class IBackgroundHttpManager;

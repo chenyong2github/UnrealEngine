@@ -2,16 +2,30 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Engine/Blueprint.h"
+#include "Misc/Guid.h"
+#include "UObject/FieldPath.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneEvent.generated.h"
 
-class UK2Node;
-class UEdGraph;
+class FProperty;
 class UBlueprint;
+class UClass;
+class UEdGraph;
 class UEdGraphNode;
+class UFunction;
+class UK2Node;
 class UK2Node_FunctionEntry;
 class UMovieSceneEventSectionBase;
+class UObject;
 
 /** Value definition for any type-agnostic variable (exported as text) */
 USTRUCT(BlueprintType)

@@ -3,13 +3,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "GeometryTypes.h"
+#include "IndexTypes.h"
+#include "InfoTypes.h"
+#include "IntVectorTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "Util/CompactMaps.h"
 #include "Util/DynamicVector.h"
 #include "Util/RefCountVector.h"
-#include "Util/CompactMaps.h"
+#include "Util/SmallListSet.h"
 #include "VectorTypes.h"
-#include "GeometryTypes.h"
-#include "InfoTypes.h"
-#include "IndexTypes.h"
+
+class FArchive;
+namespace DynamicMeshInfo { struct FEdgeCollapseInfo; }
+namespace DynamicMeshInfo { struct FEdgeFlipInfo; }
+namespace DynamicMeshInfo { struct FEdgeSplitInfo; }
+namespace DynamicMeshInfo { struct FMergeEdgesInfo; }
+namespace DynamicMeshInfo { struct FPokeTriangleInfo; }
+namespace DynamicMeshInfo { struct FVertexSplitInfo; }
 
 namespace UE
 {

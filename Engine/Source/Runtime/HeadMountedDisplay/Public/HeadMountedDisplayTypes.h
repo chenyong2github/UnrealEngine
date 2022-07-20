@@ -2,16 +2,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Delegates/Delegate.h"
 #include "IMotionController.h"
-#include "RHI.h"
-#include "RHIResources.h"
 #include "InputCoreTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/IntRect.h"
+#include "Math/Quat.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Misc/Guid.h"
+#include "RHI.h"
+#include "RHIResources.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "HeadMountedDisplayTypes.generated.h"
 
+class FRHICommandListImmediate;
+class UObject;
 struct FFilterVertex;
+struct FFrame;
 
 class HEADMOUNTEDDISPLAY_API FHMDViewMesh
 {

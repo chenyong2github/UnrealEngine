@@ -2,23 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/FrameRate.h"
-#include "UObject/ObjectMacros.h"
-#include "Evaluation/MovieSceneSequenceTransform.h"
-#include "Evaluation/MovieSceneSectionParameters.h"
-#include "UObject/SoftObjectPath.h"
-#include "MovieSceneSequenceID.h"
-#include "Evaluation/MovieSceneSequenceInstanceData.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "MovieSceneFrameMigration.h"
-#include "Evaluation/MovieSceneSegment.h"
+#include "Containers/Map.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
+#include "Evaluation/MovieSceneSectionParameters.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "Evaluation/MovieSceneSequenceInstanceData.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Guid.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneSequenceID.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneSequenceHierarchy.generated.h"
 
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
 struct FMovieSceneSequenceID;
+template <typename ElementType> class TRange;
 
 /**
  * Sub sequence data that is stored within an evaluation template as a backreference to the originating sequence, and section

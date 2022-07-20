@@ -2,19 +2,28 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Math/TransformCalculus2D.h"
+#include "Layout/Margin.h"
+#include "Layout/PaintGeometry.h"
 #include "Layout/SlateRect.h"
 #include "Layout/SlateRotatedRect.h"
-#include "Layout/PaintGeometry.h"
 #include "Layout/SlateRotatedRect.h"
+#include "Math/TransformCalculus.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "Rendering/SlateLayoutTransform.h"
+#include "Rendering/SlateRenderTransform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+
 #include "Geometry.generated.h"
 
 class FArrangedWidget;
 class FLayoutGeometry;
 class SWidget;
+template <typename T> struct TIsPODType;
 
 /**
  * Represents the position, size, and absolute position of a Widget in Slate.

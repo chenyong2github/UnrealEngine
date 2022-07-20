@@ -3,12 +3,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
-#include "Interfaces/IBackgroundHttpRequest.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IBackgroundHttpModularFeature.h"
+#include "Interfaces/IBackgroundHttpRequest.h"
+#include "UObject/NameTypes.h"
 
 class IBackgroundHttpManager;
+class IBackgroundHttpModularFeature;
 
 /**
  * This version of BackgroundHttp is designed to be used by any platform that relies on a ModularFeature to override the BackgroundHttp behavior. 

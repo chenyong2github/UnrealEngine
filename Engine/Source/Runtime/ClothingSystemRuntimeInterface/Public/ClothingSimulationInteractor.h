@@ -2,11 +2,23 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothingSimulationInteractor.generated.h"
 
+class FName;
 class IClothingSimulation;
 class IClothingSimulationContext;
 class UClothingAssetBase;
+struct FFrame;
+template <typename T> struct TObjectPtr;
 
 /**
  * Abstract class to control clothing specific interaction.

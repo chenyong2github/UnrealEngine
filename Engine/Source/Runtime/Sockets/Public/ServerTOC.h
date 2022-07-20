@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/DateTime.h"
 
 /**
  * Helper struct to hold and quickly access server TOC.

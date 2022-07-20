@@ -2,12 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
 #include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectArray.h"
+#include "UObject/WeakObjectPtr.h"
 
+class FOutputDevice;
+class FString;
+class UObjectBase;
+class UWorld;
 struct FSparseDelegate;
 
 /**

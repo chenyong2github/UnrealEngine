@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IPAddress.h"
 #include "SocketTypes.h"
 
 class FInternetAddr;

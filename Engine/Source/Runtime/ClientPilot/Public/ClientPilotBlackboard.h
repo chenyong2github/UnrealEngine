@@ -1,6 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Math/MathFwd.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClientPilotBlackboard.generated.h"
 
 UCLASS()

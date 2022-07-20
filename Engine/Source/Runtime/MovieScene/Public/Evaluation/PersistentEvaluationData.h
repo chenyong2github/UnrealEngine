@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "MovieSceneFwd.h"
 #include "Evaluation/MovieSceneEvaluationKey.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 #include "Evaluation/MovieSceneSequenceInstanceData.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneFwd.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
 
 class IMovieScenePlayer;
 

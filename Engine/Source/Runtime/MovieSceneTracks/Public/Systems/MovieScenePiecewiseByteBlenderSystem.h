@@ -4,8 +4,15 @@
 
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "HAL/Platform.h"
 #include "Systems/MovieSceneBlenderSystemHelper.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieScenePiecewiseByteBlenderSystem.generated.h"
+
+class UObject;
 
 
 UCLASS()

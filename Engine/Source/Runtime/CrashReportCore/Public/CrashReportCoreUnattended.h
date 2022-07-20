@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CrashUpload.h"
+#include "PlatformErrorReport.h"
 
 /**
  * Implementation of the crash report client used for unattended uploads

@@ -3,7 +3,12 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntitySystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ByteChannelEvaluatorSystem.generated.h"
+
+class UObject;
 
 namespace UE
 {

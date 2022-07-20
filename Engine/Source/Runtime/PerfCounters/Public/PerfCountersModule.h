@@ -2,17 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
+class FName;
+class FOutputDevice;
 struct FHistogram;
-template <class CharType> struct TPrettyJsonPrintPolicy;
-
-template <class CharType>
-struct TPrettyJsonPrintPolicy;
 template <class CharType, class PrintPolicy>
 class TJsonWriter;
+template <class CharType>
+struct TPrettyJsonPrintPolicy;
+template <class CharType> struct TPrettyJsonPrintPolicy;
+
 typedef TSharedRef< TJsonWriter<TCHAR,TPrettyJsonPrintPolicy<TCHAR> > > FPrettyJsonWriter;
 struct FHistogram;
 

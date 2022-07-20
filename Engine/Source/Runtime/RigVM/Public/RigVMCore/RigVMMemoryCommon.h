@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/PlatformMath.h"
 #include "RigVMDefines.h"
 #include "RigVMTraits.h"
+#include "Templates/TypeHash.h"
+#include "UObject/ObjectMacros.h"
+
 #include "RigVMMemoryCommon.generated.h"
+
+class FArchive;
 
 #ifdef UE_BUILD_DEBUG
 	#define DEBUG_RIGVMMEMORY 0

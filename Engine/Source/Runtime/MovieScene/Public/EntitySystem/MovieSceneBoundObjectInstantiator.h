@@ -3,8 +3,13 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneBoundObjectInstantiator.generated.h"
+
+class UObject;
 
 
 UCLASS()

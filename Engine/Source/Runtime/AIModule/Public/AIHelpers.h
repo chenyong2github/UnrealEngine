@@ -3,6 +3,12 @@
 #pragma once
 
 #include "AITypes.h"
+#include "Containers/Array.h"
+#include "Math/MathFwd.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Misc/Optional.h"
+#include "Templates/SubclassOf.h"
 
 class AActor;
 class UActorComponent;

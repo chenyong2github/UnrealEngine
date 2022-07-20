@@ -2,15 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Misc/FileHelper.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeBaseNodeContainer.generated.h"
+
+class FArchive;
+class UClass;
+class UInterchangeBaseNode;
+class UInterchangeFactoryBaseNode;
+struct FFrame;
+template <typename T> struct TObjectPtr;
 
 
 /**

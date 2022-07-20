@@ -2,30 +2,49 @@
 
 #pragma once
 
-#include "CoreFwd.h"
-#include "CoreTypes.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "MeshTypes.h"
-#include "MeshElementArray.h"
-#include "MeshElementContainer.h"
-#include "MeshElementIndexer.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Copy.h"
 #include "Algo/Find.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
-#include "Misc/CoreMiscDefines.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Box.h"
+#include "Math/MathFwd.h"
+#include "Math/Plane.h"
+#include "Math/Vector.h"
+#include "MeshAttributeArray.h"
+#include "MeshElementArray.h"
+#include "MeshElementContainer.h"
+#include "MeshElementIndexer.h"
+#include "MeshTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
-#include "UObject/EditorObjectVersion.h"
-#include "UObject/ReleaseObjectVersion.h"
 #include "Serialization/CustomVersion.h"
 #include "Serialization/EditorBulkData.h"
-#include "Containers/StaticArray.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/EditorObjectVersion.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ReleaseObjectVersion.h"
+
 #include "MeshDescription.generated.h"
+
+class FArchive;
+class UObject;
+struct FElementIDRemappings;
 
 enum
 {

@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Math/NumericLimits.h"
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/TypeHash.h"
 
 class UMovieSceneBlenderSystem;
 class UMovieSceneEntitySystemLinker;

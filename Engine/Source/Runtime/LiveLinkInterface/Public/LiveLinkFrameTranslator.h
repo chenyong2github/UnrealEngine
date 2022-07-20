@@ -3,14 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-
+#include "CoreTypes.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkFrameTranslator.generated.h"
+
+class ULiveLinkRole;
 
 
 /**

@@ -2,10 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Animation/AnimTypes.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "CoreMinimal.h"
 #include "Curves/RichCurve.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+
 #include "RBFSolver.generated.h"
 
 

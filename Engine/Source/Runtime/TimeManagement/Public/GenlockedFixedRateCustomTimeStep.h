@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Engine/EngineCustomTimeStep.h"
 #include "GenlockedCustomTimeStep.h"
+#include "HAL/Platform.h"
+#include "Misc/FrameRate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "GenlockedFixedRateCustomTimeStep.generated.h"
 
 class UEngine;
+class UObject;
 
 /**
  * Control the Engine TimeStep via a fixed frame rate.

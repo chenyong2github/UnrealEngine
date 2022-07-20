@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+
+template <typename FuncType> class TFunctionRef;
 
 class ASSETREGISTRY_API FPathTree
 {

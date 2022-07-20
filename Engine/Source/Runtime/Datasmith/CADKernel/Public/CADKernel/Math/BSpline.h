@@ -4,19 +4,23 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Point.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
-	class FNURBSSurface;
 	class FGrid;
 	class FNURBSCurve;
 	class FNURBSSurface;
-
+	class FNURBSSurface;
+	class FSurfacicBoundary;
 	struct FCoordinateGrid;
-	struct FCurvePoint;
 	struct FCurvePoint2D;
-	struct FSurfacicSampling;
+	struct FCurvePoint;
+	struct FLinearBoundary;
 	struct FSurfacicPoint;
+	struct FSurfacicSampling;
 
 	namespace BSpline
 	{

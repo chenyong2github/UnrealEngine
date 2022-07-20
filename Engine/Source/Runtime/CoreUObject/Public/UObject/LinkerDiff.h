@@ -2,11 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 
 class FLinker;
-struct FLinkerExportObject;
+class FName;
 class FOutputDevice;
+struct FLinkerExportObject;
 
 class FLinkerDiff
 {

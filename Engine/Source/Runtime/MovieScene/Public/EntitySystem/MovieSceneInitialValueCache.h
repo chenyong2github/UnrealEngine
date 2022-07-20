@@ -2,12 +2,26 @@
 
 #pragma once
 
-#include "Templates/Tuple.h"
+#include "Containers/ArrayView.h"
 #include "Containers/Map.h"
-#include "Misc/TVariant.h"
-#include "MovieSceneCommonHelpers.h"
+#include "Containers/SparseArray.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystemLinkerExtension.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Misc/TVariant.h"
+#include "MovieSceneCommonHelpers.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectKey.h"
+
+class UObject;
 
 namespace UE
 {

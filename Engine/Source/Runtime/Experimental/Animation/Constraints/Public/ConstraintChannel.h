@@ -3,9 +3,19 @@
 #pragma once
 
 #include "Channels/MovieSceneBoolChannel.h"
-#include "MovieSceneClipboard.h"
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelTraits.h"
 #include "ConstraintsManager.h"
+#include "Containers/UnrealString.h"
+#include "Misc/FrameTime.h"
+#include "MovieSceneClipboard.h"
 #include "Templates/Function.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/SoftObjectPtr.h"
+
 #include "ConstraintChannel.generated.h"
 
 USTRUCT()

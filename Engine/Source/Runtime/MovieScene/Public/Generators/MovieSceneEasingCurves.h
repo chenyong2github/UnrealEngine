@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "UObject/Interface.h"
-#include "UObject/ObjectMacros.h"
-#include "Generators/MovieSceneEasingFunction.h"
 #include "Curves/RichCurve.h"
+#include "Generators/MovieSceneEasingFunction.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "UObject/Class.h"
+#include "UObject/Interface.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneEasingCurves.generated.h"
 
 class UCurveFloat;

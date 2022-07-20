@@ -3,12 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "GenericPlatform/GenericPlatformStricmp.h"
 #include "Templates/EnableIf.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharEncodingSimplyConvertibleTo.h"
 #include "Traits/IsCharType.h"
 #include "Traits/IsFixedWidthCharEncoding.h"
-#include "GenericPlatform/GenericPlatformStricmp.h"
+
 #include <type_traits>
 
 namespace UE::Core::Private

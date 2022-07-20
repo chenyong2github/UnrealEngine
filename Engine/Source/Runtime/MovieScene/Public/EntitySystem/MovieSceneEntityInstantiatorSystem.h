@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "MovieSceneInstanceRegistry.h"
-#include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
-#include "MovieSceneEntityInstantiatorSystem.generated.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "MovieSceneInstanceRegistry.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
-struct FMovieSceneObjectBindingID;
+#include "MovieSceneEntityInstantiatorSystem.generated.h"
 
 class UMovieSceneEntitySystem;
 class UMovieSceneEntitySystemLinker;
+class UObject;
+namespace UE { namespace MovieScene { template <typename T> struct TComponentTypeID; } }
+struct FGuid;
+struct FMovieSceneObjectBindingID;
 
 UCLASS(Abstract)
 class MOVIESCENE_API UMovieSceneEntityInstantiatorSystem : public UMovieSceneEntitySystem

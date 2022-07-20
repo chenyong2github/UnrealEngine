@@ -5,15 +5,21 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
+#include "CoreTypes.h"
+#include "Misc/Timespan.h"
 #include "Overlays.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LocalizedOverlays.generated.h"
 
-class UBasicOverlays;
+class FString;
 class UAssetImportData;
+class UBasicOverlays;
+class UObject;
 
 /**
  * Implements an asset that contains a set of Basic Overlays that will be displayed in accordance with

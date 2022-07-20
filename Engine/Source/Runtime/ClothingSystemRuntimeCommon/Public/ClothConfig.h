@@ -2,8 +2,13 @@
 #pragma once
 
 #include "ClothConfigBase.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothConfig.generated.h"
 
+class UObject;
 struct FClothConfig_Legacy;
 
 /** Different mass modes deciding the setup process. */

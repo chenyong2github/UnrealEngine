@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Interfaces/IBuildPatchServicesModule.h"
 #include "BuildPatchSettings.h"
+#include "CoreMinimal.h"
+#include "Interfaces/IBuildPatchServicesModule.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 
 class BUILDPATCHSERVICES_API FBuildPatchServices
 {

@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementLimits.h"
 #include "Elements/Framework/TypedElementListFwd.h"
 
 class UTypedElementRegistry;
+struct FScriptTypedElementHandle;
+struct FTypedElementHandle;
 
 namespace TypedElementUtil
 {

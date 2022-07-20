@@ -2,12 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Sections/MovieSceneParameterSection.h"
-#include "MovieSceneNameableTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "MovieSceneNameableTrack.h"
+#include "MovieSceneSection.h"
+#include "Sections/MovieSceneParameterSection.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneParticleParameterTrack.generated.h"
+
+class UObject;
+struct FFrameNumber;
 
 /**
  * Handles manipulation of material parameters in a movie scene.

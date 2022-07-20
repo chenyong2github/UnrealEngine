@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
 

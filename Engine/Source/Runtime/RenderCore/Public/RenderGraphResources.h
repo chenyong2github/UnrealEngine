@@ -2,14 +2,45 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "PixelFormat.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "RHIResources.h"
+#include "RHITransientResourceAllocator.h"
+#include "RenderGraphAllocator.h"
+#include "RenderGraphDefinitions.h"
 #include "RenderGraphParameter.h"
 #include "RenderGraphTextureSubresource.h"
 #include "RendererInterface.h"
-#include "RHITransientResourceAllocator.h"
-#include "RHIResources.h"
+#include "ShaderParameterMacros.h"
+#include "Templates/Function.h"
+#include "Templates/RefCounting.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
-struct FPooledRenderTarget;
+class FRDGBarrierBatchBegin;
+class FRDGBarrierValidation;
+class FRDGBuffer;
+class FRDGBufferPool;
+class FRDGBuilder;
+class FRDGResourceDumpContext;
+class FRDGTextureUAV;
+class FRDGTrace;
+class FRDGUserValidation;
+class FRHITransientBuffer;
+class FRHITransientTexture;
 class FRenderTargetPool;
+class FShaderParametersMetadata;
+struct FPooledRenderTarget;
+struct FRDGBufferDebugData;
+struct FRDGResourceDebugData;
+struct FRDGTextureDebugData;
+struct FRDGViewableResourceDebugData;
 
 /** Used for tracking pass producer / consumer edges in the graph for culling and pipe fencing. */
 struct FRDGProducerState
@@ -1414,4 +1445,4 @@ inline FRDGTextureSRV* GetAsTextureSRV(FRDGView* View)
 inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct);
 inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRenderTargetBindingSlots& RenderTargets);
 
-#include "RenderGraphResources.inl"
+#include "RenderGraphResources.inl" // IWYU pragma: export

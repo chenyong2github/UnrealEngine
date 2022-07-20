@@ -12,6 +12,7 @@
 #include "Templates/UnrealTemplate.h"
 
 #include <atomic>
+#include <type_traits>
 
 namespace UE::Tasks
 {

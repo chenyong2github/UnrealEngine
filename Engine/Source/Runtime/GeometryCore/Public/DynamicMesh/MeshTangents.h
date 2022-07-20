@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "VectorTypes.h"
 
 
 namespace UE

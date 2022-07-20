@@ -4,8 +4,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
 #include "PointSetAdapter.h"
 #include "Spatial/SparseGrid3.h"
 #include "Util/GridIndexing3.h"

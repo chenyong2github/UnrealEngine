@@ -4,11 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "InputBehaviorSet.h"
+#include "Misc/EnumClassFlags.h"
 #include "ToolContextInterfaces.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InteractiveGizmo.generated.h"
 
-class UInteractiveGizmoManager;
 class FCanvas;
+class IToolsContextRenderAPI;
+class UInputBehavior;
+class UInteractiveGizmoManager;
 
 /**
  * UInteractiveGizmo is the base class for all Gizmos in the InteractiveToolsFramework.

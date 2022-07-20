@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SlateWidgetStyleContainerInterface.generated.h"
+
+class UObject;
 
 UINTERFACE()
 class SLATECORE_API USlateWidgetStyleContainerInterface : public UInterface

@@ -2,20 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Map.h"
-#include "Misc/Parse.h"
-#include "Containers/StringConv.h"
-#include "Misc/DateTime.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "Misc/Paths.h"
 #include "Async/AsyncFileHandle.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProperties.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/DateTime.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
 
-class IAsyncReadFileHandle;
 class FPlatformFileOpenLog;
+class IAsyncReadFileHandle;
+class IMappedFileHandle;
 
 #if !UE_BUILD_SHIPPING
 

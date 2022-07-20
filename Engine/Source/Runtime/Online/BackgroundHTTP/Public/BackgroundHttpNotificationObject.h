@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class BACKGROUNDHTTP_API FBackgroundHttpNotificationObject
 	: public TSharedFromThis<FBackgroundHttpNotificationObject, ESPMode::ThreadSafe>

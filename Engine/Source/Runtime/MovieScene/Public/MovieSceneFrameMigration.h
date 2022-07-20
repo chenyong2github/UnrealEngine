@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
 #include "Misc/FrameNumber.h"
 #include "MovieSceneFwd.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MovieSceneFrameMigration.generated.h"
+
+class FArchive;
+class FOutputDevice;
+class FString;
+class UObject;
+struct FPropertyTag;
 
 /**
  * Type used to convert from a FFloatRange to a TRange<FFrameNumber>

@@ -2,10 +2,21 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Math/Box2D.h"
 #include "Misc/Variant.h"
 #include "Stats/Stats.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 /** Whether a widget should be included in accessibility, and if so, how its text should be retrieved. */
 enum class EAccessibleBehavior : uint8

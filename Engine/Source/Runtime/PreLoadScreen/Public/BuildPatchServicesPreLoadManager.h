@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "BuildPatchSettings.h"
+#include "BuildPatchState.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IBuildInstaller.h"
 #include "Interfaces/IBuildManifest.h"
 #include "Interfaces/IBuildPatchServicesModule.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+
+class IBuildPatchServicesModule;
 
 //This class is used to help manage a PreLoadScreen based on a BuildPatchServices install.
 class PRELOADSCREEN_API FBuildPatchServicesPreLoadManagerBase : public TSharedFromThis<FBuildPatchServicesPreLoadManagerBase>

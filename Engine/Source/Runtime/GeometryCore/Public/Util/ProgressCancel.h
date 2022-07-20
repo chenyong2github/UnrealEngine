@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include "Templates/Function.h"
 #include "Containers/Array.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "MathUtil.h"
 #include "Misc/DateTime.h"
 #include "Misc/ScopeLock.h"
-#include "MathUtil.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 #include <atomic>
 

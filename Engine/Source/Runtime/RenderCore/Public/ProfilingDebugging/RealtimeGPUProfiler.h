@@ -10,11 +10,25 @@
 // Each event type will be displayed using the defined color
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "RHI.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#include "CoreTypes.h"
 #include "GpuProfilerTrace.h"
+#include "HAL/CriticalSection.h"
+#include "MultiGPU.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "UObject/NameTypes.h"
+
+class IRHIComputeContext;
+struct FColor;
 
 // Note:  WITH_PROFILEGPU should be 0 for final builds
 #define WANTS_DRAW_MESH_EVENTS (RHI_COMMAND_LIST_DEBUG_TRACES || (WITH_PROFILEGPU && PLATFORM_SUPPORTS_DRAW_MESH_EVENTS))

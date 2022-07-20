@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "HAL/Platform.h"
 #include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Templates/Function.h"
 
+class UClass;
 class UInteractiveTool;
 
 

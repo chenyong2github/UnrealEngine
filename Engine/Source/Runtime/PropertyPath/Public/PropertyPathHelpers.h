@@ -2,11 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyTypeCompatibility.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealType.h"
+
 #include "PropertyPathHelpers.generated.h"
+
+class FArchive;
+template <typename FuncType> class TFunctionRef;
 
 /** Base class for cached property path segments */
 USTRUCT()
@@ -213,6 +227,7 @@ namespace PropertyPathHelpersInternal
 	struct FPropertyPathResolver;
 	template<typename T> struct FInternalGetterResolver;
 	template<typename T> struct FInternalSetterResolver;
+
 	PROPERTYPATH_API bool ResolvePropertyPath(UObject* InContainer, const FString& InPropertyPath, FPropertyPathResolver& InResolver);
 	PROPERTYPATH_API bool ResolvePropertyPath(UObject* InContainer, const FCachedPropertyPath& InPropertyPath, FPropertyPathResolver& InResolver);
 	PROPERTYPATH_API bool ResolvePropertyPath(void* InContainer, UStruct* InStruct, const FString& InPropertyPath, FPropertyPathResolver& InResolver);

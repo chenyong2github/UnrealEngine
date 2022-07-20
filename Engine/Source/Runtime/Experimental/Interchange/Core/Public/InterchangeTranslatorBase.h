@@ -2,14 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "CoreTypes.h"
+#include "InterchangeResult.h"
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
+#include "Misc/AssertionMacros.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeTranslatorBase.generated.h"
+
+class UInterchangeBaseNodeContainer;
 
 UENUM(BlueprintType)
 enum class EInterchangeTranslatorType : uint8

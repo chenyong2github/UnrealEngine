@@ -2,13 +2,28 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "InteractiveToolManager.h"
+#include "Delegates/Delegate.h"
 #include "InteractiveGizmoManager.h"
+#include "InteractiveTool.h"
+#include "InteractiveToolManager.h"
+#include "Templates/Function.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InteractiveToolsContext.generated.h"
 
-class UToolTargetManager;
+class FText;
+class IToolsContextQueriesAPI;
+class IToolsContextTransactionsAPI;
 class UContextObjectStore;
+class UInputRouter;
+class UInteractiveGizmoManager;
+class UToolTargetManager;
 
 
 /**

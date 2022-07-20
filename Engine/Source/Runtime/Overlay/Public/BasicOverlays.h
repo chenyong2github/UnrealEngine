@@ -3,14 +3,19 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
+#include "CoreTypes.h"
+#include "Misc/Timespan.h"
 #include "Overlays.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "BasicOverlays.generated.h"
 
 class UAssetImportData;
+class UObject;
 
 /**
  * Implements an asset that contains a set of overlay data (which includes timing, text, and position) to be displayed for any

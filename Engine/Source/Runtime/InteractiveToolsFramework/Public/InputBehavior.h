@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "InputState.h"
 #include "Math/NumericLimits.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InputBehavior.generated.h"
 
 

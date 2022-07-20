@@ -2,17 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-
+#include "CoreTypes.h"
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkTypes.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkSourceSettings.generated.h"
+
+class FArchive;
+class FProperty;
+class ULiveLinkSourceFactory;
 
 UENUM()
 enum class ELiveLinkSourceMode : uint8

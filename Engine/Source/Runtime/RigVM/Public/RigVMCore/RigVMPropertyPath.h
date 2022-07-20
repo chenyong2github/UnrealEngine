@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
 #include "UObject/UnrealType.h"
+
+class FProperty;
 
 /**
  * The RigVMPropertyPathDescription is used to provide all of the information

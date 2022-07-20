@@ -1,11 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/CADKernelArchive.h"
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/Curves/SurfacicCurve.h"
+#include "CADKernel/Geo/GeoEnum.h"
+#include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/SurfacicPolyline.h"
+#include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Math/MatrixH.h"
+#include "CADKernel/Math/Point.h"
+#include "CADKernel/Utils/IndexOfCoordinateFinder.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
+	class FCurve;
+	class FEntityGeom;
+
 	/**
 	 * A restriction curve is the curve carrying an edge
 	 *

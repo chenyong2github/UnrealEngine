@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "Templates/Atomic.h"
 
 #ifndef USE_ATOMIC_PLATFORM_FILE

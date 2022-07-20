@@ -3,10 +3,22 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementId.h"
+#include "Elements/Framework/TypedElementLimits.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 #include "Elements/Framework/TypedElementListProxy.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TypedElementSelectionInterface.generated.h"
+
+class UObject;
+struct FFrame;
 
 UENUM()
 enum class ETypedElementSelectionMethod : uint8

@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
+#include "LiveLinkTypes.h"
 #include "Roles/LiveLinkTransformRole.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "LiveLinkLightRole.generated.h"
+
+class UObject;
+class UScriptStruct;
 
 /**
  * Role associated for Light data.

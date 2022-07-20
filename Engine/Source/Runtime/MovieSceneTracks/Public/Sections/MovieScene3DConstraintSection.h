@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
 #include "Curves/KeyHandle.h"
-#include "MovieSceneSection.h"
+#include "Misc/Guid.h"
 #include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieScene3DConstraintSection.generated.h"
+
+class IMovieScenePlayer;
+class UObject;
+struct FFrame;
+struct FMovieSceneSequenceHierarchy;
+struct FMovieSceneSequenceID;
 
 
 /**

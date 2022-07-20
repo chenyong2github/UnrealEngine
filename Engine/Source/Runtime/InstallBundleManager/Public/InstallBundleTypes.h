@@ -2,8 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/EnumRange.h"
+#include "UObject/NameTypes.h"
 
 #if !defined(WITH_PLATFORM_INSTALL_BUNDLE_SOURCE)
 	#define WITH_PLATFORM_INSTALL_BUNDLE_SOURCE 0

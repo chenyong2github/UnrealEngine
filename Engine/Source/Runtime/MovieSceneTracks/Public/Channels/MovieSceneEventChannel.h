@@ -2,13 +2,23 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Curves/KeyHandle.h"
-#include "Channels/MovieSceneEvent.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "Channels/MovieSceneChannelTraits.h"
+#include "Channels/MovieSceneEvent.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneEventChannel.generated.h"
+
+struct FFrameRate;
+struct FKeyHandle;
 
 
 USTRUCT()

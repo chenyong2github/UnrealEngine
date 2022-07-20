@@ -2,27 +2,59 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/StringConv.h"
+#include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Stats/Stats.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/UnrealMemory.h"
+#include "IO/IoContainerId.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/BigInt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AES.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/CompressionFlags.h"
+#include "Misc/DateTime.h"
+#include "Misc/Guid.h"
+#include "Misc/IEngineCrypto.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
-#include "Templates/UniquePtr.h"
-#include "Math/BigInt.h"
-#include "Misc/AES.h"
-#include "RSA.h"
 #include "Misc/SecureHash.h"
-#include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "RSA.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryImage.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
-#include "IO/IoContainerId.h"
-#include "Containers/Ticker.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class FChunkCacheWorker;
-class IAsyncReadFileHandle;
 class FFileIoStore;
 class FFilePackageStoreBackend;
+class FOutputDevice;
+class IAsyncReadFileHandle;
+class IMappedFileHandle;
 struct FIoContainerHeader;
 
 PAKFILE_API DECLARE_LOG_CATEGORY_EXTERN(LogPakFile, Log, All);
@@ -1623,6 +1655,7 @@ private:
 
 	/** Helper class to read IndexSettings from project delegate and commandline */
 	struct FIndexSettings;
+
 	static FIndexSettings& GetIndexSettings();
 
 	/**

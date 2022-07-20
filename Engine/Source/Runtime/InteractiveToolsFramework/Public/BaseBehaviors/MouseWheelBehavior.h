@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
-
-//#include "BehaviorTargetInterfaces.h"
+#include "CoreMinimal.h"
+#include "InputBehavior.h"
 #include "InputBehaviorModifierStates.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MouseWheelBehavior.generated.h"
+
+class IMouseWheelBehaviorTarget;
+class UObject;
+struct FInputDeviceState;
 
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UMouseWheelInputBehavior : public UAnyButtonInputBehavior

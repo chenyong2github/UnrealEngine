@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "Logging/MessageLog.h"

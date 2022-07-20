@@ -3,12 +3,22 @@
 #pragma once
 
 
-// Includes
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Net/Core/Connection/EscalationStates.h"
 #include "Net/Core/Connection/NetCloseResult.h"
 #include "Net/Core/Connection/NetResultManager.h"
-#include "Net/Core/Connection/EscalationStates.h"
+#include "Net/Core/Connection/StateStruct.h"
+#include "Templates/PimplPtr.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
 
 #include "NetConnectionFaultRecoveryBase.generated.h"
+
+class UClass;
 
 // Forward declarations
 namespace UE
@@ -16,6 +26,7 @@ namespace UE
 	namespace Net
 	{
 		class FNetConnectionFaultRecovery;
+		struct FNetResult;
 	}
 }
 

@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
 
 namespace EIPv4SubnetClasses
 {

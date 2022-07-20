@@ -5,8 +5,9 @@
 #include "CoreTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicPointSet3.h"
-#include "PointSetAdapter.h"
+#include "Math/Transform.h"
 #include "MeshAdapter.h"
+#include "PointSetAdapter.h"
 
 /**
  * Utility functions for constructing various PointSetAdapter and MeshAdapter instances from dynamic meshes
@@ -15,6 +16,8 @@ namespace UE
 {
 namespace Geometry
 {
+	class FDynamicMesh3;
+
 	/**
 	 * @return Transformed adapter of a FDynamicMesh
 	 */

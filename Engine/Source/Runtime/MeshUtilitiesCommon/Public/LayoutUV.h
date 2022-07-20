@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MeshUtilitiesCommon.h"
 #include "Allocator2D.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "MeshUtilitiesCommon.h"
+
+template <typename T> class TAtomic;
 
 struct FMeshChart
 {

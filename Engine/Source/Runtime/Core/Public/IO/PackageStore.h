@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "PackageId.h"

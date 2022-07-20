@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "XRLoadingScreenBase.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IStereoLayers.h"
+#include "IXRLoadingScreen.h"
+#include "XRLoadingScreenBase.h"
+
+class IStereoLayers;
 
 /**
  * Default Loading Screen implementation based on the IStereoLayer interface.

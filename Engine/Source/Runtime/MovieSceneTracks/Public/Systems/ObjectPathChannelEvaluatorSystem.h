@@ -3,7 +3,12 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntitySystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ObjectPathChannelEvaluatorSystem.generated.h"
+
+class UObject;
 
 /**
  * System that is responsible for evaluating object path channels.

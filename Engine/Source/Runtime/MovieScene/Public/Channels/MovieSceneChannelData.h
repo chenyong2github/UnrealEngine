@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannel.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "CoreTypes.h"
 #include "Curves/KeyHandle.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameTime.h"
-#include "Channels/MovieSceneChannel.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneChannelData.generated.h"
 
 struct FFrameRate;

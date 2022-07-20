@@ -6,9 +6,11 @@
 #include "Containers/ArrayView.h"
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "Misc/MemStack.h"
 #include "Templates/Function.h"
+#include "Templates/Tuple.h"
 
 /* A collection of distance metrics between two values of the same type */
 namespace RBFDistanceMetric

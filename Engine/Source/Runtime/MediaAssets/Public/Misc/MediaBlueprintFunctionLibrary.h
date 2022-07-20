@@ -3,10 +3,18 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/EnumClassFlags.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MediaBlueprintFunctionLibrary.generated.h"
+
+class UObject;
+struct FFrame;
 
 
 /**

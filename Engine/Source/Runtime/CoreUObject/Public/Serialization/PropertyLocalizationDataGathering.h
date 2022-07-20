@@ -2,10 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
-#include "Internationalization/TextKey.h"
+#include "HAL/Platform.h"
 #include "Internationalization/GatherableTextData.h"
+#include "Internationalization/TextKey.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+
+class FProperty;
+class FText;
+class UClass;
+class UFunction;
+class UObject;
+class UPackage;
+class UScriptStruct;
+class UStruct;
+struct FGatherableTextData;
 
 enum class EPropertyLocalizationGathererTextFlags : uint8
 {

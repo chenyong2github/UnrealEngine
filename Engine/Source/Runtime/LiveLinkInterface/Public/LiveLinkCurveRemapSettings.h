@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
 #include "LiveLinkSourceSettings.h"
-#include "LiveLinkCurveRemapSettings.generated.h" 
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
+#include "LiveLinkCurveRemapSettings.generated.h"
+
+class FString;
+class UObject;
 class UPoseAsset;
+struct FSoftObjectPath;
 
 USTRUCT(BlueprintType)
 struct FLiveLinkCurveConversionSettings

@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
 #include "Misc/Guid.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/StructuredArchiveAdapters.h"
 #include "Templates/DontCopy.h"
+
+class FArchive;
 
 enum
 {

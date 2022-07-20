@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "Algo/Find.h"
-#include "Stats/Stats.h"
-#include "Misc/EnumClassFlags.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "HAL/CriticalSection.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/UnrealTemplate.h"
+
+#include <initializer_list>
+
+namespace UE { namespace MovieScene { class FEntityManager; } }
 
 #ifndef UE_MOVIESCENE_ENTITY_DEBUG
 	#define UE_MOVIESCENE_ENTITY_DEBUG !UE_BUILD_SHIPPING
@@ -20,12 +32,11 @@ namespace UE
 namespace MovieScene
 {
 
-template<typename T> struct TComponentLock;
-
 struct FReadErased;
 struct FReadErasedOptional;
 struct FWriteErased;
 struct FWriteErasedOptional;
+template<typename T> struct TComponentLock;
 template<typename T> struct TRead;
 template<typename T> struct TReadOptional;
 template<typename T> struct TWrite;

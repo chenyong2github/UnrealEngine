@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
 #include "Serialization/ArchiveUObject.h"
+#include "UObject/ObjectMacros.h"
+
+class FArchive;
+class FProperty;
+class UObject;
 
 struct FTraceRouteRecord
 {

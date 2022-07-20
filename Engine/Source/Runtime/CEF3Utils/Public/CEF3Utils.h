@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 #if WITH_CEF3
 namespace CEF3Utils

@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "Containers/ArrayView.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "HAL/Platform.h"
 #include "Templates/Tuple.h"
 #include "Templates/TypeCompatibleBytes.h"
-#include "Async/TaskGraphInterfaces.h"
-
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneDecompositionQuery.generated.h"
+
+class UObject;
 
 namespace UE
 {

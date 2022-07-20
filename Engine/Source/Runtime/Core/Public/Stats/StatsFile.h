@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/IDelegateInstance.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Internationalization/Text.h"

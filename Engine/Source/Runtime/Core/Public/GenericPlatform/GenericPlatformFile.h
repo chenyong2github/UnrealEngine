@@ -7,12 +7,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/Function.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/DateTime.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
 
+class FArchive;
 class IAsyncReadFileHandle;
 class IMappedFileHandle;
 

@@ -4,6 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "DatasmithDefinitions.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 
 class IDatasmithMaterialExpression;
 class IDatasmithMaterialExpressionTexture;

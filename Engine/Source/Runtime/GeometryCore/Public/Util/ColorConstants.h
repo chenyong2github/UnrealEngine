@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Math/Color.h"
 #include "MathUtil.h"
 

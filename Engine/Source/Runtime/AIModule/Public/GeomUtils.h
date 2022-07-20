@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 

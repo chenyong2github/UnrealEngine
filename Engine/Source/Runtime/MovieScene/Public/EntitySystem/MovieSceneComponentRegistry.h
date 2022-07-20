@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "EntitySystem/MovieSceneComponentTypeInfo.h"
 #include "EntitySystem/MovieSceneEntityFactory.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "HAL/Platform.h"
 #include "Misc/GeneratedTypeName.h"
+
+class UScriptStruct;
 
 namespace UE
 {

@@ -2,10 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "IAnalyticsSessionSummarySender.h"
+#include "Templates/Function.h"
 
 class IAnalyticsProviderET;
+struct FAnalyticsEventAttribute;
 
 /**
  * Sends the analytics session summary to Epic Games analytics service.

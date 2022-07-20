@@ -5,6 +5,8 @@
 #include "Containers/LockFreeList.h"
 #include "CoreTypes.h"
 
+#include <atomic>
+
 template <class T, int TPaddingForCacheContention> class TLockFreePointerListUnordered;
 
 /**

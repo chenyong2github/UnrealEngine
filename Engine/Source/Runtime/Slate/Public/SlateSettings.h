@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SlateSettings.generated.h"
 
 /**

@@ -2,8 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Chaos/Core.h"
+#include "Chaos/Real.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
 
 // Disable Optimizations in non debug build configurations
 #define VEHICLE_DEBUGGING_ENABLED 0

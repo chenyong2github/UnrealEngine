@@ -2,12 +2,28 @@
 
 #pragma once
 
+#include "AudioMixerNullDevice.h"
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Features/IModularFeatures.h"
-#include "ISoundfieldFormat.h"
+#include "CoreTypes.h"
 #include "DSP/MultithreadedPatching.h"
+#include "Features/IModularFeatures.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "ISoundfieldFormat.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ISoundfieldEndpoint.generated.h"
+
+class UClass;
+struct FAudioPluginInitializationParams;
+template <typename FuncType> class TFunctionRef;
 
 
 /**

@@ -6,9 +6,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
+class FArchive;
+class FObjectPreSaveContext;
+class FString;
 
 /**
  * This class will redirect an object load to another object, so if an object is renamed

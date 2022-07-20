@@ -6,12 +6,30 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Stats/StatsCommon.h"
+#include "Trace/Detail/Channel.h"
+#include "Trace/Detail/Channel.inl"
+#include "Trace/Trace.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/UObjectBase.h"
+#include "UObject/ObjectVersion.h"
 #include "UObject/UObjectArray.h"
+#include "UObject/UObjectBase.h"
 #include "UObject/UObjectMarks.h"
+
+class UClass;
+class UObject;
+class UPackage;
+struct FGuid;
 
 #if defined(_MSC_VER) && _MSC_VER == 1900
 	#ifdef PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS

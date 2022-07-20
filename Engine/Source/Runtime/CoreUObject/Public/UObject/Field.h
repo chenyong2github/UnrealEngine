@@ -6,27 +6,55 @@ Field.h: Declares FField property system fundamentals
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Script.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Text.h"
 #include "Math/RandomStream.h"
-#include "UObject/GarbageCollection.h"
-#include "UObject/CoreNative.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/EnableIf.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
-#include "Misc/Optional.h"
-#include "Misc/EnumClassFlags.h"
-#include "Misc/CoreMiscDefines.h"
-#include "HAL/ThreadSafeCounter.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/CoreNative.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/PersistentObjectPtr.h"
+#include "UObject/Script.h"
+#include "UObject/SparseDelegate.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
 
 #include <type_traits>
 
-class FProperty;
 class FField;
 class FFieldVariant;
+class FProperty;
+class FReferenceCollector;
+class UClass;
+class UField;
+class UPackage;
+class UStruct;
 
 /**
   * Object representing a type of an FField struct. 
@@ -221,10 +249,10 @@ FFieldClass* TClass::StaticClass() \
 	return &StaticFieldClass; \
 } \
 
-class FProperty;
 class FField;
-class UObject;
 class FLinkerLoad;
+class FProperty;
+class UObject;
 
 /**
  * Special container that can hold either UObject or FField.

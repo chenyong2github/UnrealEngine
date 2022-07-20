@@ -2,18 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
 #include "Camera/CameraShakeBase.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Internationalization/Text.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneNameableTrack.h"
-#include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "MovieSceneSection.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCameraShakeSourceShakeTrack.generated.h"
 
+class UCameraShakeBase;
+class UCameraShakeSourceComponent;
+class UObject;
+struct FFrameNumber;
 struct FMovieSceneEvaluationTrack;
 struct FMovieSceneSegmentCompilerRules;
-class UCameraShakeSourceComponent;
 
 /**
  * 

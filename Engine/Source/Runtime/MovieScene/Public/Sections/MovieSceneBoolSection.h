@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneSection.h"
 #include "Channels/MovieSceneBoolChannel.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneBoolSection.generated.h"
+
+class FArchive;
+class UObject;
 
 /**
  * A single bool section.

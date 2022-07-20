@@ -6,12 +6,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "UObject/Object.h"
 #include "Misc/Guid.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
 #include "UObject/PersistentObjectPtr.h"
+
+template <typename T> struct TIsPODType;
+template <typename T> struct TIsWeakPointerType;
 
 /**
  * Wrapper structure for a GUID that uniquely identifies a UObject

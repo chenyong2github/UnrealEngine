@@ -3,16 +3,17 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "HAL/Platform.h"
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FEntityAllocation;
-
 class FEntityManager;
+struct FEntityAllocation;
 
 /** Signifies whether any caches held for the current cached result are still up to date, or whether they should be updated */
 enum class ECachedEntityManagerState

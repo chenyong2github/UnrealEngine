@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 
 
 /*

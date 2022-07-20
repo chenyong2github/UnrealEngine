@@ -2,17 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
-#include "Templates/SubclassOf.h"
-#include "Containers/ArrayView.h"
-#include "Templates/UniquePtr.h"
-#include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementCounter.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementLimits.h"
 #include "Elements/Framework/TypedElementListFwd.h"
+#include "HAL/Platform.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class UInterface;
+class UObject;
 class UTypedElementRegistry;
+struct FTypedElementId;
 
 namespace TypedElementList_Private
 {

@@ -2,14 +2,22 @@
 
 #pragma once
 
-#include "Types/AttributeStorage.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Optional.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeUserDefinedAttribute.generated.h"
+
+struct FFrame;
 
 USTRUCT(BlueprintType)
 struct FInterchangeUserDefinedAttributeInfo

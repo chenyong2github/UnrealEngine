@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-
-#include "MeshShapeGenerator.h"
-#include "Generators/SweepGenerator.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Generators/SweepGenerator.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "MeshShapeGenerator.h"
 
 namespace UE
 {

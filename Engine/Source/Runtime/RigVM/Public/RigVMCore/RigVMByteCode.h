@@ -2,14 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "RigVMCore/RigVMMemoryCommon.h"
 #include "RigVMDefines.h"
+#include "RigVMMemoryDeprecated.h"
 #include "RigVMRegistry.h"
 #include "RigVMStatistics.h"
-#include "RigVMMemoryDeprecated.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
 
 #include "RigVMByteCode.generated.h"
 
+class FArchive;
+class UObject;
 struct FRigVMByteCode;
 
 // The code for a single operation within the RigVM

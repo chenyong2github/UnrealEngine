@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "Math/UnrealMathSSE.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
 

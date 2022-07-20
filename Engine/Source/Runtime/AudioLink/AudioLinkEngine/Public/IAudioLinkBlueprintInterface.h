@@ -3,7 +3,14 @@
 #pragma once
 
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "IAudioLinkBlueprintInterface.generated.h"
+
+class UObject;
+class USoundBase;
+struct FFrame;
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class AUDIOLINKENGINE_API UAudioLinkBlueprintInterface : public UInterface

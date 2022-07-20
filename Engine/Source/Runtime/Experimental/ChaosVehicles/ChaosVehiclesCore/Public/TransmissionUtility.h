@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "SimpleVehicle.h"
+#include "TransmissionSystem.h"
+#include "WheelSystem.h"
 
 namespace Chaos
 {

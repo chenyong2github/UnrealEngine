@@ -2,25 +2,34 @@
 
 #pragma once
 
-#include "UObject/Interface.h"
 #include "Containers/Array.h"
-#include "Misc/InlineValue.h"
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
-#include "Math/Range.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/MovieSceneCompletionMode.h"
+#include "HAL/Platform.h"
+#include "Math/Range.h"
+#include "Misc/Guid.h"
+#include "Misc/InlineValue.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "IMovieSceneEntityProvider.generated.h"
 
 class UClass;
-class UMovieSceneSection;
 class UMovieSceneEntitySystemLinker;
-
-struct FMovieSceneTimeTransform;
+class UMovieSceneSection;
+class UObject;
+struct FFrameNumber;
 struct FMovieSceneEntityComponentFieldBuilder;
 struct FMovieSceneEvaluationFieldEntityMetaData;
 struct FMovieSceneEvaluationFieldSharedEntityMetaData;
+struct FMovieSceneTimeTransform;
+template <typename ElementType> class TRange;
 
 
 namespace UE
@@ -28,10 +37,9 @@ namespace UE
 namespace MovieScene
 {
 
-struct IEntityBuilder;
-struct FEntityImportParams;
-
 class FEntityManager;
+struct FEntityImportParams;
+struct IEntityBuilder;
 
 
 struct FImportedEntity

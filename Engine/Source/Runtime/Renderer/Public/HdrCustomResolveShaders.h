@@ -4,10 +4,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
 #include "GlobalShader.h"
+#include "HAL/Platform.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderCore.h"
 #include "ShaderParameterUtils.h"
+#include "ShaderParameters.h"
+
+class FPointerTableBase;
 
 class FHdrCustomResolveVS : public FGlobalShader
 {

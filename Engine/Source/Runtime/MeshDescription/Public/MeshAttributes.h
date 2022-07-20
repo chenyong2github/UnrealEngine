@@ -2,8 +2,19 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "MeshAttributeArray.h"
 #include "MeshDescription.h"
+#include "UObject/NameTypes.h"
+
+struct FEdgeID;
+struct FPolygonGroupID;
+struct FUVID;
+struct FVertexID;
+struct FVertexInstanceID;
 
 namespace MeshAttribute
 {

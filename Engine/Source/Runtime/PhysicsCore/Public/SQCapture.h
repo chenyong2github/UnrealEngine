@@ -2,29 +2,38 @@
 
 #pragma once
 
-#include "PhysicsInterfaceDeclaresCore.h"
-#include "CoreMinimal.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "ChaosInterfaceWrapperCore.h"
 #include "ChaosSQTypes.h"
-#include "PhysicsInterfaceWrapperShared.h"
+#include "CollisionQueryFilterCallbackCore.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "CoreMinimal.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "PhysXInterfaceWrapperCore.h"
 #include "PhysXPublicCore.h"
 #include "PhysicsInterfaceDeclaresCore.h"
-#include "PhysXInterfaceWrapperCore.h"
-#include "CollisionQueryFilterCallbackCore.h"
-#include "ChaosInterfaceWrapperCore.h"
-#include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+#include "PhysicsInterfaceWrapperShared.h"
+#include "Templates/UniquePtr.h"
 
 class FPhysTestSerializer;
+struct FCollisionFilterData;
 
 namespace ChaosInterface
 {
-	struct FSweepHit;
-	struct FRaycastHit;
 	struct FOverlapHit;
+	struct FRaycastHit;
+	struct FSweepHit;
 }
 
 namespace Chaos
 {
 	class FChaosArchive;
+	class FImplicitObject;
+	class FPerShapeData;
 }
 
 //Allows us to capture a scene query with either physx or chaos and then load it into either format for testing purposes

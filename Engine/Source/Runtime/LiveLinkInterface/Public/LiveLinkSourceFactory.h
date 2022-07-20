@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "LiveLinkSourceFactory.generated.h"
 
-class ILiveLinkSource;
 class ILiveLinkClient;
+class ILiveLinkSource;
 class SWidget;
 
 /**

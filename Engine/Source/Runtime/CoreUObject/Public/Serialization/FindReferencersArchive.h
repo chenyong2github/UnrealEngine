@@ -2,8 +2,20 @@
 
 #pragma once
 
+#include "Algo/BinarySearch.h"
+#include "Algo/Sort.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/ArchiveUObject.h"
+
+class FArchive;
+class UObject;
 
 /*----------------------------------------------------------------------------
 	FFindReferencersArchive.

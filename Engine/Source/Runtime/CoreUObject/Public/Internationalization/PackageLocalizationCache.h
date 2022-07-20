@@ -9,8 +9,9 @@
 #include "Internationalization/IPackageLocalizationCache.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
-#include "UObject/NameTypes.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 class FPackageLocalizationCache;
 

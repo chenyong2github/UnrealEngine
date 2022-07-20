@@ -2,12 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "FileCache/FileCache.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
 #include "Containers/HashTable.h"
-#include "Shader.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "FileCache/FileCache.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "IO/IoDispatcher.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/MemoryReadStream.h"
+#include "Misc/SecureHash.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "Shader.h"
+#include "ShaderCodeLibrary.h"
+#include "Templates/RefCounting.h"
+#include "UObject/NameTypes.h"
 
 // enable visualization in the desktop Development builds only as it has a memory hit and writes files
 #define UE_SCA_VISUALIZE_SHADER_USAGE			(!WITH_EDITOR && UE_BUILD_DEVELOPMENT && PLATFORM_DESKTOP)

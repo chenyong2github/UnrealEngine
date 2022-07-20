@@ -1,16 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/HaveStates.h"
+#include "CADKernel/Core/Types.h"
+#include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/GeoPoint.h"
-#include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
+#include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Curvature.h"
+#include "CADKernel/Math/Point.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
+#include "CADKernel/Utils/Cache.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
+class FCADKernelArchive;
+class FCurve;
+class FDatabase;
+class FModelMesh;
+class FTopologicalVertex;
+struct FSurfacicSampling;
 
 enum class EStatut : uint8
 {
@@ -27,14 +49,13 @@ enum class EQuadType : uint8
 	Other
 };
 
-struct FBBoxWithNormal;
-
-class FGrid;
+class FBezierSurface;
 class FFaceMesh;
+class FGrid;
+class FSegmentCurve;
 class FThinZone;
 class FThinZoneFinder;
-class FBezierSurface;
-class FSegmentCurve;
+struct FBBoxWithNormal;
 
 class CADKERNEL_API FTopologicalFace : public FTopologicalShapeEntity
 {

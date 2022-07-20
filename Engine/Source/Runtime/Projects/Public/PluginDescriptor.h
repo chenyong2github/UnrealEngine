@@ -2,15 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "ModuleDescriptor.h"
 #include "CustomBuildSteps.h"
+#include "HAL/Platform.h"
 #include "LocalizationDescriptor.h"
+#include "ModuleDescriptor.h"
 #include "PluginReferenceDescriptor.h"
+#include "Serialization/JsonWriter.h"
+#include "Templates/SharedPointer.h"
 #include "VerseScope.h"
 
 class FJsonObject;
 class FJsonValue;
+class FText;
 
 /**
  * Setting for whether a plugin is enabled by default

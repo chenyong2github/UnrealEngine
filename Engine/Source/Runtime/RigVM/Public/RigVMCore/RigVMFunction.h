@@ -2,19 +2,30 @@
 
 #pragma once
 
+#include "Blueprint/BlueprintSupport.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "RigVMExecuteContext.h"
 #include "RigVMMemory.h"
 #include "RigVMTypeIndex.h"
-#include "Blueprint/BlueprintSupport.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
+class UScriptStruct;
+struct FRigVMExtendedExecuteContext;
+struct FRigVMMemoryHandle;
 
 typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
 typedef TArrayView<void*> FRigVMUserDataArray;
 
 typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
-struct FRigVMTemplate;
 struct FRigVMDispatchFactory;
+struct FRigVMTemplate;
 
 /**
  * The Pin Direction is used to differentiate different kinds of 

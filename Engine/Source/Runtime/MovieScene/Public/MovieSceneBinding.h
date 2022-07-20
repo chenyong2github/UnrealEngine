@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "MovieSceneTrack.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+
 #include "MovieSceneBinding.generated.h"
 
 class UMovieScene;

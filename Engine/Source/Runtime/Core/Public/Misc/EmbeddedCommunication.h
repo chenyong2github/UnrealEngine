@@ -7,8 +7,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
-#include "Delegates/IDelegateInstance.h"
 #include "Delegates/MulticastDelegateBase.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/Function.h"

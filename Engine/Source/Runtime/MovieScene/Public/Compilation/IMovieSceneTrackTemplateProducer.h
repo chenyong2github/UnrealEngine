@@ -2,19 +2,25 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Misc/Guid.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "IMovieSceneTrackTemplateProducer.generated.h"
+
+class UObject;
 
 enum class EMovieSceneCompletionMode : uint8;
 
+class FArchive;
+class UClass;
+class UMovieSceneSection;
+class UMovieSceneTrack;
 struct FMovieSceneEvalTemplatePtr;
 struct FMovieSceneEvaluationTrack;
 struct IMovieSceneTemplateGenerator;
-
-class UClass;
-class FArchive;
-class UMovieSceneTrack;
-class UMovieSceneSection;
 
 
 /** Track compiler arguments */

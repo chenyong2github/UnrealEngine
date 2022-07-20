@@ -6,9 +6,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class Error;
+class FText;
 class FTokenizedMessage;
 
 /**

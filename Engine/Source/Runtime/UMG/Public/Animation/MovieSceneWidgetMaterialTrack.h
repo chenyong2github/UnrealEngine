@@ -2,10 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "Internationalization/Text.h"
+#include "Sections/MovieSceneParameterSection.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneWidgetMaterialTrack.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UMovieSceneSection;
+class UObject;
+struct FFrameNumber;
+struct FMovieSceneEntityComponentFieldBuilder;
+struct FMovieSceneEvaluationFieldEntityMetaData;
+template <typename ElementType> class TRange;
 
 /**
  * A material track which is specialized for materials which are owned by widget brushes.

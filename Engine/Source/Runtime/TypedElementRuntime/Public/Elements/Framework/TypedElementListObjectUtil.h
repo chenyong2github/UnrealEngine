@@ -2,7 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementListFwd.h"
+#include "HAL/Platform.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+
+class UClass;
+class UObject;
 
 namespace TypedElementListObjectUtil
 {

@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "Misc/CoreDefines.h"
 #include "Containers/Array.h"
-#include "Misc/FrameNumber.h"
-#include "Math/Range.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
-#include "Evaluation/MovieSceneSegment.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "HAL/Platform.h"
+#include "Math/NumericLimits.h"
+#include "Math/Range.h"
+#include "Misc/CoreDefines.h"
+#include "Misc/FrameNumber.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "MovieSceneTrackEvaluationField.generated.h"
 
-class UMovieSceneTrack;
 class UMovieSceneSection;
+class UMovieSceneTrack;
 
 USTRUCT()
 struct FMovieSceneTrackEvaluationFieldEntry

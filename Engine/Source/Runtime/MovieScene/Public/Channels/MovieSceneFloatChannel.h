@@ -2,19 +2,37 @@
 
 #pragma once
 
+#include "Channels/MovieSceneChannelEditorData.h"
 #include "Channels/MovieSceneCurveChannelCommon.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/EnumAsByte.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RealCurve.h"
 #include "Curves/RichCurve.h"
+#include "HAL/PlatformCrt.h"
 #include "KeyParams.h"
+#include "Math/Range.h"
 #include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
 #include "MovieSceneChannel.h"
 #include "MovieSceneChannelData.h"
 #include "MovieSceneChannelTraits.h"
+#include "Serialization/StructuredArchive.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
 
 #include "MovieSceneFloatChannel.generated.h"
 
-
+class FArchive;
+struct FPropertyTag;
 template<typename> struct TMovieSceneCurveChannelImpl;
+template <typename T> struct TIsPODType;
 
 
 USTRUCT()

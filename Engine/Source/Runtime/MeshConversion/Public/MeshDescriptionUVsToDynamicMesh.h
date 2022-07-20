@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GeometryBase.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
 struct FMeshDescription;
 

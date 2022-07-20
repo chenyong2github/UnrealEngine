@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Field/FieldSystem.h"
 #include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemNodes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FieldSystemAsset.generated.h"
+
+class FArchive;
 
 
 UCLASS()

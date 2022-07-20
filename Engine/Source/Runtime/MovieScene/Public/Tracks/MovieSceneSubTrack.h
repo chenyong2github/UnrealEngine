@@ -2,14 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneNameableTrack.h"
+#include "MovieSceneSection.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSubTrack.generated.h"
 
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
+class UObject;
 struct FMovieSceneSegmentCompilerRules;
 
 /**

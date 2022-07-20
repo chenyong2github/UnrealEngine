@@ -3,12 +3,26 @@
 #pragma once
 
 #include "Camera/CameraShakeBase.h"
-#include "CoreTypes.h"
-#include "Curves/KeyHandle.h"
+#include "Camera/CameraTypes.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Math/Range.h"
+#include "Math/Rotator.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneCameraShakeSourceTriggerChannel.generated.h"
+
+class UCameraShakeBase;
+struct FFrameRate;
+struct FKeyHandle;
 
 USTRUCT(BlueprintType)
 struct FMovieSceneCameraShakeSourceTrigger

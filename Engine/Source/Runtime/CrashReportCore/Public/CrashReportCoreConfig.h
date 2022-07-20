@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
 
 // FORCE_CRASH_REPORT_UNATTENDED can be added to target.cs or UBT commandline in order to set CRASH_REPORT_UNATTENDED_ONLY
 // It should not be defined in code other than when undefined to please IntelliSense.

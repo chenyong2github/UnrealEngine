@@ -2,20 +2,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "VectorTypes.h"
-#include "SphereTypes.h"
+#include "BoxTypes.h"
 #include "CapsuleTypes.h"
-#include "OrientedBoxTypes.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
 #include "HalfspaceTypes.h"
 #include "Implicit/GridInterpolant.h"
+#include "IntVectorTypes.h"
 #include "Intersection/IntersectionQueries3.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "OrientedBoxTypes.h"
+#include "SphereTypes.h"
+#include "Templates/UnrealTemplate.h"
+#include "VectorTypes.h"
 
 
 namespace UE
 {
+	namespace Math { template <typename T> struct TTransform; }
+
 	namespace Geometry
 	{
+		template <class GridType> class TTriLinearGridInterpolant;
+		template <typename T> struct TCapsule3;
+		template <typename T> struct THalfspace3;
+		template <typename T> struct TSphere3;
 		//
 		// Sphere Containment Queries
 		//

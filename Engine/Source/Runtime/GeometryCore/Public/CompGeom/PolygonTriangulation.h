@@ -2,8 +2,15 @@
 
 #pragma once
 
-#include "VectorTypes.h"
+#include "Containers/Array.h"
+#include "GeometryBase.h"
 #include "IndexTypes.h"
+#include "Math/MathFwd.h"
+#include "VectorTypes.h"
+
+namespace UE { namespace Geometry { struct FIndex3i; } }
+namespace UE { namespace Math { template <typename T> struct TVector2; } }
+namespace UE { namespace Math { template <typename T> struct TVector; } }
 
 namespace PolygonTriangulation
 {

@@ -2,11 +2,19 @@
 
 #pragma once
 
-// Includes
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/Class.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnum.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 
 namespace UE

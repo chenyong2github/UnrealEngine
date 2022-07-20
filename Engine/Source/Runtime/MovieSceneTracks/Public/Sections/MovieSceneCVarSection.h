@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCVarSection.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
+struct FFrame;
 
 USTRUCT()
 struct FMovieSceneCVarOverrides

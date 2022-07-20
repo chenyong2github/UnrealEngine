@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "HAL/IConsoleManager.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/IsFloatingPoint.h"
+#include "Templates/UnrealTypeTraits.h"
 
+class FAutoConsoleVariableRef;
+class FFeedbackContext;
+class FOutputDeviceConsole;
+class FOutputDeviceError;
 class IPlatformInputDeviceMapper;
 
 /**

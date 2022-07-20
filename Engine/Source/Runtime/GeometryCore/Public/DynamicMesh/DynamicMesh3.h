@@ -5,13 +5,25 @@
 #pragma once
 
 #include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "FrameTypes.h"
 #include "GeometryTypes.h"
 #include "HAL/Platform.h"
 #include "IndexTypes.h"
 #include "InfoTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
 #include "MathUtil.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
 #include "Quaternion.h"
+#include "Serialization/Archive.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "Util/CompactMaps.h"
 #include "Util/DynamicVector.h"
 #include "Util/IndexUtil.h"
@@ -21,13 +33,17 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
+#include <atomic>
+#include <initializer_list>
+
 namespace UE
 {
 namespace Geometry
 {
 
-class FMeshShapeGenerator;
+class FCompactMaps;
 class FDynamicMeshAttributeSet;
+class FMeshShapeGenerator;
 
 enum class EMeshComponents : uint8
 {

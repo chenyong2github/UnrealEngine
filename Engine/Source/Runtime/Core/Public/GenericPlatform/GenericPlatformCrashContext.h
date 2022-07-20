@@ -2,14 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformStackWalk.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Optional.h"
-#include "Containers/UnrealString.h"
+#include "Misc/Timespan.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+
+struct FDateTime;
+struct FGuid;
+struct FScopedAdditionalCrashContextProvider;
 
 #ifndef WITH_ADDITIONAL_CRASH_CONTEXTS
 #define WITH_ADDITIONAL_CRASH_CONTEXTS 1

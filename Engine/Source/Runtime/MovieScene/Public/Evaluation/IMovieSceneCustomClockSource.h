@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "UObject/Interface.h"
+#include "Misc/FrameTime.h"
 #include "MovieSceneTimeController.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
 #include "IMovieSceneCustomClockSource.generated.h"
 
+class UObject;
+struct FFrame;
 struct FQualifiedFrameTime;
 
 UINTERFACE()

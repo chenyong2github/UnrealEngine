@@ -3,14 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GlobalShader.h"
+#include "HAL/PreprocessorHelpers.h"
+#include "Math/Vector4.h"
+#include "PipelineStateCache.h"
 #include "RHI.h"
 #include "RenderResource.h"
+#include "Serialization/MemoryLayout.h"
 #include "Shader.h"
+#include "ShaderParameterMacros.h"
+#include "ShaderParameterMetadata.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterUtils.h"
-#include "ShaderParameterMetadata.h"
-#include "GlobalShader.h"
-#include "PipelineStateCache.h"
+#include "ShaderPermutation.h"
+
+class FPointerTableBase;
+class FRDGTexture;
+struct FShaderCompilerEnvironment;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBinkParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, tex0)

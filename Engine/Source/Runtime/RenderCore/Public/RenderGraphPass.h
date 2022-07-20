@@ -2,9 +2,29 @@
 
 #pragma once
 
-#include "RenderGraphResources.h"
-#include "RenderGraphEvent.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/SortedMap.h"
+#include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "MultiGPU.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RenderGraphAllocator.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderGraphEvent.h"
+#include "RenderGraphParameter.h"
+#include "RenderGraphResources.h"
+#include "ShaderParameterMacros.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/EnableIf.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 
 using FRDGTransitionQueue = TArray<const FRHITransition*, TInlineAllocator<8>>;
 
@@ -625,4 +645,10 @@ private:
 	FEmptyShaderParameters EmptyShaderParameters;
 };
 
-#include "RenderGraphParameters.inl"
+#include "RenderGraphParameters.inl" // IWYU pragma: export
+
+class FRDGBuilder;
+class FRDGPass;
+class FRDGTrace;
+class FRDGUserValidation;
+class FShaderParametersMetadata;

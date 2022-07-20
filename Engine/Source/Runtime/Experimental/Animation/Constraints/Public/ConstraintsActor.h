@@ -3,10 +3,14 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ConstraintsActor.generated.h"
 
 class UConstraintsManager;
+class UObject;
 
 UCLASS(NotPlaceable)
 class CONSTRAINTS_API AConstraintsActor : public AActor

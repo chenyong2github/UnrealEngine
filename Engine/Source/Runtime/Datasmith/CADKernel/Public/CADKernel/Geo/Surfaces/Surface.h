@@ -2,23 +2,30 @@
 #pragma once
 
 #include "CADKernel/Core/CADKernelArchive.h"
+#include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
-
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Utils/Cache.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
 	class FGrid;
 	class FInfoEntity;
 	class FSurfacicPolyline;
-
-	struct FCurvePoint;
 	struct FCurvePoint2D;
+	struct FCurvePoint;
 	struct FSurfacicSampling;
 	struct FNurbsSurfaceData;
 	struct FNurbsSurfaceHomogeneousData;

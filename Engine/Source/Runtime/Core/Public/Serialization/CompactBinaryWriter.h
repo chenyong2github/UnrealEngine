@@ -12,6 +12,8 @@
 #include "Memory/MemoryView.h"
 #include "Serialization/CompactBinary.h"
 
+#include <type_traits>
+
 class FCompositeBuffer;
 class FSharedBuffer;
 

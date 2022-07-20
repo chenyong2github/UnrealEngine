@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 namespace BuildPatchServices
 {

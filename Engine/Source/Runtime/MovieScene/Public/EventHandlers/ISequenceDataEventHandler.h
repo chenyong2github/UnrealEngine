@@ -2,16 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/List.h"
+#include "CoreTypes.h"
 #include "EventHandlers/MovieSceneDataEventContainer.h"
 
+class UMovieScene;
+class UMovieSceneFolder;
+class UMovieSceneTrack;
 struct FGuid;
 struct FMovieSceneBinding;
-
-class UMovieScene;
-class UMovieSceneTrack;
-class UMovieSceneFolder;
 
 namespace UE
 {

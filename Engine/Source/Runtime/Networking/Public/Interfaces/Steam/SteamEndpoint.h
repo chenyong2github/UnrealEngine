@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
 
 /**
  * Implements a Steam endpoint.

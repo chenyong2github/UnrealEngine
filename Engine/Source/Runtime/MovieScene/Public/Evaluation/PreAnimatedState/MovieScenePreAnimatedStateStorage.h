@@ -2,17 +2,33 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTypeTraits.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
-#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
-#include "Evaluation/PreAnimatedState/IMovieScenePreAnimatedStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
+#include "Containers/SparseArray.h"
+#include "CoreTypes.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
-#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/EntityAllocationIterator.h"
+#include "EntitySystem/MovieSceneComponentPtr.h"
+#include "EntitySystem/MovieSceneComponentTypeInfo.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityRange.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Evaluation/PreAnimatedState/IMovieScenePreAnimatedStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
+#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/ObjectKey.h"
 
+class FReferenceCollector;
 class UObject;
 
 namespace UE
@@ -21,6 +37,8 @@ namespace MovieScene
 {
 
 struct FPreAnimatedObjectGroupManager;
+struct FRestoreStateParams;
+struct FRootInstanceHandle;
 
 /**
  * Default task that is provided to BeginTrackingEntitiesTask or CachePreAnimatedValuesTask to constrain

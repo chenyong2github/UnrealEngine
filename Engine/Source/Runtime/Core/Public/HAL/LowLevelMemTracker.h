@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
 #include "ProfilingDebugging/TagTrace.h"
+#include "UObject/UnrealNames.h"
+
+#include <atomic>
 
 #ifndef ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST
 	#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
@@ -381,19 +387,19 @@ namespace UE
 namespace LLMPrivate
 {
 
-	class FTagData;
-	class FTagDataArray;
-	class FTagDataNameMap;
+	class FLLMCsvProfilerWriter;
 	class FLLMCsvWriter;
 	class FLLMThreadState;
 	class FLLMTraceWriter;
-	class FLLMCsvProfilerWriter;
 	class FLLMTracker;
+	class FTagData;
+	class FTagDataArray;
+	class FTagDataNameMap;
 
 	namespace AllocatorPrivate
 	{
-		struct FPage;
 		struct FBin;
+		struct FPage;
 	}
 	/**
 	 * The allocator LLM uses to allocate internal memory. Uses platform defined

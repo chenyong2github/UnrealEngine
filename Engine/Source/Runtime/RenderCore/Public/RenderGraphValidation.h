@@ -2,7 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "HAL/Platform.h"
+#include "RHI.h"
+#include "RenderGraphAllocator.h"
+#include "RenderGraphDefinitions.h"
 #include "RenderGraphPass.h"
+#include "RenderGraphResources.h"
+
+class FRDGBarrierBatchBegin;
+class FRDGBarrierBatchEnd;
+class FRDGEventName;
+class FRDGPass;
+class FShaderParametersMetadata;
+struct IPooledRenderTarget;
+template <typename ReferencedType> class TRefCountPtr;
 
 #if RDG_ENABLE_DEBUG
 

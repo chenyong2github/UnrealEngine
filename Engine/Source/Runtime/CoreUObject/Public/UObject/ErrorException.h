@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Build.h"
 
 #if HACK_HEADER_GENERATOR
-	#include "Templates/IsValidVariadicFunctionArg.h"
 	#include "Templates/AndOrNot.h"
+	#include "Templates/IsValidVariadicFunctionArg.h"
 
 	/** 
 	 * FError

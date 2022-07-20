@@ -1,19 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Algo/Reverse.h"
+#include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Types.h"
-
 #include "CADKernel/Geo/Curves/Curve.h"
+#include "CADKernel/Geo/GeoEnum.h"
+#include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Math/MatrixH.h"
+#include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Display.h"
-
+#include "CADKernel/Utils/IndexOfCoordinateFinder.h"
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "Serialization/Archive.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace CADKernel
 {
 
+class FCurve;
+class FEntityGeom;
 class FInfoEntity;
+class FSurface;
 
 class CADKERNEL_API FSurfacicPolyline
 {

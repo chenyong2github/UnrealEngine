@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
-#include "Detour/DetourNavMeshQuery.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
+#include "Detour/DetourNavMeshQuery.h"
+#include "HAL/Platform.h"
 
 struct dtSharedBoundaryEdge
 {

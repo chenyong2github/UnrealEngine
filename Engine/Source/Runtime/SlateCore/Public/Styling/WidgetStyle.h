@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Color.h"
 
 struct FSlateColor;
 template< typename ObjectType > class TAttribute;

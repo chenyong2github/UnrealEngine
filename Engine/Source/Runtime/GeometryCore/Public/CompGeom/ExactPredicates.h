@@ -5,9 +5,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/MathFwd.h"
 #include "VectorTypes.h"
 
 namespace UE {
+namespace Math { template <typename T> struct TVector2; }
+namespace Math { template <typename T> struct TVector; }
+
 namespace Geometry {
 namespace ExactPredicates {
 

@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/UniquePtr.h"
 #include "Elements/Framework/TypedElementLimits.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Non-templated base class for the interface customization registry.

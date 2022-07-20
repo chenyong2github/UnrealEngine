@@ -7,8 +7,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
+#include "HAL/PlatformTime.h"
+#include "Logging/LogMacros.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
 #include "RHIDefinitions.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRendererCore, Log, All);
 

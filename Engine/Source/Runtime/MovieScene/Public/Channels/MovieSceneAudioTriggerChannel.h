@@ -2,11 +2,25 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
+#include "Channels/MovieSceneChannel.h"
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "Math/Range.h"
 #include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
 #include "MovieSceneChannelData.h"
 #include "MovieSceneChannelTraits.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneAudioTriggerChannel.generated.h"
+
+struct FFrameRate;
+struct FKeyHandle;
 
 struct FMoveSceneAudioTriggerState
 {	

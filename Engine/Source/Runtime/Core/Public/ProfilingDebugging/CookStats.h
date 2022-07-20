@@ -8,8 +8,6 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
-#include "Delegates/IDelegateInstance.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "HAL/ThreadSafeCounter64.h"

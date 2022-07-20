@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Templates/RefCounting.h"
-#include "VideoCommon.h"
 #include "CudaModule.h"
+#include "HAL/Platform.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Templates/Function.h"
+#include "Templates/RefCounting.h"
+#include "Templates/SharedPointer.h"
+#include "VideoCommon.h"
+
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "vulkan/vulkan_core.h"

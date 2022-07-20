@@ -2,17 +2,43 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Features/IModularFeatures.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
+#include "Features/IModularFeatures.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/VectorRegister.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 #include "SampleBuffer.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
+#include "Templates/Casts.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
+#include <initializer_list>
 
 #include "IAudioCodec.generated.h"
+
+template <class TClass> class TSubclassOf;
 
 AUDIOEXTENSIONS_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioCodec, Display, All);
 

@@ -2,16 +2,22 @@
 
 #pragma once
 
-#include "Serialization/StructuredArchive.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/FileRegions.h"
-#include "UObject/ObjectResource.h"
-
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "UObject/LazyObjectPtr.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/ObjectResource.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/SoftObjectPtr.h"
-#include "UObject/LazyObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
+
+struct FObjectPtr;
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 

@@ -5,7 +5,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
 #include "Logging/LogMacros.h"
 
 // The version number used for determining network compatibility. If zero, uses the engine compatible version.

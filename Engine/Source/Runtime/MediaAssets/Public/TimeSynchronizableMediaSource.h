@@ -3,8 +3,15 @@
 #pragma once
 
 #include "BaseMediaSource.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TimeSynchronizableMediaSource.generated.h"
+
+class UObject;
 
 
 namespace TimeSynchronizableMedia

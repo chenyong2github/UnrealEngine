@@ -4,6 +4,8 @@
 
 #include "ICursor.h"
 #include "Math/IntRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 
 // Windows has special needs with RECT, and we don't need this class on Windows anyway, so just skip it
 #if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS

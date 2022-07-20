@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
 #include "Logging/TokenizedMessage.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UObject;
 
 /**
  * A Message Log token that links to an object, with default behavior to link to the object

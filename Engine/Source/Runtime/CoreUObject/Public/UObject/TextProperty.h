@@ -1,10 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
+
+class FOutputDevice;
+class UField;
+class UObject;
+class UStruct;
+struct FPropertyTag;
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FText, FProperty> FTextProperty_Super;

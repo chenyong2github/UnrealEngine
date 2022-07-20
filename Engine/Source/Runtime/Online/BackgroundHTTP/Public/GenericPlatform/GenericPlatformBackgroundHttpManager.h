@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "BackgroundHttpManagerImpl.h"
 #include "Containers/Ticker.h"
-
+#include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformBackgroundHttpRequest.h"
 
 /**

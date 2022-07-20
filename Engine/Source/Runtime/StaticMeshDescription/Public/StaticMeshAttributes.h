@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "MeshAttributeArray.h"
 #include "MeshAttributes.h"
+#include "MeshDescription.h"
+#include "UObject/NameTypes.h"
 
 
 namespace MeshAttribute

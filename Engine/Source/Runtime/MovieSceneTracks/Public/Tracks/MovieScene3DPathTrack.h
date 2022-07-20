@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Tracks/MovieScene3DConstraintTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Internationalization/Text.h"
+#include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSection.h"
+#include "Templates/SubclassOf.h"
+#include "Tracks/MovieScene3DConstraintTrack.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieScene3DPathTrack.generated.h"
+
+class UObject;
+struct FFrameNumber;
 
 /**
  * Handles manipulation of path tracks in a movie scene

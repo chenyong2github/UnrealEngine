@@ -2,10 +2,18 @@
 
 #pragma once 
 #include "Async/Fundamental/TaskDelegate.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/Thread.h"
 #include "Scheduler.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+
+#include <atomic>
 
 namespace LowLevelTasks
 {

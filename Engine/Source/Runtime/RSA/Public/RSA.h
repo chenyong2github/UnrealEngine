@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
-#include "Templates/SharedPointer.h"
 #include "Misc/IEngineCrypto.h"
+#include "Templates/SharedPointer.h"
 
 struct RSA_API FRSA
 {

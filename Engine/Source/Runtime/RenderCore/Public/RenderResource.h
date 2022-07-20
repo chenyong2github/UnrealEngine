@@ -6,13 +6,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/List.h"
-#include "RHI.h"
-#include "RenderCore.h"
-#include "Serialization/MemoryLayout.h"
+#include "Containers/Array.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/List.h"
+#include "Containers/ResourceArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "PixelFormat.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RenderCore.h"
 #include "RenderingThread.h"
+#include "Serialization/MemoryLayout.h"
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;

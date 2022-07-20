@@ -2,17 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "Math/Range.h"
 #include "Misc/FrameTime.h"
-
-struct FMovieSceneContext;
-struct FMovieSceneSequenceID;
-struct FMovieSceneCompiledDataID;
+#include "Templates/UniquePtr.h"
 
 class IMovieScenePlayer;
-class UMovieSceneEntitySystemLinker;
 class UMovieSceneCompiledDataManager;
+class UMovieSceneEntitySystemLinker;
+struct FFrameTime;
+struct FMovieSceneCompiledDataID;
+struct FMovieSceneContext;
+struct FMovieSceneSequenceID;
+template <typename ElementType> class TRange;
 
 namespace UE
 {

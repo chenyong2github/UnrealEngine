@@ -2,8 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "MeshAttributeArray.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 
 /**

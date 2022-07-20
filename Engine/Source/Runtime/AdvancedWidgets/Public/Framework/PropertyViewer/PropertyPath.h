@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
-
+#include "HAL/PlatformCrt.h"
 #include "Misc/TVariant.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/FieldPath.h"
-#include "UObject/StructOnScope.h"
 #include "UObject/Object.h"
+#include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FProperty;
+class UObject;
+class UScriptStruct;
 
 namespace UE::PropertyViewer
 {

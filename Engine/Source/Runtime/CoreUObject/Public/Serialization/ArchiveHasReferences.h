@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
+
+class FArchive;
+class UObject;
 
 class COREUOBJECT_API FArchiveHasReferences : private FArchiveUObject
 {

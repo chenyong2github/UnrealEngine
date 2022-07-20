@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/EnumClassFlags.h"
 #include "Serialization/ArchiveUObject.h"
+
+class UObject;
 
 enum class EReferencerFinderFlags : uint8
 {

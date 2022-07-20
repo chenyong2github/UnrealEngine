@@ -4,31 +4,43 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "EntitySystem/MovieSceneSystemTaskDependencies.h"
-#include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "CoreTypes.h"
 #include "EntitySystem/IMovieScenePropertyComponentHandler.h"
-
-#include "Misc/InlineValue.h"
-#include "Misc/TVariant.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieSceneSystemTaskDependencies.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/GeneratedTypeName.h"
+#include "Misc/InlineValue.h"
+#include "Misc/Optional.h"
+#include "Misc/TVariant.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/IsTriviallyDestructible.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
+
 #include <initializer_list>
 
-struct FMovieScenePropertyBinding;
-
+class FTrackInstancePropertyBindings;
+class UClass;
 class UMovieSceneBlenderSystem;
 class UMovieSceneEntitySystemLinker;
-class FTrackInstancePropertyBindings;
+class UObject;
+struct FMovieScenePropertyBinding;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FPropertyDefinition;
 struct FFloatDecompositionParams;
 struct FPropertyCompositeDefinition;
+struct FPropertyDefinition;
 
 DECLARE_CYCLE_STAT(TEXT("Apply properties"), MovieSceneEval_ApplyProperties,  STATGROUP_MovieSceneECS);
 
@@ -137,8 +149,8 @@ using FResolvedFastProperty = TVariant<uint16, UE::MovieScene::FCustomPropertyIn
 /** Type aliases for a property that resolved to either a fast pointer offset (type index 0), or a custom property index (specific to the path of the property - type index 1) with a fallback to a slow property binding (type index 2) */
 using FResolvedProperty = TVariant<uint16, UE::MovieScene::FCustomPropertyIndex, TSharedPtr<FTrackInstancePropertyBindings>>;
 
-template<typename PropertyTraits> struct TPropertyDefinitionBuilder;
 template<typename PropertyTraits, typename... Composites> struct TCompositePropertyDefinitionBuilder;
+template<typename PropertyTraits> struct TPropertyDefinitionBuilder;
 
 /**
  * Central registry of all property types animatable by sequencer.

@@ -2,20 +2,22 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-
-#include "UObject/ObjectMacros.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkRetargetAsset.generated.h"
 
 class USkeleton;
+struct FBlendedCurve;
+struct FCompactPose;
 struct FLiveLinkAnimationFrameData;
 struct FLiveLinkBaseFrameData;
 struct FLiveLinkBaseStaticData;
 struct FLiveLinkSkeletonStaticData;
-struct FCompactPose;
-struct FBlendedCurve;
 
 // Base class for retargeting live link data. 
 UCLASS(Abstract)

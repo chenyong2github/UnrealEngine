@@ -2,8 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "XmlNode.h"
+
+class FXmlAttribute;
+class FXmlNode;
 
 namespace EConstructMethod
 {

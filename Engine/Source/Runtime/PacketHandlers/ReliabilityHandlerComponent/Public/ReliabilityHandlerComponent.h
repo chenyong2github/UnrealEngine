@@ -2,9 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/Queue.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Net/Common/Packets/PacketTraits.h"
 #include "PacketHandler.h"
+#include "Templates/SharedPointer.h"
+
+class FArchive;
+class FString;
+struct FBitReader;
+struct FBitWriter;
 
 // Symmetric Stream cipher
 class RELIABILITYHANDLERCOMPONENT_API ReliabilityHandlerComponent : public HandlerComponent

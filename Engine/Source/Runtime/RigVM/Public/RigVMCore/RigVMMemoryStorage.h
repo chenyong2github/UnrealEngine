@@ -2,14 +2,35 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "RigVMTraits.h"
-#include "RigVMStatistics.h"
-#include "RigVMMemoryCommon.h"
+#include "CoreTypes.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Misc/AssertionMacros.h"
+#include "RigVMMemoryCommon.h"
 #include "RigVMPropertyPath.h"
+#include "RigVMStatistics.h"
+#include "RigVMTraits.h"
+#include "Templates/Casts.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnum.h"
+#include "Templates/Models.h"
+#include "UObject/Class.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+
 #include "RigVMMemoryStorage.generated.h"
+
+class FArchive;
 
 /**
  * The FRigVMMemoryHandle is used to access the memory used within a URigMemoryStorage.

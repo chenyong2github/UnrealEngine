@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Math/UnrealMath.h"
-#include "Templates/Function.h"
 #include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMath.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Function.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVehicleUtility, Log, All);
 

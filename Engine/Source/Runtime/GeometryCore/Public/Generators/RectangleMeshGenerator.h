@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "IndexTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "MeshShapeGenerator.h"
 #include "Misc/EnumClassFlags.h"
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "RHIDefinitions.h"
 
 class FSceneInterface;

@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AnalyticsEventAttribute.h"
 #include "AnalyticsET.h"
+#include "AnalyticsEventAttribute.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Misc/Guid.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 /** ET specific analytics provider instance. Exposes additional APIs to support Json-based events, default attributes, and allowing events to be disabled (generally via hotfixing). */
 class IAnalyticsProviderET : public IAnalyticsProvider

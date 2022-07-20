@@ -2,12 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ChunkedArray.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "RigVMTypeIndex.h"
-#include "RigVMMemory.h"
-#include "RigVMFunction.h"
-#include "RigVMTemplate.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "RigVMCore/RigVMTraits.h"
 #include "RigVMDispatchFactory.h"
+#include "RigVMFunction.h"
+#include "RigVMMemory.h"
+#include "RigVMTemplate.h"
+#include "RigVMTypeIndex.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsEnum.h"
+#include "Templates/Models.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ReflectedTypeAccessors.h"
+
+class FProperty;
+class UObject;
+struct FRigVMDispatchFactory;
 
 /**
  * The FRigVMRegistry is used to manage all known function pointers

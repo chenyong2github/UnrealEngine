@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Misc/CoreDelegates.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class IPackageLocalizationCache;
 

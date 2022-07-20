@@ -3,8 +3,16 @@
 
 #include "ClothConfig.h"
 #include "ClothConfig_Legacy.h"
+#include "CoreTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ClothConfigNv.generated.h"
+
+class FArchive;
+class UObject;
 
 /** Container for a constraint setup, these can be horizontal, vertical, shear and bend. */
 USTRUCT()

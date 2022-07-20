@@ -23,7 +23,14 @@
 /* Dependencies
  *****************************************************************************/
 
+#include "Containers/ContainersFwd.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
+#include "Math/Float16.h"
+#include "Math/Float16Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 
 /* Types
  *****************************************************************************/

@@ -2,14 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
 #include "Hash/CityHash.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/TVariant.h"
 #include "Online/CoreOnlineFwd.h"
-#include "UObject/ObjectMacros.h"
-
 #include "Online/CoreOnlinePackage.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
 
+class FDefaultSetAllocator;
 class FLazySingleton;
 
 /** Maximum players supported on a given platform */

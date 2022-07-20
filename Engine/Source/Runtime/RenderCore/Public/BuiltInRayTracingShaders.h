@@ -3,8 +3,9 @@
 #pragma once
 
 #include "GlobalShader.h"
-#include "ShaderParameterStruct.h"
+#include "RHIDefinitions.h"
 #include "ShaderParameterMacros.h"
+#include "ShaderParameterStruct.h"
 
 #if RHI_RAYTRACING
 

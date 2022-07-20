@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Channels/MovieSceneFloatChannel.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "MovieSceneSection.h"
 #include "Sections/MovieSceneFloatSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneFadeSection.generated.h"
+
+class UObject;
 
 
 /**

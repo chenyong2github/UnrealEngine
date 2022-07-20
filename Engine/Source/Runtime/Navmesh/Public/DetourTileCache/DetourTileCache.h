@@ -23,8 +23,8 @@
 #define DETOURTILECACHE_H
 
 #include "CoreMinimal.h"
-#include "Detour/DetourStatus.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourStatus.h"
 
 struct dtTileCacheAlloc;
 struct dtTileCacheCompressor;

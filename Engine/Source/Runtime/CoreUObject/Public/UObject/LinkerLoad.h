@@ -2,24 +2,54 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
 #include "Misc/PackagePath.h"
+#include "Serialization/Archive.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveFwd.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/Linker.h"
-#include "UObject/SoftObjectPtr.h"
+#include "UObject/LinkerInstancingContext.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectHandle.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageResourceManager.h"
-#include "UObject/ObjectHandle.h"
+#include "UObject/PersistentObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealNames.h"
 
-class FLinkerPlaceholderBase;
-class IPakFile;
-class ULinkerPlaceholderExportObject;
-struct FScopedSlowTask;
 class FBulkData;
-
-namespace UE{ class FPackageTrailer; }
+class FLinkerLoad;
+class FLinkerPlaceholderBase;
+class FPackageIndex;
+class FStructuredArchiveChildReader;
+class IPakFile;
+class UClass;
+class ULinkerPlaceholderExportObject;
+class UObject;
+class UPackage;
+class UStruct;
 namespace UE::Serialization{ class FEditorBulkData; }
+namespace UE{ class FPackageTrailer; }
+struct FObjectPtr;
+struct FOpenPackageResult;
+struct FScopedSlowTask;
+struct FUObjectSerializeContext;
+template <typename FuncType> class TFunction;
 
 /*----------------------------------------------------------------------------
 	FLinkerLoad.

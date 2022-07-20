@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 
 #include "FlowDirection.generated.h"
 

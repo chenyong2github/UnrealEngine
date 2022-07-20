@@ -2,13 +2,24 @@
 
 #pragma once
 
-#include "MovieSceneFwd.h"
-#include "Evaluation/MovieSceneAnimTypeID.h"
-#include "UObject/ObjectKey.h"
-#include "Misc/InlineValue.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Evaluation/Blending/BlendableToken.h"
 #include "Evaluation/Blending/BlendableTokenStack.h"
-#include "Evaluation/MovieSceneEvaluationScope.h"
 #include "Evaluation/Blending/MovieSceneBlendingActuatorID.h"
+#include "Evaluation/MovieSceneAnimTypeID.h"
+#include "Evaluation/MovieSceneEvaluationScope.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneFwd.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectKey.h"
+
+class IMovieScenePlayer;
+class UObject;
+struct FMovieSceneEvaluationOperand;
 
 /**
  * Container struct that houses all tokens of a single data type that are to be applied using a specific actuator

@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "HAL/Platform.h"
 #include "MovieSceneSequenceID.h"
 
 class IMovieScenePlayer;
-
 struct FMovieSceneSequenceHierarchy;
 
 namespace UE

@@ -6,16 +6,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
-#include "HAL/UnrealMemory.h"
-#include "Containers/Array.h"
-#include "Misc/Crc.h"
-#include "Containers/UnrealString.h"
-#include "Containers/Set.h"
-#include "Containers/Map.h"
-#include "Misc/ScopeLock.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/Crc.h"
+#include "Misc/ScopeLock.h"
 
 #ifndef MALLOC_LEAKDETECTION
 	#define MALLOC_LEAKDETECTION 0

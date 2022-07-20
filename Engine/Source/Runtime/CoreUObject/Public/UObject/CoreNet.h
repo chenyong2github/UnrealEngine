@@ -2,26 +2,48 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/NetworkGuid.h"
 #include "Serialization/BitReader.h"
 #include "Serialization/BitWriter.h"
-#include "Misc/NetworkGuid.h"
-#include "UObject/CoreNetTypes.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Field.h"
-#include "Trace/Config.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Trace/Config.h"
+#include "UObject/Class.h"
+#include "UObject/CoreNetTypes.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-
+class FArchive;
+class FName;
+class FNetTraceCollector;
 // Forward declarations
 class FOutBunch;
+class FOutputDevice;
+class FProperty;
 class INetDeltaBaseState;
-class FNetTraceCollector;
+class UClass;
+class UField;
+class UFunction;
 class UPackageMap;
+class UStruct;
+struct FObjectPtr;
+struct FSoftObjectPath;
+struct FSoftObjectPtr;
 
 namespace UE::Net
 {

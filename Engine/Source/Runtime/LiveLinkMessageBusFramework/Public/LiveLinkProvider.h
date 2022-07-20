@@ -2,10 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
+#include "Math/Transform.h"
+#include "MessageEndpointBuilder.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+class ULiveLinkRole;
 
 /** Delegate called when the connection status of the provider has changed. */
 DECLARE_MULTICAST_DELEGATE(FLiveLinkProviderConnectionStatusChanged);

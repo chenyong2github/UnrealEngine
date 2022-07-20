@@ -8,8 +8,11 @@
 
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMemory.h"
+#include "HAL/PlatformCrt.h"
 
 #include <malloc.h>
+
+class FString;
 
 #ifndef COMPILE_FORK_PAGE_PROTECTOR
 	#define COMPILE_FORK_PAGE_PROTECTOR 0

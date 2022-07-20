@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreMisc.h"
+#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-class ISslManager;
+class FOutputDevice;
 class ISslCertificateManager;
+class ISslManager;
+class UWorld;
 
 /**
  * Module for SSL/TLS certificate management

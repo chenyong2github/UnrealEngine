@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Interface.h"
+#include "CoreTypes.h"
 #include "Fonts/CompositeFont.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "FontFaceInterface.generated.h"
+
+class UObject;
 
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
 class UFontFaceInterface : public UInterface

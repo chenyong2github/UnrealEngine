@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IPv4/IPv4SubnetMask.h"
+#include "Internationalization/Text.h"
+#include "Serialization/Archive.h"
 
 /**
  * Implements an IPv4 address.

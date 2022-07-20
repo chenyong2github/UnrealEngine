@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "UObject/UnrealType.h"
+
+class FArchive;
+class FProperty;
+class FString;
+class UObject;
 
 // A helper struct which owns a single instance of the type pointed to by a property.
 // The instance is properly constructed, destructed and can be serialized and have other

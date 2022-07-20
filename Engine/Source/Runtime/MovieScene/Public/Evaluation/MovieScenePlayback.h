@@ -2,10 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "MovieSceneFwd.h"
-#include "Misc/FrameTime.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "Evaluation/MovieSceneTimeTransform.h"
+#include "Evaluation/MovieSceneTimeWarping.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "MovieSceneFwd.h"
 #include "MovieSceneTimeHelpers.h"
 
 

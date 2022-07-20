@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
 #include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
 

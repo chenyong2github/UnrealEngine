@@ -3,10 +3,14 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/OutputDevice.h"
 #include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/Exec.h"
+#include "Misc/OutputDevice.h"
 #include "Templates/Atomic.h"
+
+class UWorld;
+template <typename T> class TAtomic;
 
 #ifndef UPDATE_MALLOC_STATS
 	#define UPDATE_MALLOC_STATS 1

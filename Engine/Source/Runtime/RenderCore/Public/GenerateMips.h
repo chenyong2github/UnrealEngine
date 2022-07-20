@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "PixelFormat.h"
+#include "RHIDefinitions.h"
 #include "RenderGraphDefinitions.h"
+#include "Templates/SharedPointer.h"
 
+class FRDGBuilder;
+class FRHICommandListImmediate;
+class FRHISamplerState;
+class FRHITexture;
 struct FGenerateMipsStruct;
 
 struct FGenerateMipsParams

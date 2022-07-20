@@ -2,15 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
-#include "Nodes/InterchangeFactoryBaseNode.h"
+#include "HAL/Platform.h"
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
+#include "Misc/AssertionMacros.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangePipelineBase.generated.h"
+
+class FText;
+class UClass;
+class UInterchangeBaseNodeContainer;
+class UInterchangeResult;
+class UInterchangeSourceData;
+struct FFrame;
+template <typename OptionalType> struct TOptional;
 
 UENUM(BlueprintType)
 enum class EInterchangePipelineTask : uint8

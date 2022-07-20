@@ -2,10 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
+#include "DynamicRenderScaling.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "MultiGPU.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "RHI.h"
+#include "RHIBreadcrumbs.h"
+#include "RHICommandList.h"
+#include "RenderGraphAllocator.h"
 #include "RenderGraphDefinitions.h"
 #include "RendererInterface.h"
-#include "ProfilingDebugging/RealtimeGPUProfiler.h"
-#include "DynamicRenderScaling.h"
+#include "Stats/Stats2.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 /** Macros for create render graph event names and scopes.
  *
@@ -258,8 +274,8 @@ private:
 	TRDGScopeStackHelper<ScopeOpType> Helper;
 };
 
-class FRDGPass;
 class FRDGBuilder;
+class FRDGPass;
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -1014,4 +1030,4 @@ struct FRDGCPUScopeStacks
 
 #endif
 
-#include "RenderGraphEvent.inl"
+#include "RenderGraphEvent.inl" // IWYU pragma: export

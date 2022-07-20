@@ -4,13 +4,23 @@
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryState.h"
+#include "Containers/Array.h"
 #include "Containers/List.h"
+#include "HAL/PreprocessorHelpers.h"
+#include "Misc/AssetRegistryInterface.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetRegistryState.h"
-#include "Misc/AssetRegistryInterface.h"
+class FAssetRegistryState;
+class FString;
+class UClass;
+struct FARCompiledFilter;
+struct FARFilter;
+struct FAssetData;
+template <typename FuncType> class TFunctionRef;
 
 /**
  * Interface class for functions that return extra dependencies to add to Assets of a given Class, 

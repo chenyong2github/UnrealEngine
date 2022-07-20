@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/MathFwd.h"
 #include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
 

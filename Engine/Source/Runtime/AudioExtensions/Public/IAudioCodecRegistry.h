@@ -1,14 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Templates/SharedPointer.h"
-
+#include "CoreTypes.h"
 #include "IAudioCodec.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class ICompressedAudioInfo;
 
 namespace Audio
 {
+	struct ICodec;
+	struct IDecoderInput;
+
 	class AUDIOEXTENSIONS_API ICodecRegistry
 	{
 		static TUniquePtr<ICodecRegistry> Instance;

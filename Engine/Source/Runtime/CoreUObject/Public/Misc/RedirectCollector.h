@@ -6,8 +6,19 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UnrealNames.h"
+
+class FArchive;
 
 #if WITH_EDITOR
 

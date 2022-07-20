@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 
 // WITH_CRUNCH=1 is set by the build.cs
 #ifndef WITH_CRUNCH

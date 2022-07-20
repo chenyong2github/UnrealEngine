@@ -4,10 +4,14 @@
 
 #pragma once
 
-#include "Util/DynamicVector.h"
+#include "Containers/Array.h"
+#include "GeometryBase.h"
 #include "IndexTypes.h"
-#include "VectorTypes.h"
 #include "IntVectorTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
+#include "Util/DynamicVector.h"
+#include "VectorTypes.h"
 
 
 namespace IndexUtil

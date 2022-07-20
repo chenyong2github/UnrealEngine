@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CodecPacket.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 //
 // Windows only include

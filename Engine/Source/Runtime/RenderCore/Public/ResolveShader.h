@@ -4,9 +4,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
 #include "GlobalShader.h"
+#include "HAL/Platform.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderCore.h"
+#include "ShaderParameters.h"
+
+class FPointerTableBase;
+class FRHICommandList;
+struct FResolveRect;
 
 struct FDummyResolveParameter {};
 

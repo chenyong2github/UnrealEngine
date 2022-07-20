@@ -7,9 +7,10 @@ ImageCoreUtils.h: Image utility functions.
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ImageCore.h"
 #include "Engine/TextureDefines.h"
+#include "ImageCore.h"
 #include "PixelFormat.h"
+#include "UObject/NameTypes.h"
 
 // ImageCore Module does not use Engine, but it can see TextureDefines
 // do not use Engine functions here

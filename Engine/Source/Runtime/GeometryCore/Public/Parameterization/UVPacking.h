@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "VectorTypes.h"
-#include "IndexTypes.h"
 #include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "IndexTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "VectorTypes.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {

@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
+#include "Templates/SharedPointer.h"
+
+class FArchive;
 
 /**
 * Abstraction that encapsulates the location of a request payload

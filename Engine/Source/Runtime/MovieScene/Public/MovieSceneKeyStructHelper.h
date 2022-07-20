@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTemplate.h"
-#include "Misc/InlineValue.h"
-#include "Containers/ArrayView.h"
-#include "Curves/KeyHandle.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Evaluation/MovieSceneRootOverridePath.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/InlineValue.h"
+#include "Misc/Optional.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 struct FMovieSceneChannelValueHelper;
 

@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "ILiveLinkSource.h"
 #include "LiveLinkTypes.h"
-#include "Misc/Timecode.h"
+#include "Math/Transform.h"
 #include "Misc/FrameRate.h"
+#include "Misc/Timecode.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "LiveLinkAnimationBlueprintStructs.generated.h"
+
+class FString;
 
 USTRUCT(BlueprintType)
 struct FSubjectMetadata

@@ -2,33 +2,40 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreTypes.h"
-#include "Misc/TVariant.h"
-#include "Evaluation/MovieSceneAnimTypeID.h"
-#include "Evaluation/MovieSceneEvaluationKey.h"
-#include "Evaluation/MovieSceneCompletionMode.h"
-#include "Evaluation/IMovieSceneEvaluationHook.h"
-#include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
-#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
+#include "Evaluation/IMovieSceneEvaluationHook.h"
+#include "Evaluation/MovieSceneAnimTypeID.h"
+#include "Evaluation/MovieSceneCompletionMode.h"
+#include "Evaluation/MovieSceneEvaluationKey.h"
+#include "Misc/TVariant.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-
-class UObject;
-class IMovieScenePlayer;
 class FMovieScenePreAnimatedState;
+class IMovieScenePlayer;
+class UClass;
 class UMovieSceneEntitySystemLinker;
-
-struct IMovieScenePreAnimatedTokenProducer;
+class UObject;
+struct FMovieSceneAnimTypeID;
+struct FMovieSceneEvaluationKey;
+struct FMovieSceneSequenceID;
 struct IMovieScenePreAnimatedGlobalTokenProducer;
+struct IMovieScenePreAnimatedTokenProducer;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {
 namespace MovieScene
 {
 
+struct FPreAnimatedEvaluationHookCaptureSources;
 struct FPreAnimatedStateEntry;
 struct FPreAnimatedTemplateCaptureSources;
-struct FPreAnimatedEvaluationHookCaptureSources;
 
 }
 }

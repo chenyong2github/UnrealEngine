@@ -2,29 +2,37 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/SortedMap.h"
-#include "Evaluation/MovieScenePlayback.h"
 #include "Compilation/MovieSceneCompiledDataID.h"
-#include "EntitySystem/MovieSceneEntityManager.h"
+#include "Containers/Array.h"
+#include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Delegates/IDelegateInstance.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityLedger.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
-
-struct FMovieSceneTrackEvaluator;
+#include "Evaluation/MovieScenePlayback.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/UniquePtr.h"
 
 class IMovieScenePlayer;
 class UMovieSceneEntitySystemLinker;
+class UObject;
+struct FFrameTime;
+struct FMovieSceneTrackEvaluator;
+template <typename ElementType> class TRange;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct ISequenceUpdater;
-struct FSequenceInstance;
-struct FPreAnimatedStateExtension;
 struct FCompiledDataVolatilityManager;
+struct FPreAnimatedStateExtension;
+struct FSequenceInstance;
 struct FSubSequencePath;
+struct ISequenceUpdater;
 
 /**
  * A sequence instance represents a specific instance of a currently playing sequence, either as a top-level sequence in an IMovieScenePlayer, or as a sub sequence.

@@ -2,15 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
 #include "Math/RandomStream.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
 #include "Templates/AlignmentTemplates.h"
+#include "UObject/ObjectMacros.h"
 #include "VectorVMCommon.h"
 #include "VectorVMExperimental.h"
 #include "VectorVMLegacy.h"
+
+struct FVectorVMSerializeState;
 
 #if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY
 

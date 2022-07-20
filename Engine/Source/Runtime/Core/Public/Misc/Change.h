@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"

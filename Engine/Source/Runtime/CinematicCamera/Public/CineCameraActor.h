@@ -2,13 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Camera/CameraActor.h"
+#include "CoreMinimal.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "CineCameraActor.generated.h"
 
+class AActor;
 class UCineCameraComponent;
+class UObject;
+struct FFrame;
 
 /** Settings to control the camera's lookat feature */
 USTRUCT(BlueprintType)

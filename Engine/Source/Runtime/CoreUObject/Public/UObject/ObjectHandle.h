@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Containers/ScriptArray.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPathId.h"
+
+class UClass;
+class UPackage;
 
 #define UE_WITH_OBJECT_HANDLE_LATE_RESOLVE WITH_EDITORONLY_DATA
 #define UE_WITH_OBJECT_HANDLE_TRACKING WITH_EDITORONLY_DATA

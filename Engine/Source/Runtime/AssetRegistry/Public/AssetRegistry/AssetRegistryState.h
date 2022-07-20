@@ -2,13 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/AssetRegistryInterface.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/TopLevelAssetPath.h"
 
+class FArchive;
+class FAssetDataTagMap;
+class FAssetDataTagMapSharedView;
 class FDependsNode;
+class FString;
 struct FARCompiledFilter;
+struct FPrimaryAssetId;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE::AssetRegistry
 {

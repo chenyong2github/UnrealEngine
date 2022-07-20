@@ -3,7 +3,19 @@
 #pragma once
 
 #include "GlobalShader.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderCore.h"
 #include "ShaderParameterUtils.h"
+#include "ShaderParameters.h"
+
+class FPointerTableBase;
+class FRHIComputeShader;
 
 enum class ECopyTextureResourceType
 {

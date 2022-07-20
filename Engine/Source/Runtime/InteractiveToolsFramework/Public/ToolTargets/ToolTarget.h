@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ToolTarget.generated.h"
 
 class FToolTargetTypeRequirements;
+class UClass;
 
 /**
  * A tool target is a stand-in object that a tool can operate on. It exposes the necessary

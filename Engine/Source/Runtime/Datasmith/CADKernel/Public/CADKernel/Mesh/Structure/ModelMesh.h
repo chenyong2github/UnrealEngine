@@ -1,20 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Mesh/Structure/Mesh.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
 	class FCriterion;
-	class FMesh;
-
-	class FVertexMesh;
+	class FDatabase;
 	class FEdgeMesh;
 	class FFaceMesh;
+	class FMesh;
+	class FPoint;
 	class FSession;
+	class FVertexMesh;
 
 	class CADKERNEL_API FModelMesh : public FEntityGeom
 	{

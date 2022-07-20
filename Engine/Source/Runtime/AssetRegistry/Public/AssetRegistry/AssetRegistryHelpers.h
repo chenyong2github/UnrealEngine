@@ -2,11 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AssetRegistryHelpers.generated.h"
+
+class IAssetRegistry;
+class UClass;
+struct FFrame;
 
 USTRUCT(BlueprintType)
 struct FTagAndValue

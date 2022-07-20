@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Interfaces/IPv4/IPv4SubnetMask.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IPv4/IPv4Address.h"
+#include "Interfaces/IPv4/IPv4SubnetMask.h"
+#include "Internationalization/Text.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
 
 /**
  * Implements a IPv4 subnet descriptor.

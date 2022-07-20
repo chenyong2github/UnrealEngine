@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
+#include "HAL/Platform.h"
 #include "Interfaces/IBuildManifest.h"
 
 namespace BuildPatchServices

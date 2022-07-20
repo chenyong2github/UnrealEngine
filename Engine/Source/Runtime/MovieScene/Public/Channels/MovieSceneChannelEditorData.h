@@ -2,13 +2,21 @@
 
 #pragma once
 
-#include "Misc/Optional.h"
-#include "UObject/NameTypes.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
 #include "Math/Color.h"
-#include "Templates/Function.h"
+#include "Misc/Optional.h"
 #include "MovieSceneCommonHelpers.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
+
+class FTrackInstancePropertyBindings;
+class UMovieSceneSection;
+class UObject;
+struct FFrameNumber;
+struct FFrameRate;
+struct FMovieSceneRootEvaluationTemplateInstance;
 
 #if WITH_EDITOR
 

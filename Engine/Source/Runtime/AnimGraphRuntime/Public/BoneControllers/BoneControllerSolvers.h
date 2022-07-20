@@ -4,7 +4,10 @@
 
 #include "Containers/ArrayView.h"
 #include "Engine/SpringInterpolator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
 #include "UObject/ObjectMacros.h"
+
 #include "BoneControllerSolvers.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)

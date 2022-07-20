@@ -24,8 +24,9 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourAlloc.h"
-#include "Detour/DetourStatus.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourStatus.h"
+#include "HAL/PlatformString.h"
 
 static const int DT_TILECACHE_MAGIC = 'D'<<24 | 'T'<<16 | 'L'<<8 | 'R'; ///< 'DTLR';
 static const int DT_TILECACHE_VERSION = 1;

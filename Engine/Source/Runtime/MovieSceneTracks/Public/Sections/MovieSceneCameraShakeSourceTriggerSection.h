@@ -5,9 +5,13 @@
 #include "Camera/CameraShakeBase.h"
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCameraShakeSourceTriggerSection.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class UMovieSceneCameraShakeSourceTriggerSection 

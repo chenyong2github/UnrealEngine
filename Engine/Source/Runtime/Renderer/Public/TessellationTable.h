@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/HashTable.h"
+#include "CoreMinimal.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
 #include "RenderResource.h"
 
 namespace Nanite

@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "LiveLinkTypes.h"
 #include "Logging/TokenizedMessage.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+struct FTimespan;
 
 #define ENABLE_LIVELINK_LOGGING (1 && !NO_LOGGING && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 

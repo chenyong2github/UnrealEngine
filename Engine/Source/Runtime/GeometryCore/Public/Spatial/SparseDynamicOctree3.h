@@ -3,17 +3,31 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "Containers/StaticArray.h"
-#include "IntVectorTypes.h"
-#include "BoxTypes.h"
-#include "GeometryTypes.h"
-#include "Util/DynamicVector.h"
-#include "Util/SmallListSet.h"
-#include "Util/RefCountVector.h"
-#include "Spatial/SparseGrid3.h"
-#include "Intersection/IntrRay3AxisAlignedBox3.h"
 #include "Async/ParallelFor.h"
+#include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "GeometryTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "IntVectorTypes.h"
+#include "Intersection/IntrRay3AxisAlignedBox3.h"
+#include "Math/NumericLimits.h"
+#include "Math/Ray.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MathUtil.h"
+#include "Misc/AssertionMacros.h"
+#include "Spatial/SparseGrid3.h"
+#include "Util/DynamicVector.h"
+#include "Util/RefCountVector.h"
+#include "Util/SmallListSet.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {

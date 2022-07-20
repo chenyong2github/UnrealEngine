@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "TireSystem.h"
 #include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
-#include "TireSystem.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_DISABLE_OPTIMIZATION

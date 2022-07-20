@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "Misc/CoreDefines.h"
-#include "HAL/CriticalSection.h"
-#include "Templates/UniquePtr.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "HAL/CriticalSection.h"
 #include "ImagePixelData.h"
+#include "Misc/CoreDefines.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
+struct FImagePixelData;
 struct FImageStreamEndpoint;
 
 /**

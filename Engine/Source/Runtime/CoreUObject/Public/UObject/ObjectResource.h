@@ -2,11 +2,23 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/Guid.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 
+class FArchive;
+class FLinkerLoad;
 class FPackageIndex;
+class UClass;
+class UObject;
 
 /**
  * Wrapper for index into a ULnker's ImportMap or ExportMap.

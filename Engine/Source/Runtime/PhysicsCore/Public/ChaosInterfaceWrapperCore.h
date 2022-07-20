@@ -2,19 +2,26 @@
 
 #pragma once
 
+#include "Chaos/CollisionFilterData.h"
+#include "Chaos/Declares.h"
+#include "Chaos/GeometryParticles.h"
+#include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/Real.h"
 #include "ChaosSQTypes.h"
-#include "PhysicsInterfaceWrapperShared.h"
-#include "PhysicsInterfaceTypesCore.h"
-
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "PhysXPublicCore.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+#include "PhysicsInterfaceTypesCore.h"
+#include "PhysicsInterfaceWrapperShared.h"
 
 class UPhysicalMaterial;
 
 namespace Chaos
 {
-	class FImplicitObject;
-
 	class FCapsule;
+	class FImplicitObject;
 }
 
 namespace ChaosInterface

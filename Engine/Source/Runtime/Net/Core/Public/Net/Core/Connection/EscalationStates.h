@@ -3,13 +3,29 @@
 #pragma once
 
 
-// Includes
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Net/Core/Connection/StateStruct.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Function.h"
+#include "Templates/IsEnum.h"
+#include "Templates/Models.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EscalationStates.generated.h"
+
+class UObject;
 
 
 /**
@@ -95,8 +111,8 @@ namespace UE
 {
 	namespace Net
 	{
-		struct FEscalationCounter;
 		class FEscalationManager;
+		struct FEscalationCounter;
 	}
 }
 

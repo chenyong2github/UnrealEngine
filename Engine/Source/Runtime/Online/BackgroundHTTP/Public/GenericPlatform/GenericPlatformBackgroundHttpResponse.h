@@ -3,6 +3,8 @@
 #pragma once
 
 #include "BackgroundHttpResponseImpl.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IHttpRequest.h"
 
 /**

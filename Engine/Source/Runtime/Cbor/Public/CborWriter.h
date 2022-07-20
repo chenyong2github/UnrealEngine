@@ -2,8 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CborTypes.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+
+class FArchive;
 
 /**
 * Writer for encoding a stream with the cbor protocol

@@ -4,13 +4,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-
-#include "MathUtil.h"
 #include "IndexTypes.h"
-#include "PlaneTypes.h"
 #include "LineTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "MathUtil.h"
+#include "Misc/AssertionMacros.h"
+#include "PlaneTypes.h"
 #include "Polygon2.h"
+#include "Templates/Function.h"
 
 
 namespace UE {

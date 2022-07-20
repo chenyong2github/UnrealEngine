@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h" // for DECLARE_DELEGATE_OneParam
 #include "HAL/CriticalSection.h"
-#include "HAL/ThreadSafeCounter.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
 
 #if PLATFORM_UNIX
 #include "Unix/UnixSignalHeartBeat.h"

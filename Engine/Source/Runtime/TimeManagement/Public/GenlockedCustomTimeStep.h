@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "FixedFrameRateCustomTimeStep.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameRate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "GenlockedCustomTimeStep.generated.h"
+
+class UObject;
 
 /**
  * Class to control the Engine Timestep from a Genlock signal.

@@ -3,20 +3,22 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/MemoryBase.h"
-#include "HAL/UnrealMemory.h"
-#include "Math/NumericLimits.h"
-#include "Templates/AlignmentTemplates.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/PlatformTLS.h"
 #include "HAL/Allocators/CachedOSPageAllocator.h"
 #include "HAL/Allocators/CachedOSVeryLargePageAllocator.h"
 #include "HAL/Allocators/PooledVirtualMemoryAllocator.h"
-#include "HAL/PlatformMath.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/PlatformTLS.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Fork.h"
+#include "Templates/AlignmentTemplates.h"
 #include "Templates/Atomic.h"
+
+struct FGenericMemoryStats;
 
 #define BINNED2_MAX_CACHED_OS_FREES (64)
 #if PLATFORM_64BITS
@@ -101,6 +103,7 @@ extern TAtomic<int64> AllocatedLargePoolMemoryWAlignment; // when we allocate at
 #endif
 #if BINNED2_ALLOCATOR_STATS_VALIDATION
 #include "Misc/ScopeLock.h"
+
 extern int64 AllocatedSmallPoolMemoryValidation;
 extern FCriticalSection ValidationCriticalSection;
 extern int32 RecursionCounter;
@@ -126,11 +129,10 @@ enum class EBlockCanary : uint8
 //
 class CORE_API FMallocBinned2 : public FMalloc
 {
-	struct Private;
-
 	// Forward declares.
 	struct FPoolInfo;
 	struct PoolHashBucket;
+	struct Private;
 
 	/** Information about a piece of free memory. */
 	struct FFreeBlock
@@ -809,7 +811,7 @@ if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE && Alignment <= BINNED2_MINIMUM_ALIGN
 	#if PLATFORM_USES_FIXED_GMalloc_CLASS && !FORCE_ANSI_ALLOCATOR && USE_MALLOC_BINNED2
 		#define FMEMORY_INLINE_FUNCTION_DECORATOR  FORCEINLINE
 		#define FMEMORY_INLINE_GMalloc (FMallocBinned2::MallocBinned2)
-		#include "FMemory.inl"
+		#include "FMemory.inl" // IWYU pragma: export
 	#endif
 #endif
 

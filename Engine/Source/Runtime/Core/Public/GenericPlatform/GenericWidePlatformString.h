@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/Char.h"
-#include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformStricmp.h"
 #include "GenericPlatform/GenericPlatformString.h"
 #include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Char.h"
 
 #if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 

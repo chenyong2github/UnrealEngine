@@ -2,16 +2,40 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Async/AsyncFileHandle.h"
 #include "BulkDataBuffer.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/MemoryBase.h"
+#include "IO/IoDispatcher.h"
+#include "IO/PackageId.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CompressionFlags.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
+#include "Serialization/Archive.h"
+#include "Serialization/CustomVersion.h"
 #include "Serialization/FileRegions.h"
-#include "IO/PackageId.h"
-#include "IO/IoDispatcher.h"
+#include "Templates/Function.h"
+#include "Templates/IsPODType.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
+class FLinkerLoad;
+class FOutputDevice;
+class IAsyncReadFileHandle;
+class IAsyncReadRequest;
+class UObject;
+namespace UE { namespace Serialization { class FEditorBulkData; } }
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0
 	#define USE_NEW_BULKDATA UE_DEPRECATED_MACRO(5.1, "The USE_NEW_BULKDATA macro has been deprecated in favor of USE_RUNTIME_BULKDATA.") 1

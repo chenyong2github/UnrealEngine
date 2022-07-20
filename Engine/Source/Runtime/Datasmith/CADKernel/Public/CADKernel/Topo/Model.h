@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/CADKernelArchive.h"
+#include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
 
 	class FBody;
-	class FTopologicalFace;
-	class FTopologicalEdge;
+	class FDatabase;
 	class FGroup;
+	class FTopologicalEdge;
+	class FTopologicalEntity;
+	class FTopologicalFace;
 	class FTopologicalVertex;
 
 	class CADKERNEL_API FModel : public FTopologicalShapeEntity

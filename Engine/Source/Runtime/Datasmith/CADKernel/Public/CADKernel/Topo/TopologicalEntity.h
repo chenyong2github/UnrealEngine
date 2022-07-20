@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/HaveStates.h"
+#include "CADKernel/Core/Types.h"
 
 namespace CADKernel
 {

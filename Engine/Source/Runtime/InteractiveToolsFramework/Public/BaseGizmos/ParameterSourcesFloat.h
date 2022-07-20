@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ParameterSourcesFloat.generated.h"
 
 /**

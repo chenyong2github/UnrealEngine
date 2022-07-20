@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Dom/JsonValue.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
+class FJsonValue;
 
 namespace UE::Json
 {

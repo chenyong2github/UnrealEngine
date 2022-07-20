@@ -2,15 +2,36 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "MultiGPU.h"
+#include "PixelFormat.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "RHI.h"
+#include "RHIBreadcrumbs.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RenderGraphAllocator.h"
+#include "RenderGraphBlackboard.h"
 #include "RenderGraphDefinitions.h"
 #include "RenderGraphEvent.h"
-#include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
+#include "RenderGraphResources.h"
 #include "RenderGraphTrace.h"
 #include "RenderGraphValidation.h"
-#include "RenderGraphBlackboard.h"
+#include "RendererInterface.h"
 #include "ShaderParameterMacros.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#include "Stats/Stats2.h"
+#include "Templates/RefCounting.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 /** Use the render graph builder to build up a graph of passes and then call Execute() to process them. Resource barriers
  *  and lifetimes are derived from _RDG_ parameters in the pass parameter struct provided to each AddPass call. The resulting
@@ -856,4 +877,11 @@ private:
 	#define RDG_GPU_MASK_SCOPE(GraphBuilder, GPUMask)
 #endif
 
-#include "RenderGraphBuilder.inl"
+#include "RenderGraphBuilder.inl" // IWYU pragma: export
+
+class FRDGAsyncComputeBudgetScopeGuard;
+class FRHITransientBuffer;
+class FRHITransientTexture;
+class FShaderParametersMetadata;
+class IRHICommandContext;
+class IRHITransientResourceAllocator;

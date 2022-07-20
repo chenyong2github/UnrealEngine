@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Serialization/Archive.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/UnrealString.h"
-#include "Misc/DateTime.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/DateTime.h"
+#include "Serialization/Archive.h"
 #include "Templates/UniquePtr.h"
 
 #ifndef PLATFORM_FILE_READER_BUFFER_SIZE

@@ -7,15 +7,34 @@
  
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
 #include "Containers/List.h"
-#include "Stats/Stats.h"
-#include "RHI.h"
-#include "TickableObjectRenderThread.h"
-#include "PipelineFileCache.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
+#include "PipelineFileCache.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "TickableObjectRenderThread.h"
 
+class FBlendStateInitializerRHI;
+class FRHIBlendState;
+class FRHICommandListImmediate;
+class FRHIDepthStencilState;
+class FRHIRasterizerState;
+class FSHAHash;
 class FShaderPipelineCacheArchive;
+struct FDepthStencilStateInitializerRHI;
+struct FRasterizerStateInitializerRHI;
 
 /**
  * FShaderPipelineCache:

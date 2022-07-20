@@ -2,13 +2,27 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
+#include "Misc/AssertionMacros.h"
 #include "RigVMCore/RigVMTraits.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "RigVMUserWorkflow.generated.h"
 
+class FProperty;
 class URigVMUserWorkflowOptions;
+struct FFrame;
 
 DECLARE_DELEGATE_ThreeParams(FRigVMReportDelegate, EMessageSeverity::Type, UObject*, const FString&);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMPerformUserWorkflowDelegate, const URigVMUserWorkflowOptions*, UObject*);

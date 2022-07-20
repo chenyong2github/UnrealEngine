@@ -6,7 +6,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 #include "UObject/GCObjectInfo.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/NameTypes.h"
+
+class FGCObjectInfo;
+class UObject;
 
 #if ENABLE_GC_HISTORY
 

@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
 
 #ifdef CADKERNEL_DEV
 #include "CADKernel/Topo/TopomakerReport.h"

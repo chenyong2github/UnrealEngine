@@ -6,15 +6,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "Templates/Atomic.h"
-#include "Trace/Trace.h"
-#include "Serialization/MemoryLayout.h"
+#include "Containers/Array.h"
+#include "CoreGlobals.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "HAL/PlatformMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "MultiGPU.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RHI.h"
 #include "RHICommandList.h"
+#include "Serialization/MemoryLayout.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/Atomic.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Trace/Trace.h"
+
+namespace UE { namespace Trace { class FChannel; } }
 
 ////////////////////////////////////
 // Render thread API

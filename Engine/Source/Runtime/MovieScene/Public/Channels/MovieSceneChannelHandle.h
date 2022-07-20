@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 struct FMovieSceneChannel;
-struct FMovieSceneChannelProxy;
 struct FMovieSceneChannelMetaData;
+struct FMovieSceneChannelProxy;
 template<typename> struct TMovieSceneChannelHandle;
 template<typename> struct TMovieSceneChannelTraits;
 

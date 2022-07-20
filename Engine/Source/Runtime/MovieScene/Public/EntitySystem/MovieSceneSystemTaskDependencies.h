@@ -4,9 +4,15 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
-
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+
+#include <initializer_list>
 
 struct FMovieSceneEntitySystemGraph;
 

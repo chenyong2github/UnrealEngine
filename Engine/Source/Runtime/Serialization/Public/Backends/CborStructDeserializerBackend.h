@@ -2,9 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CborReader.h"
+#include "CborTypes.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IStructDeserializerBackend.h"
+
+class FArchive;
+class FArrayProperty;
+class FProperty;
 
 /**
  * Implements a reader for UStruct deserialization using Cbor.

@@ -1,13 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DatasmithDefinitions.h"
-
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/UnrealString.h"
+#include "DatasmithDefinitions.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Matrix.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
+
+#include <stdint.h>
 
 class FDatasmithMesh;
+class IDatasmithActorElement;
+class IDatasmithScene;
 struct FMeshDescription;
 struct FRawMesh;
 

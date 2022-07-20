@@ -4,6 +4,7 @@
 #include "Containers/Map.h"
 #include "Containers/SparseArray.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/LocKeyFuncs.h"
@@ -17,7 +18,6 @@
 #include "Serialization/StructuredArchive.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/SharedPointerInternals.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 

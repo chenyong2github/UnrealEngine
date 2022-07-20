@@ -3,6 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "UObject/ObjectMacros.h"
+
 #include "TransformNoScale.generated.h"
 
 USTRUCT(BlueprintType)

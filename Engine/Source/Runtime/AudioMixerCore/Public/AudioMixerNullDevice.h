@@ -3,8 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericPlatform/GenericPlatformAffinity.h"
+#include "HAL/Platform.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+
 #include <atomic>
 
 class FEvent;

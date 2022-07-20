@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "VectorTypes.h"
-#include "IndexTypes.h"
-#include "MathUtil.h"
 #include "BoxTypes.h"
-#include "PlaneTypes.h"
-
+#include "Containers/Array.h"
 #include "Containers/IndirectArray.h"
-
+#include "Containers/Map.h"
+#include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "IndexTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "MathUtil.h"
+#include "Misc/AssertionMacros.h"
+#include "PlaneTypes.h"
+#include "TransformTypes.h"
+#include "VectorTypes.h"
 
 namespace UE {
 namespace Geometry {

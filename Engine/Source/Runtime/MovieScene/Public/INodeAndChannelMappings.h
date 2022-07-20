@@ -5,13 +5,20 @@
 */
 
 #pragma once
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "HAL/Platform.h"
 #include "UObject/Interface.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "INodeAndChannelMappings.generated.h"
 
+class FName;
 class UMovieSceneSection;
+class UObject;
 
 /** Enumeration specifying the control type */
 enum class FFBXControlRigTypeProxyEnum : uint8
@@ -28,12 +35,13 @@ enum class FFBXControlRigTypeProxyEnum : uint8
 	Integer
 };
 
+class UMovieSceneTrack;
+struct FMovieSceneBoolChannel;
+struct FMovieSceneByteChannel;
 struct FMovieSceneDoubleChannel;
 struct FMovieSceneFloatChannel;
-struct FMovieSceneBoolChannel;
 struct FMovieSceneIntegerChannel;
-struct FMovieSceneByteChannel;
-class UMovieSceneTrack;
+
 // For import data onto channels directly
 struct FFBXNodeAndChannels
 {

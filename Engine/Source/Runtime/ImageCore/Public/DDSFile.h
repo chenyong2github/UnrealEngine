@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-#include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "CoreTypes.h"
 #include "ImageCore.h"
+#include "Math/Color.h"
 
 // This is supposed to be, as close as possible, the complete list of DXGI formats
 // per those docs - the ODDFMTs we don't support for doing anything other than name, but we keep

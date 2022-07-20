@@ -4,11 +4,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
 #include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "PixelFormat.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderCore.h"
+#include "ShaderParameterMacros.h"
 #include "ShaderParameterStruct.h"
+#include "ShaderParameterUtils.h"
+#include "ShaderParameters.h"
+#include "ShaderPermutation.h"
+
+class FPointerTableBase;
 
 /**
  * Vertex shader for rendering a single, constant color.

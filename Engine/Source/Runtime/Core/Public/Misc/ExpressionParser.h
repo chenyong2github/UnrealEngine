@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/ExpressionParserTypes.h"
 #include "Templates/ValueOrError.h"
 

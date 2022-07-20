@@ -2,10 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "TransformSources.generated.h"
+
+class USceneComponent;
+class UTransformProxy;
 
 
 

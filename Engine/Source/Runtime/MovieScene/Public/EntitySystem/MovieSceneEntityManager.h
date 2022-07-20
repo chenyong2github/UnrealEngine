@@ -2,22 +2,40 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/BitArray.h"
-#include "Containers/SparseArray.h"
+#include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Misc/InlineValue.h"
-#include "UObject/StrongObjectPtr.h"
-#include "MovieSceneSequenceID.h"
-#include "Evaluation/MovieScenePlayback.h"
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "EntitySystem/MovieSceneEntityFactoryTypes.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "EntitySystem/MovieSceneComponentTypeHandler.h"
 #include "EntitySystem/MovieSceneComponentTypeInfo.h"
-#include "Algo/AnyOf.h"
-#include "Algo/AllOf.h"
+#include "EntitySystem/MovieSceneEntityFactoryTypes.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/Atomic.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/StrongObjectPtr.h"
+#include "UObject/UObjectArray.h"
 
+#include <initializer_list>
+
+class FArchive;
+class FReferenceCollector;
+class UObjectBase;
+struct FGuid;
 struct FMovieSceneExportedEntity;
 
 namespace UE
@@ -25,12 +43,15 @@ namespace UE
 namespace MovieScene
 {
 
-struct FComponentRegistry;
-struct FFreeEntityOperation;
 struct FChildEntityInitializer;
-struct FMutualEntityInitializer;
-struct IMovieSceneEntityMutation;
+struct FComponentRegistry;
 struct FEntityAllocationIteratorProxy;
+struct FFreeEntityOperation;
+struct FMutualEntityInitializer;
+struct IComponentTypeHandler;
+struct IMovieSceneEntityMutation;
+template <typename T> struct TReadOptional;
+template <typename T> struct TWriteOptional;
 
 
 enum class EEntityRecursion : uint8

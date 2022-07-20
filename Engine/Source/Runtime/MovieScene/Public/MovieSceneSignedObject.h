@@ -3,22 +3,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
-#include "Templates/UniquePtr.h"
-#include "EventHandlers/MovieSceneDataEventContainer.h"
-#include "EventHandlers/ISignedObjectEventHandler.h"
 #include "Delegates/Delegate.h"
+#include "EventHandlers/ISignedObjectEventHandler.h"
+#include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSignedObject.generated.h"
 
-class UMovieSceneSignedObject;
 class ITransactionObjectAnnotation;
+class UMovieSceneSignedObject;
 
 namespace UE
 {
 namespace MovieScene
 {
+class ISignedObjectEventHandler;
 
 struct IDeferredSignedObjectFlushSignal
 {

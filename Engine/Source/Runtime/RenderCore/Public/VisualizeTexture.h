@@ -2,10 +2,26 @@
 
 #pragma once
 
-#include "RenderGraph.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
 #include "Misc/WildcardString.h"
+#include "RHIDefinitions.h"
+#include "RenderGraph.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderGraphResources.h"
+#include "RenderResource.h"
+#include "RendererInterface.h"
+#include "Templates/RefCounting.h"
 
 class FOutputDevice;
+class FRDGBuilder;
+class FRHICommandListImmediate;
+class FWildcardString;
 
 #define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR))
 

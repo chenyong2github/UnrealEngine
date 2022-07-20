@@ -24,6 +24,7 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "HAL/PlatformMath.h"
 
 // DT_STATS is set from the UE Stats settings
 #define DT_STATS STATS

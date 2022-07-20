@@ -2,20 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "UObject/Class.h"
-#include "Containers/ArrayView.h"
-#include "Evaluation/MovieSceneSegment.h"
-#include "Evaluation/MovieScenePlayback.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
-#include "Evaluation/MovieSceneTrackImplementation.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "Evaluation/MovieSceneTrackImplementation.h"
+#include "Evaluation/PersistentEvaluationData.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
+#include "Misc/InlineValue.h"
 #include "MovieSceneTrack.h"
+#include "Templates/EnableIf.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneEvaluationTrack.generated.h"
 
+class FArchive;
+class IMovieScenePlayer;
+class UObject;
+struct FMovieSceneEvaluationOperand;
+struct FMovieSceneExecutionTokens;
+struct FMovieSceneFieldEntry_ChildTemplate;
 struct FMovieSceneInterrogationData;
 
 /** Enumeration to determine how a track should be evaluated */

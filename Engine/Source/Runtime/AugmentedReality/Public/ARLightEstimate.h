@@ -2,7 +2,15 @@
 
 #pragma once
 
+#include "Math/Color.h"
+#include "Math/MathFwd.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ARLightEstimate.generated.h"
+
+struct FFrame;
 
 
 UCLASS(BlueprintType, Experimental, Category="AR AugmentedReality|Light Estimation")

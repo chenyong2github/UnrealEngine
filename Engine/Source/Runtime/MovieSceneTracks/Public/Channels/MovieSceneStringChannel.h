@@ -2,13 +2,29 @@
 
 #pragma once
 
-#include "Containers/UnrealString.h"
-#include "Misc/FrameNumber.h"
-#include "UObject/ObjectMacros.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelEditorData.h"
 #include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "Serialization/StructuredArchive.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneStringChannel.generated.h"
+
+struct FFrameRate;
+struct FKeyHandle;
+struct FPropertyTag;
 
 USTRUCT()
 struct MOVIESCENETRACKS_API FMovieSceneStringChannel : public FMovieSceneChannel

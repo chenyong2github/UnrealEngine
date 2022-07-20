@@ -3,11 +3,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/AssetRegistryInterface.h"
+#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+
+class UPackage;
 
 namespace AssetRegistryConstants
 {

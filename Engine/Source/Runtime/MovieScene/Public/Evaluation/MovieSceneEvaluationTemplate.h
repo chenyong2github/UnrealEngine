@@ -2,22 +2,32 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneEvaluationTrack.h"
+#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "Evaluation/MovieSceneTrackIdentifier.h"
+#include "Misc/Guid.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneTrack.h"
+#include "Serialization/Archive.h"
+#include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Misc/Guid.h"
-#include "UObject/Class.h"
-#include "MovieSceneTrack.h"
-#include "MovieSceneFrameMigration.h"
-#include "Evaluation/MovieSceneTrackIdentifier.h"
-#include "Containers/ArrayView.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
-#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneEvaluationTemplate.generated.h"
 
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
+struct FMovieSceneEvaluationTrack;
+struct FMovieSceneFrameRange;
 
 
 

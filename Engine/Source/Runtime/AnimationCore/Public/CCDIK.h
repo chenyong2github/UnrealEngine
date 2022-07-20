@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BoneIndices.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
+#include "UObject/ObjectMacros.h"
+
 #include "CCDIK.generated.h"
 
 /** Transient structure for CCDIK node evaluation */

@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Layout/Geometry.h"
+
+struct FGeometry;
 
 enum class EAllowOverscroll : uint8
 {

@@ -3,15 +3,28 @@
 #pragma once
 
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/Guid.h"
-#include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "CoreTypes.h"
 #include "EventHandlers/IFolderEventHandler.h"
+#include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneFolder.generated.h"
 
+class FArchive;
+class ITransactionObjectAnnotation;
 class UMovieSceneTrack;
+namespace UE { namespace MovieScene { class IFolderEventHandler; } }
 
 /** Represents a folder used for organizing objects in tracks in a movie scene. */
 UCLASS(DefaultToInstanced)

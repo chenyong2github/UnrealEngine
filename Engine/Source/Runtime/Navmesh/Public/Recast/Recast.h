@@ -23,6 +23,7 @@
 #define RECAST_H
 
 #include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
 #include "RecastLargeWorldCoordinates.h"
 
 //@UE BEGIN Adding support for LWCoords.

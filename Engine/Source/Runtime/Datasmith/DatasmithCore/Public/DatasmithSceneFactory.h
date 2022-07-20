@@ -3,8 +3,10 @@
 #pragma once
 
 #include "DatasmithAnimationElements.h"
+#include "DatasmithDefinitions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithVariantElements.h"
+#include "HAL/Platform.h"
 #include "IDatasmithSceneElements.h"
 #include "Templates/SharedPointer.h"
 

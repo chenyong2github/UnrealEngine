@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "HAL/RunnableThread.h"
 #include "RHI.h"
+#include "Templates/Function.h"
 
 class FRHICommandListImmediate;
+
 /**
 * Utility function for easily submitting TFunction to be run on the render thread. Must be invoked from the game thread.
 * If rendering does not use a separate thread, the TFunction will be executed immediately, otherwise it will be added to the render thread task queue.

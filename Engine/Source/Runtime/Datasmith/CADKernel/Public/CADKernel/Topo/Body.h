@@ -1,16 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/MetadataDictionary.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/Topo/TopologicalShapeEntity.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
 
+class FCADKernelArchive;
+class FDatabase;
+class FModel;
 class FShell;
+class FTopologicalFace;
 
 class CADKERNEL_API FBody : public FTopologicalShapeEntity
 {

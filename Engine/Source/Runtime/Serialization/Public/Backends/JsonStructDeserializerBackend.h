@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Serialization/JsonReader.h"
+#include "HAL/Platform.h"
 #include "IStructDeserializerBackend.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonTypes.h"
+#include "Templates/SharedPointer.h"
+
+class FArchive;
+class FProperty;
 
 /**
  * Implements a reader for UStruct deserialization using Json.

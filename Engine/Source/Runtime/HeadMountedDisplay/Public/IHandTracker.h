@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-//#include "UObject/ObjectMacros.h"
 #include "Features/IModularFeature.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/NameTypes.h"
 
 enum class EControllerHand : uint8;
 enum class EHandKeypoint : uint8;

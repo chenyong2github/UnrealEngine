@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Internationalization/Text.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IHttpRequest.h"
+#include "Internationalization/Text.h"
 #include "PlatformErrorReport.h"
+#include "Templates/SharedPointer.h"
 
 struct FCompressedData;
 struct FCompressedHeader;

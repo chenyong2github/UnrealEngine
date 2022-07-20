@@ -6,11 +6,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/EnumClassFlags.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class IPakFile;
+class UClass;
 
 #define WITH_COREREDIRECTS_MULTITHREAD_WARNING !UE_BUILD_SHIPPING && !IS_PROGRAM && !WITH_EDITOR
 

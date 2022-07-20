@@ -2,36 +2,46 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/SortedMap.h"
-#include "Containers/Array.h"
+#include "Containers/SparseArray.h"
+#include "CoreTypes.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/MovieSceneAnimTypeID.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
 #include "Evaluation/PreAnimatedState/IMovieScenePreAnimatedStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Less.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectKey.h"
 
-struct FScopedPreAnimatedCaptureSource;
-
-struct IMovieScenePreAnimatedTokenProducer;
-struct IMovieScenePreAnimatedGlobalTokenProducer;
+class FReferenceCollector;
 class UMovieSceneEntitySystemLinker;
+class UObject;
+struct FMovieSceneAnimTypeID;
+struct FScopedPreAnimatedCaptureSource;
+struct IMovieScenePreAnimatedGlobalTokenProducer;
+struct IMovieScenePreAnimatedTokenProducer;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-// Fwd declarations
-struct IPreAnimatedStorage;
-struct IPreAnimatedCaptureSource;
-struct FPreAnimatedStateExtension;
-struct FPreAnimatedEntityCaptureSource;
-struct FAnimTypePreAnimatedStateObjectStorage;
 struct FAnimTypePreAnimatedStateMasterStorage;
+struct FAnimTypePreAnimatedStateObjectStorage;
+struct FPreAnimatedEntityCaptureSource;
+struct FPreAnimatedStateExtension;
 struct FPreAnimatedTrackInstanceCaptureSources;
 struct FPreAnimatedTrackInstanceInputCaptureSources;
+struct FRestoreStateParams;
+struct IPreAnimatedCaptureSource;
+struct IPreAnimatedStorage;
 
 /**
  * Interface required for any logical grouping of pre-animated state

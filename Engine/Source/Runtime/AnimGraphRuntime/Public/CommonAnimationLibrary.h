@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "CommonAnimationTypes.h"
 #include "CoreMinimal.h"
 #include "Curves/CurveFloat.h"
-#include "CommonAnimationTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+
+struct FRuntimeFloatCurve;
 
 /**
  *	A library of the most common animation functions.

@@ -3,11 +3,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/ActorComponent.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "VRNotificationsComponent.generated.h"
 
+class UObject;
 class IXRTrackingSystem;
 
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = HeadMountedDisplay)

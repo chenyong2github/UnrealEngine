@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/NameTypes.h"
-#include "Math/Color.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateWidgetStyle.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Math/Color.h"
+#include "Styling/SlateWidgetStyle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "FriendsFontStyle.generated.h"
 
 struct FSlateBrush;

@@ -23,8 +23,9 @@
 #define DETOUTPATHCORRIDOR_H
 
 #include "CoreMinimal.h"
-#include "Detour/DetourNavMesh.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
+#include "HAL/Platform.h"
 
 class dtNavMeshQuery;
 class dtQueryFilter;

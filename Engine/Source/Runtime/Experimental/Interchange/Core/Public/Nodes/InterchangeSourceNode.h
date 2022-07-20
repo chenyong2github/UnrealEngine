@@ -2,17 +2,22 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeUtilities.h"
 #include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeSourceNode.generated.h"
 
 class UInterchangeBaseNodeContainer;
+class UObject;
+struct FFrame;
 
 /**
  * This class allow a translator to add general source data that describe the whole source. Pipeline can use this information.

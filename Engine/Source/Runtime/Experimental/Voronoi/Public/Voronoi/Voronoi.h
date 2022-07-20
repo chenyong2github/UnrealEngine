@@ -1,7 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Math/Box.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 bool VORONOI_API VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>> &Neighbors, bool bExcludeBounds = true, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 bool VORONOI_API GetVoronoiEdges(const TArrayView<const FVector> &Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>> &Edges, TArray<int32> &CellMember, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);

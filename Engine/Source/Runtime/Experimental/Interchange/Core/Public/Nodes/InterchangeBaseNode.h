@@ -2,14 +2,35 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "Misc/TVariant.h"
 #include "Nodes/InterchangeBaseNodeUtilities.h"
+#include "Templates/SharedPointer.h"
 #include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
 
 #include "InterchangeBaseNode.generated.h"
+
+class FArchive;
+class UInterchangeBaseNode;
+struct FFrame;
 
 /**
  * Internal Helper to get set custom property for class that derive from UInterchangeBaseNode. This is use by the macro IMPLEMENT_UOD_ATTRIBUTE.

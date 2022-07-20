@@ -2,16 +2,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "RigVMTypeIndex.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
 #include "RigVMFunction.h"
-#include "UObject/Object.h"
-#include "RigVMTypeUtils.h"
 #include "RigVMTraits.h"
+#include "RigVMTypeIndex.h"
+#include "RigVMTypeUtils.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+
 #include "RigVMTemplate.generated.h"
 
-struct FRigVMTemplate;
+class FProperty;
 struct FRigVMDispatchFactory;
+struct FRigVMTemplate;
+
 typedef TMap<FName, TRigVMTypeIndex> FRigVMTemplateTypeMap;
 
 DECLARE_DELEGATE_RetVal_ThreeParams(FRigVMTemplateTypeMap, FRigVMTemplate_NewArgumentTypeDelegate, const FRigVMTemplate* /* InTemplate */, const FName& /* InArgumentName */, TRigVMTypeIndex /* InTypeIndexToAdd */);

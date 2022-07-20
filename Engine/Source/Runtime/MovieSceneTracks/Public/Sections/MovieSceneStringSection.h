@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneSection.h"
 #include "Channels/MovieSceneStringChannel.h"
+#include "CoreMinimal.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneStringSection.generated.h"
+
+class UObject;
 
 /**
  * A single string section

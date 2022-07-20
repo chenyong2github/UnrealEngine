@@ -23,8 +23,8 @@
 #define DETOURLOCALBOUNDARY_H
 
 #include "CoreMinimal.h"
-#include "Detour/DetourNavMesh.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
 
 class dtNavMeshQuery;
 class dtQueryFilter;

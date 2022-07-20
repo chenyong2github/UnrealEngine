@@ -3,12 +3,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
 
 class IAsyncReadFileHandle;
+class IMappedFileHandle;
 
 /**
  * Wrapper to log the low level file system

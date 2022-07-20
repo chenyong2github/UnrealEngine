@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class SGameMenuItemWidget;
 

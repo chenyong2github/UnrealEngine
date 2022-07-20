@@ -4,14 +4,27 @@
 
 // Dependencies.
 
+#include "AnalyticsEventAttribute.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/DateTime.h"
 #include "Misc/NetworkVersion.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializerMacros.h"
-#include "AnalyticsEventAttribute.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FArchive;
+class FOutputDevice;
 class IAnalyticsProvider;
+class UWorld;
+struct FAnalyticsEventAttribute;
 
 class FReplayEventListItem : public FJsonSerializable
 {

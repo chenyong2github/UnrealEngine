@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "LiveLinkBasicRole.generated.h"
+
+class UObject;
+class UScriptStruct;
 
 /**
  * Role associated for no specific role data.

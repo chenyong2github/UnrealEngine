@@ -2,14 +2,30 @@
 
 #pragma once
 
-#include <type_traits>
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+#include <type_traits>
 
 #include "TypedElementCounter.generated.h"
 
+class UObject;
 class UTypedElementRegistry;
 
 template <typename KeyType>

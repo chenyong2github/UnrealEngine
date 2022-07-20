@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "IMediaTimeSource.h"
 #include "Math/Color.h"
 #include "Math/IntPoint.h"
+#include "Math/MathFwd.h"
 #include "Math/Matrix.h"
 #include "Math/Plane.h"
 #include "Misc/Optional.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
-#include "IMediaTimeSource.h"
 
 #if WITH_ENGINE
 	class FRHITexture;

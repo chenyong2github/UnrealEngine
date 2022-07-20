@@ -3,26 +3,28 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/TVariant.h"
-#include "MovieSceneSequenceID.h"
-#include "Evaluation/MovieSceneEvaluationKey.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
+#include "Evaluation/MovieSceneEvaluationKey.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Misc/TVariant.h"
+#include "MovieSceneSequenceID.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FMovieSceneSequenceID;
-struct FMovieSceneEvaluationKey;
-
-class UObject;
-class UMovieSceneTrackInstance;
-class UMovieSceneEntitySystemLinker;
 class FMovieScenePreAnimatedState;
+class UMovieSceneEntitySystemLinker;
+class UMovieSceneTrackInstance;
+class UObject;
+struct FMovieSceneEvaluationKey;
+struct FMovieSceneSequenceID;
+struct FMovieSceneTrackInstanceInput;
 
 namespace UE
 {
 namespace MovieScene
 {
 
+struct FPreAnimatedStateExtension;
 struct FPreAnimatedStateMetaData;
 
 }

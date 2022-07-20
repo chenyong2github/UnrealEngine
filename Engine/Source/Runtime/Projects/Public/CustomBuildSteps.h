@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Serialization/JsonWriter.h"
 

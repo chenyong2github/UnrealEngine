@@ -3,11 +3,22 @@
 #pragma once
 
 #include "Algo/AllOf.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/FrameTime.h"
 #include "MovieSceneTimeTransform.h"
 #include "MovieSceneTimeWarping.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneSequenceTransform.generated.h"
 
 

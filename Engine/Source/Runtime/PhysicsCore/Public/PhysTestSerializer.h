@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PhysicsInterfaceDeclaresCore.h"
-
 #include "Chaos/ChaosArchive.h"
+#include "Chaos/Defines.h"
+#include "Chaos/Framework/Handles.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/ParticleHandle.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 #include "SQCapture.h"
-#include "Serialization/MemoryReader.h"
 #include "Serialization/CustomVersion.h"
+#include "Serialization/MemoryReader.h"
+#include "Templates/UniquePtr.h"
 
 #ifndef PHYS_TEST_SERIALIZER
 #define PHYS_TEST_SERIALIZER 1

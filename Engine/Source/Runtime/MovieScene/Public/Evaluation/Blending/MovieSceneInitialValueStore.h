@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MovieSceneFwd.h"
-#include "MovieSceneExecutionToken.h"
-#include "UObject/ObjectKey.h"
 #include "IMovieScenePlayer.h"
+#include "MovieSceneExecutionToken.h"
+#include "MovieSceneFwd.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectKey.h"
 
+class IMovieScenePlayer;
+class UObject;
 struct IMovieSceneBlendingActuator;
-
 template<typename DataType> struct TBlendableTokenStack;
 template<typename DataType> struct TMovieSceneBlendingActuator;
 

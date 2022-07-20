@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AudioCaptureDeviceInterface.h"
-#include "Modules/ModuleInterface.h"
-#include "HAL/ThreadSafeBool.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "DSP/Delay.h"
 #include "DSP/EnvelopeFollower.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/UniquePtr.h"
 
 namespace Audio
 {

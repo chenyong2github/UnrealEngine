@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Layout/SlateRect.h"
+#include "Math/TransformCalculus.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/Vector2D.h"
 #include "Rendering/SlateLayoutTransform.h"
 #include "Rendering/SlateRenderTransform.h"
 #include "Types/SlateVector2.h"

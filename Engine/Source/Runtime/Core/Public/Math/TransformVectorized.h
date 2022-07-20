@@ -8,7 +8,6 @@
 #include "Math/Axis.h"
 #include "Math/MathFwd.h"
 #include "Math/Matrix.h"
-#include "Math/Matrix.inl"
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
 #include "Math/ScalarRegister.h"

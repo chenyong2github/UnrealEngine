@@ -2,13 +2,33 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/ThreadSingleton.h"
+#include "Misc/CString.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Serialization/StructuredArchive.h"
+#include "Templates/Function.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
+
+class FArchive;
+class FOutputDevice;
+struct FPropertyTag;
+struct FUObjectSerializeContext;
 
 /**
  * A struct that contains a string reference to an object, either a top level asset or a subobject.

@@ -2,33 +2,48 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntityManager.h"
-#include "UObject/GCObjectScopeGuard.h"
+#include "CoreTypes.h"
 #include "EntitySystem/MovieSceneBlenderSystemTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneInitialValueCache.h"
+#include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Evaluation/IMovieSceneEvaluationHook.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-
-#include "EntitySystem/MovieScenePropertyRegistry.h"
-#include "EntitySystem/MovieSceneInitialValueCache.h"
+#include "UObject/GCObjectScopeGuard.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptInterface.h"
 
 #include "BuiltInComponentTypes.generated.h"
 
-enum class EMovieSceneBlendType : uint8;
-struct FMovieSceneBoolChannel;
-struct FMovieSceneByteChannel;
-struct FMovieSceneIntegerChannel;
-struct FMovieSceneFloatChannel;
-struct FMovieSceneDoubleChannel;
-struct FMovieSceneObjectPathChannel;
-struct FMovieScenePropertyBinding;
+class IMovieSceneEvaluationHook;
+namespace UE { namespace MovieScene { struct FCustomPropertyIndex; } }
+namespace UE { namespace MovieScene { struct FInitialValueIndex; } }
+namespace UE { namespace MovieScene { struct FInstanceHandle; } }
+namespace UE { namespace MovieScene { struct FInterrogationKey; } }
+namespace UE { namespace MovieScene { struct FRootInstanceHandle; } }
+struct FFrameTime;
+struct FMovieSceneBlendChannelID;
+struct FMovieSceneSequenceID;
 
+enum class EMovieSceneBlendType : uint8;
+class FTrackInstancePropertyBindings;
+class UMovieSceneBlenderSystem;
 class UMovieSceneSection;
 class UMovieSceneTrackInstance;
-class UMovieSceneBlenderSystem;
-class FTrackInstancePropertyBindings;
+struct FMovieSceneBoolChannel;
+struct FMovieSceneByteChannel;
+struct FMovieSceneDoubleChannel;
+struct FMovieSceneFloatChannel;
+struct FMovieSceneIntegerChannel;
+struct FMovieSceneObjectPathChannel;
+struct FMovieScenePropertyBinding;
 
 
 /**

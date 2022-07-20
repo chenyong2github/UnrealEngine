@@ -2,8 +2,12 @@
 
 #pragma once
 
-// Includes
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "HAL/Platform.h"
 #include "Net/Core/Connection/NetResult.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 
 
 namespace UE

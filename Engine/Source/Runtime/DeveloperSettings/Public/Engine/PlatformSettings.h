@@ -2,17 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
 #include "DeveloperSettings.h"
+#include "HAL/Platform.h"
 #include "PlatformSettingsManager.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "PlatformSettings.generated.h"
 
 class UPlatformSettings;
+class UPlatformSettingsManager;
 
 USTRUCT()
 struct DEVELOPERSETTINGS_API FPerPlatformSettings

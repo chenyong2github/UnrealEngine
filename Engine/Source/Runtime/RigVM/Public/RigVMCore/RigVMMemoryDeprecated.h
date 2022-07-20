@@ -2,12 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "RigVMTraits.h"
-#include "RigVMStatistics.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "RigVMMemoryCommon.h"
+#include "RigVMStatistics.h"
+#include "RigVMTraits.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+
 #include "RigVMMemoryDeprecated.generated.h"
+
+class FArchive;
+class UObject;
+class UScriptStruct;
 
 typedef TArray<uint8> FRigVMByteArray;
 typedef TArray<FRigVMByteArray> FRigVMNestedByteArray;

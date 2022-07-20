@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "InputCoreTypes.h"
+
+class FString;
 
 struct INPUTCORE_API FGenericPlatformInput
 {

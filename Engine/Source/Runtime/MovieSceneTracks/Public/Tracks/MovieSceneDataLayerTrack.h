@@ -2,9 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "MovieSceneNameableTrack.h"
+#include "MovieSceneSection.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneDataLayerTrack.generated.h"
+
+class UObject;
 
 /**
  * A track that controls loading, unloading and visibility of data layers

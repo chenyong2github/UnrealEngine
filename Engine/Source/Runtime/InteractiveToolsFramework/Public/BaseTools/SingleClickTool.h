@@ -2,11 +2,19 @@
 
 #pragma once
 
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "BaseBehaviors/SingleClickBehavior.h"
 #include "CoreMinimal.h"
+#include "InputState.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseBehaviors/SingleClickBehavior.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SingleClickTool.generated.h"
+
+class UObject;
+struct FToolBuilderState;
 
 
 

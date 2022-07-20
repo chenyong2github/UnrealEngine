@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 class FString;
 

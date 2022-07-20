@@ -2,17 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "VectorTypes.h"
-#include "SphereTypes.h"
 #include "CapsuleTypes.h"
+#include "CoreMinimal.h"
 #include "HalfspaceTypes.h"
 #include "OrientedBoxTypes.h"
+#include "SphereTypes.h"
+#include "VectorTypes.h"
 
 namespace UE
 {
 	namespace Geometry
 	{
+		template <typename RealType> struct TOrientedBox3;
+		template <typename T> struct TCapsule3;
+		template <typename T> struct THalfspace3;
+		template <typename T> struct TSphere3;
 		//
 		// Halfspace Intersection Queries
 		//

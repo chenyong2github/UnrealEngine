@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "HAL/MemoryBase.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/MemoryBase.h"
 
 struct FMallocCrashPool;
 struct FPoolDesc;
@@ -33,8 +33,8 @@ struct FPtrInfo
 	{}
 };
 
-struct FPoolDesc;
 struct FMallocCrashPool;
+struct FPoolDesc;
 
 /**
  * Simple pooled memory allocator that uses preallocated memory.

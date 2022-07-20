@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/LruCache.h"
 #include "Containers/Set.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "IMediaAudioSample.h"
+#include "IMediaBinarySample.h"
+#include "IMediaOverlaySample.h"
+#include "IMediaTextureSample.h"
 #include "Math/RangeSet.h"
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
@@ -16,6 +21,7 @@ class IMediaOverlaySample;
 class IMediaPlayer;
 class IMediaSamples;
 class IMediaTextureSample;
+template <typename ElementType> class TRangeSet;
 
 
 /**

@@ -2,32 +2,38 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Queue.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
 #include "IMediaClockSink.h"
 #include "IMediaEventSink.h"
+#include "IMediaPlayerLifecycleManager.h"
 #include "IMediaTickable.h"
 #include "IMediaTimeSource.h"
-#include "IMediaPlayerLifecycleManager.h"
-#include "MediaPlayerOptions.h"
+#include "Internationalization/Text.h"
+#include "Math/MathFwd.h"
 #include "Math/Quat.h"
 #include "Math/Range.h"
 #include "Math/RangeSet.h"
 #include "Math/Rotator.h"
+#include "MediaPlayerOptions.h"
+#include "MediaSampleSink.h"
 #include "MediaSampleSinks.h"
 #include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "Misc/Timespan.h"
+#include "Templates/Atomic.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
 class FMediaSampleCache;
+class IMediaModule;
 class IMediaOptions;
 class IMediaPlayer;
-class IMediaSamples;
-class IMediaModule;
 class IMediaPlayerFactory;
+class IMediaSamples;
 
 enum class EMediaEvent;
 enum class EMediaCacheState;
@@ -35,8 +41,8 @@ enum class EMediaThreads;
 enum class EMediaTrackType;
 
 struct FMediaAudioTrackFormat;
-struct FMediaVideoTrackFormat;
 struct FMediaPlayerOptions;
+struct FMediaVideoTrackFormat;
 
 
 /**

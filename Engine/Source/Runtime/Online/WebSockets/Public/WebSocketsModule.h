@@ -2,7 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 #if WITH_WEBSOCKETS
 class IWebSocket;

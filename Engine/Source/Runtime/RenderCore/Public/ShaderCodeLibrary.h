@@ -6,19 +6,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogMacros.h"
+#include "Misc/Crc.h"
+#include "Misc/SecureHash.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "Templates/RefCounting.h"
+#include "UObject/NameTypes.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 
-class FShaderPipeline;
 class FShaderMapResource;
 class FShaderMapResourceCode;
+class FShaderPipeline;
+
 using FShaderMapAssetPaths = TSet<FName>;
-class FIoChunkId;
 class FIoBuffer;
+class FIoChunkId;
+class UObject;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {

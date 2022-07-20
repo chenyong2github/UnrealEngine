@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {

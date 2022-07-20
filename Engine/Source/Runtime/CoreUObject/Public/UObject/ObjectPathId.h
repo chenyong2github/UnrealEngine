@@ -3,11 +3,16 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "HAL/Platform.h"
+#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 
-class UObject;
 class FLinkerTables;
+class UObject;
 struct FObjectImport;
 
 // Declared in the header so the type exists in debug info for debugger visualization, not a public part of the API.

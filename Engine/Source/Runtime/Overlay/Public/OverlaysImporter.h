@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "Overlays.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "Overlays.h"
+
+struct FOverlayItem;
 
 enum class EOverlaysFileType
 {

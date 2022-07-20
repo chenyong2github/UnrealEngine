@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioParameter.h"
 #include "AudioParameterControllerInterface.h"
 #include "Containers/Array.h"
+#include "CoreTypes.h"
 #include "IAudioProxyInitializer.h"
 #include "Templates/UniquePtr.h"
-
+#include "UObject/NameTypes.h"
 
 // Forward Declarations
 class UObject;

@@ -2,12 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMemory.h"
 #include "MeshUtilitiesCommon.h" // For ELightmapUVVersion
 
+struct FMD5Hash;
 struct FRect;
 struct Rect;
-struct FMD5Hash;
+template <typename FuncType> class TFunctionRef;
 
 #define DEBUG_LAYOUT_STATS 0
 

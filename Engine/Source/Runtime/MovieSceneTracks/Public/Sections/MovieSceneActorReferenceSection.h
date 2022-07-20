@@ -2,17 +2,38 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "Curves/KeyHandle.h"
-#include "MovieSceneObjectBindingID.h"
-#include "MovieSceneSection.h"
-#include "Curves/IntegralCurve.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Curves/IntegralCurve.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Range.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Guid.h"
+#include "MovieSceneFwd.h"
+#include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSection.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneActorReferenceSection.generated.h"
+
+class IMovieScenePlayer;
+class UObject;
+struct FKeyHandle;
+struct FMovieSceneSequenceHierarchy;
+struct FMovieSceneSequenceID;
 
 USTRUCT()
 struct FMovieSceneActorReferenceKey

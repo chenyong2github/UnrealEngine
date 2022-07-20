@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DeveloperSettings.h"
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "DeveloperSettings.h"
 
 #include "DeveloperSettingsBackedByCVars.generated.h"
+
+class UObject;
 
 /**
  * The base class of auto discovered settings object where some or all of the settings

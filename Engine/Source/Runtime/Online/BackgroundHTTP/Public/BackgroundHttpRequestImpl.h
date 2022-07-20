@@ -3,7 +3,11 @@
 #pragma once
 
 #include "BackgroundHttpNotificationObject.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Interfaces/IBackgroundHttpRequest.h"
+#include "Logging/LogMacros.h"
+#include "Templates/SharedPointer.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBackgroundHttpRequest, Log, All)
 

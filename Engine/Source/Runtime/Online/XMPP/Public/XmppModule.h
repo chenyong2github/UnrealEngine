@@ -2,14 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/Ticker.h"
-#include "XmppConnection.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "XmppConnection.h"
 #include "XmppMultiUserChat.h"
 
 class Error;
+class FOutputDevice;
+class IXmppConnection;
+class UWorld;
 
 /**
  * Module for Xmpp connections

@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
 #include <string>
 
 enum class ENativeGameplayTagToken { PRIVATE_USE_MACRO_INSTEAD };

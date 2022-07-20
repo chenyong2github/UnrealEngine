@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/StringFwd.h"
 #include "CoreMinimal.h"
 #include "IImageWrapper.h"
 

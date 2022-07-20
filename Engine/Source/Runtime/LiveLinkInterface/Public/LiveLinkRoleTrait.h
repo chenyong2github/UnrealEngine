@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-
 #include "LiveLinkController.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
 #include "LiveLinkFramePreProcessor.h"
@@ -12,6 +12,13 @@
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
 #include "Templates/SubclassOf.h"
+
+class ULiveLinkController;
+class ULiveLinkFrameInterpolationProcessor;
+class ULiveLinkFramePreProcessor;
+class ULiveLinkFrameTranslator;
+class ULiveLinkRole;
+class ULiveLinkVirtualSubject;
 
 
 class LIVELINKINTERFACE_API FLiveLinkRoleTrait

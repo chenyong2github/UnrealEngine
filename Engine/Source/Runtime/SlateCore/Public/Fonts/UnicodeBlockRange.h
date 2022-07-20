@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Range.h"
 
 /** Enumeration of pre-defined Unicode block ranges that can be used to access entries from FUnicodeBlockRange */
 enum class EUnicodeBlockRange : uint16

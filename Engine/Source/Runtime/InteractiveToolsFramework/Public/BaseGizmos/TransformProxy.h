@@ -2,9 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BaseGizmos/StateTargets.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "InteractiveToolChange.h"
+#include "Internationalization/Text.h"
+#include "Math/Transform.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "TransformProxy.generated.h"
 
 class USceneComponent;

@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "HttpRequestHandler.h"
+#include "HttpResultCallback.h"
 #include "HttpRouteHandle.h"
+#include "HttpServerRequest.h"
+#include "Templates/SharedPointer.h"
 
 struct FHttpPath;
 

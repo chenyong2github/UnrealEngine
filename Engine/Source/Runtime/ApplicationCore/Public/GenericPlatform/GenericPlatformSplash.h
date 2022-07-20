@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
+#include "CoreTypes.h"
 
 /**
  * SplashTextType defines the types of text on the splash screen

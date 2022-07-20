@@ -3,18 +3,38 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "DynamicMesh/DynamicAttribute.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicMeshTriangleAttribute.h"
-#include "DynamicMesh/DynamicAttribute.h"
 #include "DynamicMesh/DynamicVertexAttribute.h"
 #include "GeometryTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "InfoTypes.h"
-#include "Containers/IndirectArray.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "Util/DynamicVector.h"
+
+class FArchive;
+namespace DynamicMeshInfo { struct FEdgeCollapseInfo; }
+namespace DynamicMeshInfo { struct FEdgeFlipInfo; }
+namespace DynamicMeshInfo { struct FEdgeSplitInfo; }
+namespace DynamicMeshInfo { struct FMergeEdgesInfo; }
+namespace DynamicMeshInfo { struct FPokeTriangleInfo; }
+namespace DynamicMeshInfo { struct FVertexSplitInfo; }
 
 namespace UE
 {
 namespace Geometry
 {
+class FCompactMaps;
+class FDynamicMesh3;
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -34,6 +54,7 @@ typedef TDynamicMeshVertexAttribute<float, 1> FDynamicMeshWeightAttribute;
 /** Forward declarations */
 template<typename ParentType>
 class TDynamicVertexSkinWeightsAttribute;
+
 using FDynamicMeshVertexSkinWeightsAttribute = TDynamicVertexSkinWeightsAttribute<FDynamicMesh3>;
 	
 /**

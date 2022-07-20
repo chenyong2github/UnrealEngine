@@ -2,6 +2,9 @@
 
 #pragma once
 
+struct exec_list;
+struct _mesa_glsl_parse_state;
+
 // Determines what intrinsics will the compiler accept based off target language (e.g., ES 2 doesn't have transpose)
 struct ILanguageSpec
 {

@@ -2,20 +2,33 @@
 #pragma once
 
 #include "AudioDefines.h"
+#include "CoreTypes.h"
 #include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "IAudioProxyInitializer.h"
+#include "Internationalization/Text.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "IAudioModulation.generated.h"
-
 
 // Forward Declarations
 class IAudioModulationManager;
 class ISoundModulatable;
-class USoundModulatorBase;
 class UObject;
+class USoundModulatorBase;
+struct FAudioPluginInitializationParams;
+struct FAudioPluginSourceInputData;
+struct FAudioPluginSourceOutputData;
 
 #if !UE_BUILD_SHIPPING
 class FCanvas;

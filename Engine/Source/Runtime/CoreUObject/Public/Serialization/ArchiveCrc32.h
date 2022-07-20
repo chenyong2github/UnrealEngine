@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/MemoryLayout.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Models.h"
+
+class FArchive;
+class UObject;
+struct CStaticStructProvider;
 
 /**
 * Calculates a checksum from the input provided to the archive.

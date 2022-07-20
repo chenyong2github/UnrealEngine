@@ -1,12 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/Curves/Curve.h"
+#include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Math/MatrixH.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
+	class FCADKernelArchive;
+	class FDatabase;
+	class FEntityGeom;
+	class FPoint2D;
 	class FSurfacicPolyline;
+	struct FCurvePoint2D;
+	struct FCurvePoint;
+	struct FLinearBoundary;
 
 	class CADKERNEL_API FSurfacicCurve : public FCurve
 	{

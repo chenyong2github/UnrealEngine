@@ -7,11 +7,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "Logging/LogMacros.h"
-#include "Delegates/IDelegateInstance.h"
 #include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
+#include "UObject/NameTypes.h"
 
 class IPlatformChunkInstall;
 

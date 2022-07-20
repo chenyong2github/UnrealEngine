@@ -2,15 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "Serialization/MemoryArchive.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/TextNamespaceFwd.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
+#include "Serialization/MemoryArchive.h"
+#include "UObject/Object.h"
 #include "UObject/PropertyPortFlags.h"
 
+class FArchive;
+class FName;
 struct FLazyObjectPtr;
-struct FSoftObjectPtr;
+struct FObjectPtr;
 struct FSoftObjectPath;
+struct FSoftObjectPtr;
 struct FWeakObjectPtr;
 
 /**

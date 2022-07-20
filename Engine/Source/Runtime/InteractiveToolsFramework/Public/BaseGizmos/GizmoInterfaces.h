@@ -3,10 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Interface.h"
 #include "InputState.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "ToolContextInterfaces.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "GizmoInterfaces.generated.h"
+
+class IToolsContextRenderAPI;
+class UObject;
+struct FFrame;
 
 
 //

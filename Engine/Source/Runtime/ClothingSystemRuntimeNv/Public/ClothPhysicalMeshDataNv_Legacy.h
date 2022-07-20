@@ -2,7 +2,13 @@
 #pragma once
 
 #include "ClothPhysicalMeshDataBase_Legacy.h"
+#include "Containers/Array.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothPhysicalMeshDataNv_Legacy.generated.h"
+
+class UObject;
 
 /**
  * Deprecated, use FClothPhysicalMeshData instead.

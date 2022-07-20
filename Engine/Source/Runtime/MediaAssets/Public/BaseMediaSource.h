@@ -2,14 +2,23 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "CoreTypes.h"
 #include "MediaSource.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "BaseMediaSource.generated.h"
+
+class FArchive;
+class FObjectPreSaveContext;
+class FString;
+class UObject;
+struct FGuid;
 
 
 /**

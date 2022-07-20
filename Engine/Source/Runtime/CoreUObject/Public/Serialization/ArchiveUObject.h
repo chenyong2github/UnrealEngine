@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/Archive.h"
 
 struct FLazyObjectPtr;
 struct FObjectPtr;
-struct FSoftObjectPtr;
 struct FSoftObjectPath;
+struct FSoftObjectPtr;
 struct FWeakObjectPtr;
 
 /**

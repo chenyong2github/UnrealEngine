@@ -8,8 +8,10 @@
 #include "CoroLocalVariable.h"
 #include "CoroutineHandle.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
+#include "HAL/Platform.h"
 #include "Misc/MemStack.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/Decay.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 

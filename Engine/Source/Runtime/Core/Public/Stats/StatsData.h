@@ -10,8 +10,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
-#include "Delegates/IDelegateInstance.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/ThreadSafeCounter.h"

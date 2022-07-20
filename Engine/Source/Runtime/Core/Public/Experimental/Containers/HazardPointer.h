@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformMemory.h"
+#include "HAL/PlatformTLS.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 
 #include <atomic>
 

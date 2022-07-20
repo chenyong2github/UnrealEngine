@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "Misc/FrameRate.h"
 #include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/FrameRate.h"
 
 enum class ECommonFrameRate : uint8
 {

@@ -6,30 +6,72 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/PrimaryAssetId.h"
-#include "UObject/LinkerInstancingContext.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/PackagePath.h"
-#include "Containers/ArrayView.h"
-#include "Containers/StringView.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Serialization/MemoryLayout.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
-#include "Serialization/ArchiveUObject.h"
+#include "UObject/LinkerInstancingContext.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/PrimaryAssetId.h"
+#include "UObject/Script.h"
 #include "UObject/TopLevelAssetPath.h"
+#include "UObject/UnrealNames.h"
 
+class FArchive;
+class FLinkerInstancingContext;
+class FObjectPreSaveContext;
+class FOutputDevice;
+class FPackagePath;
+class FProperty;
+class ITargetPlatform;
+class UClass;
+class UEnum;
+class UFunction;
+class UObject;
+class UObjectBase;
+class UPackage;
+class UPackageMap;
+class UScriptStruct;
+class UWorld;
 struct FCustomPropertyListNode;
+struct FGuid;
 struct FObjectInstancingGraph;
 struct FObjectPostCDOCompiledContext;
-class FObjectPreSaveContext;
 struct FObjectPtr;
+struct FPrimaryAssetId;
 struct FStaticConstructObjectParameters;
+struct FUObjectSerializeContext;
+struct FWorldContext;
 template <typename T>
 struct TObjectPtr;
-struct FWorldContext;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogUObjectGlobals, Log, All);
 
@@ -2578,9 +2620,8 @@ protected:
 
 /** Defined in PackageReload.h */
 enum class EPackageReloadPhase : uint8;
-class FPackageReloadedEvent;
-
 class FGarbageCollectionTracer;
+class FPackageReloadedEvent;
 
 enum class EHotReloadedClassFlags
 {
@@ -2921,9 +2962,9 @@ struct FAssetMsg
 COREUOBJECT_API bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive = true, bool bCheckMarks = true);
 #endif //WITH_EDITOR
 
+class FFieldClass;
 struct FClassFunctionLinkInfo;
 struct FCppClassTypeInfoStatic;
-class FFieldClass;
 
 /** Property setter and getter wrapper function pointer */
 typedef void (*SetterFuncPtr)(void* InContainer, const void* InValue);

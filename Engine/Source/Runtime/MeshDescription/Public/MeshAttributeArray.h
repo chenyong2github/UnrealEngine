@@ -2,17 +2,42 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/ArrayView.h"
-#include "MeshTypes.h"
-#include "MeshElementRemappings.h"
 #include "AttributeArrayContainer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "CoreMinimal.h"
+#include "Delegates/IntegerSequence.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "MeshElementRemappings.h"
+#include "MeshTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Crc.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/TVariant.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/ChooseClass.h"
 #include "Templates/CopyQualifiersFromTo.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsArray.h"
+#include "Templates/RemoveCV.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "Templates/IsArray.h"
+
+struct FElementID;
 
 
 /**
@@ -37,6 +62,7 @@ using AttributeTypes = TTuple
  * Helper template which generates a TVariant of all supported attribute types.
  */
 template <typename Tuple> struct TVariantFromTuple;
+
 template <typename... Ts> struct TVariantFromTuple<TTuple<Ts...>> { using Type = TVariant<FEmptyVariantState, Ts...>; };
 
 

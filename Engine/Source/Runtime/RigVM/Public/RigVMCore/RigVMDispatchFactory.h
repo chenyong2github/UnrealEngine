@@ -2,9 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "RigVMCore/RigVMFunction.h"
 #include "RigVMCore/RigVMStructUpgradeInfo.h"
 #include "RigVMCore/RigVMTemplate.h"
+#include "RigVMCore/RigVMTypeIndex.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "RigVMDispatchFactory.generated.h"
 
 /**

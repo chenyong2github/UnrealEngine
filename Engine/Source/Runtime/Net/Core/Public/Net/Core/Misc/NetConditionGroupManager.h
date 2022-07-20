@@ -2,9 +2,17 @@
 
 #pragma once
 
-#include "Containers/Map.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectKey.h"
+
+class FArchive;
+class UObject;
 
 namespace UE::Net
 {

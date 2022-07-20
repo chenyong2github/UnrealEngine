@@ -2,23 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Templates/Atomic.h"
+#include "Templates/MemoryOps.h"
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
-#include "Misc/AssertionMacros.h"
-#include "Misc/ScopeLock.h"
-#include "HAL/MemoryBase.h"
-#include "HAL/UnrealMemory.h"
-#include "Math/NumericLimits.h"
-#include "Templates/AlignmentTemplates.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/PlatformTLS.h"
 #include "HAL/Allocators/CachedOSPageAllocator.h"
 #include "HAL/Allocators/PooledVirtualMemoryAllocator.h"
-#include "HAL/PlatformMath.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinnedCommon.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/PlatformTLS.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/AlignmentTemplates.h"
 
 
 #define BINNEDGPU_MAX_GMallocBinnedGPUMaxBundlesBeforeRecycle (8)
@@ -35,13 +41,12 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 class CORE_API FMallocBinnedGPU final : public FMalloc
 {
-	struct Private;
-
-	struct FPoolInfoSmall;
-	struct FPoolInfoLarge;
-	struct PoolHashBucket;
-	struct FPoolTable;
 	struct FGlobalRecycler;
+	struct FPoolInfoLarge;
+	struct FPoolInfoSmall;
+	struct FPoolTable;
+	struct PoolHashBucket;
+	struct Private;
 
 
 	struct FGPUMemoryBlockProxy

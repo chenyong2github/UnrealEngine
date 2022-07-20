@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "GeometryBase.h"
+#include "HAL/Platform.h"
+#include "Templates/UniquePtr.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class UMaterialInterface;

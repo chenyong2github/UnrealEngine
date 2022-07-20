@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/UnrealMathSSE.h"
 #include "VehicleSystemTemplate.h"
 #include "VehicleUtility.h"
 

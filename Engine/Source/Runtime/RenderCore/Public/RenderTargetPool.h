@@ -6,12 +6,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformAtomics.h"
 #include "RHI.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderGraphResources.h"
 #include "RenderResource.h"
 #include "RendererInterface.h"
-#include "RenderGraphResources.h"
+#include "Templates/RefCounting.h"
 
+class FOutputDevice;
+class FRHICommandList;
 class FRenderTargetPool;
 
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */

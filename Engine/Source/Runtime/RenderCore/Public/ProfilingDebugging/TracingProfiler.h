@@ -10,11 +10,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformAtomics.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "CoreTypes.h"
-#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
 
 #ifndef USE_TRACING_PROFILER_IN_TEST_BUILD
 #define USE_TRACING_PROFILER_IN_TEST_BUILD 1

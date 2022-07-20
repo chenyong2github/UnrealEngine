@@ -3,17 +3,35 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneCompletionMode.h"
+#include "Evaluation/MovieSceneEvalTemplateBase.h"
+#include "Evaluation/MovieSceneExecutionTokens.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "Evaluation/PersistentEvaluationData.h"
+#include "Math/Range.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneSection.h"
-#include "Evaluation/MovieSceneEvalTemplateBase.h"
-
-// These headers are not necessary to compile this header in isolation, but are required to implement an FMovieSceneEvalTemplate
-#include "Evaluation/MovieSceneExecutionTokens.h"
+#include "Templates/Decay.h"
+#include "Templates/EnableIf.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "MovieSceneEvalTemplate.generated.h"
 
+class FArchive;
+class IMovieScenePlayer;
+class UObject;
+struct FMovieSceneEvaluationOperand;
+struct FMovieSceneExecutionTokens;
 struct FMovieSceneInterrogationData;
 
 /**

@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Math/Color.h"
 #include "ColorManagementDefines.h"
+#include "CoreTypes.h"
+#include "GenericPlatform/GenericPlatformMath.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathUtility.h"
+#include "Templates/Function.h"
 
 namespace UE { namespace Color {
 

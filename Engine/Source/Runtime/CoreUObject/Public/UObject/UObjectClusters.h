@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Misc/Build.h"
+
+class FString;
 
 #ifndef UE_GCCLUSTER_VERBOSE_LOGGING
 #define UE_GCCLUSTER_VERBOSE_LOGGING (0 && !UE_BUILD_SHIPPING)

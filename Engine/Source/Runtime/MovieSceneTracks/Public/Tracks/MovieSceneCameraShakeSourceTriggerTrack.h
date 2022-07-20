@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Internationalization/Text.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCameraShakeSourceTriggerTrack.generated.h"
+
+class UObject;
+struct FMovieSceneEvaluationTrack;
 
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneCameraShakeSourceTriggerTrack

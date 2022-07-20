@@ -2,8 +2,17 @@
 
 #pragma once
 
-#include "RenderGraphDefinitions.h"
+#include "HAL/Platform.h"
 #include "RHITransientResourceAllocator.h"
+#include "RenderGraphDefinitions.h"
+#include "Trace/Trace.h"
+
+class FRDGBuffer;
+class FRDGBuilder;
+class FRDGPass;
+class FRDGTexture;
+class FRDGViewableResource;
+namespace UE { namespace Trace { class FChannel; } }
 
 #if RDG_ENABLE_TRACE
 

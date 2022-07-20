@@ -2,16 +2,38 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Internationalization/GatherableTextData.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/RefCounting.h"
+#include "UObject/LinkerInstancingContext.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageFileSummary.h"
-#include "UObject/LinkerInstancingContext.h"
-#include "Templates/RefCounting.h"
 
-class FReferenceCollector;
+class FArchive;
+class FLinkerInstancingContext;
+class FLinkerLoad;
 class FPackagePath;
-struct FPackageSaveInfo;
+class FReferenceCollector;
+class UObject;
+class UPackage;
+class UPackageMap;
 struct FGatherableTextData;
+struct FGuid;
+struct FPackageSaveInfo;
+struct FUObjectSerializeContext;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLinker, Log, All);
 

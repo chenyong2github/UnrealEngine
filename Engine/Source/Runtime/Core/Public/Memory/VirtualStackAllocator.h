@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMemory.h"
 #include "Misc/AssertionMacros.h"
 

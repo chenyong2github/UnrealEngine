@@ -2,12 +2,19 @@
 
 #pragma once
 
+#include "AnalyticsBuildType.h"
+#include "AnalyticsProviderConfigurationDelegate.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "AnalyticsProviderConfigurationDelegate.h"
-#include "AnalyticsBuildType.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 ANALYTICS_API DECLARE_LOG_CATEGORY_EXTERN(LogAnalytics, Display, All);
 

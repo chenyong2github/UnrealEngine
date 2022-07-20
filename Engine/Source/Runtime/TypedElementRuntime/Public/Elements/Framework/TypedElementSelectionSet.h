@@ -2,11 +2,35 @@
 
 #pragma once
 
-#include "Elements/Framework/TypedElementList.h"
-#include "Elements/Framework/TypedElementListObjectUtil.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Delegates/Delegate.h"
+#include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementInterfaceCustomization.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementListFwd.h"
+#include "Elements/Framework/TypedElementListObjectUtil.h"
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "TypedElementSelectionSet.generated.h"
+
+class FArchive;
+class UClass;
+class UInterface;
+class UTypedElementSelectionSet;
+struct FFrame;
 
 USTRUCT(BlueprintType)
 struct FTypedElementSelectionNormalizationOptions

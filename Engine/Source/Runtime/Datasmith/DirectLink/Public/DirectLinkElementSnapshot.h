@@ -2,13 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DirectLinkCommon.h"
 #include "DirectLinkParameterStore.h"
+#include "UObject/NameTypes.h"
 
-
+class FArchive;
 
 namespace DirectLink
 {
+class IReferenceResolutionProvider;
+class ISceneGraphNode;
 
 
 enum class ESerializationStatus

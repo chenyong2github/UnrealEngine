@@ -2,23 +2,23 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Map.h"
 #include "Containers/Array.h"
-
+#include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
-
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FRestoreStateParams;
 struct FPreAnimatedStateExtension;
+struct FPreAnimatedStorageID;
+struct FRestoreStateParams;
+struct FRootInstanceHandle;
 
 /**
  * Structure responsible for tracking contributions to pre-eanimated state entries that originate from ECS data (ie, from FMovieSceneEntityIDs)

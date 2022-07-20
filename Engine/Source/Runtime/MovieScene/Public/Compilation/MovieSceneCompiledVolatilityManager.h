@@ -2,8 +2,16 @@
 
 #pragma once
 
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/SortedMap.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Templates/UniquePtr.h"
+
+class IMovieScenePlayer;
+class UMovieSceneCompiledDataManager;
+struct FGuid;
+struct FMovieSceneCompiledDataID;
+struct FMovieSceneSequenceID;
 
 namespace UE
 {

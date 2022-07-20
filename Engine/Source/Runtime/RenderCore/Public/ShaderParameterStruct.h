@@ -6,10 +6,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Shader.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
 #include "RenderGraphResources.h"
+#include "Serialization/MemoryImage.h"
+#include "Shader.h"
+
+class FRHICommandList;
+class FRHIComputeCommandList;
+class FRHIComputeShader;
+class FRHIGraphicsShader;
+class FRHIResource;
+class FShaderParameterMap;
+class FShaderParametersMetadata;
+struct FRHIUniformBufferLayout;
 
 template <typename FParameterStruct>
 void BindForLegacyShaderParameters(FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMap, bool bShouldBindEverything = false)

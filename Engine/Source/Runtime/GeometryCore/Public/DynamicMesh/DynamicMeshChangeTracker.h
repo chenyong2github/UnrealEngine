@@ -2,9 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "CoreTypes.h"
+#include "DynamicMesh/DynamicAttribute.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicMeshTriangleAttribute.h"
+#include "DynamicMesh/InfoTypes.h"
+#include "GeometryTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "IndexTypes.h"
+#include "Misc/Optional.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 
 //

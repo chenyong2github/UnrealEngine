@@ -3,13 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Templates/PimplPtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Templates/PimplPtr.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MeshDescriptionBaseBulkData.generated.h"
 
-
+class FArchive;
 class UMeshDescriptionBase;
 struct FMeshDescriptionBulkData;
 

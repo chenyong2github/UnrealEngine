@@ -2,9 +2,19 @@
 
 #pragma once
 
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-
+#include "HAL/Platform.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class FOutputDevice;
+class UObject;
 
 /**
  * A primary asset type, represented as an FName internally and implicitly convertible back and forth

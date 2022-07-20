@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
 #include "InterchangeResult.h"
+#include "Misc/ScopeLock.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeResultsContainer.generated.h"
 

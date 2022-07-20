@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 
 /** Structure for templated strings that are displayed in the editor with a allowed args. */

@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneMasterInstantiatorSystem.generated.h"
+
+class UObject;
+namespace UE { namespace MovieScene { struct FEntityAllocation; } }
 
 
 UCLASS()

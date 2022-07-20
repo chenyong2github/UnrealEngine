@@ -2,10 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
+#include "Containers/ArrayView.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "CoreMinimal.h"
+#include "GenericPlatform/GenericPlatformMemory.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "PixelFormat.h"
+#include "RHI.h"
+#include "RHIUtilities.h"
 #include "RenderGraphDefinitions.h"
+#include "RenderGraphResources.h"
+#include "Templates/RefCounting.h"
+
+class FRDGBuilder;
+class FRHICommandList;
 
 /*
  * Can store arbitrary data so long as it follows alignment restrictions. Intended mostly for read only data uploaded from CPU.

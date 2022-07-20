@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "Serialization/BitReader.h"
+#include "CoreTypes.h"
 #include "Misc/NetworkGuid.h"
+#include "Serialization/BitReader.h"
+#include "Templates/Tuple.h"
 
+class FArchive;
 class FGuidReferences;
 
 using FGuidReferencesMap = TMap<int32, FGuidReferences>;

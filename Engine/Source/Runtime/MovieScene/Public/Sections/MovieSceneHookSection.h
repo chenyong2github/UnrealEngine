@@ -2,11 +2,22 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
-#include "MovieSceneSection.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "Evaluation/IMovieSceneEvaluationHook.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneHookSection.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
+struct FFrameNumber;
+struct FMovieSceneEntityComponentFieldBuilder;
+struct FMovieSceneEvaluationFieldEntityMetaData;
+template <typename ElementType> class TRange;
 
 
 /**

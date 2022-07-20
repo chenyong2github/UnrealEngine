@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "SelectionSet.generated.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
+#include "SelectionSet.generated.h"
 
 class USelectionSet;
 

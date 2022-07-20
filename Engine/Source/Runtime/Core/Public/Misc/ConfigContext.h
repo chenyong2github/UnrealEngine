@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
+#include "CoreTypes.h"
 #include "Misc/ConfigTypes.h"
 
 
@@ -21,8 +23,8 @@
 
 
 
-class FConfigFile;
 class FConfigCacheIni;
+class FConfigFile;
 
 class CORE_API FConfigContext
 {

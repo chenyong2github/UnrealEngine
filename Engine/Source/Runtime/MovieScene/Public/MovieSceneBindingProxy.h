@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/Guid.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 #include "MovieSceneBindingProxy.generated.h"
 

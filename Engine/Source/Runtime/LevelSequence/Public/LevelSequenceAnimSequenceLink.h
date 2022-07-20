@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "UObject/Object.h"
+#include "Containers/Array.h"
 #include "Engine/AssetUserData.h"
+#include "Misc/Guid.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "LevelSequenceAnimSequenceLink.generated.h"
 
 class UAnimSequence;
+class UObject;
 
 /** Link To Anim Sequence that we are linked too.*/
 USTRUCT(BlueprintType)

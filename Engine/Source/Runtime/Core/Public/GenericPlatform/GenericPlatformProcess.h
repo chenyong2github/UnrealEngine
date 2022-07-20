@@ -2,12 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Templates/Function.h"
-#include "Misc/EnumClassFlags.h"
-#include "Misc/EnumClassFlags.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
+
+class FEvent;
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_CPU_X86_FAMILY
@@ -31,7 +36,6 @@
 
 class Error;
 struct FProcHandle;
-
 template <typename FuncType> class TFunctionRef;
 
 namespace EProcessResource

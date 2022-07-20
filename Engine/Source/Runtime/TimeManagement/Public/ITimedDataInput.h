@@ -2,22 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-
 #include "Delegates/Delegate.h"
-
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Misc/FrameRate.h"
 #include "Misc/FrameTime.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "UObject/ObjectMacros.h"
 
 #include "ITimedDataInput.generated.h"
 
-
-struct FSlateBrush;
 class ITimedDataInput;
 class ITimedDataInputChannel;
 class SWidget;
+struct FSlateBrush;
 
 
 UENUM()

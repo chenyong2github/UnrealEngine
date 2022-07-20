@@ -2,12 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Curves/KeyHandle.h"
-#include "MovieSceneSection.h"
 #include "Channels/MovieSceneByteChannel.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Misc/FrameTime.h"
+#include "MovieSceneSection.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneParticleSection.generated.h"
+
+class UObject;
 
 /**
  * Defines the types of particle keys.

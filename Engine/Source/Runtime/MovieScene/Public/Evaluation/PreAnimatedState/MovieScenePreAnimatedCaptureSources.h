@@ -2,28 +2,30 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Map.h"
 #include "Containers/Array.h"
-#include "UObject/ObjectKey.h"
-
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "CoreTypes.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
 #include "Evaluation/IMovieSceneEvaluationHook.h"
 #include "Evaluation/MovieSceneEvaluationKey.h"
-
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
 #include "Evaluation/PreAnimatedState/IMovieScenePreAnimatedCaptureSource.h"
-#include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "MovieSceneSequenceID.h"
+#include "UObject/ObjectKey.h"
 
 class UMovieSceneTrackInstance;
+class UObject;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FRestoreStateParams;
-struct FPreAnimatedStateExtension;
 struct FPreAnimatedEvalHookKeyType;
+struct FPreAnimatedStateExtension;
+struct FRestoreStateParams;
 
 enum class EPreAnimatedCaptureSourceState
 {

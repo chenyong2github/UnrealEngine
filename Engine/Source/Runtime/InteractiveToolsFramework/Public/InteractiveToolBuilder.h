@@ -4,9 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
+#include "Misc/AssertionMacros.h"
 #include "ToolTargets/ToolTarget.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InteractiveToolBuilder.generated.h"
+
+class UInteractiveTool;
+struct FToolBuilderState;
 
 
 

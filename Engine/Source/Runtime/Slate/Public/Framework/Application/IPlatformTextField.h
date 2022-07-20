@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/Input/IVirtualKeyboardEntry.h"
+
+class IVirtualKeyboardEntry;
 
 class IPlatformTextField
 {

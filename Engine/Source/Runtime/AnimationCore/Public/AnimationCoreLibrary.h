@@ -6,11 +6,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "EulerTransform.h"
+#include "Math/MathFwd.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
 
-struct FTransformConstraint;
+class FName;
 struct FConstraintData;
+struct FTransformConstraint;
 
 DECLARE_DELEGATE_RetVal_OneParam(FTransform, FGetGlobalTransform, FName);
 

@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MovieSceneSequenceTickInterval.generated.h"
 
 class AActor;
 class UActorComponent;
+class UObject;
 
 /**
  * Structure defining a concrete tick interval for a Sequencer based evaluation

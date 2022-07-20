@@ -2,10 +2,14 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
+#include "Trace/Detail/Channel.h"
+
+class FOutputDevice;
 
 // Only use for supported platforms
 #if PLATFORM_SUPPORTS_JEMALLOC

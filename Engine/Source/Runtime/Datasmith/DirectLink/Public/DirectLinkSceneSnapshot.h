@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "DirectLinkCommon.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace DirectLink

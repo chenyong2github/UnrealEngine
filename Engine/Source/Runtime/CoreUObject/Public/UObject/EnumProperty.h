@@ -2,12 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/UnrealType.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UnrealType.h"
 
-class UEnum;
+class FArchive;
+class FBlake3;
 class FNumericProperty;
+class FOutputDevice;
+class FReferenceCollector;
+class UEnum;
+class UField;
+class UObject;
+class UPackageMap;
+class UStruct;
+namespace UECodeGen_Private { struct FEnumPropertyParams; }
+struct FPropertyTag;
 
 class COREUOBJECT_API FEnumProperty : public FProperty
 {

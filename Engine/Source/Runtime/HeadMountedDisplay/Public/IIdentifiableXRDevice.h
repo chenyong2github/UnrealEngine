@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h" // for FName
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "Templates/TypeHash.h" // for HashCombine()
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "IIdentifiableXRDevice.generated.h"
 
 class HEADMOUNTEDDISPLAY_API IXRSystemIdentifier

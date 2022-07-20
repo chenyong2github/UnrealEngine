@@ -33,13 +33,18 @@
  */
 
 // Includes
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Templates/Atomic.h"
-
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
 
 // Forward Declarations
-class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
+class IAnalyticsProvider;
 
 
 // Defines

@@ -3,29 +3,39 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "Containers/Set.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Logging/LogMacros.h"
 #include "Misc/DateTime.h"
+#include "Misc/OutputDeviceError.h"
 #include "ObjectMacros.h"
+#include "Serialization/ArchiveCookData.h"
 #include "Serialization/FileRegions.h"
 #include "Serialization/PackageWriter.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
+
+class ITargetPlatform;
+class UObject;
 
 #if !defined(UE_WITH_SAVEPACKAGE)
 #	define UE_WITH_SAVEPACKAGE 1
 #endif
 
 class FArchive;
+class FArchiveDiffMap;
 class FIoBuffer;
-struct FObjectSaveContextData;
+class FOutputDevice;
 class FPackagePath;
 class FSavePackageContext;
-class FArchiveDiffMap;
-class FOutputDevice;
 class IPackageWriter;
+struct FObjectSaveContextData;
 
 /**
  * Struct to encapsulate arguments specific to saving one package

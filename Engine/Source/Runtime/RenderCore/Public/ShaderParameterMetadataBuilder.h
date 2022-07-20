@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameterMetadata.h"
+#include "Templates/AlignmentTemplates.h"
 
 class RENDERCORE_API FShaderParametersMetadataBuilder
 {

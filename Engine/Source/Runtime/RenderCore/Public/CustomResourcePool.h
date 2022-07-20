@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 class FRHICommandListImmediate;
+
 class RENDERCORE_API ICustomResourcePool
 {
 public:

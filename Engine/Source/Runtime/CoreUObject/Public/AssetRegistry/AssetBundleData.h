@@ -2,9 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 #include "UObject/PrimaryAssetId.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/SoftObjectPtr.h"
+
+class FOutputDevice;
+class UObject;
 
 /** A struct representing a single AssetBundle */
 struct COREUOBJECT_API FAssetBundleEntry

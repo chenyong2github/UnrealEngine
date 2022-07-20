@@ -2,11 +2,13 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 
 namespace CADKernel
 {
-	class FProgressBase;
 	class FProgress;
+	class FProgressBase;
 
 	class CADKERNEL_API FProgressManager
 	{

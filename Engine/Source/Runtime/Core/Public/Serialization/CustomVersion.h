@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"

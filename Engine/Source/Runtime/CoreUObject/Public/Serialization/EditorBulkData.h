@@ -4,16 +4,24 @@
 
 #include "Async/Future.h"
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
+#include "CoreTypes.h"
 #include "HAL/Platform.h"
 #include "IO/IoHash.h"
+#include "Internationalization/Text.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
+#include "Serialization/CustomVersion.h"
+#include "Serialization/StructuredArchive.h"
 
 class FArchive;
-class UObject;
 class FBulkData;
+class FLinkerSave;
+class UObject;
+
 namespace UE::BulkDataRegistry { enum class ERegisterResult : uint8; }
 
 // When enabled it will be possible for specific editor bulkdata objects to opt out of being virtualized

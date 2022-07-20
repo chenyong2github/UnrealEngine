@@ -3,18 +3,26 @@
 
 #include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/HaveStates.h"
 #include "CADKernel/Core/MetadataDictionary.h"
+#include "CADKernel/Core/OrientedEntity.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
+#include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace CADKernel
 {
 
-class FTopologicalFace;
 class FBody;
+class FCADKernelArchive;
+class FDatabase;
+class FTopologicalFace;
 class FTopologyReport;
-
 struct FFaceSubset;
 
 class CADKERNEL_API FOrientedFace : public TOrientedEntity<FTopologicalFace>

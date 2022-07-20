@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
 #include "Misc/Guid.h"
 #include "MovieSceneObjectBindingID.h"
 #include "MovieSceneSequenceID.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPtr.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "IMovieScenePlayer.h"
@@ -14,8 +20,10 @@
 
 #include "MovieScenePossessable.generated.h"
 
-class UMovieScene;
 class IMovieScenePlayer;
+class UClass;
+class UMovieScene;
+struct FMovieSceneSequenceID;
 
 /**
  * MovieScenePossessable is a "typed slot" used to allow the MovieScene to control an already-existing object

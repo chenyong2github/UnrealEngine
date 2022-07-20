@@ -3,9 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
+#include "MovieSceneObjectBindingID.h"
+#include "Templates/SubclassOf.h"
 #include "Tracks/MovieScene3DConstraintTrack.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieScene3DAttachTrack.generated.h"
+
+class UMovieSceneSection;
+class UObject;
+struct FFrameNumber;
 
 /**
  * Handles manipulation of path tracks in a movie scene.

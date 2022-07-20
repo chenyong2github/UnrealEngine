@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "PhysicsInterfaceTypesCore.h"
+#include "Chaos/CollisionFilterData.h"
+#include "Math/UnrealMathSSE.h"
 #include "PhysicsInterfaceDeclaresCore.h"
+#include "PhysicsInterfaceTypesCore.h"
+
+namespace ChaosInterface { struct FPTLocationHit; }
 
 PHYSICSCORE_API FCollisionFilterData C2UFilterData(const FChaosFilterData& FilterData);
 PHYSICSCORE_API FChaosFilterData U2CFilterData(const FCollisionFilterData& FilterData);

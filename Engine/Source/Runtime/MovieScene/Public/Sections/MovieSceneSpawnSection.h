@@ -3,10 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Sections/MovieSceneBoolSection.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "Sections/MovieSceneBoolSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSpawnSection.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
+struct FFrameNumber;
+struct FMovieSceneEntityComponentFieldBuilder;
+struct FMovieSceneEvaluationFieldEntityMetaData;
+template <typename ElementType> class TRange;
 
 /**
  * A spawn section.

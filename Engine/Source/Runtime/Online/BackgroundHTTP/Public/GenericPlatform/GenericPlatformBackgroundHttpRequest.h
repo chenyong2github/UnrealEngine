@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "BackgroundHttpRequestImpl.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IBackgroundHttpRequest.h"
 #include "Interfaces/IHttpRequest.h"
-
-#include "BackgroundHttpRequestImpl.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 
 /**

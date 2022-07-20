@@ -2,8 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/MemStack.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 #define RDG_USE_MALLOC 0
 

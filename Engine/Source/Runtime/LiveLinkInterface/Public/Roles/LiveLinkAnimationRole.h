@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "LiveLinkFrameTranslator.h"
+#include "Internationalization/Text.h"
 #include "LiveLinkFrameInterpolationProcessor.h"
+#include "LiveLinkFrameTranslator.h"
 #include "LiveLinkTypes.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "Roles/LiveLinkBasicRole.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "LiveLinkAnimationRole.generated.h"
+
+class UObject;
+class UScriptStruct;
 
 /**
  * Role associated for Animation / Skeleton data.

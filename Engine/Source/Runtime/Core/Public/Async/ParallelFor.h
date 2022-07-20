@@ -9,11 +9,14 @@
 #include "Async/Fundamental/Scheduler.h"
 #include "Async/Fundamental/Task.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "HAL/Event.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Math/UnrealMathUtility.h"
@@ -22,6 +25,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Fork.h"
 #include "Misc/MemStack.h"
+#include "Misc/Timespan.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/TagTrace.h"
 #include "Stats/Stats.h"
@@ -29,6 +33,9 @@
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+#include <atomic>
 
 namespace UE { namespace LLMPrivate { class FTagData; } }
 

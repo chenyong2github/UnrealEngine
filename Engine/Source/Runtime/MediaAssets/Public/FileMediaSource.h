@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "BaseMediaSource.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
-#include "BaseMediaSource.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FileMediaSource.generated.h"
+
+class UObject;
+struct FFrame;
+struct FPropertyChangedEvent;
 
 
 UCLASS(BlueprintType)

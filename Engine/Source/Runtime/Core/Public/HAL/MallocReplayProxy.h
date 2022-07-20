@@ -3,10 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/MemoryBase.h"
 #include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
+
+class FOutputDevice;
+class UWorld;
+struct FGenericMemoryStats;
 
 #if !defined(UE_USE_MALLOC_REPLAY_PROXY)
 	// it is always enabled on Linux, but not always added to the malloc stack

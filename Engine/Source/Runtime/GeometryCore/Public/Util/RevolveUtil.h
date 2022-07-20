@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-
 #include "FrameTypes.h"
+#include "GeometryBase.h"
+#include "Math/UnrealMathSSE.h"
 #include "VectorTypes.h"
 
 namespace RevolveUtil

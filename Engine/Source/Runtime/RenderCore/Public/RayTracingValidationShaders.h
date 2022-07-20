@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BuiltInRayTracingShaders.h"
+#include "RHIDefinitions.h"
 #include "ShaderCompilerCore.h"
 
 #if RHI_RAYTRACING

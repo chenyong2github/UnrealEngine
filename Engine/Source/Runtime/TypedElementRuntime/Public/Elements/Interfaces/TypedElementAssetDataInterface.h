@@ -3,10 +3,16 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TypedElementAssetDataInterface.generated.h"
+
+class UObject;
+struct FFrame;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class UTypedElementAssetDataInterface : public UInterface

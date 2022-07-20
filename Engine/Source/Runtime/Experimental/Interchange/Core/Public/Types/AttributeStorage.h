@@ -2,15 +2,55 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Text.h"
+#include "Math/Box.h"
+#include "Math/Box2D.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Color.h"
+#include "Math/Float16.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/IntVector.h"
+#include "Math/Matrix.h"
+#include "Math/Plane.h"
+#include "Math/Quat.h"
 #include "Math/RandomStream.h"
+#include "Math/Rotator.h"
+#include "Math/Sphere.h"
+#include "Math/Transform.h"
+#include "Math/TwoVectors.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector2DHalf.h"
+#include "Math/Vector4.h"
+#include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
+#include "Misc/Guid.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/StringFormatArg.h"
+#include "Misc/Timespan.h"
+#include "Serialization/Archive.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/SoftObjectPath.h"
 
 #include <type_traits>
+
+struct FFrameTime;
+struct FOrientedBox;
+template <class TEnum> class TEnumAsByte;
 
 //Interchange namespace
 namespace UE

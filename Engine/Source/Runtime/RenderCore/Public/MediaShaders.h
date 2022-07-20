@@ -4,11 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "GlobalShader.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
 #include "PipelineStateCache.h"
-#include "RenderResource.h"
 #include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderResource.h"
+#include "Serialization/MemoryLayout.h"
 #include "Shader.h"
+#include "ShaderParameterMacros.h"
 #include "ShaderParameterStruct.h"
+#include "ShaderPermutation.h"
+#include "Templates/RefCounting.h"
+#include "Templates/UnrealTemplate.h"
+
+class FPointerTableBase;
+class FRDGBuilder;
+class FRDGTexture;
 
 
 /** MAX number of conversion operations. Reflects MAX in EMediaCaptureConversionOperation */

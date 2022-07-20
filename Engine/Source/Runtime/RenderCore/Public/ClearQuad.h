@@ -3,15 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector4.h"
+#include "RHI.h"
+#include "RHICommandList.h"
 #include "RHIDefinitions.h"
 #include "RenderResource.h"
 #include "RendererInterface.h"
+#include "Templates/Function.h"
 
-class FRHICommandList;
-struct FRWBufferStructured;
-struct FRWBuffer;
-class FRHIUnorderedAccessView;
 class FGraphicsPipelineStateInitializer;
+class FRHICommandList;
+class FRHIUnorderedAccessView;
+struct FRWBuffer;
+struct FRWBufferStructured;
 
 class FClearVertexBuffer : public FVertexBuffer
 {

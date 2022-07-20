@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/Field.h"
+#include "UObject/FieldPath.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
-#include "UObject/FieldPath.h"
+
+class FArchive;
+class FOutputDevice;
+class UClass;
+class UField;
+class UObject;
+class UStruct;
+namespace UECodeGen_Private { struct FFieldPathPropertyParams; }
+struct FPropertyTag;
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FFieldPath, FProperty> FFieldPathProperty_Super;

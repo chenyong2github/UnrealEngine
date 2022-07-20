@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Math/Vector.h"
-#include "Math/Matrix.h"
-#include "Containers/StaticArray.h"
 #include "ColorManagementDefines.h"
+#include "Containers/StaticArray.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTypeTraits.h"
 
 namespace UE { namespace Color {
 

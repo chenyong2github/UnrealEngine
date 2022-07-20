@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/Object.h"
-#include "Features/IModularFeature.h"
 #include "Engine/LatentActionManager.h"
+#include "Features/IModularFeature.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ARDependencyHandler.generated.h"
 
 class UARSessionConfig;
+struct FFrame;
 
 UENUM(BlueprintType)
 enum class EARServiceAvailability : uint8

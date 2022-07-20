@@ -2,26 +2,37 @@
 
 #pragma once
 
-#include "Math/BoxSphereBounds.h"
-
+#include "Chaos/Real.h"
 #include "ChaosInterfaceWrapperCore.h"
 #include "ChaosSQTypes.h"
+#include "Containers/Array.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+#include "PhysicsInterfaceWrapperShared.h"
+
+namespace ChaosInterface { struct FOverlapHit; }
+namespace ChaosInterface { struct FPTOverlapHit; }
+namespace ChaosInterface { struct FPTRaycastHit; }
+namespace ChaosInterface { struct FPTSweepHit; }
+namespace ChaosInterface { struct FRaycastHit; }
+namespace ChaosInterface { struct FSweepHit; }
+namespace ChaosInterface { template <typename HitType> class FSQHitBuffer; }
 
 namespace Chaos
 {
-	class FImplicitObject;
-
 	class FAccelerationStructureHandle;
-
+	class FImplicitObject;
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
 }
 
 class FSQAccelerator;
+class ICollisionQueryFilterCallbackBase;
 struct FCollisionFilterData;
 struct FCollisionQueryParams;
 struct FCollisionQueryParams;
-class ICollisionQueryFilterCallbackBase;
 
 class PHYSICSCORE_API FChaosSQAccelerator
 {

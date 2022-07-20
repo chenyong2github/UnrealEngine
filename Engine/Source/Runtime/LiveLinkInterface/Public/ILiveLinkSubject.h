@@ -2,13 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-
 #include "LiveLinkFrameTranslator.h"
 #include "LiveLinkRole.h"
 #include "LiveLinkTypes.h"
 #include "Templates/SubclassOf.h"
-
 
 class ILiveLinkClient;
 class ULiveLinkFrameInterpolationProcessor;

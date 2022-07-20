@@ -2,14 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
 #include <type_traits>
 
-
 class FSlateWidgetClassData;
+class SWidget;
+
 namespace SlateAttributePrivate
 {
 	enum class ESlateAttributeType : uint8;
@@ -90,10 +98,10 @@ public:
 	};
 
 public:
-	struct FContainer;
 	struct FAttribute;
-	struct FInitializer;
+	struct FContainer;
 	struct FContainerInitializer;
+	struct FInitializer;
 
 	using OffsetType = uint32;
 

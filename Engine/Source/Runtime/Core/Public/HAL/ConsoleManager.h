@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
+
+class FOutputDevice;
+class UWorld;
 
 class CORE_API FConsoleManager :public IConsoleManager
 {

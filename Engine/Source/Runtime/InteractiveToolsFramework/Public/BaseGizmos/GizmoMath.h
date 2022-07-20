@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "CoreMinimal.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector2D.h"
 
 /**
  * GizmoMath functions implement various vector math/geometry operations

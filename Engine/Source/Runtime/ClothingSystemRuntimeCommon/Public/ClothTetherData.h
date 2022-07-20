@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Tuple.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 
 #include "ClothTetherData.generated.h"
+
+class FArchive;
 
 /**
  * Long range attachment tether pathfinding based on Dijkstra's algorithm.

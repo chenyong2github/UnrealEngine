@@ -2,16 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Async/AsyncWork.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IAnalyticsPropertyStore.h"
 #include "Misc/DateTime.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Timespan.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Stats/Stats2.h"
 #include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 
 class IFileHandle;
+struct FAnalyticsEventAttribute;
 
 /**
  * Implements a fast key/value database to store the metrics gathered to create the session summary event.

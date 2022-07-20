@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 #include "Textures/TextureAtlas.h"
+
+class FSlateShaderResource;
 
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReleaseFontResources, const class FSlateFontCache&);

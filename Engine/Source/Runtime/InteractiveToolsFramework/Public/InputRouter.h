@@ -3,12 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "Misc/Change.h"
-#include "InputState.h"
+#include "InputBehavior.h"
 #include "InputBehaviorSet.h"
+#include "InputState.h"
+#include "Misc/Change.h"
 #include "ToolContextInterfaces.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InputRouter.generated.h"
+
+class IInputBehaviorSource;
+class IToolsContextTransactionsAPI;
+class UInputBehaviorSet;
+struct FInputDeviceState;
 
 
 /**

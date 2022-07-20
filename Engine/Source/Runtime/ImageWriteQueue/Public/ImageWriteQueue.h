@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "Misc/CoreDefines.h"
 #include "Async/Future.h"
-#include "Logging/LogMacros.h"
-#include "Modules/ModuleInterface.h"
-#include "Templates/UniquePtr.h"
+#include "HAL/Platform.h"
 #include "ImageWriteTask.h"
 #include "Logging/LogMacros.h"
+#include "Logging/LogMacros.h"
+#include "Misc/CoreDefines.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogImageWriteQueue, Warning, Warning);
 

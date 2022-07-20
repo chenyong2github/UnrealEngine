@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
 #include "Serialization/ArchiveObjectGraph.h"
+#include "UObject/ObjectMacros.h"
+
+class UObject;
 
 // This traces referenced/referencer of an object using FArchiveObjectGraph 
 class FTraceReferences

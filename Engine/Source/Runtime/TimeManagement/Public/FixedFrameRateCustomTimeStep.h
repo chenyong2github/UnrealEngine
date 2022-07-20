@@ -2,11 +2,16 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "Engine/EngineCustomTimeStep.h"
-
+#include "Misc/AssertionMacros.h"
 #include "Misc/FrameRate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FixedFrameRateCustomTimeStep.generated.h"
+
+class UObject;
 
 
 

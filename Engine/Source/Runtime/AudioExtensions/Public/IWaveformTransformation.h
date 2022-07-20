@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "SignalProcessing/Public/DSP/BufferVectorOperations.h"
-#include "UObject/Object.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "IWaveformTransformation.generated.h"
 

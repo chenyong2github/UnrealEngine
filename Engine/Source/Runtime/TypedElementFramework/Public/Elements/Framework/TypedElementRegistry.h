@@ -2,16 +2,45 @@
 
 #pragma once
 
-#include <type_traits>
-
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Set.h"
 #include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Elements/Framework/TypedElementData.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementId.h"
+#include "Elements/Framework/TypedElementLimits.h"
 #include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementListFwd.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogVerbosity.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ScriptInterface.h"
+#include "UObject/Stack.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <type_traits>
 
 #include "TypedElementRegistry.generated.h"
 

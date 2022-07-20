@@ -4,24 +4,40 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/SortedMap.h"
-
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "EntitySystem/MovieSceneEntitySystemDirectedGraph.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 #include "MovieSceneEntitySystemGraphs.generated.h"
 
+class FReferenceCollector;
 class UMovieSceneEntitySystem;
 class UMovieSceneEntitySystemLinker;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-	struct FSystemTaskPrerequisites;
 	struct FSystemSubsequentTasks;
+	struct FSystemTaskPrerequisites;
 
 
 } // namespace MovieScene

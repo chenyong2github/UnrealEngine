@@ -4,20 +4,26 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
 #include "Containers/Map.h"
 #include "Containers/SortedMap.h"
+#include "CoreTypes.h"
+#include "EntitySystem/MovieSceneEntityFactoryTypes.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemDirectedGraph.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/InlineValue.h"
 
-#include "EntitySystem/MovieSceneEntityIDs.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "EntitySystem/MovieSceneEntityFactoryTypes.h"
-#include "EntitySystem/MovieSceneEntitySystemDirectedGraph.h"
+#include <initializer_list>
 
 
 namespace UE
 {
 namespace MovieScene
 {
+struct FEntityAllocation;
+struct FEntityRange;
 
 
 enum class EComplexInclusivityFilterMode

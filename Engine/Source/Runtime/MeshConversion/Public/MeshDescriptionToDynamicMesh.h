@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "GeometryBase.h"
 #include "MeshDescription.h"
+#include "MeshTypes.h"
 
 // predeclare tangents template
 PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
+namespace UE { namespace Geometry { class FDynamicMesh3; } }
+struct FMeshDescription;
+
 using UE::Geometry::FDynamicMesh3;
 
 /**

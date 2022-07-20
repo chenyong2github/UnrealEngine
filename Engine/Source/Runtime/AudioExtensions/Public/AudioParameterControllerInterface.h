@@ -4,12 +4,21 @@
 
 #include "AudioParameter.h"
 #include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IAudioProxyInitializer.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AudioParameterControllerInterface.generated.h"
+
+class UObject;
+struct FAudioParameter;
+struct FFrame;
 
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))

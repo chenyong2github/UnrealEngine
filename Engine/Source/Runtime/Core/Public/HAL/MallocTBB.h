@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "HAL/PlatformMemory.h"
 #include "HAL/MemoryBase.h"
+#include "HAL/PlatformMemory.h"
 
 #if PLATFORM_SUPPORTS_TBB && TBB_ALLOCATOR_ALLOWED
 

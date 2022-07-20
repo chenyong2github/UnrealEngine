@@ -2,7 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "HAL/Platform.h"
 #include "InstallBundleTypes.h"
+#include "Misc/DateTime.h"
+#include "Misc/Optional.h"
+#include "Misc/Timespan.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class FInstallBundleCache;
 

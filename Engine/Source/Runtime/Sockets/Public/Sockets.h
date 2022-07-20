@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/Timespan.h"
 #include "SocketTypes.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class FInternetAddr;
 

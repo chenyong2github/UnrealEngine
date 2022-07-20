@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "PluginDescriptor.h"
 
 class FJsonObject;
+class FText;
 
 /**
  * Descriptor for plugins. Contains all the information contained within a .uplugin file.

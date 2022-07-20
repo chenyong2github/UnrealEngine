@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
-#include "Interfaces/IBackgroundHttpRequest.h"
 #include "Interfaces/IBackgroundHttpManager.h"
+#include "Interfaces/IBackgroundHttpRequest.h"
+#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 
 

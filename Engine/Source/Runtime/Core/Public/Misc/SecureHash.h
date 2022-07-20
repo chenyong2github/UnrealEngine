@@ -10,6 +10,7 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"

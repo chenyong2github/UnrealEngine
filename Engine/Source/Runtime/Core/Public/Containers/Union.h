@@ -12,6 +12,7 @@
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Trace/Detail/Channel.h"
 
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogUnion, Log, All);

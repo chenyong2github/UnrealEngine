@@ -1,12 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/CADKernelArchive.h"
+#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/HaveStates.h"
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Topo/Linkable.h"
 #include "CADKernel/Topo/TopologicalLink.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
+	class FDatabase;
 	class FModelMesh;
 	class FTopologicalEdge;
 	class FVertexMesh;

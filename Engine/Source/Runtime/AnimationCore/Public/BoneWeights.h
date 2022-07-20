@@ -2,16 +2,26 @@
 
 #pragma once
 
-#include "AnimationCore.h"
 #include "Algo/IsSorted.h"
+#include "AnimationCore.h"
 #include "BoneIndices.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Set.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "GPUSkinPublicDefs.h"
+#include "HAL/PlatformCrt.h"
 #include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
 #include <limits>
+#include <type_traits>
 
 namespace UE { 
 namespace AnimationCore {

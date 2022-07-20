@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/MathFwd.h"
 #include "Math/Vector.h"
 #include "VectorTypes.h"
 

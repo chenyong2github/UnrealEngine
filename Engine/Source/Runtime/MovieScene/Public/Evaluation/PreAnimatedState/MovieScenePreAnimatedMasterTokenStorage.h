@@ -3,20 +3,23 @@
 #pragma once
 
 #include "CoreTypes.h"
-
-#include "MovieSceneExecutionToken.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/MovieSceneAnimTypeID.h"
-#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
+#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneExecutionToken.h"
 
 
 namespace UE
 {
 namespace MovieScene
 {
+struct FPreAnimatedStateExtension;
+struct FRestoreStateParams;
 
 struct FPreAnimatedMasterTokenTraits : FDefaultPreAnimatedStateTraits
 {

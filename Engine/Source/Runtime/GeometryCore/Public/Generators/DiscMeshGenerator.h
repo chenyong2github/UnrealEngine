@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "IndexTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
 #include "MeshShapeGenerator.h"
 
 namespace UE

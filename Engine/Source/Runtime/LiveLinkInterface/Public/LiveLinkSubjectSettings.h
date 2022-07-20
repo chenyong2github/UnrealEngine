@@ -2,17 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-
 #include "LiveLinkRole.h"
+#include "Misc/FrameRate.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkSubjectSettings.generated.h"
 
 class ULiveLinkFrameInterpolationProcessor;
 class ULiveLinkFramePreProcessor;
 class ULiveLinkFrameTranslator;
+class ULiveLinkRole;
 
 
 // Base class for live link subject settings

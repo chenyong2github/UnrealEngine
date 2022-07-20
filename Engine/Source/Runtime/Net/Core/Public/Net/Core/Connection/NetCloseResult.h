@@ -2,10 +2,11 @@
 
 #pragma once
 
-// Includes
+#include "HAL/Platform.h"
 #include "Net/Core/Connection/NetEnums.h"
 #include "Net/Core/Connection/NetResult.h"
 #include "Templates/PimplPtr.h"
+#include "UObject/ObjectMacros.h"
 
 #include "NetCloseResult.generated.h"
 

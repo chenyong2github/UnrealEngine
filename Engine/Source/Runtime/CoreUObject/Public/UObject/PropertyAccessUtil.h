@@ -2,14 +2,21 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
-#include "UObject/UnrealType.h"
-#include "Templates/UniquePtr.h"
+#include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealType.h"
 
+class FOutputDevice;
+class FProperty;
 class UObject;
 class UStruct;
-class FProperty;
 
 /**
  * Result flags from property access.

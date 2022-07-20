@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 
 //Simple data wrapper used to hold a mapping of a URL to the temp file holding the finished download of that URL in the BackgroundHTTP Temp folder

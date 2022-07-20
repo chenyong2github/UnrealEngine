@@ -2,24 +2,30 @@
 
 #pragma once
 
-#include "VectorTypes.h"
-#include "IndexTypes.h"
-
+#include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "Templates/PimplPtr.h"
-
-#include "Math/RandomStream.h"
-
-#include "MathUtil.h"
-#include "IndexTypes.h"
-#include "PlaneTypes.h"
-#include "LineTypes.h"
-#include "Polygon2.h"
 #include "Curve/GeneralPolygon2.h"
+#include "HAL/PlatformCrt.h"
+#include "IndexTypes.h"
+#include "IndexTypes.h"
+#include "LineTypes.h"
+#include "Math/RandomStream.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "MathUtil.h"
+#include "PlaneTypes.h"
+#include "Polygon2.h"
+#include "Templates/PimplPtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "VectorTypes.h"
 
 
 namespace UE {
 namespace Geometry {
+template <typename T> class TGeneralPolygon2;
+template <typename T> class TPolygon2;
 
 using namespace UE::Math;
 

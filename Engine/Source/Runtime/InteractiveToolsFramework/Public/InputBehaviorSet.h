@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Interface.h"
 #include "InputBehavior.h"
+#include "InputState.h"
+#include "Templates/Function.h"
+#include "UObject/Interface.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InputBehaviorSet.generated.h"
 
 

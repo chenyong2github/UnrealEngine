@@ -22,15 +22,20 @@
 #ifndef DETOURCROWD_H
 #define DETOURCROWD_H
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
 #include "Detour/DetourNavMeshQuery.h"
-#include "DetourCrowd/DetourObstacleAvoidance.h"
-#include "DetourCrowd/DetourSharedBoundary.h"
 #include "DetourCrowd/DetourLocalBoundary.h"
+#include "DetourCrowd/DetourObstacleAvoidance.h"
 #include "DetourCrowd/DetourPathCorridor.h"
 #include "DetourCrowd/DetourPathQueue.h"
-#include "Detour/DetourLargeWorldCoordinates.h"
+#include "DetourCrowd/DetourSharedBoundary.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
+class FString;
 class dtProximityGrid;
 
 /// The maximum number of neighbors that a crowd agent can take into account

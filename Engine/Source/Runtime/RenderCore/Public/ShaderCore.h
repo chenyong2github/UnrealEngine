@@ -6,17 +6,44 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Templates/RefCounting.h"
-#include "Misc/SecureHash.h"
-#include "Misc/Paths.h"
-#include "Misc/CoreStats.h"
-#include "UniformBuffer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
 #include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
+#include "Misc/CoreStats.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "Misc/Paths.h"
+#include "Misc/SecureHash.h"
+#include "PixelFormat.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryLayout.h"
+#include "ShaderParameterMetadata.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/RefCounting.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UniformBuffer.h"
 
 class Error;
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
+class FPointerTableBase;
+class FSHA1;
+class ITargetPlatform;
 
 /**
  * Controls whether shader related logs are visible.

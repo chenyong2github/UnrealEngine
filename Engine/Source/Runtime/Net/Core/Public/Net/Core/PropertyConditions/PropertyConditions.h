@@ -2,10 +2,15 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/CoreNet.h"
 #include "UObject/ObjectKey.h"
 
+class FOutputDevice;
 class FRepChangedPropertyTracker;
 
 namespace UE::Net::Private

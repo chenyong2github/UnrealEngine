@@ -3,11 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
 #include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "HAL/Platform.h"
+#include "RHICommandList.h"
 #include "RenderResource.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderParameterUtils.h"
+#include "ShaderParameters.h"
+
+class FPointerTableBase;
+class FRHISamplerState;
+class FRHITexture;
+class FTexture;
 
 class FOculusVertexShader : public FGlobalShader
 {

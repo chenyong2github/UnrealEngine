@@ -3,17 +3,27 @@
 #pragma once
 
 #include "Compilation/MovieSceneSegmentCompiler.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
-#include "Evaluation/MovieSceneEvaluationField.h"
+#include "CoreTypes.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
-#include "Misc/CoreMiscDefines.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneSignedObject.h"
 #include "MovieSceneTrackEvaluationField.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "MovieSceneSection.h"
@@ -22,11 +32,11 @@
 #include "MovieSceneTrack.generated.h"
 
 class UMovieSceneSection;
+class UObject;
 struct FMovieSceneEvaluationTrack;
-struct FMovieSceneTrackSegmentBlender;
 struct FMovieSceneTrackRowSegmentBlender;
+struct FMovieSceneTrackSegmentBlender;
 struct IMovieSceneTemplateGenerator;
-
 template<typename> struct TMovieSceneEvaluationTree;
 
 /** Flags used to perform cook-time optimization of movie scene data */

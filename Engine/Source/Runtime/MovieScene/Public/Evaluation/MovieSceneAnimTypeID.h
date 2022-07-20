@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "Templates/TypeHash.h"
 
+class FString;
 struct FMovieSceneAnimTypeID;
 
 /**

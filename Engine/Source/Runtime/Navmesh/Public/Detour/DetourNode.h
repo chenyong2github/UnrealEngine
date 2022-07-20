@@ -23,8 +23,8 @@
 #define DETOURNODE_H
 
 #include "CoreMinimal.h"
-#include "Detour/DetourNavMesh.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
 
 enum dtNodeFlags
 {

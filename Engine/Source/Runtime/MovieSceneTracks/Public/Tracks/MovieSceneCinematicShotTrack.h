@@ -2,15 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/InlineValue.h"
-#include "Tracks/MovieSceneSubTrack.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SubclassOf.h"
+#include "Tracks/MovieSceneSubTrack.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCinematicShotTrack.generated.h"
 
+class UMovieSceneSection;
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
+class UObject;
+struct FMovieSceneTrackEvaluationData;
+template <typename> struct TMovieSceneEvaluationTree;
 
 /**
 * A track that holds consecutive sub sequences.

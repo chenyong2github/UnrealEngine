@@ -2,13 +2,22 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
+class FDatasmithTextureSampler;
 class FXmlFile;
 class FXmlNode;
 class UTexture;
+struct FLinearColor;
 
 class DATASMITHCORE_API FDatasmithSceneXmlReader
 {

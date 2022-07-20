@@ -2,35 +2,50 @@
 
 #pragma once
 
+#include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
 #include "IO/PackageId.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/DateTime.h"
 #include "Misc/Guid.h"
-#include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
+#include "Misc/OutputDeviceError.h"
 #include "Misc/PackagePath.h"
 #include "Misc/SecureHash.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Serialization/CustomVersion.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
-#include "Async/Future.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectVersion.h"
+#include "UObject/UObjectGlobals.h"
 
 class Error;
-
-// This is a dummy type which is not implemented anywhere. It's only 
+class FArchive;
+class FLinkerLoad;
+// This is a dummy type which is not implemented anywhere. It's only
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
-class FLinkerLoad;
 class FLinkerSave;
-class ITargetPlatform;
-struct FPackageSaveInfo;
+class FObjectPostSaveContext;
+class FObjectPreSaveContext;
+class FOutputDevice;
 class FSavePackageContext;
-struct FSavePackageArgs;
-
+class FString;
+class ITargetPlatform;
+class UFunction;
 class UMetaData;
+struct FMD5Hash;
+struct FPackageSaveInfo;
+struct FSavePackageArgs;
 
 /**
 * Represents the result of saving a package

@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Interfaces/IAnalyticsPropertyStore.h"
 #include "AnalyticsEventAttribute.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Interfaces/IAnalyticsPropertyStore.h"
 #include "Misc/Timespan.h"
+#include "Templates/SharedPointer.h"
 
+class IAnalyticsPropertyStore;
 class IAnalyticsSessionSummarySender;
+struct FAnalyticsEventAttribute;
+template <typename T> class TAnalyticsProperty;
 
 /** Defines how the principal process (the application for which analytics is gathered) exited. When the analytics session summary manager aggregates the summaries for a session,
     it looks for 'ShutdownTypeCode' key and if the key is found, it converts it to its string representation and add the 'ShutdownType' property known by the analytics backend. */

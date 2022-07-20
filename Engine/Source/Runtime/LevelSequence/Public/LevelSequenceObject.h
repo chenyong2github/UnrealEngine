@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "LevelSequenceObject.generated.h"
+
+class UObject;
 
 
 /**

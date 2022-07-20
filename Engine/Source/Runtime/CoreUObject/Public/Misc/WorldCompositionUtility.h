@@ -6,7 +6,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/Box.h"
+#include "Math/IntPoint.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Serialization/StructuredArchive.h"
+
+class FArchive;
 
 #define WORLDTILE_LOD_PACKAGE_SUFFIX	TEXT("_LOD")
 #define WORLDTILE_LOD_MAX_INDEX			4

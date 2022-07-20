@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "Dataflow/DataflowGraph.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
-#include "Dataflow/DataflowGraph.h"
 
+class UDataflow;
+class UObject;
 
 namespace Dataflow
 {

@@ -6,20 +6,50 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/List.h"
+#include "Algo/BinarySearch.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/EnumAsByte.h"
 #include "Containers/HashTable.h"
-#include "Misc/SecureHash.h"
-#include "RenderResource.h"
-#include "ShaderParameters.h"
-#include "RenderingThread.h"
-#include "ShaderCore.h"
-#include "ShaderPermutation.h"
-#include "ShaderCodeLibrary.h" // TODO - move to cpp
-#include "Serialization/ArchiveProxy.h"
-#include "UObject/RenderingObjectVersion.h"
-#include "Serialization/MemoryImage.h"
+#include "Containers/List.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "RenderResource.h"
+#include "RenderingThread.h"
+#include "Serialization/Archive.h"
+#include "Serialization/ArchiveProxy.h"
+#include "Serialization/MemoryImage.h"
+#include "Serialization/MemoryLayout.h"
+#include "ShaderCodeLibrary.h" // TODO - move to cpp
+#include "ShaderCore.h"
+#include "ShaderParameterMetadata.h"
+#include "ShaderParameters.h"
+#include "ShaderPermutation.h"
+#include "Templates/RefCounting.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
+#include "UObject/RenderingObjectVersion.h"
+
 #include <atomic>
 
 // For FShaderUniformBufferParameter
@@ -28,21 +58,25 @@
 #include "UObject/DebugSerializationFlags.h"
 #endif
 
+class ITargetPlatform;
+class FComputeKernelShaderType;
 class FGlobalShaderType;
 class FMaterialShaderType;
+class FMemoryImageWriter;
+class FMemoryUnfreezeContent;
+class FMeshMaterialShaderType;
 class FNiagaraShaderType;
 class FOpenColorIOShaderType;
-class FMeshMaterialShaderType;
-class FComputeKernelShaderType;
+class FRHIComputeCommandList;
 class FShader;
 class FShaderMapBase;
+class FShaderMapPointerTable;
+class FShaderParametersMetadata;
 class FShaderPipelineType;
 class FShaderType;
 class FVertexFactoryType;
-class FShaderParametersMetadata;
-class FShaderMapPointerTable;
-struct FShaderCompilerOutput;
 struct FShaderCompiledShaderInitializerType;
+struct FShaderCompilerOutput;
 
 UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
 typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;

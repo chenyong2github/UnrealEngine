@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "MovieSceneEntityIDs.h"
-#include "MovieSceneSequenceID.h"
-#include "Evaluation/MovieScenePlayback.h"
-//#include "Misc/FrameTime.h"
-//#include "UObject/ObjectKey.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "HAL/Platform.h"
+#include "MovieSceneEntityIDs.h"
+#include "MovieSceneSequenceID.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UMovieSceneEntitySystemLinker;
 

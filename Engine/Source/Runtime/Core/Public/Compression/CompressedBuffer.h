@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Math/NumericLimits.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/SharedBuffer.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
 
 class FArchive;
 struct FIoHash;

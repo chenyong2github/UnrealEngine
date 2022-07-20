@@ -2,16 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 #include "ILiveLinkSubject.h"
+#include "LiveLinkFrameTranslator.h"
+#include "LiveLinkTypes.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-
-#include "LiveLinkFrameTranslator.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkVirtualSubject.generated.h"
 
-
 class ILiveLinkClient;
+class ULiveLinkRole;
 
 
 

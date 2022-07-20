@@ -2,23 +2,28 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "CoreFwd.h"
 #include "Containers/StringFwd.h"
+#include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EnumClassFlags.h"
-#include "Math/NumericLimits.h"
 
 class Error;
+class FOutputDevice;
+class FString;
+class FText;
 class GenericApplication;
-class IPlatformChunkInstall;
 class IInstallBundleManager;
+class IPlatformChunkInstall;
 class IPlatformCompression;
 class IPlatformHostCommunication;
+struct FCustomChunk;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
-struct FCustomChunk;
+struct FGuid;
+
 enum class ECustomChunkType : uint8;
 
 template <typename FuncType>

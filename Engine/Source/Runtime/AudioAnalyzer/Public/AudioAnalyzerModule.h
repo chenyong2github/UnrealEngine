@@ -8,6 +8,7 @@
 
 #include "HAL/LowLevelMemTracker.h"
 #include "Logging/LogMacros.h"
+#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioAnalyzer, Log, All);

@@ -7,10 +7,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/UObjectArray.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/FastReferenceCollectorOptions.h"
+#include "UObject/ScriptDelegates.h"
+#include "UObject/UObjectArray.h"
 
 #include <type_traits>
+
+class FArchive;
+class UObject;
+template <typename T> struct TIsPODType;
+template <typename T> struct TIsWeakPointerType;
+template <typename T> struct TIsZeroConstructType;
 
 /** Invalid FWeakObjectPtr ObjectIndex values must be 0 to support zeroed initialization (this used to be INDEX_NONE, leading to subtle bugs). */
 #ifndef UE_WEAKOBJECTPTR_ZEROINIT_FIX

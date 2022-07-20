@@ -2,6 +2,9 @@
 #pragma once
 
 #include "Math/Box.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 
 class DATASMITHCORE_API FDatasmithMesh
 {
@@ -219,5 +222,6 @@ public:
 
 private:
 	class FDatasmithMeshImpl;
+
 	FDatasmithMeshImpl* Impl;
 };

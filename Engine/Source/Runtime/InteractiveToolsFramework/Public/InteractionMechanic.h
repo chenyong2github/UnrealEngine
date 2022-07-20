@@ -4,9 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "InputBehaviorSet.h"
-#include "ToolContextInterfaces.h"
 #include "InteractiveTool.h"
+#include "ToolContextInterfaces.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "InteractionMechanic.generated.h"
+
+class IToolsContextRenderAPI;
+class UInteractiveTool;
+class UInteractiveToolPropertySet;
 
 /**
  * A UInteractionMechanic implements a "user interaction". This is generally a subset of an InteractiveTool,

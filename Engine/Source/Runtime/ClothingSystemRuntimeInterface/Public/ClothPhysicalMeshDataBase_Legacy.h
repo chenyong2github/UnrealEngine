@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "UObject/Object.h"
-
 #include "ClothVertBoneData.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "CoreTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ClothPhysicalMeshDataBase_Legacy.generated.h"
+
+struct FClothVertBoneData;
+struct FColor;
 
 /**
  * Deprecated, use FClothPhysicalMeshData instead.

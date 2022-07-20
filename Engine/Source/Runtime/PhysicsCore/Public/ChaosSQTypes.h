@@ -2,13 +2,20 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
-#include "PhysicsInterfaceWrapperShared.h"
 #include "Chaos/Declares.h"
+#include "Chaos/ParticleHandleFwd.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "PhysicsInterfaceWrapperShared.h"
 
 namespace Chaos
 {
 	class FChaosArchive;
+	class FPerShapeData;
 }
 
 namespace ChaosInterface

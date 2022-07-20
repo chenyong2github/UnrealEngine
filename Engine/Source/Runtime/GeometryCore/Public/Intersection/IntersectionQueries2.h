@@ -2,14 +2,16 @@
 
 #pragma once
 
+#include "BoxTypes.h"
 #include "CoreMinimal.h"
 #include "SegmentTypes.h"
-#include "BoxTypes.h"
 
 namespace UE
 {
 namespace Geometry
 {
+template <typename RealType> struct TAxisAlignedBox2;
+template <typename T> struct TSegment2;
 
 // Return true if Segment and Box intersect and false otherwise
 template<typename Real>

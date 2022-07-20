@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/MathFwd.h"
 #include "Templates/SharedPointer.h"
 
 struct FGenericWindowDefinition;

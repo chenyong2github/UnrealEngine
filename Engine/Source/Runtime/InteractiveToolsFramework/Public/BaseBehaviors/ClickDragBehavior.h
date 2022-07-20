@@ -2,11 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/InputBehaviorModifierStates.h"
+#include "CoreMinimal.h"
+#include "InputBehavior.h"
+#include "InputState.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClickDragBehavior.generated.h"
+
+class UObject;
 
 
 /**

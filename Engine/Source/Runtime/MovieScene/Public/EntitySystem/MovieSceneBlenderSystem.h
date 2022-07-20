@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "Containers/BitArray.h"
 #include "EntitySystem/MovieSceneBlenderSystemTypes.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
 #include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneBlenderSystem.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
 
 /**
  * Base class for all systems that blend data from multiple entities/components into a single entity

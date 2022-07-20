@@ -2,19 +2,22 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/BitArray.h"
-#include "Templates/TypeHash.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Guid.h"
+#include "Templates/TypeHash.h"
+
+#include <initializer_list>
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FComponentTypeID;
 class FEntityManager;
-
+struct FComponentTypeID;
 template<typename T> struct TComponentTypeID;
 
 /**

@@ -2,14 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "MovieSceneTrack.h"
+#include "CoreTypes.h"
 #include "Curves/IntegralCurve.h"
+#include "Internationalization/Text.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSpawnTrack.generated.h"
 
+class UObject;
+struct FFrameNumber;
 struct FMovieSceneEvaluationTrack;
+template <typename ElementType> class TRange;
 
 /**
  * Handles when a spawnable should be spawned and destroyed

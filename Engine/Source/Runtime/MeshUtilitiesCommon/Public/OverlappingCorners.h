@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "LayoutUV.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 
 /**
 * Container to hold overlapping corners. For a vertex, lists all the overlapping vertices

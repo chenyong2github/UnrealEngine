@@ -6,6 +6,7 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
 #include "Misc/Guid.h"
 #include "UObject/NameTypes.h"

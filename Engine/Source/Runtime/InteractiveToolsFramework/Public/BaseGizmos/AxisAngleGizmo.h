@@ -2,14 +2,30 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InteractiveGizmo.h"
-#include "InteractiveGizmoBuilder.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseGizmos/GizmoComponents.h"
+#include "CoreMinimal.h"
+#include "InputState.h"
+#include "InteractiveGizmo.h"
+#include "InteractiveGizmoBuilder.h"
+#include "Math/MathFwd.h"
+#include "Math/Ray.h"
+#include "Math/Vector.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AxisAngleGizmo.generated.h"
 
+class IGizmoAxisSource;
+class IGizmoClickTarget;
+class IGizmoFloatParameterSource;
+class IGizmoStateTarget;
 class UClickDragInputBehavior;
+class UObject;
+struct FToolBuilderState;
 
 
 UCLASS()

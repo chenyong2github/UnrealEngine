@@ -2,18 +2,27 @@
 
 #pragma once
 
-#include "Containers/SortedMap.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Containers/SortedMap.h"
+#include "Containers/SparseArray.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/EntityAllocationIterator.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
-#include "EntitySystem/EntityAllocationIterator.h"
-
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "WeightAndEasingEvaluatorSystem.generated.h"
 
+class UMovieSceneEntitySystemLinker;
 class UMovieSceneEvalTimeSystem;
+class UObject;
 struct FMovieSceneSubSequenceData;
 
 namespace UE

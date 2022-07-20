@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "IStructSerializerBackend.h"
+#include "Misc/EnumClassFlags.h"
 #include "Serialization/JsonWriter.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/UnrealType.h"
+
+class FArchive;
 
 /**
  * Implements a writer for UStruct serialization using Json.

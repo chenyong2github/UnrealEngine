@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 
 class Error;
+class FProperty;
 class IStructSerializerBackend;
+class UStruct;
 
 /**
  * Enumerates policies for serializing null values.

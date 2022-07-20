@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Logging/LogMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MeshTypes.generated.h"
 
 MESHDESCRIPTION_API DECLARE_LOG_CATEGORY_EXTERN( LogMeshDescription, Log, All );

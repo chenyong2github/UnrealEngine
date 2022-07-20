@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IMediaTimeSource.h"
+#include "Misc/Timespan.h"
 
 
 /**

@@ -5,6 +5,8 @@
 #include "Containers/Array.h"
 #include "IMediaCaptureSupport.h"
 
+struct FMediaCaptureDeviceInfo;
+
 
 namespace MediaCaptureSupport
 {

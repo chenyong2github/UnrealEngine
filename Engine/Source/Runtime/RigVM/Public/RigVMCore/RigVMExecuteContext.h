@@ -2,17 +2,32 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Logging/TokenizedMessage.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "RigVMDefines.h"
 #include "RigVMExternalVariable.h"
 #include "RigVMModule.h"
-#include "Logging/TokenizedMessage.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+
 #include "RigVMExecuteContext.generated.h"
 
-struct FRigVMExtendedExecuteContext;
-struct FRigVMExecuteContext;
-struct FRigVMDispatchFactory;
 class URigVM;
+struct FRigVMDispatchFactory;
+struct FRigVMExecuteContext;
+struct FRigVMExtendedExecuteContext;
 
 USTRUCT()
 struct RIGVM_API FRigVMSlice

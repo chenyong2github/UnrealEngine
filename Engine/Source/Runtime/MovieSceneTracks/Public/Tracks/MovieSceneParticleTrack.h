@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneNameableTrack.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Internationalization/Text.h"
+#include "MovieSceneNameableTrack.h"
+#include "MovieSceneSection.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneParticleTrack.generated.h"
+
+class UObject;
+struct FFrameNumber;
 
 /**
  * Handles triggering of particle emitters

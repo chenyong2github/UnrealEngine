@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 
 namespace UE
 {

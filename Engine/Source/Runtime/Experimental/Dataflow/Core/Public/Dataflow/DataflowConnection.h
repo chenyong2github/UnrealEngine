@@ -4,9 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 
 #include "DataflowConnection.generated.h"
 
+class FProperty;
 struct FDataflowNode;
 
 

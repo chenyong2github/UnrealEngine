@@ -3,9 +3,17 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/Interface.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TypedElementObjectInterface.generated.h"
+
+class UClass;
+struct FFrame;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class UTypedElementObjectInterface : public UInterface

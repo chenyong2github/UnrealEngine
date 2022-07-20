@@ -2,8 +2,11 @@
 
 #pragma once
 
-// Includes
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformTime.h"
 
 

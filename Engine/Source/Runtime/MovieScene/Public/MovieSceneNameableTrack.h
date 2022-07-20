@@ -2,10 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "MovieSceneTrack.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneNameableTrack.generated.h"
+
+class UObject;
 
 
 /**

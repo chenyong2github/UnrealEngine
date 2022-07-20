@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "MeshDescription.h"
 #include "GeometryBase.h"
+#include "Math/Box.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "MeshDescription.h"
+#include "MeshTypes.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
+template <typename ElementIDType> class TAttributesSet;
 
 
 /**

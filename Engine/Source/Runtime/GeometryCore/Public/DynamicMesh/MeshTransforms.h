@@ -5,7 +5,13 @@
 #pragma once
 
 #include "DynamicMesh/DynamicMesh3.h"
+#include "FrameTypes.h"
+#include "GeometryBase.h"
+#include "Math/MathFwd.h"
 #include "TransformTypes.h"
+
+namespace UE { namespace Geometry { class FDynamicMesh3; } }
+template <typename FuncType> class TFunctionRef;
 
 
 /**

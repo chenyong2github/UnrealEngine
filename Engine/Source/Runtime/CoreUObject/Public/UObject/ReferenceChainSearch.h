@@ -2,10 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/GarbageCollectionHistory.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/TypeHash.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/GarbageCollectionHistory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
+class FGCObjectInfo;
+class FOutputDevice;
+class UObject;
+struct FGCSnapshot;
+template <typename FuncType> class TFunctionRef;
 
 /** Search mode flags */
 enum class EReferenceChainSearchMode

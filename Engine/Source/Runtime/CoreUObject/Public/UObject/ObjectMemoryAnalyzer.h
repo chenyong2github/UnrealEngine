@@ -2,8 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/UObjectAnnotation.h"
+
+class FOutputDevice;
+class UClass;
+class UObject;
 
 /** Object mempory usage info */
 struct FObjectMemoryUsage

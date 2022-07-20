@@ -2,8 +2,36 @@
 
 #pragma once
 
+#include "Algo/Reverse.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "Logging/LogVerbosity.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/OutputDevice.h"
 #include "RigVM.h"
+#include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMCore/RigVMMemoryCommon.h"
+#include "RigVMCore/RigVMTraits.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Models.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "RigVMNativized.generated.h"
+
+class FArchive;
+class UObject;
+class URigVMMemoryStorage;
+struct FRigVMInstructionArray;
 
 UCLASS(BlueprintType, Abstract)
 class RIGVM_API URigVMNativized : public URigVM

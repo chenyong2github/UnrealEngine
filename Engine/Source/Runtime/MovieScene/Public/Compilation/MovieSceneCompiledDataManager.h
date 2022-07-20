@@ -2,27 +2,42 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/ObjectKey.h"
-#include "Containers/SparseArray.h"
 #include "Compilation/MovieSceneCompiledDataID.h"
-
-#include "Evaluation/MovieSceneSequenceHierarchy.h"
-#include "Evaluation/MovieSceneEvaluationTemplate.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "CoreTypes.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+#include "Evaluation/MovieSceneEvaluationTemplate.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "MovieSceneFwd.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneCompiledDataManager.generated.h"
 
-template<typename DataType> struct TMovieSceneEvaluationTreeDataIterator;
-
+class UMovieSceneSequence;
+class UMovieSceneSubSection;
+class UMovieSceneSubTrack;
+class UMovieSceneTrack;
+struct FCompileOnTheFlyData;
+struct FFrameNumber;
 struct FGatherParameters;
 struct FMovieSceneBinding;
-struct FCompileOnTheFlyData;
-struct FTrackGatherParameters;
+struct FMovieSceneEvaluationOperand;
 struct FMovieSceneGatheredCompilerData;
-
-class UMovieSceneSubTrack;
-class UMovieSceneSequence;
+struct FMovieSceneSequenceID;
+struct FTrackGatherParameters;
+template<typename DataType> struct TMovieSceneEvaluationTreeDataIterator;
 
 namespace UE
 {

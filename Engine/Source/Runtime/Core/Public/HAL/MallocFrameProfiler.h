@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "HAL/MallocCallstackHandler.h"
+#include "HAL/Platform.h"
+
+class FMalloc;
+class FOutputDevice;
+class UWorld;
 
 class CORE_API FMallocFrameProfiler final : public FMallocCallstackHandler
 {

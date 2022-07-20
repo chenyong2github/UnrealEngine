@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TypedElementHierarchyInterface.generated.h"
+
+class UObject;
+struct FFrame;
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class UTypedElementHierarchyInterface : public UInterface

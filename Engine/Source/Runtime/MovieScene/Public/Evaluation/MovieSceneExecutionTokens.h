@@ -2,14 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Evaluation/Blending/BlendableToken.h"
+#include "Evaluation/Blending/MovieSceneBlendingAccumulator.h"
+#include "Evaluation/Blending/MovieSceneBlendingActuatorID.h"
 #include "Evaluation/MovieSceneEvaluationKey.h"
+#include "Evaluation/MovieSceneEvaluationOperand.h"
+#include "Evaluation/MovieSceneEvaluationScope.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "Evaluation/PersistentEvaluationData.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
 #include "Misc/InlineValue.h"
 #include "MovieSceneExecutionToken.h"
-#include "Evaluation/MovieSceneEvaluationScope.h"
-#include "Evaluation/PersistentEvaluationData.h"
-#include "Evaluation/MovieScenePlayback.h"
-#include "Evaluation/Blending/MovieSceneBlendingAccumulator.h"
+#include "MovieSceneFwd.h"
+#include "Templates/EnableIf.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
+
+class IMovieScenePlayer;
 
 
 /**

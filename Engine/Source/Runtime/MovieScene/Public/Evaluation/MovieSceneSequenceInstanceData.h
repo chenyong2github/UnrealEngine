@@ -2,12 +2,22 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/InlineValue.h"
+#include "Templates/Decay.h"
+#include "Templates/EnableIf.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MovieSceneSequenceInstanceData.generated.h"
+
+class FArchive;
 
 /**
  * Abstract base class that defines instance data for sub sequences

@@ -26,6 +26,7 @@
 #include "Detour/DetourAlloc.h"
 #include "Detour/DetourStatus.h"
 #include "DetourLargeWorldCoordinates.h"
+#include "Logging/LogMacros.h"
 
 NAVMESH_API DECLARE_LOG_CATEGORY_EXTERN(LogDetour, Log, All);
 

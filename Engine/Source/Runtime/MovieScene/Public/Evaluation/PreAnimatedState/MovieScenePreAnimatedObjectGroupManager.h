@@ -2,16 +2,22 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "UObject/ObjectKey.h"
+#include "CoreTypes.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
+#include "UObject/ObjectKey.h"
+
+class UClass;
+class UObject;
 
 namespace UE
 {
 namespace MovieScene
 {
+struct FPreAnimatedStorageGroupHandle;
+template <typename StorageType> struct TAutoRegisterPreAnimatedStorageID;
 
 struct MOVIESCENE_API FPreAnimatedObjectGroupManager : TPreAnimatedStateGroupManager<FObjectKey>
 {

@@ -6,6 +6,7 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Math/Color.h"
 #include "Misc/Exec.h"
 

@@ -2,13 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "Serialization/JsonTypes.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Internationalization/Text.h"
+#include "JsonGlobals.h"
+#include "JsonObjectWrapper.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "JsonObjectWrapper.h"
+#include "Serialization/JsonTypes.h"
+#include "Serialization/JsonWriter.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+
+class FProperty;
+class UStruct;
 
 /** Class that handles converting Json objects to and from UStructs */
 class JSONUTILITIES_API FJsonObjectConverter

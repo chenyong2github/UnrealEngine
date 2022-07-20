@@ -2,12 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "MeshDescription.h"
+#include "GeometryBase.h"
 #include "MeshConversionOptions.h"
+#include "MeshDescription.h"
 
 PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
+namespace UE { namespace Geometry { class FDynamicMesh3; } }
+struct FMeshDescription;
+struct FTriangleID;
+struct FVertexID;
+
 using UE::Geometry::FDynamicMesh3;
 
 /**

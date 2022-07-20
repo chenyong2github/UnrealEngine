@@ -2,10 +2,19 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
+
+class FArchive;
+class UPackage;
 
 /*-----------------------------------------------------------------------------
 	UMetaData.

@@ -3,9 +3,10 @@
 #pragma once
 
 #include "GeometryBase.h"
+#include "HAL/Platform.h"
+
 #include <cmath>
 #include <cfloat>
-
 
 /**
  * Math constants and utility functions, templated on float/double type

@@ -6,9 +6,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "CommonAnimTypes.h"
+#include "CoreMinimal.h"
+#include "Math/MathFwd.h"
+#include "Math/Quat.h"
+#include "UObject/ObjectMacros.h"
 
 namespace AnimationCore
 {

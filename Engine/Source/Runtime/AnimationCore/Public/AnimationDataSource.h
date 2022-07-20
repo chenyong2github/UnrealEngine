@@ -2,10 +2,19 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Templates/Casts.h"
 #include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "AnimationDataSource.generated.h"
+
+class UClass;
 
 UCLASS()
 class ANIMATIONCORE_API UAnimationDataSourceRegistry : public UObject

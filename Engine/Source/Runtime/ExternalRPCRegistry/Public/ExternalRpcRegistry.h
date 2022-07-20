@@ -1,10 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HttpPath.h"
+#include "HttpRequestHandler.h"
 #include "HttpResultCallback.h"
 #include "HttpRouteHandle.h"
 #include "HttpServerRequest.h"
 #include "IHttpRouter.h"
+#include "Logging/LogMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ExternalRpcRegistry.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogExternalRpcRegistry, Log, All);

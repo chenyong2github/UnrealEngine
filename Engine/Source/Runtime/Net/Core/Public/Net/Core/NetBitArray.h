@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformMath.h"
-#include "Containers/Array.h"
+#include "HAL/PlatformMemory.h"
+#include "Misc/AssertionMacros.h"
+
+namespace UE { namespace Net { class FNetBitArray; } }
+namespace UE { namespace Net { class FNetBitArrayView; } }
 
 /* NetBitArray validation support. */
 #ifndef UE_NETBITARRAY_VALIDATE

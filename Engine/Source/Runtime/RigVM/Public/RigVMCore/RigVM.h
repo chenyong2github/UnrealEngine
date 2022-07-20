@@ -2,19 +2,48 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "RigVMMemory.h"
-#include "RigVMMemoryStorage.h"
-#include "RigVMExecuteContext.h"
-#include "RigVMRegistry.h"
+#include "Delegates/Delegate.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 #include "RigVMByteCode.h"
+#include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMCore/RigVMFunction.h"
+#include "RigVMCore/RigVMMemoryCommon.h"
+#include "RigVMCore/RigVMPropertyPath.h"
+#include "RigVMExecuteContext.h"
+#include "RigVMMemory.h"
 #include "RigVMMemoryDeprecated.h"
+#include "RigVMMemoryStorage.h"
+#include "RigVMRegistry.h"
 #include "RigVMStatistics.h"
+#include "Templates/Function.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 #if WITH_EDITOR
-#include "RigVMDebugInfo.h"
 #include "HAL/PlatformTime.h"
+#include "RigVMDebugInfo.h"
 #endif
 #include "RigVM.generated.h"
+
+class FArchive;
+struct FFrame;
+struct FRigVMDispatchFactory;
 
 // Possible actions when the VM is halted at a breakpoint
 UENUM()

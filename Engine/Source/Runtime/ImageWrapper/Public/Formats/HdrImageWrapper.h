@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "IImageWrapper.h"
+#include "Containers/ContainersFwd.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "IImageWrapper.h"
+#include "ImageCore.h"
+#include "Internationalization/Text.h"
 
 // http://radsite.lbl.gov/radiance/refer/Notes/picture_format.html
 // http://paulbourke.net/dataformats/pic/

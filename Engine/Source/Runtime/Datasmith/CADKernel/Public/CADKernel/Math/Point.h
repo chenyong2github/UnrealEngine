@@ -3,6 +3,11 @@
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/MathConst.h"
+#include "HAL/PlatformMath.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Serialization/Archive.h"
+#include "Templates/TypeHash.h"
 
 // this will eventually be reconciled with what the Geometry team is using.
 namespace CADKernel

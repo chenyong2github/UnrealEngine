@@ -2,12 +2,20 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IAudioProxyInitializer.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 #include "AudioParameter.generated.h"
+
+class UObject;
 
 
 #define AUDIO_PARAMETER_NAMESPACE_PATH_DELIMITER "."

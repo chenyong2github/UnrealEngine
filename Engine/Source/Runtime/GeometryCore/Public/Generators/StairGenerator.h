@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "Generators/MeshShapeGenerator.h"
 #include "IndexTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
 
 
 namespace UE

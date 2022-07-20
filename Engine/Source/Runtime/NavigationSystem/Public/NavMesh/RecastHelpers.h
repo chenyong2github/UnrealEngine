@@ -11,7 +11,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Box.h"
 #include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 
 
 extern NAVIGATIONSYSTEM_API FVector Unreal2RecastPoint(const FVector::FReal* UnrealPoint);

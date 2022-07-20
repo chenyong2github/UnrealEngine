@@ -23,6 +23,7 @@
 #define RECAST_DUMP_H
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
 
 class rcContext;
 

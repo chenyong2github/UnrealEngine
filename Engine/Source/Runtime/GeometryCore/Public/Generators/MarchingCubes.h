@@ -5,18 +5,33 @@
 #pragma once
 
 #include "Async/ParallelFor.h"
-#include "Misc/ScopeLock.h"
-
+#include "BoxTypes.h"
+#include "CompGeom/PolygonTriangulation.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
+#include "IndexTypes.h"
+#include "IntBoxTypes.h"
+#include "IntVectorTypes.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/UnrealMathUtility.h"
+#include "Math/Vector.h"
+#include "MathUtil.h"
 #include "MeshShapeGenerator.h"
 #include "Misc/AssertionMacros.h"
-
-#include "Spatial/DenseGrid3.h"
+#include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Spatial/BlockedDenseGrid3.h"
-
-#include "CompGeom/PolygonTriangulation.h"
-
+#include "Spatial/DenseGrid3.h"
+#include "Templates/Function.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 #include "Util/IndexUtil.h"
+#include "VectorTypes.h"
+
+#include <atomic>
 
 namespace UE
 {

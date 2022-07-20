@@ -23,8 +23,15 @@
 #define DETOURPATHQUEUE_H
 
 #include "CoreMinimal.h"
-#include "Detour/DetourNavMeshQuery.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
+#include "Detour/DetourNavMeshQuery.h"
+#include "Detour/DetourStatus.h"
+#include "Templates/SharedPointer.h"
+
+class dtNavMeshQuery;
+class dtQueryFilter;
+struct dtQuerySpecialLinkFilter;
 
 static const unsigned int DT_PATHQ_INVALID = 0;
 

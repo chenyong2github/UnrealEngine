@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "NavMesh/RecastHelpers.h"
+#include "Containers/Array.h"
 #include "DebugUtils/DebugDraw.h"
 #include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "NavMesh/RecastHelpers.h"
 
 struct FRecastInternalDebugData : public duDebugDraw
 {

@@ -3,8 +3,14 @@
 #pragma once
 
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 
 #include "StageMessages.generated.h"

@@ -2,11 +2,24 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/PackagePath.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectArray.h"
 #include "Stats/Stats2.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectArray.h"
+#include "UObject/UObjectGlobals.h"
+
+class FLinkerInstancingContext;
+class FPackagePath;
+class FThreadSafeCounter;
+class UPackage;
+struct FGuid;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_STATS_GROUP_VERBOSE(TEXT("Async Load"), STATGROUP_AsyncLoad, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("Async Loading Time"),STAT_AsyncLoadingTime,STATGROUP_AsyncLoad);
@@ -49,8 +62,8 @@ void ClearFlagsAndDissolveClustersFromLoadedObjects(T& LoadedObjects)
 	}
 }
 
-class IAsyncPackageLoader;
 class FPackageIndex;
+class IAsyncPackageLoader;
 class LinkerInstancingContext;
 
 /** Structure that holds the async loading thread ini settings */

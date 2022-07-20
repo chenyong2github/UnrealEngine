@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
 
 class FArchive;

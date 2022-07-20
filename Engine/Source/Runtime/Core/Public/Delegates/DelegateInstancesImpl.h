@@ -7,14 +7,17 @@
 ================================================================================*/
 
 #pragma once
+
 #include "CoreTypes.h"
+#include "Delegates/DelegateInstanceInterface.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/AreTypesEqual.h"
-#include "Templates/UnrealTypeTraits.h"
 #include "Templates/RemoveReference.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
-#include "Delegates/DelegateInstanceInterface.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDelegateBase;
 class FDelegateHandle;

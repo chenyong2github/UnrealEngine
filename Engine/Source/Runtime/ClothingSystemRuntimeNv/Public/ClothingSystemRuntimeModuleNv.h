@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
 #include "ClothingSimulationFactory.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SubclassOf.h"
 
 namespace nv
 {
 	namespace cloth
 	{
-		class Factory;
 		class ClothMeshQuadifier;
+		class Factory;
 	}
 }
 

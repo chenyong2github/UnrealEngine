@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MediaPlaylist.generated.h"
 
 class UMediaSource;
+struct FFrame;
 
 /**
  * Implements a media play list.

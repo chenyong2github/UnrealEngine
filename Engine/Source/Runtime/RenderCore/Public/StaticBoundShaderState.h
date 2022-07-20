@@ -6,8 +6,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/List.h"
+#include "CoreMinimal.h"
+#include "Misc/Build.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
 #include "RenderResource.h"
 
 class FShader;

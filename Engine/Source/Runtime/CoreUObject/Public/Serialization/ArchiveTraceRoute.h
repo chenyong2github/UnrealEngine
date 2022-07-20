@@ -2,9 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Serialization/ArchiveUObject.h"
+#include "HAL/PlatformMath.h"
 #include "Serialization/ArchiveObjectGraph.h"
+#include "Serialization/ArchiveUObject.h"
+#include "UObject/ObjectMacros.h"
+
+class FArchive;
+class FProperty;
+class UObject;
+struct FObjectGraphNode;
+struct FTraceRouteRecord;
 
 // DEPRECATED: This class is out of date and misses many GC references, replace with FReferenceChainSearch
 class FArchiveTraceRoute : public FArchiveUObject

@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "InputCoreTypes.h"
 #include "Containers/BitArray.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+
+class FDefaultBitArrayAllocator;
 
 /**
  * The gesture detector can simulate the detection of certain kinds of gestures that may or may not

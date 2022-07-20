@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
 #include "CoreTypes.h"
@@ -14,6 +15,7 @@
 
 class FArchive;
 class FName;
+class FString;
 struct FGuid;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

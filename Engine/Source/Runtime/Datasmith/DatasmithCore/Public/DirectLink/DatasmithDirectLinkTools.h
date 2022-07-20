@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
-
 #include "IDatasmithSceneElements.h"
+#include "Templates/SharedPointer.h"
+
 class IDatasmithElement;
+class IDatasmithScene;
 
 
 DATASMITHCORE_API const TCHAR* GetElementTypeName(const IDatasmithElement* Element);

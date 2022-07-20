@@ -2,9 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
 #include "SlateColor.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "StyleColors.generated.h"
+
+struct FSlateColor;
 
 /** Themes are only allowed in the editor or standalone tools */
 #define ALLOW_THEMES WITH_EDITOR || IS_PROGRAM

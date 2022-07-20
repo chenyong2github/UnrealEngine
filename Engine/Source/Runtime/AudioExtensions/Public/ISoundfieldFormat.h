@@ -2,10 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Features/IModularFeatures.h"
 #include "AudioMixer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Features/IModularFeature.h"
+#include "Features/IModularFeatures.h"
+#include "Math/Quat.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ISoundfieldFormat.generated.h"
+
+class FArchive;
+class UClass;
 
 
 /**

@@ -1,25 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "MovieSceneSection.h"
-#include "Evaluation/MovieSceneEvaluationField.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "HAL/Platform.h"
+#include "MovieSceneSection.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSectionChannelOverrideRegistry.generated.h"
 
 class UMovieSceneChannelOverrideContainer;
 class UMovieSceneEntitySystemLinker;
 class UMovieScenePropertyTrack;
+struct FFrameNumber;
 struct FMovieSceneChannel;
+struct FMovieSceneEntityComponentFieldBuilder;
+struct FMovieSceneEvaluationFieldEntityMetaData;
+template <typename ElementType> class TRange;
+template <typename T> struct TObjectPtr;
 
 namespace UE
 {
 namespace MovieScene
 {
-	struct FImportedEntity;
 	struct FEntityImportParams;
+	struct FImportedEntity;
 }
 }
 

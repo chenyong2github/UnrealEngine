@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "CoreTypes.h"
 
 /**
  * Generic implementation for most platforms

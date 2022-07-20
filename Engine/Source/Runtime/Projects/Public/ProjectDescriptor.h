@@ -2,12 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "ModuleDescriptor.h"
 #include "CustomBuildSteps.h"
+#include "HAL/Platform.h"
+#include "ModuleDescriptor.h"
 #include "PluginReferenceDescriptor.h"
+#include "Serialization/JsonWriter.h"
+#include "UObject/NameTypes.h"
 
 class FJsonObject;
+class FText;
 
 /**
  * Version numbers for project descriptors.

@@ -2,25 +2,26 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Set.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "Evaluation/MovieSceneEvaluationField.h"
-#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Containers/Set.h"
+#include "CoreTypes.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
-
-
-struct FMovieSceneEntityComponentField;
-
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "UObject/WeakObjectPtr.h"
 
 class IMovieScenePlayer;
 class UMovieSceneEntitySystem;
 class UMovieSceneEntitySystemLinker;
+struct FMovieSceneEntityComponentField;
 
 namespace UE
 {
 namespace MovieScene
 {
+struct FEntityImportSequenceParams;
 
 
 /**

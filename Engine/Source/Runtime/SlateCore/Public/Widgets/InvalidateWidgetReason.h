@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
 
 /**
  * The different types of invalidation that are possible for a widget.

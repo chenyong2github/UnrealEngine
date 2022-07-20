@@ -4,7 +4,14 @@
 
 #include "Async/ParallelFor.h"
 #include "BoxTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Math/Ray.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "Polyline3.h"
+#include "Templates/Function.h"
+#include "Templates/Invoke.h"
 
 namespace UE
 {

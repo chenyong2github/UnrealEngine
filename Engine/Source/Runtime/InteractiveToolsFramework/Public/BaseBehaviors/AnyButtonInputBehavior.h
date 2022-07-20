@@ -4,7 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "InputBehavior.h"
+#include "InputState.h"
+#include "Math/Ray.h"
+#include "Math/Vector2D.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AnyButtonInputBehavior.generated.h"
+
+class UObject;
 
 /**
  * UAnyButtonInputBehavior is a base behavior that provides a generic

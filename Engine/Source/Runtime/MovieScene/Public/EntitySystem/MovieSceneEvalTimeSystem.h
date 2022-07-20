@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "Containers/Array.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "Misc/FrameTime.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneEvalTimeSystem.generated.h"
 
-
+class UObject;
 struct FFrameTime;
 
 UCLASS()

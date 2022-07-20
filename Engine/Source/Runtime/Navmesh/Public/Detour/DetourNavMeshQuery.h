@@ -24,9 +24,11 @@
 
 #include "CoreMinimal.h"
 #include "Detour/DetourAlloc.h"
-#include "Detour/DetourNavMesh.h"
 #include "Detour/DetourCommon.h"
 #include "Detour/DetourLargeWorldCoordinates.h"
+#include "Detour/DetourNavMesh.h"
+#include "Detour/DetourStatus.h"
+#include "Misc/AssertionMacros.h"
 
 //@UE BEGIN
 #define WITH_FIXED_AREA_ENTERING_COST 1

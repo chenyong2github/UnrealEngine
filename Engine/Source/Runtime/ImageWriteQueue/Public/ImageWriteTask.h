@@ -2,13 +2,20 @@
 
 #pragma once
 
-#include "Misc/CoreDefines.h"
-#include "Math/Color.h"
-#include "Math/Float16Color.h"
-#include "Math/IntPoint.h"
-#include "Templates/UniquePtr.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IImageWrapper.h"
 #include "ImagePixelData.h"
+#include "Math/Color.h"
+#include "Math/Float16.h"
+#include "Math/Float16Color.h"
+#include "Math/IntPoint.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreDefines.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 
 template<typename> struct TImageDataTraits;
 

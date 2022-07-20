@@ -2,12 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/Guid.h"
 #include "Serialization/CustomVersion.h"
-#include "Misc/EngineVersion.h"
 #include "Serialization/StructuredArchive.h"
+#include "UObject/ObjectVersion.h"
 
+class FArchive;
 struct FCompressedChunk;
 
 /*----------------------------------------------------------------------------

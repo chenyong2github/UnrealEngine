@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+
+class FProperty;
+class UStruct;
 
 namespace StabilizeLocalizationKeys
 {

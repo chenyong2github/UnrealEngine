@@ -1,15 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/Types.h"
-#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Database.h"
+#include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/Types.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
 
 class FArchive;
 
 namespace CADKernel
 {
 	class FEntity;
+	class FModel;
+
 	class CADKERNEL_API FSession
 	{
 		friend FEntity;

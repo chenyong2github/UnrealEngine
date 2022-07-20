@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IStructSerializerBackend.h"
 #include "CborWriter.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "IStructSerializerBackend.h"
+
+class FArchive;
 
 /**
  * Implements a writer for UStruct serialization using Cbor.

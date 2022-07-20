@@ -2,17 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "XmlFile.h"
+#include "HAL/Platform.h"
+#include "Misc/CString.h"
 #include "Misc/EngineVersion.h"
+#include "Templates/Function.h"
+#include "XmlFile.h"
+#include "XmlNode.h"
 
 enum class ECrashDescVersions : int32;
 enum class ECrashDumpMode : int32;
 class FXmlNode;
-struct FPrimaryCrashProperties;
 struct FAnalyticsEventAttribute;
+struct FPrimaryCrashProperties;
 
 /** PrimaryCrashProperties. Extracted from: FGenericCrashContext::SerializeContentToBuffer */
 /*

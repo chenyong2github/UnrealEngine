@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "Misc/ScopeLock.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "IStereoLayers.h"
 #include "IXRLoadingScreen.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ScopeLock.h"
+#include "RHI.h"
+#include "StereoLayerShapes.h"
+#include "Templates/Function.h"
+#include "Templates/RefCounting.h"
+#include "Templates/TypeHash.h"
 
 /**
 	Partial implementation of the Layer management code for the IStereoLayers interface.

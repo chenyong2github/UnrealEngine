@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "HAL/Platform.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneTrackEvaluationField.h"
-#include "Evaluation/MovieSceneSegment.h"
+#include "Templates/Function.h"
+
+struct FMovieSceneTrackEvaluationData;
+template <typename DataType> struct TMovieSceneEvaluationTree;
 
 namespace UE
 {

@@ -2,17 +2,24 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Guid.h"
 #include "MovieSceneFwd.h"
 #include "MovieSceneSequenceID.h"
+#include "Templates/TypeHash.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneObjectBindingID.generated.h"
 
-struct FMovieSceneSequenceHierarchy;
-
+class FArchive;
 class IMovieScenePlayer;
 class UMovieSceneSequence;
+struct FMovieSceneSequenceHierarchy;
 
 
 namespace UE

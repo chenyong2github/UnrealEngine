@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "UObject/CoreNetTypes.h"
 #include "UObject/ObjectKey.h"
 
 class UActorComponent;
+class UObject;
 
 namespace UE::Net
 {

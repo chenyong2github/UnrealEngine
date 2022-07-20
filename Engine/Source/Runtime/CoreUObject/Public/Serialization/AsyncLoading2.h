@@ -6,17 +6,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectResource.h"
+#include "CoreTypes.h"
 #include "IO/PackageId.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
-#include "Serialization/MappedName.h"
 #include "Serialization/CustomVersion.h"
+#include "Serialization/MappedName.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectResource.h"
+#include "UObject/ObjectVersion.h"
 
 class FArchive;
-class IAsyncPackageLoader;
 class FIoDispatcher;
+class IAsyncPackageLoader;
 class IEDLBootNotificationManager;
+class UPackage;
 
 class FPackageImportReference
 {

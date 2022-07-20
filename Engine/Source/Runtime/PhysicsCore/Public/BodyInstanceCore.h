@@ -3,7 +3,10 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "BodyInstanceCore.generated.h"
 
 class UBodySetupCore;

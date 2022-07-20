@@ -4,10 +4,20 @@
 
 #include "ClothingSimulationInteractor.h"
 #include "ClothingSimulationNv.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Math/MathFwd.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothingSimulationInteractorNv.generated.h"
 
-class FClothingSimulationNv;
 class FClothingSimulationContextNv;
+class FClothingSimulationNv;
+class IClothingSimulation;
+class IClothingSimulationContext;
+class UObject;
+struct FFrame;
 
 // Command signature for handling synced command buffer
 DECLARE_DELEGATE_TwoParams(NvInteractorCommand, FClothingSimulationNv*, FClothingSimulationContextNv*)

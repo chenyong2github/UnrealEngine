@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/IConsoleManager.h"
 
 /**

@@ -3,9 +3,12 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntitySystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneSpawnablesSystem.generated.h"
 
+class UObject;
 struct FMovieSceneAnimTypeID;
 
 UCLASS(MinimalAPI)

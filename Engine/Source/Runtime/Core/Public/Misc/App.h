@@ -7,6 +7,7 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Build.h"

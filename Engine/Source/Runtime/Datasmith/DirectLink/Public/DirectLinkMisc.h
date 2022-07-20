@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
-
 
 class IDatasmithElement;
 class IDatasmithScene;

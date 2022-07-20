@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "InstallBundleTypes.h"
-#include "Misc/EnumClassFlags.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Logging/LogMacros.h"
-#include "Internationalization/Text.h"
-#include "Templates/ValueOrError.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/Union.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "InstallBundleTypes.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/ValueOrError.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class IAnalyticsProviderET;
 

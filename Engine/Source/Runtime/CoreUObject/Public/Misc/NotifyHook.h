@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 
+class FProperty;
 struct FPropertyChangedEvent;
 
 // Notification hook.

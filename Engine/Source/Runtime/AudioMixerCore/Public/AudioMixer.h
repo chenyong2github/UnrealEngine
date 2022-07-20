@@ -2,19 +2,41 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AudioMixerLog.h"
-#include "AudioMixerTypes.h"
-#include "HAL/Runnable.h"
-#include "HAL/ThreadSafeBool.h"
-#include "Misc/ScopeLock.h"
-#include "Misc/SingleThreadRunnable.h"
-#include "Stats/Stats.h"
 #include "AudioMixerNullDevice.h"
-#include "DSP/ParamInterpolator.h"
+#include "AudioMixerTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
+#include "DSP/ParamInterpolator.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/Runnable.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SingleThreadRunnable.h"
 #include "Modules/ModuleInterface.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+
+class FEvent;
+class FRunnableThread;
+class FThreadSafeCounter;
+namespace Audio { class FMixerNullCallback; }
 
 // defines used for AudioMixer.h
 #define AUDIO_PLATFORM_LOG_ONCE(INFO, VERBOSITY)	(AudioMixerPlatformLogOnce(INFO, FString(__FILE__), __LINE__, ELogVerbosity::VERBOSITY))
@@ -112,10 +134,11 @@ namespace EAudioMixerChannel
 	}
 }
 
-class USoundWave;
-class FSoundWaveProxy;
 class FSoundWaveData;
+class FSoundWaveProxy;
 class ICompressedAudioInfo;
+class USoundWave;
+
 using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
 using FSoundWavePtr = TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe>;
 

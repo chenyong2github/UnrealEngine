@@ -2,7 +2,16 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
+
+class FArchive;
+class UClass;
+class UObject;
+class UPackage;
 
 /** Counts all persistent text references from within a package, using the specified comparison mode */
 class COREUOBJECT_API FTextReferenceCollector

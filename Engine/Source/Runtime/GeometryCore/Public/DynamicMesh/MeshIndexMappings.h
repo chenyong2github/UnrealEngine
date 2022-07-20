@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "GeometryTypes.h"
 
 namespace UE
 {
 namespace Geometry
 {
+class FDynamicMesh3;
 
 
 /**

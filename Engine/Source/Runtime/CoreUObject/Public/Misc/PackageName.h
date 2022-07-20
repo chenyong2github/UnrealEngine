@@ -13,6 +13,7 @@
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
+#include "HAL/PlatformMath.h"
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
 #include "Misc/PackagePath.h"

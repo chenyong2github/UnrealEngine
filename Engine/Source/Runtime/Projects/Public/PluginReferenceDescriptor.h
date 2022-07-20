@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "ModuleDescriptor.h"
+#include "CoreTypes.h"
 #include "CustomBuildSteps.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
 #include "LocalizationDescriptor.h"
+#include "Misc/Optional.h"
+#include "ModuleDescriptor.h"
+#include "Serialization/JsonWriter.h"
+#include "Templates/SharedPointer.h"
 
+class FJsonObject;
 class FJsonValue;
+class FText;
 
 /**
  * Descriptor for a plugin reference. Contains the information required to enable or disable a plugin for a given platform.

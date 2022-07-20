@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
+#include "CoreTypes.h"
 
 #if PLATFORM_SUPPORTS_NAMED_PIPES
 

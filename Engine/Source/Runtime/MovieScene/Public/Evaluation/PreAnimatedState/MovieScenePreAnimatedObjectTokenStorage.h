@@ -3,22 +3,28 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/ObjectKey.h"
-
-#include "MovieSceneExecutionToken.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/MovieSceneAnimTypeID.h"
-#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectGroupManager.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateTypes.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.h"
+#include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneExecutionToken.h"
+#include "Templates/Tuple.h"
+#include "UObject/ObjectKey.h"
+
+class UObject;
 
 
 namespace UE
 {
 namespace MovieScene
 {
+struct FRestoreStateParams;
+template <typename StorageType> struct TAutoRegisterPreAnimatedStorageID;
 
 
 struct FPreAnimatedObjectTokenTraits : FBoundObjectPreAnimatedStateTraits

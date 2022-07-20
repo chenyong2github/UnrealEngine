@@ -2,8 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "IndexTypes.h"
+#include "Math/Ray.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Spatial/SpatialInterfaces.h"
+#include "Templates/Function.h"
+#include "VectorUtil.h"
 
 namespace UE
 {

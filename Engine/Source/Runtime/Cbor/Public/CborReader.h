@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CborTypes.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+
+class FArchive;
 
 /**
  * Reader for a the cbor protocol encoded stream

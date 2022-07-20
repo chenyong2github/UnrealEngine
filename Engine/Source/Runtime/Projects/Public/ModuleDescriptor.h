@@ -2,10 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
 #include "Serialization/JsonWriter.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class FJsonObject;
+class FText;
+
 enum class EModuleLoadResult;
 
 /**

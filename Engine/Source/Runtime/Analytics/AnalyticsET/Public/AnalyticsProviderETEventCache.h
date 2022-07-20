@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnalyticsEventAttribute.h"
-#include "Templates/Function.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/DateTime.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 /**
  * Mixin class for Epic Telemetry implementors.

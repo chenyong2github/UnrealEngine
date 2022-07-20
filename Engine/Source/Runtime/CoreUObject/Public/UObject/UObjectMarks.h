@@ -6,7 +6,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+
+class UObject;
 
 /** 
  * Object marks are bits associated with UObject. Marks are:

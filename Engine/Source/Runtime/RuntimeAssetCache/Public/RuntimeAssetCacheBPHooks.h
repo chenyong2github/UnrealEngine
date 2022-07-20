@@ -3,16 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NameTypes.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "RuntimeAssetCacheInterface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RuntimeAssetCacheBPHooks.generated.h"
 
-
 /** Forward declarations */
-class IRuntimeAssetCacheBuilder;
 class FOnRuntimeAssetCacheAsyncComplete;
+class IRuntimeAssetCacheBuilder;
+class UObject;
+struct FFrame;
 
 UCLASS()
 class URuntimeAssetCacheBPHooks : public UBlueprintFunctionLibrary

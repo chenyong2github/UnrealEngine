@@ -10,6 +10,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformString.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "HAL/UnrealMemory.h"

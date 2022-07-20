@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "UObject/NameTypes.h"
 
+class FName;
 struct FGenericCrashContext;
-struct FProgramCounterSymbolInfoEx;
 struct FProcHandle;
+struct FProgramCounterSymbolInfoEx;
 
 /**
  * This is used to capture all of the module information needed to load pdb's.

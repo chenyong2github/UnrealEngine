@@ -41,12 +41,12 @@
  *	to serialize two TMap's containing packet auditing data, into binary format, and passes them between the client/server processes.
  */
 
-
 // Includes
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
 #include "Serialization/BitReader.h"
 #include "Serialization/BitWriter.h"
-
 
 // Forward declarations
 class FPacketAudit;

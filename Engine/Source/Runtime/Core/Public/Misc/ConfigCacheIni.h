@@ -16,7 +16,7 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
+#include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
 #include "Math/Color.h"

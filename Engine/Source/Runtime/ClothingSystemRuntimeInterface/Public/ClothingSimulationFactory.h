@@ -2,17 +2,25 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "ClothingSimulationInterface.h"
-
-#include "UObject/Object.h"
+#include "Containers/ArrayView.h"
 #include "Features/IModularFeature.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ClothingSimulationFactory.generated.h"
 
+class FName;
+class IClothingSimulation;
+class UClass;
+class UClothConfigBase;
 class UClothingAssetBase;
 class UClothingSimulationInteractor;
-class UClothConfigBase;
+class UEnum;
 
 // An interface for a class that will provide default simulation factory classes
 // Used by modules wanting to override clothing simulation to provide their own implementation

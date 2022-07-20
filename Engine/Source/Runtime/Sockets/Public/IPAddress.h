@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformAtomics.h"
+#include "Misc/AssertionMacros.h"
 #include "SocketTypes.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 /**
  * Represents an internet address. All data is in network byte order

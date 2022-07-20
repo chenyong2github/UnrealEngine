@@ -2,30 +2,58 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "Templates/SubclassOf.h"
-#include "Templates/Casts.h"
-#include "MovieSceneFwd.h"
-#include "MovieSceneSpawnable.h"
-#include "MovieSceneBinding.h"
-#include "MovieScenePossessable.h"
-#include "MovieSceneSignedObject.h"
-#include "MovieSceneSequenceID.h"
-#include "MovieSceneObjectBindingID.h"
-#include "MovieSceneFrameMigration.h"
-#include "MovieSceneTimeController.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Guid.h"
+#include "MovieSceneBinding.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneFwd.h"
+#include "MovieSceneObjectBindingID.h"
+#include "MovieScenePossessable.h"
+#include "MovieSceneSequenceID.h"
+#include "MovieSceneSignedObject.h"
+#include "MovieSceneSpawnable.h"
+#include "MovieSceneTimeController.h"
+#include "MovieSceneTrack.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieScene.generated.h"
 
-struct FMovieSceneTimeController;
-
+class FArchive;
+class FObjectPreSaveContext;
+class UClass;
 class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
+namespace UE { namespace MovieScene { class ISequenceDataEventHandler; } }
 struct FMovieSceneChannelMetaData;
+struct FMovieSceneTimeController;
 struct FMovieSceneTimecodeSource;
+template <typename FuncType> class TFunctionRef;
 
 //delegates for use when some data in the MovieScene changes, WIP right now, hopefully will replace delegates on ISequencer
 //and be used for moving towards a true MVC system

@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "TimeManagementBlueprintLibrary.generated.h"
+
+class UObject;
+struct FFrame;
+struct FQualifiedFrameTime;
 
 /**
  * 

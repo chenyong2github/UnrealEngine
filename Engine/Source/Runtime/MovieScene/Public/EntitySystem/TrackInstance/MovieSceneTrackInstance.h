@@ -3,13 +3,25 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneTrackInstance.generated.h"
 
-class UMovieSceneSection;
 class UMovieSceneEntitySystemLinker;
-
+class UMovieSceneSection;
+class UWorld;
 struct FMovieSceneTrackInstanceComponent;
 
 namespace UE

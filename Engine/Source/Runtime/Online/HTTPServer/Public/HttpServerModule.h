@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/Ticker.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Containers/Ticker.h" 
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 class FHttpListener;
 class IHttpRouter;

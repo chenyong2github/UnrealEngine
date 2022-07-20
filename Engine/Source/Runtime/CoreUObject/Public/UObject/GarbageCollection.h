@@ -6,12 +6,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "UObject/UObjectGlobals.h"
-#include "Serialization/ArchiveUObject.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeBool.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 #include "UObject/FastReferenceCollectorOptions.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
+class FProperty;
+class UObject;
 
 #if !defined(UE_WITH_GC)
 #	define UE_WITH_GC	1
@@ -528,8 +541,8 @@ public:
 	~FGCScopeGuard();
 };
 
-template <EFastReferenceCollectorOptions Options> class FGCReferenceProcessor;
 class FGCObject;
+template <EFastReferenceCollectorOptions Options> class FGCReferenceProcessor;
 
 /** Information about references to objects marked as Garbage that's gather by the Garbage Collector */
 struct FGarbageReferenceInfo

@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "EntitySystem/MovieSceneEntityManager.h"
 #include "Delegates/IntegerSequence.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 
 namespace UE
 {
 namespace MovieScene
 {
+class FEntityManager;
+struct FEntityAllocation;
 
 struct IMovieSceneEntityMutation
 {

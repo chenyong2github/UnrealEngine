@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "HAL/Platform.h"
 #include "IntBoxTypes.h"
 
 
@@ -14,6 +16,8 @@ namespace UE
 {
 namespace Geometry
 {
+	struct FInterval1i;
+	template <typename RealType> class TDynamicMeshScalarTriangleAttribute;
 
 	/**
 	 * Compact the values of an integer Triangle Attribute, ie so that the attribute values are dense in range 0..N.

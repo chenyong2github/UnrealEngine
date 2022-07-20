@@ -2,7 +2,13 @@
 #pragma once
 
 #include "ClientPilotBlackboardManager.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClientPilotComponent.generated.h"
+
+class UClientPilotBlackboard;
 
 UCLASS()
 class CLIENTPILOT_API UClientPilotComponent : public UObject

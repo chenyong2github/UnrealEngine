@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatform.h"
-#include "Templates/UniquePtr.h"
 #include "HAL/CriticalSection.h"
+#include "Templates/UniquePtr.h"
 
+class FFeedbackContext;
+class FOutputDevice;
 class FOutputDeviceConsole;
 class FOutputDeviceError;
 

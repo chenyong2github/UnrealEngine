@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "MeshShapeGenerator.h"
+#include "Containers/Array.h"
 #include "FrameTypes.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
+#include "MeshShapeGenerator.h"
 
 namespace UE
 {

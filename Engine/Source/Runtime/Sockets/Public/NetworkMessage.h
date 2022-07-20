@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Serialization/BufferArchive.h"
-#include "Serialization/ArrayReader.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ByteSwap.h"
+#include "Misc/Crc.h"
+#include "Misc/DateTime.h"
 #include "Misc/EnumClassFlags.h"
+#include "Serialization/Archive.h"
+#include "Serialization/ArrayReader.h"
+#include "Serialization/BufferArchive.h"
+
+class FArrayReader;
+class FString;
 
 enum
 { 

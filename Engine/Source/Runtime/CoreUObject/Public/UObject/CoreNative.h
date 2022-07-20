@@ -7,9 +7,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Script.h"
+#include "HAL/Platform.h"
 #include "UObject/Object.h"
+#include "UObject/Script.h"
 
+class UObject;
 struct FFrame;
 
 /** The type of a native function callable by script */

@@ -3,10 +3,19 @@
 #pragma once
 
 #include "Async/TaskGraphInterfaces.h"
-#include "Templates/SubclassOf.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
+#include "Stats/Stats2.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneEntitySystem.generated.h"
 
@@ -17,8 +26,8 @@ namespace UE
 namespace MovieScene
 {
 
-	struct FSystemTaskPrerequisites;
 	struct FSystemSubsequentTasks;
+	struct FSystemTaskPrerequisites;
 
 	enum class EEntitySystemContext : uint8 
 	{

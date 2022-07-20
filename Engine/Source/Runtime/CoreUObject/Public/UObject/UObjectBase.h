@@ -6,11 +6,25 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "UObject/UnrealNames.h"
+
+class UClass;
+class UEnum;
+class UObject;
+class UPackage;
+class UScriptStruct;
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_UObjectsStatGroupTester"), STAT_UObjectsStatGroupTester, STATGROUP_UObjects, COREUOBJECT_API);
 

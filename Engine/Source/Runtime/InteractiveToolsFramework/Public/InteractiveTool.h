@@ -2,19 +2,41 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "InputBehaviorSet.h"
 #include "InteractiveToolActionSet.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
 #include "Shader.h"
-#include "ToolContextInterfaces.h"
-#include "UObject/UObjectGlobals.h"
 #include "Templates/EnableIf.h"
+#include "Templates/Function.h"
 #include "Templates/Models.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "ToolContextInterfaces.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InteractiveTool.generated.h"
 
-class UInteractiveToolManager;
 class FCanvas;
+class FInteractiveToolActionSet;
+class FProperty;
+class IToolsContextRenderAPI;
+class UInputBehavior;
+class UInteractiveTool;
+class UInteractiveToolManager;
+struct FPropertyChangedEvent;
 
 /** Passed to UInteractiveTool::Shutdown to indicate how Tool should shut itself down*/
 enum class EToolShutdownType

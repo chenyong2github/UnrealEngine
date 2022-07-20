@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/List.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/AssertionMacros.h"
 
 namespace DynamicRenderScaling
 {

@@ -2,25 +2,47 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "Engine/EngineTypes.h"
-#include "GameFramework/Actor.h"
 #include "Curves/KeyHandle.h"
-#include "MovieSceneSequenceID.h"
-#include "MovieSceneSection.h"
+#include "Delegates/Delegate.h"
+#include "Engine/EngineTypes.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 #include "Evaluation/MovieSceneSectionParameters.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "MovieSceneFwd.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneSubSection.generated.h"
 
+class FProperty;
 class UMovieScene;
+class UMovieSceneEntitySystemLinker;
 class UMovieSceneSequence;
+class UObject;
+namespace UE { namespace MovieScene { struct FEntityImportParams; } }
+namespace UE { namespace MovieScene { struct FImportedEntity; } }
+struct FFrame;
+struct FFrameRate;
 struct FMovieSceneEvaluationTemplate;
-struct FMovieSceneTrackCompilerArgs;
 struct FMovieSceneSectionParameters;
+struct FMovieSceneTrackCompilerArgs;
+struct FPropertyChangedEvent;
+struct FQualifiedFrameTime;
 
 DECLARE_DELEGATE_OneParam(FOnSequenceChanged, UMovieSceneSequence* /*Sequence*/);
 

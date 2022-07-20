@@ -1,17 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "EditorFramework/AssetImportData.h"
 
 class UAssetImportData;
 class UInterchangeAssetImportData;
 class UInterchangeBaseNode;
-class UInterchangeFactoryBaseNode;
 class UInterchangeBaseNodeContainer;
+class UInterchangeFactoryBaseNode;
 class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UObject;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {

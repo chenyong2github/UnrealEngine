@@ -2,7 +2,17 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "RHI.h"
 #include "RenderGraphResources.h"
+#include "RenderResource.h"
+#include "RenderUtils.h"
+#include "Templates/RefCounting.h"
+
+class FRDGBuilder;
 
 /** Returns the scale used to divide the scene texture resolution to get the virtual texture feedback resolution. */
 extern int32 GetVirtualTextureFeedbackScale();

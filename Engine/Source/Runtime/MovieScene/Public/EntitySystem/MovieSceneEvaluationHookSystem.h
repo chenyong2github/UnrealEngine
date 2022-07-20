@@ -2,12 +2,24 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntitySystem.h"
-#include "Evaluation/IMovieSceneEvaluationHook.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Evaluation/IMovieSceneEvaluationHook.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/FrameTime.h"
+#include "MovieSceneSequenceID.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneEvaluationHookSystem.generated.h"
 
 class IMovieScenePlayer;
+class UMovieSceneEntitySystemLinker;
+class UObject;
 
 
 USTRUCT()

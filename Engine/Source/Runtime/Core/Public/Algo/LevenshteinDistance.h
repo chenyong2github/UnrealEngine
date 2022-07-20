@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "Templates/Invoke.h"
-
 
 namespace Algo
 {

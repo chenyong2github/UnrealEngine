@@ -1,6 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Tuple.h"
+#include "UObject/ObjectMacros.h"
+
 #include "AudioCompressionSettings.generated.h"
 
 UENUM()

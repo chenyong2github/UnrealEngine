@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/Archive.h"
 
 #pragma pack(push,1)

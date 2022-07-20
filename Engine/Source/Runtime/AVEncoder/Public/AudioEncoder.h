@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "MediaPacket.h"
+#include "Misc/Timespan.h"
 #include "SampleBuffer.h"
 
 namespace AVEncoder

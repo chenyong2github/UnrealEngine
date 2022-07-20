@@ -3,10 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "UObject/ObjectMacros.h"
+
 #include "InputChord.generated.h"
+
+struct FInputChord;
 
 // Was supposed to be deprecated in 4.8, but was never properly marked up
 UE_DEPRECATED(4.21, "Use FInputChord instead of FInputGesture") 

@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class ISlateMetaData;
 

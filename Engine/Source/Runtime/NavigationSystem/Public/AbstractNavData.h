@@ -2,12 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "NavFilters/NavigationQueryFilter.h"
+#include "AI/Navigation/NavQueryFilter.h"
 #include "AI/Navigation/NavigationTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "CoreMinimal.h"
+#include "Math/Box.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "NavFilters/NavigationQueryFilter.h"
 #include "NavigationData.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AbstractNavData.generated.h"
+
+class UClass;
+class UObject;
+struct FPathFindingQuery;
 
 struct NAVIGATIONSYSTEM_API FAbstractNavigationPath : public FNavigationPath
 {

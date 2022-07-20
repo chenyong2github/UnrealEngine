@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformMemory.h"
+#include "Templates/Function.h"
 
 #if PLATFORM_HAS_FPlatformVirtualMemoryBlock
 

@@ -4,19 +4,30 @@
 
 #pragma once
 
+#include "BoxTypes.h"
+#include "CompGeom/PolygonTriangulation.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-
+#include "Curve/CurveUtil.h"
+#include "FrameTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "IndexTypes.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/UnrealMathUtility.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "MathUtil.h"
+#include "MatrixTypes.h"
 #include "MeshShapeGenerator.h"
 #include "Misc/AssertionMacros.h"
-
-#include "CompGeom/PolygonTriangulation.h"
-#include "FrameTypes.h"
-#include "MatrixTypes.h"
 #include "Polygon2.h"
-#include "Curve/CurveUtil.h"
-
+#include "Templates/UnrealTemplate.h"
 #include "Util/ProgressCancel.h"
+#include "VectorTypes.h"
+
+class FProgressCancel;
 
 namespace UE
 {

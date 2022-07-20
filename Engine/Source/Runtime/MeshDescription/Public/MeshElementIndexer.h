@@ -2,11 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
 #include "MeshAttributeArray.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/EnableIf.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "UObject/NameTypes.h"
 
 class FMeshElementChannels;
+struct FElementID;
 
 
 /**

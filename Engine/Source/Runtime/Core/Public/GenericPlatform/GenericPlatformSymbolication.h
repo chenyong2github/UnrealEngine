@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/UnrealTypeTraits.h"
 #include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTypeTraits.h"
 
-template <typename T> struct TCallTraits;
+struct FProgramCounterSymbolInfo;
 template< typename InElementType, typename KeyFuncs , typename Allocator > class TSet;
+template <typename T> struct TCallTraits;
 
 /**
  * File & line info for a debug symbol region

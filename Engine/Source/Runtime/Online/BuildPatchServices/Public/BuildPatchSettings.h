@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Variant.h"
-
-#include "Interfaces/IBuildManifest.h"
 #include "BuildPatchDelta.h"
 #include "BuildPatchFeatureLevel.h"
 #include "BuildPatchInstall.h"
 #include "BuildPatchVerify.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Interfaces/IBuildManifest.h"
+#include "Misc/Variant.h"
+#include "Templates/UnrealTemplate.h"
+
+class FVariant;
 
 namespace BuildPatchServices
 {

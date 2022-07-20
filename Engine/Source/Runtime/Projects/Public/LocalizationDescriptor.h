@@ -2,10 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/JsonWriter.h"
 
 class FJsonObject;
+class FText;
 
 /**
  * Policy by which the localization data associated with a target should be loaded.

@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 /** Is an entity visible? */
 struct SLATECORE_API EVisibility

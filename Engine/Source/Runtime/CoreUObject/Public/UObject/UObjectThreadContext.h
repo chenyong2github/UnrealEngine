@@ -6,15 +6,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "HAL/ThreadSingleton.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "HAL/ThreadSingleton.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
 
-class FObjectInitializer;
-struct FUObjectSerializeContext;
 class FLinkerLoad;
+class FName;
+class FObjectInitializer;
 class IAsyncPackageLoader;
+class UObject;
+struct FUObjectSerializeContext;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogUObjectThreadContext, Log, All);
 

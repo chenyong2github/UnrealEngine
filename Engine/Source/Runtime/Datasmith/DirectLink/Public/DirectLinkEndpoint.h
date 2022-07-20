@@ -2,11 +2,20 @@
 
 #pragma once
 
-#include "DirectLinkCommon.h"
-
 #include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "DirectLinkCommon.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IMessageContext.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 #include <atomic>
 

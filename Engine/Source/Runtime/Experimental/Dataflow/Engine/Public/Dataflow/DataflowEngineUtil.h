@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/UnrealTypePrivate.h"
+#include "Math/Transform.h"
 #include "ReferenceSkeleton.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
+
 namespace Dataflow
 {
 	namespace Reflection

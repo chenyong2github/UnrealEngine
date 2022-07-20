@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "JsonObjectWrapper.generated.h"
 
+class FArchive;
 class FJsonObject;
+class FOutputDevice;
 
 /** UStruct that holds a JsonObject, can be used by structs passed to JsonObjectConverter to pass through JsonObjects directly */
 USTRUCT(BlueprintType, meta = (DisplayName = "JsonObject"))

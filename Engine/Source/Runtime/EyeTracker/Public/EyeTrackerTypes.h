@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/ObjectMacros.h"
+
 #include "EyeTrackerTypes.generated.h"
 
 

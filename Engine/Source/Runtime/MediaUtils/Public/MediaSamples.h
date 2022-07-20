@@ -4,14 +4,17 @@
 
 #include "CoreTypes.h"
 #include "IMediaSamples.h"
-#include "Templates/SharedPointer.h"
-
+#include "IMediaTextureSample.h"
+#include "IMediaTimeSource.h"
 #include "MediaSampleQueue.h"
+#include "Templates/SharedPointer.h"
 
 class IMediaAudioSample;
 class IMediaBinarySample;
 class IMediaOverlaySample;
 class IMediaTextureSample;
+struct FTimespan;
+template <typename ElementType> class TRange;
 
 
 /**

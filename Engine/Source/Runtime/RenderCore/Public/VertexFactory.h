@@ -6,14 +6,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/EnumAsByte.h"
 #include "Containers/List.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
 #include "RenderResource.h"
-#include "ShaderCore.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryImage.h"
+#include "Serialization/MemoryLayout.h"
 #include "Shader.h"
-#include "Misc/EnumClassFlags.h"
+#include "ShaderCore.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+#include <atomic>
 
 class FMaterial;
 class FMeshDrawSingleShaderBindings;

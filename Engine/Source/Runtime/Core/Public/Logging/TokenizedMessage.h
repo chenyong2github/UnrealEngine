@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"

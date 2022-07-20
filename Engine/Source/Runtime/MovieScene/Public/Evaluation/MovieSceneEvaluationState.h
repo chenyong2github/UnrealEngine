@@ -2,18 +2,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "MovieSceneSequenceID.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/MulticastDelegateBase.h"
 #include "Evaluation/MovieSceneEvaluationKey.h"
 #include "Evaluation/PersistentEvaluationData.h"
-#include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSequence.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/WeakObjectPtr.h"
-
-struct FMovieSceneObjectBindingID;
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IMovieScenePlayer;
 class UMovieSceneSequence;
+class UObject;
+struct FMovieSceneEvaluationKey;
+struct FMovieSceneObjectBindingID;
+struct FSharedPersistentDataKey;
+struct IPersistentEvaluationData;
 
 /**
  * Object cache that looks up, resolves, and caches object bindings for a specific sequence

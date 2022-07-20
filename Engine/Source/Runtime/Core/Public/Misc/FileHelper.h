@@ -10,6 +10,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
 #include "Math/Color.h"
 #include "Math/MathFwd.h"
 #include "Misc/EnumClassFlags.h"

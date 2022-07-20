@@ -2,6 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+
+class FString;
+class FText;
 
 namespace BuildPatchServices
 {

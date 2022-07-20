@@ -2,12 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InstallBundleTypes.h"
 #include "Async/AsyncWork.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "InstallBundleTypes.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Serialization/JsonSerializerMacros.h"
-#include "Containers/Ticker.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/IsEnum.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+class FQueuedThreadPool;
 
 namespace InstallBundleUtil
 {

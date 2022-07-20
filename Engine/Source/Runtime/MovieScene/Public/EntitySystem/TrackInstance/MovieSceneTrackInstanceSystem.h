@@ -2,15 +2,26 @@
 
 #pragma once
 
-#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
-#include "EntitySystem/MovieScenePropertySystemTypes.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "HAL/Platform.h"
+#include "Serialization/Archive.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneTrackInstanceSystem.generated.h"
 
+class UClass;
 class UMovieSceneSection;
 class UMovieSceneTrackInstance;
+class UObject;
 
 USTRUCT()
 struct FMovieSceneTrackInstanceEntry

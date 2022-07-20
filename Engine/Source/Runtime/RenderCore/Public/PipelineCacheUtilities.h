@@ -4,10 +4,21 @@
 
 #if WITH_EDITOR	// this has no business existing in a cooked game
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "RHIDefinitions.h"
 #include "ShaderCodeLibrary.h"
 
+class FName;
+class FSHAHash;
+class ITargetPlatform;
 struct FPipelineCacheFileFormatPSO;
+struct FStableShaderKeyAndValue;
 
 namespace UE
 {

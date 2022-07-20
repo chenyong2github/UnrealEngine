@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "JsonGlobals.h"
-#include "Serialization/JsonTypes.h"
 #include "Dom/JsonValue.h"
+#include "HAL/Platform.h"
+#include "JsonGlobals.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Serialization/JsonTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 
 /**
  * A Json Object is a structure holding an unordered set of name/value pairs.

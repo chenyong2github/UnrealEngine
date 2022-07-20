@@ -2,8 +2,18 @@
 
 #pragma once
 
-#include "RenderGraph.h"
+#include "Containers/ArrayView.h"
 #include "GlobalShader.h"
+#include "HAL/Platform.h"
+#include "RHIDefinitions.h"
+#include "RenderGraph.h"
+#include "RenderGraphDefinitions.h"
+
+class FGlobalShaderMap;
+class FRDGBuilder;
+class FRHICommandListImmediate;
+struct IPooledRenderTarget;
+template <typename ReferencedType> class TRefCountPtr;
 
 class RENDERER_API FRenderTargetWriteMask
 {

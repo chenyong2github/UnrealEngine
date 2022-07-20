@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "Containers/SortedMap.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Set.h"
-#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "Containers/SortedMap.h"
 #include "EntitySystem/EntityAllocationIterator.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FloatChannelEvaluatorSystem.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
 
 namespace UE
 {

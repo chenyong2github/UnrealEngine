@@ -6,6 +6,10 @@ DynamicBufferAllocator.h: Classes for allocating transient rendering data.
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/PlatformMath.h"
+#include "RHI.h"
+#include "RHIUtilities.h"
 #include "RenderResource.h"
 
 struct FDynamicReadBufferPool;

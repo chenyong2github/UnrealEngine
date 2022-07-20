@@ -1,41 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/Types.h"
 #include "CADKernel/Core/System.h"
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Visu.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Math/Plane.h"
+#include "Templates/SharedPointer.h"
 
 class FString;
+
 namespace CADKernel
 {
 
-class FAABB;
 class FAABB2D;
+class FAABB;
 class FBody;
 class FCurve;
-class FRestrictionCurve;
-class FTopologicalEdge;
+class FEdgeMesh;
 class FEdgeMesh;
 class FEntity;
+class FFaceMesh;
+class FFaceMesh;
 class FGroup;
 class FMesh;
-
-class FVertexMesh;
-class FEdgeMesh;
-class FFaceMesh;
-class FModelMesh;
-
 class FModel;
+class FModelMesh;
+class FRestrictionCurve;
 class FShell;
 class FSurface;
-class FFaceMesh;
+class FTopologicalEdge;
 class FTopologicalFace;
 class FTopologicalLoop;
 class FTopologicalVertex;
 class FVertexMesh;
-
+class FVertexMesh;
 struct FLinearBoundary;
 
 #ifdef CADKERNEL_DEV

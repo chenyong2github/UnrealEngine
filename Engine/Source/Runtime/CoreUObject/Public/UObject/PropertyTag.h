@@ -7,7 +7,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Misc/Guid.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/NameTypes.h"
+
+class FArchive;
+class FProperty;
 
 /**
  *  A tag describing a class property, to aid in serialization.

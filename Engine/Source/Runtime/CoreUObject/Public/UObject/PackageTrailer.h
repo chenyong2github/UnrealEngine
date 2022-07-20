@@ -3,8 +3,14 @@
 #pragma once
 
 #include "Compression/CompressedBuffer.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "IO/IoHash.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
 class FArchive;

@@ -2,13 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Math/Vector.h"
-#include "VectorTypes.h"
 #include "OrientedBoxTypes.h"
+#include "VectorTypes.h"
+
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {
+namespace Math { template <typename T> struct TVector; }
+
 namespace Geometry
 {
 

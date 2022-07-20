@@ -23,6 +23,7 @@
 #define DETOURDEBUGDRAW_H
 
 #include "CoreMinimal.h"
+#include "Detour/DetourLargeWorldCoordinates.h"
 #include "Detour/DetourNavMesh.h"
 
 class dtNavMeshQuery;

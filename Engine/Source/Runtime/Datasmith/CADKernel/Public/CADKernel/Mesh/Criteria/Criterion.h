@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CADKernel/Core/Types.h"
+#include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Mesh/Criteria/CriterionType.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace CADKernel

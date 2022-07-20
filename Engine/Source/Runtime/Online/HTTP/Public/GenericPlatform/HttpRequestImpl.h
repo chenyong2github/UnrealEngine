@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Interfaces/IHttpRequest.h"
+#include "Misc/Optional.h"
 
 /**
  * Contains implementation of some common functions that don't vary between implementation

@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "VideoCommon.h"
 #include "VideoDecoderAllocationTypes.h"
+
+struct FVideoDecoderAllocFrameBufferResult;
 
 
 namespace AVEncoder

@@ -2,17 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHIDefinitions.h"
-#include "Templates/RefCounting.h"
-#include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/EnumAsByte.h"
+#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "PixelFormat.h"
+#include "RHIDefinitions.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/RefCounting.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
 
+class FRDGBuilder;
 class FRHICommandListImmediate;
 class FRHIShaderResourceView;
 class FRHITexture;
 class FRHIUnorderedAccessView;
-class FRDGBuilder;
 
 union FVirtualTextureProducerHandle
 {

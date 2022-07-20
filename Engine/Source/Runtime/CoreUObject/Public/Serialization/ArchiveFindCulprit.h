@@ -2,8 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/ArchiveUObject.h"
+
+class FArchive;
+class FProperty;
+class UObject;
 
 /*----------------------------------------------------------------------------
 	FArchiveFindCulprit.

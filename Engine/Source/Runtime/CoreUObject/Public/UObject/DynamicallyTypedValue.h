@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/StructuredArchive.h"
+#include "Templates/UnrealTemplate.h"
 
 class FReferenceCollector;
 

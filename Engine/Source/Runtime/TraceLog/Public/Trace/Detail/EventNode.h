@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED

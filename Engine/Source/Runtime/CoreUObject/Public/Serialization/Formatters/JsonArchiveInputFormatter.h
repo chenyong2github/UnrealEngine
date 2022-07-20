@@ -2,12 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/StructuredArchiveFormatter.h"
+#include "Serialization/StructuredArchiveNameHelpers.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/ObjectResource.h"
 
+class FArchive;
 class FJsonObject;
 class FJsonValue;
+class FName;
+class FPackageIndex;
+class FText;
+class UObject;
+struct FLazyObjectPtr;
+struct FObjectPtr;
+struct FSoftObjectPath;
+struct FSoftObjectPtr;
+struct FWeakObjectPtr;
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 

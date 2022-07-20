@@ -6,6 +6,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
 #include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"

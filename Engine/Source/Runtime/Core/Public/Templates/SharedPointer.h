@@ -114,7 +114,7 @@
  */
 
 // SharedPointerInternals.h contains the implementation of reference counting structures we need
-#include "Templates/SharedPointerInternals.h"
+#include "Templates/SharedPointerInternals.h" // IWYU pragma: export
 
 
 /**
@@ -2174,4 +2174,4 @@ FORCEINLINE void CleanupPointerMap(TMap< TWeakPtr<KeyType>, ValueType >& Pointer
 
 
 // Shared pointer testing
-#include "Templates/SharedPointerTesting.inl"
+#include "Templates/SharedPointerTesting.inl" // IWYU pragma: export

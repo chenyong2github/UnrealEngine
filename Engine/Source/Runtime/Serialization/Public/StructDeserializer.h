@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 
 class Error;
+class FProperty;
 class IStructDeserializerBackend;
+class UStruct;
 
 /**
  * Enumerates policies for various errors during de-serialization.

@@ -2,18 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Math/Range.h"
 #include "Misc/CoreDefines.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameRate.h"
-#include "Containers/ArrayView.h"
-#include "Math/Range.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MovieSceneChannel.generated.h"
 
-struct FKeyHandle;
-struct FFrameRate;
 struct FFrameNumber;
+struct FFrameRate;
 struct FKeyDataOptimizationParams;
+struct FKeyHandle;
+struct FMovieSceneChannel;
 
 /*
 *  Events that are fired when adding, deleting or moving keys

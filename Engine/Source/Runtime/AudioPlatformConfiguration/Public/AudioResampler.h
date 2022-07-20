@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Templates/UniquePtr.h"
 
 #if PLATFORM_SWITCH
 // Switch uses page alignment for submitted buffers

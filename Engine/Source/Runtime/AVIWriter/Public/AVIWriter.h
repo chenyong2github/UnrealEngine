@@ -6,10 +6,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Paths.h"
-#include "HAL/ThreadSafeBool.h"
 #include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/ThreadSafeBool.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "Misc/Paths.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+
+class FEvent;
+template <typename ResultType> class TFuture;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMovieCapture, Warning, All);
 

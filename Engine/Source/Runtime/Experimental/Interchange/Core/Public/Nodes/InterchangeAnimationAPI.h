@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "Types/AttributeStorage.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Misc/Optional.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InterchangeAnimationAPI.generated.h"
+
+class UInterchangeBaseNode;
+namespace UE { namespace Interchange { struct FAttributeKey; } }
+struct FFrame;
 
 /**
  * UInterchangeAnimationAPI is used to store and retrieve animation data(i.e. DCC node attributes, pipelines will have access to those attributes)

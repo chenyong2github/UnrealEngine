@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 
 /** Forward Decl for implementation */

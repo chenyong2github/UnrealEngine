@@ -2,13 +2,21 @@
 
 #pragma once
 
-// Includes
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Templates/EnableIf.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "StateStruct.generated.h"
+
+class UClass;
+class UStruct;
 
 
 /**

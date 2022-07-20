@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "CoreFwd.h"
-
 #include "Containers/Array.h"
-#include "Misc/InlineValue.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreFwd.h"
+#include "CoreTypes.h"
 #include "Evaluation/MovieSceneSegment.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/InlineValue.h"
+#include "Misc/Optional.h"
 
 class UMovieSceneSection;
+struct FFrameNumber;
+template <typename ElementType> class TRange;
+template <typename T> struct TIsContiguousContainer;
 
 /**
  * Data structure supplied to segment blenders that includes information about the section

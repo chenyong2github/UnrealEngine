@@ -6,12 +6,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/List.h"
+#include "Containers/Map.h"
 #include "Containers/StaticArray.h"
 #include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/StringBuilder.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryLayout.h"
+#include "Templates/AlignmentTemplates.h"
+#include "UObject/NameTypes.h"
 
 namespace EShaderPrecisionModifier
 {

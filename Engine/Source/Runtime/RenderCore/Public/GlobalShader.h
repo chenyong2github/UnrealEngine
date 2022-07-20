@@ -6,16 +6,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Shader.h"
-#include "Templates/UniquePtr.h"
-#include "RHIResources.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "RHIResources.h"
+#include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
+class FArchive;
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
+class FShaderParametersMetadata;
+class FShaderUniformBufferParameter;
+class FVertexFactoryType;
 class ITargetPlatform;
+struct FShaderCompilerEnvironment;
 
 /** Used to identify the global shader map in compile queues. */
 extern RENDERCORE_API const int32 GlobalShaderMapId;

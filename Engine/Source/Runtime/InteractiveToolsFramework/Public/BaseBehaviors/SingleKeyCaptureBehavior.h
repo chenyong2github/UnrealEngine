@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputBehavior.h"
-#include "InteractiveTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/InputBehaviorModifierStates.h"
+#include "CoreMinimal.h"
+#include "InputBehavior.h"
+#include "InputCoreTypes.h"
+#include "InputState.h"
+#include "InteractiveTool.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SingleKeyCaptureBehavior.generated.h"
+
+class IModifierToggleBehaviorTarget;
+class UObject;
 
 
 /**

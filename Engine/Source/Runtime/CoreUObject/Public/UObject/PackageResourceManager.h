@@ -10,20 +10,27 @@
 #include "Delegates/Delegate.h"
 #include "Features/IModularFeature.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformFile.h"
+#include "Logging/LogMacros.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
+#include "Misc/PackageSegment.h"
 #include "Modules/ModuleInterface.h"
+#include "Serialization/Archive.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 class FArchive;
+class FName;
 class FPreloadableArchive;
-class IAsyncReadRequest;
 class IAsyncReadFileHandle;
+class IAsyncReadRequest;
 class IMappedFileHandle;
 class IPackageResourceManager;
 class UPackage;
+struct FFileStatData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPackageResourceManager, Log, All);
 DECLARE_DELEGATE_RetVal(IPackageResourceManager*, FSetPackageResourceManager);

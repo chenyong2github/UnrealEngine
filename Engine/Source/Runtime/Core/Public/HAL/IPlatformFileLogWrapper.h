@@ -2,20 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "HAL/PlatformMisc.h"
-#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
-#include "Math/Color.h"
-#include "Logging/LogMacros.h"
-#include "Misc/DateTime.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Misc/DateTime.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UniquePtr.h"
+#include "Trace/Detail/Channel.h"
 
 class FLoggedPlatformFile;
+class FOutputDevice;
 class IAsyncReadFileHandle;
+class IMappedFileHandle;
 
 /**
  * Wrapper to log the low level file system

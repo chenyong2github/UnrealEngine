@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 
 

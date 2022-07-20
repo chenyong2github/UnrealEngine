@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
 #include "MovieScene.h"
+#include "MovieSceneObjectBindingID.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieSceneBindingOverrides.generated.h"
+
+struct FMovieSceneSequenceID;
+struct FPropertyChangedEvent;
 
 
 /** Movie scene binding override data */

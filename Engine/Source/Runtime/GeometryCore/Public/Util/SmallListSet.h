@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 #include "Util/DynamicVector.h"
+
+class FArchive;
 
 namespace UE
 {

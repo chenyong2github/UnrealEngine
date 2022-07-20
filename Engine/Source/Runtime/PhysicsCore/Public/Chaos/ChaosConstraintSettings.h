@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/Real.h"
 
 namespace Chaos
 {

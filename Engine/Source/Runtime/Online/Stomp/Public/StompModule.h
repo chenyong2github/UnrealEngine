@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class IStompClient;
 

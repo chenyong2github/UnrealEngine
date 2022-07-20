@@ -2,14 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SocketTypes.h"
-#include "IPAddress.h"
 #include "AddressInfoTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "IPAddress.h"
+#include "Logging/LogMacros.h"
+#include "Net/Common/Sockets/SocketErrors.h"
+#include "SocketTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class Error;
 class FInternetAddr;
+class FOutputDevice;
 class FSocket;
+struct FPacketTimestamp;
 
 SOCKETS_API DECLARE_LOG_CATEGORY_EXTERN(LogSockets, Log, All);
 
@@ -33,6 +47,7 @@ SOCKETS_API DECLARE_LOG_CATEGORY_EXTERN(LogSockets, Log, All);
 
 /** A unique pointer that will automatically call ISocketSubsystem::DestroySocket on its owned socket. */
 class FSocketDeleter;
+
 using FUniqueSocket = TUniquePtr<FSocket, FSocketDeleter>;
 
 /**

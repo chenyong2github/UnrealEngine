@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCinematicShotSection.generated.h"
+
+class UObject;
+struct FFrame;
 
 /**
  * Implements a cinematic shot section.

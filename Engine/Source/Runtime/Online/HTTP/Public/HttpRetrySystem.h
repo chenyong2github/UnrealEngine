@@ -2,16 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Templates/Atomic.h"
-#include "Interfaces/IHttpRequest.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
 #include "HttpRequestAdapter.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/Optional.h"
+#include "Templates/Atomic.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Helpers of various types for the retry system
  */
 namespace FHttpRetrySystem
 {
+	class FManager;
+
 	typedef uint32 RetryLimitCountType;
 	typedef double RetryTimeoutRelativeSecondsType;
 

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
 
 namespace AnimationCore
 {

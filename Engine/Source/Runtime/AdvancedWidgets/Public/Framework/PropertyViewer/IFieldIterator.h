@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "UObject/Field.h"
 
+class FFieldVariant;
 class FProperty;
 class UFunction;
 class UStruct;

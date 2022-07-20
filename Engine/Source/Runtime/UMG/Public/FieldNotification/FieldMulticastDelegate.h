@@ -2,12 +2,25 @@
 
 #pragma once
 
+#include "Algo/BinarySearch.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "FieldNotification/FieldId.h"
 #include "FieldNotification/IFieldValueChanged.h"
+#include "HAL/Platform.h"
+#include "Templates/IdentityFunctor.h"
+#include "Templates/Less.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include <limits>
+
+class UObject;
 
 namespace UE::FieldNotification
 {

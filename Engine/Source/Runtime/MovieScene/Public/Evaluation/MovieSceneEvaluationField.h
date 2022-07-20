@@ -2,23 +2,41 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneSequenceID.h"
-#include "Evaluation/MovieSceneEvaluationKey.h"
-#include "Evaluation/MovieSceneSegment.h"
-#include "MovieSceneFrameMigration.h"
-#include "Evaluation/MovieSceneTrackIdentifier.h"
-#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "CoreTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "Evaluation/MovieSceneEvaluationKey.h"
+#include "Evaluation/MovieSceneEvaluationTree.h"
+#include "Evaluation/MovieSceneSegment.h"
+#include "Evaluation/MovieSceneTrackIdentifier.h"
+#include "Math/NumericLimits.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/Guid.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneSequenceID.h"
+#include "Serialization/Archive.h"
 #include "Templates/Function.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "MovieSceneEvaluationField.generated.h"
 
+class UMovieSceneSequence;
+class UObject;
 struct FFrameNumber;
 struct FMovieSceneSequenceHierarchy;
 struct IMovieSceneSequenceTemplateStore;
-class UMovieSceneSequence;
 
 
 /**

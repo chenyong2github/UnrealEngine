@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "MeshDescription.h"
 #include "MeshDescriptionBase.h"
+#include "MeshTypes.h"
 #include "StaticMeshAttributes.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+
 #include "StaticMeshDescription.generated.h"
 
 class UMaterial;
+class UObject;
+struct FFrame;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 

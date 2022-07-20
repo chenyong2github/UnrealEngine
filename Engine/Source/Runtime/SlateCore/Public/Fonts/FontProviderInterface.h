@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "FontProviderInterface.generated.h"
 
+class UObject;
 struct FCompositeFont;
 
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))

@@ -5,8 +5,15 @@
 #include "AudioParameterControllerInterface.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 
 
 namespace Audio

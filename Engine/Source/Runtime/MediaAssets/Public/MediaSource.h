@@ -2,15 +2,27 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "IMediaOptions.h"
+#include "IMediaOptions.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Variant.h"
-#include "UObject/ObjectMacros.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
-#include "IMediaOptions.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MediaSource.generated.h"
+
+class FVariant;
+class UMediaSource;
+struct FFrame;
 
 /** Delegate for creating a media source from a string. */
 DECLARE_DELEGATE_RetVal_TwoParams(UMediaSource*, FMediaSourceSpawnDelegate, const FString&, UObject*);

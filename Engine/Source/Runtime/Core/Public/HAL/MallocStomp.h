@@ -5,6 +5,9 @@
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
 
+class FOutputDevice;
+class UWorld;
+
 /**
  * Stomp memory allocator support should be enabled in Core.Build.cs.
  * Run-time validation should be enabled using '-stompmalloc' command line argument.

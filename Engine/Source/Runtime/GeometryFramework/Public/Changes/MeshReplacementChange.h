@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "InteractiveToolChange.h"
 #include "GeometryBase.h"
+#include "InteractiveToolChange.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MeshReplacementChange.generated.h"
 
-
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
+class UObject;
 
 
 /**

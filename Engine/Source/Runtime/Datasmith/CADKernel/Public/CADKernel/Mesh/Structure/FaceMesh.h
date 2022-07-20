@@ -2,9 +2,18 @@
 #pragma once
 
 #include "CADKernel/Mesh/Structure/Mesh.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
 
 namespace CADKernel
 {
+	class FModelMesh;
+	class FPoint;
+	class FTopologicalEntity;
 	class FTopologicalFace;
 
 	/**

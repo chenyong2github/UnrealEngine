@@ -7,6 +7,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
+
+class UObjectBase;
 
 class COREUOBJECT_API FUObjectAllocator
 {

@@ -2,16 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Interfaces/IHttpRequest.h"
-#include "Runtime/Online/HTTP/Private/IHttpThreadedRequest.h"
-#include "Containers/Ticker.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/Queue.h"
-#include "HttpPackage.h"
 #include "Containers/Ticker.h"
+#include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HttpPackage.h"
+#include "Interfaces/IHttpRequest.h"
 #include "Misc/EnumRange.h"
+#include "Runtime/Online/HTTP/Private/IHttpThreadedRequest.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 class FHttpThread;
+class FOutputDevice;
+class IHttpThreadedRequest;
 
 enum class EHttpFlushReason : uint8
 {

@@ -3,7 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "UObject/ObjectMacros.h"
+
 #include "EulerTransform.generated.h"
+
+class UScriptStruct;
+template <class T> struct TBaseStructure;
 
 UENUM()
 enum class EEulerRotationOrder : uint8

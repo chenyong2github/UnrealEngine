@@ -6,17 +6,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Field.h"
+#include "CoreTypes.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/EnableIf.h"
+#include "Templates/LosesQualifiersFromTo.h"
+#include "Templates/PointerIsConvertibleFromTo.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/FastReferenceCollectorOptions.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectArray.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "UObject/UObjectArray.h"
-#include "UObject/FastReferenceCollectorOptions.h"
 
-class UStruct;
-class UField;
+class FArchive;
 class FLinkerLoad;
+class UField;
+class UStruct;
+struct FUObjectItem;
+template <typename T> struct TIsPODType;
+template <typename T> struct TIsWeakPointerType;
+template <typename T> struct TIsZeroConstructType;
 
 struct COREUOBJECT_API FFieldPath
 {

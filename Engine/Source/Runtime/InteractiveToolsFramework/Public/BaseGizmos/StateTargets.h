@@ -2,12 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/SceneComponent.h"
-#include "InteractiveGizmoManager.h"
-#include "InteractiveToolManager.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "Changes/TransformChange.h"
+#include "Components/SceneComponent.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "InteractiveGizmoManager.h"
+#include "InteractiveToolChange.h"
+#include "InteractiveToolManager.h"
+#include "Internationalization/Text.h"
+#include "Math/Transform.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "StateTargets.generated.h"
 
 

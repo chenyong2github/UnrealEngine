@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "Evaluation/MovieSceneAnimTypeID.h"
+#include "HAL/Platform.h"
 #include "Misc/InlineValue.h"
+#include "Misc/Optional.h"
+#include "Templates/Decay.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
-template<typename T> struct TMovieSceneInterrogationIterator;
+class UObject;
 struct FMovieSceneBlendingAccumulator;
 struct FMovieSceneContext;
-class UObject;
+template<typename T> struct TMovieSceneInterrogationIterator;
 
 /** Key used for populating template interrogation data */
 struct FMovieSceneInterrogationKey

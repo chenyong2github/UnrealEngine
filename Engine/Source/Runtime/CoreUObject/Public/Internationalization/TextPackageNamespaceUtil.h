@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
+#include "Internationalization/TextNamespaceFwd.h"
 #include "Internationalization/TextNamespaceUtil.h"
+
+class UObject;
+class UPackage;
 
 namespace TextNamespaceUtil
 {

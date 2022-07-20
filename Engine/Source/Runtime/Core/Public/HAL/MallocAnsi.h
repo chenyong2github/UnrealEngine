@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/MemoryBase.h"
 #include "HAL/UnrealMemory.h"
 
 CORE_API void* AnsiMalloc(SIZE_T Size, uint32 Alignment);

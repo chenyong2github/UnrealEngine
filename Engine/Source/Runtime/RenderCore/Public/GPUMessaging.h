@@ -2,15 +2,24 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "RenderGraphBuilder.h"
+#include "RenderGraphDefinitions.h"
+#include "ShaderParameterMacros.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+class FRDGBufferUAV;
+class FRDGBuilder;
 
 #define GPU_MESSAGE_SCOPE(GraphBuilder) GPUMessage::FScope GPUMessageScope_(GraphBuilder);
 
 namespace GPUMessage
 {
 
-class FSystem;
 class FSocket;
+class FSystem;
 
 /** RAII object for controlling a new GPU message scope. */
 class RENDERCORE_API FScope

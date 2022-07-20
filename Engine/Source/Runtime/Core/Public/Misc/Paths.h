@@ -8,6 +8,8 @@
 #include "HAL/CriticalSection.h"
 #include "Templates/UnrealTemplate.h"
 
+#include <type_traits>
+
 class FText;
 
 namespace UE::Core::Private

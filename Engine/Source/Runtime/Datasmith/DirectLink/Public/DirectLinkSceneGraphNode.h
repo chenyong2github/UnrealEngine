@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "DirectLinkCommon.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 
 namespace DirectLink
 {
 class FParameterStore;
 class FSnapshotProxy;
+class IReferenceProxy;
 struct FReferenceSnapshot;
 
 

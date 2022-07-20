@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Ticker.h"
 
 /**

@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "BoneIndices.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
 #include "MeshTypes.h"
 #include "StaticMeshOperations.h"
+
+struct FMeshDescription;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshOperations, Log, All);

@@ -3,7 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Stats/Stats.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneBlendType.generated.h"
 
 /** Movie scene blend type enumeration */

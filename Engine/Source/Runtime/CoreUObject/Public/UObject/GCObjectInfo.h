@@ -6,8 +6,18 @@
 
 #pragma once
 
-#include "UObject/GarbageCollection.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
 #include "UObject/Class.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectArray.h"
 
 /**
  * Structure containing information about a UObject participating in Garbage Collection.

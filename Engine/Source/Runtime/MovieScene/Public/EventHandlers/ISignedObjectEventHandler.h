@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/List.h"
+#include "CoreTypes.h"
 #include "EventHandlers/MovieSceneDataEventContainer.h"
 
 class UMovieSceneSignedObject;

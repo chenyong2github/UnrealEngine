@@ -2,10 +2,22 @@
 
 #pragma once
 
+#include "CoreTypes.h"
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "MovieScenePreAnimatedStateSystem.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class UObject;
+namespace UE { namespace MovieScene { struct FPreAnimatedStateExtension; } }
+namespace UE { namespace MovieScene { struct FSystemSubsequentTasks; } }
+namespace UE { namespace MovieScene { struct FSystemTaskPrerequisites; } }
 
 
 UINTERFACE()

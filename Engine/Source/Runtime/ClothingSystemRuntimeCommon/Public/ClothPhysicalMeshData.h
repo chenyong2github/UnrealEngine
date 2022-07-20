@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothVertBoneData.h"
 #include "ClothTetherData.h"
-#include "PointWeightMap.h"
+#include "ClothVertBoneData.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "CoreTypes.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "PointWeightMap.h"
+#include "UObject/ObjectMacros.h"
 
 #include "ClothPhysicalMeshData.generated.h"
 
-class UClothPhysicalMeshDataBase_Legacy;
+class FName;
 class UClothConfigBase;
+class UClothPhysicalMeshDataBase_Legacy;
+struct FPointWeightMap;
+template <typename T> struct TObjectPtr;
 
 /** Spatial simulation data for a mesh. */
 USTRUCT()

@@ -2,12 +2,17 @@
 
 #pragma once
 
-#include "Interfaces/IBackgroundHttpManager.h"
-#include "Interfaces/IBackgroundHttpResponse.h"
-
 #include "BackgroundHttpFileHashHelper.h"
-
+#include "Containers/Array.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Interfaces/IBackgroundHttpManager.h"
+#include "Interfaces/IBackgroundHttpRequest.h"
+#include "Interfaces/IBackgroundHttpResponse.h"
+#include "Logging/LogMacros.h"
+#include "Templates/Atomic.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBackgroundHttpManager, Log, All)
 

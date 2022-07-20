@@ -2,9 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "HAL/ThreadSingleton.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 #include "UObject/UObjectGlobals.h"
+
+class FObjectInitializer;
+class UClass;
+class UObject;
+class UPackage;
+class UScriptStruct;
+class UStruct;
+struct FUObjectSerializeContext;
 
 // @todo: BP2CPP_remove
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

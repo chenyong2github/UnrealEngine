@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "HAL/MemoryBase.h"
 #include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/LowLevelMemStats.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/MallocJemalloc.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformAtomics.h"
 #include "Math/UnrealMathUtility.h"
 #include "Stats/Stats.h"
-#include "HAL/MallocJemalloc.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "HAL/LowLevelMemStats.h"
+#include "Stats/Stats2.h"
+
+struct FGenericMemoryStats;
 
 #define MEM_TIME(st)
 
@@ -125,8 +130,8 @@ private:
 	
 	// Forward declares.
 	struct FFreeMem;
-	struct FPoolTable;
 	struct FPoolInfo;
+	struct FPoolTable;
 	struct PoolHashBucket;
 
 #ifdef CACHE_FREED_OS_ALLOCS

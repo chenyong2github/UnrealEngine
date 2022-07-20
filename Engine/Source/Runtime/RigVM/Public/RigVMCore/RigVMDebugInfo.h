@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Misc/Guid.h"
+#include "UObject/ObjectMacros.h"
+
 #include "RigVMDebugInfo.generated.h"
 
+class UObject;
 class URigVMNode;
 
 USTRUCT()

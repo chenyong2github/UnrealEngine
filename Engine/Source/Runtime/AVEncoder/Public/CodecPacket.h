@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/Timespan.h"
+#include "Templates/SharedPointer.h"
 
 namespace AVEncoder
 {

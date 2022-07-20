@@ -2,11 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
-#include "BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/InputBehaviorModifierStates.h"
+#include "BehaviorTargetInterfaces.h"
+#include "CoreMinimal.h"
+#include "InputBehavior.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MultiClickSequenceInputBehavior.generated.h"
+
+class IClickSequenceBehaviorTarget;
+class UObject;
+struct FInputDeviceState;
 
 
 /**

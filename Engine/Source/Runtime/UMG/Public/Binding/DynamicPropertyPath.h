@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PropertyPathHelpers.h"
+#include "UObject/ObjectMacros.h"
+
 #include "DynamicPropertyPath.generated.h"
+
+class FProperty;
+class UObject;
 
 /** */
 USTRUCT()

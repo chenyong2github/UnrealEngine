@@ -10,8 +10,6 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
-#include "Delegates/DelegateBase.h"
-#include "Delegates/IDelegateInstance.h"
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 #include "IO/IoHash.h"

@@ -2,14 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/Guid.h"
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCameraCutTrack.generated.h"
 
 class UMovieSceneCameraCutSection;
+class UObject;
 
 /**
  * Handles manipulation of CameraCut properties in a movie scene.

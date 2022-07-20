@@ -10,8 +10,8 @@ namespace UE
 namespace MovieScene
 {
 
-struct FEntityAllocation;
 class FEntityManager;
+struct FEntityAllocation;
 struct FEntityAllocationIterator;
 
 using FEntityAllocationIteratorItem = FEntityAllocationProxy;

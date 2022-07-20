@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "MediaPacket.h"
 #include "Templates/RefCounting.h"
 #include "VideoCommon.h"

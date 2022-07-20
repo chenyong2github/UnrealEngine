@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "Templates/Function.h"
 #include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 
-class UTransformableHandle;
 class UClass;
 class UObject;
+class UTransformableHandle;
 
 /**
  * TransformableRegistry

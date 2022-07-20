@@ -3,10 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EdGraph/EdGraph.h"
 #include "Dataflow/DataflowCore.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Misc/Build.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "DataflowEdNode.generated.h"
+
+class FArchive;
+class UEdGraphPin;
+class UObject;
+namespace Dataflow { class FGraph; }
 
 
 

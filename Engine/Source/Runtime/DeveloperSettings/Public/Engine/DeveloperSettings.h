@@ -3,12 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-class SWidget;
 
 #include "DeveloperSettings.generated.h"
+
+class FProperty;
+class SWidget;
 
 /**
  * The base class of any auto discovered settings object.

@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "VideoEncoderInput.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Misc/FrameRate.h"
 #include "Misc/ScopeLock.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "VideoEncoderInput.h"
 
 namespace AVEncoder
 {
+	class FCodecPacket;
+	class FVideoEncoderInput;
+	class FVideoEncoderInputFrame;
+
     class AVENCODER_API FVideoEncoder
     {
     public:

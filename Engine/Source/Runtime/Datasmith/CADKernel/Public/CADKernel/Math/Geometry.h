@@ -2,12 +2,15 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
-
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/MathConst.h"
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
 
 namespace CADKernel
 {

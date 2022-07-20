@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+
+class FOutputDevice;
+class UWorld;
 
 /** Logging related to parties */
 ICMP_API DECLARE_LOG_CATEGORY_EXTERN(LogIcmp, Display, All);

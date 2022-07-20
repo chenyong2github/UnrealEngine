@@ -6,12 +6,33 @@
 
 #pragma once
 
-#include "RenderResource.h"
-#include "RenderGraphUtils.h"
 #include "CommonRenderResources.h"
-#include "RHI.h"
-#include "RHIStaticStates.h"
+#include "GlobalShader.h"
+#include "Math/IntPoint.h"
+#include "Math/IntRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 #include "PipelineStateCache.h"
+#include "RHI.h"
+#include "RHICommandList.h"
+#include "RHIDefinitions.h"
+#include "RHIStaticStates.h"
+#include "RenderGraphDefinitions.h"
+#include "RenderGraphEvent.h"
+#include "RenderGraphResources.h"
+#include "RenderGraphUtils.h"
+#include "RenderResource.h"
+#include "RenderUtils.h"
+#include "Serialization/MemoryLayout.h"
+#include "Shader.h"
+#include "ShaderParameterMacros.h"
+#include "ShaderParameterStruct.h"
+#include "ShaderPermutation.h"
+#include "Templates/UnrealTemplate.h"
+
+class FPointerTableBase;
+class FRDGBuilder;
 
 
 /** All utils for pixel shaders. */

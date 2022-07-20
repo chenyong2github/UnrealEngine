@@ -5,18 +5,22 @@
 #include "CoreTypes.h"
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
-#include "HAL/MallocBinnedCommon.h"
-#include "Misc/AssertionMacros.h"
-#include "HAL/MemoryBase.h"
-#include "HAL/UnrealMemory.h"
-#include "Math/NumericLimits.h"
-#include "Templates/AlignmentTemplates.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/PlatformTLS.h"
 #include "HAL/Allocators/CachedOSPageAllocator.h"
 #include "HAL/Allocators/PooledVirtualMemoryAllocator.h"
-#include "HAL/PlatformMath.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/MallocBinnedCommon.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/PlatformMemory.h"
+#include "HAL/PlatformTLS.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Templates/Atomic.h"
+
+struct FGenericMemoryStats;
 
 #define USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS (0)
 
@@ -115,14 +119,13 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 // Optimized virtual memory allocator.
 //
 class CORE_API FMallocBinned3 : public FMalloc
-{
-	struct Private;
-
+{	
 	// Forward declares.
-	struct FPoolInfoSmall;
 	struct FPoolInfoLarge;
-	struct PoolHashBucket;
+	struct FPoolInfoSmall;
 	struct FPoolTable;
+	struct PoolHashBucket;
+	struct Private;
 
 
 	/** Information about a piece of free memory. */
@@ -736,7 +739,7 @@ PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
 	#if PLATFORM_USES_FIXED_GMalloc_CLASS && !FORCE_ANSI_ALLOCATOR && 0/*USE_MALLOC_BINNED3*/
 		#define FMEMORY_INLINE_FUNCTION_DECORATOR  FORCEINLINE
 		#define FMEMORY_INLINE_GMalloc (FMallocBinned3::MallocBinned3)
-		#include "FMemory.inl"
+		#include "FMemory.inl" // IWYU pragma: export
 	#endif
 #endif
 #endif

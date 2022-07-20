@@ -2,9 +2,24 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
 #include "LiveLinkRetargetAsset.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "LiveLinkRemapAsset.generated.h"
+
+class UBlueprint;
+class UObject;
+struct FBlendedCurve;
+struct FCompactPose;
+struct FFrame;
+struct FLiveLinkAnimationFrameData;
+struct FLiveLinkBaseFrameData;
+struct FLiveLinkBaseStaticData;
+struct FLiveLinkSkeletonStaticData;
 
 // Remap asset for data coming from Live Link. Allows simple application of bone transforms into current pose based on name remapping only
 UCLASS(Blueprintable)

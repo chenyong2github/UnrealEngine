@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IAudioAnalyzerInterface.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 namespace Audio
 {

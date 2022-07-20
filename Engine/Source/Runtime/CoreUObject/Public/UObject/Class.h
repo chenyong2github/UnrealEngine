@@ -6,11 +6,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Concepts/GetTypeHashable.h"
-#include "Math/RandomStream.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
+#include "Math/Box2D.h"
 #include "Math/InterpCurvePoint.h"
+#include "Math/MathFwd.h"
+#include "Math/Matrix.h"
+#include "Math/Plane.h"
+#include "Math/Quat.h"
+#include "Math/RandomStream.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/FallbackStruct.h"
 #include "Misc/Guid.h"
@@ -18,29 +42,67 @@
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/ScopeRWLock.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/EnableIf.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
+#include "Templates/IsPODType.h"
+#include "Templates/IsTriviallyDestructible.h"
 #include "Templates/IsUECoreType.h"
 #include "Templates/Models.h"
+#include "Templates/Tuple.h"
+#include "Templates/TypeCompatibleBytes.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/CoreNative.h"
+#include "UObject/Field.h"
+#include "UObject/FieldPath.h"
 #include "UObject/GarbageCollection.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
+#include "UObject/PropertyTag.h"
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/Script.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/FieldPath.h"
-#include "UObject/PropertyTag.h"
 #include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
+class FArchive;
+class FEditPropertyChain;
+class FField;
+class FOutputDevice;
+class FProperty;
+class FStructProperty;
+class UPropertyWrapper;
+struct CGetTypeHashable;
+struct FAssetData;
 struct FBlake3Hash;
+struct FColor;
 struct FCustomPropertyListNode;
+struct FDoubleInterval;
+struct FDoubleRange;
+struct FDoubleRangeBound;
+struct FFallbackStruct;
+struct FFloatInterval;
+struct FFloatRange;
+struct FFloatRangeBound;
 struct FFrame;
+struct FInt32Interval;
+struct FInt32Range;
+struct FInt32RangeBound;
+struct FLinearColor;
 struct FNetDeltaSerializeInfo;
 struct FObjectInstancingGraph;
 struct FPropertyTag;
-class FField;
-class UPropertyWrapper;
+struct FRandomStream;
+struct FUObjectSerializeContext;
+template <typename FuncType> class TFunctionRef;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogClass, Log, All);
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptSerialization, Log, All);
@@ -3848,54 +3910,63 @@ template<> struct TBaseStructure<FInt32Interval>
 };
 
 struct FFrameNumber;
+
 template<> struct TBaseStructure<FFrameNumber>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FFrameTime;
+
 template<> struct TBaseStructure<FFrameTime>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FSoftObjectPath;
+
 template<> struct TBaseStructure<FSoftObjectPath>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FSoftClassPath;
+
 template<> struct TBaseStructure<FSoftClassPath>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FPrimaryAssetType;
+
 template<> struct TBaseStructure<FPrimaryAssetType>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FPrimaryAssetId;
+
 template<> struct TBaseStructure<FPrimaryAssetId>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FDateTime;
+
 template<> struct TBaseStructure<FDateTime>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FPolyglotTextData;
+
 template<> struct TBaseStructure<FPolyglotTextData>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
 struct FAssetBundleData;
+
 template<> struct TBaseStructure<FAssetBundleData>
 {
 	COREUOBJECT_API static UScriptStruct* Get();
@@ -3907,6 +3978,7 @@ template<> struct TBaseStructure<FTestUninitializedScriptStructMembersTest>
 };
 
 struct FTopLevelAssetPath;
+
 template<> struct TBaseStructure<FTopLevelAssetPath>
 {
 	COREUOBJECT_API static UScriptStruct* Get();

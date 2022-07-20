@@ -2,12 +2,17 @@
 
 #pragma once
 
-#include "Math/Range.h"
-#include "Containers/ArrayView.h"
 #include "Containers/Array.h"
-#include "Templates/Function.h"
+#include "Containers/ArrayView.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
-
+#include "Serialization/Archive.h"
+#include "Templates/Function.h"
+#include "Templates/MemoryOps.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/SequencerObjectVersion.h"
 
 struct FMovieSceneEvaluationTree;

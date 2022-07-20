@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "DatasmithCore.h"
 #include "MeshDescription.h"
 #include "Misc/SecureHash.h"
+
+class FArchive;
 
 
 struct FDatasmithMeshModels

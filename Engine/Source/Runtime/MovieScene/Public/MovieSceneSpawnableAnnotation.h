@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "Misc/Optional.h"
 #include "Misc/Guid.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Misc/Optional.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceID.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UMovieSceneSequence;
+class UObject;
 
 /**
  * An annotation that's added to spawned objects from movie scene spawnables

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 class FRDGBuilder;
 class FRHICommandListImmediate;

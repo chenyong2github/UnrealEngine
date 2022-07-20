@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformFile.h"
 #include "Misc/MemoryReadStream.h"
 

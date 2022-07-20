@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "Sound/QuartzQuantizationUtilities.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FQuartzTickableObject;
 
 namespace Audio
 {
+	template <typename T> class TQuartzShareableCommandQueue;
+
 	using MetronomeCommandQueuePtr = TSharedPtr<TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe>;
 
 	// Class to track the passage of musical time, and allow subscribers to be notified when these musical events take place

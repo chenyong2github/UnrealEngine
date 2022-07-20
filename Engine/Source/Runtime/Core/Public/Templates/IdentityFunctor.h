@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 /**
  * A functor which returns whatever is passed to it.  Mainly used for generic composition.
  */

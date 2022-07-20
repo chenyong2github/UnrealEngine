@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Queue.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/MemoryWriter.h"
-#include "Containers/Queue.h"
+
+class FArchive;
+class UObject;
 
 /*----------------------------------------------------------------------------
 FArchiveObjectCrc32

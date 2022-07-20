@@ -4,7 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "MovieSceneCameraShakeSection.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "MovieSceneCameraShakeSourceShakeSection.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class UMovieSceneCameraShakeSourceShakeSection : public UMovieSceneSection

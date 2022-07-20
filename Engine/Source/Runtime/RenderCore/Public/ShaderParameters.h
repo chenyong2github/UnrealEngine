@@ -6,12 +6,24 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Serialization/MemoryLayout.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryLayout.h"
 
+class FPointerTableBase;
+class FRHIComputeShader;
+class FRHITexture;
+class FRHIUnorderedAccessView;
 class FShaderParameterMap;
 class FShaderParametersMetadata;
+struct FRWBuffer;
+struct FRWBufferStructured;
 struct FShaderCompilerEnvironment;
 
 RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*, struct FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform);

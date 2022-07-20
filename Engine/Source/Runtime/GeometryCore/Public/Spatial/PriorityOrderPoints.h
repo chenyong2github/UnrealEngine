@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
+#include "Math/UnrealMathSSE.h"
 #include "Spatial/PointHashGrid3.h"
 
 namespace UE

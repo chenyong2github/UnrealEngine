@@ -2,13 +2,25 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Evaluation/Blending/BlendableToken.h"
-#include "Evaluation/MovieSceneEvaluationScope.h"
-#include "Evaluation/Blending/MovieSceneBlendingActuatorID.h"
-#include "Evaluation/Blending/MovieSceneBlendingActuator.h"
+#include "Evaluation/Blending/BlendableTokenStack.h"
 #include "Evaluation/Blending/MovieSceneAccumulatedBlendState.h"
+#include "Evaluation/Blending/MovieSceneBlendType.h"
+#include "Evaluation/Blending/MovieSceneBlendingActuator.h"
+#include "Evaluation/Blending/MovieSceneBlendingActuatorID.h"
+#include "Evaluation/MovieSceneEvaluationScope.h"
+#include "Evaluation/MovieScenePlayback.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
+class IMovieScenePlayer;
+class UObject;
+struct FMovieSceneEvaluationOperand;
+struct FMovieSceneEvaluationScope;
 struct FMovieSceneInterrogationData;
+struct FPersistentEvaluationData;
 
 struct FMovieSceneBlendingAccumulator
 {
@@ -116,4 +128,4 @@ private:
 
 
 
-#include "MovieSceneBlendingAccumulator.inl"
+#include "MovieSceneBlendingAccumulator.inl" // IWYU pragma: export
