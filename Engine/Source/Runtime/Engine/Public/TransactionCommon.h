@@ -112,20 +112,45 @@ struct TStructOpsTypeTraits<FTransactionPersistentObjectRef> : public TStructOps
 };
 
 USTRUCT()
-struct ENGINE_API FTransactionSerializedProperty
+struct ENGINE_API FTransactionSerializedTaggedData
 {
 	GENERATED_BODY()
 
 public:
-	static FName BuildSerializedPropertyKey(const FArchiveSerializedPropertyChain& InPropertyChain);
+	static FTransactionSerializedTaggedData FromOffsetAndSize(const int64 InOffset, const int64 InSize);
+	static FTransactionSerializedTaggedData FromStartAndEnd(const int64 InStart, const int64 InEnd);
 
 	void AppendSerializedData(const int64 InOffset, const int64 InSize);
+	void AppendSerializedData(const FTransactionSerializedTaggedData& InData);
 
-	/** Offset to the start of this property within the serialized object */
+	bool HasSerializedData() const;
+
+	int64 GetStart() const
+	{
+		return DataOffset;
+	}
+
+	int64 GetEnd() const
+	{
+		return DataOffset + DataSize;
+	}
+
+	friend bool operator==(const FTransactionSerializedTaggedData& LHS, const FTransactionSerializedTaggedData& RHS)
+	{
+		return LHS.DataOffset == RHS.DataOffset
+			&& LHS.DataSize == RHS.DataSize;
+	}
+
+	friend bool operator!=(const FTransactionSerializedTaggedData& LHS, const FTransactionSerializedTaggedData& RHS)
+	{
+		return !(LHS == RHS);
+	}
+
+	/** Offset to the start of the tagged data within the serialized object */
 	UPROPERTY()
 	int64 DataOffset = INDEX_NONE;
 
-	/** Size (in bytes) of this property within the serialized object */
+	/** Size (in bytes) of the tagged data within the serialized object */
 	UPROPERTY()
 	int64 DataSize = 0;
 };
@@ -229,7 +254,7 @@ public:
 		SerializedData.Reset();
 		ReferencedObjects.Reset();
 		ReferencedNames.Reset();
-		SerializedProperties.Reset();
+		SerializedTaggedData.Reset();
 		SerializedObjectIndices.Reset();
 		SerializedNameIndices.Reset();
 	}
@@ -246,7 +271,7 @@ public:
 		Exchange(SerializedData, Other.SerializedData);
 		Exchange(ReferencedObjects, Other.ReferencedObjects);
 		Exchange(ReferencedNames, Other.ReferencedNames);
-		Exchange(SerializedProperties, Other.SerializedProperties);
+		Exchange(SerializedTaggedData, Other.SerializedTaggedData);
 		Exchange(SerializedObjectIndices, Other.SerializedObjectIndices);
 		Exchange(SerializedNameIndices, Other.SerializedNameIndices);
 	}
@@ -291,21 +316,24 @@ public:
 	UPROPERTY()
 	TArray<FName> ReferencedNames;
 	
-	/** Information about the properties that were serialized within this object */
+	/** Information about tagged data (mainly properties) that were serialized within this object */
 	UPROPERTY()
-	TMap<FName, FTransactionSerializedProperty> SerializedProperties;
+	TMap<FName, FTransactionSerializedTaggedData> SerializedTaggedData;
 	
-	/** Information about the object pointer offsets that were serialized within this object (this maps the property name (or None if there was no property) to the ReferencedObjects indices of the property) */
+	/** Information about the object pointer offsets that were serialized within this object (this maps the tagged data key (or None if there was no tagged data key) to the ReferencedObjects indices of the tagged data) */
 	UPROPERTY()
 	TMap<FName, FTransactionSerializedIndices> SerializedObjectIndices;
 	
-	/** Information about the name offsets that were serialized within this object (this maps the property name to the ReferencedNames index of the property) */
+	/** Information about the name offsets that were serialized within this object (this maps the tagged data name to the ReferencedNames index of the tagged data) */
 	UPROPERTY()
 	TMap<FName, FTransactionSerializedIndices> SerializedNameIndices;
 };
 
 namespace UE::Transaction
 {
+
+ENGINE_API extern const FName TaggedDataKey_UnknownData;
+ENGINE_API extern const FName TaggedDataKey_ScriptData;
 
 /** Transfers data from an array. */
 class ENGINE_API FSerializedObjectDataReader : public FArchiveUObject
@@ -325,7 +353,7 @@ protected:
 	virtual FArchive& operator<<(class UObject*& Res) override;
 
 	const FTransactionSerializedObject& SerializedObject;
-	int64 Offset;
+	int64 Offset = 0;
 };
 
 /**
@@ -351,6 +379,13 @@ protected:
 		uint32 LastUpdateCount = 0;
 	};
 
+	FName GetTaggedDataKey() const;
+
+	bool DoesObjectMatchSerializedObject(const UObject* Obj) const;
+
+	virtual void MarkScriptSerializationStart(const UObject* Obj) override;
+	virtual void MarkScriptSerializationEnd(const UObject* Obj) override;
+
 	virtual void Serialize(void* SerData, int64 Num) override;
 
 	using FArchiveUObject::operator<<;
@@ -358,10 +393,19 @@ protected:
 	virtual FArchive& operator<<(class UObject*& Res) override;
 
 	FTransactionSerializedObject& SerializedObject;
+	int64 Offset = 0;
+
 	TMap<UObject*, int32> ObjectMap;
 	TMap<FName, int32> NameMap;
-	FCachedPropertyKey CachedSerializedTaggedPropertyKey;
-	int64 Offset;
+
+private:
+	bool bIsPerformingScriptSerialization = false;
+
+	mutable bool bWasUsingTaggedDataKey_UnknownData = false;
+	mutable bool bWasUsingTaggedDataKey_ScriptData = false;
+	mutable int32 TaggedDataKeyIndex_UnknownData = 0;
+	mutable int32 TaggedDataKeyIndex_ScriptData = 0;
+	mutable FCachedPropertyKey CachedSerializedTaggedPropertyKey;
 };
 
 namespace DiffUtil
@@ -372,8 +416,8 @@ ENGINE_API void GenerateObjectDiff(const FTransactionSerializedObject& OldSerial
 namespace Internal
 {
 
-ENGINE_API bool AreObjectPointersIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName PropertyName);
-ENGINE_API bool AreNamesIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName PropertyName);
+ENGINE_API bool AreObjectPointersIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName TaggedDataKey);
+ENGINE_API bool AreNamesIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName TaggedDataKey);
 
 } // namespace Internal
 

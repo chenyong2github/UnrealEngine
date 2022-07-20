@@ -43,8 +43,6 @@ protected:
 	class UNREALED_API FObjectRecord
 	{
 	public:
-		using FSerializedProperty = FTransactionSerializedProperty;
-
 		struct FSerializedObject : public FTransactionSerializedObject
 		{
 			void SetObject(const UObject* InObject)
