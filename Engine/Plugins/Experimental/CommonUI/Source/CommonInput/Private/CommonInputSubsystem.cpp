@@ -727,6 +727,9 @@ bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputTy
 		case ECommonInputType::Touch:
 		{
 			bPlatformSupportsInput &= UE_COMMONINPUT_PLATFORM_SUPPORTS_TOUCH != 0;
+#if PLATFORM_DESKTOP && !UE_BUILD_SHIPPING
+			bPlatformSupportsInput = true; // Enable touch in debug editor
+#endif
 		}
 		break;
 		case ECommonInputType::Gamepad:
