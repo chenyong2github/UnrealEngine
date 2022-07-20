@@ -6,6 +6,7 @@
 #include "HAL/Platform.h"
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
+#include "Trace/Detail/Channel.h"
 
 namespace UE { namespace Trace { class FChannel; } }
 
