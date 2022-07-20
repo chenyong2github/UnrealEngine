@@ -235,7 +235,7 @@ void UUIFCanvasLayer::OnLocalLayerWidgetAdded()
 	UUIFCanvasLayerUserWidget* LocalLayerWidget = CastChecked<UUIFCanvasLayerUserWidget>(GetLayerWidget());
 	for (const FUIFCanvasWidgetEntry& Entry : WidgetList.GetEntries())
 	{
-		if (Entry.Widget && Entry.Widget->GetWidget())
+		if (Entry.Widget && Entry.Widget->GetWidget() && Entry.bAdded)
 		{
 			LocalLayerWidget->AddWidget(Entry.Widget->GetWidget(), Entry.Slot);
 		}
