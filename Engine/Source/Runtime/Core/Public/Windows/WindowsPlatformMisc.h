@@ -206,6 +206,8 @@ struct CORE_API FWindowsPlatformMisc
 	static bool HasNonoptionalCPUFeatures();
 	/** @return whether to check for specific CPU compatibility or not */
 	static bool NeedsNonoptionalCPUFeaturesCheck();
+	/** @return whether this cpu has timed pause instruction support or not */
+	static bool HasTimedPauseCPUFeature();
 
 	/** 
 	 * Provides a simpler interface for fetching and cleanup of registry value queries

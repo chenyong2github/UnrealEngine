@@ -16,7 +16,7 @@ class FEvent;
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_CPU_X86_FAMILY
-#include <emmintrin.h>
+#include <immintrin.h>
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -788,10 +788,28 @@ struct CORE_API FGenericPlatformProcess
 		uint64 start = ReadCycleCounter();
 		//some 32bit implementations return 0 for __builtin_readcyclecounter just to be on the safe side we protect against this.
 		Cycles = start != 0 ? Cycles : 0;
-		do
+
+#if PLATFORM_WINDOWS
+		if (FPlatformMisc::HasTimedPauseCPUFeature())
 		{
-			Yield();
-		} while((ReadCycleCounter() - start) < Cycles);
+			uint64 PauseCycles = ReadCycleCounter() + Cycles;
+#if defined(_MSC_VER) && !defined(__clang__)
+			_tpause(0, PauseCycles);
+#elif __has_builtin(__builtin_ia32_tpause)
+			__builtin_ia32_tpause(0, (uint32)(PauseCycles >> 32), (uint32)PauseCycles);
+#else
+#	error Unsupported architecture!
+#endif
+		}
+		else
+#endif
+		{
+			do
+			{
+				Yield();
+			} while ((ReadCycleCounter() - start) < Cycles);
+		}
+
 #else
 		// We can't read cycle counter from user mode on these platform
 		for (uint64 i = 0; i < Cycles; i++)

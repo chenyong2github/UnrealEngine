@@ -2145,6 +2145,9 @@ public:
 			CPUInfo = Info[0];
 			CPUInfo2 = Info[2];
 			CacheLineSize = QueryCacheLineSize();
+			int ExtendedFeatures[4];
+			QueryCPUExtendedFeatures(ExtendedFeatures);
+			CPUExtendedFeatures2 = ExtendedFeatures[2];
 		}
 	}
 
@@ -2196,6 +2199,16 @@ public:
 	static uint32 GetCPUInfo2()
 	{
 		return CPUIDStaticCache.CPUInfo2;
+	}
+
+	/**
+	* Gets __cpuidex CPU features.
+	*
+	* @returns CPU info unsigned int queried using __cpuidex.
+	*/
+	static uint32 GetCPUExtendedFeatures2()
+	{
+		return CPUIDStaticCache.CPUExtendedFeatures2;
 	}
 
 	/**
@@ -2306,6 +2319,16 @@ private:
 	}
 
 	/**
+	 * Queries CPU info using __cpuid instruction.
+	 *
+	 * @returns CPU info unsigned int queried using __cpuidex.
+	 */
+	static void QueryCPUExtendedFeatures(int Args[4])
+	{
+		__cpuidex(Args, 7, 0);
+	}
+
+	/**
 	 * Queries cache line size using __cpuid instruction.
 	 *
 	 * @returns Cache line size.
@@ -2338,6 +2361,7 @@ private:
 	/** CPU info from __cpuid. */
 	uint32 CPUInfo;
 	uint32 CPUInfo2;
+	uint32 CPUExtendedFeatures2;
 
 	/** CPU cache line size. */
 	int32 CacheLineSize;
@@ -3039,6 +3063,12 @@ bool FWindowsPlatformMisc::NeedsNonoptionalCPUFeaturesCheck()
 {
 	// popcnt is 64bit
 	return PLATFORM_ENABLE_POPCNT_INTRINSIC;
+}
+
+bool FWindowsPlatformMisc::HasTimedPauseCPUFeature()
+{
+	// Check for waitpkg is bit 5
+	return (FCPUIDQueriedData::GetCPUExtendedFeatures2() & (1 << 5)) != 0;
 }
 
 int32 FWindowsPlatformMisc::GetCacheLineSize()

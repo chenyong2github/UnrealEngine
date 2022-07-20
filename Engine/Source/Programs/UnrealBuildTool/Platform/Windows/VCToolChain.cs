@@ -365,6 +365,9 @@ namespace UnrealBuildTool
 
 				// This matches Microsoft's default support floor for SSE.
 				Arguments.Add("-mssse3");
+
+				// Use tpause on supported processors.
+				Arguments.Add("-mwaitpkg");
 			}
 
 			// Compile into an .obj file, and skip linking.
