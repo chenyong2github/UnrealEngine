@@ -97,7 +97,7 @@ public:
 	void					UpdateCsvStats() const;
 	void					StartWorkerThread();
 	void					StartEndFramePump();
-	bool					WriteSnapshot(const TCHAR* FilePath);
+	bool					WriteSnapshot(const TCHAR* InFilePath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	// True if this is parent process with forking requested before forking.
 	bool					IsParentProcessAndPreFork();
@@ -534,15 +534,30 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::WriteSnapshot(const TCHAR* FilePath)
+bool FTraceAuxiliaryImpl::WriteSnapshot(const TCHAR* InFilePath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory)
 {
+	double StartTime = FPlatformTime::Seconds();
+
 	FString NativePath;
-	if (!FinalizeFilePath(FilePath, NativePath, LogConsoleResponse))
+	if (!FinalizeFilePath(InFilePath, NativePath, LogCategory))
 	{
 		return false;
 	}
 
-	return UE::Trace::WriteSnapshotTo(*NativePath);
+	UE_LOG_REF(LogCategory, Log, TEXT("Writing trace snapshot to '%s'..."), *NativePath);
+
+	const bool bResult = UE::Trace::WriteSnapshotTo(*NativePath);
+
+	if (bResult)
+	{
+		UE_LOG_REF(LogCategory, Display, TEXT("Trace snapshot generated in %.3f seconds to \"%s\"."), FPlatformTime::Seconds() - StartTime, *NativePath);
+	}
+	else
+	{
+		UE_LOG_REF(LogCategory, Error, TEXT("Failed to trace snapshot to \"%s\"."), *NativePath);
+	}
+
+	return bResult;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -865,15 +880,7 @@ static void TraceAuxiliarySnapshotFile(const TArray<FString>& Args)
 		return;
 	}
 
-	double StartTime = FPlatformTime::Seconds();
-	if (GTraceAuxiliary.WriteSnapshot(FilePath))
-	{
-		UE_LOG(LogConsoleResponse, Display, TEXT("Trace snapshot generated in %f seconds."), FPlatformTime::Seconds() - StartTime);
-	}
-	else
-	{
-		UE_LOG(LogConsoleResponse, Error, TEXT("Trace snapshot failed."));
-	}
+	GTraceAuxiliary.WriteSnapshot(FilePath, LogConsoleResponse);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1291,12 +1298,13 @@ bool FTraceAuxiliary::Resume()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliary::WriteSnapshot(const TCHAR* FilePath)
+bool FTraceAuxiliary::WriteSnapshot(const TCHAR* InFilePath)
 {
 #if UE_TRACE_ENABLED
-	return GTraceAuxiliary.WriteSnapshot(FilePath);
-#endif
+	return GTraceAuxiliary.WriteSnapshot(InFilePath, LogCore);
+#else
 	return true;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////

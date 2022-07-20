@@ -219,11 +219,74 @@ void Writer_DrainBuffers()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool Writer_DrainLocalBuffer(uint32 ThreadId)
+void Writer_DrainLocalBuffers()
 {
-	return Writer_DrainBuffer(ThreadId, GTlsWriteBuffer);
+	if (GTlsWriteBuffer == &GNullWriteBuffer)
+	{
+		return;
+	}
+
+	const uint32 LocalThreadId = GTlsWriteBuffer->ThreadId;
+
+	struct FRetireList
+	{
+		FWriteBuffer* __restrict Head = nullptr;
+		FWriteBuffer* __restrict Tail = nullptr;
+
+		void Insert(FWriteBuffer* __restrict Buffer)
+		{
+			Buffer->NextBuffer = Head;
+			Head = Buffer;
+			Tail = (Tail != nullptr) ? Tail : Head;
+		}
+	};
+
+	FRetireList RetireList;
+
+	FWriteBuffer* __restrict ActiveThreadList = GActiveThreadList;
+	GActiveThreadList = nullptr;
+
+	{
+		FWriteBuffer* __restrict Buffer = ActiveThreadList;
+		FWriteBuffer* __restrict NextThread;
+
+		// For each thread...
+		for (; Buffer != nullptr; Buffer = NextThread)
+		{
+			NextThread = Buffer->NextThread;
+			uint32 ThreadId = Buffer->ThreadId;
+
+			if (ThreadId == LocalThreadId)
+			{
+				// For each of the thread's buffers...
+				for (FWriteBuffer* __restrict NextBuffer; Buffer != nullptr; Buffer = NextBuffer)
+				{
+					if (Writer_DrainBuffer(ThreadId, Buffer))
+					{
+						break;
+					}
+
+					// Retire the buffer
+					NextBuffer = Buffer->NextBuffer;
+					RetireList.Insert(Buffer);
+				}
+			}
+
+			if (Buffer != nullptr)
+			{
+				Buffer->NextThread = GActiveThreadList;
+				GActiveThreadList = Buffer;
+			}
+		}
+	}
+
+	// Put the retirees we found back into the system again.
+	if (RetireList.Head != nullptr)
+	{
+		Writer_FreeBlockListToPool(RetireList.Head, RetireList.Tail);
+	}
 }
-	
+
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_EndThreadBuffer()
 {

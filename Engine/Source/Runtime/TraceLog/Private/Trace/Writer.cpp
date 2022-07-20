@@ -51,8 +51,8 @@ void			Writer_CacheOnConnect();
 void			Writer_CallbackOnConnect();
 void			Writer_InitializePool();
 void			Writer_ShutdownPool();
-bool			Writer_DrainLocalBuffer(uint32);
 void			Writer_DrainBuffers();
+void			Writer_DrainLocalBuffers();
 void			Writer_EndThreadBuffer();
 uint32			Writer_GetControlPort();
 void			Writer_UpdateControl();
@@ -447,7 +447,7 @@ static bool Writer_UpdateConnection()
 	{
 		--GPendingDataHandle;
 
-		if (GPendingDataHandle == (~0ull -CloseInertia))
+		if (GPendingDataHandle == (~0ull - CloseInertia))
 		{
 			Writer_Close();
 			GPendingDataHandle = 0;
@@ -481,9 +481,11 @@ static bool Writer_UpdateConnection()
 
 	// Send cached events (i.e. importants) 
 	Writer_CacheOnConnect();
+
 	// Issue on connection callback. This allows writing events that are
 	// not cached but important for the cache
 	Writer_CallbackOnConnect();
+
 	// Finally write the events in the tail buffer
 	Writer_TailOnConnect();
 
@@ -551,11 +553,14 @@ void Writer_CallbackOnConnect()
 	}
 	
 	Writer_TailPause(true);
+
 	// Issue callback. We assume any events emitted here are not marked as
 	// important and emitted on this thread.
 	GOnConnection();
+
 	// Drain only the events for this thread passing tail as you go.
-	Writer_DrainLocalBuffer(ETransportTid::Bias);
+	Writer_DrainLocalBuffers();
+
 	Writer_TailPause(false);
 }
 
@@ -907,6 +912,7 @@ bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
 
 	{
 		TStashGlobal DataHandle(GDataHandle);
+		TStashGlobal PendingDataHandle(GPendingDataHandle);
 		TStashGlobal SyncPacketCountdown(GSyncPacketCountdown, GNumSyncPackets);
 		TStashGlobal TraceStatistics(GTraceStatistics);
 
@@ -920,12 +926,23 @@ bool Writer_WriteSnapshotTo(const ANSICHAR* Path)
 		// The first events we will send are ones that describe the trace's events
 		Writer_DescribeEvents(FEventNode::Read());
 
-		// Send cached events (i.e. importants) and the tail of recent events
+		// Send cached events (i.e. importants)
 		Writer_CacheOnConnect();
+
+		// Issue on connection callback. This allows writing events that are
+		// not cached but important for the cache
+		Writer_CallbackOnConnect();
+
+		// Finally write the events in the tail buffer
 		Writer_TailOnConnect();
 
 		// Send sync packets to help parsers digest any out-of-order events
-		Writer_SendSync();
+		GSyncPacketCountdown = GNumSyncPackets;
+		while (GSyncPacketCountdown > 0)
+		{
+			Writer_SendSync();
+		}
+
 		Writer_Close();
 	}
 
