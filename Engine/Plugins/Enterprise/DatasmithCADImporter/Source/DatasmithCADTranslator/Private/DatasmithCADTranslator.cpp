@@ -142,7 +142,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 
 	switch (FileDescriptor.GetFileFormat())
 	{
-	case CADLibrary::ECADFormat::NX:
+	case CADLibrary::ECADFormat::N_X:
 	{
 		break;
 	}

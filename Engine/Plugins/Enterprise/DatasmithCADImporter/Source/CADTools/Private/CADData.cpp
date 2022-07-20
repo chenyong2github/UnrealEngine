@@ -240,7 +240,7 @@ ECADFormat FileFormat(const FString& Extension)
 	}
 	else if (Extension == TEXT("prt") || Extension == TEXT("asm"))
 	{
-		return ECADFormat::NX;
+		return ECADFormat::N_X;
 	}
 	else if (Extension == TEXT("sat") || Extension == TEXT("sab"))
 	{

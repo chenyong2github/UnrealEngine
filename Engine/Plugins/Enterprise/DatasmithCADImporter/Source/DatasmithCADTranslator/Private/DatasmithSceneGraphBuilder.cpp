@@ -285,8 +285,8 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 		case CADLibrary::ECADFormat::INVENTOR:
 			DatasmithScene->SetProductName(TEXT("Inventor"));
 			break;
-		case CADLibrary::ECADFormat::NX:
-			DatasmithScene->SetProductName(TEXT("NX"));
+		case CADLibrary::ECADFormat::N_X:
+			DatasmithScene->SetProductName(TEXT("N")TEXT("X"));
 			break;
 		case CADLibrary::ECADFormat::PARASOLID:
 			DatasmithScene->SetProductName(TEXT("Parasolid"));

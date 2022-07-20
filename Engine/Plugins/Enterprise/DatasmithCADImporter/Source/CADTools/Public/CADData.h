@@ -32,7 +32,7 @@ enum class ECADFormat
 	IGES,
 	INVENTOR,
 	JT,
-	NX,
+	N_X,  
 	MICROSTATION,
 	PARASOLID,
 	SOLID_EDGE,

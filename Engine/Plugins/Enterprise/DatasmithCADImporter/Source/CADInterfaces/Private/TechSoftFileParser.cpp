@@ -780,7 +780,7 @@ void FTechSoftFileParser::ProcessUnloadedReference(const FArchiveInstance& Insta
 		}
 		break;
 
-	case ECADFormat::NX:
+	case ECADFormat::N_X:
 		// todo
 		break;
 	default:
