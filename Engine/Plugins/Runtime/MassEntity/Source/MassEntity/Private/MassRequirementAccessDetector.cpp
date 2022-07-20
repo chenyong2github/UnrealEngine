@@ -39,10 +39,10 @@ void FMassRequirementAccessDetector::RequireAccess(const FMassEntityQuery& Query
 		Operation(Query.RequiredConstSubsystems, &FRWAccessDetector::AcquireReadAccess);
 		Operation(Query.RequiredMutableSubsystems, &FRWAccessDetector::AcquireWriteAccess);
 		
-		Aquire(Query.Requirements);
-		Aquire(Query.ChunkRequirements);
-		Aquire(Query.ConstSharedRequirements);
-		Aquire(Query.SharedRequirements);
+		Aquire(Query.FragmentRequirements);
+		Aquire(Query.ChunkFragmentRequirements);
+		Aquire(Query.ConstSharedFragmentRequirements);
+		Aquire(Query.SharedFragmentRequirements);
 	}
 }
 
@@ -53,10 +53,10 @@ void FMassRequirementAccessDetector::ReleaseAccess(const FMassEntityQuery& Query
 		Operation(Query.RequiredConstSubsystems, &FRWAccessDetector::ReleaseReadAccess);
 		Operation(Query.RequiredMutableSubsystems, &FRWAccessDetector::ReleaseWriteAccess);
 
-		Release(Query.Requirements);
-		Release(Query.ChunkRequirements);
-		Release(Query.ConstSharedRequirements);
-		Release(Query.SharedRequirements);
+		Release(Query.FragmentRequirements);
+		Release(Query.ChunkFragmentRequirements);
+		Release(Query.ConstSharedFragmentRequirements);
+		Release(Query.SharedFragmentRequirements);
 	}
 }
 

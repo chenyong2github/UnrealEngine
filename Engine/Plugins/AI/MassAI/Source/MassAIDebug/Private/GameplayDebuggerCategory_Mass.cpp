@@ -25,6 +25,7 @@
 #include "MassSimulationLOD.h"
 #include "CanvasItem.h"
 #include "Engine/World.h"
+#include "MassDebugger.h"
 
 namespace UE::Mass::Debug
 {
@@ -288,7 +289,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					FStringOutputDevice FragmentsDesc;
 					FragmentsDesc.SetAutoEmitLineTerminator(true);
 					const TCHAR* PrefixToRemove = TEXT("DataFragment_");
-					EntitySystem->DebugPrintEntity(CachedEntity, FragmentsDesc, PrefixToRemove);
+					FMassDebugger::OutputEntityDescription(FragmentsDesc, *EntitySystem, CachedEntity, PrefixToRemove);
 					AddTextLine(FString::Printf(TEXT("{Green}Fragments:\n{White}%s"), *FragmentsDesc));
 				}
 				else

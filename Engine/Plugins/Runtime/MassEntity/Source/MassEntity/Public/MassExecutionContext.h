@@ -14,11 +14,11 @@ private:
 	template< typename ViewType >
 	struct TFragmentView 
 	{
-		FMassFragmentRequirement Requirement;
+		FMassFragmentRequirementDescription Requirement;
 		ViewType FragmentView;
 
 		TFragmentView() {}
-		explicit TFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement) {}
+		explicit TFragmentView(const FMassFragmentRequirementDescription& InRequirement) : Requirement(InRequirement) {}
 
 		bool operator==(const UScriptStruct* FragmentType) const { return Requirement.StructType == FragmentType; }
 	};
@@ -344,10 +344,10 @@ public:
 protected:
 	void SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems);
 
-	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, 
-		TConstArrayView<FMassFragmentRequirement> InChunkRequirements, 
-		TConstArrayView<FMassFragmentRequirement> InConstSharedRequirements, 
-		TConstArrayView<FMassFragmentRequirement> InSharedRequirements);
+	void SetRequirements(TConstArrayView<FMassFragmentRequirementDescription> InRequirements, 
+		TConstArrayView<FMassFragmentRequirementDescription> InChunkRequirements, 
+		TConstArrayView<FMassFragmentRequirementDescription> InConstSharedRequirements, 
+		TConstArrayView<FMassFragmentRequirementDescription> InSharedRequirements);
 
 	void ClearFragmentViews()
 	{

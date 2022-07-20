@@ -31,9 +31,9 @@ private:
 		}
 	}
 
-	void Aquire(TConstArrayView<FMassFragmentRequirement> Requirements)
+	void Aquire(TConstArrayView<FMassFragmentRequirementDescription> Requirements)
 	{
-		for (const FMassFragmentRequirement& Req : Requirements)
+		for (const FMassFragmentRequirementDescription& Req : Requirements)
 		{
 			if (Req.Presence != EMassFragmentPresence::None)
 			{
@@ -49,9 +49,9 @@ private:
 		}
 	}
 
-	void Release(TConstArrayView<FMassFragmentRequirement> Requirements)
+	void Release(TConstArrayView<FMassFragmentRequirementDescription> Requirements)
 	{
-		for (const FMassFragmentRequirement& Req : Requirements)
+		for (const FMassFragmentRequirementDescription& Req : Requirements)
 		{
 			if (Req.Presence != EMassFragmentPresence::None)
 			{

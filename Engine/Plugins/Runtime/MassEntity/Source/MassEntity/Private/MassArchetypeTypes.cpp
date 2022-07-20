@@ -25,7 +25,7 @@ FMassArchetypeEntityCollection::FMassArchetypeEntityCollection(const FMassArchet
 		return;
 	}
 
-	const FMassArchetypeData* ArchetypeData = InArchetype.DataPtr.Get();
+	const FMassArchetypeData* ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandle(InArchetype);
 	const int32 NumEntitiesPerChunk = ArchetypeData ? ArchetypeData->GetNumEntitiesPerChunk() : MAX_int32;
 
 	// InEntities has a real chance of not being sorted by AbsoluteIndex. We gotta fix that to optimize how we process the data 
@@ -97,7 +97,8 @@ void FMassArchetypeEntityCollection::BuildEntityRanges(TStridedView<const int32>
 {
 	checkf(Ranges.Num() == 0, TEXT("Calling %s is valid only for initial configuration"), ANSI_TO_TCHAR(__FUNCTION__));
 
-	const int32 NumEntitiesPerChunk = Archetype.IsValid() ? Archetype.DataPtr->GetNumEntitiesPerChunk() : MAX_int32;
+	const FMassArchetypeData* ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandle(Archetype);
+	const int32 NumEntitiesPerChunk = ArchetypeData ? ArchetypeData->GetNumEntitiesPerChunk() : MAX_int32;
 
 	// the following block of code is splitting up sorted AbsoluteIndices into 
 	// continuous chunks
@@ -132,13 +133,13 @@ FMassArchetypeEntityCollection::FMassArchetypeEntityCollection(const FMassArchet
 {
 	if (Initialization == EInitializationType::GatherAll)
 	{
-		check(InArchetypeHandle.DataPtr.IsValid());
+		check(InArchetypeHandle.IsValid());
 		GatherChunksFromArchetype();
 	}
 }
 
 FMassArchetypeEntityCollection::FMassArchetypeEntityCollection(TSharedPtr<FMassArchetypeData>& InArchetype, const EInitializationType Initialization)
-	: Archetype(InArchetype)
+	: Archetype(FMassArchetypeHelper::ArchetypeHandleFromData(InArchetype))
 {	
 	if (Initialization == EInitializationType::GatherAll)
 	{
@@ -149,7 +150,7 @@ FMassArchetypeEntityCollection::FMassArchetypeEntityCollection(TSharedPtr<FMassA
 
 void FMassArchetypeEntityCollection::GatherChunksFromArchetype()
 {
-	if (const FMassArchetypeData* ArchetypePtr = Archetype.DataPtr.Get())
+	if (const FMassArchetypeData* ArchetypePtr = FMassArchetypeHelper::ArchetypeDataFromHandle(Archetype))
 	{
 		const int32 ChunkCount = ArchetypePtr->GetChunkCount();
 		Ranges.Reset(ChunkCount);
@@ -179,11 +180,6 @@ bool FMassArchetypeEntityCollection::IsSame(const FMassArchetypeEntityCollection
 
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeEntityCollectionWithPayload
-
-FMassArchetypeData* FMassArchetypeEntityCollection::GetArchetypePtr(const FMassArchetypeHandle& ArchetypeHandle)
-{
-	return ArchetypeHandle.DataPtr.Get();
-}
 
 void FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
 	, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, FMassGenericPayloadView Payload
@@ -232,7 +228,7 @@ void FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(co
 	{
 		const FMassEntityHandle& Entity = Entities[i];
 		const FMassArchetypeHandle ArchetypeHandle = EntitySystem.GetArchetypeForEntity(Entity);
-		const FMassArchetypeData* ArchetypePtr = FMassArchetypeEntityCollection::GetArchetypePtr(ArchetypeHandle);
+		const FMassArchetypeData* ArchetypePtr = FMassArchetypeHelper::ArchetypeDataFromHandle(ArchetypeHandle);
 		
 		// @todo if FMassArchetypeHandle used indices the look up would be a lot faster
 		int32 ArchetypeIndex = INDEX_NONE;

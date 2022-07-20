@@ -17,6 +17,7 @@ struct FMassEntityQuery;
 struct FMassArchetypeEntityCollection;
 struct FMassEntityView;
 struct FMassDebugger;
+struct FMassArchetypeHelper;
 
 typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
 typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassChunkConditionFunction;
@@ -42,11 +43,8 @@ private:
 	{}
 	TSharedPtr<FMassArchetypeData> DataPtr;
 
+	friend FMassArchetypeHelper;
 	friend UMassEntitySubsystem;
-	friend FMassArchetypeEntityCollection;
-	friend FMassEntityQuery;
-	friend FMassEntityView;
-	friend FMassDebugger;
 };
 
 
@@ -126,9 +124,6 @@ public:
 
 protected:
 	friend struct FMassArchetypeEntityCollectionWithPayload;
-	// @todo temporary solution to FMassArchetypeHandle.DataPtr being private, will be fixed by switching that to an ArchetypeIndex
-	static FMassArchetypeData* GetArchetypePtr(const FMassArchetypeHandle& ArchetypeHandle);
-	
 	void BuildEntityRanges(TStridedView<const int32> TrueIndices);
 	
 private:

@@ -521,10 +521,10 @@ void FMassArchetypeData::CompactEntities(const double TimeAllowed)
 	}
 }
 
-void FMassArchetypeData::GetRequirementsFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
+void FMassArchetypeData::GetRequirementsFragmentMapping(TConstArrayView<FMassFragmentRequirementDescription> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
 {
 	OutFragmentIndices.Reset(Requirements.Num());
-	for (const FMassFragmentRequirement& Requirement : Requirements)
+	for (const FMassFragmentRequirementDescription& Requirement : Requirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -535,11 +535,11 @@ void FMassArchetypeData::GetRequirementsFragmentMapping(TConstArrayView<FMassFra
 	}
 }
 
-void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMassFragmentRequirement> ChunkRequirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
+void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMassFragmentRequirementDescription> ChunkRequirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
 {
 	int32 LastFoundFragmentIndex = -1;
 	OutFragmentIndices.Reset(ChunkRequirements.Num());
-	for (const FMassFragmentRequirement& Requirement : ChunkRequirements)
+	for (const FMassFragmentRequirementDescription& Requirement : ChunkRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -561,10 +561,10 @@ void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMa
 	}
 }
 
-void FMassArchetypeData::GetRequirementsConstSharedFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
+void FMassArchetypeData::GetRequirementsConstSharedFragmentMapping(TConstArrayView<FMassFragmentRequirementDescription> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
 {
 	OutFragmentIndices.Reset(Requirements.Num());
-	for (const FMassFragmentRequirement& Requirement : Requirements)
+	for (const FMassFragmentRequirementDescription& Requirement : Requirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -575,10 +575,10 @@ void FMassArchetypeData::GetRequirementsConstSharedFragmentMapping(TConstArrayVi
 	}
 }
 
-void FMassArchetypeData::GetRequirementsSharedFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
+void FMassArchetypeData::GetRequirementsSharedFragmentMapping(TConstArrayView<FMassFragmentRequirementDescription> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices) const
 {
 	OutFragmentIndices.Reset(Requirements.Num());
-	for (const FMassFragmentRequirement& Requirement : Requirements)
+	for (const FMassFragmentRequirementDescription& Requirement : Requirements)
 	{
 		if (Requirement.RequiresBinding())
 		{

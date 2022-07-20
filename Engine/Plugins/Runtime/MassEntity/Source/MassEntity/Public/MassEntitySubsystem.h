@@ -121,7 +121,7 @@ public:
 	FMassArchetypeHandle GetArchetypeForEntityUnsafe(FMassEntityHandle Entity) const;
 
 	/** Method to iterate on all the fragment types of an archetype */
-	static void ForEachArchetypeFragmentType(const FMassArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function);
+	static void ForEachArchetypeFragmentType(const FMassArchetypeHandle& ArchetypeHandle, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function);
 
 	/**
 	 * Go through all archetypes and compact entities
@@ -133,7 +133,7 @@ public:
 	 * Creates fully built entity ready to be used by the subsystem
 	 * @param Archetype you want this entity to be
 	 * @return FMassEntityHandle id of the newly created entity */
-	FMassEntityHandle CreateEntity(const FMassArchetypeHandle Archetype);
+	FMassEntityHandle CreateEntity(const FMassArchetypeHandle& ArchetypeHandle);
 
 	/**
 	 * Creates fully built entity ready to be used by the subsystem
@@ -164,7 +164,7 @@ public:
 	 *  @param Count number of entities to create
 	 *  @param OutEntities the newly created entities are appended to given array, i.e. the pre-existing content of OutEntities won't be affected by the call
 	 *  @return a creation context that will notify all the interested observers about newly created fragments once the context is released */
-	TSharedRef<FEntityCreationContext> BatchCreateEntities(const FMassArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities);
+	TSharedRef<FEntityCreationContext> BatchCreateEntities(const FMassArchetypeHandle& ArchetypeHandle, const int32 Count, TArray<FMassEntityHandle>& OutEntities);
 
 	/**
 	 * Destroys a fully built entity, use ReleaseReservedEntity if entity was not yet built.
@@ -180,7 +180,7 @@ public:
 	 * Builds an entity for it to be ready to be used by the subsystem
 	 * @param Entity to build which was retrieved with ReserveEntity() method
 	 * @param Archetype you want this entity to be*/
-	void BuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle Archetype);
+	void BuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle);
 
 	/**
 	 * Builds an entity for it to be ready to be used by the subsystem
@@ -346,10 +346,7 @@ public:
 	FMassObserverManager& GetObserverManager() { return ObserverManager; }
 
 #if WITH_MASSENTITY_DEBUG
-	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
-	void DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintArchetypes(FOutputDevice& Ar, const bool bIncludeEmpty = true) const;
-	static void DebugGetStringDesc(const FMassArchetypeHandle& Archetype, FOutputDevice& Ar);
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
 	void DebugGetArchetypeFragmentTypes(const FMassArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const;
 	int32 DebugGetArchetypeEntitiesCount(const FMassArchetypeHandle& Archetype) const;
@@ -377,7 +374,7 @@ protected:
 	FMassArchetypeHandle InternalCreateSimilarArchetype(const FMassArchetypeData& SourceArchetypeRef, FMassArchetypeCompositionDescriptor&& NewComposition);
 
 private:
-	void InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle Archetype);
+	void InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle);
 	void InternalReleaseEntity(FMassEntityHandle Entity);
 
 	/** 

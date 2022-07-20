@@ -6,7 +6,7 @@
 #include "Misc/OutputDevice.h"
 #include "MassEntityUtils.h"
 #include "VisualLogger/VisualLogger.h"
-#include "MassEntityDebug.h"
+#include "MassDebugger.h"
 
 DEFINE_LOG_CATEGORY(LogMass);
 
@@ -228,11 +228,6 @@ UMassCompositeProcessor* FMassRuntimePipeline::FindTopLevelGroupByName(FName Gro
 		}
 	}
 	return nullptr;
-}
-
-void FMassRuntimePipeline::DebugOutputDescription(FOutputDevice& Ar) const
-{
-	UE::Mass::Debug::DebugOutputDescription(Processors, Ar);
 }
 
 uint32 GetTypeHash(const FMassRuntimePipeline& Instance)

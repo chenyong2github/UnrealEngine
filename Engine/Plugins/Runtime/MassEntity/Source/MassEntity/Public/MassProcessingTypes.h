@@ -112,8 +112,6 @@ struct MASSENTITY_API FMassRuntimePipeline
 	/** goes through Processor looking for a UMassCompositeProcessor instance which GroupName matches the one given as the parameter */
 	UMassCompositeProcessor* FindTopLevelGroupByName(const FName GroupName);
 
-	void DebugOutputDescription(FOutputDevice& Ar) const;
-
 	bool HasProcessorOfExactClass(TSubclassOf<UMassProcessor> InClass) const;
 	bool IsEmpty() const { return Processors.IsEmpty();}
 

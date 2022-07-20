@@ -2,7 +2,7 @@
 
 #include "MassProcessingPhase.h"
 #include "MassProcessingTypes.h"
-#include "MassEntityDebug.h"
+#include "MassDebugger.h"
 #include "MassEntitySettings.h"
 #include "MassProcessor.h"
 #include "MassExecutor.h"
@@ -278,7 +278,7 @@ void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase P
 	{
 		REDIRECT_OBJECT_TO_VLOG(PhaseProcessor, this);
 		PhaseProcessor->SetProcessingPhase(Phase);
-		PhaseProcessor->SetGroupName(FName(FString::Printf(TEXT("%s-%s"), *PhaseProcessor->GetName(), *EnumToString(Phase))));
+		PhaseProcessor->SetGroupName(FName(FString::Printf(TEXT("%s-%s"), *PhaseProcessor->GetName(), *UEnum::GetValueAsString(Phase))));
 		
 		check(GetOuter());
 		PhaseProcessor->Initialize(*GetOuter());
@@ -292,7 +292,7 @@ void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase P
 	}
 	else
 	{
-		UE_VLOG_UELOG(this, LogMass, Log, TEXT("Nulling-out phase processor for phase %s"), *EnumToString(Phase));
+		UE_VLOG_UELOG(this, LogMass, Log, TEXT("Nulling-out phase processor for phase %s"), *UEnum::GetValueAsString(Phase));
 	}
 }
 
@@ -304,7 +304,7 @@ void UMassProcessingPhaseManager::CreatePhases()
 		ProcessingPhases[i].Phase = EMassProcessingPhase(i);
 		ProcessingPhases[i].TickGroup = UE::Mass::Private::PhaseToTickingGroup[i];
 		UMassCompositeProcessor* PhaseProcessor = NewObject<UMassCompositeProcessor>(this, UMassCompositeProcessor::StaticClass()
-			, *FString::Printf(TEXT("ProcessingPhase_%s"), *EnumToString(EMassProcessingPhase(i))));
+			, *FString::Printf(TEXT("ProcessingPhase_%s"), *UEnum::GetValueAsString(EMassProcessingPhase(i))));
 		SetPhaseProcessor(EMassProcessingPhase(i), PhaseProcessor);
 	}
 }

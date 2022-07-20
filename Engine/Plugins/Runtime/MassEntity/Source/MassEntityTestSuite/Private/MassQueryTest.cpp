@@ -34,7 +34,7 @@ struct FQueryTest_ProcessorRequirements : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		UMassTestProcessor_Floats* Processor = NewObject<UMassTestProcessor_Floats>(EntitySubsystem);
-		TConstArrayView<FMassFragmentRequirement> Requirements = Processor->TestGetQuery().GetRequirements();
+		TConstArrayView<FMassFragmentRequirementDescription> Requirements = Processor->TestGetQuery().GetFragmentRequirements();
 		
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
 		AITEST_TRUE("There should be exactly one requirement", Requirements.Num() == 1);
@@ -53,7 +53,7 @@ struct FQueryTest_ExplicitRequirements : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 				
 		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct()});
-		TConstArrayView<FMassFragmentRequirement> Requirements = Query.GetRequirements();
+		TConstArrayView<FMassFragmentRequirementDescription> Requirements = Query.GetFragmentRequirements();
 
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
 		AITEST_TRUE("There should be exactly one requirement", Requirements.Num() == 1);
@@ -214,8 +214,9 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 		int TotalProcessed = 0;
 
 		FMassExecutionContext ExecContext;
-		FMassEntityQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite)
-			.ForEachEntityChunk(FMassArchetypeEntityCollection(FloatsArchetype, EntitiesToProcess, FMassArchetypeEntityCollection::NoDuplicates)
+		FMassEntityQuery TestQuery;
+		TestQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
+		TestQuery.ForEachEntityChunk(FMassArchetypeEntityCollection(FloatsArchetype, EntitiesToProcess, FMassArchetypeEntityCollection::NoDuplicates)
 								, *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();

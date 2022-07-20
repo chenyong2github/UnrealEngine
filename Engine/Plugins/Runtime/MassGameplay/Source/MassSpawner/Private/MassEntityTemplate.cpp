@@ -2,6 +2,7 @@
 
 #include "MassEntityTemplate.h"
 #include "VisualLogger/VisualLoggerTypes.h"
+#include "MassDebugger.h"
 
 DEFINE_ENUM_TO_STRING(EMassEntityTemplateIDType, "/Script/MassSpawner");
 
@@ -47,7 +48,7 @@ FString FMassEntityTemplate::DebugGetArchetypeDescription(UMassEntitySubsystem& 
 {
 	FStringOutputDevice OutDescription;
 #if WITH_MASSGAMEPLAY_DEBUG
-	EntitySubsystem.DebugGetStringDesc(Archetype, OutDescription);
+	FMassDebugger::OutputArchetypeDescription(OutDescription, Archetype);
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	return MoveTemp(OutDescription);
 }

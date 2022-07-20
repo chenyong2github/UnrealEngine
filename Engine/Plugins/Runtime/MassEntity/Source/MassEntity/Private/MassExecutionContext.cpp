@@ -39,13 +39,13 @@ void FMassExecutionContext::SetEntityCollection(FMassArchetypeEntityCollection&&
 	EntityCollection = MoveTemp(InEntityCollection);
 }
 
-void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, 
-	TConstArrayView<FMassFragmentRequirement> InChunkRequirements, 
-	TConstArrayView<FMassFragmentRequirement> InConstSharedRequirements, 
-	TConstArrayView<FMassFragmentRequirement> InSharedRequirements)
+void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequirementDescription> InRequirements, 
+	TConstArrayView<FMassFragmentRequirementDescription> InChunkRequirements, 
+	TConstArrayView<FMassFragmentRequirementDescription> InConstSharedRequirements, 
+	TConstArrayView<FMassFragmentRequirementDescription> InSharedRequirements)
 { 
 	FragmentViews.Reset();
-	for (const FMassFragmentRequirement& Requirement : InRequirements)
+	for (const FMassFragmentRequirementDescription& Requirement : InRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -54,7 +54,7 @@ void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequire
 	}
 
 	ChunkFragmentViews.Reset();
-	for (const FMassFragmentRequirement& Requirement : InChunkRequirements)
+	for (const FMassFragmentRequirementDescription& Requirement : InChunkRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -63,7 +63,7 @@ void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequire
 	}
 
 	ConstSharedFragmentViews.Reset();
-	for (const FMassFragmentRequirement& Requirement : InConstSharedRequirements)
+	for (const FMassFragmentRequirementDescription& Requirement : InConstSharedRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -72,7 +72,7 @@ void FMassExecutionContext::SetRequirements(TConstArrayView<FMassFragmentRequire
 	}
 
 	SharedFragmentViews.Reset();
-	for (const FMassFragmentRequirement& Requirement : InSharedRequirements)
+	for (const FMassFragmentRequirementDescription& Requirement : InSharedRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{

@@ -10,30 +10,37 @@
 #include "MassEntityQuery.h"
 #include "MassProcessor.h"
 
+
+class FOutputDevice;
 class UMassProcessor;
 struct FMassEntityQuery;
 class UMassEntitySubsystem;
 struct FMassArchetypeHandle;
+struct FMassFragmentRequirementDescription;
 enum class EMassFragmentAccess : uint8;
 enum class EMassFragmentPresence : uint8;
 
 MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassFragmentAccess);
 MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassFragmentPresence);
+MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassProcessingPhase);
 
 namespace UE::Mass::Debug
 {
 struct MASSENTITY_API FQueryRequirementsView
 {
-	TConstArrayView<FMassFragmentRequirement> FragmentRequirements;
-	TConstArrayView<FMassFragmentRequirement> ChunkRequirements;
-	TConstArrayView<FMassFragmentRequirement> ConstSharedRequirements;
-	TConstArrayView<FMassFragmentRequirement> SharedRequirements;
+	TConstArrayView<FMassFragmentRequirementDescription> FragmentRequirements;
+	TConstArrayView<FMassFragmentRequirementDescription> ChunkRequirements;
+	TConstArrayView<FMassFragmentRequirementDescription> ConstSharedRequirements;
+	TConstArrayView<FMassFragmentRequirementDescription> SharedRequirements;
 	const FMassTagBitSet& RequiredAllTags;
 	const FMassTagBitSet& RequiredAnyTags;
 	const FMassTagBitSet& RequiredNoneTags;
 	const FMassExternalSubystemBitSet& RequiredConstSubsystems;
 	const FMassExternalSubystemBitSet& RequiredMutableSubsystems;
 };
+
+FString DebugGetFragmentAccessString(EMassFragmentAccess Access);
+MASSENTITY_API extern void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar);
 } // namespace UE::Mass::Debug
 
 struct MASSENTITY_API FMassDebugger
@@ -45,7 +52,7 @@ struct MASSENTITY_API FMassDebugger
 
 	static UE::Mass::Debug::FQueryRequirementsView GetQueryRequirements(const FMassEntityQuery& Query);
 	static void GetQueryExecutionRequirements(const FMassEntityQuery& Query, FMassExecutionRequirements& OutExecutionRequirements);
-	
+
 	static TArray<FMassArchetypeHandle> GetAllArchetypes(const UMassEntitySubsystem& EntitySubsystem);
 	static const FMassArchetypeCompositionDescriptor& GetArchetypeComposition(const FMassArchetypeHandle& ArchetypeHandle);
 	static const FMassArchetypeSharedFragmentValues& GetArchetypeSharedFragmentValues(const FMassArchetypeHandle& ArchetypeHandle);
@@ -53,6 +60,14 @@ struct MASSENTITY_API FMassDebugger
 	static void GetArchetypeEntityStats(const FMassArchetypeHandle& ArchetypeHandle, int32& OutEntitiesCount, int32& OutNumEntitiesPerChunk, int32& OutChunksCount);
 
 	static TConstArrayView<UMassCompositeProcessor::FDependencyNode> GetProcessingGraph(const UMassCompositeProcessor& GraphOwner);
+	
+	static FString GetSingleRequirementDescription(const FMassFragmentRequirementDescription& Requirement);
+	static FString GetRequirementsDescription(const FMassFragmentRequirements& Requirements);
+	static FString GetArchetypeRequirementCompatibilityDescription(const FMassFragmentRequirements& Requirements, const FMassArchetypeHandle& ArchetypeHandle);
+
+	static void OutputArchetypeDescription(FOutputDevice& Ar, const FMassArchetypeHandle& Archetype);
+	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const int32 EntityIndex, const TCHAR* InPrefix = TEXT(""));
+	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle Entity, const TCHAR* InPrefix = TEXT(""));
 };
 
 #endif // WITH_MASSENTITY_DEBUG

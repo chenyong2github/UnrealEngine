@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityQuery.h"
-#include "MassEntityDebug.h"
+#include "MassDebugger.h"
 #include "MassEntitySubsystem.h"
 #include "MassArchetypeData.h"
 #include "MassCommandBuffer.h"
@@ -15,32 +15,8 @@
 #endif // WITH_MASSENTITY_DEBUG
 
 
-namespace UE::Mass::Private
-{
-	template<typename TContainer>
-	void ExportRequirements(TConstArrayView<FMassFragmentRequirement> Requirements, TMassExecutionAccess<TContainer>& Out)
-	{
-		for (const FMassFragmentRequirement& Requirement : Requirements)
-		{
-			if (Requirement.Presence != EMassFragmentPresence::None)
-			{
-				check(Requirement.StructType);
-				if (Requirement.AccessMode == EMassFragmentAccess::ReadOnly)
-				{
-					Out.Read.Add(*Requirement.StructType);
-				}
-				else if (Requirement.AccessMode == EMassFragmentAccess::ReadWrite)
-				{
-					Out.Write.Add(*Requirement.StructType);
-				}
-			}
-		}
-	}
-}
-
 //////////////////////////////////////////////////////////////////////
 // FMassEntityQuery
-
 
 FMassEntityQuery::FMassEntityQuery()
 {
@@ -92,23 +68,13 @@ void FMassEntityQuery::ReadCommandlineParams()
 	}
 }
 
-void FMassEntityQuery::SortRequirements()
-{
-	// we're sorting the Requirements the same way ArchetypeData's FragmentConfig is sorted (see FMassArchetypeData::Initialize)
-	// so that when we access ArchetypeData.FragmentConfigs in FMassArchetypeData::BindRequirementsWithMapping
-	// (via GetFragmentData call) the access is sequential (i.e. not random) and there's a higher chance the memory
-	// FragmentConfigs we want to access have already been fetched and are available in processor cache.
-	Requirements.Sort(FScriptStructSortOperator());
-	ChunkRequirements.Sort(FScriptStructSortOperator());
-	ConstSharedRequirements.Sort(FScriptStructSortOperator());
-	SharedRequirements.Sort(FScriptStructSortOperator());
-}
-
 void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsystem)
 {
 	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
-	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion)
+	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion || IncrementalChangesCount)
 	{
+		IncrementalChangesCount = 0;
+
 		if (CheckValidity())
 		{
 			SortRequirements();
@@ -119,56 +85,32 @@ void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsy
 			ArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
 
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass RequirementsBinding")
-			const TConstArrayView<FMassFragmentRequirement> LocalRequirements = GetRequirements();
+			const TConstArrayView<FMassFragmentRequirementDescription> LocalRequirements = GetFragmentRequirements();
 			ArchetypeFragmentMapping.Reset(ValidArchetypes.Num());
 			ArchetypeFragmentMapping.AddDefaulted(ValidArchetypes.Num());
 			for (int i = 0; i < ValidArchetypes.Num(); ++i)
 			{
-				ValidArchetypes[i].DataPtr->GetRequirementsFragmentMapping(LocalRequirements, ArchetypeFragmentMapping[i].EntityFragments);
-				if (ChunkRequirements.Num())
+				FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ValidArchetypes[i]);
+				ArchetypeData.GetRequirementsFragmentMapping(LocalRequirements, ArchetypeFragmentMapping[i].EntityFragments);
+				if (ChunkFragmentRequirements.Num())
 				{
-					ValidArchetypes[i].DataPtr->GetRequirementsChunkFragmentMapping(ChunkRequirements, ArchetypeFragmentMapping[i].ChunkFragments);
+					ArchetypeData.GetRequirementsChunkFragmentMapping(ChunkFragmentRequirements, ArchetypeFragmentMapping[i].ChunkFragments);
 				}
-				if (ConstSharedRequirements.Num())
+				if (ConstSharedFragmentRequirements.Num())
 				{
-					ValidArchetypes[i].DataPtr->GetRequirementsConstSharedFragmentMapping(ConstSharedRequirements, ArchetypeFragmentMapping[i].ConstSharedFragments);
+					ArchetypeData.GetRequirementsConstSharedFragmentMapping(ConstSharedFragmentRequirements, ArchetypeFragmentMapping[i].ConstSharedFragments);
 				}
-				if (SharedRequirements.Num())
+				if (SharedFragmentRequirements.Num())
 				{
-					ValidArchetypes[i].DataPtr->GetRequirementsSharedFragmentMapping(SharedRequirements, ArchetypeFragmentMapping[i].SharedFragments);
+					ArchetypeData.GetRequirementsSharedFragmentMapping(SharedFragmentRequirements, ArchetypeFragmentMapping[i].SharedFragments);
 				}
 			}
 		}
 		else
 		{
-			UE_VLOG_UELOG(&InEntitySubsystem, LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *DebugGetDescription());
+			UE_VLOG_UELOG(&InEntitySubsystem, LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *FMassDebugger::GetRequirementsDescription(*this));
 		}
 	}
-}
-
-bool FMassEntityQuery::CheckValidity() const
-{
-	return RequiredAllFragments.IsEmpty() == false || RequiredAnyFragments.IsEmpty() == false || RequiredOptionalFragments.IsEmpty() == false;
-}
-
-bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FMassArchetypeHandle& ArchetypeHandle) const
-{
-	check(ArchetypeHandle.IsValid());
-	const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
-	CA_ASSUME(Archetype);
-	
-	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = Archetype->GetCompositionDescriptor();
-
-	return ArchetypeComposition.Fragments.HasAll(RequiredAllFragments)
-		&& (RequiredAnyFragments.IsEmpty() || ArchetypeComposition.Fragments.HasAny(RequiredAnyFragments))
-		&& ArchetypeComposition.Fragments.HasNone(RequiredNoneFragments)
-		&& ArchetypeComposition.Tags.HasAll(RequiredAllTags)
-		&& (RequiredAnyTags.IsEmpty() || ArchetypeComposition.Tags.HasAny(RequiredAnyTags))
-		&& ArchetypeComposition.Tags.HasNone(RequiredNoneTags)
-		&& ArchetypeComposition.ChunkFragments.HasAll(RequiredAllChunkFragments)
-		&& ArchetypeComposition.ChunkFragments.HasNone(RequiredNoneChunkFragments)
-		&& ArchetypeComposition.SharedFragments.HasAll(RequiredAllSharedFragments)
-		&& ArchetypeComposition.SharedFragments.HasNone(RequiredNoneSharedFragments);
 }
 
 void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeEntityCollection& Collection, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
@@ -200,16 +142,17 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-				, *DebugGetArchetypeCompatibilityDescription(ArchetypeHandle));
+				, *FMassDebugger::GetArchetypeRequirementCompatibilityDescription(*this, ArchetypeHandle));
 
 #if WITH_MASSENTITY_DEBUG
 			EntitySubsystem.GetRequirementAccessDetector().ReleaseAccess(*this);
 #endif // WITH_MASSENTITY_DEBUG
 			return;
 		}
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
+		ExecutionContext.SetRequirements(FragmentRequirements, ChunkFragmentRequirements, ConstSharedFragmentRequirements, SharedFragmentRequirements);
 		
-		ArchetypeHandle.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction
+		FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+		ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction
 			, GetFragmentMappingForArchetype(ArchetypeHandle)
 			, ExecutionContext.GetEntityCollection().GetRanges());
 #if WITH_MASSENTITY_DEBUG
@@ -220,13 +163,13 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	{
 		CacheArchetypes(EntitySubsystem);
 		// it's important to set requirements after caching archetypes due to that call potentially sorting the requirements and the order is relevant here.
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
+		ExecutionContext.SetRequirements(FragmentRequirements, ChunkFragmentRequirements, ConstSharedFragmentRequirements, SharedFragmentRequirements);
 
 		for (int i = 0; i < ValidArchetypes.Num(); ++i)
 		{
-			FMassArchetypeHandle& Archetype = ValidArchetypes[i];
-			check(Archetype.IsValid());
-			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ArchetypeCondition, ChunkCondition);
+			const FMassArchetypeHandle& ArchetypeHandle = ValidArchetypes[i];
+			FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+			ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ArchetypeCondition, ChunkCondition);
 			ExecutionContext.ClearFragmentViews();
 #if WITH_MASSENTITY_DEBUG
 			NumEntitiesToProcess += ExecutionContext.GetNumEntities();
@@ -270,14 +213,13 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetEntityCollection().GetArchetype()));
+				, *FMassDebugger::GetArchetypeRequirementCompatibilityDescription(*this, ExecutionContext.GetEntityCollection().GetArchetype()));
 			return;
 		}
 
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
-		check(ArchetypeHandle.IsValid());
-		FMassArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
-		const FMassArchetypeEntityCollection AsEntityCollection(ArchetypeHandle.DataPtr);
+		ExecutionContext.SetRequirements(FragmentRequirements, ChunkFragmentRequirements, ConstSharedFragmentRequirements, SharedFragmentRequirements);
+		FMassArchetypeData& ArchetypeRef = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+		const FMassArchetypeEntityCollection AsEntityCollection(ArchetypeHandle);
 		for (const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange : AsEntityCollection.GetRanges())
 		{
 			Jobs.Add({ ArchetypeRef, INDEX_NONE, EntityRange });
@@ -286,13 +228,12 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	else
 	{
 		CacheArchetypes(EntitySubsystem);
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
+		ExecutionContext.SetRequirements(FragmentRequirements, ChunkFragmentRequirements, ConstSharedFragmentRequirements, SharedFragmentRequirements);
 		for (int ArchetypeIndex = 0; ArchetypeIndex < ValidArchetypes.Num(); ++ArchetypeIndex)
 		{
-			FMassArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
-			check(Archetype.IsValid());
-			FMassArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
-			const FMassArchetypeEntityCollection AsEntityCollection(Archetype.DataPtr);
+			FMassArchetypeHandle& ArchetypeHandle = ValidArchetypes[ArchetypeIndex];
+			FMassArchetypeData& ArchetypeRef = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+			const FMassArchetypeEntityCollection AsEntityCollection(ArchetypeHandle);
 			for (const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange : AsEntityCollection.GetRanges())
 			{
 				Jobs.Add({ArchetypeRef, ArchetypeIndex, EntityRange});
@@ -315,7 +256,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 void FMassEntityQuery::ApplyQueryRequirementsToContext(FMassExecutionContext& ExecutionContext)
 {
 	ExecutionContext.SetSubsystemRequirements(RequiredConstSubsystems, RequiredMutableSubsystems);
-	ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
+	ExecutionContext.SetRequirements(FragmentRequirements, ChunkFragmentRequirements, ConstSharedFragmentRequirements, SharedFragmentRequirements);
 }
 
 int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
@@ -324,7 +265,7 @@ int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySub
 	int32 TotalEntities = 0;
 	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
-		if (const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get())
+		if (const FMassArchetypeData* Archetype = FMassArchetypeHelper::ArchetypeDataFromHandle(ArchetypeHandle))
 		{
 			TotalEntities += Archetype->GetNumEntities();
 		}
@@ -338,7 +279,7 @@ bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsyst
 
 	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
-		const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
+		const FMassArchetypeData* Archetype = FMassArchetypeHelper::ArchetypeDataFromHandle(ArchetypeHandle);
 		if (Archetype && Archetype->GetNumEntities() > 0)
 		{
 			return true;
@@ -356,126 +297,6 @@ const FMassQueryRequirementIndicesMapping& FMassEntityQuery::GetFragmentMappingF
 
 void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
 {
-	OutRequirements.RequiredSubsystems.Read += RequiredConstSubsystems;
-	OutRequirements.RequiredSubsystems.Write += RequiredMutableSubsystems;
-
-	using UE::Mass::Private::ExportRequirements;
-	ExportRequirements<FMassFragmentBitSet>(Requirements, OutRequirements.Fragments);
-	ExportRequirements<FMassChunkFragmentBitSet>(ChunkRequirements, OutRequirements.ChunkFragments);
-	ExportRequirements<FMassSharedFragmentBitSet>(ConstSharedRequirements, OutRequirements.SharedFragments);
-	ExportRequirements<FMassSharedFragmentBitSet>(SharedRequirements, OutRequirements.SharedFragments);
-
-	OutRequirements.RequiredAllTags = RequiredAllTags;
-	OutRequirements.RequiredAnyTags = RequiredAnyTags;
-	OutRequirements.RequiredNoneTags = RequiredNoneTags;
-}
-
-FString FMassEntityQuery::DebugGetDescription() const
-{
-#if WITH_MASSENTITY_DEBUG
-	TStringBuilder<256> StringBuilder;
-	StringBuilder.Append(TEXT("<"));
-
-	bool bNeedsComma = false;
-	for (const FMassFragmentRequirement& Requirement : Requirements)
-	{
-		if (bNeedsComma)
-		{
-			StringBuilder.Append(TEXT(","));
-		}
-		StringBuilder.Append(*Requirement.DebugGetDescription());
-		bNeedsComma = true;
-	}
-
-	StringBuilder.Append(TEXT(">"));
-	return StringBuilder.ToString();
-#else
-	return {};
-#endif
-}
-
-FString FMassEntityQuery::DebugGetArchetypeCompatibilityDescription(const FMassArchetypeHandle& ArchetypeHandle) const
-{
-	if (ArchetypeHandle.IsValid() == false)
-	{
-		return TEXT("Invalid");
-	}
-	
-	const FMassArchetypeData& Archetype = *ArchetypeHandle.DataPtr;
-	FStringOutputDevice OutDescription;
-#if WITH_MASSENTITY_DEBUG	
-	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = Archetype.GetCompositionDescriptor();
-
-	if (ArchetypeComposition.Fragments.HasAll(RequiredAllFragments) == false)
-	{
-		// missing one of the strictly required fragments
-		OutDescription += TEXT("\nMissing required fragments: ");
-		(RequiredAllFragments - ArchetypeComposition.Fragments).DebugGetStringDesc(OutDescription);
-	}
-
-	if (RequiredAnyFragments.IsEmpty() == false && ArchetypeComposition.Fragments.HasAny(RequiredAnyFragments) == false)
-	{
-		// missing all of the "any" fragments
-		OutDescription += TEXT("\nMissing all \'any\' fragments: ");
-		RequiredAnyFragments.DebugGetStringDesc(OutDescription);
-	}
-
-	if (ArchetypeComposition.Fragments.HasNone(RequiredNoneFragments) == false)
-	{
-		// has some of the fragments required absent
-		OutDescription += TEXT("\nHas fragments required absent: ");
-		RequiredNoneFragments.DebugGetStringDesc(OutDescription);
-	}
-
-	if (ArchetypeComposition.Tags.HasAll(RequiredAllTags) == false)
-	{
-		// missing one of the strictly required tags
-		OutDescription += TEXT("\nMissing required tags: ");
-		(RequiredAllTags - ArchetypeComposition.Tags).DebugGetStringDesc(OutDescription);
-	}
-
-	if (RequiredAnyTags.IsEmpty() == false && ArchetypeComposition.Tags.HasAny(RequiredAnyTags) == false)
-	{
-		// missing all of the "any" tags
-		OutDescription += TEXT("\nMissing all \'any\' tags: ");
-		RequiredAnyTags.DebugGetStringDesc(OutDescription);
-	}
-
-	if (ArchetypeComposition.Tags.HasNone(RequiredNoneTags) == false)
-	{
-		// has some of the tags required absent
-		OutDescription += TEXT("\nHas tags required absent: ");
-		RequiredNoneTags.DebugGetStringDesc(OutDescription);
-	}
-	
-	if (ArchetypeComposition.ChunkFragments.HasAll(RequiredAllChunkFragments) == false)
-    {
-    	// missing one of the strictly required chunk fragments
-    	OutDescription += TEXT("\nMissing required chunk fragments: ");
-		(RequiredAllChunkFragments - ArchetypeComposition.ChunkFragments).DebugGetStringDesc(OutDescription);
-    }
-
-    if (ArchetypeComposition.ChunkFragments.HasNone(RequiredNoneChunkFragments) == false)
-	{
-		// has some of the chunk fragments required absent
-		OutDescription += TEXT("\nHas chunk fragments required absent: ");
-		RequiredNoneChunkFragments.DebugGetStringDesc(OutDescription);
-	}
-#endif // WITH_MASSENTITY_DEBUG
-	
-	return OutDescription.Len() > 0 ? static_cast<FString>(OutDescription) : TEXT("Match");
-}
-
-
-//////////////////////////////////////////////////////////////////////
-// FMassFragmentRequirement
-
-FString FMassFragmentRequirement::DebugGetDescription() const
-{
-#if WITH_MASSENTITY_DEBUG
-	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == EMassFragmentPresence::None ? TEXT("-") : TEXT("+"))
-		, *GetNameSafe(StructType), *UE::Mass::Debug::DebugGetFragmentAccessString(AccessMode));
-#else
-	return {};
-#endif
+	FMassSubsystemRequirements::ExportRequirements(OutRequirements);
+	FMassFragmentRequirements::ExportRequirements(OutRequirements);
 }

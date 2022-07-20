@@ -4,7 +4,6 @@
 #include "MassProcessingPhase.h"
 #include "VisualLogger/VisualLogger.h"
 #include "UObject/UObjectHash.h"
-#include "MassEntityDebug.h"
 #include "Misc/CoreDelegates.h"
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -18,7 +17,7 @@ UMassEntitySettings::UMassEntitySettings(const FObjectInitializer& ObjectInitial
 {
 	for (int i = 0; i < (int)EMassProcessingPhase::MAX; ++i)
 	{
-		ProcessingPhasesConfig[i].PhaseName = *EnumToString(EMassProcessingPhase(i));
+		ProcessingPhasesConfig[i].PhaseName = *UEnum::GetValueAsString(EMassProcessingPhase(i));
 	}
 
 	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassEntitySettings::BuildProcessorListAndPhases);

@@ -2,7 +2,6 @@
 
 #include "MassObserverProcessor.h"
 #include "MassObserverRegistry.h"
-#include "MassEntityDebug.h"
 
 //----------------------------------------------------------------------//
 // UMassObserverProcessor
