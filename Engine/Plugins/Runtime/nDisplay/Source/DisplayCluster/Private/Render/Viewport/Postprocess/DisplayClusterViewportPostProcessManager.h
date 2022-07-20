@@ -18,7 +18,9 @@ class FDisplayClusterViewportPostProcessManager
 {
 public:
 	FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager);
-	virtual ~FDisplayClusterViewportPostProcessManager() = default;
+	virtual ~FDisplayClusterViewportPostProcessManager();
+
+	void Release();
 
 public:
 	bool IsPostProcessViewBeforeWarpBlendRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const;

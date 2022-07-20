@@ -66,10 +66,33 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
+//----------------------------------------------------------------------------------------------------------
+// FDisplayClusterViewportPostProcessManager
+//----------------------------------------------------------------------------------------------------------
 FDisplayClusterViewportPostProcessManager::FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager)
 	: ViewportManager(InViewportManager)
 {
 	OutputRemap = MakeShared<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe>();
+}
+
+FDisplayClusterViewportPostProcessManager::~FDisplayClusterViewportPostProcessManager()
+{
+	Release();
+}
+
+void FDisplayClusterViewportPostProcessManager::Release()
+{
+	if (IsInGameThread())
+	{
+		Postprocess.Empty();
+		OutputRemap.Reset();
+
+		ENQUEUE_RENDER_COMMAND(DisplayClusterViewportPostProcessManager_Release)(
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				PostprocessProxy.Empty();
+			});
+	}
 }
 
 bool FDisplayClusterViewportPostProcessManager::HandleStartScene()

@@ -352,9 +352,18 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 	float DofSensorScale = 1.0f;
 
 	// Calculate a Projection Matrix. This code unfortunately ends up similar to, but not quite the same as FMinimalViewInfo::CalculateProjectionMatrixGivenView
-	{
-		FMatrix BaseProjMatrix;
+	FMatrix BaseProjMatrix;
 
+	if (CameraInfo.bUseCustomProjectionMatrix)
+	{
+		BaseProjMatrix = CameraInfo.CustomProjectionMatrix;
+
+		// Modify the custom matrix to do an off center projection, with overlap for high-res tiling
+		const bool bOrthographic = false;
+		ModifyProjectionMatrixForTiling(InOutSampleState, bOrthographic, /*InOut*/ BaseProjMatrix, DofSensorScale);
+	}
+	else
+	{
 		if (CameraInfo.ViewInfo.ProjectionMode == ECameraProjectionMode::Orthographic)
 		{
 			const float YScale = 1.0f / CameraInfo.ViewInfo.AspectRatio;
@@ -460,10 +469,9 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 			ModifyProjectionMatrixForTiling(InOutSampleState, bOrthographic, /*InOut*/ BaseProjMatrix, DofSensorScale);
 			// ToDo: Does orthographic support tiling in the same way or do I need to modify the values before creating the ortho view.
 		}
-		
-		// BaseProjMatrix may be perspective or orthographic.
-		ViewInitOptions.ProjectionMatrix = BaseProjMatrix;
 	}
+	// BaseProjMatrix may be perspective or orthographic.
+	ViewInitOptions.ProjectionMatrix = BaseProjMatrix;
 
 	ViewInitOptions.SceneViewStateInterface = GetSceneViewStateInterface(OptPayload);
 	ViewInitOptions.FOV = ViewFOV;

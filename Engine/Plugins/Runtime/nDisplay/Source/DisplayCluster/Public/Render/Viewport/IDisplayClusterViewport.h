@@ -49,4 +49,6 @@ public:
 
 	virtual void SetRenderSettings(const FDisplayClusterViewport_RenderSettings& InRenderSettings) = 0;
 	virtual void SetContexts(TArray<FDisplayClusterViewport_Context>& InContexts) = 0;
+
+	static FMatrix MakeProjectionMatrix(float InLeft, float InRight, float InTop, float InBottom, float ZNear, float ZFar);
 };

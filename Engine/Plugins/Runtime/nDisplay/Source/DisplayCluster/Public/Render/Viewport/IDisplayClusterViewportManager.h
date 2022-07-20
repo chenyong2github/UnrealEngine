@@ -52,6 +52,19 @@ public:
 	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr, const FDisplayClusterPreviewSettings* InPreviewSettings = nullptr) = 0;
 
 	/**
+	* Update\Create\Delete viewports for frame. For rendering outside of cluster nodes
+	* Update ICVFX configuration from root actor components
+	* [Game thread func]
+	*
+	* @param InRenderMode    - Render mode
+	* @param InViewportNames - Viewports names for next frame
+	* @param InRootActorPtr  - reference to RootActor with actual configuration inside
+	*
+	* @return - true, if success
+	*/
+	virtual bool UpdateCustomConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const TArray<FString>& InViewportNames, class ADisplayClusterRootActor* InRootActorPtr) = 0;
+
+	/**
 	* Initialize new frame for all viewports on game thread, and update context, render resources with viewport new settings
 	* And finally build render frame structure and send to render thread proxy viewport objects
 	* [Game thread func]

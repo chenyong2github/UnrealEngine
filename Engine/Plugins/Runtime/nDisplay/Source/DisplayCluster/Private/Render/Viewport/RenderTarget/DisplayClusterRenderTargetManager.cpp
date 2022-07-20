@@ -26,6 +26,10 @@ namespace DisplayClusterRenderTargetManager
 		case EDisplayClusterViewportCaptureMode::Lightcard:
 			return EPixelFormat::PF_FloatRGBA;
 
+		case EDisplayClusterViewportCaptureMode::MoviePipeline:
+			// Movie pipeline always use PF_FloatRGBA
+			return EPixelFormat::PF_FloatRGBA;
+
 		default:
 			break;
 		}
@@ -55,6 +59,12 @@ FDisplayClusterRenderTargetManager::FDisplayClusterRenderTargetManager(FDisplayC
 
 FDisplayClusterRenderTargetManager::~FDisplayClusterRenderTargetManager()
 {
+	Release();
+}
+
+void FDisplayClusterRenderTargetManager::Release()
+{
+	ResourcesPool->Release();
 }
 
 bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame)

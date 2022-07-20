@@ -32,11 +32,15 @@ namespace UE
 		{
 			FImagePassCameraViewData()
 				: ViewActor(nullptr)
+				, bUseCustomProjectionMatrix(false)
 			{}
 			
 			FMinimalViewInfo ViewInfo;
 			TMap<FString, FString> FileMetadata;
 			AActor* ViewActor;
+
+			bool bUseCustomProjectionMatrix;
+			FMatrix CustomProjectionMatrix;
 		};
 	}
 }
@@ -107,7 +111,7 @@ protected:
 	// ~FGCObject Interface
 
 	FVector4 CalculatePrinciplePointOffsetForTiling(const FMoviePipelineRenderPassMetrics& InSampleState) const;
-	void ModifyProjectionMatrixForTiling(const FMoviePipelineRenderPassMetrics& InSampleState, const bool bInOrthographic, FMatrix& InOutProjectionMatrix, float& OutDoFSensorScale) const;
+	virtual void ModifyProjectionMatrixForTiling(const FMoviePipelineRenderPassMetrics& InSampleState, const bool bInOrthographic, FMatrix& InOutProjectionMatrix, float& OutDoFSensorScale) const;
 
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;

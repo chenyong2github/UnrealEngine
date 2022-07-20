@@ -1507,6 +1507,7 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		Params.ShotOverride = ActiveShotList[InOutputState->ShotIndex];
 		Params.InitializationVersion = ActiveShotList[InOutputState->ShotIndex]->ShotInfo.VersionNumber;
 		Params.CameraIndex = InOutputState->CameraIndex;
+		Params.CameraNameOverride = InOutputState->CameraNameOverride;
 	}
 
 	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();

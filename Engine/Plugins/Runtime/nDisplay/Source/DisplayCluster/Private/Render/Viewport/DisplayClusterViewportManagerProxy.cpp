@@ -12,8 +12,10 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-#include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/IDisplayClusterViewportLightCardManager.h"
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManager.h"
+
+#include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
@@ -21,8 +23,6 @@
 
 #include "Render/Viewport/DisplayClusterViewportStrings.h"
 #include "RHIContext.h"
-
-
 
 // Enable/disable warp&blend
 static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
@@ -82,6 +82,11 @@ FDisplayClusterViewportManagerProxy::FDisplayClusterViewportManagerProxy()
 
 FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 {
+	Release();
+}
+
+void FDisplayClusterViewportManagerProxy::Release()
+{
 	// Delete viewport proxy objects
 	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
 	{
@@ -90,9 +95,10 @@ FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 			delete ViewportProxy;
 		}
 	}
-
 	ViewportProxies.Empty();
-	ImplUpdateClusterNodeViewportProxies();
+	ClusterNodeViewportProxies.Empty();
+
+	RenderTargetManager.Reset();
 }
 
 void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportManager& InViewportManager)
@@ -137,9 +143,20 @@ void FDisplayClusterViewportManagerProxy::ImplSafeRelease()
 {
 	check(IsInGameThread());
 
-	// Light card manager contains a preview world, which needs to be cleaned up on game thread. Manually reset the pointer
-	// here to ensure that it isn't cleaned up on render thread when the proxy deletes itself.
-	LightCardManager.Reset();
+	if (RenderTargetManager.IsValid())
+	{
+		RenderTargetManager->Release();
+	}
+	
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->Release();
+	}
+
+	if (LightCardManager.IsValid())
+	{
+		LightCardManager->Release();
+	}
 
 	// Remove viewport manager proxy on render_thread
 	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportManagerProxy)(
@@ -239,11 +256,6 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 		if (ViewportManagerProxy->PostProcessManager.IsValid())
 		{
 			ViewportManagerProxy->PostProcessManager->HandleRenderFrameSetup_RenderThread(RHICmdList, ViewportManagerProxy);
-		}
-
-		if (ViewportManagerProxy->LightCardManager.IsValid())
-		{
-			ViewportManagerProxy->LightCardManager->RenderLightCardMap_RenderThread(RHICmdList);
 		}
 
 		bool bWarpBlendEnabled = ViewportManagerProxy->RenderFrameSettings.bAllowWarpBlend && CVarWarpBlendEnabled.GetValueOnRenderThread() != 0;
@@ -625,6 +637,12 @@ bool FDisplayClusterViewportManagerProxy::ResolveFrameTargetToBackBuffer_RenderT
 
 	return false;
 }
+
+TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> FDisplayClusterViewportManagerProxy::GetLightCardManager_RenderThread() const
+{
+	return LightCardManager;
+}
+
 
 FDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::ImplFindViewport_RenderThread(const FString& ViewportId) const
 {

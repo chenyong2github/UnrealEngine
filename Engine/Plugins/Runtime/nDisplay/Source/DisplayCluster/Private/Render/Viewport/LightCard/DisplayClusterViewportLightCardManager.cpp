@@ -18,6 +18,9 @@ static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(
 	512,
 	TEXT("The size of the texture UV light cards are rendered to."));
 
+//-----------------------------------------------------------------------------------------------------------------
+// FDisplayClusterLightCardMap
+//-----------------------------------------------------------------------------------------------------------------
 void FDisplayClusterLightCardMap::InitDynamicRHI()
 {
 	ETextureCreateFlags CreateFlags = TexCreate_Dynamic;
@@ -33,47 +36,59 @@ void FDisplayClusterLightCardMap::InitDynamicRHI()
 	RenderTargetTextureRHI = TextureRHI = RHICreateTexture(Desc);
 }
 
+//-----------------------------------------------------------------------------------------------------------------
+// FDisplayClusterViewportLightCardManager
+//-----------------------------------------------------------------------------------------------------------------
 FDisplayClusterViewportLightCardManager::FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager)
 	: ViewportManager(InViewportManager)
 {
+	ProxyData = MakeShared<FProxyData, ESPMode::ThreadSafe>();
 }
 
 FDisplayClusterViewportLightCardManager::~FDisplayClusterViewportLightCardManager()
 {
-	ResetScene();
-	ReleaseUVLightCardMap();
+	Release();
+
+	ProxyData.Reset();
+}
+
+void FDisplayClusterViewportLightCardManager::Release()
+{
+	// The destructor is usually called from the rendering thread, so Release() must be called first from the game thread.
+	const bool bIsInRenderingThread = IsInRenderingThread();
+	check(!bIsInRenderingThread || (bIsInRenderingThread && PreviewScene.IsValid() == false));
+
+	// Deleting PreviewScene is only called from the game thread
 	PreviewScene.Reset();
+
+	UVLightCards.Empty();
+	ReleaseUVLightCardMap();
+}
+
+FRHITexture* FDisplayClusterViewportLightCardManager::GetUVLightCardMap_RenderThread() const
+{ 
+	check(IsInRenderingThread());
+
+	return ProxyData.IsValid() ? ProxyData->GetUVLightCardMap_RenderThread() : nullptr;
 }
 
 void FDisplayClusterViewportLightCardManager::UpdateConfiguration()
 {
-	ResetScene();
-
-	ADisplayClusterRootActor* RootActor = ViewportManager.GetRootActor();
-	TSet<ADisplayClusterLightCardActor*> LightCards;
-	UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActor, LightCards);
-
-	for (ADisplayClusterLightCardActor* LightCard : LightCards)
-	{
-		if (LightCard->bIsUVLightCard)
-		{
-			UVLightCards.Add(LightCard);
-		}
-	}
-}
-
-void FDisplayClusterViewportLightCardManager::ResetScene()
-{
-	if (PreviewScene.IsValid() && LoadedPrimitiveComponents.Num())
-	{
-		for (UPrimitiveComponent* PrimitiveComponent : LoadedPrimitiveComponents)
-		{
-			PreviewScene->GetScene()->RemovePrimitive(PrimitiveComponent);
-		}
-	}
-
-	LoadedPrimitiveComponents.Empty();
 	UVLightCards.Empty();
+
+	if (ADisplayClusterRootActor* RootActorPtr = ViewportManager.GetRootActor())
+	{
+		TSet<ADisplayClusterLightCardActor*> LightCards;
+		UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActorPtr, LightCards);
+
+		for (ADisplayClusterLightCardActor* LightCard : LightCards)
+		{
+			if (LightCard->bIsUVLightCard)
+			{
+				UVLightCards.Add(LightCard);
+			}
+		}
+	}
 }
 
 void FDisplayClusterViewportLightCardManager::HandleStartScene()
@@ -82,53 +97,48 @@ void FDisplayClusterViewportLightCardManager::HandleStartScene()
 		.SetEditor(false)
 		.SetCreatePhysicsScene(false)
 		.SetCreateDefaultLighting(false));
-
-	UpdateConfiguration();
 }
 
-void FDisplayClusterViewportLightCardManager::HandleBeginNewFrame()
+void FDisplayClusterViewportLightCardManager::HandleEndScene()
 {
-	InitializeUVLightCardMap();
+	PreviewScene.Reset();
 }
 
-void FDisplayClusterViewportLightCardManager::PreRenderFrame()
+void FDisplayClusterViewportLightCardManager::RenderFrame()
 {
-	bool bLoadedPrimitives = false;
-	for (ADisplayClusterLightCardActor* LightCard : UVLightCards)
+	if (PreviewScene.IsValid() && ProxyData.IsValid())
 	{
-		UStaticMeshComponent* LightCardMeshComp = LightCard->GetLightCardMeshComponent();
-		if (LightCardMeshComp && LightCardMeshComp->SceneProxy == nullptr)
+		if (FSceneInterface* SceneInterface = PreviewScene->GetScene())
 		{
-			PreviewScene->GetScene()->AddPrimitive(LightCardMeshComp);
-			LoadedPrimitiveComponents.Add(LightCardMeshComp);
+			InitializeUVLightCardMap();
 
-			bLoadedPrimitives = true;
+			/** A list of primitive components that have been added to the preview scene for rendering in the current frame */
+			TArray<UPrimitiveComponent*> LoadedPrimitiveComponents;
+
+			bool bLoadedPrimitives = false;
+			for (ADisplayClusterLightCardActor* LightCard : UVLightCards)
+			{
+				UStaticMeshComponent* LightCardMeshComp = LightCard->GetLightCardMeshComponent();
+				if (LightCardMeshComp && LightCardMeshComp->SceneProxy == nullptr)
+				{
+					SceneInterface->AddPrimitive(LightCardMeshComp);
+					LoadedPrimitiveComponents.Add(LightCardMeshComp);
+
+					bLoadedPrimitives = true;
+				}
+			}
+
+			ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManager_InitializeUVLightCardMap)(
+				[InProxyData = ProxyData, bLoadedPrimitives, SceneInterface](FRHICommandListImmediate& RHICmdList)
+				{
+					InProxyData->RenderLightCardMap_RenderThread(RHICmdList, bLoadedPrimitives, SceneInterface);
+				});
+
+			for (UPrimitiveComponent* LoadedComponent : LoadedPrimitiveComponents)
+			{
+				SceneInterface->RemovePrimitive(LoadedComponent);
+			}
 		}
-	}
-
-	ENQUEUE_RENDER_COMMAND(InitializeLightCardRenderFrame)(
-		[this, bLoadedPrimitives](FRHICommandListImmediate& RHICmdList)
-	{
-		bHasUVLightCards = bLoadedPrimitives;
-	});
-}
-
-void FDisplayClusterViewportLightCardManager::PostRenderFrame()
-{
-	for (UPrimitiveComponent* LoadedComponent : LoadedPrimitiveComponents)
-	{
-		PreviewScene->GetScene()->RemovePrimitive(LoadedComponent);
-	}
-
-	LoadedPrimitiveComponents.Empty();
-}
-
-void FDisplayClusterViewportLightCardManager::RenderLightCardMap_RenderThread(FRHICommandListImmediate& RHICmdList)
-{
-	if (PreviewScene.IsValid() && bHasUVLightCards)
-	{
-		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
-		ShadersAPI.RenderPreprocess_UVLightCards(RHICmdList, PreviewScene->GetScene(), UVLightCardMapProxy, ADisplayClusterLightCardActor::UVPlaneDefaultSize);
 	}
 }
 
@@ -140,33 +150,72 @@ void FDisplayClusterViewportLightCardManager::InitializeUVLightCardMap()
 		ReleaseUVLightCardMap();
 	}
 
-	if (UVLightCardMap == nullptr)
+	if (UVLightCardMap == nullptr && ProxyData.IsValid())
 	{
 		UVLightCardMap = new FDisplayClusterLightCardMap(LightCardTextureSize);
 
-		ENQUEUE_RENDER_COMMAND(InitializeLightCardResources)(
-			[this, InUVLightCardMap=UVLightCardMap](FRHICommandListImmediate& RHICmdList)
-		{
-			// Store a copy of the texture's pointer on the render thread and initialize the texture's resources
-			UVLightCardMapProxy = InUVLightCardMap;
-			UVLightCardMapProxy->InitResource();
-		});
+		ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManager_InitializeUVLightCardMap)(
+			[InProxyData = ProxyData, InUVLightCardMap = UVLightCardMap](FRHICommandListImmediate& RHICmdList)
+			{
+				InProxyData->InitializeUVLightCardMap_RenderThread(InUVLightCardMap);
+			});
 	}
 }
 
 void FDisplayClusterViewportLightCardManager::ReleaseUVLightCardMap()
 {
-	if (UVLightCardMap)
-	{
-		UVLightCardMap = nullptr;
+	UVLightCardMap = nullptr;
 
-		ENQUEUE_RENDER_COMMAND(DeleteLightCardResources)(
-			[InUVLightCardMap=UVLightCardMapProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			// Release the texture's resources and delete the texture object from the rendering thread. Pointer is copied to ensure it is still
-			// valid on the render thread even if the light card manager has been disposed already
-			InUVLightCardMap->ReleaseResource();
-			delete InUVLightCardMap;
-		});
+	if (ProxyData.IsValid())
+	{
+		ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManager_ReleaseUVLightCardMap)(
+			[InProxyData = ProxyData](FRHICommandListImmediate& RHICmdList)
+			{
+				InProxyData->ReleaseUVLightCardMap_RenderThread();
+			});
 	}
 }
+
+//-----------------------------------------------------------------------------------------------------------------
+// FDisplayClusterViewportLightCardManager::FProxyData
+//-----------------------------------------------------------------------------------------------------------------
+FDisplayClusterViewportLightCardManager::FProxyData::~FProxyData()
+{
+	ReleaseUVLightCardMap_RenderThread();
+}
+
+void FDisplayClusterViewportLightCardManager::FProxyData::InitializeUVLightCardMap_RenderThread(FDisplayClusterLightCardMap* InUVLightCardMap)
+{
+	if (UVLightCardMap == nullptr)
+	{
+		// Store a copy of the texture's pointer on the render thread and initialize the texture's resources
+		UVLightCardMap = InUVLightCardMap;
+		UVLightCardMap->InitResource();
+	}
+}
+
+void FDisplayClusterViewportLightCardManager::FProxyData::ReleaseUVLightCardMap_RenderThread()
+{
+	// Release the texture's resources and delete the texture object from the rendering thread
+	if (UVLightCardMap)
+	{
+		UVLightCardMap->ReleaseResource();
+
+		delete UVLightCardMap;
+		UVLightCardMap = nullptr;
+	}
+}
+
+void FDisplayClusterViewportLightCardManager::FProxyData::RenderLightCardMap_RenderThread(FRHICommandListImmediate& RHICmdList, const bool bLoadedPrimitives, FSceneInterface* InSceneInterface)
+{
+	bHasUVLightCards = bLoadedPrimitives;
+
+	IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
+	ShadersAPI.RenderPreprocess_UVLightCards(RHICmdList, InSceneInterface, UVLightCardMap, ADisplayClusterLightCardActor::UVPlaneDefaultSize);
+}
+
+FRHITexture* FDisplayClusterViewportLightCardManager::FProxyData::GetUVLightCardMap_RenderThread() const
+{
+	return (bHasUVLightCards && UVLightCardMap != nullptr) ? UVLightCardMap->GetTextureRHI() : nullptr;
+}
+

@@ -39,6 +39,12 @@ void FImplDisplayClusterViewport_CustomFrustum::Update(FDisplayClusterViewport& 
 		return;
 	}
 
+	// Disable CustomFrustum feature from viewport settings
+	if (Viewport.GetRenderSettings().bDisableCustomFrustumFeature)
+	{
+		return;
+	}
+
 	RuntimeSettings.bIsEnabled = true;
 	const FIntPoint Size = InOutRenderTargetRect.Size();
 

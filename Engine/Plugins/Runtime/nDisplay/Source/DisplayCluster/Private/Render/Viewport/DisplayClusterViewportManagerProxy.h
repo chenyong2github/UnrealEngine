@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
-
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
@@ -14,6 +13,7 @@ class FDisplayClusterRenderTargetManager;
 class FDisplayClusterViewportPostProcessManager;
 class FDisplayClusterViewportManager;
 class FDisplayClusterViewportResource;
+class FDisplayClusterViewportLightCardManager;
 class IDisplayClusterViewportLightCardManager;
 class IDisplayClusterProjectionPolicy;
 
@@ -26,6 +26,8 @@ class FDisplayClusterViewportManagerProxy
 public:
 	FDisplayClusterViewportManagerProxy();
 	virtual ~FDisplayClusterViewportManagerProxy();
+
+	void Release();
 
 public:
 	void DoCrossGPUTransfers_RenderThread(FRHICommandListImmediate& RHICmdList) const;
@@ -48,7 +50,7 @@ public:
 	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources = nullptr) const override;
 	virtual bool ResolveFrameTargetToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const uint32 InContextNum, const int32 DestArrayIndex, FRHITexture2D* DestTexture, FVector2D WindowSize) const override;
 
-	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager_RenderThread() const override { return LightCardManager; }
+	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager_RenderThread() const override;
 
 	// internal use only
 	void DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr);
@@ -85,7 +87,7 @@ private:
 private:
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
-	TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
+	TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
 
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 

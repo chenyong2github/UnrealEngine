@@ -33,8 +33,14 @@ bool FImplDisplayClusterViewport_Overscan::UpdateProjectionAngles(float& InOutLe
 
 void FImplDisplayClusterViewport_Overscan::Update(FDisplayClusterViewport& Viewport, FIntRect& InOutRenderTargetRect)
 {
-	// Disable overscane feature from console
+	// Disable viewport overscan feature from console
 	if (CVarDisplayClusterRenderOverscanEnable.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
+	// Disable viewport overscan feature from settings
+	if (Viewport.GetRenderSettings().bDisableFrustumOverscanFeature)
 	{
 		return;
 	}

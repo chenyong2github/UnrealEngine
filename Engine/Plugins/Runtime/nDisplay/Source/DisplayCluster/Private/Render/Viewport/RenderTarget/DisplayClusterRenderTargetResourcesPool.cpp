@@ -84,6 +84,11 @@ FDisplayClusterRenderTargetResourcesPool::FDisplayClusterRenderTargetResourcesPo
 
 FDisplayClusterRenderTargetResourcesPool::~FDisplayClusterRenderTargetResourcesPool()
 {
+	Release();
+}
+
+void FDisplayClusterRenderTargetResourcesPool::Release()
+{
 	// Release all resources
 	ImplReleaseResources<FDisplayClusterViewportRenderTargetResource>(RenderTargetResources);
 	ImplReleaseResources<FDisplayClusterViewportTextureResource>(TextureResources);

@@ -62,6 +62,27 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 	bUse32BitPostProcessMaterials = false;
 }
 
+int32 UMoviePipelineDeferredPassBase::GetNumCamerasToRender() const
+{
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+
+	return CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+}
+
+FString UMoviePipelineDeferredPassBase::GetCameraName(const int32 InCameraIndex) const
+{
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+
+	return CurrentShot->GetCameraName(InCameraIndex);
+}
+
+FString UMoviePipelineDeferredPassBase::GetCameraNameOverride(const int32 InCameraIndex) const
+{
+	// Custom camera name used to override ouput file name param
+	return TEXT("");
+}
+
 void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
 {
 	if (bDisableMultisampleEffects)
@@ -129,9 +150,8 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 	// Create a view state. Each individual camera, tile, and stencil layer need their own unique state as this includes visual history for anti-aliasing, etc. 
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
 	UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineHighResSetting>(CurrentShot);
-	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+	const int32 NumCameras = GetNumCamerasToRender();
 
 	int32 TotalNumberOfAccumulators = 0;
 	for (int32 CamIndex = 0; CamIndex < NumCameras; CamIndex++)
@@ -383,15 +403,12 @@ void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelin
 	// No super call here because multiple cameras makes this all complicated
 	// Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 
-	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
-	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
-
+	const int32 NumCameras = GetNumCamerasToRender();
 	for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
 	{
 		FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 		PassIdentifierForCurrentCamera.Name = PassIdentifier.Name;
-		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+		PassIdentifierForCurrentCamera.CameraName = GetCameraName(CameraIndex);
 
 		// Add the default backbuffer
 		if (bRenderMainPass)
@@ -455,15 +472,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		SurfaceQueue->BlockUntilAnyAvailable();
 	}
 
-	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
-	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
-
+	const int32 NumCameras = GetNumCamerasToRender();
 	for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
 	{
 		FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 		PassIdentifierForCurrentCamera.Name = PassIdentifier.Name;
-		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+		PassIdentifierForCurrentCamera.CameraName = GetCameraName(CameraIndex);
 
 		// Main Render Pass
 		if (bRenderMainPass)
@@ -471,6 +485,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
 			// InOutSampleState.OutputState.CameraCount = NumCameras;
 			InOutSampleState.OutputState.CameraIndex = CameraIndex;
+			InOutSampleState.OutputState.CameraNameOverride = GetCameraNameOverride(CameraIndex);
 
 			UE::MoviePipeline::FDeferredPassRenderStatePayload Payload;
 			Payload.CameraIndex = CameraIndex;
@@ -527,6 +542,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		{
 			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
 			InOutSampleState.OutputState.CameraIndex = CameraIndex;
+			InOutSampleState.OutputState.CameraNameOverride = GetCameraNameOverride(CameraIndex);
 
 			struct FStencilValues
 			{
@@ -744,8 +760,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 UE::MoviePipeline::FImagePassCameraViewData UMoviePipelineDeferredPassBase::GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload) const
 {
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
-	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+	const int32 NumCameras = GetNumCamerasToRender();
 	
 	if (NumCameras == 1)
 	{
@@ -788,8 +803,7 @@ UE::MoviePipeline::FImagePassCameraViewData UMoviePipelineDeferredPassBase::GetC
 void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload)
 {
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
-	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+	const int32 NumCameras = GetNumCamerasToRender();
 
 	UCameraComponent* OutCamera = nullptr;
 	FMinimalViewInfo OutViewInfo;

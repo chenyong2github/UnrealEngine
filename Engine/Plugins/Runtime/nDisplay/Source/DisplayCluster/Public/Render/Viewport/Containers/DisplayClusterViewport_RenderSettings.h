@@ -15,6 +15,9 @@ enum class EDisplayClusterViewportCaptureMode : uint8
 	// use hi-res float texture with alpha for compisiting
 	Lightcard,
 	Lightcard_OCIO,
+
+	// Special hi-res mode for movie pipeline
+	MoviePipeline,
 };
 
 class FDisplayClusterViewport_RenderSettings
@@ -46,6 +49,12 @@ public:
 
 	// Render alpha channel from input texture to warp output
 	bool bWarpBlendRenderAlphaChannel = false;
+
+	// Disable CustomFrustum feature from viewport settings
+	bool bDisableCustomFrustumFeature = false;
+
+	// Disable viewport overscan feature from settings
+	bool bDisableFrustumOverscanFeature = false;
 
 	// Read viewport pixels for preview (this flag is cleared at the end of the frame)
 	bool bPreviewReadPixels = false;

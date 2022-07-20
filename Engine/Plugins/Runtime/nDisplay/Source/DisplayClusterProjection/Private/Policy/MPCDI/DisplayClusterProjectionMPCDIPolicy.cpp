@@ -317,9 +317,10 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					}
 				}
 
-				if (RefViewportManagerProxy.GetLightCardManager_RenderThread().IsValid() && RefViewportManagerProxy.GetLightCardManager_RenderThread()->HasUVLightCards_RenderThread())
+				TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = RefViewportManagerProxy.GetLightCardManager_RenderThread();
+				if (LightCardManager.IsValid())
 				{
-					ShaderICVFX.UVLightCardMap = RefViewportManagerProxy.GetLightCardManager_RenderThread()->GetUVLightCardMap_RenderThread();
+					ShaderICVFX.UVLightCardMap = LightCardManager->GetUVLightCardMap_RenderThread();
 				}
 
 				// Initialize shader input data

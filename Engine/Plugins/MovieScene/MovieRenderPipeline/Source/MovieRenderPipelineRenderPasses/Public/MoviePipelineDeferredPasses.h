@@ -64,7 +64,11 @@ protected:
 	// ~FGCObject Interface
 
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
-	void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, const int32 InSortingOrder, FCanvas& InCanvas);
+	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, const int32 InSortingOrder, FCanvas& InCanvas);
+
+	virtual int32 GetNumCamerasToRender() const;
+	virtual FString GetCameraName(const int32 InCameraIndex) const;
+	virtual FString GetCameraNameOverride(const int32 InCameraIndex) const;
 
 public:
 	/**

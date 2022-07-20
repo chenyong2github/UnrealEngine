@@ -138,7 +138,7 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 	GetNonZeroFrustumRange(l, r, n);
 	GetNonZeroFrustumRange(b, t, n);
 
-	Contexts[InContextNum].ProjectionMatrix = ImplCreateProjectionMatrix(l, r, t, b, n, f);
+	Contexts[InContextNum].ProjectionMatrix = IDisplayClusterViewport::MakeProjectionMatrix(l, r, t, b, n, f);
 
 	if (OverscanRendering.UpdateProjectionAngles(l, r, t, b))
 	{
@@ -149,7 +149,7 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 			)
 		{
 			// Use overscan projection matrix
-			Contexts[InContextNum].OverscanProjectionMatrix = ImplCreateProjectionMatrix(l, r, t, b, n, f);
+			Contexts[InContextNum].OverscanProjectionMatrix = IDisplayClusterViewport::MakeProjectionMatrix(l, r, t, b, n, f);
 			return;
 		}
 	}
@@ -158,7 +158,10 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 	OverscanRendering.Disable();
 }
 
-FMatrix FDisplayClusterViewport::ImplCreateProjectionMatrix(float l, float r, float t, float b, float n, float f) const
+///////////////////////////////////////////////////////////////////////////////////////
+// IDisplayClusterViewport
+///////////////////////////////////////////////////////////////////////////////////////
+FMatrix IDisplayClusterViewport::MakeProjectionMatrix(float l, float r, float t, float b, float n, float f)
 {
 	const float mx = 2.f * n / (r - l);
 	const float my = 2.f * n / (t - b);

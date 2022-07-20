@@ -651,6 +651,9 @@ public:
 	/** The name of the currently active camera being rendered. May be empty. */
 	FString CameraName;
 
+	/** Name used by the {camera_name} format tag. May be empty */
+	FString CameraNameOverride;
+
 	/** THe name of the currently active shot. May be empty if there is no shot track. */
 	FString ShotName;
 

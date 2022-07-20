@@ -19,7 +19,7 @@ class FDisplayClusterViewportPostProcessManager;
 class FDisplayClusterRenderFrameManager;
 class FDisplayClusterRenderFrame; 
 class FDisplayClusterViewportManagerProxy;
-
+class FDisplayClusterViewportLightCardManager;
 class IDisplayClusterViewportLightCardManager;
 class IDisplayClusterProjectionPolicy;
 
@@ -51,6 +51,7 @@ public:
 	virtual bool IsSceneOpened() const override;
 
 	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr, const FDisplayClusterPreviewSettings* InPreviewSettings = nullptr) override;
+	virtual bool UpdateCustomConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const TArray<FString>& InViewportNames, class ADisplayClusterRootActor* InRootActorPtr) override;
 
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
 	virtual void FinalizeNewFrame() override;
@@ -91,7 +92,7 @@ public:
 		return TArrayView<IDisplayClusterViewport*>((IDisplayClusterViewport**)(ClusterNodeViewports.GetData()), ClusterNodeViewports.Num());
 	}
 
-	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager() const override { return LightCardManager; }
+	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager() const override;
 
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
 
@@ -140,19 +141,13 @@ private:
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
 	void ImplUpdateClusterNodeViewports(const EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
 
-	/** Called on the game thread just before a frame is rendered */
-	void PreRenderFrame();
-
-	/** Called on the game thread just after a frame is rendered */
-	void PostRenderFrame();
-
 protected:
 	friend FDisplayClusterViewportManagerProxy;
 	friend FDisplayClusterViewportConfiguration;
 
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
-	TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
+	TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
 
 public:
 	TUniquePtr<FDisplayClusterViewportConfiguration> Configuration;

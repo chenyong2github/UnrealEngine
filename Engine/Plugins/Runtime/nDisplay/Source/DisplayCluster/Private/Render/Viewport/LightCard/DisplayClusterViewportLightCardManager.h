@@ -20,6 +20,8 @@ public:
 		: Size(InSize)
 	{ }
 
+	virtual ~FDisplayClusterLightCardMap() = default;
+
 	virtual uint32 GetSizeX() const override { return Size; }
 	virtual uint32 GetSizeY() const override { return Size; }
 	virtual FIntPoint GetSizeXY() const override { return FIntPoint(Size, Size); }
@@ -39,18 +41,20 @@ public:
 	FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager);
 	virtual ~FDisplayClusterViewportLightCardManager();
 
+	void Release();
+
+public:
 	//~ Begin IDisplayClusterViewportLightCardManager interface
-	virtual void UpdateConfiguration() override;
-	virtual void ResetScene() override;
-	virtual void HandleStartScene() override;
-	virtual void HandleBeginNewFrame() override;
-	virtual void PreRenderFrame() override;
-	virtual void PostRenderFrame() override;
-	virtual FRHITexture* GetUVLightCardMap() const override { return UVLightCardMap->GetTextureRHI(); }
-	virtual FRHITexture* GetUVLightCardMap_RenderThread() const override { return UVLightCardMapProxy->GetTextureRHI(); }
-	virtual bool HasUVLightCards_RenderThread() const override { return bHasUVLightCards; }
-	virtual void RenderLightCardMap_RenderThread(FRHICommandListImmediate& RHICmdList) override;
+	virtual FRHITexture* GetUVLightCardMap_RenderThread() const override;
 	//~ End IDisplayClusterViewportLightCardManager interface
+
+public:
+	void UpdateConfiguration();
+
+	void HandleStartScene();
+	void HandleEndScene();
+
+	void RenderFrame();
 
 private:
 	/** Initializes the UV light card map texture */
@@ -69,15 +73,27 @@ private:
 	/** The list of UV light card actors that are referenced by the root actor */
 	TArray<ADisplayClusterLightCardActor*> UVLightCards;
 
-	/** A list of primitive components that have been added to the preview scene for rendering in the current frame */
-	TArray<UPrimitiveComponent*> LoadedPrimitiveComponents;
-
 	/** The render target to which the UV light card map is rendered */
 	FDisplayClusterLightCardMap* UVLightCardMap = nullptr;
 
-	/** The render thread copy of the pointer to the UV ligth card map */
-	FDisplayClusterLightCardMap* UVLightCardMapProxy = nullptr;
+	struct FProxyData
+	{
+		~FProxyData();
 
-	/** A render thread flag that indicates the light card manager has UV light cards to render */
-	bool bHasUVLightCards = false;
+		void InitializeUVLightCardMap_RenderThread(FDisplayClusterLightCardMap* InUVLightCardMap);
+		void ReleaseUVLightCardMap_RenderThread();
+
+		void RenderLightCardMap_RenderThread(FRHICommandListImmediate& RHICmdList, const bool bLoadedPrimitives, FSceneInterface* InSceneInterface);
+
+		FRHITexture* GetUVLightCardMap_RenderThread() const;
+
+	private:
+		/** The render thread copy of the pointer to the UV ligth card map */
+		FDisplayClusterLightCardMap* UVLightCardMap = nullptr;
+
+		/** A render thread flag that indicates the light card manager has UV light cards to render */
+		bool bHasUVLightCards = false;
+	};
+
+	TSharedPtr<FProxyData, ESPMode::ThreadSafe> ProxyData;
 };

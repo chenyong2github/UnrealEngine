@@ -128,8 +128,6 @@ public:
 	/// ~IDisplayClusterViewport
 	//////////////////////////////////////////////////////
 
-	FMatrix ImplCreateProjectionMatrix(float InLeft, float InRight, float InTop, float InBottom, float ZNear, float ZFar) const;
-
 #if WITH_EDITOR
 	FSceneView* ImplCalcScenePreview(class FSceneViewFamilyContext& InOutViewFamily, uint32 ContextNum);
 	bool    ImplPreview_CalculateStereoViewOffset(const uint32 InContextNum, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation);
