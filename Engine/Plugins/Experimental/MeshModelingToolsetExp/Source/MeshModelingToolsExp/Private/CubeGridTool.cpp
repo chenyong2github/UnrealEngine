@@ -2205,11 +2205,14 @@ void UCubeGridTool::UpdateCornerGeometrySet()
 {
 	using namespace CubeGridToolLocals;
 
-	FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, Selection.Direction);
 	CornersGeometrySet.Reset();
-	for (int i = 0; i < 4; ++i)
+	if (bHaveSelection)
 	{
-		CornersGeometrySet.AddPoint(i, CubeGrid->GetFrame().FromFramePoint(FrameSpaceBox.GetCorner(i)));
+		FOrientedBox3d FrameSpaceBox = ConvertToOrientedBox(Selection.Box, Selection.Direction);
+		for (int i = 0; i < 4; ++i)
+		{
+			CornersGeometrySet.AddPoint(i, CubeGrid->GetFrame().FromFramePoint(FrameSpaceBox.GetCorner(i)));
+		}
 	}
 }
 

@@ -297,7 +297,9 @@ public:
 		// Both of these boxes are in the coordinate space of the (unscaled) grid frame.
 		UE::Geometry::FAxisAlignedBox3d Box;
 		UE::Geometry::FAxisAlignedBox3d StartBox; // Box delineating original selected face
-		FCubeGrid::EFaceDirection Direction;
+		
+		// Direction must be initialized to a valid enum value (0 is not one).
+		FCubeGrid::EFaceDirection Direction = FCubeGrid::EFaceDirection::PositiveX;
 
 		bool operator==(const FSelection& Other)
 		{
