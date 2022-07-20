@@ -1770,6 +1770,9 @@ protected:
 	/** Subclasses may override this to customize channel creation. Called by GetOrCreateChannel if the pool is exhausted and a new channel must be allocated. */
 	ENGINE_API virtual UChannel* InternalCreateChannelByName(const FName& ChName);
 
+	/** Update stats related to networking. */
+	void UpdateNetworkStats();
+
 #if WITH_SERVER_CODE
 	/**
 	* Helper functions for ServerReplicateActors
