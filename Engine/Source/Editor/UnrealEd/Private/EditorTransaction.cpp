@@ -61,9 +61,19 @@ FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObjec
 	}
 	else
 	{
-		SerializedObject.SetObject(CurrentObject);
-		FWriter Writer( SerializedObject, bWantsBinarySerialization );
-		SerializeContents( Writer, Oper );
+		{
+			SerializedObject.SetObject(CurrentObject);
+			FWriter Writer(SerializedObject, bWantsBinarySerialization);
+			SerializeContents(Writer, Oper);
+		}
+
+		if (!Array)
+		{
+			DiffableObject = MakeUnique<FTransactionDiffableObject>();
+			DiffableObject->SetObject(CurrentObject);
+			UE::Transaction::FDiffableObjectDataWriter Writer(*DiffableObject);
+			SerializeObject(Writer);
+		}
 	}
 }
 
@@ -253,34 +263,46 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 	{
 		bFinalized = true;
 
+		if (CustomChange)
+		{
+			// Cannot diff custom changes
+			return;
+		}
+
 		UObject* CurrentObject = Object.Get();
 		if (CurrentObject)
 		{
-			// Serialize the object so we can diff it
-			FSerializedObject CurrentSerializedObject;
+			// Serialize the finalized object for the redo operation
+			SerializedObjectFlip.Reset();
 			{
-				CurrentSerializedObject.SetObject(CurrentObject);
-				OutFinalizedObjectAnnotation = CurrentSerializedObject.ObjectAnnotation;
-				FWriter Writer(CurrentSerializedObject, bWantsBinarySerialization);
+				SerializedObjectFlip.SetObject(CurrentObject);
+				OutFinalizedObjectAnnotation = SerializedObjectFlip.ObjectAnnotation;
+				FWriter Writer(SerializedObjectFlip, bWantsBinarySerialization);
+				SerializeObject(Writer);
+			}
+
+			// Serialize the object so we can diff it
+			FTransactionDiffableObject CurrentDiffableObject;
+			{
+				CurrentDiffableObject.SetObject(CurrentObject);
+				UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject);
 				SerializeObject(Writer);
 			}
 			
 			// Diff against the object state when the transaction started
-			Diff(Owner, SerializedObject, CurrentSerializedObject, DeltaChange);
+			UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObject, CurrentDiffableObject, DeltaChange);
 
 			// If we have a previous snapshot then we need to consider that part of the diff for the finalized object, as systems may 
 			// have been tracking delta-changes between snapshots and this finalization will need to account for those changes too
-			if (bSnapshot)
+			if (DiffableObjectSnapshot)
 			{
-				Diff(Owner, SerializedObjectSnapshot, CurrentSerializedObject, DeltaChange, /*bFullDiff*/false);
+				UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObjectSnapshot, CurrentDiffableObject, DeltaChange, /*bFullDiff*/false);
 			}
-
-			SerializedObjectFlip.Swap(CurrentSerializedObject);
 		}
 
-		// Clear out any snapshot data now as we won't be getting any more snapshot requests once finalized
-		bSnapshot = false;
-		SerializedObjectSnapshot.Reset();
+		// Clear out any diff data now as we won't be getting any more diff requests once finalized
+		DiffableObject.Reset();
+		DiffableObjectSnapshot.Reset();
 	}
 }
 
@@ -298,47 +320,51 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		return;
 	}
 
+	if (CustomChange)
+	{
+		// Cannot snapshot custom changes
+		return;
+	}
+
 	UObject* CurrentObject = Object.Get();
 	if (CurrentObject)
 	{
 		// Serialize the object so we can diff it
-		FSerializedObject CurrentSerializedObject;
+		FTransactionDiffableObject CurrentDiffableObject;
 		{
-			CurrentSerializedObject.SetObject(CurrentObject);
-			FWriter Writer(CurrentSerializedObject, bWantsBinarySerialization, Properties);
+			CurrentDiffableObject.SetObject(CurrentObject);
+			UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject, Properties);
 			// although it would be preferable to use SerializeScriptProperties, this cause a false diff between the first snapshot and the base object
 			// since they were serialized with different algo and we don't record enough context to make the comparison appropriately
 			SerializeObject(Writer);
 		}
 
 		// Diff against the correct serialized data depending on whether we already had a snapshot
-		const FSerializedObject& InitialSerializedObject = bSnapshot ? SerializedObjectSnapshot : SerializedObject;
+		const FTransactionDiffableObject& InitialDiffableObject = DiffableObjectSnapshot ? *DiffableObjectSnapshot : *DiffableObject;
 		FTransactionObjectDeltaChange SnapshotDeltaChange;
-		Diff(Owner, InitialSerializedObject, CurrentSerializedObject, SnapshotDeltaChange, /*bFullDiff*/false);
+		UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, /*bFullDiff*/false);
 
 		// Update the snapshot data for next time
-		bSnapshot = true;
-		SerializedObjectSnapshot.Swap(CurrentSerializedObject);
+		if (!DiffableObjectSnapshot)
+		{
+			DiffableObjectSnapshot = MakeUnique<FTransactionDiffableObject>();
+		}
+		DiffableObjectSnapshot->Swap(CurrentDiffableObject);
 
-		TSharedPtr<ITransactionObjectAnnotation> ChangedObjectTransactionAnnotation = SerializedObjectSnapshot.ObjectAnnotation;
+		TSharedPtr<ITransactionObjectAnnotation> ChangedObjectTransactionAnnotation = CurrentObject->FindOrCreateTransactionAnnotation();
 
 		// Notify any listeners of this change
 		if (SnapshotDeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
 		{
 			CurrentObject->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, SnapshotDeltaChange, ChangedObjectTransactionAnnotation
-				, InitialSerializedObject.ObjectPackageName
-				, InitialSerializedObject.ObjectName
-				, InitialSerializedObject.ObjectPathName
-				, InitialSerializedObject.ObjectOuterPathName
-				, InitialSerializedObject.ObjectExternalPackageName
-				, InitialSerializedObject.ObjectClassPathName));
+				, InitialDiffableObject.ObjectInfo.ObjectPackageName
+				, InitialDiffableObject.ObjectInfo.ObjectName
+				, InitialDiffableObject.ObjectInfo.ObjectPathName
+				, InitialDiffableObject.ObjectInfo.ObjectOuterPathName
+				, InitialDiffableObject.ObjectInfo.ObjectExternalPackageName
+				, InitialDiffableObject.ObjectInfo.ObjectClassPathName));
 		}
 	}
-}
-
-void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObject, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff )
-{
-	UE::Transaction::DiffUtil::GenerateObjectDiff(OldSerializedObject, NewSerializedObject, OutDeltaChange, bFullDiff);
 }
 
 int32 FTransaction::GetRecordCount() const
@@ -451,12 +477,16 @@ void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Col
 {
 	Object.AddStructReferencedObjects(Collector);
 
-	auto AddSerializedObjectReferences = [&Collector](FSerializedObject& InSerializedObject)
+	auto AddTransactionSerializedObjectReferences = [&Collector](FTransactionSerializedObject& InSerializedObject)
 	{
 		for (FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
 		{
 			ReferencedObject.AddStructReferencedObjects(Collector);
 		}
+	};
+	auto AddSerializedObjectReferences = [&Collector, &AddTransactionSerializedObjectReferences](FSerializedObject& InSerializedObject)
+	{
+		AddTransactionSerializedObjectReferences(InSerializedObject);
 
 		if (InSerializedObject.ObjectAnnotation.IsValid())
 		{
@@ -465,7 +495,14 @@ void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Col
 	};
 	AddSerializedObjectReferences(SerializedObject);
 	AddSerializedObjectReferences(SerializedObjectFlip);
-	AddSerializedObjectReferences(SerializedObjectSnapshot);
+	if (DiffableObject)
+	{
+		AddTransactionSerializedObjectReferences(DiffableObject->SerializedObject);
+	}
+	if (DiffableObjectSnapshot)
+	{
+		AddTransactionSerializedObjectReferences(DiffableObjectSnapshot->SerializedObject);
+	}
 
 	if (CustomChange.IsValid())
 	{
@@ -501,10 +538,6 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 		return true;
 	}
 	if (SerializedObjectContainPieObjects(SerializedObjectFlip))
-	{
-		return true;
-	}
-	if (SerializedObjectContainPieObjects(SerializedObjectSnapshot))
 	{
 		return true;
 	}
@@ -736,12 +769,12 @@ void FTransaction::Apply()
 		{
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
 			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, ChangedObjectTransactionAnnotation
-				, InitialSerializedObject.ObjectPackageName
-				, InitialSerializedObject.ObjectName
-				, InitialSerializedObject.ObjectPathName
-				, InitialSerializedObject.ObjectOuterPathName
-				, InitialSerializedObject.ObjectExternalPackageName
-				, InitialSerializedObject.ObjectClassPathName));
+				, InitialSerializedObject.ObjectInfo.ObjectPackageName
+				, InitialSerializedObject.ObjectInfo.ObjectName
+				, InitialSerializedObject.ObjectInfo.ObjectPathName
+				, InitialSerializedObject.ObjectInfo.ObjectOuterPathName
+				, InitialSerializedObject.ObjectInfo.ObjectExternalPackageName
+				, InitialSerializedObject.ObjectInfo.ObjectClassPathName));
 		}
 	}
 
@@ -803,12 +836,12 @@ void FTransaction::Finalize()
 			
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
 			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, DeltaChange, ChangedObjectTransactionAnnotation
-				, InitialSerializedObject.ObjectPackageName
-				, InitialSerializedObject.ObjectName
-				, InitialSerializedObject.ObjectPathName
-				, InitialSerializedObject.ObjectOuterPathName
-				, InitialSerializedObject.ObjectExternalPackageName
-				, InitialSerializedObject.ObjectClassPathName));
+				, InitialSerializedObject.ObjectInfo.ObjectPackageName
+				, InitialSerializedObject.ObjectInfo.ObjectName
+				, InitialSerializedObject.ObjectInfo.ObjectPathName
+				, InitialSerializedObject.ObjectInfo.ObjectOuterPathName
+				, InitialSerializedObject.ObjectInfo.ObjectExternalPackageName
+				, InitialSerializedObject.ObjectInfo.ObjectClassPathName));
 		}
 	}
 	ChangedObjects.Reset();
@@ -855,22 +888,17 @@ FTransactionDiff FTransaction::GenerateDiff() const
 			const FObjectRecord& ObjectRecord = Records[i];
 			if (UObject* TransactedObject = ObjectRecord.Object.Get())
 			{
-				// The last snapshot object is reset so we can only diff against the initial object for the moment.
-				FTransactionObjectDeltaChange RecordDeltaChange;
-				FObjectRecord::Diff(this, ObjectRecord.SerializedObject, ObjectRecord.SerializedObjectFlip, RecordDeltaChange);
-
-				// TODO: Add annotation
-				if (RecordDeltaChange.HasChanged())
+				if (ObjectRecord.DeltaChange.HasChanged() || ObjectRecord.SerializedObject.ObjectAnnotation)
 				{
 					// Since this transaction is not currently in an undo operation, generate a valid Guid.
 					FGuid Guid = FGuid::NewGuid();
-					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(this->GetId(), Guid, ETransactionObjectEventType::Finalized, RecordDeltaChange, ObjectRecord.SerializedObject.ObjectAnnotation
-						, ObjectRecord.SerializedObject.ObjectPackageName
-						, ObjectRecord.SerializedObject.ObjectName
-						, ObjectRecord.SerializedObject.ObjectPathName
-						, ObjectRecord.SerializedObject.ObjectOuterPathName
-						, ObjectRecord.SerializedObject.ObjectExternalPackageName
-						, ObjectRecord.SerializedObject.ObjectClassPathName));
+					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(this->GetId(), Guid, ETransactionObjectEventType::Finalized, ObjectRecord.DeltaChange, ObjectRecord.SerializedObject.ObjectAnnotation
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectPackageName
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectName
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectPathName
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectOuterPathName
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectExternalPackageName
+						, ObjectRecord.SerializedObject.ObjectInfo.ObjectClassPathName));
 				}
 			}
 		}

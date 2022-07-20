@@ -47,7 +47,7 @@ protected:
 		{
 			void SetObject(const UObject* InObject)
 			{
-				FTransactionSerializedObject::SetObject(InObject);
+				ObjectInfo.SetObject(InObject);
 				ObjectAnnotation = InObject->FindOrCreateTransactionAnnotation();
 			}
 
@@ -62,6 +62,9 @@ protected:
 				FTransactionSerializedObject::Swap(Other);
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
 			}
+
+			/** Information about the object when it was serialized */
+			FTransactionSerializedObjectInfo ObjectInfo;
 
 			/** Annotation data for the object stored externally */
 			TSharedPtr<ITransactionObjectAnnotation> ObjectAnnotation;
@@ -95,16 +98,16 @@ protected:
 		bool				bRestored = false;
 		/** True if object has been finalized and generated diff data */
 		bool				bFinalized = false;
-		/** True if object has been snapshot before */
-		bool				bSnapshot = false;
 		/** True if record should serialize data as binary blob (more compact). False to use tagged serialization (more robust) */
 		bool				bWantsBinarySerialization = true;
 		/** The serialized object data */
 		FSerializedObject	SerializedObject;
 		/** The serialized object data that will be used when the transaction is flipped */
 		FSerializedObject	SerializedObjectFlip;
-		/** The serialized object data when it was last snapshot (if bSnapshot is true) */
-		FSerializedObject	SerializedObjectSnapshot;
+		/** The diffable object data (always null once finalized) */
+		TUniquePtr<FTransactionDiffableObject> DiffableObject;
+		/** The diffable object data when it was last snapshot (always null once finalized) */
+		TUniquePtr<FTransactionDiffableObject> DiffableObjectSnapshot;
 		/** Delta change information between the state of the object when the transaction started, and the state of the object when the transaction ended */
 		FTransactionObjectDeltaChange DeltaChange;
 
@@ -126,7 +129,6 @@ protected:
 		void Load( FTransaction* Owner );
 		void Finalize( FTransaction* Owner, TSharedPtr<ITransactionObjectAnnotation>& OutFinalizedObjectAnnotation );
 		void Snapshot( FTransaction* Owner, TArrayView<const FProperty*> Properties );
-		static void Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObect, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true );
 
 		/** Used by GC to collect referenced objects. */
 		void AddReferencedObjects( FReferenceCollector& Collector );
@@ -185,24 +187,13 @@ protected:
 		public:
 			FWriter(
 				FSerializedObject& InSerializedObject,
-				bool bWantBinarySerialization,
-				TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>()
+				bool bWantBinarySerialization
 				)
 				: UE::Transaction::FSerializedObjectDataWriter(InSerializedObject)
-				, PropertiesToSerialize(InPropertiesToSerialize)
 			{
 				this->SetWantBinaryPropertySerialization(bWantBinarySerialization);
 				this->SetIsTransacting(true);
 			}
-
-			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-			{
-				return (PropertiesToSerialize.Num() > 0 && !PropertiesToSerialize.Contains(InProperty))
-					|| FArchiveUObject::ShouldSkipProperty(InProperty);
-			}
-
-		private:
-			TArrayView<const FProperty*> PropertiesToSerialize;
 		};
 	};
 

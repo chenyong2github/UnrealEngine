@@ -251,7 +251,76 @@ FSerializedObjectDataWriter::FSerializedObjectDataWriter(FTransactionSerializedO
 	}
 }
 
-FName FSerializedObjectDataWriter::GetTaggedDataKey() const
+void FSerializedObjectDataWriter::Serialize(void* SerData, int64 Num)
+{
+	if (Num)
+	{
+		int64 DataIndex = Offset;
+		SerializedObject.SerializedData.Write(SerData, Offset, Num);
+		Offset += Num;
+
+		OnDataSerialized(DataIndex, Num);
+	}
+}
+
+FArchive& FSerializedObjectDataWriter::operator<<(FName& N)
+{
+	int32 NameIndex = INDEX_NONE;
+	const int32* NameIndexPtr = NameMap.Find(N);
+	if (NameIndexPtr)
+	{
+		NameIndex = *NameIndexPtr;
+	}
+	else
+	{
+		NameIndex = SerializedObject.ReferencedNames.Add(N);
+		NameMap.Add(N, NameIndex);
+	}
+
+	OnNameSerialized(NameIndex);
+
+	return *this << NameIndex;
+}
+
+FArchive& FSerializedObjectDataWriter::operator<<(UObject*& Res)
+{
+	int32 ObjectIndex = INDEX_NONE;
+	const int32* ObjIndexPtr = ObjectMap.Find(Res);
+	if (ObjIndexPtr)
+	{
+		ObjectIndex = *ObjIndexPtr;
+	}
+	else if (Res)
+	{
+		ObjectIndex = SerializedObject.ReferencedObjects.Add(FTransactionPersistentObjectRef(Res));
+		ObjectMap.Add(Res, ObjectIndex);
+	}
+
+	OnObjectSerialized(ObjectIndex);
+
+	return *this << ObjectIndex;
+}
+
+
+FDiffableObjectDataWriter::FDiffableObjectDataWriter(FTransactionDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize)
+	: FSerializedObjectDataWriter(InDiffableObject.SerializedObject)
+	, DiffableObject(InDiffableObject)
+	, PropertiesToSerialize(InPropertiesToSerialize)
+{
+	SetWantBinaryPropertySerialization(true);
+
+	for (int32 ObjIndex = 0; ObjIndex < SerializedObject.ReferencedObjects.Num(); ++ObjIndex)
+	{
+		ObjectMap.Add(SerializedObject.ReferencedObjects[ObjIndex].Get(), ObjIndex);
+	}
+
+	for (int32 NameIndex = 0; NameIndex < SerializedObject.ReferencedNames.Num(); ++NameIndex)
+	{
+		NameMap.Add(SerializedObject.ReferencedNames[NameIndex], NameIndex);
+	}
+}
+
+FName FDiffableObjectDataWriter::GetTaggedDataKey() const
 {
 	FName TaggedDataKey;
 
@@ -292,100 +361,72 @@ FName FSerializedObjectDataWriter::GetTaggedDataKey() const
 	return TaggedDataKey;
 }
 
-bool FSerializedObjectDataWriter::DoesObjectMatchSerializedObject(const UObject* Obj) const
+bool FDiffableObjectDataWriter::DoesObjectMatchDiffableObject(const UObject* Obj) const
 {
 	FNameBuilder ObjPathName;
 	Obj->GetPathName(nullptr, ObjPathName);
-	return FName(ObjPathName) == SerializedObject.ObjectPathName;
+	return FName(ObjPathName) == DiffableObject.ObjectInfo.ObjectPathName;
 }
 
-void FSerializedObjectDataWriter::MarkScriptSerializationStart(const UObject* Obj)
+bool FDiffableObjectDataWriter::ShouldSkipProperty(const FProperty* InProperty) const
+{
+	return (PropertiesToSerialize.Num() > 0 && !PropertiesToSerialize.Contains(InProperty))
+		|| InProperty->HasAnyPropertyFlags(CPF_Transient | CPF_NonTransactional | CPF_Deprecated)
+		|| FSerializedObjectDataWriter::ShouldSkipProperty(InProperty);
+}
+
+void FDiffableObjectDataWriter::MarkScriptSerializationStart(const UObject* Obj)
 {
 	FArchiveUObject::MarkScriptSerializationStart(Obj);
 
-	if (DoesObjectMatchSerializedObject(Obj))
+	if (DoesObjectMatchDiffableObject(Obj))
 	{
 		bIsPerformingScriptSerialization = true;
 	}
 }
 
-void FSerializedObjectDataWriter::MarkScriptSerializationEnd(const UObject* Obj)
+void FDiffableObjectDataWriter::MarkScriptSerializationEnd(const UObject* Obj)
 {
 	FArchiveUObject::MarkScriptSerializationEnd(Obj);
 
-	if (DoesObjectMatchSerializedObject(Obj))
+	if (DoesObjectMatchDiffableObject(Obj))
 	{
 		bIsPerformingScriptSerialization = false;
 	}
 }
 
-void FSerializedObjectDataWriter::Serialize(void* SerData, int64 Num)
+void FDiffableObjectDataWriter::OnDataSerialized(int64 InOffset, int64 InNum)
 {
-	if (Num)
+	// Track this offset index in the serialized data
+	const FName SerializedTaggedDataKey = GetTaggedDataKey();
+	if (!SerializedTaggedDataKey.IsNone())
 	{
-		int64 DataIndex = Offset;
-		SerializedObject.SerializedData.Write(SerData, Offset, Num);
-		Offset += Num;
-
-		// Track this offset index in the serialized data
-		const FName SerializedTaggedDataKey = GetTaggedDataKey();
-		if (!SerializedTaggedDataKey.IsNone())
-		{
-			FTransactionSerializedTaggedData& SerializedTaggedData = SerializedObject.SerializedTaggedData.FindOrAdd(SerializedTaggedDataKey);
-			SerializedTaggedData.AppendSerializedData(DataIndex, Num);
-		}
+		FTransactionSerializedTaggedData& SerializedTaggedData = DiffableObject.SerializedTaggedData.FindOrAdd(SerializedTaggedDataKey);
+		SerializedTaggedData.AppendSerializedData(InOffset, InNum);
 	}
 }
 
-FArchive& FSerializedObjectDataWriter::operator<<(FName& N)
+void FDiffableObjectDataWriter::OnNameSerialized(int32 InNameIndex)
 {
-	int32 NameIndex = INDEX_NONE;
-	const int32* NameIndexPtr = NameMap.Find(N);
-	if (NameIndexPtr)
-	{
-		NameIndex = *NameIndexPtr;
-	}
-	else
-	{
-		NameIndex = SerializedObject.ReferencedNames.Add(N);
-		NameMap.Add(N, NameIndex);
-	}
-
 	// Track this name index in the serialized data
 	const FName SerializedTaggedDataKey = GetTaggedDataKey();
 	if (!SerializedTaggedDataKey.IsNone())
 	{
-		SerializedObject.SerializedNameIndices.Add(SerializedTaggedDataKey).Indices.AddUnique(NameIndex);
+		DiffableObject.SerializedNameIndices.Add(SerializedTaggedDataKey).Indices.AddUnique(InNameIndex);
 	}
-
-	return *this << NameIndex;
 }
 
-FArchive& FSerializedObjectDataWriter::operator<<(UObject*& Res)
+void FDiffableObjectDataWriter::OnObjectSerialized(int32 InObjectIndex)
 {
-	int32 ObjectIndex = INDEX_NONE;
-	const int32* ObjIndexPtr = ObjectMap.Find(Res);
-	if (ObjIndexPtr)
-	{
-		ObjectIndex = *ObjIndexPtr;
-	}
-	else if (Res)
-	{
-		ObjectIndex = SerializedObject.ReferencedObjects.Add(FTransactionPersistentObjectRef(Res));
-		ObjectMap.Add(Res, ObjectIndex);
-	}
-
 	// Track this object offset in the serialized data
 	const FName SerializedTaggedDataKey = GetTaggedDataKey();
 	if (!SerializedTaggedDataKey.IsNone())
 	{
-		SerializedObject.SerializedObjectIndices.Add(SerializedTaggedDataKey).Indices.AddUnique(ObjectIndex);
+		DiffableObject.SerializedObjectIndices.Add(SerializedTaggedDataKey).Indices.AddUnique(InObjectIndex);
 	}
-
-	return *this << ObjectIndex;
 }
 
-FName FSerializedObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSerializedPropertyChain* InPropertyChain)
+FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSerializedPropertyChain* InPropertyChain)
 {
 	if (InPropertyChain)
 	{
@@ -409,23 +450,23 @@ FName FSerializedObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveS
 namespace DiffUtil
 {
 
-void GenerateObjectDiff(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
+void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
 {
-	auto IsTaggedDataBlockIdentical = [&OldSerializedObject, &NewSerializedObject, &OutDeltaChange](const FName TaggedDataKey, const FTransactionSerializedTaggedData& OldSerializedTaggedData, const FTransactionSerializedTaggedData& NewSerializedTaggedData) -> bool
+	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FTransactionSerializedTaggedData& OldSerializedTaggedData, const FTransactionSerializedTaggedData& NewSerializedTaggedData) -> bool
 	{
 		// Binary compare the serialized data to see if something has changed for this property
 		bool bIsTaggedDataIdentical = OldSerializedTaggedData.DataSize == NewSerializedTaggedData.DataSize;
 		if (bIsTaggedDataIdentical && OldSerializedTaggedData.HasSerializedData())
 		{
-			bIsTaggedDataIdentical = FMemory::Memcmp(OldSerializedObject.SerializedData.GetPtr(OldSerializedTaggedData.DataOffset), NewSerializedObject.SerializedData.GetPtr(NewSerializedTaggedData.DataOffset), NewSerializedTaggedData.DataSize) == 0;
+			bIsTaggedDataIdentical = FMemory::Memcmp(OldDiffableObject.SerializedObject.SerializedData.GetPtr(OldSerializedTaggedData.DataOffset), NewDiffableObject.SerializedObject.SerializedData.GetPtr(NewSerializedTaggedData.DataOffset), NewSerializedTaggedData.DataSize) == 0;
 		}
 		if (bIsTaggedDataIdentical)
 		{
-			bIsTaggedDataIdentical = Internal::AreObjectPointersIdentical(OldSerializedObject, NewSerializedObject, TaggedDataKey);
+			bIsTaggedDataIdentical = Internal::AreObjectPointersIdentical(OldDiffableObject, NewDiffableObject, TaggedDataKey);
 		}
 		if (bIsTaggedDataIdentical)
 		{
-			bIsTaggedDataIdentical = Internal::AreNamesIdentical(OldSerializedObject, NewSerializedObject, TaggedDataKey);
+			bIsTaggedDataIdentical = Internal::AreNamesIdentical(OldDiffableObject, NewDiffableObject, TaggedDataKey);
 		}
 		return bIsTaggedDataIdentical;
 	};
@@ -448,20 +489,20 @@ void GenerateObjectDiff(const FTransactionSerializedObject& OldSerializedObject,
 
 	if (bFullDiff)
 	{
-		OutDeltaChange.bHasNameChange |= OldSerializedObject.ObjectName != NewSerializedObject.ObjectName;
-		OutDeltaChange.bHasOuterChange |= OldSerializedObject.ObjectOuterPathName != NewSerializedObject.ObjectOuterPathName;
-		OutDeltaChange.bHasExternalPackageChange |= OldSerializedObject.ObjectExternalPackageName != NewSerializedObject.ObjectExternalPackageName;
-		OutDeltaChange.bHasPendingKillChange |= OldSerializedObject.bIsPendingKill != NewSerializedObject.bIsPendingKill;
+		OutDeltaChange.bHasNameChange |= OldDiffableObject.ObjectInfo.ObjectName != NewDiffableObject.ObjectInfo.ObjectName;
+		OutDeltaChange.bHasOuterChange |= OldDiffableObject.ObjectInfo.ObjectOuterPathName != NewDiffableObject.ObjectInfo.ObjectOuterPathName;
+		OutDeltaChange.bHasExternalPackageChange |= OldDiffableObject.ObjectInfo.ObjectExternalPackageName != NewDiffableObject.ObjectInfo.ObjectExternalPackageName;
+		OutDeltaChange.bHasPendingKillChange |= OldDiffableObject.ObjectInfo.bIsPendingKill != NewDiffableObject.ObjectInfo.bIsPendingKill;
 	}
 
-	for (const TPair<FName, FTransactionSerializedTaggedData>& NewNamePropertyPair : NewSerializedObject.SerializedTaggedData)
+	for (const TPair<FName, FTransactionSerializedTaggedData>& NewNamePropertyPair : NewDiffableObject.SerializedTaggedData)
 	{
 		if (!ShouldCompareTaggedData(NewNamePropertyPair.Key))
 		{
 			continue;
 		}
 
-		const FTransactionSerializedTaggedData* OldSerializedTaggedData = OldSerializedObject.SerializedTaggedData.Find(NewNamePropertyPair.Key);
+		const FTransactionSerializedTaggedData* OldSerializedTaggedData = OldDiffableObject.SerializedTaggedData.Find(NewNamePropertyPair.Key);
 		if (ShouldCompareAsNonPropertyData(NewNamePropertyPair.Key))
 		{
 			if (bFullDiff && !OutDeltaChange.bHasNonPropertyChanges && (!OldSerializedTaggedData || !IsTaggedDataBlockIdentical(NewNamePropertyPair.Key, *OldSerializedTaggedData, NewNamePropertyPair.Value)))
@@ -485,9 +526,9 @@ void GenerateObjectDiff(const FTransactionSerializedObject& OldSerializedObject,
 
 	if (bFullDiff)
 	{
-		for (const TPair<FName, FTransactionSerializedTaggedData>& OldNamePropertyPair : OldSerializedObject.SerializedTaggedData)
+		for (const TPair<FName, FTransactionSerializedTaggedData>& OldNamePropertyPair : OldDiffableObject.SerializedTaggedData)
 		{
-			if (!ShouldCompareTaggedData(OldNamePropertyPair.Key) || NewSerializedObject.SerializedTaggedData.Contains(OldNamePropertyPair.Key))
+			if (!ShouldCompareTaggedData(OldNamePropertyPair.Key) || NewDiffableObject.SerializedTaggedData.Contains(OldNamePropertyPair.Key))
 			{
 				continue;
 			}
@@ -508,11 +549,11 @@ void GenerateObjectDiff(const FTransactionSerializedObject& OldSerializedObject,
 namespace Internal
 {
 
-bool AreObjectPointersIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName TaggedDataKey)
+bool AreObjectPointersIdentical(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, const FName TaggedDataKey)
 {
-	auto GetIndicesArray = [&TaggedDataKey](const FTransactionSerializedObject& SerializedObject) -> const TArray<int32>&
+	auto GetIndicesArray = [&TaggedDataKey](const FTransactionDiffableObject& DiffableObject) -> const TArray<int32>&
 	{
-		if (const FTransactionSerializedIndices* SerializedObjectIndices = SerializedObject.SerializedObjectIndices.Find(TaggedDataKey))
+		if (const FTransactionSerializedIndices* SerializedObjectIndices = DiffableObject.SerializedObjectIndices.Find(TaggedDataKey))
 		{
 			return SerializedObjectIndices->Indices;
 		}
@@ -521,24 +562,24 @@ bool AreObjectPointersIdentical(const FTransactionSerializedObject& OldSerialize
 		return EmptyIndicesArray;
 	};
 
-	const TArray<int32>& OldSerializedObjectIndices = GetIndicesArray(OldSerializedObject);
-	const TArray<int32>& NewSerializedObjectIndices = GetIndicesArray(NewSerializedObject);
+	const TArray<int32>& OldSerializedObjectIndices = GetIndicesArray(OldDiffableObject);
+	const TArray<int32>& NewSerializedObjectIndices = GetIndicesArray(NewDiffableObject);
 
 	bool bAreObjectPointersIdentical = OldSerializedObjectIndices.Num() == NewSerializedObjectIndices.Num();
 	for (int32 ObjIndex = 0; ObjIndex < OldSerializedObjectIndices.Num() && bAreObjectPointersIdentical; ++ObjIndex)
 	{
-		const FTransactionPersistentObjectRef& OldObjectRef = OldSerializedObject.ReferencedObjects.IsValidIndex(OldSerializedObjectIndices[ObjIndex]) ? OldSerializedObject.ReferencedObjects[OldSerializedObjectIndices[ObjIndex]] : FTransactionPersistentObjectRef();
-		const FTransactionPersistentObjectRef& NewObjectRef = NewSerializedObject.ReferencedObjects.IsValidIndex(NewSerializedObjectIndices[ObjIndex]) ? NewSerializedObject.ReferencedObjects[NewSerializedObjectIndices[ObjIndex]] : FTransactionPersistentObjectRef();
+		const FTransactionPersistentObjectRef& OldObjectRef = OldDiffableObject.SerializedObject.ReferencedObjects.IsValidIndex(OldSerializedObjectIndices[ObjIndex]) ? OldDiffableObject.SerializedObject.ReferencedObjects[OldSerializedObjectIndices[ObjIndex]] : FTransactionPersistentObjectRef();
+		const FTransactionPersistentObjectRef& NewObjectRef = NewDiffableObject.SerializedObject.ReferencedObjects.IsValidIndex(NewSerializedObjectIndices[ObjIndex]) ? NewDiffableObject.SerializedObject.ReferencedObjects[NewSerializedObjectIndices[ObjIndex]] : FTransactionPersistentObjectRef();
 		bAreObjectPointersIdentical = OldObjectRef == NewObjectRef;
 	}
 	return bAreObjectPointersIdentical;
 }
 
-bool AreNamesIdentical(const FTransactionSerializedObject& OldSerializedObject, const FTransactionSerializedObject& NewSerializedObject, const FName TaggedDataKey)
+bool AreNamesIdentical(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, const FName TaggedDataKey)
 {
-	auto GetIndicesArray = [&TaggedDataKey](const FTransactionSerializedObject& SerializedObject) -> const TArray<int32>&
+	auto GetIndicesArray = [&TaggedDataKey](const FTransactionDiffableObject& DiffableObject) -> const TArray<int32>&
 	{
-		if (const FTransactionSerializedIndices* SerializedNameIndices = SerializedObject.SerializedNameIndices.Find(TaggedDataKey))
+		if (const FTransactionSerializedIndices* SerializedNameIndices = DiffableObject.SerializedNameIndices.Find(TaggedDataKey))
 		{
 			return SerializedNameIndices->Indices;
 		}
@@ -547,14 +588,14 @@ bool AreNamesIdentical(const FTransactionSerializedObject& OldSerializedObject, 
 		return EmptyIndicesArray;
 	};
 
-	const TArray<int32>& OldSerializedNameIndices = GetIndicesArray(OldSerializedObject);
-	const TArray<int32>& NewSerializedNameIndices = GetIndicesArray(NewSerializedObject);
+	const TArray<int32>& OldSerializedNameIndices = GetIndicesArray(OldDiffableObject);
+	const TArray<int32>& NewSerializedNameIndices = GetIndicesArray(NewDiffableObject);
 
 	bool bAreNamesIdentical = OldSerializedNameIndices.Num() == NewSerializedNameIndices.Num();
 	for (int32 ObjIndex = 0; ObjIndex < OldSerializedNameIndices.Num() && bAreNamesIdentical; ++ObjIndex)
 	{
-		const FName& OldName = OldSerializedObject.ReferencedNames.IsValidIndex(OldSerializedNameIndices[ObjIndex]) ? OldSerializedObject.ReferencedNames[OldSerializedNameIndices[ObjIndex]] : FName();
-		const FName& NewName = NewSerializedObject.ReferencedNames.IsValidIndex(NewSerializedNameIndices[ObjIndex]) ? NewSerializedObject.ReferencedNames[NewSerializedNameIndices[ObjIndex]] : FName();
+		const FName& OldName = OldDiffableObject.SerializedObject.ReferencedNames.IsValidIndex(OldSerializedNameIndices[ObjIndex]) ? OldDiffableObject.SerializedObject.ReferencedNames[OldSerializedNameIndices[ObjIndex]] : FName();
+		const FName& NewName = NewDiffableObject.SerializedObject.ReferencedNames.IsValidIndex(NewSerializedNameIndices[ObjIndex]) ? NewDiffableObject.SerializedObject.ReferencedNames[NewSerializedNameIndices[ObjIndex]] : FName();
 		bAreNamesIdentical = OldName == NewName;
 	}
 	return bAreNamesIdentical;
