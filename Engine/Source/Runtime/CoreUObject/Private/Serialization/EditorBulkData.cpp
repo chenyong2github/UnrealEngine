@@ -857,7 +857,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				// TODO: add iostore support for editor bulkdata
 				bWriteOutPayload = false;
 			}
-			else if (EnumHasAnyFlags(UpdatedFlags, EFlags::ReferencesLegacyFile))
+			else if (IsReferencingByPackagePath(UpdatedFlags))
 			{
 				// Write out required extra data if we're saving by reference
 				if (!IsStoredInPackageTrailer(UpdatedFlags))
