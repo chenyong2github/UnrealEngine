@@ -5478,9 +5478,19 @@ void UDemoNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvi
 
 void UDemoNetDriver::SetWorld(UWorld* InWorld)
 {
+	if (World)
+	{
+		World->RemoveOnActorDestroyededHandler(DelegateHandleActorPreDestroy);
+	}
+
 	Super::SetWorld(InWorld);
 
 	ReplayHelper.World = InWorld;
+
+	if (InWorld)
+	{
+		DelegateHandleActorPreDestroy = InWorld->AddOnActorDestroyedHandler(FOnActorDestroyed::FDelegate::CreateUObject(this, &UDemoNetDriver::OnActorPreDestroy));
+	}
 }
 
 bool UDemoNetDriver::ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const

@@ -679,6 +679,11 @@ private:
 	// Diff Actor plus it's Components and Subobjects from given ActorChannel
 	void DiffActorProperties(UActorChannel* const ActorChannel);
 
+	// Callback sent just before an actor has destroy called on itself.
+	void OnActorPreDestroy(AActor* DestroyedActor);
+
+	FDelegateHandle DelegateHandleActorPreDestroy;
+
 protected:
 
 	void ProcessSeamlessTravel(int32 LevelIndex);

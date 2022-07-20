@@ -2296,9 +2296,8 @@ void FReplayHelper::RequestCheckpoint()
 	bPendingCheckpointRequest = true;
 }
 
-void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Actor)
+void FReplayHelper::OnActorPreDestroy(UNetConnection* Connection, AActor* Actor)
 {
-	check(Actor);
 	check(Connection);
 
 	// if we're recording a checkpoint, and we have not yet passed the actor recording phase
@@ -2312,7 +2311,7 @@ void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Act
 				// if this actor is in the pending checkpoint actor list and we have not already recorded it
 				if (int32* PendingIndex = CheckpointSaveContext.PendingActorToIndex.Find(Actor))
 				{
-					if (CheckpointSaveContext.PendingCheckpointActors.IsValidIndex(*PendingIndex) 
+					if (CheckpointSaveContext.PendingCheckpointActors.IsValidIndex(*PendingIndex)
 						&& (*PendingIndex >= CheckpointSaveContext.NextAmortizedItem)
 						&& (CheckpointSaveContext.PendingCheckpointActors[*PendingIndex].Actor.Get() == Actor))
 					{
@@ -2328,6 +2327,7 @@ void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Act
 						TArrayView<FPendingCheckPointActor> PendingView(CheckpointSaveContext.PendingCheckpointActors);
 						int32 ActorIndex = 0;
 
+						// Serialize the actor one last time before it gets destroyed
 						ProcessCheckpointActors(Connection, PendingView.Slice(*PendingIndex, 1), ActorIndex, Params);
 
 						// don't allow the channel index to be reused until we're done with the checkpoint
@@ -2337,6 +2337,12 @@ void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Act
 			}
 		}
 	}
+}
+
+void FReplayHelper::NotifyActorDestroyed(UNetConnection* Connection, AActor* Actor)
+{
+	check(Actor);
+	check(Connection);
 
 	const bool bNetStartup = Actor->IsNetStartupActor();
 	const bool bActorRewindable = Actor->bReplayRewindable;
