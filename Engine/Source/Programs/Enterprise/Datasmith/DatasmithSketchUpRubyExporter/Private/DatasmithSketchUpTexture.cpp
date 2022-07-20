@@ -100,7 +100,7 @@ bool FTexture::GetTextureUseAlphaChannel()
 void FTexture::WriteImageFile(FExportContext& Context, const FString& TextureFilePath)
 {
 	// Write the SketchUp texture into a file when required.
-	SUResult SResult = SResult = SUTextureWriteToFile(TextureRef, TCHAR_TO_UTF8(*TextureFilePath));
+	SUResult SResult = SUTextureWriteToFile(TextureRef, TCHAR_TO_UTF8(*TextureFilePath));
 	if (SResult == SU_ERROR_SERIALIZATION)
 	{
 		// TODO: Append an error message to the export summary.

@@ -15,6 +15,8 @@
 // SketchUp SDK.
 #include "DatasmithSketchUpSDKBegins.h"
 #include "SketchUpAPI/model/component_instance.h"
+#include <SketchUpAPI/model/image.h>
+#include <SketchUpAPI/model/image_rep.h>
 #include <SketchUpAPI/model/layer.h>
 #include "SketchUpAPI/model/model.h"
 #include "SketchUpAPI/model/texture.h"
@@ -194,7 +196,6 @@ namespace DatasmithSketchUp
 				IDatasmithMaterialExpressionGeneric* ExpressionOpacity = DatasmithMaterialElementPtr->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 				ExpressionOpacity->SetExpressionName(TEXT("OneMinus"));
 
-
 				ExpressionTexture->ConnectExpression(*ExpressionOpacity->GetInput(0), 3);
 
 				ExpressionOpacity->ConnectExpression(DatasmithMaterialElementPtr->GetOpacity());
@@ -227,6 +228,36 @@ namespace DatasmithSketchUp
 
 		// Return the Datasmith material element.
 		return DatasmithMaterialElementPtr;
+	}
+
+	void FModel::ApplyOverrideMaterialToNode(FNodeOccurence& Node, FMaterialOccurrence& Material)
+	{
+		GetDefinition()->ApplyOverrideMaterialToNode(Node, Material);
+	}
+
+	void FComponentInstance::ApplyOverrideMaterialToNode(FNodeOccurence& Node, FMaterialOccurrence& Material)
+	{
+		GetDefinition()->ApplyOverrideMaterialToNode(Node, Material);
+	}
+
+	void FDefinition::ApplyOverrideMaterialToNode(FNodeOccurence& Node, FMaterialOccurrence& Material)
+	{
+		FEntitiesGeometry& EntitiesGeometry = *GetEntities().EntitiesGeometry;
+
+		for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
+		{
+			// Update Override(Inherited)  Material
+			// todo: set inherited material only on mesh actors that have faces with default material, right now setting on every mesh, hot harmful but excessive
+			if (EntitiesGeometry.IsMeshUsingInheritedMaterial(MeshIndex))
+			{
+				const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
+
+				// SketchUp has 'material override' only for single('Default') material. 
+				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
+				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
+				MeshActor->AddMaterialOverride(Material.GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
+			}
+		}
 	}
 }
 
@@ -454,24 +485,7 @@ void FMaterialOccurrence::ApplyRegularMaterial(FMaterialIDType MaterialId)
 	// Apply material to mesh actors
 	for (FNodeOccurence* NodePtr : NodesMaterialInheritedBy)
 	{
-		FNodeOccurence& Node = *NodePtr;
-		FDefinition* EntityDefinition = Node.Entity.GetDefinition();
-		DatasmithSketchUp::FEntitiesGeometry& EntitiesGeometry = *EntityDefinition->GetEntities().EntitiesGeometry;
-
-		for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
-		{
-			// Update Override(Inherited)  Material
-			// todo: set inherited material only on mesh actors that have faces with default material, right now setting on every mesh, hot harmful but excessive
-			if (EntitiesGeometry.IsMeshUsingInheritedMaterial(MeshIndex))
-			{
-				const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
-
-				// SketchUp has 'material override' only for single('Default') material. 
-				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
-				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
-				MeshActor->AddMaterialOverride(GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
-			}
-		}
+		NodePtr->Entity.ApplyOverrideMaterialToNode(*NodePtr, *this);
 	}
 }
 
@@ -495,24 +509,7 @@ void FMaterialOccurrence::ApplyLayerMaterial(FLayerIDType LayerId)
 	// Apply material to mesh actors
 	for (FNodeOccurence* NodePtr : NodesMaterialInheritedBy)
 	{
-		FNodeOccurence& Node = *NodePtr;
-		FDefinition* EntityDefinition = Node.Entity.GetDefinition();
-		DatasmithSketchUp::FEntitiesGeometry& EntitiesGeometry = *EntityDefinition->GetEntities().EntitiesGeometry;
-
-		for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
-		{
-			// Update Override(Inherited)  Material
-			// todo: set inherited material only on mesh actors that have faces with default material, right now setting on every mesh, hot harmful but excessive
-			if (EntitiesGeometry.IsMeshUsingInheritedMaterial(MeshIndex))
-			{
-				const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
-
-				// SketchUp has 'material override' only for single('Default') material. 
-				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
-				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
-				MeshActor->AddMaterialOverride(GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
-			}
-		}
+		NodePtr->Entity.ApplyOverrideMaterialToNode(*NodePtr, *this);
 	}
 }
 
@@ -743,4 +740,193 @@ void FMaterialCollection::Update()
 	}
 
 	RegularMaterials.UpdateDefaultMaterial();
+}
+
+namespace DatasmithSketchUp
+{
+
+class FImageMaterial
+{
+public:
+
+	struct FOptions
+	{
+		bool bScaleTexture = false;
+		FVector2D TextureScale;
+		bool bUseAlphaChannel = false;
+		bool bTranslucent = false;
+	};
+
+	FImageMaterial(FExportContext& Context, FImage& Image, FImageFile& ImageFile)
+	{
+		FString NameBase = Image.GetName();
+
+		FString MaterialName = FString::Printf(TEXT("image_material_%s"), *NameBase);  
+		FString MaterialLabel = NameBase;
+
+		FString TextureName = FString::Printf(TEXT("image_texture_%s"), *NameBase);  
+
+		TextureElement = FDatasmithSceneFactory::CreateTexture(*TextureName);
+		TextureElement->SetSRGB(EDatasmithColorSpace::sRGB);
+		TextureElement->SetFile(Context.ImageFiles.GetImageFilePath(ImageFile));
+		Context.DatasmithScene->AddTexture(TextureElement);
+
+		FImageMaterial::FOptions MaterialOptions;
+		CreateMaterialElement(Context, *MaterialName, *MaterialLabel, TextureElement->GetName(), MaterialOptions);
+
+		Hash = Context.ImageFiles.GetImageFileHash(ImageFile);
+	}
+
+	void Release(FExportContext& Context)
+	{
+		if (DatasmithMaterialElement)
+		{
+			Context.DatasmithScene->RemoveMaterial(DatasmithMaterialElement);
+			DatasmithMaterialElement.Reset();
+		}
+
+		if (TextureElement)
+		{
+			Context.DatasmithScene->RemoveTexture(TextureElement);
+			TextureElement.Reset();
+		}
+	}
+
+	const TCHAR* GetMaterialElementName()
+	{
+		return DatasmithMaterialElement->GetName();
+	}
+
+	TSharedPtr<IDatasmithBaseMaterialElement> CreateMaterialElement(
+		FExportContext& Context,
+		const TCHAR* InMaterialName,
+		const TCHAR* InMaterialLabel,
+		const TCHAR* InDatasmithTextureElementName,
+		const FOptions& Options
+	)
+	{
+		// Create a Datasmith material element for the material definition.
+		DatasmithMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(InMaterialName);
+
+		// Set the material element label used in the Unreal UI.
+		FString MaterialLabel = FDatasmithUtils::SanitizeObjectName(InMaterialLabel);
+		DatasmithMaterialElement->SetLabel(*MaterialLabel);
+
+		DatasmithMaterialElement->SetTwoSided(true); // imported Image in SketchUp is displayed as two-sided with no way to controls it, so 
+
+		// todo: inspect texture to see if there's alpha. Also consider masked opacity(might be better fit for SketchUp images?)
+		bool bTranslucent = false; 
+
+		{
+			IDatasmithMaterialExpressionTexture* ExpressionTexture = DatasmithMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
+			ExpressionTexture->SetName(TEXT("Texture"));
+			ExpressionTexture->SetTexturePathName(InDatasmithTextureElementName);
+
+			// Apply texture scaling
+			if (Options.bScaleTexture && !Options.TextureScale.Equals(FVector2D::UnitVector))
+			{
+				IDatasmithMaterialExpressionFunctionCall* UVEditExpression = DatasmithMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+				UVEditExpression->SetFunctionPathName(TEXT("/DatasmithContent/Materials/UVEdit.UVEdit"));
+
+				UVEditExpression->ConnectExpression(ExpressionTexture->GetInputCoordinate());
+
+				// Tiling
+				IDatasmithMaterialExpressionColor* TilingValue = DatasmithMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				TilingValue->SetName(TEXT("UV Tiling"));
+				TilingValue->GetColor() = FLinearColor(Options.TextureScale.X, Options.TextureScale.Y, 0.f);
+
+				TilingValue->ConnectExpression(*UVEditExpression->GetInput(2));
+
+				IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinateExpression = DatasmithMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >();
+				TextureCoordinateExpression->SetCoordinateIndex(0);
+				TextureCoordinateExpression->ConnectExpression(*UVEditExpression->GetInput(0));
+			}
+
+			ExpressionTexture->ConnectExpression(DatasmithMaterialElement->GetBaseColor());
+
+			bTranslucent = Options.bTranslucent || Options.bUseAlphaChannel;
+
+			// Set the Datasmith material element opacity.
+			if (Options.bUseAlphaChannel)
+			{
+				// Invert texture translarency to get Unreal opacity
+				IDatasmithMaterialExpressionGeneric* ExpressionOpacity = DatasmithMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+				ExpressionOpacity->SetExpressionName(TEXT("OneMinus"));
+
+
+				ExpressionTexture->ConnectExpression(*ExpressionOpacity->GetInput(0), 3);
+
+				ExpressionOpacity->ConnectExpression(DatasmithMaterialElement->GetOpacity());
+			}
+		}
+
+		if (bTranslucent)
+		{
+			DatasmithMaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
+		}
+
+		Context.DatasmithScene->AddMaterial(DatasmithMaterialElement);
+
+		// Return the Datasmith material element.
+		return DatasmithMaterialElement;
+	}
+
+	TSet<FImage*> ImagesForMaterial;
+	FMD5Hash Hash;
+
+private:
+	TSharedPtr<IDatasmithUEPbrMaterialElement> DatasmithMaterialElement;
+	TSharedPtr<IDatasmithTextureElement> TextureElement;
+};
+
+}
+
+void FImageCollection::ReleaseMaterial(FImage& Image)
+{
+	if (Image.ImageMaterial)
+	{
+		Image.ImageMaterial->ImagesForMaterial.Remove(&Image);
+
+		if (Image.ImageMaterial->ImagesForMaterial.IsEmpty())
+		{
+			Image.ImageMaterial->Release(Context); //  Clean up material from the datasmith scene before deallocating
+			ImageMaterials.Remove(Image.ImageMaterial->Hash);
+		}
+
+		Image.ImageMaterial = nullptr;
+	}
+}
+
+const TCHAR* FImageCollection::AcquireMaterial(FImage& Image)
+{
+	if (!ensure(!Image.ImageMaterial))
+	{
+		ReleaseMaterial(Image);
+	}
+
+	SUImageRepRef ImageRep = SU_INVALID;
+	ensure(SU_ERROR_NONE == SUImageRepCreate(&ImageRep));
+	SUResult ImageGetImageRepResult = SUImageGetImageRep(SUImageFromEntity(Image.EntityRef), &ImageRep);
+	ensure(ImageGetImageRepResult == SU_ERROR_NONE);
+
+	TSharedPtr<FImageFile> ImageFile = Context.ImageFiles.AddImage(ImageRep, Image.GetFileName());
+	SUResult ImageRepReleaseResult = SUImageRepRelease(&ImageRep);
+	ensure(SU_ERROR_NONE == ImageRepReleaseResult);
+
+	TSharedPtr<FImageMaterial> Material;
+
+	if (TSharedPtr<FImageMaterial>* Found = ImageMaterials.Find(Context.ImageFiles.GetImageFileHash(*ImageFile)))
+	{
+		Material = (*Found);
+	}
+	else
+	{
+		Material = MakeShared<FImageMaterial>(Context, Image, *ImageFile);
+		ImageMaterials.Add(Material->Hash, Material);
+	}
+
+	Material->ImagesForMaterial.Add(&Image);
+	Image.ImageMaterial = Material.Get();
+
+	return Material->GetMaterialElementName();
 }

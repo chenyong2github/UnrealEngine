@@ -52,9 +52,16 @@ SULayerRef DatasmithSketchUpUtils::GetEffectiveLayer(
 	SULayerRef             InInheritedLayerRef
 )
 {
+	SUDrawingElementRef DrawingElementRef = SUComponentInstanceToDrawingElement(InComponentInstanceRef);
+
+	return GetEffectiveLayer(DrawingElementRef, InInheritedLayerRef);
+}
+
+SULayerRef DatasmithSketchUpUtils::GetEffectiveLayer(SUDrawingElementRef DrawingElementRef, SULayerRef InInheritedLayerRef)
+{
 	// Retrieve the SketckUp component instance layer.
 	SULayerRef SComponentInstanceLayerRef = SU_INVALID;
-	SUDrawingElementGetLayer(SUComponentInstanceToDrawingElement(InComponentInstanceRef), &SComponentInstanceLayerRef); // we can ignore the returned SU_RESULT
+	SUDrawingElementGetLayer(DrawingElementRef, &SComponentInstanceLayerRef); // we can ignore the returned SU_RESULT
 
 	// Retrieve the SketchUp component instance layer name.
 	FString SComponentInstanceLayerName;
@@ -63,6 +70,8 @@ SULayerRef DatasmithSketchUpUtils::GetEffectiveLayer(
 	// Return the effective layer.
 	return SComponentInstanceLayerName.Equals(TEXT("Layer0")) ? InInheritedLayerRef : SComponentInstanceLayerRef;
 }
+
+
 
 FComponentDefinitionIDType DatasmithSketchUpUtils::GetComponentID(
 	SUComponentDefinitionRef InComponentDefinitionRef
@@ -84,8 +93,6 @@ FComponentInstanceIDType DatasmithSketchUpUtils::GetGroupID(
 {
 	return GetEntityID(SUGroupToEntity(InGroupRef));
 }
-
-
 
 int64 DatasmithSketchUpUtils::GetComponentPID(
 	SUComponentInstanceRef InComponentInstanceRef

@@ -29,6 +29,8 @@
 #include "SketchUpAPI/model/camera.h"
 #include "SketchUpAPI/model/component_definition.h"
 #include "SketchUpAPI/model/component_instance.h"
+#include <SketchUpAPI/model/image.h>
+
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/model.h"
 #include <SketchUpAPI/model/rendering_options.h>
@@ -51,6 +53,8 @@ FExportContext::FExportContext()
 	, Scenes(*this)
 	, Textures(*this)
 	, Layers(*this)
+	, Images(*this)
+	, ImageFiles(*this)
 {
 }
 
@@ -94,7 +98,7 @@ void FExportContext::Populate()
 	Scenes.PopulateFromModel(ModelRef);
 	ComponentDefinitions.PopulateFromModel(ModelRef);
 
-	RootNode->ToDatasmith(*this);
+	ModelDefinition->ParseNode(*this, *RootNode); // Create node hierarchy
 }
 
 // ColorByLayer(or ColorByTag) changes material display on every entity by useinf either regular materials or colors(materials) set up for layers
@@ -168,7 +172,8 @@ bool FExportContext::Update(bool bModifiedHint)
 
 	// Invalidate occurrences for changed instances first
 	Model->UpdateEntityProperties(*this);
-	ComponentInstances.UpdateProperties(); 
+	ComponentInstances.UpdateProperties();
+	Images.UpdateProperties();
 
 	// Update occurrences visibility(before updating meshes to make sure to skip updating unused meshes)
 	RootNode->UpdateVisibility(*this);
@@ -176,6 +181,7 @@ bool FExportContext::Update(bool bModifiedHint)
 	// Update Datasmith Meshes after their usage was refreshed(in visibility update) and before node hierarchy update(where Mesh Actors are updated for meshes)
 	ModelDefinition->UpdateDefinition(*this);
 	ComponentDefinitions.Update();
+	Images.Update();
 
 	// ComponentInstances will invalidate occurrences 
 	Model->UpdateEntityGeometry(*this);
@@ -240,6 +246,59 @@ void FComponentDefinitionCollection::Update()
 		TSharedPtr<FComponentDefinition> Definition = IdValue.Value;
 		Definition->UpdateDefinition(Context);
 	}
+}
+
+void FImageCollection::Update()
+{
+	for (const auto& IdValue : Images)
+	{
+		IdValue.Value->Update(Context);
+	}
+}
+
+void FImageCollection::UpdateProperties()
+{
+	for (const auto& IdValue : Images)
+	{
+		IdValue.Value->UpdateEntityProperties(Context);
+	}
+}
+
+bool FImageCollection::InvalidateImage(const FEntityIDType& EntityID)
+{
+	if (TSharedPtr<FImage>* Found = Images.Find(EntityID))
+	{
+		(*Found)->InvalidateImage();
+		return true;
+	}
+	return false;
+}
+
+bool FImageCollection::RemoveImage(FComponentInstanceIDType ParentEntityId, FEntityIDType ImageId)
+{
+	TSharedPtr<FImage>* Found = Images.Find(ImageId);
+	if (!Found)
+	{
+		return false;
+	}
+	const TSharedPtr<FImage>& Image = *Found;
+
+	FDefinition* ParentDefinition =  Context.GetDefinition(ParentEntityId);
+
+	// Remove ComponentInstance for good only if incoming ParentDefinition is current Instance's parent. 
+	//
+	// Details:
+	// ComponentInstance which removal is notified could have been relocated to another Definition 
+	// This happens when Make Group is done - first new Group is added, containing existing ComponentInstance
+	// And only after that event about removal from previous owning Definition is received
+	if (Image->IsParentDefinition(ParentDefinition))
+	{
+		Image->RemoveImage(Context);
+		Images.Remove(ImageId);
+	}
+
+	return true;
+
 }
 
 void FSceneCollection::PopulateFromModel(SUModelRef InModelRef)
@@ -402,6 +461,26 @@ TSharedPtr<FComponentDefinition>* FComponentDefinitionCollection::FindComponentD
 	return ComponentDefinitionMap.Find(ComponentDefinitionID);
 }
 
+TSharedPtr<FImage> FImageCollection::AddImage(FDefinition& ParentDefinition, const SUImageRef& ImageRef)
+{
+	FEntityIDType ImageId = DatasmithSketchUpUtils::GetEntityID(SUImageToEntity(ImageRef));
+
+	TSharedPtr<FImage> Image;
+	if (TSharedPtr<FImage>* Found = Images.Find(ImageId))
+	{
+		Image = *Found; 
+	}
+	else
+	{
+		Image = MakeShared<FImage>(ImageRef);
+		Images.Add(ImageId, Image);
+	}
+
+	Image->SetParentDefinition(Context, &ParentDefinition);
+
+	return Image;
+}
+
 void FEntitiesObjectCollection::RegisterEntities(DatasmithSketchUp::FEntities& Entities)
 {
 	for (int32 FaceId : Entities.EntitiesGeometry->FaceIds)
@@ -436,11 +515,13 @@ void FEntitiesObjectCollection::UnregisterEntities(DatasmithSketchUp::FEntities&
 	}
 }
 
+
 TSharedPtr<FEntities> FEntitiesObjectCollection::AddEntities(FDefinition& InDefinition, SUEntitiesRef EntitiesRef)
 {
 	TSharedPtr<FEntities> Entities = MakeShared<FEntities>(InDefinition);
 
 	Entities->EntitiesRef = EntitiesRef;
+
 	return Entities;
 }
 

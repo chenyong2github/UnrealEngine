@@ -372,6 +372,11 @@ public:
 			return true;
 		}
 
+		if (Context.Images.RemoveImage(ParentEntityId, EntityId))
+		{
+			return true;
+		}
+
 		// Try Material
 		// Doesn't seem like material removal event ever comes through properly
 		// MaterialsObserver::onMaterialRemove simply has deleted material entity(meaning there's not way to retrieve correct reference/id for it) 
@@ -402,6 +407,11 @@ public:
 		}
 
 		if (Context.Materials.RegularMaterials.InvalidateMaterial(EntityId))
+		{
+			return true;
+		}
+
+		if (Context.Images.InvalidateImage(EntityId))
 		{
 			return true;
 		}
@@ -483,6 +493,16 @@ public:
 
 			break;
 		}
+		case SURefType_Image:
+		{
+			DatasmithSketchUp::FDefinition* DefinitionPtr = Context.GetDefinition(EntityParent);
+			if (ensure(DefinitionPtr)) // Parent definition expected to already exist when new entity being added
+			{
+				DefinitionPtr->AddImage(Context, Context.Images.AddImage(*DefinitionPtr, SUImageFromEntity(Entity)));
+			}
+
+			break;
+		}
 		case SURefType_Face:
 		{
 			Context.GetDefinition(EntityParent)->InvalidateDefinitionGeometry();
@@ -513,6 +533,7 @@ public:
 		Context.EntitiesObjects.LayerModified(LayerId);
 		Context.Layers.UpdateLayer(SULayerFromEntity(Entity));
 		Context.Materials.LayerMaterials.UpdateLayer(SULayerFromEntity(Entity));
+		Context.Images.LayerModified(LayerId);
 
 		return true;
 	}
@@ -738,8 +759,6 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, V
 	Check_Type(ruby_entity_id, T_FIXNUM);
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
-
-	;
 
 	return Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }

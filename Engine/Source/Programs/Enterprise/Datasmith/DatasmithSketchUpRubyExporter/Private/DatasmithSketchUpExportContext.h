@@ -50,6 +50,9 @@ namespace DatasmithSketchUp
 	class FModelDefinition;
 	class FTexture;
 	class FTextureImageFile;
+	class FImage;
+	class FImageFile;
+	class FImageMaterial;
 
 	class FComponentInstanceCollection
 	{
@@ -99,6 +102,28 @@ namespace DatasmithSketchUp
 		FExportContext& Context;
 	};
 
+	class FImageCollection
+	{
+	public:
+		FImageCollection(FExportContext& InContext) : Context(InContext) {}
+
+		TSharedPtr<FImage> AddImage(FDefinition& ParentDefinition, const SUImageRef& ImageRef);
+		void Update();
+		bool InvalidateImage(const FEntityIDType& EntityID);
+		bool RemoveImage(FComponentInstanceIDType ParentEntityId, FEntityIDType ImageId);
+		void UpdateProperties();
+		void ReleaseMaterial(FImage& Image);
+		const TCHAR* AcquireMaterial(FImage& Image);
+		void LayerModified(FEntityIDType LayerId);
+
+	private:
+		FExportContext& Context;
+
+		TMap<FEntityIDType, TSharedPtr<FImage>> Images;
+
+		TMap<FMD5Hash, TSharedPtr<FImageMaterial>> ImageMaterials;  // One material for same images(even for different entities - their appearance onlly depends in the image content)
+	};
+
 	class FTextureCollection
 	{
 	public:
@@ -129,6 +154,23 @@ namespace DatasmithSketchUp
 		TMap<FString, TSharedPtr<FTextureImageFile>> TextureNameToImageFile; // texture handlers representing same texture
 
 		TMap<FMD5Hash,  TSharedPtr<FTextureImageFile>> Images; // set of images using the same name in SketchUp materials
+	};
+
+	// Holds all image files that are exported
+	class FImageFileCollection
+	{
+	public:
+		FImageFileCollection(FExportContext& Context): Context(Context) {}
+
+		TSharedPtr<FImageFile> AddImage(SUImageRepRef ImageRep, FString FileName);
+
+		const TCHAR* GetImageFilePath(FImageFile&);
+		FMD5Hash GetImageFileHash(FImageFile&);
+
+	private:
+		FExportContext& Context;
+		TMap<FMD5Hash, TSharedPtr<FImageFile>> ImageFiles;
+
 	};
 
 	class FEntitiesObjectCollection
@@ -318,6 +360,8 @@ namespace DatasmithSketchUp
 		FSceneCollection Scenes;
 		FTextureCollection Textures;
 		FLayerCollection Layers;
+		FImageCollection Images;
+		FImageFileCollection ImageFiles;
 
 		bool bColorByLayer = false;
 		bool bColorByLayerInvaliated = true;

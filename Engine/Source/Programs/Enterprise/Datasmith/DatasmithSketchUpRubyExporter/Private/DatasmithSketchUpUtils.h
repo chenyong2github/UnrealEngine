@@ -78,6 +78,7 @@ namespace DatasmithSketchUpUtils
 		SUComponentInstanceRef InSComponentInstanceRef, // valid SketckUp component instance
 		SULayerRef             InSInheritedLayerRef     // SketchUp inherited layer
 	);
+	SULayerRef GetEffectiveLayer(SUDrawingElementRef DrawingElementRef, SULayerRef InInheritedLayerRef);
 
 	// Return whether or not a SketckUp component instance is visible in the current SketchUp scene.
 	bool IsVisible(

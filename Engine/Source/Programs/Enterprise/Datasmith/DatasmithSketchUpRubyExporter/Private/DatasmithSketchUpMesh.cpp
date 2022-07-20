@@ -20,13 +20,16 @@
 #include "SketchUpAPI/model/face.h"
 #include "SketchUpAPI/model/entities.h"
 #include "SketchUpAPI/model/entity.h"
+#include "SketchUpAPI/model/image.h"
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/mesh_helper.h"
 #include "SketchUpAPI/model/uv_helper.h"
 #include "SketchUpAPI/geometry/point3d.h"
+#include <SketchUpAPI/geometry/transformation.h>
 #include "DatasmithSketchUpSDKCeases.h"
 
 // Datasmith SDK.
+
 #include "DatasmithMesh.h"
 #include "DatasmithMeshExporter.h"
 #include "DatasmithSceneExporter.h"
@@ -385,6 +388,107 @@ namespace DatasmithSketchUp
 
 }
 
+namespace DatasmithSketchUp
+{
+	// Parses SU Image entity geometry
+	class FImageParser
+	{
+	public:
+		FImageParser(SUEntityRef InEntityRef): EntityRef(InEntityRef)
+		{
+		}
+
+		int32 ImageId = 0;
+		FLayerIDType LayerId;
+
+		void Parse(FExportContext& Context, FDatasmithSketchUpMesh& ExtractedMesh)
+		{
+			SUEntityGetID(EntityRef, &ImageId);
+
+			// Record every face's layer(even for invisible faces!). When face layer visibility changes 
+			// this geometry needs to be rebuilt
+			SULayerRef LayerRef = SU_INVALID;
+			SUImageRef ImageRef = SUImageFromEntity(EntityRef);
+			SUDrawingElementGetLayer(SUImageToDrawingElement(ImageRef), &LayerRef);
+			LayerId = DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef));
+
+			bool bHidden = false;
+			SUDrawingElementGetHidden(SUImageToDrawingElement(ImageRef), &bHidden);
+
+			if (!bHidden && Context.Layers.IsLayerVisible(LayerRef))
+			{
+				TArray<SUPoint3D>& MeshVertexPoints = ExtractedMesh.MeshVertexPoints;
+				TArray<SUVector3D>& MeshVertexNormals = ExtractedMesh.MeshVertexNormals;
+				TArray<SUUVQ>& MeshVertexUVQs = ExtractedMesh.MeshVertexUVQs;
+				TArray<SMeshTriangleIndices>& MeshTriangleIndices = ExtractedMesh.MeshTriangleIndices;
+				TArray<int32>& MeshTriangleSlotIds = ExtractedMesh.MeshTriangleSlotIds;
+
+				// Get the SketchUp triangle mesh vertex offset into the combined mesh vertex vector.
+				int32 MeshVertexIndexOffset = MeshVertexPoints.Num();
+
+				const int32 VertexPointCount = 4;
+				const int32 VertexNormalCount = 4;
+				const int32 TriangleCount = 2;
+				const int32 TriangleVertexIndexCount = 6;
+
+				MeshVertexNormals.Reserve(MeshVertexNormals.Num() + VertexNormalCount);
+				MeshVertexUVQs.Reserve(MeshVertexUVQs.Num() + VertexPointCount);
+				MeshTriangleIndices.Reserve(MeshTriangleIndices.Num() + TriangleVertexIndexCount);
+
+				SUVector3D Normal{0, 0, 1}; // todo: fix
+
+				double WidthInch = 0;
+				double HeightInch = 0;
+				if (SUImageGetDimensions(ImageRef, &WidthInch, &HeightInch) != SU_ERROR_NONE)
+				{
+					return;
+				}
+
+				for (size_t VertexPointIndex = 0; VertexPointIndex < VertexPointCount; VertexPointIndex++)
+				{
+
+					MeshVertexNormals.Add(Normal);
+
+					double X = (VertexPointIndex % 2);
+					double Y = (VertexPointIndex / 2);
+
+					// Put 1 in Q as we divide later by it
+					MeshVertexUVQs.Add(SUUVQ{X, Y, 1});
+					MeshVertexPoints.Add(SUPoint3D{X * WidthInch, Y * HeightInch, 0});
+				}
+
+				const size_t TriangleVertexIndices[TriangleVertexIndexCount] = 
+				{
+					0, 1, 2,
+					3, 2, 1
+				};
+
+				// Combine the mesh front-facing triangle vertex indices.
+				for (size_t Index = 0; Index < TriangleVertexIndexCount;)
+				{
+					size_t IndexA = MeshVertexIndexOffset + TriangleVertexIndices[Index++];
+					size_t IndexB = MeshVertexIndexOffset + TriangleVertexIndices[Index++];
+					size_t IndexC = MeshVertexIndexOffset + TriangleVertexIndices[Index++];
+
+					SMeshTriangleIndices TriangleIndices = { IndexA, IndexB, IndexC };
+
+					MeshTriangleIndices.Add(TriangleIndices);
+				}
+
+				MeshTriangleSlotIds.Reserve(MeshTriangleSlotIds.Num() + TriangleCount);
+					
+				for(int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
+				{
+					MeshTriangleSlotIds.Add(0);
+				}
+			}
+		}
+
+		SUEntityRef EntityRef;
+	};
+}
+
+
 bool FEntitiesGeometry::IsMeshUsingInheritedMaterial(int32 MeshIndex)
 {
 	return Meshes[MeshIndex]->bIsUsingInheritedMaterial;
@@ -495,7 +599,8 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 					FDatasmithMesh DatasmithMesh;
 					ExtractedMeshPtr->ConvertMeshToDatasmith(Context, Transform, DatasmithMesh);
 
-					FGCScopeGuard GCGuard; // Prevent GC from running while UDatasmithMesh is created in ExportToUObject. 
+					FGCScopeGuard GCGuard; // Prevent GC from running while UDatasmithMesh is created in ExportToUObject.
+
 					return DatasmithMeshExporter.ExportToUObject(Mesh->DatasmithMesh, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
 				}
 			));
@@ -559,6 +664,18 @@ TArray<SUComponentInstanceRef> FEntities::GetComponentInstances()
 	return MoveTemp(SComponentInstances);
 }
 
+TArray<SUImageRef> FEntities::GetImages()
+{
+	size_t ImageCount = 0;
+	SUEntitiesGetNumImages(EntitiesRef, &ImageCount);
+
+	TArray<SUImageRef> ImageRefs;
+	ImageRefs.Init(SU_INVALID, ImageCount);
+	SUEntitiesGetImages(EntitiesRef, ImageCount, ImageRefs.GetData(), &ImageCount);
+	ImageRefs.SetNum(ImageCount);
+
+	return MoveTemp(ImageRefs);
+}
 
 void ScanSketchUpEntitiesFaces(FExportContext& Context, SUEntitiesRef EntitiesRef, FEntitiesGeometry& Geometry, TFunctionRef<void(TSharedPtr<FDatasmithSketchUpMesh> ExtractedMesh)> OnNewExtractedMesh)
 {
@@ -732,3 +849,31 @@ void CombineSketchUpEntitiesFaces(FExportContext& Context, SUEntitiesRef Entitie
 
 	OnNewExtractedMesh(ExtractedMeshPtr);
 }
+
+
+void FImage::UpdateGeometry(FExportContext& Context)
+{
+	FImageParser ImageParser(EntityRef);
+	FDatasmithSketchUpMesh ExtractedMesh;
+	ImageParser.Parse(Context, ExtractedMesh);
+
+	FDatasmithMeshExporter DatasmithMeshExporter;
+	FDatasmithMesh DatasmithMesh;
+
+	SUTransformation Transform;
+	SUTransformationScale(&Transform, 1.0);
+
+	ExtractedMesh.ConvertMeshToDatasmith(Context, Transform, DatasmithMesh);
+
+	DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(TEXT(""));
+
+	DatasmithMeshElement->SetName(GetMeshElementName());
+	DatasmithMeshElement->SetLabel(*GetName());
+
+	FGCScopeGuard GCGuard; // Prevent GC from running while UDatasmithMesh is created in ExportToUObject. 
+	bool bResult = DatasmithMeshExporter.ExportToUObject(DatasmithMeshElement, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
+
+	// todo: something like AddMeshesToDatasmithScene
+	Context.DatasmithScene->AddMesh(DatasmithMeshElement);
+}
+
