@@ -296,16 +296,57 @@ public:
  */
 struct FGeometryCollectionClusterRep
 {
+	struct FClusterState
+	{
+		static constexpr uint8 StateMask = 0b111;
+		static constexpr uint8 StateOffset = 0;
+		static constexpr uint8 InternalClusterMask = 0b1;
+		static constexpr uint8 InternalClusterOffset = 3;
+
+		void SetMaskedValue(uint8 Val, uint8 Mask, uint8 Offset)
+		{
+			Value &= ~Mask;
+			Value |= ((Val & Mask) << Offset);
+		}
+		
+		uint8 GetMaskedValue(uint8 Mask, uint8 Offset) const
+		{
+			return (Value >> Offset) & Mask;
+		}
+		
+		void SetObjectState(Chaos::EObjectStateType State)
+		{
+			SetMaskedValue((uint8)State, StateMask, StateOffset);
+		}
+
+		void SetInternalCluster(bool bInternalCluster)
+		{
+			SetMaskedValue(bInternalCluster?1:0, InternalClusterMask, InternalClusterOffset);
+		}
+		
+		Chaos::EObjectStateType GetObjectState()
+		{
+			return (Chaos::EObjectStateType)GetMaskedValue(StateMask, StateOffset);
+		}
+
+		bool IsInternalCluster() const
+		{
+			return (bool)GetMaskedValue(InternalClusterMask, InternalClusterOffset);
+		}
+		
+		uint8 Value = 0;
+	};
+	
 	FVector_NetQuantize100 Position;
 	FVector_NetQuantize100 LinearVelocity;
 	FVector_NetQuantize100 AngularVelocity;
 	FQuat Rotation;
-	uint16 ClusterIdx;
-	int8 ObjectState;
+	uint16 ClusterIdx;		  // index of the cluster or one of its child if the cluster is internal ( see ClusterState)
+	FClusterState ClusterState;
 
 	bool ClusterChanged(const FGeometryCollectionClusterRep& Other) const
 	{
-		return Other.ObjectState != ObjectState
+		return Other.ClusterState.Value != ClusterState.Value
 			|| Other.ClusterIdx != ClusterIdx
 			|| Other.Position != Position
 			|| Other.LinearVelocity != LinearVelocity
