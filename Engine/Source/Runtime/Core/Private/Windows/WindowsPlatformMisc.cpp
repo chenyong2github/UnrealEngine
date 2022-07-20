@@ -682,6 +682,11 @@ void FWindowsPlatformMisc::SetGracefulTerminationHandler()
 #endif // !UE_BUILD_SHIPPING && PLATFORM_CPU_X86_FAMILY
 }
 
+void FWindowsPlatformMisc::CallGracefulTerminationHandler()
+{
+	ConsoleCtrlHandler(CTRL_CLOSE_EVENT);
+}
+
 static ECrashHandlingType GCrashHandlingType; /* = ECrashHandlingType::Default */
 
 ECrashHandlingType FWindowsPlatformMisc::GetCrashHandlingType()

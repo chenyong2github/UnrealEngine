@@ -4,6 +4,7 @@
 #include "Windows/WindowsApplication.h"
 #include "Windows/WindowsApplicationErrorOutputDevice.h"
 #include "Windows/WindowsConsoleOutputDevice.h"
+#include "Windows/WindowsConsoleOutputDevice2.h"
 #include "Windows/WindowsFeedbackContext.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "Misc/App.h"
@@ -51,7 +52,10 @@ void FWindowsPlatformApplicationMisc::LoadStartupModules()
 class FOutputDeviceConsole* FWindowsPlatformApplicationMisc::CreateConsoleOutputDevice()
 {
 	// this is a slightly different kind of singleton that gives ownership to the caller and should not be called more than once
-	return new FWindowsConsoleOutputDevice();
+	if (FParse::Param(FCommandLine::Get(), TEXT("NewConsole")))
+		return new FWindowsConsoleOutputDevice2();
+	else
+		return new FWindowsConsoleOutputDevice();
 }
 
 class FOutputDeviceError* FWindowsPlatformApplicationMisc::GetErrorOutputDevice()
