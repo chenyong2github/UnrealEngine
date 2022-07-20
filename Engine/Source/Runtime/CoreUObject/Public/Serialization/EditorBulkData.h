@@ -341,22 +341,24 @@ private:
 		DisablePayloadCompression	= 1 << 4,
 		/** The legacy file being referenced derived its key from guid and it should be replaced with a key-from-hash when saved */
 		LegacyKeyWasGuidDerived		= 1 << 5,
-		/** The Guid has been registered with the BulkDataRegistry */
+		/** (Transient) The Guid has been registered with the BulkDataRegistry */
 		HasRegistered				= 1 << 6,
-		/** The BulkData object is a copy used only to represent the id and payload; it does not communicate with the BulkDataRegistry, and will point DDC jobs toward the original BulkData */
+		/** (Transient) The BulkData object is a copy used only to represent the id and payload; it does not communicate with the BulkDataRegistry, and will point DDC jobs toward the original BulkData */
 		IsTornOff					= 1 << 7,
 		/** The bulkdata object references a payload stored in a WorkspaceDomain file  */
 		ReferencesWorkspaceDomain	= 1 << 8,
 		/** The payload is stored in a package trailer, so the bulkdata object will have to poll the trailer to find the payload offset */
 		StoredInPackageTrailer		= 1 << 9,
 		/** The bulkdata object was cooked. */
-		IsCooked					= 1 << 10
+		IsCooked					= 1 << 10,
+		/** (Transient) The package owning the bulkdata has been detached from disk and we can no longer load from it */
+		WasDetached					= 1 << 11
 	};
 
 	FRIEND_ENUM_CLASS_FLAGS(EFlags);
 
 	/** A common grouping of EFlags */
-	static constexpr EFlags TransientFlags = EFlags((uint32)EFlags::HasRegistered | (uint32)EFlags::IsTornOff);
+	static constexpr EFlags TransientFlags = EFlags((uint32)EFlags::HasRegistered | (uint32)EFlags::IsTornOff | (uint32)EFlags::WasDetached);
 
 	/** Used to control what level of error reporting we return from some methods */
 	enum ErrorVerbosity
@@ -388,6 +390,7 @@ private:
 	FCompressedBuffer PullData() const;
 
 	bool CanUnloadData() const;
+	bool CanLoadDataFromDisk() const;
 
 	void UpdateKeyIfNeeded();
 
@@ -446,10 +449,10 @@ private:
 	}
 
 	/** 
-	 * Returns true when the bulkdata has an attachment to it's package file on disk, meaning that it is safe for us to load
-	 * the payload from the file directly as we know where the payload is on disk 
+	 * Returns true when the bulkdata has an attachment to it's package file on disk, if the bulkdata later becomes detached
+	 * then EFlag::WasDetached will be set.
 	 */
-	bool IsAttachedToPackageFile() const
+	bool HasAttachedArchive() const
 	{
 		return AttachedAr != nullptr;
 	}

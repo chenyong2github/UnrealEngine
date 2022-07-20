@@ -443,7 +443,7 @@ FEditorBulkData& FEditorBulkData::operator=(const FEditorBulkData& Other)
 
 FEditorBulkData::~FEditorBulkData()
 {
-	if (IsAttachedToPackageFile())
+	if (HasAttachedArchive())
 	{
 		AttachedAr->DetachBulkData(this, false);
 		AttachedAr = nullptr;
@@ -666,9 +666,9 @@ void FEditorBulkData::CreateFromBulkData(FBulkData& InBulkData, const FGuid& InG
 	Reset();
 
 #if UE_ALLOW_LINKERLOADER_ATTACHMENT
-	check(!IsAttachedToPackageFile());
+	check(!HasAttachedArchive());
 	AttachedAr = InBulkData.AttachedAr;
-	if (IsAttachedToPackageFile())
+	if (HasAttachedArchive())
 	{
 		AttachedAr->AttachBulkData(this);
 	}
@@ -1025,7 +1025,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				if (!PackagePath.IsEmpty() && CacheableArchive != nullptr)
 				{
 #if UE_ALLOW_LINKERLOADER_ATTACHMENT
-					if (IsAttachedToPackageFile())
+					if (HasAttachedArchive())
 					{
 						// TODO: Remove this when doing UE-159339
 						AttachedAr->DetachBulkData(this, false);
@@ -1128,7 +1128,7 @@ FCompressedBuffer FEditorBulkData::LoadFromDisk() const
 	{
 		return LoadFromSidecarFile();
 	}
-	else if (!IsAttachedToPackageFile())
+	else if (!CanLoadDataFromDisk())
 	{
 		if (IsReferencingOldBulkData())
 		{
@@ -1476,7 +1476,12 @@ bool FEditorBulkData::CanUnloadData() const
 	// the payload from disk via ::LoadFromPackageTrailer but we are not guaranteed success
 	// because the package file may have changed to one without the payload in it at all.
 	// Due to this we do not allow the payload to be unloaded if we are detached.
-	return IsDataVirtualized() || (!PackagePath.IsEmpty() && IsAttachedToPackageFile());
+	return IsDataVirtualized() || CanLoadDataFromDisk();
+}
+
+bool FEditorBulkData::CanLoadDataFromDisk() const
+{
+	return !PackagePath.IsEmpty() && !EnumHasAnyFlags(Flags, EFlags::WasDetached);
 }
 
 bool FEditorBulkData::IsMemoryOnlyPayload() const
@@ -1489,7 +1494,7 @@ void FEditorBulkData::Reset()
 	// Unregister rather than allowing the Registry to keep our record, since we are changing the payload
 	Unregister();
 	// Note that we do not reset the BulkDataId
-	if (IsAttachedToPackageFile())
+	if (HasAttachedArchive())
 	{
 		AttachedAr->DetachBulkData(this, false);
 		AttachedAr = nullptr;
@@ -1518,7 +1523,7 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::DetachFromDisk);
 
 	check(Ar != nullptr);
-	check(Ar == AttachedAr || !IsAttachedToPackageFile() || AttachedAr->IsProxyOf(Ar));
+	check(Ar == AttachedAr || HasAttachedArchive() == false || AttachedAr->IsProxyOf(Ar));
 
 	// If bEnsurePayloadIsLoaded is true, then we should assume that a change to the 
 	// package file is imminent and we should load the payload into memory if possible.
@@ -1555,6 +1560,8 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 	}
 
 	AttachedAr = nullptr;	
+
+	EnumAddFlags(Flags, EFlags::WasDetached);
 }
 
 FGuid FEditorBulkData::GetIdentifier() const
@@ -1704,7 +1711,7 @@ void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InP
 	// Unregister before calling DetachBulkData; DetachFromDisk calls OnExitMemory which is incorrect since
 	// we are changing data rather than leaving memory
 	Unregister();
-	if (IsAttachedToPackageFile())
+	if (HasAttachedArchive())
 	{
 		AttachedAr->DetachBulkData(this, false);
 		AttachedAr = nullptr;
