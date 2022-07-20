@@ -147,6 +147,11 @@ TAutoConsoleVariable<int32> CVarLandscapeValidateProxyWeightmapUsages(
 	1,
 	TEXT("This will validate that weightmap usages in landscape proxies and their components don't get desynchronized with the landscape component layer allocations."));
 
+TAutoConsoleVariable<int32> CVarLandscapeRemoveEmptyPaintLayersOnEdit(
+	TEXT("landscape.RemoveEmptyPaintLayersOnEdit"),
+	1,
+	TEXT("This will analyze weightmaps on readback and remove unneeded allocations (for unpainted layers)."));
+
 void OnLandscapeEditLayersLocalMergeChanged(IConsoleVariable* CVar)
 {
 	for (TObjectIterator<UWorld> It; It; ++It)
@@ -2518,8 +2523,10 @@ struct FLandscapeEditLayerComponentReadbackResult
 	uint32 UpdateModes = 0;
 	/** Were the associated heightmap/weightmaps modified. */
 	bool bModified = false;
+	/** Indicates which of the component's weightmaps is not needed anymore. */
+	TArray<ULandscapeLayerInfoObject*> AllZeroLayers;
 
-	FLandscapeEditLayerComponentReadbackResult(ULandscapeComponent* InLandscapeComponent, uint32 InUpdateModes)
+	FLandscapeEditLayerComponentReadbackResult(ULandscapeComponent* InLandscapeComponent, uint32 InUpdateModes = 0)
 		: LandscapeComponent(InLandscapeComponent)
 		, UpdateModes(InUpdateModes)
 	{}
@@ -2567,7 +2574,25 @@ TArray<FLandscapeLayersCopyReadbackTextureParams> PrepareLandscapeLayersCopyRead
 		{
 			const FIntPoint ComponentToResolveKey = ComponentToResolve->GetSectionBase() / ComponentToResolve->ComponentSizeQuads;
 			const int32 ComponentToResolveFlags = ComponentToResolve->GetLayerUpdateFlagPerMode();
-			CopyReadbackTextureParams.Context.Add(FLandscapeEditLayerReadback::FComponentReadbackContext(ComponentToResolveKey, ComponentToResolveFlags));
+			FLandscapeEditLayerReadback::FPerChannelLayerNames PerChannelLayerNames;
+
+			// Weightmaps could be reallocated randomly before we actually perform the readback, so we need to keep a picture of which channel was affected to which paint layer at readback time:
+			if (bWeightmaps)
+			{
+				const TArray<UTexture2D*>& WeightmapTextures = ComponentToResolve->GetWeightmapTextures(/*InReturnEditingWeightmap = */false);
+				for (FWeightmapLayerAllocationInfo const& AllocInfo : ComponentToResolve->GetWeightmapLayerAllocations(/*InReturnEditingWeightmap = */false))
+				{
+					if (AllocInfo.IsAllocated())
+					{
+						UTexture2D* PaintLayerTexture = WeightmapTextures[AllocInfo.WeightmapTextureIndex];
+						if (PaintLayerTexture == Texture)
+						{
+							PerChannelLayerNames[AllocInfo.WeightmapTextureChannel] = AllocInfo.LayerInfo->LayerName;
+						}
+					}
+				}
+			}
+			CopyReadbackTextureParams.Context.Add(FLandscapeEditLayerReadback::FComponentReadbackContext { ComponentToResolveKey, ComponentToResolveFlags, PerChannelLayerNames });
 		}
 	}
 
@@ -3347,7 +3372,7 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 	{
 		return false;
 	}
-	
+
 	// Only keep the textures that are still valid:
 	TSet<UTexture2D*> StreamingInTexturesBefore;
 	StreamingInTexturesBefore.Reserve(TrackedStreamingInTextures.Num());	
@@ -5231,11 +5256,31 @@ bool ALandscape::ResolveLayersTexture(
 			}
 		}
 
+		// Find out whether some channels from this weightmap are now all zeros : 
+		static constexpr uint32 AllChannelsAllZerosMask = 15;
+		uint32 AllZerosTextureChannelMask = AllChannelsAllZerosMask;
+		const bool bCheckForEmptyChannels = CVarLandscapeRemoveEmptyPaintLayersOnEdit.GetValueOnGameThread() != 0;
+		if (bIsWeightmap && bCheckForEmptyChannels)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_AnalyzeWeightmap);
+			const FColor* TextureData = reinterpret_cast<const FColor*>(InOutputTexture->Source.LockMipReadOnly(0));
+			const int32 TexSize = OutMipsData[0].Num();
+			// We can stop iterating as soon as all of the channels are non-zero :
+			for (int32 Index = 0; (Index < TexSize) && (AllZerosTextureChannelMask != 0); ++Index)
+			{
+				AllZerosTextureChannelMask &= (((TextureData[Index].R == 0) ? 1 : 0) << 0)
+					| (((TextureData[Index].G == 0) ? 1 : 0) << 1)
+					| (((TextureData[Index].B == 0) ? 1 : 0) << 2)
+					| (((TextureData[Index].A == 0) ? 1 : 0) << 3);
+			}
+			InOutputTexture->Source.UnlockMip(0);
+		}
+
 		// Process component flags from all result contexts.
 		for (int32 ResultIndex = 0; ResultIndex < CompletedReadbackNum; ++ResultIndex)
 		{
-			FLandscapeEditLayerReadback::FReadbackContext const& ResultContext = InCPUReadback->GetResultContext(ResultIndex);
-			for (auto ComponentContext : ResultContext)
+			const FLandscapeEditLayerReadback::FReadbackContext& ResultContext = InCPUReadback->GetResultContext(ResultIndex);
+			for (const FLandscapeEditLayerReadback::FComponentReadbackContext& ComponentContext : ResultContext)
 			{
 				ULandscapeComponent** Component = GetLandscapeInfo()->XYtoComponentMap.Find(ComponentContext.ComponentKey);
 				if (Component != nullptr && *Component != nullptr)
@@ -5248,6 +5293,43 @@ bool ALandscape::ResolveLayersTexture(
 					ComponentReadbackResult->UpdateModes |= ComponentContext.UpdateModes;
 					ComponentReadbackResult->bModified |= bChanged ? 1 : 0;
 				}
+			}
+		}
+
+		// We need to find the weightmap layers that are effectively empty in order to let the component clean them up eventually :
+		if (bIsWeightmap && bCheckForEmptyChannels && (AllZerosTextureChannelMask != 0))
+		{
+			// Only use the latest readback context, since it's the only one we've actually read back : 
+			const FLandscapeEditLayerReadback::FReadbackContext& EffectiveResultContext = InCPUReadback->GetResultContext(CompletedReadbackNum - 1);
+			while (AllZerosTextureChannelMask != 0)
+			{
+				int32 AllZerosTextureChannelIndex = NumBitsPerDWORD - 1 - FMath::CountLeadingZeros(AllZerosTextureChannelMask);
+				for (const FLandscapeEditLayerReadback::FComponentReadbackContext& ComponentContext : EffectiveResultContext)
+				{
+					FName AllZerosLayerInfoName = ComponentContext.PerChannelLayerNames[AllZerosTextureChannelIndex];
+					ULandscapeComponent** Component = GetLandscapeInfo()->XYtoComponentMap.Find(ComponentContext.ComponentKey);
+					if (Component != nullptr && *Component != nullptr)
+					{
+						const TArray<FWeightmapLayerAllocationInfo>& WeightmapLayerAllocations = (*Component)->GetWeightmapLayerAllocations();
+						const TArray<UTexture2D*>& WeightmapTextures = (*Component)->GetWeightmapTextures();
+						for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : WeightmapLayerAllocations)
+						{
+							if (WeightmapLayerAllocation.IsAllocated())
+							{
+								UTexture2D* Texture = WeightmapTextures[WeightmapLayerAllocation.WeightmapTextureIndex];
+								if ((Texture == InOutputTexture) && (AllZerosLayerInfoName == WeightmapLayerAllocation.LayerInfo->LayerName))
+								{
+									FLandscapeEditLayerComponentReadbackResult* ComponentReadbackResult = InOutComponentReadbackResults.FindByPredicate([LandscapeComponent = *Component](const FLandscapeEditLayerComponentReadbackResult& Element) { return Element.LandscapeComponent == LandscapeComponent; });
+									check(ComponentReadbackResult != nullptr);
+
+									// Mark this layer info within this component as being all-zero :
+									ComponentReadbackResult->AllZeroLayers.AddUnique(WeightmapLayerAllocation.LayerInfo);
+								}
+							}
+						}
+					}
+				}
+				AllZerosTextureChannelMask &= ~((uint32)1 << AllZerosTextureChannelIndex);
 			}
 		}
 
@@ -6786,11 +6868,12 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 							PrintLayersDebugRT(FString::Printf(TEXT("LS Weight: %s %s -> Brush %s"), *Layer.Name.ToString(), *LandscapeBrush->GetName(), *BrushOutputRT->GetName()), BrushOutputRT);
 
 							// Copy result back if brush did not edit things in place.
+
+							// Resolve back to Combined heightmap (it's unlikely, but possible that the brush returns the same RT as input and output, if it did various operations on it, in which case the copy is useless) :
 							if (BrushOutputRT != LandscapeScratchRT3)
 							{
 								SourceDebugName = FString::Printf(TEXT("Weight: %s PaintLayer: %s Brush: %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *BrushOutputRT->GetName());
 								DestDebugName = LandscapeScratchRT3->GetName();
-
 								ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams(SourceDebugName, BrushOutputRT->GameThread_GetRenderTargetResource(), DestDebugName, LandscapeScratchRT3->GameThread_GetRenderTargetResource()) });
 								PrintLayersDebugRT(FString::Printf(TEXT("LS Weight: %s Component %s += -> Combined %s"), *Layer.Name.ToString(), *BrushOutputRT->GetName(), *LandscapeScratchRT3->GetName()), LandscapeScratchRT3);
 							}
@@ -7077,6 +7160,25 @@ void ALandscape::UpdateForChangedWeightmaps(const TArrayView<FLandscapeEditLayer
 			ComponentReadbackResult.LandscapeComponent->SetPendingLayerCollisionDataUpdate(true);
 		}
 
+		// If this component has a layer with only zeros, remove it so that we don't end up with weightmaps we don't end up using :
+		if (!ComponentReadbackResult.AllZeroLayers.IsEmpty())
+		{
+			const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = ComponentReadbackResult.LandscapeComponent->GetWeightmapLayerAllocations(FGuid());
+			for (ULandscapeLayerInfoObject* AllZeroLayerInfo : ComponentReadbackResult.AllZeroLayers)
+			{
+				check(AllZeroLayerInfo != nullptr);
+				// Find the index for this layer in this component.
+				int32 AllZeroLayerIndex = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
+					[AllZeroLayerInfo](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == AllZeroLayerInfo; });
+				check(AllZeroLayerIndex != INDEX_NONE);
+
+				ComponentReadbackResult.LandscapeComponent->DeleteLayerAllocation(FGuid(), AllZeroLayerIndex, /*bShouldDirtyPackage = */true);
+
+				// We removed a weightmap allocation so the material instance for this landscape component needs updating :
+				ComponentsNeedingMaterialInstanceUpdates.Add(ComponentReadbackResult.LandscapeComponent);
+			}
+		}
+
 		const int32 WeightUpdateMode = ComponentReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
 		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision, WeightUpdateMode))
 		{
@@ -7088,6 +7190,8 @@ void ALandscape::UpdateForChangedWeightmaps(const TArrayView<FLandscapeEditLayer
 			}
 		}
 	}
+
+	UpdateLayersMaterialInstances(ComponentsNeedingMaterialInstanceUpdates);
 }
 
 void ULandscapeComponent::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const

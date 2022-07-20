@@ -2139,6 +2139,54 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 	}
 }
 
+void ULandscapeComponent::DeleteLayerAllocation(const FGuid& InEditLayerGuid, int32 InLayerIdx, bool bInShouldDirtyPackage)
+{
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid);
+	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InEditLayerGuid);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InEditLayerGuid);
+	const FWeightmapLayerAllocationInfo& LayerAllocation = ComponentWeightmapLayerAllocations[InLayerIdx];
+	const int32 DeleteLayerWeightmapTextureIndex = LayerAllocation.WeightmapTextureIndex;
+
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	Modify(bInShouldDirtyPackage);
+	Proxy->Modify(bInShouldDirtyPackage);
+
+	// Mark the channel as unallocated, so we can reuse it later
+	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerWeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex] : nullptr;
+	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
+	{
+		Usage->ChannelUsage[LayerAllocation.WeightmapTextureChannel] = nullptr;
+	}
+
+	// Remove the layer:
+	ComponentWeightmapLayerAllocations.RemoveAt(InLayerIdx);
+
+	// Check if the weightmap texture used by the layer we just removed is used by any other layer, and if so, remove the texture too
+	bool bCanRemoveLayerTexture = !ComponentWeightmapLayerAllocations.ContainsByPredicate([DeleteLayerWeightmapTextureIndex](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.WeightmapTextureIndex == DeleteLayerWeightmapTextureIndex; });
+	if (bCanRemoveLayerTexture)
+	{
+		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
+		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
+		if (Usage)
+		{
+			ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
+		}
+
+		// Adjust WeightmapTextureChannel index for other layers
+		for (FWeightmapLayerAllocationInfo& Allocation : ComponentWeightmapLayerAllocations)
+		{
+			if (Allocation.WeightmapTextureIndex > DeleteLayerWeightmapTextureIndex)
+			{
+				Allocation.WeightmapTextureIndex--;
+			}
+
+			check(Allocation.WeightmapTextureIndex < ComponentWeightmapTextures.Num());
+		}
+	}
+
+	Proxy->ValidateProxyLayersWeightmapUsage();
+}
+
 #endif // WITH_EDITOR
 
 void ALandscapeProxy::PostRegisterAllComponents()

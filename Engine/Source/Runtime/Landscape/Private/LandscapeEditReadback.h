@@ -27,6 +27,8 @@ public:
 	/** Get the stored hash value. */
 	uint32 GetHash() const { return Hash; }
 
+	using FPerChannelLayerNames = TStaticArray<FName, 4>;
+
 	/** Per component context required for processing read back results. */
 	struct FComponentReadbackContext
 	{
@@ -34,11 +36,8 @@ public:
 		FIntPoint ComponentKey;
 		/** Component ELandscapeLayerUpdateMode flags. */
 		int32 UpdateModes = 0;
-
-		FComponentReadbackContext(FIntPoint InComponentKey, int32 InUpdateModes)
-			: ComponentKey(InComponentKey)
-			, UpdateModes(InUpdateModes)
-		{}
+		/** For weightmaps only : configuration of the channels for this component and texture when the readback was performed (useful in case the channel configuration changed before we could perform the readback) */
+		FPerChannelLayerNames PerChannelLayerNames;
 	};
 	/** Full context for processing read back results. */
 	using FReadbackContext = TArray<FComponentReadbackContext>;

@@ -1586,9 +1586,9 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeComponent_DeleteLayer);
 
 	ULandscapeComponent* Component = this;
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage(true);
+	FGuid EditLayerGuid = Component->GetEditingLayerGUID();
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(EditLayerGuid);
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(EditLayerGuid);
 
 	// Find the index for this layer in this component.
 	const int32 DeleteLayerIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
@@ -1599,22 +1599,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 		return;
 	}
 
-	FWeightmapLayerAllocationInfo& DeleteLayerAllocation = ComponentWeightmapLayerAllocations[DeleteLayerIdx];
-	int32 DeleteLayerWeightmapTextureIndex = DeleteLayerAllocation.WeightmapTextureIndex;
-
-	// See if we'll be able to remove the texture completely.
-	bool bCanRemoveLayerTexture = true;
-	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
-	{
-		FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-
-		// check if we will be able to remove the texture also
-		if (LayerIdx != DeleteLayerIdx && Allocation.WeightmapTextureIndex == DeleteLayerWeightmapTextureIndex)
-		{
-			bCanRemoveLayerTexture = false;
-			break;
-		}
-	}
+	Component->DeleteLayerAllocation(EditLayerGuid, DeleteLayerIdx, LandscapeEdit.GetShouldDirtyPackage());
 
 	// See if the deleted layer is a NoWeightBlend layer - if not, we don't have to worry about normalization
 	bool bDeleteLayerIsNoWeightBlend = (LayerInfo && LayerInfo->bNoWeightBlend);
@@ -1634,7 +1619,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 		// Get the data for each layer
 		for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 		{
-			FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
+			const FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
 			LayerDataPtrs.Add((uint8*)TexDataInfos[Allocation.WeightmapTextureIndex]->GetMipData(0) + ChannelOffsets[Allocation.WeightmapTextureChannel]);
 
 			// Find the layer info and record if it is a bNoWeightBlend layer.
@@ -1704,12 +1689,6 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 		// Update all the textures and mips
 		for (int32 Idx = 0; Idx < ComponentWeightmapTextures.Num(); Idx++)
 		{
-			if (bCanRemoveLayerTexture && Idx == DeleteLayerWeightmapTextureIndex)
-			{
-				// We're going to remove this texture anyway, so don't bother updating
-				continue;
-			}
-
 			UTexture2D* WeightmapTexture = ComponentWeightmapTextures[Idx];
 			FLandscapeTextureDataInfo* WeightmapDataInfo = TexDataInfos[Idx];
 
@@ -1724,49 +1703,6 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 			ULandscapeComponent::UpdateWeightmapMips(Component->NumSubsections, Component->SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, 0, 0, MAX_int32, MAX_int32, WeightmapDataInfo);
 
 			WeightmapDataInfo->AddMipUpdateRegion(0, 0, 0, WeightmapTexture->Source.GetSizeX() - 1, WeightmapTexture->Source.GetSizeY() - 1);
-		}
-	}
-
-	// Mark the channel as unallocated, so we can reuse it later
-	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-	Component->Modify(LandscapeEdit.GetShouldDirtyPackage());
-	Proxy->Modify(LandscapeEdit.GetShouldDirtyPackage());
-
-	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerAllocation.WeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerAllocation.WeightmapTextureIndex] : nullptr;
-	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
-	{
-		Usage->ChannelUsage[DeleteLayerAllocation.WeightmapTextureChannel] = nullptr;
-	}
-
-	// Remove the layer
-	ComponentWeightmapLayerAllocations.RemoveAt(DeleteLayerIdx);
-
-	// If this layer was the last usage for this channel in this layer, we can remove it.
-	if (bCanRemoveLayerTexture)
-	{
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->SetFlags(RF_Transactional);
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->Modify(LandscapeEdit.GetShouldDirtyPackage());
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
-
-		// possible that usages have not been built yet
-		if (ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerWeightmapTextureIndex))
-		{
-			ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
-		}
-
-		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
-
-		// Adjust WeightmapTextureIndex index for other layers
-		for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
-		{
-			FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-
-			if (Allocation.WeightmapTextureIndex > DeleteLayerWeightmapTextureIndex)
-			{
-				Allocation.WeightmapTextureIndex--;
-			}
-
-			check(Allocation.WeightmapTextureIndex < ComponentWeightmapTextures.Num());
 		}
 	}
 
@@ -1805,8 +1741,6 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 			LocalCollisionComponent->RecreateCollision();
 		}
 	}
-
-	Proxy->ValidateProxyLayersWeightmapUsage();
 }
 
 void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo)
@@ -2500,42 +2434,7 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 		}
 	}
 
-	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
-	Component->Modify(bShouldDirtyPackage);
-	Proxy->Modify(bShouldDirtyPackage);
-
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage(true);
-
-	// Mark the channel as unallocated, so we can reuse it later
-	const int32 DeleteLayerWeightmapTextureIndex = ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex;
-	ULandscapeWeightmapUsage& Usage = *ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex];
-	Usage.ChannelUsage[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
-
-	// Remove the layer as it's totally painted away.
-	ComponentWeightmapLayerAllocations.RemoveAt(LayerIdx);
-
-	// Check if the weightmap texture used by the layer we just removed is used by any other layer, and if so, remove the texture too
-	bool bCanRemoveLayerTexture = !ComponentWeightmapLayerAllocations.ContainsByPredicate([DeleteLayerWeightmapTextureIndex](const FWeightmapLayerAllocationInfo& Allocation){ return Allocation.WeightmapTextureIndex == DeleteLayerWeightmapTextureIndex; });
-	if (bCanRemoveLayerTexture)
-	{
-		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
-		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
-		ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
-
-		// Adjust WeightmapTextureChannel index for other layers
-		for (auto It = ComponentWeightmapLayerAllocations.CreateIterator(); It; ++It)
-		{
-			FWeightmapLayerAllocationInfo& Allocation = *It;
-			if (Allocation.WeightmapTextureIndex > DeleteLayerWeightmapTextureIndex)
-			{
-				Allocation.WeightmapTextureIndex--;
-			}
-		}
-	}
-
-	Component->GetLandscapeProxy()->ValidateProxyLayersWeightmapUsage();
+	Component->DeleteLayerAllocation(Component->GetEditingLayerGUID(), LayerIdx, bShouldDirtyPackage);
 
 	return true;
 }
