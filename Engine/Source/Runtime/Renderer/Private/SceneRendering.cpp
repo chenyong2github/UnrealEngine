@@ -4180,8 +4180,6 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 		for (FSceneRenderer* SceneRenderer : SceneRenderers)
 		{
 			SceneRenderer->GPUSceneDynamicContext.Release();
-			SceneRenderer->MeshCollector.DeleteTemporaryProxies();
-			SceneRenderer->RayTracingCollector.DeleteTemporaryProxies();
 		}
 
 		// Mem stack mark is stored on first scene renderer
@@ -4220,6 +4218,15 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 				{
 					FTaskGraphInterface::Get().WaitUntilTasksComplete(SetupTasks, ENamedThreads::GetRenderThread_Local());
 				}
+			}
+
+			// The temporary proxies would normally be deleted by the scene renderer destructors, but this needs to happen on the render thread, so
+			// we will do it now, before destroying the renderers on a background thread. It's important to do this after the above wait, since the
+			// setup tasks use these temporary proxies.
+			for (FSceneRenderer* SceneRenderer : SceneRenderers)
+			{
+				SceneRenderer->MeshCollector.DeleteTemporaryProxies();
+				SceneRenderer->RayTracingCollector.DeleteTemporaryProxies();
 			}
 
 			FGraphEventArray CommandListTasks = MoveTemp(RHICmdList.GetRenderThreadTaskArray());
