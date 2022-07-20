@@ -460,5 +460,3 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
     TArray<TObjectPtr<const UInputAction>> CancelActions;
 };
-
-//} // EnhancedInput
