@@ -87,6 +87,9 @@ public:
 	virtual int64 GetCustomSortValueSecondary() const { return 0; }
 	virtual int64 GetCustomSortValueTertiary() const { return 0; }
 
+	/** Populate list with sort values in order of priority */
+	virtual void PopulateSortParameterList(TArray<int64>& OutSortParams) const;
+
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
 

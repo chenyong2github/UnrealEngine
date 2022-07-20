@@ -1442,4 +1442,15 @@ FString USocialUser::SanitizePresenceString(FString InString) const
 	return InString;
 }
 
+void USocialUser::PopulateSortParameterList(TArray<int64>& OutSortParams) const
+{
+	const int32 TotalSortParams = 3;
+	OutSortParams.Reset(TotalSortParams);
+
+	// Parameters are prioritized by the first member added to the list being the highest priority
+	OutSortParams.Add(GetCustomSortValuePrimary());
+	OutSortParams.Add(GetCustomSortValueSecondary());
+	OutSortParams.Add(GetCustomSortValueTertiary());
+}
+
 #undef LOCTEXT_NAMESPACE
