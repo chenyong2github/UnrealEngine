@@ -1011,6 +1011,15 @@ void UWorld::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+#if WITH_EDITOR
+	// Make sure we catch worlds that where initialized through UEditorEngine::OnAssetLoaded/OnAssetCreated
+	// (This can happen if World was loaded, then its RF_Standalone flag was removed and a GC happened) 
+	if (WorldType == EWorldType::Inactive && IsInitializedAndNeedsCleanup())
+	{
+		CleanupWorld();
+	}
+#endif
+
 	for (FLevelCollection& LevelCollection : LevelCollections)
 	{
 		TSet<TObjectPtr<ULevel>> CollectionLevels = LevelCollection.GetLevels();
