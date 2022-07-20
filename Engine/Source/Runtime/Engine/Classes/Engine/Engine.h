@@ -1316,11 +1316,19 @@ public:
 
 	/** Tiled blue-noise texture */
 	UPROPERTY()
-	TObjectPtr<class UTexture2D> BlueNoiseTexture;
+	TObjectPtr<class UTexture2D> BlueNoiseScalarTexture;
+
+	/** Spatial-temporal blue noise texture with two channel output */
+	UPROPERTY()
+	TObjectPtr<class UTexture2D> BlueNoiseVec2Texture;
 
 	/** Path of the tiled blue-noise texture */
 	UPROPERTY(globalconfig)
-	FSoftObjectPath BlueNoiseTextureName;
+	FSoftObjectPath BlueNoiseScalarTextureName;
+
+	/** Path of the tiled blue-noise texture */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath BlueNoiseVec2TextureName;
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()

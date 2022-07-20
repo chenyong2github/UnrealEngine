@@ -279,7 +279,7 @@ float2 GenerateRandom(uint2 InReflectionTracingCoord)
 {
 #define BLUE_NOISE_LUT 1
 #if BLUE_NOISE_LUT
-	float2 E = EvalBlueNoise(InReflectionTracingCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+	float2 E = BlueNoiseVec2(InReflectionTracingCoord, RAY_DIRECTION_TEMPORAL_INDEX);
 #else
 	uint2 RandomSeed = Rand3DPCG16(int3(InReflectionTracingCoord, RAY_DIRECTION_TEMPORAL_INDEX % 8)).xy;
 	float2 E = Hammersley16(0, 1, RandomSeed);

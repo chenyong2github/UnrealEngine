@@ -43,7 +43,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
-		uint2 Seed0 = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
+		//uint2 Seed0 = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 		float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 		float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
@@ -55,7 +55,9 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		UNROLL
 		for (uint PixelRayIndex = 0; PixelRayIndex < NumPixelSamples; PixelRayIndex++)
 		{
-			float2 UniformRandom = Hammersley16(PixelRayIndex, NumPixelSamples, Seed0);
+			//float2 UniformRandom = Hammersley16(PixelRayIndex, NumPixelSamples, Seed0);
+			float2 UniformRandom = BlueNoiseVec2(Coord.SvPosition, (RAY_DIRECTION_TEMPORAL_INDEX * NumPixelSamples + PixelRayIndex));
+
 			//@todo - other shading models
 			float4 HemisphereSample = CosineSampleHemisphere(UniformRandom);
 			float3 RayDirection = mul(HemisphereSample.xyz, TangentBasis);

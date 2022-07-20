@@ -1050,9 +1050,10 @@ void ScreenProbeIntegrateCS(
 			{
 				//@todo - expose fade distance
 				float EffectiveJitterWidth = FullResolutionJitterWidth * lerp(1.0f, .5f, saturate((Material.SceneDepth - 500.0f) / 500.0f));
-				uint2 RandomSeed = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
-				float2 ScreenTileJitterE = Hammersley16(0, 1, RandomSeed);
-				//float2 ScreenTileJitterE = EvalBlueNoise(Coord.SvPosition % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+				//uint2 RandomSeed = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
+				//float2 ScreenTileJitterE = Hammersley16(0, 1, RandomSeed);
+				float2 ScreenTileJitterE = BlueNoiseVec2(Coord.SvPosition, RAY_DIRECTION_TEMPORAL_INDEX);
+
 				float2 JitterNoiseOffset = (ScreenTileJitterE * 2 - 1) * ScreenProbeDownsampleFactor * EffectiveJitterWidth;
 
 				float2 JitteredScreenUV = (clamp(Coord.SvPosition + JitterNoiseOffset, View.ViewRectMin.xy, View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1.0f)) * View.BufferSizeAndInvSize.zw;
@@ -1092,7 +1093,8 @@ void ScreenProbeIntegrateCS(
 			#if STOCHASTIC_PROBE_INTERPOLATION
 			{
 				// Pick a single best sample in a stochastic manner
-				float RandomValue = InterleavedGradientNoise(Coord.SvPosition, GENERAL_TEMPORAL_INDEX);
+				//float RandomValue = InterleavedGradientNoise(Coord.SvPosition, GENERAL_TEMPORAL_INDEX);
+				float RandomValue = min(BlueNoiseScalar(Coord.SvPosition, RAY_DIRECTION_TEMPORAL_INDEX), .99f);
 
 				float WeightSum = dot(ScreenProbeSample.Weights, 1.0f);
 				RandomValue *= WeightSum;

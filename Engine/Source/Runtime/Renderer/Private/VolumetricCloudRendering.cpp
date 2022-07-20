@@ -585,7 +585,7 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRDGBuilder& GraphBuilder
 	// Light0Shadow
 	VolumetricCloudParams.VirtualShadowMapId0 = INDEX_NONE;
 /*#if RHI_RAYTRACING
-	InitializeBlueNoise(VolumetricCloudParams.BlueNoise);
+	VolumetricCloudParams.BlueNoise = GetBlueNoiseParameters();
 #else
 	// Blue noise texture is undified for some configuration so replace by other noise for now.
 	VolumetricCloudParams.BlueNoise.Dimensions = FIntVector(16, 16, 4); // 16 is the size of the tile, so 4 dimension for the 64x64 HighFrequencyNoiseTexture.

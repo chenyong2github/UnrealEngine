@@ -3237,9 +3237,14 @@ void UEngine::LoadDefaultBloomTexture()
 
 void UEngine::LoadBlueNoiseTexture()
 {
-	if (BlueNoiseTexture == nullptr)
+	if (BlueNoiseScalarTexture == nullptr)
 	{
-		LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
+		LoadEngineTexture(BlueNoiseScalarTexture, *BlueNoiseScalarTextureName.ToString());
+	}
+
+	if (BlueNoiseVec2Texture == nullptr)
+	{
+		LoadEngineTexture(BlueNoiseVec2Texture, *BlueNoiseVec2TextureName.ToString());
 	}
 }
 
