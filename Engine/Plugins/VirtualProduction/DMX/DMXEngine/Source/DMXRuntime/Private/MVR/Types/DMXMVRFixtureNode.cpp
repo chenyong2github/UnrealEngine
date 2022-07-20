@@ -391,7 +391,7 @@ void FDMXMVRFixtureAddresses::CreateXmlNodeInParent(FXmlNode& ParentNode) const
 	constexpr TCHAR Tag[] = TEXT("Address");
 	const FString Content = FString::FromInt(AbsoluteChannel);
 
-	constexpr TCHAR BreakAttributeName[] = TEXT("rotation");
+	constexpr TCHAR BreakAttributeName[] = TEXT("break");
 	constexpr TCHAR BreakAttributeValue[] = TEXT("0");
 	const TArray<FXmlAttribute> Attributes =
 	{
