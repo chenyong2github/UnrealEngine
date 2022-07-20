@@ -165,7 +165,7 @@ namespace LevelViewportClickHandlers
 					const bool bAllowSelectionModifiers = bIsLeftClickSelection && LevelEditorElementSelectionSet->AllowSelectionModifiers(ResolvedElement);
 					if (Click.IsControlDown() && bAllowSelectionModifiers)
 					{
-						if (LevelEditorElementSelectionSet->IsElementSelected(ResolvedElement, FTypedElementIsSelectedOptions()))
+						if (LevelEditorElementSelectionSet->IsElementSelected(ResolvedElement, FTypedElementIsSelectedOptions().SetAllowIndirect(true)))
 						{
 							LevelEditorElementSelectionSet->DeselectElement(ResolvedElement, SelectionOptions);
 						}

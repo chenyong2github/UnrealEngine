@@ -242,6 +242,12 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 
 	bool bSelectionChanged = false;
 
+	// If trying to deselect an actor, use this actors root selection actor instead (if it has one)
+	if (AActor* RootSelection = Actor->GetRootSelectionParent())
+	{
+		Actor = RootSelection;
+	}
+
 	if (UActorGroupingUtils::IsGroupingActive() && InSelectionOptions.AllowGroups())
 	{
 		// If this actor is a group, do a group select
