@@ -468,8 +468,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	if (bSpatialResolve && (ResolutionFraction != 1.0f || CVarRayTracingReflectionsHorizontalResolutionScale.GetValueOnAnyThread() != 1.0))
 	{
 		float ResolutionFractionX = FMath::Clamp(CVarRayTracingReflectionsHorizontalResolutionScale.GetValueOnAnyThread(), 0.25f, 4.0f);
-		FVector2D ResolutionFloat = FMath::Max(FVector2D(4.0f), FVector2D(RayTracingResolution) * FVector2D(ResolutionFractionX, 1.0f) * ResolutionFraction);
-		FVector2D BufferSizeFloat = FMath::Max(FVector2D(4.0f), FVector2D(RayTracingBufferSize) * FVector2D(ResolutionFractionX, 1.0f) * ResolutionFraction);
+		FVector2D ResolutionFloat = FVector2D::Max(FVector2D(4.0f), FVector2D(RayTracingResolution) * FVector2D(ResolutionFractionX, 1.0f) * ResolutionFraction);
+		FVector2D BufferSizeFloat = FVector2D::Max(FVector2D(4.0f), FVector2D(RayTracingBufferSize) * FVector2D(ResolutionFractionX, 1.0f) * ResolutionFraction);
 
 		RayTracingResolution.X = (int32)FMath::CeilToFloat(ResolutionFloat.X);
 		RayTracingResolution.Y = (int32)FMath::CeilToFloat(ResolutionFloat.Y);

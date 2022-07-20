@@ -934,7 +934,7 @@ FVector2D ULandscapeTexturePatch::GetFullUnscaledWorldSize() const
 
 	// UnscaledPatchCoverage is meant to represent the distance between the centers of the extremal pixels.
 	// That distance in pixels is Resolution-1.
-	FVector2D TargetPixelSize(UnscaledPatchCoverage / FMath::Max(Resolution - 1, FVector2D(1, 1)));
+	FVector2D TargetPixelSize(UnscaledPatchCoverage / FVector2D::Max(Resolution - 1, FVector2D(1, 1)));
 	return TargetPixelSize * Resolution;
 }
 

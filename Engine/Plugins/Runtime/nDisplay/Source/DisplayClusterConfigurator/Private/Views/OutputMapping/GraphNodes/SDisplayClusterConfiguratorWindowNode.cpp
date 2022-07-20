@@ -525,7 +525,7 @@ bool SDisplayClusterConfiguratorWindowNode::CanShowInfoWidget() const
 	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
 	FVector2D NodeSize = GetSize();
 
-	return IsNodeVisible() && OutputMapping->GetOutputMappingSettings().bShowWindowInfo && NodeSize > FVector2D::ZeroVector;
+	return IsNodeVisible() && OutputMapping->GetOutputMappingSettings().bShowWindowInfo && NodeSize.GetMin() > 0;
 }
 
 bool SDisplayClusterConfiguratorWindowNode::CanShowCornerImageWidget() const
@@ -536,7 +536,7 @@ bool SDisplayClusterConfiguratorWindowNode::CanShowCornerImageWidget() const
 	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
 	FVector2D NodeSize = GetSize();
 
-	return IsNodeVisible() && OutputMapping->GetOutputMappingSettings().bShowWindowCornerImage && NodeSize > FVector2D::ZeroVector;
+	return IsNodeVisible() && OutputMapping->GetOutputMappingSettings().bShowWindowCornerImage && NodeSize.GetMin() > 0;
 }
 
 bool SDisplayClusterConfiguratorWindowNode::IsClusterNodeLocked() const

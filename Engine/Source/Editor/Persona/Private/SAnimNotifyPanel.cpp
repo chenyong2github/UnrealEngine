@@ -1622,7 +1622,8 @@ bool SAnimNotifyNode::HitTest(const FGeometry& AllottedGeometry, FVector2D Mouse
 	FVector2D Position = GetWidgetPosition();
 	FVector2D Size = GetSize();
 
-	return MouseLocalPose >= Position && MouseLocalPose <= (Position + Size);
+	return MouseLocalPose.ComponentwiseAllGreaterOrEqual(Position)
+		&& MouseLocalPose.ComponentwiseAllLessOrEqual(Position + Size);
 }
 
 ENotifyStateHandleHit::Type SAnimNotifyNode::DurationHandleHitTest(const FVector2D& CursorTrackPosition) const
@@ -1641,7 +1642,8 @@ ENotifyStateHandleHit::Type SAnimNotifyNode::DurationHandleHitTest(const FVector
 
 		FVector2D MouseRelativePosition(CursorTrackPosition - GetWidgetPosition());
 
-		if(MouseRelativePosition > NotifyNodePosition && MouseRelativePosition < (NotifyNodePosition + NotifyNodeSize))
+		if(MouseRelativePosition.ComponentwiseAllGreaterThan(NotifyNodePosition) &&
+			MouseRelativePosition.ComponentwiseAllLessThan(NotifyNodePosition + NotifyNodeSize))
 		{
 			// Definitely inside the duration box, need to see which handle we hit if any
 			if(MouseRelativePosition.X <= (NotifyNodePosition.X + ScrubHandleSize.X))

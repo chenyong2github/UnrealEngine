@@ -65,11 +65,11 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 
 		// Clamp the size of each child to the a valid size
 		FVector2D IndividualChildSize = OutputComponent->GetSize();
-		if (IndividualChildSize > NewHelper->ParentSize)
+		if (IndividualChildSize.ComponentwiseAllGreaterThan(NewHelper->ParentSize))
 		{
 			OutputComponent->SetSize(NewHelper->ParentSize - FVector2D(NewHelper->ParentSize.X / 10.f, NewHelper->ParentSize.X / 10.f)); // Same X and Y so it's evenly aligned
 		}
-		else if (IndividualChildSize < FVector2D(1.f, 1.f))
+		else if (IndividualChildSize.GetMax() < 1.f)
 		{
 			OutputComponent->SetSize(FVector2D(1.f, 1.f));
 		}

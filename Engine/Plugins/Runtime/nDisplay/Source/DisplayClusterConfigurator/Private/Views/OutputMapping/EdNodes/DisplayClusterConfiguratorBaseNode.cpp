@@ -547,7 +547,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSize(UDisplayCl
 	const float AspectRatio = OriginalSlotSize.X / OriginalSlotSize.Y;
 	FVector2D SizeChange = BestSize - OriginalSlotSize;
 
-	if (SizeChange < FVector2D::ZeroVector)
+	if (SizeChange.GetMax() < 0)
 	{
 		return BestSize;
 	}
@@ -713,7 +713,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindNonOverlappingSizeFromParent(
 	const FVector2D NodeSize = GetNodeSize();
 
 	// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any new intersections.
-	if (BestSize - NodeSize < FVector2D::ZeroVector)
+	if (BestSize.ComponentwiseAllLessThan(NodeSize))
 	{
 		return BestSize;
 	}
@@ -753,7 +753,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromParent(const F
 	FVector2D SizeChange = BestSize - NodeSize;
 
 	// If desired size is smaller in both dimensions to the slot's current size, can return it immediately, as shrinking a slot can't cause any bound exceeding.
-	if (SizeChange < FVector2D::ZeroVector)
+	if (SizeChange.GetMax() < 0)
 	{
 		return BestSize;
 	}
@@ -842,7 +842,7 @@ FVector2D UDisplayClusterConfiguratorBaseNode::FindBoundedSizeFromChildren(const
 	FVector2D SizeChange = BestSize - NodeSize;
 
 	// If desired size is bigger in both dimensions to the slot's current size, can return it immediately, as growing a slot can't cause any bound exceeding.
-	if (SizeChange > FVector2D::ZeroVector)
+	if (SizeChange.GetMin() > 0)
 	{
 		return BestSize;
 	}

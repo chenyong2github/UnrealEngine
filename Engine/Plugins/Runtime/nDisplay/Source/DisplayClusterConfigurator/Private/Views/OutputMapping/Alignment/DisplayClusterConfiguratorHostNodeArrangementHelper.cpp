@@ -266,7 +266,7 @@ void FDisplayClusterConfiguratorHostNodeArrangementHelper::PlaceNodes(const TArr
 				}
 			}
 
-			FVector2D Size = HostNode->TransformSizeToGlobal(FMath::Max(ChildBounds.Max + HostNode->GetHostOrigin(), FVector2D::ZeroVector));
+			FVector2D Size = HostNode->TransformSizeToGlobal(FVector2D::Max(ChildBounds.Max + HostNode->GetHostOrigin(), FVector2D::ZeroVector));
 
 			HostNode->NodeWidth = Size.X;
 			HostNode->NodeHeight = Size.Y;

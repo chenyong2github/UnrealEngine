@@ -653,7 +653,7 @@ static FVector2D ClosestPointOnSegment2D(const FVector2D& Point, const FVector2D
 void FBlendSpaceGrid::GenerateGridElements(const TArray<FVertex>& SamplePoints, const TArray<FTriangle*>& TriangleList)
 {
 	check (NumGridDivisions.X > 0 && NumGridDivisions.Y > 0 );
-	check (GridMax > GridMin);
+	check (GridMax.ComponentwiseAllGreaterThan(GridMin));
 
 	const int32 TotalNumGridPoints = NumGridPointsForAxis.X * NumGridPointsForAxis.Y;
 

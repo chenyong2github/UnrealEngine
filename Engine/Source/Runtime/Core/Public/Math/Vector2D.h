@@ -231,36 +231,85 @@ public:
 	bool operator!=(const TVector2<T>& V) const;
 
 	/**
-	* Checks whether both components of this vector are less than another.
+	* Deprecated comparison operator. Use ComponentwiseAllLessThan.
 	*
 	* @param Other The vector to compare against.
 	* @return true if this is the smaller vector, otherwise false.
 	*/
-	bool operator<(const TVector2<T>& Other) const;
+	UE_DEPRECATED(5.1, "TVector2 comparison operators are deprecated. Use ComponentwiseAllLessThan. For componentwise min/max/abs, use TVector2::{Min,Max,GetAbs}, FMath::{Min,Max,Abs} compute something different.")
+	bool operator<(const TVector2<T>& Other) const
+	{
+		return ComponentwiseAllLessThan(Other);
+	}
+
+	/**
+	* Deprecated comparison operator. Use ComponentwiseAllGreaterThan.
+	*
+	* @param Other The vector to compare against.
+	* @return true if this is the larger vector, otherwise false.
+	*/
+	UE_DEPRECATED(5.1, "TVector2 comparison operators are deprecated. Use ComponentwiseAllGreaterThan. For componentwise min/max/abs, use TVector2::{Min,Max,GetAbs}, FMath::{Min,Max,Abs} compute something different.")
+	bool operator>(const TVector2<T>& Other) const
+	{
+		return ComponentwiseAllGreaterThan(Other);
+	}
+
+	/**
+	* Deprecated comparison operator. Use ComponentwiseAllLessOrEqual.
+	*
+	* @param Other The vector to compare against.
+	* @return true if this vector is less than or equal to the other vector, otherwise false.
+	*/
+	UE_DEPRECATED(5.1, "TVector2 comparison operators are deprecated. Use ComponentwiseAllLessOrEqual. For componentwise min/max/abs, use TVector2::{Min,Max,GetAbs}, FMath::{Min,Max,Abs} compute something different.")
+	bool operator<=(const TVector2<T>& Other) const
+	{
+		return ComponentwiseAllLessOrEqual(Other);
+	}
+
+	/**
+	* Deprecated comparison operator. Use ComponentwiseAllGreaterOrEqual.
+	*
+	* @param Other The vector to compare against.
+	* @return true if this vector is greater than or equal to the other vector, otherwise false.
+	*/
+	UE_DEPRECATED(5.1, "TVector2 comparison operators are deprecated. Use ComponentwiseAllGreaterOrEqual. For componentwise min/max/abs, use TVector2::{Min,Max,GetAbs}, FMath::{Min,Max,Abs} compute something different.")
+	bool operator>=(const TVector2<T>& Other) const
+	{
+		return ComponentwiseAllGreaterOrEqual(Other);
+	}
+
+	/**
+	* Checks whether both components of this vector are less than another.
+	*
+	* @param Other The vector to compare against.
+	* @return true if both components of this are less than Other, otherwise false.
+	*/
+	bool ComponentwiseAllLessThan(const TVector2<T>& Other) const;
 
 	/**
 	* Checks whether both components of this vector are greater than another.
 	*
 	* @param Other The vector to compare against.
-	* @return true if this is the larger vector, otherwise false.
+	* @return true if both components of this are greater than Other, otherwise false.
 	*/
-	bool operator>(const TVector2<T>& Other) const;
+	bool ComponentwiseAllGreaterThan(const TVector2<T>& Other) const;
 
 	/**
 	* Checks whether both components of this vector are less than or equal to another.
 	*
 	* @param Other The vector to compare against.
-	* @return true if this vector is less than or equal to the other vector, otherwise false.
+	* @return true if both components of this are less than or equal to Other, otherwise false.
 	*/
-	bool operator<=(const TVector2<T>& Other) const;
+	bool ComponentwiseAllLessOrEqual(const TVector2<T>& Other) const;
 
 	/**
 	* Checks whether both components of this vector are greater than or equal to another.
 	*
 	* @param Other The vector to compare against.
-	* @return true if this vector is greater than or equal to the other vector, otherwise false.
+	* @return true if both components of this are greater than or equal to Other, otherwise false.
 	*/
-	bool operator>=(const TVector2<T>& Other) const;
+	bool ComponentwiseAllGreaterOrEqual(const TVector2<T>& Other) const;
+
 
 	/**
 	* Gets a negated copy of the vector.
@@ -890,25 +939,25 @@ FORCEINLINE bool TVector2<T>::operator!=(const TVector2<T>& V) const
 }
 
 template<typename T>
-FORCEINLINE bool TVector2<T>::operator<(const TVector2<T>& Other) const
+FORCEINLINE bool TVector2<T>::ComponentwiseAllLessThan(const TVector2<T>& Other) const
 {
 	return X < Other.X && Y < Other.Y;
 }
 
 template<typename T>
-FORCEINLINE bool TVector2<T>::operator>(const TVector2<T>& Other) const
+FORCEINLINE bool TVector2<T>::ComponentwiseAllGreaterThan(const TVector2<T>& Other) const
 {
 	return X > Other.X && Y > Other.Y;
 }
 
 template<typename T>
-FORCEINLINE bool TVector2<T>::operator<=(const TVector2<T>& Other) const
+FORCEINLINE bool TVector2<T>::ComponentwiseAllLessOrEqual(const TVector2<T>& Other) const
 {
 	return X <= Other.X && Y <= Other.Y;
 }
 
 template<typename T>
-FORCEINLINE bool TVector2<T>::operator>=(const TVector2<T>& Other) const
+FORCEINLINE bool TVector2<T>::ComponentwiseAllGreaterOrEqual(const TVector2<T>& Other) const
 {
 	return X >= Other.X && Y >= Other.Y;
 }

@@ -446,7 +446,7 @@ protected:
 
 		if (CenterContentAlignment == HAlign_Center)
 		{
-			LeftSize = FMath::Max(LeftSize, RightSize);
+			LeftSize = FVector2D::Max(LeftSize, RightSize);
 			RightSize = LeftSize;
 		}
 

@@ -2695,7 +2695,7 @@ void FMaterialUtilities::GeneratedBinnedTextureSquares(const FVector2D Destinati
 			for (int32 AreaIndex = 0; AreaIndex < UnusedAreas.Num(); ++AreaIndex)
 			{
 				const FUnusedArea& UnusedArea = UnusedAreas[AreaIndex];
-				if (UnusedArea.GetSize() >= TextureSize)
+				if (UnusedArea.GetSize().ComponentwiseAllGreaterOrEqual(TextureSize))
 				{
 					const float Remainder = UnusedArea.GetArea() - TextureSurface;
 					if (Remainder < RemainingArea && Remainder >= 0)

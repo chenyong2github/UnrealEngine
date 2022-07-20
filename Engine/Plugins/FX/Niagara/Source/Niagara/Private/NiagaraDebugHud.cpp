@@ -2802,7 +2802,7 @@ void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, cl
 		Message.Lifetime -= DeltaSeconds;
 		if (Message.Lifetime > 0.0f)
 		{
-			BackgroundSize = FMath::Max(BackgroundSize, GetStringSize(Font, *Message.Message));
+			BackgroundSize = FVector2D::Max(BackgroundSize, GetStringSize(Font, *Message.Message));
 		}
 		else
 		{

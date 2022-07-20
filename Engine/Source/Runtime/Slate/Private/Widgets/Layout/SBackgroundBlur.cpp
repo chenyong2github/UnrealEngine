@@ -113,7 +113,7 @@ int32 SBackgroundBlur::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 	const bool bUsingLowQualityFallbackBrush = IsUsingLowQualityFallbackBrush();
 
 	int32 PostFXLayerId = LayerId;
-	if (bAllowBackgroundBlur && AllottedGeometry.GetLocalSize() > FVector2D::ZeroVector)
+	if (bAllowBackgroundBlur && AllottedGeometry.GetLocalSize().GetMin() > 0)
 	{
 		if (!bUsingLowQualityFallbackBrush)
 		{
