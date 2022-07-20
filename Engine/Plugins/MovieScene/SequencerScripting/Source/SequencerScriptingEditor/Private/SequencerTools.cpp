@@ -222,9 +222,9 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 		}
 	}
 
-	INodeNameAdapter NodeNameAdapter;
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
+	UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, Player, Template);
+	Player->State.AssignSequence(Template, *Sequence, *Player);
 	bool bDidExport = false;
 	FMovieSceneSequenceTransform RootToLocalTransform;
 	
@@ -294,7 +294,7 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	{
 		return false;
 	}
-	INodeNameAdapter NodeNameAdapter;
+
 	ALevelSequenceActor* OutActor;
 	FMovieSceneSequencePlaybackSettings Settings;
 	FLevelSequenceCameraSettings CameraSettings;
