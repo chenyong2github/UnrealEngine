@@ -3529,8 +3529,8 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		ShaderParameters->DeformedTrianglePositionCBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 		ShaderParameters->RestSamplePositionsBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 		ShaderParameters->MeshSampleWeightsBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
-		ShaderParameters->RootBarycentricCoordinatesBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
-		ShaderParameters->RootToUniqueTriangleIndexBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
+		ShaderParameters->RootBarycentricCoordinatesBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->RootToUniqueTriangleIndexBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
 		ShaderParameters->ParamsScaleBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
 	}
 }
