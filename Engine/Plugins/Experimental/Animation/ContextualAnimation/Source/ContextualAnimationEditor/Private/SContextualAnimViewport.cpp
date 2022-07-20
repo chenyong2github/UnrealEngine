@@ -2,9 +2,10 @@
 
 #include "SContextualAnimViewport.h"
 #include "ContextualAnimViewportClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "SContextualAnimViewportToolbar.h"
 #include "ContextualAnimAssetEditorCommands.h"
+#include "ContextualAnimEditorStyle.h"
+#include "ContextualAnimAssetEditorToolkit.h"
 
 void SContextualAnimViewport::Construct(const FArguments& InArgs, const FContextualAnimViewportRequiredArgs& InRequiredArgs)
 {
@@ -16,6 +17,22 @@ void SContextualAnimViewport::Construct(const FArguments& InArgs, const FContext
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		.AddMetaData<FTagMetaData>(TEXT("AnimationTools.Viewport"))
 	);
+}
+
+const FSlateBrush* SContextualAnimViewport::OnGetViewportBorderBrush() const
+{
+	// Highlight the border of the viewport when Simulate Mode is active
+	if (AssetEditorToolkitPtr.Pin()->IsSimulateModeActive())
+	{
+		return FContextualAnimEditorStyle::Get().GetBrush("ContextualAnimEditor.Viewport.Border");
+	}
+
+	return nullptr;
+}
+
+FSlateColor SContextualAnimViewport::OnGetViewportBorderColorAndOpacity() const
+{
+	return FLinearColor::Yellow;
 }
 
 void SContextualAnimViewport::BindCommands()

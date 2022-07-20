@@ -45,6 +45,8 @@ protected:
 	virtual void BindCommands() override;
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+	virtual const FSlateBrush* OnGetViewportBorderBrush() const override;
+	virtual FSlateColor OnGetViewportBorderColorAndOpacity() const;
 	// ~End of SEditorViewport interface
 
 	/** The viewport toolbar */

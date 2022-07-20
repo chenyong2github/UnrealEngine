@@ -47,6 +47,10 @@ TSharedRef< FSlateStyleSet > FContextualAnimEditorStyle::Create()
 
 	Style->Set("ContextualAnimEditor.Icon", new IMAGE_BRUSH(TEXT("ButtonIcon_40x"), Icon40x40));
 
+	const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
+	Style->SetContentRoot(EngineEditorSlateDir);
+	Style->Set("ContextualAnimEditor.Viewport.Border", new BOX_BRUSH("Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(1.f, 1.f, 1.f, 1.f)));
+
 	return Style;
 }
 
