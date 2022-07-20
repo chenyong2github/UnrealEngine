@@ -12,22 +12,19 @@
 **     http://libsndfile.github.io/libsamplerate/api.html
 */
 
-#ifdef PLATFORM_WINDOWS
-	#if PLATFORM_WINDOWS
-	#define SRC_EXPORT __declspec(dllexport)
-	#elif PLATFORM_MAC
-	#define SRC_EXPORT __attribute__((visibility("default")))
-	#elif PLATFORM_LINUX
-	#define SRC_EXPORT __attribute__((visibility("default")))
-	#elif PLATFORM_CONSOLE_DYNAMIC_LINK
-	#define SRC_EXPORT __declspec(dllexport)
-	#else
-	#define SRC_EXPORT
-	#endif
-#else
-	#define SRC_EXPORT
-#endif
+#include "HAL/Platform.h"
 
+#if PLATFORM_WINDOWS
+#define SRC_EXPORT __declspec(dllexport)
+#elif PLATFORM_MAC
+#define SRC_EXPORT __attribute__((visibility("default")))
+#elif PLATFORM_LINUX
+#define SRC_EXPORT __attribute__((visibility("default")))
+#elif PLATFORM_CONSOLE_DYNAMIC_LINK
+#define SRC_EXPORT __declspec(dllexport)
+#else
+#define SRC_EXPORT
+#endif
 
 #ifdef __cplusplus
 extern "C" {
