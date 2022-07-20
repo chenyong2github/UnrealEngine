@@ -2,11 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 #include "ContentBrowserItemPath.generated.h"
+
+class UObject;
+struct FFrame;
 
 /**
  * Hold multiple versions of a path as FNames

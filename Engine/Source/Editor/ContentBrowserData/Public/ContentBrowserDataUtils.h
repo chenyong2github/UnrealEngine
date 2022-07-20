@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserDataFilter.h"
 #include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDataFilter.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 
 namespace ContentBrowserDataUtils
 {

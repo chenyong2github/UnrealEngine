@@ -3,11 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ViewportInteractableInterface.generated.h"
 
 class UActorComponent;
+class UObject;
 class UViewportInteractor;
 struct FHitResult;
 

@@ -3,7 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
 #include "Sound/SoundSubmix.h"
+#include "UObject/NameTypes.h"
+
+class USoundSubmixBase;
 
 namespace Audio
 {

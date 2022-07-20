@@ -3,9 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "EditorConfigBase.h"
 #include "Engine/EngineTypes.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "NaniteToolsArguments.generated.h"
+
+class FProperty;
+class UObject;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FNaniteAuditErrorArgumentsPropertySetModifiedSignature, UObject*, FProperty*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FNaniteAuditOptimizeArgumentsPropertySetModifiedSignature, UObject*, FProperty*);

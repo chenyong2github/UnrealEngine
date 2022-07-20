@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/Invoke.h"
 #include "Templates/SharedPointer.h"
-#include "MVVM/ViewModelTypeID.h"
+#include "Templates/UnrealTemplate.h"
+
+#include <type_traits>
 
 namespace UE
 {

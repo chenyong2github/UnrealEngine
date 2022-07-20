@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Elements/Actor/ActorElementAssetDataInterface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ActorElementEditorAssetDataInterface.generated.h"
+
+class UObject;
+struct FAssetData;
+struct FTypedElementHandle;
 
 UCLASS()
 class UNREALED_API UActorElementEditorAssetDataInterface : public UActorElementAssetDataInterface

@@ -3,12 +3,19 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SubobjectData.h"
+#include "SubobjectDataHandle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "SubobjectDataBlueprintFunctionLibrary.generated.h"
 
 class UBlueprint;
+class UObject;
+struct FFrame;
 
 /**
  * A function library with wrappers around the getter/setter functions for FSubobjectData

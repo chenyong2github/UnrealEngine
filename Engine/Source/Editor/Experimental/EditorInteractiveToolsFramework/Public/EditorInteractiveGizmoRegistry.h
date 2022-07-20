@@ -2,10 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorInteractiveGizmoRegistry.generated.h"
+
+class UInteractiveGizmoBuilder;
+struct FToolBuilderState;
 
 /** Gizmo category used for registering Editor gizmo selection-based builders */
 UENUM()

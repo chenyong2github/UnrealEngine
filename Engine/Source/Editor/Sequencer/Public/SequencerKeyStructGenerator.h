@@ -2,20 +2,33 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/GCObject.h"
-#include "UObject/Class.h"
-#include "UObject/FieldPath.h"
-#include "MovieSceneKeyStruct.h"
-#include "Curves/KeyHandle.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Misc/FrameNumber.h"
+#include "MovieSceneKeyStruct.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/FieldPath.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "SequencerKeyStructGenerator.generated.h"
 
-class FSequencerKeyStructGenerator;
 class FArrayProperty;
-class FStructProperty;
 class FProperty;
+class FSequencerKeyStructGenerator;
+class FStructProperty;
+class UObject;
 
 /**
  * Struct type that is generated from an FMovieSceneChannel type to create a single edit interface for a key/value pair

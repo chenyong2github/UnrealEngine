@@ -2,11 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
 #include "Components/ActorComponent.h"
-#include "HitProxies.h"
+#include "Containers/Array.h"
 #include "ConvexVolume.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Engine/EngineBaseTypes.h"
+#include "GameFramework/Actor.h"
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "InputCoreTypes.h"
+#include "Math/Box.h"
+#include "Math/MathFwd.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "ComponentVisualizer.generated.h"
 
 class AActor;

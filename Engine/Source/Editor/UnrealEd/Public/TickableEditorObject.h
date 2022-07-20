@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "Tickable.h"
 
 

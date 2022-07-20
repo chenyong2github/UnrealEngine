@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Templates/Casts.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "ActorRecordingSettings.generated.h"
+
+class UObject;
 
 USTRUCT()
 struct SEQUENCERECORDER_API FActorRecordingSettings

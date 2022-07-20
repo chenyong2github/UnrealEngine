@@ -2,19 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "LevelEditorMenuContext.generated.h"
 
-class SLevelEditor;
+class AActor;
+class FLevelEditorViewportClient;
 class ILevelEditor;
-class UActorComponent;
+class SLevelEditor;
 class SLevelViewport;
 class SLevelViewportToolBar;
-class FLevelEditorViewportClient;
+class UActorComponent;
 class UTypedElementSelectionSet;
+struct FFrame;
 
 UCLASS()
 class LEVELEDITOR_API ULevelEditorMenuContext : public UObject

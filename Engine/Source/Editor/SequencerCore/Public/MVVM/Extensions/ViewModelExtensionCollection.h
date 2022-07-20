@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "MVVM/ViewModelTypeID.h"
-
-#include "Templates/UnrealTemplate.h"
-#include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
 template<typename, typename> class TArrayView;
 
@@ -17,7 +18,6 @@ namespace Sequencer
 {
 
 class FViewModel;
-
 template<typename T>
 struct TViewModelExtensionCollection;
 

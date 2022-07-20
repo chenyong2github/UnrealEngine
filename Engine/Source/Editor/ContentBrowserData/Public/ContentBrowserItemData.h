@@ -2,14 +2,25 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/StringBuilder.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Misc/StringBuilder.h"
-#include "Containers/StringView.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class UContentBrowserDataSource;
 class IContentBrowserItemDataSink;
+class UContentBrowserDataSource;
 
 /** Flags denoting basic state information for an item instance */
 enum class EContentBrowserItemFlags : uint8

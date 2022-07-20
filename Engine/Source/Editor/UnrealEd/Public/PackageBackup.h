@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "UObject/Package.h"
 
 /**
  * Class that houses various static utility functions to allow for packages

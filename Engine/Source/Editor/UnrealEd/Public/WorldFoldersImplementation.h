@@ -6,6 +6,7 @@
 
 class UWorld;
 class UWorldFolders;
+struct FFolder;
 
 class FWorldFoldersImplementation
 {

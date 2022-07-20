@@ -2,14 +2,22 @@
 
 #pragma once
 
+#include "ActorRecordingSettings.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/LazyObjectPtr.h"
+#include "HAL/Platform.h"
 #include "IMovieSceneSectionRecorder.h"
 #include "IMovieSceneSectionRecorderFactory.h"
 #include "MovieSceneVisibilitySectionRecorderSettings.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/LazyObjectPtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UMovieSceneBoolSection;
+struct FGuid;
 
 class FMovieSceneVisibilitySectionRecorderFactory : public IMovieSceneSectionRecorderFactory
 {

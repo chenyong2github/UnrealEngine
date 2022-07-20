@@ -2,31 +2,37 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
-#include "Math/Color.h"
 #include "Containers/ArrayView.h"
-#include "Curves/RichCurve.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "CurveEditorTypes.h"
+#include "Curves/RichCurve.h"
+#include "Delegates/Delegate.h"
+#include "IBufferedCurveModel.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "Math/TransformCalculus2D.h"
 #include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/UnrealType.h"
 
-#include "IBufferedCurveModel.h"
-
-struct FKeyHandle;
-struct FKeyDrawInfo;
-struct FCurveDrawParams;
-struct FKeyPosition;
-struct FKeyAttributes;
+class FCurveEditor;
+class FName;
+class IBufferedCurveModel;
+class SCurveEditorView;
+class SWidget;
+class UObject;
 struct FCurveAttributes;
+struct FCurveDrawParams;
 struct FCurveEditorScreenSpace;
 struct FCurveModelID;
-
-class FName;
-class SWidget;
-class FCurveEditor;
-class UObject;
-class SCurveEditorView;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyHandle;
+struct FKeyPosition;
 
 enum class ECurvePointType : uint8;
 

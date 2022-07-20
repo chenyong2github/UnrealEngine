@@ -2,9 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/StringBuilder.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/StringBuilder.h"
+#include "UObject/NameTypes.h"
+
+class FString;
+template <typename FuncType> class TFunctionRef;
 
 /**
  * Tree of virtual paths ending where internal paths start. Used for conversion of paths and during enumerate.

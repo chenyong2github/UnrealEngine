@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
 #include "MVVM/ViewModelTypeID.h"
+#include "Templates/SharedPointer.h"
 
 namespace UE
 {

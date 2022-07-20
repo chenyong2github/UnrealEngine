@@ -2,13 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserItemData.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ContentBrowserItem.generated.h"
 
-struct FAssetData;
 class FAssetThumbnail;
+class UContentBrowserDataSource;
+class UObject;
+struct FAssetData;
+struct FFrame;
 
 /**
  * Representation of a Content Browser item.

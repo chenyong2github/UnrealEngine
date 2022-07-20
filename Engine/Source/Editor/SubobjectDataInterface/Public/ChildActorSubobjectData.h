@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Components/ChildActorComponent.h"
 #include "InheritedSubobjectData.h"
+#include "Internationalization/Text.h"
+
+class UObject;
+struct FSubobjectDataHandle;
 
 /**
  * Container that represents the subobejct data of a child actor component.

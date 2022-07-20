@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 
 class PROPERTYEDITOR_API FPropertyRestriction
 {

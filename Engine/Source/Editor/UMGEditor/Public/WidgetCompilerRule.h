@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "WidgetCompilerRule.generated.h"
 
+class FCompilerResultsLog;
 class UWidgetBlueprint;
 
 /**

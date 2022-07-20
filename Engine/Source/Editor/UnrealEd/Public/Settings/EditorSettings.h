@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Engine/EngineTypes.h"
+#include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Scalability.h"
-#include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorSettings.generated.h"
+
+class FProperty;
 
 
 USTRUCT()

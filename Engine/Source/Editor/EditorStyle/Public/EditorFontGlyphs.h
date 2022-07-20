@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class FText;
+
 class EDITORSTYLE_API FEditorFontGlyphs
 {
 public:

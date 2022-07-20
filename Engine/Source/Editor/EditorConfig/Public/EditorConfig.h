@@ -2,12 +2,30 @@
 
 #pragma once
 
-#include "JsonConfig.h"
 #include "Concepts/EqualityComparable.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "Delegates/Delegate.h"
 #include "Dom/JsonObject.h"
+#include "HAL/Platform.h"
+#include "JsonConfig.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/IsPointer.h"
 #include "Templates/Models.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
+
+class FArrayProperty;
+class FJsonObject;
+class FJsonValue;
+class FMapProperty;
+class FProperty;
+class FSetProperty;
+class FString;
+class UClass;
+class UObject;
+class UStruct;
 
 class EDITORCONFIG_API FEditorConfig
 {

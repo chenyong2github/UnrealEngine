@@ -4,6 +4,9 @@
 
 #include "SubobjectData.h"
 
+class UObject;
+struct FSubobjectDataHandle;
+
 /**
  * Container that represents the subobject data of a child actor component.
  */

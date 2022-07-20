@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Math/Box.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
 
 /**
  * Represents an object that we're actively interacting with, such as a selected actor

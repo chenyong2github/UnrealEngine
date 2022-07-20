@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Engine/AssetUserData.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AnimationModifiersAssetUserData.generated.h"
 
+class FArchive;
 class UAnimationModifier;
+class UObject;
 
 /** Asset user data which can be added to a USkeleton or UAnimSequence to keep track of Animation Modifiers */
 UCLASS()

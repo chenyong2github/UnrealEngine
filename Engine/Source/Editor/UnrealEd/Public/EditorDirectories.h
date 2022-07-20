@@ -2,6 +2,7 @@
 
 #pragma once 
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 
 /** The different directory identifiers */

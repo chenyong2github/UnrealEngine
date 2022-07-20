@@ -2,16 +2,23 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "Misc/EnumClassFlags.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Misc/CString.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
 class FCurveEditorTree;
+struct FCurveEditorFilterStates;
 struct FCurveEditorTreeItem;
 struct FCurveEditorTreeItemID;
-struct FCurveEditorFilterStates;
+
 enum class ECurveEditorTreeFilterState : uint8;
 
 enum class ECurveEditorTreeFilterType : uint32

@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/ChildActorComponent.h"
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+
+class UActorComponent;
 
 /** SCSEditor UI customization */
 class ISCSEditorUICustomization

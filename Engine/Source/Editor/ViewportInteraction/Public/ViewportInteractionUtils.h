@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
 
 namespace ViewportInteractionUtils
 {

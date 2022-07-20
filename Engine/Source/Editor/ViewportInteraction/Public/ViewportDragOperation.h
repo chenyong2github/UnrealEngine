@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
-#include "ViewportInteractionTypes.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/Box.h"
+#include "Math/MathFwd.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "UnrealWidgetFwd.h"
+#include "ViewportInteractionTypes.h"
+
 #include "ViewportDragOperation.generated.h"
 
 /**

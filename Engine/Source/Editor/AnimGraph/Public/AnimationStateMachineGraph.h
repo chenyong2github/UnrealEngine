@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AnimationStateMachineGraph.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class UAnimationStateMachineGraph : public UEdGraph

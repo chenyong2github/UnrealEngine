@@ -4,15 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "PersonaToolMenuContext.generated.h"
 
 class IPersonaToolkit;
-class USkeleton;
-class UDebugSkelMeshComponent;
-class USkeletalMesh;
 class UAnimBlueprint;
 class UAnimationAsset;
+class UDebugSkelMeshComponent;
+class USkeletalMesh;
+class USkeleton;
+struct FFrame;
 
 UCLASS(BlueprintType)
 class PERSONA_API UPersonaToolMenuContext : public UObject

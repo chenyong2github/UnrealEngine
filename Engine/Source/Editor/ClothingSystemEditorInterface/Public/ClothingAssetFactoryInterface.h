@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Features/IModularFeature.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Features/IModularFeature.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 #include "ClothingAssetFactoryInterface.generated.h"
 
@@ -16,8 +22,8 @@ namespace nvidia
 	}
 }
 
-class USkeletalMesh;
 class UClothingAssetBase;
+class USkeletalMesh;
 struct FSkeletalMeshClothBuildParams;
 
 // Clothing asset factories should inherit this interface/uobject to provide functionality

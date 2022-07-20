@@ -2,16 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
-#include "Containers/SortedMap.h"
-#include "UObject/StructOnScope.h"
 #include "CollectionManagerTypes.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SortedMap.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/StructOnScope.h"
+
 #include "ContentBrowserDataFilter.generated.h"
 
 class FNamePermissionList;
 class FPathPermissionList;
 class UContentBrowserDataSource;
+template <typename OptionalType> struct TOptional;
 
 /** Flags controlling which item types should be included */
 UENUM()

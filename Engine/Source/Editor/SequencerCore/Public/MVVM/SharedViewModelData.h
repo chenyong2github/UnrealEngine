@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "SequencerCoreFwd.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+
+class FDelegateHandle;
 
 namespace UE
 {

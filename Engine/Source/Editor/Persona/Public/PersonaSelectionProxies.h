@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "GenericPlatform/ICursor.h"
+#include "HAL/Platform.h"
 #include "HitProxies.h"
-
+#include "UObject/NameTypes.h"
 
 class USkeletalMeshSocket;
 

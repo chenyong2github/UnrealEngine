@@ -3,11 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SubobjectEditorExtensionContext.generated.h"
 
+class SSubobjectBlueprintEditor;
 class SSubobjectEditor;
 class SSubobjectInstanceEditor;
-class SSubobjectBlueprintEditor;
 
 UCLASS()
 class KISMET_API USubobjectEditorExtensionContext : public UObject

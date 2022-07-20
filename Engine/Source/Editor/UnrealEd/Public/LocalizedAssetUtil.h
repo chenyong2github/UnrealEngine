@@ -2,11 +2,18 @@
 
 #pragma once 
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-struct FAssetData;
-class IAssetRegistry;
 class FLocalizationSCC;
+class IAssetRegistry;
+class UObject;
+class UPackage;
+struct FAssetData;
 struct FTopLevelAssetPath;
 
 struct FLocalizedAssetSCCUtil

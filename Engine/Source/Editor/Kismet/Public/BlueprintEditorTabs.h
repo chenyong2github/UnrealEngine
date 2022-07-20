@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class FName;
+
 struct KISMET_API FBlueprintEditorTabs
 {
 	// Tab identifiers

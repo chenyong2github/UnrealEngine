@@ -2,15 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
 #include "Components/ActorComponent.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "Selection.generated.h"
 
+class FArchive;
 class ISelectionElementBridge;
+class UTypedElementSelectionSet;
+struct FTypedElementHandle;
 
 /**
  * Manages selections of objects.

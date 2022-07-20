@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CurveEditorSettings.generated.h"
+
+class UClass;
 
 /** Defines visibility states for the tangents in the curve editor. */
 UENUM()

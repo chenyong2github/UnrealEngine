@@ -3,15 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
 #include "GameFramework/Actor.h"
-#include "MovieScene.h"
-#include "MovieSceneSection.h"
 #include "IMovieSceneSectionRecorder.h"
 #include "IMovieSceneSectionRecorderFactory.h"
+#include "Misc/Guid.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/LazyObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UMovieScene3DAttachSection;
 class UMovieScene3DAttachTrack;
+class UObject;
 
 class SEQUENCERECORDERSECTIONS_API FMovieScene3DAttachSectionRecorderFactory : public IMovieSceneSectionRecorderFactory
 {

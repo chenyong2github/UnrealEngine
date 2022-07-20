@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/ObjectMacros.h"
+
 #include "SubobjectDataHandle.generated.h"
 
 struct FSubobjectData;

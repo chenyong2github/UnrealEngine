@@ -3,8 +3,12 @@
 #pragma once
 
 #include "Subsystems/Subsystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EditorSubsystem.generated.h"
+
+class UObject;
 
 /**
  * UEditorSubsystem

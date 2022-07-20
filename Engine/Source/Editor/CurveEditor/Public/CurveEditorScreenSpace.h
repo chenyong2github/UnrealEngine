@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Math/Plane.h"
 #include "Math/Matrix.h"
+#include "Math/Plane.h"
 #include "Math/TransformCalculus2D.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 
 
 /**

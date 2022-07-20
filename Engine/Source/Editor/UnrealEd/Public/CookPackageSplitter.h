@@ -4,12 +4,21 @@
 
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
-
+#include "Containers/Array.h"
 #include "Containers/List.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Misc/Optional.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+class UClass;
+class UObject;
+class UPackage;
+template <typename FuncType> class TFunctionRef;
 
 /**
  * This class is used for packages that need to be split into multiple runtime packages.

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 #include "Misc/Guid.h"
 
 #if PLATFORM_MAC || PLATFORM_LINUX

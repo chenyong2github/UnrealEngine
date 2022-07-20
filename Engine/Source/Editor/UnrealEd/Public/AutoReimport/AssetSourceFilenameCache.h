@@ -2,12 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Misc/Optional.h"
+#include "UObject/Object.h"
 
+class FName;
 class IAssetRegistry;
+class UAssetImportData;
+struct FAssetData;
+struct FAssetImportInfo;
 
 
 /** Class responsible for maintaing a cache of clean source file names (bla.txt) to asset data */

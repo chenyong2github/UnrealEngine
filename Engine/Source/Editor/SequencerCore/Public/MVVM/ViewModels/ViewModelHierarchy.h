@@ -2,15 +2,25 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "MVVM/SharedList.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/TVariant.h"
 #include "SequencerCoreFwd.h"
 #include "Templates/SharedPointer.h"
-#include "MVVM/SharedList.h"
-#include "Misc/TVariant.h"
 
 namespace UE
 {
 namespace Sequencer
 {
+class FSharedViewModelData;
+class FViewModel;
+struct FViewModelChildren;
+struct FViewModelListHead;
+struct FViewModelPtr;
+struct FViewModelSubListIterator;
+template <typename ExtensionType> struct TViewModelPtr;
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	#define UE_SEQUENCER_DETECT_LINK_LIST_CYCLES 1

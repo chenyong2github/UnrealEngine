@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "CoreTypes.h"
 #include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClassViewerProjectSettings.generated.h"
 
 

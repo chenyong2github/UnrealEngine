@@ -4,6 +4,9 @@
 #include "CoreMinimal.h"
 #include "Engine/CurveTable.h"
 #include "Kismet2/ListenerManager.h"
+#include "UObject/NameTypes.h"
+
+class UCurveTable;
 
 struct UNREALED_API FCurveTableEditorUtils
 {

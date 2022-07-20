@@ -2,9 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Logging/LogMacros.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AssetImportTask.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAssetImportTask, Log, All);

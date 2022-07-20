@@ -4,8 +4,11 @@
 
 #include "Containers/Array.h"
 #include "Containers/Set.h"
-#include "ShowFlags.h"
 #include "EditorShowFlags.h"
+#include "HAL/Platform.h"
+#include "ShowFlags.h"
+
+class FShowFlagData;
 
 class COMMONMENUEXTENSIONS_API FShowFlagFilter
 {

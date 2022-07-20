@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SCSEditorExtensionContext.generated.h"
 
 class SSCSEditor;
+class SSubobjectBlueprintEditor;
 class SSubobjectEditor;
 class SSubobjectInstanceEditor;
-class SSubobjectBlueprintEditor;
-
 class UE_DEPRECATED(5.0, "USCSEditorExtensionContext has been deprecated, use USubobjectEditorExtensionContext instead.") USCSEditorExtensionContext;
 
 UCLASS()

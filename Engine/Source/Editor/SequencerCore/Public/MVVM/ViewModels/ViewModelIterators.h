@@ -2,16 +2,26 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "MVVM/ViewModels/ViewModel.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Invoke.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {
 namespace Sequencer
 {
+template <typename T, typename IteratorType> struct TTypedIterator;
 
 /**
  * Iterator state that wraps a view model and handles incrementing/decrementing

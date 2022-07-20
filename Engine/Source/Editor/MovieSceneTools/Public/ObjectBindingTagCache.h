@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Delegates/Delegate.h"
-#include "Misc/Guid.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/SortedMap.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
 #include "MovieSceneObjectBindingID.h"
+#include "UObject/NameTypes.h"
 
 class UMovieSceneSequence;
 

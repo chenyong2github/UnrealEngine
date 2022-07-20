@@ -2,10 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "EditorConfigBase.h"
 #include "Engine/EngineTypes.h"
+#include "HAL/PlatformMath.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CSVtoSVGArguments.generated.h"
+
+class FProperty;
+class UObject;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FCSVtoSVGArugmentsPropertySetModifiedSignature, UObject*, FProperty*);
 

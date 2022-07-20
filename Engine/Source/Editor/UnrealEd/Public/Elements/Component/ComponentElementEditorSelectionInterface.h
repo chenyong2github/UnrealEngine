@@ -3,9 +3,18 @@
 #pragma once
 
 #include "Elements/Component/ComponentElementSelectionInterface.h"
+#include "Elements/Framework/TypedElementListFwd.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ComponentElementEditorSelectionInterface.generated.h"
 
+class ITypedElementTransactedElement;
 class UActorComponent;
+class UObject;
+struct FTypedElementHandle;
+struct FTypedElementIsSelectedOptions;
 
 UCLASS()
 class UNREALED_API UComponentElementEditorSelectionInterface : public UComponentElementSelectionInterface

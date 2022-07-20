@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "IMeshPaintGeometryAdapter.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "TMeshPaintOctree.h"
+#include "Templates/UniquePtr.h"
 
 /** Base mesh paint geometry adapter, handles basic sphere intersection using a Octree */
 class MESHPAINT_API FBaseMeshPaintGeometryAdapter : public IMeshPaintGeometryAdapter

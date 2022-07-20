@@ -2,15 +2,22 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/GeneratedTypeName.h"
 #include "SequencerCoreFwd.h"
 #include "Templates/SharedPointer.h"
-#include "Misc/GeneratedTypeName.h"
-#include "MVVM/ViewModels/ViewModel.h"
+#include "Templates/TypeHash.h"
 
 namespace UE
 {
 namespace Sequencer
 {
+struct FImplicitViewModelCast;
+struct FImplicitWeakViewModelCast;
+struct FImplicitWeakViewModelPin;
 
 
 /**

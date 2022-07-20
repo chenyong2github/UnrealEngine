@@ -2,11 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Async/Async.h"
+#include "Async/Future.h"
 #include "Concepts/EqualityComparable.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Dom/JsonObject.h"
+#include "Templates/SharedPointer.h"
+
+class FJsonObject;
+class FJsonValue;
+class FName;
+class FText;
 
 namespace UE
 {
@@ -143,4 +156,4 @@ namespace UE
 	};
 }
 
-#include "JsonConfig.inl"
+#include "JsonConfig.inl" // IWYU pragma: export

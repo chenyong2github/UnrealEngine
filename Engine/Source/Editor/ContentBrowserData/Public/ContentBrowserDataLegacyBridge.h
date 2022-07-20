@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserItemData.h"
+#include "Containers/Array.h"
 #include "ContentBrowserDataMenuContexts.h"
+#include "ContentBrowserItemData.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "UObject/ObjectMacros.h"
+
 #include "ContentBrowserDataLegacyBridge.generated.h"
 
-struct FARFilter;
-struct FAssetData;
-
+class FName;
 class UClass;
 class UFactory;
+struct FARFilter;
+struct FAssetData;
 
 /** Called to add extra asset data to the asset view, to display virtual assets. These get treated similar to Class assets */
 DECLARE_DELEGATE_TwoParams(FOnGetCustomSourceAssets, const FARFilter& /*SourceFilter*/, TArray<FAssetData>& /*AddedAssets*/);

@@ -2,20 +2,21 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 enum class ECurveEditorTreeFilterType : uint32;
 
-struct FCurveEditorTreeItemID;
-struct FCurveEditorTreeFilter;
-
-class FName;
-class SWidget;
-class ITableRow;
-class FCurveModel;
 class FCurveEditor;
+class FCurveModel;
+class FName;
+class ITableRow;
+class SWidget;
+struct FCurveEditorTreeFilter;
+struct FCurveEditorTreeItemID;
 
 
 /**

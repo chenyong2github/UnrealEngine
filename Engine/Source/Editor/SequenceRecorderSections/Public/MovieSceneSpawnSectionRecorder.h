@@ -3,11 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/LazyObjectPtr.h"
 #include "IMovieSceneSectionRecorder.h"
 #include "IMovieSceneSectionRecorderFactory.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/LazyObjectPtr.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UMovieSceneBoolSection;
+struct FGuid;
 
 class FMovieSceneSpawnSectionRecorderFactory : public IMovieSceneSectionRecorderFactory
 {

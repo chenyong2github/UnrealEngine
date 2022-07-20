@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
-#include "EdGraph/EdGraphNode.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+
+class UEdGraphNode;
 
 struct BLUEPRINTGRAPH_API FBlueprintNodeSignature
 {

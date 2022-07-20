@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "InputCoreTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "InputCoreTypes.h"
+#include "Math/Box.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
 
 class FCanvas;
 class FEditorViewportClient;

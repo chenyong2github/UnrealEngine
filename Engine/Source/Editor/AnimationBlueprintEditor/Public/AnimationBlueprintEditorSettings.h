@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Delegates/Delegate.h"
 #include "Engine/EngineBaseTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "AnimationBlueprintEditorSettings.generated.h"
 
 

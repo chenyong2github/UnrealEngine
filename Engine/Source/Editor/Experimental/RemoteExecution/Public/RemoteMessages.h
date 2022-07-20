@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IO/IoHash.h"
 #include "IRemoteMessage.h"
+#include "Misc/DateTime.h"
+#include "Serialization/CompactBinary.h"
 
 
 namespace UE::RemoteExecution

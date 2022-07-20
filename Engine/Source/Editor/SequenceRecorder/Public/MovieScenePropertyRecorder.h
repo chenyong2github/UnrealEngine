@@ -2,11 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/Vector.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneSection.h"
 #include "SequenceRecorderSettings.h"
-#include "MovieScene.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
+struct FGuid;
 
 
 /** Interface for a generic property recorder */

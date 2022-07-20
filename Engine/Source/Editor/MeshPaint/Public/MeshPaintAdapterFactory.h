@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "MeshPaintModule.h"
+#include "Templates/SharedPointer.h"
 
-class UMeshComponent;
-class IMeshPaintGeometryAdapterFactory;
 class FReferenceCollector;
+class IMeshPaintGeometryAdapterFactory;
+class UMeshComponent;
 
 class MESHPAINT_API FMeshPaintAdapterFactory
 {

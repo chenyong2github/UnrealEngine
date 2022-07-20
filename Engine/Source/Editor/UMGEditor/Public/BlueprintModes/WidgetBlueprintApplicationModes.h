@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 
 /////////////////////////////////////////////////////
 // FWidgetBlueprintApplicationModes

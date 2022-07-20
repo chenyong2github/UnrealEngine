@@ -2,11 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPtr.h"
+#include "CoreTypes.h"
 #include "Engine/EngineTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "StructViewerProjectSettings.generated.h"
+
+class UScriptStruct;
 
 /**
  * Implements the settings for the Struct Viewer Project Settings

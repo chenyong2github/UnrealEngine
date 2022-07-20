@@ -2,17 +2,29 @@
 
 #pragma once
 
-#include "SequencerCoreFwd.h"
-#include "Templates/SharedPointer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
+#include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "MVVM/ICastable.h"
 #include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
-#include "MVVM/ICastable.h"
-#include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "Misc/Optional.h"
+#include "SequencerCoreFwd.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {
 namespace Sequencer
 {
+class FSharedViewModelData;
+struct FParentFirstChildIterator;
+struct FParentModelIterator;
+struct FViewModelIterationState;
+struct FViewModelListIterator;
+struct FViewModelPtr;
 
 /**
  * Base class for a sequencer data model. This might wrap an underlying UObject, or be a purely

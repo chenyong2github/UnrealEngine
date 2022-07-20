@@ -2,12 +2,20 @@
 
 #pragma once
  
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "UObject/FieldPath.h"
 #include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "ConfigPropertyHelper.generated.h"
+
+class FProperty;
 
 UENUM()
 enum EConfigFileSourceControlStatus
