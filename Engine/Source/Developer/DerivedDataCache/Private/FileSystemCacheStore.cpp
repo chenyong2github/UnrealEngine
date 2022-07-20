@@ -1326,7 +1326,15 @@ bool FFileSystemCacheStore::RunSpeedTest(
 
 void FFileSystemCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	OutNode = {TEXT("File System"), *CachePath, SpeedClass == EBackendSpeedClass::Local};
+	EDerivedDataCacheStatus CacheStatus = EDerivedDataCacheStatus::None;
+	FText CacheStatusText;
+	if (IsDeactivatedForPerformance())
+	{
+		CacheStatus = EDerivedDataCacheStatus::Deactivation;
+		CacheStatusText = NSLOCTEXT("DerivedDataCache", "DeactivatedForPerformance", "Deactivated for performance");
+	}
+	const FString& CacheStatusTextString = CacheStatusText.ToString();
+	OutNode = {TEXT("File System"), *CachePath, SpeedClass == EBackendSpeedClass::Local, CacheStatus, CacheStatusTextString.IsEmpty() ? nullptr : *CacheStatusTextString};
 	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 	OutNode.SpeedStats = SpeedStats;
 }

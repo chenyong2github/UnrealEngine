@@ -540,14 +540,18 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
+	];
+
+	Panel->AddSlot(1, Row)
+	[
+		SNew(STextBlock)
 		.Margin(TitleMarginFirstColumn)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		.Text(LOCTEXT("Cache", "Cache"))
 		.ColorAndOpacity(TitleColor)
 		.Text(LOCTEXT("CacheType", "Cache Type"))
 	];
 
-	Panel->AddSlot(1, Row)
+	Panel->AddSlot(2, Row)
 	[
 		SNew(STextBlock)
 		.Margin(TitleMargin)
@@ -556,7 +560,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Text(LOCTEXT("Location", "Location"))
 	];
 
-	Panel->AddSlot(2, Row)
+	Panel->AddSlot(3, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -566,7 +570,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Text(LOCTEXT("HitPercentage", "Hit%"))
 	];
 
-	Panel->AddSlot(3, Row)
+	Panel->AddSlot(4, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -578,7 +582,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.WrapTextAt(66.0f)
 	];
 
-	Panel->AddSlot(4, Row)
+	Panel->AddSlot(5, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -590,7 +594,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.WrapTextAt(66.0f)
 	];
 
-	Panel->AddSlot(5, Row)
+	Panel->AddSlot(6, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -602,7 +606,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.WrapTextAt(66.0f)
 	];
 
-	Panel->AddSlot(6, Row)
+	Panel->AddSlot(7, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -614,7 +618,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.WrapTextAt(66.0f)
 	];
 
-	Panel->AddSlot(7, Row)
+	Panel->AddSlot(8, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -626,7 +630,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.WrapTextAt(66.0f)
 	];
 
-	Panel->AddSlot(8, Row)
+	Panel->AddSlot(9, Row)
 	[
 		SNew(STextBlock)
 		.Margin(TitleMargin)
@@ -668,26 +672,67 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		SumTotalGetMB += TotalGetMB;
 		SumTotalPutMB += TotalPutMB;
 
-		Panel->AddSlot(0, Row)
+		TSharedPtr<SImage> StatusIcon;
+		switch (Node->GetCacheStatus())
+		{
+			case EDerivedDataCacheStatus::Information:
+				StatusIcon = SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.Help"))
+					.ToolTipText(FText::FromString(Node->GetCacheStatusText()));
+			break;
+			case EDerivedDataCacheStatus::Warning:
+				StatusIcon = SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.Warning"))
+					.ToolTipText(FText::FromString(Node->GetCacheStatusText()));
+			break;
+			case EDerivedDataCacheStatus::Error:
+				StatusIcon = SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.Error"))
+					.ToolTipText(FText::FromString(Node->GetCacheStatusText()));
+			break;
+			case EDerivedDataCacheStatus::Deactivation:
+				StatusIcon = SNew(SImage)
+					.Image(FAppStyle::GetBrush("Icons.X"))
+					.ToolTipText(FText::FromString(Node->GetCacheStatusText()));
+			break;
+
+		}
+
+		if (StatusIcon.IsValid())
+		{
+			Panel->AddSlot(0, Row)
+			[
+				SNew(SHorizontalBox)
+					.ToolTipText(FText::FromString(Node->GetCacheStatusText()))
+					// Status icon
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						StatusIcon.ToSharedRef()
+					]
+			];
+		}
+		else
+		{
+			Panel->AddSlot(0, Row)
+			[
+				SNew(SHorizontalBox)
+			];
+		}
+
+		Panel->AddSlot(1, Row)
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMarginFirstColumn)
 			.Text(FText::FromString(Node->GetCacheType()))
 		];
 
-		Panel->AddSlot(1, Row)
+		Panel->AddSlot(2, Row)
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMargin)
 			.Text(Node->IsLocal() ? LOCTEXT("Local", "Local") : LOCTEXT("Remote", "Remote"))
-		];
-
-		Panel->AddSlot(2, Row)
-		.HAlign(HAlign_Right)
-		[
-			SNew(STextBlock)
-			.Margin(DefaultMargin)
-			.Text(FText::FromString(SingleDecimalFormat(HitRate)))
 		];
 
 		Panel->AddSlot(3, Row)
@@ -695,10 +740,18 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMargin)
-			.Text(FText::FromString(SingleDecimalFormat(TotalGetMB)))
+			.Text(FText::FromString(SingleDecimalFormat(HitRate)))
 		];
 
 		Panel->AddSlot(4, Row)
+		.HAlign(HAlign_Right)
+		[
+			SNew(STextBlock)
+			.Margin(DefaultMargin)
+			.Text(FText::FromString(SingleDecimalFormat(TotalGetMB)))
+		];
+
+		Panel->AddSlot(5, Row)
 		.HAlign(HAlign_Right)
 		[
 			SNew(STextBlock)
@@ -708,7 +761,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 		if (Node->SpeedStats.LatencyMS)
 		{
-			Panel->AddSlot(5, Row)
+			Panel->AddSlot(6, Row)
 			.HAlign(HAlign_Right)
 			[
 				SNew(STextBlock)
@@ -719,7 +772,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 		if (Node->SpeedStats.ReadSpeedMBs)
 		{
-			Panel->AddSlot(6, Row)
+			Panel->AddSlot(7, Row)
 			.HAlign(HAlign_Right)
 			[
 				SNew(STextBlock)
@@ -730,7 +783,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 		if (Node->SpeedStats.WriteSpeedMBs)
 		{
-			Panel->AddSlot(7, Row)
+			Panel->AddSlot(8, Row)
 			.HAlign(HAlign_Right)
 			[
 				SNew(STextBlock)
@@ -739,7 +792,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 			];
 		}
 
-		Panel->AddSlot(8, Row)
+		Panel->AddSlot(9, Row)
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMargin)
@@ -749,7 +802,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		Row++;
 	}
 
-	Panel->AddSlot(0, Row)
+	Panel->AddSlot(1, Row)
 	[
 		SNew(STextBlock)
 		.Margin(TitleMarginFirstColumn)
@@ -758,7 +811,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Text(LOCTEXT("Total", "Total"))
 	];
 
-	Panel->AddSlot(3, Row)
+	Panel->AddSlot(4, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
@@ -768,7 +821,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Text(FText::FromString(SingleDecimalFormat(SumTotalGetMB)))
 	];
 
-	Panel->AddSlot(4, Row)
+	Panel->AddSlot(5, Row)
 	.HAlign(HAlign_Right)
 	[
 		SNew(STextBlock)
