@@ -874,6 +874,11 @@ void UDemoNetDriver::FinishDestroy()
 
 	ReplayHelper.OnReplayRecordError.RemoveAll(this);
 	ReplayHelper.OnReplayPlaybackError.RemoveAll(this);
+	
+	if (World)
+	{
+		World->RemoveOnActorDestroyededHandler(DelegateHandleActorPreDestroy);
+	}
 
 	Super::FinishDestroy();
 }
@@ -4972,6 +4977,16 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 				}
 			}
 		}
+	}
+}
+
+void UDemoNetDriver::OnActorPreDestroy(AActor* DestroyedActor)
+{
+	check(DestroyedActor);
+
+	if (IsRecording())
+	{
+		ReplayHelper.OnActorPreDestroy(ClientConnections[0], DestroyedActor);
 	}
 }
 
