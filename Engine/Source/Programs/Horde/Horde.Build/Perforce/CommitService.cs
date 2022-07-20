@@ -240,7 +240,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
-			if (Options.Content)
+			if (Options.Metadata)
 			{
 				await StopContentReplicationAsync();
 				await StopMetadataReplicationAsync();
