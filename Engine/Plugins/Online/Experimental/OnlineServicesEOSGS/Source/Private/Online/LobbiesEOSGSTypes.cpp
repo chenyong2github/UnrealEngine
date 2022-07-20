@@ -67,6 +67,7 @@ FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTran
 {
 	AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
 	AttributeData.Key = KeyConverterStorage.Get();
+	static_assert(EOS_LOBBY_ATTRIBUTEDATA_API_LATEST == 1, "EOS_Lobby_AttributeData updated, check new fields");
 
 	if (FromAttributeData.VariantData.IsType<FString>())
 	{
@@ -155,6 +156,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 	Options.ApiVersion = EOS_LOBBY_COPYLOBBYDETAILSHANDLE_API_LATEST;
 	Options.LobbyId = LobbyId;
 	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	static_assert(EOS_LOBBY_COPYLOBBYDETAILSHANDLE_API_LATEST == 1, "EOS_Lobby_CopyLobbyDetailsHandleOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_Lobby_CopyLobbyDetailsHandle(Prerequisites->LobbyInterfaceHandle, &Options, &LobbyDetailsHandle);
 	if (EOSResult != EOS_EResult::EOS_Success)
@@ -182,6 +184,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 	EOS_Lobby_CopyLobbyDetailsHandleByInviteIdOptions Options;
 	Options.ApiVersion = EOS_LOBBY_COPYLOBBYDETAILSHANDLEBYINVITEID_API_LATEST;
 	Options.InviteId = InviteId;
+	static_assert(EOS_LOBBY_COPYLOBBYDETAILSHANDLEBYINVITEID_API_LATEST == 1, "EOS_Lobby_CopyLobbyDetailsHandleByInviteIdOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_Lobby_CopyLobbyDetailsHandleByInviteId(Prerequisites->LobbyInterfaceHandle, &Options, &LobbyDetailsHandle);
 	if (EOSResult != EOS_EResult::EOS_Success)
@@ -209,6 +212,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 	EOS_Lobby_CopyLobbyDetailsHandleByUiEventIdOptions Options;
 	Options.ApiVersion = EOS_LOBBY_COPYLOBBYDETAILSHANDLEBYUIEVENTID_API_LATEST;
 	Options.UiEventId = UiEventId;
+	static_assert(EOS_LOBBY_COPYLOBBYDETAILSHANDLEBYUIEVENTID_API_LATEST == 1, "EOS_Lobby_CopyLobbyDetailsHandleByUiEventIdOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_Lobby_CopyLobbyDetailsHandleByUiEventId(Prerequisites->LobbyInterfaceHandle, &Options, &LobbyDetailsHandle);
 	if (EOSResult != EOS_EResult::EOS_Success)
@@ -237,6 +241,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 	EOS_LobbySearch_CopySearchResultByIndexOptions Options;
 	Options.ApiVersion = EOS_LOBBYSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST;
 	Options.LobbyIndex = ResultIndex;
+	static_assert(EOS_LOBBYSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST == 1, "EOS_LobbySearch_CopySearchResultByIndexOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_LobbySearch_CopySearchResultByIndex(SearchHandle, &Options, &LobbyDetailsHandle);
 	if (EOSResult != EOS_EResult::EOS_Success)
@@ -269,6 +274,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 
 	EOS_LobbyDetails_GetMemberCountOptions GetMemberCountOptions = {};
 	GetMemberCountOptions.ApiVersion = EOS_LOBBYDETAILS_GETMEMBERCOUNT_API_LATEST;
+	static_assert(EOS_LOBBYDETAILS_GETMEMBERCOUNT_API_LATEST == 1, "EOS_LobbyDetails_GetMemberCountOptions updated, check new fields");
+
 	const uint32_t MemberCount = EOS_LobbyDetails_GetMemberCount(LobbyDetailsHandle, &GetMemberCountOptions);
 
 	TSharedRef<TArray<EOS_ProductUserId>> MemberProductUserIds = MakeShared<TArray<EOS_ProductUserId>>();
@@ -279,6 +286,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 		EOS_LobbyDetails_GetMemberByIndexOptions GetMemberByIndexOptions = {};
 		GetMemberByIndexOptions.ApiVersion = EOS_LOBBYDETAILS_GETMEMBERBYINDEX_API_LATEST;
 		GetMemberByIndexOptions.MemberIndex = MemberIndex;
+		static_assert(EOS_LOBBYDETAILS_GETMEMBERBYINDEX_API_LATEST == 1, "EOS_LobbyDetails_GetMemberByIndexOptions updated, check new fields");
+
 		MemberProductUserIds->Emplace(EOS_LobbyDetails_GetMemberByIndex(LobbyDetailsHandle, &GetMemberByIndexOptions));
 	}
 
@@ -305,6 +314,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 		{
 			EOS_LobbyDetails_GetLobbyOwnerOptions GetLobbyOwnerOptions = {};
 			GetLobbyOwnerOptions.ApiVersion = EOS_LOBBYDETAILS_GETLOBBYOWNER_API_LATEST;
+			static_assert(EOS_LOBBYDETAILS_GETLOBBYOWNER_API_LATEST == 1, "EOS_LobbyDetails_GetLobbyOwnerOptions updated, check new fields");
+
 			const EOS_ProductUserId LobbyOwner = EOS_LobbyDetails_GetLobbyOwner(StrongThis->LobbyDetailsHandle, &GetLobbyOwnerOptions);
 
 			for (int32 MemberIndex = 0; MemberIndex < MemberProductUserIds->Num(); ++MemberIndex)
@@ -325,6 +336,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 		{
 			EOS_LobbyDetails_GetAttributeCountOptions GetAttributeCountOptions = {};
 			GetAttributeCountOptions.ApiVersion = EOS_LOBBYDETAILS_GETATTRIBUTECOUNT_API_LATEST;
+			static_assert(EOS_LOBBYDETAILS_GETATTRIBUTECOUNT_API_LATEST == 1, "EOS_LobbyDetails_GetAttributeCountOptions updated, check new fields");
 
 			const uint32_t AttributeCount = EOS_LobbyDetails_GetAttributeCount(StrongThis->LobbyDetailsHandle, &GetAttributeCountOptions);
 			for (uint32_t AttributeIndex = 0; AttributeIndex < AttributeCount; ++AttributeIndex)
@@ -332,6 +344,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 				EOS_LobbyDetails_CopyAttributeByIndexOptions CopyAttributeByIndexOptions = {};
 				CopyAttributeByIndexOptions.ApiVersion = EOS_LOBBYDETAILS_COPYATTRIBUTEBYINDEX_API_LATEST;
 				CopyAttributeByIndexOptions.AttrIndex = AttributeIndex;
+				static_assert(EOS_LOBBYDETAILS_COPYATTRIBUTEBYINDEX_API_LATEST == 1, "EOS_LobbyDetails_CopyAttributeByIndexOptions updated, check new fields");
 
 				EOS_Lobby_Attribute* LobbyAttribute = nullptr;
 				ON_SCOPE_EXIT
@@ -373,6 +386,7 @@ TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetail
 		EOS_LobbyDetails_GetMemberAttributeCountOptions GetMemberAttributeCountOptions = {};
 		GetMemberAttributeCountOptions.ApiVersion = EOS_LOBBYDETAILS_GETMEMBERATTRIBUTECOUNT_API_LATEST;
 		GetMemberAttributeCountOptions.TargetUserId = MemberProductUserId;
+		static_assert(EOS_LOBBYDETAILS_GETMEMBERATTRIBUTECOUNT_API_LATEST == 1, "EOS_LobbyDetails_GetMemberAttributeCountOptions updated, check new fields");
 
 		const uint32_t MemberAttributeCount = EOS_LobbyDetails_GetMemberAttributeCount(LobbyDetailsHandle, &GetMemberAttributeCountOptions);
 		for (uint32_t MemberAttributeIndex = 0; MemberAttributeIndex < MemberAttributeCount; ++MemberAttributeIndex)
@@ -381,6 +395,7 @@ TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetail
 			CopyMemberAttributeByIndexOptions.ApiVersion = EOS_LOBBYDETAILS_COPYMEMBERATTRIBUTEBYINDEX_API_LATEST;
 			CopyMemberAttributeByIndexOptions.TargetUserId = MemberProductUserId;
 			CopyMemberAttributeByIndexOptions.AttrIndex = MemberAttributeIndex;
+			static_assert(EOS_LOBBYDETAILS_COPYMEMBERATTRIBUTEBYINDEX_API_LATEST == 1, "EOS_LobbyDetails_CopyMemberAttributeByIndexOptions updated, check new fields");
 
 			EOS_Lobby_Attribute* LobbyAttribute = nullptr;
 			ON_SCOPE_EXIT
@@ -418,6 +433,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
 	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
 	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
+	static_assert(EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST == 1, "EOS_Lobby_UpdateLobbyModificationOptions updated, check new fields");
 
 	EOS_EResult EOSResultCode = EOS_Lobby_UpdateLobbyModification(Prerequisites->LobbyInterfaceHandle, &ModificationOptions, &LobbyModificationHandle);
 	if (EOSResultCode != EOS_EResult::EOS_Success)
@@ -432,6 +448,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 		EOS_LobbyModification_SetPermissionLevelOptions SetPermissionOptions = {};
 		SetPermissionOptions.ApiVersion = EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
 		SetPermissionOptions.PermissionLevel = TranslateJoinPolicy(*Changes.JoinPolicy);
+		static_assert(EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST == 1, "EOS_LobbyModification_SetPermissionLevelOptions updated, check new fields");
 
 		EOSResultCode = EOS_LobbyModification_SetPermissionLevel(LobbyModificationHandle, &SetPermissionOptions);
 		if (EOSResultCode != EOS_EResult::EOS_Success)
@@ -450,6 +467,8 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 		AddAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
 		AddAttributeOptions.Attribute = &AttributeTranslator.GetAttributeData();
 		AddAttributeOptions.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC; // todo - get from schema
+		static_assert(EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_AddAttributeOptions updated, check new fields");
+
 		EOSResultCode = EOS_LobbyModification_AddAttribute(LobbyModificationHandle, &AddAttributeOptions);
 		if (EOSResultCode != EOS_EResult::EOS_Success)
 		{
@@ -466,6 +485,8 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 		EOS_LobbyModification_RemoveAttributeOptions RemoveAttributeOptions = {};
 		RemoveAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_REMOVEATTRIBUTE_API_LATEST;
 		RemoveAttributeOptions.Key = KeyConverter.Get();
+		static_assert(EOS_LOBBYMODIFICATION_REMOVEATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_RemoveAttributeOptions updated, check new fields");
+		
 		EOSResultCode = EOS_LobbyModification_RemoveAttribute(LobbyModificationHandle, &RemoveAttributeOptions);
 		if (EOSResultCode != EOS_EResult::EOS_Success)
 		{
@@ -481,6 +502,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	EOS_Lobby_UpdateLobbyOptions UpdateLobbyOptions = {};
 	UpdateLobbyOptions.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
 	UpdateLobbyOptions.LobbyModificationHandle = LobbyModificationHandle;
+	static_assert(EOS_LOBBY_UPDATELOBBY_API_LATEST == 1, "EOS_Lobby_UpdateLobbyOptions updated, check new fields");
 
 	EOS_Async(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions,
 	[Promise = MoveTemp(Promise)](const EOS_Lobby_UpdateLobbyCallbackInfo* CallbackInfo) mutable
@@ -506,6 +528,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
 	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
 	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
+	static_assert(EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST == 1, "EOS_Lobby_UpdateLobbyModificationOptions updated, check new fields");
 
 	EOS_EResult EOSResultCode = EOS_Lobby_UpdateLobbyModification(Prerequisites->LobbyInterfaceHandle, &ModificationOptions, &LobbyModificationHandle);
 	if (EOSResultCode != EOS_EResult::EOS_Success)
@@ -523,6 +546,8 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 		AddMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST;
 		AddMemberAttributeOptions.Attribute = &AttributeTranslator.GetAttributeData();
 		AddMemberAttributeOptions.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC; // todo - get from schema
+		static_assert(EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_AddMemberAttributeOptions updated, check new fields");
+		
 		EOSResultCode = EOS_LobbyModification_AddMemberAttribute(LobbyModificationHandle, &AddMemberAttributeOptions);
 		if (EOSResultCode != EOS_EResult::EOS_Success)
 		{
@@ -539,6 +564,8 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 		EOS_LobbyModification_RemoveMemberAttributeOptions RemoveMemberAttributeOptions = {};
 		RemoveMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST;
 		RemoveMemberAttributeOptions.Key = KeyConverter.Get();
+		static_assert(EOS_LOBBYMODIFICATION_REMOVEMEMBERATTRIBUTE_API_LATEST == 1, "EOS_LobbyModification_RemoveMemberAttributeOptions updated, check new fields");
+		
 		EOSResultCode = EOS_LobbyModification_RemoveMemberAttribute(LobbyModificationHandle, &RemoveMemberAttributeOptions);
 		if (EOSResultCode != EOS_EResult::EOS_Success)
 		{
@@ -551,6 +578,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	EOS_Lobby_UpdateLobbyOptions UpdateLobbyOptions = {};
 	UpdateLobbyOptions.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
 	UpdateLobbyOptions.LobbyModificationHandle = LobbyModificationHandle;
+	static_assert(EOS_LOBBY_UPDATELOBBY_API_LATEST == 1, "EOS_Lobby_UpdateLobbyOptions updated, check new fields");
 
 	TPromise<EOS_EResult> Promise;
 	TFuture<EOS_EResult> Future = Promise.GetFuture();
@@ -582,6 +610,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>> FLobbyDetailsInfoE
 {
 	EOS_LobbyDetails_CopyInfoOptions CopyInfoOptions = {};
 	CopyInfoOptions.ApiVersion = EOS_LOBBYDETAILS_COPYINFO_API_LATEST;
+	static_assert(EOS_LOBBYDETAILS_COPYINFO_API_LATEST == 1, "EOS_LobbyDetails_CopyInfoOptions updated, check new fields");
 
 	EOS_LobbyDetails_Info* LobbyDetailsInfo = nullptr;
 	EOS_EResult EOSResult = EOS_LobbyDetails_CopyInfo(LobbyDetailsHandle, &CopyInfoOptions, &LobbyDetailsInfo);
@@ -854,6 +883,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 	EOS_Lobby_CreateLobbySearchOptions CreateLobbySearchOptions = {};
 	CreateLobbySearchOptions.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
 	CreateLobbySearchOptions.MaxResults = Params.MaxResults;
+	static_assert(EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST == 1, "EOS_Lobby_CreateLobbySearchOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_Lobby_CreateLobbySearch(Prerequisites->LobbyInterfaceHandle, &CreateLobbySearchOptions, &SearchHandle->Get());
 	if (EOSResult != EOS_EResult::EOS_Success)
@@ -873,6 +903,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 		EOS_LobbySearch_SetLobbyIdOptions SetLobbyIdOptions = {};
 		SetLobbyIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETLOBBYID_API_LATEST;
 		SetLobbyIdOptions.LobbyId = LobbyData->GetLobbyIdEOS();
+		static_assert(EOS_LOBBYSEARCH_SETLOBBYID_API_LATEST == 1, "EOS_LobbySearch_SetLobbyIdOptions updated, check new fields");
 
 		EOSResult = EOS_LobbySearch_SetLobbyId(SearchHandle->Get(), &SetLobbyIdOptions);
 		if (EOSResult != EOS_EResult::EOS_Success)
@@ -886,6 +917,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 		EOS_LobbySearch_SetTargetUserIdOptions SetTargetUserIdOptions = {};
 		SetTargetUserIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
 		SetTargetUserIdOptions.TargetUserId = GetProductUserIdChecked(*Params.TargetUser);
+		static_assert(EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST == 1, "EOS_LobbySearch_SetTargetUserIdOptions updated, check new fields");
 
 		EOSResult = EOS_LobbySearch_SetTargetUserId(SearchHandle->Get(), &SetTargetUserIdOptions);
 		if (EOSResult != EOS_EResult::EOS_Success)
@@ -905,11 +937,13 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 			AttributeData.Key = EOS_LOBBY_SEARCH_BUCKET_ID;
 			AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
 			AttributeData.Value.AsUtf8 = BucketTranslator.GetBucketIdEOS();
+			static_assert(EOS_LOBBY_ATTRIBUTEDATA_API_LATEST == 1, "EOS_Lobby_AttributeData updated, check new fields");
 
 			EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
-			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
 			SetParameterOptions.Parameter = &AttributeData;
 			SetParameterOptions.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+			static_assert(EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST == 1, "EOS_LobbySearch_SetParameterOptions updated, check new fields");
 
 			EOSResult = EOS_LobbySearch_SetParameter(SearchHandle->Get(), &SetParameterOptions);
 			if (EOSResult != EOS_EResult::EOS_Success)
@@ -925,9 +959,10 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 				Filter.AttributeName, Filter.ComparisonValue);
 
 			EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
-			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
 			SetParameterOptions.Parameter = &AttributeTranslator.GetAttributeData();
 			SetParameterOptions.ComparisonOp = Private::TranslateSearchComparison(Filter.ComparisonOp);
+			static_assert(EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST == 1, "EOS_LobbySearch_SetParameterOptions updated, check new fields");
 
 			EOSResult = EOS_LobbySearch_SetParameter(SearchHandle->Get(), &SetParameterOptions);
 			if (EOSResult != EOS_EResult::EOS_Success)
@@ -944,6 +979,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 	EOS_LobbySearch_FindOptions FindOptions = {};
 	FindOptions.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
 	FindOptions.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
+	static_assert(EOS_LOBBYSEARCH_FIND_API_LATEST == 1, "EOS_LobbySearch_FindOptions updated, check new fields");
 
 	EOS_Async(EOS_LobbySearch_Find, SearchHandle->Get(), FindOptions,
 	[Promise = MoveTemp(Promise), Prerequisites, LobbyRegistry, LocalUserId = Params.LocalUserId, SearchHandle]
@@ -960,6 +996,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 
 		EOS_LobbySearch_GetSearchResultCountOptions GetSearchResultCountOptions = {};
 		GetSearchResultCountOptions.ApiVersion = EOS_LOBBYSEARCH_GETSEARCHRESULTCOUNT_API_LATEST;
+		static_assert(EOS_LOBBYSEARCH_GETSEARCHRESULTCOUNT_API_LATEST == 1, "EOS_LobbySearch_GetSearchResultCountOptions updated, check new fields");
+		
 		const uint32_t NumSearchResults = EOS_LobbySearch_GetSearchResultCount(SearchHandle->Get(), &GetSearchResultCountOptions);
 
 		for (uint32_t SearchResultIndex = 0; SearchResultIndex < NumSearchResults; ++SearchResultIndex)

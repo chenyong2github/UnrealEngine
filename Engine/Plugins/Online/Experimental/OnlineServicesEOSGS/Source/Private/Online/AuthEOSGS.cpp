@@ -151,15 +151,18 @@ FEOSConnectLoginOptions& FEOSConnectLoginOptions::operator=(FEOSConnectLoginOpti
 FEOSConnectLoginOptions::FEOSConnectLoginOptions()
 {
 	// EOS_Connect_LoginOptions init
+	static_assert(EOS_CONNECT_LOGIN_API_LATEST == 2, "EOS_Connect_LoginOptions updated, check new fields");
 	ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 	Credentials = &CredentialsData;
 	UserLoginInfo = nullptr;
 
 	// EOS_Connect_Credentials init
+	static_assert(EOS_CONNECT_CREDENTIALS_API_LATEST == 1, "EOS_Connect_Credentials updated, check new fields");
 	CredentialsData.ApiVersion = EOS_CONNECT_CREDENTIALS_API_LATEST;
 	CredentialsData.Token = nullptr;
 
 	// EOS_Connect_UserLoginInfo init
+	static_assert(EOS_CONNECT_USERLOGININFO_API_LATEST == 1, "EOS_Connect_UserLoginInfo updated, check new fields");
 	UserLoginInfoData.ApiVersion = EOS_CONNECT_USERLOGININFO_API_LATEST;
 	UserLoginInfoData.DisplayName = DisplayNameUtf8;
 }
@@ -332,11 +335,13 @@ FEOSAuthLoginOptions& FEOSAuthLoginOptions::operator=(FEOSAuthLoginOptions&& Oth
 FEOSAuthLoginOptions::FEOSAuthLoginOptions()
 {
 	// EOS_Auth_LoginOptions init
+	static_assert(EOS_AUTH_LOGIN_API_LATEST == 2, "EOS_Auth_LoginOptions updated, check new fields");
 	ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
 	Credentials = &CredentialsData;
 	ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
 
 	// EOS_Auth_Credentials init
+	static_assert(EOS_AUTH_CREDENTIALS_API_LATEST == 3, "EOS_Auth_Credentials updated, check new fields");
 	CredentialsData.ApiVersion = EOS_AUTH_CREDENTIALS_API_LATEST;
 	CredentialsData.Id = nullptr;
 	CredentialsData.Token = nullptr;
@@ -847,6 +852,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOSGS::Logout(FAuthLogout::Params&& Param
 			EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions = { 0 };
 			DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
 			DeletePersistentAuthOptions.RefreshToken = nullptr; // TODO: Is this needed?  Docs say it's needed for consoles
+			static_assert(EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST == 2, "EOS_Auth_DeletePersistentAuthOptions updated, check new fields");
 
 			EOS_Async(EOS_Auth_DeletePersistentAuth, AuthHandle, DeletePersistentAuthOptions,
 			[Promise = MoveTemp(Promise)](const EOS_Auth_DeletePersistentAuthCallbackInfo* Data) mutable -> void
@@ -1009,6 +1015,7 @@ TFuture<TDefaultErrorResult<FAuthLoginEASImpl>> FAuthEOSGS::LoginEASImpl(const F
 			EOS_Auth_LinkAccountOptions LinkAccountOptions = {};
 			LinkAccountOptions.ApiVersion = EOS_AUTH_LINKACCOUNT_API_LATEST;
 			LinkAccountOptions.ContinuanceToken = Data->ContinuanceToken;
+			static_assert(EOS_AUTH_LINKACCOUNT_API_LATEST == 1, "EOS_Auth_LinkAccountOptions updated, check new fields");
 
 			EOS_Async(EOS_Auth_LinkAccount, AuthHandle, LinkAccountOptions,
 			[Promise = MoveTemp(Promise)](const EOS_Auth_LinkAccountCallbackInfo* Data) mutable -> void
@@ -1039,6 +1046,7 @@ TFuture<TDefaultErrorResult<FAuthLoginEASImpl>> FAuthEOSGS::LoginEASImpl(const F
 			{
 				EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions = {};
 				DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+				static_assert(EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST == 2, "EOS_Auth_DeletePersistentAuthOptions updated, check new fields");
 
 				EOS_Async(EOS_Auth_DeletePersistentAuth, AuthHandle, DeletePersistentAuthOptions,
 				[ResolvedError = MoveTemp(ResolvedError), Promise = MoveTemp(Promise)](const EOS_Auth_DeletePersistentAuthCallbackInfo* Data) mutable -> void
@@ -1070,6 +1078,7 @@ TFuture<TDefaultErrorResult<FAuthLogoutEASImpl>> FAuthEOSGS::LogoutEASImpl(const
 	EOS_Auth_LogoutOptions LogoutOptions = {};
 	LogoutOptions.ApiVersion = EOS_AUTH_LOGOUT_API_LATEST;
 	LogoutOptions.LocalUserId = LogoutParams.EpicAccountId;
+	static_assert(EOS_AUTH_LOGOUT_API_LATEST == 1, "EOS_Auth_LogoutOptions updated, check new fields");
 
 	EOS_Async(EOS_Auth_Logout, AuthHandle, LogoutOptions,
 	[Promise = MoveTemp(Promise)](const EOS_Auth_LogoutCallbackInfo* Data) mutable -> void
@@ -1094,6 +1103,7 @@ TDefaultErrorResult<FAuthGetExternalAuthTokenImpl> FAuthEOSGS::GetExternalAuthTo
 	EOS_Auth_CopyIdTokenOptions CopyIdTokenOptions = {};
 	CopyIdTokenOptions.ApiVersion = EOS_AUTH_COPYIDTOKEN_API_LATEST;
 	CopyIdTokenOptions.AccountId = Params.EpicAccountId;
+	static_assert(EOS_AUTH_COPYIDTOKEN_API_LATEST == 1, "EOS_Auth_CopyIdTokenOptions updated, check new fields");
 
 	EOS_Auth_IdToken* IdToken = nullptr;
 	EOS_EResult Result = EOS_Auth_CopyIdToken(AuthHandle, &CopyIdTokenOptions, &IdToken);
@@ -1140,6 +1150,7 @@ TFuture<TDefaultErrorResult<FAuthLoginConnectImpl>> FAuthEOSGS::LoginConnectImpl
 			EOS_Connect_CreateUserOptions ConnectCreateUserOptions = { };
 			ConnectCreateUserOptions.ApiVersion = EOS_CONNECT_CREATEUSER_API_LATEST;
 			ConnectCreateUserOptions.ContinuanceToken = Data->ContinuanceToken;
+			static_assert(EOS_CONNECT_CREATEUSER_API_LATEST == 1, "EOS_Connect_CreateUserOptions updated, check new fields");
 
 			EOS_Async(EOS_Connect_CreateUser, ConnectHandle, ConnectCreateUserOptions,
 			[Promise = MoveTemp(Promise)](const EOS_Connect_CreateUserCallbackInfo* Data) mutable -> void
@@ -1417,6 +1428,7 @@ void FAuthEOSGS::RegisterHandlers()
 		&EOS_Connect_AddNotifyLoginStatusChanged,
 		&EOS_Connect_RemoveNotifyLoginStatusChanged,
 		&FAuthEOSGS::OnConnectLoginStatusChanged);
+	static_assert(EOS_CONNECT_ADDNOTIFYLOGINSTATUSCHANGED_API_LATEST == 1, "EOS_Connect_AddNotifyLoginStatusChanged updated, check new fields");
 
 	// Notification of a pending external token expiration ~10 minutes.
 	OnConnectAuthNotifyExpirationEOSEventRegistration = EOS_RegisterComponentEventHandler(
@@ -1426,6 +1438,7 @@ void FAuthEOSGS::RegisterHandlers()
 		&EOS_Connect_AddNotifyAuthExpiration,
 		&EOS_Connect_RemoveNotifyAuthExpiration,
 		&FAuthEOSGS::OnConnectAuthNotifyExpiration);
+	static_assert(EOS_CONNECT_ONAUTHEXPIRATIONCALLBACK_API_LATEST == 1, "EOS_Connect_AddNotifyAuthExpiration updated, check new fields");
 
 	// Register for EAS connection status updates.
 	OnConnectAuthNotifyExpirationEOSEventRegistration = EOS_RegisterComponentEventHandler(
@@ -1435,6 +1448,7 @@ void FAuthEOSGS::RegisterHandlers()
 		&EOS_Auth_AddNotifyLoginStatusChanged,
 		&EOS_Auth_RemoveNotifyLoginStatusChanged,
 		&FAuthEOSGS::OnEASLoginStatusChanged);
+	static_assert(EOS_AUTH_ADDNOTIFYLOGINSTATUSCHANGED_API_LATEST == 1, "EOS_Auth_AddNotifyLoginStatusChanged updated, check new fields");
 }
 
 void FAuthEOSGS::UnregisterHandlers()
