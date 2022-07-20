@@ -72,3 +72,12 @@ private:
 	/** Pointer to the actual subobject data that this handle represents */
 	TSharedPtr<FSubobjectData> DataPtr;
 };
+
+template<>
+struct TStructOpsTypeTraits<FSubobjectDataHandle> : public TStructOpsTypeTraitsBase2<FSubobjectDataHandle>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+	};
+};
