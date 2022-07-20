@@ -219,7 +219,7 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 	// If the component is partitioned, we will forward the calls to its registered PCG Partition actors
 	if (PCGComponent->IsPartitioned())
 	{
-{
+		{
 			// TODO: Might be more interesting to copy the set and release the lock.
 			FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
 			TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(PCGComponent);
@@ -231,11 +231,11 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 		}
 	}
 	else
-		{
+	{
 		// In non partitioned mode, do it immediately
 		// TODO: Should it be a parameter?
 		PCGComponent->CleanupInternal(bRemoveComponents);
-		}
+	}
 
 	if (AllTasks.IsEmpty())
 	{
