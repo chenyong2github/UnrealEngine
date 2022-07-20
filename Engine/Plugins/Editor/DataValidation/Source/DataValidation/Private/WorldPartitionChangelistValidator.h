@@ -18,6 +18,7 @@ class DATAVALIDATION_API UWorldPartitionChangelistValidator : public UEditorVali
 protected:		
 	
 	TArray<FText>*							Errors = nullptr;
+	FName									RelevantMap;
 	TSet<FGuid>								RelevantActorGuids;
 	TSet<FString>							RelevantDataLayerAssets;
 	bool									SubmittingWorldDataLayers = false;

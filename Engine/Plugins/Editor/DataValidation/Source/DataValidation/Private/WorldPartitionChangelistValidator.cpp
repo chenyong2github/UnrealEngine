@@ -124,7 +124,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 			
 			for (FAssetData& AssetData : PackageAssetsData)
 			{
-				if (AssetData.GetClass() == UDataLayerAsset::StaticClass())
+				if (AssetData.GetClass()->IsChildOf<UDataLayerAsset>())
 				{
 					TArray<FName> ReferencerNames;
 					AssetRegistry.GetReferencers(AssetData.PackageName, ReferencerNames, UE::AssetRegistry::EDependencyCategory::All);
@@ -144,11 +144,18 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 			
 					RelevantDataLayerAssets.Add(AssetData.PackageName.ToString());
 				}
-				else if (AssetData.GetClass() == AWorldDataLayers::StaticClass())
+				else if (AssetData.GetClass()->IsChildOf<AWorldDataLayers>())
 				{
 					if (TryAssociateAssetDataToMap(AssetData))
 					{
 						SubmittingWorldDataLayers = true;
+					}
+				}
+				else if (AssetData.GetClass()->IsChildOf<UWorld>())
+				{
+					if (ULevel::GetIsLevelPartitionedFromPackage(*PackageName))
+					{
+						MapToActorsFiles.FindOrAdd(AssetData.ObjectPath);
 					}
 				}
 				else
@@ -186,6 +193,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		}
 
 		// Build a set of Relevant Actor Guids to scope error messages to what's contained in the CL 
+		RelevantMap = MapName;
 		RelevantActorGuids.Reset();
 
 		for (const FAssetData& ActorData : ActorsData)
@@ -219,6 +227,12 @@ bool UWorldPartitionChangelistValidator::Filter(const FWorldPartitionActorDescVi
 	if (RelevantActorGuids.Find(ActorDescView.GetGuid()))
 	{
 		return true;
+	}
+
+	if (!RelevantMap.IsNone())
+	{
+		FSoftObjectPath ActorPath = ActorDescView.GetActorPath().ToString();
+		return ActorPath.GetAssetPathName() == RelevantMap;
 	}
 
 	return false;
