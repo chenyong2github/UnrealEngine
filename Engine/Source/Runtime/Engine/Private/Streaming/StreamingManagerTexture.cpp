@@ -149,8 +149,6 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 	NumStreamedMips_StaticMesh.Add(INT32_MAX);
 	NumStreamedMips_SkeletalMesh.Empty(1);
 	NumStreamedMips_SkeletalMesh.Add(INT32_MAX);
-	NumStreamedMips_LandscapeMeshMobile.Empty(1);
-	NumStreamedMips_LandscapeMeshMobile.Add(INT32_MAX);
 
 	// setup the streaming resource flush function pointer
 	GFlushStreamingFunc = &FlushResourceStreaming;
@@ -2160,7 +2158,6 @@ bool FRenderAssetStreamingManager::HandleCancelRenderAssetStreamingCommand( cons
 	UTexture::CancelPendingTextureStreaming();
 	UStaticMesh::CancelAllPendingStreamingActions();
 	USkeletalMesh::CancelAllPendingStreamingActions();
-	ULandscapeLODStreamingProxy::CancelAllPendingStreamingActions();
 	return true;
 }
 

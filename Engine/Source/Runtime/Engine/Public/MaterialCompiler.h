@@ -508,7 +508,6 @@ public:
 	virtual int32 AtmosphericFogColor(int32 WorldPosition) = 0;
 	virtual int32 RotateScaleOffsetTexCoords(int32 TexCoordCodeIndex, int32 RotationScale, int32 Offset) = 0;
 	virtual int32 SpeedTree(int32 GeometryArg, int32 WindArg, int32 LODArg, float BillboardThreshold, bool bAccurateWindVelocities, bool bExtraBend, int32 ExtraBendArg) = 0;
-	virtual int32 TextureCoordinateOffset() = 0;
 	virtual int32 EyeAdaptation() = 0;
 	virtual int32 EyeAdaptationInverse(int32 LightValueArg, int32 AlphaArg) = 0;
 	virtual int32 AtmosphericLightVector() = 0;
@@ -1032,11 +1031,6 @@ public:
 	virtual int32 MapARPassthroughCameraUV(int32 UV) override
 	{
 		return Compiler->MapARPassthroughCameraUV(UV);
-	}
-
-	virtual int32 TextureCoordinateOffset() override
-	{
-		return Compiler->TextureCoordinateOffset();
 	}
 
 	virtual int32 EyeAdaptation() override

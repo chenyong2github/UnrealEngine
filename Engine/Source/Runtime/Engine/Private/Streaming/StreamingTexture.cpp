@@ -115,15 +115,6 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = AssetLODInfos[LODIndex + ResourceState.AssetLODBias].ScreenSize.GetValue() * 0.5f;
 				}
 			}
-			else
-			{
-				const ULandscapeLODStreamingProxy* LandscapeProxy = CastChecked<ULandscapeLODStreamingProxy>(RenderAsset);
-				const TArray<float> LODScreenSizeArray = LandscapeProxy->GetLODScreenSizeArray();
-				for (int32 LODIndex = 0; LODIndex < ResourceState.MaxNumLODs; ++LODIndex)
-				{
-					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = LODScreenSizeArray[LODIndex + ResourceState.AssetLODBias];
-				}
-			}
 		}
 
 		for (int32 LODIndex = 0; LODIndex < ResourceState.MaxNumLODs; ++LODIndex)
@@ -315,7 +306,7 @@ int32 FStreamingRenderAsset::GetWantedMipsFromSize(float Size, float InvMaxScree
 	}
 	else
 	{
-		check(RenderAssetType == EStreamableRenderAssetType::StaticMesh || RenderAssetType == EStreamableRenderAssetType::SkeletalMesh || RenderAssetType == EStreamableRenderAssetType::LandscapeMeshMobile);
+		check(RenderAssetType == EStreamableRenderAssetType::StaticMesh || RenderAssetType == EStreamableRenderAssetType::SkeletalMesh);
 		if (Size == FLT_MAX)
 		{
 			return MaxAllowedMips;

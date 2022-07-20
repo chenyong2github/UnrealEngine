@@ -314,28 +314,6 @@ bool FAndroidTargetPlatform::SupportsVulkanSM5() const
 	return bSupportsMobileVulkanSM5;
 }
 
-bool FAndroidTargetPlatform::SupportsLandscapeMeshLODStreaming() const
-{
-	bool bStreamLandscapeMeshLODs = false;
-#if WITH_ENGINE
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bStreamLandscapeMeshLODs"), bStreamLandscapeMeshLODs, GEngineIni);
-#endif
-	return bStreamLandscapeMeshLODs;
-}
-
-bool FAndroidTargetPlatform::UseMobileLandscapeMesh() const
-{
-	// By default mobile uses landscape mesh
-	static bool bUseMobileLandscapeMesh = true;
-	static bool bInitialized = false;
-	if (!bInitialized)
-	{
-		GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.LandscapeMesh"), bUseMobileLandscapeMesh, GEngineIni);
-		bInitialized = true;
-	}
-	return bUseMobileLandscapeMesh;
-}
-
 /* ITargetPlatform overrides
  *****************************************************************************/
 
@@ -427,14 +405,8 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::VirtualTextureStreaming:
 			return UsesVirtualTextures();
 
-		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
-			return SupportsLandscapeMeshLODStreaming();
-
 		case ETargetPlatformFeatures::DistanceFieldAO:
 			return UsesDistanceFields();
-
-		case ETargetPlatformFeatures::MobileLandscapeMesh:
-			return SupportsFeature(ETargetPlatformFeatures::MobileRendering) && UseMobileLandscapeMesh();
 			
 		default:
 			break;

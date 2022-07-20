@@ -29,7 +29,7 @@ enum class EStreamableRenderAssetType : uint8
 	Texture,
 	StaticMesh,
 	SkeletalMesh,
-	LandscapeMeshMobile,
+	LandscapeMeshMobile UE_DEPRECATED(5.1, "LandscapeMeshMobile is now deprecated and will be removed."),
 	NaniteCoarseMesh,
 };
 

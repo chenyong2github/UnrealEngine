@@ -35,7 +35,6 @@ class AActor;
 class UTexture2D;
 class UStaticMesh;
 class USkeletalMesh;
-class ULandscapeLODStreamingProxy;
 class UStreamableRenderAsset;
 class FSoundSource;
 struct FWaveInstance;

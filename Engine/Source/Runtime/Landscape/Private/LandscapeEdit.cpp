@@ -28,7 +28,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "Materials/MaterialExpressionLandscapeLayerSwitch.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeRender.h"
-#include "LandscapeRenderMobile.h"
+#include "LandscapePrivate.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "LandscapeMaterialInstanceConstant.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
@@ -637,7 +637,7 @@ void ULandscapeComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFe
 {
 	Super::PreFeatureLevelChange(PendingFeatureLevel);
 
-	if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[PendingFeatureLevel]))
+	if (PendingFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		// See if we need to cook platform data for mobile preview in editor
 		CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
@@ -5105,12 +5105,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			NaniteComponent->UpdatedSharedPropertiesFromActor();
 		}
 	}
-	else if (GIsEditor && 
-		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
-	{
-		CheckGenerateMobilePlatformData(false, nullptr);
-		MarkComponentsRenderStateDirty();
-	}
+
 	if (GIsEditor && PropertyName == FName(TEXT("bEnableNanite")))
 	{
 		if (LiveRebuildNaniteOnModification != 0)
@@ -5225,7 +5220,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 			if (World != nullptr)
 			{
-				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				if (World->FeatureLevel == ERHIFeatureLevel::ES3_1)
 				{
 					for (ULandscapeComponent* Component : LandscapeComponents)
 					{
@@ -5239,7 +5234,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 				if (LiveRebuildNaniteOnModification != 0)
 				{
 					UpdateNaniteRepresentation();
-					}
+				}
 				else
 				{
 					InvalidateNaniteRepresentation();
@@ -5690,7 +5685,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 				if (World != nullptr)
 				{
-					if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+					if (World->FeatureLevel == ERHIFeatureLevel::ES3_1)
 					{
 						for (ULandscapeComponent* Component : LandscapeComponents)
 						{
@@ -5793,12 +5788,9 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr)
+			if (World != nullptr && World->FeatureLevel == ERHIFeatureLevel::ES3_1)
 			{
-				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
-				{
-					CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
-				}
+				CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 			}
 		}
 	}
@@ -6559,8 +6551,12 @@ static void GetAllMobileRelevantLayerNames(TSet<FName>& OutLayerNames, UMaterial
 
 void ULandscapeComponent::GenerateMobileWeightmapLayerAllocations()
 {
+	const bool bComponentHasHoles = ComponentHasVisibilityPainted();
+	UMaterialInterface* const HoleMaterial = bComponentHasHoles ? GetLandscapeHoleMaterial() : nullptr;
+	UMaterialInterface* const MaterialToUse = bComponentHasHoles && HoleMaterial ? HoleMaterial : GetLandscapeMaterial();
+		
 	TSet<FName> LayerNames;
-	GetAllMobileRelevantLayerNames(LayerNames, GetLandscapeMaterial()->GetMaterial());
+	GetAllMobileRelevantLayerNames(LayerNames, MaterialToUse->GetMaterial());
 	MobileWeightmapLayerAllocations = WeightmapLayerAllocations.FilterByPredicate([&](const FWeightmapLayerAllocationInfo& Allocation) -> bool 
 		{
 			return Allocation.LayerInfo && LayerNames.Contains(Allocation.GetLayerName());
@@ -6596,55 +6592,18 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 	int32 WeightmapSize = (SubsectionSizeQuads + 1) * NumSubsections;
 
 	MobileWeightmapTextures.Empty();
-
-    UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
-	CreateEmptyTextureMips(MobileWeightNormalmapTexture, true);
-
 	{
 		FLandscapeTextureDataInterface LandscapeData;
-
-		// copy normals into B/A channels
-		LandscapeData.CopyTextureFromHeightmap(MobileWeightNormalmapTexture, 2, this, 2);
-		LandscapeData.CopyTextureFromHeightmap(MobileWeightNormalmapTexture, 3, this, 3);
-
-		UTexture2D* CurrentWeightmapTexture = MobileWeightNormalmapTexture;
-		MobileWeightmapTextures.Add(CurrentWeightmapTexture);
+		UTexture2D* CurrentWeightmapTexture = nullptr;
 		int32 CurrentChannel = 0;
-
-		// We can potentially save a channel allocation if we have weight based blends.
-		const bool bAtLeastOneWeightBasedBlend = MobileWeightmapLayerAllocations.FindByPredicate([&](const FWeightmapLayerAllocationInfo& Allocation) -> bool { return !Allocation.LayerInfo->bNoWeightBlend; }) != nullptr;
-		const bool bUseWeightBasedChannelOptim =  bAtLeastOneWeightBasedBlend && MobileWeightmapLayerAllocations.Num() <= 3;
-		MobileBlendableLayerMask = 0;
-
-		// Give normal map a full texture if this doesn't increase the overall allocation count.
-		// This then saves a texture slot because we don't need to sample a combined normalmap/weightmap texture with two different sampler settings.
-		// This optimization won't be useful or valid if we are already applying the weight based blending channel optimization.
-		const int32 NumTexturesCombinedNormal = FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num() + 2, 4);
-		const int32 NumTexturesIsolatedNormal = 1 + FMath::DivideAndRoundUp(MobileWeightmapLayerAllocations.Num(), 4);
-		const bool bIsolateNormalMap = !bUseWeightBasedChannelOptim && NumTexturesCombinedNormal == NumTexturesIsolatedNormal;
-		int32 RemainingChannels = bIsolateNormalMap ? 0 : 2;
+		int32 RemainingChannels = 0;
 
 		for (auto& Allocation : MobileWeightmapLayerAllocations)
 		{
 			if (Allocation.LayerInfo)
 			{
-				// If we can pack into 2 channels with the 3rd implied, track the mask for the weight blendable layers
-				if (bUseWeightBasedChannelOptim)
-				{
-					MobileBlendableLayerMask |= (!Allocation.LayerInfo->bNoWeightBlend ? (1 << CurrentChannel) : 0);
-
-					// we don't need to create a new texture for the 3rd layer
-					if (RemainingChannels == 0)
-					{
-						Allocation.WeightmapTextureIndex = 0;
-						Allocation.WeightmapTextureChannel = 2; // not a valid texture channel, but used for the mask.
-						break;
-					}
-				}
-
 				if (RemainingChannels == 0)
 				{
-
 					// create a new weightmap texture if we've run out of channels
 					CurrentChannel = 0;
 					RemainingChannels = 4;
@@ -6781,571 +6740,6 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 			++MaterialIndex;
 		}
 	}
-}
-
-
-// FBox2D version that uses integers
-struct FIntBox2D
-{
-	FIntBox2D() : Min(INT32_MAX, INT32_MAX), Max(-INT32_MAX, -INT32_MAX) {}
-
-	void Add(FIntPoint const& Pos) 
-	{
-		Min = FIntPoint(FMath::Min(Min.X, Pos.X), FMath::Min(Min.Y, Pos.Y));
-		Max = FIntPoint(FMath::Max(Max.X, Pos.X), FMath::Max(Max.Y, Pos.Y));
-	}
-
-	void Add(FIntBox2D const& Rhs)
-	{
-		Min = FIntPoint(FMath::Min(Min.X, Rhs.Min.X), FMath::Min(Min.Y, Rhs.Min.Y));
-		Max = FIntPoint(FMath::Max(Max.X, Rhs.Max.X), FMath::Max(Max.Y, Rhs.Max.Y));
-	}
-
-	bool Intersects(FIntBox2D const& Rhs)
-	{
-		return !((Rhs.Max.X < Min.X) || (Rhs.Min.X > Max.X) || (Rhs.Max.Y < Min.Y) || (Rhs.Min.Y > Max.Y));
-	}
-
-	FIntPoint Min;
-	FIntPoint Max;
-};
-
-// Segment the hole map and return an array of hole bounding rectangles
-void GetHoleBounds(int32 InSize, TArray<uint8> const& InVisibilityData, TArray<FIntBox2D>& OutHoleBounds)
-{
-	check(InVisibilityData.Num() == InSize * InSize);
-
-	TArray<uint32> HoleSegmentLabels;
-	HoleSegmentLabels.AddZeroed(InSize*InSize);
-
-	TArray<uint32, TInlineAllocator<32>> LabelEquivalenceMap;
-	LabelEquivalenceMap.Add(0);
-	uint32 NextLabel = 1;
-
-	// First pass fills HoleSegmentLabels with labels.
-	for (int32 y = 0; y < InSize; ++y)
-	{
-		for (int32 x = 0; x < InSize; ++x)
-		{
-			const uint8 VisThreshold = 170;
-			const bool bIsHole = InVisibilityData[y * InSize + x] >= VisThreshold;
-			if (bIsHole)
-			{
-				uint8 WestLabel = (x > 0) ? HoleSegmentLabels[y * InSize + x - 1] : 0;
-				uint8 NorthLabel = (y > 0) ? HoleSegmentLabels[(y - 1) * InSize + x] : 0;
-
-				if (WestLabel != 0 && NorthLabel != 0 && WestLabel != NorthLabel)
-				{
-					uint32 MinLabel = FMath::Min(WestLabel, NorthLabel);
-					uint32 MaxLabel = FMath::Max(WestLabel, NorthLabel);
-					LabelEquivalenceMap[MaxLabel] = MinLabel;
-					HoleSegmentLabels[y * InSize + x] = MinLabel;
-				}
-				else if (WestLabel != 0)
-				{
-					HoleSegmentLabels[y * InSize + x] = WestLabel;
-				}
-				else if (NorthLabel != 0)
-				{
-					HoleSegmentLabels[y * InSize + x] = NorthLabel;
-				}
-				else
-				{
-					LabelEquivalenceMap.Add(NextLabel);
-					HoleSegmentLabels[y * InSize + x] = NextLabel++;
-				}
-			}
-		}
-	}
-
-	// Resolve label equivalences.
-	for (int32 Index = 0; Index < LabelEquivalenceMap.Num(); ++ Index)
-	{
-		int32 CommonIndex = Index;
-		while (LabelEquivalenceMap[CommonIndex] != CommonIndex)
-		{
-			CommonIndex = LabelEquivalenceMap[CommonIndex];
-		}
-		LabelEquivalenceMap[Index] = CommonIndex;
-	}
-
-	// Flatten labels to be contiguous.
-	int32 NumLabels = 0;
-	for (int32 Index = 0; Index < LabelEquivalenceMap.Num(); ++Index)
-	{
-		if (LabelEquivalenceMap[Index] == Index)
-		{
-			LabelEquivalenceMap[Index] = NumLabels++;
-		}
-		else
-		{
-			LabelEquivalenceMap[Index] = LabelEquivalenceMap[LabelEquivalenceMap[Index]];
-		}
-	}
-
-	// Second pass finds bounds for each label.
-	// Could also write contiguous labels to HoleSegmentLabels here if we want to keep that info.
-	OutHoleBounds.AddDefaulted(NumLabels);
-	for (int32 y = 0; y < InSize - 1; ++y)
-	{
-		for (int32 x = 0; x < InSize - 1; ++x)
-		{
-			const int32 Index = InSize * y + x;
-			const int32 Label = LabelEquivalenceMap[HoleSegmentLabels[Index]];
-			OutHoleBounds[Label].Add(FIntPoint(x, y));
-		}
-	}
-}
-
-// Move vertex index up to the next location which obeys the condition:
-// PosAt(VertexIndex, LodIndex) > PosAt(VertexIndex - 1, LodIndex + 1)
-// Maths derived from pattern when analyzing a spreadsheet containing a dump of lod vertex positions.
-inline void AlignVertexDown(int32 InLodIndex, int32& InOutVertexIndex)
-{
-	const int32 Offset = InOutVertexIndex & ((2 << InLodIndex) - 1);
-	if (Offset < (1 << InLodIndex))
-	{
-		InOutVertexIndex -= Offset;
-	}
-}
-
-// Move vertex index up to the next location which obeys the condition:
-// PosAt(VertexIndex, LodIndex) < PosAt(VertexIndex + 1, LodIndex + 1)
-// Maths derived from pattern when analyzing a spreadsheet containing a dump of lod vertex positions.
-inline void AlignVertexUp(int32 InLodIndex, int32& InOutVertexIndex)
-{
-	const int32 Offset = (InOutVertexIndex + 1) & ((2 << InLodIndex) - 1);
-	if (Offset > (1 << InLodIndex))
-	{
-		InOutVertexIndex += (1 << InLodIndex) - Offset;
-	}
-}
-
-// Expand bounding rectangles from LodIndex-1 to LodIndex
-void ExpandBoundsForLod(int32 InSize, int32 InLodIndex, TArray<FIntBox2D> const& InHoleBounds, TArray<FIntBox2D>& OutHoleBounds)
-{
-	OutHoleBounds.AddZeroed(InHoleBounds.Num());
-	for (int32 i = 0; i < InHoleBounds.Num(); ++i)
-	{
-		// Expand
-		const int32 ExpandDistance = (2 << InLodIndex) - 1;
-		OutHoleBounds[i].Min.X = InHoleBounds[i].Min.X - ExpandDistance;
-		OutHoleBounds[i].Min.Y = InHoleBounds[i].Min.Y - ExpandDistance;
-		OutHoleBounds[i].Max.X = InHoleBounds[i].Max.X + ExpandDistance;
-		OutHoleBounds[i].Max.Y = InHoleBounds[i].Max.Y + ExpandDistance;
-
-		// Snap to continuous LOD borders so that consecutive vertices with different LODs don't overlap
-		if (InLodIndex > 0)
-		{
-			AlignVertexDown(InLodIndex, OutHoleBounds[i].Min.X);
-			AlignVertexDown(InLodIndex, OutHoleBounds[i].Min.Y);
-			AlignVertexUp(InLodIndex, OutHoleBounds[i].Max.X);
-			AlignVertexUp(InLodIndex, OutHoleBounds[i].Max.Y);
-		}
-
-		// Clamp to edges
-		OutHoleBounds[i].Min.X = FMath::Max(OutHoleBounds[i].Min.X, 0);
-		OutHoleBounds[i].Max.X = FMath::Min(OutHoleBounds[i].Max.X, InSize - 1);
-		OutHoleBounds[i].Min.Y = FMath::Max(OutHoleBounds[i].Min.Y, 0);
-		OutHoleBounds[i].Max.Y = FMath::Min(OutHoleBounds[i].Max.Y, InSize - 1);
-	}
-}
-
-// Combine intersecting bounding rectangles into to form their bounding rectangles.
-void CombineIntersectingBounds(TArray<FIntBox2D>& InOutHoleBounds)
-{
-	int i = 1;
-	while (i < InOutHoleBounds.Num())
-	{
-		int j = i + 1;
-		for (; j < InOutHoleBounds.Num(); ++j)
-		{
-			if (InOutHoleBounds[i].Intersects(InOutHoleBounds[j]))
-			{
-				InOutHoleBounds[i].Add(InOutHoleBounds[j]);
-				InOutHoleBounds.RemoveAtSwap(j);
-				break;
-			}
-		}
-		if (j == InOutHoleBounds.Num())
-		{
-			++i;
-		}
-	}
-}
-
-// Build an array with an entry per vertex which contains the Lod at which that vertex falls inside a hole bounding rectangle. 
-// This is the Lod at which we should clamp the vertex in the vertex shader.
-void BuildHoleVertexLods(int32 InSize, int32 InNumLods, TArray<FIntBox2D> const& InHoleBounds, TArray<uint8>& OutHoleVertexLods)
-{
-	// Generate hole bounds for each Lod level from Lod0 InHoleBounds
-	TArray< TArray<FIntBox2D> > HoleBoundsPerLevel;
-	HoleBoundsPerLevel.AddDefaulted(InNumLods);
-	HoleBoundsPerLevel[0] = InHoleBounds;
-
-	for (int32 LodIndex = 1; LodIndex < InNumLods; ++LodIndex)
-	{
-		ExpandBoundsForLod(InSize, LodIndex, HoleBoundsPerLevel[LodIndex - 1], HoleBoundsPerLevel[LodIndex]);
-	}
-
-	for (int32 LodIndex = 0; LodIndex < InNumLods; ++LodIndex)
-	{
-		CombineIntersectingBounds(HoleBoundsPerLevel[LodIndex]);
-	}
-
-	// Initialize output to the max Lod
-	OutHoleVertexLods.Init(InNumLods, InSize * InSize);
-
-	// Fill by writing each Lod level in turn
-	for (int32 LodIndex = InNumLods - 1; LodIndex >= 0; --LodIndex)
-	{
-		TArray<FIntBox2D> const& HoleBoundsAtLevel = HoleBoundsPerLevel[LodIndex];
-		for (int32 BoxIndex = 1; BoxIndex < HoleBoundsAtLevel.Num(); ++BoxIndex)
-		{
-			const FIntPoint Min = HoleBoundsAtLevel[BoxIndex].Min;
-			const FIntPoint Max = HoleBoundsAtLevel[BoxIndex].Max;
-			
-			for (int32 y = Min.Y; y <= Max.Y; ++y)
-			{
-				for (int32 x = Min.X; x <= Max.X; ++x)
-				{
-					OutHoleVertexLods[y * InSize + x] = LodIndex;
-				}
-			}
-		}
-	}
-}
-
-// Structure containing the hole render data required by the runtime rendering.
-template <typename INDEX_TYPE>
-struct FLandscapeHoleRenderData
-{
-	TArray<INDEX_TYPE> HoleIndices;
-	int32 MinIndex;
-	int32 MaxIndex;
-};
-
-// Serialize the hole render data.
-template <typename INDEX_TYPE>
-void SerializeHoleRenderData(FMemoryArchive& Ar, FLandscapeHoleRenderData<INDEX_TYPE>& InHoleRenderData)
-{
-	bool b16BitIndices = sizeof(INDEX_TYPE) == 2;
-	Ar << b16BitIndices;
-
-	Ar << InHoleRenderData.MinIndex;
-	Ar << InHoleRenderData.MaxIndex;
-
-	int32 HoleIndexCount = InHoleRenderData.HoleIndices.Num();
-	Ar << HoleIndexCount;
-	Ar.Serialize(InHoleRenderData.HoleIndices.GetData(), HoleIndexCount * sizeof(INDEX_TYPE));
-}
-
-// Take the processed hole map and generate the hole render data.
-template <typename INDEX_TYPE>
-void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TArray<uint8> const& InVisibilityData, TArray<uint32>& InVertexToIndexMap, FLandscapeHoleRenderData<INDEX_TYPE>& OutHoleRenderData)
-{
-	const int32 SizeVerts = InNumSubsections * InSubsectionSizeVerts;
-	const int32 SubsectionSizeQuads = InSubsectionSizeVerts - 1;
-	const uint8 VisThreshold = 170;
-
-	INDEX_TYPE MaxIndex = 0;
-	INDEX_TYPE MinIndex = TNumericLimits<INDEX_TYPE>::Max();
-
-	for (int32 SubY = 0; SubY < InNumSubsections; SubY++)
-	{
-		for (int32 SubX = 0; SubX < InNumSubsections; SubX++)
-		{
-			for (int32 y = 0; y < SubsectionSizeQuads; y++)
-			{
-				for (int32 x = 0; x < SubsectionSizeQuads; x++)
-				{
-					const int32 x0 = x;
-					const int32 y0 = y;
-					const int32 x1 = x + 1;
-					const int32 y1 = y + 1;
-
-					const int32 VertexIndex = (SubY * InSubsectionSizeVerts + y0) * SizeVerts + SubX * InSubsectionSizeVerts + x0;
-					const bool bIsHole = InVisibilityData[VertexIndex] < VisThreshold;
-					if (bIsHole)
-					{
-						INDEX_TYPE i00 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x0, y0, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
-						INDEX_TYPE i10 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x1, y0, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
-						INDEX_TYPE i11 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x1, y1, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
-						INDEX_TYPE i01 = InVertexToIndexMap[FLandscapeVertexRef::GetVertexIndex(FLandscapeVertexRef(x0, y1, SubX, SubY), InNumSubsections, InSubsectionSizeVerts)];
-
-						OutHoleRenderData.HoleIndices.Add(i00);
-						OutHoleRenderData.HoleIndices.Add(i11);
-						OutHoleRenderData.HoleIndices.Add(i10);
-
-						OutHoleRenderData.HoleIndices.Add(i00);
-						OutHoleRenderData.HoleIndices.Add(i01);
-						OutHoleRenderData.HoleIndices.Add(i11);
-
-						// Update the min/max index ranges
-						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i00);
-						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i00);
-						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i10);
-						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i10);
-						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i11);
-						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i11);
-						MaxIndex = FMath::Max<INDEX_TYPE>(MaxIndex, i01);
-						MinIndex = FMath::Min<INDEX_TYPE>(MinIndex, i01);
-					}
-				}
-			}
-		}
-	}
-
-	OutHoleRenderData.MinIndex = MinIndex;
-	OutHoleRenderData.MaxIndex = MaxIndex;
-}
-
-// Generates vertex and index buffer data from the component's height map and visibility textures.
-// For use on mobile platforms that don't use vertex texture fetch for height or alpha testing for visibility.
-void ULandscapeComponent::GenerateMobilePlatformVertexData(const ITargetPlatform* TargetPlatform)
-{
-	if (IsTemplate())
-	{
-		return;
-	}
-	check(GetHeightmap());
-	check(GetHeightmap()->Source.GetFormat() == TSF_BGRA8);
-
-	TArray<uint8> NewPlatformData;
-	FMemoryWriter PlatformAr(NewPlatformData);
-
-	const int32 SubsectionSizeVerts = SubsectionSizeQuads + 1;
-	const int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeVerts) - 1;
-	const int32 NumMips = FMath::Min(LANDSCAPE_MAX_ES_LOD, GetHeightmap()->Source.GetNumMips());
-
-	const float HeightmapSubsectionOffsetU = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeX();
-	const float HeightmapSubsectionOffsetV = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeY();
-
-	// Get the required height mip data
-	TArray<TArray64<uint8>> HeightmapMipRawData;
-	TArray64<FColor*> HeightmapMipData;
-	for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
-	{
-		int32 MipSubsectionSizeVerts = (SubsectionSizeVerts) >> MipIdx;
-		if (MipSubsectionSizeVerts > 1)
-		{
-			new(HeightmapMipRawData) TArray64<uint8>();
-			GetHeightmap()->Source.GetMipData(HeightmapMipRawData.Last(), MipIdx);
-			HeightmapMipData.Add((FColor*)HeightmapMipRawData.Last().GetData());
-		}
-	}
-
-	// Get any hole data
-	int32 NumHoleLods = 0;
-	TArray< uint8 > VisibilityData;
-	if (ComponentHasVisibilityPainted() && GetLandscapeProxy()->bMeshHoles)
-	{
-		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations();
-		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
-		{
-			const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
-			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
-			{
-				NumHoleLods = FMath::Clamp<int32>(GetLandscapeProxy()->MeshHolesMaxLod, 1, NumMips);
-
-				FLandscapeComponentDataInterface CDI(this, 0);
-				CDI.GetWeightmapTextureData(AllocInfo.LayerInfo, VisibilityData);
-				break;
-			}
-		}
-	}
-
-	// Layout index buffer to determine best vertex order.
-	// This vertex layout code is duplicated in FLandscapeSharedBuffers::CreateIndexBuffers() to create matching index buffers at runtime.
-	const int32 NumVertices = FMath::Square(SubsectionSizeVerts * NumSubsections);
-	
-	TArray<uint32> VertexToIndexMap;
-	VertexToIndexMap.AddUninitialized(NumVertices);
-	FMemory::Memset(VertexToIndexMap.GetData(), 0xFF, NumVertices * sizeof(uint32));
-	
-	TArray<FLandscapeVertexRef> VertexOrder;
-	VertexOrder.Empty(NumVertices);
-
-	// Can't stream if the number of hole LODs is greater than the number of streaming LODs
-	const int32 MaxLODClamp = FMath::Min((uint32)GetLandscapeProxy()->MaxLODLevel, (uint32)MAX_MESH_LOD_COUNT - 1u);
-	const bool bStreamLandscapeMeshLODs = TargetPlatform
-		&& TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming)
-		&& NumHoleLods <= FMath::Min(MaxLOD, MaxLODClamp);
-	int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
-	NumStreamingLODs = FMath::Max(0, NumStreamingLODs - 5); // Always inline bottom 5 LODs
-	TArray<int32> StreamingLODVertStartOffsets;
-	StreamingLODVertStartOffsets.AddUninitialized(NumStreamingLODs);
-
-	for (int32 Mip = MaxLOD; Mip >= 0; Mip--)
-	{
-		int32 LodSubsectionSizeQuads = (SubsectionSizeVerts >> Mip) - 1;
-		float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
-
-		if (Mip < NumStreamingLODs)
-		{
-			StreamingLODVertStartOffsets[Mip] = VertexOrder.Num();
-		}
-
-		for (int32 SubY = 0; SubY < NumSubsections; SubY++)
-		{
-			for (int32 SubX = 0; SubX < NumSubsections; SubX++)
-			{
-				for (int32 Y = 0; Y < LodSubsectionSizeQuads; Y++)
-				{
-					for (int32 X = 0; X < LodSubsectionSizeQuads; X++)
-					{
-						for (int32 CornerId = 0; CornerId < 4; CornerId++)
-						{
-							const int32 CornerX = FMath::RoundToInt((float)(X + (CornerId & 1)) * MipRatio);
-							const int32 CornerY = FMath::RoundToInt((float)(Y + (CornerId >> 1)) * MipRatio);
-							const FLandscapeVertexRef VertexRef(CornerX, CornerY, SubX, SubY);
-
-							const int32 VertexIndex = FLandscapeVertexRef::GetVertexIndex(VertexRef, NumSubsections, SubsectionSizeVerts);
-							if (VertexToIndexMap[VertexIndex] == 0xFFFFFFFF)
-							{
-								VertexToIndexMap[VertexIndex] = VertexOrder.Num();
-								VertexOrder.Add(VertexRef);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (VertexOrder.Num() != NumVertices)
-	{
-		UE_LOG(LogLandscape, Warning, TEXT("VertexOrder count of %d did not match expected size of %d"), VertexOrder.Num(), NumVertices);
-	}
-
-	// Build and serialize hole render data which includes a unique index buffer with the holes missing.
-	// This fills HoleVertexLods which is required for filling the vertex data.
-	TArray<uint8> HoleVertexLods;
-	PlatformAr << NumHoleLods;
-	if (NumHoleLods > 0)
-	{
-		TArray<FIntBox2D> HoleBounds;
-		GetHoleBounds(SubsectionSizeVerts * NumSubsections, VisibilityData, HoleBounds);
-		BuildHoleVertexLods(SubsectionSizeVerts * NumSubsections, NumHoleLods, HoleBounds, HoleVertexLods);
-
-		if (NumVertices <= UINT16_MAX)
-		{
-			FLandscapeHoleRenderData<uint16> HoleRenderData;
-			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexToIndexMap, HoleRenderData);
-			SerializeHoleRenderData(PlatformAr, HoleRenderData);
-		}
-		else
-		{
-			FLandscapeHoleRenderData<uint32> HoleRenderData;
-			BuildHoleRenderData(NumSubsections, SubsectionSizeVerts, VisibilityData, VertexToIndexMap, HoleRenderData);
-			SerializeHoleRenderData(PlatformAr, HoleRenderData);
-		}
-	}
-
-	// Fill in the vertices in the specified order.
-	const int32 SizeVerts = SubsectionSizeVerts * NumSubsections;
-	int32 NumInlineMobileVertices = NumStreamingLODs > 0 ? StreamingLODVertStartOffsets.Last() : FMath::Square(SizeVerts);
-	TArray<FLandscapeMobileVertex> InlineMobileVertices;
-	InlineMobileVertices.AddZeroed(NumInlineMobileVertices);
-	FLandscapeMobileVertex* DstVert = InlineMobileVertices.GetData();
-
-	int32 StreamingLODIdx = NumStreamingLODs - 1;
-	TArray<TArray<uint8>> StreamingLODData;
-	StreamingLODData.Empty(NumStreamingLODs);
-	StreamingLODData.AddDefaulted(NumStreamingLODs);
-
-	for (int32 Idx = 0; Idx < NumVertices; Idx++)
-	{
-		if (StreamingLODIdx >= 0
-			&& StreamingLODIdx >= NumHoleLods - 1
-			&& Idx >= StreamingLODVertStartOffsets[StreamingLODIdx])
-		{
-			const int32 EndIdx = StreamingLODIdx - 1 < 0 || StreamingLODIdx == NumHoleLods - 1 ?
-				FMath::Square(SizeVerts) :
-				StreamingLODVertStartOffsets[StreamingLODIdx - 1];
-			const int32 NumVerts = EndIdx - StreamingLODVertStartOffsets[StreamingLODIdx];
-			TArray<uint8>& StreamingLOD = StreamingLODData[StreamingLODIdx];
-			StreamingLOD.Empty(NumVerts * sizeof(FLandscapeMobileVertex));
-			StreamingLOD.AddZeroed(NumVerts * sizeof(FLandscapeMobileVertex));
-			DstVert = (FLandscapeMobileVertex*)StreamingLOD.GetData();
-			--StreamingLODIdx;
-		}
-
-		// Store XY position info
-		const int32 X = VertexOrder[Idx].X;
-		const int32 Y = VertexOrder[Idx].Y;
-		
-		check(X < 256 && Y < 256);
-		DstVert->Position[0] = X;
-		DstVert->Position[1] = Y;
-
-		const int32 SubX = VertexOrder[Idx].SubX;
-		const int32 SubY = VertexOrder[Idx].SubY;
-
-		check(SubX < 2 && SubY < 2);
-		DstVert->Position[2] = (SubX << 1) | SubY;
-
-		// Store hole info
-		const int32 VertexIndex = (SubY * SubsectionSizeVerts + Y) * SizeVerts + SubX * SubsectionSizeVerts + X;
-		const int32 HoleVertexLod = (NumHoleLods > 0) ? HoleVertexLods[VertexIndex] : 0;
-		const int32 HoleMaxLod = (NumHoleLods > 0) ? NumHoleLods : 0;
-
-		check(HoleMaxLod < 8 && HoleVertexLod < 8);
-		DstVert->Position[2] |= (HoleMaxLod << 5) | (HoleVertexLod << 2);
-
-		// Calculate min/max height for packing
-		TArray<int32> MipHeights;
-		MipHeights.AddZeroed(HeightmapMipData.Num());
-
-		uint16 MaxHeight = 0, MinHeight = 65535;
-
-		float HeightmapScaleBiasZ = HeightmapScaleBias.Z + HeightmapSubsectionOffsetU * (float)SubX;
-		float HeightmapScaleBiasW = HeightmapScaleBias.W + HeightmapSubsectionOffsetV * (float)SubY;
-		int32 BaseMipOfsX = FMath::RoundToInt(HeightmapScaleBiasZ * (float)GetHeightmap()->Source.GetSizeX());
-		int32 BaseMipOfsY = FMath::RoundToInt(HeightmapScaleBiasW * (float)GetHeightmap()->Source.GetSizeY());
-
-		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
-		{
-			int32 MipSizeX = GetHeightmap()->Source.GetSizeX() >> Mip;
-
-			int32 CurrentMipOfsX = BaseMipOfsX >> Mip;
-			int32 CurrentMipOfsY = BaseMipOfsY >> Mip;
-
-			int32 MipX = X >> Mip;
-			int32 MipY = Y >> Mip;
-
-			FColor* CurrentMipSrcRow = HeightmapMipData[Mip] + (CurrentMipOfsY + MipY) * MipSizeX + CurrentMipOfsX;
-			uint16 Height = CurrentMipSrcRow[MipX].R << 8 | CurrentMipSrcRow[MipX].G;
-
-			MipHeights[Mip] = Height;
-			MaxHeight = FMath::Max(MaxHeight, Height);
-			MinHeight = FMath::Min(MinHeight, Height);
-		}
-
-		DstVert->LODHeights[0] = MinHeight >> 8;
-		DstVert->LODHeights[1] = MinHeight & 0xff;
-
-		// Quantize height delta so we can store in 8 bits in the spare Position channel
-		uint16 HeightDelta = FMath::Max(MaxHeight - MinHeight, 1);
-		HeightDelta = (HeightDelta + 255) & (~255);
-		DstVert->Position[3] = HeightDelta >> 8;
-
-		// Now quantize the mip heights to 255 steps between MinHeight and MinHeight+HeightDelta
-		for (int32 Mip = 0; Mip < HeightmapMipData.Num(); ++Mip)
-		{
-			check(Mip < 6);
-			DstVert->LODHeights[2 + Mip] = FMath::RoundToInt(((float)(MipHeights[Mip] - MinHeight) / (float)HeightDelta) * 255.f);
-		}
-
-		DstVert++;
-	}
-
-	// Serialize vertex buffer
-	PlatformAr << NumInlineMobileVertices;
-	PlatformAr.Serialize(InlineMobileVertices.GetData(), NumInlineMobileVertices*sizeof(FLandscapeMobileVertex));
-
-	// Copy to PlatformData as Compressed
-	PlatformData.InitializeFromUncompressedData(NewPlatformData, StreamingLODData);
 }
 
 FName ALandscapeProxy::GenerateUniqueLandscapeTextureName(UObject* InOuter, TextureGroup InLODGroup) const

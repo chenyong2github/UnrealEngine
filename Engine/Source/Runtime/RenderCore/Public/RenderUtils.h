@@ -794,11 +794,6 @@ inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const 
 RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);
 
 /**
-*	Checks if platform uses a baked landscape mesh (mobile)
-*/
-RENDERCORE_API bool UseMobileLandscapeMesh(EShaderPlatform ShaderPlatform);
-
-/**
 *	Checks if platform uses a Nanite landscape mesh
 */
 RENDERCORE_API bool UseNaniteLandscapeMesh(EShaderPlatform ShaderPlatform);

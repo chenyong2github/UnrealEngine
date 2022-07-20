@@ -105,68 +105,6 @@ public:
 #endif
 };
 
-class FLandscapeComponentDerivedData
-{
-	/** The compressed Landscape component data for mobile rendering. Serialized to disk. 
-	    On device, freed once it has been decompressed. */
-	TArray<uint8> CompressedLandscapeData;
-
-	TArray<FByteBulkData> StreamingLODDataArray;
-	
-	/** Cached render data. Only valid on device. */
-	TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe > CachedRenderData;
-
-	UE_DEPRECATED(5.0, "The path will not be valid when staged via the IoStore, functionality is being removed")
-	FPackagePath CachedLODDataPackagePath;
-	UE_DEPRECATED(5.0, "The path will not be valid when staged via the IoStore, functionality is being removed")
-	EPackageSegment CachedLODDataPackageSegment;
-
-	friend class ULandscapeLODStreamingProxy;
-
-public:
-	/** Returns true if there is any valid platform data */
-	bool HasValidPlatformData() const
-	{
-		return CompressedLandscapeData.Num() != 0;
-	}
-
-	/** Returns true if there is any valid platform data */
-	bool HasValidRuntimeData() const
-	{
-		return CompressedLandscapeData.Num() != 0 || CachedRenderData.IsValid();
-	}
-
-	/** Returns the size of the platform data if there is any. */
-	int32 GetPlatformDataSize() const
-	{
-		int32 Result = CompressedLandscapeData.Num();
-		for (int32 Idx = 0; Idx < StreamingLODDataArray.Num(); ++Idx)
-		{
-			Result += (int32)StreamingLODDataArray[Idx].GetBulkDataSize();
-		}
-		return Result;
-	}
-
-	/** Initializes the compressed data from an uncompressed source. */
-	void InitializeFromUncompressedData(const TArray<uint8>& UncompressedData, const TArray<TArray<uint8>>& StreamingLODs);
-
-	/** Decompresses data if necessary and returns the render data object. 
-     *  On device, this frees the compressed data and keeps a reference to the render data. */
-	TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> GetRenderData();
-
-	/** Constructs a key string for the DDC that uniquely identifies a the Landscape component's derived data. */
-	static FString GetDDCKeyString(const FGuid& StateId);
-
-	/** Loads the platform data from DDC */
-	bool LoadFromDDC(const FGuid& StateId, UObject* Component);
-
-	/** Saves the compressed platform data to the DDC */
-	void SaveToDDC(const FGuid& StateId, UObject* Component);
-
-	/* Serializer */
-	void Serialize(FArchive& Ar, UObject* Owner);
-};
-
 /* Used to uniquely reference a landscape vertex in a component. */
 struct FLandscapeVertexRef
 {
@@ -435,37 +373,9 @@ enum ELandscapeClearMode
 };
 
 UCLASS(MinimalAPI)
-class ULandscapeLODStreamingProxy : public UStreamableRenderAsset
+class ULandscapeLODStreamingProxy_DEPRECATED : public UStreamableRenderAsset
 {
 	GENERATED_UCLASS_BODY()
-
-	//~ Begin UStreamableRenderAsset Interface
-	virtual LANDSCAPE_API int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual LANDSCAPE_API FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const  final override;
-	virtual LANDSCAPE_API bool HasPendingRenderResourceInitialization() const final override;
-	virtual bool StreamOut(int32 NewMipCount) final override;
-	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::LandscapeMeshMobile; }
-	//~ End UStreamableRenderAsset Interface
-
-	UE_DEPRECATED(5.0, "The mip will not be able to return a valid file name when staged via the IoStore, functionality is being removed")
-	LANDSCAPE_API bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const;
-	UE_DEPRECATED(5.0, "The mip will not be able to return a valid package path when staged via the IoStore, functionality is being removed")
-	LANDSCAPE_API bool GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutBulkDataPackagePath, EPackageSegment& OutPackageSegment) const;
-
-	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
-	LANDSCAPE_API TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> GetRenderData() const;
-
-	LANDSCAPE_API FByteBulkData& GetStreamingLODBulkData(int32 LODIdx) const;
-
-	static LANDSCAPE_API void CancelAllPendingStreamingActions();
-
-	void ClearStreamingResourceState();
-	void InitResourceStateForMobileStreaming();
-
-private:
-
-	ULandscapeComponent* LandscapeComponent = nullptr;
 };
 
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
@@ -590,10 +500,6 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UTexture2D>> WeightmapTextures;
 
-	/** Used to interface the component to the LOD streamer. */
-	UPROPERTY()
-	TObjectPtr<ULandscapeLODStreamingProxy> LODStreamingProxy;
-
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
 	TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterials;
 
@@ -688,10 +594,6 @@ public:
 	uint32 LastSavedPhysicalMaterialHash;
 #endif
 
-	/** For mobile */
-	UPROPERTY()
-	uint8 MobileBlendableLayerMask;
-
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<UMaterialInterface> MobileMaterialInterface_DEPRECATED;
 
@@ -718,9 +620,6 @@ public:
 #endif
 
 public:
-	/** Platform Data where don't support texture sampling in vertex buffer */
-	FLandscapeComponentDerivedData PlatformData;
-
 	/** Grass data for generation **/
 	TSharedRef<FLandscapeComponentGrassData, ESPMode::ThreadSafe> GrassData;
 	TArray<FBox> ActiveExcludedBoxes;
@@ -893,7 +792,6 @@ public:
 
 	// Generates mobile platform data for this component
 	void GenerateMobileWeightmapLayerAllocations();
-	void GenerateMobilePlatformVertexData(const ITargetPlatform* TargetPlatform);
 	void GenerateMobilePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
 	/** Generate mobile data if it's missing or outdated */
@@ -1152,7 +1050,6 @@ public:
 
 	friend class FLandscapeComponentSceneProxy;
 	friend struct FLandscapeComponentDataInterface;
-	friend class ULandscapeLODStreamingProxy;
 
 	LANDSCAPE_API void SetLOD(bool bForced, int32 InLODValue);
 

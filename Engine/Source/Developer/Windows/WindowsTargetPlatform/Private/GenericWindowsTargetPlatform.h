@@ -187,19 +187,6 @@ public:
 			return bCachedSupportsMobileRendering;
 		}
 
-		if (Feature == ETargetPlatformFeatures::MobileLandscapeMesh)
-		{
-			// By default mobile uses landscape mesh
-			static bool bUseMobileLandscapeMesh = true;
-			static bool bInitialized = false;
-			if (!bInitialized)
-			{
-				this->GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.LandscapeMesh"), bUseMobileLandscapeMesh, GEngineIni);
-				bInitialized = true;
-			}
-			return bUseMobileLandscapeMesh && SupportsFeature(ETargetPlatformFeatures::MobileRendering);
-		}
-		
 		return TSuper::SupportsFeature(Feature);
 	}
 

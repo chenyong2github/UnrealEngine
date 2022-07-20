@@ -449,33 +449,12 @@ static bool SupportsA8Devices()
     return bSupportAppleA8;
 }
 
-static bool SupportsLandscapeMeshLODStreaming()
-{
-	bool bStreamLandscapeMeshLODs = false;
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bStreamLandscapeMeshLODs"), bStreamLandscapeMeshLODs, GEngineIni);
-	return bStreamLandscapeMeshLODs;
-}
-
 bool FIOSTargetPlatform::CanSupportRemoteShaderCompile() const
 {
 	// for 4.22 we are disabling support for XGE Shader compile on IOS
 	bool bRemoteCompilingEnabled = false;
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("EnableRemoteShaderCompile"), bRemoteCompilingEnabled, GEngineIni);
 	return false; // !bRemoteCompilingEnabled;
-}
-
-bool FIOSTargetPlatform::UseMobileLandscapeMesh() const
-{
-	// By default mobile uses landscape mesh
-	static bool bUseMobileLandscapeMesh = true;
-	static bool bInitialized = false;
-
-	if (!bInitialized)
-	{
-		GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.LandscapeMesh"), bUseMobileLandscapeMesh, GEngineIni);
-		bInitialized = true;
-	}
-	return bUseMobileLandscapeMesh;
 }
 
 bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) const
@@ -497,15 +476,9 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 		case ETargetPlatformFeatures::VirtualTextureStreaming:
 			return UsesVirtualTextures();
 
-		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
-			return SupportsLandscapeMeshLODStreaming() && SupportsMetal();
-
 		case ETargetPlatformFeatures::DistanceFieldAO:
 			return UsesDistanceFields();
-
-		case ETargetPlatformFeatures::MobileLandscapeMesh:
-			return SupportsFeature(ETargetPlatformFeatures::MobileRendering) && UseMobileLandscapeMesh();
-
+		
 		default:
 			break;
 	}

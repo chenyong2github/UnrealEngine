@@ -1128,13 +1128,6 @@ protected:
 	*/
 	virtual int32 SpeedTree(int32 GeometryArg, int32 WindArg, int32 LODArg, float BillboardThreshold, bool bAccurateWindVelocities, bool bExtraBend, int32 ExtraBendArg) override;
 
-	/**
-	 * Adds code for texture coordinate offset to localize large UV
-	 *
-	 * @return	Code index
-	 */
-	virtual int32 TextureCoordinateOffset() override;
-
 	/**Experimental access to the EyeAdaptation RT for Post Process materials. Can be one frame behind depending on the value of BlendableLocation. */
 	virtual int32 EyeAdaptation() override;
 

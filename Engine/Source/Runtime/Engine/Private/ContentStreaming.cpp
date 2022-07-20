@@ -1021,8 +1021,6 @@ bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled(EStreamableRende
 			return FPlatformProperties::SupportsMeshLODStreaming() && CVarMeshStreaming.GetValueOnAnyThread() != 0;
 		case EStreamableRenderAssetType::NaniteCoarseMesh:
 			return FPlatformProperties::SupportsMeshLODStreaming() && GNaniteCoarseMeshStreamingEnabled != 0;
-		case EStreamableRenderAssetType::LandscapeMeshMobile:
-			return true;
 		default:
 			break;
 		}

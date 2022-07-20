@@ -180,9 +180,7 @@ protected:
 	// query for rendering mode support
 	bool SupportsES31() const;
 	bool SupportsVulkan() const;
-	bool SupportsLandscapeMeshLODStreaming() const;
 	bool SupportsVulkanSM5() const;
-	bool UseMobileLandscapeMesh() const;
 
 protected:
 

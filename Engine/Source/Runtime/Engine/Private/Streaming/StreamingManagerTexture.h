@@ -241,9 +241,6 @@ private:
 			case EStreamableRenderAssetType::SkeletalMesh:
 				OutArray = NumStreamedMips_SkeletalMesh.GetData();
 				return NumStreamedMips_SkeletalMesh.Num();
-			case EStreamableRenderAssetType::LandscapeMeshMobile:
-				OutArray = NumStreamedMips_LandscapeMeshMobile.GetData();
-				return NumStreamedMips_LandscapeMeshMobile.Num();
 			default:
 				check(false);
 				OutArray = nullptr;
@@ -313,7 +310,6 @@ private:
 	int32 NumStreamedMips_Texture[TEXTUREGROUP_MAX];
 	TArray<int32> NumStreamedMips_StaticMesh;
 	TArray<int32> NumStreamedMips_SkeletalMesh;
-	TArray<int32> NumStreamedMips_LandscapeMeshMobile;
 
 	FRenderAssetStreamingSettings Settings;
 

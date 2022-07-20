@@ -151,362 +151,6 @@ static FAutoConsoleVariableRef CVarLandscapeRayTracingGeometryDetectTextureStrea
 );
 #endif
 
-/*------------------------------------------------------------------------------
-Forsyth algorithm for cache optimizing index buffers.
-------------------------------------------------------------------------------*/
-
-// Forsyth algorithm to optimize post-transformed vertex cache
-namespace
-{
-	// code for computing vertex score was taken, as much as possible
-	// directly from the original publication.
-	float ComputeVertexCacheScore(int32 CachePosition, uint32 VertexCacheSize)
-	{
-		const float FindVertexScoreCacheDecayPower = 1.5f;
-		const float FindVertexScoreLastTriScore = 0.75f;
-
-		float Score = 0.0f;
-		if (CachePosition < 0)
-		{
-			// Vertex is not in FIFO cache - no score.
-		}
-		else
-		{
-			if (CachePosition < 3)
-			{
-				// This vertex was used in the last triangle,
-				// so it has a fixed score, whichever of the three
-				// it's in. Otherwise, you can get very different
-				// answers depending on whether you add
-				// the triangle 1,2,3 or 3,1,2 - which is silly.
-				Score = FindVertexScoreLastTriScore;
-			}
-			else
-			{
-				check(CachePosition < (int32)VertexCacheSize);
-				// Points for being high in the cache.
-				const float Scaler = 1.0f / (VertexCacheSize - 3);
-				Score = 1.0f - (CachePosition - 3) * Scaler;
-				Score = FMath::Pow(Score, FindVertexScoreCacheDecayPower);
-			}
-		}
-
-		return Score;
-	}
-
-	float ComputeVertexValenceScore(uint32 numActiveFaces)
-	{
-		const float FindVertexScoreValenceBoostScale = 2.0f;
-		const float FindVertexScoreValenceBoostPower = 0.5f;
-
-		float Score = 0.f;
-
-		// Bonus points for having a low number of tris still to
-		// use the vert, so we get rid of lone verts quickly.
-		float ValenceBoost = FMath::Pow(float(numActiveFaces), -FindVertexScoreValenceBoostPower);
-		Score += FindVertexScoreValenceBoostScale * ValenceBoost;
-
-		return Score;
-	}
-
-	const uint32 MaxVertexCacheSize = 64;
-	const uint32 MaxPrecomputedVertexValenceScores = 64;
-	float VertexCacheScores[MaxVertexCacheSize + 1][MaxVertexCacheSize];
-	float VertexValenceScores[MaxPrecomputedVertexValenceScores];
-	bool bVertexScoresComputed = false; //ComputeVertexScores();
-
-	bool ComputeVertexScores()
-	{
-		for (uint32 CacheSize = 0; CacheSize <= MaxVertexCacheSize; ++CacheSize)
-		{
-			for (uint32 CachePos = 0; CachePos < CacheSize; ++CachePos)
-			{
-				VertexCacheScores[CacheSize][CachePos] = ComputeVertexCacheScore(CachePos, CacheSize);
-			}
-		}
-
-		for (uint32 Valence = 0; Valence < MaxPrecomputedVertexValenceScores; ++Valence)
-		{
-			VertexValenceScores[Valence] = ComputeVertexValenceScore(Valence);
-		}
-
-		return true;
-	}
-
-	inline float FindVertexCacheScore(uint32 CachePosition, uint32 MaxSizeVertexCache)
-	{
-		return VertexCacheScores[MaxSizeVertexCache][CachePosition];
-	}
-
-	inline float FindVertexValenceScore(uint32 NumActiveTris)
-	{
-		return VertexValenceScores[NumActiveTris];
-	}
-
-	float FindVertexScore(uint32 NumActiveFaces, uint32 CachePosition, uint32 VertexCacheSize)
-	{
-		check(bVertexScoresComputed);
-
-		if (NumActiveFaces == 0)
-		{
-			// No tri needs this vertex!
-			return -1.0f;
-		}
-
-		float Score = 0.f;
-		if (CachePosition < VertexCacheSize)
-		{
-			Score += VertexCacheScores[VertexCacheSize][CachePosition];
-		}
-
-		if (NumActiveFaces < MaxPrecomputedVertexValenceScores)
-		{
-			Score += VertexValenceScores[NumActiveFaces];
-		}
-		else
-		{
-			Score += ComputeVertexValenceScore(NumActiveFaces);
-		}
-
-		return Score;
-	}
-
-	struct OptimizeVertexData
-	{
-		float  Score;
-		uint32  ActiveFaceListStart;
-		uint32  ActiveFaceListSize;
-		uint32  CachePos0;
-		uint32  CachePos1;
-		OptimizeVertexData() : Score(0.f), ActiveFaceListStart(0), ActiveFaceListSize(0), CachePos0(0), CachePos1(0) { }
-	};
-
-	//-----------------------------------------------------------------------------
-	//  OptimizeFaces
-	//-----------------------------------------------------------------------------
-	//  Parameters:
-	//      InIndexList
-	//          input index list
-	//      OutIndexList
-	//          a pointer to a preallocated buffer the same size as indexList to
-	//          hold the optimized index list
-	//      LRUCacheSize
-	//          the size of the simulated post-transform cache (max:64)
-	//-----------------------------------------------------------------------------
-
-	template <typename INDEX_TYPE>
-	void OptimizeFaces(const TArray<INDEX_TYPE>& InIndexList, TArray<INDEX_TYPE>& OutIndexList, uint16 LRUCacheSize)
-	{
-		uint32 VertexCount = 0;
-		const uint32 IndexCount = InIndexList.Num();
-
-		// compute face count per vertex
-		for (uint32 i = 0; i < IndexCount; ++i)
-		{
-			uint32 Index = InIndexList[i];
-			VertexCount = FMath::Max(Index, VertexCount);
-		}
-		VertexCount++;
-
-		TArray<OptimizeVertexData> VertexDataList;
-		VertexDataList.Empty(VertexCount);
-		for (uint32 i = 0; i < VertexCount; i++)
-		{
-			VertexDataList.Add(OptimizeVertexData());
-		}
-
-		OutIndexList.Empty(IndexCount);
-		OutIndexList.AddZeroed(IndexCount);
-
-		// compute face count per vertex
-		for (uint32 i = 0; i < IndexCount; ++i)
-		{
-			uint32 Index = InIndexList[i];
-			OptimizeVertexData& VertexData = VertexDataList[Index];
-			VertexData.ActiveFaceListSize++;
-		}
-
-		TArray<uint32> ActiveFaceList;
-
-		const uint32 EvictedCacheIndex = TNumericLimits<uint32>::Max();
-
-		{
-			// allocate face list per vertex
-			uint32 CurActiveFaceListPos = 0;
-			for (uint32 i = 0; i < VertexCount; ++i)
-			{
-				OptimizeVertexData& VertexData = VertexDataList[i];
-				VertexData.CachePos0 = EvictedCacheIndex;
-				VertexData.CachePos1 = EvictedCacheIndex;
-				VertexData.ActiveFaceListStart = CurActiveFaceListPos;
-				CurActiveFaceListPos += VertexData.ActiveFaceListSize;
-				VertexData.Score = FindVertexScore(VertexData.ActiveFaceListSize, VertexData.CachePos0, LRUCacheSize);
-				VertexData.ActiveFaceListSize = 0;
-			}
-			ActiveFaceList.Empty(CurActiveFaceListPos);
-			ActiveFaceList.AddZeroed(CurActiveFaceListPos);
-		}
-
-		// fill out face list per vertex
-		for (uint32 i = 0; i < IndexCount; i += 3)
-		{
-			for (uint32 j = 0; j < 3; ++j)
-			{
-				uint32 Index = InIndexList[i + j];
-				OptimizeVertexData& VertexData = VertexDataList[Index];
-				ActiveFaceList[VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize] = i;
-				VertexData.ActiveFaceListSize++;
-			}
-		}
-
-		TArray<uint8> ProcessedFaceList;
-		ProcessedFaceList.Empty(IndexCount);
-		ProcessedFaceList.AddZeroed(IndexCount);
-
-		uint32 VertexCacheBuffer[(MaxVertexCacheSize + 3) * 2];
-		uint32* Cache0 = VertexCacheBuffer;
-		uint32* Cache1 = VertexCacheBuffer + (MaxVertexCacheSize + 3);
-		uint32 EntriesInCache0 = 0;
-
-		uint32 BestFace = 0;
-		float BestScore = -1.f;
-
-		const float MaxValenceScore = FindVertexScore(1, EvictedCacheIndex, LRUCacheSize) * 3.f;
-
-		for (uint32 i = 0; i < IndexCount; i += 3)
-		{
-			if (BestScore < 0.f)
-			{
-				// no verts in the cache are used by any unprocessed faces so
-				// search all unprocessed faces for a new starting point
-				for (uint32 j = 0; j < IndexCount; j += 3)
-				{
-					if (ProcessedFaceList[j] == 0)
-					{
-						uint32 Face = j;
-						float FaceScore = 0.f;
-						for (uint32 k = 0; k < 3; ++k)
-						{
-							uint32 Index = InIndexList[Face + k];
-							OptimizeVertexData& VertexData = VertexDataList[Index];
-							check(VertexData.ActiveFaceListSize > 0);
-							check(VertexData.CachePos0 >= LRUCacheSize);
-							FaceScore += VertexData.Score;
-						}
-
-						if (FaceScore > BestScore)
-						{
-							BestScore = FaceScore;
-							BestFace = Face;
-
-							check(BestScore <= MaxValenceScore);
-							if (BestScore >= MaxValenceScore)
-							{
-								break;
-							}
-						}
-					}
-				}
-				check(BestScore >= 0.f);
-			}
-
-			ProcessedFaceList[BestFace] = 1;
-			uint32 EntriesInCache1 = 0;
-
-			// add bestFace to LRU cache and to newIndexList
-			for (uint32 V = 0; V < 3; ++V)
-			{
-				INDEX_TYPE Index = InIndexList[BestFace + V];
-				OutIndexList[i + V] = Index;
-
-				OptimizeVertexData& VertexData = VertexDataList[Index];
-
-				if (VertexData.CachePos1 >= EntriesInCache1)
-				{
-					VertexData.CachePos1 = EntriesInCache1;
-					Cache1[EntriesInCache1++] = Index;
-
-					if (VertexData.ActiveFaceListSize == 1)
-					{
-						--VertexData.ActiveFaceListSize;
-						continue;
-					}
-				}
-
-				check(VertexData.ActiveFaceListSize > 0);
-				uint32 FindIndex;
-				for (FindIndex = VertexData.ActiveFaceListStart; FindIndex < VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize; FindIndex++)
-				{
-					if (ActiveFaceList[FindIndex] == BestFace)
-					{
-						break;
-					}
-				}
-				check(FindIndex != VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize);
-
-				if (FindIndex != VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize - 1)
-				{
-					uint32 SwapTemp = ActiveFaceList[FindIndex];
-					ActiveFaceList[FindIndex] = ActiveFaceList[VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize - 1];
-					ActiveFaceList[VertexData.ActiveFaceListStart + VertexData.ActiveFaceListSize - 1] = SwapTemp;
-				}
-
-				--VertexData.ActiveFaceListSize;
-				VertexData.Score = FindVertexScore(VertexData.ActiveFaceListSize, VertexData.CachePos1, LRUCacheSize);
-
-			}
-
-			// move the rest of the old verts in the cache down and compute their new scores
-			for (uint32 C0 = 0; C0 < EntriesInCache0; ++C0)
-			{
-				uint32 Index = Cache0[C0];
-				OptimizeVertexData& VertexData = VertexDataList[Index];
-
-				if (VertexData.CachePos1 >= EntriesInCache1)
-				{
-					VertexData.CachePos1 = EntriesInCache1;
-					Cache1[EntriesInCache1++] = Index;
-					VertexData.Score = FindVertexScore(VertexData.ActiveFaceListSize, VertexData.CachePos1, LRUCacheSize);
-				}
-			}
-
-			// find the best scoring triangle in the current cache (including up to 3 that were just evicted)
-			BestScore = -1.f;
-			for (uint32 C1 = 0; C1 < EntriesInCache1; ++C1)
-			{
-				uint32 Index = Cache1[C1];
-				OptimizeVertexData& VertexData = VertexDataList[Index];
-				VertexData.CachePos0 = VertexData.CachePos1;
-				VertexData.CachePos1 = EvictedCacheIndex;
-				for (uint32 j = 0; j < VertexData.ActiveFaceListSize; ++j)
-				{
-					uint32 Face = ActiveFaceList[VertexData.ActiveFaceListStart + j];
-					float FaceScore = 0.f;
-					for (uint32 V = 0; V < 3; V++)
-					{
-						uint32 FaceIndex = InIndexList[Face + V];
-						OptimizeVertexData& FaceVertexData = VertexDataList[FaceIndex];
-						FaceScore += FaceVertexData.Score;
-					}
-					if (FaceScore > BestScore)
-					{
-						BestScore = FaceScore;
-						BestFace = Face;
-					}
-				}
-			}
-
-			uint32* SwapTemp = Cache0;
-			Cache0 = Cache1;
-			Cache1 = SwapTemp;
-
-			EntriesInCache0 = FMath::Min(EntriesInCache1, (uint32)LRUCacheSize);
-		}
-	}
-
-} // namespace 
-
-
 //
 // FLandscapeDebugOptions
 //
@@ -581,6 +225,11 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Append(MaterialInstances.FilterByPredicate([](UMaterialInstanceConstant* MaterialInstance) { return MaterialInstance != nullptr; }));
 	}
 
+	if (MobileMaterialInterfaces.Num())
+	{
+		OutMaterials.Append(MobileMaterialInterfaces.FilterByPredicate([](UMaterialInterface* MaterialInstance) { return MaterialInstance != nullptr; }));
+	}
+
 	if (OverrideMaterial)
 	{
 		OutMaterials.Add(OverrideMaterial);
@@ -590,8 +239,6 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	{
 		OutMaterials.Add(OverrideHoleMaterial);
 	}
-
-	OutMaterials.Append(MobileMaterialInterfaces);
 
 #if WITH_EDITORONLY_DATA
 	if (EditToolRenderData.ToolMaterial)
@@ -1083,15 +730,12 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, SectionBase(InComponent->GetSectionBase())
 	, LandscapeComponent(InComponent)
 	, WeightmapScaleBias(InComponent->WeightmapScaleBias)
-	, WeightmapTextures(InComponent->GetWeightmapTextures())
 	, VisibilityWeightmapTexture(nullptr)
 	, VisibilityWeightmapChannel(-1)
 	, HeightmapTexture(InComponent->GetHeightmap())
-	, NormalmapTexture(InComponent->GetHeightmap())
 	, BaseColorForGITexture(InComponent->GIBakedBaseColorTexture)
 	, HeightmapScaleBias(InComponent->HeightmapScaleBias)
 	, XYOffsetmapTexture(InComponent->XYOffsetmapTexture)
-	, BlendableLayerMask(InComponent->MobileBlendableLayerMask)
 	, SharedBuffersKey(0)
 	, SharedBuffers(nullptr)
 	, VertexFactory(nullptr)
@@ -1130,14 +774,16 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	EnableGPUSceneSupportFlags();
 
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
-	const bool bMobileLandscapeMesh = UseMobileLandscapeMesh(GetScene().GetShaderPlatform());
 
-	if (bMobileLandscapeMesh)
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
+		WeightmapTextures = InComponent->MobileWeightmapTextures;
 		AvailableMaterials.Append(InComponent->MobileMaterialInterfaces);
+		//TODO: Add support for bUseDynamicMaterialInstance ?
 	}
 	else
 	{
+		WeightmapTextures = InComponent->GetWeightmapTextures();
 		if (InComponent->GetLandscapeProxy()->bUseDynamicMaterialInstance)
 		{
 			AvailableMaterials.Append(InComponent->MaterialInstancesDynamic);
@@ -1148,23 +794,13 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		}
 	}
 
-
 	LODIndexToMaterialIndex = InComponent->LODIndexToMaterialIndex;
 	check(LODIndexToMaterialIndex.Num() == MaxLOD + 1);
 
 	SetLevelColor(FLinearColor(1.f, 1.f, 1.f));
 			
-	if (bMobileLandscapeMesh)
-	{
-		HeightmapTexture = nullptr;
-		HeightmapSubsectionOffsetU = 0;
-		HeightmapSubsectionOffsetV = 0;
-	}
-	else
-	{
-		HeightmapSubsectionOffsetU = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeX()));
-		HeightmapSubsectionOffsetV = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeY()));
-	}
+	HeightmapSubsectionOffsetU = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeX()));
+	HeightmapSubsectionOffsetV = ((float)(InComponent->SubsectionSizeQuads + 1) / (float)FMath::Max<int32>(1, HeightmapTexture->GetSizeY()));
 
 	float ScreenSizeRatioDivider = FMath::Max(InComponent->GetLandscapeProxy()->LOD0DistributionSetting * GLandscapeLOD0DistributionScale, 1.01f);
 	// Cancel out so that landscape is not affected by r.StaticMeshLODDistanceScale
@@ -1311,14 +947,14 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 #endif
 	
 	const int8 SubsectionSizeLog2 = FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1);
-	SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((NumSubsections & 0xf) << 4) |
-		(bMobileLandscapeMesh ? 0 : 1 << 30) | (XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
+	SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((NumSubsections & 0xf) << 4) |	(XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 
-	bSupportsHeightfieldRepresentation = !bMobileLandscapeMesh;
+	bSupportsHeightfieldRepresentation = true;
 	bSupportsMeshCardRepresentation = true;
 
-	// Find where the visibility weightmap lies, if available (no such thing with mobile landscape mesh, though, since visibility is baked in the vertex buffers) :
-	if (!bMobileLandscapeMesh)
+	// Find where the visibility weightmap lies, if available
+	// TODO: Mobile has its own MobileWeightmapLayerAllocations, and visibility layer could be in a different channel potentially?
+	if (FeatureLevel > ERHIFeatureLevel::ES3_1)
 	{
 		for (int32 Idx = 0; Idx < InComponent->WeightmapLayerAllocations.Num(); Idx++)
 		{
@@ -1366,8 +1002,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	if (SharedBuffers == nullptr)
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
-			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			FeatureLevel, false);
+			SharedBuffersKey, SubsectionSizeQuads, NumSubsections, FeatureLevel);
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 
@@ -1890,12 +1525,6 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 		0,
 		0
 	);
-	LandscapeParams.BlendableLayerMask = FVector4f(
-		BlendableLayerMask & (1 << 0) ? 1 : 0,
-		BlendableLayerMask & (1 << 1) ? 1 : 0,
-		BlendableLayerMask & (1 << 2) ? 1 : 0,
-		0
-	);
 
 	if (HeightmapTexture)
 	{
@@ -1917,17 +1546,6 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	{
 		LandscapeParams.XYOffsetmapTexture = GBlackTexture->TextureRHI;
 		LandscapeParams.XYOffsetmapTextureSampler = GBlackTexture->SamplerStateRHI;
-	}
-
-	if (NormalmapTexture)
-	{
-		LandscapeParams.NormalmapTexture = NormalmapTexture->TextureReference.TextureReferenceRHI;
-		LandscapeParams.NormalmapTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-	}
-	else
-	{
-		LandscapeParams.NormalmapTexture = GBlackTexture->TextureRHI;
-		LandscapeParams.NormalmapTextureSampler = GBlackTexture->SamplerStateRHI;
 	}
 
 	LandscapeUniformShaderParameters.SetContents(LandscapeParams);
@@ -2752,11 +2370,6 @@ void FLandscapeVertexBuffer::InitRHI()
 template <typename INDEX_TYPE>
 void FLandscapeSharedBuffers::CreateIndexBuffers()
 {
-	if (bUseMobileLandscapeMesh && !bVertexScoresComputed)
-	{
-		bVertexScoresComputed = ComputeVertexScores();
-	}
-
 	TArray<INDEX_TYPE> VertexToIndexMap;
 	VertexToIndexMap.AddUninitialized(FMath::Square(SubsectionSizeVerts * NumSubsections));
 	FMemory::Memset(VertexToIndexMap.GetData(), 0xff, NumVertices * sizeof(INDEX_TYPE));
@@ -2778,74 +2391,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers()
 		int32& MinIndexFull = IndexRanges[Mip].MinIndexFull;
 		MaxIndexFull = 0;
 		MinIndexFull = MAX_int32;
-
-		if (bUseMobileLandscapeMesh)
 		{
-			// mobile version shares vertices across LODs to save memory
-			float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads; // Morph current MIP to base MIP
-
-			for (int32 SubY = 0; SubY < NumSubsections; SubY++)
-			{
-				for (int32 SubX = 0; SubX < NumSubsections; SubX++)
-				{
-					TArray<INDEX_TYPE> SubIndices;
-					SubIndices.Empty(FMath::Square(LodSubsectionSizeQuads) * 6);
-
-					int32& MaxIndex = IndexRanges[Mip].MaxIndex[SubX][SubY];
-					int32& MinIndex = IndexRanges[Mip].MinIndex[SubX][SubY];
-					MaxIndex = 0;
-					MinIndex = MAX_int32;
-
-					for (int32 Y = 0; Y < LodSubsectionSizeQuads; Y++)
-					{
-						for (int32 X = 0; X < LodSubsectionSizeQuads; X++)
-						{
-							INDEX_TYPE QuadIndices[4];
-
-							for (int32 CornerId = 0; CornerId < 4; CornerId++)
-							{
-								const int32 CornerX = FMath::RoundToInt((float)(X + (CornerId & 1)) * MipRatio);
-								const int32 CornerY = FMath::RoundToInt((float)(Y + (CornerId >> 1)) * MipRatio);
-								const FLandscapeVertexRef VertexRef(CornerX, CornerY, SubX, SubY);
-
-								const INDEX_TYPE VertexIndex = FLandscapeVertexRef::GetVertexIndex(VertexRef, NumSubsections, SubsectionSizeVerts);
-								if (VertexToIndexMap[VertexIndex] == INDEX_TYPE(-1))
-								{
-									VertexToIndexMap[VertexIndex] = QuadIndices[CornerId] = VertexCount++;
-								}
-								else
-								{
-									QuadIndices[CornerId] = VertexToIndexMap[VertexIndex];
-								}
-
-								// update the min/max index ranges
-								MaxIndex = FMath::Max<int32>(MaxIndex, QuadIndices[CornerId]);
-								MinIndex = FMath::Min<int32>(MinIndex, QuadIndices[CornerId]);
-							}
-
-							SubIndices.Add(QuadIndices[0]);
-							SubIndices.Add(QuadIndices[3]);
-							SubIndices.Add(QuadIndices[1]);
-
-							SubIndices.Add(QuadIndices[0]);
-							SubIndices.Add(QuadIndices[2]);
-							SubIndices.Add(QuadIndices[3]);
-						}
-					}
-
-					// update min/max for full subsection
-					MaxIndexFull = FMath::Max<int32>(MaxIndexFull, MaxIndex);
-					MinIndexFull = FMath::Min<int32>(MinIndexFull, MinIndex);
-
-					TArray<INDEX_TYPE> NewSubIndices;
-					::OptimizeFaces<INDEX_TYPE>(SubIndices, NewSubIndices, 32);
-					NewIndices.Append(NewSubIndices);
-				}
-			}
-		}
-		else
-		{
-			// non-mobile version
 			int32 SubOffset = 0;
 			for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 			{
@@ -2989,7 +2535,7 @@ void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
 }
 #endif
 
-FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, bool bInUseMobileLandscapeMesh)
+FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel)
 	: SharedBuffersKey(InSharedBuffersKey)
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
@@ -2999,17 +2545,14 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	, VertexBuffer(nullptr)
 	, bUse32BitIndices(false)
 
-	, bUseMobileLandscapeMesh(bInUseMobileLandscapeMesh)
 #if WITH_EDITOR
 	, GrassIndexBuffer(nullptr)
 #endif
 {
 	NumVertices = FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections);
-	if (!bUseMobileLandscapeMesh)
-	{
-		// Vertex Buffer cannot be shared 
-		VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections);
-	}
+	
+	VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections);
+
 	IndexBuffers = new FIndexBuffer * [NumIndexBuffers];
 	FMemory::Memzero(IndexBuffers, sizeof(FIndexBuffer*) * NumIndexBuffers);
 	IndexRanges = new FLandscapeIndexRanges[NumIndexBuffers]();
@@ -3220,8 +2763,7 @@ bool FLandscapeVertexFactory::ShouldCompilePermutation(const FVertexFactoryShade
 {
 	// only compile landscape materials for landscape vertex factory
 	// The special engine materials must be compiled for the landscape vertex factory because they are used with it for wireframe, etc.
-	const bool  bSupportsHeightfieldRepresentation = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || !UseMobileLandscapeMesh(Parameters.Platform);
-	return bSupportsHeightfieldRepresentation && (Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+	return (Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -3509,18 +3051,14 @@ public:
 
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
-				static const FName LandscapeVertexFactoryMobile = FName(TEXT("FLandscapeVertexFactoryMobile"));
 				if (VertexFactoryType->GetFName() == LandscapeVertexFactory ||
-					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
-					VertexFactoryType->GetFName() == LandscapeVertexFactoryMobile)
+					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory)
 				{
 					return (bIsRayTracingShaderType || !bIsShaderTypeUsingFixedGrid) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
 
 				static const FName LandscapeFixedGridVertexFactory = FName(TEXT("FLandscapeFixedGridVertexFactory"));
-				static const FName LandscapeFixedGridVertexFactoryMobile = FName(TEXT("FLandscapeFixedGridVertexFactoryMobile"));
-				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory ||
-					VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactoryMobile)
+				if (VertexFactoryType->GetFName() == LandscapeFixedGridVertexFactory)
 				{
 					return (bIsRayTracingShaderType || bIsShaderTypeUsingFixedGrid) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}
@@ -3794,12 +3332,11 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = LevelContext.GetFeatureLevel();
-	const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]);
-	int32 MaterialInstanceCount = bUseMobileLandscapeMesh ? MobileMaterialInterfaces.Num() : GetMaterialInstanceCount();
+	int32 MaterialInstanceCount = GetMaterialInstanceCount();
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialInstanceCount; ++MaterialIndex)
 	{
-		const UMaterialInterface* MaterialInterface = bUseMobileLandscapeMesh ? ToRawPtr(MobileMaterialInterfaces[MaterialIndex]) : GetMaterialInstance(MaterialIndex);
+		const UMaterialInterface* MaterialInterface = GetMaterialInstance(MaterialIndex);
 
 		// Normal usage...
 		// Enumerate the textures used by the material.
@@ -3860,42 +3397,27 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 		}
 	}
 
-	if (bUseMobileLandscapeMesh && !MobileWeightmapTextures.IsEmpty())
+	// Heightmap has not been accounted for by GetUsedTextures on the material :
+	if (HeightmapTexture)
 	{
-		// Special case for mobile : the normal map is in the first weightmap texture (+ eventually 2 weightmap layers in case of a number of weight-blend layers <= 3, in the 2 remaining channels) 
-		//  is sampled through inlined hlsl code rather than texture material expression, which prevents them from being gathered by GetUsedTextures : 
-		if (UTexture2D* NormalmapTexture = MobileWeightmapTextures[0])
-		{
-			FStreamingRenderAssetPrimitiveInfo& StreamingWeightmap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
-			StreamingWeightmap.Bounds = BoundingSphere;
-			StreamingWeightmap.TexelFactor = TexelFactor;
-			StreamingWeightmap.RenderAsset = NormalmapTexture;
-		}
+		// Heightmap should not have been accounted for already:
+		check(OutStreamingRenderAssets.FindByPredicate([=](const FStreamingRenderAssetPrimitiveInfo& StreamingWeightmap) { return StreamingWeightmap.RenderAsset == HeightmapTexture; }) == nullptr);
+
+		FStreamingRenderAssetPrimitiveInfo& StreamingHeightmap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+		StreamingHeightmap.Bounds = BoundingSphere;
+
+		float HeightmapTexelFactor = TexelFactor * (static_cast<float>(HeightmapTexture->GetSizeY()) / (ComponentSizeQuads + 1));
+		StreamingHeightmap.TexelFactor = ForcedLOD >= 0 ? -(1 << (13 - ForcedLOD)) : HeightmapTexelFactor; // Minus Value indicate forced resolution (Mip 13 for 8k texture)
+		StreamingHeightmap.RenderAsset = HeightmapTexture;
 	}
-	else
+
+	// XYOffset has not been accounted for by GetUsedTextures on the material :
+	if (XYOffsetmapTexture)
 	{
-		// Heightmap has not been accounted for by GetUsedTextures on the material :
-		if (HeightmapTexture)
-		{
-			// Heightmap should not have been accounted for already:
-			check(OutStreamingRenderAssets.FindByPredicate([=](const FStreamingRenderAssetPrimitiveInfo& StreamingWeightmap) { return StreamingWeightmap.RenderAsset == HeightmapTexture; }) == nullptr);
-
-			FStreamingRenderAssetPrimitiveInfo& StreamingHeightmap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
-			StreamingHeightmap.Bounds = BoundingSphere;
-
-			float HeightmapTexelFactor = TexelFactor * (static_cast<float>(HeightmapTexture->GetSizeY()) / (ComponentSizeQuads + 1));
-			StreamingHeightmap.TexelFactor = ForcedLOD >= 0 ? -(1 << (13 - ForcedLOD)) : HeightmapTexelFactor; // Minus Value indicate forced resolution (Mip 13 for 8k texture)
-			StreamingHeightmap.RenderAsset = HeightmapTexture;
-		}
-
-		// XYOffset has not been accounted for by GetUsedTextures on the material :
-		if (XYOffsetmapTexture)
-		{
-			FStreamingRenderAssetPrimitiveInfo& StreamingXYOffset = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
-			StreamingXYOffset.Bounds = BoundingSphere;
-			StreamingXYOffset.TexelFactor = TexelFactor;
-			StreamingXYOffset.RenderAsset = XYOffsetmapTexture;
-		}
+		FStreamingRenderAssetPrimitiveInfo& StreamingXYOffset = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+		StreamingXYOffset.Bounds = BoundingSphere;
+		StreamingXYOffset.TexelFactor = TexelFactor;
+		StreamingXYOffset.RenderAsset = XYOffsetmapTexture;
 	}
 
 #if WITH_EDITOR
@@ -3926,14 +3448,6 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 		}
 	}
 #endif
-
-	if (LODStreamingProxy && LODStreamingProxy->IsStreamable())
-	{
-		const float MeshTexelFactor = ForcedLOD >= 0 ?
-			-FMath::Max<int32>(LODStreamingProxy->GetStreamableResourceState().MaxNumLODs - ForcedLOD, 1) :
-			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
-		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(LODStreamingProxy, Bounds, MeshTexelFactor, PackedRelativeBox_Identity, true);
-	}
 }
 
 void ALandscapeProxy::ChangeComponentScreenSizeToUseSubSections(float InComponentScreenSizeToUseSubSections)
@@ -4066,13 +3580,7 @@ float FLandscapeComponentSceneProxy::ComputeLODForView(const FSceneView& InView)
 		LODLevel = FractionalLOD;
 	}
 
-#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
-	const float CurFirstLODIdx = GetCurrentFirstLODIdx_RenderThread();
-#else
-	constexpr float CurFirstLODIdx = 0.f;
-#endif
-
-	return FMath::Max(LODLevel, CurFirstLODIdx);
+	return FMath::Max(LODLevel, 0.f);
 }
 
 float FLandscapeComponentSceneProxy::ComputeLODBias() const

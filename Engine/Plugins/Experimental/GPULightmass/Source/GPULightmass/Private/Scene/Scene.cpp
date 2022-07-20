@@ -1175,10 +1175,8 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	InstanceRenderState.LocalBounds = InComponent->CalcBounds(FTransform::Identity);
 	InstanceRenderState.bCastShadow = InComponent->CastShadow && InComponent->bCastStaticShadow;
 
-	const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	const int8 SubsectionSizeLog2 = FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1);
-	InstanceRenderState.SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((InComponent->NumSubsections & 0xf) << 4) |
-		(bUseMobileLandscapeMesh ? 0 : (1 << 30)) | (InComponent->XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
+	InstanceRenderState.SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((InComponent->NumSubsections & 0xf) << 4) | (InComponent->XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 	InstanceRenderState.SharedBuffersKey |= 1 << 29; // Use this bit to indicate it is GPULightmass specific buffer (which only has FixedGridVertexFactory created)
 
 	TArray<UMaterialInterface*> AvailableMaterials;
@@ -1214,7 +1212,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	Initializer.HeightmapScaleBias         = (FVector4f)InComponent->HeightmapScaleBias;
 	Initializer.WeightmapScaleBias         = (FVector4f)InComponent->WeightmapScaleBias;
 	Initializer.WeightmapSubsectionOffset  = InComponent->WeightmapSubsectionOffset;
-	Initializer.bUseMobileLandscapeMesh	   = bUseMobileLandscapeMesh;
 
 	TArray<int32> RelevantPointLightsToAddOnRenderThread = AddAllPossiblyRelevantLightsToGeometry(LightScene.PointLights, Instance);
 	TArray<int32> RelevantSpotLightsToAddOnRenderThread = AddAllPossiblyRelevantLightsToGeometry(LightScene.SpotLights, Instance);
@@ -1237,7 +1234,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		{
 			InstanceRenderState.SharedBuffers = new FLandscapeSharedBuffers(
 				InstanceRenderState.SharedBuffersKey, Initializer.SubsectionSizeQuads, Initializer.NumSubsections,
-				LocalFeatureLevel, Initializer.bUseMobileLandscapeMesh);
+				LocalFeatureLevel);
 
 			FLandscapeComponentSceneProxy::SharedBuffersMap.Add(InstanceRenderState.SharedBuffersKey, InstanceRenderState.SharedBuffers);
 
@@ -1320,9 +1317,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 			LandscapeParams.HeightmapTexture = Initializer.HeightmapTexture->TextureReference.TextureReferenceRHI;
 			LandscapeParams.HeightmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
-
-			LandscapeParams.NormalmapTexture = Initializer.HeightmapTexture->TextureReference.TextureReferenceRHI;
-			LandscapeParams.NormalmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 			// No support for XYOffset
 			LandscapeParams.XYOffsetmapTexture = GBlackTexture->TextureRHI;

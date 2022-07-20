@@ -100,12 +100,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, LANDSCAP
     SHADER_PARAMETER(FVector4f, SubsectionSizeVertsLayerUVPan)
     SHADER_PARAMETER(FVector4f, SubsectionOffsetParams)
     SHADER_PARAMETER(FVector4f, LightmapSubsectionOffsetParams)
-	SHADER_PARAMETER(FVector4f, BlendableLayerMask)
 	SHADER_PARAMETER(FMatrix44f, LocalToWorldNoScaling)
 	SHADER_PARAMETER_TEXTURE(Texture2D, HeightmapTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HeightmapTextureSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D, NormalmapTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, NormalmapTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, XYOffsetmapTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, XYOffsetmapTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -321,7 +318,6 @@ public:
 	FIndexBuffer** IndexBuffers;
 	FLandscapeIndexRanges* IndexRanges;
 	bool bUse32BitIndices;
-	bool bUseMobileLandscapeMesh;
 #if WITH_EDITOR
 	FIndexBuffer* GrassIndexBuffer;
 	TArray<int32, TInlineAllocator<8>> GrassIndexMipOffsets;
@@ -331,7 +327,7 @@ public:
 	TArray<FIndexBuffer*> ZeroOffsetIndexBuffers;
 #endif
 
-	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, bool bUseMobileLandscapeMesh);
+	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel);
 
 	template <typename INDEX_TYPE>
 	void CreateIndexBuffers();
@@ -702,8 +698,8 @@ protected:
 #if WITH_EDITOR
 	TArray<FLinearColor> LayerColors;
 #endif
-	UTexture2D* HeightmapTexture; // PC : Heightmap, Mobile : Weightmap
-	UTexture2D* NormalmapTexture; // PC : Heightmap, Mobile : Weightmap
+	// Heightmap in RG and Normalmap in BA
+	UTexture2D* HeightmapTexture; 
 	UTexture2D* BaseColorForGITexture;
 	FVector4f HeightmapScaleBias;
 	float HeightmapSubsectionOffsetU;
@@ -711,14 +707,12 @@ protected:
 
 	UTexture2D* XYOffsetmapTexture;
 
-	uint8 BlendableLayerMask;
-
 	uint32						SharedBuffersKey;
 	FLandscapeSharedBuffers*	SharedBuffers;
 	FLandscapeVertexFactory*	VertexFactory;
 	FLandscapeVertexFactory*	FixedGridVertexFactory;
 
-	/** All available materials for non mobile, including LOD Material, Tessellation generated materials*/
+	/** All available materials, including LOD Material, Tessellation generated materials*/
 	TArray<UMaterialInterface*> AvailableMaterials;
 
 	// FLightCacheInterface
@@ -796,10 +790,6 @@ public:
 	friend class FLandscapeXYOffsetVertexFactoryVertexShaderParameters;
 	friend class FLandscapeVertexFactoryPixelShaderParameters;
 	friend struct FLandscapeBatchElementParams;
-	friend class FLandscapeVertexFactoryMobileVertexShaderParameters;
-	friend class FLandscapeVertexFactoryMobilePixelShaderParameters;
-	friend class FLandscapeFixedGridVertexFactoryVertexShaderParameters;
-	friend class FLandscapeFixedGridVertexFactoryMobileVertexShaderParameters;
 
 #if WITH_EDITOR
 	const FMeshBatch& GetGrassMeshBatch() const { return GrassMeshBatch; }

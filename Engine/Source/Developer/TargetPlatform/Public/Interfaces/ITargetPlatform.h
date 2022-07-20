@@ -64,7 +64,7 @@ enum class ETargetPlatformFeatures
 	MeshLODStreaming,
 
 	/** Landscape visual mesh LOD streaming. */
-	LandscapeMeshLODStreaming,
+	LandscapeMeshLODStreaming UE_DEPRECATED(5.1, "LandscapeMeshLODStreaming is now deprecated and will be removed."),
 
 	/** User credentials are required to use the device. */
 	UserCredentials,
@@ -109,10 +109,7 @@ enum class ETargetPlatformFeatures
 	CookFileRegionMetadata,
 
 	/** The platform supports communication (reading and writing data) between a target a connected PC. */
-	DirectDataExchange,
-
-	/** Whether platform uses a baked landscape mesh */
-	MobileLandscapeMesh,
+	DirectDataExchange
 };
 
 enum class EPlatformAuthentication

@@ -27,7 +27,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeMeshProxyComponent.h"
 #include "LandscapeNaniteComponent.h"
 #include "LandscapeRender.h"
-#include "LandscapeRenderMobile.h"
+#include "LandscapePrivate.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -58,7 +58,6 @@ Landscape.cpp: Terrain rendering
 #include "ComponentRecreateRenderStateContext.h"
 #include "LandscapeWeightmapUsage.h"
 #include "LandscapeSubsystem.h"
-#include "Streaming/LandscapeMeshMobileUpdate.h"
 #include "ContentStreaming.h"
 #include "UObject/ObjectSaveContext.h"
 #include "GlobalShader.h"
@@ -135,11 +134,6 @@ namespace LandscapeCookStats
 	});
 }
 #endif
-
-static bool UseMobileLandscapeMesh(const ITargetPlatform* TargetPlatform)
-{
-	return TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MobileLandscapeMesh);
-}
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -245,8 +239,6 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 
 	// Default sort priority of landscape to -1 so that it will default to the first thing rendered in any runtime virtual texture
 	TranslucencySortPriority = -1;
-
-	LODStreamingProxy = CreateDefaultSubobject<ULandscapeLODStreamingProxy>(TEXT("LandscapeLODStreamingProxy"));
 }
 
 int32 ULandscapeComponent::GetMaterialInstanceCount(bool InDynamic) const
@@ -298,10 +290,7 @@ void ULandscapeComponent::BeginCacheForCookedPlatformData(const ITargetPlatform*
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (UseMobileLandscapeMesh(TargetPlatform))
-		{
-			CheckGenerateMobilePlatformData(/*bIsCooking = */ true, TargetPlatform);
-		}
+		CheckGenerateMobilePlatformData(/*bIsCooking = */ true, TargetPlatform);
 	}
 }
 
@@ -435,21 +424,8 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 void ULandscapeComponent::CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
 	// Regenerate platform data only when it's missing or there is a valid hash-mismatch.
-
 	FBufferArchive ComponentStateAr;
 	SerializeStateHashes(ComponentStateAr);
-
-	if (bIsCooking && TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming))
-	{
-		int32 MaxLODClamp = GetLandscapeProxy()->MaxLODLevel;
-		MaxLODClamp = MaxLODClamp < 0 ? INT32_MAX : MaxLODClamp;
-		ComponentStateAr << MaxLODClamp;
-	}
-	else
-	{
-		int32 DummyMaxLODClamp = INDEX_NONE;
-		ComponentStateAr << DummyMaxLODClamp;
-	}
 
 	// Serialize the version guid as part of the hash so we can invalidate DDC data if needed
 	FString MobileVersion = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().LANDSCAPE_MOBILE_COOK_VERSION).ToString();
@@ -460,39 +436,7 @@ void ULandscapeComponent::CheckGenerateMobilePlatformData(bool bIsCooking, const
 	FGuid NewSourceHash = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 
 	bool bHashMismatch = MobileDataSourceHash != NewSourceHash;
-	bool bMissingVertexData = !PlatformData.HasValidPlatformData();
 	bool bMissingPixelData = MobileMaterialInterfaces.Num() == 0 || MobileWeightmapTextures.Num() == 0 || MaterialPerLOD.Num() == 0;
-
-	bool bRegenerateVertexData = bMissingVertexData || bMissingPixelData || bHashMismatch;
-
-	if (bRegenerateVertexData)
-	{
-		if (bIsCooking)
-		{
-			// The DDC is only useful when cooking (see else).
-
-			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-// Temporarily disabling DDC use. See FORT-317076.
-// 			if (PlatformData.LoadFromDDC(NewSourceHash, this))
-// 			{
-// 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
-// 			}
-// 			else
-			{
-				GenerateMobilePlatformVertexData(TargetPlatform);
-// 				PlatformData.SaveToDDC(NewSourceHash, this);
-				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
-			}
-		}
-		else
-		{
-			// When not cooking (e.g. mobile preview) DDC data isn't sufficient to 
-			// display correctly, so the platform vertex data must be regenerated.
-
-			GenerateMobilePlatformVertexData(TargetPlatform);
-		}
-	}
-
 	bool bRegeneratePixelData = bMissingPixelData || bHashMismatch;
 
 	if (bRegeneratePixelData)
@@ -589,13 +533,10 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (UseMobileLandscapeMesh(Ar.CookingTarget()))
-		{
-			// for -oldcook:
-			// the old cooker calls BeginCacheForCookedPlatformData after the package export set is tagged, so the mobile material doesn't get saved, so we have to do CheckGenerateMobilePlatformData in serialize
-			// the new cooker clears the texture source data before calling serialize, causing GeneratePlatformVertexData to crash, so we have to do CheckGenerateMobilePlatformData in BeginCacheForCookedPlatformData
-			CheckGenerateMobilePlatformData(/*bIsCooking = */ true, Ar.CookingTarget());
-		}
+		// for -oldcook:
+		// the old cooker calls BeginCacheForCookedPlatformData after the package export set is tagged, so the mobile material doesn't get saved, so we have to do CheckGenerateMobilePlatformData in serialize
+		// the new cooker clears the texture source data before calling serialize, causing GeneratePlatformVertexData to crash, so we have to do CheckGenerateMobilePlatformData in BeginCacheForCookedPlatformData
+		CheckGenerateMobilePlatformData(/*bIsCooking = */ true, Ar.CookingTarget());
 	}
 
 	// Avoid the archiver in the PIE duplicate writer case because we want to share landscape textures & materials
@@ -663,31 +604,26 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 	}
 	else if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(Ar.CookingTarget());
-		
-		if (bUseMobileLandscapeMesh && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
+		if (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering))
 		{
-			// These are used for SM5 rendering or if MobileLandscapeMesh is disabled 
-			UTexture2D* BackupHeightmapTexture = nullptr;
+			// These are used for SM5 rendering
 			UTexture2D* BackupXYOffsetmapTexture = nullptr;
 			TArray<UMaterialInstanceConstant*> BackupMaterialInstances;
 			TArray<UTexture2D*> BackupWeightmapTextures;
 
-			Exchange(HeightmapTexture, BackupHeightmapTexture);
 			Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
 			Exchange(BackupMaterialInstances, MaterialInstances);
 			Exchange(BackupWeightmapTextures, WeightmapTextures);
 
 			Super::Serialize(Ar);
 
-			Exchange(HeightmapTexture, BackupHeightmapTexture);
 			Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
 			Exchange(BackupMaterialInstances, MaterialInstances);
 			Exchange(BackupWeightmapTextures, WeightmapTextures);
 		}
-		else if (!bUseMobileLandscapeMesh)
+		else if (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
 		{
-			// These properties are only when MobileLandscapeMesh is enabled so we back them up and clear them before serializing them.
+			// These properties are only for Mobile
 			TArray<UMaterialInterface*> BackupMobileMaterialInterfaces;
 			TArray<UTexture2D*> BackupMobileWeightmapTextures;
 
@@ -701,7 +637,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		}
 		else
 		{
-			// Serialize both mobile landscape mesh and heightmap properties
+			// Serialize both mobile and SM5 properties
 			Super::Serialize(Ar);
 		}
 	}
@@ -785,29 +721,6 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 	{
 		UE_LOG(LogLandscape, Fatal, TEXT("This platform requires cooked packages, and this landscape does not contain cooked data %s."), *GetName());
 	}
-
-	if (bCooked)
-	{
-		bool bCookedMobileData = Ar.IsCooking() && UseMobileLandscapeMesh(Ar.CookingTarget());
-		Ar << bCookedMobileData;
-
-		// Saving for cooking path
-		if (bCookedMobileData)
-		{
-			if (Ar.IsCooking())
-			{
-				check(PlatformData.HasValidPlatformData());
-			}
-			PlatformData.Serialize(Ar, this);
-		}
-	}
-
-#if WITH_EDITOR
-	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
-	{
-		PlatformData.Serialize(Ar, this);
-	}
-#endif
 
 #if WITH_EDITOR
 	if (Ar.IsSaving() && Ar.IsPersistent())
@@ -1229,10 +1142,7 @@ void ULandscapeComponent::PostLoad()
 		}
 		else
 		{
-			if (UseMobileLandscapeMesh(GMaxRHIShaderPlatform))
-			{
-				UE_LOG(LogLandscape, Error, TEXT("Landscape component (%d, %d) Does not have a valid mobile combination material. To correct this issue, open the map in the editor and resave the map."), SectionBaseX, SectionBaseY);
-			}
+			UE_LOG(LogLandscape, Error, TEXT("Landscape component (%d, %d) Does not have a valid mobile combination material. To correct this issue, open the map in the editor and resave the map."), SectionBaseX, SectionBaseY);
 		}
 	}
 #endif // UE_BUILD_SHIPPING
@@ -1244,7 +1154,7 @@ void ULandscapeComponent::PostLoad()
 			? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
 
 		// If we're loading on a platform that doesn't require cooked data, but defaults to a mobile feature level, generate or preload data from the DDC
-		if (!FPlatformProperties::RequiresCookedData() && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		if (!FPlatformProperties::RequiresCookedData() && FeatureLevel == ERHIFeatureLevel::ES3_1)
 		{
 			CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 		}
@@ -1641,11 +1551,6 @@ void ULandscapeComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (LODStreamingProxy != nullptr)
-	{
-		LODStreamingProxy->UnlinkStreaming();
-	}
-
 #if WITH_EDITOR
 	// Ask render thread to destroy EditToolRenderData
 	EditToolRenderData = FLandscapeEditToolRenderData();
@@ -1682,27 +1587,7 @@ void ULandscapeComponent::BeginDestroy()
 
 FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 {
-	check(LODStreamingProxy);
-	LODStreamingProxy->ClearStreamingResourceState();
-	LODStreamingProxy->UnlinkStreaming();
-
-	const auto FeatureLevel = GetWorld()->FeatureLevel;
-	FPrimitiveSceneProxy* Proxy = nullptr;
-	if (FeatureLevel >= ERHIFeatureLevel::SM5 || !UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]))
-	{
-		Proxy = new FLandscapeComponentSceneProxy(this);
-	}
-	else // i.e. (FeatureLevel <= ERHIFeatureLevel::ES3_1)
-	{
-		if (PlatformData.HasValidRuntimeData())
-		{
-			Proxy = new FLandscapeComponentSceneProxyMobile(this);
-			LODStreamingProxy->InitResourceStateForMobileStreaming();
-			LODStreamingProxy->LinkStreaming();
-		}
-	}
-
-	return Proxy;
+	return new FLandscapeComponentSceneProxy(this);
 }
 
 bool ULandscapeComponent::IsShown(const FEngineShowFlags& ShowFlags) const
@@ -2821,7 +2706,7 @@ void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLev
 
 	UpdateAllComponentMaterialInstances();
 
-	if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[NewFeatureLevel]))
+	if (NewFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		for (ULandscapeComponent* Component : LandscapeComponents)
 		{
@@ -4469,111 +4354,6 @@ ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& Obj
 	ClearUsage();
 }
 
-// Generate a new guid to force a recache of all landscape derived data
-#define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("3000901CF3B24F028854C2DB986E5B3B")
-
-FString FLandscapeComponentDerivedData::GetDDCKeyString(const FGuid& StateId)
-{
-	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("LS_FULL"), LANDSCAPE_FULL_DERIVEDDATA_VER, *StateId.ToString());
-}
-
-void FLandscapeComponentDerivedData::InitializeFromUncompressedData(const TArray<uint8>& UncompressedData, const TArray<TArray<uint8>>& StreamingLODs)
-{
-	int32 UncompressedSize = UncompressedData.Num() * UncompressedData.GetTypeSize();
-
-	TArray<uint8> TempCompressedMemory;
-	// Compressed can be slightly larger than uncompressed
-	TempCompressedMemory.Empty(UncompressedSize * 4 / 3);
-	TempCompressedMemory.AddUninitialized(UncompressedSize * 4 / 3);
-	int32 CompressedSize = TempCompressedMemory.Num() * TempCompressedMemory.GetTypeSize();
-
-	verify(FCompression::CompressMemory(
-		NAME_Zlib,
-		TempCompressedMemory.GetData(),
-		CompressedSize,
-		UncompressedData.GetData(),
-		UncompressedSize,
-		COMPRESS_BiasMemory));
-
-	// Note: change LANDSCAPE_FULL_DERIVEDDATA_VER when modifying the serialization layout
-	FMemoryWriter FinalArchive(CompressedLandscapeData, true);
-	FinalArchive << UncompressedSize;
-	FinalArchive << CompressedSize;
-	FinalArchive.Serialize(TempCompressedMemory.GetData(), CompressedSize);
-
-	const int32 NumStreamingLODs = StreamingLODs.Num();
-	StreamingLODDataArray.Empty(NumStreamingLODs);
-	for (int32 Idx = 0; Idx < NumStreamingLODs; ++Idx)
-	{
-		const TArray<uint8>& SrcData = StreamingLODs[Idx];
-		const int32 NumSrcBytes = SrcData.Num();
-		FByteBulkData& LODData = StreamingLODDataArray[StreamingLODDataArray.AddDefaulted()];
-		if (NumSrcBytes > 0)
-		{
-			LODData.ResetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-			LODData.Lock(LOCK_READ_WRITE);
-			void* Dest = LODData.Realloc(NumSrcBytes);
-			FMemory::Memcpy(Dest, SrcData.GetData(), NumSrcBytes);
-			LODData.Unlock();
-		}
-	}
-}
-
-void FLandscapeComponentDerivedData::Serialize(FArchive& Ar, UObject* Owner)
-{
-	Ar << CompressedLandscapeData;
-
-	int32 NumStreamingLODs = StreamingLODDataArray.Num();
-	Ar << NumStreamingLODs;
-	if (Ar.IsLoading())
-	{
-		StreamingLODDataArray.Empty(NumStreamingLODs);
-		StreamingLODDataArray.AddDefaulted(NumStreamingLODs);
-	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	CachedLODDataPackagePath.Empty();
-	CachedLODDataPackageSegment = EPackageSegment::Header;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	for (int32 Idx = 0; Idx < NumStreamingLODs; ++Idx)
-	{
-		FByteBulkData& LODData = StreamingLODDataArray[Idx];
-		LODData.Serialize(Ar, Owner, Idx);
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (CachedLODDataPackagePath.IsEmpty() && 
-			!!(LODData.GetBulkDataFlags() & BULKDATA_Force_NOT_InlinePayload) &&
-			LODData.IsUsingIODispatcher() == false)
-		{
-			CachedLODDataPackagePath = LODData.GetPackagePath();
-			CachedLODDataPackageSegment = LODData.GetPackageSegment();
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
-bool FLandscapeComponentDerivedData::LoadFromDDC(const FGuid& StateId, UObject* Component)
-{
-	TArray<uint8> Bytes;
-	if (GetDerivedDataCacheRef().GetSynchronous(*GetDDCKeyString(StateId), Bytes, Component->GetPathName()))
-	{
-		FMemoryReader Ar(Bytes, true);
-		Serialize(Ar, Component);
-		return true;
-	}
-	return false;
-}
-
-void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId, UObject* Component)
-{
-	check(CompressedLandscapeData.Num() > 0);
-	TArray<uint8> Bytes;
-	FMemoryWriter Ar(Bytes, true);
-	Serialize(Ar, Component);
-	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), Bytes, Component->GetPathName());
-}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ALandscapeProxy::~ALandscapeProxy()
 {
@@ -4668,9 +4448,11 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 	bool bEnableNanite = GetLandscapeProxy()->IsNaniteEnabled();
 	Ar << bEnableNanite;
 
-	bool bMeshHoles = GetLandscapeProxy()->bMeshHoles;
-	uint8 MeshHolesMaxLod = GetLandscapeProxy()->MeshHolesMaxLod;
-	Ar << bMeshHoles << MeshHolesMaxLod;
+	if (GetLandscapeHoleMaterial() && ComponentHasVisibilityPainted())
+	{
+		FGuid LocalStateId = GetLandscapeHoleMaterial()->GetMaterial_Concurrent()->StateId;
+		Ar << LocalStateId;
+	}
 
 	// Take into account the Heightmap offset per component
 	Ar << HeightmapScaleBias.Z;
@@ -5186,161 +4968,9 @@ void ALandscapeProxy::UpdateRenderingMethod(bool bDisableNanite)
 	}
 }
 
-ULandscapeLODStreamingProxy::ULandscapeLODStreamingProxy(const FObjectInitializer& ObjectInitializer)
+ULandscapeLODStreamingProxy_DEPRECATED::ULandscapeLODStreamingProxy_DEPRECATED(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	LandscapeComponent = Cast<ULandscapeComponent>(GetOuter());
-}
-
-int32 ULandscapeLODStreamingProxy::CalcCumulativeLODSize(int32 NumLODs) const
-{
-	check(LandscapeComponent);
-	const int32 NumStreamingLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
-	const int32 LastLODIdx = NumStreamingLODs - NumLODs + 1;
-	int64 Result = 0;
-	for (int32 Idx = NumStreamingLODs - 1; Idx >= LastLODIdx; --Idx)
-	{
-		Result += LandscapeComponent->PlatformData.StreamingLODDataArray[Idx].GetBulkDataSize();
-	}
-	return (int32)Result;
-}
-
-bool ULandscapeLODStreamingProxy::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
-{
-	FPackagePath PackagePath;
-	EPackageSegment PackageSegment;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const bool bResult = GetMipDataPackagePath(MipIndex, PackagePath, PackageSegment);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	if (bResult)
-	{
-		OutBulkDataFilename = PackagePath.GetLocalFullPath(PackageSegment);
-		return true;
-	}
-	return false;
-}
-
-bool ULandscapeLODStreamingProxy::GetMipDataPackagePath(const int32 MipIndex, FPackagePath& OutPackagePath, EPackageSegment& OutPackageSegment) const
-{
-	check(LandscapeComponent);
-	const int32 NumStreamingLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num();
-	if (MipIndex >= 0 && MipIndex < NumStreamingLODs)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OutPackagePath = LandscapeComponent->PlatformData.CachedLODDataPackagePath;
-		OutPackageSegment = LandscapeComponent->PlatformData.CachedLODDataPackageSegment;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		return true;
-	}
-	return false;
-}
-
-FIoFilenameHash ULandscapeLODStreamingProxy::GetMipIoFilenameHash(const int32 MipIndex) const
-{
-	if (LandscapeComponent && LandscapeComponent->PlatformData.StreamingLODDataArray.IsValidIndex(MipIndex))
-	{
-		return LandscapeComponent->PlatformData.StreamingLODDataArray[MipIndex].GetIoFilenameHash();
-	}
-	else
-	{
-		return INVALID_IO_FILENAME_HASH;
-	}
-}
-
-bool ULandscapeLODStreamingProxy::StreamOut(int32 NewMipCount)
-{
-	check(IsInGameThread());
-
-	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamOut(NewMipCount))
-	{
-		PendingUpdate = new FLandscapeMeshMobileStreamOut(this);
-		return !PendingUpdate->IsCancelled();
-	}
-	return false;
-}
-
-bool ULandscapeLODStreamingProxy::StreamIn(int32 NewMipCount, bool bHighPrio)
-{
-	check(IsInGameThread());
-
-	if (!HasPendingInitOrStreaming() && CachedSRRState.StreamIn(NewMipCount))
-	{
-#if WITH_EDITOR
-		if (FPlatformProperties::HasEditorOnlyData())
-		{
-			PendingUpdate = new FLandscapeMeshMobileStreamIn_GPUDataOnly(this);
-		}
-		else
-#endif
-		{
-			PendingUpdate = new FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(this, bHighPrio);
-		}
-		return !PendingUpdate->IsCancelled();
-	}
-	return false;
-}
-
-TArray<float> ULandscapeLODStreamingProxy::GetLODScreenSizeArray() const
-{
-	check(LandscapeComponent);
-	return ::GetLODScreenSizeArray(LandscapeComponent->GetLandscapeProxy(), CachedSRRState.MaxNumLODs);
-}
-
-TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> ULandscapeLODStreamingProxy::GetRenderData() const
-{
-	check(LandscapeComponent);
-	return LandscapeComponent->PlatformData.CachedRenderData;
-}
-
-FByteBulkData& ULandscapeLODStreamingProxy::GetStreamingLODBulkData(int32 LODIdx) const
-{
-	check(LandscapeComponent);
-	return LandscapeComponent->PlatformData.StreamingLODDataArray[LODIdx];
-}
-
-void ULandscapeLODStreamingProxy::CancelAllPendingStreamingActions()
-{
-	FlushRenderingCommands();
-
-	for (TObjectIterator<ULandscapeLODStreamingProxy> It; It; ++It)
-	{
-		ULandscapeLODStreamingProxy* StaticMesh = *It;
-		StaticMesh->CancelPendingStreamingRequest();
-	}
-
-	FlushRenderingCommands();
-}
-
-bool ULandscapeLODStreamingProxy::HasPendingRenderResourceInitialization() const
-{
-	return LandscapeComponent && LandscapeComponent->PlatformData.CachedRenderData && !LandscapeComponent->PlatformData.CachedRenderData->bReadyForStreaming;
-}
-
-void ULandscapeLODStreamingProxy::ClearStreamingResourceState()
-{
-	CachedSRRState.Clear();
-}
-
-void ULandscapeLODStreamingProxy::InitResourceStateForMobileStreaming()
-{
-	check(LandscapeComponent);
-
-	const int32 NumLODs = LandscapeComponent->PlatformData.StreamingLODDataArray.Num() + 1;
-	const bool bHasValidRenderData = LandscapeComponent->PlatformData.CachedRenderData.IsValid();
-
-	CachedSRRState.Clear();
-	CachedSRRState.bSupportsStreaming = !NeverStream && NumLODs > 1 && bHasValidRenderData;
-	CachedSRRState.NumNonStreamingLODs = 1;
-	CachedSRRState.NumNonOptionalLODs = NumLODs;
-	CachedSRRState.MaxNumLODs = NumLODs;
-	CachedSRRState.NumResidentLODs = bHasValidRenderData ? (NumLODs - LandscapeComponent->PlatformData.CachedRenderData->CurrentFirstLODIdx) : NumLODs;
-	CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
-
-	// Set bHasPendingInitHint so that HasPendingRenderResourceInitialization() gets called.
-	CachedSRRState.bHasPendingInitHint = true;
 }
 
 #if WITH_EDITOR

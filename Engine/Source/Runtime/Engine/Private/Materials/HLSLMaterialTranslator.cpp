@@ -6942,33 +6942,17 @@ bool FHLSLMaterialTranslator::GetStaticBoolValue(int32 BoolIndex, bool& bSucceed
 
 int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 Default)
 {
-	const bool bUseMobileLandscapeMesh = UseMobileLandscapeMesh(Platform);
-	if (bUseMobileLandscapeMesh && ShaderFrequency != SF_Pixel)
-	{
-		return Errorf(TEXT("Landscape layer weights are only available in the pixel shader."));
-	}
-		
 	// Look up the weight-map index for this static parameter.
 	int32 WeightmapIndex = INDEX_NONE;
 	bool bFoundParameter = false;
-	bool bAtLeastOneWeightBasedBlend = false;
 
-	int32 NumActiveTerrainLayerWeightParameters = 0;
 	for(int32 ParameterIndex = 0;ParameterIndex < StaticParameters.EditorOnly.TerrainLayerWeightParameters.Num(); ++ParameterIndex)
 	{
 		const FStaticTerrainLayerWeightParameter& Parameter = StaticParameters.EditorOnly.TerrainLayerWeightParameters[ParameterIndex];
-		if (Parameter.WeightmapIndex != INDEX_NONE)
-		{
-			NumActiveTerrainLayerWeightParameters++;
-		}
 		if(Parameter.LayerName == LayerName)
 		{
 			WeightmapIndex = Parameter.WeightmapIndex;
 			bFoundParameter = true;
-		}
-		if (Parameter.bWeightBasedBlend)
-		{
-			bAtLeastOneWeightBasedBlend = true;
 		}
 	}
 
@@ -6982,22 +6966,11 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 De
 	}
 	else
 	{			
-		int32 WeightmapCode;
-		if (bUseMobileLandscapeMesh && NumActiveTerrainLayerWeightParameters <= 3 && bAtLeastOneWeightBasedBlend)
-		{
-			// Mobile can pack 3 layers into the normal map texture B and A channels, implying the 3rd using weight based blending
-			// Layer texture is sampled into Parameters.LayerWeights in LandscapeVertexFactory.ush
-			WeightmapCode = AddInlinedCodeChunk(MCT_Float4, TEXT("Parameters.LayerWeights"));
-		}
-		else
-		{
-			// Otherwise we sample normally
-			const EMaterialSamplerType SamplerType = SAMPLERTYPE_Masks;
-			FString WeightmapName = FString::Printf(TEXT("Weightmap%d"),WeightmapIndex);
-			int32 TextureReferenceIndex = INDEX_NONE;
-			int32 TextureCodeIndex = TextureParameter(FName(*WeightmapName), GEngine->WeightMapPlaceholderTexture, TextureReferenceIndex, SamplerType);
-			WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType);
-		}
+		const EMaterialSamplerType SamplerType = SAMPLERTYPE_Masks;
+		FString WeightmapName = FString::Printf(TEXT("Weightmap%d"),WeightmapIndex);
+		int32 TextureReferenceIndex = INDEX_NONE;
+		int32 TextureCodeIndex = TextureParameter(FName(*WeightmapName), GEngine->WeightMapPlaceholderTexture, TextureReferenceIndex, SamplerType);
+		int32 WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType);
 
 		FString LayerMaskName = FString::Printf(TEXT("LayerMask_%s"),*LayerName.ToString());
 		return Dot(WeightmapCode,VectorParameter(FName(*LayerMaskName), FLinearColor(1.f,0.f,0.f,0.f)));
@@ -11516,23 +11489,6 @@ int32 FHLSLMaterialTranslator::SpeedTree(int32 GeometryArg, int32 WindArg, int32
 		// Only generate previous frame's computations if required and opted-in
 		const bool bEnablePreviousFrameInformation = bCompilingPreviousFrame && bAccurateWindVelocities;
 		return AddCodeChunk(MCT_Float3, TEXT("GetSpeedTreeVertexOffset(Parameters, %s, %s, %s, %g, %s, %s, %s)"), *GetParameterCode(GeometryArg), *GetParameterCode(WindArg), *GetParameterCode(LODArg), BillboardThreshold, bEnablePreviousFrameInformation ? TEXT("true") : TEXT("false"), bExtraBend ? TEXT("true") : TEXT("false"), *GetParameterCode(ExtraBendArg, TEXT("float3(0,0,0)")));
-	}
-}
-
-/**
-	* Adds code for texture coordinate offset to localize large UV
-	*
-	* @return	Code index
-	*/
-int32 FHLSLMaterialTranslator::TextureCoordinateOffset()
-{
-	if (UseMobileLandscapeMesh(Platform) && ShaderFrequency == SF_Vertex)
-	{
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
-	}
-	else
-	{
-		return Constant(0.f);
 	}
 }
 
