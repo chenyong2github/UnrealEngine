@@ -46,6 +46,7 @@ struct CORE_API FDebug
 {
 	/** Logs final assert message and exits the program. */
 	static void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
+	static void AssertFailedV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format, va_list Args);
 
 	/** Triggers a fatal error, using the error formatted to GErrorHist via a previous call to FMsg*/
 	static void ProcessFatalError(void* ProgramCounter);
