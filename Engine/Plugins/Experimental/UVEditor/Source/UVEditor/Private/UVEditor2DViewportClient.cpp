@@ -213,7 +213,7 @@ void FUVEditor2DViewportClient::AddReferencedObjects(FReferenceCollector& Collec
 	Collector.AddReferencedObject(CanvasObject);
 }
 
-bool FUVEditor2DViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float/*AmountDepressed*/, bool/*Gamepad*/)
+bool FUVEditor2DViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
 	// We'll support disabling input like our base class, even if it does not end up being used.
 	if (bDisableInput)
@@ -222,8 +222,10 @@ bool FUVEditor2DViewportClient::InputKey(FViewport* InViewport, int32 Controller
 	}
 
 	// Our viewport manipulation is placed in the input router that ModeTools manages
-	return ModeTools->InputKey(this, Viewport, Key, Event);
+	return ModeTools->InputKey(this, EventArgs.Viewport, EventArgs.Key, EventArgs.Event);
+
 }
+
 
 // Note that this function gets called from the super class Draw(FViewport*, FCanvas*) overload to draw the scene.
 // We don't override that top-level function so that it can do whatever view calculations it needs to do.

@@ -30,7 +30,8 @@ public:
 	bool AreWidgetButtonsEnabled() const;
 
 	// FEditorViewportClient
-	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float/*AmountDepressed*/, bool/*Gamepad*/) override;
+	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
+
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	virtual bool ShouldOrbitCamera() const override;
 	bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override;
