@@ -280,6 +280,7 @@ FGroomRenderingDetails::FGroomRenderingDetails(IGroomCustomAssetEditorToolkit* I
 	if (InToolkit)
 	{
 		GroomAsset = InToolkit->GetCustomAsset();
+		Toolkit = InToolkit;
 	}
 	bDeleteWarningConsumed = false;
 	PanelType = Type;
@@ -305,6 +306,7 @@ FName GetCategoryName(EMaterialPanelType Type)
 	case EMaterialPanelType::Interpolation: return FName(TEXT("Interpolation"));
 	case EMaterialPanelType::LODs:			return FName(TEXT("LODs"));
 	case EMaterialPanelType::Physics:		return FName(TEXT("Physics"));
+	case EMaterialPanelType::Bindings:		return FName(TEXT("Bindings"));
 	}
 	return FName(TEXT("Unknown"));
 }
@@ -319,12 +321,22 @@ void FGroomRenderingDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = DetailLayout.GetSelectedObjects();
 	check(SelectedObjects.Num() <= 1); // The OnGenerateCustomWidgets delegate will not be useful if we try to process more than one object.
 
-	GroomAsset = SelectedObjects.Num() > 0 ? Cast<UGroomAsset>(SelectedObjects[0].Get()) : nullptr;
-	GroomDetailLayout = &DetailLayout;
-
 	FName CategoryName = GetCategoryName(PanelType);
-	IDetailCategoryBuilder& HairGroupCategory = DetailLayout.EditCategory(CategoryName, FText::GetEmpty(), ECategoryPriority::TypeSpecific);
-	CustomizeStrandsGroupProperties(DetailLayout, HairGroupCategory);
+	GroomDetailLayout = &DetailLayout;
+	if (UGroomAsset* LocalGroomAsset = Cast<UGroomAsset>(SelectedObjects[0].Get()))
+	{
+		GroomAsset = LocalGroomAsset;
+
+		IDetailCategoryBuilder& HairGroupCategory = DetailLayout.EditCategory(CategoryName, FText::GetEmpty(), ECategoryPriority::TypeSpecific);
+		CustomizeStrandsGroupProperties(DetailLayout, HairGroupCategory);
+	}
+	else if (UGroomBindingAssetList* LocalGroomBindingList = Cast<UGroomBindingAssetList>(SelectedObjects[0].Get()))
+	{
+		GroomBindingAssetList = LocalGroomBindingList;
+
+		IDetailCategoryBuilder& HairGroupCategory = DetailLayout.EditCategory(CategoryName, FText::GetEmpty(), ECategoryPriority::TypeSpecific);
+		CustomizeStrandsGroupProperties(DetailLayout, HairGroupCategory);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -540,6 +552,18 @@ void FGroomRenderingDetails::CustomizeStrandsGroupProperties(IDetailLayoutBuilde
 			}
 		}
 		break;
+		case EMaterialPanelType::Bindings:
+		{
+			TSharedRef<IPropertyHandle> Property = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAssetList, Bindings), UGroomBindingAssetList::StaticClass());
+			if (Property->IsValidHandle())
+			{
+				TSharedRef<FDetailArrayBuilder> PropertyBuilder = MakeShareable(new FDetailArrayBuilder(Property, false, false, false));
+				PropertyBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FGroomRenderingDetails::OnGenerateElementForBindingAsset, &DetailLayout));
+				PropertyBuilder->SetDisplayName(FText::FromString(TEXT("Bindings")));
+				FilesCategory.AddCustomBuilder(PropertyBuilder, false);
+			}
+		}
+		break;
 	}
 }
 
@@ -589,6 +613,17 @@ FReply FGroomRenderingDetails::OnAddGroup(FProperty* Property)
 	break;
 	}
 
+	return FReply::Handled();
+}
+
+FReply FGroomRenderingDetails::OnSelectBinding(int32 BindingIndex, FProperty* Property)
+{
+	check(GroomBindingAssetList);
+
+	// If user click twice onto the same binding index, we disable the binding;
+	BindingIndex = Toolkit->GetActiveBindingIndex() == BindingIndex ? -1 : BindingIndex;
+	Toolkit->PreviewBinding(BindingIndex);
+	ApplyChanges();
 	return FReply::Handled();
 }
 
@@ -1637,6 +1672,11 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 			AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex, -1);
 		}
 		break;
+		case EMaterialPanelType::Bindings:
+		{
+			AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex, -1);
+		}
+		break;
 		default:
 		{
 			ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef());
@@ -1645,6 +1685,35 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		}
 
 	}
+}
+
+// Hair binding display
+void FGroomRenderingDetails::OnGenerateElementForBindingAsset(TSharedRef<IPropertyHandle> StructProperty, int32 BindingIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
+{
+	FProperty* Property = StructProperty->GetProperty();
+	ChildrenBuilder.AddProperty(StructProperty);
+
+	const FLinearColor Color = BindingIndex == Toolkit->GetActiveBindingIndex() ? FLinearColor::Yellow : FLinearColor::White;
+
+	ChildrenBuilder.AddCustomRow(FText::FromString(TEXT("Preview")))
+	.ValueContent()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.OnClicked(this, &FGroomRenderingDetails::OnSelectBinding, BindingIndex, Property)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.Visible"))
+				.ColorAndOpacity(Color)
+			]
+		]
+	];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -328,7 +328,7 @@ void SGroomEditorViewport::SetSkeletalMeshComponent(USkeletalMeshComponent *Targ
 	}
 	SkeletalGroomTarget = Target;
 
-	if (StaticGroomTarget != nullptr)
+	if (SkeletalGroomTarget != nullptr)
 	{
 		AdvancedPreviewScene->AddComponent(SkeletalGroomTarget, SkeletalGroomTarget->GetRelativeTransform());
 	}

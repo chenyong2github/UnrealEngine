@@ -19,6 +19,9 @@
 #include "GroomAssetDetails.h"
 #include "GroomMaterialDetails.h"
 
+#include "Misc/AssetRegistryInterface.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 
@@ -35,6 +38,7 @@ const FName FGroomCustomAssetEditorToolkit::TabId_MeshesProperties(TEXT("GroomCu
 const FName FGroomCustomAssetEditorToolkit::TabId_MaterialProperties(TEXT("GroomCustomAssetEditor_MaterialProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_PhysicsProperties(TEXT("GroomCustomAssetEditor_PhysicsProperties"));
 const FName FGroomCustomAssetEditorToolkit::TabId_PreviewGroomComponent(TEXT("GroomCustomAssetEditor_PreviewGroomComponent"));
+const FName FGroomCustomAssetEditorToolkit::TabId_BindingProperties(TEXT("GroomCustomAssetEditor_BindingProperties"));
 
 void FGroomCustomAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -88,6 +92,11 @@ void FGroomCustomAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class 
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 #endif
+
+	InTabManager->RegisterTabSpawner(TabId_BindingProperties, FOnSpawnTab::CreateSP(this, &FGroomCustomAssetEditorToolkit::SpawnTab_BindingProperties))
+		.SetDisplayName(LOCTEXT("BindingPropertiesTab", "Binding"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -105,6 +114,7 @@ void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	InTabManager->UnregisterTabSpawner(TabId_PreviewGroomComponent);
 #endif
+	InTabManager->UnregisterTabSpawner(TabId_BindingProperties);
 }
 
 void FGroomCustomAssetEditorToolkit::DocPropChanged(UObject *InObject, FPropertyChangedEvent &Property)
@@ -141,23 +151,12 @@ void FGroomCustomAssetEditorToolkit::DocPropChanged(UObject *InObject, FProperty
 #endif
 }
 
-void FGroomCustomAssetEditorToolkit::OnStaticGroomTargetChanged(UStaticMesh *NewTarget)
-{	
-	if (PreviewStaticMeshComponent != nullptr)
-	{
-		PreviewStaticMeshComponent->SetStaticMesh(NewTarget);
-		PreviewSkeletalMeshComponent->SetVisibility(false);
-		PreviewStaticMeshComponent->SetVisibility(NewTarget != nullptr);
-	}	
-}
-
 void FGroomCustomAssetEditorToolkit::OnSkeletalGroomTargetChanged(USkeletalMesh *NewTarget)
 {	
 	if (PreviewSkeletalMeshComponent != nullptr)
 	{
 		PreviewSkeletalMeshComponent->SetSkeletalMesh(NewTarget);
 		PreviewSkeletalMeshComponent->SetVisibility(NewTarget != nullptr);
-		PreviewStaticMeshComponent->SetVisibility(false);
 	}	
 }
 
@@ -216,7 +215,6 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 	check(GroomAsset!=nullptr);
 //	check(FGroomDataIO::GetDocumentForAsset(GroomAsset) != nullptr); TODO
 	check(PreviewGroomComponent == nullptr);
-	check(PreviewStaticMeshComponent == nullptr);
 	check(PreviewSkeletalMeshComponent == nullptr);
 	
 #if 0 //TODO
@@ -226,39 +224,14 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 	FGroomDataIO::UpdateDocumentFromGroomAsset(GroomAsset.Get(), Doc);
 #endif
 
+	const bool bHasValidBindingAsset = GroomBindingAsset.IsValid();
 	PreviewGroomComponent = NewObject<UGroomComponent>(GetTransientPackage(), NAME_None, RF_Transient);
 	PreviewGroomComponent->CastShadow = 1;
 	PreviewGroomComponent->bCastDynamicShadow = 1;
 	PreviewGroomComponent->SetPreviewMode(true);
 	PreviewGroomComponent->SetGroomAsset(GroomAsset.Get());
 	PreviewGroomComponent->Activate(true);
-	
-	//if (PropertyListenDelegate.IsValid() == false)
-	//{		
-	//	PropertyListenDelegate = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FGroomCustomAssetEditorToolkit::DocPropChanged);
-	//}
-
-#if 0 //TODO
-	PreviewStaticMeshComponent = NewObject<UStaticMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-	PreviewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-	if (Doc->GetStaticGroomTarget())
-	{
-		PreviewStaticMeshComponent->SetStaticMesh(Doc->GetStaticGroomTarget());
-	}
-	else
-	{
-		PreviewStaticMeshComponent->SetVisibility(false);
-	}
-
-	if (Doc->GetSkeletalGroomTarget())
-	{
-		PreviewSkeletalMeshComponent->SetSkeletalMesh(Doc->GetSkeletalGroomTarget());
-	}
-	else
-	{
-		PreviewSkeletalMeshComponent->SetVisibility(false);
-	}
-#endif
+	PreviewBinding(ActiveGroomBindingIndex);
 }
 
 void FGroomCustomAssetEditorToolkit::OnClose() 
@@ -282,17 +255,61 @@ void FGroomCustomAssetEditorToolkit::OnClose()
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	DetailView_PreviewGroomComponent.Reset();
 #endif
+	DetailView_BindingProperties.Reset();
+}
+
+static void ListAllBindingAssets(const UGroomAsset* InGroomAsset, TWeakObjectPtr<UGroomBindingAssetList>& Out)
+{
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UGroomBindingAsset::StaticClass()->GetClassPathName());
+
+	// Search for binding with matching groom asset
+	//{
+	//	const FName GroomAssetProperty = GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, Groom);
+	//	FString GroomAssetName = FAssetData(InGroomAsset).GetExportTextName();
+	//	FString GroomAssetName = TSoftObjectPtr<UGroomAsset>(InGroomAsset).ToString();
+	//	Filter.TagsAndValues.Add(GroomAssetProperty, GroomAssetName);
+	//}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> BindingAssetData;
+	AssetRegistryModule.Get().GetAssets(Filter, BindingAssetData);
+
+	// Filter binding asset which match the groom asset (as the tag/value filter above does not work)
+	for (FAssetData& Asset :  BindingAssetData)
+	{
+		if (UGroomBindingAsset* Binding = (UGroomBindingAsset*)Asset.GetAsset())
+		{
+			if (Binding->Groom == InGroomAsset)
+			{
+				Out->Bindings.Add(Binding);
+			}
+		}
+	}
 }
 
 void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UGroomAsset* InCustomAsset)
 {
 	PreviewGroomComponent		 = nullptr;
-	PreviewStaticMeshComponent	 = nullptr;
 	PreviewSkeletalMeshComponent = nullptr;
+	GroomBindingAssetList = nullptr;
 
+	ViewportTab = SNew(SGroomEditorViewport);
+
+	GroomBindingAssetList = NewObject<UGroomBindingAssetList>(GetTransientPackage(), NAME_None, RF_Transient);
+	ListAllBindingAssets(InCustomAsset, GroomBindingAssetList);
+	if (GroomBindingAssetList->Bindings.Num() > 0)
+	{
+		ActiveGroomBindingIndex = 0;
+		GroomBindingAsset = GroomBindingAssetList->Bindings[ActiveGroomBindingIndex];
+	}
+	else
+	{
+		ActiveGroomBindingIndex = -1;
+	}
 	SetCustomAsset(InCustomAsset);
 	InitPreviewComponents();
-	
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FDetailsViewArgs DetailsViewArgs;
@@ -308,6 +325,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	DetailView_PreviewGroomComponent	= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 #endif
+	DetailView_BindingProperties		= PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	// Customization
 	DetailView_CardsProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Cards));
@@ -317,12 +335,12 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	DetailView_PhysicsProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Physics));
 	DetailView_LODProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::LODs));
 	DetailView_MaterialProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomMaterialDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this));
+	DetailView_BindingProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Bindings));
 
 	SEditorViewport::FArguments args;
-	ViewportTab = SNew(SGroomEditorViewport);
 	
 	// Default layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v15a")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v15b")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -353,6 +371,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 				#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 					->AddTab(TabId_PreviewGroomComponent,	ETabState::OpenedTab)
 				#endif
+					->AddTab(TabId_BindingProperties,		ETabState::OpenedTab)
 				)
 			)
 		);
@@ -442,6 +461,10 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		DetailView_PreviewGroomComponent->SetObject(PreviewGroomComponent.Get());
 	}
 #endif
+	if (DetailView_BindingProperties.IsValid())
+	{
+		DetailView_BindingProperties->SetObject(Cast<UObject>(GroomBindingAssetList));
+	}
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
@@ -473,6 +496,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 			LocalToolKit->DetailView_CardsProperties->ForceRefresh();
 			LocalToolKit->DetailView_MeshesProperties->ForceRefresh();
 			LocalToolKit->DetailView_MaterialProperties->ForceRefresh();
+			LocalToolKit->DetailView_BindingProperties->ForceRefresh();
 		};
 		PropertyListenDelegate = GroomAsset->GetOnGroomAssetResourcesChanged().AddLambda(InvalidateDetailViews);
 	}
@@ -520,7 +544,6 @@ FGroomCustomAssetEditorToolkit::FGroomCustomAssetEditorToolkit()
 {
 	GroomAsset						= nullptr;	
 	PreviewGroomComponent			= nullptr;	
-	PreviewStaticMeshComponent		= nullptr;
 	PreviewSkeletalMeshComponent	= nullptr;
 }
 
@@ -665,14 +688,21 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_PreviewGroomCompon
 		];
 }
 
+TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnTab_BindingProperties(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == TabId_BindingProperties);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("BindingPropertiesTab", "Binding"))
+		.TabColorScale(GetTabColorScale())
+		[
+			DetailView_BindingProperties.ToSharedRef()
+		];
+}
+
 UGroomComponent *FGroomCustomAssetEditorToolkit::GetPreview_GroomComponent() const
 {	
 	return PreviewGroomComponent.Get();
-}
-
-UStaticMeshComponent *FGroomCustomAssetEditorToolkit::GetPreview_StaticMeshComponent() const
-{	
-	return PreviewStaticMeshComponent.Get();
 }
 
 USkeletalMeshComponent *FGroomCustomAssetEditorToolkit::GetPreview_SkeletalMeshComponent() const
@@ -684,12 +714,9 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnViewportTab(const FSpa
 {
 	check(Args.GetTabId() == TabId_Viewport);
 	check(GetPreview_GroomComponent());
-//	check(GetPreview_StaticMeshComponent());
-//	check(GetPreview_SkeletalMeshComponent());
 
-	ViewportTab->SetGroomComponent(GetPreview_GroomComponent());
-	ViewportTab->SetStaticMeshComponent(GetPreview_StaticMeshComponent());
 	ViewportTab->SetSkeletalMeshComponent(GetPreview_SkeletalMeshComponent());
+	ViewportTab->SetGroomComponent(GetPreview_GroomComponent());
 
 	return SNew(SDockTab)
 		.Label(LOCTEXT("RenderTitle", "Render"))
@@ -697,6 +724,43 @@ TSharedRef<SDockTab> FGroomCustomAssetEditorToolkit::SpawnViewportTab(const FSpa
 		[
 			ViewportTab.ToSharedRef()
 		];
+}
+
+void FGroomCustomAssetEditorToolkit::PreviewBinding(int32 BindingIndex)
+{
+	if (BindingIndex >= 0 && GroomBindingAssetList.Get() && BindingIndex < GroomBindingAssetList->Bindings.Num())
+	{
+		GroomBindingAsset = GroomBindingAssetList->Bindings[BindingIndex];
+	}
+	else
+	{
+		GroomBindingAsset = nullptr;
+	}
+
+	if (GroomBindingAsset.Get())
+	{
+		PreviewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+		PreviewSkeletalMeshComponent->SetSkeletalMesh(GroomBindingAsset->TargetSkeletalMesh);
+		PreviewSkeletalMeshComponent->SetVisibility(true);
+		PreviewSkeletalMeshComponent->Activate(true);
+		PreviewGroomComponent->AttachToComponent(PreviewSkeletalMeshComponent.Get(), FAttachmentTransformRules::KeepRelativeTransform);
+		PreviewGroomComponent->SetGroomAsset(GroomAsset.Get(), GroomBindingAsset.Get());
+		ActiveGroomBindingIndex = BindingIndex;
+	}
+	else
+	{
+		PreviewGroomComponent->SetBindingAsset(nullptr);
+		PreviewGroomComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		PreviewSkeletalMeshComponent = nullptr;
+		ActiveGroomBindingIndex = -1;
+	}
+
+	ViewportTab->SetSkeletalMeshComponent(GetPreview_SkeletalMeshComponent());
+}
+
+int32 FGroomCustomAssetEditorToolkit::GetActiveBindingIndex() const
+{
+	return ActiveGroomBindingIndex;
 }
 
 #undef LOCTEXT_NAMESPACE
