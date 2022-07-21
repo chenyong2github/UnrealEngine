@@ -157,6 +157,7 @@ namespace ValueExtender
 		for (TSharedPtr<SWidget> Widget : Widgets)
 		{
 			WidgetContainer->AddSlot()
+				.AutoHeight()
 			[
 				Widget.ToSharedRef()
 			];
