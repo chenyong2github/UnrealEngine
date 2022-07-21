@@ -470,23 +470,25 @@ TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapPerLightCacheEntry::Fin
 	return EntryRef;
 }
 
-TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(int32 LightSceneId)
+TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(int32 LightSceneId, uint32 ViewUniqueID)
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
 	{
 		return nullptr;
 	}
 
-	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntry = CacheEntries.Find(LightSceneId))
+	const uint64 CacheKey = (uint64(ViewUniqueID) << 32U) | uint64(LightSceneId);
+
+	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntry = CacheEntries.Find(CacheKey))
 	{
 		return *LightEntry;
 	}
 
 	// Add to current frame / active set.
-	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& NewLightEntry = CacheEntries.Add(LightSceneId);
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& NewLightEntry = CacheEntries.Add(CacheKey);
 
 	// Copy data if available
-	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry>* PrevNewLightEntry = PrevCacheEntries.Find(LightSceneId))
+	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry>* PrevNewLightEntry = PrevCacheEntries.Find(CacheKey))
 	{
 		NewLightEntry = *PrevNewLightEntry;
 	}
@@ -499,17 +501,6 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManag
 	return NewLightEntry;
 }
 
-
-
-TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateCacheEntry(int32 LightSceneId, int32 Index)
-{
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
-	{
-		return nullptr;
-	}
-
-	return FindCreateLightCacheEntry(LightSceneId)->FindCreateShadowMapEntry(Index);
-}
 
 
 void FVirtualShadowMapPerLightCacheEntry::OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo)

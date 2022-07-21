@@ -165,12 +165,7 @@ public:
 	/**
 	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
 	 */
-	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FindCreateLightCacheEntry(int32 LightSceneId);
-
-	/**
-	 * Finds an existing cache entry and moves to the active set or creates a fresh one.
-	 */
-	TSharedPtr<FVirtualShadowMapCacheEntry> FindCreateCacheEntry(int32 LightSceneId, int32 Index = 0);
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FindCreateLightCacheEntry(int32 LightSceneId, uint32 ViewUniqueID = 0U);
 
 	/*
 	 * Returns true if cached data is available.
@@ -252,8 +247,8 @@ private:
 	TRefCountPtr<IPooledRenderTarget> HZBPhysicalPagePool;
 
 	// Index the Cache entries by the light ID
-	TMap< int32, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;
-	TMap< int32, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > PrevCacheEntries;
+	TMap< uint64, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;
+	TMap< uint64, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > PrevCacheEntries;
 
 	// Stores stats over frames when activated.
 	TRefCountPtr<FRDGPooledBuffer> AccumulatedStatsBuffer;

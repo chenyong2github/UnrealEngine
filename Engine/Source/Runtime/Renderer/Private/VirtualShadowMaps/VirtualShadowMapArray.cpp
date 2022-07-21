@@ -1099,15 +1099,12 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ProjectionData;
 	ProjectionData.AddDefaulted(ShadowMaps.Num());
 
-	// Gather directional light virtual shadow maps
-	TArray<int32, SceneRenderingAllocator> DirectionalLightIds;
 	for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
 	{
 		for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
 		{
 			// NOTE: Shader assumes all levels from a given clipmap are contiguous
 			int32 ClipmapID = Clipmap->GetVirtualShadowMap()->ID;
-			DirectionalLightIds.Add(ClipmapID);
 			for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
 			{
 				ProjectionData[ClipmapID + ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
@@ -1178,7 +1175,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	}
 
 	UniformParameters.NumShadowMaps = ShadowMaps.Num();
-	UniformParameters.NumDirectionalLights = DirectionalLightIds.Num();
 
 	ProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.ProjectionData"), ProjectionData);
 
@@ -1237,6 +1233,22 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 		const FViewInfo &View = Views[ViewIndex];
 
+		// Gather directional light virtual shadow maps
+		TArray<int32, SceneRenderingAllocator> DirectionalLightIds;
+		for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
+		{
+			for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
+			{
+				// mark pages from both views in stereo for the left (primary) view clipmap - assumes GetPrimaryView returns self for non-stereo views.
+				if (Clipmap->GetDependentView() == Views[ViewIndex].GetPrimaryView())
+				{
+					// NOTE: Shader assumes all levels from a given clipmap are contiguous
+					int32 ClipmapID = Clipmap->GetVirtualShadowMap()->ID;
+					DirectionalLightIds.Add(ClipmapID);
+				}
+			}
+		}	
+		
 		// This view contained no local lights (that were stored in the light grid), and no directional lights, so nothing to do.
 		if (View.ForwardLightingResources.LocalLightVisibleLightInfosIndex.Num() + DirectionalLightIds.Num() == 0)
 		{
@@ -1318,6 +1330,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
 					PassParameters->PrunedLightGridData = GraphBuilder.CreateSRV(PrunedLightGridDataRDG);
 					PassParameters->PrunedNumCulledLightsGrid = GraphBuilder.CreateSRV(PrunedNumCulledLightsGridRDG);
+					PassParameters->NumDirectionalLightSmInds = uint32(DirectionalLightIds.Num());
 					PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
 					PassParameters->PageDilationBorderSizeDirectional = CVarPageDilationBorderSizeDirectional.GetValueOnRenderThread();
 					PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;

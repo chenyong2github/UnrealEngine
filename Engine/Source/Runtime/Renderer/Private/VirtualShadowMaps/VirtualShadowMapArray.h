@@ -116,7 +116,7 @@ struct FVirtualShadowMapHZBMetadata
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, NumShadowMaps)
-	SHADER_PARAMETER(uint32, NumDirectionalLights)
+	SHADER_PARAMETER(uint32, NumDirectionalLights) // TODO: Remove
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
 	// Set to 0 if separate static caching is disabled
 	SHADER_PARAMETER(uint32, StaticCachedArrayIndex)

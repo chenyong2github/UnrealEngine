@@ -42,6 +42,7 @@ float PageDilationBorderSizeDirectional;
 float PageDilationBorderSizeLocal;
 uint InputType;
 uint bCullBackfacingPixels;
+uint NumDirectionalLightSmInds;
 
 
 uint GetMipLevelLocal(int VirtualShadowMapId, float3 TranslatedWorldPosition, float SceneDepth)
@@ -232,7 +233,7 @@ void GeneratePageFlagsFromPixels(
 		const bool bUsePageDilation = PageDilationBorderSizeDirectional > 0.0f;
 		const float2 PageDilationOffset = PageDilationBorderSizeDirectional * PageDilationDither;
 
-		for (uint Index = 0; Index < VirtualShadowMap.NumDirectionalLights; ++Index)
+		for (uint Index = 0; Index < NumDirectionalLightSmInds; ++Index)
 		{
 			int ClipmapStartId = DirectionalLightIds[Index];
 			FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
