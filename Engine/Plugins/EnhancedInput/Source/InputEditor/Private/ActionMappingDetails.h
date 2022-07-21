@@ -14,20 +14,24 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IDetailGroup;
 class IDetailLayoutBuilder;
+class UInputAction;
 
-namespace InputConstants
+namespace ActionMappingDetails
 {
-	const FMargin PropertyPadding(2.0f, 0.0f, 2.0f, 0.0f);
-	const float TextBoxWidth = 250.0f;
-	const float ScaleBoxWidth = 50.0f;
+	namespace InputConstants
+	{
+		const FMargin PropertyPadding(2.0f, 0.0f, 2.0f, 0.0f);
+		const float TextBoxWidth = 250.0f;
+		const float ScaleBoxWidth = 50.0f;
+	}
+
+	struct FMappingSet
+	{
+		const class UInputAction* SharedAction;
+		IDetailGroup* DetailGroup;
+		TArray<TSharedRef<IPropertyHandle>> Mappings;
+	};
 }
-
-struct FMappingSet
-{
-	const class UInputAction* SharedAction;
-	IDetailGroup* DetailGroup;
-	TArray<TSharedRef<IPropertyHandle>> Mappings;
-};
 
 class FActionMappingsNodeBuilderEx : public IDetailCustomNodeBuilder, public TSharedFromThis<FActionMappingsNodeBuilderEx>
 {
@@ -49,9 +53,9 @@ public:
 private:
 	void AddActionMappingButton_OnClick();
 	void ClearActionMappingButton_OnClick();
-	void OnActionMappingActionChanged(const FAssetData& AssetData, const FMappingSet MappingSet);
-	void AddActionMappingToGroupButton_OnClick(const FMappingSet MappingSet);
-	void RemoveActionMappingGroupButton_OnClick(const FMappingSet MappingSet);
+	void OnActionMappingActionChanged(const FAssetData& AssetData, const ActionMappingDetails::FMappingSet MappingSet);
+	void AddActionMappingToGroupButton_OnClick(const ActionMappingDetails::FMappingSet MappingSet);
+	void RemoveActionMappingGroupButton_OnClick(const ActionMappingDetails::FMappingSet MappingSet);
 
 	bool GroupsRequireRebuild() const;
 	void RebuildGroupedMappings();
@@ -84,7 +88,7 @@ private:
 	/** Property handle to associated Action Mappings */
 	TSharedPtr<IPropertyHandle> ActionMappingsPropertyHandle;
 
-	TArray<FMappingSet> GroupedMappings;
+	TArray<ActionMappingDetails::FMappingSet> GroupedMappings;
 
 	TArray<TPair<const UInputAction*, bool>> DelayedGroupExpansionStates;
 

@@ -84,7 +84,7 @@ void FActionMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& C
 
 	for (int32 Index = 0; Index < GroupedMappings.Num(); ++Index)
 	{
-		FMappingSet& MappingSet = GroupedMappings[Index];
+		InputSettingsDetails::FMappingSet& MappingSet = GroupedMappings[Index];
 
 		FString GroupNameString(TEXT("ActionMappings."));
 		MappingSet.SharedName.AppendString(GroupNameString);
@@ -105,7 +105,7 @@ void FActionMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& C
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride( InputConstants::TextBoxWidth )
+				.WidthOverride(InputSettingsDetails::InputConstants::TextBoxWidth)
 				[
 					SNew(SEditableTextBox)
 					.Padding(2.0f)
@@ -115,7 +115,7 @@ void FActionMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& C
 				]
 			]
 			+SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -123,7 +123,7 @@ void FActionMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& C
 				AddButton
 			]
 			+SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -168,7 +168,7 @@ void FActionMappingsNodeBuilder::ClearActionMappingButton_OnClick()
 	ActionMappingsPropertyHandle->AsArray()->EmptyArray();
 }
 
-void FActionMappingsNodeBuilder::OnActionMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const FMappingSet MappingSet)
+void FActionMappingsNodeBuilder::OnActionMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("RenameActionMapping_Transaction", "Rename Action Mapping"));
 
@@ -197,7 +197,7 @@ void FActionMappingsNodeBuilder::OnActionMappingNameCommitted(const FText& InNam
 	}
 }
 
-void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const FMappingSet MappingSet)
+void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("AddActionMappingToGroup_Transaction", "Add Action Mapping To Group"));
 
@@ -218,7 +218,7 @@ void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const FMa
 	}
 }
 
-void FActionMappingsNodeBuilder::RemoveActionMappingGroupButton_OnClick(const FMappingSet MappingSet)
+void FActionMappingsNodeBuilder::RemoveActionMappingGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("RemoveActionMappingGroup_Transaction", "Remove Action Mapping Group"));
 
@@ -241,7 +241,7 @@ bool FActionMappingsNodeBuilder::GroupsRequireRebuild() const
 {
 	for (int32 GroupIndex = 0; GroupIndex < GroupedMappings.Num(); ++GroupIndex)
 	{
-		const FMappingSet& MappingSet = GroupedMappings[GroupIndex];
+		const InputSettingsDetails::FMappingSet& MappingSet = GroupedMappings[GroupIndex];
 		for (int32 MappingIndex = 0; MappingIndex < MappingSet.Mappings.Num(); ++MappingIndex)
 		{
 			FName ActionName;
@@ -374,7 +374,7 @@ void FAxisMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& Chi
 
 	for (int32 Index = 0; Index < GroupedMappings.Num(); ++Index)
 	{
-		FMappingSet& MappingSet = GroupedMappings[Index];
+		InputSettingsDetails::FMappingSet& MappingSet = GroupedMappings[Index];
 
 		FString GroupNameString(TEXT("AxisMappings."));
 		MappingSet.SharedName.AppendString(GroupNameString);
@@ -395,7 +395,7 @@ void FAxisMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& Chi
 			.AutoWidth()
 			[
 				SNew( SBox )
-				.WidthOverride( InputConstants::TextBoxWidth )
+				.WidthOverride(InputSettingsDetails::InputConstants::TextBoxWidth)
 				[
 					SNew(SEditableTextBox)
 					.Padding(2.0f)
@@ -405,7 +405,7 @@ void FAxisMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& Chi
 				]
 			]
 			+SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -413,7 +413,7 @@ void FAxisMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& Chi
 				AddButton
 			]
 			+SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -459,7 +459,7 @@ void FAxisMappingsNodeBuilder::ClearAxisMappingButton_OnClick()
 	AxisMappingsPropertyHandle->AsArray()->EmptyArray();
 }
 
-void FAxisMappingsNodeBuilder::OnAxisMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const FMappingSet MappingSet)
+void FAxisMappingsNodeBuilder::OnAxisMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("RenameAxisMapping_Transaction", "Rename Axis Mapping"));
 
@@ -488,7 +488,7 @@ void FAxisMappingsNodeBuilder::OnAxisMappingNameCommitted(const FText& InName, E
 	}
 }
 
-void FAxisMappingsNodeBuilder::AddAxisMappingToGroupButton_OnClick(const FMappingSet MappingSet)
+void FAxisMappingsNodeBuilder::AddAxisMappingToGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("AddAxisMappingToGroup_Transaction", "Add Axis Mapping To Group"));
 
@@ -509,7 +509,7 @@ void FAxisMappingsNodeBuilder::AddAxisMappingToGroupButton_OnClick(const FMappin
 	}
 }
 
-void FAxisMappingsNodeBuilder::RemoveAxisMappingGroupButton_OnClick(const FMappingSet MappingSet)
+void FAxisMappingsNodeBuilder::RemoveAxisMappingGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("RemoveAxisMappingGroup_Transaction", "Remove Axis Mapping Group"));
 
@@ -532,7 +532,7 @@ bool FAxisMappingsNodeBuilder::GroupsRequireRebuild() const
 {
 	for (int32 GroupIndex = 0; GroupIndex < GroupedMappings.Num(); ++GroupIndex)
 	{
-		const FMappingSet& MappingSet = GroupedMappings[GroupIndex];
+		const InputSettingsDetails::FMappingSet& MappingSet = GroupedMappings[GroupIndex];
 		for (int32 MappingIndex = 0; MappingIndex < MappingSet.Mappings.Num(); ++MappingIndex)
 		{
 			FName AxisName;

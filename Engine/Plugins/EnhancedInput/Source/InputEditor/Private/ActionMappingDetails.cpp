@@ -377,7 +377,7 @@ void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& 
 
 	for (int32 Index = 0; Index < GroupedMappings.Num(); ++Index)
 	{
-		FMappingSet& MappingSet = GroupedMappings[Index];
+		ActionMappingDetails::FMappingSet& MappingSet = GroupedMappings[Index];
 
 		FString GroupNameString(TEXT("ActionMappings."));
 		GroupNameString += MappingSet.SharedAction->GetPathName();
@@ -399,7 +399,7 @@ void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& 
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride(InputConstants::TextBoxWidth)
+				.WidthOverride(ActionMappingDetails::InputConstants::TextBoxWidth)
 				[
 					SNew(SObjectPropertyEntryBox)
 					.AllowedClass(UInputAction::StaticClass())
@@ -409,7 +409,7 @@ void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& 
 				]
 			]
 			+ SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(ActionMappingDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -417,7 +417,7 @@ void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& 
 				AddButton
 			]
 			+ SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(ActionMappingDetails::InputConstants::PropertyPadding)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -461,7 +461,7 @@ void FActionMappingsNodeBuilderEx::ClearActionMappingButton_OnClick()
 	ActionMappingsPropertyHandle->AsArray()->EmptyArray();
 }
 
-void FActionMappingsNodeBuilderEx::OnActionMappingActionChanged(const FAssetData& AssetData, const FMappingSet MappingSet)
+void FActionMappingsNodeBuilderEx::OnActionMappingActionChanged(const FAssetData& AssetData, const ActionMappingDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("SwitchActionMapping_Transaction", "Switch Action Mapping"));
 
@@ -490,7 +490,7 @@ void FActionMappingsNodeBuilderEx::OnActionMappingActionChanged(const FAssetData
 	}
 }
 
-void FActionMappingsNodeBuilderEx::AddActionMappingToGroupButton_OnClick(const FMappingSet MappingSet)
+void FActionMappingsNodeBuilderEx::AddActionMappingToGroupButton_OnClick(const ActionMappingDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("AddActionMappingToGroup_Transaction", "Add a control binding to the Action Mapping"));
 
@@ -510,7 +510,7 @@ void FActionMappingsNodeBuilderEx::AddActionMappingToGroupButton_OnClick(const F
 	}
 }
 
-void FActionMappingsNodeBuilderEx::RemoveActionMappingGroupButton_OnClick(const FMappingSet MappingSet)
+void FActionMappingsNodeBuilderEx::RemoveActionMappingGroupButton_OnClick(const ActionMappingDetails::FMappingSet MappingSet)
 {
 	const FScopedTransaction Transaction(LOCTEXT("RemoveActionMappingGroup_Transaction", "Remove Action Mapping and all control bindings"));
 
@@ -539,7 +539,7 @@ bool FActionMappingsNodeBuilderEx::GroupsRequireRebuild() const
 	
 	for (int32 GroupIndex = 0; GroupIndex < GroupedMappings.Num(); ++GroupIndex)
 	{
-		const FMappingSet& MappingSet = GroupedMappings[GroupIndex];
+		const ActionMappingDetails::FMappingSet& MappingSet = GroupedMappings[GroupIndex];
 		for (int32 MappingIndex = 0; MappingIndex < MappingSet.Mappings.Num(); ++MappingIndex)
 		{
 			const UObject* Action;

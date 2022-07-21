@@ -52,7 +52,7 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.Padding(InputConstants::PropertyPadding)
+		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 		//.AutoWidth()
 		[
 			SNew(SKeySelector)
@@ -63,7 +63,7 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 		    .FilterBlueprintBindable(false)
 		]
 		+ SHorizontalBox::Slot()
-		.Padding(InputConstants::PropertyPadding)
+		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.AutoWidth()

@@ -14,19 +14,22 @@ class IDetailChildrenBuilder;
 class IDetailGroup;
 class IDetailLayoutBuilder;
 
-namespace InputConstants
+namespace InputSettingsDetails
 {
-	const FMargin PropertyPadding(2.0f, 0.0f, 2.0f, 0.0f);
-	const float TextBoxWidth = 250.0f;
-	const float ScaleBoxWidth = 50.0f;
-}
+	namespace InputConstants
+	{
+		const FMargin PropertyPadding(2.0f, 0.0f, 2.0f, 0.0f);
+		const float TextBoxWidth = 250.0f;
+		const float ScaleBoxWidth = 50.0f;
+	}
 
-struct FMappingSet
-{
-	FName SharedName;
-	IDetailGroup* DetailGroup;
-	TArray<TSharedRef<IPropertyHandle>> Mappings;
-};
+	struct FMappingSet
+	{
+		FName SharedName;
+		IDetailGroup* DetailGroup;
+		TArray<TSharedRef<IPropertyHandle>> Mappings;
+	};
+}
 
 class FActionMappingsNodeBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FActionMappingsNodeBuilder>
 {
@@ -45,9 +48,9 @@ public:
 private:
 	void AddActionMappingButton_OnClick();
 	void ClearActionMappingButton_OnClick();
-	void OnActionMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const FMappingSet MappingSet);
-	void AddActionMappingToGroupButton_OnClick(const FMappingSet MappingSet);
-	void RemoveActionMappingGroupButton_OnClick(const FMappingSet MappingSet);
+	void OnActionMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const InputSettingsDetails::FMappingSet MappingSet);
+	void AddActionMappingToGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet);
+	void RemoveActionMappingGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet);
 
 	bool GroupsRequireRebuild() const;
 	void RebuildGroupedMappings();
@@ -68,7 +71,7 @@ private:
 	/** Property handle to associated action mappings */
 	TSharedPtr<IPropertyHandle> ActionMappingsPropertyHandle;
 
-	TArray<FMappingSet> GroupedMappings;
+	TArray<InputSettingsDetails::FMappingSet> GroupedMappings;
 
 	TArray<TPair<FName, bool>> DelayedGroupExpansionStates;
 };
@@ -90,9 +93,9 @@ public:
 private:
 	void AddAxisMappingButton_OnClick();
 	void ClearAxisMappingButton_OnClick();
-	void OnAxisMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const FMappingSet MappingSet);
-	void AddAxisMappingToGroupButton_OnClick(const FMappingSet MappingSet);
-	void RemoveAxisMappingGroupButton_OnClick(const FMappingSet MappingSet);
+	void OnAxisMappingNameCommitted(const FText& InName, ETextCommit::Type CommitInfo, const InputSettingsDetails::FMappingSet MappingSet);
+	void AddAxisMappingToGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet);
+	void RemoveAxisMappingGroupButton_OnClick(const InputSettingsDetails::FMappingSet MappingSet);
 
 	bool GroupsRequireRebuild() const;
 	void RebuildGroupedMappings();
@@ -113,7 +116,7 @@ private:
 	/** Property handle to associated axis mappings */
 	TSharedPtr<IPropertyHandle> AxisMappingsPropertyHandle;
 
-	TArray<FMappingSet> GroupedMappings;
+	TArray<InputSettingsDetails::FMappingSet> GroupedMappings;
 
 	TArray<TPair<FName, bool>> DelayedGroupExpansionStates;
 };
