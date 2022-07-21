@@ -172,6 +172,15 @@ struct DYNAMICMESH_API FGeometrySelection
 	}
 
 	/**
+	* Initialize the Element and Topology types for this Selection
+	*/
+	void InitializeTypes(EGeometryElementType ElementTypeIn, EGeometryTopologyType TopologyTypeIn)
+	{
+		ElementType = ElementTypeIn;
+		TopologyType = TopologyTypeIn;
+	}
+
+	/**
 	 * Initialize the Element and Topology types for this Selection based on another Selection
 	 */
 	void InitializeTypes(const FGeometrySelection& FromSelection)
