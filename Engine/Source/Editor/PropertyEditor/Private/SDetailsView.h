@@ -190,6 +190,9 @@ private:
 	/** Get the currently selected section. */
 	ECheckBoxState IsSectionChecked(FName Section) const;
 
+	/** Get the badge for the view options icon (if there are any options active */
+	const FSlateBrush* GetViewOptionsBadgeIcon() const;
+
 private:
 	/** The filter for objects viewed by this details panel */
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
