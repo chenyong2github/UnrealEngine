@@ -53,7 +53,7 @@ FMasterLockitMessageThread::~FMasterLockitMessageThread()
 
 void FMasterLockitMessageThread::Start()
 {
-	Thread.Reset(FRunnableThread::Create(this, TEXT("Master Lockit TCP Message Thread"), ThreadStackSize, TPri_AboveNormal));
+	Thread.Reset(FRunnableThread::Create(this, TEXT("MasterLockit TCP Message Thread"), ThreadStackSize, TPri_AboveNormal));
 }
 
 bool FMasterLockitMessageThread::Init()
