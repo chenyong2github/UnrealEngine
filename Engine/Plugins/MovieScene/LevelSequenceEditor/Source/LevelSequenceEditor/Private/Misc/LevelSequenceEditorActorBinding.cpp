@@ -56,10 +56,13 @@ void FLevelSequenceEditorActorBinding::AddPossessActorMenuExtensions(FMenuBuilde
 		{
 			for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); Index++)
 			{
+				// Only get bound objects for top-level possessables.
 				FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
-
-				// A possession guid can apply to more than one object, so we get all bound objects for the GUID and add them to our set.
-				ExistingPossessedObjects.Append(MovieSceneSequence->LocateBoundObjects(Possessable.GetGuid(), Sequencer.Pin()->GetPlaybackContext()));
+				if (!Possessable.GetParent().IsValid())
+				{
+					// A possession guid can apply to more than one object, so we get all bound objects for the GUID and add them to our set.
+					ExistingPossessedObjects.Append(MovieSceneSequence->LocateBoundObjects(Possessable.GetGuid(), Sequencer.Pin()->GetPlaybackContext()));
+				}
 			}
 		}
 	}
