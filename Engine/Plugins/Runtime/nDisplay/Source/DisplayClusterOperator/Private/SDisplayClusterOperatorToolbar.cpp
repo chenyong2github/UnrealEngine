@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/STextComboBox.h"
 
-#define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorOperator"
+#define LOCTEXT_NAMESPACE "SDisplayClusterOperatorToolbar"
 
 SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 {
