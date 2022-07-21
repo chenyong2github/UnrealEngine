@@ -248,6 +248,13 @@ void UOptimusNode_CustomComputeKernel::OnDataTypeChanged(FName InTypeName)
 }
 
 
+void UOptimusNode_CustomComputeKernel::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
+}
+
+
 #if WITH_EDITOR
 void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	FPropertyChangedEvent& PropertyChangedEvent
@@ -276,13 +283,6 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 		PropertyArrayItemMoved(PropertyChangedEvent);
 	}
 }
-
-void UOptimusNode_CustomComputeKernel::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
-}
-
 
 void UOptimusNode_CustomComputeKernel::PropertyValueChanged(
 	const FPropertyChangedEvent& InPropertyChangedEvent

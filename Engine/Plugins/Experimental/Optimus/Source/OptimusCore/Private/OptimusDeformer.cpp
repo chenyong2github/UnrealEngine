@@ -858,7 +858,7 @@ UOptimusComponentSourceBinding* UOptimusDeformer::CreateComponentBindingDirect(
 	FName InName
 	)
 {
-	if (!ensure(InComponentSource) && !ensure(!InName.IsNone()))
+	if (!ensure(InComponentSource) || !ensure(!InName.IsNone()))
 	{
 		return nullptr;
 	}
@@ -2058,14 +2058,14 @@ void UOptimusDeformer::PostLoadFixupMissingComponentBindingsCompat()
 			
 			for (const TPair<UOptimusNode_DataInterface*, UOptimusComponentSourceBinding*>& Item: InterfaceBindingMap)
 			{
-				UOptimusNode_ComponentSource** ComponentSourceNodePtr = BindingToNodeMap.Find(Item.Value);
+				UOptimusNode_ComponentSource*& ComponentSourceNodePtr = BindingToNodeMap.FindChecked(Item.Value);
 				
-				if (*ComponentSourceNodePtr == nullptr)
+				if (ComponentSourceNodePtr == nullptr)
 				{
-					*ComponentSourceNodePtr = Cast<UOptimusNode_ComponentSource>(Graph->AddComponentBindingGetNode(Item.Value, FVector2D(MinimumPosX, AccumulatedPosY)));					AccumulatedPosY += NodeSize.Y + NodeMargins.Y;
+					ComponentSourceNodePtr = Cast<UOptimusNode_ComponentSource>(Graph->AddComponentBindingGetNode(Item.Value, FVector2D(MinimumPosX, AccumulatedPosY)));					AccumulatedPosY += NodeSize.Y + NodeMargins.Y;
 				}
 
-				UOptimusNodePin* ComponentSourcePin = (*ComponentSourceNodePtr)->GetComponentPin();
+				UOptimusNodePin* ComponentSourcePin = ComponentSourceNodePtr->GetComponentPin();
 
 				Graph->AddLink(ComponentSourcePin, Item.Key->GetComponentPin());
 			}

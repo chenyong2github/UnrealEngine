@@ -249,7 +249,7 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 	.ValueContent()
 	[
 		SNew(SComboBox<FName>)
-			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select an execution context from the list of available contexts."))
+			.ToolTipText(LOCTEXT("ExecContextListerToolTip", "Select an execution context from the list of available contexts."))
 			.OptionsSource(&ContextNames)
 			.IsEnabled_Lambda([InPropertyHandle]() -> bool
 			{

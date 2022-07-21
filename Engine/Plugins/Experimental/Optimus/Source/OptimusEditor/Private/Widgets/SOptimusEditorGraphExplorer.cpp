@@ -653,19 +653,19 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		break;
 
 	case EOptimusSchemaItemGroup::Graphs:
-		AddNewTooltipText = LOCTEXT("AddNewGraphHelp", "Create a new graph");
+		AddNewTooltipText = LOCTEXT("AddNewGraphTooltip", "Create a new graph");
 		break;
 
 	case EOptimusSchemaItemGroup::Bindings:
-		AddNewTooltipText = LOCTEXT("AddNewBindingHelp", "Create a new component binding");
+		AddNewTooltipText = LOCTEXT("AddNewBindingTooltip", "Create a new component binding");
 		break;
 		
 	case EOptimusSchemaItemGroup::Resources:
-		AddNewTooltipText = LOCTEXT("AddNewResourceHelp", "Create a new shader resource");
+		AddNewTooltipText = LOCTEXT("AddNewResourceTooltip", "Create a new shader resource");
 		break;
 
 	case EOptimusSchemaItemGroup::Variables:
-		AddNewTooltipText = LOCTEXT("AddNewVariableHelp", "Create a new externally visible variable");
+		AddNewTooltipText = LOCTEXT("AddNewVariableTooltip", "Create a new externally visible variable");
 		break;
 	}
 
