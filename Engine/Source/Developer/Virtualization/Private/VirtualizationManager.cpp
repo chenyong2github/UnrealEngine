@@ -264,6 +264,9 @@ FVirtualizationManager::FVirtualizationManager()
 	, bEnableCacheAfterPull(true)
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
+	, FilteringMode(EPackageFilterMode::OptOut)
+	, bFilterEngineContent(true)
+	, bFilterEnginePluginContent(true)
 {
 }
 

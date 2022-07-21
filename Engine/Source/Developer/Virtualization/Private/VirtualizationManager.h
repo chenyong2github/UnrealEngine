@@ -209,6 +209,9 @@ private:
 	/** Determines if the default filtering behavior is to virtualize a payload or not */
 	bool ShouldVirtualizeAsDefault() const;
 	
+private:
+	// The following members are set from the config file
+
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
 
@@ -222,7 +225,7 @@ private:
 	FString BackendGraphName;
 
 	/** The default filtering mode to apply if a payload is not matched with an option in UVirtualizationFilterSettings */
-	EPackageFilterMode FilteringMode = EPackageFilterMode::OptOut;
+	EPackageFilterMode FilteringMode;
 
 	/** Should payloads in engine content packages before filtered out and never virtualized */
 	bool bFilterEngineContent;
@@ -230,6 +233,8 @@ private:
 	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
 	bool bFilterEnginePluginContent;
 	
+private:
+
 	/** The name of the current project */
 	FString ProjectName;
 
