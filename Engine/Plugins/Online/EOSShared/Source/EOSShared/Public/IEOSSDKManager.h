@@ -25,6 +25,16 @@ public:
 
 	operator EOS_HPlatform() const { return PlatformHandle; }
 
+	virtual FString GetOverrideCountryCode() const = 0;
+	virtual FString GetOverrideLocaleCode() const = 0;
+
+	virtual void LogInfo(int32 Indent = 0) const = 0;
+	virtual void LogAuthInfo(const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const = 0;
+	virtual void LogUserInfo(const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const = 0;
+	virtual void LogPresenceInfo(const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const = 0;
+	virtual void LogFriendsInfo(const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const = 0;
+	virtual void LogConnectInfo(const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const = 0;
+
 protected:
 	EOS_HPlatform PlatformHandle;
 };
@@ -58,6 +68,16 @@ public:
 	virtual FString GetProductName() const = 0;
 	virtual FString GetProductVersion() const = 0;
 	virtual FString GetCacheDirBase() const = 0;
+	virtual FString GetOverrideCountryCode(const EOS_HPlatform Platform) const = 0;
+	virtual FString GetOverrideLocaleCode(const EOS_HPlatform Platform) const = 0;
+
+	virtual void LogInfo(int32 Indent = 0) const = 0;
+	virtual void LogPlatformInfo(const EOS_HPlatform Platform, int32 Indent = 0) const = 0;
+	virtual void LogAuthInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const = 0;
+	virtual void LogUserInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const = 0;
+	virtual void LogPresenceInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const = 0;
+	virtual void LogFriendsInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const = 0;
+	virtual void LogConnectInfo(const EOS_HPlatform Platform, const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const = 0;
 
 	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
 	FEOSSDKManagerOnPreCreatePlatform OnPreCreatePlatform;

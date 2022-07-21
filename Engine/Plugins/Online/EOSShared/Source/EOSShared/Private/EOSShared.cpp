@@ -5,6 +5,8 @@
 
 #include "eos_auth_types.h"
 #include "eos_friends_types.h"
+#include "eos_presence_types.h"
+#include "eos_types.h"
 
 DEFINE_LOG_CATEGORY(LogEOSSDK);
 
@@ -50,6 +52,67 @@ FString LexToString(const EOS_EpicAccountId AccountId)
 	return Result;
 }
 
+const TCHAR* LexToString(const EOS_EApplicationStatus ApplicationStatus)
+{
+	switch (ApplicationStatus)
+	{
+		case EOS_EApplicationStatus::EOS_AS_BackgroundConstrained:		return TEXT("BackgroundConstrained");
+		case EOS_EApplicationStatus::EOS_AS_BackgroundUnconstrained:	return TEXT("BackgroundUnconstrained");
+		case EOS_EApplicationStatus::EOS_AS_BackgroundSuspended:		return TEXT("BackgroundSuspended");
+		case EOS_EApplicationStatus::EOS_AS_Foreground:					return TEXT("Foreground");
+		default: checkNoEntry();										return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(const EOS_EAuthTokenType AuthTokenType)
+{
+	switch (AuthTokenType)
+	{
+		case EOS_EAuthTokenType::EOS_ATT_Client:	return TEXT("Client");
+		case EOS_EAuthTokenType::EOS_ATT_User:		return TEXT("User");
+		default: checkNoEntry();					return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(const EOS_EDesktopCrossplayStatus DesktopCrossplayStatus)
+{
+	switch (DesktopCrossplayStatus)
+	{
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_OK:							return TEXT("OK");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_ApplicationNotBootstrapped:	return TEXT("ApplicationNotBootstrapped");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_ServiceNotInstalled:			return TEXT("ServiceNotInstalled");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_ServiceStartFailed:			return TEXT("ServiceStartFailed");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_ServiceNotRunning:			return TEXT("ServiceNotRunning");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_OverlayDisabled:				return TEXT("OverlayDisabled");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_OverlayNotInstalled:			return TEXT("OverlayNotInstalled");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_OverlayTrustCheckFailed:		return TEXT("OverlayTrustCheckFailed");
+		case EOS_EDesktopCrossplayStatus::EOS_DCS_OverlayLoadFailed:			return TEXT("OverlayLoadFailed");
+		default: checkNoEntry();												return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(const EOS_EExternalAccountType ExternalAccountType)
+{
+	switch (ExternalAccountType)
+	{
+		case EOS_EExternalAccountType::EOS_EAT_EPIC:		return TEXT("Epic");
+		case EOS_EExternalAccountType::EOS_EAT_STEAM:		return TEXT("Steam");
+		case EOS_EExternalAccountType::EOS_EAT_PSN:			return TEXT("PSN");
+		case EOS_EExternalAccountType::EOS_EAT_XBL:			return TEXT("XBL");
+		case EOS_EExternalAccountType::EOS_EAT_DISCORD:		return TEXT("Discord");
+		case EOS_EExternalAccountType::EOS_EAT_GOG:			return TEXT("GOG");
+		case EOS_EExternalAccountType::EOS_EAT_NINTENDO:	return TEXT("Nintendo");
+		case EOS_EExternalAccountType::EOS_EAT_UPLAY:		return TEXT("UPlay");
+		case EOS_EExternalAccountType::EOS_EAT_OPENID:		return TEXT("OpenID");
+		case EOS_EExternalAccountType::EOS_EAT_APPLE:		return TEXT("Apple");
+		case EOS_EExternalAccountType::EOS_EAT_GOOGLE:		return TEXT("Google");
+		case EOS_EExternalAccountType::EOS_EAT_OCULUS:		return TEXT("Oculus");
+		case EOS_EExternalAccountType::EOS_EAT_ITCHIO:		return TEXT("ItchIO");
+		case EOS_EExternalAccountType::EOS_EAT_AMAZON:		return TEXT("Amazon");
+		default: checkNoEntry();							return TEXT("Unknown");
+	}
+}
+
 const TCHAR* LexToString(const EOS_EFriendsStatus FriendStatus)
 {
 	switch (FriendStatus)
@@ -62,14 +125,38 @@ const TCHAR* LexToString(const EOS_EFriendsStatus FriendStatus)
 	}
 }
 
-const TCHAR* LexToString(EOS_ELoginStatus LoginStatus)
+const TCHAR* LexToString(const EOS_ELoginStatus LoginStatus)
 {
 	switch (LoginStatus)
 	{
-	default: checkNoEntry(); // Intentional fallthrough
-	case EOS_ELoginStatus::EOS_LS_NotLoggedIn:			return TEXT("EOS_LS_NotLoggedIn");
-	case EOS_ELoginStatus::EOS_LS_UsingLocalProfile:	return TEXT("EOS_LS_UsingLocalProfile");
-	case EOS_ELoginStatus::EOS_LS_LoggedIn:				return TEXT("EOS_LS_LoggedIn");
+		case EOS_ELoginStatus::EOS_LS_NotLoggedIn:			return TEXT("NotLoggedIn");
+		case EOS_ELoginStatus::EOS_LS_UsingLocalProfile:	return TEXT("UsingLocalProfile");
+		case EOS_ELoginStatus::EOS_LS_LoggedIn:				return TEXT("LoggedIn");
+		default: checkNoEntry();							return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(const EOS_ENetworkStatus NetworkStatus)
+{
+	switch (NetworkStatus)
+	{
+		case EOS_ENetworkStatus::EOS_NS_Disabled:	return TEXT("Disabled");
+		case EOS_ENetworkStatus::EOS_NS_Offline:	return TEXT("Offline");
+		case EOS_ENetworkStatus::EOS_NS_Online:		return TEXT("Online");
+		default: checkNoEntry();					return TEXT("Unknown");
+	}
+}
+
+const TCHAR* LexToString(const EOS_Presence_EStatus PresenceStatus)
+{
+	switch (PresenceStatus)
+	{
+		case EOS_Presence_EStatus::EOS_PS_Offline:		return TEXT("Offline");
+		case EOS_Presence_EStatus::EOS_PS_Online:		return TEXT("Online");
+		case EOS_Presence_EStatus::EOS_PS_Away:			return TEXT("Away");
+		case EOS_Presence_EStatus::EOS_PS_ExtendedAway:	return TEXT("ExtendedAway");
+		case EOS_Presence_EStatus::EOS_PS_DoNotDisturb:	return TEXT("DoNotDisturb");
+		default: checkNoEntry();						return TEXT("Unknown");
 	}
 }
 

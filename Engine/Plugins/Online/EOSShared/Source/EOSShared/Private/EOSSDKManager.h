@@ -11,12 +11,17 @@
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
+
+#include "eos_auth_types.h"
 #include "eos_common.h"
+#include "eos_connect_types.h"
 #include "eos_init.h"
 
 struct FEOSPlatformHandle;
 
-class FEOSSDKManager : public IEOSSDKManager
+class FEOSSDKManager :
+	public IEOSSDKManager,
+	public FSelfRegisteringExec
 {
 public:
 	FEOSSDKManager();
@@ -31,7 +36,21 @@ public:
 	virtual FString GetProductName() const override;
 	virtual FString GetProductVersion() const override;
 	virtual FString GetCacheDirBase() const override;
+	virtual FString GetOverrideCountryCode(const EOS_HPlatform Platform) const override;
+	virtual FString GetOverrideLocaleCode(const EOS_HPlatform Platform) const override;
+
+	virtual void LogInfo(int32 Indent = 0) const override;
+	virtual void LogPlatformInfo(const EOS_HPlatform Platform, int32 Indent = 0) const override;
+	virtual void LogAuthInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const override;
+	virtual void LogUserInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const override;
+	virtual void LogPresenceInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const override;
+	virtual void LogFriendsInfo(const EOS_HPlatform Platform, const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const override;
+	virtual void LogConnectInfo(const EOS_HPlatform Platform, const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const override;
 	// End IEOSSDKManager
+
+	// Begin FSelfRegisteringExec
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	// End FSelfRegisteringExec
 
 	void Shutdown();
 
@@ -78,6 +97,16 @@ struct FEOSPlatformHandle : public IEOSPlatformHandle
 
 	virtual ~FEOSPlatformHandle();
 	virtual void Tick() override;
+
+	virtual FString GetOverrideCountryCode() const override;
+	virtual FString GetOverrideLocaleCode() const override;
+
+	virtual void LogInfo(int32 Indent = 0) const override;
+	virtual void LogAuthInfo(const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const override;
+	virtual void LogUserInfo(const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const override;
+	virtual void LogPresenceInfo(const EOS_EpicAccountId LoggedInAccount, const EOS_EpicAccountId TargetAccount, int32 Indent = 0) const override;
+	virtual void LogFriendsInfo(const EOS_EpicAccountId LoggedInAccount, int32 Indent = 0) const override;
+	virtual void LogConnectInfo(const EOS_ProductUserId LoggedInAccount, int32 Indent = 0) const override;
 
 	/* Reference to the EOSSDK manager */
 	FEOSSDKManager& Manager;
