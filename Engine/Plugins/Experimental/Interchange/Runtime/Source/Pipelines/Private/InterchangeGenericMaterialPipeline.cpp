@@ -1043,6 +1043,13 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 				TextureFactoryNode->SetCustomSRGB(bSRGB);
 			}
 		}
+		if (bool bFlipGreenChannel; TextureNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
+		{
+			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
+			{
+				TextureFactoryNode->SetCustombFlipGreenChannel(bFlipGreenChannel);
+			}
+		}
 	}
 	else
 	{
