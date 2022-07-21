@@ -86,6 +86,10 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 
 			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
+			if (!Context.GetGeometryCollection()->HasAttribute("Level", FTransformCollection::TransformGroup))
+			{
+				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(Edit.GetRestCollection()->GetGeometryCollection().Get(), -1);
+			}
 			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 			int32 StartTransformCount = Children.Num();
 			

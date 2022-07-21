@@ -760,7 +760,7 @@ bool FGeometryCollectionTreeItemComponent::FilterBoneIndex(int32 BoneIndex) cons
 			// We only display cluster nodes deeper than the view level.
 			UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
 
-			if (FractureSettings->FractureLevel >= 0)
+			if (FractureSettings->FractureLevel >= 0 && Collection->HasAttribute("Level", FTransformCollection::TransformGroup))
 			{
 				const TManagedArray<int32>& Level = Collection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 				int32 BoneLevel = Level[BoneIndex];

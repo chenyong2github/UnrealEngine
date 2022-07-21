@@ -370,6 +370,10 @@ void FGeometryCollectionClusteringUtility::RenameBone(FGeometryCollection* Geome
 
 int32 FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements)
 {
+	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	{
+		return -1;
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
@@ -466,6 +470,10 @@ void FGeometryCollectionClusteringUtility::GetClusteredBonesWithCommonParent(con
 void FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level, TArray<int32>& BonesOut)
 {
 	check(GeometryCollection);
+	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	{
+		return;
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
@@ -489,7 +497,11 @@ void FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(const FGeometr
 void FGeometryCollectionClusteringUtility::GetBonesToLevel(const FGeometryCollection* GeometryCollection, int32 Level, TArray<int32>& BonesOut, bool bOnlyClusteredOrRigid, bool bSkipFiltered)
 {
 	check(GeometryCollection);
-
+	
+	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	{
+		return;
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
 
@@ -526,6 +538,10 @@ void FGeometryCollectionClusteringUtility::GetChildBonesAtLevel(const FGeometryC
 	}
 	else
 	{
+		if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+		{
+			return;
+		}
 		const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 		const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 		if (Levels[SourceBone] == Level)
@@ -556,6 +572,10 @@ int32 FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(cons
 {
 	check(GeometryCollection);
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	{
+		return -1;
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<int32>& SimTypes = GeometryCollection->SimulationType;
 
@@ -672,6 +692,10 @@ void FGeometryCollectionClusteringUtility::CollapseLevelHierarchy(int8 Level, FG
 {
 	check(GeometryCollection);
 
+	if (!GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+	{
+		UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
 	TArray<int32> Elements;
@@ -713,6 +737,10 @@ void FGeometryCollectionClusteringUtility::CollapseLevelHierarchy(int8 Level, FG
 void FGeometryCollectionClusteringUtility::CollapseSelectedHierarchy(int8 Level, const TArray<int32>& SelectedBones, FGeometryCollection* GeometryCollection)
 {
 	check(GeometryCollection);
+	if (!GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+	{
+		UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 

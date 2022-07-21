@@ -288,6 +288,10 @@ void FVoronoiPartitioner::GenerateConnectivity(const FGeometryCollection* Geomet
 	
 	Connectivity.SetNum(TransformIndices.Num());
 
+	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	{
+		return;
+	}
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
 	for (int32 Index = 0; Index < TransformIndices.Num(); ++Index)

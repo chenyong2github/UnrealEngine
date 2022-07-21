@@ -2754,7 +2754,7 @@ int32 FScopedColorEdit::GetMaxSelectedLevel(bool bOnlyRigid) const
 {
 	int32 MaxSelectedLevel = -1;
 	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
-	if (GeometryCollection)
+	if (GeometryCollection && GeometryCollection->GetGeometryCollection()->HasAttribute("Level", FGeometryCollection::TransformGroup))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 		const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
@@ -2777,7 +2777,7 @@ bool FScopedColorEdit::IsSelectionValidAtLevel(int32 TargetLevel) const
 		return true;
 	}
 	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
-	if (GeometryCollection)
+	if (GeometryCollection && GeometryCollection->GetGeometryCollection()->HasAttribute("Level", FGeometryCollection::TransformGroup))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 		const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
@@ -2811,7 +2811,7 @@ void FScopedColorEdit::FilterSelectionToLevel(bool bPreferLowestOnly)
 	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
 	int32 ViewLevel = GetViewLevel();
 	bool bNeedsFiltering = ViewLevel >= 0 || bPreferLowestOnly;
-	if (GeometryCollection && Component->SelectedBones.Num() > 0 && bNeedsFiltering)
+	if (GeometryCollection && Component->SelectedBones.Num() > 0 && bNeedsFiltering && GeometryCollection->GetGeometryCollection()->HasAttribute("Level", FGeometryCollection::TransformGroup))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 
@@ -2887,11 +2887,11 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			TArray<int32> BonesToSelect;
 			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
 			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
-			const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>* Levels = GeometryCollectionPtr->FindAttributeTyped<int32>("Level", FGeometryCollection::TransformGroup);
 			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
 				{
 					return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Rigid
-						|| (ViewLevel != -1 && Levels[BoneIdx] != ViewLevel);
+						|| (ViewLevel != -1 && Levels && (*Levels)[BoneIdx] != ViewLevel);
 				}));
 			AppendSelectedBones(BonesToSelect);
 		}
@@ -2904,11 +2904,11 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			TArray<int32> BonesToSelect;
 			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), ViewLevel, BonesToSelect, true, true);
 			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
-			const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>* Levels = GeometryCollectionPtr->FindAttributeTyped<int32>("Level", FGeometryCollection::TransformGroup);
 			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
 			{
 				return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Clustered
-					|| (ViewLevel != -1 && Levels[BoneIdx] != ViewLevel);
+					|| (ViewLevel != -1 && Levels && (*Levels)[BoneIdx] != ViewLevel);
 			}));
 			AppendSelectedBones(BonesToSelect);
 		}

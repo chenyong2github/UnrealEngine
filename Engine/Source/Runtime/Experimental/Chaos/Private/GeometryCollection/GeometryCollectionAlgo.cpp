@@ -512,6 +512,10 @@ namespace GeometryCollectionAlgo
 		if (Level > 0)
 		{
 			const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+			if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+			{
+				return;
+			}
 			const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
 			TArray<FTransform> Transforms;
