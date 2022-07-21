@@ -6215,7 +6215,7 @@ bool UEditorEngine::IsAnyViewportRealtime()
 
 bool UEditorEngine::ShouldThrottleCPUUsage() const
 {
-	if (IsRunningCommandlet())
+	if (IsRunningCommandlet() || FApp::IsBenchmarking())
 	{
 		return false;
 	}

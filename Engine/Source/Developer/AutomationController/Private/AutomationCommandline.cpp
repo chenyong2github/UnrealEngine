@@ -13,7 +13,6 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "AutomationControllerSettings.h"
 #include "AutomationGroupFilter.h"
 #include "Containers/Ticker.h"
@@ -385,10 +384,10 @@ public:
 		{
 			case EAutomationTestState::Initializing:
 			{
-				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				if ( AssetRegistryModule.Get().IsLoadingAssets() == false )
+				if (AutomationController->IsReadyForTests())
 				{
 					AutomationTestState = EAutomationTestState::Idle;
+					UE_LOG(LogAutomationCommandLine, Display, TEXT("Ready to start automation"));
 				}
 				FindWorkerAttempts = 0;
 				break;
@@ -608,6 +607,14 @@ public:
 				{
 					AutomationCommandQueue.Add(EAutomationCommand::Quit);
 					Ar.Logf(TEXT("Automation: Quit Command Queued."));
+				}
+				else if (FParse::Command(&TempCmd, TEXT("IgnoreLogEvents")))
+				{
+					if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Automation.CaptureLogEvents")))
+					{
+						Ar.Logf(TEXT("Automation: Suppressing Log Events"));
+						CVar->Set(false);
+					}					
 				}
 				else
 				{

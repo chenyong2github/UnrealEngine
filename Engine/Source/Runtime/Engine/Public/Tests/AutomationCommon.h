@@ -180,34 +180,34 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForShadersToFinishCompilingInGame);
  * Waits until the average framerate meets to exceeds the specified value. Mostly intended as a way to ensure that a level load etc has completed
  * and an interactive framerate is present.
  *
- * InDelay is how long to wait before checking, InMaxWaitTIme is how long to wait before throwing an error
+ * If values are zero the defaults in [/Script/Engine.AutomationTestSetting] will be used
  */
-class ENGINE_API FWaitForAverageFrameRate : public IAutomationLatentCommand
+class ENGINE_API FWaitForInteractiveFrameRate : public IAutomationLatentCommand
 {
 public:
 
-	FWaitForAverageFrameRate(float InDesiredFrameRate, float InDelay = 1, float InMaxWaitTime = 60)
-		: StartTime(0)
-		, DesiredFrameRate(InDesiredFrameRate)
-		, Delay(InDelay)
-		, MaxWaitTime(InMaxWaitTime)
-	{}
+	FWaitForInteractiveFrameRate(float InDesiredFrameRate = 0, float InDuration = 0, float InMaxWaitTime = 0);
 
 	bool Update() override;
 
-private:
-
-	// Time we began executing
-	double StartTime;
+public:
 
 	// Framerate we want to see
 	float DesiredFrameRate;
 
-	// How long before we start loiking at FPS
-	float Delay;
+	// How long must we maintain this framerate
+	float Duration;
 
 	// Max time so spend waiting
 	float MaxWaitTime;
+
+private:
+
+	// Time we began executing
+	double StartTimeOfWait;
+
+	// how many seconds we've been at the desired framerate
+	double StartTimeOfAcceptableFrameRate;	
 };
 
 /**

@@ -486,31 +486,82 @@ bool FWaitForSpecifiedMapToLoadCommand::Update()
 	return false;
 }
 
-bool FWaitForAverageFrameRate::Update()
+FWaitForInteractiveFrameRate::FWaitForInteractiveFrameRate(float InDesiredFrameRate, float InDuration, float InMaxWaitTime)
+	: DesiredFrameRate(InDesiredFrameRate)
+	, Duration(InDuration)
+	, MaxWaitTime(InMaxWaitTime)
+	, StartTimeOfWait(0)
+	, StartTimeOfAcceptableFrameRate(0)
 {
-	if (StartTime == 0)
+	UAutomationTestSettings const* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
+
+	if (DesiredFrameRate == 0)
 	{
-		StartTime = FPlatformTime::Seconds();
+		DesiredFrameRate = AutomationTestSettings->DefaultInteractiveFramerate;
+	}
+
+	if (Duration == 0)
+	{
+		Duration = AutomationTestSettings->DefaultInteractiveFramerateDuration;
+	}
+
+	if (MaxWaitTime == 0)
+	{
+		MaxWaitTime = AutomationTestSettings->DefaultInteractiveFramerateWaitTime;
+	}
+}
+
+
+
+bool FWaitForInteractiveFrameRate::Update()
+{
+	const double TimeNow = FPlatformTime::Seconds();
+
+	if (StartTimeOfWait == 0)
+	{
+		UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("FWaitForInteractiveFrameRate: Starting wait for framerate of >= %.f FPS"), DesiredFrameRate);
+		StartTimeOfWait = TimeNow;
+	}
+
+	// Check if we're at the desired framerate, and if so how long we have been there for
+	extern ENGINE_API float GAverageFPS;
+	bool AtDesiredFramerate = GAverageFPS >= DesiredFrameRate;
+
+	const double ElapsedWaitTime = TimeNow - StartTimeOfWait;
+
+	if (!AtDesiredFramerate)
+	{
+		StartTimeOfAcceptableFrameRate = 0;		
 	}
 	else
 	{
-		const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
-
-		if (ElapsedTime > Delay)
+		if (StartTimeOfAcceptableFrameRate == 0)
 		{
-			extern ENGINE_API float GAverageFPS;
-			if (GAverageFPS >= DesiredFrameRate)
-			{
-				return true;
-			}
+			StartTimeOfAcceptableFrameRate = TimeNow;
+		}
+		else
+		{
+			const double TimeAtFrameRate = TimeNow - StartTimeOfAcceptableFrameRate;
 
-			if (ElapsedTime >= MaxWaitTime)
+			if (TimeAtFrameRate >= Duration)
 			{
-				UE_LOG(LogEngineAutomationLatentCommand, Error, TEXT("FWaitForAverageFrameRate: Game did not reach %.02f FPS within %.02f seconds. Giving up."), DesiredFrameRate, MaxWaitTime);
-				
+				UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("FWaitForInteractiveFrameRate: Hit %.02f FPS for %.f seconds after %.f seconds of waiting"), GAverageFPS, TimeAtFrameRate, ElapsedWaitTime);
 				return true;
 			}
 		}
+	}
+
+	if (ElapsedWaitTime >= MaxWaitTime)
+	{
+		FString Msg = FString::Printf(TEXT("FWaitForInteractiveFrameRate: Game did not reach %.02f FPS within %.02f seconds. Current FPS=%.f. Giving up."), DesiredFrameRate, MaxWaitTime, GAverageFPS);
+		UE_LOG(LogEngineAutomationLatentCommand, Display, TEXT("%s"), *Msg);
+
+		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+		{
+			CurrentTest->AddError(Msg);
+		}
+
+		return true;
 	}
 
 	return false;
@@ -613,15 +664,15 @@ bool FWaitForShadersToFinishCompilingInGame::Update()
 #if WITH_EDITOR
 	static double TimeShadersFinishedCompiling = 0;
 	static double LastReportTime = FPlatformTime::Seconds();
-	const double TimeToWaitForJobs = 2.0;
+	static bool DidCompileSomething = false;
+	const double TimeToWaitForJobsToStart = 2.0;
 
 	bool ShadersCompiling = GShaderCompilingManager && GShaderCompilingManager->IsCompiling();
-	bool TexturesCompiling = FTextureCompilingManager::Get().GetNumRemainingTextures() > 0;
-
+	bool AssetsCompiling = FAssetCompilingManager::Get().GetNumRemainingAssets() > 0;
 	
 	double TimeNow = FPlatformTime::Seconds();
 
-	if (ShadersCompiling || TexturesCompiling)
+	if (ShadersCompiling || AssetsCompiling)
 	{
 		if (TimeNow - LastReportTime > 5.0)
 		{
@@ -632,13 +683,14 @@ bool FWaitForShadersToFinishCompilingInGame::Update()
 				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i shaders to finish."), GShaderCompilingManager->GetNumRemainingJobs() + GShaderCompilingManager->GetNumPendingJobs());
 			}
 
-			if (TexturesCompiling)
+			if (AssetsCompiling)
 			{
-				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i texures to finish."), FTextureCompilingManager::Get().GetNumRemainingTextures());
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i assets to finish."), FAssetCompilingManager::Get().GetNumRemainingAssets());
 			}
 		}
 
 		TimeShadersFinishedCompiling = 0;
+		DidCompileSomething = true;
 
 		return false;
 	}
@@ -649,14 +701,20 @@ bool FWaitForShadersToFinishCompilingInGame::Update()
 		TimeShadersFinishedCompiling = FPlatformTime::Seconds();
 	}
 
-	if (FPlatformTime::Seconds() - TimeShadersFinishedCompiling < TimeToWaitForJobs)
+	if (FPlatformTime::Seconds() - TimeShadersFinishedCompiling < TimeToWaitForJobsToStart)
 	{
 		return false;
 	}
 
 	// may not be necessary, but just double-check everything is finished and ready
 	GShaderCompilingManager->FinishAllCompilation();
-	UE_LOG(LogEditorAutomationTests, Log, TEXT("Done waiting for shaders to finish."));
+	FAssetCompilingManager::Get().FinishAllCompilation();
+
+	if (DidCompileSomething)
+	{
+		UE_LOG(LogEditorAutomationTests, Log, TEXT("Done waiting for shaders to finish."));
+		DidCompileSomething = false;
+	}
 #endif
 
 	return true;

@@ -283,7 +283,9 @@ void FPerformanceMonitor::Tick(float DeltaTime)
 	FineMovingAverage.Tick(FPlatformTime::Seconds(), GAverageFPS);
 	CoarseMovingAverage.Tick(FPlatformTime::Seconds(), GAverageFPS);
 
-	bool bMonitorEditorPerformance = GetDefault<UEditorPerformanceSettings>()->bMonitorEditorPerformance;
+	bool bMonitorEditorPerformance = 
+		GetDefault<UEditorPerformanceSettings>()->bMonitorEditorPerformance && FApp::IsBenchmarking() == false;
+
 	if( !bMonitorEditorPerformance || !bIsNotificationAllowed )
 	{
 		return;

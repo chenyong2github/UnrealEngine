@@ -23,13 +23,14 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "PlatformHttp.h"
-
 #include "AutomationTelemetry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #if WITH_EDITOR
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Logging/MessageLog.h"
+#include "Tests/AutomationCommon.h"
 #endif
 #include "Async/ParallelFor.h"
 
@@ -199,6 +200,31 @@ FAutomationControllerManager::FAutomationControllerManager()
 	}
 
 	bResumeRunTest = FParse::Param(FCommandLine::Get(), TEXT("ResumeRunTest"));
+}
+
+bool FAutomationControllerManager::IsReadyForTests()
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	if (AssetRegistryModule.Get().IsLoadingAssets())
+	{
+		return false;
+	}
+
+#if WITH_EDITOR
+	if (InteractiveFrameRateCheck == nullptr)
+	{
+		InteractiveFrameRateCheck = MakeShared<FWaitForInteractiveFrameRate>();
+	}
+
+	if (!InteractiveFrameRateCheck->Update())
+	{
+		return false;
+	}
+
+	InteractiveFrameRateCheck = nullptr;
+#endif // WITH_EDITOR
+	return true;
 }
 
 void FAutomationControllerManager::RequestAvailableWorkers(const FGuid& SessionId)

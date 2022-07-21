@@ -1166,6 +1166,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutom
 
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
 	FString ParsedMapName;
+	bool FirstMapAlreadyLoaded = false;
 
 	// If there is an explicit list of maps on the command line via -map or -maps the use those.
 	if (FParse::Value(FCommandLine::Get(), TEXT("-maps="), ParsedMapName) || FParse::Value(FCommandLine::Get(), TEXT("-map="), ParsedMapName))
@@ -1185,6 +1186,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutom
 			FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension())
 		{
 			PIEMaps.Add(InitialMapName);
+			FirstMapAlreadyLoaded = true;
 			UE_LOG(LogEditorAutomationTests, Display, TEXT("Found Map %s on command line. PIE Test will be restricted to this map"), *InitialMapName);
 		}
 	}
@@ -1233,29 +1235,42 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutom
 	
 	for (const FString& Map : PIEMaps)
 	{
-		FString MapPackageName = FPackageName::ObjectPathToPackageName(Map);
+		// Accept any of...
+		// - MyMap
+		// - /Game/MyMap
+		// - /Game/MyMap.MyMap
+		FString MapPackageName = Map;
 
-		if (!FPackageName::IsValidObjectPath(MapPackageName))
+		if (FPackageName::IsValidObjectPath(Map))
 		{
-			if (!FPackageName::SearchForPackageOnDisk(MapPackageName, NULL, &MapPackageName))
-			{
-				UE_LOG(LogEditorAutomationTests, Error, TEXT("Couldn't resolve map for PIE test from %s to valid package name!"), *MapPackageName);
-				continue;
-			}
-		}		
+			MapPackageName = FPackageName::ObjectPathToPackageName(Map);
+		}
+
+		if (!FPackageName::SearchForPackageOnDisk(Map, NULL, &MapPackageName))
+		{
+			UE_LOG(LogEditorAutomationTests, Error, TEXT("Couldn't resolve map for PIE test from %s to valid package name!"), *MapPackageName);
+			continue;
+		}
+
+		UE_LOG(LogEditorAutomationTests, Display, TEXT("Queueing Map %s for PIE Automation"), *MapPackageName);
 		
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-Begin: %s"), *MapPackageName)));
-		AddCommand(new FEditorLoadMap(MapPackageName));
+		if (!FirstMapAlreadyLoaded)
+		{
+			AddCommand(new FEditorLoadMap(MapPackageName));
+		}
 		AddCommand(new FWaitLatentCommand(1.0f));
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-End: %s"), *MapPackageName)));
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-Begin: %s"), *MapPackageName)));
 		AddCommand(new FStartPIECommand(false));
 		AddCommand(new FWaitForSpecifiedMapToLoadCommand(MapPackageName));  // need at least some frames before starting & ending PIE
-		AddCommand(new FWaitForAverageFrameRate(5.0f));	// wait until the editor reaches something vaguely usable
+		AddCommand(new FWaitForInteractiveFrameRate());	// wait until the editor reaches something vaguely usable
 		AddCommand(new FWaitLatentCommand(AutomationTestSettings->PIETestDuration));
 		AddCommand(new FEndPlayMapCommand());
 		AddCommand(new FWaitForSpecifiedPIEMapToEndCommand(MapPackageName));  // need at least some frames before starting & ending PIE
-		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-End: %s"), *Map)));
+		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-End: %s"), *MapPackageName)));
+
+		FirstMapAlreadyLoaded = false;
 	}
 
 	return true;

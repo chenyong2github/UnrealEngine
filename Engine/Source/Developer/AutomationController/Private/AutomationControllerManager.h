@@ -201,6 +201,7 @@ public:
 
 	// IAutomationController Interface
 	virtual void RequestAvailableWorkers( const FGuid& InSessionId ) override;
+	virtual bool IsReadyForTests() override;
 	virtual void RequestTests() override;
 	virtual void RunTests( const bool bIsLocalSession) override;
 	virtual void StopTests() override;
@@ -603,6 +604,10 @@ private:
 	FString DeveloperReportUrl;
 
 	bool bResumeRunTest;
+
+#if WITH_EDITOR
+	TSharedPtr<class FWaitForInteractiveFrameRate> InteractiveFrameRateCheck;
+#endif
 
 private:
 

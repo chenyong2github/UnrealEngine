@@ -18,6 +18,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
+static TAutoConsoleVariable<bool> CVarAutomationCaptureLogEvents(
+	TEXT("Automation.CaptureLogEvents"),
+	1,
+	TEXT("Consider warning/error log events during a test as impacting the test itself"),
+	ECVF_ReadOnly
+);
+
 CORE_API const TMap<FString, EAutomationTestFlags::Type>& EAutomationTestFlags::GetTestFlagsMap()
 {
 	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
@@ -67,6 +74,11 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 	static bool bElevateLogWarningsToErrors = false;
 	static TArray<FString> SuppressedLogCategories;
 	static FAutomationTestBase* LastTest = nullptr;
+
+	if (CVarAutomationCaptureLogEvents.GetValueOnGameThread() == false)
+	{
+		return ELogVerbosity::NoLogging;
+	}
 
 	if (CurrentTest != LastTest)
 	{
@@ -153,7 +165,7 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 				LocalCurTest->AddWarning(FormattedMsg, STACK_OFFSET);
 			}
 			// Display
-			else
+			else if (EffectiveVerbosity != ELogVerbosity::NoLogging)
 			{
 				LocalCurTest->AddInfo(FormattedMsg, STACK_OFFSET);
 			}

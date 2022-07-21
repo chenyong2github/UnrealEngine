@@ -167,6 +167,12 @@ public:
 	 */
 	virtual void RequestAvailableWorkers( const FGuid& InSessionId ) = 0;
 
+	/** 
+	 * Return true when the manager is ready and capable of executing tests. 
+	 * if RunTests is called earlier it may block until internally these conditions are met
+	 */
+	virtual bool IsReadyForTests() = 0;
+
 	/** Send request for tests that are available to run. */
 	virtual void RequestTests() = 0;
 
