@@ -13,6 +13,7 @@ namespace PCGInputOutputConstants
 	const FName DefaultActorLabel = TEXT("Actor");
 	const FName DefaultOriginalActorLabel = TEXT("OriginalActor");
 	const FName DefaultLandscapeLabel = TEXT("Landscape");
+	const FName DefaultLandscapeHeightLabel = TEXT("Landscape Height");
 	const FName DefaultExcludedActorsLabel = TEXT("ExcludedActors");
 }
 

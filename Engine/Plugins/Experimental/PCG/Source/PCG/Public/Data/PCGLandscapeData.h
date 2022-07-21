@@ -17,7 +17,7 @@ class PCG_API UPCGLandscapeData : public UPCGSurfaceData
 	GENERATED_BODY()
 
 public:
-	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds);
+	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly);
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape | Super::GetDataType(); }
@@ -43,6 +43,9 @@ public:
 protected:
 	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);
+
+	UPROPERTY()
+	bool bHeightOnly = false;
 
 private:
 	// Transient data

@@ -20,6 +20,7 @@ UPCGGraphInputOutputSettings::UPCGGraphInputOutputSettings(const FObjectInitiali
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultActorLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultOriginalActorLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultLandscapeLabel);
+	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultLandscapeHeightLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultExcludedActorsLabel);
 	
 	StaticOutLabels.Add(PCGPinConstants::DefaultOutputLabel);

@@ -78,6 +78,7 @@ public:
 	UPCGData* GetInputPCGData();
 	UPCGData* GetActorPCGData();
 	UPCGData* GetLandscapePCGData();
+	UPCGData* GetLandscapeHeightPCGData();
 	UPCGData* GetOriginalActorPCGData();
 	TArray<UPCGData*> GetPCGExclusionData();
 
@@ -196,7 +197,7 @@ private:
 	UPCGData* CreateInputPCGData();
 	UPCGData* CreateActorPCGData();
 	UPCGData* CreateActorPCGData(AActor* Actor);
-	UPCGData* CreateLandscapePCGData();
+	UPCGData* CreateLandscapePCGData(bool bHeightOnly);
 	void UpdatePCGExclusionData();
 
 	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
@@ -261,6 +262,9 @@ private:
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	UPCGData* CachedLandscapeData = nullptr;
+
+	UPROPERTY(Transient, NonPIEDuplicateTransient)
+	UPCGData* CachedLandscapeHeightData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	TMap<AActor*, UPCGData*> CachedExclusionData;

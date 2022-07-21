@@ -33,8 +33,10 @@ public:
 	void BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent, UObject* Owner);
 #endif
 
-	bool GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
-	bool GetInterpolatedPoint(int32 PointIndex, int32 PointLineStride, float XFactor, float YFactor, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
+	void GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
+	void GetPointHeightOnly(int32 PointIndex, FPCGPoint& OutPoint) const;
+	void GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
+	void GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const;
 
 	// TODO: this isn't really needed
 	UPROPERTY()
@@ -47,7 +49,10 @@ public:
 	TArray<FPCGLandscapeCacheLayer> LayerData;
 
 	UPROPERTY()
-	FVector PointHalfSize;
+	FVector PointHalfSize = FVector::One();
+
+	UPROPERTY()
+	int32 Stride = 0;
 };
 
 USTRUCT()

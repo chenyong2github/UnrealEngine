@@ -1204,6 +1204,7 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag)
 		if (Cast<ALandscapeProxy>(GetOwner()))
 		{
 			CachedLandscapeData = nullptr;
+			CachedLandscapeHeightData = nullptr;
 		}
 
 		CachedInputData = nullptr;
@@ -1213,6 +1214,7 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag)
 	if (!!(DirtyFlag & EPCGComponentDirtyFlag::Landscape))
 	{
 		CachedLandscapeData = nullptr;
+		CachedLandscapeHeightData = nullptr;
 		if (InputType == EPCGComponentInput::Landscape)
 		{
 			CachedInputData = nullptr;
@@ -1364,10 +1366,20 @@ UPCGData* UPCGComponent::GetLandscapePCGData()
 {
 	if (!CachedLandscapeData)
 	{
-		CachedLandscapeData = CreateLandscapePCGData();
+		CachedLandscapeData = CreateLandscapePCGData(/*bHeightOnly=*/false);
 	}
 
 	return CachedLandscapeData;
+}
+
+UPCGData* UPCGComponent::GetLandscapeHeightPCGData()
+{
+	if (!CachedLandscapeHeightData)
+	{
+		CachedLandscapeHeightData = CreateLandscapePCGData(/*bHeightOnly=*/true);
+	}
+
+	return CachedLandscapeHeightData;
 }
 
 UPCGData* UPCGComponent::GetOriginalActorPCGData()
@@ -1490,7 +1502,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 	else if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
 	{
 		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>(this);
-		Data->Initialize(Landscape, GetGridBounds(Actor));
+		Data->Initialize(Landscape, GetGridBounds(Actor), /*bHeightOnly=*/false);
 
 		return Data;
 	}
@@ -1632,7 +1644,7 @@ UPCGData* UPCGComponent::CreatePCGData()
 	return Difference ? Difference : InputData;
 }
 
-UPCGData* UPCGComponent::CreateLandscapePCGData()
+UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateLandscapePCGData);
 	AActor* Actor = GetOwner();
@@ -1674,7 +1686,7 @@ UPCGData* UPCGComponent::CreateLandscapePCGData()
 
 	// TODO: we're creating separate landscape data instances here so we can do some tweaks on it (such as storing the right target actor) but this probably should change
 	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>(this);
-	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape));
+	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape), bHeightOnly);
 	// Need to override target actor for this one, not the landscape
 	LandscapeData->TargetActor = Actor;
 

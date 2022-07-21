@@ -48,6 +48,8 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 		const int32 ComponentSizeQuads = InComponent->ComponentSizeQuads + 1;
 		const int32 NumVertices = FMath::Square(ComponentSizeQuads);
 
+		Stride = ComponentSizeQuads;
+
 		PositionsAndNormals.Reserve(2 * NumVertices);
 		for (int32 Index = 0; Index < NumVertices; ++Index)
 		{
@@ -80,13 +82,10 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 }
 #endif // WITH_EDITOR
 
-bool FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+void FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::GetPoint);
-	if (PointIndex < 0 || 2 * PointIndex >= PositionsAndNormals.Num())
-	{
-		return false;
-	}
+	check(PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());
 
 	const FVector& Position = PositionsAndNormals[2 * PointIndex];
 	const FVector& Normal = PositionsAndNormals[2 * PointIndex + 1];
@@ -99,7 +98,7 @@ bool FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UP
 	OutPoint.Transform = FTransform(TangentX, TangentY, Normal, Position);
 	OutPoint.BoundsMin = -PointHalfSize;
 	OutPoint.BoundsMax = PointHalfSize;
-	OutPoint.Seed = UPCGBlueprintHelpers::ComputeSeedFromPosition(Position);
+	OutPoint.Seed = 1 + PointIndex;
 	
 	if (OutMetadata && !LayerData.IsEmpty())
 	{
@@ -114,21 +113,32 @@ bool FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UP
 			}
 		}
 	}
-
-	return true;
 }
 
-bool FPCGLandscapeCacheEntry::GetInterpolatedPoint(int32 BasePointIndex, int32 PointLineStride, float XFactor, float YFactor, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+void FPCGLandscapeCacheEntry::GetPointHeightOnly(int32 PointIndex, FPCGPoint& OutPoint) const
 {
-	if (BasePointIndex < 0 || 2 * BasePointIndex >= PositionsAndNormals.Num())
-	{
-		return false;
-	}
+	//TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::GetPointHeightOnly);
+	check(PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());
 
-	const int32 X0Y0 = BasePointIndex;
+	const FVector& Position = PositionsAndNormals[2 * PointIndex];
+	
+	OutPoint.Transform = FTransform(Position);
+	OutPoint.BoundsMin = -PointHalfSize;
+	OutPoint.BoundsMax = PointHalfSize;
+	OutPoint.Seed = 1 + PointIndex;
+}
+
+void FPCGLandscapeCacheEntry::GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	const int32 X0Y0 = FMath::FloorToInt(LocalPoint.X) + FMath::FloorToInt(LocalPoint.Y) * Stride;
 	const int32 X1Y0 = X0Y0 + 1;
-	const int32 X0Y1 = X0Y0 + PointLineStride;
+	const int32 X0Y1 = X0Y0 + Stride;
 	const int32 X1Y1 = X0Y1 + 1;
+
+	const float XFactor = FMath::Fractional(LocalPoint.X);
+	const float YFactor = FMath::Fractional(LocalPoint.Y);
+
+	check(X0Y0 >= 0 && 2 * X1Y1 < PositionsAndNormals.Num());
 
 	const FVector& PositionX0Y0 = PositionsAndNormals[2 * X0Y0];
 	const FVector& NormalX0Y0 = PositionsAndNormals[2 * X0Y0 + 1];
@@ -139,12 +149,12 @@ bool FPCGLandscapeCacheEntry::GetInterpolatedPoint(int32 BasePointIndex, int32 P
 	const FVector& PositionX1Y1 = PositionsAndNormals[2 * X1Y1];
 	const FVector& NormalX1Y1 = PositionsAndNormals[2 * X1Y1 + 1];
 
-	FVector LerpPositionY0 = FMath::Lerp(PositionX0Y0, PositionX1Y0, XFactor);
-	FVector LerpPositionY1 = FMath::Lerp(PositionX0Y1, PositionX1Y1, XFactor);
-	FVector Position = FMath::Lerp(LerpPositionY0, LerpPositionY1, YFactor);
+	const FVector LerpPositionY0 = FMath::Lerp(PositionX0Y0, PositionX1Y0, XFactor);
+	const FVector LerpPositionY1 = FMath::Lerp(PositionX0Y1, PositionX1Y1, XFactor);
+	const FVector Position = FMath::Lerp(LerpPositionY0, LerpPositionY1, YFactor);
 
-	FVector LerpNormalY0 = FMath::Lerp(NormalX0Y0, NormalX1Y0, XFactor);
-	FVector LerpNormalY1 = FMath::Lerp(NormalX0Y1, NormalX1Y1, XFactor);
+	const FVector LerpNormalY0 = FMath::Lerp(NormalX0Y0, NormalX1Y0, XFactor);
+	const FVector LerpNormalY1 = FMath::Lerp(NormalX0Y1, NormalX1Y1, XFactor);
 	FVector Normal = FMath::Lerp(LerpNormalY0, LerpNormalY1, YFactor);
 
 	// TODO: we could preserve normal length by lerping this too?
@@ -177,8 +187,33 @@ bool FPCGLandscapeCacheEntry::GetInterpolatedPoint(int32 BasePointIndex, int32 P
 			}
 		}
 	}
+}
 
-	return true;
+void FPCGLandscapeCacheEntry::GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const
+{
+	const int32 X0Y0 = FMath::FloorToInt(LocalPoint.X) + FMath::FloorToInt(LocalPoint.Y) * Stride;
+	const int32 X1Y0 = X0Y0 + 1;
+	const int32 X0Y1 = X0Y0 + Stride;
+	const int32 X1Y1 = X0Y1 + 1;
+
+	const float XFactor = FMath::Fractional(LocalPoint.X);
+	const float YFactor = FMath::Fractional(LocalPoint.Y);
+
+	check(X0Y0 >= 0 && 2 * X1Y1 < PositionsAndNormals.Num());
+
+	const FVector& PositionX0Y0 = PositionsAndNormals[2 * X0Y0];
+	const FVector& PositionX1Y0 = PositionsAndNormals[2 * X1Y0];
+	const FVector& PositionX0Y1 = PositionsAndNormals[2 * X0Y1];
+	const FVector& PositionX1Y1 = PositionsAndNormals[2 * X1Y1];
+
+	const FVector LerpPositionY0 = FMath::Lerp(PositionX0Y0, PositionX1Y0, XFactor);
+	const FVector LerpPositionY1 = FMath::Lerp(PositionX0Y1, PositionX1Y1, XFactor);
+	const FVector Position = FMath::Lerp(LerpPositionY0, LerpPositionY1, YFactor);
+
+	OutPoint.Transform = FTransform(Position);
+	OutPoint.BoundsMin = -PointHalfSize;
+	OutPoint.BoundsMax = PointHalfSize;
+	OutPoint.Seed = UPCGBlueprintHelpers::ComputeSeedFromPosition(Position);
 }
 
 FPCGLandscapeCache::FPCGLandscapeCache(UObject* InOwner)

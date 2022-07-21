@@ -13,12 +13,13 @@
 #include "Landscape.h"
 #include "LandscapeEdit.h"
 
-void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds)
+void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly)
 {
 	check(InLandscape);
 	Landscape = InLandscape;
 	TargetActor = InLandscape;
 	Bounds = InBounds;
+	bHeightOnly = bInHeightOnly;
 
 	Transform = Landscape->GetActorTransform();
 
@@ -29,11 +30,14 @@ void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InB
 	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
 	if (LandscapeCache)
 	{
-		const TArray<FName> Layers = LandscapeCache->GetLayerNames(Landscape.Get());
-
-		for (const FName& Layer : Layers)
+		if (!bHeightOnly)
 		{
-			Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
+			const TArray<FName> Layers = LandscapeCache->GetLayerNames(Landscape.Get());
+
+			for (const FName& Layer : Layers)
+			{
+				Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
+			}
 		}
 	}
 	else
@@ -76,14 +80,18 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 			return false;
 		}
 
-		// Compute the 4 points indices
 		const FVector2D ComponentLocalPoint(LocalPoint.X - ComponentMapKey.X * LandscapeInfo->ComponentSizeQuads, LocalPoint.Y - ComponentMapKey.Y * LandscapeInfo->ComponentSizeQuads);
-		const int32 X0Y0 = FMath::FloorToInt(ComponentLocalPoint.X) + FMath::FloorToInt(ComponentLocalPoint.Y) * (LandscapeInfo->ComponentSizeQuads + 1);
 
-		const float FractionalX = FMath::Fractional(LocalPoint.X);
-		const float FractionalY = FMath::Fractional(LocalPoint.Y);
+		if (bHeightOnly)
+		{
+			LandscapeCacheEntry->GetInterpolatedPointHeightOnly(ComponentLocalPoint, OutPoint);
+		}
+		else
+		{
+			LandscapeCacheEntry->GetInterpolatedPoint(ComponentLocalPoint, OutPoint, OutMetadata);
+		}
 
-		return LandscapeCacheEntry->GetInterpolatedPoint(X0Y0, LandscapeInfo->ComponentSizeQuads + 1, FractionalX, FractionalY, OutPoint, OutMetadata);
+		return true;
 	}
 	else
 	{
@@ -173,8 +181,17 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 				{
 					for (int32 LocalY = LocalMinY; LocalY <= LocalMaxY; ++LocalY)
 					{
+						const int32 PointIndex = LocalX + LocalY * (ComponentSizeQuads + 1);
+
 						FPCGPoint& Point = Points.Emplace_GetRef();
-						LandscapeCacheEntry->GetPoint(LocalX + LocalY * (ComponentSizeQuads + 1), Point, Data->Metadata);
+						if (bHeightOnly)
+						{
+							LandscapeCacheEntry->GetPointHeightOnly(PointIndex, Point);
+						}
+						else
+						{
+							LandscapeCacheEntry->GetPoint(PointIndex, Point, Data->Metadata);
+						}
 					}
 				}
 			}

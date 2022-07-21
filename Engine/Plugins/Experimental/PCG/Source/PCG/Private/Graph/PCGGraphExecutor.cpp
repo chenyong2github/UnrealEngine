@@ -639,6 +639,16 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	}
 
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeHeightLabel))
+	{
+		if (UPCGData* LandscapeHeightPCGData = Component->GetLandscapeHeightPCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = LandscapeHeightPCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultLandscapeHeightLabel;
+		}
+	}
+
 	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultOriginalActorLabel))
 	{
 		if (UPCGData* OriginalActorPCGData = Component->GetOriginalActorPCGData())
