@@ -7,6 +7,7 @@
 #include "Mesh/InterchangeStaticMeshPayload.h"
 #include "Mesh/InterchangeStaticMeshPayloadInterface.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Scene/InterchangeVariantSetPayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -15,14 +16,16 @@
 
 class UInterchangeShaderGraphNode;
 class UInterchangeShaderNode;
+class UInterchangeVariantSetNode;
 
 /* Gltf translator class support import of texture, material, static mesh, skeletal mesh, */
 
 UCLASS(BlueprintType, Experimental)
-class UInterchangeGltfTranslator : public UInterchangeTranslatorBase,
-	public IInterchangeStaticMeshPayloadInterface, 
-	public IInterchangeTexturePayloadInterface,
-	public IInterchangeAnimationPayloadInterface
+class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
+	, public IInterchangeStaticMeshPayloadInterface
+	, public IInterchangeTexturePayloadInterface
+	, public IInterchangeAnimationPayloadInterface
+	, public IInterchangeVariantSetPayloadInterface
 {
 	GENERATED_BODY()
 
@@ -52,14 +55,19 @@ public:
 	virtual TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const override;
 	/* IInterchangeAnimationPayloadInterface End */
 
+	/* IInterchangeVariantSetPayloadInterface Begin */
+	virtual TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> GetVariantSetPayloadData(const FString& PayloadKey) const override;
+	/* IInterchangeVariantSetPayloadInterface End */
+
 protected:
 	using FNodeUidMap = TMap<const GLTF::FNode*, FString>;
 
-	void HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, FNodeUidMap& NodeUidMap ) const;
+	void HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, bool &bHasVariants ) const;
 	void HandleGltfMaterial( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const;
 	void HandleGltfMaterialParameter( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, UInterchangeShaderNode& ShaderNode,
 		const FString& MapName, const TVariant< FLinearColor, float >& MapFactor, const FString& OutputChannel, const bool bInverse = false, const bool bIsNormal = false ) const;
-	void HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, const FNodeUidMap& NodeUidMap, int32 AnimationIndex) const;
+	void HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex) const;
+	void HandleGltfVariants(UInterchangeBaseNodeContainer& NodeContainer, const FString& FileName) const;
 
 	/** Support for KHR_materials_clearcoat */
 	void HandleGltfClearCoat( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const;
@@ -71,11 +79,13 @@ protected:
 	/** Support for KHR_texture_transform */
 	void HandleGltfTextureTransform( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureTransform& TextureTransform, const int32 TexCoordIndex, UInterchangeShaderNode& ShaderNode ) const;
 
+	bool GetVariantSetPayloadData(UE::Interchange::FVariantSetPayloadData& PayloadData) const;
 private:
 	void SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const;
 	void SetTextureFlipGreenChannel(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const;
 
 	GLTF::FAsset GltfAsset;
+	mutable FNodeUidMap NodeUidMap;
 };
 
 

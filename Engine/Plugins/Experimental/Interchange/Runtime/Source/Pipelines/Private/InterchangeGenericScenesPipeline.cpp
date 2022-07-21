@@ -371,12 +371,15 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneVariantSetNodePreImport(const
 		return;
 	}
 
+	// We may eventually want to optionally import variants
+	static bool bEnableSceneVariantSet = true;
+
 	const FString FactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneVariantSetNode.GetUniqueID());
 
 	UInterchangeSceneVariantSetsFactoryNode* FactoryNode = NewObject<UInterchangeSceneVariantSetsFactoryNode>(BaseNodeContainer, NAME_None);
 
 	FactoryNode->InitializeNode(FactoryNodeUid, SceneVariantSetNode.GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
-	FactoryNode->SetEnabled(true);
+	FactoryNode->SetEnabled(bEnableSceneVariantSet);
 
 	TArray<FString> VariantSetUids;
 	SceneVariantSetNode.GetCustomVariantSetUids(VariantSetUids);
@@ -388,14 +391,22 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneVariantSetNodePreImport(const
 		// Update factory's dependencies
 		if (const UInterchangeVariantSetNode* TrackNode = Cast<UInterchangeVariantSetNode>(BaseNodeContainer->GetNode(VariantSetUid)))
 		{
-			TArray<FString> ActorNodeUids;
-			TrackNode->GetCustomDependencyUids(ActorNodeUids);
+			TArray<FString> DependencyNodeUids;
+			TrackNode->GetCustomDependencyUids(DependencyNodeUids);
 
-			for (const FString& ActorNodeUid : ActorNodeUids)
+			for (const FString& DependencyNodeUid : DependencyNodeUids)
 			{
 				
-				const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
-				FactoryNode->AddFactoryDependencyUid(ActorFactoryNodeUid);
+				const FString DependencyFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(DependencyNodeUid);
+				FactoryNode->AddFactoryDependencyUid(DependencyFactoryNodeUid);
+
+				if (UInterchangeFactoryBaseNode* DependencyFactoryNode = BaseNodeContainer->GetFactoryNode(DependencyFactoryNodeUid))
+				{
+					if (bEnableSceneVariantSet && !DependencyFactoryNode->IsEnabled())
+					{
+						DependencyFactoryNode->SetEnabled(true);
+					}
+				}
 			}
 		}
 	}

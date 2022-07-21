@@ -218,7 +218,29 @@ namespace UE::Interchange::Private
 				{
 					if (const UMaterialInterface* TargetMaterial = Cast<UMaterialInterface>(TargetFactoryNode->ReferenceObject.TryLoad()))
 					{
-						TArray<UPropertyValue*> PropertyValues = VariantManager->CreateMaterialPropertyCaptures({ &ObjectBinding });
+						// FVariantManager::CreateMaterialPropertyCaptures returns an array of the newly found properties
+						// Therefore, if a mesh actor has more than 1 material and a binding has more than 1 material variant
+						// The second call to FVariantManager::CreateMaterialPropertyCaptures will return an empty array.
+						// Consequently, we have to check if material properties has not been extracted yet
+						TArray<UPropertyValue*> PropertyValues;
+						{
+							const TArray<UPropertyValue*>& ExistingPropertyValues = ObjectBinding.GetCapturedProperties();
+
+							for (const UPropertyValue* PropertyValue : ExistingPropertyValues)
+							{
+								if (EnumHasAnyFlags(PropertyValue->GetPropCategory(), EPropertyValueCategory::Material))
+								{
+									PropertyValues.Add(const_cast<UPropertyValue*>(PropertyValue));
+								}
+							}
+
+							// Material properties have not been asked for yet.
+							if (PropertyValues.Num() == 0)
+							{
+								PropertyValues = VariantManager->CreateMaterialPropertyCaptures({ &ObjectBinding });
+							}
+						}
+
 						if (PropertyValues.Num() == 1)
 						{
 							PropertyValues[0]->SetRecordedData((uint8*)&TargetMaterial, sizeof(UMaterialInterface*));

@@ -16,6 +16,7 @@
 #include "InterchangeSceneNode.h"
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTexture2DNode.h"
+#include "InterchangeVariantSetNode.h"
 
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Texture/InterchangeImageWrapperTranslator.h"
@@ -118,9 +119,31 @@ namespace UE::Interchange::Gltf::Private
 				break;
 		}
 	}
+
+	bool CheckForVariants(const GLTF::FMesh& Mesh, int32 VariantCount, int32 MaterialCount)
+	{
+		for (const GLTF::FPrimitive& Primitive : Mesh.Primitives)
+		{
+			for (const GLTF::FVariantMapping& VariantMapping : Primitive.VariantMappings)
+			{
+				if (FMath::IsWithin(VariantMapping.MaterialIndex, 0, MaterialCount))
+				{
+					for (int32 VariantIndex : VariantMapping.VariantIndices)
+					{
+						if (FMath::IsWithin(VariantIndex, 0, VariantCount))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
 }
 
-void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, FNodeUidMap& NodeUidMap ) const
+void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, bool &bHasVariants ) const
 {
 	using namespace UE::Interchange::Gltf::Private;
 
@@ -147,6 +170,11 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 			{
 				const FString MeshNodeUid = TEXT("\\Mesh\\") + GltfAsset.Meshes[ GltfNode.MeshIndex ].Name;
 				InterchangeSceneNode->SetCustomAssetInstanceUid( MeshNodeUid );
+
+				if (!bHasVariants && GltfAsset.Variants.Num() > 0)
+				{
+					bHasVariants |= CheckForVariants(GltfAsset.Meshes[ GltfNode.MeshIndex ], GltfAsset.Variants.Num(), GltfAsset.Materials.Num());
+				}
 			}
 			break;
 		}
@@ -194,7 +222,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 	{
 		if ( GltfAsset.Nodes.IsValidIndex( ChildIndex ) )
 		{
-			HandleGltfNode( NodeContainer, GltfAsset.Nodes[ ChildIndex ], NodeUid, ChildIndex, NodeUidMap );
+			HandleGltfNode( NodeContainer, GltfAsset.Nodes[ ChildIndex ], NodeUid, ChildIndex, bHasVariants );
 		}
 	}
 }
@@ -869,7 +897,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	}
 
 	// Cache created scene nodes UIDs to use later for animation binding
-	FNodeUidMap NodeUidMap;
+	bool bHasVariants = false;
 
 	// Scenes
 	{
@@ -892,7 +920,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			{
 				if ( GltfAsset.Nodes.IsValidIndex( NodeIndex ) )
 				{
-					HandleGltfNode( NodeContainer, GltfAsset.Nodes[ NodeIndex ], SceneNodeUid, NodeIndex, NodeUidMap );
+					HandleGltfNode( NodeContainer, GltfAsset.Nodes[ NodeIndex ], SceneNodeUid, NodeIndex, bHasVariants );
 				}
 			}
 		}
@@ -902,8 +930,14 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	{
 		for (int32 AnimationIndex = 0; AnimationIndex < GltfAsset.Animations.Num(); ++AnimationIndex)
 		{
-			HandleGltfAnimation(NodeContainer, NodeUidMap, AnimationIndex);
+			HandleGltfAnimation(NodeContainer, AnimationIndex);
 		}
+	}
+
+	// Create SceneVariantSetsNode if model contains variants.
+	if (bHasVariants)
+	{
+		HandleGltfVariants(NodeContainer, FileName);
 	}
 
 	return true;
@@ -1077,7 +1111,7 @@ TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterch
 	return Promise->GetFuture();
 }
 
-void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, const FNodeUidMap& NodeUidMap, int32 AnimationIndex) const
+void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex) const
 {
 	const GLTF::FAnimation& GltfAnimation = GltfAsset.Animations[AnimationIndex];
 
@@ -1195,4 +1229,219 @@ void UInterchangeGltfTranslator::SetTextureFlipGreenChannel(UInterchangeBaseNode
 			TextureNode->SetCustombFlipGreenChannel(true);
 		}
 	}
+}
+
+TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> UInterchangeGltfTranslator::GetVariantSetPayloadData(const FString& PayloadKey) const
+{
+	using namespace UE::Interchange;
+
+	TPromise<TOptional<FVariantSetPayloadData>> EmptyPromise;
+	EmptyPromise.SetValue(TOptional<FVariantSetPayloadData>());
+
+	TArray<FString> PayloadTokens;
+
+	// We need two indices to build the payload: index of LevelVariantSet and index of VariantSetIndex
+	if (GltfAsset.Variants.Num() + 1 != PayloadKey.ParseIntoArray(PayloadTokens, TEXT(";")))
+	{
+		// Invalid payload
+		return EmptyPromise.GetFuture();
+	}
+
+	//FString PayloadKey = FileName;
+	for (int32 Index = 0; Index < GltfAsset.Variants.Num(); ++Index)
+	{
+		if (PayloadTokens[Index + 1] != GltfAsset.Variants[Index])
+		{
+			// Invalid payload
+			return EmptyPromise.GetFuture();
+		}
+	}
+
+	return Async(EAsyncExecution::TaskGraph, [this]
+			{
+				FVariantSetPayloadData PayloadData;
+				TOptional<FVariantSetPayloadData> Result;
+
+				if (this->GetVariantSetPayloadData(PayloadData))
+				{
+					Result.Emplace(MoveTemp(PayloadData));
+				}
+
+				return Result;
+			}
+		);
+}
+
+void UInterchangeGltfTranslator::HandleGltfVariants(UInterchangeBaseNodeContainer& NodeContainer, const FString& FileName) const
+{
+	UInterchangeVariantSetNode* VariantSetNode = nullptr;
+	VariantSetNode = NewObject<UInterchangeVariantSetNode>(&NodeContainer);
+
+	FString VariantSetNodeUid = TEXT("\\VariantSet\\") + FileName;
+	VariantSetNode->InitializeNode(VariantSetNodeUid, FileName, EInterchangeNodeContainerType::TranslatedScene);
+	NodeContainer.AddNode(VariantSetNode);
+
+	VariantSetNode->SetCustomDisplayText(FileName);
+
+	FString PayloadKey = FileName;
+	for (int32 Index = 0; Index < GltfAsset.Variants.Num(); ++Index)
+	{
+		PayloadKey += TEXT(";") + GltfAsset.Variants[Index];
+	}
+	VariantSetNode->SetCustomVariantsPayloadKey(PayloadKey);
+
+	TFunction<void(const TArray<int32>& Nodes)> CollectDependencies;
+	CollectDependencies = [this, VariantSetNode, &CollectDependencies](const TArray<int32>& Nodes) -> void
+	{
+		const TArray<GLTF::FMaterial>& Materials = this->GltfAsset.Materials;
+
+		for (const int32 NodeIndex : Nodes)
+		{
+			if (this->GltfAsset.Nodes.IsValidIndex(NodeIndex))
+			{
+				const GLTF::FNode& GltfNode = this->GltfAsset.Nodes[NodeIndex];
+
+				if (GltfNode.Type == GLTF::FNode::EType::Mesh && this->GltfAsset.Meshes.IsValidIndex(GltfNode.MeshIndex))
+				{
+					const GLTF::FMesh& Mesh = this->GltfAsset.Meshes[GltfNode.MeshIndex];
+					const FString* NodeUidPtr = this->NodeUidMap.Find(&GltfNode);
+					ensure(NodeUidPtr);
+
+					VariantSetNode->AddCustomDependencyUid(*NodeUidPtr);
+
+					for (const GLTF::FPrimitive& Primitive : Mesh.Primitives)
+					{
+						if (Primitive.VariantMappings.Num() > 0)
+						{
+							for (const GLTF::FVariantMapping& VariantMapping : Primitive.VariantMappings)
+							{
+								if (!ensure(Materials.IsValidIndex(VariantMapping.MaterialIndex)))
+								{
+									continue;
+								}
+
+								const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
+								const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + GltfMaterial.Name);
+
+								VariantSetNode->AddCustomDependencyUid(MaterialUid);
+
+							}
+						}
+					}
+				}
+
+				if (GltfNode.Children.Num() > 0)
+				{
+					CollectDependencies(GltfNode.Children);
+				}
+			}
+		}
+	};
+
+	for (const GLTF::FScene& GltfScene : GltfAsset.Scenes)
+	{
+		CollectDependencies(GltfScene.Nodes);
+	}
+
+	UInterchangeSceneVariantSetsNode* SceneVariantSetsNode = NewObject<UInterchangeSceneVariantSetsNode>(&NodeContainer);
+
+	FString SceneVariantSetsNodeUid = TEXT("\\SceneVariantSets\\") + FileName;
+	SceneVariantSetsNode->InitializeNode(SceneVariantSetsNodeUid, FileName, EInterchangeNodeContainerType::TranslatedScene);
+	NodeContainer.AddNode(SceneVariantSetsNode);
+
+	SceneVariantSetsNode->AddCustomVariantSetUid(VariantSetNodeUid);
+}
+
+bool UInterchangeGltfTranslator::GetVariantSetPayloadData(UE::Interchange::FVariantSetPayloadData& PayloadData) const
+{
+	using namespace UE;
+
+	PayloadData.Variants.SetNum(GltfAsset.Variants.Num());
+
+	TMap<const TCHAR*, Interchange::FVariant*> VariantMap;
+	VariantMap.Reserve(GltfAsset.Variants.Num());
+
+	for (int32 VariantIndex = 0; VariantIndex < GltfAsset.Variants.Num(); ++VariantIndex)
+	{
+		const FString& VariantName = GltfAsset.Variants[VariantIndex];
+		PayloadData.Variants[VariantIndex].DisplayText = VariantName;
+		VariantMap.Add(*VariantName, &PayloadData.Variants[VariantIndex]);
+	}
+
+	TFunction<void(const TArray<int32>& Nodes)> BuildPayloadData;
+	BuildPayloadData = [this, VariantMap = MoveTemp(VariantMap), &BuildPayloadData](const TArray<int32>& Nodes) -> void
+	{
+		const TArray<FString>& VariantNames = this->GltfAsset.Variants;
+		const TArray<GLTF::FMaterial>& Materials = this->GltfAsset.Materials;
+
+		for (const int32 NodeIndex : Nodes)
+		{
+			if (!ensure(this->GltfAsset.Nodes.IsValidIndex(NodeIndex)))
+			{
+				continue;
+			}
+
+			const GLTF::FNode& GltfNode = this->GltfAsset.Nodes[NodeIndex];
+
+			if (GltfNode.Type == GLTF::FNode::EType::Mesh && this->GltfAsset.Meshes.IsValidIndex(GltfNode.MeshIndex))
+			{
+				const GLTF::FMesh& Mesh = this->GltfAsset.Meshes[GltfNode.MeshIndex];
+				const FString* NodeUidPtr = this->NodeUidMap.Find(&GltfNode);
+				if (!ensure(NodeUidPtr))
+				{
+					continue;
+				}
+
+				for (const GLTF::FPrimitive& Primitive : Mesh.Primitives)
+				{
+					for (const GLTF::FVariantMapping& VariantMapping : Primitive.VariantMappings)
+					{
+						if (!ensure(Materials.IsValidIndex(VariantMapping.MaterialIndex)))
+						{
+							continue;
+						}
+
+						const GLTF::FMaterial& GltfMaterial = Materials[VariantMapping.MaterialIndex];
+						const FString MaterialUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + GltfMaterial.Name);
+
+						for (int32 VariantIndex : VariantMapping.VariantIndices)
+						{
+							if (!ensure(VariantMap.Contains(*VariantNames[VariantIndex])))
+							{
+								continue;
+							}
+
+							// This is on par with the Datasmith GLTF translator but might be wrong.
+							// Each primitive should be a section of the static mesh and 
+							// TODO: Revisit creation of static mesh and handling of variants: UE-159945.
+							Interchange::FVariantPropertyCaptureData PropertyCaptureData;
+
+							PropertyCaptureData.Category = Interchange::EVariantPropertyCaptureCategory::Material;
+							PropertyCaptureData.ObjectUid = MaterialUid;
+
+							Interchange::FVariant& VariantData = *(VariantMap[*VariantNames[VariantIndex]]);
+
+							Interchange::FVariantBinding& Binding = VariantData.Bindings.AddDefaulted_GetRef();
+
+							Binding.TargetUid = *NodeUidPtr;
+							Binding.Captures.Add(PropertyCaptureData);
+						}
+
+					}
+				}
+			}
+
+			if (GltfNode.Children.Num() > 0)
+			{
+				BuildPayloadData(GltfNode.Children);
+			}
+		}
+	};
+
+	for (const GLTF::FScene& GltfScene : GltfAsset.Scenes)
+	{
+		BuildPayloadData(GltfScene.Nodes);
+	}
+
+	return true;
 }
