@@ -30,6 +30,42 @@
 /* IDetailCustomization interface
  *****************************************************************************/
 
+FMediaPlateCustomization::FMediaPlateCustomization()
+{
+	PropertyChangeDelegate = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FMediaPlateCustomization::OnObjectPropertyChanged);
+}
+
+FMediaPlateCustomization::~FMediaPlateCustomization()
+{
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+}
+
+void FMediaPlateCustomization::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
+{
+	if (InEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials))
+	{
+		for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlateComponent : MediaPlatesList)
+		{
+			if (MediaPlateComponent.IsValid())
+			{
+				if (InObject->GetOuter() == MediaPlateComponent->GetOuter())
+				{
+					AMediaPlate* MediaPlate = Cast<AMediaPlate>(InObject->GetOuter());
+
+					if (MediaPlate != nullptr && MediaPlate->StaticMeshComponent != nullptr)
+					{
+						const TObjectPtr<UMaterialInterface>& Material = MediaPlate->StaticMeshComponent->OverrideMaterials.Pop();
+
+						MediaPlate->ApplyMaterial(Material);
+					}
+
+					break;
+				}
+			}
+		}
+	}
+}
+
 void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Is this the media plate editor window?

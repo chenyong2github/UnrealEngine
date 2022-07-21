@@ -7,6 +7,7 @@
 #include "MediaPlate.generated.h"
 
 class UMediaPlateComponent;
+class UMaterialInterface;
 
 /**
  * MediaPlate is an actor that can play and show media in the world.
@@ -36,6 +37,7 @@ public:
 	 * Call this to change the static mesh to use the default media plate material.
 	 */
 	void UseDefaultMaterial();
+	void ApplyMaterial(UMaterialInterface* Material);
 
 #endif
 

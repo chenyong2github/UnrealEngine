@@ -86,8 +86,13 @@ void AMediaPlate::BeginDestroy()
 
 void AMediaPlate::UseDefaultMaterial()
 {
-	// Get material.
-	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlate"), NULL, LOAD_None, NULL);
+	UMaterial* DefaultMaterial = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlate"), NULL, LOAD_None, NULL);
+	
+	ApplyMaterial(DefaultMaterial);
+}
+
+void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
+{
 	if (Material != nullptr)
 	{
 		// Change M_ to MI_ in material name and then generate a unique one.
