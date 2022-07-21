@@ -8,6 +8,7 @@
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Parameterization/PatchBasedMeshUVGenerator.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "XAtlasWrapper.h"
 
 #include "Async/ParallelFor.h"
@@ -774,6 +775,204 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::GetMeshPerVertexUVs(
 	}
 
 	return TargetMesh;
+}
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::CopyMeshUVLayerToMesh(
+	UDynamicMesh* CopyFromMesh,
+	int UVSetIndex,
+	UPARAM(DisplayName = "Copy To UV Mesh", ref) UDynamicMesh* CopyToUVMesh,
+	UPARAM(DisplayName = "Copy To UV Mesh") UDynamicMesh*& CopyToUVMeshOut,
+	bool& bInvalidTopology,
+	bool& bIsValidUVSet,
+	UGeometryScriptDebug* Debug)
+{
+	if (CopyFromMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshUVLayerToMesh_InvalidInput", "CopyMeshUVLayerToMesh: CopyFromMesh is Null"));
+		return CopyFromMesh;
+	}
+	if (CopyToUVMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshUVLayerToMesh_InvalidInput2", "CopyMeshUVLayerToMesh: CopyToUVMesh is Null"));
+		return CopyFromMesh;
+	}
+	if (CopyFromMesh == CopyToUVMesh)
+	{
+		// TODO: can actually support this but complicates the code below...
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToUVMesh_SameMeshes", "CopyMeshUVLayerToMesh: CopyFromMesh and CopyToUVMesh are the same mesh, this is not supported"));
+		return CopyFromMesh;
+	}
+
+	FDynamicMesh3 UVMesh;
+	bIsValidUVSet = false;
+	bInvalidTopology = false;
+	CopyFromMesh->ProcessMesh([&](const FDynamicMesh3& FromMesh)
+	{
+		const FDynamicMeshUVOverlay* UVOverlay = (FromMesh.HasAttributes() && UVSetIndex < FromMesh.Attributes()->NumUVLayers()) ?
+			FromMesh.Attributes()->GetUVLayer(UVSetIndex) : nullptr;
+		if (UVOverlay == nullptr)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToUVMesh_InvalidUVSet", "CopyMeshUVLayerToMesh: UVSetIndex does not exist on CopyFromMesh"));
+			return;
+		}
+		bIsValidUVSet = true;
+
+		UVMesh.EnableTriangleGroups();
+		UVMesh.EnableAttributes();
+		UVMesh.Attributes()->SetNumUVLayers(0);
+
+		const FDynamicMeshMaterialAttribute* FromMaterialID = (FromMesh.HasAttributes() && FromMesh.Attributes()->HasMaterialID()) ?
+			FromMesh.Attributes()->GetMaterialID() : nullptr;
+		FDynamicMeshMaterialAttribute* ToMaterialID = nullptr;
+		if (FromMaterialID)
+		{
+			UVMesh.Attributes()->EnableMaterialID();
+			ToMaterialID = UVMesh.Attributes()->GetMaterialID();
+		}
+
+		UVMesh.BeginUnsafeVerticesInsert();
+		for (int32 elemid : UVOverlay->ElementIndicesItr())
+		{
+			FVector2f UV = UVOverlay->GetElement(elemid);
+			UVMesh.InsertVertex(elemid, FVector3d(UV.X, UV.Y, 0), true);
+		}
+		UVMesh.EndUnsafeVerticesInsert();
+		UVMesh.BeginUnsafeTrianglesInsert();
+		for (int32 tid : FromMesh.TriangleIndicesItr())
+		{
+			FIndex3i UVTri = UVOverlay->GetTriangle(tid);
+			int32 GroupID = FromMesh.GetTriangleGroup(tid);
+			EMeshResult Result = UVMesh.InsertTriangle(tid, UVTri, GroupID, true);
+			if (Result != EMeshResult::Ok)
+			{
+				bInvalidTopology = true;
+			}
+			else
+			{
+				if (FromMaterialID)
+				{
+					ToMaterialID->SetValue(tid, FromMaterialID->GetValue(tid));		// could we use Copy() here ?
+				}
+			}
+		}
+		UVMesh.EndUnsafeTrianglesInsert();
+	});
+
+	FMeshNormals::InitializeOverlayToPerVertexNormals(UVMesh.Attributes()->PrimaryNormals());
+
+	CopyToUVMesh->SetMesh(MoveTemp(UVMesh));
+	CopyToUVMeshOut = CopyToUVMesh;
+
+	return CopyFromMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::CopyMeshToMeshUVLayer(
+	UDynamicMesh* CopyFromUVMesh,
+	int ToUVSetIndex,
+	UDynamicMesh* CopyToMesh,
+	UDynamicMesh*& CopyToMeshOut,
+	bool& bFoundTopologyErrors,
+	bool& bIsValidUVSet,
+	bool bOnlyUVPositions,
+	UGeometryScriptDebug* Debug)
+{
+	if (CopyFromUVMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMeshUVLayer_InvalidInput", "CopyMeshToMeshUVLayer: CopyFromUVMesh is Null"));
+		return CopyFromUVMesh;
+	}
+	if (CopyToMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMeshUVLayer_InvalidInput2", "CopyMeshToMeshUVLayer: CopyToUVMesh is Null"));
+		return CopyFromUVMesh;
+	}
+	if (CopyFromUVMesh == CopyToMesh)
+	{
+		// TODO: can actually support this but complicates the code below...
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMeshUVLayer_SameMeshes", "CopyMeshToMeshUVLayer: CopyFromUVMesh and CopyToMesh are the same mesh, this is not supported"));
+		return CopyFromUVMesh;
+	}
+
+	bFoundTopologyErrors = false;
+	bIsValidUVSet = false;
+	CopyToMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		FDynamicMeshUVOverlay* UVOverlay = (EditMesh.HasAttributes() && ToUVSetIndex < EditMesh.Attributes()->NumUVLayers()) ?
+			EditMesh.Attributes()->GetUVLayer(ToUVSetIndex) : nullptr;
+		if (UVOverlay == nullptr)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMeshUVLayer_InvalidUVSet", "CopyMeshToMeshUVLayer: ToUVSetIndex does not exist on CopyFromMesh"));
+			return;
+		}
+		bIsValidUVSet = true;
+
+		CopyFromUVMesh->ProcessMesh([&](const FDynamicMesh3& UVMesh)
+		{
+			if (bOnlyUVPositions)
+			{
+				if ( UVMesh.MaxVertexID() <= UVOverlay->MaxElementID() )
+				{
+					for (int32 vid : UVMesh.VertexIndicesItr())
+					{
+						if (UVOverlay->IsElement(vid))
+						{
+							FVector3d Pos = UVMesh.GetVertex(vid);
+							UVOverlay->SetElement(vid, FVector2f((float)Pos.X, (float)Pos.Y));
+						}
+						else
+						{
+							bFoundTopologyErrors = true;
+						}
+					}
+				}
+				else
+				{
+					bFoundTopologyErrors = true;
+				}
+			}
+			else
+			{
+				if (UVMesh.MaxTriangleID() <= EditMesh.MaxTriangleID())
+				{
+					UVOverlay->ClearElements();
+					UVOverlay->BeginUnsafeElementsInsert();
+					for (int32 vid : UVMesh.VertexIndicesItr())
+					{
+						FVector3d Pos = UVMesh.GetVertex(vid);
+						FVector2f UV((float)Pos.X, (float)Pos.Y);
+						UVOverlay->InsertElement(vid, &UV.X, true);
+					}
+					UVOverlay->EndUnsafeElementsInsert();
+					for (int32 tid : UVMesh.TriangleIndicesItr())
+					{
+						if (EditMesh.IsTriangle(tid))
+						{
+							FIndex3i Tri = UVMesh.GetTriangle(tid);
+							UVOverlay->SetTriangle(tid, Tri);
+						}
+						else
+						{
+							bFoundTopologyErrors = true;
+						}
+					}
+				}
+				else
+				{
+					bFoundTopologyErrors = true;
+				}
+			}
+		});
+	});
+
+
+	CopyToMeshOut = CopyToMesh;
+	return CopyFromUVMesh;
 }
 
 

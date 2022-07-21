@@ -286,4 +286,55 @@ public:
 		bool& bHasSplitUVs,
 		UGeometryScriptDebug* Debug = nullptr);
 
+
+
+	/**
+	 * Copy the 2D UVs from the given UVSetIndex in CopyFromMesh to the 3D vertex positions in CopyToUVMesh,
+	 * with the triangle mesh topolgoy defined by the UV Set. Generally this "UV Mesh" topolgoy will not
+	 * be the same as the 3D mesh topology. Polygroup IDs and Material IDs are preserved in the UVMesh.
+	 * 
+	 * 2D UV Positions are copied to 3D as (X, Y, 0) 
+	 * 
+	 * CopyMeshToMeshUVLayer will copy the 3D UV Mesh back to the UV Set. This pair of functions can
+	 * then be used to implement UV generation/editing via other mesh functions.
+	 * 
+	 * @param bInvalidTopology will be returned true if any topological issues were found
+	 * @param bIsValidUVSet will be returned false if UVSetIndex is not available
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Copy From Mesh") UDynamicMesh* 
+	CopyMeshUVLayerToMesh(  
+		UDynamicMesh* CopyFromMesh, 
+		int UVSetIndex,
+		UPARAM(DisplayName = "Copy To UV Mesh", ref) UDynamicMesh* CopyToUVMesh, 
+		UPARAM(DisplayName = "Copy To UV Mesh") UDynamicMesh*& CopyToUVMeshOut,
+		bool& bInvalidTopology,
+		bool& bIsValidUVSet,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Transfer the 3D vertex positions and triangles of CopyFromUVMesh to the given UV Layer identified by ToUVSetIndex of CopyToMesh.
+	 * 3D positions (X,Y,Z) will be copied as UV positions (X,Y), ie Z is ignored.
+	 * 
+	 * bOnlyUVPositions controls whether only UV positions will be updated, or if the UV topology will be fully replaced.
+	 * When false, CopyFromUVMesh must currently have a MaxVertexID <= that of the UV Layer MaxElementID
+	 * When true, CopyFromUVMesh must currently have a MaxTriangleID <= that of CopyToMesh
+	 * 
+	 * @param bInvalidTopology will be returned true if any topological inconsistencies are found (but the operation will generally continue)
+	 * @param bIsValidUVSet will be returned false if ToUVSetIndex is not available
+	 * @param bOnlyUVPositions if true, only (valid, matching) UV positions are updated, a full new UV topology is created
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Copy From Mesh") UDynamicMesh* 
+	CopyMeshToMeshUVLayer(  
+		UDynamicMesh* CopyFromUVMesh, 
+		int ToUVSetIndex,
+		UPARAM(DisplayName = "Copy To Mesh", ref) UDynamicMesh* CopyToMesh, 
+		UPARAM(DisplayName = "Copy To Mesh") UDynamicMesh*& CopyToMeshOut,
+		bool& bFoundTopologyErrors,
+		bool& bIsValidUVSet,
+		bool bOnlyUVPositions = true,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
 };
