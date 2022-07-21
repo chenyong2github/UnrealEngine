@@ -208,6 +208,8 @@ FTrackedActivity& FTrackedActivity::GetEngineActivity()
 
 FTrackedActivity& FTrackedActivity::GetIOActivity()
 {
+	GetEngineActivity(); // Ugly, but just to make sure Status show first
+
 	static FTrackedActivity A(TEXT("I/O"), TEXT("Idle"));
 	return A;
 }
