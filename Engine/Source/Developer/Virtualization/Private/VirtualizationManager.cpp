@@ -267,6 +267,7 @@ FVirtualizationManager::FVirtualizationManager()
 	, FilteringMode(EPackageFilterMode::OptOut)
 	, bFilterEngineContent(true)
 	, bFilterEnginePluginContent(true)
+	, bAllowSubmitIfVirtualizationFailed(false)
 {
 }
 
@@ -390,6 +391,11 @@ bool FVirtualizationManager::IsDisabledForObject(const UObject* OwnerObject) con
 
 	FName ClassName = OwnerClass->GetFName();
 	return DisabledAssetTypes.Find(ClassName) != nullptr;
+}
+
+bool FVirtualizationManager::AllowSubmitIfVirtualizationFailed() const
+{
+	return bAllowSubmitIfVirtualizationFailed;
 }
 
 bool FVirtualizationManager::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
@@ -630,23 +636,23 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	return EQueryResult::Success;
 }
 
-bool FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
+EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 {
 	OutDescriptionTags.Reset();
 	OutErrors.Reset();
 
 	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutDescriptionTags, OutErrors);
 
-	return OutErrors.IsEmpty();
+	return OutErrors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
 }
 
-bool FVirtualizationManager::TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors)
+ERehydrationResult FVirtualizationManager::TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors)
 {
 	OutErrors.Reset();
 
 	UE::Virtualization::RehydratePackages(Packages, OutErrors);
 
-	return OutErrors.IsEmpty();
+	return OutErrors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
 }
 
 void FVirtualizationManager::DumpStats() const
@@ -817,6 +823,8 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].FilterEnginePluginContent from config file!"));
 	}
 
+
+	// Optional
 	TArray<FString> DisabledAssetTypesFromIni;
 	if (ConfigFile.GetArray(TEXT("Core.ContentVirtualization"), TEXT("DisabledAsset"), DisabledAssetTypesFromIni) > 0 ||
 		ConfigFile.GetArray(TEXT("Core.VirtualizationModule"), TEXT("DisabledAsset"), DisabledAssetTypesFromIni) > 0)
@@ -828,6 +836,18 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 			UE_LOG(LogVirtualization, Display, TEXT("\t\t%s"), *AssetType);
 			DisabledAssetTypes.Add(FName(AssetType));
 		}	
+	}
+
+	// Optional
+	bool bAllowSubmitIfVirtualizationFailedFromIni = true;
+	if (ConfigFile.GetBool(TEXT("Core.VirtualizationModule"), TEXT("AllowSubmitIfVirtualizationFailed"), bAllowSubmitIfVirtualizationFailedFromIni))
+	{
+		bAllowSubmitIfVirtualizationFailed = bAllowSubmitIfVirtualizationFailedFromIni;
+		UE_LOG(LogVirtualization, Display, TEXT("\tAllowSubmitIfVirtualizationFailed : %s"), bAllowSubmitIfVirtualizationFailed ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].AllowSubmitIfVirtualizationFailed from config file!"));
 	}
 
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)

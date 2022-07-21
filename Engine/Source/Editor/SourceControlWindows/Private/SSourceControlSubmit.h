@@ -40,6 +40,8 @@ public:
 	FText Description;
 };
 
+bool TryToVirtualizeFilesToSubmit(const TArray<FString>& FilesToSubmit, FText& Description, FText& OutFailureMsg);
+
 class SSourceControlSubmitWidget : public SCompoundWidget
 {
 public:

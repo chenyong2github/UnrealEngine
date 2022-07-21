@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSourceControlSubmit.h"
+
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -23,12 +24,66 @@
 #include "Styling/AppStyle.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-
+#include "Virtualization/VirtualizationSystem.h"
+#include "Logging/MessageLog.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
 
 #define LOCTEXT_NAMESPACE "SSourceControlSubmit"
 
+bool TryToVirtualizeFilesToSubmit(const TArray<FString>& FilesToSubmit, FText& Description, FText& OutFailureMsg)
+{
+	// TODO: Once this is removed and not deprecated move the following arrays inside of the System.IsEnabled() scope
+	TArray<FText> PayloadErrors;
+	TArray<FText> DescriptionTags;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(FilesToSubmit, DescriptionTags, PayloadErrors);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	if (!System.IsEnabled())
+	{
+		return true;
+	}
+
+	UE::Virtualization::EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, DescriptionTags, PayloadErrors);
+	if (Result == UE::Virtualization::EVirtualizationResult::Success)
+	{
+		FTextBuilder NewDescription;
+		NewDescription.AppendLine(Description);
+
+		for (const FText& Line : DescriptionTags)
+		{
+			NewDescription.AppendLine(Line);
+		}
+
+		Description = NewDescription.ToText();
+
+		return true;
+	}
+	else if (System.AllowSubmitIfVirtualizationFailed())
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			FMessageLog("SourceControl").Warning(Error);
+		}
+
+		// Even though the virtualization process had problems we should continue submitting
+		return true;
+	}
+	else
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			FMessageLog("SourceControl").Error(Error);
+		}
+
+		OutFailureMsg = LOCTEXT("SCC_Virtualization_Failed", "Failed to virtualize the files being submitted!");
+
+		return false;
+	}
+}
 
 namespace SSourceControlSubmitWidgetDefs
 {

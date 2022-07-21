@@ -98,7 +98,7 @@ class IVirtualizationBackendFactory;
 enum class EPackageFilterMode : uint8
 {
 	/** Packages will be virtualized by default and must be opted out by the use of UVirtualizationFilterSettings::ExcludePackagePaths */
-	OptOut,
+	OptOut = 0,
 	/** Packages will not be virtualized by default and must be opted in by the user of UVirtualizationFilterSettings::IncludePackagePaths */
 	OptIn
 };
@@ -130,6 +130,8 @@ private:
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
 
 	virtual bool IsDisabledForObject(const UObject* Owner) const override;
+
+	virtual bool AllowSubmitIfVirtualizationFailed() const override;
 	
 	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
@@ -138,8 +140,8 @@ private:
 
 	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses) override;
 
-	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override;
-	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override;
+	virtual EVirtualizationResult TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override;
+	virtual ERehydrationResult TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override;
 
 	virtual void DumpStats() const override;
 
@@ -232,6 +234,9 @@ private:
 	
 	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
 	bool bFilterEnginePluginContent;
+
+	/** Should file submits be allowed to continue if a call to TryVirtualizePackages fails */
+	bool bAllowSubmitIfVirtualizationFailed;
 	
 private:
 

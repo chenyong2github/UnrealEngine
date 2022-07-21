@@ -47,6 +47,11 @@ public:
 		return false;
 	}
 
+	virtual bool AllowSubmitIfVirtualizationFailed() const override
+	{
+		return false;
+	}
+
 	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
 	{
 		return false;
@@ -69,23 +74,23 @@ public:
 		return EQueryResult::Failure_NotImplemented;
 	}
 
-	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override
+	virtual EVirtualizationResult TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override
 	{
 		OutDescriptionTags.Reset();
 		OutErrors.Reset();
 
 		OutErrors.Add(FText::FromString(TEXT("Calling ::TryVirtualizePackages on FNullVirtualizationSystem")));
 
-		return false;
+		return EVirtualizationResult::Failed;
 	}
 
-	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override
+	virtual ERehydrationResult TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override
 	{
 		OutErrors.Reset();
 
 		OutErrors.Add(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
 
-		return false;
+		return ERehydrationResult::Failed;
 	}
 
 	virtual void DumpStats() const override

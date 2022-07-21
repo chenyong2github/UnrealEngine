@@ -81,6 +81,24 @@ enum class EPayloadStatus : int8
 	FoundAll
 };
 
+/** The result of the virtualization process */
+enum class EVirtualizationResult : uint8
+{
+	/** The virtualization process ran with no problems to completion. */
+	Success = 0,
+	/** The process failed before completion and nothing was virtualized */
+	Failed
+};
+
+/** The result of the re-hydration process */
+enum class ERehydrationResult : uint8
+{
+	/** The re-hydration process ran with no problems to completion. */
+	Success = 0,
+	/** The process failed before completion and nothing was re-hydrate */
+	Failed,
+};
+
 /** 
  * This interface can be implemented and passed to a FPushRequest as a way of providing the payload 
  * to the virtualization system for a push operation but deferring the loading of the payload from 
@@ -342,6 +360,19 @@ public:
 	 */
 	virtual bool IsDisabledForObject(const UObject* Owner) const = 0;
 
+	/** 
+	 * Poll to see if the virtualization process failing when submitting a collection of files to source
+	 * control should block that submit or allow it to continue.
+	 * 
+	 * NOTE: This is a bit of an odd ball option to be included in the VirtualizationSystem API but at
+	 * the moment we don't really have a better place for it. This might be removed or replaced in future
+	 * releases.
+	 * 
+	 * @return		True if the calling code should continue with submitting files if the virtualization
+	 *				process failed. If it returns false then the calling code should prevent the submit.
+	 */
+	virtual bool AllowSubmitIfVirtualizationFailed() const = 0;
+
 	/**
 	 * Push a payload to the virtualization backends.
 	 *
@@ -414,9 +445,10 @@ public:
 	 *								can be assumed that the process will return false. Note that the array will be emptied before the process
 	 *								is run and will not contain any pre-existing entries.
 	 * 
-	 * @return True if the process succeeded and false if it did not. If this returns false then OutErrors should contain at least one entry
+	 * @return						A EVirtualizationResult enum with the status of the process. If the status is not EVirtualizationResult::Success
+	 *								then the parameter OutErrors should contain at least one entry.
 	 */
-	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
+	virtual EVirtualizationResult TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
 	
 	/**
 	 * Runs the re-hydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
@@ -428,9 +460,10 @@ public:
 	 *					can be assumed that the process will return false. Note that the array will be emptied before the process
 	 *					is run and will not contain any pre-existing entries.
 	 * 
-	 * @return True if the process succeeded and false if it did not. If this returns false then OutErrors should contain at least one entry
+	 * @return	A ERehydrationResult enum with the status of the process. If the status indicates any sort of failure then OutErrors should
+	 *			contain at least one entry.
 	 */
-	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) = 0;
+	virtual ERehydrationResult TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) = 0;
 
 	/** When called the system should write any performance stats that it has been gathering to the log file */
 	virtual void DumpStats() const = 0;

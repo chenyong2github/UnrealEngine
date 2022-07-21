@@ -13,7 +13,6 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Virtualization/VirtualizationSystem.h"
 
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -294,57 +293,16 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 		return bSuccess;
 	}
 
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// Allow any finalization pre-submit processes to run
-	
-	// TODO: Once this is removed and not deprecated move the following arrays inside of the System.IsEnabled() scope
-	TArray<FText> PayloadErrors;
-	TArray<FText> DescriptionTags;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(CombinedFileList, DescriptionTags, PayloadErrors);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
-	if (System.IsEnabled())
+	FText VirtualizationFailureMsg;
+	if (!TryToVirtualizeFilesToSubmit(CombinedFileList, Description.Description, VirtualizationFailureMsg))
 	{
-		if (System.TryVirtualizePackages(CombinedFileList, DescriptionTags, PayloadErrors))
-		{
-			if (!DescriptionTags.IsEmpty())
-			{
-				FTextBuilder NewDescription;
-				NewDescription.AppendLine(Description.Description);
+		FMessageLog("SourceControl").Notify(VirtualizationFailureMsg);
 
-				for (const FText& Line : DescriptionTags)
-				{
-					NewDescription.AppendLine(Line);
-				}
+		OutResultInfo.Result = ECommandResult::Failed;
+		OutResultInfo.Description = VirtualizationFailureMsg;
 
-				Description.Description = NewDescription.ToText();
-			}
-		}
-		else
-		{
-			for (const FText& Error : PayloadErrors)
-			{
-				FMessageLog("SourceControl").Error(Error);
-			}
-
-			// TODO: We rely on the calling code to issue a noticeable error message to the user but this is 
-			// currently handled very inconsistently in the engine and the return values often ignored.
-			// So print the error to the log file as well for now but we should try and unify how the errors
-			// are reported.
-			FText FailureMsg(LOCTEXT("SCC_Virtualization_Failed", "Virtualized payloads failed to submit."));
-			FMessageLog("SourceControl").Notify(FailureMsg);
-
-			OutResultInfo.Result = ECommandResult::Failed;
-			OutResultInfo.Description = FailureMsg;
-
-			return false;
-		}
+		return false;
 	}
-
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	// Check in files
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
