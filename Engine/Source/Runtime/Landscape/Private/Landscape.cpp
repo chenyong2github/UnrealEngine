@@ -2740,7 +2740,7 @@ void ALandscape::RenderHeightmap(const FTransform& InRenderAreaWorldTransform, c
 
 FBox ALandscape::GetCompleteBounds() const
 {
-	if (ensure(GetLandscapeInfo()))
+	if (GetLandscapeInfo())
 	{
 		return GetLandscapeInfo()->GetCompleteBounds();
 	}
