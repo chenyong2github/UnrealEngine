@@ -188,7 +188,7 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MeshData.Rotation = FQuat4f(MeshProperties.Rotation.Quaternion());
 			MeshData.LocalBounds = Mesh->GetExtendedBounds().GetBox();
 
-			// Create an index remap from mesh material index to it's index in the master material list
+			// Create an index remap from mesh material index to it's index in the base material list
 			TArray<UMaterialInterface*> MeshMaterials;
 			Properties->GetUsedMeshMaterials(SourceMeshIndex, Emitter, MeshMaterials);
 			for (auto MeshMaterial : MeshMaterials)

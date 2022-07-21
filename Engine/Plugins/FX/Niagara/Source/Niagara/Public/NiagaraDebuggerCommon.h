@@ -428,11 +428,11 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	bool bWidgetEnabled = false;
 #endif
 
-	/** Master control for all HUD features. */
+	/** Primary control for all HUD features. */
 	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Enabled"))
 	bool bHudEnabled = true;
 
-	/** Master control for HUD rendering. */
+	/** Primary control for HUD rendering. */
 	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Rendering Enabled"))
 	bool bHudRenderingEnabled = true;
 

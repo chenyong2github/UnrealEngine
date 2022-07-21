@@ -9,7 +9,7 @@ bool GNiagaraGpuProfilingEnabled = true;
 static FAutoConsoleVariableRef CVarNiagaraGpuProfilingEnabled(
 	TEXT("fx.Niagara.GpuProfiling.Enabled"),
 	GNiagaraGpuProfilingEnabled,
-	TEXT("Master control to allow Niagara to use GPU profiling or not.\n"),
+	TEXT("Primary control to allow Niagara to use GPU profiling or not.\n"),
 	ECVF_Default
 );
 
