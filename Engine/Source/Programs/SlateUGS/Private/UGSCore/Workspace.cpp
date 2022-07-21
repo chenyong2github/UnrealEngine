@@ -517,7 +517,11 @@ EWorkspaceUpdateResult FWorkspace::UpdateWorkspaceInternal(FWorkspaceUpdateConte
 				if(!Perforce->GetActiveStream(BranchOrStreamName, AbortEvent, Log.Get()))
 				{
 					FString DepotFileName;
+#if PLATFORM_WINDOWS
+					if(!Perforce->ConvertToDepotPath(ClientRootPath + TEXT("/GenerateProjectFiles.bat"), DepotFileName, AbortEvent, Log.Get()))
+#else
 					if(!Perforce->ConvertToDepotPath(ClientRootPath + TEXT("/GenerateProjectFiles.sh"), DepotFileName, AbortEvent, Log.Get()))
+#endif
 					{
 						OutStatusMessage = FString::Printf(TEXT("Couldn't determine branch name for %s."), *SelectedClientFileName);
 						return EWorkspaceUpdateResult::FailedToSync;
@@ -784,7 +788,7 @@ EWorkspaceUpdateResult FWorkspace::UpdateWorkspaceInternal(FWorkspaceUpdateConte
 		}
 
 #if PLATFORM_WINDOWS
-		FString CommandLine = FString::Printf(TEXT("/C \"\"%s\" %s-progress\""), *(LocalRootPath / TEXT("GenerateProjectFiles.sh")), *ProjectFileArgument);
+		FString CommandLine = FString::Printf(TEXT("/C \"\"%s\" %s-progress\""), *(LocalRootPath / TEXT("GenerateProjectFiles.bat")), *ProjectFileArgument);
 #else
 		FString CommandLine = FString::Printf(TEXT("\"%s\" %s-progress"), *(LocalRootPath / TEXT("GenerateProjectFiles.sh")), *ProjectFileArgument);
 #endif

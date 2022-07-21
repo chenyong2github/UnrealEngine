@@ -116,7 +116,7 @@ int FUtility::ExecuteProcess(const TCHAR* FileName, const TCHAR* CommandLine, co
     void* WritePipe = nullptr;
     FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
-	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, false, false, &ProcId, 0, nullptr, WritePipe, ReadPipe);
+	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, true, true, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
 	FString Output;
     FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
@@ -150,7 +150,7 @@ int FUtility::ExecuteProcess(const TCHAR* FileName, const TCHAR* CommandLine, co
     void* WritePipe = nullptr;
     FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
-	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, false, false, &ProcId, 0, nullptr, WritePipe, ReadPipe);
+	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, true, true, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
     FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
     while (FPlatformProcess::IsProcRunning(Proc) || !LatestOutput.IsEmpty())
