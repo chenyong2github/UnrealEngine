@@ -468,6 +468,24 @@ bool FStateTreeCompiler::CreateStateTransitions()
 					*LinkedParentState->Name.ToString());
 				return false;
 			}
+
+			// The linked state must be a subtree.
+			const UStateTreeState* TargetState = GetState(SourceState->LinkedState.ID);
+			if (TargetState == nullptr)
+			{
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("Failed to resolve linked state '%s'."),
+					*SourceState->LinkedState.Name.ToString());
+				return false;
+			}
+			
+			if (TargetState->Type != EStateTreeStateType::Subtree)
+			{
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("State '%s' is linked to state '%s', which is not a subtree."),
+					*SourceState->Name.ToString(), *TargetState->Name.ToString());
+				return false;
+			}
 			
 			CompactState.LinkedState = GetStateHandle(SourceState->LinkedState.ID);
 			

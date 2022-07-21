@@ -413,7 +413,7 @@ struct FStateTreeTest_SubTree : FAITestBase
 		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
 		UStateTreeState& State1 = Root.AddChildState(FName(TEXT("State1")), EStateTreeStateType::Linked);
 		UStateTreeState& State2 = Root.AddChildState(FName(TEXT("State2")));
-		UStateTreeState& State3 = Root.AddChildState(FName(TEXT("State3")));
+		UStateTreeState& State3 = Root.AddChildState(FName(TEXT("State3")), EStateTreeStateType::Subtree);
 		UStateTreeState& State3A = State3.AddChildState(FName(TEXT("State3A")));
 		UStateTreeState& State3B = State3.AddChildState(FName(TEXT("State3B")));
 

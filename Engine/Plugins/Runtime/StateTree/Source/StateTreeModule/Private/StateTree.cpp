@@ -175,8 +175,11 @@ bool UStateTree::Link()
 				return false;
 			}
 
-			FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
-			Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+			if (Params.BindingsBatch.IsValid())
+			{
+				FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
+				Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+			}
 		}
 	}
 	
