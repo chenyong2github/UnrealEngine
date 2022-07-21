@@ -73,7 +73,15 @@ void UBehaviorTreeComponent::UninitializeComponent()
 		BTManager->RemoveActiveComponent(*this);
 	}
 
-	RemoveAllInstances();
+	if ((SuspendedBranchActions & EBTBranchAction::UninitializeComponent) != EBTBranchAction::None)
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("UninitializeComponent queued up"));
+		PendingBranchActionRequests.Emplace(nullptr, EBTBranchAction::UninitializeComponent);
+	}
+	else
+	{
+		RemoveAllInstances();
+	}
 	Super::UninitializeComponent();
 }
 
@@ -229,6 +237,13 @@ void UBehaviorTreeComponent::StartTree(UBehaviorTree& Asset, EBTExecutionMode::T
 
 void UBehaviorTreeComponent::ProcessPendingInitialize()
 {
+	if ((SuspendedBranchActions & EBTBranchAction::ProcessPendingInitialize) != EBTBranchAction::None)
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("ProcessPendingInitialize(%s) queued up"), *GetNameSafe(TreeStartInfo.Asset));
+		PendingBranchActionRequests.Emplace(nullptr, EBTBranchAction::ProcessPendingInitialize);
+		return;
+	}
+
 	StopTree(EBTStopMode::Safe);
 	if (bWaitingForLatentAborts)
 	{
@@ -430,6 +445,13 @@ void UBehaviorTreeComponent::RestartTree()
 void UBehaviorTreeComponent::Cleanup()
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_Cleanup);
+
+	if ((SuspendedBranchActions & EBTBranchAction::Cleanup) != EBTBranchAction::None)
+	{
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("Cleanup queued up"));
+		PendingBranchActionRequests.Emplace(nullptr, EBTBranchAction::Cleanup);
+		return;
+	}
 
 	StopTree(EBTStopMode::Forced);
 	RemoveAllInstances();
@@ -801,6 +823,23 @@ void UBehaviorTreeComponent::ResumeBranchActions()
 					RequestExecution(BranchRoot, ActiveInstanceIdx, BranchRoot, 0, EBTNodeResult::InProgress);
 					break;
 				}
+				case EBTBranchAction::ProcessPendingInitialize:
+				{
+					ProcessPendingInitialize();
+					break;
+				}
+				case EBTBranchAction::Cleanup:
+				{
+					Cleanup();
+					break;
+				}
+				case EBTBranchAction::UninitializeComponent:
+				{
+					// We do not call UninitializeComponent here because only part of the method was queued up and we cannot delay it nor call it twice.
+					// All other actions in the method were performed synchronously.
+					RemoveAllInstances();
+                    break;
+				}
 			}
 		}
 	}
@@ -1084,7 +1123,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 	// make sure that the request is not coming from a node that has pending branch actions since it won't be accessible anymore
 	if (SuspendedBranchActions != EBTBranchAction::None)
 	{
-		if ((SuspendedBranchActions & ~(EBTBranchAction::UnregisterAuxNodes | EBTBranchAction::StopTree )) != EBTBranchAction::None)
+		if ((SuspendedBranchActions & ~(EBTBranchAction::Changing_Topology_Actions)) != EBTBranchAction::None)
 		{
 			UE_VLOG(GetOwner(), LogBehaviorTree, Warning, TEXT("Caller should be converted to new Evaluate/Activate/DeactivateBranch API instead of using this RequestExecution directly"));
 		}
@@ -1579,7 +1618,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	// do it before processing execution request to give BP driven logic chance to accumulate execution requests
 	// newly added aux nodes are ticked as part of SearchData application
 	{
-		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::UnregisterAuxNodes | EBTBranchAction::StopTree);
+		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::Changing_Topology_Actions);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
 		{
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
@@ -1632,7 +1671,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 
 	if (InstanceStack.Num() > 0 && bIsRunning && !bIsPaused)
 	{
-		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::StopTree);
+		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::Changing_Topology_Actions);
 
 		// tick active parallel tasks (in execution order, before task)
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
@@ -2705,6 +2744,8 @@ uint8* UBehaviorTreeComponent::GetNodeMemory(UBTNode* Node, int32 InstanceIdx) c
 
 void UBehaviorTreeComponent::RemoveAllInstances()
 {
+	ensureMsgf(SuspendedBranchActions == EBTBranchAction::None, TEXT("Cannot remove all instances if some branch actions are suspended!"));
+
 	if (InstanceStack.Num())
 	{
 		StopTree(EBTStopMode::Forced);

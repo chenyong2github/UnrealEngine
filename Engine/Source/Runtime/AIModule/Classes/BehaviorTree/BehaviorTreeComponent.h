@@ -91,8 +91,12 @@ enum class EBTBranchAction : uint16
 	StopTree_Forced = 0x40,
 	ActiveNodeEvaluate = 0x80,
 	SubTreeEvaluate = 0x100,
+	ProcessPendingInitialize = 0x200,
+	Cleanup = 0x400,
+	UninitializeComponent = 0x800,
 	StopTree = StopTree_Safe | StopTree_Forced,
-	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | UnregisterAuxNodes | StopTree_Safe | StopTree_Forced | ActiveNodeEvaluate | SubTreeEvaluate,
+	Changing_Topology_Actions = UnregisterAuxNodes | StopTree | ProcessPendingInitialize | Cleanup | UninitializeComponent,
+	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | Changing_Topology_Actions | ActiveNodeEvaluate | SubTreeEvaluate,
 };
 ENUM_CLASS_FLAGS(EBTBranchAction);
 
