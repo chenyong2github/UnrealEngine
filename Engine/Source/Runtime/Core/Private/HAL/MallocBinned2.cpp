@@ -10,6 +10,7 @@
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "HAL/MallocTimer.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "FramePro/FrameProProfiler.h"
@@ -795,6 +796,17 @@ FMallocBinned2::FMallocBinned2()
 
 FMallocBinned2::~FMallocBinned2()
 {
+}
+
+void FMallocBinned2::OnMallocInitialized() 
+{
+#if UE_USE_VERYLARGEPAGEALLOCATOR
+	FCoreDelegates::GetLowLevelAllocatorMemoryTrimDelegate().AddLambda([this]()
+		{
+			CachedOSPageAllocator.FreeAll(&Mutex);
+		}
+	);
+#endif
 }
 
 void FMallocBinned2::OnPreFork()

@@ -16,6 +16,11 @@ public:
 	UE_DEPRECATED(5.1, "ShouldTrace is deprecated. Details should be internal now.")
 	static bool ShouldTrace();
 
+	virtual void OnMallocInitialized() override
+	{
+		WrappedMalloc->OnMallocInitialized();
+	}
+
 	virtual void OnPreFork() override
 	{
 		WrappedMalloc->OnPreFork();

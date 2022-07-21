@@ -763,6 +763,7 @@ if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE && Alignment <= BINNED2_MINIMUM_ALIGN
 	virtual void ClearAndDisableTLSCachesOnCurrentThread() override;
 	virtual const TCHAR* GetDescriptiveName() override;
 	virtual void UpdateStats() override;
+	virtual void OnMallocInitialized() override;
 	virtual void OnPreFork() override;
 	virtual void OnPostFork() override;
 	// End FMalloc interface.

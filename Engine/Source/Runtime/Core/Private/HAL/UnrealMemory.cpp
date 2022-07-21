@@ -218,6 +218,11 @@ public:
 		return UsedMalloc->GetDescriptiveName();
 	}
 
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
+
 	virtual void OnPreFork() override
 	{
 		UsedMalloc->OnPreFork();
@@ -414,6 +419,9 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 
 	GMalloc = FMallocDoubleFreeFinder::OverrideIfEnabled(GMalloc);
 	GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
+
+	GMalloc->OnMallocInitialized();
+
 	return 0;
 }
 

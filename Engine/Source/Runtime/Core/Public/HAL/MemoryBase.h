@@ -210,6 +210,11 @@ public:
 	}
 
 	/**
+	 * Notifies the malloc implementation that initialization of all allocators in GMalloc is complete, so it's safe to initialize any extra features that require "regular" allocations
+	 */
+	virtual void OnMallocInitialized() {}
+
+	/**
 	 * Notifies the malloc implementation that the process is about to fork. May be used to trim caches etc.
 	 */
 	virtual void OnPreFork() {}
