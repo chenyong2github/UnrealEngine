@@ -14,7 +14,7 @@
 	"CanContainContent": false,
 	"IsExperimentalVersion": true,
 	"IsBetaVersion": true,
-	"Installed": true,
+	"Installed": false,
 	"Modules": [
 		{
 			"Name": "XRVisualization",
