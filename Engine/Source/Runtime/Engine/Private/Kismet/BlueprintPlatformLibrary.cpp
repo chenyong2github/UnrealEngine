@@ -179,86 +179,28 @@ void UBlueprintPlatformLibrary::GetLaunchNotification(bool& NotificationLaunched
 
 EScreenOrientation::Type UBlueprintPlatformLibrary::GetDeviceOrientation()
 {
-	return ConvertToScreenOrientation(FPlatformMisc::GetDeviceOrientation());
-}
-
-
-EScreenOrientation::Type UBlueprintPlatformLibrary::GetAllowedDeviceOrientation()
-{
-	return ConvertToScreenOrientation(FPlatformMisc::GetAllowedDeviceOrientation());
-}
-
-void UBlueprintPlatformLibrary::SetAllowedDeviceOrientation(EScreenOrientation::Type NewAllowedDeviceOrientation)
-{
-	FPlatformMisc::SetAllowedDeviceOrientation(ConvertToDeviceScreenOrientation(NewAllowedDeviceOrientation));
-}
-
-EScreenOrientation::Type UBlueprintPlatformLibrary::ConvertToScreenOrientation(EDeviceScreenOrientation DeviceScreenOrientation)
-{
-	switch (DeviceScreenOrientation)
+	switch (FPlatformMisc::GetDeviceOrientation())
 	{
-	case EDeviceScreenOrientation::Portrait:
-		return EScreenOrientation::Portrait;
+		case EDeviceScreenOrientation::Portrait:
+			return EScreenOrientation::Portrait;
+			
+		case EDeviceScreenOrientation::PortraitUpsideDown:
+			return EScreenOrientation::PortraitUpsideDown;
+			
+		case EDeviceScreenOrientation::LandscapeLeft:
+			return EScreenOrientation::LandscapeLeft;
 
-	case EDeviceScreenOrientation::PortraitUpsideDown:
-		return EScreenOrientation::PortraitUpsideDown;
+		case EDeviceScreenOrientation::LandscapeRight:
+			return EScreenOrientation::LandscapeRight;
 
-	case EDeviceScreenOrientation::LandscapeLeft:
-		return EScreenOrientation::LandscapeLeft;
-
-	case EDeviceScreenOrientation::LandscapeRight:
-		return EScreenOrientation::LandscapeRight;
-
-	case EDeviceScreenOrientation::FaceUp:
-		return EScreenOrientation::FaceUp;
-
-	case EDeviceScreenOrientation::FaceDown:
-		return EScreenOrientation::FaceDown;
-
-	case EDeviceScreenOrientation::PortraitSensor:
-		return EScreenOrientation::PortraitSensor;
-
-	case EDeviceScreenOrientation::LandscapeSensor:
-		return EScreenOrientation::LandscapeSensor;
-
-	case EDeviceScreenOrientation::FullSensor:
-		return EScreenOrientation::FullSensor;
+		case EDeviceScreenOrientation::FaceUp:
+			return EScreenOrientation::FaceUp;
+			
+		case EDeviceScreenOrientation::FaceDown:
+			return EScreenOrientation::FaceDown;
 	}
 	return EScreenOrientation::Unknown;
 }
 
-EDeviceScreenOrientation UBlueprintPlatformLibrary::ConvertToDeviceScreenOrientation(EScreenOrientation::Type ScreenOrientation)
-{
-	switch (ScreenOrientation)
-	{
-	case EScreenOrientation::Portrait:
-		return EDeviceScreenOrientation::Portrait;
-
-	case EScreenOrientation::PortraitUpsideDown:
-		return EDeviceScreenOrientation::PortraitUpsideDown;
-
-	case EScreenOrientation::LandscapeLeft:
-		return EDeviceScreenOrientation::LandscapeLeft;
-
-	case EScreenOrientation::LandscapeRight:
-		return EDeviceScreenOrientation::LandscapeRight;
-
-	case EScreenOrientation::FaceUp:
-		return EDeviceScreenOrientation::FaceUp;
-
-	case EScreenOrientation::FaceDown:
-		return EDeviceScreenOrientation::FaceDown;
-
-	case EScreenOrientation::PortraitSensor:
-		return EDeviceScreenOrientation::PortraitSensor;
-
-	case EScreenOrientation::LandscapeSensor:
-		return EDeviceScreenOrientation::LandscapeSensor;
-
-	case EScreenOrientation::FullSensor:
-		return EDeviceScreenOrientation::FullSensor;
-	}
-	return EDeviceScreenOrientation::Unknown;
-}
 
 ILocalNotificationService* UBlueprintPlatformLibrary::platformService = nullptr;

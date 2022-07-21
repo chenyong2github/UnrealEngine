@@ -1043,7 +1043,7 @@ self.accessibilityElements = @[Window.accessibilityContainer];
  */
 - (NSUInteger)supportedInterfaceOrientations
 {
-	return SupportedInterfaceOrientations;
+	return UIInterfaceOrientationMaskAll;
 }
 
 /**

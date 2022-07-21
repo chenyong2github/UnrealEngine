@@ -57,9 +57,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static bool IsRunningOnBattery();
 	static float GetDeviceTemperatureLevel();
 	static EDeviceScreenOrientation GetDeviceOrientation();
-	UE_DEPRECATED(5.1, "SetDeviceOrientation is deprecated. Use SetAllowedDeviceOrientation instead.")
 	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation);
-	static void SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation);
 	static int32 GetDeviceVolume();
 	static void SetBrightness(float Brightness);
 	static float GetBrightness();

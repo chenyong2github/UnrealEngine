@@ -243,9 +243,6 @@ enum class EDeviceScreenOrientation : uint8
 
 	/** The orientation is landscape, oriented upright with the sensor */
 	LandscapeSensor,
-
-	/** The orientation is no longer locked and adjusts according to the sensor */
-	FullSensor,
 };
 
 
@@ -1518,32 +1515,15 @@ public:
 	static bool IsRunningOnBattery();
 
 	/**
-	 * Returns the current orientation of the device: will be either Portrait, LandscapeLeft, PortraitUpsideDown or LandscapeRight.
-	 * 
-	 * @return An EDeviceScreenOrientation value.
+	 * Returns the orientation of the device: e.g. Portrait, LandscapeRight.
+	 * @see EScreenOrientation
 	 */
 	static EDeviceScreenOrientation GetDeviceOrientation();
-
 	/**
-	 * Change the orientation of the device.
+	 * Change the orientation of the device: e.g. Portrait, LandscapeRight.
+	 * @see EScreenOrientation
 	 */
-	UE_DEPRECATED(5.1, "SetDeviceOrientation is deprecated. Use SetAllowedDeviceOrientation instead.")
 	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation);
-
-	/**
-	 * Returns the allowed orientation of the device. This is NOT the same as GetDeviceOrientation, which only returns Portrait, LandscapeLeft, 
-	 * PortraitUpsideDown or LandscapeRight. The allowed orientation limits what orientation your device can have. So if you set the allowed orientation 
-	 * to LandscapeLeft, GetDeviceOrientation will only ever return LandscapeLeft. But if you set the allowed orientation to LandscapeSensor, you are actually 
-	 * restricting the allowed orientations to LandscapeLeft OR LandscapeRight (depending on the sensor), so GetDeviceOrientation might return LandscapeLeft OR LandscapeRight.
-	 * 
-	 * @return An EDeviceScreenOrientation value.
-	 */
-	static EDeviceScreenOrientation GetAllowedDeviceOrientation();
-
-	/**
-	 * Change the allowed orientation of the device. 
-	 */
-	static void SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation);
 
 	/**
 	 * Returns the device volume if the device is capable of returning that information.
@@ -1822,8 +1802,6 @@ protected:
 	/** Whether the user should be prompted to allow for a remote debugger to be attached on an ensure */
 	static bool bPromptForRemoteDebugOnEnsure;
 #endif	//#if !UE_BUILD_SHIPPING
-
-	static EDeviceScreenOrientation AllowedDeviceOrientation;
 
 private:
 	struct FStaticData;

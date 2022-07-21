@@ -484,8 +484,6 @@ FString FSHA256Signature::ToString() const
 	bool FGenericPlatformMisc::bPromptForRemoteDebugOnEnsure = false;
 #endif	//#if !UE_BUILD_SHIPPING
 
-EDeviceScreenOrientation FGenericPlatformMisc::AllowedDeviceOrientation = EDeviceScreenOrientation::Unknown;
-
 struct FGenericPlatformMisc::FStaticData
 {
 	FString         RootDir;
@@ -1671,17 +1669,7 @@ EDeviceScreenOrientation FGenericPlatformMisc::GetDeviceOrientation()
 
 void FGenericPlatformMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation)
 {
-	SetAllowedDeviceOrientation(NewDeviceOrientation);
-}
-
-EDeviceScreenOrientation FGenericPlatformMisc::GetAllowedDeviceOrientation()
-{
-	return AllowedDeviceOrientation;
-}
-
-void FGenericPlatformMisc::SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation)
-{
-	AllowedDeviceOrientation = NewAllowedDeviceOrientation;
+	// not implemented by default
 }
 
 int32 FGenericPlatformMisc::GetDeviceVolume()
