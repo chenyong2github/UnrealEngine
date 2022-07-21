@@ -6,6 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "SPositiveActionButton.h"
+#include "SScheduledSyncWindow.h"
 #include "SSimpleComboButton.h"
 #include "SSimpleButton.h"
 #include "SSyncFilterWindow.h"
@@ -136,6 +137,7 @@ TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<FChang
 TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
+
 	MenuBuilder.AddMenuEntry(
 		FText::FromString(TEXT("Sync Latest")),
 		FText::FromString(TEXT("Sync to the latest submitted changelist")),
@@ -143,7 +145,16 @@ TSharedRef<SWidget> SGameSyncTab::MakeSyncButtonDropdown()
 		FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnSyncLatest)),
 		NAME_None,
 		EUserInterfaceActionType::Button
-		);
+	);
+
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Setup Schedule Sync")),
+		FText::FromString(TEXT("Setup a schedule sync to run at specific time")),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SScheduledSyncWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); } )),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
 
 	return MenuBuilder.MakeWidget();
 }
