@@ -168,6 +168,13 @@ static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
 	ECVF_Default
 	);
 
+int32 GbPreloadSelectablePluginAssetsOnDemand = 1;
+static FAutoConsoleVariableRef CVarPreloadSelectablePluginAssetsOnDemand(
+	TEXT("fx.Niagara.PreloadSelectablePluginAssetsOnDemand"),
+	GbPreloadSelectablePluginAssetsOnDemand,
+	TEXT("If > 0 then niagara system, emitter, and script assets provided by the niagara plugin will be preloaded when a dialog is opened to select them. This is a temoporary workaround for asset registry issues in cooked editor builds.\n"),
+	ECVF_Default);
+
 // this is required for gpu script compilation ticks
 static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
 
@@ -1903,6 +1910,24 @@ void FNiagaraEditorModule::OnPerfBaselineWindowClosed(const TSharedRef<SWindow>&
 	ClosedWindow->SetContent(SNullWidget::NullWidget);
 	BaselineViewport.Reset();
 }
+void FNiagaraEditorModule::PreloadSelectablePluginAssetsByClass(UClass* InClass)
+{
+	if (GbPreloadSelectablePluginAssetsOnDemand && PluginAssetClassesPreloaded.Contains(InClass) == false)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		TArray<FAssetData> AllClassAssets;
+		AssetRegistryModule.Get().GetAssetsByClass(InClass->GetClassPathName(), AllClassAssets);
+		for (FAssetData& ClassAsset : AllClassAssets)
+		{
+			if (ClassAsset.HasAnyPackageFlags(PKG_Cooked) && ClassAsset.IsAssetLoaded() == false && FNiagaraEditorUtilities::IsEnginePluginAsset(ClassAsset))
+			{
+				ClassAsset.GetAsset();
+			}
+		}
+		PluginAssetClassesPreloaded.Add(InClass);
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

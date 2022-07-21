@@ -1611,6 +1611,10 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);		// only changes version if not loading
 	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
 
+#if WITH_EDITORONLY_DATA
+	FNiagaraParameterStore::FScopedSuppressOnChanged SupressOnChanged(RapidIterationParameters);
+#endif
+
 	FNiagaraParameterStore TemporaryStore;
 	int32 NumRemoved = 0;
 	if (Ar.IsCooking())
@@ -1628,6 +1632,11 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		{
 			// Copy off the parameter store for now..
 			TemporaryStore = RapidIterationParameters;
+
+#if WITH_EDITORONLY_DATA
+			// Cache the unmodified rapid iteration parameters in an editor only property so that they can be restored in a cooked editor.
+			RapidIterationParametersCookedEditorCache = RapidIterationParameters;
+#endif
 
 			auto ParameterVariables = TemporaryStore.ReadParameterVariables();
 
@@ -1679,12 +1688,26 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	// Restore after serialize
-	if (Ar.IsCooking() && NumRemoved > 0)
+	if (Ar.IsCooking())
 	{
-		RapidIterationParameters = TemporaryStore;
+		if (NumRemoved > 0)
+		{
+			RapidIterationParameters = TemporaryStore;
+		}
+#if WITH_EDITORONLY_DATA
+		RapidIterationParametersCookedEditorCache.Empty();
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && RapidIterationParametersCookedEditorCache.Num() > 0)
+	{
+		// If we're loading and the cooked editor cache is available, re-populate the parameters from the cache after they're
+		// deserialized.
+		RapidIterationParameters = RapidIterationParametersCookedEditorCache;
+		RapidIterationParametersCookedEditorCache.Empty();
+	}
+
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
 		if (!HasValidParameterBindings())
@@ -3387,6 +3410,12 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 bool UNiagaraScript::SynchronizeExecutablesWithMaster(const UNiagaraScript* Script, const TMap<FString, FString>& RenameMap)
 {
 	check(IsInGameThread());
+
+	if (Script->CachedScriptVM.IsValid() == false)
+	{
+		// If the master script has no valid VM then there's nothing to synchronize.
+		return false;
+	}
 
 	FNiagaraVMExecutableDataId Id;
 	ComputeVMCompilationId(Id, FGuid());

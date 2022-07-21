@@ -215,7 +215,10 @@ FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParamete
 	SetOriginalPositionData(Other.OriginalPositionData);
 	++LayoutVersion;
 #if WITH_EDITOR
-	OnChangedDelegate.Broadcast();
+	if (bSuppressOnChanged == false)
+	{
+		OnChangedDelegate.Broadcast();
+	}
 #endif
 	//Don't copy bindings. We just want the data.
 	return *this;
@@ -1223,7 +1226,10 @@ void FNiagaraParameterStore::OnLayoutChange()
 	++LayoutVersion;
 
 #if WITH_EDITOR
-	OnChangedDelegate.Broadcast();
+	if (bSuppressOnChanged == false)
+	{
+		OnChangedDelegate.Broadcast();
+	}
 #endif
 }
 
