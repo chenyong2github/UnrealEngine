@@ -10,6 +10,7 @@
 #include "Engine/LatentActionManager.h"
 #include "LatentActions.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#include "Engine/Level.h"
 
 #if WITH_EDITOR
 #include "Folder.h"
