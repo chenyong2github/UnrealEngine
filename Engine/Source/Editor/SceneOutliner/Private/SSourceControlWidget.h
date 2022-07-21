@@ -19,7 +19,7 @@ private:
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
-	void UpdateSourceControlStateIcon(FSourceControlStatePtr SourceControlState);
+	void UpdateSourceControlState(FSourceControlStatePtr SourceControlState);
 
 	/** The object that keeps the source control state for the outliner */
 	TSharedPtr<FSceneOutlinerTreeItemSCC> ItemSourceControl;
