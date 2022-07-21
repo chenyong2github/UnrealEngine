@@ -63,18 +63,6 @@ UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectIniti
 {
 	CacheSettings.bOverride = true;
 
-	// Set up media component.
-	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
-	if (MediaComponent != nullptr)
-	{
-		// Set up media texture.
-		UMediaTexture* MediaTexture = MediaComponent->GetMediaTexture();
-		if (MediaTexture != nullptr)
-		{
-			MediaTexture->NewStyleOutput = true;
-		}
-	}
-
 	// Set up playlist.
 	MediaPlaylist = CreateDefaultSubobject<UMediaPlaylist>(MediaPlaylistName);
 
@@ -86,10 +74,31 @@ void UMediaPlateComponent::OnRegister()
 {
 	Super::OnRegister();
 
+	// Create media texture if we don't have one.
+	if (MediaTexture == nullptr)
+	{
+		MediaTexture = NewObject<UMediaTexture>(this);
+		MediaTexture->NewStyleOutput = true;
+	}
+
+	// Create media player if we don't have one.
+	if (MediaPlayer == nullptr)
+	{
+		MediaPlayer = NewObject<UMediaPlayer>(this);
+		MediaPlayer->SetLooping(false);
+		MediaPlayer->PlayOnOpen = false;
+	}
+
+	// Set up media texture.
+	if (MediaTexture != nullptr)
+	{
+		MediaTexture->SetMediaPlayer(MediaPlayer);
+		MediaTexture->UpdateResource();
+	}
+
 	// Set up sound component if we have one.
 	if (SoundComponent != nullptr)
 	{
-		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 		if (MediaPlayer != nullptr)
 		{
 			SoundComponent->SetMediaPlayer(MediaPlayer);
@@ -129,30 +138,17 @@ void UMediaPlateComponent::BeginDestroy()
 
 UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
 {
-	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
-	if (MediaComponent != nullptr)
-	{
-		MediaPlayer = MediaComponent->GetMediaPlayer();
-	}
-
 	return MediaPlayer;
 }
 
 UMediaTexture* UMediaPlateComponent::GetMediaTexture()
 {
-	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
-	if (MediaComponent != nullptr)
-	{
-		MediaTexture = MediaComponent->GetMediaTexture();
-	}
-
 	return MediaTexture;
 }
 
 void UMediaPlateComponent::Play()
 {
 	bool bIsPlaying = false;
-	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
 		UMediaSource* MediaSource = nullptr;
@@ -190,7 +186,6 @@ void UMediaPlateComponent::Play()
 
 void UMediaPlateComponent::Stop()
 {
-	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->Close();
@@ -219,7 +214,6 @@ void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 	MediaTextureTrackerObject->MeshRange = MeshRange;
 
 	// Add our texture.
-	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
 	if (MediaTexture != nullptr)
 	{
 		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
@@ -233,7 +227,6 @@ void UMediaPlateComponent::UnregisterWithMediaTextureTracker()
 	if (MediaTextureTrackerObject != nullptr)
 	{
 		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
-		TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
 		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
 	}
 }
@@ -248,7 +241,6 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 		InMediaSource->SetCacheSettings(CacheSettings);
 		
 		// Set media options.
-		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 		if (MediaPlayer != nullptr)
 		{
 			// Play the source.
@@ -285,7 +277,6 @@ void UMediaPlateComponent::SetAspectRatio(float AspectRatio)
 
 void UMediaPlateComponent::TickOutput()
 {
-	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
 		// Is the player ready?
@@ -326,7 +317,6 @@ void UMediaPlateComponent::OnVisibleMipsTilesCalculationsChange()
 		MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
 
 		// Propagate the change by restarting the player if it is currently playing.
-		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 		if (MediaPlayer != nullptr)
 		{
 			if (MediaPlayer->IsPlaying())
@@ -347,7 +337,6 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		if (bEnableAudio)
 		{
 			// Get the media player.
-			TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 			if (MediaPlayer != nullptr)
 			{
 				// Create a sound component.

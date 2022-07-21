@@ -18,6 +18,7 @@ class MEDIAPLATE_API AMediaPlate : public AActor
 
 public:
 	//~ Begin AActor Interface
+	virtual void PostActorCreated();
 	virtual void PostRegisterAllComponents() override;
 	virtual void BeginDestroy() override;
 	//~ End AActor Interface
@@ -28,6 +29,15 @@ public:
 	/** Holds the mesh. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
+
+#if WITH_EDITOR
+
+	/*
+	 * Call this to change the static mesh to use the default media plate material.
+	 */
+	void UseDefaultMaterial();
+
+#endif
 
 private:
 	/** Name for our media plate component. */

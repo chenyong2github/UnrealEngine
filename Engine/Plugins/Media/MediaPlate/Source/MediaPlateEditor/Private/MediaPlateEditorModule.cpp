@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "ISequencerModule.h"
 #include "LevelEditorViewport.h"
+#include "MaterialList.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateCustomization.h"
 #include "MediaPlateEditorStyle.h"
@@ -17,6 +18,7 @@
 #include "Sequencer/MediaPlateTrackEditor.h"
 #include "SLevelViewport.h"
 #include "Subsystems/EditorAssetSubsystem.h"
+#include "Widgets/SMediaPlateEditorMaterial.h"
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
@@ -38,11 +40,20 @@ void FMediaPlateEditorModule::StartupModule()
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 	TrackEditorBindingHandle = SequencerModule.RegisterPropertyTrackEditor<FMediaPlateTrackEditor>();
 
+	// Add bottom extender for material item
+	FMaterialList::OnAddMaterialItemViewExtraBottomWidget.AddLambda([](const TSharedRef<FMaterialItemView>& InMaterialItemView, UActorComponent* InCurrentComponent, IDetailLayoutBuilder& InDetailBuilder, TArray<TSharedPtr<SWidget>>& OutExtensions)
+	{
+		LLM_SCOPE_BYNAME("MediaPlate/MediaPlateEditor");
+		OutExtensions.Add(SNew(SMediaPlateEditorMaterial, InMaterialItemView, InCurrentComponent));
+	});
+
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FMediaPlateEditorModule::OnPostEngineInit);
 }
 
 void FMediaPlateEditorModule::ShutdownModule()
 {
+	FMaterialList::OnAddMaterialItemViewExtraBottomWidget.RemoveAll(this);
+
 	if (GEditor != nullptr)
 	{
 		UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>();

@@ -80,9 +80,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
 	bool bIsAspectRatioAuto = true;
 
-	/** Holds the media player. */
-	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UMediaComponent> MediaComponent;
+	
 
 	/** Holds the component to play sound. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
@@ -147,6 +145,14 @@ private:
 	static FLazyName MediaComponentName;
 	/** Name for our playlist. */
 	static FLazyName MediaPlaylistName;
+
+	/** Holds the media player. */
+	UPROPERTY()
+	TObjectPtr<UMediaTexture> MediaTexture;
+
+	/** This component's media player */
+	UPROPERTY()
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	/** Info representing this object. */
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;

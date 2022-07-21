@@ -4,7 +4,7 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateModule.h"
 #include "MediaTexture.h"
@@ -44,38 +44,26 @@ AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	}
 }
 
+
+void AMediaPlate::PostActorCreated()
+{
+	Super::PostActorCreated();
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Set which material to use.
+		UseDefaultMaterial();
+	}
+#endif
+}
+
 void AMediaPlate::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
 	if (MediaPlateComponent != nullptr)
 	{
-		if (StaticMeshComponent != nullptr)
-		{
-			UMaterialInstanceDynamic* MediaMID = nullptr;
-
-			// Do we have a material?
-			if (StaticMeshComponent->GetNumOverrideMaterials() > 0)
-			{
-				MediaMID = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, StaticMeshComponent->GetMaterial(0));
-			}
-			else
-			{
-				// Add default material.
-				UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
-				if (Material != nullptr)
-				{
-					MediaMID = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
-				}
-			}
-
-			// Set up the material to point to our media texture.
-			if (MediaMID != nullptr)
-			{
-				MediaMID->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
-			}
-		}
-
 		// Add our media texture to the tracker.
 		MediaPlateComponent->RegisterWithMediaTextureTracker();
 	}
@@ -91,5 +79,42 @@ void AMediaPlate::BeginDestroy()
 	
 	Super::BeginDestroy();
 }
+
+#if WITH_EDITOR
+
+void AMediaPlate::UseDefaultMaterial()
+{
+	// Get material.
+	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlate"), NULL, LOAD_None, NULL);
+	if (Material != nullptr)
+	{
+		// Change M_ to MI_ in material name and then generate a unique one.
+		FString MaterialName = Material->GetName();
+		if (MaterialName.StartsWith(TEXT("M_")))
+		{
+			MaterialName.InsertAt(1, TEXT("I"));
+		}
+		FName MaterialUniqueName = MakeUniqueObjectName(this, UMaterialInstanceConstant::StaticClass(),
+			FName(*MaterialName));
+
+		// Create instance.
+		UMaterialInstanceConstant* MaterialInstance =
+			NewObject<UMaterialInstanceConstant>(this, MaterialUniqueName);
+		MaterialInstance->SetParentEditorOnly(Material);
+		MaterialInstance->SetTextureParameterValueEditorOnly(
+			FMaterialParameterInfo(MediaTextureName),
+			MediaPlateComponent->GetMediaTexture());
+		MaterialInstance->PostEditChange();
+
+		// Update static mesh.
+		if (StaticMeshComponent != nullptr)
+		{
+			StaticMeshComponent->Modify();
+			StaticMeshComponent->SetMaterial(0, MaterialInstance);
+		}
+	}
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE
