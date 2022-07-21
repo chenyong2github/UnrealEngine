@@ -10,6 +10,7 @@ class FAndroidEOSSDKManager : public FEOSSDKManager
 {
 public:
 	virtual EOS_EResult EOSInitialize(EOS_InitializeOptions& Options) override;
+	virtual FString GetCacheDirBase() const override;
 };
 
 using FPlatformEOSSDKManager = FAndroidEOSSDKManager;

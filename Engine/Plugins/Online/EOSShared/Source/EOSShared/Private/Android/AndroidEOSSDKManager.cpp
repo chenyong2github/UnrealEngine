@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AndroidEOSSDKManager.h"
+#include "HAL/FileManager.h"
 
 #if WITH_EOS_SDK
 
@@ -19,5 +20,11 @@ EOS_EResult FAndroidEOSSDKManager::EOSInitialize(EOS_InitializeOptions& Options)
 
 	return FEOSSDKManager::EOSInitialize(Options);
 }
+
+FString FAndroidEOSSDKManager::GetCacheDirBase() const
+{
+	FString BaseCacheDirBase = FEOSSDKManager::GetCacheDirBase();
+	return IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*BaseCacheDirBase);
+};
 
 #endif // WITH_EOS_SDK

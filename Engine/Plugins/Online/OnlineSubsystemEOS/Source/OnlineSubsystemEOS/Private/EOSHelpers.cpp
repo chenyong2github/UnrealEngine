@@ -38,4 +38,25 @@ IEOSPlatformHandlePtr FEOSHelpers::CreatePlatform(EOS_Platform_Options& Platform
 	return nullptr;
 }
 
+void FEOSHelpers::ShowAccountPortalUI(FOnlineSubsystemEOS* InEOSSubsystem, const int ControllerIndex, const FOnLoginUIClosedDelegate& Delegate)
+{
+	check(InEOSSubsystem != nullptr);
+	FDelegateHandle* DelegateHandle = new FDelegateHandle;
+	*DelegateHandle = InEOSSubsystem->UserManager->AddOnLoginCompleteDelegate_Handle(ControllerIndex, FOnLoginCompleteDelegate::CreateRaw(this, &FEOSHelpers::OnAccountPortalLoginComplete, InEOSSubsystem, Delegate, DelegateHandle));
+
+	FOnlineAccountCredentials* Credentials = new FOnlineAccountCredentials(TEXT("accountportal"), TEXT(""), TEXT(""));
+	InEOSSubsystem->UserManager->Login(ControllerIndex, *Credentials);
+}
+
+void FEOSHelpers::OnAccountPortalLoginComplete(int ControllerIndex, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorString, FOnlineSubsystemEOS* InEOSSubsystem, const FOnLoginUIClosedDelegate LoginUIClosedDelegate, FDelegateHandle* LoginDelegateHandle) const
+{
+	FOnlineError Error(bWasSuccessful);
+	Error.SetFromErrorCode(ErrorString);
+
+	InEOSSubsystem->UserManager->ClearOnLoginCompleteDelegate_Handle(ControllerIndex, *LoginDelegateHandle);
+	delete LoginDelegateHandle;
+
+	LoginUIClosedDelegate.ExecuteIfBound(UserId.AsShared(), ControllerIndex, Error);
+}
+
 #endif // WITH_EOS_SDK

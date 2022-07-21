@@ -11,7 +11,7 @@
 
 class FOnlineSubsystemEOS;
 
-class FIOSEOSHelpers : FEOSHelpers
+class FIOSEOSHelpers : public FEOSHelpers
 {
 public:
 	virtual ~FIOSEOSHelpers();
@@ -20,13 +20,7 @@ public:
 	virtual void PlatformTriggerLoginUI(FOnlineSubsystemEOS* EOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate) override;
 
 private:
-	void OnLoginComplete(int ControllerIndex, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorString);
-
 	EOS_IOS_Auth_CredentialsOptions CredentialsOptions;
-
-	FOnlineSubsystemEOS* EOSSubsystem;
-	FOnLoginUIClosedDelegate LoginUIClosedDelegate;
-	FDelegateHandle LoginCompleteDelegate;
 };
 
 using FPlatformEOSHelpers = FIOSEOSHelpers;

@@ -74,26 +74,7 @@ void FIOSEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
 
 void FIOSEOSHelpers::PlatformTriggerLoginUI(FOnlineSubsystemEOS* InEOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)
 {
-	EOSSubsystem = InEOSSubsystem;
-	check(EOSSubsystem != nullptr);
-
-	LoginUIClosedDelegate = Delegate;
-	LoginCompleteDelegate = EOSSubsystem->UserManager->AddOnLoginCompleteDelegate_Handle(ControllerIndex, FOnLoginCompleteDelegate::CreateRaw(this, &FIOSEOSHelpers::OnLoginComplete));
-
-	FOnlineAccountCredentials *Credentials = new FOnlineAccountCredentials(TEXT("accountportal"), TEXT(""), TEXT(""));
-	EOSSubsystem->UserManager->Login(ControllerIndex, *Credentials);
-}
-
-void FIOSEOSHelpers::OnLoginComplete(int ControllerIndex, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorString)
-{
-	FOnlineError Error(bWasSuccessful);
-	Error.SetFromErrorCode(ErrorString);
-
-	check(EOSSubsystem != nullptr);
-
-	EOSSubsystem->UserManager->ClearOnLoginCompleteDelegate_Handle(ControllerIndex, LoginCompleteDelegate);
-
-	LoginUIClosedDelegate.ExecuteIfBound(UserId, ControllerIndex, Error);
+	ShowAccountPortalUI(InEOSSubsystem, ControllerIndex, Delegate);
 }
 
 #endif
