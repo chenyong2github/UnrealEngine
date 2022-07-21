@@ -808,6 +808,14 @@ void FSplineComponentVisualizer::ChangeSelectionState(int32 Index, bool bIsCtrlH
 	{
 		SplineGeneratorPanel->OnSelectionUpdated();
 	}
+
+	if (Index != INDEX_NONE)
+	{
+		if (!DeselectedInEditorDelegateHandle.IsValid())
+		{
+			DeselectedInEditorDelegateHandle = GetEditedSplineComponent()->OnDeselectedInEditor.AddRaw(this, &FSplineComponentVisualizer::OnDeselectedInEditor);
+		}
+	}
 }
 
 
@@ -3444,6 +3452,16 @@ void FSplineComponentVisualizer::CreateSplineGeneratorPanel()
 		ExistingWindow->BringToFront();
 	}
 	ExistingWindow->SetContent(SplineGeneratorPanel.ToSharedRef());
+}
+
+void FSplineComponentVisualizer::OnDeselectedInEditor(TObjectPtr<USplineComponent> SplineComponent)
+{
+	if (DeselectedInEditorDelegateHandle.IsValid() && SplineComponent)
+	{
+		SplineComponent->OnDeselectedInEditor.Remove(DeselectedInEditorDelegateHandle);
+	}
+	DeselectedInEditorDelegateHandle.Reset();
+	EndEditing();
 }
 
 

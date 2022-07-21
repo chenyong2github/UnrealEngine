@@ -1738,6 +1738,21 @@ FPrimitiveSceneProxy* USplineComponent::CreateSceneProxy()
 
 	return new FSplineSceneProxy(this);
 }
+#endif
+	
+#if WITH_EDITOR
+
+void USplineComponent::PushSelectionToProxy()
+{
+	if (!IsComponentIndividuallySelected())
+	{
+		OnDeselectedInEditor.Broadcast(this);
+	}
+	Super::PushSelectionToProxy();
+}
+#endif
+
+#if UE_ENABLE_DEBUG_DRAWING
 
 void USplineComponent::Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FInterpCurveVector& SplineInfo, const FMatrix& LocalToWorld, const FLinearColor& LineColor, uint8 DepthPriorityGroup)
 {
