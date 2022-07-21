@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "2.0",
 	"FriendlyName": "Live Link",
-	"Description": "LiveLink allows streaming of animated data into UE4",
+	"Description": "LiveLink allows streaming of animated data into Unreal Engine",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
