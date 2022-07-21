@@ -222,6 +222,12 @@ void FGameplayTagCustomization::PostRedo(bool bSuccess)
 
 FGameplayTagCustomization::~FGameplayTagCustomization()
 {
+	// Forcibly close the popup to avoid crashes later
+	if (EditButton.IsValid() && EditButton->IsOpen())
+	{
+		EditButton->SetIsOpen(false);
+	}
+
 	GEditor->UnregisterForUndo(this);
 }
 
