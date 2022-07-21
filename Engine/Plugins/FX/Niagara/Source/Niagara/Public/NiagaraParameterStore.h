@@ -167,13 +167,6 @@ struct NIAGARA_API FNiagaraParameterStore
 {
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
-	struct FScopedSuppressOnChanged : TGuardValue<bool>
-	{
-		FScopedSuppressOnChanged(FNiagaraParameterStore& TargetStore)
-			: TGuardValue(TargetStore.bSuppressOnChanged, true)
-		{
-		}
-	};
 #endif
 
 	GENERATED_USTRUCT_BODY()
@@ -236,7 +229,6 @@ private:
 
 #if WITH_EDITOR
 	FOnChanged OnChangedDelegate;
-	bool bSuppressOnChanged = false;
 #endif
 
 	void SetPositionData(const FName& Name, const FVector& Position);
@@ -618,10 +610,7 @@ public:
 	{ 
 		bParametersDirty = true;
 #if WITH_EDITOR
-		if (bSuppressOnChanged == false)
-		{
-			OnChangedDelegate.Broadcast();
-		}
+		OnChangedDelegate.Broadcast();
 #endif
 	}
 
@@ -629,10 +618,7 @@ public:
 	{ 
 		bInterfacesDirty = true;
 #if WITH_EDITOR
-		if (bSuppressOnChanged == false)
-		{
-			OnChangedDelegate.Broadcast();
-		}
+		OnChangedDelegate.Broadcast();
 #endif
 	}
 
@@ -640,10 +626,7 @@ public:
 	{
 		bUObjectsDirty = true;
 #if WITH_EDITOR
-		if (bSuppressOnChanged == false)
-		{
-			OnChangedDelegate.Broadcast();
-		}
+		OnChangedDelegate.Broadcast();
 #endif
 	}
 
@@ -653,10 +636,7 @@ public:
 		bInterfacesDirty = true;
 		bParametersDirty = true;
 #if WITH_EDITOR
-		if (bSuppressOnChanged == false)
-		{
-			OnChangedDelegate.Broadcast();
-		}
+		OnChangedDelegate.Broadcast();
 #endif
 	}
 

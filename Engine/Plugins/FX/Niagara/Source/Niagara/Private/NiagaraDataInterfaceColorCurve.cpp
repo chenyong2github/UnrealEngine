@@ -46,26 +46,21 @@ void UNiagaraDataInterfaceColorCurve::Serialize(FArchive& Ar)
 	{
 		UpdateLUT(true);
 
-		Exchange(RedCurve, RedCurveCookedEditorCache);
-		Exchange(GreenCurve, GreenCurveCookedEditorCache);
-		Exchange(BlueCurve, BlueCurveCookedEditorCache);
-		Exchange(AlphaCurve, AlphaCurveCookedEditorCache);
+		FRichCurve TempRCurve;
+		FRichCurve TempGCurve;
+		FRichCurve TempBCurve;
+		FRichCurve TempACurve;
+		Exchange(RedCurve, TempRCurve);
+		Exchange(GreenCurve, TempGCurve);
+		Exchange(BlueCurve, TempBCurve);
+		Exchange(AlphaCurve, TempACurve);
 
 		Super::Serialize(Ar);
 
-		Exchange(RedCurve, RedCurveCookedEditorCache);
-		Exchange(GreenCurve, GreenCurveCookedEditorCache);
-		Exchange(BlueCurve, BlueCurveCookedEditorCache);
-		Exchange(AlphaCurve, AlphaCurveCookedEditorCache);
-	}
-	else if (bUseLUT && Ar.IsLoading() && GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		Super::Serialize(Ar);
-
-		Exchange(RedCurve, RedCurveCookedEditorCache);
-		Exchange(GreenCurve, GreenCurveCookedEditorCache);
-		Exchange(BlueCurve, BlueCurveCookedEditorCache);
-		Exchange(AlphaCurve, AlphaCurveCookedEditorCache);
+		Exchange(RedCurve, TempRCurve);
+		Exchange(GreenCurve, TempGCurve);
+		Exchange(BlueCurve, TempBCurve);
+		Exchange(AlphaCurve, TempACurve);
 	}
 	else
 #endif

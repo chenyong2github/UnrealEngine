@@ -45,25 +45,21 @@ void UNiagaraDataInterfaceVector2DCurve::Serialize(FArchive& Ar)
 	{
 		UpdateLUT(true);
 
-		Exchange(XCurve, XCurveCookedEditorCache);
-		Exchange(YCurve, YCurveCookedEditorCache);
+		FRichCurve TempXCurve;
+		FRichCurve TempYCurve;
+		Exchange(XCurve, TempXCurve);
+		Exchange(YCurve, TempYCurve);
 
 		Super::Serialize(Ar);
 
-		Exchange(XCurve, XCurveCookedEditorCache);
-		Exchange(YCurve, YCurveCookedEditorCache);
+		Exchange(XCurve, TempXCurve);
+		Exchange(YCurve, TempYCurve);
 	}
-	else if (bUseLUT && Ar.IsLoading() && GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		Super::Serialize(Ar);
-
-		Exchange(XCurve, XCurveCookedEditorCache);
-		Exchange(YCurve, YCurveCookedEditorCache);
-	}
+	else
 #endif
 	{
 		Super::Serialize(Ar);
-	} 
+	}
 }
 
 void UNiagaraDataInterfaceVector2DCurve::UpdateTimeRanges()

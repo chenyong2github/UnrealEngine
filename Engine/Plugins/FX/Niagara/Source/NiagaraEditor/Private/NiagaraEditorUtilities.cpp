@@ -1373,8 +1373,6 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 
 void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets)
 {
-	FNiagaraEditorModule::Get().PreloadSelectablePluginAssetsByClass(UNiagaraScript::StaticClass());
-
 	FARFilter ScriptFilter;
 	ScriptFilter.ClassPaths.Add(UNiagaraScript::StaticClass()->GetClassPathName());
 
@@ -1552,7 +1550,7 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 	{
 		if (ScriptAssetData.IsAssetLoaded())
 		{
-			UNiagaraScript* Script = Cast<UNiagaraScript>(ScriptAssetData.GetAsset());
+			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
 			if (Script != nullptr)
 			{
 				ScriptVisibility = Script->GetLatestScriptData()->LibraryVisibility;
@@ -1610,14 +1608,6 @@ bool FNiagaraEditorUtilities::GetTemplateSpecificationFromTag(const FAssetData& 
 bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
 	return GetScriptAssetVisibility(ScriptAssetData) == ENiagaraScriptLibraryVisibility::Library;
-}
-
-bool FNiagaraEditorUtilities::IsEnginePluginAsset(const FAssetData& InAssetData)
-{
-	FString PackagePathLocal = "";
-	return 
-		FPackageName::TryConvertGameRelativePackagePathToLocalPath(InAssetData.PackagePath.ToString(), PackagePathLocal) &&
-		FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir() + "FX/Niagara");
 }
 
 int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAction_Generic>& InCurrentAction, const TArray<FString>& InFilterTerms)

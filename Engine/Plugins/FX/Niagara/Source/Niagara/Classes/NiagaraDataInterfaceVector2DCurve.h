@@ -23,15 +23,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Curve")
 	FRichCurve YCurve;
 
-#if WITH_EDITORONLY_DATA
-private:
-	UPROPERTY()
-	FRichCurve XCurveCookedEditorCache;
-	UPROPERTY()
-	FRichCurve YCurveCookedEditorCache;
-public:
-#endif
-
 	enum
 	{
 		CurveLUTNumElems = 2,

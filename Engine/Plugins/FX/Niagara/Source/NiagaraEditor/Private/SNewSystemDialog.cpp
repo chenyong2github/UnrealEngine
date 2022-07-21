@@ -2,7 +2,6 @@
 
 #include "SNewSystemDialog.h"
 #include "NiagaraSystem.h"
-#include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 
@@ -40,14 +39,12 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Template, true);
 	TemplateAndBehaviorsOnlyTabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);
 
-	FNiagaraEditorModule::Get().PreloadSelectablePluginAssetsByClass(UNiagaraEmitter::StaticClass());
 	SAssignNew(EmitterAssetPicker, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
 		.OnTemplateAssetActivated(this, &SNewSystemDialog::OnEmitterAssetsActivated)
 		.ViewOptions(DisplayAllViewOptions)
 		.TabOptions(AllTabOptions)
 		.bAllowMultiSelect(true);
 
-	FNiagaraEditorModule::Get().PreloadSelectablePluginAssetsByClass(UNiagaraSystem::StaticClass());
 	SAssignNew(TemplateBehaviorAssetPicker, SNiagaraAssetPickerList, UNiagaraSystem::StaticClass())
 		.OnTemplateAssetActivated(this, &SNewSystemDialog::ConfirmSelection)
 		.ViewOptions(DisplayAllViewOptions)
