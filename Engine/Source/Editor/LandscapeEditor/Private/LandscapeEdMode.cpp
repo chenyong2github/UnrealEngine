@@ -58,6 +58,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "VisualLogger/VisualLogger.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1095,10 +1096,40 @@ bool FEdModeLandscape::LandscapeMouseTrace(FEditorViewportClient* ViewportClient
 		Start -= WORLD_MAX * MouseViewportRayDirection;
 	}
 
-	return LandscapeTrace(Start, End, OutHitLocation);
+	return LandscapeTrace(Start, End, MouseViewportRayDirection,OutHitLocation);
 }
 
-bool FEdModeLandscape::LandscapeTrace(const FVector& InRayOrigin, const FVector& InRayEnd, FVector& OutHitLocation)
+struct FEdModeLandscape::FProcessLandscapeTraceHitsResult
+{
+	FVector HitLocation;
+	ULandscapeHeightfieldCollisionComponent* HeightfieldComponent;
+	ALandscapeProxy* LandscapeProxy;
+};
+
+bool FEdModeLandscape::ProcessLandscapeTraceHits(const TArray<FHitResult>& InResults, FProcessLandscapeTraceHitsResult& OutLandscapeTraceHitsResult)
+{
+	for (int32 i = 0; i < InResults.Num(); i++)
+	{
+		const FHitResult& Hit = InResults[i];
+		ULandscapeHeightfieldCollisionComponent* CollisionComponent = Cast<ULandscapeHeightfieldCollisionComponent>(Hit.Component.Get());
+		if (CollisionComponent)
+		{
+			ALandscapeProxy* HitLandscape = CollisionComponent->GetLandscapeProxy();
+			if (HitLandscape &&
+				CurrentToolTarget.LandscapeInfo.IsValid() &&
+				CurrentToolTarget.LandscapeInfo->LandscapeGuid == HitLandscape->GetLandscapeGuid())
+			{
+				OutLandscapeTraceHitsResult.HeightfieldComponent = CollisionComponent;
+				OutLandscapeTraceHitsResult.HitLocation = Hit.Location;
+				OutLandscapeTraceHitsResult.LandscapeProxy = HitLandscape;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool FEdModeLandscape::LandscapeTrace(const FVector& InRayOrigin, const FVector& InRayEnd, const FVector& InDirection, FVector& OutHitLocation)
 {
 	if (!CurrentTool || !CurrentToolTarget.LandscapeInfo.IsValid())
 	{
@@ -1120,22 +1151,75 @@ bool FEdModeLandscape::LandscapeTrace(const FVector& InRayOrigin, const FVector&
 	TArray<FHitResult> Results;
 	// Each landscape component has 2 collision shapes, 1 of them is specific to landscape editor
 	// Trace only ECC_Visibility channel, so we do hit only Editor specific shape
-	World->LineTraceMultiByObjectType(Results, Start, End, FCollisionObjectQueryParams(ECollisionChannel::ECC_Visibility), FCollisionQueryParams(SCENE_QUERY_STAT(LandscapeTrace), true));
-
-	for (int32 i = 0; i < Results.Num(); i++)
+	if (World->LineTraceMultiByObjectType(Results, Start, End, FCollisionObjectQueryParams(ECollisionChannel::ECC_Visibility), FCollisionQueryParams(SCENE_QUERY_STAT(LandscapeTrace), true)))
 	{
-		const FHitResult& Hit = Results[i];
-		ULandscapeHeightfieldCollisionComponent* CollisionComponent = Cast<ULandscapeHeightfieldCollisionComponent>(Hit.Component.Get());
-		if (CollisionComponent)
+		if (FProcessLandscapeTraceHitsResult ProcessResult; ProcessLandscapeTraceHits(Results, ProcessResult))
 		{
-			ALandscapeProxy* HitLandscape = CollisionComponent->GetLandscapeProxy();
-			if (HitLandscape &&
-				CurrentToolTarget.LandscapeInfo.IsValid() &&
-				CurrentToolTarget.LandscapeInfo->LandscapeGuid == HitLandscape->GetLandscapeGuid())
+			OutHitLocation = ProcessResult.LandscapeProxy->LandscapeActorToWorld().InverseTransformPosition(ProcessResult.HitLocation);
+			
+			UE_VLOG_SEGMENT_THICK(World, LogLandscapeEdMode, VeryVerbose, InRayOrigin, InRayOrigin + 20000.0f * InDirection, FColor(100,255,100), 4, TEXT("landscape:ray-hit"));
+			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  ProcessResult.LandscapeProxy->LandscapeActorToWorld().TransformPosition(OutHitLocation), 20.0,  FColor(100,100,255), TEXT("landscape:point-hit"));
+			return true;
+		}
+	}
+
+	UE_VLOG_SEGMENT_THICK(World, LogLandscapeEdMode, VeryVerbose, InRayOrigin, InRayOrigin + 20000.0f * InDirection, FColor(255,100,100), 4, TEXT("landscape:ray-miss"));
+		
+	// If there is no landscape directly under the mouse search for a landscape collision
+	// under the shape of the brush.
+	FCollisionShape SphereShape;
+	SphereShape.SetSphere(UISettings->BrushRadius);
+	if ( World->SweepMultiByObjectType(Results, Start, End, FQuat::Identity, FCollisionObjectQueryParams(ECollisionChannel::ECC_Visibility), SphereShape, FCollisionQueryParams(SCENE_QUERY_STAT(LandscapeTrace), true)))
+	{
+		if (FProcessLandscapeTraceHitsResult SweepProcessResult; ProcessLandscapeTraceHits(Results, SweepProcessResult))
+		{
+			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  SweepProcessResult.HitLocation, UISettings->BrushRadius,  FColor(255,100,100), TEXT("landscape:sweep-hit-location"));
+			FSphere HitSphere(SweepProcessResult.HitLocation, UISettings->BrushRadius);
+
+			float MeanHeight = 0.0f;
+			int32 Count = 0;
+			const int32 NumHeightSamples = 16;
+			
+			for (int32 Y = 0; Y < NumHeightSamples; ++Y)
 			{
-				OutHitLocation = HitLandscape->LandscapeActorToWorld().InverseTransformPosition(Hit.Location);
-				return true;
+				float HY = (Y / (float) NumHeightSamples) * HitSphere.W * 2.0f +  HitSphere.Center.Y - HitSphere.W;
+				for (int32 X = 0; X < NumHeightSamples; ++X)
+				{
+					float HX = (X / (float) NumHeightSamples) * HitSphere.W * 2.0f +  HitSphere.Center.X - HitSphere.W;
+
+					FVector HeightSampleLocation(HX, HY, HitSphere.Center.Z);
+
+					TOptional<float> Height = SweepProcessResult.LandscapeProxy->GetHeightAtLocation(HeightSampleLocation, EHeightfieldSource::Editor);
+
+					if (!Height.IsSet())
+					{
+						continue;
+					}
+
+					UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  FVector(HX, HY, Height.GetValue()), 2.0f,  FColor(100,100,255), TEXT(""));
+					
+					MeanHeight += Height.GetValue();
+					Count++;
+				}
 			}
+
+			FVector PointOnPlane ( HitSphere.Center.X, HitSphere.Center.Y, HitSphere.Center.Z );
+			
+			if  ( Count > 0)
+			{
+				MeanHeight /= (float) Count;
+				PointOnPlane.Z = MeanHeight;
+			}
+
+			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  PointOnPlane, 10.0,  FColor(100,100,255), TEXT("landscape:point-on-plane"));
+			
+			const FPlane Plane( PointOnPlane, FVector::ZAxisVector);
+			FVector EstimatedHitLocation = FMath::RayPlaneIntersection(Start, InDirection, Plane);
+
+			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  EstimatedHitLocation, 10.0,  FColor(100,100,255), TEXT("landscape:estimated-hit-location"));
+			
+			OutHitLocation = SweepProcessResult.LandscapeProxy->LandscapeActorToWorld().InverseTransformPosition(EstimatedHitLocation);
+			return true;
 		}
 	}
 	

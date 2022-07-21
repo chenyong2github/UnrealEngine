@@ -14,6 +14,7 @@
 #include "LandscapeComponent.h"
 #include "LandscapeNaniteComponent.h"
 #include "LandscapeWeightmapUsage.h"
+#include "LandscapeHeightfieldCollisionComponent.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
 #include "ILandscapeSplineInterface.h"
@@ -382,7 +383,7 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location) const;
+	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
 
 	/** Fills an array with height values **/
 	LANDSCAPE_API void GetHeightValues(int32& SizeX, int32& SizeY, TArray<float>& ArrayValue) const;

@@ -488,7 +488,12 @@ public:
 	bool LandscapePlaneTrace(FEditorViewportClient* ViewportClient, int32 MouseX, int32 MouseY, const FPlane& Plane, FVector& OutHitLocation);
 
 	/** Trace under the specified laser start and direction and return the landscape hit and the hit location (in landscape quad space) */
-	bool LandscapeTrace(const FVector& InRayOrigin, const FVector& InRayEnd, FVector& OutHitLocation);
+	bool LandscapeTrace(const FVector& InRayOrigin, const FVector& InRayEnd, const FVector& InDirection, FVector& OutHitLocation);
+
+	struct FProcessLandscapeTraceHitsResult;
+	
+	/** Check if we've collided with the currently edited landscape, OutHitLocation is in the space of the Landscape Actor */   
+	bool ProcessLandscapeTraceHits(const TArray<FHitResult>& InResults, FProcessLandscapeTraceHitsResult& OutLandscapeTraceHitsResult);
 
 	void SetCurrentToolMode(FName ToolModeName, bool bRestoreCurrentTool = true);
 

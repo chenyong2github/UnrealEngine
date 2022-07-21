@@ -28,6 +28,13 @@ namespace Chaos
 	class FHeightField;
 }
 
+enum class EHeightfieldSource
+{
+	Simple = 0,
+	Complex = 1,
+	Editor = 2
+};
+
 UCLASS(MinimalAPI, Within=LandscapeProxy)
 class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 {
@@ -260,7 +267,7 @@ public:
 #endif
 
 public:
-	TOptional<float> GetHeight(float X, float Y);
+	TOptional<float> GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource);
 
 	/**
 	 * Populates a supplied array with the heights from the heightfield.  Samples are placed

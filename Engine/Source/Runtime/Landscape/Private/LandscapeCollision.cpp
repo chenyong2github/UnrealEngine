@@ -609,13 +609,6 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 		TUniquePtr<FColoredMaterialRenderProxy> WireframeMaterialInstance = nullptr;
 	};
 
-	enum class EHeightfieldSource
-	{
-		Simple = 0,
-		Complex = 1,
-		Editor = 2
-	};
-
 	FLandscapeHeightfieldCollisionComponentSceneProxy* Proxy = nullptr;
 
 	if (HeightfieldRef.IsValid() && IsValidRef(HeightfieldRef))
@@ -2596,14 +2589,36 @@ ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent
 	return RenderComponent.Get();
 }
 
-TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
+TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource)
 {
 	TOptional<float> Height;
 	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
 
-	if (IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
+	if (!IsValidRef(HeightfieldRef))
 	{
-		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y });
+		return Height;
+	}
+	
+	Chaos::FHeightField* HeightField = nullptr;
+	
+	switch(HeightFieldSource)
+	{
+	case EHeightfieldSource::Simple:
+		HeightField = HeightfieldRef->HeightfieldSimple.Get(); 
+		break;
+	case EHeightfieldSource::Complex:
+		HeightField = HeightfieldRef->Heightfield.Get(); 
+		break;
+#if WITH_EDITORONLY_DATA		
+	case EHeightfieldSource::Editor:
+		HeightField = HeightfieldRef->EditorHeightfield.Get();
+		break;
+#endif 
+	}
+	
+	if (HeightField)
+	{
+		Height = HeightField->GetHeightAt({ X, Y });
 	}
 
 	return Height;
@@ -2722,7 +2737,7 @@ void ULandscapeMeshCollisionComponent::GetResourceSizeEx(FResourceSizeEx& Cumula
 }
 
 
-TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
+TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource) const
 {
 	TOptional<float> Height;
 	if (ULandscapeInfo* Info = GetLandscapeInfo())
@@ -2733,7 +2748,7 @@ TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
 		if (Component)
 		{
 			const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
-			const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y);
+			const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y, HeightFieldSource);
 			if (LocalHeight.IsSet())
 			{
 				Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
