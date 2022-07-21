@@ -879,6 +879,16 @@ FFloatInterval FPoseSearchDatabaseSequence::GetEffectiveSamplingRange() const
 	return UE::PoseSearch::GetEffectiveSamplingRange(Sequence, SamplingRange);
 }
 
+UAnimationAsset* FPoseSearchDatabaseSequence::GetAnimationAsset() const
+{
+	return Sequence;
+}
+
+bool FPoseSearchDatabaseSequence::IsLooping() const
+{
+	return Sequence->bLoop;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchDatabase
 
@@ -940,6 +950,22 @@ float UPoseSearchDatabase::GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAss
 {
 	float AssetTime = GetSearchIndex()->GetAssetTime(PoseIdx, Asset);
 	return AssetTime;
+}
+
+const FPoseSearchDatabaseAnimationAssetBase& UPoseSearchDatabase::GetAnimationSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const
+{
+	if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
+	{
+		return Sequences[SearchIndexAsset->SourceAssetIdx];
+	}
+
+	if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
+	{
+		return BlendSpaces[SearchIndexAsset->SourceAssetIdx];
+	}
+
+	checkNoEntry();
+	return Sequences[SearchIndexAsset->SourceAssetIdx];
 }
 
 const FPoseSearchDatabaseSequence& UPoseSearchDatabase::GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const
@@ -1289,6 +1315,16 @@ static inline void CollectGroupIndices(
 	{
 		GroupIndices.Add(INDEX_NONE);
 	}
+}
+
+UAnimationAsset* FPoseSearchDatabaseBlendSpace::GetAnimationAsset() const
+{
+	return BlendSpace.Get();
+}
+
+bool FPoseSearchDatabaseBlendSpace::IsLooping() const
+{
+	return BlendSpace->bLoop;
 }
 
 void FPoseSearchDatabaseBlendSpace::GetBlendSpaceParameterSampleRanges(
@@ -2234,6 +2270,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 
 void UPoseSearchDatabase::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const
 {
+	check(Schema && Schema->IsValid());
 	Schema->BuildQuery(SearchContext, OutQuery);
 	OutQuery.Normalize(*GetSearchIndex());
 }

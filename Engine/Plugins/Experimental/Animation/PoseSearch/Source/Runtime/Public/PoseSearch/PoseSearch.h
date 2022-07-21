@@ -739,9 +739,19 @@ struct POSESEARCH_API FPoseSearchIndex
 //////////////////////////////////////////////////////////////////////////
 // Database
 
+USTRUCT()
+struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
+{
+	GENERATED_BODY()
+
+	virtual ~FPoseSearchDatabaseAnimationAssetBase() {}
+	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
+	virtual bool IsLooping() const { return false; }
+};
+
 /** An entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchDatabaseSequence
+struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAnimationAssetBase
 {
 	GENERATED_BODY()
 
@@ -772,11 +782,14 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	FGameplayTagContainer GroupTags;
 
 	FFloatInterval GetEffectiveSamplingRange() const;
+
+	virtual UAnimationAsset* GetAnimationAsset() const override;
+	virtual bool IsLooping() const override;
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchDatabaseBlendSpace
+struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabaseAnimationAssetBase
 {
 	GENERATED_BODY()
 
@@ -799,6 +812,9 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace
 
 	UPROPERTY(EditAnywhere, Category = "Group")
 	FGameplayTagContainer GroupTags;
+
+	virtual UAnimationAsset* GetAnimationAsset() const override;
+	virtual bool IsLooping() const override;
 
 public:
 
@@ -1130,6 +1146,7 @@ public:
 	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
 
+	const FPoseSearchDatabaseAnimationAssetBase& GetAnimationSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset* SearchIndexAsset) const;

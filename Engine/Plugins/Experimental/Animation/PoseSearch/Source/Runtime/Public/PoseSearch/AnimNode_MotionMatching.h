@@ -3,11 +3,9 @@
 #pragma once
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
-#include "Animation/AnimNode_SequencePlayer.h"
-#include "AnimNodes/AnimNode_BlendSpacePlayer.h"
-#include "AnimNodes/AnimNode_Mirror.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "DynamicPlayRate/DynamicPlayRateLibrary.h"
+#include "PoseSearch/AnimNode_BlendStack.h"
 #include "PoseSearch/PoseSearch.h"
 #include "PoseSearch/PoseSearchLibrary.h"
 
@@ -78,20 +76,10 @@ public:
 
 private:
 
-	// Embedded sequence player node for playing animations from the motion matching database
-	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
-
-	// Embedded blendspace player node for playing blendspaces from the motion matching database
-	FAnimNode_BlendSpacePlayer_Standalone BlendSpacePlayerNode;
-
-	// Embedded mirror node to handle mirroring if the pose search results in a mirrored sequence
-	FAnimNode_Mirror_Standalone MirrorNode;
+	FAnimNode_BlendStack BlendStackNode;
 
 	// Encapsulated motion matching algorithm and internal state
 	FMotionMatchingState MotionMatchingState;
-
-	// Current Asset Player Node
-	FAnimNode_AssetPlayerBase* CurrentAssetPlayerNode = &SequencePlayerNode;
 
 	// Update Counter for detecting being relevant
 	FGraphTraversalCounter UpdateCounter;
@@ -99,7 +87,7 @@ private:
 	// FAnimNode_AssetPlayerBase
 protected:
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetAccumulatedTime() const;
+	virtual float GetAccumulatedTime() const override;
 	virtual UAnimationAsset* GetAnimAsset() const override;
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
 	virtual float GetCurrentAssetLength() const override;

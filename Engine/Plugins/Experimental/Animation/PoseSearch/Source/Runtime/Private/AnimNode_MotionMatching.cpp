@@ -10,7 +10,6 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "DynamicPlayRate/DynamicPlayRateLibrary.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
-#include "PoseSearch/PoseSearch.h"
 #include "Trace/PoseSearchTraceLogger.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_MotionMatching"
@@ -24,13 +23,9 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	CurrentAssetPlayerNode = &SequencePlayerNode;
+	BlendStackNode.Initialize_AnyThread(Context);
 
-	MirrorNode.SetSourceLinkNode(CurrentAssetPlayerNode);
-
-	BlendSpacePlayerNode.SetResetPlayTimeWhenBlendSpaceChanges(false /*!bReset*/);
-
-	Source.SetLinkNode(&MirrorNode);
+	Source.SetLinkNode(&BlendStackNode);
 	Source.Initialize(Context);
 }
 
@@ -80,7 +75,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		// We adjust the motion matching state asset time to the current player node's asset time. This is done 
 		// because the player node may have ticked more or less time than we expected due to variable dt or the 
 		// dynamic playback rate adjustment and as such the motion matching state does not update by itself
-		MotionMatchingState.AdjustAssetTime(CurrentAssetPlayerNode->GetAccumulatedTime());
+		MotionMatchingState.AdjustAssetTime(BlendStackNode.GetAccumulatedTime());
 	}
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
 
@@ -96,64 +91,34 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		bForceInterrupt
 	);
 
-
-	if (MotionMatchingState.CurrentSearchResult.Database.IsValid() && 
-		MotionMatchingState.CurrentSearchResult.Database->Schema)
-	{
-		MirrorNode.SetMirrorDataTable(MotionMatchingState.CurrentSearchResult.Database->Schema->MirrorDataTable.Get());
-	}
-
+	// If a new pose is requested, blend into the new asset via BlendStackNode
+	const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
 	const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.GetCurrentSearchIndexAsset();
 
-	// If a new pose is requested, jump to the pose by updating the embedded sequence player node
-	if (SearchIndexAsset && (MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
+	if (Database && Database->Schema && SearchIndexAsset && (MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 	{
-		const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
-
-		if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
-		{
-			CurrentAssetPlayerNode = &SequencePlayerNode;
-
-			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSequenceSourceAsset(SearchIndexAsset);
-			SequencePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
-			SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
-			SequencePlayerNode.SetLoopAnimation(ResultDbSequence.Sequence->bLoop);
-			SequencePlayerNode.SetPlayRate(1.0f);
-		}
-		else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
-		{
-			CurrentAssetPlayerNode = &BlendSpacePlayerNode;
-
-			const FPoseSearchDatabaseBlendSpace& ResultDbBlendSpace = Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
-			BlendSpacePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
-			BlendSpacePlayerNode.SetBlendSpace(ResultDbBlendSpace.BlendSpace);
-			BlendSpacePlayerNode.SetLoop(ResultDbBlendSpace.BlendSpace->bLoop);
-			BlendSpacePlayerNode.SetPlayRate(1.0f);
-			BlendSpacePlayerNode.SetPosition(SearchIndexAsset->BlendParameters);
-		}
-		else
-		{
-			checkNoEntry();
-		}
-
-		MirrorNode.SetSourceLinkNode(CurrentAssetPlayerNode);
-		MirrorNode.SetMirror(SearchIndexAsset->bMirrored);
+		const FPoseSearchDatabaseAnimationAssetBase& AnimationAssetBase = Database->GetAnimationSourceAsset(SearchIndexAsset);
+		BlendStackNode.BlendTo(	SearchIndexAsset->Type, AnimationAssetBase.GetAnimationAsset(), MotionMatchingState.AssetPlayerTime,
+								AnimationAssetBase.IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
+								Settings.MaxActiveBlends, Settings.BlendTime, SearchIndexAsset->BlendParameters);
 	}
 
-	if (SearchIndexAsset && SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
+	if (!BlendStackNode.AnimPlayers.IsEmpty() && BlendStackNode.AnimPlayers[0].GetAssetType() == ESearchIndexAssetType::Sequence)
 	{
+		// @todo: integrate this functionality with the BlendStackNode
+		
 		// Optionally applying dynamic play rate adjustment to chosen sequences based on predictive motion analysis
 		const float PlayRate = DynamicPlayRateAdjustment(
 			Context,
 			Trajectory,
 			DynamicPlayRateSettings,
-			SequencePlayerNode.GetSequence(),
-			SequencePlayerNode.GetAccumulatedTime(),
-			SequencePlayerNode.GetPlayRate(),
-			SequencePlayerNode.GetLoopAnimation()
+			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetSequence(),
+			GetAccumulatedTime(),
+			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetPlayRate(),
+			BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().GetLoopAnimation()
 		);
 
-		SequencePlayerNode.SetPlayRate(PlayRate);
+		BlendStackNode.AnimPlayers[0].GetSequencePlayerNode().SetPlayRate(PlayRate);
 	}
 
 	Source.Update(Context);
@@ -210,27 +175,27 @@ void FAnimNode_MotionMatching::GatherDebugData(FNodeDebugData& DebugData)
 // FAnimNode_AssetPlayerBase interface
 float FAnimNode_MotionMatching::GetAccumulatedTime() const
 {
-	return CurrentAssetPlayerNode->GetAccumulatedTime();
+	return BlendStackNode.GetAccumulatedTime();
 }
 
 UAnimationAsset* FAnimNode_MotionMatching::GetAnimAsset() const
 {
-	return CurrentAssetPlayerNode->GetAnimAsset();
+	return BlendStackNode.GetAnimAsset();
 }
 
 float FAnimNode_MotionMatching::GetCurrentAssetLength() const
 {
-	return CurrentAssetPlayerNode->GetCurrentAssetLength();
+	return BlendStackNode.GetCurrentAssetLength();
 }
 
 float FAnimNode_MotionMatching::GetCurrentAssetTime() const
 {
-	return CurrentAssetPlayerNode->GetCurrentAssetLength();
+	return BlendStackNode.GetCurrentAssetLength();
 }
 
 float FAnimNode_MotionMatching::GetCurrentAssetTimePlayRateAdjusted() const
 {
-	return CurrentAssetPlayerNode->GetCurrentAssetTimePlayRateAdjusted();
+	return BlendStackNode.GetCurrentAssetTimePlayRateAdjusted();
 }
 
 bool FAnimNode_MotionMatching::GetIgnoreForRelevancyTest() const
