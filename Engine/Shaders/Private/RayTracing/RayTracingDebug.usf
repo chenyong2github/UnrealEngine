@@ -326,13 +326,15 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
 
 	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 
+	const uint InstanceInclusionMask = (OpaqueOnly ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_ALL);
+
 	FRayTracingDebugPayload Payload = (FRayTracingDebugPayload)0;
 	Payload.SetMiss();
 
 	TraceRay(
 		TLAS,
 		RAY_FLAG_CULL_BACK_FACING_TRIANGLES  /*RayFlags*/,
-		0xff /*InstanceInclusionMask*/,
+		InstanceInclusionMask,
 		0 /*RayContributionToHitGroupIndex*/,
 		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
 		0 /*MissShaderIndex*/,
