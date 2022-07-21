@@ -44,6 +44,7 @@ enum class EMassDebuggerProcessingGraphNodeSelection : uint8
 struct FMassDebuggerQueryData
 {
 	FMassDebuggerQueryData(const FMassEntityQuery& Query, const FText& InLabel);
+	FMassDebuggerQueryData(const FMassSubsystemRequirements& SubsystemRequirements, const FText& InLabel);
 
 	FMassExecutionRequirements ExecutionRequirements;
 	FText Label;
