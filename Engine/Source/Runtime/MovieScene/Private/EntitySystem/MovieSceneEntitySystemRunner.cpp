@@ -63,7 +63,7 @@ void FMovieSceneEntitySystemRunner::DetachFromLinker()
 {
 	if (ensureMsgf(!WeakLinker.IsExplicitlyNull(), TEXT("This runner is not attached to any linker")))
 	{
-		if (ensureMsgf(WeakLinker.IsValid(), TEXT("This runner is attached to an invalid linker!")))
+		if (!GExitPurge && ensureMsgf(WeakLinker.IsValid(), TEXT("This runner is attached to an invalid linker!")))
 		{
 			OnLinkerAbandon(WeakLinker.Get());
 		}
