@@ -76,7 +76,7 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 		FPoseHistory::ERootUpdateMode::RootMotionDelta :
 		FPoseHistory::ERootUpdateMode::ComponentTransformDelta))
 	{
-		Output.LogMessage(EMessageSeverity::Error, ErrorText);
+		Output.LogMessage(EMessageSeverity::Warning, ErrorText);
 	}
 }
 
