@@ -683,8 +683,8 @@ void FCluster::SanitizeVertexData()
 		SanitizeFloat( Position.Z, -FltThreshold, FltThreshold, 0.0f );
 
 		FVector3f& Normal = GetNormal( VertexIndex );
-		if( !(  Normal.X >= -FltThreshold && Normal.X <= FltThreshold ||
-				Normal.Y >= -FltThreshold && Normal.Y <= FltThreshold ||
+		if( !(  Normal.X >= -FltThreshold && Normal.X <= FltThreshold &&
+				Normal.Y >= -FltThreshold && Normal.Y <= FltThreshold &&
 				Normal.Z >= -FltThreshold && Normal.Z <= FltThreshold ) )	// Don't flip condition. Intentionally written like this to be NaN-safe
 		{
 			Normal = FVector3f::UpVector;
