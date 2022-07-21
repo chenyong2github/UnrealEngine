@@ -42,11 +42,8 @@ TSharedRef<FModalTaskResult> FDetectProjectSettingsTask::RunInternal(FEvent* Abo
 
 //	Directory.SetCurrentDirectory(Path.GetDirectoryName(NewSelectedFileName));
 //
-//	string ServerAndPort;
-//	if (Perforce.GetSetting("P4PORT", out ServerAndPort, Log))
-//	{
-//		Perforce = new PerforceConnection(null, null, ServerAndPort);
-//	}
+	FString ServerAndPort;
+	Perforce->GetSetting(TEXT("P4PORT"), ServerAndPort, AbortEvent, Log.Get());
 
 	// Get the Perforce server info
 	TSharedPtr<FPerforceInfoRecord> PerforceInfo;
@@ -63,6 +60,11 @@ TSharedRef<FModalTaskResult> FDetectProjectSettingsTask::RunInternal(FEvent* Abo
 		return FModalTaskResult::Failure(LOCTEXT("MissingHostNameInP4Info", "Missing host name in call to p4 info"));
 	}
 	ServerTimeZone = PerforceInfo->ServerTimeZone;
+
+	if (ServerAndPort.IsEmpty())
+	{
+		ServerAndPort = PerforceInfo->ServerAddress;
+	}
 
 	// Find all the clients on this machine
 	Log->Logf(TEXT("Enumerating clients on local machine..."));
@@ -88,7 +90,7 @@ TSharedRef<FModalTaskResult> FDetectProjectSettingsTask::RunInternal(FEvent* Abo
 					continue;
 				}
 
-				TSharedRef<FPerforceConnection> CandidateClient = MakeShared<FPerforceConnection>(*PerforceInfo->UserName, *Client.Name, *Perforce->ServerAndPort);
+				TSharedRef<FPerforceConnection> CandidateClient = MakeShared<FPerforceConnection>(*PerforceInfo->UserName, *Client.Name, *ServerAndPort);
 
 				bool bFileExists;
 				if(!CandidateClient->FileExists(NewSelectedFileName, bFileExists, AbortEvent, Log.Get()) || !bFileExists)

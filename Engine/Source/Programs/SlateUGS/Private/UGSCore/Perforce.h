@@ -232,6 +232,9 @@ public:
 	bool Sync(const TArray<FString>& DepotPaths, int ChangeNumber, TFunction<void(const FPerforceFileRecord&)> SyncOutput, TArray<FString>& OutTamperedFiles, const FPerforceSyncOptions* Options, FEvent* AbortEvent, FOutputDevice& Log) const;
 	bool LatestChangeList(int& OutChangeList, FEvent* AbortEvent, FOutputDevice& Log) const;
 
+	void OpenP4V(const FString& AdditionalArgs = FString()) const;
+	void OpenP4VC(const FString& AdditionalArgs = FString()) const;
+
 private:
 	static bool FilterSyncOutput(const FPerforceOutputLine& Line, FPerforceTagRecordParser& Parser, TArray<FString>& OutTamperedFiles, FOutputDevice& Log);
 	static void ParseTamperedFile(const FString& Line, TArray<FString>& OutTamperedFiles);
@@ -262,6 +265,8 @@ private:
 
 	bool RunCommandWithBinaryOutput(const FString& CommandLine, TArray<TMap<FString, FString>>& OutRecords, ECommandOptions Options, FEvent* AbortEvent, FOutputDevice& Log) const;
 	bool RunCommandWithBinaryOutput(const FString& CommandLine, TFunction<void(const TMap<FString, FString>&)> HandleOutput, ECommandOptions Options, FEvent* AbortEvent, FOutputDevice& Log) const;
+
+	FString GetArgumentsForExternalProgram(bool bIncludeClient = true) const;
 };
 
 ENUM_CLASS_FLAGS(FPerforceConnection::ECommandOptions)

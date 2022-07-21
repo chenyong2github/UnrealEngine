@@ -1446,6 +1446,46 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 	return FPlatformProcess::GetProcReturnCode(P4Proc, &ExitCode) == 0;
 }
 
+void FPerforceConnection::OpenP4V(const FString& AdditionalArgs) const
+{
+#if PLATFORM_WINDOWS
+	const TCHAR* P4VExe = TEXT("p4v.exe");
+#else
+	const TCHAR* P4VExe = TEXT("p4v");
+#endif
+
+	FString P4VArgs = GetArgumentsForExternalProgram() + TEXT(" ") + AdditionalArgs;
+
+	FPlatformProcess::CreateProc(P4VExe, *P4VArgs, true, true, true, nullptr, 0, nullptr, nullptr);
+	printf("%s\n", TCHAR_TO_ANSI(*P4VArgs));
+}
+
+void FPerforceConnection::OpenP4VC(const FString& AdditionalArgs) const
+{
+#if PLATFORM_WINDOWS
+	const TCHAR* P4VCExe = TEXT("p4vc.exe");
+#else
+	const TCHAR* P4VCExe = TEXT("p4vc");
+#endif
+
+	FString P4VCArgs = GetArgumentsForExternalProgram() + TEXT(" ") + AdditionalArgs;
+
+	FPlatformProcess::CreateProc(P4VCExe, *P4VCArgs, true, true, true, nullptr, 0, nullptr, nullptr);
+	printf("%s\n", TCHAR_TO_ANSI(*P4VCArgs));
+}
+
+FString FPerforceConnection::GetArgumentsForExternalProgram(bool bIncludeClient) const
+{
+	FString ExternalArgs = FString::Printf(TEXT("-p \"%s\" -u \"%s\""), *ServerAndPort, *UserName);
+
+	if (bIncludeClient && !ClientName.IsEmpty())
+	{
+		ExternalArgs += FString::Printf(TEXT(" -c \"%s\""), *ClientName);
+	}
+
+	return ExternalArgs;
+}
+
 //// FPerforceUtils ////
 
 FString FPerforceUtils::GetClientOrDepotDirectoryName(const TCHAR* ClientFile)

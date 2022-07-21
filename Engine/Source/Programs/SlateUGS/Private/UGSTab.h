@@ -43,6 +43,10 @@ public:
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
 	void OnSyncChangelist(int Changelist);
+	void OnViewInSwarmClicked(int Changelist) const;
+	void OnCopyChangeListClicked(int Changelist) const;
+	void OnMoreInfoClicked(int Changelist) const;
+	void OnOpenPerforceClicked() const;
 	void OnSyncLatest();
 	void OnSyncFilterWindowSaved(
 		const TArray<FString>& SyncViewCurrent,

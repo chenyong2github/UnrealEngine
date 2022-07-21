@@ -16,6 +16,8 @@
 #include "Widgets/SModalTaskWindow.h"
 #include "Widgets/SLogWidget.h"
 
+#include "HAL/PlatformApplicationMisc.h"
+
 #include "Internationalization/Regex.h"
 
 #define LOCTEXT_NAMESPACE "UGSTab"
@@ -206,6 +208,28 @@ void UGSTab::OnSyncChangelist(int Changelist)
 
 	// Update the workspace with the Context!
 	Workspace->Update(Context);
+}
+
+void UGSTab::OnViewInSwarmClicked(int Changelist) const
+{
+	FString SwarmURL = FString::Printf(TEXT("https://p4-swarm.epicgames.net/changes/%i"), Changelist);
+
+	FPlatformProcess::LaunchURL(*SwarmURL, nullptr, nullptr);
+}
+
+void UGSTab::OnCopyChangeListClicked(int Changelist) const
+{
+	FPlatformApplicationMisc::ClipboardCopy(*FString::FromInt(Changelist));
+}
+
+void UGSTab::OnMoreInfoClicked(int Changelist) const
+{
+	PerforceClient->OpenP4VC(FString::Printf(TEXT("change %i"), Changelist));
+}
+
+void UGSTab::OnOpenPerforceClicked() const
+{
+	PerforceClient->OpenP4V();
 }
 
 void UGSTab::OnSyncLatest()

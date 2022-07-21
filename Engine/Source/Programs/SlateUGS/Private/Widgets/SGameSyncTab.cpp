@@ -235,7 +235,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("OpenPerforce", "Open Perforce"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Blueprints")) // Todo: shouldn't use this icon (repurposing)
-						.IsEnabled(false) // Todo: enable after adding this functionality
+						.OnClicked_Lambda([this] { Tab->OnOpenPerforceClicked(); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -481,6 +481,35 @@ TSharedPtr<SWidget> SGameSyncTab::OnRightClickedBuild()
 			FText::FromString("Sync to CL " + FString::FromInt(SelectedItems[0]->Changelist)),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnSyncChangelist, SelectedItems[0]->Changelist)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddSeparator();
+
+		MenuBuilder.AddMenuEntry(
+			FText::FromString(TEXT("View in Swarm...")),
+			TAttribute<FText>(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnViewInSwarmClicked, SelectedItems[0]->Changelist)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry(
+			FText::FromString(TEXT("Copy Changelist")),
+			TAttribute<FText>(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnCopyChangeListClicked, SelectedItems[0]->Changelist)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry(
+			FText::FromString(TEXT("More Info")),
+			TAttribute<FText>(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(Tab, &UGSTab::OnMoreInfoClicked, SelectedItems[0]->Changelist)),
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
