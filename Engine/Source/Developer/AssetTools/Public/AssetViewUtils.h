@@ -125,6 +125,9 @@ namespace AssetViewUtils
 
 	/** Returns true if the passed-in path is a plugin folder, optionally reporting where the plugin was loaded from */
 	ASSETTOOLS_API bool IsPluginFolder(const FStringView InPath, EPluginLoadedFrom* OutPluginSource = nullptr);
+	
+	/** If the passed-in path is a plugin folder, then return its associated plugin */
+	ASSETTOOLS_API TSharedPtr<IPlugin> GetPluginForFolder(const FStringView InPath);
 
 	/** Get all the objects in a list of asset data */
 	ASSETTOOLS_API void GetObjectsInAssetData(const TArray<FAssetData>& AssetList, TArray<UObject*>& OutDroppedObjects);
