@@ -7,6 +7,8 @@
 #include "Components/TextBlock.h"
 #include "CommonTextBlock.generated.h"
 
+class UCommonStyleSheet;
+
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  * We return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
@@ -181,7 +183,16 @@ public:
 	void SetTextCase(bool bUseAllCaps);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text")
+	void SetLineHeightPercentage(float InLineHeightPercentage);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Text")
 	void SetStyle(TSubclassOf<UCommonTextStyle> InStyle);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Text")
+	const FMargin& GetMargin();
+
+	UFUNCTION(BlueprintCallable, Category = "Common Text")
+	void SetMargin(const FMargin& InMargin);
 
 	UFUNCTION(BlueprintCallable, Category = "Common Text|Scroll Style")
 	void ResetScrollState();
@@ -207,6 +218,10 @@ private:
 	/** References the scroll style asset to use, no reference disables scrolling*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
+
+	/** References the scroll style asset to use, no reference disables scrolling*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	TObjectPtr<UCommonStyleSheet> StyleSheet;
 
 	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))

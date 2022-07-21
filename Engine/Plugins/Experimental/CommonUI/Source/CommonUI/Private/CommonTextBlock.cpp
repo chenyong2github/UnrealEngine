@@ -9,6 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Layout/LayoutUtils.h"
 #include "Types/ReflectionMetadata.h"
+#include "StyleSheet/CommonStyleSheet.h"
 
 void STextScroller::Construct(const FArguments& InArgs)
 {
@@ -521,10 +522,25 @@ void UCommonTextBlock::SetTextCase(bool bUseAllCaps)
 	SynchronizeProperties();
 }
 
+void UCommonTextBlock::SetLineHeightPercentage(float InLineHeightPercentage)
+{
+	LineHeightPercentage = InLineHeightPercentage;
+}
+
 void UCommonTextBlock::SetStyle(TSubclassOf<UCommonTextStyle> InStyle)
 {
 	Style = InStyle;
 	SynchronizeProperties();
+}
+
+const FMargin& UCommonTextBlock::GetMargin()
+{
+	return Margin;
+}
+
+void UCommonTextBlock::SetMargin(const FMargin& InMargin)
+{
+	Margin = InMargin;
 }
 
 void UCommonTextBlock::ResetScrollState()
@@ -611,6 +627,11 @@ void UCommonTextBlock::UpdateFromStyle()
 			SetShadowOffset(FVector2D::ZeroVector);
 			SetShadowColorAndOpacity(FLinearColor::Transparent);
 		}
+	}
+
+	if (UCommonStyleSheet* StyleSheetPtr = StyleSheet.Get())
+	{
+		StyleSheetPtr->Apply(this);
 	}
 }
 
