@@ -173,6 +173,10 @@ namespace GLTF
 				break;
 				case KHR_materials_transmission:
 				{
+					if (Material.AlphaMode == FMaterial::EAlphaMode::Blend)
+					{
+						break;
+					}
 					const FJsonObject& Transm = ExtObj;
 
 					Material.bHasTransmission = true;
