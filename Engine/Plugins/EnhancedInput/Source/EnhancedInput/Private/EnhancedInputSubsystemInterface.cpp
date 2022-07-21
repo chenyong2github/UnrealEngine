@@ -52,14 +52,6 @@ void IEnhancedInputSubsystemInterface::ClearAllMappings()
 	}
 }
 
-void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease)
-{
-	FModifyContextOptions Options {};
-	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
-	
-	AddMappingContext(MappingContext, Priority, Options);
-}
-
 void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options)
 {
 	// Layer mappings on top of existing mappings
@@ -73,14 +65,6 @@ void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingCont
 	}
 }
 
-void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease)
-{
-	FModifyContextOptions Options {};
-	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
-	
-	RemoveMappingContext(MappingContext, Options);
-}
-
 void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options)
 {
 	if (MappingContext)
@@ -91,15 +75,6 @@ void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingC
 			RequestRebuildControlMappings(Options);
 		}
 	}
-}
-
-void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForceImmediately, const bool bIgnoreAllPressedKeysUntilRelease)
-{
-	FModifyContextOptions Options;
-	Options.bForceImmediately = bForceImmediately;
-	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
-	
-	RequestRebuildControlMappings(Options);
 }
 
 void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(const FModifyContextOptions& Options, EInputMappingRebuildType MappingRebuildType)

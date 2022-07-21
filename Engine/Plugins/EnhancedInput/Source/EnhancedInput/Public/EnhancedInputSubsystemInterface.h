@@ -96,16 +96,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")
 	virtual void ClearAllMappings();
-
-	/**
-	 * Add a control mapping context.
-	 * 
-	 * @param MappingContext		A set of key to action mappings to apply to this player
-	 * @param Priority				Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
-	 * @param bIgnoreAllPressedKeysUntilRelease	If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
-	 */
-	UE_DEPRECATED(5.0, "This version of AddMappingContext has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
-	virtual void AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease);
 	
 	/**
 	 * Add a control mapping context.
@@ -115,15 +105,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AutoCreateRefTerm = "Options"))
 	virtual void AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options = FModifyContextOptions());
-	
-	/**
-	 * Remove a specific control context. 
-	 * This is safe to call even if the context is not applied.
-	 * @param MappingContext		Context to remove from the player
-	 * @param bIgnoreAllPressedKeysUntilRelease	If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
-	 */
-	UE_DEPRECATED(5.0, "This version of RemoveMappingContext has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
-	virtual void RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease);
 
 	/**
 	* Remove a specific control context. 
@@ -133,14 +114,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AutoCreateRefTerm = "Options"))
 	virtual void RemoveMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options = FModifyContextOptions());
-	
-	/**
-	 * Flag player for reapplication of all mapping contexts at the end of this frame.
-	 * This is called automatically when adding or removing mappings contexts.
-	 * @param bForceImmediately		THe mapping changes will be applied synchronously, rather than at the end of the frame, making them available to the input system on the same frame.
-	 */
-	UE_DEPRECATED(5.0, "This version of RequestRebuildControlMappings has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
-	virtual void RequestRebuildControlMappings(bool bForceImmediately, const bool bIgnoreAllPressedKeysUntilRelease = true);
 
 	/**
 	* Flag player for reapplication of all mapping contexts at the end of this frame.
