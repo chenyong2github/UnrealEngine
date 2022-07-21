@@ -11,9 +11,11 @@
 
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "Tracks/MovieSceneLevelVisibilityTrack.h"
 #include "Tracks/MovieSceneParticleTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/LightComponentBase.h"
@@ -272,6 +274,28 @@ class FSequencerTrackFilter_ParticleTracks : public FSequencerTrackFilter_ClassT
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_ParticleTracks", "Particle Systems"); }
 	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_ParticleTracksToolTip", "Show only Particle System tracks."); }
 	virtual FSlateIcon GetIcon() const override { return FSlateIconFinder::FindIconForClass(UParticleSystem::StaticClass()); }
+};
+
+class FSequencerTrackFilter_CinematicShotTracks : public FSequencerTrackFilter_ClassType< UMovieSceneCinematicShotTrack >
+{
+	virtual FString GetName() const override { return TEXT("SequencerCinematicShotTracksFilter"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_CinematicShotTracks", "Shots"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_CinematicShotTracksToolTip", "Show only Shot tracks."); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.CinematicShot"); }
+};
+
+class FSequencerTrackFilter_SubTracks : public FSequencerTrackFilter_ClassType< UMovieSceneSubTrack >
+{
+	virtual FString GetName() const override { return TEXT("SequencerSubTracksFilter"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("SequencerTrackFilter_SubTracks", "Subsequences"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_SubTracksToolTip", "Show only Subsequence tracks."); }
+	virtual FSlateIcon GetIcon() const override { return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Sub"); }
+
+	// IFilter implementation
+	virtual bool PassesFilter(FTrackFilterType InItem) const override
+	{
+		return InItem->IsA(UMovieSceneSubTrack::StaticClass()) && !InItem->IsA(UMovieSceneCinematicShotTrack::StaticClass());
+	}
 };
 
 class FSequencerTrackFilter_SkeletalMeshObjects : public FSequencerTrackFilter_ComponentType< USkeletalMeshComponent >

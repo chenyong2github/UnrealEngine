@@ -987,6 +987,8 @@ void SSequencer::InitializeTrackFilters()
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_EventTracks>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LevelVisibilityTracks>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_ParticleTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CinematicShotTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_SubTracks>());
 
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CameraObjects>());
 	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LightObjects>());

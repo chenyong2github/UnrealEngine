@@ -28,8 +28,6 @@
 #include "IKeyArea.h"
 #include "ISequencerSection.h"
 #include "MovieSceneSequence.h"
-#include "Tracks/MovieSceneCinematicShotTrack.h"
-#include "Tracks/MovieSceneSubTrack.h"
 #include "Sequencer.h"
 #include "MovieSceneFolder.h"
 #include "ISequencerTrackEditor.h"
@@ -686,7 +684,6 @@ static bool FilterNodesRecursive(
 
 	bool bPassedAnyFilters = false;
 	bool bIsTrackOrObjectBinding = false;
-	bool bIsSubTrack = false;
 
 	TSharedPtr<IPinnableExtension> Pinnable = StartNode.ImplicitCast();
 	const bool bIsPinned = Pinnable && Pinnable->IsPinned();
@@ -696,14 +693,6 @@ static bool FilterNodesRecursive(
 		bIsTrackOrObjectBinding = true;
 
 		UMovieSceneTrack* Track = TrackModel->GetTrack();
-
-		// Always show subsequence tracks so that the user can navigate up and down the hierarchy with the filter
-		if (Track && Track->IsA<UMovieSceneSubTrack>())
-		{
-			bPassedAnyFilters = true;
-			bIsSubTrack = true;
-			goto NextStep;
-		}
 
 		for (TSharedPtr<FChannelGroupModel> ChannelGroupModel : StartNode.AsModel()->GetDescendantsOfType<FChannelGroupModel>())
 		{
@@ -902,9 +891,7 @@ static bool FilterNodesRecursive(
 		}
 	}
 
-NextStep:
-
-	if (bPassedAnyFilters && !bIsSubTrack)
+	if (bPassedAnyFilters)
 	{
 		// If filtering on selection set is enabled, we need to run another pass to verify we're in an enabled node group
 		UMovieSceneNodeGroupCollection& NodeGroups = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetNodeGroups();
