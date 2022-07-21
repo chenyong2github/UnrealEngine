@@ -106,6 +106,7 @@ struct FPlatformAudioCookOverrides
 		{
 			return;
 		}
+		OutSuffix.AppendChar('_');
 
 		int32 CompressionQualityHash = FMath::FloorToInt(InOverrides->CompressionQualityModifier * 100.0f);
 		OutSuffix.AppendInt(CompressionQualityHash);
