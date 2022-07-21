@@ -330,6 +330,8 @@ void UMediaPlateComponent::OnVisibleMipsTilesCalculationsChange()
 
 void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	// Has bEnableAudiio changed?
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bEnableAudio))
 	{
