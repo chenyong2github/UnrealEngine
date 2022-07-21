@@ -225,6 +225,7 @@ public:
 	/** @return The root movie scene being used */
 	virtual FMovieSceneSequenceIDRef GetRootTemplateID() const = 0;
 	virtual FMovieSceneSequenceIDRef GetFocusedTemplateID() const = 0;
+	virtual const TArray<FMovieSceneSequenceID>& GetSubSequenceHierarchy() const = 0;
 
 	/** Attempt to locate the sub section that relates to the specified sequence ID. */
 	virtual UMovieSceneSubSection* FindSubSection(FMovieSceneSequenceID SequenceID) const = 0;
@@ -243,6 +244,11 @@ public:
 	 * @param Section The sub-movie scene section containing the sequence instance to get.
 	 */
 	virtual void FocusSequenceInstance(UMovieSceneSubSection& Section) = 0;
+
+	/**
+	 * Pops the current focused movie scene from the stack.  The parent of this movie scene will be come the focused one
+	 */
+	virtual void PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID) = 0;
 
 	/**
 	 * Retrieve the top level view model for this sequence

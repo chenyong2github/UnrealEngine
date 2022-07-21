@@ -19,6 +19,8 @@
 //For custom colors on channels, stored in editor pref's
 #include "CurveEditorSettings.h"
 
+#include "Sections/MovieSceneSubSection.h"
+
 namespace
 {
 	static TWeakPtr<ISequencer> CurrentSequencer;
@@ -50,6 +52,47 @@ ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence()
 		return Cast<ULevelSequence>(CurrentSequencer.Pin()->GetFocusedMovieSceneSequence());
 	}
 	return nullptr;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::FocusLevelSequence(UMovieSceneSubSection* SubSection)
+{
+	if (CurrentSequencer.IsValid() && IsValid(SubSection))
+	{
+		CurrentSequencer.Pin()->FocusSequenceInstance(*SubSection);
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::FocusParentSequence()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		const TArray<FMovieSceneSequenceID>& Hierarchy = CurrentSequencer.Pin()->GetSubSequenceHierarchy();
+
+		if (Hierarchy.Num() > 1)
+		{
+			CurrentSequencer.Pin()->PopToSequenceInstance(Hierarchy[Hierarchy.Num() -2]);
+		}
+	}
+}
+
+TArray<UMovieSceneSubSection*> ULevelSequenceEditorBlueprintLibrary::GetSubSequenceHierarchy()
+{
+	TArray<UMovieSceneSubSection*> SectionsHierarchy;
+	
+	if (CurrentSequencer.IsValid())
+	{
+		const TArray<FMovieSceneSequenceID>& Hierarchy = CurrentSequencer.Pin()->GetSubSequenceHierarchy();
+
+		for (const FMovieSceneSequenceID Item : Hierarchy)
+		{
+			if (Item != MovieSceneSequenceID::Root)
+			{
+				// We return the whole hierarchy anyways, leaving it to the user to check for invalid pointers.
+				SectionsHierarchy.Add(CurrentSequencer.Pin()->FindSubSection(Item));
+			}
+		}
+	}
+	return SectionsHierarchy;
 }
 
 void ULevelSequenceEditorBlueprintLibrary::CloseLevelSequence()

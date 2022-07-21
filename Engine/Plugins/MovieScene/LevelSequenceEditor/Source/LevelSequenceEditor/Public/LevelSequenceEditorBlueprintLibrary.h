@@ -13,6 +13,7 @@ class ISequencer;
 class ULevelSequence;
 class UMovieSceneFolder;
 class UMovieSceneSection;
+class UMovieSceneSubSection;
 class UMovieSceneTrack;
 
 USTRUCT(BlueprintType)
@@ -62,6 +63,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static ULevelSequence* GetFocusedLevelSequence();
 
+	/*
+	 * Focus/view the sequence associated to the given sub sequence section.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void FocusLevelSequence(UMovieSceneSubSection* SubSection);
+
+	/*
+	 * Focus/view the parent sequence, popping out of the current sub sequence section.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void FocusParentSequence();
+
+	/*
+	 * Get the current sub section hierarchy from the current sequence to the section associated with the focused sequence.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static TArray<UMovieSceneSubSection*> GetSubSequenceHierarchy();
+	
 	/*
 	 * Close
 	 */
