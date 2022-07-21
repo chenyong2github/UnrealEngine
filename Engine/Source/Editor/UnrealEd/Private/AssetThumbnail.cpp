@@ -1546,7 +1546,10 @@ void FAssetThumbnailPool::OnActorPostEditMove( AActor* Actor )
 
 void FAssetThumbnailPool::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
 {
-	DirtyThumbnailForObject(ObjectBeingModified);
+	if(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		DirtyThumbnailForObject(ObjectBeingModified);
+	}
 }
 
 void FAssetThumbnailPool::DirtyThumbnailForObject(UObject* ObjectBeingModified)
