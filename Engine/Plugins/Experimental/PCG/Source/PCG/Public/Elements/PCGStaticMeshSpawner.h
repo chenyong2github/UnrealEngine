@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PCGSettings.h"
+#include "InstancePackers/PCGInstancePackerBase.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 
 #include "Engine/CollisionProfile.h"
@@ -62,14 +63,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetMeshSelectorType(TSubclassOf<UPCGMeshSelectorBase> InMeshSelectorType);
 
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetInstancePackerType(TSubclassOf<UPCGInstancePackerBase> InInstancePackerType);
+
 public:
+	/** Defines the method of mesh selection per input data */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, NoClear, Category = Settings)
 	TSubclassOf<UPCGMeshSelectorBase> MeshSelectorType;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings)
 	TObjectPtr<UPCGMeshSelectorBase> MeshSelectorInstance;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Settings)
+	/** Defines the method of custom data packing for spawned (H)ISMCs */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings)
+	TSubclassOf<UPCGInstancePackerBase> InstancePackerType;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings)
+	TObjectPtr<UPCGInstancePackerBase> InstancePackerInstance = nullptr;
+
+	/** Attribute name to store mesh SoftObjectPaths inside if the output pin is connected. Note: Will overwrite existing data if the attribute name already exists. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutAttributeName = NAME_None;
 
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use MeshSelectorType and MeshSelectorInstance instead."))
@@ -78,7 +91,8 @@ public:
 	bool bForceConnectOutput = false;
 
 protected:
-	void RefreshMeshSelector(); 
+	void RefreshMeshSelector();
+	void RefreshInstancePacker();
 };
 
 class FPCGStaticMeshSpawnerElement : public FSimplePCGElement
@@ -89,6 +103,6 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;	
-	void SpawnStaticMeshInstances(FPCGContext* Context, const TArray<FPCGMeshInstanceList>& MeshInstances, AActor* TargetActor) const;
+	void SpawnStaticMeshInstances(FPCGContext* Context, const FPCGMeshInstanceList& InstanceList, AActor* TargetActor, const FPCGPackedCustomData& PackedCustomData) const;
 };
 

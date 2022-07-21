@@ -92,6 +92,6 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 
 		int32 Index = INDEX_NONE;
 		FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, Index);
-		OutMeshInstances[Index].Instances.Emplace(Point.Transform);
+		OutMeshInstances[Index].Instances.Emplace(Point);
 	}
 }

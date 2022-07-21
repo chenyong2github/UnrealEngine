@@ -198,7 +198,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		{
 			const int32 Index = InstancesAndWeights->InstanceListIndices[RandomPick];
 			FPCGMeshInstanceList& InstanceList = OutMeshInstances[Index];
-			InstanceList.Instances.Emplace(Point.Transform);
+			InstanceList.Instances.Emplace(Point);
 
 			const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
 

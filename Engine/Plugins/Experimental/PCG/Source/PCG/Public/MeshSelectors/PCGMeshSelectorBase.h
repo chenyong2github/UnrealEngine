@@ -41,7 +41,7 @@ struct FPCGMeshInstanceList
 	TArray<UMaterialInterface*> MaterialOverrides;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-    TArray<FTransform> Instances;
+    TArray<FPCGPoint> Instances;
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))

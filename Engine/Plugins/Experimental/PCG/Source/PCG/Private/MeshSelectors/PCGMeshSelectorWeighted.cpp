@@ -103,7 +103,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			if (RandomPick < OutMeshInstances.Num())
 			{
 				FPCGMeshInstanceList& InstanceList = OutMeshInstances[RandomPick];
-				InstanceList.Instances.Emplace(Point.Transform);
+				InstanceList.Instances.Emplace(Point);
 
 				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
 

@@ -29,6 +29,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 {
 	UStaticMesh* InMesh = InParams.Mesh;
 	const TArray<UMaterialInterface*>& InMaterials = InParams.MaterialOverrides;
+	const int32 InNumCustomDataFloats = InParams.NumCustomDataFloats;
 
 	check(InTargetActor != nullptr && InMesh != nullptr);
 	check(InSourceComponent);
@@ -53,7 +54,8 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 		if (ISMC && 
 			ISMC->GetStaticMesh() == InMesh &&
-			ISMC->ComponentTags.Contains(InSourceComponent->GetFName()))
+			ISMC->ComponentTags.Contains(InSourceComponent->GetFName()) &&
+			ISMC->NumCustomDataFloats == InNumCustomDataFloats)
 		{
 			// If materials are provided, we'll make sure they match to the already set materials.
 			// If not provided, we'll make sure that the current materials aren't overriden

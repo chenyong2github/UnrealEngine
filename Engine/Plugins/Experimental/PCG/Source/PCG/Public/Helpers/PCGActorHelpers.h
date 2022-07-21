@@ -27,6 +27,7 @@ struct FPCGISMCBuilderParameters
 	TArray<UMaterialInterface*> MaterialOverrides;
 	EComponentMobility::Type Mobility = EComponentMobility::Static;
 	FName CollisionProfile = TEXT("Default");
+	int32 NumCustomDataFloats = 0;
 };
 
 UCLASS(BlueprintType)
