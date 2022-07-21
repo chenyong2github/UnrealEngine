@@ -60,7 +60,7 @@ public:
 protected:
 	TSharedRef<SWidget> OnPropertyNameContent(TSharedPtr<IPropertyHandle> ChildPropertyHandle, TSharedPtr<SInlineEditableTextBlock> InlineWidget) const;
 
-	TSharedPtr<IPropertyHandle> StructProperty;
+	TSharedPtr<IPropertyHandle> BagStructProperty;
 	IPropertyUtilities* PropUtils = nullptr;
 	bool bFixedLayout = false;
 };

@@ -142,10 +142,24 @@ FInstancedStructDataDetails::FInstancedStructDataDetails(TSharedPtr<IPropertyHan
 
 void FInstancedStructDataDetails::OnStructValuePreChange()
 {
+	PreChangeOuterObjects.Reset();
+
 	// Forward the change event to the real struct handle
 	if (StructProperty && StructProperty->IsValidHandle())
 	{
 		StructProperty->NotifyPreChange();
+
+		// Store the outer objects for the Actor Component special case (see FInstancedStructDataDetails::OnStructValuePostChange).
+		TArray<UObject*> OuterObjects;
+		StructProperty->GetOuterObjects(OuterObjects);
+		
+		for (UObject* Outer : OuterObjects)
+		{
+			if (Outer != nullptr)
+			{
+				PreChangeOuterObjects.Add(FSoftObjectPtr(Outer));
+			}
+		}
 	}
 }
 
@@ -156,6 +170,24 @@ void FInstancedStructDataDetails::OnStructValuePostChange()
 	{
 		TGuardValue<bool> HandlingStructValuePostChangeGuard(bIsHandlingStructValuePostChange, true);
 
+		// When an InstancedStruct is on an Actor Component, the details customization gets rebuild between
+		// the OnStructValuePreChange() and OnStructValuePostChange() calls due to AActor::RerunConstructionScripts().
+		// When the new details panel is build, it will clear the outer objects of the StructProperty property handle, and then setting the value will fail.
+		// To overcome that, we restore the outer objects based on the objects stored in OnStructValuePreChange(). 
+		if (StructProperty->GetNumOuterObjects() == 0 && PreChangeOuterObjects.Num() > 0)
+		{
+			TArray<UObject*> OuterObjects;
+			for (FSoftObjectPtr& SoftOuterObject : PreChangeOuterObjects)
+			{
+				if (UObject* OuterObject = SoftOuterObject.Get())
+				{
+					OuterObjects.Add(OuterObject);
+				}
+			}
+			
+			StructProperty->ReplaceOuterObjects(OuterObjects);
+		}
+		
 		// Copy the modified struct data back to the source instances
 		{
 			FInstancedStruct TmpInstancedStruct;

@@ -444,11 +444,11 @@ bool CanHaveMemberVariableOfType(const FEdGraphPinType& PinType)
 
 FPropertyBagInstanceDataDetails::FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InValueProperty, TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout)
 	: FInstancedStructDataDetails(InValueProperty)
-	, StructProperty(InStructProperty)
+	, BagStructProperty(InStructProperty)
 	, PropUtils(InPropUtils)
 	, bFixedLayout(bInFixedLayout)
 {
-	ensure(UE::StructUtils::Private::IsScriptStruct<FInstancedPropertyBag>(StructProperty));
+	ensure(UE::StructUtils::Private::IsScriptStruct<FInstancedPropertyBag>(BagStructProperty));
 	ensure(PropUtils != nullptr);
 }
 
@@ -474,7 +474,7 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 			.OnVerifyTextChanged_Lambda([this, ChildPropertyHandle](const FText& InText, FText& OutErrorMessage)
 			{
 				const FName NewName = UE::StructUtils::Private::GetValidPropertyName(InText.ToString());
-				bool bResult = UE::StructUtils::Private::IsUniqueName(NewName, ChildPropertyHandle->GetProperty()->GetFName(), StructProperty);
+				bool bResult = UE::StructUtils::Private::IsUniqueName(NewName, ChildPropertyHandle->GetProperty()->GetFName(), BagStructProperty);
 				if (!bResult)
 				{
 					OutErrorMessage = LOCTEXT("MustBeUniqueName", "Property must have unique name");
@@ -489,13 +489,13 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 				}
 
 				const FName NewName = UE::StructUtils::Private::GetValidPropertyName(InNewText.ToString());
-				if (!UE::StructUtils::Private::IsUniqueName(NewName, ChildPropertyHandle->GetProperty()->GetFName(), StructProperty))
+				if (!UE::StructUtils::Private::IsUniqueName(NewName, ChildPropertyHandle->GetProperty()->GetFName(), BagStructProperty))
 				{
 					return;
 				}
 
 				UE::StructUtils::Private::ApplyChangesToPropertyDescs(
-					LOCTEXT("OnPropertyNameChanged", "Change Property Name"), StructProperty, PropUtils,
+					LOCTEXT("OnPropertyNameChanged", "Change Property Name"), BagStructProperty, PropUtils,
 					[&NewName, &ChildPropertyHandle](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
 					{
 						const FProperty* Property = ChildPropertyHandle->GetProperty();
@@ -587,7 +587,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 
 	auto GetPinInfo = [this, ChildPropertyHandle]()
 	{
-		TArray<FPropertyBagPropertyDesc> PropertyDescs = UE::StructUtils::Private::GetCommonPropertyDescs(StructProperty);
+		TArray<FPropertyBagPropertyDesc> PropertyDescs = UE::StructUtils::Private::GetCommonPropertyDescs(BagStructProperty);
 
 		const FProperty* Property = ChildPropertyHandle->GetProperty();
 		if (FPropertyBagPropertyDesc* Desc = PropertyDescs.FindByPredicate([Property](const FPropertyBagPropertyDesc& Desc){ return Desc.CachedProperty == Property; }))
@@ -601,7 +601,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 	auto PinInfoChanged = [this, ChildPropertyHandle](const FEdGraphPinType& PinType)
 	{
 		UE::StructUtils::Private::ApplyChangesToPropertyDescs(
-			LOCTEXT("OnPropertyTypeChanged", "Change Property Type"), StructProperty, PropUtils,
+			LOCTEXT("OnPropertyTypeChanged", "Change Property Type"), BagStructProperty, PropUtils,
 			[&PinType, &ChildPropertyHandle](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
 			{
 				// Find and change struct type
@@ -616,7 +616,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 	auto RemoveProperty = [this, ChildPropertyHandle]()
 	{
 		UE::StructUtils::Private::ApplyChangesToPropertyDescs(
-			LOCTEXT("OnPropertyRemoved", "Remove Property"), StructProperty, PropUtils,
+			LOCTEXT("OnPropertyRemoved", "Remove Property"), BagStructProperty, PropUtils,
 			[&ChildPropertyHandle](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
 			{
 				const FProperty* Property = ChildPropertyHandle->GetProperty();
@@ -627,7 +627,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 	auto MoveProperty = [this, ChildPropertyHandle](const int32 Delta)
 	{
 		UE::StructUtils::Private::ApplyChangesToPropertyDescs(
-		LOCTEXT("OnPropertyMoved", "Move Property"), StructProperty, PropUtils,
+		LOCTEXT("OnPropertyMoved", "Move Property"), BagStructProperty, PropUtils,
 		[&ChildPropertyHandle, &Delta](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
 		{
 			// Move
