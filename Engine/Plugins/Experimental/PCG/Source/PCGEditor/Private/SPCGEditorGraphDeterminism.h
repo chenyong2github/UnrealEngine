@@ -7,7 +7,7 @@
 
 class FPCGEditor;
 
-typedef TSharedPtr<PCGDeterminismTests::FNodeTestResult> FPCGNodeTestResultPtr;
+typedef TSharedPtr<FDeterminismNodeTestResult> FPCGNodeTestResultPtr;
 
 struct FTestColumnInfo
 {
@@ -29,13 +29,14 @@ class SPCGEditorGraphDeterminismRow final : public SMultiColumnTableRow<FPCGNode
 	SLATE_END_ARGS()
 
 	/** Construct a row of the ListView */
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGNodeTestResultPtr& Item);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGNodeTestResultPtr& Item, int32 ItemIndex);
 
 	/** Generates a column, given the column's ID */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnId) override;
 
 protected:
 	FPCGNodeTestResultPtr CurrentItem;
+	int32 CurrentIndex = -1;
 };
 
 class SPCGEditorGraphDeterminismListView final : public SCompoundWidget
@@ -45,19 +46,29 @@ public:
 	SLATE_END_ARGS()
 
 	/** Construct the ListView */
-	void Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor, const TArray<FTestColumnInfo>& InTestColumn);
+	void Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor);
 	/** Add an item to the ListView */
 	void AddItem(const FPCGNodeTestResultPtr& Item);
 	/** Clear all items from the ListView */
-	void Clear();
+	void ClearItems();
 	/** Refreshes the ListView */
-	void Refresh();
+	void RefreshItems();
+	/** Adds a test column to the ListView */
+	void AddColumn(const FTestColumnInfo& ColumnInfo);
+	/** Builds the default columns for the widget */
+	void BuildBaseColumns();
+	/** Adds the additional details column */
+	void AddDetailsColumn();
+
 	/** Validates if the ListView has been constructed */
 	bool WidgetIsConstructed() const;
 
 private:
+	/** Clears the columns of the widget */
+	void ClearColumns();
 	/** Generate the row widget */
 	TSharedRef<ITableRow> OnGenerateRow(const FPCGNodeTestResultPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+	TSharedPtr<SHeaderRow> GeneratedHeaderRow;
 
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
 
@@ -65,4 +76,5 @@ private:
 	TArray<FPCGNodeTestResultPtr> ListViewItems;
 
 	bool bIsConstructed = false;
+	mutable int32 ItemIndexCounter = -1;
 };

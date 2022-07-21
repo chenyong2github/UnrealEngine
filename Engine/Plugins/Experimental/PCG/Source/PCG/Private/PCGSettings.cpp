@@ -16,7 +16,7 @@ public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 #if WITH_EDITORONLY_DATA
-		return InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings);
+		return InProperty && (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings) || InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings));
 #else
 		return FArchiveObjectCrc32::ShouldSkipProperty(InProperty);
 #endif // WITH_EDITORONLY_DATA
@@ -94,7 +94,11 @@ UPCGNode* UPCGSettings::CreateNode() const
 void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings))
+	{
+		OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
+	}
 }
 
 void UPCGSettings::DirtyCache()

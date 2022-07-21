@@ -19,22 +19,16 @@
 
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 
-namespace
-{
-	const FText TEXT_BasicTest = LOCTEXT("BasicTests", "Basic Tests");
-	const FText TEXT_OrderIndependenceTest = LOCTEXT("OrderIndependence", "Order Independence");
-}
-
 namespace PCGDeterminismTests
 {
-	bool LogInvalidTest(const UPCGNode* InPCGNode, FNodeTestResult& OutResult)
+	bool LogInvalidTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult)
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attempting to run an invalid determinism test"));
 		OutResult.AdditionalDetails.Add(TEXT("Invalid test"));
 		return false;
 	}
 
-	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FNodeTestResult& OutResult, const FNodeTestInfo& TestToRun)
+	void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult, const FNodeTestInfo& TestToRun)
 	{
 		if (!InPCGNode || !InPCGNode->DefaultSettings)
 		{
@@ -44,7 +38,6 @@ namespace PCGDeterminismTests
 			return;
 		}
 
-		OutResult.Seed = InPCGNode->DefaultSettings->Seed;
 		bool bTestWasSuccessful = TestToRun.TestDelegate(InPCGNode, TestToRun.TestName, OutResult);
 		OutResult.bFlagRaised |= !bTestWasSuccessful;
 
@@ -57,13 +50,7 @@ namespace PCGDeterminismTests
 		}
 	}
 
-	PCG_API void RetrieveBasicTests(TArray<FNodeTestInfo>& OutBasicTests)
-	{
-		OutBasicTests.Emplace(TEXT_BasicTest, RunBasicTestSuite, 80.f);
-		OutBasicTests.Emplace(TEXT_OrderIndependenceTest, RunOrderIndependenceSuite, 125.f);
-	}
-
-	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult)
+	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)
 	{
 		// Get Pins
 		const TArray<TObjectPtr<UPCGPin>>& InputPins = InPCGNode->GetInputPins();
@@ -75,7 +62,7 @@ namespace PCGDeterminismTests
 		return RunBasicSelfTest(NodeAndOptions) && RunBasicCopiedSelfTest(NodeAndOptions);
 	}
 
-	bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FNodeTestResult& OutResult)
+	bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)
 	{
 		// Start with not deterministic
 		UpdateTestResults(TestName, OutResult, EDeterminismLevel::NoDeterminism);
@@ -1040,7 +1027,7 @@ namespace PCGDeterminismTests
 		return BaseOptionsPerPin[PinIndex][PermutationIndex];
 	}
 
-	void UpdateTestResults(FName TestName, FNodeTestResult& OutResult, EDeterminismLevel DeterminismLevel)
+	void UpdateTestResults(FName TestName, FDeterminismNodeTestResult& OutResult, EDeterminismLevel DeterminismLevel)
 	{
 		EDeterminismLevel& Result = OutResult.TestResults.FindOrAdd(TestName);
 		Result = DeterminismLevel;

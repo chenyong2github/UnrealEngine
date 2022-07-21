@@ -6,12 +6,13 @@
 #include "PCGData.h"
 #include "PCGElement.h"
 #include "PCGDebug.h"
+#include "Tests/Determinism//PCGDeterminismSettings.h"
 
 #include "PCGSettings.generated.h"
 
+class UPCGGraph;
 class UPCGNode;
 class UPCGSettings;
-class UPCGGraph;
 
 typedef TMap<FName, TSet<TWeakObjectPtr<const UPCGSettings>>> FPCGTagToSettingsMap;
 
@@ -63,7 +64,7 @@ public:
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
-	
+
 	bool operator==(const UPCGSettings& Other) const;
 	uint32 GetCrc32() const;
 
@@ -104,6 +105,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))
 	FPCGDebugVisualizationSettings DebugSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Determinism, meta = (ShowOnlyInnerProperties))
+	FPCGDeterminismSettings DeterminismSettings;
 #endif
 
 #if WITH_EDITOR
@@ -118,7 +122,7 @@ protected:
 
 	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
 	void DirtyCache();
-#endif 
+#endif
 
 	/** Methods to remove boilerplate code across settings */
 	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;

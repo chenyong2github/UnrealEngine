@@ -9,6 +9,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubgraph.h"
+#include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "PCGEditorCommands.h"
@@ -380,7 +381,9 @@ void FPCGEditor::OnDeterminismTests()
 		return;
 	}
 
-	DeterminismWidget->Clear();
+	TMap<FName, FTestColumnInfo> TestsConducted;
+	DeterminismWidget->ClearItems();
+	DeterminismWidget->BuildBaseColumns();
 
 	int32 Index = 1;
 	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
@@ -392,26 +395,52 @@ void FPCGEditor::OnDeterminismTests()
 			if (const UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<const UPCGEditorGraphNodeBase>(Object))
 			{
 				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-				check(PCGNode);
+				check(PCGNode && PCGNode->DefaultSettings);
 
-				TSharedPtr<PCGDeterminismTests::FNodeTestResult> NodeResult = MakeShared<PCGDeterminismTests::FNodeTestResult>();
-				check(NodeResult.IsValid());
-				NodeResult->Index = Index++;
+				// TODO: Check if the node has a native test
+
+				TSharedPtr<FDeterminismNodeTestResult> NodeResult = MakeShared<FDeterminismNodeTestResult>();
 				NodeResult->NodeTitle = PCGNode->GetNodeTitle();
-				NodeResult->NodeNameString = PCGNode->GetName();
+				NodeResult->NodeName = PCGNode->GetName();
+				NodeResult->Seed = PCGNode->DefaultSettings->Seed;
 
-				TArray<PCGDeterminismTests::FNodeTestInfo> BasicTests;
-				PCGDeterminismTests::RetrieveBasicTests(BasicTests);
-
-				for (PCGDeterminismTests::FNodeTestInfo TestInfo : BasicTests)
+				if (PCGNode->DefaultSettings->DeterminismSettings.bBasicTests)
 				{
+					PCGDeterminismTests::FNodeTestInfo TestInfo = PCGDeterminismTests::Defaults::DeterminismBasicTestInfo;
 					PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, TestInfo);
+					TestsConducted.FindOrAdd(TestInfo.TestName, {TestInfo.TestName, TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center});
+				}
+
+				if (PCGNode->DefaultSettings->DeterminismSettings.bOrderIndependenceTests)
+				{
+					PCGDeterminismTests::FNodeTestInfo TestInfo = PCGDeterminismTests::Defaults::DeterminismOrderIndependenceInfo;
+					PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, TestInfo);
+					TestsConducted.FindOrAdd(TestInfo.TestName, {TestInfo.TestName, TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center});
+				}
+
+				// Custom tests
+				if (PCGNode->DefaultSettings->DeterminismSettings.bUseBlueprintDeterminismTest)
+				{
+					TSubclassOf<UPCGDeterminismTestBlueprintBase> Blueprint = PCGNode->DefaultSettings->DeterminismSettings.DeterminismTestBlueprint;
+					Blueprint.GetDefaultObject()->ExecuteTest(PCGNode, *NodeResult);
+					FName BlueprintName(Blueprint->GetName());
+
+					// TODO: Add a dynamic tab size guess for the width
+					TestsConducted.FindOrAdd(BlueprintName, {BlueprintName, FText::FromString(Blueprint->GetName()), 140.f, HAlign_Center});
 				}
 
 				DeterminismWidget->AddItem(NodeResult);
 			}
 		}
 	}
+
+	for (const TTuple<FName, FTestColumnInfo>& Test : TestsConducted)
+	{
+		DeterminismWidget->AddColumn(Test.Value);
+	}
+
+	DeterminismWidget->AddDetailsColumn();
+	DeterminismWidget->RefreshItems();
 
 	// Give focus to the Determinism Output Tab
 	if (TabManager.IsValid())
@@ -1384,17 +1413,7 @@ TSharedRef<SPCGEditorGraphAttributeListView> FPCGEditor::CreateAttributesWidget(
 
 TSharedRef<SPCGEditorGraphDeterminismListView> FPCGEditor::CreateDeterminismWidget()
 {
-	TArray<PCGDeterminismTests::FNodeTestInfo> BasicTests;
-	PCGDeterminismTests::RetrieveBasicTests(BasicTests);
-
-	TArray<FTestColumnInfo> TestColumnInfo;
-	for (const PCGDeterminismTests::FNodeTestInfo& TestInfo : BasicTests)
-	{
-		// Build the columns based on the tests to run
-		TestColumnInfo.Emplace(FName(TestInfo.TestLabel.ToString()), TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center);
-	}
-
-	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this), TestColumnInfo);
+	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this));
 }
 
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
