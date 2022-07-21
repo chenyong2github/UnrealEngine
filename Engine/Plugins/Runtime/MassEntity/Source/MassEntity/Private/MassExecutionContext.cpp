@@ -4,8 +4,6 @@
 #include "MassArchetypeData.h"
 
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 void FMassExecutionContext::FlushDeferred(UMassEntitySubsystem& EntitySystem) const
 {
 	if (bFlushDeferredCommands && DeferredCommandBuffer)
@@ -31,7 +29,7 @@ bool FMassExecutionContext::CacheSubsystem(const UWorld* World, const uint32 Sys
 		Subsystems.AddZeroed(Subsystems.Num() - SystemIndex + 1);
 	}
 
-	if (Subsystems[SystemIndex].Get())
+	if (Subsystems[SystemIndex])
 	{
 		return true;
 	}
@@ -139,6 +137,3 @@ void FMassExecutionContext::SetFragmentRequirements(const FMassFragmentRequireme
 		}
 	}
 }
-
-
-PRAGMA_ENABLE_OPTIMIZATION

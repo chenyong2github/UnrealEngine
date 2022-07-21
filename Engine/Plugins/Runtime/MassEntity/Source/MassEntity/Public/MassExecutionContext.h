@@ -36,7 +36,7 @@ private:
 
 	FMassExternalSubsystemBitSet ConstSubsystemsBitSet;
 	FMassExternalSubsystemBitSet MutableSubsystemsBitSet;
-	TArray<TObjectPtr<USubsystem>> Subsystems;
+	TArray<USubsystem*> Subsystems;
 	
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
@@ -380,7 +380,7 @@ protected:
 			Subsystems.AddZeroed(Subsystems.Num() - SystemIndex + 1);
 		}
 
-		T* SystemInstance = (T*)Subsystems[SystemIndex].Get();
+		T* SystemInstance = (T*)Subsystems[SystemIndex];
 		if (SystemInstance == nullptr)
 		{
 			SystemInstance = FMassExternalSubsystemTraits::GetInstance<typename TRemoveConst<T>::Type>(World);
@@ -397,7 +397,7 @@ protected:
 			Subsystems.AddZeroed(Subsystems.Num() - SystemIndex + 1);
 		}
 
-		T* SystemInstance = (T*)Subsystems[SystemIndex].Get();
+		T* SystemInstance = (T*)Subsystems[SystemIndex];
 		if (SystemInstance == nullptr)
 		{
 			SystemInstance = FMassExternalSubsystemTraits::GetInstance<typename TRemoveConst<T>::Type>(World, SubsystemClass);
