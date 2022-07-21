@@ -148,6 +148,11 @@ FBox UPCGLandscapeSplineData::GetBounds() const
 		Bounds += Segment->GetBounds();
 	}
 
+	if (Bounds.IsValid)
+	{
+		Bounds = Bounds.TransformBy(Spline->GetComponentToWorld());
+	}
+
 	return Bounds;
 }
 
