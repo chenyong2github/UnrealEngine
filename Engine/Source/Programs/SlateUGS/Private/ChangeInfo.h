@@ -12,7 +12,7 @@ struct FChangeInfo
 	UGSCore::EReviewVerdict ReviewStatus = UGSCore::EReviewVerdict::Unknown;
 	int Changelist = 0;
 	FText Author;
-	FText Description;
+	FString Description;
 
 	// Todo: add Horde badges
 };

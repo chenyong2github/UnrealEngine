@@ -391,10 +391,6 @@ void UGSTab::UpdateGameTabBuildList()
 					ChangeInfos.Add(HeaderRow);
 				}
 
-				// split on \n so we can just take the first line
-				TArray<FString> DescLines;
-				Change.Description.ParseIntoArray(DescLines, TEXT("\n"));
-
 				ChangeInfos.Add(MakeShareable(new FChangeInfo
 				{
 					DisplayTime,
@@ -402,7 +398,7 @@ void UGSTab::UpdateGameTabBuildList()
 					Status,
 					Change.Number,
 					FText::FromString(FormatUserName(Change.User)),
-					FText::FromString(DescLines[0].TrimStartAndEnd())
+					Change.Description
 				}));
 			}
 		}
