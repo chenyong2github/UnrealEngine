@@ -72,6 +72,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeEdit.h"
 #include "MaterialUtilities.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Algo/Transform.h"
 #include "Algo/BinarySearch.h"
 #include "Engine/Texture2D.h"
@@ -4040,6 +4041,9 @@ ALandscapeSplineActor* ULandscapeInfo::CreateSplineActor(const FVector& Location
 	SplineActor->GetSharedProperties(this);
 	SplineActor->GetSplinesComponent()->ShowSplineEditorMesh(true);
 	SplineActor->SetIsSpatiallyLoaded(AreNewLandscapeActorsSpatiallyLoaded());
+	
+	FActorLabelUtilities::SetActorLabelUnique(SplineActor, ALandscapeSplineActor::StaticClass()->GetName());
+
 	RegisterSplineActor(SplineActor);
 	return SplineActor;
 }
