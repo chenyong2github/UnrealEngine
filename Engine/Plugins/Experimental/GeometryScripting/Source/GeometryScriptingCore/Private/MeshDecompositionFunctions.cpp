@@ -324,12 +324,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(
 {
 	if (CopyFromMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput", "CopyMeshToMesh: CopyFromMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidFirstInput", "CopyMeshToMesh: CopyFromMesh is Null"));
 		return CopyFromMesh;
 	}
 	if (CopyToMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput2", "CopyMeshToMesh: CopyToMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidSecondInput", "CopyMeshToMesh: CopyToMesh is Null"));
 		return CopyFromMesh;
 	}
 
