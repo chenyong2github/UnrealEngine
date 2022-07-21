@@ -5,9 +5,10 @@
 
 #include "Online/AchievementsNull.h"
 #include "Online/AuthNull.h"
-#include "Online/StatsNull.h"
+#include "Online/LeaderboardsNull.h"
 #include "Online/LobbiesNull.h"
 #include "Online/PresenceNull.h"
+#include "Online/StatsNull.h"
 #include "Online/TitleFileNull.h"
 #include "Online/UserFileNull.h"
 #include "Online/SessionsNull.h"
@@ -39,8 +40,9 @@ void FOnlineServicesNull::RegisterComponents()
 	Components.Register<FAchievementsNull>(*this);
 	Components.Register<FAuthNull>(*this);
 	Components.Register<FPresenceNull>(*this);
-	Components.Register<FStatsNull>(*this);
+	Components.Register<FLeaderboardsNull>(*this);
 	Components.Register<FLobbiesNull>(*this);
+	Components.Register<FStatsNull>(*this);
 	Components.Register<FTitleFileNull>(*this);
 	Components.Register<FUserFileNull>(*this);
 	Components.Register<FSessionsNull>(*this);
