@@ -110,8 +110,8 @@ void FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(const AActor* 
 
 void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const AActor* OldActor, AActor* NewActor, FWorldPartitionActorDesc* ActorDesc)
 {
-	check(OldActor->GetActorGuid() == NewActor->GetActorGuid());
-	check(NewActor->GetActorGuid() == ActorDesc->GetGuid());
+	check(!NewActor || (OldActor->GetActorGuid() == NewActor->GetActorGuid()));
+	check(!NewActor || (NewActor->GetActorGuid() == ActorDesc->GetGuid()));
 	check(!ActorDesc->ActorPtr.IsValid() || (ActorDesc->ActorPtr == OldActor));
 	ActorDesc->ActorPtr = NewActor;
 }

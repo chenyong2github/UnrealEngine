@@ -180,7 +180,7 @@ void UActorDescContainer::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldT
 	{
 		if (AActor* OldActor = Cast<AActor>(OldObject))
 		{
-			AActor* NewActor = CastChecked<AActor>(NewObject);
+			AActor* NewActor = Cast<AActor>(NewObject);
 			if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(OldActor->GetActorGuid()))
 			{				
 				FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(OldActor, NewActor, ActorDesc);
