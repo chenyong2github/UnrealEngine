@@ -2,6 +2,7 @@
   "name": "unsync",
   "version-string": "1",
   "dependencies": [
+    "blake3",
     "cli11",
     "fmt",
     "http-parser",
