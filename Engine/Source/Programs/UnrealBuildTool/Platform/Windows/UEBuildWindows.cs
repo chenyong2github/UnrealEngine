@@ -869,14 +869,15 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Disable linking if we're using a static analyzer
-			if(Target.StaticAnalyzer != StaticAnalyzer.None)
+			// Disable linking and ignore build outputs if we're using a static analyzer
+			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bDisableLinking = true;
+				Target.bIgnoreBuildOutputs = true;
 			}
 
-			 // Disable PCHs for PVS studio analyzer.
-			if(Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
+			// Disable PCHs for PVS studio analyzer.
+			if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
 			{
 				Target.bUsePCHFiles = false;
 			}

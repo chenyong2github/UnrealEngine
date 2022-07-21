@@ -223,10 +223,11 @@ namespace UnrealBuildTool
 				Target.StaticAnalyzer = StaticAnalyzer.Default;
 			}
 
-			// Disable linking if we're using a static analyzer
+			// Disable linking and ignore build outputs if we're using a static analyzer
 			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bDisableLinking = true;
+				Target.bIgnoreBuildOutputs = true;
 			}
 
 			// Editor target types get overwritten in UEBuildTarget.cs so lets avoid adding this here. ResetTarget is called with

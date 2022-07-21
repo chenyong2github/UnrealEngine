@@ -120,10 +120,11 @@ namespace UnrealBuildTool
 				Target.StaticAnalyzer = StaticAnalyzer.Default;
 			}
 
-			// Disable linking if we're using a static analyzer
+			// Disable linking and ignore build outputs if we're using a static analyzer
 			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bDisableLinking = true;
+				Target.bIgnoreBuildOutputs = true;
 			}
 
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
