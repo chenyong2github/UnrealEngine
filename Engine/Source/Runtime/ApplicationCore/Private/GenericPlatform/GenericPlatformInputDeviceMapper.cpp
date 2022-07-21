@@ -353,6 +353,20 @@ bool FGenericPlatformInputDeviceMapper::RemapControllerIdToPlatformUserAndDevice
 	return false;
 }
 
+FPlatformUserId FGenericPlatformInputDeviceMapper::GetPlatformUserForUserIndex(int32 LocalUserIndex)
+{
+	FPlatformUserId OutUserId;
+	FInputDeviceId TempDeviceId;
+
+	// The platform user index is equivalent to ControllerId in most legacy code
+	if (RemapControllerIdToPlatformUserAndDevice(LocalUserIndex, OutUserId, TempDeviceId))
+	{
+		return OutUserId;
+	}
+
+	return PLATFORMUSERID_NONE;
+}
+
 bool FGenericPlatformInputDeviceMapper::RemapUserAndDeviceToControllerId(FPlatformUserId UserId, int32& OutControllerId, FInputDeviceId OptionalDeviceId /* = INPUTDEVICEID_NONE */)
 {
 	// It's just a 1:1 mapping of the old ControllerId to PlatformId if this is true
@@ -362,6 +376,17 @@ bool FGenericPlatformInputDeviceMapper::RemapUserAndDeviceToControllerId(FPlatfo
 		return true;
 	}
 	return false;
+}
+
+int32 FGenericPlatformInputDeviceMapper::GetUserIndexForPlatformUser(FPlatformUserId UserId)
+{
+	// The platform user index is equivalent to ControllerId in most legacy code
+	int32 OutControllerId = INDEX_NONE;
+	if (RemapUserAndDeviceToControllerId(UserId, OutControllerId))
+	{
+		return OutControllerId;
+	}
+	return INDEX_NONE;
 }
 
 bool FGenericPlatformInputDeviceMapper::IsUsingControllerIdAsUserId() const
@@ -376,10 +401,8 @@ bool FGenericPlatformInputDeviceMapper::ShouldBroadcastLegacyDelegates() const
 
 void FGenericPlatformInputDeviceMapper::OnUserLoginChangedEvent(bool bLoggedIn, int32 RawPlatformUserId, int32 UserIndex)
 {
-	// Attain the FPlatformUserId from the raw int32 that will be given by the Platform code
-	FPlatformUserId LoggedOutPlatformUserId = PLATFORMUSERID_NONE;
-	FInputDeviceId DummyInputDevice = INPUTDEVICEID_NONE;
-	RemapControllerIdToPlatformUserAndDevice(RawPlatformUserId, LoggedOutPlatformUserId, DummyInputDevice);
+	// Attain the FPlatformUserId from the user index that will be given by the Platform code
+	FPlatformUserId LoggedOutPlatformUserId = GetPlatformUserForUserIndex(UserIndex);
 	
 	// A new user has logged in
 	if (bLoggedIn)
