@@ -10,6 +10,7 @@
 #include "BlueprintPlatformLibrary.generated.h"
 
 class ILocalNotificationService;
+enum class EDeviceScreenOrientation : uint8;
 
 /**
  * The list of possible device/screen orientation for mobile devices
@@ -38,7 +39,16 @@ namespace EScreenOrientation
 		FaceUp,
 
 		/** The orientation is as if place on a desk with the screen downward */
-		FaceDown
+		FaceDown,
+
+		/** The orientation is portrait, oriented upright with the sensor */
+		PortraitSensor,
+
+		/** The orientation is landscape, oriented upright with the sensor */
+		LandscapeSensor,
+
+		/** The orientation is no longer locked and adjusts according to the sensor */
+		FullSensor
 	};
 }
 
@@ -239,4 +249,22 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Platform|LocalNotification")
 	static EScreenOrientation::Type GetDeviceOrientation();
+
+	/**
+	 * @return the current allowed device orientation
+	 */
+	UFUNCTION(BlueprintPure, Category = "Platform|LocalNotification")
+	static EScreenOrientation::Type GetAllowedDeviceOrientation();
+
+	/**
+	 * Set the allowed device orientation
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Platform|LocalNotification")
+	static void SetAllowedDeviceOrientation(EScreenOrientation::Type NewAllowedDeviceOrientation);
+
+private:
+
+	static EScreenOrientation::Type ConvertToScreenOrientation(EDeviceScreenOrientation DeviceScreenOrientation);
+
+	static EDeviceScreenOrientation ConvertToDeviceScreenOrientation(EScreenOrientation::Type ScreenOrientation);
 };

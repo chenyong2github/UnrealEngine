@@ -19,6 +19,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeExit.h"
+#include "Modules/ModuleManager.h"
 #include "Apple/ApplePlatformCrashContext.h"
 #include "IOS/IOSPlatformCrashContext.h"
 #include "IOS/IOSPlatformPLCrashReporterIncludes.h"
@@ -294,6 +295,47 @@ EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientatio
 #endif
 
 #if !PLATFORM_TVOS
+UIInterfaceOrientationMask GetUIInterfaceOrientationMask(EDeviceScreenOrientation ScreenOrientation)
+{
+	switch (ScreenOrientation)
+	{
+	default:
+		// Fallthrough...
+	case EDeviceScreenOrientation::Unknown:
+		return UIInterfaceOrientationMaskAll;
+		break;
+	case EDeviceScreenOrientation::Portrait:
+		return UIInterfaceOrientationMaskPortrait;
+		break;
+	case EDeviceScreenOrientation::PortraitUpsideDown:
+		return UIInterfaceOrientationMaskPortraitUpsideDown;
+		break;
+	case EDeviceScreenOrientation::LandscapeLeft:
+		return UIInterfaceOrientationMaskLandscapeLeft;
+		break;
+	case EDeviceScreenOrientation::LandscapeRight:
+		return UIInterfaceOrientationMaskLandscapeRight;
+		break;
+	case EDeviceScreenOrientation::FaceUp:
+		return UIInterfaceOrientationMaskAll;
+		break;
+	case EDeviceScreenOrientation::FaceDown:
+		return UIInterfaceOrientationMaskAll;
+		break;
+	case EDeviceScreenOrientation::PortraitSensor:
+		return UIInterfaceOrientationMaskAll;
+		break;
+	case EDeviceScreenOrientation::LandscapeSensor:
+		return UIInterfaceOrientationMaskLandscape;
+		break;
+	case EDeviceScreenOrientation::FullSensor:
+		return UIInterfaceOrientationMaskAll;
+		break;
+	}
+}
+#endif
+
+#if !PLATFORM_TVOS
 UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
 #endif
 
@@ -313,10 +355,17 @@ EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 
 void FIOSPlatformMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation)
 {
-	// not implemented yet
+	SetAllowedDeviceOrientation(NewDeviceOrientation);
 }
 
-#include "Modules/ModuleManager.h"
+void FIOSPlatformMisc::SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation)
+{
+	AllowedDeviceOrientation = NewAllowedDeviceOrientation;
+
+#if !PLATFORM_TVOS
+	[IOSAppDelegate GetDelegate].IOSView->SupportedInterfaceOrientations = GetUIInterfaceOrientationMask(NewAllowedDeviceOrientation);
+#endif
+}
 
 bool FIOSPlatformMisc::HasPlatformFeature(const TCHAR* FeatureName)
 {
