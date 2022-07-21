@@ -422,6 +422,11 @@ void UDataTable::RemoveRow(FName RowName)
 {
 	DATATABLE_CHANGE_SCOPE();
 
+	RemoveRowInternal(RowName);
+}
+
+void UDataTable::RemoveRowInternal(FName RowName)
+{
 	UScriptStruct& EmptyUsingStruct = GetEmptyUsingStruct();
 
 	uint8* RowData = nullptr;
@@ -434,13 +439,14 @@ void UDataTable::RemoveRow(FName RowName)
 	}
 }
 
-	
 void UDataTable::AddRow(FName RowName, const FTableRowBase& RowData)
 {
 	DATATABLE_CHANGE_SCOPE();
 
 	UScriptStruct& EmptyUsingStruct = GetEmptyUsingStruct();
-	RemoveRow(RowName);
+
+	// We want to delete the row memory even for child classes that override remove
+	RemoveRowInternal(RowName);
 		
 	uint8* NewRawRowData = (uint8*)FMemory::Malloc(EmptyUsingStruct.GetStructureSize());
 	

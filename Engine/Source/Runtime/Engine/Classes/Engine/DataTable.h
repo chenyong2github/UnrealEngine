@@ -91,6 +91,9 @@ protected:
 
 	/** Called to add rows to the data table */
 	ENGINE_API virtual void AddRowInternal(FName RowName, uint8* RowDataPtr);
+
+	/** Deletes the row memory */
+	ENGINE_API virtual void RemoveRowInternal(FName RowName);
 public:
 
 	virtual const TMap<FName, uint8*>& GetRowMap() const { return RowMap; }
