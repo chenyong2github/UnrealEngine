@@ -211,7 +211,7 @@ bool FAutomationControllerManager::IsReadyForTests()
 		return false;
 	}
 
-#if WITH_EDITOR
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
 	if (InteractiveFrameRateCheck == nullptr)
 	{
 		InteractiveFrameRateCheck = MakeShared<FWaitForInteractiveFrameRate>();

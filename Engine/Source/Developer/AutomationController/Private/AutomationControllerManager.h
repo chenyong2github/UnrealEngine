@@ -605,7 +605,7 @@ private:
 
 	bool bResumeRunTest;
 
-#if WITH_EDITOR
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
 	TSharedPtr<class FWaitForInteractiveFrameRate> InteractiveFrameRateCheck;
 #endif
 
