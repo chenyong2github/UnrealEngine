@@ -14,6 +14,7 @@ public:
 	void Construct(const FArguments& InArgs);
 	~SActorEditorContext();
 
+	static bool IsVisible(UWorld* InWorld);
 private:
 
 	void OnEditorMapChange(uint32 MapChangeFlags = 0) { Rebuild(); }

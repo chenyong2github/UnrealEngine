@@ -181,6 +181,10 @@ public:
 
 	void LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoadedRegions);
 	void LoadLastLoadedRegions();
+
+	bool HasLoadedUserCreatedRegions() const { return !!NumUserCreatedLoadedRegions; }
+	void OnUserCreatedRegionLoaded() { NumUserCreatedLoadedRegions++; }
+	void OnUserCreatedRegionUnloaded() { check(HasLoadedUserCreatedRegions()); NumUserCreatedLoadedRegions--; }
 #endif
 
 public:
@@ -257,6 +261,7 @@ private:
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
 	bool bIsPIE;
+	int32 NumUserCreatedLoadedRegions;
 #endif
 
 #if WITH_EDITORONLY_DATA

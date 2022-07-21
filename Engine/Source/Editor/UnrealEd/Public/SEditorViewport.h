@@ -112,13 +112,13 @@ private:
 	/** Called to get the feature level preview text */
 	FText GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) const;
 
-	/** @return The visibility of the current feature level preview text display */
-	EVisibility GetCurrentFeatureLevelPreviewTextVisibility() const;
-
 	/** Helper function that, for some FeatureLevel argument, will retrieve the required shader platform */
 	EShaderPlatform GetShaderPlatformHelper(const ERHIFeatureLevel::Type InFeatureLevel) const;
 
 protected:
+	/** @return The visibility of the current feature level preview text display */
+	EVisibility GetCurrentFeatureLevelPreviewTextVisibility() const;
+
 	/** @return true if realtime can be toggled (it cannot be toggled directly if there is an override in place) */
 	bool CanToggleRealtime() const;
 

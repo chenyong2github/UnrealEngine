@@ -26,6 +26,7 @@
 #include "LevelEditorViewport.h"
 #include "LocationVolume.h"
 #include "Algo/Transform.h"
+#include "SWorldPartitionViewportWidget.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
@@ -235,6 +236,15 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 					]
 				]
 			]
+		]
+		+SOverlay::Slot()
+		.VAlign(VAlign_Bottom)
+		.HAlign(HAlign_Left)
+		.Padding(10.f, 0.f, 0.f, 10.f)
+		[
+			SNew(SWorldPartitionViewportWidget)
+			.Clickable(false)
+			.Visibility_Lambda([this]() { return SWorldPartitionViewportWidget::GetVisibility(World); })
 		]
 	];
 

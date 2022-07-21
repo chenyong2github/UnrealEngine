@@ -92,6 +92,7 @@
 #include "SInViewportDetails.h"
 #include "Viewports/InViewportUIDragOperation.h"
 #include "SActorEditorContext.h"
+#include "SWorldPartitionViewportWidget.h"
 #include "LevelViewportLayout.h"
 #include "EditorViewportTabContent.h"
 
@@ -286,79 +287,110 @@ void SLevelViewport::ConstructViewportOverlayContent()
 		SAssignNew( ActorPreviewHorizontalBox, SHorizontalBox )
 	];
 
+	auto GetCombinedVisibility = [this]()
+	{
+		if (GetCurrentScreenPercentageVisibility() == EVisibility::Collapsed &&
+			GetCurrentFeatureLevelPreviewTextVisibility() == EVisibility::Collapsed &&
+			GetSelectedActorsCurrentLevelTextVisibility() == EVisibility::Collapsed &&
+			!IsActorEditorContextVisible())
+		{
+			return EVisibility::Collapsed;
+		}
+
+		return EVisibility::Visible;
+	};
+
 	ViewportOverlay->AddSlot( SlotIndex )
 	.VAlign( VAlign_Bottom )
 	.HAlign( HAlign_Right )
 	.Padding( 5.0f )
 	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("FloatingBorder"))
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
-			[
-				SNew(SHorizontalBox)
-				.Visibility(this, &SLevelViewport::GetCurrentScreenPercentageVisibility)
-				// Current screen percentage label
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 1.0f, 2.0f, 1.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ScreenPercentageLabel", "Screen Percentage"))
-					.ShadowOffset(FVector2D(1, 1))
-				]
-
-				// Current screen percentage
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4.0f, 1.0f, 2.0f, 1.0f)
-				[
-					SNew(STextBlock)
-					.Text(this, &SLevelViewport::GetCurrentScreenPercentageText)
-					.ShadowOffset(FVector2D(1, 1))
-				]
-			]
-			// add feature level widget
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
-			[
-				BuildFeatureLevelWidget()
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("FloatingBorder"))
 			[
 				SNew(SVerticalBox)
-				.Visibility(this, &SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility)
-				// Current level label
+				.Visibility_Lambda(GetCombinedVisibility)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 				[
-					SNew(STextBlock)
-					.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, true)
-					.ShadowOffset(FVector2D(1, 1))
+					SNew(SHorizontalBox)
+					.Visibility(this, &SLevelViewport::GetCurrentScreenPercentageVisibility)
+					// Current screen percentage label
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ScreenPercentageLabel", "Screen Percentage"))
+						.ShadowOffset(FVector2D(1, 1))
+					]
+
+					// Current screen percentage
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SLevelViewport::GetCurrentScreenPercentageText)
+						.ShadowOffset(FVector2D(1, 1))
+					]
 				]
-				// Current level
+				// add feature level widget
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+				.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 				[
-					SNew(STextBlock)
-					.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, false)
-					.ShadowOffset(FVector2D(1, 1))
+					BuildFeatureLevelWidget()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+				[
+					SNew(SVerticalBox)
+					.Visibility(this, &SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility)
+					// Current level label
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, true)
+						.ShadowOffset(FVector2D(1, 1))
+					]
+					// Current level
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SLevelViewport::GetSelectedActorsCurrentLevelText, false)
+						.ShadowOffset(FVector2D(1, 1))
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SActorEditorContext)
+					.World(GetWorld())
+					.Visibility_Lambda([this]() { return IsActorEditorContextVisible() ? OnGetViewportContentVisibility() : EVisibility::Collapsed; })
 				]
 			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 0.0f)
+		[
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("FloatingBorder"))
 			[
-				SNew(SActorEditorContext)
-				.World(GetWorld())
-				.Visibility_Lambda([this]() { return IsActorEditorContextVisible() ? OnGetViewportContentVisibility() : EVisibility::Collapsed; })
+				SNew(SWorldPartitionViewportWidget)
+				.Clickable(true)
+				.Visibility_Lambda([this]() { return SWorldPartitionViewportWidget::GetVisibility(GetWorld());})
 			]
 		]
 	];
@@ -380,7 +412,8 @@ bool SLevelViewport::IsActorEditorContextVisible() const
 		GetWorld()->GetCurrentLevel() &&
 		(&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) &&
 		ActiveViewport.IsValid() &&
-		(ActiveViewport->GetPlayInEditorIsSimulate() || !ActiveViewport->GetClient()->GetWorld()->IsGameWorld());
+		(ActiveViewport->GetPlayInEditorIsSimulate() || !ActiveViewport->GetClient()->GetWorld()->IsGameWorld()) &&
+		SActorEditorContext::IsVisible(GetWorld());
 }
 
 void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInstanceSettings& ViewportInstanceSettings)

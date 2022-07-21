@@ -42,6 +42,14 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
 		bLoaded = true;
 		RefreshLoadedState();
 		RegisterDelegates();
+
+		if (bUserCreated)
+		{
+			if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+			{
+				WorldPartition->OnUserCreatedRegionLoaded();
+			}
+		}
 	}
 }
 
@@ -69,6 +77,11 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 			}
 
 			bLoaded = false;
+
+			if (bUserCreated)
+			{
+				WorldPartition->OnUserCreatedRegionUnloaded();
+			}
 
 			PostLoadedStateChanged(true);
 		}
