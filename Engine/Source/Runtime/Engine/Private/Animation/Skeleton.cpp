@@ -1024,7 +1024,7 @@ bool USkeleton::IsCompatibleMesh(const USkeletalMesh* InSkelMesh, bool bDoParent
 	}
 
 	// originally we made sure at least matches more than 50% 
-	// but then slave components can't play since they're only partial
+	// but then follower components can't play since they're only partial
 	// if the hierarchy matches, and if it's more then 1 bone, we allow
 	return (NumOfBoneMatches > 0);
 }

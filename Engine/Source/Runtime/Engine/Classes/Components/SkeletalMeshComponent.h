@@ -1230,7 +1230,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Clothing", meta = (UnsafeDuringActorConstruction = "true"))
 	void BindClothToLeaderPoseComponent();
 
-	UE_DEPRECATED(5.1, "BindClothToMasterPoseComponent has been deprecated. Please use BindClothToLeaderPoseComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use BindClothToLeaderPoseComponent instead.")
 	void BindClothToMasterPoseComponent() { BindClothToLeaderPoseComponent(); }
 
 	/** 
@@ -1243,7 +1243,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Clothing", meta=(UnsafeDuringActorConstruction="true"))
 	void UnbindClothFromLeaderPoseComponent(bool bRestoreSimulationSpace = true);
 
-	UE_DEPRECATED(5.1, "UnbindClothFromMasterPoseComponent has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UnbindClothFromLeaderPoseComponent instead.")
 	void UnbindClothFromMasterPoseComponent(bool bRestoreSimulationSpace = true) { UnbindClothFromLeaderPoseComponent(bRestoreSimulationSpace); }
 
 	/**
@@ -1442,7 +1442,7 @@ public:
 
 	bool IsClothBoundToLeaderComponent() const { return bBindClothToLeaderComponent; }
 	
-	UE_DEPRECATED(5.1, "IsClothBoundToMasterComponent has been deprecated. Please, use IsClothBoundToLeaderComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please, use IsClothBoundToLeaderComponent instead.")
 	bool IsClothBoundToMasterComponent() const { return IsClothBoundToLeaderComponent(); }
 
 	/** Get the current clothing simulation (read only) */
@@ -1871,7 +1871,7 @@ protected:
 public:
 	virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion) override;
 	virtual void UpdateFollowerComponent() override;
-	UE_DEPRECATED(5.1, "UpdateSlaveComponent has been deprecated. Please use UpdateFollowerComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UpdateFollowerComponent instead.")
 	virtual void UpdateSlaveComponent() override { UpdateFollowerComponent(); };
 	virtual bool ShouldUpdateTransform(bool bLODHasChanged) const override;
 	virtual bool ShouldTickPose() const override;

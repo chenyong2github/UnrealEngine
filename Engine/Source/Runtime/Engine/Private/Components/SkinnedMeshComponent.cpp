@@ -539,7 +539,7 @@ void USkinnedMeshComponent::OnRegister()
 
 	if (LeaderPoseComponent.IsValid())
 	{
-		// we have to make sure it updates the mastesr pose
+		// we have to make sure it updates the leader pose
 		SetLeaderPoseComponent(LeaderPoseComponent.Get(), true);
 	}
 	else

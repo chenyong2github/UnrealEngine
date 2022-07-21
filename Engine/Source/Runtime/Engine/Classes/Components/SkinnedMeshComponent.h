@@ -417,7 +417,7 @@ protected:
 public:
 	const TArray<int32>& GetLeaderBoneMap() const { return LeaderBoneMap; }
 
-	UE_DEPRECATED(5.1, "GetMasterBoneMap has been deprecated. Please use the GetLeaderBoneMap.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use the GetLeaderBoneMap.")
 	const TArray<int32>& GetMasterBoneMap() const { return GetLeaderBoneMap(); }
 
 	const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const { return ExternalMorphWeightData[LOD]; }
@@ -1259,7 +1259,7 @@ public:
 	 */
 	virtual void UpdateFollowerComponent();
 
-	UE_DEPRECATED(5.1, "UpdateSlaveComponent has been deprecated. Please use UpdateFollowerComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UpdateFollowerComponent instead.")
 	virtual void UpdateSlaveComponent() { UpdateFollowerComponent(); }
 
 	/** 
@@ -1445,26 +1445,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false);
 
-	UE_DEPRECATED(5.1, "SetMasterPoseComponent has been deprecated. Please use SetLeaderPoseComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use SetLeaderPoseComponent instead.")
 	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false) { SetLeaderPoseComponent(NewMasterBoneComponent, bForceUpdate); }
 
 	/** Return current active list of follower components */
 	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetFollowerPoseComponents() const;
 
-	UE_DEPRECATED(5.1, "GetSlavePoseComponents has been deprecated. Please use GetFollowerPoseComponents instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use GetFollowerPoseComponents instead.")
 	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetSlavePoseComponents() const { return GetFollowerPoseComponents(); }
 
 protected:
 	/** Add a follower component to the FollowerPoseComponents array */
 	virtual void AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
 
-	UE_DEPRECATED(5.1, "AddSlavePoseComponent has been deprecated. Please use AddFollowerPoseComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use AddFollowerPoseComponent instead.")
 	virtual void AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { AddFollowerPoseComponent(SkinnedMeshComponent); }
 
 	/** Remove a follower component from the FollowerPoseComponents array */
 	virtual void RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
 
-	UE_DEPRECATED(5.1, "RemoveSlavePoseComponent has been deprecated. Please use RemoveFollowerPoseComponent instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use RemoveFollowerPoseComponent instead.")
 	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { RemoveFollowerPoseComponent(SkinnedMeshComponent); }
 
 public:
@@ -1475,7 +1475,7 @@ public:
 	 */
 	void RefreshFollowerComponents();
 
-	UE_DEPRECATED(5.1, "RefreshSlaveComponents has been deprecated. Please use RefreshFollowerComponents instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use RefreshFollowerComponents instead.")
 	void RefreshSlaveComponents() { RefreshFollowerComponents(); }
 
 	/**
@@ -1483,7 +1483,7 @@ public:
 	 */
 	void UpdateLeaderBoneMap();
 
-	UE_DEPRECATED(5.1, "UpdateMasterBoneMap has been deprecated. Please use UpdateLeaderBoneMap instead.")
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UpdateLeaderBoneMap instead.")
 	void UpdateMasterBoneMap() { UpdateLeaderBoneMap(); }
 
 	/**
