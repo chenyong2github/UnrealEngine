@@ -129,7 +129,7 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 		case SF_RayMiss:
 		case SF_RayHitGroup:
 		case SF_RayCallable:
-			return TEXT("lib_6_3");
+			return TEXT("lib_6_5");
 		}
 	}
 	else if ((Target.Platform == SP_PCD3D_ES3_1) || (Target.Platform == SP_D3D_ES3_1_HOLOLENS))
