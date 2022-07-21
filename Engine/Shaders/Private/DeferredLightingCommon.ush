@@ -383,7 +383,7 @@ FLightAccumulator AccumulateDynamicLighting(
 	
 	float3 L = LightData.Direction;	// Already normalized
 	float3 ToLight = L;
-	half3 MaskedLightColor = LightData.Color;
+	float3 MaskedLightColor = LightData.Color;
 	float LightMask = 1;
 	if (LightData.bRadialLight)
 	{
