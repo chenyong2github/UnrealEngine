@@ -39,6 +39,9 @@ void UGeometrySelectionManager::Shutdown()
 	TransactionsAPI = nullptr;
 
 	ResetTargetCache();
+	ActiveTargetReferences.Reset();
+	ActiveTargetMap.Reset();
+	UpdateSelectionRenderCacheOnTargetChange();
 }
 
 bool UGeometrySelectionManager::HasBeenShutDown() const

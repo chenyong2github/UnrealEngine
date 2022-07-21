@@ -889,8 +889,7 @@ void UModelingToolsEditorMode::Exit()
 	{
 		SelectionManager->OnSelectionModified.Remove(SelectionManager_SelectionModifiedHandle);
 		SelectionManager->ClearSelection();
-		SelectionManager->ClearActiveTargets();
-		SelectionManager->Shutdown();
+		SelectionManager->Shutdown();		// will clear active targets
 
 		// hopefully temporary...remove SelectionManager from ContextObjectStore
 		GetInteractiveToolsContext()->ContextObjectStore->RemoveContextObject(SelectionManager);
