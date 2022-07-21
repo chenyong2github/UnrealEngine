@@ -257,6 +257,11 @@ void FArchiveReference::AddChild(const FCadId ChildId)
 	Children.Add(ChildId);
 }
 
+void FArchiveReference::RemoveLastChild()
+{
+	Children.Pop();
+}
+
 int32 FArchiveReference::ChildrenCount()
 {
 	return Children.Num();

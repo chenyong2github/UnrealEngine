@@ -652,7 +652,7 @@ void FDatasmithSceneBaseGraphBuilder::AddChildren(TSharedPtr<IDatasmithActorElem
 				Actor->AddChild(ChildActor);
 			}
 		}
-		else
+		else if (SceneGraph->IsABody(ChildId))
 		{
 			TSharedPtr<IDatasmithActorElement> ChildActor = BuildBody(ChildId, ParentData);
 			if (ChildActor.IsValid() && DoesActorHaveChildrenOrIsAStaticMesh(ChildActor))

@@ -1173,6 +1173,7 @@ void FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representati
 
 	if (RepresentationSet.bIsRemoved || !RepresentationSet.bShow)
 	{
+		Parent.RemoveLastChild();
 		SceneGraph.RemoveLastOccurence();
 		return;
 	}

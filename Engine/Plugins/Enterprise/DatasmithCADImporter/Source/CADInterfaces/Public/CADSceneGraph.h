@@ -78,6 +78,7 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveReference& C);
 
 	void AddChild(const FCadId ChildId);
+	void RemoveLastChild();
 
 	int32 ChildrenCount();
 	void MoveTemp(FArchiveUnloadedReference& Reference);
