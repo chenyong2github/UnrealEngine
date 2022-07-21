@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterLightCardActor.h"
+#include "DisplayClusterRootActor.h"
 
+#include "Components/DisplayClusterLabelComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -71,6 +73,9 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	LightCardComponent->SetStaticMesh(PlaneObj.Object);
 
 	UpdateLightCardTransform();
+
+	LabelComponent = CreateOptionalDefaultSubobject<UDisplayClusterLabelComponent>(TEXT("Label"), true);
+	LabelComponent->AttachToComponent(LightCardComponent, FAttachmentTransformRules::KeepRelativeTransform);
 }
 
 void ADisplayClusterLightCardActor::OnConstruction(const FTransform& Transform)
@@ -394,6 +399,41 @@ void ADisplayClusterLightCardActor::UpdateLightCardVisibility()
 		MarkComponentsRenderStateDirty();
 	}
 #endif
+}
+
+void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
+{
+#if WITH_EDITOR
+	LabelComponent->Modify(false);
+	LightCardComponent->Modify(false);
+#endif
+	LabelComponent->SetVisibility(bValue, true);
+	LabelComponent->SetRootActor(InRootActor);
+	LabelComponent->SetWidgetScale(ScaleValue);
+	
+	const float LightCardSortPriorityLow = -1.f;
+	
+	if (bValue)
+	{
+		// Change the translucent sort priority of the light card component so it will always be shown behind the
+		// label component. When left at 0 the renderer will choose the sort order which may be wrong.
+		// This does rely on the light card material being translucent as well.
+		SavedTranslucencySortPriority = LightCardComponent->TranslucencySortPriority;
+		LightCardComponent->SetTranslucentSortPriority(LightCardSortPriorityLow);
+	}
+	else if (SavedTranslucencySortPriority.IsSet() && *SavedTranslucencySortPriority != LightCardComponent->TranslucencySortPriority &&
+			LightCardComponent->TranslucencySortPriority == LightCardSortPriorityLow)
+	{
+		// Change the sort order back to the original value and only if the user hasn't modified it since activating the label.
+		// It's highly unlikely this will ever be anything besides 0.
+		LightCardComponent->SetTranslucentSortPriority(*SavedTranslucencySortPriority);
+		SavedTranslucencySortPriority.Reset();
+	}
+}
+
+void ADisplayClusterLightCardActor::SetRootActorOwner(ADisplayClusterRootActor* InRootActor)
+{
+	RootActorOwner = MakeWeakObjectPtr(InRootActor);
 }
 
 UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const

@@ -659,6 +659,9 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 			ADisplayClusterLightCardActor* LightCardActor = Actor.IsValid() ? Cast<ADisplayClusterLightCardActor>(Actor.Get()) : nullptr;
 			if (LightCardActor)
 			{
+				// Set the owner so the light card actor can look the root actor up in certain situations, like adjusting labels
+				// when running as -game
+				LightCardActor->SetRootActorOwner(this);
 				if (LightCardActor->bLockToOwningRootActor)
 				{
 					LightCardActor->SetActorLocation(Location);

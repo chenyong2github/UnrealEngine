@@ -37,4 +37,31 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded(ModuleName);
 	}
+
+	struct FLabelArgs
+	{
+		// TODO: Specify type (Light Card vs CCR)
+		
+		/**
+		 * [Required] The root actor to display labels for
+		 */
+		class ADisplayClusterRootActor* RootActor = nullptr;
+		
+		/**
+		 * The scale to apply to the label
+		 */
+		float Scale = 1.f;
+
+		/**
+		 * Should the label be visible
+		 */
+		bool bVisible = false;
+	};
+	
+	/**
+	 * Show the light card labels for the given root actor and save current settings.
+	 *
+	 * @param InArgs The arguments for displaying labels.
+	 */
+	virtual void ShowLabels(const FLabelArgs& InArgs) = 0;
 };

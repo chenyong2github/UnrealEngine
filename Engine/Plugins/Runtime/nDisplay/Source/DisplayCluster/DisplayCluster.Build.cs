@@ -40,6 +40,7 @@ public class DisplayCluster : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Sockets",
+				"UMG"
 			});
 
 		if (Target.bBuildEditor == true)

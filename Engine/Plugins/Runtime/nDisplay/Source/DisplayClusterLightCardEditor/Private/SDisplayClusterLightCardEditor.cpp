@@ -3,6 +3,8 @@
 #include "SDisplayClusterLightCardEditor.h"
 
 #include "DisplayClusterLightCardEditorCommands.h"
+#include "DisplayClusterLightCardEditorStyle.h"
+#include "IDisplayClusterLightCardEditor.h"
 #include "SDisplayClusterLightCardList.h"
 #include "LightCardTemplates/SDisplayClusterLightCardTemplateList.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
@@ -32,6 +34,7 @@
 #include "Selection.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Workflow/SWizard.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterLightCardEditor"
@@ -46,10 +49,6 @@ void SDisplayClusterLightCardEditor::RegisterTabSpawner()
 		.SetDisplayName(LOCTEXT("TabDisplayName", "Light Cards Editor"))
 		.SetTooltipText(LOCTEXT("TabTooltip", "Editing tools for nDisplay light cards."))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
-	
-	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-	ToolbarExtender->AddToolBarExtension("General", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateStatic(&SDisplayClusterLightCardEditor::ExtendToolbar));
-	IDisplayClusterOperator::Get().GetOperatorToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
 }
 
 void SDisplayClusterLightCardEditor::UnregisterTabSpawner()
@@ -75,11 +74,6 @@ TSharedRef<SDockTab> SDisplayClusterLightCardEditor::SpawnInTab(const FSpawnTabA
 	return MajorTab;
 }
 
-void SDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuilder)
-{
-	// TODO: Any toolbar buttons needed for the lightcards editor can be added to the operator panel's toolbar using this toolbar extender
-}
-
 SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
 {
 	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Remove(ActiveRootActorChangedHandle);
@@ -98,6 +92,18 @@ SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
 	RemoveCompileDelegates();
 }
 
+void SDisplayClusterLightCardEditor::PostUndo(bool bSuccess)
+{
+	FEditorUndoClient::PostUndo(bSuccess);
+	RefreshLabels();
+}
+
+void SDisplayClusterLightCardEditor::PostRedo(bool bSuccess)
+{
+	FEditorUndoClient::PostRedo(bSuccess);
+	RefreshLabels();
+}
+
 void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner)
 {
 	ActiveRootActorChangedHandle = IDisplayClusterOperator::Get().OnActiveRootActorChanged().AddSP(this, &SDisplayClusterLightCardEditor::OnActiveRootActorChanged);
@@ -109,6 +115,7 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SDisplayClusterLightCardEditor::OnObjectTransacted);
 
 	BindCommands();
+	RegisterToolbarExtensions();
 	
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
 
@@ -193,6 +200,10 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	];
 
 	BindCompileDelegates();
+
+	RefreshLabels();
+
+	GEditor->RegisterForUndo(this);
 }
 
 void SDisplayClusterLightCardEditor::SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect)
@@ -434,6 +445,8 @@ void SDisplayClusterLightCardEditor::AddLightCardsToActor(TArray<ADisplayCluster
 					return Actor.Get() == LightCard;
 				}))
 			{
+				LightCard->ShowLightCardLabel(ShouldShowLightCardLabels(), *GetLightCardLabelScale(), ActiveRootActor.Get());
+				
 				const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
 
 				// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
@@ -575,7 +588,7 @@ void SDisplayClusterLightCardEditor::RemoveLightCards(bool bDeleteLightCardActor
 
 		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
 
-		for (AActor* LightCard : SelectedLightCards)
+		for (ADisplayClusterLightCardActor* LightCard : SelectedLightCards)
 		{
 			RootActorLightCards.Actors.RemoveAll([&](const TSoftObjectPtr<AActor>& Actor)
 				{
@@ -586,6 +599,10 @@ void SDisplayClusterLightCardEditor::RemoveLightCards(bool bDeleteLightCardActor
 			{
 				WorldToUse = LightCard->GetWorld();
 				GEditor->SelectActor(LightCard, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+			}
+			else
+			{
+				LightCard->ShowLightCardLabel(false, *GetLightCardLabelScale(), ActiveRootActor.Get());
 			}
 		}
 	}
@@ -682,8 +699,68 @@ bool SDisplayClusterLightCardEditor::CanCreateLightCardTemplate() const
 	return SelectedLightCards.Num() == 1;
 }
 
+void SDisplayClusterLightCardEditor::ToggleLightCardLabels()
+{
+	ShowLightCardLabels(!ShouldShowLightCardLabels());
+}
+
+void SDisplayClusterLightCardEditor::ShowLightCardLabels(bool bVisible)
+{
+	if (!GetActiveRootActor().IsValid())
+	{
+		return;
+	}
+	
+	FScopedTransaction Transaction(LOCTEXT("ToggleLightCardLabelsTransactionMessage", "Toggle Light Card Labels"), !GIsTransacting);
+	
+	IDisplayClusterLightCardEditor& LightCardEditorModule = FModuleManager::GetModuleChecked<IDisplayClusterLightCardEditor>(IDisplayClusterLightCardEditor::ModuleName);
+
+	IDisplayClusterLightCardEditor::FLabelArgs Args;
+	Args.bVisible = bVisible;
+	Args.Scale = *GetLightCardLabelScale();
+	Args.RootActor = GetActiveRootActor().Get();
+	
+	LightCardEditorModule.ShowLabels(MoveTemp(Args));
+
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+}
+
+bool SDisplayClusterLightCardEditor::ShouldShowLightCardLabels() const
+{
+	return GetDefault<UDisplayClusterLightCardEditorProjectSettings>()->bDisplayLightCardLabels;
+}
+
+TOptional<float> SDisplayClusterLightCardEditor::GetLightCardLabelScale() const
+{
+	return GetDefault<UDisplayClusterLightCardEditorProjectSettings>()->LightCardLabelScale;
+}
+
+void SDisplayClusterLightCardEditor::SetLightCardLabelScale(float NewValue)
+{
+	if (!GetActiveRootActor().IsValid())
+	{
+		return;
+	}
+	
+	FScopedTransaction Transaction(LOCTEXT("ScaleLightCardLabelsTransactionMessage", "Scale Light Card Labels"), !GIsTransacting);
+	
+	IDisplayClusterLightCardEditor& LightCardEditorModule = FModuleManager::GetModuleChecked<IDisplayClusterLightCardEditor>(IDisplayClusterLightCardEditor::ModuleName);
+
+	IDisplayClusterLightCardEditor::FLabelArgs Args;
+	Args.bVisible = ShouldShowLightCardLabels();
+	Args.Scale = NewValue;
+	Args.RootActor = GetActiveRootActor().Get();
+	
+	LightCardEditorModule.ShowLabels(MoveTemp(Args));
+}
+
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
+	if (NewRootActor == ActiveRootActor.Get())
+	{
+		return;
+	}
+	
 	RemoveCompileDelegates();
 	
 	// The new root actor pointer could be null, indicating that it was deleted or the user didn't select a valid root actor
@@ -695,6 +772,8 @@ void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRoo
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SDisplayClusterLightCardEditor::OnActorPropertyChanged);
+
+	RefreshLabels();
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
@@ -705,6 +784,50 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
 {
 	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this), CommandList);
+}
+
+TSharedRef<SWidget> SDisplayClusterLightCardEditor::GenerateLabelsMenu()
+{
+	const bool bInShouldCloseWindowAfterMenuSelection = true;
+
+	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+
+	MenuBuilder.BeginSection("Labels", LOCTEXT("LabelsMenuHeader", "Labels"));
+	{
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleLightCardLabels);
+	
+		MenuBuilder.AddWidget(
+		SNew(SBox)
+		.HAlign(HAlign_Right)
+		[
+			SNew(SBox)
+			.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
+			.WidthOverride(100.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SBox)
+					.MinDesiredWidth(64)
+					[
+						SNew(SNumericEntryBox<float>)
+						.Value(this, &SDisplayClusterLightCardEditor::GetLightCardLabelScale)
+						.OnValueChanged(this, &SDisplayClusterLightCardEditor::SetLightCardLabelScale)
+						.MinValue(0)
+						.MaxValue(FLT_MAX)
+						.MinSliderValue(0)
+						.MaxSliderValue(10)
+						.AllowSpin(true)
+					]
+				]
+			]
+		],
+		LOCTEXT("LightCardLabelScale_Label", "Label Scale"));
+	}
+	MenuBuilder.EndSection();
+	
+	return MenuBuilder.MakeWidget();
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardTemplateWidget()
@@ -760,6 +883,35 @@ void SDisplayClusterLightCardEditor::BindCommands()
 		FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate,
 		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::CreateLightCardTemplate),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::CanCreateLightCardTemplate));
+
+	CommandList->MapAction(
+		FDisplayClusterLightCardEditorCommands::Get().ToggleLightCardLabels,
+		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::ToggleLightCardLabels),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditor::ShouldShowLightCardLabels));
+}
+
+void SDisplayClusterLightCardEditor::RegisterToolbarExtensions()
+{
+	const TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+	ToolbarExtender->AddToolBarExtension("General", EExtensionHook::After, nullptr,
+		FToolBarExtensionDelegate::CreateSP(this, &SDisplayClusterLightCardEditor::ExtendToolbar));
+	IDisplayClusterOperator::Get().GetOperatorToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
+}
+
+void SDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+	// TODO: Any toolbar buttons needed for the lightcards editor can be added to the operator panel's toolbar using this toolbar extender
+
+	ToolbarBuilder.AddSeparator();
+	
+	const FUIAction DefaultAction;
+	ToolbarBuilder.AddComboButton(
+		DefaultAction,
+		FOnGetContent::CreateSP(this, &SDisplayClusterLightCardEditor::GenerateLabelsMenu),
+		TAttribute<FText>(),
+		LOCTEXT("Labels_ToolTip", "Configure options for labels"),
+		FSlateIcon(FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName(), "DisplayClusterLightCardEditor.Labels"));
 }
 
 void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType)
@@ -781,6 +933,11 @@ void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCa
 	}
 	
 	BindCompileDelegates();
+}
+
+void SDisplayClusterLightCardEditor::RefreshLabels()
+{
+	ShowLightCardLabels(ShouldShowLightCardLabels());
 }
 
 bool SDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,

@@ -38,6 +38,8 @@ public:
 
 		Set("UVLightCard", new CORE_IMAGE_BRUSH_SVG("Starship/Common/SetDrawUVs", Icon16x16));
 
+		Set("DisplayClusterLightCardEditor.Labels", new CORE_IMAGE_BRUSH_SVG("Starship/AssetIcons/Font_16", Icon16x16));
+		
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 

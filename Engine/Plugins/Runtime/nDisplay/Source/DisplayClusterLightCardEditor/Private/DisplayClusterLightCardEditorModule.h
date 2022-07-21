@@ -15,7 +15,9 @@ public:
 	//~ IModuleInterface interface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-
+	
+	virtual void ShowLabels(const FLabelArgs& InArgs) override;
+	
 private:
 	void RegisterTabSpawners();
 	void UnregisterTabSpawners();

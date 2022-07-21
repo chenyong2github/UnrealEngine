@@ -1512,20 +1512,28 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 	{
 		UWorld* PreviewWorld = PreviewScene->GetWorld();
 		check(PreviewWorld);
+
+		TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
 		
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
 		{			
 			DestroyProxies(ProxyType);
-			RootActor->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
-			RootActorLevelInstance = RootActor;
+
+			if (!RootActorPtr.IsValid())
+			{
+				return;
+			}
+			
+			RootActorPtr->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+			RootActorLevelInstance = RootActorPtr;
 			
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 				ProxyType == EDisplayClusterLightCardEditorProxyType::RootActor)
 			{
 				{
-					FObjectDuplicationParameters DupeActorParameters(RootActor, PreviewWorld->GetCurrentLevel());
+					FObjectDuplicationParameters DupeActorParameters(RootActorPtr.Get(), PreviewWorld->GetCurrentLevel());
 					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional); // Keeps archetypes correct in config data.
 					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 			
@@ -1594,7 +1602,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 			{
 				TSet<ADisplayClusterLightCardActor*> LightCards;
-				UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActor, LightCards);
+				UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActorPtr.Get(), LightCards);
 				
 				SelectLightCard(nullptr);
 				
@@ -1607,8 +1615,8 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 					ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObjectEx(DupeActorParameters));
 					PreviewWorld->GetCurrentLevel()->AddLoadedActor(LightCardProxy);
 				
-					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
-					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
+					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActorPtr->GetActorLocation());
+					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActorPtr->GetActorRotation());
 					LightCardProxy->PolygonMask = LightCard->PolygonMask;
 					LightCardProxy->bIsProxy = true;
 

@@ -7,6 +7,8 @@
 
 #include "DisplayClusterLightCardActor.generated.h"
 
+class ADisplayClusterRootActor;
+class UDisplayClusterLabelComponent;
 class USceneComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
@@ -118,6 +120,15 @@ public:
 	/** Updates the light card actor visibility */
 	void UpdateLightCardVisibility();
 
+	/** Show or hide the light card label  */
+	void ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor);
+
+	/** Set the current owner of the light card */
+	void SetRootActorOwner(ADisplayClusterRootActor* InRootActor);
+	
+	/** Return the current owner, providing one was set */
+	TWeakObjectPtr<ADisplayClusterRootActor> GetRootActorOwner() const { return RootActorOwner; }
+	
 public:
 
 	/** Radius of light card polar coordinates. Does not include the effect of RadialOffset */
@@ -221,4 +232,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UStaticMeshComponent> LightCardComponent;
+	
+	UPROPERTY(VisibleAnywhere, transient, BlueprintReadOnly, Category = "Default")
+	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
+
+	/** The current owner of the light card */
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorOwner;
+
+private:
+	/** Stores the user translucency value when labels are displayed */
+	TOptional<int32> SavedTranslucencySortPriority;
+	
 };

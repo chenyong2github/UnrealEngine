@@ -41,12 +41,8 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 	CommandList = InArgs._CommandList;
 
 	FillRootActorList();
-	
-	TSharedPtr<FExtender> ToolBarExtender = IDisplayClusterOperator::Get().GetOperatorToolBarExtensibilityManager()->GetAllExtenders();
 
-    FToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, ToolBarExtender);
-
-	RootActorComboBox = SNew(SComboBox<TSharedPtr<FString>>)
+	SAssignNew(RootActorComboBox, SComboBox<TSharedPtr<FString>>)
 		.OptionsSource(&RootActorList)
 		.OnSelectionChanged(this, &SDisplayClusterOperatorToolbar::OnRootActorChanged)
 		.OnComboBoxOpening(this, &SDisplayClusterOperatorToolbar::OnRootActorComboBoxOpening)
@@ -57,14 +53,27 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 			.Text(this, &SDisplayClusterOperatorToolbar::GetRootActorComboBoxText)
 		];
 
-	if (RootActorList.Num())
-	{
-		RootActorComboBox->SetSelectedItem(RootActorList[0]);
-	}
-
+	const TSharedPtr<FExtender> ToolBarExtender = IDisplayClusterOperator::Get().GetOperatorToolBarExtensibilityManager()->GetAllExtenders();
+	FToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, ToolBarExtender, true);
+	
+	const TSharedPtr<SHorizontalBox> RootActorSelectionBox = SNew(SHorizontalBox)
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	.Padding(5.f, 0.f)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("RootActorPickerLabel", "nDisplay Configuration"))
+	]
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		RootActorComboBox.ToSharedRef()
+	];
+	
 	ToolBarBuilder.BeginSection("General");
 	{
-		ToolBarBuilder.AddToolBarWidget(RootActorComboBox.ToSharedRef(), LOCTEXT("RootActorPickerLabel", "nDisplay Actor"));
+		ToolBarBuilder.AddWidget(RootActorSelectionBox.ToSharedRef());
 	}
 	ToolBarBuilder.EndSection();
 
@@ -77,6 +86,11 @@ void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 			ToolBarBuilder.MakeWidget()
 		]
 	];
+	
+	if (RootActorList.Num())
+	{
+		RootActorComboBox->SetSelectedItem(RootActorList[0]);
+	}
 
 	if (GEngine != nullptr)
 	{

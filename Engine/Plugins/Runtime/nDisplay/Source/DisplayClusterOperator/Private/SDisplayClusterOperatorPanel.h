@@ -9,6 +9,7 @@ class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
 class FMenuBuilder;
+class SBox;
 class SDockTab;
 class SWindow;
 class SDisplayClusterOperatorToolbar;
@@ -64,6 +65,9 @@ private:
 	/** The layout extender used by the operator's layout */
 	TSharedPtr<FLayoutExtender> LayoutExtender;
 
+	/** The container for the toolbar */
+	TSharedPtr<SBox> ToolbarContainer;
+	
 	/** A reference to the operator panel's toolbar widget */
 	TSharedPtr<SDisplayClusterOperatorToolbar> Toolbar;
 

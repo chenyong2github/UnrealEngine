@@ -98,6 +98,12 @@ private:
 	/** Determines if there are any light cards in the clipboard that can be pasted */
 	bool CanPasteLightCardsHere() const;
 
+	/** Toggles light card labels on or off */
+	void ToggleLabels();
+
+	/** If light card labels are currently toggled */
+	bool AreLabelsToggled() const;
+	
 private:
 	/** The preview scene to use by the viewport client to manage the preview 3D world */
 	TSharedPtr<FPreviewScene> PreviewScene;

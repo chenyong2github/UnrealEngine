@@ -8,6 +8,8 @@
 
 #include "DisplayClusterLightCardEditorProxyType.h"
 
+#include "EditorUndoClient.h"
+
 class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
@@ -22,7 +24,7 @@ class ADisplayClusterLightCardActor;
 class UDisplayClusterLightCardTemplate;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
-class SDisplayClusterLightCardEditor : public SCompoundWidget
+class SDisplayClusterLightCardEditor : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	/** The name of the tab that the light card editor lives in */
@@ -40,15 +42,17 @@ public:
 	/** Creates a tab with the light card editor inside */
 	static TSharedRef<SDockTab> SpawnInTab(const FSpawnTabArgs& SpawnTabArgs);
 
-	static void ExtendToolbar(FToolBarBuilder& ToolbarBuilder);
-
-
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardEditor)
 	{}
 	SLATE_END_ARGS()
 
 	~SDisplayClusterLightCardEditor();
 
+	// FEditorUndoClient
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	// ~FEditorUndoClient
+	
 	void Construct(const FArguments& args, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
 
 	/** The current active root actor for this light card editor */
@@ -123,6 +127,21 @@ public:
 	/** Determines if there are selected light cards that can have templates created */
 	bool CanCreateLightCardTemplate() const;
 
+	/** Toggles the visible status of labels */
+	void ToggleLightCardLabels();
+	
+	/** Display or hide labels for all included light cards */
+	void ShowLightCardLabels(bool bVisible);
+
+	/** If light card labels are currently toggled */
+	bool ShouldShowLightCardLabels() const;
+
+	/** Return the current light card label scale */
+	TOptional<float> GetLightCardLabelScale() const;
+
+	/** Update light card label scale */
+	void SetLightCardLabelScale(float NewValue);
+	
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
@@ -136,12 +155,24 @@ private:
 	/** Create the 3d viewport widget */
 	TSharedRef<SWidget> CreateViewportWidget();
 
+	/** Generate the labels dropdown menu */
+	TSharedRef<SWidget> GenerateLabelsMenu();
+
 	/** Creates the editor's command list and binds commands to it */
 	void BindCommands();
+
+	/** Register any extensions for the toolbar */
+	void RegisterToolbarExtensions();
+
+	/** Extend the toolbar for this local instance */
+	void ExtendToolbar(FToolBarBuilder& ToolbarBuilder);
 
 	/** Refresh all preview actors */
 	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
 
+	/** Reapply the current label settings */
+	void RefreshLabels();
+	
 	/**
 	 * Check if an object is managed by us
 	 * @param InObject The object to compare

@@ -45,4 +45,7 @@ public:
 	TSharedPtr<FUICommandInfo> SaveLightCardTemplate;
 	
 	TSharedPtr<FUICommandInfo> DrawLightCard;
+
+	TSharedPtr<FUICommandInfo> ToggleAllLabels;
+	TSharedPtr<FUICommandInfo> ToggleLightCardLabels;
 };

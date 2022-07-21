@@ -873,7 +873,10 @@ void FDisplayClusterMeshProjectionRenderer::RemoveActor(AActor* Actor)
 	for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : ComponentsToRemove)
 	{
 #if WITH_EDITOR
-		PrimitiveComponent->SelectionOverrideDelegate.Unbind();
+		if (PrimitiveComponent.IsValid() && PrimitiveComponent->SelectionOverrideDelegate.IsBound())
+		{
+			PrimitiveComponent->SelectionOverrideDelegate.Unbind();
+		}
 #endif
 
 		PrimitiveComponents.Remove(PrimitiveComponent);
@@ -1518,6 +1521,11 @@ void FDisplayClusterMeshProjectionRenderer::RenderPrimitives_RenderThread(const 
 		for (const FSceneProxyElement& PrimitiveProxyElement : PrimitiveSceneProxies)
 		{
 			FPrimitiveSceneProxy* PrimitiveProxy = PrimitiveProxyElement.PrimitiveSceneProxy;
+			if (PrimitiveProxy == nullptr || PrimitiveProxy->GetPrimitiveSceneInfo() == nullptr)
+			{
+				continue;
+			}
+
 			if (const FMeshBatch* MeshBatch = PrimitiveProxy->GetPrimitiveSceneInfo()->GetMeshBatch(PrimitiveProxy->GetPrimitiveSceneInfo()->StaticMeshes.Num() - 1))
 			{
 				MeshBatch->MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
@@ -1668,7 +1676,7 @@ void FDisplayClusterMeshProjectionRenderer::GetSceneProxies(TArray<FSceneProxyEl
 {
 	for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
 	{
-		if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy)
+		if (PrimitiveComponent.IsValid() && PrimitiveComponent->SceneProxy && !PrimitiveComponent->bVisibleInSceneCaptureOnly)
 		{
 			if (PrimitiveFilter(PrimitiveComponent.Get()) && RenderSettings.PrimitiveFilter.ShouldRenderPrimitive(PrimitiveComponent.Get()))
 			{

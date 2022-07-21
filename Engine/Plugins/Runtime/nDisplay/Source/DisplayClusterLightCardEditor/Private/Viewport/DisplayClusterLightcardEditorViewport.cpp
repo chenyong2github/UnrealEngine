@@ -2,21 +2,21 @@
 
 #include "DisplayClusterLightcardEditorViewport.h"
 
+#include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardEditorStyle.h"
 #include "DisplayClusterLightCardEditorViewportClient.h"
-#include "DisplayClusterLightCardEditorCommands.h"
 #include "SDisplayClusterLightCardEditor.h"
-#include "LightCardTemplates/DisplayClusterLightCardTemplateDragDropOp.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplateDragDropOp.h"
 
 #include "EditorViewportCommands.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "HAL/PlatformApplicationMisc.h"
+#include "ScopedTransaction.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "STransformViewportToolbar.h"
-#include "Slate/SceneViewport.h"
-#include "ScopedTransaction.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/DebuggerCommands.h"
+#include "Slate/SceneViewport.h"
 #include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightcardEditorViewport"
@@ -70,6 +70,16 @@ public:
 					.Cursor(EMouseCursor::Default)
 					.Label(LOCTEXT("LightCardEditorViewMenuLabel", "View"))
 					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateViewMenu)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 2.0f)
+				[
+					SNew(SEditorViewportToolbarMenu)
+					.ParentToolBar(SharedThis(this))
+					.Cursor(EMouseCursor::Default)
+					.Label(LOCTEXT("LightCardEditorShowMenuLabel", "Show"))
+					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateShowMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(3.0f, 1.0f)
@@ -180,7 +190,25 @@ public:
 
 		return MenuBuilder.MakeWidget();
 	}
+	
+	TSharedRef<SWidget> GenerateShowMenu() const
+	{
+		const TSharedPtr<const FUICommandList> CommandList = EditorViewport.IsValid() ? EditorViewport.Pin()->GetCommandList() : nullptr;
 
+		const bool bInShouldCloseWindowAfterMenuSelection = true;
+
+		FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+		{
+			MenuBuilder.BeginSection("LightCardEditorShow", LOCTEXT("ShowMenuHeader", "Show Flags"));
+			{
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleAllLabels);
+			}
+			MenuBuilder.EndSection();
+		}
+
+		return MenuBuilder.MakeWidget();
+	}
+	
 	TSharedRef<SWidget> MakeTransformToolBar()
 	{
 		FSlimHorizontalToolBarBuilder ToolbarBuilder(EditorViewport.Pin()->GetCommandList(), FMultiBoxCustomization::None);
@@ -455,6 +483,12 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			Commands.PasteHere,
 			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::PasteLightCardsHere),
 			FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere));
+
+		CommandList->MapAction(
+			Commands.ToggleAllLabels,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::ToggleLabels),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::AreLabelsToggled));
 	}
 }
 
@@ -685,6 +719,21 @@ bool SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere() const
 	}
 
 	return false;
+}
+
+void SDisplayClusterLightCardEditorViewport::ToggleLabels()
+{
+	// TODO: Handle CCR
+	if (LightCardEditorPtr.IsValid())
+	{
+		return LightCardEditorPtr.Pin()->ToggleLightCardLabels();
+	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::AreLabelsToggled() const
+{
+	// TODO: Handle CCR
+	return LightCardEditorPtr.IsValid() && LightCardEditorPtr.Pin()->ShouldShowLightCardLabels();
 }
 
 #undef LOCTEXT_NAMESPACE

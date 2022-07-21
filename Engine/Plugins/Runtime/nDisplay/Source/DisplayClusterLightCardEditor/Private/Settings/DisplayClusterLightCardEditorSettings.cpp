@@ -5,4 +5,6 @@
 UDisplayClusterLightCardEditorProjectSettings::UDisplayClusterLightCardEditorProjectSettings()
 {
 	LightCardTemplateDefaultPath.Path = TEXT("/Game/VP/LightCards");
+	LightCardLabelScale = 1.f;
+	bDisplayLightCardLabels = false;
 }
