@@ -10,16 +10,16 @@
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
 
-void FSceneOutlinerSCCHandler::AddItem(FSceneOutlinerTreeItemPtr Item)
-{
-	TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl(new FSceneOutlinerTreeItemSCC(Item));
-	ItemSourceControls.Add(Item, SourceControl);
-}
-
 TSharedPtr<FSceneOutlinerTreeItemSCC> FSceneOutlinerSCCHandler::GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem)
 {
 	TSharedPtr<FSceneOutlinerTreeItemSCC>* Result = ItemSourceControls.Find(InItem);
-	return Result == nullptr ? nullptr : *Result;
+	if (!Result)
+	{
+		Result = &ItemSourceControls.Add(InItem, MakeShared<FSceneOutlinerTreeItemSCC>(InItem));
+	}
+	
+	check(Result);
+	return *Result;
 }
 
 bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArray<FSceneOutlinerTreeItemPtr> InSelectedItems)

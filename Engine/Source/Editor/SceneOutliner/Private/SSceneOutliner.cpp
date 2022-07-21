@@ -1759,8 +1759,6 @@ bool SSceneOutliner::IsItemExpanded(const FSceneOutlinerTreeItemPtr& Item) const
 
 TSharedRef< ITableRow > SSceneOutliner::OnGenerateRowForOutlinerTree( FSceneOutlinerTreeItemPtr Item, const TSharedRef< STableViewBase >& OwnerTable )
 {
-	SourceControlHandler->AddItem(Item);
-
 	return SNew( SSceneOutlinerTreeRow, OutlinerTreeView.ToSharedRef(), SharedThis(this) ).Item( Item );
 }
 

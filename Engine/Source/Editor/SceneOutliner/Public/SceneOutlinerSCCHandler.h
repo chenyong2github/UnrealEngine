@@ -11,8 +11,6 @@ class FSceneOutlinerSCCHandler : public TSharedFromThis<class FSceneOutlinerSCCH
 {
 public:
 
-	void AddItem(FSceneOutlinerTreeItemPtr Item);
-
 	bool AddSourceControlMenuOptions(UToolMenu* Menu, TArray<FSceneOutlinerTreeItemPtr> InSelectedItems);
 
 	TSharedPtr<FSceneOutlinerTreeItemSCC> GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem);
