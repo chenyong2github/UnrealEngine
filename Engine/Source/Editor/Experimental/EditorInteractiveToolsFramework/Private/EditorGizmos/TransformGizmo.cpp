@@ -720,7 +720,6 @@ UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifie
 	RotateAxisElement->SetBeginAxis(TorusAxis0);
 	RotateAxisElement->SetPartial(true);
 	RotateAxisElement->SetAngle(PI);
-	RotateAxisElement->SetViewDependentType(EGizmoElementViewDependentType::Plane);
 	RotateAxisElement->SetViewDependentAxis(Normal);
 	RotateAxisElement->SetViewAlignType(EGizmoElementViewAlignType::Axial);
 	RotateAxisElement->SetViewAlignAxis(Normal);
@@ -845,41 +844,56 @@ void UTransformGizmo::SetupOnClickFunctions()
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXAxis)] = &UTransformGizmo::OnClickPressTranslateXAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYAxis)] = &UTransformGizmo::OnClickPressTranslateYAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateZAxis)] = &UTransformGizmo::OnClickPressTranslateZAxis;
-	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickPressScaleXAxis;
-	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickPressScaleYAxis;
-	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickPressScaleZAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXYPlanar)] = &UTransformGizmo::OnClickPressTranslateXYPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYZPlanar)] = &UTransformGizmo::OnClickPressTranslateYZPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXZPlanar)] = &UTransformGizmo::OnClickPressTranslateXZPlanar;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateScreenSpace)] = &UTransformGizmo::OnClickPressScreenSpaceTranslate;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickPressScaleXAxis;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickPressScaleYAxis;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickPressScaleZAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickPressScaleXYPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickPressScaleYZPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickPressScaleXZPlanar;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickPressRotateXAxis;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickPressRotateYAxis;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickPressRotateZAxis;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateScreenSpace)] = &UTransformGizmo::OnClickPressScreenSpaceRotate;
 
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXAxis)] = &UTransformGizmo::OnClickDragTranslateAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYAxis)] = &UTransformGizmo::OnClickDragTranslateAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateZAxis)] = &UTransformGizmo::OnClickDragTranslateAxis;
-	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
-	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
-	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXYPlanar)] = &UTransformGizmo::OnClickDragTranslatePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYZPlanar)] = &UTransformGizmo::OnClickDragTranslatePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXZPlanar)] = &UTransformGizmo::OnClickDragTranslatePlanar;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateScreenSpace)] = &UTransformGizmo::OnClickDragScreenSpaceTranslate;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickDragScaleAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateScreenSpace)] = &UTransformGizmo::OnClickDragScreenSpaceRotate;
 
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXAxis)] = &UTransformGizmo::OnClickReleaseTranslateAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYAxis)] = &UTransformGizmo::OnClickReleaseTranslateAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateZAxis)] = &UTransformGizmo::OnClickReleaseTranslateAxis;
-	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
-	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
-	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXYPlanar)] = &UTransformGizmo::OnClickReleaseTranslatePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateYZPlanar)] = &UTransformGizmo::OnClickReleaseTranslatePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateXZPlanar)] = &UTransformGizmo::OnClickReleaseTranslatePlanar;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::TranslateScreenSpace)] = &UTransformGizmo::OnClickReleaseScreenSpaceTranslate;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleZAxis)] = &UTransformGizmo::OnClickReleaseScaleAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateScreenSpace)] = &UTransformGizmo::OnClickReleaseScreenSpaceRotate;
 }
 
 
@@ -1217,9 +1231,185 @@ FVector UTransformGizmo::ComputePlanarScaleDelta(const FVector& InStartPoint, co
 		InteractionAxisList & EAxisList::Z ? ScaleApplied : 0.0);
 }
 
+void UTransformGizmo::OnClickPressScreenSpaceTranslate(const FInputDeviceRay& PressPos)
+{
+	check(GizmoViewContext);
+
+	InteractionPlanarOrigin = CurrentTransform.GetLocation();
+	InteractionPlanarNormal = -GizmoViewContext->GetViewDirection();
+	InteractionPlanarAxisX = GizmoViewContext->GetViewUp();
+	InteractionPlanarAxisY = GizmoViewContext->GetViewRight();
+	InteractionAxisList = EAxisList::Screen;
+	OnClickPressPlanar(PressPos);
+}
+
+void UTransformGizmo::OnClickDragScreenSpaceTranslate(const FInputDeviceRay& DragPos)
+{
+	OnClickDragTranslatePlanar(DragPos);
+}
+
+void UTransformGizmo::OnClickReleaseScreenSpaceTranslate(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+void UTransformGizmo::OnClickPressRotateXAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::YAxisVector, FVector::ZAxisVector).GetSafeNormal();
+	InteractionAxisList = EAxisList::X;
+	InteractionScreenStartPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
+	bInInteraction = true;
+}
+
+void UTransformGizmo::OnClickPressRotateYAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::ZAxisVector, FVector::XAxisVector).GetSafeNormal();
+	InteractionAxisList = EAxisList::Y;
+	InteractionScreenStartPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
+	bInInteraction = true;
+}
+
+void UTransformGizmo::OnClickPressRotateZAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::XAxisVector, FVector::YAxisVector).GetSafeNormal();
+	InteractionAxisList = EAxisList::Z;
+	InteractionScreenStartPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
+	bInInteraction = true;
+}
+
+FVector2D UTransformGizmo::GetScreenRotateAxisDir(const FVector& InAxis0, const FVector& InAxis1)
+{
+	check(GizmoViewContext);
+	const FVector DirectionToWidget = CurrentTransform.GetLocation() - GizmoViewContext->ViewLocation;
+
+	const FVector Axis0 = GetWorldAxis(InAxis0);
+	const FVector Axis1 = GetWorldAxis(InAxis1);
+
+	// Reverse the axes based on camera view
+	const bool bMirrorAxis0 = (FVector::DotProduct(Axis0, DirectionToWidget) <= 0.0f);
+	const bool bMirrorAxis1 = (FVector::DotProduct(Axis1, DirectionToWidget) <= 0.0f);
+	const float Direction = (bMirrorAxis0 ^ bMirrorAxis1) ? -1.0f : 1.0f;
+
+	const FVector AxisDir = (Axis1 - Axis0) * Direction;
+
+	return GetScreenProjectedAxis(AxisDir);
+}
+
+void UTransformGizmo::OnClickDragRotateAxis(const FInputDeviceRay& DragPos)
+{
+	FQuat DeltaRot = ComputeAxisRotateDelta(InteractionScreenCurrPos, DragPos.ScreenPosition);
+	ApplyRotateDelta(DeltaRot);
+	InteractionScreenCurrPos = DragPos.ScreenPosition;
+}
+
+FQuat UTransformGizmo::ComputeAxisRotateDelta(const FVector2D& InStartPos, const FVector2D& InEndPos)
+{
+	FVector2D DragDir = InEndPos - InStartPos;
+	FRotator DeltaRot(0.0, 0.0, 0.0);
+	if (InteractionAxisList == EAxisList::X)
+	{
+		DeltaRot.Roll = FVector2D::DotProduct(InteractionScreenAxisDirection, DragDir);
+	}
+	else if (InteractionAxisList == EAxisList::Y)
+	{
+		DeltaRot.Pitch = FVector2D::DotProduct(InteractionScreenAxisDirection, DragDir);
+	}
+	else
+	{
+		DeltaRot.Yaw = FVector2D::DotProduct(InteractionScreenAxisDirection, DragDir);
+	}
+
+	check(TransformGizmoSource);
+	if (TransformGizmoSource->GetGizmoCoordSystemSpace() == EToolContextCoordinateSystem::Local)
+	{
+		check(ActiveTarget);
+		FMatrix CurrCoordSystem = ActiveTarget->GetTransform().ToMatrixNoScale();
+		DeltaRot = (CurrCoordSystem.Inverse() * FRotationMatrix(DeltaRot) * CurrCoordSystem).Rotator();
+	}
+
+	return DeltaRot.Quaternion();
+}
+
+void UTransformGizmo::OnClickReleaseRotateAxis(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+void UTransformGizmo::OnClickPressScreenSpaceRotate(const FInputDeviceRay& PressPos)
+{
+	check(GizmoViewContext);
+	
+	InteractionPlanarOrigin = CurrentTransform.GetLocation();
+	InteractionPlanarNormal = -GizmoViewContext->GetViewDirection();
+	InteractionPlanarAxisX = GizmoViewContext->GetViewUp();
+	InteractionPlanarAxisY = GizmoViewContext->GetViewRight();
+	InteractionAxisList = EAxisList::Screen;
+
+	float HitDepth;
+	if (GetRayParamIntersectionWithInteractionPlane(PressPos, HitDepth))
+	{
+		FVector HitPoint = PressPos.WorldRay.Origin + PressPos.WorldRay.Direction * HitDepth;
+		InteractionStartAngle = GizmoMath::ComputeAngleInPlane(HitPoint,
+			InteractionPlanarOrigin, InteractionPlanarNormal, InteractionPlanarAxisX, InteractionPlanarAxisY);
+		InteractionCurrAngle = InteractionStartAngle;
+
+		bInInteraction = true;
+	}
+}
+
+void UTransformGizmo::OnClickDragScreenSpaceRotate(const FInputDeviceRay& DragPos)
+{
+	check(GizmoViewContext);
+	
+	float HitDepth;
+	if (GetRayParamIntersectionWithInteractionPlane(DragPos, HitDepth))
+	{
+		FVector HitPoint = DragPos.WorldRay.Origin + DragPos.WorldRay.Direction * HitDepth;
+		float HitAngle = GizmoMath::ComputeAngleInPlane(HitPoint,
+			InteractionPlanarOrigin, InteractionPlanarNormal, InteractionPlanarAxisX, InteractionPlanarAxisY);
+
+		FQuat Delta = ComputeAngularRotateDelta(InteractionCurrAngle, HitAngle);
+		ApplyRotateDelta(Delta);
+		InteractionCurrAngle = HitAngle;
+	}
+}
+
+FQuat UTransformGizmo::ComputeAngularRotateDelta(double InStartAngle, double InEndAngle)
+{
+	float DeltaAngle = InEndAngle - InStartAngle;
+	return FQuat(InteractionPlanarNormal, DeltaAngle);
+}
+
+void UTransformGizmo::OnClickReleaseScreenSpaceRotate(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+FVector2D UTransformGizmo::GetScreenProjectedAxis(const FVector& InAxis)
+{
+	check(GizmoViewContext);
+
+	if (FMath::IsNearlyEqual(FVector::DotProduct(GizmoViewContext->GetViewDirection(), InAxis), 1.0))
+	{
+		return FVector2D(1.0, 1.0);
+	}
+	
+	const float ScreenX = FVector::DotProduct(InAxis, GizmoViewContext->GetViewRight());
+	const float ScreenY = FVector::DotProduct(InAxis, GizmoViewContext->GetViewUp());
+	return FVector2D(ScreenX, ScreenY);
+}
+
 void UTransformGizmo::ApplyTranslateDelta(const FVector& InTranslateDelta)
 {
 	CurrentTransform.AddToTranslation(InTranslateDelta);
+	ActiveTarget->SetTransform(CurrentTransform);
+}
+
+void UTransformGizmo::ApplyRotateDelta(const FQuat& InRotateDelta)
+{
+	// Applies rot delta after the current rotation
+	FQuat NewRotation = InRotateDelta * CurrentTransform.GetRotation();
+	CurrentTransform.SetRotation(NewRotation);
 	ActiveTarget->SetTransform(CurrentTransform);
 }
 

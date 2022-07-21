@@ -10,12 +10,13 @@
 
 UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
+	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+
 	UEditorTransformGizmo* TransformGizmo = NewObject<UEditorTransformGizmo>(SceneState.GizmoManager);
 	TransformGizmo->Setup();
 	TransformGizmo->TransformGizmoSource = UEditorTransformGizmoSource::Construct(TransformGizmo);
-
-	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
-	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
+	TransformGizmo->GizmoViewContext = GizmoViewContext;
 
 	// @todo: Gizmo element construction to be moved here from UTransformGizmo.
 	// A UGizmoElementRenderMultiTarget will be constructed and both the

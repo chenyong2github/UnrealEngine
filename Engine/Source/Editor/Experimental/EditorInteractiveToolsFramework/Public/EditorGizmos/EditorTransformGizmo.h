@@ -20,6 +20,9 @@ protected:
 	/** Apply translate delta to transform proxy */
 	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
 
+	/** Apply rotate delta to transform proxy */
+	virtual void ApplyRotateDelta(const FQuat& InRotateDelta);
+
 	/** Apply scale delta to transform proxy */
 	virtual void ApplyScaleDelta(const FVector& InScaleDelta);
 };

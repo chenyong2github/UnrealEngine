@@ -6,6 +6,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseGizmos/GizmoElementHitTargets.h"
 #include "BaseGizmos/GizmoElementStateTargets.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
@@ -203,6 +204,10 @@ public:
 	/** Root of renderable gizmo elements */
 	UPROPERTY()
 	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
+
+	/** Gizmo view context, needed for screen space interactions */
+	UPROPERTY()
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
 
 	/** Whether gizmo is visible. */
 	UPROPERTY()
@@ -502,11 +507,76 @@ protected:
 	virtual FVector ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint);
 
 	/**
+	 * Screen-space translate interaction methods
+	 */
+
+	 /** Handle click press for screen-space translate */
+	virtual void OnClickPressScreenSpaceTranslate(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for screen-space translate */
+	virtual void OnClickDragScreenSpaceTranslate(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for screen-space translate */
+	virtual void OnClickReleaseScreenSpaceTranslate(const FInputDeviceRay& ReleasePos);
+
+	/**
+	 * Rotate interaction methods
+	 */
+
+	/** Handle click press for rotate X axis */
+	virtual void OnClickPressRotateXAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for rotate Y axis */
+	virtual void OnClickPressRotateYAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for rotate Z axis */
+	virtual void OnClickPressRotateZAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for rotate axis */
+	virtual void OnClickDragRotateAxis(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for rotate axes */
+	virtual void OnClickReleaseRotateAxis(const FInputDeviceRay& ReleasePos);
+
+	/** Get screen-space axis for rotation drag */
+	FVector2D GetScreenRotateAxisDir(const FVector& InAxis0, const FVector& InAxis1);
+
+	/** Compute rotate delta based on screen-space start/end positions */
+	virtual FQuat ComputeAxisRotateDelta(const FVector2D& InStartPos, const FVector2D& InEndPos);
+
+	/**
+	 * Screen-space rotate interaction methods
+	 */
+
+	 /** Handle click press for screen-space rotate */
+	virtual void OnClickPressScreenSpaceRotate(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for screen-space rotate */
+	virtual void OnClickDragScreenSpaceRotate(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for screen-space rotate */
+	virtual void OnClickReleaseScreenSpaceRotate(const FInputDeviceRay& ReleasePos);
+
+	/** Compute rotate delta based on start/end angles */
+	virtual FQuat ComputeAngularRotateDelta(double InStartAngle, double InEndAngle);
+
+	/**
+ 	 * Screen-space helper methods
+	 */
+
+	/** Returns 2D vector projection of input axis onto the current viewing plane */
+	virtual FVector2D GetScreenProjectedAxis(const FVector& InAxis);
+
+
+	/**
 	 * Apply transform delta methods
 	 */
 	 
-	 /** Apply translate delta to transform proxy */
+	/** Apply translate delta to transform proxy */
 	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
+
+	/** Apply rotate delta to transform proxy */
+	virtual void ApplyRotateDelta(const FQuat& InRotateDelta);
 
 	/** Apply scale delta to transform proxy */
 	virtual void ApplyScaleDelta(const FVector& InScaleDelta);
@@ -620,4 +690,25 @@ protected:
 	/** Active interaction current point planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	FVector InteractionPlanarCurrPoint;
+
+	/** Active interaction rotation start angle (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	float InteractionStartAngle;
+
+	/** Active interaction rotation curr angle (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	float InteractionCurrAngle;
+
+	/** Active interaction screen axis dir (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionScreenAxisDirection;
+
+	/** Active interaction screen start pos planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionScreenStartPos;
+
+	/** Active interaction screen current pos planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionScreenCurrPos;
+
 };

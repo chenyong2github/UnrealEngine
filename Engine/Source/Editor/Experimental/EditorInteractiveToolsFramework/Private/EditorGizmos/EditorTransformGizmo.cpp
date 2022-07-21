@@ -24,6 +24,25 @@ void UEditorTransformGizmo::ApplyTranslateDelta(const FVector& InTranslateDelta)
 	}
 }
 
+void UEditorTransformGizmo::ApplyRotateDelta(const FQuat& InRotateDelta)
+{
+	check(ActiveTarget);
+
+	if (UEditorTransformProxy* EditorTransformProxy = Cast<UEditorTransformProxy>(ActiveTarget))
+	{
+		// Update the cached current delta.
+		// Applies rot delta after the current rotation.
+		FQuat NewRotation = InRotateDelta * CurrentTransform.GetRotation();
+		CurrentTransform.SetRotation(NewRotation);
+
+		EditorTransformProxy->InputRotateDelta(InRotateDelta.Rotator(), InteractionAxisList);
+	}
+	else
+	{
+		Super::ApplyRotateDelta(InRotateDelta);
+	}
+}
+
 void UEditorTransformGizmo::ApplyScaleDelta(const FVector& InScaleDelta)
 {
 	check(ActiveTarget);
