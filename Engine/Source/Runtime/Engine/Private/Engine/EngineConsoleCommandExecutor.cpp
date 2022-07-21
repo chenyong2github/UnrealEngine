@@ -5,6 +5,7 @@
 #include "Engine/GameEngine.h"
 #include "Engine/LocalPlayer.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Commands/InputChord.h"
 
 #define LOCTEXT_NAMESPACE "EngineConsoleCommandExecutor"
 
