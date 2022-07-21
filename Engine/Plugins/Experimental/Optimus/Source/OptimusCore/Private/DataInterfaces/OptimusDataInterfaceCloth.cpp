@@ -31,7 +31,7 @@ TArray<FOptimusCDIPinDefinition> UOptimusClothDataInterface::GetPinDefinitions()
 
 TSubclassOf<UActorComponent> UOptimusClothDataInterface::GetRequiredComponentClass() const
 {
-	return USkeletalMeshComponent::StaticClass();
+	return USkinnedMeshComponent::StaticClass();
 }
 
 
@@ -99,7 +99,7 @@ void UOptimusClothDataInterface::GetHLSL(FString& OutHLSL) const
 UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusClothDataProvider* Provider = NewObject<UOptimusClothDataProvider>();
-	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 	return Provider;
 }
 
@@ -107,21 +107,24 @@ UComputeDataProvider* UOptimusClothDataInterface::CreateDataProvider(TObjectPtr<
 bool UOptimusClothDataProvider::IsValid() const
 {
 	return
-		SkeletalMesh != nullptr &&
-		SkeletalMesh->MeshObject != nullptr;
+		SkinnedMesh != nullptr &&
+		SkinnedMesh->MeshObject != nullptr;
 }
 
 FComputeDataProviderRenderProxy* UOptimusClothDataProvider::GetRenderProxy()
 {
-	return new FOptimusClothDataProviderProxy(SkeletalMesh);
+	return new FOptimusClothDataProviderProxy(SkinnedMesh);
 }
 
 
-FOptimusClothDataProviderProxy::FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
+FOptimusClothDataProviderProxy::FOptimusClothDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
-	ClothBlendWeight = SkeletalMeshComponent->ClothBlendWeight;
-	FrameNumber = SkeletalMeshComponent->GetScene()->GetFrameNumber() + 1; // +1 matches the logic for FrameNumberToPrepare in FSkeletalMeshObjectGPUSkin::Update()
+	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
+
+	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SkinnedMeshComponent);
+	ClothBlendWeight = SkeletalMeshComponent ? SkeletalMeshComponent->ClothBlendWeight : 1.f;
+
+	FrameNumber = SkinnedMeshComponent->GetScene()->GetFrameNumber() + 1; // +1 matches the logic for FrameNumberToPrepare in FSkeletalMeshObjectGPUSkin::Update()
 }
 
 struct FClothDataInterfacePermutationIds

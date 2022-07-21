@@ -2,7 +2,7 @@
 
 #include "OptimusDataInterfaceMorphTarget.h"
 
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
@@ -28,7 +28,7 @@ TArray<FOptimusCDIPinDefinition> UOptimusMorphTargetDataInterface::GetPinDefinit
 
 TSubclassOf<UActorComponent> UOptimusMorphTargetDataInterface::GetRequiredComponentClass() const
 {
-	return USkeletalMeshComponent::StaticClass();
+	return USkinnedMeshComponent::StaticClass();
 }
 
 
@@ -78,7 +78,7 @@ void UOptimusMorphTargetDataInterface::GetHLSL(FString& OutHLSL) const
 UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusMorphTargetDataProvider* Provider = NewObject<UOptimusMorphTargetDataProvider>();
-	Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InBinding);
+	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 	return Provider;
 }
 
@@ -86,20 +86,20 @@ UComputeDataProvider* UOptimusMorphTargetDataInterface::CreateDataProvider(TObje
 bool UOptimusMorphTargetDataProvider::IsValid() const
 {
 	return
-		SkeletalMesh != nullptr &&
-		SkeletalMesh->MeshObject != nullptr;
+		SkinnedMesh != nullptr &&
+		SkinnedMesh->MeshObject != nullptr;
 }
 
 FComputeDataProviderRenderProxy* UOptimusMorphTargetDataProvider::GetRenderProxy()
 {
-	return new FOptimusMorphTargetDataProviderProxy(SkeletalMesh);
+	return new FOptimusMorphTargetDataProviderProxy(SkinnedMesh);
 }
 
 
-FOptimusMorphTargetDataProviderProxy::FOptimusMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
+FOptimusMorphTargetDataProviderProxy::FOptimusMorphTargetDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent)
 {
-	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
-	FrameNumber = SkeletalMeshComponent->GetScene()->GetFrameNumber() + 1; // +1 matches the logic for FrameNumberToPrepare in FSkeletalMeshObjectGPUSkin::Update()
+	SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
+	FrameNumber = SkinnedMeshComponent->GetScene()->GetFrameNumber() + 1; // +1 matches the logic for FrameNumberToPrepare in FSkeletalMeshObjectGPUSkin::Update()
 }
 
 struct FMorphTargetDataInterfacePermutationIds

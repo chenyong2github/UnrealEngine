@@ -7,9 +7,9 @@
 #include "OptimusDataInterfaceCloth.generated.h"
 
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
-/** Compute Framework Data Interface for reading skeletal mesh. */
+/** Compute Framework Data Interface for reading cloth data. */
 UCLASS(Category = ComputeFramework)
 class OPTIMUSCORE_API UOptimusClothDataInterface : public UOptimusComputeDataInterface
 {
@@ -41,7 +41,7 @@ class UOptimusClothDataProvider : public UComputeDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -52,7 +52,7 @@ public:
 class FOptimusClothDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FOptimusClothDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);

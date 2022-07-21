@@ -8,7 +8,7 @@
 #include "OptimusDataInterfaceMorphTarget.generated.h"
 
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
@@ -42,7 +42,7 @@ class UOptimusMorphTargetDataProvider : public UComputeDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -53,7 +53,7 @@ public:
 class FOptimusMorphTargetDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FOptimusMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FOptimusMorphTargetDataProviderProxy(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
