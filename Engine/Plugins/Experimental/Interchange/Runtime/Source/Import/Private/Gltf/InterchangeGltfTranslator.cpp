@@ -338,6 +338,10 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 
 	ShaderGraphNode.SetCustomTwoSided( GltfMaterial.bIsDoubleSided );
 
+	//Based on the gltf specification the basecolor and emissive textures have SRGB colors:
+	SetTextureSRGB(NodeContainer, GltfMaterial.BaseColor);
+	SetTextureSRGB(NodeContainer, GltfMaterial.Emissive);
+
 	if ( GltfMaterial.ShadingModel == GLTF::FMaterial::EShadingModel::MetallicRoughness )
 	{
 		// Base Color
@@ -1181,4 +1185,15 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 	}
 
 	NodeContainer.AddNode(TrackSetNode);
+}
+
+void UInterchangeGltfTranslator::SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const
+{
+	if (GltfAsset.Textures.IsValidIndex(TextureMap.TextureIndex))
+	{
+		const FString TextureName = GltfAsset.Textures[TextureMap.TextureIndex].Name;
+		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(TextureName);
+		UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid)));
+		TextureNode->SetCustomSRGB(true);
+	}
 }
