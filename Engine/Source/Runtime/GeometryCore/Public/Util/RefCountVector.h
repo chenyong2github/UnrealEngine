@@ -237,7 +237,7 @@ public:
 	 * @param IncrementRefCount Callable for incrementing an item, i.e. an item that has been referenced before.
 	 */
 	template <typename IterateFunc, typename AllocateRefCountFunc, typename IncrementRefCountFunc>
-	void Rebuild(SIZE_T Num, IterateFunc&& Iterate, AllocateRefCountFunc&& AllocateRefCount, IncrementRefCountFunc&& IncrementRefCount)
+	void Rebuild(unsigned int Num, IterateFunc&& Iterate, AllocateRefCountFunc&& AllocateRefCount, IncrementRefCountFunc&& IncrementRefCount)
 	{
 		// Initialize ref counts to the given number of elements.
 		RefCounts.Resize(Num);
@@ -265,10 +265,10 @@ public:
 		Forward<IterateFunc>(Iterate)(UpdateRefCount);
 
 		// Add unused elements to free list.
-		const SIZE_T FreeIndicesNum = Num - UsedCount;
+		const unsigned int FreeIndicesNum = Num - UsedCount;
 		FreeIndices.SetNum(FreeIndicesNum);
-		SIZE_T FreeIndicesIndex = 0;
-		for (SIZE_T Index = 0; (Index < Num) & (FreeIndicesIndex < FreeIndicesNum); ++Index)
+		unsigned int FreeIndicesIndex = 0;
+		for (unsigned int Index = 0; (Index < Num) & (FreeIndicesIndex < FreeIndicesNum); ++Index)
 		{
 			if (RefCounts[Index] == INVALID_REF_COUNT)
 			{
