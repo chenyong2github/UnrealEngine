@@ -341,13 +341,16 @@ public:
 		CurrentArchetypesTagBitSet = BitSet;
 	}
 
-protected:
-	void SetSubsystemRequirements(const FMassExternalSubsystemBitSet& RequiredConstSubsystems, const FMassExternalSubsystemBitSet& RequiredMutableSubsystems);
+	/** 
+	 * Processes SubsystemRequirements to fetch and process all the indicated subsystems.
+	 * @return `true` if all required subsystems have been found, `false` otherwise
+	 */
+	bool CacheSubsystemRequirements(const UWorld* World, const FMassSubsystemRequirements& SubsystemRequirements);
 
-	void SetRequirements(TConstArrayView<FMassFragmentRequirementDescription> InRequirements, 
-		TConstArrayView<FMassFragmentRequirementDescription> InChunkRequirements, 
-		TConstArrayView<FMassFragmentRequirementDescription> InConstSharedRequirements, 
-		TConstArrayView<FMassFragmentRequirementDescription> InSharedRequirements);
+protected:
+	void SetSubsystemRequirements(const FMassSubsystemRequirements& SubsystemRequirements);
+
+	void SetFragmentRequirements(const FMassFragmentRequirements& FragmentRequirements);
 
 	void ClearFragmentViews()
 	{
@@ -402,4 +405,6 @@ protected:
 		}
 		return SystemInstance;
 	}
+
+	bool CacheSubsystem(const UWorld* World, const uint32 SystemIndex);
 };

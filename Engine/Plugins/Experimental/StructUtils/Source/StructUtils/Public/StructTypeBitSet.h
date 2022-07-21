@@ -375,6 +375,11 @@ public:
 		static const TStructTypeBitSet TypeBitSet(GetTypeIndex<T>());
 		return TypeBitSet;
 	}
+
+	static const TUStructType* GetTypeAtIndex(const int32 Index)
+	{
+		return Cast<const TUStructType>(TStructTrackerWrapper::StructTracker.GetStructType(Index));
+	}
 	
 	template<typename T>
 	FORCEINLINE void Add()

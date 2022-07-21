@@ -56,10 +56,6 @@ public:
 	/** Whether this processor should execute according the CurrentExecutionFlags parameters */
 	bool ShouldExecute(const EProcessorExecutionFlags CurrentExecutionFlags) const { return (GetExecutionFlags() & CurrentExecutionFlags) != EProcessorExecutionFlags::None; }
 	void CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
-	
-	/** Configures Context to accept access requests performed outside of FMassEntityQuery::ForEachEntityChunk calls.
-	 *  The access is declared via ProcessorQuery member variable */
-	void ConfigureContextForProcessorUse(FMassExecutionContext& Context);
 
 	bool AllowDuplicates() const { return bAllowDuplicates; }
 
@@ -78,6 +74,8 @@ public:
 	/** By default fetches requirements declared entity queries registered via RegisterQuery. Processors can override 
 	 *	this function to supply additional requirements */
 	virtual void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
+
+	const FMassSubsystemRequirements& GetProcessorRequirements() const { return ProcessorRequirements; }
 
 	/** Adds Query to RegisteredQueries list. Query is required to be a member variable of this processor. Not meeting
 	 *  this requirement will cause check failure and the query won't be registered. */
@@ -141,7 +139,7 @@ protected:
 	friend FMassDebugger;
 
 	/** A query representing elements this processor is accessing in Execute function outside of query execution */
-	FMassEntityQuery ProcessorRequirements;
+	FMassSubsystemRequirements ProcessorRequirements;
 
 private:
 	/** Stores processor's queries registered via RegisterQuery. 

@@ -80,8 +80,6 @@ void UMassLODCollectorProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySub
 
 void UMassLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	ConfigureContextForProcessorUse(Context);
-
 	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
 	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 	Collector.PrepareExecution(Viewers);

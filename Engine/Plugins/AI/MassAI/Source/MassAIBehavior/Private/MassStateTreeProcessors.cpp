@@ -255,7 +255,6 @@ void UMassStateTreeActivationProcessor::ConfigureQueries()
 
 void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	ConfigureContextForProcessorUse(Context);
 	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(EntitySubsystem.GetWorld());
 
 	const UMassBehaviorSettings* BehaviorSettings = GetDefault<UMassBehaviorSettings>();
@@ -383,7 +382,6 @@ void UMassStateTreeProcessor::ConfigureQueries()
 void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
 	UWorld* World = EntitySubsystem.GetWorld();
-	ConfigureContextForProcessorUse(Context);
 	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(World);
 	
 	QUICK_SCOPE_CYCLE_COUNTER(StateTreeProcessor_Run);

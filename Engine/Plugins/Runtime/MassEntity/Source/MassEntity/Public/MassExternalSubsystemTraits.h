@@ -43,14 +43,14 @@ namespace FMassExternalSubsystemTraits
 	This is a getter function that given a UWorld* fetches an instance.
 	*/
 	template<typename T, typename = typename TEnableIf<TIsDerivedFrom<T, UWorldSubsystem>::IsDerived>::Type>
-	T* GetInstance(const UWorld* World)
+	FORCEINLINE T* GetInstance(const UWorld* World)
 	{ 
 		// note that the default implementation works only for UWorldSubsystems
 		return UWorld::GetSubsystem<T>(World);
 	}
 
 	template<typename T>
-	T* GetInstance(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
+	FORCEINLINE T* GetInstance(const UWorld* World, const TSubclassOf<UWorldSubsystem> SubsystemClass)
 	{
 		return World ? Cast<T>(World->GetSubsystemBase(SubsystemClass)) : (T*)nullptr;
 	}

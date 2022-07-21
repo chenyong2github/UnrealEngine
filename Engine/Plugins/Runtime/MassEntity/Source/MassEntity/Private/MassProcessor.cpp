@@ -16,13 +16,19 @@ namespace UE::Mass::Debug
 	FAutoConsoleVariableRef CVarLogProcessingGraph(TEXT("mass.LogProcessingGraph"), bLogProcessingGraph
 		, TEXT("When enabled will log task graph tasks created while dispatching processors to other threads, along with their dependencies"), ECVF_Cheat);
 }
-#endif // WITH_MASSENTITY_DEBUG
 
-// change to && 1 to enable more detailed processing tasks logging
-#if WITH_MASSENTITY_DEBUG && 0
-#define PROCESSOR_LOG(Fmt, ...) UE_LOG(LogMass, Verbose, Fmt, ##__VA_ARGS__)
-#else // WITH_MASSENTITY_DEBUG
-#define PROCESSOR_LOG(...) 
+#define PROCESSOR_LOG(Verbosity, Fmt, ...) UE_VLOG_UELOG(this, LogMass, Verbosity, Fmt, ##__VA_ARGS__)
+
+// change to 1 to enable more detailed processing tasks logging
+#if 0
+#define PROCESSOR_TASK_LOG(Fmt, ...) UE_VLOG_UELOG(this, LogMass, Verbose, Fmt, ##__VA_ARGS__)
+#else
+#define PROCESSOR_TASK_LOG(...) 
+#endif // 0
+
+#else 
+#define PROCESSOR_LOG(...)
+#define PROCESSOR_TASK_LOG(...) 
 #endif // WITH_MASSENTITY_DEBUG
 
 class FMassProcessorTask
@@ -52,7 +58,7 @@ public:
 		checkf(Processor, TEXT("Expecting a valid processor to execute"));
 		checkf(EntitySubsystem, TEXT("Expecting a valid entity subsystem to execute processor"));
 
-		PROCESSOR_LOG(TEXT("+--+ Task %s started on %u"), *Processor->GetProcessorName(), FPlatformTLS::GetCurrentThreadId());
+		PROCESSOR_TASK_LOG(TEXT("+--+ Task %s started on %u"), *Processor->GetProcessorName(), FPlatformTLS::GetCurrentThreadId());
 
 		UMassEntitySubsystem::FScopedProcessing ProcessingScope = EntitySubsystem->NewProcessingScope();
 
@@ -69,7 +75,7 @@ public:
 		{
 			Processor->CallExecute(*EntitySubsystem, ExecutionContext);
 		}
-		PROCESSOR_LOG(TEXT("+--+ Task %s finished"), *Processor->GetProcessorName());
+		PROCESSOR_TASK_LOG(TEXT("+--+ Task %s finished"), *Processor->GetProcessorName());
 	}
 
 private:
@@ -107,7 +113,6 @@ UMassProcessor::UMassProcessor(const FObjectInitializer& ObjectInitializer)
 UMassProcessor::UMassProcessor()
 	: ExecutionFlags((int32)(EProcessorExecutionFlags::Server | EProcessorExecutionFlags::Standalone))
 {
-	RegisterQuery(ProcessorRequirements);
 }
 
 void UMassProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister)
@@ -152,12 +157,18 @@ void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExe
 #if WITH_MASSENTITY_DEBUG
 	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
 #endif
-	Execute(EntitySubsystem, Context);
-}
-
-void UMassProcessor::ConfigureContextForProcessorUse(FMassExecutionContext& Context)
-{
-	ProcessorRequirements.ApplyQueryRequirementsToContext(Context);
+	// CacheSubsystemRequirements will return true only if all requirements declared with ProcessorRequirements are met
+	// meaning if it fails there's no point in calling Execute.
+	// Note that we're not testing individual queries in OwnedQueries - processors can function just fine with some 
+	// of their queries not having anything to do.
+	if (Context.CacheSubsystemRequirements(GetWorld(), ProcessorRequirements))
+	{
+		Execute(EntitySubsystem, Context);
+	}
+	else
+	{
+		PROCESSOR_LOG(VeryVerbose, TEXT("%s Skipping Execute due to subsystem requirements not being met"), *GetProcessorName());
+	}
 }
 
 void UMassProcessor::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
@@ -279,7 +290,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 			}
 
 			check(ProcessingNode.Processor);
-			PROCESSOR_LOG(TEXT("Task %u %s%s%s"), Events[i]->GetTraceId(), *ProcessingNode.Processor->GetProcessorName()
+			PROCESSOR_TASK_LOG(TEXT("Task %u %s%s%s"), Events[i]->GetTraceId(), *ProcessingNode.Processor->GetProcessorName()
 				, DependenciesDesc.Len() > 0 ? TEXT(" depends on ") : TEXT(""), *DependenciesDesc);
 		}
 	}

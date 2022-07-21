@@ -134,6 +134,10 @@ public:
 
 	void Reset();
 
+	const FMassExternalSubsystemBitSet& GetRequiredConstSubsystems() const { return RequiredConstSubsystems; }
+	const FMassExternalSubsystemBitSet& GetRequiredMutableSubsystems() const { return RequiredMutableSubsystems; }
+	bool IsEmpty() const { return RequiredConstSubsystems.IsEmpty() && RequiredMutableSubsystems.IsEmpty(); }
+
 	bool DoesRequireGameThreadExecution() const { return bRequiresGameThreadExecution; }
 	void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
 
@@ -367,6 +371,9 @@ public:
 	bool CheckValidity() const;
 
 	TConstArrayView<FMassFragmentRequirementDescription> GetFragmentRequirements() const { return FragmentRequirements; }
+	TConstArrayView<FMassFragmentRequirementDescription> GetChunkFragmentRequirements() const { return ChunkFragmentRequirements; }
+	TConstArrayView<FMassFragmentRequirementDescription> GetConstSharedFragmentRequirements() const { return ConstSharedFragmentRequirements; }
+	TConstArrayView<FMassFragmentRequirementDescription> GetSharedFragmentRequirements() const { return SharedFragmentRequirements; }
 	const FMassFragmentBitSet& GetRequiredAllFragments() const { return RequiredAllFragments; }
 	const FMassFragmentBitSet& GetRequiredAnyFragments() const { return RequiredAnyFragments; }
 	const FMassFragmentBitSet& GetRequiredOptionalFragments() const { return RequiredOptionalFragments; }
@@ -380,6 +387,8 @@ public:
 	const FMassSharedFragmentBitSet& GetRequiredAllSharedFragments() const { return RequiredAllSharedFragments; }
 	const FMassSharedFragmentBitSet& GetRequiredOptionalSharedFragments() const { return RequiredOptionalSharedFragments; }
 	const FMassSharedFragmentBitSet& GetRequiredNoneSharedFragments() const { return RequiredNoneSharedFragments; }
+
+	bool IsEmpty() const;
 
 	bool DoesArchetypeMatchRequirements(const FMassArchetypeHandle& ArchetypeHandle) const;
 	bool DoesRequireGameThreadExecution() const { return bRequiresGameThreadExecution; }

@@ -119,8 +119,6 @@ void UMassSimulationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("PrepareExecution"));
-		
-		ConfigureContextForProcessorUse(Context);
 
 		const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
 		const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
