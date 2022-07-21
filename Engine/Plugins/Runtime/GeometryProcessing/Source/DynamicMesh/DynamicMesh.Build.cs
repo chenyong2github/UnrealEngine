@@ -25,6 +25,6 @@ public class DynamicMesh : ModuleRules
 				"Eigen"
 			}
 		);
-
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
 }
