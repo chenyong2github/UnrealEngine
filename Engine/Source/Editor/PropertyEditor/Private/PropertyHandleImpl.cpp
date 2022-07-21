@@ -534,11 +534,27 @@ void FPropertyValueImpl::SetOnPropertyValueChanged( const FSimpleDelegate& InOnP
 	}
 }
 
+void FPropertyValueImpl::SetOnPropertyValueChangedWithData(const TDelegate<void(const FPropertyChangedEvent&)>& InOnPropertyValueChanged)
+{
+	if( PropertyNode.IsValid() )
+	{
+		PropertyNode.Pin()->OnPropertyValueChangedWithData().Add(InOnPropertyValueChanged);
+	}
+}
+
 void FPropertyValueImpl::SetOnChildPropertyValueChanged( const FSimpleDelegate& InOnChildPropertyValueChanged )
 {
 	if( PropertyNode.IsValid() )
 	{
 		PropertyNode.Pin()->OnChildPropertyValueChanged().Add( InOnChildPropertyValueChanged );
+	}
+}
+
+void FPropertyValueImpl::SetOnChildPropertyValueChangedWithData(const TDelegate<void(const FPropertyChangedEvent&)>& InOnChildPropertyValueChanged)
+{
+	if( PropertyNode.IsValid() )
+	{
+		PropertyNode.Pin()->OnChildPropertyValueChangedWithData().Add( InOnChildPropertyValueChanged );
 	}
 }
 
@@ -2452,9 +2468,19 @@ void FPropertyHandleBase::SetOnPropertyValueChanged( const FSimpleDelegate& InOn
 	Implementation->SetOnPropertyValueChanged(InOnPropertyValueChanged);
 }
 
+void FPropertyHandleBase::SetOnPropertyValueChangedWithData(const TDelegate<void(const FPropertyChangedEvent&)>& InOnPropertyValueChanged)
+{
+	Implementation->SetOnPropertyValueChangedWithData(InOnPropertyValueChanged);
+}
+
 void FPropertyHandleBase::SetOnChildPropertyValueChanged( const FSimpleDelegate& InOnChildPropertyValueChanged )
 {
 	Implementation->SetOnChildPropertyValueChanged( InOnChildPropertyValueChanged );
+}
+
+void FPropertyHandleBase::SetOnChildPropertyValueChangedWithData(const TDelegate<void(const FPropertyChangedEvent&)>& InOnChildPropertyValueChanged)
+{
+	Implementation->SetOnChildPropertyValueChangedWithData(InOnChildPropertyValueChanged);
 }
 
 void FPropertyHandleBase::SetOnPropertyValuePreChange(const FSimpleDelegate& InOnPropertyValuePreChange)

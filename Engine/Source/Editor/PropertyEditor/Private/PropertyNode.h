@@ -646,10 +646,14 @@ public:
 
 	/** Broadcasts when a property value changes */
 	DECLARE_EVENT(FPropertyNode, FPropertyValueChangedEvent);
+	/** Broadcasts when a property value changes, but additionally includes the property changed event.*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FPropertyValueChangedWithData, const FPropertyChangedEvent&)
 	FPropertyValueChangedEvent& OnPropertyValueChanged() { return PropertyValueChangedEvent; }
-
+	FPropertyValueChangedWithData& OnPropertyValueChangedWithData() { return PropertyValueChangedDelegate; }
+	
 	/** Broadcasts when a child of this property changes */
 	FPropertyValueChangedEvent& OnChildPropertyValueChanged() { return ChildPropertyValueChangedEvent; }
+	FPropertyValueChangedWithData& OnChildPropertyValueChangedWithData() { return ChildPropertyValueChangedDelegate; }
 
 	/** Broadcasts when a property value changes */
 	DECLARE_EVENT(FPropertyNode, FPropertyValuePreChangeEvent);
@@ -1019,6 +1023,12 @@ protected:
 	 */
 	void BroadcastPropertyChangedDelegates();
 
+	/**
+	 * Helper function for derived members to be able to 
+	 * broadcast property changed notifications including property changed event data
+	 */
+	void BroadcastPropertyChangedDelegates(const FPropertyChangedEvent& Event);
+
 
 	/**
 	* Helper function for derived members to be able to
@@ -1078,9 +1088,13 @@ protected:
 
 	/** Called when this node's property value has changed (called during NotifyPostChange) */
 	FPropertyValueChangedEvent PropertyValueChangedEvent;
+	/** Called when this node's property value has changed with the property changed event data as payload (called during NotifyPostChange) */
+	FPropertyValueChangedWithData PropertyValueChangedDelegate;
 	
 	/** Called when a child's property value has changed */
 	FPropertyValueChangedEvent ChildPropertyValueChangedEvent;
+	/** Called when a child's property value has changed with the property changed event data as payload */
+	FPropertyValueChangedWithData ChildPropertyValueChangedDelegate;
 
 	/** Called when the property is reset to default */
 	FPropertyResetToDefaultEvent PropertyResetToDefaultEvent;

@@ -223,11 +223,25 @@ public:
 	virtual void SetOnPropertyValueChanged( const FSimpleDelegate& InOnPropertyValueChanged ) = 0;
 	
 	/**
+	 * Sets a delegate to call when the value of the property is changed including the property changed event as parameter
+	 * 
+	 * @param InOnPropertyValueChanged The delegate to call. Needs to be of type void with a const FPropertyChangedEvent& parameter
+	 */
+	virtual void SetOnPropertyValueChangedWithData( const TDelegate<void(const FPropertyChangedEvent&)>& InOnPropertyValueChanged ) = 0;
+
+	/**
 	 * Sets a delegate to call when the value of the property of a child is changed
 	 * 
 	 * @param InOnChildPropertyValueChanged	The delegate to call
 	 */
 	virtual void SetOnChildPropertyValueChanged( const FSimpleDelegate& InOnChildPropertyValueChanged ) = 0;
+	
+	/**
+	 * Sets a delegate to call when the value of the property of a child is changed including the property changed event as parameter
+	 * 
+	 * @param InOnPropertyValueChanged The delegate to call. Needs to be of type void with a const FPropertyChangedEvent& parameter
+	 */
+	virtual void SetOnChildPropertyValueChangedWithData( const TDelegate<void(const FPropertyChangedEvent&)>& InOnPropertyValueChanged ) = 0;
 
 	/**
 	 * Sets a delegate to call when the value of the property is about to be changed

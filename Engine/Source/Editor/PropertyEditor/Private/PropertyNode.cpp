@@ -2682,6 +2682,7 @@ void FPropertyNode::NotifyPostChange( FPropertyChangedEvent& InPropertyChangedEv
 	}
 
 	// Broadcast the change to any listeners
+	BroadcastPropertyChangedDelegates(InPropertyChangedEvent);
 	BroadcastPropertyChangedDelegates();
 
 	// Call through to the property window's notify hook.
@@ -2746,7 +2747,23 @@ void FPropertyNode::BroadcastPropertyChangedDelegates()
 
 		LocalParentNode = LocalParentNode->GetParentNode();
 	}
+}
 
+void FPropertyNode::BroadcastPropertyChangedDelegates(const FPropertyChangedEvent& Event)
+{
+	PropertyValueChangedDelegate.Broadcast(Event);
+
+	// Walk through the parents and broadcast
+	FPropertyNode* LocalParentNode = GetParentNode();
+	while( LocalParentNode )
+	{
+		if( LocalParentNode->OnChildPropertyValueChangedWithData().IsBound() )
+		{
+			LocalParentNode->OnChildPropertyValueChangedWithData().Broadcast(Event);
+		}
+
+		LocalParentNode = LocalParentNode->GetParentNode();
+	}
 }
 
 void FPropertyNode::BroadcastPropertyPreChangeDelegates()
