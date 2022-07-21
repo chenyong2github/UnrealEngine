@@ -6,13 +6,14 @@
 #include "Logging/LogMacros.h"
 
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSimulationModule, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogSimulationModule, Warning, All);
 
 struct CHAOSVEHICLESCORE_API FCoreModularVehicleDebugParams
 {
 	bool ShowMass = false;
 	bool ShowForces = false;
 	float DrawForceScaling = 0.0005f;
+	float LevelSlopeThreshold = 0.96f; // ~16 degrees
 };
 
 namespace Chaos
@@ -206,13 +207,13 @@ namespace Chaos
 		 * Force application function, handles deferred force application and applying the force at the collect location based on whether the GC cluster is intact or fractured
 		 * Note: forces are applied in local coordinates of the module
 		 */
-		void AddLocalForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
+		void AddLocalForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false, bool bLevelSlope = false, const FColor& DebugColorIn = FColor::Blue);
 
 		/**
 		 * Force application function, handles deferred force application and applying the force at the collect location based on whether the GC cluster is intact or fractured
 		 * Note: forces are applied in local coordinates of the module
 		 */
-		void AddLocalForce(const FVector& Force, bool bAllowSubstepping = true, bool bIsLocalForce = false);
+		void AddLocalForce(const FVector& Force, bool bAllowSubstepping = true, bool bIsLocalForce = false, bool bLevelSlope = false, const FColor& DebugColorIn = FColor::Blue);
 
 		//---
 

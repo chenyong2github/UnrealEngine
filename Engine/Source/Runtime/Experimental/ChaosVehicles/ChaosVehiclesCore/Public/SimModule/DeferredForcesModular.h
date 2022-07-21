@@ -14,6 +14,7 @@ enum class EForceFlags : uint32
 	AccelChange = 1 << 1,
 	VelChange = 1 << 2,
 	IsLocalForce = 1 << 3,
+	LevelSlope = 1 << 4
 
 };
 ENUM_CLASS_FLAGS(EForceFlags);	
@@ -25,36 +26,42 @@ public:
 
 	struct FApplyForceData
 	{
-		FApplyForceData(int TransformIndexIn, const FVector& ForceIn, bool bAllowSubsteppingIn, bool bAccelChangeIn)
+		FApplyForceData(int TransformIndexIn, const FVector& ForceIn, bool bAllowSubsteppingIn, bool bAccelChangeIn, bool bLevelSlope, const FColor& ColorIn)
 			: TransformIndex(TransformIndexIn)
 			, Force(ForceIn)
 			, Flags(EForceFlags::None)
+			, DebugColor(ColorIn)
 		{
 			Flags |= bAllowSubsteppingIn ? EForceFlags::AllowSubstepping : EForceFlags::None;
 			Flags |= bAccelChangeIn ? EForceFlags::AccelChange : EForceFlags::None;
+			Flags |= bLevelSlope ? EForceFlags::LevelSlope : EForceFlags::None;
 		}
 
 		int TransformIndex;
 		FVector Force;
 		EForceFlags Flags;
+		FColor DebugColor;
 	};
 
 	struct FApplyForceAtPositionData
 	{
-		FApplyForceAtPositionData(int TransformIndexIn, const FVector& ForceIn, const FVector& PositionIn, bool bAllowSubsteppingIn, bool bIsLocalForceIn)
+		FApplyForceAtPositionData(int TransformIndexIn, const FVector& ForceIn, const FVector& PositionIn, bool bAllowSubsteppingIn, bool bIsLocalForceIn, bool bLevelSlope, const FColor& ColorIn)
 			: TransformIndex(TransformIndexIn)
 			, Force(ForceIn)
 			, Position(PositionIn)
 			, Flags(EForceFlags::None)
+			, DebugColor(ColorIn)
 		{
 			Flags |= bAllowSubsteppingIn ? EForceFlags::AllowSubstepping : EForceFlags::None;
 			Flags |= bIsLocalForceIn ? EForceFlags::IsLocalForce : EForceFlags::None;
+			Flags |= bLevelSlope ? EForceFlags::LevelSlope : EForceFlags::None;
 		}
 
 		int TransformIndex;
 		FVector Force;
 		FVector Position;
 		EForceFlags Flags;
+		FColor DebugColor;
 	};
 
 	struct FAddTorqueInRadiansData

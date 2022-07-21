@@ -34,7 +34,7 @@ namespace Chaos
 		FVector LocalForce = GetForce(ModuleLocalVelocity * CmToMScaling(), CmToM(Altitude), DeltaTime);
 		FVector LocalOffset = GetCenterOfLiftOffset() * MToCmScaling();
 
-		AddLocalForceAtPosition(LocalForce * MToCmScaling(), LocalOffset);
+		AddLocalForceAtPosition(LocalForce * MToCmScaling(), LocalOffset, true, false, false, FColor::Yellow);
 	}
 
 	float FAerofoilSimModule::CalcAngleOfAttackDegrees(const FVector& UpAxis, const FVector& InAirflowVector)

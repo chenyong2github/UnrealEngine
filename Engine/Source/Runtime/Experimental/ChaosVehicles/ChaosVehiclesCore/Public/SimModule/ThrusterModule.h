@@ -17,12 +17,14 @@ namespace Chaos
 	{
 		FThrusterSettings()
 			: MaxThrustForce(0)
+			, ForceAxis(FVector(1.0f, 0.0f, 0.0f))
 			, ForceOffset(FVector::ZeroVector)
 		{
 
 		}
 
 		float MaxThrustForce;
+		FVector ForceAxis;
 		FVector ForceOffset;
 	};
 

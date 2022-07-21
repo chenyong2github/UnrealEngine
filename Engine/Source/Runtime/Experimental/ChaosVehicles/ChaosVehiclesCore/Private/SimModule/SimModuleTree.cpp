@@ -227,11 +227,12 @@ void FSimModuleTree::UpdateModuleVelocites(FGeometryCollectionPhysicsProxy* Phys
 
 				if (Particle)
 				{
-					FVector WheelWorldLocation = BodyTransform.TransformPosition(Module->GetParentRelativeTransform().GetLocation());
-					const Chaos::FVec3 Arm = WheelWorldLocation - Particle->X();
+					FVector WorldLocation = BodyTransform.TransformPosition(Module->GetParentRelativeTransform().GetLocation());
+					const Chaos::FVec3 Arm = WorldLocation - Particle->X();
 
 					FVector WorldVelocity = Particle->V() - Chaos::FVec3::CrossProduct(Arm, Particle->W());
 					FVector LocalVelocity = BodyTransform.InverseTransformVector(WorldVelocity);
+					LocalVelocity = Module->GetClusteredTransform().InverseTransformVector(LocalVelocity);
 
 					Module->SetLocalVelocity(LocalVelocity);
 				}

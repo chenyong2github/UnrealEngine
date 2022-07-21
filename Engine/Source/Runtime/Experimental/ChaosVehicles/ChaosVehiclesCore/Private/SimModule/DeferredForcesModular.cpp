@@ -39,7 +39,9 @@ Chaos::FPBDRigidClusteredParticleHandle* FDeferredForcesModular::GetParticle(TAr
 	}
 	else if (SimClusterParticle && !SimClusterParticle->Disabled())
 	{
-		TransformOut = CollectionMassToLocal[Parent[TransformIndex]].Inverse() * Transforms[TransformIndex];
+		TransformOut.SetLocation(CollectionMassToLocal[Parent[TransformIndex]].InverseTransformPosition(Transforms[TransformIndex].GetLocation()));
+		TransformOut.SetRotation(Transforms[TransformIndex].GetRotation());
+
 		return SimClusterParticle; // apply to intact cluster
 	}
 
@@ -86,15 +88,20 @@ void FDeferredForcesModular::Apply(TArray<Chaos::FPBDRigidClusteredParticleHandl
 }
 
 
-void AddForce_Implementation(Chaos::FPBDRigidClusteredParticleHandle* RigidHandle, const FVector& LocalForce, const FTransform& OffsetTransform)
+void AddForce_Implementation(Chaos::FPBDRigidClusteredParticleHandle* RigidHandle, const FVector& LocalForce, const FTransform& OffsetTransform, bool bLevelSlope, const FColor& DebugColor)
 {
 	const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle);
 
 	// local to world
 	const FTransform WorldTM(RigidHandle->R(), RigidHandle->X());
 	Chaos::FVec3 Position = WorldTM.TransformPosition(OffsetTransform.GetLocation());
+	Chaos::FVec3 Force = WorldTM.TransformVector(OffsetTransform.TransformVector(LocalForce));
 
-	Chaos::FVec3 Force = WorldTM.TransformVector(LocalForce);
+	if (bLevelSlope && WorldTM.GetUnitAxis(EAxis::Z).Z > GCoreModularVehicleDebugParams.LevelSlopeThreshold)
+	{
+		Force.X = 0.0f;
+		Force.Y = 0.0f;
+	}
 
 	Chaos::FVec3 Arm = Position - WorldCOM;
 
@@ -102,6 +109,7 @@ void AddForce_Implementation(Chaos::FPBDRigidClusteredParticleHandle* RigidHandl
 	auto* RP = RigidHandle->CastToRigidParticle();
 	if (RP)
 	{
+
 		RP->AddForce(Force);
 		RP->AddTorque(WorldTorque);
 
@@ -121,7 +129,7 @@ void AddForce_Implementation(Chaos::FPBDRigidClusteredParticleHandle* RigidHandl
 	if (GCoreModularVehicleDebugParams.ShowForces)
 	{
 		// TODO: perhaps render different force types/sources in different colors, i.e. aerofoil, suspension, friction, etc.
-		Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(Position, Position + Force * GCoreModularVehicleDebugParams.DrawForceScaling, FColor::Blue, false, -1.f, 0, 5.f);
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(Position, Position + Force * GCoreModularVehicleDebugParams.DrawForceScaling, DebugColor, false, -1.f, 0, 5.f);
 		Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(Position, 5, 8, FColor::White, false, -1.f, 0, 5.f);
 	}
 #endif
@@ -132,7 +140,7 @@ void FDeferredForcesModular::AddForce(Chaos::FPBDRigidClusteredParticleHandle* R
 {
 	if (ensure(RigidHandle))
 	{
-		AddForce_Implementation(RigidHandle, DataIn.Force, OffsetTransform);
+		AddForce_Implementation(RigidHandle, DataIn.Force, OffsetTransform, (DataIn.Flags & EForceFlags::LevelSlope) == EForceFlags::LevelSlope, DataIn.DebugColor);
 	}
 
 }
@@ -166,7 +174,7 @@ void FDeferredForcesModular::AddForceAtPosition(Chaos::FPBDRigidClusteredParticl
 	{
 		FTransform ShiftedTransform = OffsetTransform;
 		ShiftedTransform.SetLocation(ShiftedTransform.GetLocation() + DataIn.Position);
-		AddForce_Implementation(RigidHandle, DataIn.Force, ShiftedTransform);
+		AddForce_Implementation(RigidHandle, DataIn.Force, ShiftedTransform, (DataIn.Flags & EForceFlags::LevelSlope) == EForceFlags::LevelSlope, DataIn.DebugColor);
 	}
 }
 
@@ -189,3 +197,4 @@ void FDeferredForcesModular::AddTorque(Chaos::FPBDRigidClusteredParticleHandle* 
 	//	}
 	//}
 }
+

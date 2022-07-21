@@ -60,7 +60,7 @@ namespace Chaos
 			if (SuspensionForce > 0)
 			{
 				ForceIntoSurface = SuspensionForce;
-				AddLocalForce(Setup().SuspensionAxis * -SuspensionForce/*, Setup().LocalOffset*/);
+				AddLocalForce(Setup().SuspensionAxis * -SuspensionForce, true, false, true, FColor::Green);
 			}
 		}
 
