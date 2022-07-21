@@ -316,6 +316,8 @@ void FRenderResource::UpdateRHI()
 
 FRenderResource::~FRenderResource()
 {
+	checkf(ResourceState == ERenderResourceState::Default, TEXT(" Invalid Resource State: %s"), ResourceState == ERenderResourceState::BatchReleased ? TEXT("BatchReleased") : TEXT("Deleted"));
+	ResourceState = ERenderResourceState::Deleted;
 	if (IsInitialized() && !GIsCriticalError)
 	{
 		// Deleting an initialized FRenderResource will result in a crash later since it is still linked
@@ -358,7 +360,9 @@ struct FBatchedReleaseResources
 			{
 				for (FRenderResource* Resource : BatchedReleaseResources)
 				{
+					check(Resource->ResourceState == ERenderResourceState::BatchReleased);
 					Resource->ReleaseResource();
+					Resource->ResourceState = ERenderResourceState::Default;
 				}
 			});
 		}
@@ -371,6 +375,8 @@ struct FBatchedReleaseResources
 			Flush();
 		}
 		check(Resources.Num() < NumPerBatch);
+		check(Resource->ResourceState == ERenderResourceState::Default);
+		Resource->ResourceState = ERenderResourceState::BatchReleased;
 		Resources.Push(Resource);
 	}
 

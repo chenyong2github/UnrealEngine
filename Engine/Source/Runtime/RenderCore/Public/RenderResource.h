@@ -33,6 +33,13 @@ extern int32 GGlobalBufferNumFramesUnusedThresold;
 /** Experimental: whether we free helper structures after submitting to RHI. */
 extern RENDERCORE_API bool GFreeStructuresOnRHIBufferCreation;
 
+enum class ERenderResourceState : uint8
+{
+	Default,
+	BatchReleased,
+	Deleted,
+};
+
 /**
  * A rendering resource which is owned by the rendering thread.
  * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
@@ -172,6 +179,9 @@ protected:
 
 private:
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
+
+public:
+	ERenderResourceState ResourceState = ERenderResourceState::Default;
 };
 
 /**
