@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+namespace UGSCore
+{
+
 struct FFileFilterNode;
 
 /// <summary>
@@ -119,3 +122,5 @@ private:
 	/// <returns>New highest rule number</returns>
 	static int HighestPossibleIncludeMatch(const FNode* CurrentNode, const TArray<FString>& Tokens, int TokenIdx, int CurrentBestRuleNumber);
 };
+
+} // namespace UGSCore

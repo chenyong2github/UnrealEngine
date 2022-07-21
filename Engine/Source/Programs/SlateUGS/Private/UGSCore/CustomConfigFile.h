@@ -6,6 +6,9 @@
 #include "Misc/Guid.h"
 #include "Templates/Tuple.h"
 
+namespace UGSCore
+{
+
 struct FCustomConfigObject
 {
 	TArray<TTuple<FString, FString>> Pairs;
@@ -96,3 +99,5 @@ struct FCustomConfigFile
 	bool TryGetValues(const TCHAR* Key, TArray<FString>& Values) const;
 	bool TryGetValues(const TCHAR* Key, TArray<FGuid>& Value) const;
 };
+
+} // namespace UGSCore

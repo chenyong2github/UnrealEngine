@@ -15,10 +15,12 @@
 void SSyncFilterWindow::ConstructSyncFilters()
 {
 	WorkspaceCategoriesCurrent = Tab->GetSyncCategories(SyncCategoryType::CurrentWorkspace);
+
 	SyncFiltersCurrent = SNew(SCheckBoxList)
 		.ItemHeaderLabel(LOCTEXT("CheckBoxListCurrent", "Sync Filters for the current workspace"))
 		.IncludeGlobalCheckBoxInHeaderRow(false);
-	for (const FWorkspaceSyncCategory& Category : WorkspaceCategoriesCurrent)
+
+	for (const UGSCore::FWorkspaceSyncCategory& Category : WorkspaceCategoriesCurrent)
 	{
 		TSharedRef<SBox> CheckBoxWrapper = SNew(SBox)
 			.Padding(5.0f)
@@ -26,14 +28,17 @@ void SSyncFilterWindow::ConstructSyncFilters()
 				SNew(STextBlock)
 				.Text(FText::FromString(Category.Name))
 			];
+
 		SyncFiltersCurrent->AddItem(CheckBoxWrapper, Category.bEnable);
 	}
 
 	WorkspaceCategoriesAll = Tab->GetSyncCategories(SyncCategoryType::AllWorkspaces);
+
 	SyncFiltersAll = SNew(SCheckBoxList)
 		.ItemHeaderLabel(LOCTEXT("CheckBoxListAll", "Sync Filters for all workspaces"))
 		.IncludeGlobalCheckBoxInHeaderRow(false);
-	for (const FWorkspaceSyncCategory& Category : WorkspaceCategoriesAll)
+
+	for (const UGSCore::FWorkspaceSyncCategory& Category : WorkspaceCategoriesAll)
 	{
 		TSharedRef<SBox> CheckBoxWrapper = SNew(SBox)
 			.Padding(5.0f)
@@ -41,6 +46,7 @@ void SSyncFilterWindow::ConstructSyncFilters()
 				SNew(STextBlock)
 				.Text(FText::FromString(Category.Name))
 			];
+
 		SyncFiltersAll->AddItem(CheckBoxWrapper, Category.bEnable);
 	}
 }

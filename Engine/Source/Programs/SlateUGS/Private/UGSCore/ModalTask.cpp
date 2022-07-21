@@ -2,6 +2,9 @@
 
 #include "ModalTask.h"
 
+namespace UGSCore
+{
+
 //// FModalTaskResult ////
 
 FModalTaskResult::FModalTaskResult(bool bInSucceeded, const FText& InMessage)
@@ -49,3 +52,5 @@ TSharedRef<FModalTaskResult> FModalTaskResult::Aborted()
 IModalTask::~IModalTask()
 {
 }
+
+} // namespace UGSCore

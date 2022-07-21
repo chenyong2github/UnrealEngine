@@ -8,6 +8,9 @@
 
 #define LOCTEXT_NAMESPACE "UnrealGameSync"
 
+namespace UGSCore
+{
+
 FDetectProjectSettingsTask::FDetectProjectSettingsTask(TSharedRef<FPerforceConnection> InPerforce, const FString& InNewSelectedFileName, TSharedRef<FLineBasedTextWriter> InLog)
 	: NewSelectedFileName(InNewSelectedFileName)
 	, Perforce(MoveTemp(InPerforce))
@@ -272,3 +275,5 @@ bool FDetectProjectSettingsTask::TryGetStreamPrefix(TSharedRef<FPerforceConnecti
 }
 
 #undef LOCTEXT_NAMESPACE
+
+} // namespace UGSCore

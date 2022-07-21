@@ -2,6 +2,9 @@
 
 #include "BuildStep.h"
 
+namespace UGSCore
+{
+
 const TCHAR* FBuildStep::UniqueIdKey = TEXT("UniqueId");
 
 bool TryParse(const TCHAR* Text, EBuildStepType& OutType)
@@ -152,3 +155,5 @@ FCustomConfigObject FBuildStep::ToConfigObject(const FCustomConfigObject* Defaul
 	Result.AddOverrides(ToConfigObject(), DefaultObject);
 	return Result;
 }
+
+} // namespace UGSCore

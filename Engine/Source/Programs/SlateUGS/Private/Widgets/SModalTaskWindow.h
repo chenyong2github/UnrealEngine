@@ -6,7 +6,12 @@
 #include "SlateCore.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "UGSCore/ModalTask.h"
+
+namespace UGSCore
+{
+	class IModalTask;
+	class FModalTaskResult;
+}
 
 class SModalTaskWindow : public SWindow, private FRunnable
 {
@@ -14,10 +19,10 @@ public:
 	SLATE_BEGIN_ARGS(SModalTaskWindow) {}
 		SLATE_ARGUMENT(FText, Title)
 		SLATE_ARGUMENT(FText, Message)
-		SLATE_ARGUMENT(TSharedPtr<IModalTask>, Task)
+		SLATE_ARGUMENT(TSharedPtr<UGSCore::IModalTask>, Task)
 	SLATE_END_ARGS()
 
-	TSharedPtr<FModalTaskResult> Result;
+	TSharedPtr<UGSCore::FModalTaskResult> Result;
 
 	SModalTaskWindow();
 	~SModalTaskWindow();
@@ -29,9 +34,9 @@ private:
 	FEvent* AbortEvent;
 	FEvent* CloseEvent;
 	FRunnableThread* Thread;
-	TSharedPtr<IModalTask> Task;
+	TSharedPtr<UGSCore::IModalTask> Task;
 
 	virtual uint32 Run() override;
 };
 
-TSharedRef<FModalTaskResult> ExecuteModalTask(TSharedPtr<SWidget> Parent, TSharedRef<IModalTask> Task, const FText& InTitle, const FText& InMessage);
+TSharedRef<UGSCore::FModalTaskResult> ExecuteModalTask(TSharedPtr<SWidget> Parent, TSharedRef<UGSCore::IModalTask> Task, const FText& InTitle, const FText& InMessage);

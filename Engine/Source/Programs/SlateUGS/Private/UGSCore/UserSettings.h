@@ -8,6 +8,9 @@
 #include "Misc/Guid.h"
 #include "Workspace.h"
 
+namespace UGSCore
+{
+
 enum class EBuildConfig
 {
 	Debug,
@@ -126,3 +129,5 @@ struct FUserSettings
 	static FString EscapeText(const FString& Text);
 	static FString UnescapeText(const FString& Text);
 };
+
+} // namespace UGSCore

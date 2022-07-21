@@ -66,7 +66,7 @@ namespace
 		const TCHAR* HostPlatform = TEXT("Linux");
 	#endif
 
-	class FLineWriter : public FLineBasedTextWriter
+	class FLineWriter : public UGSCore::FLineBasedTextWriter
 	{
 	public:
 		virtual void FlushLine(const FString& Line) override
@@ -85,25 +85,25 @@ namespace
 
 	// Honestly ... seems ... super hacky/hardcoded. With out all these you assert when trying to merge build targets sooo a bit odd
 	// TODO Need to do each of these ... per ... platform??
-	TMap<FGuid, FCustomConfigObject> GetDefaultBuildStepObjects(const FString& EditorTargetName, TSharedPtr<FUserSettings> Settings)
+	TMap<FGuid, UGSCore::FCustomConfigObject> GetDefaultBuildStepObjects(const FString& EditorTargetName, TSharedPtr<UGSCore::FUserSettings> Settings)
 	{
-		TArray<FBuildStep> DefaultBuildSteps;
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x01F66060, 0x73FA4CC8, 0x9CB3E217, 0xFBBA954E), 0, TEXT("Compile UnrealHeaderTool"), TEXT("Compiling UnrealHeaderTool..."), 1, TEXT("UnrealHeaderTool"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		TArray<UGSCore::FBuildStep> DefaultBuildSteps;
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x01F66060, 0x73FA4CC8, 0x9CB3E217, 0xFBBA954E), 0, TEXT("Compile UnrealHeaderTool"), TEXT("Compiling UnrealHeaderTool..."), 1, TEXT("UnrealHeaderTool"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
 		FString ActualEditorTargetName = (EditorTargetName.Len() > 0) ? EditorTargetName : "UnrealEditor";
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0xF097FF61, 0xC9164058, 0x839135B4, 0x6C3173D5), 1, FString::Printf(TEXT("Compile %s"), *ActualEditorTargetName), FString::Printf(TEXT("Compiling %s..."), *ActualEditorTargetName), 10, ActualEditorTargetName, HostPlatform, ::ToString(Settings->CompiledEditorBuildConfig), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0xC6E633A1, 0x956F4AD3, 0xBC956D06, 0xD131E7B4), 2, TEXT("Compile ShaderCompileWorker"), TEXT("Compiling ShaderCompileWorker..."), 1, TEXT("ShaderCompileWorker"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x24FFD88C, 0x79014899, 0x9696AE10, 0x66B4B6E8), 3, TEXT("Compile UnrealLightmass"), TEXT("Compiling UnrealLightmass..."), 1, TEXT("UnrealLightmass"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0xFFF20379, 0x06BF4205, 0x8A3EC534, 0x27736688), 4, TEXT("Compile CrashReportClient"), TEXT("Compiling CrashReportClient..."), 1, TEXT("CrashReportClient"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x89FE8A79, 0xD2594C7B, 0xBFB468F7, 0x218B91C2), 5, TEXT("Compile UnrealInsights"), TEXT("Compiling UnrealInsights..."), 1, TEXT("UnrealInsights"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x46312669, 0x5069428D, 0x8D72C241, 0x6C5A322E), 6, TEXT("Launch UnrealInsights"), TEXT("Running UnrealInsights..."), 1, TEXT("UnrealInsights"), HostPlatform, TEXT("Shipping"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0xBB48CA5B, 0x56824432, 0x824DC451, 0x336A6523), 7, TEXT("Compile Zen Dashboard"), TEXT("Compile ZenDashboard Step..."), 1, TEXT("ZenDashboard"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x586CC0D3, 0x39144DF9, 0xACB62C02, 0xCD9D4FC6), 8, TEXT("Launch Zen Dashboard"), TEXT("Running Zen Dashboard..."), 1, TEXT("ZenDashboard"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x91C2A429, 0xC39149B4, 0x92A54E6B, 0xE71E0F00), 9, TEXT("Compile SwitchboardListener"), TEXT("Compiling SwitchboardListener..."), 1, TEXT("SwitchboardListener"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x5036C75B, 0x8DF04329, 0x82A1869D, 0xD2D48605), 10, TEXT("Compile UnrealMultiUserServer"), TEXT("Compiling UnrealMultiUserServer..."), 1, TEXT("UnrealMultiUserServer"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
-		DefaultBuildSteps.Add(FBuildStep(FGuid(0x274B89C3, 0x9DC64465, 0xA50840AB, 0xC4593CC2), 11, TEXT("Compile UnrealMultiUserSlateServer"), TEXT("Compiling UnrealMultiUserSlateServer..."), 1, TEXT("UnrealMultiUserSlateServer"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0xF097FF61, 0xC9164058, 0x839135B4, 0x6C3173D5), 1, FString::Printf(TEXT("Compile %s"), *ActualEditorTargetName), FString::Printf(TEXT("Compiling %s..."), *ActualEditorTargetName), 10, ActualEditorTargetName, HostPlatform, UGSCore::ToString(Settings->CompiledEditorBuildConfig), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0xC6E633A1, 0x956F4AD3, 0xBC956D06, 0xD131E7B4), 2, TEXT("Compile ShaderCompileWorker"), TEXT("Compiling ShaderCompileWorker..."), 1, TEXT("ShaderCompileWorker"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x24FFD88C, 0x79014899, 0x9696AE10, 0x66B4B6E8), 3, TEXT("Compile UnrealLightmass"), TEXT("Compiling UnrealLightmass..."), 1, TEXT("UnrealLightmass"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0xFFF20379, 0x06BF4205, 0x8A3EC534, 0x27736688), 4, TEXT("Compile CrashReportClient"), TEXT("Compiling CrashReportClient..."), 1, TEXT("CrashReportClient"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x89FE8A79, 0xD2594C7B, 0xBFB468F7, 0x218B91C2), 5, TEXT("Compile UnrealInsights"), TEXT("Compiling UnrealInsights..."), 1, TEXT("UnrealInsights"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x46312669, 0x5069428D, 0x8D72C241, 0x6C5A322E), 6, TEXT("Launch UnrealInsights"), TEXT("Running UnrealInsights..."), 1, TEXT("UnrealInsights"), HostPlatform, TEXT("Shipping"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0xBB48CA5B, 0x56824432, 0x824DC451, 0x336A6523), 7, TEXT("Compile Zen Dashboard"), TEXT("Compile ZenDashboard Step..."), 1, TEXT("ZenDashboard"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x586CC0D3, 0x39144DF9, 0xACB62C02, 0xCD9D4FC6), 8, TEXT("Launch Zen Dashboard"), TEXT("Running Zen Dashboard..."), 1, TEXT("ZenDashboard"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x91C2A429, 0xC39149B4, 0x92A54E6B, 0xE71E0F00), 9, TEXT("Compile SwitchboardListener"), TEXT("Compiling SwitchboardListener..."), 1, TEXT("SwitchboardListener"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x5036C75B, 0x8DF04329, 0x82A1869D, 0xD2D48605), 10, TEXT("Compile UnrealMultiUserServer"), TEXT("Compiling UnrealMultiUserServer..."), 1, TEXT("UnrealMultiUserServer"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
+		DefaultBuildSteps.Add(UGSCore::FBuildStep(FGuid(0x274B89C3, 0x9DC64465, 0xA50840AB, 0xC4593CC2), 11, TEXT("Compile UnrealMultiUserSlateServer"), TEXT("Compiling UnrealMultiUserSlateServer..."), 1, TEXT("UnrealMultiUserSlateServer"), HostPlatform, TEXT("Development"), TEXT(""), !ShouldSyncPrecompiledEditor()));
 
-		TMap<FGuid,FCustomConfigObject> DefaultBuildStepObjects;
-		for (const FBuildStep& DefaultBuildStep : DefaultBuildSteps)
+		TMap<FGuid, UGSCore::FCustomConfigObject> DefaultBuildStepObjects;
+		for (const UGSCore::FBuildStep& DefaultBuildStep : DefaultBuildSteps)
 		{
 			DefaultBuildStepObjects.Add(DefaultBuildStep.UniqueId, DefaultBuildStep.ToConfigObject());
 		}
@@ -111,30 +111,30 @@ namespace
 		return DefaultBuildStepObjects;
 	}
 
-	EBuildConfig GetEditorBuildConfig()
+	UGSCore::EBuildConfig GetEditorBuildConfig()
 	{
-		return EBuildConfig::Development;
-		//return ShouldSyncPrecompiledEditor()? EBuildConfig::Development : Settings->CompiledEditorBuildConfig;
+		return UGSCore::EBuildConfig::Development;
+		//return ShouldSyncPrecompiledEditor() ? UGSCore::EBuildConfig::Development : Settings->CompiledEditorBuildConfig;
 	}
 
-	FString GetEditorExePath(EBuildConfig Config, TSharedPtr<FDetectProjectSettingsTask> DetectSettings)
+	FString GetEditorExePath(UGSCore::EBuildConfig Config, TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings)
 	{
 		FString ExeFileName = TEXT("UnrealEditor");
 
-		if (Config != EBuildConfig::DebugGame && Config != EBuildConfig::Development)
+		if (Config != UGSCore::EBuildConfig::DebugGame && Config != UGSCore::EBuildConfig::Development)
 		{
 	#if PLATFORM_WINDOWS
-			ExeFileName = FString::Printf(TEXT("UnrealEditor-%s-%s.exe"), HostPlatform, *::ToString(Config));
+			ExeFileName = FString::Printf(TEXT("UnrealEditor-%s-%s.exe"), HostPlatform, *UGSCore::ToString(Config));
 	#else
-			ExeFileName = FString::Printf(TEXT("UnrealEditor-%s-%s"), HostPlatform, *::ToString(Config));
+			ExeFileName = FString::Printf(TEXT("UnrealEditor-%s-%s"), HostPlatform, *UGSCore::ToString(Config));
 	#endif
 		}
 		return DetectSettings->BranchDirectoryName / "Engine" / "Binaries" / HostPlatform / ExeFileName;
 	}
 
-	TMap<FString, FString> GetWorkspaceVariables(TSharedPtr<FDetectProjectSettingsTask> DetectSettings)
+	TMap<FString, FString> GetWorkspaceVariables(TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings)
 	{
-		EBuildConfig EditorBuildConfig = GetEditorBuildConfig();
+		UGSCore::EBuildConfig EditorBuildConfig = GetEditorBuildConfig();
 
 		TMap<FString, FString> Variables;
 		Variables.Add("BranchDir", DetectSettings->BranchDirectoryName);
@@ -144,21 +144,22 @@ namespace
 		// Todo: These might not be called "UE4*" anymore
 		Variables.Add("UE4EditorExe", GetEditorExePath(EditorBuildConfig, DetectSettings));
 		Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig, DetectSettings).Replace(TEXT(".exe"), TEXT("-Cmd.exe")));
-		Variables.Add("UE4EditorConfig", ::ToString(EditorBuildConfig));
-		Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == EBuildConfig::Debug || EditorBuildConfig == EBuildConfig::DebugGame)? " -debug" : "");
+		Variables.Add("UE4EditorConfig", UGSCore::ToString(EditorBuildConfig));
+		Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == UGSCore::EBuildConfig::Debug || EditorBuildConfig == UGSCore::EBuildConfig::DebugGame)? " -debug" : "");
+
 		return Variables;
 	}
 
 	static FString FormatUserName(FString UserName)
 	{
 		TStringBuilder<256> NormalUserName;
-		for(int Index = 0; Index < UserName.Len(); Index++)
+		for (int Index = 0; Index < UserName.Len(); Index++)
 		{
-			if(Index == 0 || UserName[Index - 1] == '.')
+			if (Index == 0 || UserName[Index - 1] == '.')
 			{
 				NormalUserName.AppendChar(FChar::ToUpper(UserName[Index]));
 			}
-			else if(UserName[Index] == '.')
+			else if (UserName[Index] == '.')
 			{
 				NormalUserName.AppendChar(' ');
 			}
@@ -167,6 +168,7 @@ namespace
 				NormalUserName.AppendChar(FChar::ToLower(UserName[Index]));
 			}
 		}
+
 		return NormalUserName.ToString();
 	}
 }
@@ -193,7 +195,7 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 
 void UGSTab::OnSyncChangelist(int Changelist)
 {
-	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
+	TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
 		Changelist,
 		Options,
 		CombinedSyncFilter,
@@ -260,7 +262,7 @@ void UGSTab::Tick()
 
 namespace
 {
-	bool ShouldShowChange(const FPerforceChangeSummary& Change, const TArray<FString>& ExcludeChanges)
+	bool ShouldShowChange(const UGSCore::FPerforceChangeSummary& Change, const TArray<FString>& ExcludeChanges)
 	{
 		for (const FString& ExcludeChange : ExcludeChanges)
 		{
@@ -289,15 +291,15 @@ bool UGSTab::ShouldIncludeInReviewedList(const TSet<int>& PromotedChangeNumbers,
 		return true;
 	}
 
-	TSharedPtr<FEventSummary> Review;
+	TSharedPtr<UGSCore::FEventSummary> Review;
 	if (EventMonitor->TryGetSummaryForChange(ChangeNumber, Review))
 	{
-		if (Review->LastStarReview.IsValid() && Review->LastStarReview->Type == EEventType::Starred)
+		if (Review->LastStarReview.IsValid() && Review->LastStarReview->Type == UGSCore::EEventType::Starred)
 		{
 			return true;
 		}
 
-		if (Review->Verdict == EReviewVerdict::Good || Review->Verdict == EReviewVerdict::Mixed)
+		if (Review->Verdict == UGSCore::EReviewVerdict::Good || Review->Verdict == UGSCore::EReviewVerdict::Mixed)
 		{
 			return true;
 		}
@@ -308,14 +310,14 @@ bool UGSTab::ShouldIncludeInReviewedList(const TSet<int>& PromotedChangeNumbers,
 
 void UGSTab::UpdateGameTabBuildList()
 {
-	TArray<TSharedRef<FPerforceChangeSummary, ESPMode::ThreadSafe>> Changes = PerforceMonitor->GetChanges();
+	TArray<TSharedRef<UGSCore::FPerforceChangeSummary, ESPMode::ThreadSafe>> Changes = PerforceMonitor->GetChanges();
 	TArray<TSharedPtr<FChangeInfo>> ChangeInfos;
 
 	// do we need to store these for something?
 	TSet<int> PromotedChangeNumbers = PerforceMonitor->GetPromotedChangeNumbers();
 
 	TArray<FString> ExcludeChanges;
-	TSharedPtr<FCustomConfigFile, ESPMode::ThreadSafe> ProjectConfigFile = Workspace->GetProjectConfigFile();
+	TSharedPtr<UGSCore::FCustomConfigFile, ESPMode::ThreadSafe> ProjectConfigFile = Workspace->GetProjectConfigFile();
 	if (ProjectConfigFile.IsValid())
 	{
 		ProjectConfigFile->TryGetValues(TEXT("Options.ExcludeChanges"), ExcludeChanges);
@@ -327,7 +329,7 @@ void UGSTab::UpdateGameTabBuildList()
 
 	for (int ChangeIdx = 0; ChangeIdx < Changes.Num(); ChangeIdx++)
 	{
-		const FPerforceChangeSummary& Change = Changes[ChangeIdx].Get();
+		const UGSCore::FPerforceChangeSummary& Change = Changes[ChangeIdx].Get();
 		if (ShouldShowChange(Change, ExcludeChanges) || PromotedChangeNumbers.Contains(Change.Number))
 		{
 			if (!bOnlyShowReviewed || (!EventMonitor->IsUnderInvestigation(Change.Number) && (ShouldIncludeInReviewedList(PromotedChangeNumbers, Change.Number) || bFirstChange)))
@@ -340,13 +342,13 @@ void UGSTab::UpdateGameTabBuildList()
 					DisplayTime = (DisplayTime - DetectSettings->ServerTimeZone).GetDate();
 				}
 
-				TSharedPtr<FEventSummary> Review;
-				EReviewVerdict Status = EReviewVerdict::Unknown;
+				TSharedPtr<UGSCore::FEventSummary> Review;
+				UGSCore::EReviewVerdict Status = UGSCore::EReviewVerdict::Unknown;
 				if (EventMonitor->TryGetSummaryForChange(Change.Number, Review) && Review->LastStarReview.IsValid())
 				{
-					if (Review->LastStarReview->Type == EEventType::Starred)
+					if (Review->LastStarReview->Type == UGSCore::EEventType::Starred)
 					{
-						Status = EReviewVerdict::Good;
+						Status = UGSCore::EReviewVerdict::Good;
 					}
 					else
 					{
@@ -395,10 +397,10 @@ FString UGSTab::GetSyncProgress() const
 	return Workspace->GetCurrentProgress().Key;
 }
 
-TArray<FWorkspaceSyncCategory> UGSTab::GetSyncCategories(SyncCategoryType CategoryType) const
+TArray<UGSCore::FWorkspaceSyncCategory> UGSTab::GetSyncCategories(SyncCategoryType CategoryType) const
 {
-	TArray<FWorkspaceSyncCategory> SyncCategories;
-	TMap<FGuid, FWorkspaceSyncCategory> Categories = Workspace->GetSyncCategories();
+	TArray<UGSCore::FWorkspaceSyncCategory> SyncCategories;
+	TMap<FGuid, UGSCore::FWorkspaceSyncCategory> Categories = Workspace->GetSyncCategories();
 	TArray<FGuid> SyncExcludedCategories;
 
 	if (CategoryType == SyncCategoryType::CurrentWorkspace)
@@ -414,7 +416,9 @@ TArray<FWorkspaceSyncCategory> UGSTab::GetSyncCategories(SyncCategoryType Catego
 	{
 		Categories[Guid].bEnable = false;
 	}
+
 	Categories.GenerateValueArray(SyncCategories);
+
 	return SyncCategories;
 }
 
@@ -424,6 +428,7 @@ TArray<FString> UGSTab::GetSyncViews(SyncCategoryType CategoryType) const
 	{
 		return WorkspaceSettings->SyncView;
 	}
+
 	return UserSettings->SyncView;
 }
 
@@ -438,7 +443,7 @@ UGSTabManager* UGSTab::GetTabManager()
 }
 
 // This is getting called on a thread, lock our stuff up
-void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
+void UGSTab::OnWorkspaceSyncComplete(TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, UGSCore::EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
 {
 	FScopeLock Lock(&CriticalSection);
 
@@ -460,16 +465,17 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<FWorkspaceUpdateContext, ESPMode
 
 void UGSTab::SetupWorkspace()
 {
-	ProjectFileName = FUtility::GetPathWithCorrectCase(ProjectFileName);
+	ProjectFileName = UGSCore::FUtility::GetPathWithCorrectCase(ProjectFileName);
 
 	// TODO likely should also log this on an Empty tab... so we can show logging info when we are loading things
-	DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
+	DetectSettings = MakeShared<UGSCore::FDetectProjectSettingsTask>(MakeShared<UGSCore::FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
 
-	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(
+	TSharedRef<UGSCore::FModalTaskResult> Result = ExecuteModalTask(
 		FSlateApplication::Get().GetActiveModalWindow(),
 		DetectSettings.ToSharedRef(),
 		LOCTEXT("OpeningProjectTitle", "Opening Project"),
 		LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
+
 	if (Result->Failed())
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, Result->GetMessage());
@@ -479,11 +485,11 @@ void UGSTab::SetupWorkspace()
 	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
 	IFileManager::Get().MakeDirectory(*DataFolder);
 
-	UserSettings = MakeShared<FUserSettings>(*(DataFolder / TEXT("UnrealGameSync_Slate.ini")));
+	UserSettings = MakeShared<UGSCore::FUserSettings>(*(DataFolder / TEXT("UnrealGameSync_Slate.ini")));
 
-	PerforceClient = DetectSettings->PerforceClient;
+	PerforceClient    = DetectSettings->PerforceClient;
 	WorkspaceSettings = UserSettings->FindOrAddWorkspace(*DetectSettings->BranchClientPath);
-	ProjectSettings = UserSettings->FindOrAddProject(*DetectSettings->NewSelectedClientFileName);
+	ProjectSettings   = UserSettings->FindOrAddProject(*DetectSettings->NewSelectedClientFileName);
 
 	// Check if the project we've got open in this workspace is the one we're actually synced to
 	int CurrentChangeNumber = -1;
@@ -498,15 +504,15 @@ void UGSTab::SetupWorkspace()
 		ClientKey = ClientKey.Left(ClientKey.Len() - 1);
 	}
 
-	FString ProjectLogBaseName = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
-	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
-	FString SelectedProjectIdentifier = DetectSettings->NewSelectedProjectIdentifier;
+	FString ProjectLogBaseName         = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
+	FString TelemetryProjectIdentifier = UGSCore::FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
+	FString SelectedProjectIdentifier  = DetectSettings->NewSelectedProjectIdentifier;
 
 	FString LogFileName = DataFolder / FPaths::GetPath(ProjectFileName) + TEXT(".sync.log");
 	GameSyncTabView->SetSyncLogLocation(LogFileName); // Todo: if SetSyncLogLocation fails, then it failed to create a log file and may need to handle that
 	GameSyncTabView->GetSyncLog()->AppendLine(TEXT("Creating log at: ") + LogFileName);
 
-	Workspace = MakeShared<FWorkspace>(
+	Workspace = MakeShared<UGSCore::FWorkspace>(
 		PerforceClient.ToSharedRef(),
 		DetectSettings->BranchDirectoryName,
 		ProjectFileName,
@@ -518,11 +524,11 @@ void UGSTab::SetupWorkspace()
 		TelemetryProjectIdentifier,
 		MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()));
 
-	Workspace->OnUpdateComplete = [this] (TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, EWorkspaceUpdateResult SyncResult, const FString& StatusMessage) {
+	Workspace->OnUpdateComplete = [this] (TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, UGSCore::EWorkspaceUpdateResult SyncResult, const FString& StatusMessage) {
 		OnWorkspaceSyncComplete(WorkspaceContext, SyncResult, StatusMessage);
 	};
 
-	CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(
+	CombinedSyncFilter = UGSCore::FUserSettings::GetCombinedSyncFilter(
 		Workspace->GetSyncCategories(),
 		UserSettings->SyncView,
 		UserSettings->SyncExcludedCategories,
@@ -530,26 +536,26 @@ void UGSTab::SetupWorkspace()
 		WorkspaceSettings->SyncExcludedCategories);
 
 	// Options on what to do with workspace when updating it
-	Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
+	Options = UGSCore::EWorkspaceUpdateOptions::Sync | UGSCore::EWorkspaceUpdateOptions::SyncArchives | UGSCore::EWorkspaceUpdateOptions::GenerateProjectFiles;
 	if (UserSettings->bAutoResolveConflicts)
 	{
-		Options |= EWorkspaceUpdateOptions::AutoResolveChanges;
+		Options |= UGSCore::EWorkspaceUpdateOptions::AutoResolveChanges;
 	}
 	if (UserSettings->bUseIncrementalBuilds)
 	{
-		Options |= EWorkspaceUpdateOptions::UseIncrementalBuilds;
+		Options |= UGSCore::EWorkspaceUpdateOptions::UseIncrementalBuilds;
 	}
 	if (UserSettings->bBuildAfterSync)
 	{
-		Options |= EWorkspaceUpdateOptions::Build;
+		Options |= UGSCore::EWorkspaceUpdateOptions::Build;
 	}
 	if (UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
 	{
-		Options |= EWorkspaceUpdateOptions::RunAfterSync;
+		Options |= UGSCore::EWorkspaceUpdateOptions::RunAfterSync;
 	}
 	if (UserSettings->bOpenSolutionAfterSync)
 	{
-		Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
+		Options |= UGSCore::EWorkspaceUpdateOptions::OpenSolutionAfterSync;
 	}
 
 	// Setup our Perforce and Event monitoring threads
@@ -557,7 +563,7 @@ void UGSTab::SetupWorkspace()
 	FString SelectedClientFileName = DetectSettings->NewSelectedClientFileName;
 
 	// TODO create callback functions that will be queued for the main thread to generate and update the main table view
-	PerforceMonitor = MakeShared<FPerforceMonitor>(PerforceClient.ToSharedRef(), BranchClientPath, SelectedClientFileName, SelectedProjectIdentifier, ProjectLogBaseName + ".p4.log");
+	PerforceMonitor = MakeShared<UGSCore::FPerforceMonitor>(PerforceClient.ToSharedRef(), BranchClientPath, SelectedClientFileName, SelectedProjectIdentifier, ProjectLogBaseName + ".p4.log");
 	PerforceMonitor->OnUpdate = [this]{ QueueMessageForMainThread([this] { UpdateGameTabBuildList(); }); };
 
 	//PerforceMonitor->OnUpdateMetadata = [this]{ printf("PerforceMonitor->OnUpdateMetadata\n"); }; //MessageQueue.Add([this]{ UpdateBuildMetadata(); }); };
@@ -566,7 +572,7 @@ void UGSTab::SetupWorkspace()
 	/* TODO figure out if this is even working, and if so how to correctly use this
 	 */
 	FString SqlConnectionString;
-	EventMonitor = MakeShared<FEventMonitor>(SqlConnectionString, FPerforceUtils::GetClientOrDepotDirectoryName(*SelectedProjectIdentifier), PerforceClient->UserName, ProjectLogBaseName + ".review.log");
+	EventMonitor = MakeShared<UGSCore::FEventMonitor>(SqlConnectionString, UGSCore::FPerforceUtils::GetClientOrDepotDirectoryName(*SelectedProjectIdentifier), PerforceClient->UserName, ProjectLogBaseName + ".review.log");
 	EventMonitor->OnUpdatesReady = [this]{ printf("EventMonitor->OnUpdatesReady\n"); }; //MessageQueue.Add([this]{ UpdateReviews(); }); };
 
 	// Start the threads

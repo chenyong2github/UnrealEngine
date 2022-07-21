@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "OutputAdapters.h"
 
+namespace UGSCore
+{
+
 struct FAbortException
 {
 };
@@ -33,3 +36,5 @@ struct FUtility
 	 */
 	static FString ExpandVariables(const TCHAR* InputString, const TMap<FString, FString>* AdditionalVariables = nullptr);
 };
+
+} // namespace UGSCore

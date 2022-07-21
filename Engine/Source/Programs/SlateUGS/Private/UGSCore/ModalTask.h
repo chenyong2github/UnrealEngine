@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
 
+namespace UGSCore
+{
+
 class FModalTaskResult
 {
 public:
@@ -30,3 +33,5 @@ public:
 	virtual ~IModalTask();
 	virtual TSharedRef<FModalTaskResult> Run(FEvent* AbortEvent) = 0;
 };
+
+} // namespace UGSCore

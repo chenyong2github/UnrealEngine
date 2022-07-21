@@ -5,6 +5,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SThrobber.h"
+#include "UGSCore/ModalTask.h"
 
 SModalTaskWindow::SModalTaskWindow()
 {
@@ -80,7 +81,7 @@ uint32 SModalTaskWindow::Run()
 	return 0;
 }
 
-TSharedRef<FModalTaskResult> ExecuteModalTask(TSharedPtr<SWidget> Parent, TSharedRef<IModalTask> Task, const FText& InTitle, const FText& InMessage)
+TSharedRef<UGSCore::FModalTaskResult> ExecuteModalTask(TSharedPtr<SWidget> Parent, TSharedRef<UGSCore::IModalTask> Task, const FText& InTitle, const FText& InMessage)
 {
 	TSharedRef<SModalTaskWindow> Window =
 		SNew(SModalTaskWindow)

@@ -30,8 +30,8 @@ private:
 	void ConstructCustomSyncViewTextBoxes();
 
 	UGSTab* Tab;
-	TArray<FWorkspaceSyncCategory> WorkspaceCategoriesCurrent;
-	TArray<FWorkspaceSyncCategory> WorkspaceCategoriesAll;
+	TArray<UGSCore::FWorkspaceSyncCategory> WorkspaceCategoriesCurrent;
+	TArray<UGSCore::FWorkspaceSyncCategory> WorkspaceCategoriesAll;
 
 	TSharedPtr<SCheckBoxList> SyncFiltersCurrent;
 	TSharedPtr<SCheckBoxList> SyncFiltersAll;

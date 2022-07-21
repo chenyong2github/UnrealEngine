@@ -3,9 +3,10 @@
 #pragma once
 
 #include "SlateCore.h"
-#include "UGSCore/OutputAdapters.h"
 #include "Framework/Text/BaseTextLayoutMarshaller.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+
+#include "UGSCore/OutputAdapters.h"
 
 class FLogWidgetTextLayoutMarshaller : public FBaseTextLayoutMarshaller
 {
@@ -57,7 +58,7 @@ protected:
 	EActiveTimerReturnType OnTimerElapsed(double CurrentTime, float DeltaTime);
 };
 
-class FLogWidgetTextWriter : public FLineBasedTextWriter
+class FLogWidgetTextWriter : public UGSCore::FLineBasedTextWriter
 {
 public:
 	FLogWidgetTextWriter(const TSharedRef<SLogWidget>& InLogWidget)

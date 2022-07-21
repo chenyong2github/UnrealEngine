@@ -7,6 +7,9 @@
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Tuple.h"
 
+namespace UGSCore
+{
+
 struct FPerforceChangeSummary
 {
 	int Number;
@@ -270,3 +273,5 @@ struct FPerforceUtils
 	static FString GetClientOrDepotDirectoryName(const TCHAR* ClientFile);
 	static bool TryParseDateTime(const FString& Date, const FString& Time, FDateTime& OutDate);
 };
+
+} // namespace UGSCore

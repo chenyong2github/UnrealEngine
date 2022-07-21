@@ -6,6 +6,9 @@
 #include "Misc/Guid.h"
 #include "CustomConfigFile.h"
 
+namespace UGSCore
+{
+
 enum class EBuildStepType
 {
 	Compile,
@@ -44,3 +47,5 @@ struct FBuildStep
 	FCustomConfigObject ToConfigObject() const;
 	FCustomConfigObject ToConfigObject(const FCustomConfigObject* DefaultObject) const;
 };
+
+} // namespace UGSCore

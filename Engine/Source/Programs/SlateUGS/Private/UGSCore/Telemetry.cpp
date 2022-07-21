@@ -2,6 +2,9 @@
 
 #include "Telemetry.h"
 
+namespace UGSCore
+{
+
 //// FTelemetryStopwatch ////
 
 FTelemetryStopwatch::FTelemetryStopwatch(const FString& InAction, const FString& InProject)
@@ -50,3 +53,4 @@ FTelemetryWriter::~FTelemetryWriter()
 {
 }
 
+} // namespace UGSCore

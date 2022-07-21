@@ -8,6 +8,9 @@
 #include "CustomConfigFile.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 FPerforceMonitor::FPerforceMonitor(const TSharedRef<FPerforceConnection>& InPerforce, const FString& InBranchClientPath, const FString& InSelectedClientFileName, const FString& InSelectedProjectIdentifier, const FString& InLogPath)
 	: Perforce(InPerforce)
 	, BranchClientPath(InBranchClientPath)
@@ -507,3 +510,5 @@ bool FPerforceMonitor::UpdateZippedBinaries()
 	return true;
 }
 
+
+} // namespace UGSCore

@@ -4,9 +4,11 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
-//#include "ChildProcess.h"
 #include "Misc/Paths.h"
 #include "HAL/Event.h"
+
+namespace UGSCore
+{
 
 bool FUtility::TryParse(const TCHAR* Text, int32& OutValue)
 {
@@ -240,3 +242,5 @@ FString FUtility::ExpandVariables(const TCHAR* InputString, const TMap<FString, 
 	}
 	return Result;
 }
+
+} // namespace UGSCore

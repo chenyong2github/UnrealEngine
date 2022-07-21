@@ -9,7 +9,7 @@ struct FChangeInfo
 	FDateTime Time;
 	bool bHeaderRow = false;
 
-	EReviewVerdict ReviewStatus = EReviewVerdict::Unknown;
+	UGSCore::EReviewVerdict ReviewStatus = UGSCore::EReviewVerdict::Unknown;
 	int Changelist = 0;
 	FText Author;
 	FText Description;

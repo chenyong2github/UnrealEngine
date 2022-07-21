@@ -5,6 +5,9 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
 
+namespace UGSCore
+{
+
 //// FEventData ////
 
 FEventData::FEventData(int32 InChangeNumber, const FString& InUserName, EEventType InType, const FString& InProject)
@@ -824,3 +827,5 @@ void FEventMonitor::UpdateActiveInvestigations()
 		}
 	}
 }
+
+} // namespace UGSCore

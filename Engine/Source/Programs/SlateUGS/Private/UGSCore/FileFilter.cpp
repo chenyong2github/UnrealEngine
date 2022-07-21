@@ -2,6 +2,9 @@
 
 #include "FileFilter.h"
 
+namespace UGSCore
+{
+
 /// <summary>
 /// Node within a filter tree. Each node matches a single path fragment - a folder or file name, with an include or exclude rule consisting of a sequence of nodes. 
 /// </summary>
@@ -394,3 +397,5 @@ int FFileFilter::HighestPossibleIncludeMatch(const FNode* CurrentNode, const TAr
 	}
 	return BestRuleNumber;
 }
+
+} // namespace UGSCore

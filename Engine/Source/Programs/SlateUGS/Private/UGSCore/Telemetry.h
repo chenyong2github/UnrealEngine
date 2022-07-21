@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Misc/Timespan.h"
 
+namespace UGSCore
+{
+
 class FTelemetryStopwatch
 {
 public:
@@ -28,3 +31,5 @@ public:
 	FTelemetryWriter(const FString& InSqlConnectionString, const FString& InLogFileName);
 	~FTelemetryWriter();
 };
+
+} // namespace UGSCore

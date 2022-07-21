@@ -7,6 +7,9 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 
+namespace UGSCore
+{
+
 enum class EEventType
 {
 	Syncing,
@@ -179,3 +182,4 @@ private:
 	void UpdateActiveInvestigations();
 };
 
+} // namespace UGSCore

@@ -3,6 +3,9 @@
 #include "OutputAdapters.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 //// FLineBasedTextWriter ////
 
 FLineBasedTextWriter::FLineBasedTextWriter()
@@ -433,3 +436,5 @@ bool FProgressTextWriter::ReadFraction(const TArray<FString>& Tokens, int& Token
 	Fraction = 0.0f;
 	return false;
 }
+
+} // namespace UGSCore

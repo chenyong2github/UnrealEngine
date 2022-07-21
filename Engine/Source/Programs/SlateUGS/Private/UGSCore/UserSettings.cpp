@@ -5,6 +5,9 @@
 #include "Algo/Transform.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 //// EBuildConfig ////
 
 FString ToString(EBuildConfig BuildConfig)
@@ -612,3 +615,5 @@ FString FUserSettings::UnescapeText(const FString& Text)
 	}
 	return Result;
 }
+
+} // namespace UGSCore

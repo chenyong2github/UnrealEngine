@@ -9,6 +9,9 @@
 #include "Perforce.h"
 #include "OutputAdapters.h"
 
+namespace UGSCore
+{
+
 enum class EPerforceChangeType
 {
 	Code,
@@ -75,3 +78,5 @@ private:
 	bool UpdateChangeTypes();
 	bool UpdateZippedBinaries();
 };
+
+} // namespace UGSCore

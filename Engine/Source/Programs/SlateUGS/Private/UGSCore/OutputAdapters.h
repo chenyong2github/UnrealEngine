@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+namespace UGSCore
+{
+
 class FLineBasedTextWriter : public FOutputDevice
 {
 public:
@@ -120,3 +123,5 @@ private:
 	static TArray<FString> ParseTokens(const FString& Line);
 	static bool ReadFraction(const TArray<FString>& Tokens, int& TokenIdx, float& Fraction);
 };
+
+} // namespace UGSCore

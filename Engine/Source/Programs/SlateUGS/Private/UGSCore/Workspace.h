@@ -10,6 +10,9 @@
 #include "HAL/Runnable.h"
 #include "Misc/EnumClassFlags.h"
 
+namespace UGSCore
+{
+
 enum class EWorkspaceUpdateOptions
 {
 	Sync = 0x01,
@@ -146,3 +149,5 @@ private:
 	static bool UpdateVersionLine(FString& Line, const FString& Prefix, const FString& Suffix);
 	static bool ReadToken(const FString& Line, int32& LineIdx, FString &OutToken);
 };
+
+} // namespace UGSCore

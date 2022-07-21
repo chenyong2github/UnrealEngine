@@ -8,12 +8,16 @@
 
 #include "UGSCore/Workspace.h"
 
-struct FUserWorkspaceSettings;
-struct FUserProjectSettings;
-struct FUserSettings;
-class FDetectProjectSettingsTask;
-class FPerforceMonitor;
-class FEventMonitor;
+namespace UGSCore
+{
+	struct FUserWorkspaceSettings;
+	struct FUserProjectSettings;
+	struct FUserSettings;
+	class FDetectProjectSettingsTask;
+	class FPerforceMonitor;
+	class FEventMonitor;
+}
+
 class UGSTabManager;
 
 enum SyncCategoryType
@@ -51,14 +55,14 @@ public:
 	FString GetSyncProgress() const;
 	const TArray<FString>& GetSyncFilters() const;
 	const TArray<FString>& GetCombinedSyncFilter() const;
-	TArray<FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
+	TArray<UGSCore::FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
 	UGSTabManager* GetTabManager();
 private:
 
 	void OnWorkspaceSyncComplete(
-		TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
-		EWorkspaceUpdateResult SyncResult,
+		TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
+		UGSCore::EWorkspaceUpdateResult SyncResult,
 		const FString& StatusMessage);
 
 	// Allows the queuing of functions from threads to be run on the main thread
@@ -81,18 +85,18 @@ private:
 	// Core data
 	UGSTabManager* TabManager = nullptr;
 	FString ProjectFileName;
-	TSharedPtr<FWorkspace> Workspace;
-	TSharedPtr<FPerforceConnection> PerforceClient;
-	TSharedPtr<FUserWorkspaceSettings> WorkspaceSettings;
-	TSharedPtr<FUserProjectSettings> ProjectSettings;
-	EWorkspaceUpdateOptions Options;
-	TSharedPtr<FDetectProjectSettingsTask> DetectSettings;
+	TSharedPtr<UGSCore::FWorkspace> Workspace;
+	TSharedPtr<UGSCore::FPerforceConnection> PerforceClient;
+	TSharedPtr<UGSCore::FUserWorkspaceSettings> WorkspaceSettings;
+	TSharedPtr<UGSCore::FUserProjectSettings> ProjectSettings;
+	UGSCore::EWorkspaceUpdateOptions Options;
+	TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings;
 	TArray<FString> CombinedSyncFilter;
-	TSharedPtr<FUserSettings> UserSettings;
+	TSharedPtr<UGSCore::FUserSettings> UserSettings;
 
 	// Monitoring threads
-	TSharedPtr<FPerforceMonitor> PerforceMonitor;
-	TSharedPtr<FEventMonitor> EventMonitor;
+	TSharedPtr<UGSCore::FPerforceMonitor> PerforceMonitor;
+	TSharedPtr<UGSCore::FEventMonitor> EventMonitor;
 
 	// Queue for handling callbacks from multiple threads that need to be called on the main thread
 	TArray<TFunction<void()>> MessageQueue;

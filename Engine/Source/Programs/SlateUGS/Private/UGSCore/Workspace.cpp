@@ -13,6 +13,9 @@
 #include "Telemetry.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 const TCHAR* FWorkspace::DefaultBuildTargets[] =
 {
 	TEXT("UnrealHeaderTool Win64 Development, 0.1"),
@@ -1260,3 +1263,4 @@ bool FWorkspace::ReadToken(const FString& Line, int32& LineIdx, FString &OutToke
 	return true;
 }
 
+} // namespace UGSCore

@@ -47,16 +47,16 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 
 		switch (CurrentItem->ReviewStatus)
 		{
-			case EReviewVerdict::Good:
+			case UGSCore::EReviewVerdict::Good:
 				StatusCircle->SetColorAndOpacity(FLinearColor::Green);
 				break;
-			case EReviewVerdict::Bad:
+			case UGSCore::EReviewVerdict::Bad:
 				StatusCircle->SetColorAndOpacity(FLinearColor::Red);
 				break;
-			case EReviewVerdict::Mixed:
+			case UGSCore::EReviewVerdict::Mixed:
 				StatusCircle->SetColorAndOpacity(FLinearColor::Yellow);
 				break;
-			case EReviewVerdict::Unknown:
+			case UGSCore::EReviewVerdict::Unknown:
 			default:
 				StatusCircle->SetColorAndOpacity(FLinearColor::Gray);
 				break;

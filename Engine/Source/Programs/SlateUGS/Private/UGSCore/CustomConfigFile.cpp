@@ -4,6 +4,9 @@
 #include "Misc/FileHelper.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 static const TCHAR* ConfigSeparatorCharacters = TEXT("(),= \t\"");
 
 //// FCustomConfigObject ////
@@ -734,3 +737,5 @@ bool FCustomConfigFile::TryGetValues(const TCHAR* Key, TArray<FGuid> &Values) co
 	TSharedPtr<const FCustomConfigSection> Section = FindSection(*FString(Dot - Key, Key));
 	return Section.IsValid()? Section->TryGetValues(Dot + 1, Values) : false;
 }
+
+} // namespace UGSCore

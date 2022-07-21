@@ -9,6 +9,9 @@
 #include "HAL/Event.h"
 #include "Utility.h"
 
+namespace UGSCore
+{
+
 bool TryGetValue(const TMap<FString, FString>& Map, const TCHAR* Key, FString& OutValue)
 {
 	const FString* Value = Map.Find(Key);
@@ -1510,3 +1513,5 @@ bool FPerforceUtils::TryParseDateTime(const FString& Date, const FString& Time, 
 	OutDate = FDateTime(Year, Month, Day, Hour, Minute, Second);
 	return true;
 }
+
+} // namespace UGSCore

@@ -7,6 +7,9 @@
 #include "Perforce.h"
 #include "OutputAdapters.h"
 
+namespace UGSCore
+{
+
 class FDetectProjectSettingsTask : public IModalTask
 {
 public:
@@ -34,3 +37,5 @@ private:
 	TSharedRef<FModalTaskResult> RunInternal(FEvent* AbortEvent);
 	static bool TryGetStreamPrefix(TSharedRef<FPerforceConnection> Perforce, const FString& StreamName, FEvent* AbortEvent, FLineBasedTextWriter& Log, FString& OutStreamPrefix);
 };
+
+} // namespace UGSCore
