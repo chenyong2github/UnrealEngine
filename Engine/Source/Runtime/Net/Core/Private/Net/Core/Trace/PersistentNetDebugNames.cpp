@@ -6,6 +6,7 @@
 #include "HAL/CriticalSection.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/MemStack.h"
+#include "Misc/ScopeLock.h"
 
 namespace UE::Net
 {
