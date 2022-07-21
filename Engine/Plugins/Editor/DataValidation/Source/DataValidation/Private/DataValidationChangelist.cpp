@@ -11,6 +11,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
+#include "UncontrolledChangelistsModule.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationChangelist"
 
@@ -159,6 +160,11 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 				ValidationErrors.Add(CurrentError);
 			}
 		}
+	}
+
+	if (bHasChangelistErrors)
+	{
+		FUncontrolledChangelistsModule::Get().OnReconcileAssets();
 	}
 
 	return bHasChangelistErrors ? EDataValidationResult::Invalid : EDataValidationResult::Valid;
