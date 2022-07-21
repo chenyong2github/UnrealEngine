@@ -7,6 +7,8 @@
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"
 
+#define LOCTEXT_NAMESPACE "EnhancedInputAction"
+
 FInputActionInstance::FInputActionInstance(const UInputAction* InSourceAction)
 	: SourceAction(InSourceAction)
 {
@@ -113,6 +115,41 @@ void UInputAction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	}
 }
 
+EDataValidationResult UInputAction::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+
+	// Validate the triggers
+	for (const TObjectPtr<UInputTrigger> Trigger : Triggers)
+	{
+		if (Trigger)
+		{
+			Result = CombineDataValidationResults(Result, Trigger->IsDataValid(ValidationErrors));
+		}
+		else
+		{
+			Result = EDataValidationResult::Invalid;
+			ValidationErrors.Add(LOCTEXT("NullInputTrigger", "There cannot be a null Input Trigger on an Input Action!"));
+		}
+	}
+	
+	// Validate the modifiers
+	for (const TObjectPtr<UInputModifier> Modifier : Modifiers)
+	{
+		if (Modifier)
+		{
+			Result = CombineDataValidationResults(Result, Modifier->IsDataValid(ValidationErrors));	
+		}
+		else
+		{
+			Result = EDataValidationResult::Invalid;
+			ValidationErrors.Add(LOCTEXT("NullInputModifier", "There cannot be a null Input Modifier on an Input Action!"));
+		}		
+	}
+
+	return Result;
+}
+
 ETriggerEventsSupported UInputAction::GetSupportedTriggerEvents() const
 {
 	ETriggerEventsSupported SupportedTriggers = ETriggerEventsSupported::None;
@@ -141,3 +178,5 @@ ETriggerEventsSupported UInputAction::GetSupportedTriggerEvents() const
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE

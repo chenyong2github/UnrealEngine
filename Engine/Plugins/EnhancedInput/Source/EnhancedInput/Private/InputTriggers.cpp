@@ -6,6 +6,8 @@
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
 
+#define LOCTEXT_NAMESPACE "EnhancedInputTriggers"
+
 // Abstract trigger bases
 ETriggerState UInputTrigger::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
@@ -201,6 +203,21 @@ ETriggerState UInputTriggerPulse::UpdateState_Implementation(const UEnhancedPlay
 	return State;
 }
 
+#if WITH_EDITOR
+EDataValidationResult UInputTriggerChordAction::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	
+	// You can't evaluate the combo if there are no combo steps!
+	if (!ChordAction)
+	{
+		Result = EDataValidationResult::Invalid;
+		ValidationErrors.Add(LOCTEXT("NullChordedAction", "A valid action is required for the Chorded Action input trigger!"));
+	}
+
+	return Result;
+}
+#endif
 
 ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
@@ -295,3 +312,22 @@ ETriggerState UInputTriggerComboAction::UpdateState_Implementation(const UEnhanc
 	}
 	return ETriggerState::None;
 };
+
+#if WITH_EDITOR
+EDataValidationResult UInputTriggerComboAction::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	
+	// You can't evaluate the combo if there are no combo steps!
+	if (ComboActions.IsEmpty())
+	{
+		Result = EDataValidationResult::Invalid;
+		ValidationErrors.Add(LOCTEXT("NoComboSteps", "There must be at least one combo step in the Combo Trigger!"));
+	}
+
+	return Result;
+}
+
+#endif
+
+#undef LOCTEXT_NAMESPACE

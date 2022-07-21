@@ -384,6 +384,10 @@ UCLASS(NotBlueprintable, meta = (DisplayName = "Chorded Action", NotInputConfigu
 class ENHANCEDINPUT_API UInputTriggerChordAction : public UInputTrigger
 {
 	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+#endif
 
 protected:
 	// Implicit, so action cannot fire unless this is firing.
@@ -449,6 +453,11 @@ protected:
 	float CurrentTimeBetweenComboSteps = 0.0f;
 
 public:
+
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+#endif
+	
 	/**
 	 * List of input actions that need to be completed to trigger this action.
 	 * Input actions must be triggered in order (starting at index 0) to count towards the completion of the combo.

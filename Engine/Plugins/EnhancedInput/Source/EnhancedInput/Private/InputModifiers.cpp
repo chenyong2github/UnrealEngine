@@ -6,11 +6,30 @@
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/PlayerController.h"
 
-
+#define LOCTEXT_NAMESPACE "EnhancedInputModifiers"
 
 /*
 * Scalar
 */
+
+#if WITH_EDITOR
+EDataValidationResult UInputModifierScalar::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+
+	// You cannot scale a boolean value
+	if (UInputAction* IA = Cast<UInputAction>(GetOuter()))
+	{
+		if (IA->ValueType == EInputActionValueType::Boolean)
+		{
+			Result = EDataValidationResult::Invalid;
+			ValidationErrors.Add(LOCTEXT("InputScalarInvalidActionType", "A Scalar modifier cannot be used on a 'Boolean' input action"));
+		}
+	}
+	
+	return Result;
+}
+#endif
 
 FInputActionValue UInputModifierScalar::ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime)
 {
@@ -347,3 +366,5 @@ FLinearColor UInputModifierSwizzleAxis::GetVisualizationColor_Implementation(FIn
 	float SampleX = (FMath::Abs(SampleValue.Get<float>()) + 1.f) * 0.5f;
 	return FLinearColor(SampleX, 1.f - SampleX, 0.f);
 }
+
+#undef LOCTEXT_NAMESPACE
