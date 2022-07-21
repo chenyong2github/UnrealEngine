@@ -1320,7 +1320,10 @@ void UInterchangeGltfTranslator::HandleGltfVariants(UInterchangeBaseNodeContaine
 				{
 					const GLTF::FMesh& Mesh = this->GltfAsset.Meshes[GltfNode.MeshIndex];
 					const FString* NodeUidPtr = this->NodeUidMap.Find(&GltfNode);
-					ensure(NodeUidPtr);
+					if (!ensure(NodeUidPtr))
+					{
+						continue;
+					}
 
 					VariantSetNode->AddCustomDependencyUid(*NodeUidPtr);
 
