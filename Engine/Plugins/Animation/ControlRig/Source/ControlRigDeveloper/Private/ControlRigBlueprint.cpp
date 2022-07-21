@@ -1357,8 +1357,9 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	for (URigVMGraph* GraphToDetach : GraphsToDetach)
 	{
 		URigVMController* Controller = GetOrCreateController(GraphToDetach);
-		bool bAllowNonArgumentLinks = GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::LibraryNodeTemplates;
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, bAllowNonArgumentLinks);
+		// at this stage, allow all links to be reattached,
+		// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, true);
 	}
 
 	if(bIsPostLoad)
