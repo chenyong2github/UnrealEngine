@@ -170,7 +170,7 @@ static void BuildCoarseRepresentation(
 {
 	TargetNumTris = FMath::Max( TargetNumTris, 64u );
 
-	FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 4096 );
+	FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 4096, nullptr );
 
 	// Merge
 	TArray< const FCluster*, TInlineAllocator<32> > MergeList;
@@ -547,13 +547,14 @@ static bool BuildNaniteData(
 		int32 TargetNumTris = Resources.NumInputTriangles * Settings.KeepPercentTriangles;
 		float TargetError = Settings.TrimRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, VertexBounds.GetSurfaceArea() ) );
 
-		FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 0 );
+		TBitArray<> SelectedGroupsMask;
+		FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 0, &SelectedGroupsMask );
+
+		for( int32 GroupIndex = 0; GroupIndex < SelectedGroupsMask.Num(); GroupIndex++ )
+		{
+			Groups[ GroupIndex ].bTrimmed = !SelectedGroupsMask[ GroupIndex ];
+		}
 	
-		float CutError = Clusters[ Heap.Top() ].LODError;
-
-		for( FClusterGroup& Group : Groups )
-			Group.bTrimmed = Group.MaxParentLODError <= CutError;
-
 		uint32 NumVerts = 0;
 		uint32 NumTris = 0;
 		for( uint32 i = 0; i < Heap.Num(); i++ )

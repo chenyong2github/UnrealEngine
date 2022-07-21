@@ -436,7 +436,8 @@ FBinaryHeap< float > FindDAGCut(
 	const TArray< FCluster >& Clusters,
 	uint32 TargetNumTris,
 	float  TargetError,
-	uint32 TargetOvershoot )
+	uint32 TargetOvershoot,
+	TBitArray<>* SelectedGroupsMask )
 {
 	const FClusterGroup&	RootGroup = Groups.Last();
 	const FCluster&			RootCluster = Clusters[ RootGroup.Children[0] ];
@@ -445,6 +446,12 @@ FBinaryHeap< float > FindDAGCut(
 
 	float MinError = RootCluster.LODError;
 
+	if( SelectedGroupsMask )
+	{
+		SelectedGroupsMask->Init( false, Groups.Num() );
+		(*SelectedGroupsMask)[ Groups.Num() - 1 ] = true;
+	}
+	
 	FBinaryHeap< float > Heap;
 	Heap.Add( -RootCluster.LODError, RootGroup.Children[0] );
 
@@ -477,6 +484,11 @@ FBinaryHeap< float > FindDAGCut(
 
 		check( Cluster.LODError <= MinError );
 		MinError = Cluster.LODError;
+
+		if( SelectedGroupsMask )
+		{
+			(*SelectedGroupsMask)[ Cluster.GeneratingGroupIndex ] = true;
+		}
 
 		for( uint32 Child : Groups[ Cluster.GeneratingGroupIndex ].Children )
 		{

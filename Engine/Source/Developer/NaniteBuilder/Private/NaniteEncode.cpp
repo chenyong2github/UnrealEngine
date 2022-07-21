@@ -14,10 +14,6 @@
 #define CONSTRAINED_CLUSTER_CACHE_SIZE				32
 #define MIN_PAGE_DISTANCE_FOR_RELATIVE_ENCODING		4		// Don't use relative encoding near root to avoid small dependent batches for little compression win.
 
-#define INVALID_PART_INDEX				0xFFFFFFFFu
-#define INVALID_GROUP_INDEX				0xFFFFFFFFu
-#define INVALID_PAGE_INDEX				0xFFFFFFFFu
-
 #define FLT_INT_MIN						(-2147483648.0f)	// Smallest float >= INT_MIN
 #define FLT_INT_MAX						2147483520.0f		// Largest float <= INT_MAX
 
@@ -698,7 +694,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 		uint32 ResourcePageIndex_NumPages_GroupPartSize = 0;
 		if( InNode.NumChildren[ i ] > 0 )
 		{
-			if( InNode.ClusterGroupPartIndex[ i ] != INVALID_PART_INDEX )
+			if( InNode.ClusterGroupPartIndex[ i ] != MAX_uint32 )
 			{
 				// Leaf node
 				const FClusterGroup& Group = Groups[GroupParts[InNode.ClusterGroupPartIndex[i]].GroupIndex];
@@ -897,7 +893,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	Info.BitsPerAttribute = 2 * NANITE_NORMAL_QUANTIZATION_BITS;
 
 	check(NumClusterVerts > 0);
-	const bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
+	const bool bIsLeaf = (Cluster.GeneratingGroupIndex == MAX_uint32);
 
 	// Vertex colors
 	Info.ColorMode = NANITE_VERTEX_COLOR_MODE_WHITE;
@@ -1414,7 +1410,7 @@ static void AssignClustersToPages(
 		if( Group.bTrimmed )
 			continue;
 
-		uint32 GroupStartPage = INVALID_PAGE_INDEX;
+		uint32 GroupStartPage = MAX_uint32;
 	
 		for (uint32 ClusterIndex : Group.Children)
 		{
@@ -1460,7 +1456,7 @@ static void AssignClustersToPages(
 
 			Cluster.GroupPartIndex = PartIndex;
 			
-			if (GroupStartPage == INVALID_PAGE_INDEX)
+			if (GroupStartPage == MAX_uint32)
 			{
 				GroupStartPage = PageIndex;
 			}
@@ -1648,12 +1644,14 @@ static void WritePages(	FResources& Resources,
 		check(Part.PageIndex < NumPages);
 
 		const FClusterGroup& Group = Groups[Part.GroupIndex];
+		check(!Group.bTrimmed);
 		for (uint32 ClusterPositionInPart = 0; ClusterPositionInPart < (uint32)Part.Clusters.Num(); ClusterPositionInPart++)
 		{
 			const FCluster& Cluster = Clusters[Part.Clusters[ClusterPositionInPart]];
-			if (Cluster.GeneratingGroupIndex != INVALID_GROUP_INDEX)
+			if (Cluster.GeneratingGroupIndex != MAX_uint32)
 			{
 				const FClusterGroup& GeneratingGroup = Groups[Cluster.GeneratingGroupIndex];
+				check(!GeneratingGroup.bTrimmed);
 				check(GeneratingGroup.PageIndexNum >= 1);
 				
 				uint32 PageDependencyStart = GeneratingGroup.PageIndexStart;
@@ -1849,7 +1847,7 @@ static void WritePages(	FResources& Resources,
 			for (uint32 ClusterPositionInPart = 0; ClusterPositionInPart < (uint32)Part.Clusters.Num(); ClusterPositionInPart++)
 			{
 				const FCluster& Cluster = Clusters[Part.Clusters[ClusterPositionInPart]];
-				if (Cluster.GeneratingGroupIndex != INVALID_GROUP_INDEX)
+				if (Cluster.GeneratingGroupIndex != MAX_uint32)
 				{
 					const FClusterGroup& GeneratingGroup = Groups[Cluster.GeneratingGroupIndex];
 					uint32 PageDependencyStart = GeneratingGroup.PageIndexStart;
@@ -2072,8 +2070,8 @@ static void WritePages(	FResources& Resources,
 
 		// Write fixup chunk
 		uint32 FixupChunkSize = FixupChunk.GetSize();
-		check(FixupChunk.Header.NumHierachyFixups < NANITE_MAX_CLUSTERS_PER_PAGE);
-		check(FixupChunk.Header.NumClusterFixups < NANITE_MAX_CLUSTERS_PER_PAGE);
+		check(FixupChunk.Header.NumHierachyFixups <= NANITE_MAX_CLUSTERS_PER_PAGE);
+		check(FixupChunk.Header.NumClusterFixups <= NANITE_MAX_CLUSTERS_PER_PAGE);
 		BulkData.Append((uint8*)&FixupChunk, FixupChunkSize);
 		TotalFixupSize += FixupChunkSize;
 
@@ -2195,7 +2193,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			HNode.MaxParentLODErrors[ChildIndex] = MaxParentLODError;
 			HNode.ChildrenStartIndex[ChildIndex] = ChildHierarchyNodeIndex;
 			HNode.NumChildren[ChildIndex] = NANITE_MAX_CLUSTERS_PER_GROUP;
-			HNode.ClusterGroupPartIndex[ChildIndex] = INVALID_GROUP_INDEX;
+			HNode.ClusterGroupPartIndex[ChildIndex] = MAX_uint32;
 		}
 	}
 
@@ -4177,6 +4175,46 @@ static void BuildVertReuseBatches(TArray<FCluster>& Clusters)
 		});
 }
 
+static uint32 RandDword()
+{
+	return FMath::Rand() ^ (FMath::Rand() << 13) ^ (FMath::Rand() << 26);
+}
+
+// Debug: Poison input attributes with random data
+static void DebugPoisonVertexAttributes(TArray< FCluster >& Clusters)
+{
+	FMath::RandInit(0xDEADBEEF);
+
+	for (FCluster& Cluster : Clusters)
+	{
+		for (uint32 VertexIndex = 0; VertexIndex < Cluster.NumVerts; VertexIndex++)
+		{
+			{
+				FVector3f& Normal = Cluster.GetNormal(VertexIndex);
+				*(uint32*)&Normal.X = RandDword();
+				*(uint32*)&Normal.Y = RandDword();
+				*(uint32*)&Normal.Z = RandDword();
+			}
+
+			if(Cluster.bHasColors)
+			{
+				FLinearColor& Color = Cluster.GetColor(VertexIndex);
+				*(uint32*)&Color.R = RandDword();
+				*(uint32*)&Color.G = RandDword();
+				*(uint32*)&Color.B = RandDword();
+				*(uint32*)&Color.A = RandDword();
+			}
+
+			for (uint32 UvIndex = 0; UvIndex < Cluster.NumTexCoords; UvIndex++)
+			{
+				FVector2f& UV = Cluster.GetUVs(VertexIndex)[UvIndex];
+				*(uint32*)&UV.X = RandDword();
+				*(uint32*)&UV.Y = RandDword();
+			}
+		}
+	}
+}
+
 void Encode(
 	FResources& Resources,
 	const FMeshNaniteSettings& Settings,
@@ -4188,6 +4226,16 @@ void Encode(
 	bool bHasColors)
 {
 	const uint32 MaxRootPages = CalculateMaxRootPages(Settings.TargetMinimumResidencyInKB);
+
+	// DebugPoisonVertexAttributes(Clusters);
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::SanitizeVertexData);
+		for (FCluster& Cluster : Clusters)
+		{
+			Cluster.SanitizeVertexData();
+		}
+	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::RemoveDegenerateTriangles);	// TODO: is this still necessary?

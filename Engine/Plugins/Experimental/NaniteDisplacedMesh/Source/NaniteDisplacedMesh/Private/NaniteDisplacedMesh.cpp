@@ -24,9 +24,6 @@
 
 DEFINE_LOG_CATEGORY(LogNaniteDisplacedMesh);
 
-// TODO: Temp workaround to avoid trimming until build issues are sorted out
-#define DISPLACE_TEMP_FIX_TRIM_ERROR 1
-
 static bool DoesTargetPlatformSupportNanite(const ITargetPlatform* TargetPlatform)
 {
 	if (TargetPlatform != nullptr)
@@ -292,11 +289,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	// will always want Nanite unless the platform, runtime, or "Disallow Nanite" on SMC prevents it.
 	FMeshNaniteSettings NaniteSettings;
 	NaniteSettings.bEnabled = true;
-#if DISPLACE_TEMP_FIX_TRIM_ERROR
-	NaniteSettings.TrimRelativeError = 0.0f;
-#else
 	NaniteSettings.TrimRelativeError = DisplacedMesh->Parameters.RelativeError;
-#endif
 
 	const int32 NumSourceModels = BaseMesh->GetNumSourceModels();
 
@@ -669,12 +662,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 		Writer << StaticMeshKey;
 	}
 
-#if DISPLACE_TEMP_FIX_TRIM_ERROR
-	float NoTrim = 0.0f;
-	Writer << NoTrim;
-#else
 	Writer << Parameters.RelativeError;
-#endif
 
 	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{

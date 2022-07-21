@@ -69,7 +69,7 @@ FCluster::FCluster(
 				const FStaticMeshBuildVertex& InVert = InVerts[ OldIndex ];
 
 				GetPosition( NewIndex ) = InVert.Position;
-				GetNormal( NewIndex ) = InVert.TangentZ.ContainsNaN() ? FVector3f::UpVector : InVert.TangentZ;
+				GetNormal( NewIndex ) = InVert.TangentZ;
 	
 				if( bHasColors )
 				{
@@ -79,16 +79,8 @@ FCluster::FCluster(
 				FVector2f* UVs = GetUVs( NewIndex );
 				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 				{
-					UVs[ UVIndex ] = InVert.UVs[ UVIndex ].ContainsNaN() ? FVector2f::ZeroVector : InVert.UVs[ UVIndex ];
+					UVs[ UVIndex ] = InVert.UVs[ UVIndex ];
 				}
-
-				float* Attributes = GetAttributes( NewIndex );
-
-				// Make sure this vertex is valid from the start
-				if( bHasColors )
-					CorrectAttributesColor( Attributes );
-				else
-					CorrectAttributes( Attributes );
 			}
 
 			Indexes.Add( NewIndex );
@@ -109,6 +101,19 @@ FCluster::FCluster(
 		}
 
 		MaterialIndexes.Add( InMaterialIndexes[ TriIndex ] );
+	}
+
+	SanitizeVertexData();
+
+	for( uint32 VertexIndex = 0; VertexIndex < NumVerts; VertexIndex++ )
+	{
+		float* Attributes = GetAttributes( VertexIndex );
+
+		// Make sure this vertex is valid from the start
+		if( bHasColors )
+			CorrectAttributesColor( Attributes );
+		else
+			CorrectAttributes( Attributes );
 	}
 
 	Bound();
@@ -651,6 +656,58 @@ void FCluster::Bound()
 	EdgeLength = FMath::Sqrt( MaxEdgeLength2 );
 }
 
+static void SanitizeFloat( float& X, float MinValue, float MaxValue, float DefaultValue )
+{
+	if( X >= MinValue && X <= MaxValue )
+		;
+	else if( X < MinValue )
+		X = MinValue;
+	else if( X > MaxValue )
+		X = MaxValue;
+	else
+		X = DefaultValue;
+}
+
+void FCluster::SanitizeVertexData()
+{
+	const float FltThreshold = 1e12f;	// Fairly arbitrary threshold for sensible float values.
+										// Should be large enough for all practical purposes, while still leaving enough headroom
+										// so that overflows shouldn't be a concern.
+										// With a 1e12 threshold, even x^3 fits comfortable in float range.
+
+	for( uint32 VertexIndex = 0; VertexIndex < NumVerts; VertexIndex++ )
+	{
+		FVector3f& Position = GetPosition( VertexIndex );
+		SanitizeFloat( Position.X, -FltThreshold, FltThreshold, 0.0f );
+		SanitizeFloat( Position.Y, -FltThreshold, FltThreshold, 0.0f );
+		SanitizeFloat( Position.Z, -FltThreshold, FltThreshold, 0.0f );
+
+		FVector3f& Normal = GetNormal( VertexIndex );
+		if( !(  Normal.X >= -FltThreshold && Normal.X <= FltThreshold ||
+				Normal.Y >= -FltThreshold && Normal.Y <= FltThreshold ||
+				Normal.Z >= -FltThreshold && Normal.Z <= FltThreshold ) )	// Don't flip condition. Intentionally written like this to be NaN-safe
+		{
+			Normal = FVector3f::UpVector;
+		}	
+		
+		if( bHasColors )
+		{
+			FLinearColor& Color = GetColor( VertexIndex );
+			SanitizeFloat( Color.R, 0.0f, 1.0f, 1.0f );
+			SanitizeFloat( Color.G, 0.0f, 1.0f, 1.0f );
+			SanitizeFloat( Color.B, 0.0f, 1.0f, 1.0f );
+			SanitizeFloat( Color.A, 0.0f, 1.0f, 1.0f );
+		}
+
+		FVector2f* UVs = GetUVs( VertexIndex );
+		for( uint32 UvIndex = 0; UvIndex < NumTexCoords; UvIndex++ )
+		{
+			SanitizeFloat( UVs[ UvIndex ].X, -FltThreshold, FltThreshold, 0.0f );
+			SanitizeFloat( UVs[ UvIndex ].Y, -FltThreshold, FltThreshold, 0.0f );
+		}
+	}
+}
+
 FArchive& operator<<(FArchive& Ar, FMaterialRange& Range)
 {
 	Ar << Range.RangeStart;
@@ -673,49 +730,4 @@ FArchive& operator<<(FArchive& Ar, FStripDesc& Desc)
 	Ar << Desc.NumPrevNewVerticesBeforeDwords;
 	return Ar;
 }
-/*
-FArchive& operator<<(FArchive& Ar, FCluster& Cluster)
-{
-	Ar << Cluster.NumVerts;
-	Ar << Cluster.NumTris;
-	Ar << Cluster.NumTexCoords;
-	Ar << Cluster.bHasColors;
-
-	Ar << Cluster.Verts;
-	Ar << Cluster.Indexes;
-	Ar << Cluster.MaterialIndexes;
-	Ar << Cluster.BoundaryEdges;
-	Ar << Cluster.ExternalEdges;
-	Ar << Cluster.NumExternalEdges;
-
-	Ar << Cluster.AdjacentClusters;
-
-	Ar << Cluster.Bounds;
-	Ar << Cluster.GUID;
-	Ar << Cluster.MipLevel;
-
-	Ar << Cluster.QuantizedPosStart;
-	Ar << Cluster.QuantizedPosShift;
-
-	Ar << Cluster.MeshBoundsMin;
-	Ar << Cluster.MeshBoundsDelta;
-
-	Ar << Cluster.EdgeLength;
-	Ar << Cluster.LODError;
-
-	Ar << Cluster.SphereBounds;
-	Ar << Cluster.LODBounds;
-
-	Ar << Cluster.GroupIndex;
-	Ar << Cluster.GroupPartIndex;
-	Ar << Cluster.GeneratingGroupIndex;
-
-	Ar << Cluster.MaterialRanges;
-	Ar << Cluster.QuantizedPositions;
-
-	Ar << Cluster.StripDesc;
-	Ar << Cluster.StripIndexData;
-	return Ar;
-}
-*/
 } // namespace Nanite

@@ -4,6 +4,7 @@
 
 #include "Cluster.h"
 #include "Containers/BinaryHeap.h"
+#include "Containers/BitArray.h"
 
 // Log CRCs to test for deterministic building
 #if 0
@@ -40,6 +41,7 @@ FBinaryHeap< float > FindDAGCut(
 	const TArray< FCluster >& Clusters,
 	uint32 TargetNumTris,
 	float  TargetError,
-	uint32 TargetOvershoot );
+	uint32 TargetOvershoot,
+	TBitArray<>* SelectedGroupsMask );
 
 } // namespace Nanite

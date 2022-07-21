@@ -77,6 +77,8 @@ public:
 	const FLinearColor&	GetColor( uint32 VertIndex ) const;
 	const FVector2f*	GetUVs( uint32 VertIndex ) const;
 
+	void				SanitizeVertexData();
+
 	friend FArchive& operator<<(FArchive& Ar, FCluster& Cluster);
 
 	static const uint32	ClusterSize = 128;
