@@ -176,7 +176,7 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 
 static TSharedPtr<ISequencer> GetSequencerFromAsset()
 {
-	//if getting sequencer from level sequence need to use the current(master), not the focused
+	//if getting sequencer from level sequence need to use the current(leader), not the focused
 	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
 	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);

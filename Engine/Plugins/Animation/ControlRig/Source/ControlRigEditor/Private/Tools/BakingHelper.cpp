@@ -16,7 +16,7 @@
 
 TWeakPtr<ISequencer> FBakingHelper::GetSequencer()
 {
-	// if getting sequencer from level sequence need to use the current(master), not the focused
+	// if getting sequencer from level sequence need to use the current(leader), not the focused
 	if (ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence())
 	{
 		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
