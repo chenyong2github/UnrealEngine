@@ -50,6 +50,8 @@ $ bEnableObjCExceptions (Boolean): Enable objective C exception handling
 
 $ bEnableUndefinedIdentifierWarnings (Boolean): Enable warnings for using undefined identifiers in #if expressions
 
+$ bMergeUnityFiles (Boolean): Whether to merge module and generated unity files for faster compilation.
+
 $ MinSourceFilesForUnityBuildOverride (Int32): The number of source files in this module before unity build will be activated for that module.  If set to anything besides -1, will override the default setting which is controlled by MinGameModuleSourceFilesForUnityBuild
 
 $ MinFilesUsingPrecompiledHeaderOverride (Int32): Overrides BuildConfiguration.MinFilesUsingPrecompiledHeader if non-zero.

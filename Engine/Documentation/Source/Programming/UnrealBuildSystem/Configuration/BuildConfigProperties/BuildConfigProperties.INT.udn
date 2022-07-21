@@ -100,9 +100,9 @@ $ bPreprocessDepends : Generate dependency files by preprocessing. This is only 
 
 $ StaticAnalyzer : Whether static code analysis should be enabled.
 
-$ StaticAnalyzerOutputType : The output type to use for the static analyzer.
+$ StaticAnalyzerOutputType : The output type to use for the static analyzer. This is only supported for Clang.
 
-$ StaticAnalyzerMode : The mode to use for the static analyzer.
+$ StaticAnalyzerMode : The mode to use for the static analyzer. This is only supported for Clang. Shallow mode completes quicker but is generally not recommended.
 
 $ MinFilesUsingPrecompiledHeader : The minimum number of files that must use a pre-compiled header before it will be created and used.
 
