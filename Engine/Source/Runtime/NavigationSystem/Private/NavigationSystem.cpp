@@ -2241,7 +2241,7 @@ void UNavigationSystemV1::ProcessRegistrationCandidates()
 
 			if (Result != RegistrationSuccessful && Result != RegistrationFailed_DataPendingKill)
 			{
-				NavDataPtr->CleanUpAndMarkPendingKill();
+				NavDataPtr->Destroy();
 				if (NavDataPtr == MainNavData)
 				{
 					MainNavData = NULL;
