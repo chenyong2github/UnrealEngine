@@ -2062,9 +2062,15 @@ void UOptimusDeformer::PostLoadFixupMissingComponentBindingsCompat()
 				
 				if (ComponentSourceNodePtr == nullptr)
 				{
-					ComponentSourceNodePtr = Cast<UOptimusNode_ComponentSource>(Graph->AddComponentBindingGetNode(Item.Value, FVector2D(MinimumPosX, AccumulatedPosY)));					AccumulatedPosY += NodeSize.Y + NodeMargins.Y;
+					ComponentSourceNodePtr = Cast<UOptimusNode_ComponentSource>(Graph->AddComponentBindingGetNode(Item.Value, FVector2D(MinimumPosX, AccumulatedPosY)));
+					AccumulatedPosY += NodeSize.Y + NodeMargins.Y;
 				}
 
+				if (!ensure(ComponentSourceNodePtr))
+				{
+					continue;
+				}
+				
 				UOptimusNodePin* ComponentSourcePin = ComponentSourceNodePtr->GetComponentPin();
 
 				Graph->AddLink(ComponentSourcePin, Item.Key->GetComponentPin());
