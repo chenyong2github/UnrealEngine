@@ -1577,7 +1577,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
 	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) >= FSkeletalMeshCustomVersion::SplitModelAndRenderData)
 	{
 		bool bCooked = Ar.IsCooking();
