@@ -515,12 +515,20 @@ FWaitForInteractiveFrameRate::FWaitForInteractiveFrameRate(float InDesiredFrameR
 
 bool FWaitForInteractiveFrameRate::Update()
 {
+	const double kReportInterval = 30;
 	const double TimeNow = FPlatformTime::Seconds();
+
+	if (FApp::CanEverRender() == false)
+	{
+		UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("FWaitForInteractiveFrameRate: FApp::CanEverRender() == false. Passing wait immediately."));
+		return true;
+	}
 
 	if (StartTimeOfWait == 0)
 	{
 		UE_LOG(LogEngineAutomationLatentCommand, Log, TEXT("FWaitForInteractiveFrameRate: Starting wait for framerate of >= %.f FPS"), DesiredFrameRate);
 		StartTimeOfWait = TimeNow;
+		LastReportTime = TimeNow;
 	}
 
 	// Check if we're at the desired framerate, and if so how long we have been there for
@@ -562,6 +570,12 @@ bool FWaitForInteractiveFrameRate::Update()
 		}
 
 		return true;
+	}
+
+	if (TimeNow - LastReportTime >= kReportInterval)
+	{
+		UE_LOG(LogEngineAutomationLatentCommand, Display, TEXT("FWaitForInteractiveFrameRate: Waited %.f seconds. Will timeout in %.f Current FPS=%.f "), ElapsedWaitTime, MaxWaitTime- ElapsedWaitTime, GAverageFPS);
+		LastReportTime = TimeNow;
 	}
 
 	return false;

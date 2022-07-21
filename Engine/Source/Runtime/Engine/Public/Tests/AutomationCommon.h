@@ -208,6 +208,9 @@ private:
 
 	// how many seconds we've been at the desired framerate
 	double StartTimeOfAcceptableFrameRate;	
+
+	// time we last logged we are waiting
+	double LastReportTime;
 };
 
 /**
