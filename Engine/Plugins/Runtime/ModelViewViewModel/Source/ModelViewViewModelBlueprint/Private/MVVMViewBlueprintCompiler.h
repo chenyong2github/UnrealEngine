@@ -92,7 +92,7 @@ private:
 
 		bool bExposeOnSpawn = false;
 	};
-	TArray<FCompilerSourceContext> SourceContexts;
+	TArray<FCompilerSourceContext> CompilerSourceContexts;
 
 	enum class ECompilerSourceCreatorType
 	{
@@ -106,7 +106,7 @@ private:
 		FString SetterFunctionName;
 		UEdGraph* SetterGraph = nullptr;
 	};
-	TArray<FCompilerSourceCreatorContext> SourceCreatorContexts;
+	TArray<FCompilerSourceCreatorContext> CompilerSourceCreatorContexts;
 
 	enum class ECompilerBindingType
 	{
@@ -115,7 +115,7 @@ private:
 	struct FCompilerBinding
 	{
 		int32 BindingIndex = INDEX_NONE;
-		int32 SourceContextIndex = INDEX_NONE;
+		int32 CompilerSourceContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
 		bool bFieldIdNeeded = false;
 
@@ -132,7 +132,7 @@ private:
 		FCompiledBindingLibraryCompiler::FFieldPathHandle DestinationWrite;
 		FCompiledBindingLibraryCompiler::FFieldPathHandle ConversionFunction;
 	};
-	TArray<FCompilerBinding> Bindings;
+	TArray<FCompilerBinding> CompilerBindings;
 
 	struct FBindingSourceContext
 	{
