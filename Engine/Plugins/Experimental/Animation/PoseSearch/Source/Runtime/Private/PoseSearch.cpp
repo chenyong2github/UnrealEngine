@@ -3165,6 +3165,7 @@ public:
 	virtual float ExtractRootDistance(float Time) const override;
 	virtual FTransform ExtractRootTransform(float Time) const override;
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
+	virtual const UAnimationAsset* GetAsset() const override { return Input.Sequence; }
 
 private:
 	float TotalRootDistance = 0.0f;
@@ -3383,6 +3384,8 @@ public:
 	virtual float ExtractRootDistance(float Time) const override;
 	virtual FTransform ExtractRootTransform(float Time) const override;
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
+
+	virtual const UAnimationAsset* GetAsset() const override { return Input.BlendSpace; }
 
 private:
 	float PlayLength = 0.0f;
@@ -4280,6 +4283,17 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 
 		Entry->SampleTime = SampleTime;
 		Entry->OriginTime = OriginTime;
+
+		if (!SamplingContext->BoneContainer.IsValid())
+		{
+			UE_LOG(LogPoseSearch,
+				Warning, 
+				TEXT("Invalid BoneContainer encountered in FAssetIndexer::GetTransformAndCacheResults. Asset: %s. Schema: %s. BoneContainerAsset: %s. NumBoneIndices: %d"),
+				*GetNameSafe(IndexingContext.MainSampler->GetAsset()),
+				*GetNameSafe(IndexingContext.Schema),
+				*GetNameSafe(SamplingContext->BoneContainer.GetAsset()),
+				SamplingContext->BoneContainer.GetCompactPoseNumBones());
+		}
 
 		Entry->Pose.SetBoneContainer(&SamplingContext->BoneContainer);
 		Entry->UnusedCurve.InitFrom(SamplingContext->BoneContainer);
@@ -5350,6 +5364,8 @@ bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)
 		UE_LOG(LogPoseSearch, Warning, TEXT("Database '%f' is invalid for indexing"), *Database->GetName());
 		return false;
 	}
+
+	UE_LOG(LogPoseSearch, Log, TEXT("Building PoseSearch index for database %s"), *GetNameSafe(Database));
 
 	OutSearchIndex.Schema = Database->Schema;
 

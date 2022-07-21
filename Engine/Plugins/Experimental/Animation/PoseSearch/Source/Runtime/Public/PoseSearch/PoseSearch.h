@@ -289,6 +289,8 @@ public:
 	// Extracts notify states inheriting from UAnimNotifyState_PoseSearchBase present in the sequence at Time.
 	// The function does not empty NotifyStates before adding new notifies!
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const = 0;
+
+	virtual const UAnimationAsset* GetAsset() const = 0;
 };
 
 /**
