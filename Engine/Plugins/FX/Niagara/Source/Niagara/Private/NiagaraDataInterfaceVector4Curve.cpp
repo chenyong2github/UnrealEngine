@@ -46,21 +46,26 @@ void UNiagaraDataInterfaceVector4Curve::Serialize(FArchive& Ar)
 	{
 		UpdateLUT(true);
 
-		FRichCurve TempXCurve;
-		FRichCurve TempYCurve;
-		FRichCurve TempZCurve;
-		FRichCurve TempWCurve;
-		Exchange(XCurve, TempXCurve);
-		Exchange(YCurve, TempYCurve);
-		Exchange(ZCurve, TempZCurve);
-		Exchange(WCurve, TempWCurve);
+		Exchange(XCurve, XCurveCookedEditorCache);
+		Exchange(YCurve, YCurveCookedEditorCache);
+		Exchange(ZCurve, ZCurveCookedEditorCache);
+		Exchange(WCurve, WCurveCookedEditorCache);
 
 		Super::Serialize(Ar);
 
-		Exchange(XCurve, TempXCurve);
-		Exchange(YCurve, TempYCurve);
-		Exchange(ZCurve, TempZCurve);
-		Exchange(WCurve, TempWCurve);
+		Exchange(XCurve, XCurveCookedEditorCache);
+		Exchange(YCurve, YCurveCookedEditorCache);
+		Exchange(ZCurve, ZCurveCookedEditorCache);
+		Exchange(WCurve, WCurveCookedEditorCache);
+	}
+	else if (bUseLUT && Ar.IsLoading() && GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		Super::Serialize(Ar);
+
+		Exchange(XCurve, XCurveCookedEditorCache);
+		Exchange(YCurve, YCurveCookedEditorCache);
+		Exchange(ZCurve, ZCurveCookedEditorCache);
+		Exchange(WCurve, WCurveCookedEditorCache);
 	}
 	else
 #endif

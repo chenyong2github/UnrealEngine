@@ -799,6 +799,9 @@ public:
 	FNiagaraParameterStore RapidIterationParameters;
 	
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FNiagaraParameterStore RapidIterationParametersCookedEditorCache;
+
 	/** This is used as a transient value to open a specific version in the graph editor */
 	UPROPERTY(Transient)
 	FGuid VersionToOpenInEditor;

@@ -42,12 +42,17 @@ void UNiagaraDataInterfaceCurve::Serialize(FArchive& Ar)
 	{
 		UpdateLUT(true);
 
-		FRichCurve TempCurve;
-		Exchange(Curve, TempCurve);
+		Exchange(Curve, CurveCookedEditorCache);
 
 		Super::Serialize(Ar);
 
-		Exchange(Curve, TempCurve);
+		Exchange(Curve, CurveCookedEditorCache);
+	}
+	else if (bUseLUT && Ar.IsLoading() && GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		Super::Serialize(Ar);
+
+		Exchange(Curve, CurveCookedEditorCache);
 	}
 	else
 #endif

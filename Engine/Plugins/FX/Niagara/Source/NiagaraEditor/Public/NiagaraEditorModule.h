@@ -48,6 +48,7 @@ class UNiagaraParameterCollection;
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
 extern NIAGARAEDITOR_API int32 GbShowNiagaraDeveloperWindows;
+extern NIAGARAEDITOR_API int32 GbPreloadSelectablePluginAssetsOnDemand;
 
 /* Defines methods for allowing external modules to supply widgets to the core editor module. */
 class NIAGARAEDITOR_API INiagaraEditorWidgetProvider
@@ -210,6 +211,8 @@ public:
 	FNiagaraGraphDataCache& GetGraphDataCache() const { return *GraphDataCache.Get(); }
 
 	NIAGARAEDITOR_API UNiagaraParameterCollection* FindCollectionForVariable(const FString& VariableName);
+
+	void PreloadSelectablePluginAssetsByClass(UClass* InClass);
 
 private:
 	class FDeferredDestructionContainerBase
@@ -387,4 +390,6 @@ private:
 
 	TAssetPreloadCache<UNiagaraParameterCollection> ParameterCollectionAssetCache;
 	TAssetPreloadCache<UNiagaraParameterDefinitions> ParameterDefinitionsAssetCache;
+
+	TArray<UClass*> PluginAssetClassesPreloaded;
 };
