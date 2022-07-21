@@ -5097,6 +5097,13 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 				{
 					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s* Value = (%s*)InValue;\r\n"), *PropertyType, *PropertyType);
 				}
+				else if (Prop->IsByteEnumOrByteEnumStaticArray() && Prop->GetPropertyBase().ArrayType == EArrayType::None)
+				{
+					// If someone passed in a TByteAsEnum instead of the actual enum value, the cast in the else clause would cause an issue.
+					// Since this is known to be a TByteAsEnum, we just fetch the first byte.  *HOWEVER* on MSB machines where 
+					// the actual enum value is passed in this will fail and return zero if the native size of the enum > 1 byte.
+					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s Value = (%s)*(uint8*)InValue;\r\n"), *PropertyType, *PropertyType);
+				}
 				else
 				{
 					RuntimeStringBuilders.AccessorWrapperImplementations.Logf(TEXT("\t\t%s& Value = *(%s*)InValue;\r\n"), *PropertyType, *PropertyType);

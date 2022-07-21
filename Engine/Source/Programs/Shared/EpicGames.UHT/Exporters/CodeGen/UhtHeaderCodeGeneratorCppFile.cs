@@ -1090,6 +1090,18 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg)
 								.Append("*)InValue;\r\n");
 						}
+						else if (property is UhtByteProperty byteProperty && byteProperty.Enum != null)
+						{
+							// If someone passed in a TByteAsEnum instead of the actual enum value, the cast in the else clause would cause an issue.
+							// Since this is known to be a TByteAsEnum, we just fetch the first byte.  *HOWEVER* on MSB machines where 
+							// the actual enum value is passed in this will fail and return zero if the native size of the enum > 1 byte.
+							builder
+								.Append("\t\t")
+								.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg)
+								.Append(" Value = (")
+								.AppendPropertyText(property, UhtPropertyTextType.GetterSetterArg)
+								.Append(")*(uint8*)InValue;\r\n");
+						}
 						else
 						{
 							builder
