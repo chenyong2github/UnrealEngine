@@ -224,7 +224,12 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 	{
 		OverlayFlags |= EOS_PF_DISABLE_SOCIAL_OVERLAY;
 	}
-	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
+
+	// Don't allow the overlay to be used in the editor when running PIE.
+	const bool bEditorOverlayAllowed = EOSSettings.bEnableEditorOverlay && InstanceName == FOnlineSubsystemImpl::DefaultInstanceName;
+	const bool bOverlayAllowed = IsRunningGame() || bEditorOverlayAllowed;
+
+	PlatformOptions.Flags = bOverlayAllowed ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
 
 	const FString CacheDir = EOSSDKManager->GetCacheDirBase() / ArtifactName / EOSSettings.CacheDir;

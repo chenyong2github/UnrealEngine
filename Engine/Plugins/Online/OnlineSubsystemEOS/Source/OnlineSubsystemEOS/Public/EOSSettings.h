@@ -73,6 +73,7 @@ struct FEOSSettings
 	int32 TitleStorageReadChunkLength;
 	bool bEnableOverlay;
 	bool bEnableSocialOverlay;
+	bool bEnableEditorOverlay;
 	bool bShouldEnforceBeingLaunchedByEGS;
 	bool bUseEAS;
 	bool bUseEOSConnect;
@@ -114,6 +115,10 @@ public:
 	/** Set to true to enable the social overlay (friends, invites, etc.) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
 	bool bEnableSocialOverlay = false;
+
+	/** Set to true to enable the overlay when running in the editor */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "EOS Settings")
+	bool bEnableEditorOverlay = false;
 
 	/** Set to true to enable the social overlay (friends, invites, etc.) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings", DisplayName="Require Being Launched by the Epic Games Store")
