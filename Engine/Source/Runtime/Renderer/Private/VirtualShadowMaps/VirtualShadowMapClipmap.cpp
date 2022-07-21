@@ -110,10 +110,13 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 	WorldOrigin = CameraViewMatrices.GetViewOrigin();
 
-	PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id, InDependentView->ViewState->GetViewKey());
-	if (PerLightCacheEntry.IsValid())
+	if (InDependentView && InDependentView->ViewState)	// scene capture views don't have a persistent view state
 	{
-		PerLightCacheEntry->UpdateClipmap();
+		PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id, InDependentView->ViewState->GetViewKey());
+		if (PerLightCacheEntry.IsValid())
+		{
+			PerLightCacheEntry->UpdateClipmap();
+		}
 	}
 
 	for (int32 Index = 0; Index < LevelCount; ++Index)
