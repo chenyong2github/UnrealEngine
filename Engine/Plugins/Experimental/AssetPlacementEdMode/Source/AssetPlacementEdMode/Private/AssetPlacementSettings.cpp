@@ -95,6 +95,11 @@ UPlacementPaletteClient* UAssetPlacementSettings::AddClientToActivePalette(const
 	return NewPaletteItem;
 }
 
+int32 UAssetPlacementSettings::RemoveClientFromActivePalette(const FAssetData& InAssetData)
+{
+	return GetMutableActivePalette()->PaletteItems.RemoveAll([InAssetData](const UPlacementPaletteClient* ItemIter) { return ItemIter ? (ItemIter->AssetPath == InAssetData.ToSoftObjectPath()) : false; });
+}
+
 TArrayView<const TObjectPtr<UPlacementPaletteClient>> UAssetPlacementSettings::GetActivePaletteItems() const
 {
 	return MakeArrayView(GetActivePalette()->PaletteItems);

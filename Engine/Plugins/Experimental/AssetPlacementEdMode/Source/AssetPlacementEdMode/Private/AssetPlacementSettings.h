@@ -124,6 +124,7 @@ public:
 
 	void SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset);
 	UPlacementPaletteClient* AddClientToActivePalette(const FAssetData& InAssetData);
+	int32 RemoveClientFromActivePalette(const FAssetData& InAssetData);
 	TArrayView<const TObjectPtr<UPlacementPaletteClient>> GetActivePaletteItems() const;
 	const FGuid GetActivePaletteGuid() const;
 	void ClearActivePaletteItems();

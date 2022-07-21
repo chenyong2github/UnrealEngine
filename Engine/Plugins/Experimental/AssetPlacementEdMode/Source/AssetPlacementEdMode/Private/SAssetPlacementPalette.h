@@ -79,6 +79,11 @@ private:
 	void ClearPalette();
 	void OnClearPalette();
 	void SetPaletteToAssetDataList(TArrayView<const FAssetData> InAssetDatas);
+	
+	/**
+	 * Removes the currently selected items from the palette.
+	 */
+	void OnRemoveSelectedItemsFromPalette();
 
 	/** Refreshes the active palette view widget */
 	void RefreshActivePaletteViewWidget();

@@ -322,6 +322,41 @@ void SAssetPlacementPalette::SetPaletteToAssetDataList(TArrayView<const FAssetDa
 	}
 }
 
+void SAssetPlacementPalette::OnRemoveSelectedItemsFromPalette()
+{
+	UPlacementModeSubsystem* ModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
+	TSharedPtr<IDetailsView> PinnedItemDetails = ItemDetailsWidget.Pin();
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+	if (PinnedItemDetails)
+	{
+		SelectedObjects = PinnedItemDetails->GetSelectedObjects();
+	}
+
+	for (FPlacementPaletteItemModelPtr& PaletteItem : GetActiveViewWidget()->GetSelectedItems())
+	{
+		const FAssetPlacementUIInfoPtr PaletteInfo = PaletteItem->GetTypeUIInfo();
+		
+		if (ModeSubsystem)
+		{
+			ModeSubsystem->GetMutableModeSettingsObject()->RemoveClientFromActivePalette(PaletteInfo->AssetData);
+		}
+
+		SelectedObjects.Remove(PaletteInfo->SettingsObject);
+	}
+
+	// Update the palette's view to the updated palette
+	if (ModeSubsystem)
+	{
+		SetPaletteItems(ModeSubsystem->GetModeSettingsObject()->GetActivePaletteItems());
+	}
+
+	// Reset the item details to valid objects
+	if (PinnedItemDetails)
+	{
+		PinnedItemDetails->SetObjects(SelectedObjects);
+	}
+}
+
 TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 {
 	const FText BlankText = FText::GetEmpty();
@@ -742,6 +777,18 @@ TSharedPtr<SWidget> SAssetPlacementPalette::ConstructPlacementTypeContextMenu()
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::OnClearPalette),
 				FCanExecuteAction::CreateSP(this, &SAssetPlacementPalette::HasAnyItemInPalette))
+		);
+
+		const int32 NumSelectedItems = SAssetPlacementPalette::GetActiveViewWidget()->GetNumItemsSelected();
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("Palette_RemoveItem", "Remove {0} {0}|plural(one=item,other=items)"), FText::AsNumber(NumSelectedItems)),
+			FText::Format(LOCTEXT("Palette_RemoveItemDesc", "Removes the {0} selected {0}|plural(one=item,other=items) from the palette."), FText::AsNumber(NumSelectedItems)),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::OnRemoveSelectedItemsFromPalette),
+				FCanExecuteAction::CreateSP(this, &SAssetPlacementPalette::HasAnyItemInPalette),
+				FIsActionChecked::CreateLambda([]() { return false; }),
+				FIsActionButtonVisible::CreateLambda([NumSelectedItems]() { return (NumSelectedItems > 0); }))
 		);
 	}
 	return MenuBuilder.MakeWidget();
