@@ -12,10 +12,10 @@
 namespace UGSCore
 {
 
-enum class EPerforceChangeType
+struct FChangeType
 {
-	Code,
-	Content,
+	bool bContainsCode = false;
+	bool bContainsContent = false;
 };
 
 class FPerforceMonitor : FRunnable
@@ -41,7 +41,7 @@ public:
 	bool HasZippedBinaries() const;
 
 	TArray<FChangeSharedRef> GetChanges() const;
-	bool TryGetChangeType(int ChangeNumber, EPerforceChangeType& OutType) const;
+	bool TryGetChangeType(int ChangeNumber, FChangeType& OutType) const;
 	bool TryGetArchivePathForChangeNumber(int ChangeNumber, FString& OutArchivePath) const;
 	TSet<int> GetPromotedChangeNumbers() const;
 
@@ -55,7 +55,7 @@ private:
 	FBoundedLogWriter LogWriter;
 	FRunnableThread* WorkerThread;
 	TArray<FChangeSharedRef> Changes; // Sorted
-	TMap<int, EPerforceChangeType> ChangeNumberToType;
+	TMap<int, FChangeType> ChangeNumberToType;
 	TSet<int> PromotedChangeNumbers;
 	int ZippedBinariesConfigChangeNumber;
 	FString ZippedBinariesPath;
