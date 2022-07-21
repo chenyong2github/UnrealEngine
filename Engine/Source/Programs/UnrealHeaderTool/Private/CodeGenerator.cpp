@@ -6919,6 +6919,7 @@ void TopologicalSort(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 		SourceFile->SetTopologicalState(ETopologicalState::Unmarked);
 	}
 
+	bool bCircularDependencyDetected = false;
 	for (FUnrealSourceFile* SourceFile : UnorderedSourceFiles)
 	{
 		if (SourceFile->GetTopologicalState() == ETopologicalState::Unmarked)
@@ -6928,9 +6929,14 @@ void TopologicalSort(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 				UE_LOG(LogCompile, Error, TEXT("Circular dependency detected:"));
 				TopologicalRecursion(*Recusion, *Recusion);
 				FResults::SetResult(ECompilationResult::OtherCompilationError);
-				return;
+				bCircularDependencyDetected = true;
 			}
 		}
+	}
+
+	if (bCircularDependencyDetected)
+	{
+		return;
 	}
 
 	for (int32 Index = 0, EIndex = OrderedSourceFiles.Num(); Index != EIndex; ++Index)
