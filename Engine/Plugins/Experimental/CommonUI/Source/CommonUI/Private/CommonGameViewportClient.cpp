@@ -31,11 +31,20 @@ UCommonGameViewportClient::~UCommonGameViewportClient()
 
 bool UCommonGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
-	const FInputKeyEventArgs& EventArgs = InEventArgs;
+	FInputKeyEventArgs EventArgs = InEventArgs;
 
 	if (IsKeyPriorityAboveUI(EventArgs))
 	{
 		return true;
+	}
+
+	// Check override before UI
+	if (OnOverrideInputKey().IsBound())
+	{
+		if (OnOverrideInputKey().Execute(EventArgs))
+		{
+			return true;
+		}
 	}
 
 	// The input is fair game for handling - the UI gets first dibs
