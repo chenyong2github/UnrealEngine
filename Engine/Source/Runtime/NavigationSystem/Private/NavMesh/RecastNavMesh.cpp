@@ -559,7 +559,7 @@ void ARecastNavMesh::LoadBeforeGeneratorRebuild()
 	if (!bIsWorldPartitioned)
 	{
 		UWorld* World = GetWorld();
-		if (World && World->IsPartitionedWorld())
+		if (World && World->IsPartitionedWorld() && !World->IsGameWorld())
 		{
 			const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 			if (NavSys)
