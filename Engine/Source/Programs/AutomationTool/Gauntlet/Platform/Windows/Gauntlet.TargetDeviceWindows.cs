@@ -327,7 +327,7 @@ namespace Gauntlet
 				{
 					if (File.Exists(ProcessLogFile))
 					{
-						File.Delete(ProcessLogFile);
+						EpicGames.Core.FileUtils.ForceDeleteFile(ProcessLogFile);
 					}
 				}
 				catch (Exception Ex)
