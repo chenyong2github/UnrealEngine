@@ -9,6 +9,7 @@
 class SMenuAnchor;
 class SSearchBox;
 template <typename T> class SListView;
+class SFilterSearchBoxImpl;
 
 /** A SearchBox widget that contains support for displaying search history
  * When used with a FilterBar widget (@see SBasicFilterBar or SFilterBar), it allows the user to save searches from the
@@ -110,16 +111,13 @@ private:
 	TAttribute<bool> bShowSearchHistory;
 	
 	/** The actual Search Box */
-	TSharedPtr<SSearchBox> SearchBox;
+	TSharedPtr<SFilterSearchBoxImpl> SearchBox;
 	
 	/** Delegate for when text is changed in the edit box */
 	FOnTextChanged OnTextChanged;
 
 	/** Delegate for when text is changed in the edit box */
 	FOnTextCommitted OnTextCommitted;
-
-	/** Delegate for when the Plus icon next to an item in the search history is clicked */
-	FOnSaveSearchClicked OnSaveSearchClicked;
 
 	/** The max amount of items to show in the Search History */
 	int32 MaxSearchHistory;
