@@ -130,4 +130,5 @@ protected:
 	UCurveFloat* TargetLerpSpeedVerticalCurve;
 
 	EMovementMode PreviousMovementMode;
+	uint8 PreviousCustomMode;
 };

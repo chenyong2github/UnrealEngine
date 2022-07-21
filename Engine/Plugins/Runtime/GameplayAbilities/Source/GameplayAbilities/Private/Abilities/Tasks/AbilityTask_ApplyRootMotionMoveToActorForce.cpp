@@ -30,6 +30,7 @@ UAbilityTask_ApplyRootMotionMoveToActorForce::UAbilityTask_ApplyRootMotionMoveTo
 	bSetNewMovementMode = false;
 	NewMovementMode = EMovementMode::MOVE_Walking;
 	PreviousMovementMode = EMovementMode::MOVE_None;
+	PreviousCustomMode = 0;
 	TargetLocationOffset = FVector::ZeroVector;
 	OffsetAlignment = ERootMotionMoveToActorTargetOffsetType::AlignFromTargetToSource;
 	bRestrictSpeedToExpected = false;
@@ -113,6 +114,7 @@ void UAbilityTask_ApplyRootMotionMoveToActorForce::SharedInitAndApply()
 			if (bSetNewMovementMode)
 			{
 				PreviousMovementMode = MovementComponent->MovementMode;
+				PreviousCustomMode = MovementComponent->CustomMovementMode;
 				MovementComponent->SetMovementMode(NewMovementMode);
 			}
 
@@ -352,7 +354,7 @@ void UAbilityTask_ApplyRootMotionMoveToActorForce::OnDestroy(bool AbilityIsEndin
 
 		if (bSetNewMovementMode)
 		{
-			MovementComponent->SetMovementMode(PreviousMovementMode);
+			MovementComponent->SetMovementMode(PreviousMovementMode, PreviousCustomMode);
 		}
 	}
 
