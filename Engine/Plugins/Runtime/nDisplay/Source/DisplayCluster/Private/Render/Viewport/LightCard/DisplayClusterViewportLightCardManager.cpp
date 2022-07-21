@@ -11,6 +11,7 @@
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 
 #include "PreviewScene.h"
+#include "SceneInterface.h"
 
 /** Console variable used to control the size of the UV light card map texture */
 static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(

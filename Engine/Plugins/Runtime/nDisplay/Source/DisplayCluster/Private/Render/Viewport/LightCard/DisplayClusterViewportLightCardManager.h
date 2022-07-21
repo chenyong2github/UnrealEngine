@@ -11,6 +11,7 @@
 class ADisplayClusterLightCardActor;
 class FDisplayClusterViewportManager;
 class FPreviewScene;
+class FSceneInterface;
 
 /** A render targetable texture resource used to render the UV light cards to */
 class FDisplayClusterLightCardMap : public FTexture, public FRenderTarget
