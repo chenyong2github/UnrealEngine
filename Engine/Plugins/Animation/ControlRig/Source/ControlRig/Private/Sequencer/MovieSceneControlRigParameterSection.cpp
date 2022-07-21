@@ -884,7 +884,6 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 void UMovieSceneControlRigParameterSection::PostLoad()
 {
 	Super::PostLoad();
-	RegisterConstraintsHandles();
 }
 
 bool UMovieSceneControlRigParameterSection::HasScalarParameter(FName InParameterName) const
@@ -1277,39 +1276,6 @@ void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName,
 	}
 }
 
-void UMovieSceneControlRigParameterSection::RegisterConstraintsHandles()
-{
-	if (OnConstraintRemovedHandle.IsValid())
-	{ 
-		return;
-	}
-
-	if (!ControlRig)
-	{
-		return;
-	}
-
-	if (ConstraintsChannels.IsEmpty())
-	{
-		return;
-	}
-	
-	// register constraint deletion handle
-	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-	OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
-	{
-		Modify();
-		const int32 NumRemoved = ConstraintsChannels.RemoveAll( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
-		{
-			return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
-		});
-		if (NumRemoved)
-		{
-			ReconstructChannelProxy();
-		}
-	});
-}
-
 bool UMovieSceneControlRigParameterSection::HasConstraintChannel(const FName& InConstraintName) const
 {
 	return ConstraintsChannels.ContainsByPredicate( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
@@ -1337,12 +1303,16 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 
 		FMovieSceneConstraintChannel* ExistingChannel = &ConstraintsChannels[NewIndex].ActiveChannel;
 		ExistingChannel->SetDefault(false);
+
+		if (OnConstraintChannelAdded.IsBound())
+		{
+			OnConstraintChannelAdded.Broadcast(this, ExistingChannel);
+		}
 		
 		if (bReconstructChannel)
 		{
 			ReconstructChannelProxy();
 		}
-		RegisterConstraintsHandles();
 	}
 }
 
@@ -1355,6 +1325,7 @@ void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const FName&
 
 	if (ConstraintsChannels.IsValidIndex(Index))
 	{
+		Modify();
 		ConstraintsChannels.RemoveAt(Index);
 		ReconstructChannelProxy();
 	}
@@ -1363,6 +1334,37 @@ void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const FName&
 const TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels() const
 {
 	return ConstraintsChannels;
+}
+
+TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels()
+{
+	return ConstraintsChannels;
+}
+
+const FName& UMovieSceneControlRigParameterSection::FindControlNameFromConstraintChannel(
+	const FMovieSceneConstraintChannel* InConstraintChannel) const
+{
+	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintChannel](const FConstraintAndActiveChannel& InChannel)
+	{
+		return &(InChannel.ActiveChannel) == InConstraintChannel;
+	});
+	
+	if (Index != INDEX_NONE)
+	{
+		// look for info referencing that constraint index
+		using NameInfoIterator = TMap<FName, FChannelMapInfo>::TRangedForConstIterator;
+		for (NameInfoIterator It = ControlChannelMap.begin(); It; ++It)
+		{
+			const FChannelMapInfo& Info = It->Value;
+			if (Info.ConstraintsIndex.Contains(Index))
+			{
+				return It->Key;
+			}
+		}
+	}
+
+	static const FName DummyName = NAME_None;
+	return DummyName;
 }
 
 TArray<FSpaceControlNameAndChannel>& UMovieSceneControlRigParameterSection::GetSpaceChannels()

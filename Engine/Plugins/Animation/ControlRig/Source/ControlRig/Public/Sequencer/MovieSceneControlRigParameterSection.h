@@ -181,8 +181,9 @@ class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneP
 
 public:
 
-	/** Bindable event for when we add a space channel*/
+	/** Bindable events for when we add space or constraint channels. */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FSpaceChannelAddedEvent, UMovieSceneControlRigParameterSection*, const FName&, FMovieSceneControlRigSpaceChannel*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintChannelAddedEvent, UMovieSceneControlRigParameterSection*, FMovieSceneConstraintChannel*);
 
 	void AddEnumParameterKey(FName InParameterName, FFrameNumber InTime, uint8 InValue);
 	void AddIntegerParameterKey(FName InParameterName, FFrameNumber InTime, int32 InValue);
@@ -204,12 +205,17 @@ public:
 	
 	FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
 
+	TArray<FConstraintAndActiveChannel>& GetConstraintsChannels();
 	const TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() const;
+	const FName& FindControlNameFromConstraintChannel(const FMovieSceneConstraintChannel* InConstraintChannel) const;
+	
+	FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
 	
 	bool RenameParameterName(const FName& OldParameterName, const FName& NewParameterName);
 private:
 
 	FSpaceChannelAddedEvent OnSpaceChannelAdded;
+	FConstraintChannelAddedEvent OnConstraintChannelAdded;
 
 	/** Control Rig that controls us*/
 	UPROPERTY()
@@ -400,7 +406,6 @@ public:
 
 	/** todo */
 	FDelegateHandle OnConstraintRemovedHandle;
-	void RegisterConstraintsHandles();
 	bool HasConstraintChannel(const FName& InConstraintName) const;
 	FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
 	void AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel);

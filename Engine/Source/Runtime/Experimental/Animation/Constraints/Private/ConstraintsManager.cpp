@@ -419,15 +419,16 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 		return false;
 	}
 
-	// TODO handle transaction
-	const FName ConstraintName = Manager->Constraints[InConstraintIndex]->GetFName(); 
+	const FName ConstraintName = Manager->Constraints[InConstraintIndex]->GetFName();
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
-	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
-	Manager->Constraints.RemoveAt(InConstraintIndex);
-
+	
 	// notify deletion
 	ConstraintRemoved.Broadcast(ConstraintName);
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
+
+	// TODO handle transaction
+	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
+	Manager->Constraints.RemoveAt(InConstraintIndex);
 
 	// destroy constraints actor if no constraints left
 	if (Manager->Constraints.IsEmpty())

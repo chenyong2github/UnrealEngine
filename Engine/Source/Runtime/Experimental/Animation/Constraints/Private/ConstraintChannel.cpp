@@ -4,13 +4,12 @@
 
 bool FMovieSceneConstraintChannel::Evaluate(FFrameTime InTime, bool& OutValue) const
 {
-	const TArrayView<const FFrameNumber> TimeArray = GetTimes();
-	if (TimeArray.IsEmpty())
+	if (Times.IsEmpty())
 	{
 		return false;
 	}
 
-	if (InTime.FrameNumber < TimeArray[0])
+	if (InTime.FrameNumber < Times[0])
 	{
 		return false;
 	}

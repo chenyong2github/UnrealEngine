@@ -4,9 +4,13 @@
 
 #include "Templates/SharedPointer.h"
 
+struct FChannelMapInfo;
+struct FConstraintAndActiveChannel;
 class UControlRig;
 class ISequencer;
 class UMovieScene3DTransformSection;
+class UMovieSceneControlRigParameterSection;
+class UMovieSceneSection;
 class UTransformableHandle;
 class UTickableTransformConstraint;
 class UTransformableControlHandle;
@@ -14,7 +18,6 @@ class UTransformableComponentHandle;
 struct FMovieSceneFloatChannel;
 struct FMovieSceneDoubleChannel;
 struct FMovieSceneConstraintChannel;
-class UMovieSceneControlRigParameterSection;
 struct FFrameNumber;
 
 /**
@@ -24,6 +27,9 @@ struct FFrameNumber;
 struct FConstraintChannelHelper
 {
 public:
+	/** @todo documentation. */
+	static bool IsKeyframingAvailable();
+	
 	/** @todo documentation. */
 	static void AddConstraintKey(UTickableTransformConstraint* InConstraint);
 	
@@ -45,6 +51,28 @@ public:
 		const TSharedPtr<ISequencer>& InSequencer,
 		const UMovieSceneControlRigParameterSection* Section,
 		const TOptional<FFrameNumber>& OptionalTime);
+
+	/** @todo documentation. */
+	static void HandleConstraintRemoved(
+		UTickableConstraint* InConstraint,
+		const FMovieSceneConstraintChannel* InChannel,
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UMovieSceneSection* InSection);
+
+	/** @todo documentation. */
+	static void HandleConstraintKeyDeleted(
+		UTickableTransformConstraint* InConstraint,
+		const FMovieSceneConstraintChannel* InConstraintChannel,
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UMovieSceneSection* InSection,
+		const FFrameNumber& InTime);
+
+	/** @todo documentation. */
+	static void HandleConstraintKeyMoved(
+		const UTickableTransformConstraint* InConstraint,
+		const FMovieSceneConstraintChannel* InConstraintChannel,
+		const UMovieSceneSection* InSection,
+		const FFrameNumber& InCurrentFrame, const FFrameNumber& InNextFrame);
 	
 private:
 
@@ -80,11 +108,57 @@ private:
 	static TArrayView<FMovieSceneFloatChannel*> GetTransformFloatChannels(
 		const UTransformableHandle* InHandle,
 		const TSharedPtr<ISequencer>& InSequencer);
+	static TArrayView<FMovieSceneFloatChannel*> GetTransformFloatChannels(
+		const UTransformableHandle* InHandle,
+		const UMovieSceneControlRigParameterSection* InSection);
 
 	/** @todo documentation.  TransformComponents use doubles */
 	static TArrayView<FMovieSceneDoubleChannel*> GetTransformDoubleChannels(
 		const UTransformableHandle* InHandle,
 		const TSharedPtr<ISequencer>& InSequencer);
 
+	/** @todo factorize. */
+	static TPair<const FChannelMapInfo*, int32> GetInfoAndNumFloatChannels(
+		const UControlRig* InControlRig,
+		const FName& InControlName,
+		const UMovieSceneControlRigParameterSection* InSection);
+
+	/** @todo documentation. */
+	template<typename ChannelType>
+	static void GetFramesToCompensate(
+		const FMovieSceneConstraintChannel& InActiveChannel,
+		const bool InActiveValueToBeSet,
+		const FFrameNumber& InTime,
+		const TArrayView<ChannelType*>& InChannels,
+		TArray<FFrameNumber>& OutFramesAfter);
+
+	/** @todo documentation. */
+	template< typename ChannelType >
+	static void GetFramesAfter(
+		const FMovieSceneConstraintChannel& InActiveChannel,
+		const FFrameNumber& InTime,
+		const TArrayView<ChannelType*>& InChannels,
+		TArray<FFrameNumber>& OutFrames);
+		
+	/** @todo documentation. */
+	template< typename ChannelType >
+    static void GetFramesWithinActiveState(
+	    const FMovieSceneConstraintChannel& InActiveChannel,
+	    const TArrayView<ChannelType*>& InChannels,
+	    TArray<FFrameNumber>& OutFrames);
+	
+	/** @todo documentation. */
+	template< typename ChannelType >
+	static void MoveTransformKeys(
+		const TArrayView<ChannelType*>& InChannels,
+		const FFrameNumber& InCurrentTime,
+		const FFrameNumber& InNextTime);
+
+	/** @todo documentation. */
+	template< typename ChannelType >
+	static void DeleteTransformKeys(
+		const TArrayView<ChannelType*>& InChannels,
+		const FFrameNumber& InTime);
+	
 	static bool bDoNotCompensate;
 };

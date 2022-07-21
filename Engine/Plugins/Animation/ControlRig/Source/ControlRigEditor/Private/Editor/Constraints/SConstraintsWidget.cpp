@@ -285,8 +285,11 @@ void SDroppableConstraintItem::CreateConstraint(
 	{
 		if (Child != InParent)
 		{
-			if (FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, Child, InConstraintType) != nullptr)
+			UTickableTransformConstraint* Constraint =
+				FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, Child, InConstraintType);
+			if (Constraint)
 			{
+				FConstraintChannelHelper::SmartConstraintKey(Constraint);
 				bCreated = true;
 			}
 		}
@@ -481,15 +484,18 @@ void SEditableConstraintItem::Construct(
 			{
 				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 				{
-					// FConstraintChannelHelper::AddConstraintKey(TransformConstraint);
 					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint);
 				}
 				return FReply::Handled();
 			})
-			.IsEnabled_Lambda([this]()
+			.IsEnabled_Lambda([]()
 			{
-				// TODO check if we have a focussed sequencer
-				return true;
+				return FConstraintChannelHelper::IsKeyframingAvailable();
+			})
+			.Visibility_Lambda([]()
+			{
+				const bool bIsKeyframingAvailable = FConstraintChannelHelper::IsKeyframingAvailable();
+				return bIsKeyframingAvailable ? EVisibility::Visible : EVisibility::Hidden;
 			})
 			.ToolTipText(LOCTEXT("KeyConstraintToolTip", "Add an active keyframe for that constraint."))
 			[

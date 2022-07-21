@@ -25,8 +25,34 @@ struct CONSTRAINTS_API FMovieSceneConstraintChannel : public FMovieSceneBoolChan
 
 	FMovieSceneConstraintChannel() {};
 
-	// @todo 
-	bool Evaluate(FFrameTime InTime, bool& OutValue) const;
+	/**
+	 * Access a mutable interface for this channel's data
+	 *
+	 * @return An object that is able to manipulate this channel's data
+	 */
+	virtual FORCEINLINE TMovieSceneChannelData<bool> GetData() override
+	{
+		return TMovieSceneChannelData<bool>(&Times, &Values, &KeyHandles, this);
+	}
+
+	/**
+	 * Access a constant interface for this channel's data
+	 *
+	 * @return An object that is able to interrogate this channel's data
+	 */
+	virtual FORCEINLINE TMovieSceneChannelData<const bool> GetData() const override
+	{
+		return FMovieSceneBoolChannel::GetData();
+	}
+	
+	/**
+	 * Evaluate this channel
+	 *
+	 * @param InTime     The time to evaluate at
+	 * @param OutValue   A value to receive the result
+	 * @return true if the channel was evaluated successfully, false otherwise
+	 */
+	virtual bool Evaluate(FFrameTime InTime, bool& OutValue) const override;
 
 #if WITH_EDITOR
 	using ExtraLabelFunction = TFunction< FString() >;

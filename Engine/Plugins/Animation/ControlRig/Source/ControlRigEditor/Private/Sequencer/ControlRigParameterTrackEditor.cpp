@@ -76,6 +76,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "ControlRigEditModeSettings.h"
 #include "ControlRigSpaceChannelEditors.h"
+#include "TransformConstraint.h"
 #include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
@@ -421,6 +422,7 @@ void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 				}
 			}
 			Track->SpaceChannelAdded().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnSpaceAdded);
+			Track->ConstraintChannelAdded().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnConstraintAdded);
 		}
 	}
 }
@@ -432,17 +434,18 @@ void FControlRigParameterTrackEditor::UnbindControlRig(UControlRig* ControlRig)
 		if (Track)
 		{
 			Track->SpaceChannelAdded().RemoveAll(this);
+			Track->ConstraintChannelAdded().RemoveAll(this);
 		}
 		ControlRig->ControlModified().RemoveAll(this);
 		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 		ControlRig->ControlSelected().RemoveAll(this);
 		BoundControlRigs.Remove(ControlRig);
-		ClearOutAllSpaceDelegates(ControlRig);
+		ClearOutAllSpaceAndConstraintDelegates(ControlRig);
 	}
 }
 void FControlRigParameterTrackEditor::UnbindAllControlRigs()
 {
-	ClearOutAllSpaceDelegates();
+	ClearOutAllSpaceAndConstraintDelegates();
 	for (TWeakObjectPtr<UControlRig>& ObjectPtr : BoundControlRigs)
 	{
 		if (ObjectPtr.IsValid())
@@ -452,6 +455,7 @@ void FControlRigParameterTrackEditor::UnbindAllControlRigs()
 			if (Track)
 			{
 				Track->SpaceChannelAdded().RemoveAll(this);
+				Track->ConstraintChannelAdded().RemoveAll(this);
 			}
 			ControlRig->ControlModified().RemoveAll(this);
 			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
@@ -2304,68 +2308,256 @@ void FControlRigParameterTrackEditor::PostUndo(bool bSuccess)
 			{ 
 				HandleOnSpaceAdded(Section, Channel.ControlName, &(Channel.SpaceCurve));
 			}
+
+			TArray<FConstraintAndActiveChannel>& ConstraintChannels = Section->GetConstraintsChannels();
+			for (FConstraintAndActiveChannel& Channel: ConstraintChannels)
+			{ 
+				HandleOnConstraintAdded(Section, &(Channel.ActiveChannel));
+			}
 		}
 	}
 }
 
 
-void FControlRigParameterTrackEditor::HandleSpaceKeyDeleted(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel, const TArray<FKeyAddOrDeleteEventItem>& DeletedItems)
+void FControlRigParameterTrackEditor::HandleSpaceKeyDeleted(
+	UMovieSceneControlRigParameterSection* Section,
+	FMovieSceneControlRigSpaceChannel* Channel,
+	const TArray<FKeyAddOrDeleteEventItem>& DeletedItems) const
 {
 	const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 
 	if (Section && Section->GetControlRig() && Channel && ParentSequencer.IsValid())
 	{
-		FName ControlName = Section->FindControlNameFromSpaceChannel(Channel);
+		const FName ControlName = Section->FindControlNameFromSpaceChannel(Channel);
 		for (const FKeyAddOrDeleteEventItem& EventItem : DeletedItems)
 		{
-			FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(Section->GetControlRig(), ParentSequencer.Get(), ControlName, Channel, Section,EventItem.Frame);
+			FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(
+				Section->GetControlRig(), ParentSequencer.Get(), ControlName, Channel, Section,EventItem.Frame);
 		}
 	}
 }
 
-void FControlRigParameterTrackEditor::HandleSpaceKeyMoved(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* SpaceChannel, const  TArray<FKeyMoveEventItem>& MovedItems)
+void FControlRigParameterTrackEditor::HandleSpaceKeyMoved(
+	UMovieSceneControlRigParameterSection* Section,
+	FMovieSceneControlRigSpaceChannel* SpaceChannel,
+	const  TArray<FKeyMoveEventItem>& MovedItems)
 {
 	if (Section && Section->GetControlRig() && SpaceChannel)
 	{
-		FName ControlName = Section->FindControlNameFromSpaceChannel(SpaceChannel);
+		const FName ControlName = Section->FindControlNameFromSpaceChannel(SpaceChannel);
 		for (const FKeyMoveEventItem& MoveEventItem : MovedItems)
 		{
-			FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(Section->GetControlRig(), ControlName, SpaceChannel, Section,
+			FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(
+				Section->GetControlRig(), ControlName, SpaceChannel, Section,
 				MoveEventItem.Frame, MoveEventItem.NewFrame);
 		}
 	}
 }
 
-void FControlRigParameterTrackEditor::ClearOutAllSpaceDelegates(UControlRig* InOptionalControlRig)
+void FControlRigParameterTrackEditor::ClearOutAllSpaceAndConstraintDelegates(const UControlRig* InOptionalControlRig) const
 {
 	if (GetSequencer().IsValid())
 	{
-		UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+		const UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
 		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
 		for (const FMovieSceneBinding& Binding : Bindings)
 		{
-			if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None)))
+			const UMovieSceneTrack* Track = MovieScene->FindTrack(
+				UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
+			if (const UMovieSceneControlRigParameterTrack* CRTrack = Cast<UMovieSceneControlRigParameterTrack>(Track))
 			{
-				if (InOptionalControlRig && Track->GetControlRig() != InOptionalControlRig)
+				if (InOptionalControlRig && CRTrack->GetControlRig() != InOptionalControlRig)
 				{
 					continue;
 				}
+				
 				for (UMovieSceneSection* Section : Track->GetAllSections())
 				{
-					if (Section)
+					if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
 					{
-						if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+						// clear space channels
+						TArray<FSpaceControlNameAndChannel>& Channels = CRSection->GetSpaceChannels();
+						for (FSpaceControlNameAndChannel& SpaceAndChannel : Channels)
 						{
-							TArray<FSpaceControlNameAndChannel>& Channels = CRSection->GetSpaceChannels();
-							for (FSpaceControlNameAndChannel& SpaceAndChannel : Channels)
-							{
-								SpaceAndChannel.SpaceCurve.OnKeyMovedEvent().Clear();
-								SpaceAndChannel.SpaceCurve.OnKeyDeletedEvent().Clear();
-							}
+							SpaceAndChannel.SpaceCurve.OnKeyMovedEvent().Clear();
+							SpaceAndChannel.SpaceCurve.OnKeyDeletedEvent().Clear();
+						}
+
+						// clear constraint channels
+						TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
+						for (FConstraintAndActiveChannel& Channel: ConstraintChannels)
+						{
+							Channel.ActiveChannel.OnKeyMovedEvent().Clear();
+							Channel.ActiveChannel.OnKeyDeletedEvent().Clear();							
 						}
 					}
 				}
 			}
+		}
+	}
+}
+
+namespace
+{
+	struct FConstraintAndControlData
+	{
+		static FConstraintAndControlData CreateFromSection(
+			const UMovieSceneControlRigParameterSection* InSection,
+			const FMovieSceneConstraintChannel* InConstraintChannel)
+		{
+			FConstraintAndControlData Data;
+			
+			// get constraint channel
+			const TArray<FConstraintAndActiveChannel>& ConstraintChannels = InSection->GetConstraintsChannels();
+			const int32 Index = ConstraintChannels.IndexOfByPredicate([InConstraintChannel](const FConstraintAndActiveChannel& InChannel)
+			{
+				return &(InChannel.ActiveChannel) == InConstraintChannel;
+			});
+	
+			if (Index == INDEX_NONE)
+			{
+				return Data;
+			}
+
+			Data.Constraint = Cast<UTickableTransformConstraint>(ConstraintChannels[Index].Constraint.Get());
+
+			// get constraint name
+			auto GetControlName = [InSection, Index]()
+			{
+				using NameInfoIterator = TMap<FName, FChannelMapInfo>::TRangedForConstIterator;
+				for (NameInfoIterator It = InSection->ControlChannelMap.begin(); It; ++It)
+				{
+					const FChannelMapInfo& Info = It->Value;
+					if (Info.ConstraintsIndex.Contains(Index))
+					{
+						return It->Key;
+					}
+				}
+
+				static const FName DummyName = NAME_None;
+				return DummyName;
+			};
+	
+			Data.ControlName = GetControlName();
+			
+			return Data;
+		}
+
+		bool IsValid() const
+		{
+			return Constraint.IsValid() && ControlName != NAME_None; 
+		}
+		
+		TWeakObjectPtr<UTickableTransformConstraint> Constraint = nullptr;
+		FName ControlName = NAME_None;
+	};
+}
+
+void FControlRigParameterTrackEditor::HandleOnConstraintAdded(
+	UMovieSceneControlRigParameterSection* InSection,
+	FMovieSceneConstraintChannel* InConstraintChannel)
+{
+	if (!InConstraintChannel)
+	{
+		return;
+	}
+
+	// handle key moved
+	InConstraintChannel->OnKeyMovedEvent().AddLambda([this,InSection](
+		FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
+	{
+		const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+		HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
+	});
+
+	// handle key deleted
+	InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
+		FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
+	{
+		const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+		HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
+	});
+
+	// handle constraint deleted
+	if (InSection)
+	{
+		HandleConstraintRemoved(InSection);
+	}
+}
+
+void FControlRigParameterTrackEditor::HandleConstraintKeyDeleted(
+	const UMovieSceneControlRigParameterSection* InSection,
+	const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const
+{
+	const UControlRig* ControlRig = InSection ? InSection->GetControlRig() : nullptr;
+	if (!ControlRig || !InConstraintChannel)
+	{
+		return;
+	}
+	
+	const FConstraintAndControlData ConstraintAndControlData =
+		FConstraintAndControlData::CreateFromSection(InSection, InConstraintChannel);
+	if (ConstraintAndControlData.IsValid())
+	{
+		UTickableTransformConstraint* Constraint = ConstraintAndControlData.Constraint.Get();
+		for (const FKeyAddOrDeleteEventItem& EventItem: InDeletedItems)
+		{
+			FConstraintChannelHelper::HandleConstraintKeyDeleted(
+				Constraint, InConstraintChannel,
+				GetSequencer(), InSection,
+				EventItem.Frame);
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::HandleConstraintKeyMoved(
+	const UMovieSceneControlRigParameterSection* InSection,
+	const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TArray<FKeyMoveEventItem>& InMovedItems)
+{
+	const FConstraintAndControlData ConstraintAndControlData =
+	FConstraintAndControlData::CreateFromSection(InSection, InConstraintChannel);
+
+	if (ConstraintAndControlData.IsValid())
+	{
+		const UTickableTransformConstraint* Constraint = ConstraintAndControlData.Constraint.Get();
+		for (const FKeyMoveEventItem& MoveEventItem : InMovedItems)
+		{
+			FConstraintChannelHelper::HandleConstraintKeyMoved(
+				Constraint, InConstraintChannel, InSection,
+				MoveEventItem.Frame, MoveEventItem.NewFrame);
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::HandleConstraintRemoved(UMovieSceneControlRigParameterSection* InSection) const
+{
+	if (const UControlRig* ControlRig = InSection->GetControlRig())
+	{
+		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+		if (!Controller.OnConstraintRemoved().IsBoundToObject(InSection))
+		{
+			InSection->OnConstraintRemovedHandle =
+			Controller.OnConstraintRemoved().AddLambda([InSection, this](FName InConstraintName)
+			{
+				const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
+				if (!ConstraintChannel)
+				{
+					return;
+				}
+				
+				if (ConstraintChannel->Constraint.IsValid())
+				{
+					FConstraintChannelHelper::HandleConstraintRemoved(
+						ConstraintChannel->Constraint.Get(),
+						&ConstraintChannel->ActiveChannel,
+						GetSequencer(),
+						InSection);
+				}
+
+				InSection->RemoveConstraintChannel(InConstraintName);
+		   });
 		}
 	}
 }
@@ -4074,6 +4266,24 @@ bool FControlRigParameterSection::RequestDeleteCategory(const TArray<FName>& Cat
 {
 	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
 	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+
+	if (ParameterSection && SequencerPtr)
+	{
+		const FName& Channel = CategoryNamePaths.Last();
+
+		// remove constraint channel if there are no keys
+		const FConstraintAndActiveChannel* ConstraintChannel = ParameterSection->GetConstraintChannel(Channel);
+		if (ConstraintChannel && ConstraintChannel->ActiveChannel.GetNumKeys() == 0)
+		{
+			if (ParameterSection->TryModify())
+			{
+				ParameterSection->RemoveConstraintChannel(Channel);
+				SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+				return true;
+			}
+		}
+	}
+	
 	/*
 	const FScopedTransaction Transaction(LOCTEXT("DeleteTransformCategory", "Delete transform category"));
 

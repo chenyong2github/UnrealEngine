@@ -128,12 +128,36 @@ private:
 	void HandleControlUndoBracket(UControlRig* Subject, bool bOpenUndoBracket);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
 
-	/** SpaceChannel Delegates*/
-	void HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, const FName& ControlName, FMovieSceneControlRigSpaceChannel* Channel);
-	void HandleSpaceKeyDeleted(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel, const TArray<FKeyAddOrDeleteEventItem>& DeletedItems);
-	void HandleSpaceKeyMoved(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems);
 	//if rig not set then we clear delegates for everyone
-	void ClearOutAllSpaceDelegates(UControlRig* InOptionalControlRig = nullptr);
+	void ClearOutAllSpaceAndConstraintDelegates(const UControlRig* InOptionalControlRig = nullptr) const;
+
+	/** SpaceChannel Delegates*/
+	void HandleOnSpaceAdded(
+		UMovieSceneControlRigParameterSection* Section,
+		const FName& ControlName,
+		FMovieSceneControlRigSpaceChannel* Channel);
+	void HandleSpaceKeyDeleted(
+		UMovieSceneControlRigParameterSection* Section,
+		FMovieSceneControlRigSpaceChannel* Channel,
+		const TArray<FKeyAddOrDeleteEventItem>& DeletedItems) const;
+	static void HandleSpaceKeyMoved(
+		UMovieSceneControlRigParameterSection* Section,
+		FMovieSceneControlRigSpaceChannel* Channel,
+		const TArray<FKeyMoveEventItem>& MovedItems);
+
+	/** ConstraintChannel Delegates*/
+	void HandleOnConstraintAdded(
+		UMovieSceneControlRigParameterSection* InSection,
+		FMovieSceneConstraintChannel* InConstraintChannel);
+	void HandleConstraintKeyDeleted(
+		const UMovieSceneControlRigParameterSection* InSection,
+		const FMovieSceneConstraintChannel* InConstraintChannel,
+		const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const;
+	static void HandleConstraintKeyMoved(
+		const UMovieSceneControlRigParameterSection* InSection,
+		const FMovieSceneConstraintChannel* InConstraintChannel,
+		const TArray<FKeyMoveEventItem>& InMovedItems);
+	void HandleConstraintRemoved(UMovieSceneControlRigParameterSection* InSection) const;
 
 	/** Select control rig if not selected, select controls from key areas */
 	void SelectRigsAndControls(UControlRig* Subject, const TArray<const IKeyArea*>& KeyAreas);

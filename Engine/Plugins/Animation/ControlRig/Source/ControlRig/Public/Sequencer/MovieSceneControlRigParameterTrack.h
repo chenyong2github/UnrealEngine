@@ -119,6 +119,7 @@ public:
 	CONTROLRIG_API void SetTrackName(FName InName) { TrackName = InName; }
 
 	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
+	UMovieSceneControlRigParameterSection::FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
 
 private:
 
@@ -128,6 +129,11 @@ private:
 	void HandleOnSpaceNoLongerUsed(FMovieSceneControlRigSpaceChannel* InChannel, const TArray<FRigElementKey>& InSpaces, FName InControlName);
 	//then send this event out to the track editor.
 	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent OnSpaceChannelAdded;
+
+	void HandleOnConstraintAdded(
+		UMovieSceneControlRigParameterSection* InSection,
+		FMovieSceneConstraintChannel* InChannel) const;
+	UMovieSceneControlRigParameterSection::FConstraintChannelAddedEvent OnConstraintChannelAdded;
 
 
 	void ReconstructControlRig();

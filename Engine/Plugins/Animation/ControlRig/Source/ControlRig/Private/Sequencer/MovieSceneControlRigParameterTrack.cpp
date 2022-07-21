@@ -49,7 +49,10 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 	{
 		NewSection->SetBlendType(EMovieSceneBlendType::Additive);
 	}
+
 	NewSection->SpaceChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded);
+	NewSection->ConstraintChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnConstraintAdded);
+
 	if (ControlRig)
 	{
 		NewSection->RecreateWithThisControlRig(ControlRig,bSetDefault);
@@ -88,6 +91,13 @@ void UMovieSceneControlRigParameterTrack::HandleOnSpaceNoLongerUsed(FMovieSceneC
 			}
 		}
 	}
+}
+
+void UMovieSceneControlRigParameterTrack::HandleOnConstraintAdded(
+	UMovieSceneControlRigParameterSection* InSection,
+	FMovieSceneConstraintChannel* InChannel) const
+{
+	OnConstraintChannelAdded.Broadcast(InSection, InChannel);
 }
 
 void UMovieSceneControlRigParameterTrack::RemoveAllAnimationData()
@@ -381,6 +391,12 @@ void UMovieSceneControlRigParameterTrack::ReconstructControlRig()
 					{
 						CRSection->SpaceChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded);
 					}
+
+					if (!CRSection->ConstraintChannelAdded().IsBoundToObject(this))
+					{
+						CRSection->ConstraintChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnConstraintAdded);
+					}
+					
 					CRSection->RecreateWithThisControlRig(ControlRig, CRSection->GetBlendType() == EMovieSceneBlendType::Absolute);
 				}
 			}

@@ -45,7 +45,7 @@ struct MOVIESCENE_API FMovieSceneBoolChannel : public FMovieSceneChannel
 	 *
 	 * @return An object that is able to manipulate this channel's data
 	 */
-	FORCEINLINE TMovieSceneChannelData<bool> GetData()
+	virtual FORCEINLINE TMovieSceneChannelData<bool> GetData()
 	{
 		return TMovieSceneChannelData<bool>(&Times, &Values, &KeyHandles);
 	}
@@ -55,7 +55,7 @@ struct MOVIESCENE_API FMovieSceneBoolChannel : public FMovieSceneChannel
 	 *
 	 * @return An object that is able to interrogate this channel's data
 	 */
-	FORCEINLINE TMovieSceneChannelData<const bool> GetData() const
+	virtual FORCEINLINE TMovieSceneChannelData<const bool> GetData() const
 	{
 		return TMovieSceneChannelData<const bool>(&Times, &Values);
 	}
@@ -91,7 +91,7 @@ struct MOVIESCENE_API FMovieSceneBoolChannel : public FMovieSceneChannel
 	 * @param OutValue   A value to receive the result
 	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-	bool Evaluate(FFrameTime InTime, bool& OutValue) const;
+	virtual bool Evaluate(FFrameTime InTime, bool& OutValue) const;
 
 public:
 
@@ -141,7 +141,7 @@ public:
 		bHasDefaultValue = false;
 	}
 
-private:
+protected:
 
 	UPROPERTY(meta=(KeyTimes))
 	TArray<FFrameNumber> Times;

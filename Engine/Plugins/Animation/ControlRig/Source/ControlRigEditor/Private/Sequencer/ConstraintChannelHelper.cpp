@@ -1,8 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ConstraintChannelHelper.h"
+#include "ConstraintChannelHelper.inl"
 
-#include "ActorForWorldTransforms.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "ISequencer.h"
 
@@ -13,8 +12,6 @@
 
 #include "TransformConstraint.h"
 #include "Algo/Copy.h"
-#include "Algo/Unique.h"
-#include "ConstraintChannel.h"
 
 #include "Tools/BakingHelper.h"
 #include "Tools/ConstraintBaker.h"
@@ -57,6 +54,22 @@ namespace
 
 		return false;
 	}
+}
+
+bool FConstraintChannelHelper::IsKeyframingAvailable()
+{
+	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+	if (!WeakSequencer.IsValid())
+	{
+		return false;
+	}
+
+	if (!WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FConstraintChannelHelper::SmartConstraintKey(UTickableTransformConstraint* InConstraint)
@@ -236,37 +249,42 @@ TArrayView<FMovieSceneFloatChannel*> FConstraintChannelHelper::GetTransformFloat
 	const TSharedPtr<ISequencer>& InSequencer)
 {
 	// InHandle and InSequencer are assumed to be valid at this stage so no need to check
-	
-	static const TArrayView<FMovieSceneFloatChannel*> EmptyChannelsView;
-	
 	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InHandle))
 	{
-		UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, InSequencer);
-		FChannelMapInfo* pChannelIndex = nullptr;
-		FRigControlElement* ControlElement = nullptr;
-		Tie(ControlElement, pChannelIndex) = FControlRigSpaceChannelHelpers::GetControlAndChannelInfo(
-			ControlHandle->ControlRig.Get(),
-			Section,
-			ControlHandle->ControlName);
-    
-		if (!pChannelIndex || !ControlElement)
-		{
-			return EmptyChannelsView;
-		}
-
-		// get the number of float channels to treat
-		const int32 NumChannels = FControlRigSpaceChannelHelpers::GetNumFloatChannels(ControlElement->Settings.ControlType);
-		if (!NumChannels)
-		{
-			return EmptyChannelsView;
-		}
-
-		// return a sub view that just represents the control's channels
-		const TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-		const int32 ChannelStartIndex = pChannelIndex->ChannelIndex;
-		return FloatChannels.Slice(ChannelStartIndex, NumChannels);
+		const UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, InSequencer);
+		return GetTransformFloatChannels(InHandle, Section);
 	}
+
+	static const TArrayView<FMovieSceneFloatChannel*> EmptyChannelsView;
 	return EmptyChannelsView;
+}
+
+TArrayView<FMovieSceneFloatChannel*> FConstraintChannelHelper::GetTransformFloatChannels(
+	const UTransformableHandle* InHandle,
+	const UMovieSceneControlRigParameterSection* InSection)
+{
+	static const TArrayView<FMovieSceneFloatChannel*> EmptyChannelsView;
+	
+	const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InHandle);
+	if (!ControlHandle || !InSection)
+	{
+		return EmptyChannelsView;	
+	}
+
+	const FChannelMapInfo* ChannelInfo = nullptr;
+	int32 NumChannels = 0;
+	Tie(ChannelInfo, NumChannels) =
+		GetInfoAndNumFloatChannels(ControlHandle->ControlRig.Get(), ControlHandle->ControlName, InSection);
+
+	if (ChannelInfo == nullptr || NumChannels == 0)
+	{
+		return EmptyChannelsView;
+	}
+
+	// return a sub view that just represents the control's channels
+	const TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	const int32 ChannelStartIndex = ChannelInfo->ChannelIndex;
+	return FloatChannels.Slice(ChannelStartIndex, NumChannels);
 }
 
 TArrayView<FMovieSceneDoubleChannel*> FConstraintChannelHelper::GetTransformDoubleChannels(
@@ -285,59 +303,6 @@ TArrayView<FMovieSceneDoubleChannel*> FConstraintChannelHelper::GetTransformDoub
 	return EmptyChannelsView;
 }
 
-template<typename ChannelType>
-void GetFramesToCompensate(
-	const FMovieSceneConstraintChannel& InActiveChannel,
-	const bool InActiveValueToBeSet,
-	const FFrameNumber& InTime,
-	const TArrayView<ChannelType*>& InChannels,
-	TArray<FFrameNumber>& OutFramesAfter)
-{
-	using ChannelValueType = typename ChannelType::ChannelValueType;
-
-	const bool bHasKeys = (InActiveChannel.GetNumKeys() > 0);
-	
-	OutFramesAfter.Reset();
-
-	// add the current frame
-	OutFramesAfter.Add(InTime);
-
-	// add the next frames that need transform compensation 
-	for (const ChannelType* InChannel: InChannels)
-	{
-		const TMovieSceneChannelData<const ChannelValueType> ChannelData = InChannel->GetData();
-		const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
-		if (!Times.IsEmpty())
-		{
-			// look for the first next key frame for this channel 
-			const int32 NextTimeIndex = Algo::UpperBound(Times, InTime);
-			if (Times.IsValidIndex(NextTimeIndex))
-			{
-				// store the time while the state is different
-				for (int32 Index = NextTimeIndex; Index < Times.Num(); ++Index)
-				{
-					if (!bHasKeys)
-					{
-						OutFramesAfter.Add(Times[Index]);
-					}
-					else
-					{
-						bool NextValue = false; InActiveChannel.Evaluate(Times[Index], NextValue);
-						if (NextValue == InActiveValueToBeSet)
-						{
-							break;
-						}
-						OutFramesAfter.Add(Times[Index]);
-					}
-				}
-			}
-		}
-	}
-
-	// uniqueness
-	OutFramesAfter.Sort();
-	OutFramesAfter.SetNum(Algo::Unique(OutFramesAfter));
-}
 namespace
 {
 
@@ -469,6 +434,85 @@ public:
         }
 	}
 
+	void ComputeLocalTransformsBeforeDeletion(
+		UWorld* InWorld,
+		const TSharedPtr<ISequencer>& InSequencer,
+		const TArray<FFrameNumber>& InFrames)
+	{
+		if (InFrames.IsEmpty())
+		{
+			return;
+		}
+		
+		const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+		// if (Constraints.IsEmpty())
+		// {
+		// 	return;
+		// }
+
+		// find last active constraint in the list that is different than the on we want to compensate for
+		auto GetLastActiveConstraint = [this, Constraints]()
+		{
+			// find last active constraint in the list that is different than the on we want to compensate for
+			const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
+			{
+				return InConstraint->Active && InConstraint->bDynamicOffset && InConstraint != Constraint;
+			});
+
+			// if found, return its parent global transform
+			return LastActiveIndex > INDEX_NONE ?Constraints[LastActiveIndex] : nullptr;
+		};
+		
+		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+        const FFrameRate TickResolution = MovieScene->GetTickResolution();
+        const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
+
+		const int32 NumFrames = InFrames.Num();
+
+		ChildLocals.SetNum(NumFrames);
+        ChildGlobals.SetNum(NumFrames);
+		SpaceGlobals.SetNum(NumFrames);
+
+        for (int32 Index = 0; Index < NumFrames; ++Index)
+        {
+        	const FFrameNumber& FrameNumber = InFrames[Index];
+        
+        	// evaluate animation
+        	const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(FrameNumber), TickResolution);
+        	const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
+    
+        	InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
+        
+        	// evaluate constraints
+        	for (const UTickableTransformConstraint* InConstraint: Constraints)
+        	{
+        		InConstraint->Evaluate();
+        	}
+        
+        	// evaluate ControlRig?
+        	// ControlRig->Evaluate_AnyThread();
+
+        	FTransform& ChildLocal = ChildLocals[Index];
+        	FTransform& ChildGlobal = ChildGlobals[Index];
+        	FTransform& SpaceGlobal = SpaceGlobals[Index];
+
+        	// store child transforms        	
+        	ChildLocal = Handle->GetLocalTransform();
+        	ChildGlobal = Handle->GetGlobalTransform();
+
+        	// store constraint/parent space global transform
+            if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
+            {
+            	const ETransformConstraintType LastConstraintType =
+					static_cast<ETransformConstraintType>(LastConstraint->GetType());
+            	
+                SpaceGlobal = LastConstraint->GetParentGlobalTransform();
+                ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+                	ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+            }
+        }
+	}
+	
 	void ComputeCompensation(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const FFrameNumber& InTime)
 	{
 		const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
@@ -880,6 +924,179 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 	{
 		InSequencer->ForceEvaluate();
 	}
+}
+
+void FConstraintChannelHelper::HandleConstraintRemoved(
+	UTickableConstraint* InConstraint,
+	const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TSharedPtr<ISequencer>& InSequencer,
+	const UMovieSceneSection* InSection)
+{
+	UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraint);
+	if (!Constraint || !InConstraintChannel || !InSection)
+	{
+		return;
+	}
+	
+	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(Constraint->ChildTRSHandle))
+	{
+		const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+		if (!Section)
+		{
+			return;
+		}
+
+		const TArrayView<const FFrameNumber> Times = InConstraintChannel->GetData().GetTimes();
+		if (Times.IsEmpty())
+		{
+			return;
+		}
+		
+		UControlRig* ControlRig = ControlHandle->ControlRig.Get();
+		const FName& ControlName = ControlHandle->ControlName;
+		
+		// get transform channels
+		const TArrayView<FMovieSceneFloatChannel*> TransformChannels = GetTransformFloatChannels(ControlHandle, Section);
+		
+		// get frames after this time
+		TArray<FFrameNumber> FramesToCompensate;
+		GetFramesWithinActiveState(*InConstraintChannel, TransformChannels, FramesToCompensate);
+
+		// do the compensation
+		FCompensationEvaluator Evaluator(Constraint);
+		Evaluator.ComputeLocalTransformsBeforeDeletion(ControlRig->GetWorld(), InSequencer, FramesToCompensate);
+		const TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+
+		const EMovieSceneTransformChannel ChannelsToKey = FConstraintBaker::GetChannelsToKey(Constraint);
+		const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+		
+		FBakingHelper::AddTransformKeys(ControlRig, ControlName, FramesToCompensate,
+			ChildLocals, ChannelsToKey, TickResolution);
+	}
+}
+
+void FConstraintChannelHelper::HandleConstraintKeyDeleted(
+	UTickableTransformConstraint* InConstraint,
+	const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TSharedPtr<ISequencer>& InSequencer,
+	const UMovieSceneSection* InSection,
+	const FFrameNumber& InTime)
+{
+	const FFrameNumber TimeMinusOne(InTime-1);
+	
+	bool CurrentValue = false, PreviousValue = false;
+	InConstraintChannel->Evaluate(TimeMinusOne, PreviousValue);
+	InConstraintChannel->Evaluate(InTime, CurrentValue);
+
+	if (CurrentValue == PreviousValue)
+	{
+		const int32 NumKeys = InConstraintChannel->GetNumKeys();
+		if (NumKeys > 1)
+		{
+			return;
+		}
+	}
+
+	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+	
+	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
+	{
+		const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+		if (!Section)
+		{
+			return;
+		}
+		
+		UControlRig* ControlRig = ControlHandle->ControlRig.Get();
+		const FName& ControlName = ControlHandle->ControlName;
+		
+		// get transform channels
+		const TArrayView<FMovieSceneFloatChannel*> TransformChannels = GetTransformFloatChannels(ControlHandle, Section);
+		
+		// get frames after this time
+		TArray<FFrameNumber> FramesToCompensate;
+		GetFramesAfter(*InConstraintChannel, InTime, TransformChannels, FramesToCompensate);
+
+		// do the compensation
+		FCompensationEvaluator Evaluator(InConstraint);
+		Evaluator.ComputeLocalTransforms(ControlRig->GetWorld(), InSequencer, FramesToCompensate, PreviousValue);
+		TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+		ChildLocals.RemoveAt(0);
+
+		const EMovieSceneTransformChannel ChannelsToKey = FConstraintBaker::GetChannelsToKey(InConstraint);
+		const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+
+		FBakingHelper::AddTransformKeys( ControlRig, ControlName, FramesToCompensate,
+			ChildLocals, ChannelsToKey, TickResolution);
+		
+		// now delete any extra TimeMinusOne
+		DeleteTransformKeys(TransformChannels, TimeMinusOne);
+	}
+}
+
+void FConstraintChannelHelper::HandleConstraintKeyMoved(
+	const UTickableTransformConstraint* InConstraint,
+	const FMovieSceneConstraintChannel* InConstraintChannel,
+	const UMovieSceneSection* InSection,
+	const FFrameNumber& InCurrentFrame, const FFrameNumber& InNextFrame)
+{
+	const FFrameNumber Delta = InNextFrame - InCurrentFrame;
+	if (Delta == 0)
+	{
+		return;
+	}
+	
+	if (!InConstraint || !InConstraintChannel || !InSection)
+	{
+		return;
+	}
+
+	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
+	{
+		const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+		if (!Section)
+		{
+			return;
+		}
+		
+		// get transform channels
+		const TArrayView<FMovieSceneFloatChannel*> TransformChannels = GetTransformFloatChannels(ControlHandle, Section);
+
+		// move them
+		MoveTransformKeys(TransformChannels, InCurrentFrame, InNextFrame);
+	}
+}
+
+TPair<const FChannelMapInfo*, int32> FConstraintChannelHelper::GetInfoAndNumFloatChannels(
+	const UControlRig* InControlRig,
+	const FName& InControlName,
+	const UMovieSceneControlRigParameterSection* InSection)
+{
+	const FRigControlElement* ControlElement = InControlRig ? InControlRig->FindControl(InControlName) : nullptr;
+	auto GetNumFloatChannels = [](const ERigControlType& InControlType)
+	{
+		switch (InControlType)
+		{
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		case ERigControlType::Rotator:
+			return 3;
+		case ERigControlType::TransformNoScale:
+			return 6;
+		case ERigControlType::Transform:
+		case ERigControlType::EulerTransform:
+			return 9;
+		default:
+			break;
+		}
+		return 0;		
+	};
+	
+	const int32 NumFloatChannels = ControlElement ? GetNumFloatChannels(ControlElement->Settings.ControlType) : 0;
+	const FChannelMapInfo* ChannelInfo = InSection ? InSection->ControlChannelMap.Find(InControlName) : nullptr;
+	
+	return {ChannelInfo, NumFloatChannels};
 }
 
 #undef LOCTEXT_NAMESPACE
