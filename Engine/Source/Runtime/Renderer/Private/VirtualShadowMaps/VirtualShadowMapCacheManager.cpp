@@ -73,7 +73,8 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	double LevelRadius,
 	double ViewCenterZ,
 	// NOTE: ViewRadiusZ must be constant for a given clipmap level
-	double ViewRadiusZ)
+	double ViewRadiusZ,
+	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
 	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE) && CVarForceInvalidateClipmaps.GetValueOnRenderThread() == 0;
 	
@@ -105,6 +106,12 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 		}
 	}
 
+	// Not valid if it was never rendered
+	if (PerLightEntry.PrevRenderedFrameNumber < 0)
+	{
+		bCacheValid = false;
+	}
+
 	bool bRadiusMatches = (ViewRadiusZ == Clipmap.ViewRadiusZ);
 
 	if (bCacheValid && bRadiusMatches)
@@ -127,31 +134,70 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 		
 	PrevPageSpaceLocation = CurrentPageSpaceLocation;
-	bPrevRendered = bCurrentRendered;
 	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = PageSpaceLocation;
-	bCurrentRendered = false;
 }
 
-void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey)
+void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
 	// Swap previous frame data over.
 	PrevPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
-	bPrevRendered = bCurrentRendered;
 
-	// Check cache validity based of shadow setup
-	if (!LocalCacheValidKey.IsCachedShadowValid(InCacheValidKey))
+	// Not valid if it was never rendered
+	if (PerLightEntry.PrevRenderedFrameNumber < 0)
 	{
 		PrevVirtualShadowMapId = INDEX_NONE;
-		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
 	}
-	LocalCacheValidKey = InCacheValidKey;
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
-	bCurrentRendered = false;
+}
+
+void FVirtualShadowMapCacheEntry::Invalidate()
+{
+	PrevVirtualShadowMapId = INDEX_NONE;
+}
+
+void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap()
+{
+	PrevRenderedFrameNumber = FMath::Max(PrevRenderedFrameNumber, CurrentRenderedFrameNumber);
+	CurrentRenderedFrameNumber = -1;
+}
+
+void FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInitializer& InCacheKey, bool bIsDistantLight)
+{
+	bPrevIsDistantLight = bCurrentIsDistantLight;
+	PrevRenderedFrameNumber = FMath::Max(PrevRenderedFrameNumber, CurrentRenderedFrameNumber);
+	PrevScheduledFrameNumber = FMath::Max(PrevScheduledFrameNumber, CurrenScheduledFrameNumber);
+
+	// Check cache validity based of shadow setup
+	if (!LocalCacheKey.IsCachedShadowValid(InCacheKey))
+	{
+		// If it is a distant light, we want to let the time-share perform the invalidation.
+		// TODO: track invalidation state somehow for later.
+		if (!bIsDistantLight)
+		{
+			PrevRenderedFrameNumber = -1;
+		}
+		//UE_LOG(LogRenderer, Display, TEXT("Invalidated!"));
+	}
+	LocalCacheKey = InCacheKey;
+
+	bCurrentIsDistantLight = bIsDistantLight;
+	CurrentRenderedFrameNumber = -1;
+	CurrenScheduledFrameNumber = -1;
+}
+
+void FVirtualShadowMapPerLightCacheEntry::Invalidate()
+{
+	PrevRenderedFrameNumber = -1;
+
+	for (TSharedPtr<FVirtualShadowMapCacheEntry>& Entry : ShadowMapEntries)
+	{
+		Entry->Invalidate();
+	}
 }
 
 static inline uint32 EncodeInstanceInvalidationPayload(bool bInvalidateStaticPage, int32 ClipmapVirtualShadowMapId = INDEX_NONE)
@@ -552,9 +598,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.InvalidatingInstancesRDG, &PrevBuffers.InvalidatingInstancesBuffer);
 			PrevBuffers.NumInvalidatingInstanceSlots = VirtualShadowMapArray.NumInvalidatingInstanceSlots;
-
-			// Move cache entries to previous frame, this implicitly removes any that were not used
-			PrevCacheEntries = CacheEntries;
 			
 			// Store but drop any temp references embedded in the uniform parameters this frame.
 			// We'll reestablish them when we reimport the extracted resources next frame
@@ -563,6 +606,8 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 			PrevUniformParameters.PageTable = nullptr;
 			PrevUniformParameters.PhysicalPagePool = nullptr;
 		}
+		// Move cache entries to previous frame, this implicitly removes any that were not used
+		PrevCacheEntries = CacheEntries;
 
 		if (bExtractHzbData)
 		{
@@ -587,6 +632,14 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 	}
 	else
 	{
+		// Caching is disabled
+		if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
+		{
+			// Make sure we empty out any resources associated with caching
+			PrevCacheEntries.Reset();
+			CacheEntries.Reset();
+		}
+
 		// Do nothing; maintain the data that we had
 		// This allows us to work around some cases where the renderer gets called multiple times in a given frame
 		// - such as scene captures - but does no shadow-related work in all but one of them. We do not want to drop
@@ -798,6 +851,11 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 	}
 }
 
+void FVirtualShadowMapArrayCacheManager::OnLightRemoved(int32 LightId)
+{
+	CacheEntries.Remove(LightId);
+	PrevCacheEntries.Remove(LightId);
+}
 
 /**
  * Compute shader to project and invalidate the rectangles of given instances.

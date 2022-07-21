@@ -47,6 +47,7 @@ public:
 
 	virtual FSphere GetBoundingSphere() const;
 
+	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices, const FIntPoint& CameraViewRectSize) const override;
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const override;
 
 	virtual FVector GetPerObjectProjectedShadowProjectionPoint(const FBoxSphereBounds& SubjectBounds) const;

@@ -39,7 +39,7 @@ class FScene;
 class FSceneRenderer;
 class FViewInfo;
 class FVirtualShadowMapArrayCacheManager;
-class FVirtualShadowMapCacheEntry;
+class FVirtualShadowMapPerLightCacheEntry;
 class FLightTileIntersectionParameters;
 class FDistanceFieldCulledObjectBufferParameters;
 
@@ -396,13 +396,15 @@ public:
 
 	/** Whether the the shadow overlaps any nanite primitives */
 	uint32 bContainsNaniteSubjects : 1;
-
+	uint32 bShouldRenderVSM : 1;
+	
 	/** Used to fetch the correct cached static mesh draw commands */
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 
 	EShadowMeshSelection MeshSelectionMask = EShadowMeshSelection::All;
 	/** */
 	TArray< FVirtualShadowMap*, TInlineAllocator<6> > VirtualShadowMaps;
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> VirtualShadowMapPerLightCacheEntry;
 
 	/** View projection matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewProjectionMatrices;

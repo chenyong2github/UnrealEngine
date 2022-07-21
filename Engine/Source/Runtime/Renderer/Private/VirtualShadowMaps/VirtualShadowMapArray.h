@@ -191,7 +191,7 @@ private:
 class FVirtualShadowMapArray
 {
 public:	
-	FVirtualShadowMapArray();
+	FVirtualShadowMapArray(FScene& InScene);
 	~FVirtualShadowMapArray();
 
 	void Initialize(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* InCacheManager, bool bInEnabled);
@@ -234,9 +234,7 @@ public:
 		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
-		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
-
-		FScene& Scene);
+		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults);
 
 	bool IsAllocated() const
 	{
@@ -253,7 +251,7 @@ public:
 	/**
 	 * Draw Non-Nanite geometry into the VSMs.
 	 */
-	void RenderVirtualShadowMapsNonNanite(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene, TArrayView<FViewInfo> Views);
+	void RenderVirtualShadowMapsNonNanite(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, TArrayView<FViewInfo> Views);
 
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
 	
@@ -338,6 +336,7 @@ public:
 	FVirtualShadowMapVisualizeLightSearch VisualizeLight;
 
 private:
+	FScene &Scene;
 	//
 	bool bUseHzbOcclusion = true;
 	bool bUseTwoPassHzbOcclusion = true;

@@ -14,6 +14,7 @@
 
 class FRHIGPUBufferReadback;
 class FGPUScene;
+class FVirtualShadowMapPerLightCacheEntry;
 
 #define VSM_LOG_INVALIDATIONS 0
 
@@ -22,32 +23,27 @@ class FVirtualShadowMapCacheEntry
 public:
 	// True if the cache has been (re)populated, set to false on init and set to true once the cache update process has happened.
 	// Also set to false whenever key data was not valid and all cached data is invalidated.
-	bool IsValid() { return PrevVirtualShadowMapId != INDEX_NONE && bPrevRendered; }
+	bool IsValid() { return PrevVirtualShadowMapId != INDEX_NONE; }
 
-	void UpdateLocal(int32 VirtualShadowMapId,
-		const FWholeSceneProjectedShadowInitializer &InCacheValidKey);
+	void UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry &PerLightEntry);
 
 	void UpdateClipmap(int32 VirtualShadowMapId,
 		const FMatrix &WorldToLight,
 		FIntPoint PageSpaceLocation,
 		double LevelRadius,
 		double ViewCenterZ,
-		double ViewRadiusZ);
+		double ViewRadiusZ, 
+		const FVirtualShadowMapPerLightCacheEntry& PerLightEntry);
 
-	void MarkRendered() { bCurrentRendered = true; }
+	void Invalidate();
 
 	// Previous frame data
 	FIntPoint PrevPageSpaceLocation = FIntPoint(0, 0);
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
-	bool bPrevRendered = false;
 
 	// Current frame data
 	FIntPoint CurrentPageSpaceLocation = FIntPoint(0, 0);
 	int32 CurrentVirtualShadowMapId = INDEX_NONE;
-	bool bCurrentRendered = false;
-
-	// TODO: Potentially refactor this to decouple the cache key details
-	FWholeSceneProjectedShadowInitializer LocalCacheValidKey;
 
 	struct FClipmapInfo
 	{
@@ -70,7 +66,27 @@ public:
 	TSharedPtr<FVirtualShadowMapCacheEntry> FindCreateShadowMapEntry(int32 Index);
 
 	void OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo);
+	/**
+	 * The (local) VSM is fully cached if the previous frame if was distant and is distant this frame also.
+	 */
+	inline bool IsFullyCached() const { return bCurrentIsDistantLight && bPrevIsDistantLight; }
+	void MarkRendered(int32 FrameIndex) { CurrentRenderedFrameNumber = FrameIndex; }
+	int32 GetLastScheduledFrameNumber() const { return PrevScheduledFrameNumber; }
+	void UpdateClipmap();
+	void UpdateLocal(const FProjectedShadowInitializer &InCacheKey, bool bIsDistantLight = false);
 
+	/**
+	 * Mark as invalid, i.e., needing rendering.
+	 */
+	void Invalidate();
+
+	bool bPrevIsDistantLight = false;
+	int32 PrevRenderedFrameNumber = -1;
+	int32 PrevScheduledFrameNumber = -1;
+
+	bool bCurrentIsDistantLight = false;
+	int32 CurrentRenderedFrameNumber = -1;
+	int32 CurrenScheduledFrameNumber = -1;
 	// Primitives that have been rendered (not culled) the previous frame, when a primitive transitions from being culled to not it must be rendered into the VSM
 	// Key culling reasons are small size or distance cutoff.
 	TBitArray<> RenderedPrimitives;
@@ -89,6 +105,9 @@ public:
 	};
 
 	TArray<FInstanceRange> PrimitiveInstancesToInvalidate;
+
+private:
+	FProjectedShadowInitializer LocalCacheKey;
 };
 
 // Persistent buffers that we ping pong frame by frame
@@ -200,6 +219,11 @@ public:
 	 * Allow the cache manager to track scene changes, in particular track resizing of primitive tracking data.
 	 */
 	void OnSceneChange();
+
+	/**
+	 * Handle light removal, need to clear out cache entries as the ID may be reused after this.
+	 */
+	void OnLightRemoved(int32 LightId);
 
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const;
 

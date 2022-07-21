@@ -1709,13 +1709,16 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 				{
 					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->HasVirtualShadowMap())
 					{
-						VirtualShadowMapArray.AddRenderViews(
-							ProjectedShadowInfo, 
-							ComputeNaniteShadowsLODScaleFactor(),
-							PrevHZBPhysical.IsValid(),
-							bVSMUseHZB,
-							bShouldClampToNearPlane,
-							VirtualShadowViews);
+						if (ProjectedShadowInfo->bShouldRenderVSM)
+						{
+							VirtualShadowMapArray.AddRenderViews(
+								ProjectedShadowInfo,
+								ComputeNaniteShadowsLODScaleFactor(),
+								PrevHZBPhysical.IsValid(),
+								bVSMUseHZB,
+								bShouldClampToNearPlane,
+								VirtualShadowViews);
+						}
 					}
 				}
 
@@ -1786,7 +1789,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
 	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene, Views);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, Views);
 	}
 
 	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering

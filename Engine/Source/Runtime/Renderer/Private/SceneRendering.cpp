@@ -78,6 +78,7 @@
 #include "RectLightTextureManager.h"
 #include "DynamicResolutionState.h"
 #include "NaniteVisualizationData.h"
+#include "Shadows/ShadowSceneRenderer.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -2435,6 +2436,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 ,	ViewFamily(*CheckPointer(InViewFamily))
 ,	MeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel(), Allocator)
+,	VirtualShadowMapArray(*CheckPointer(Scene))
 ,	bHasRequestedToggleFreeze(false)
 ,	bUsedPrecomputedVisibility(false)
 ,	bGPUMasksComputed(false)

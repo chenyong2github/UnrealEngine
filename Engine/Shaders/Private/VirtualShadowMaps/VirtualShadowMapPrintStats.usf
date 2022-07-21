@@ -37,6 +37,27 @@ float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 	return ShaderPrint(ScreenPos, Value);
 }
 
+
+float2 ShaderPrintUnits(in float2 InScreenPos, uint Value)
+{
+	float2 ScreenPos = InScreenPos;
+	if (Value >= 1024U * 1024U)
+	{
+		ScreenPos = ShaderPrint(ScreenPos, float((Value * 100U) / (1024U * 1024U)) / 100.0f);
+		ScreenPos = ShaderPrintSymbol(ScreenPos, _M_);
+	}
+	else if (Value >= 1024U)
+	{
+		ScreenPos = ShaderPrint(ScreenPos, float((Value * 100U) / (1024U)) / 100.0f);
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("k"), FontWhite);
+	}
+	else
+	{
+		ScreenPos = ShaderPrint(ScreenPos, Value);
+	}
+	return ScreenPos;
+}
+
 [numthreads(1, 1, 1)]
 void PrintStats()
 {
@@ -59,9 +80,12 @@ void PrintStats()
 		ScreenPos = ShaderPrintNewline(ScreenPos);
 
 		ScreenPos.x = ItemX;
-		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Allocated"), FontWhite);
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Allocated [texels]"), FontWhite);
 		ScreenPos.x = ValueX;
 		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES]);
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("["), FontWhite);
+		ScreenPos = ShaderPrintUnits(ScreenPos, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES] * VSM_PAGE_SIZE * VSM_PAGE_SIZE);
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("]"), FontWhite);
 		ScreenPos = ShaderPrintNewline(ScreenPos);
 
 		ScreenPos.x = ItemX;

@@ -108,6 +108,48 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 TranslatedWorldPosi
 	}
 }
 
+// 
+RWStructuredBuffer<uint> OutPrunedLightGridData;
+RWStructuredBuffer<uint> OutPrunedNumCulledLightsGrid;
+
+[numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
+void PruneLightGridCS(uint GridLinearIndex : SV_DispatchThreadID)
+{
+	uint EyeIndex = 0; // ??
+	const FLightGridData GridData = GetLightGridData(EyeIndex);
+
+	if (GridLinearIndex >= GridData.CulledGridSize.x * GridData.CulledGridSize.y * GridData.CulledGridSize.z)
+	{
+		return;
+	}
+	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
+
+	uint NumRetainedLights = 0U;
+	LOOP
+	for (uint Index = 0; Index < CulledLightGridData.NumLocalLights; ++Index)
+	{
+		const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
+		int VirtualShadowMapId = LightData.VirtualShadowMapId;
+		// Discard any light without a VSM
+		if (VirtualShadowMapId != INDEX_NONE)
+		{
+			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+			// Discard any distant lights (they get marked through the coarse page marking)
+			if (!ProjectionData.bCurrentDistantLight)
+			{
+				// Copy light grid data index
+				OutPrunedLightGridData[CulledLightGridData.DataStartIndex + NumRetainedLights++] = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
+			}
+		}
+	}
+	OutPrunedNumCulledLightsGrid[GridLinearIndex] = NumRetainedLights;
+}
+
+StructuredBuffer<uint> PrunedLightGridData;
+StructuredBuffer<uint> PrunedNumCulledLightsGrid;
+
+
 [numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
 void GeneratePageFlagsFromPixels(
 	uint3 InGroupId : SV_GroupID,
@@ -223,11 +265,13 @@ void GeneratePageFlagsFromPixels(
 		uint GridLinearIndex = ComputeLightGridCellIndex(GridCoordinate, EyeIndex);
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
 
+		const uint PrunedNumLocalLights = PrunedNumCulledLightsGrid[GridLinearIndex];
+
 		LOOP
-		for (uint Index = 0; Index < CulledLightGridData.NumLocalLights; ++Index)
+		for (uint Index = 0; Index < PrunedNumLocalLights; ++Index)
 		{
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
-			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
+			const uint LightGridLightIndex = PrunedLightGridData[CulledLightGridData.DataStartIndex + Index];
 
 			// Relative to PrimaryView
 			const float3 LightTranslatedWorldPosition = LightData.LightPositionAndInvRadius.xyz;
@@ -257,17 +301,14 @@ void GeneratePageFlagsFromPixels(
 			}
 #endif
 			int VirtualShadowMapId = LightData.VirtualShadowMapId;
-			if (VirtualShadowMapId != INDEX_NONE)
+			bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
+			if( !bSpotLight )
 			{
-				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
-				if( !bSpotLight )
-				{
-					VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
-				}
-
-				uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, TranslatedWorldPosition, SceneDepth);
-				MarkPage(VirtualShadowMapId, MipLevel, TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
+				VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
 			}
+
+			uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, TranslatedWorldPosition, SceneDepth);
+			MarkPage(VirtualShadowMapId, MipLevel, TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
 		}
 	}
 }
@@ -315,11 +356,13 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 			MarkPageAddress(CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zw), Flags);
 		}
 	}
-	else if (bMarkCoarsePagesLocal != 0)
+	// Note: always mark last mip for "distant" light
+	else if (bMarkCoarsePagesLocal != 0U || ProjectionData.bCurrentDistantLight)
 	{
 		// Mark last mip
 		uint PageOffset = CalcPageOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS - 1, uint2(0, 0));
-		MarkPageAddress(PageOffset, Flags);
+		// For distant lights we want to inlcude the non-nanite geometry.
+		MarkPageAddress(PageOffset, ProjectionData.bCurrentDistantLight ? (VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG) : Flags);
 	}
 }
 

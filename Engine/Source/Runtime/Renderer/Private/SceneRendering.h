@@ -59,6 +59,7 @@ class FVirtualShadowMapClipmap;
 class FShadowProjectionPassParameters;
 class FSceneTextureShaderParameters;
 class FLumenSceneData;
+class FShadowSceneRenderer;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
@@ -1948,6 +1949,9 @@ public:
 
 	FVirtualShadowMapArray VirtualShadowMapArray;
 
+	// TODO: Move to deferred scene renderer
+	TUniquePtr<FShadowSceneRenderer> ShadowSceneRenderer;
+
 	/** If a freeze request has been made */
 	bool bHasRequestedToggleFreeze;
 
@@ -2116,6 +2120,9 @@ public:
 
 	FORCEINLINE const FSceneTextures& GetActiveSceneTextures() const { return ViewFamily.GetSceneTextures(); }
 	FORCEINLINE const FSceneTexturesConfig& GetActiveSceneTexturesConfig() const { return ViewFamily.SceneTexturesConfig; }
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
+	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;
 
 protected:
 
@@ -2354,9 +2361,6 @@ protected:
 	{
 		checkf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
 	}
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
-	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;
 
 private:
 	void ComputeFamilySize();

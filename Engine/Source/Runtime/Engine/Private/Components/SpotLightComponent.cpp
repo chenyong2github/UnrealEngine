@@ -129,6 +129,26 @@ public:
 	{
 		return FMath::ComputeBoundingSphereForCone(GetOrigin(), GetDirection(), (FSphere::FReal)Radius, (FSphere::FReal)CosOuterCone, (FSphere::FReal)SinOuterCone);
 	}
+	
+	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices, const FIntPoint& CameraViewRectSize) const 
+	{
+		// Heuristic: use the radius of the inscribed sphere at the cone's end as the light's effective screen radius
+		// We do so because we do not want to use the light's radius directly, which will make us overestimate the shadow map resolution greatly for a spot light
+
+		// In the correct form,
+		//   InscribedSpherePosition = GetOrigin() + GetDirection() * GetRadius() / CosOuterCone
+		//   InscribedSphereRadius = GetRadius() / SinOuterCone
+		// Do it incorrectly to avoid division which is more expensive and risks division by zero
+		const FVector InscribedSpherePosition = GetOrigin() + GetDirection() * GetRadius() * CosOuterCone;
+		const float InscribedSphereRadius = GetRadius() * SinOuterCone;
+
+		const float SphereDistanceFromViewOrigin = (InscribedSpherePosition - ShadowViewMatrices.GetViewOrigin()).Size();
+
+		const FVector2D &ProjectionScale = ShadowViewMatrices.GetProjectionScale();
+		const float ScreenScale = FMath::Max(CameraViewRectSize.X * 0.5f * ProjectionScale.X, CameraViewRectSize.Y * 0.5f * ProjectionScale.Y);
+
+		return ScreenScale * InscribedSphereRadius / FMath::Max(SphereDistanceFromViewOrigin, 1.0f);
+	}
 
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const override
 	{

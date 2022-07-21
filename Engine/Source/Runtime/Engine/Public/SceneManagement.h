@@ -1423,6 +1423,9 @@ public:
 	virtual float GetLightSourceAngle() const { return 0.0f; }
 	virtual float GetShadowSourceAngleFactor() const { return 1.0f; }
 	virtual float GetTraceDistance() const { return 0.0f; }
+	// TODO: refactor this to move into the shadow scene renderer
+	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices, const FIntPoint& CameraViewRectSize) const { return 0.0f; }
+	UE_DEPRECATED(5.1, "The GetEffectiveScreenRadius() that uses the screen-percentage scaled view rect (above) is used now.")
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const { return 0.0f; }
 
 	/** Accesses parameters needed for rendering the light. */

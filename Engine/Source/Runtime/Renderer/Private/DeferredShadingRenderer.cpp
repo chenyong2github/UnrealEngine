@@ -75,6 +75,7 @@
 #include "Lumen/LumenFrontLayerTranslucency.h"
 #include "Containers/ChunkedArray.h"
 #include "Async/ParallelFor.h"
+#include "Shadows/ShadowSceneRenderer.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
@@ -390,6 +391,8 @@ FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFam
 	bAnyRayTracingPassEnabled = false;
 	bShouldUpdateRayTracingScene = false;
 #endif
+
+	ShadowSceneRenderer = MakeUnique<FShadowSceneRenderer>(*this);
 }
 
 /** 
@@ -2966,7 +2969,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
 
 				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
-				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, *Scene);
+				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults);
 			}
 
 			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);

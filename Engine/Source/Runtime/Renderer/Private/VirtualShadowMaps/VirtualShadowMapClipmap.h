@@ -97,6 +97,8 @@ public:
 	TConstArrayView<uint32> GetRevealedPrimitivesMask() const { return RevealedPrimitivesMask.IsEmpty() ? MakeArrayView<uint32>(nullptr, 0) : MakeArrayView(RevealedPrimitivesMask.GetData(), FBitSet::CalculateNumWords(RevealedPrimitivesMask.Num())); }
 	int32 GetNumRevealedPrimitives() const { return RevealedPrimitivesMask.Num(); }
 
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& GetCacheEntry() { return PerLightCacheEntry; }
+
 private:
 	void ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices);
 

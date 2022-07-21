@@ -476,6 +476,7 @@ private:
 		SetVisualizeVolumetricCloudConservativeDensity(false);
 		SetVisualizeStrataMaterial(false);
 		SetDrawOnlyVSMInvalidatingGeo(false);
+		SetDebugDrawDistantVirtualSMLights(false);
 
 		SetLumenScreenTraces(true);
 		SetLumenDetailTraces(true);

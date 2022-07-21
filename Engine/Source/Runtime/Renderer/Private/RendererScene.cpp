@@ -3387,6 +3387,17 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		// Remove the light from the lights list.
 		Lights.RemoveAt(LightSceneInfo->Id);
 
+		// TODO: move this work to FShadowScene & batch the light removals
+		{
+			TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator> VirtualShadowCacheManagers;
+			GetAllVirtualShadowMapCacheManagers(VirtualShadowCacheManagers);
+
+			for (FVirtualShadowMapArrayCacheManager* CacheManager : VirtualShadowCacheManagers)
+			{
+				CacheManager->OnLightRemoved(LightSceneInfo->Id);
+			}
+		}
+
 		if (!LightSceneInfo->Proxy->HasStaticShadowing()
 			&& LightSceneInfo->Proxy->CastsDynamicShadow()
 			&& LightSceneInfo->GetDynamicShadowMapChannel() == -1)

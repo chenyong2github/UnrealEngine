@@ -110,9 +110,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 	WorldOrigin = CameraViewMatrices.GetViewOrigin();
 
-	if (bCacheValid)
+	PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id);
+	if (PerLightCacheEntry.IsValid())
 	{
-		PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id);
+		PerLightCacheEntry->UpdateClipmap();
 	}
 
 	for (int32 Index = 0; Index < LevelCount; ++Index)
@@ -175,7 +176,8 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 				PageOffset,
 				RawLevelRadius,
 				ViewCenter.Z,
-				ViewRadiusZ);
+				ViewRadiusZ,
+				*PerLightCacheEntry);
 
 			Level.VirtualShadowMap->VirtualShadowMapCacheEntry = CacheEntry;
 
