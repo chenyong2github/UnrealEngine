@@ -428,5 +428,42 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetTrianglesInPolyg
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::SetPolygroupForMeshSelection(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptGroupLayer GroupLayer,
+	FGeometryScriptMeshSelection Selection,
+	int& SetPolygroupIDOut,
+	int SetPolygroupID,
+	bool bGenerateNewPolygroup,
+	bool bDeferChangeNotifications)
+{
+	SetPolygroupIDOut = SetPolygroupID;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FPolygroupLayer InputGroupLayer{ GroupLayer.bDefaultLayer, GroupLayer.ExtendedLayerIndex };
+			if (InputGroupLayer.CheckExists(&EditMesh) == false)
+			{
+				UE_LOG(LogGeometry, Warning, TEXT("SetPolygroupForMeshSelection: Specified Polygroup Layer does not exist"));
+				return;
+			}
+
+			FPolygroupSet Groups(&EditMesh, InputGroupLayer);
+			if (bGenerateNewPolygroup)
+			{
+				SetPolygroupID = Groups.AllocateNewGroupID();
+				SetPolygroupIDOut = SetPolygroupID;
+			}
+			Selection.ProcessByTriangleID(EditMesh,
+				[&](int32 TriangleID) { Groups.SetGroup(TriangleID, SetPolygroupID, EditMesh); } );
+
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;
+}
+
+
+
 
 #undef LOCTEXT_NAMESPACE

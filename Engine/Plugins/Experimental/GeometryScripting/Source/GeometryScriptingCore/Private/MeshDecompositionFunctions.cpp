@@ -212,12 +212,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromM
 	}
 	if (TriangleList.List.IsValid() == false || TriangleList.List->Num() == 0)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList", "GetSubMeshFromMesh: TriangleList is empty"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSubMeshFromMesh_InvalidList", "GetSubMeshFromMesh: TriangleList is empty"));
 		return TargetMesh;
 	}
 	if (TriangleList.IsCompatibleWith(EGeometryScriptIndexType::Triangle) == false)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList2", "GetSubMeshFromMesh: TriangleList has incompatible index type"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSubMeshFromMesh_InvalidList2", "GetSubMeshFromMesh: TriangleList has incompatible index type"));
 		return TargetMesh;
 	}
 
@@ -243,6 +243,79 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromM
 }
 
 
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshSelectionToMesh(
+	UDynamicMesh* TargetMesh,
+	UDynamicMesh* StoreToSubmesh, 
+	FGeometryScriptMeshSelection Selection,
+	UDynamicMesh*& StoreToSubmeshOut, 
+	bool bAppendToExisting,
+	bool bPreserveGroupIDs,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshSelectionToMesh_InvalidInput", "CopyMeshSelectionToMesh: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (StoreToSubmesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshSelectionToMesh_InvalidInput2", "CopyMeshSelectionToMesh: StoreToSubmesh is Null"));
+		return TargetMesh;
+	}
+	if (Selection.IsEmpty())
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshSelectionToMesh_InvalidList", "CopyMeshSelectionToMesh: Selection is empty"));
+		return TargetMesh;
+	}
+
+	FDynamicMesh3 Submesh;
+	if (bAppendToExisting)
+	{
+		StoreToSubmesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			Submesh = ReadMesh;
+		});
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& SourceMesh)
+	{
+		TArray<int32> Triangles;
+		Selection.ConvertToMeshIndexArray(SourceMesh, Triangles, EGeometryScriptIndexType::Triangle);
+
+		if (bAppendToExisting == false)
+		{
+			Submesh.Clear();
+			Submesh.EnableMatchingAttributes(SourceMesh, false);
+		}
+
+		FMeshIndexMappings Mappings;
+		FDynamicMeshEditResult EditResult;
+		FDynamicMeshEditor Editor(&Submesh);
+		Editor.AppendTriangles(&SourceMesh, Triangles, Mappings, EditResult, bPreserveGroupIDs);
+
+		if (bPreserveGroupIDs)
+		{
+			for (int32 tid : EditResult.NewTriangles)
+			{
+				int32 GroupID = Submesh.GetTriangleGroup(tid);
+				int32 OldGroupID = Mappings.GetGroupMap().GetFrom(GroupID);
+				Submesh.SetTriangleGroup(tid, OldGroupID);
+			}
+		}
+
+	});
+
+	StoreToSubmesh->SetMesh(MoveTemp(Submesh));
+	StoreToSubmeshOut = StoreToSubmesh;
+
+	return TargetMesh;
+}
+
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(
 	UDynamicMesh* CopyFromMesh,
 	UDynamicMesh* CopyToMesh, 
@@ -251,12 +324,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::CopyMeshToMesh(
 {
 	if (CopyFromMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput", "CopyMeshToMesh: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput", "CopyMeshToMesh: CopyFromMesh is Null"));
 		return CopyFromMesh;
 	}
 	if (CopyToMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput2", "CopyMeshToMesh: Submesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToMesh_InvalidInput2", "CopyMeshToMesh: CopyToMesh is Null"));
 		return CopyFromMesh;
 	}
 

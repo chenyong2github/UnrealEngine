@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshPolygroupFunctions.generated.h"
 
 class UDynamicMesh;
@@ -119,4 +120,22 @@ public:
 		int PolygroupID, 
 		UPARAM(ref, DisplayName="Triangle IDs Out") FGeometryScriptIndexList& TriangleIDsOut );
 
+
+	/**
+	 * Set a new Polygroup on all the triangles of the given Selection, for the given GroupLayer.
+	 * @param SetPolygroupID explicit new PolygroupID to set
+	 * @param bGenerateNewPolygroup if true, SetPolygroupID is ignored and a new unique PolygroupID is generated
+	 * @param SetPolygroupIDOut the PolygroupID that was set on the triangles is returned here (whether explicit or auto-generated)
+	 * @param bDeferChangeNotifications if true, the UDynamicMesh does not emit a change event/signal for this modification
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	SetPolygroupForMeshSelection( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer, 
+		FGeometryScriptMeshSelection Selection,
+		int& SetPolygroupIDOut,
+		int SetPolygroupID = 0,
+		bool bGenerateNewPolygroup = false,
+		bool bDeferChangeNotifications = false);
 };

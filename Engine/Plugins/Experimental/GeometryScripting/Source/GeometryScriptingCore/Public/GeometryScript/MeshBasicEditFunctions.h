@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshBasicEditFunctions.generated.h"
 
 class UDynamicMesh;
@@ -144,6 +145,13 @@ public:
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	DeleteSelectedTrianglesFromMesh( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptMeshSelection Selection,
+		int& NumDeleted,
+		bool bDeferChangeNotifications = false );
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 

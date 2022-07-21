@@ -461,6 +461,40 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetMaterialIDOnTrian
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetMaterialIDForMeshSelection( 
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptMeshSelection Selection,
+	int MaterialID,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{	
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDForMeshSelection_InvalidMesh", "SetMaterialIDForMeshSelection: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false)
+		{
+			EditMesh.EnableAttributes();
+		}
+		if (EditMesh.Attributes()->HasMaterialID() == false)
+		{
+			EditMesh.Attributes()->EnableMaterialID();
+		}
+		FDynamicMeshMaterialAttribute* MaterialIDs = EditMesh.Attributes()->GetMaterialID();
+		Selection.ProcessByTriangleID(EditMesh,
+			[&](int32 TriangleID) { MaterialIDs->SetValue(TriangleID, MaterialID); } );
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+	return TargetMesh;
+}
+
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetPolygroupMaterialID( 
 	UDynamicMesh* TargetMesh, 
 	FGeometryScriptGroupLayer GroupLayer,

@@ -299,6 +299,34 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteTrianglesFrom
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteSelectedTrianglesFromMesh(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
+	int& NumDeleted,
+	bool bDeferChangeNotifications)
+{
+	if (TargetMesh && Selection.IsEmpty() == false )
+	{
+		NumDeleted = 0;
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			TArray<int32> Triangles;
+			Selection.ConvertToMeshIndexArray(EditMesh, Triangles, EGeometryScriptIndexType::Triangle);
+			for (int32 TriangleID : Triangles)
+			{
+				EMeshResult Result = EditMesh.RemoveTriangle(TriangleID);
+				if (Result == EMeshResult::Ok)
+				{
+					NumDeleted++;
+				}
+			}
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;
+}
+
+
+
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 	UDynamicMesh* TargetMesh,
