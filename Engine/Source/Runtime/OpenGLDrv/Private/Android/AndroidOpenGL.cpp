@@ -362,6 +362,21 @@ bool PlatformInitOpenGL()
 				FAndroidMisc::MessageBoxExt(EAppMsgType::Ok, *Message, TEXT("Unable to run on this device!"));
 			}
 		}
+
+		// Needs to initialize GPU vendor id before AndroidEGL::AcquireCurrentRenderingContext
+		FString& VendorName = FAndroidGPUInfo::Get().VendorName;
+		if (VendorName.Contains(TEXT("ImgTec")))
+		{
+			GRHIVendorId = 0x1010;
+		}
+		else if (VendorName.Contains(TEXT("ARM")))
+		{
+			GRHIVendorId = 0x13B5;
+		}
+		else if (VendorName.Contains(TEXT("Qualcomm")))
+		{
+			GRHIVendorId = 0x5143;
+		}
 	}
 	return true;
 }
