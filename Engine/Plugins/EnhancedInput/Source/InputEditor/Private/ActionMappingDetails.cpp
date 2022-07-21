@@ -395,7 +395,7 @@ void FActionMappingsNodeBuilderEx::GenerateChildContent(IDetailChildrenBuilder& 
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(InputConstants::PropertyPadding)
+			.Padding(ActionMappingDetails::InputConstants::PropertyPadding)
 			.AutoWidth()
 			[
 				SNew(SBox)
