@@ -684,7 +684,7 @@ bool FGLTFDelayedMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRo
 	}
 
 	int32 TexCoord;
-	if (MetallicBakeOutput.bIsConstant)
+	if (RoughnessBakeOutput.bIsConstant)
 	{
 		TexCoord = RoughnessTexCoord;
 	}
@@ -809,7 +809,7 @@ bool FGLTFDelayedMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtens
 	}
 
 	int32 TexCoord;
-	if (IntensityBakeOutput.bIsConstant)
+	if (RoughnessBakeOutput.bIsConstant)
 	{
 		TexCoord = RoughnessTexCoord;
 	}
