@@ -6500,6 +6500,46 @@ void UNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelClo
 	}
 }
 
+void UNetDriver::ClientSetActorTornOff(AActor* Actor)
+{
+	check(Actor);
+
+	if (IsServer())
+	{
+		UE_LOG(LogNet, Error, TEXT("ClientSetActorTornOff should only be called on clients."));
+		return;
+	}
+
+	if (Actor->GetIsReplicated() && (Actor->GetRemoteRole() == ROLE_Authority))
+	{
+		Actor->SetRole(ROLE_Authority);
+		Actor->SetReplicates(false);
+
+		if (Actor->GetWorld() != nullptr && !IsEngineExitRequested())
+		{
+			Actor->TornOff();
+		}
+
+		if (World)
+		{
+			if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(World))
+			{
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+				{
+					if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(Actor))
+					{
+						Driver.NetDriver->NotifyActorTornOff(Actor);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogNet, Warning, TEXT("ClientSetActorTornOff called with invalid actor: %s"), *GetNameSafe(Actor));
+	}
+}
+
 void UNetDriver::NotifyActorTornOff(AActor* Actor)
 {
 

@@ -2087,18 +2087,7 @@ void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
 
 			if (TheActor->GetTearOff() && !Connection->Driver->ShouldClientDestroyTearOffActors())
 			{
-				if (!bTornOff)
-				{
-					TheActor->SetRole(ROLE_Authority);
-					TheActor->SetReplicates(false);
-					bTornOff = true;
-					if (TheActor->GetWorld() != nullptr && !IsEngineExitRequested())
-					{
-						TheActor->TornOff();
-					}
-
-					Connection->Driver->NotifyActorTornOff(TheActor);
-				}
+				Connection->Driver->ClientSetActorTornOff(TheActor);
 			}
 			else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !TheActor->GetTearOff())
 			{
@@ -2382,15 +2371,8 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 			{
 				if (!bTornOff)
 				{
-					Actor->SetRole(ROLE_Authority);
-					Actor->SetReplicates(false);
 					bTornOff = true;
-					if (Actor->GetWorld() != NULL && !IsEngineExitRequested())
-					{
-						Actor->TornOff();
-					}
-
-					Connection->Driver->NotifyActorTornOff(Actor);
+					Connection->Driver->ClientSetActorTornOff(Actor);
 				}
 			}
 			else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !Actor->GetTearOff())	

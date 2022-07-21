@@ -106,7 +106,7 @@ private:
 
 	void RequestCheckpoint();
 
-	void OnActorPreDestroy(UNetConnection* Connection, AActor* Actor);
+	void RemoveActorFromCheckpoint(UNetConnection* Connection, AActor* Actor);
 
 	void NotifyActorDestroyed(UNetConnection* Connection, AActor* Actor);
 

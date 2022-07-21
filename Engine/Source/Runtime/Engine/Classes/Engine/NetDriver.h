@@ -1733,6 +1733,9 @@ public:
 	/** Called on clients when an actor channel is closed because it went dormant. */
 	ENGINE_API virtual void ClientSetActorDormant(AActor* Actor);
 
+	/** Called on clients when an actor is torn off. */
+	ENGINE_API virtual void ClientSetActorTornOff(AActor* Actor);
+
 	/**
 	 * Returns the current delinquency analytics and resets them.
 	 * This would be similar to calls to Get and Reset separately, except that the caller

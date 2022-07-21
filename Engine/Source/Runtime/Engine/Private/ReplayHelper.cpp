@@ -1845,7 +1845,7 @@ bool FReplayHelper::ReplicateActor(AActor* Actor, UNetConnection* Connection, bo
 			{
 				if (Connection->ResendAllDataState == EResendAllDataState::None)		// Don't close the channel if we're forcing them to re-open for checkpoints
 				{
-					Channel->Close(EChannelCloseReason::Destroyed);
+					Channel->Close(Actor->GetTearOff() ? EChannelCloseReason::TearOff : EChannelCloseReason::Destroyed);
 				}
 			}
 		}
@@ -2296,7 +2296,7 @@ void FReplayHelper::RequestCheckpoint()
 	bPendingCheckpointRequest = true;
 }
 
-void FReplayHelper::OnActorPreDestroy(UNetConnection* Connection, AActor* Actor)
+void FReplayHelper::RemoveActorFromCheckpoint(UNetConnection* Connection, AActor* Actor)
 {
 	check(Connection);
 
@@ -2315,7 +2315,7 @@ void FReplayHelper::OnActorPreDestroy(UNetConnection* Connection, AActor* Actor)
 						&& (*PendingIndex >= CheckpointSaveContext.NextAmortizedItem)
 						&& (CheckpointSaveContext.PendingCheckpointActors[*PendingIndex].Actor.Get() == Actor))
 					{
-						UE_LOG(LogDemo, Verbose, TEXT("Destroying actor while it is still in the PendingCheckpointActors list: %s"), *GetNameSafe(Actor));
+						UE_LOG(LogDemo, Verbose, TEXT("Removing actor while it is still in the PendingCheckpointActors list: %s"), *GetNameSafe(Actor));
 
 						FRepActorsCheckpointParams Params
 						{
@@ -2327,8 +2327,11 @@ void FReplayHelper::OnActorPreDestroy(UNetConnection* Connection, AActor* Actor)
 						TArrayView<FPendingCheckPointActor> PendingView(CheckpointSaveContext.PendingCheckpointActors);
 						int32 ActorIndex = 0;
 
-						// Serialize the actor one last time before it gets destroyed
+						// Serialize the actor one last time before it gets removed
 						ProcessCheckpointActors(Connection, PendingView.Slice(*PendingIndex, 1), ActorIndex, Params);
+
+						// Clear the pending actor to avoid any further processing
+						CheckpointSaveContext.PendingCheckpointActors[*PendingIndex].Actor = nullptr;
 
 						// don't allow the channel index to be reused until we're done with the checkpoint
 						Connection->AddReservedChannel(Channel->ChIndex);

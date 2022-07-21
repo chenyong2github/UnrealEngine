@@ -4986,7 +4986,7 @@ void UDemoNetDriver::OnActorPreDestroy(AActor* DestroyedActor)
 
 	if (IsRecording())
 	{
-		ReplayHelper.OnActorPreDestroy(ClientConnections[0], DestroyedActor);
+		ReplayHelper.RemoveActorFromCheckpoint(ClientConnections[0], DestroyedActor);
 	}
 }
 
@@ -5049,6 +5049,20 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 	}
 
 	Super::NotifyActorDestroyed(Actor, IsSeamlessTravel);
+}
+
+void UDemoNetDriver::NotifyActorTornOff(AActor* Actor)
+{
+	if (IsRecording())
+	{
+		// Replicate one last time to the replay stream
+		ReplayHelper.ReplicateActor(Actor, ClientConnections[0], true);
+
+		// Handle being pending in a checkpoint save
+		ReplayHelper.RemoveActorFromCheckpoint(ClientConnections[0], Actor);
+	}
+
+	Super::NotifyActorTornOff(Actor);
 }
 
 void UDemoNetDriver::CleanupOutstandingRewindActors()
@@ -5327,7 +5341,7 @@ bool UDemoNetDriver::ShouldReplicateFunction(AActor* Actor, UFunction* Function)
 bool UDemoNetDriver::ShouldReplicateActor(AActor* Actor) const
 {
 	// replicate actors that share the demo net driver name, or actors belonging to the game net driver
-	return (Actor && Actor->GetIsReplicated()) && (Super::ShouldReplicateActor(Actor) || (Actor->GetNetDriverName() == NAME_GameNetDriver));
+	return (Actor && (Actor->GetIsReplicated() || Actor->GetTearOff())) && (Super::ShouldReplicateActor(Actor) || (Actor->GetNetDriverName() == NAME_GameNetDriver));
 }
 
 /*
