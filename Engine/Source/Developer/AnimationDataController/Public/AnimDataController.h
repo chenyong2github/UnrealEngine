@@ -122,19 +122,24 @@ private:
 	bool CheckOuterClass(UClass* InClass) const;
 
 	/** Helper functionality to output script-based warnings and errors */
-	void ReportWarning(const FText& InMessage) const;
-	void ReportError(const FText& InMessage) const;
+	void Report(ELogVerbosity::Type InVerbosity, const FText& InMessage) const;
 
 	template <typename FmtType, typename... Types>
     void ReportWarningf(const FmtType& Fmt, Types... Args) const
 	{	
-		ReportWarning(FText::Format(Fmt, Args...));
+		Report(ELogVerbosity::Warning, FText::Format(Fmt, Args...));
 	}
 
 	template <typename FmtType, typename... Types>
     void ReportErrorf(const FmtType& Fmt, Types... Args) const
 	{
-		ReportError(FText::Format(Fmt, Args...));
+		Report(ELogVerbosity::Error, FText::Format(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void Reportf(ELogVerbosity::Type InLogType, const FmtType& Fmt, Types... Args) const
+	{	
+		Report(InLogType, FText::Format(Fmt, Args...));
 	}
 #endif // WITH_EDITOR
 
