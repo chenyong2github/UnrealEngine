@@ -673,7 +673,7 @@ UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjec
 					}
 					if (FoundObjects.Num() > (MaxObjectsToPrint + 1)) // +1 because we also printed Result's PathName
 					{
-						Message.Appendf(TEXT("or %d other object(s)"), FoundObjects.Num() - (MaxObjectsToPrint + 1));
+						Message.Appendf(TEXT(" or %d other object(s)"), FoundObjects.Num() - (MaxObjectsToPrint + 1));
 					}
 					if (AmbiguousMessageVerbosity == ELogVerbosity::Fatal)
 					{
