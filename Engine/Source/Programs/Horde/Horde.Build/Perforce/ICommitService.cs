@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
@@ -17,6 +18,6 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		/// <param name="onAddCommit">Callback for a new commit being added</param>
 		/// <returns>Disposable handler.</returns>
-		IDisposable AddListener(Action<ICommit> onAddCommit);
+		IAsyncDisposable AddListener(Func<ICommit, Task> onAddCommit);
 	}
 }

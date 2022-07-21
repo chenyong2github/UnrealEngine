@@ -307,8 +307,9 @@ namespace Horde.Build
 			configSection.Bind(settings);
 
 			settings.Validate();
-			
-			services.Configure<CommitServiceOptions>(configSection.GetSection("Replication"));
+
+			services.Configure<CommitServiceOptions>(configSection.GetSection("Commits"));
+			services.Configure<ReplicationServiceOptions>(configSection.GetSection("Replication"));
 
 			if (settings.GlobalThreadPoolMinSize != null)
 			{
@@ -440,6 +441,7 @@ namespace Horde.Build
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
 			services.AddSingleton<ProjectService>();
+			services.AddSingleton<ReplicationService>();
 			services.AddSingleton<ScheduleService>();
 			services.AddSingleton<SlackNotificationSink>();
 			services.AddSingleton<IAvatarService, SlackNotificationSink>(sp => sp.GetRequiredService<SlackNotificationSink>());
@@ -461,7 +463,7 @@ namespace Horde.Build
 			// Storage providers
 			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton<IStorageBackend<ArtifactCollection>>(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
-			services.AddSingleton<ITreeStore<CommitService>>(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<CommitService>());
+			services.AddSingleton<ITreeStore<ReplicationService>>(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<ReplicationService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 
@@ -613,6 +615,7 @@ namespace Horde.Build
 				services.AddHostedService<IssueReportService>();
 				services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
 				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());
+				services.AddHostedService(provider => provider.GetRequiredService<ReplicationService>());
 				if (!settings.DisableSchedules)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<ScheduleService>());

@@ -73,6 +73,7 @@ namespace Horde.Build.Commands.Bundles
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
 			CommitService commitService = serviceProvider.GetRequiredService<CommitService>();
+			ReplicationService replicationService = serviceProvider.GetRequiredService<ReplicationService>();
 			ICommitCollection commitCollection = serviceProvider.GetRequiredService<ICommitCollection>();
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
 			IStorageClient storageClient = serviceProvider.GetRequiredService<IStorageClient>();
@@ -86,14 +87,14 @@ namespace Horde.Build.Commands.Bundles
 			Dictionary<IStream, int> streamToFirstChange = new Dictionary<IStream, int>();
 			streamToFirstChange[stream] = Change;
 
-			CommitNode baseContents;
+			ReplicationNode baseContents;
 			if (BaseChange == 0)
 			{
-				baseContents = new CommitNode(new DirectoryNode());
+				baseContents = new ReplicationNode(new DirectoryNode());
 			}
 			else
 			{
-				baseContents = await commitService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
+				baseContents = await replicationService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
 			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.ClusterName, streamToFirstChange).Take(Count))
@@ -105,7 +106,7 @@ namespace Horde.Build.Commands.Bundles
 
 				if (Content)
 				{
-					baseContents = await commitService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
+					baseContents = await replicationService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
 					BaseChange = newCommit.Change;
 				}
 			}
