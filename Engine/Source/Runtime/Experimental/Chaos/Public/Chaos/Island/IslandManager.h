@@ -177,13 +177,6 @@ public:
 	void SleepIsland(FPBDRigidsSOAs& Particles, const int32 IslandIndex);
 
 	/**
-	  * Wake all particles and constraints in an Island.
-	  * @param Particles used in the islands
-	  * @param IslandIndex Island index to be woken up
-	  */
-	void WakeIsland(FPBDRigidsSOAs& Particles, const int32 IslandIndex);
-
-	/**
 	  * Put particles in inactive islands to sleep.
 	  * @param IslandIndex Island index
 	  * @param PerParticleMaterialAttributes Material attributes that has been set on each particles

@@ -483,11 +483,6 @@ public:
 
 	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles);
 
-	CHAOS_API void WakeIsland(const int32 Island)
-	{
-		ConstraintGraph.WakeIsland(Particles, Island);
-	}
-
 	/** remove a constraint from the constraint graph (see AddConstraintsToConstraintGraph) */
 	CHAOS_API void RemoveConstraintFromConstraintGraph(FConstraintHandle* ConstraintHandle)
 	{

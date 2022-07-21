@@ -64,8 +64,9 @@ namespace ChaosTest
 			++TickCount;
 		}
 
-		void AdvanceUntilSleeping(int32 MaxIterations)
+		void AdvanceUntilSleeping()
 		{
+			const int32 MaxIterations = 50;
 			const int32 MaxTickCount = TickCount + MaxIterations;
 			bool bIsSleeping = false;
 			while (!bIsSleeping && (TickCount < MaxTickCount))
@@ -150,7 +151,7 @@ namespace ChaosTest
 		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
 
 		// Make all the particles sleep
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Island should be asleep
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
@@ -245,7 +246,7 @@ namespace ChaosTest
 		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
 
 		// Wait for the sleep state
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Island should be asleep but still contain all the particles and constraints
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
@@ -329,7 +330,7 @@ namespace ChaosTest
 		FGraphEvolutionTest Test(4);
 		Test.MakeFloor();
 
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Each particle in its own island (kinematic will be in all 3)
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 3);
@@ -372,7 +373,7 @@ namespace ChaosTest
 		FGraphEvolutionTest Test(4);
 		Test.MakeFloor();
 
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Each particle in its own island (kinematic will be in all 3)
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 3);
@@ -415,7 +416,7 @@ namespace ChaosTest
 		FGraphEvolutionTest Test(4);
 		Test.MakeFloor();
 
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Wake D
 		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[3], EObjectStateType::Dynamic);
@@ -468,7 +469,7 @@ namespace ChaosTest
 		FGraphEvolutionTest Test(4);
 		Test.MakeFloor();
 
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// Wake B
 		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[1], EObjectStateType::Dynamic);
@@ -512,12 +513,13 @@ namespace ChaosTest
 	//		(d=dynamic, s=sleeping, k=kinematic)
 	//		As - Bs - Cs - Ds  =>	Ad - Bd - Cd - Dd
 	//
-	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_WakeIsland)
+	// @todo(chaos): Explicit waking of islands is not currently supported
+	GTEST_TEST(GraphEvolutionTests, DISABLED_TestConstraintGraph_WakeIsland)
 	{
 		FGraphEvolutionTest Test(4);
 		Test.MakeChain();
 
-		Test.AdvanceUntilSleeping(50);
+		Test.AdvanceUntilSleeping();
 
 		// All particles asleep
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
@@ -530,7 +532,8 @@ namespace ChaosTest
 		if (Test.IslandManager->NumIslands() == 1)
 		{
 			EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
-			Test.IslandManager->WakeIsland(Test.Particles, 0);
+			EXPECT_TRUE(false);	// Should be calling WakeIsland here
+			//Test.IslandManager->WakeIsland(Test.Particles, 0);
 		}
 
 		Test.Advance();
@@ -587,6 +590,151 @@ namespace ChaosTest
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[2])->Sleeping());
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[3])->Sleeping());
+	}
+
+	// Add a constraint between a sleeping and a kinematic body.
+	// Nothing should wake and the constraint should be flagged as sleeping.
+	// This behaviour is required for streaming to work since scene creation may
+	// be amortized over multiple frames and constraints may be made betweens
+	// sleeping particles in a later tick.
+	//
+	//		(d=dynamic, s=sleeping, k=kinematic)
+	//		Ak  Bs    =>    Ak - Bs
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_SleepingKinematicConstraint)
+	{
+		FGraphEvolutionTest Test(2);
+
+		// Make A kinematic, B sleeping
+		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[0], EObjectStateType::Kinematic);
+		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[1], EObjectStateType::Sleeping);
+
+		Test.Advance();
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+
+		// Add a constraint A-B
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[0], Test.ParticleHandles[1] }));
+
+		Test.Advance();
+
+		// B still asleep
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+	}
+
+	// Add a constraint between two sleeping particles.
+	// Nothing should wake and the constraint should be flagged as sleeping.
+	// This behaviour is required for streaming to work since scene creation may
+	// be amortized over multiple frames and constraints may be made betweens
+	// sleeping particles in a later tick.
+	// In this case, A and B start in different sleeping island and get merged into
+	// a single still-sleeping island.
+	//
+	//		(d=dynamic, s=sleeping, k=kinematic)
+	//		As  Bs    =>    As - Bs
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_SleepingSleepingConstraint)
+	{
+		FGraphEvolutionTest Test(2);
+
+		// Make A and B sleeping
+		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[0], EObjectStateType::Sleeping);
+		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[1], EObjectStateType::Sleeping);
+
+		Test.Advance();
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 2);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+
+		// Add a constraint A-B
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[0], Test.ParticleHandles[1] }));
+
+		Test.Advance();
+
+		// A and B still asleep
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+	}
+
+	// Similar to TestConstraintGraph_SleepingKinematicConstraint, but we are adding a constraint 
+	// between sleeping and kinematic particles that are already in an existing sleeping island
+	// with multiple sleeping constraints.
+	//
+	//		(d=dynamic, s=sleeping, k=kinematic)
+	//		Ak - Bs - Cs  =>    Ak - Bs - Cs
+	//		                     ^--------^
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_SleepingKinematicConstraint_SameIsland)
+	{
+		FGraphEvolutionTest Test(3);
+
+		// Chains the particles and make the first one kinematix
+		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[0], EObjectStateType::Kinematic);
+		Test.MakeChain();
+		
+		// Wait for sleep
+		Test.AdvanceUntilSleeping();
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[2])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[1]->IsSleeping());
+
+		// Add a constraint A - C
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[0], Test.ParticleHandles[2] }));
+
+		Test.Advance();
+
+		// All still asleep, including the new constraint
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[2])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[1]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[2]->IsSleeping());
+	}
+
+	// Similar to TestConstraintGraph_SleepingKinematicConstraint, but we are adding a constraint 
+	// between two sleeping particles in different island, but where each island already contains
+	// sleeping constraints.
+	//
+	//		(d=dynamic, s=sleeping, k=kinematic)
+	//		As - Bs   Cs - Ds  =>    As - Bs - Cs - Ds
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_SleepingSleepingConstraint_MergeIslands)
+	{
+		FGraphEvolutionTest Test(4);
+
+		// Add constraints A-B and C-D
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[0], Test.ParticleHandles[1] }));
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[2], Test.ParticleHandles[3] }));
+
+		// Wait for sleep
+		Test.AdvanceUntilSleeping();
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 2);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[2])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[3])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[1]->IsSleeping());
+
+		// Add a constraint B - C
+		Test.ConstraintHandles.Add(Test.Constraints.AddConstraint({ Test.ParticleHandles[1], Test.ParticleHandles[2] }));
+
+		Test.Advance();
+
+		// All still asleep, including the new constraint
+		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[2])->Sleeping());
+		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[3])->Sleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[1]->IsSleeping());
+		EXPECT_TRUE(Test.ConstraintHandles[2]->IsSleeping());
 	}
 
 }

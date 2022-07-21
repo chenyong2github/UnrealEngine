@@ -399,29 +399,12 @@ void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>&
 		}
 	}
 
-	// For now we are resetting all the constraints but we should keep the persistent constraints.
-	// NOTE: This only removes awake constraints from the graph and it leaves the sleeping ones. This is important for 
+	// For now we are removing all the constraints but really we should keep the persistent constraints and only remove the transients.
+	// NOTE: This only removes constraints from awake islands and it leaves the sleeping ones. This is important for 
 	// persistent collisions because we do not run collision detection on sleeping particles, so we need the graph
 	// to keep it's sleeping edges so we know what collisions to wake when an island is awakened. The constraint
-	// management system also used the sleeping state as a lock to prevent constraint destruction.
+	// management system also uses the sleeping state as a lock to prevent constraint destruction.
 	IslandGraph->InitIslands();
-
-	// If the user explicitly woke any islands, transfer that change to the graph
-	// @todo(chaos): this is not great. If WakeIsland is called before InitializeGraph we set the wake state 
-	// on the graph but it gets reset in InitIslands. Maybe we should reset the state at the end of the tick and
-	// then any user changes could be retained. For now we check to see if the solver sleep state was changed
-	// and if it was, use that to initialize the graph island.
-	for (int32 IslandIndex = 0; IslandIndex < IslandGraph->GraphIslands.GetMaxIndex(); ++IslandIndex)
-	{
-		if (IslandGraph->GraphIslands.IsValidIndex(IslandIndex))
-		{
-			if (IslandGraph->GraphIslands[IslandIndex].IslandItem->SleepingChanged())
-			{
-				IslandGraph->GraphIslands[IslandIndex].bIsSleeping = IslandGraph->GraphIslands[IslandIndex].IslandItem->IsSleeping();
-				IslandGraph->GraphIslands[IslandIndex].IslandItem->ResetSleepingChanged();
-			}
-		}
-	}
 }
 
 void FPBDIslandManager::EndTick()
@@ -562,7 +545,20 @@ void FPBDIslandManager::AddConstraint(const uint32 ContainerId, FConstraintHandl
 			const int32 NodeIndex0 = AddParticle(ConstrainedParticles[0], INDEX_NONE, false);
 			const int32 NodeIndex1 = AddParticle(ConstrainedParticles[1], INDEX_NONE, false);
 
-			IslandGraph->AddEdge(ConstraintHandle, ContainerId, NodeIndex0, NodeIndex1);
+			const int32 EdgeIndex = IslandGraph->AddEdge(ConstraintHandle, ContainerId, NodeIndex0, NodeIndex1);
+
+			// If we were added to a sleeping island, make sure the constraint is flagged as sleeping.
+			// Adding constraints between 2 sleeping particles does not wake them because we need to handle
+			// streaming which may amortize particle and constraint creation over multiple ticks.
+			const FGraphEdge& GraphEdge = IslandGraph->GraphEdges[EdgeIndex];
+			if (GraphEdge.IslandIndex != INDEX_NONE)
+			{
+				const bool bIsSleeping = IslandGraph->GraphIslands[GraphEdge.IslandIndex].bIsSleeping;
+				if (bIsSleeping)
+				{
+					ConstraintHandle->SetIsSleeping(bIsSleeping);
+				}
+			}
 		}
 	}
 }
@@ -893,11 +889,6 @@ void FPBDIslandManager::SleepIsland(FPBDRigidsSOAs& Particles, const int32 Islan
 	ensure(bIslandsPopulated);
 
 	SetIslandSleeping(Particles, IslandIndex, true);
-}
-
-void FPBDIslandManager::WakeIsland(FPBDRigidsSOAs& Particles, const int32 IslandIndex)
-{
-	SetIslandSleeping(Particles, IslandIndex, false);
 }
 
 void FPBDIslandManager::SetIslandSleeping(FPBDRigidsSOAs& Particles, const int32 IslandIndex, const bool bIsSleeping)

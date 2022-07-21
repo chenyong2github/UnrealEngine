@@ -837,6 +837,12 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateGraph()
 {
 	SCOPE_CYCLE_COUNTER(STAT_MergeIslandGraph);
 
+	// Default to sleeping - the flag will get cleared if an island contains anything that should wake it
+	for (auto& GraphIsland : GraphIslands)
+	{
+		GraphIsland.bIsSleeping = true;
+	}
+
 	// Merge all the islands if necessary
 	MergeIslands();
 
@@ -926,13 +932,6 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::InitIslands()
 			}
 		}
 	} 
-
-	// Reset of the sleeping flag for the graph islands
-	// See UpdateGraph() which sets it to false again if there are any awake nodes
-	for (auto& GraphIsland : GraphIslands)
-	{
-		GraphIsland.bIsSleeping = true;
-	}
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
