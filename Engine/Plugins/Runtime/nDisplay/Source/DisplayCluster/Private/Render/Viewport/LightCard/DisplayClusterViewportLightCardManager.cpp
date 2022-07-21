@@ -129,7 +129,7 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 				}
 			}
 
-			ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManager_InitializeUVLightCardMap)(
+			ENQUEUE_RENDER_COMMAND(DisplayClusterViewportLightCardManager_RenderFrame)(
 				[InProxyData = ProxyData, bLoadedPrimitives, SceneInterface](FRHICommandListImmediate& RHICmdList)
 				{
 					InProxyData->RenderLightCardMap_RenderThread(RHICmdList, bLoadedPrimitives, SceneInterface);
