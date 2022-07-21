@@ -7,9 +7,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionHandle.h"
-#include "Misc/Base64.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "UObject/ObjectSaveContext.h"
-#include "UObject/CoreRedirects.h"
 #include "Engine/World.h"
 
 UActorDescContainer::FActorDescContainerInitializeDelegate UActorDescContainer::OnActorDescContainerInitialized;
@@ -49,62 +48,9 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 		AssetRegistry.GetAssets(Filter, Assets);
 	}
 
-	auto GetActorDescriptor = [this](const FAssetData& InAssetData) -> TUniquePtr<FWorldPartitionActorDesc>
-	{
-		FString ActorMetaDataClass;
-		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-		if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass))
-		{
-			FString ActorMetaDataStr;
-			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-			if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
-			{
-				FString ActorClassName;
-				FString ActorPackageName;
-				if (!ActorMetaDataClass.Split(TEXT("."), &ActorPackageName, &ActorClassName))
-				{
-					ActorClassName = *ActorMetaDataClass;
-				}
-
-				// Look for a class redirectors
-				FCoreRedirectObjectName OldClassName = FCoreRedirectObjectName(*ActorClassName, NAME_None, *ActorPackageName);
-				FCoreRedirectObjectName NewClassName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldClassName);
-
-				bool bIsValidClass = true;
-				UClass* ActorClass = UClass::TryFindTypeSlow<UClass>(NewClassName.ToString(), EFindFirstObjectOptions::ExactClass);
-
-				if (!ActorClass)
-				{
-					ActorClass = AActor::StaticClass();
-					bIsValidClass = false;
-				}
-
-				FWorldPartitionActorDescInitData ActorDescInitData;
-				ActorDescInitData.NativeClass = ActorClass;
-				ActorDescInitData.PackageName = InAssetData.PackageName;
-				ActorDescInitData.ActorPath = InAssetData.ObjectPath;
-				FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
-
-				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));
-
-				NewActorDesc->Init(ActorDescInitData);
-			
-				if (!bIsValidClass)
-				{
-					UE_LOG(LogWorldPartition, Warning, TEXT("Invalid class `%s` for actor guid `%s` ('%s') from package '%s'"), *NewClassName.ToString(), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
-					return nullptr;
-				}
-
-				return NewActorDesc;
-			}
-		}
-
-		return nullptr;
-	};
-
 	for (const FAssetData& Asset : Assets)
 	{
-		TUniquePtr<FWorldPartitionActorDesc> ActorDesc = GetActorDescriptor(Asset);
+		TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
 
 		if (ActorDesc.IsValid())
 		{
@@ -201,21 +147,14 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				check(IsValidChecked(Actor));
 				if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 				{
+					// Existing actor
 					OnActorDescUpdating(ExistingActorDesc->Get());
-
-					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
-
-					// Transfer any internal values not coming from the actor
-					NewActorDesc->TransferFrom(ExistingActorDesc->Get());
-
-					// This moves the TUniquePtr (not the content of the actor desc)
-					*ExistingActorDesc = MoveTemp(NewActorDesc);
-
+					FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(Actor, *ExistingActorDesc);
 					OnActorDescUpdated(ExistingActorDesc->Get());
 				}
-				// New actor
 				else
 				{
+					// New actor
 					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
 					OnActorDescAdded(AddedActorDesc);
 				}
@@ -237,16 +176,14 @@ void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 void UActorDescContainer::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap)
 {
 	// Patch up Actor pointers in ActorDescs
-	for (auto Iter = OldToNewObjectMap.CreateConstIterator(); Iter; ++Iter)
+	for (auto [OldObject, NewObject] : OldToNewObjectMap)
 	{
-		if (AActor* OldActor = Cast<AActor>(Iter->Key))
+		if (AActor* OldActor = Cast<AActor>(OldObject))
 		{
+			AActor* NewActor = CastChecked<AActor>(NewObject);
 			if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(OldActor->GetActorGuid()))
-			{
-				if (ActorDesc->GetActor() == OldActor)
-				{
-					ActorDesc->ActorPtr = Cast<AActor>(Iter->Value);
-				}
+			{				
+				FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(OldActor, NewActor, ActorDesc);
 			}
 		}
 	}

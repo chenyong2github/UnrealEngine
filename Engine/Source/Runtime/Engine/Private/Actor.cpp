@@ -69,6 +69,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -492,54 +493,10 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void AActor::GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetExtendedAssetRegistryTagsForSave(TargetPlatform, OutTags);
-
+	
 	if (IsPackageExternal() && !IsChildActor())
 	{
-		TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
-
-		// If the actor is not added to a world, we can't retrieve its bounding volume, so try to get the existing one
-		if (ULevel* Level = GetLevel(); !Level || !Level->Actors.Contains(this))
-		{
-			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-
-			FARFilter Filter;
-			Filter.bIncludeOnlyOnDiskAssets = true;
-			Filter.PackageNames.Add(GetPackage()->GetFName());
-
-			TArray<FAssetData> Assets;
-			AssetRegistry.GetAssets(Filter, Assets);
-
-			if (Assets.Num() == 1)
-			{
-				const FAssetData& InAssetData = Assets[0];
-
-				FString ActorMetaDataStr;
-				static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-				if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
-				{
-					FWorldPartitionActorDescInitData ActorDescInitData;
-					ActorDescInitData.NativeClass = AActor::StaticClass();
-					ActorDescInitData.PackageName = InAssetData.PackageName;
-					ActorDescInitData.ActorPath = InAssetData.ObjectPath;
-					FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
-
-					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));
-					NewActorDesc->Init(ActorDescInitData);
-
-					ActorDesc->TransferWorldData(NewActorDesc.Get());
-				}
-			}
-		}
-
-		const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetPathName();
-		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-		OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
-
-		TArray<uint8> SerializedData;
-		ActorDesc->SerializeTo(SerializedData);
-		const FString ActorMetaData = FBase64::Encode(SerializedData);
-		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-		OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
+		FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(this, OutTags);
 	}
 }
 

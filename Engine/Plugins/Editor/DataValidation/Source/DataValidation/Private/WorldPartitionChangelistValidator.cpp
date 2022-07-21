@@ -11,6 +11,7 @@
 
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
@@ -78,8 +79,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 	auto TryAssociateAssetDataToMap = [&MapToActorsFiles](const FAssetData& AssetData)
 	{
 		// Check that the asset is an actor
-		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-		if (AssetData.TagsAndValues.Contains(NAME_ActorMetaDataClass)) // Could check AssetData.GetClass()->IsChildOf<AActor>() but this doesn't handle blueprints, all OFPA/WP Actors will have this tag
+		if (FWorldPartitionActorDescUtils::IsValidActorDescriptorFromAssetData(AssetData))
 		{
 			// WorldPartition actors are all in OFPA mode so they're external
 			// Extract the MapName from the ObjectPath (<PathToPackage>.<mapName>:<level>.<actorName>)

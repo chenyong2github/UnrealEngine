@@ -61,10 +61,10 @@ inline bool CompareUnsortedArrays(const TArray<FName>& Array1, const TArray<FNam
 class ENGINE_API FWorldPartitionActorDesc
 {
 	friend class AActor;
-	friend class UActorDescContainer;
 	friend class UWorldPartition;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
+	friend struct FWorldPartitionActorDescUtils;
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
