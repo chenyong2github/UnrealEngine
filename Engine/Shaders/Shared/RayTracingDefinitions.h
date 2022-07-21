@@ -9,7 +9,7 @@
 
 // Change this to force recompilation of all ray tracing shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
 // This avoids changing the global ShaderVersion.ush and forcing recompilation of all shaders in the engine (only RT shaders will be affected)
-#define RAY_TRACING_SHADER_VERSION 0x41d29fc9 
+#define RAY_TRACING_SHADER_VERSION 0x11241B50
 
 #define RAY_TRACING_REGISTER_SPACE_LOCAL  0 // default register space for hit group (closest hit, any hit, intersection) shader resources
 #define RAY_TRACING_REGISTER_SPACE_GLOBAL 1 // register space for ray generation and miss shaders 
