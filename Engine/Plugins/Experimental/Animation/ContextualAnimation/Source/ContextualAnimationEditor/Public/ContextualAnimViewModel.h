@@ -8,6 +8,7 @@
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimMovieSceneSequence.h"
 #include "ISequencer.h"
+#include "EditorUndoClient.h"
 
 class UWorld;
 class FContextualAnimPreviewScene;
@@ -29,7 +30,7 @@ struct FMovieSceneSectionMovedParams;
 struct FContextualAnimNewAnimSetParams;
 struct FContextualAnimTrack;
 
-class FContextualAnimViewModel : public TSharedFromThis<FContextualAnimViewModel>, public FGCObject
+class FContextualAnimViewModel : public TSharedFromThis<FContextualAnimViewModel>, public FGCObject, public FSelfRegisteringEditorUndoClient
 {
 public:
 
@@ -52,6 +53,11 @@ public:
 	// ~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("FContextualAnimViewModel"); }
+
+	// ~ FEditorUndoClient
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
@@ -103,6 +109,12 @@ public:
 	bool ShouldPreviewSceneDrawWidget() const;
 	bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
 	FVector GetWidgetLocationFromSelection() const;
+	bool StartTracking();
+	bool EndTracking();
+
+	bool IsChangeToActorTransformInSceneWaitingForConfirmation() const;
+	void ApplyChangeToActorTransformInScene();
+	void DiscardChangeToActorTransformInScene();
 
 private:
 
@@ -174,6 +186,16 @@ private:
 
 	TWeakObjectPtr<UAnimSequenceBase> EditingAnimation = nullptr;
 
+	/** Enum to track the current state when modifying the transform of an actor in the scene */
+	enum class EModifyActorTransformInSceneState : uint8 {  Inactive, Modifying, WaitingForConfirmation };
+	EModifyActorTransformInSceneState ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Inactive;
+
+	/** New MeshToScene value for the selected actor. Updated while dragging the actor around. Only committed when the user confirms the operation */
+	FTransform NewMeshToSceneTransform = FTransform::Identity;
+
+	/** Selected actor when the user starts modifying its transform in the scene */
+	TWeakObjectPtr<AActor> ModifyingTransformInSceneCachedActor;
+
 	AActor* SpawnPreviewActor(const FContextualAnimTrack& AnimTrack);
 
 	UWorld* GetWorld() const;
@@ -187,4 +209,6 @@ private:
 	void OnAnimNotifyChanged(UAnimSequenceBase* Animation);
 
 	void CreateSequencer();
+
+	bool WantsToModifyMeshToSceneForSelectedActor() const;
 };

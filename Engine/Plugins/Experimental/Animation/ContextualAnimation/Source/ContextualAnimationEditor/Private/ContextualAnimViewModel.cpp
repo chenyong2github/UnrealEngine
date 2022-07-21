@@ -33,6 +33,9 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
 #include "ContextualAnimSelectionCriterion.h"
+#include "ScopedTransaction.h"
+
+#define LOCTEXT_NAMESPACE "ContextualAnimViewModel"
 
 FContextualAnimViewModel::FContextualAnimViewModel()
 	: SceneAsset(nullptr)
@@ -504,6 +507,8 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 
 		SetDefaultMode();
 	}
+
+	ClearSelection();
 };
 
 void FContextualAnimViewModel::StartSimulation()
@@ -538,7 +543,23 @@ void FContextualAnimViewModel::UpdatePreviewActorTransform(const FContextualAnim
 {
 	if (AActor* PreviewActor = Binding.GetActor())
 	{
-		FTransform Transform = Binding.GetAnimTrack().GetRootTransformAtTime(Time);
+		FTransform Transform = FTransform::Identity;
+
+		// When modifying the actor transform, use the 'temp' transform instead of the one saved in the asset
+		// This allows the user to scrub the time line while maintaining the new MeshToScene transform 
+		if(ModifyingActorTransformInSceneState != EModifyActorTransformInSceneState::Inactive && Binding.GetActor() == ModifyingTransformInSceneCachedActor.Get())
+		{
+			if (Binding.GetAnimTrack().Animation)
+			{
+				Transform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(Binding.GetAnimTrack().Animation, Time);
+			}
+
+			Transform *= NewMeshToSceneTransform;
+		}
+		else
+		{
+			Transform = Binding.GetAnimTrack().GetRootTransformAtTime(Time);
+		}
 
 		// Special case for Character
 		if (ACharacter* PreviewCharacter = Cast<ACharacter>(PreviewActor))
@@ -698,6 +719,13 @@ void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 	const FContextualAnimSceneBinding* Binding = SceneInstance.IsValid() ? SceneInstance->FindBindingByActor(SelectedActor) : nullptr;
 	if (Binding)
 	{
+		// Discard changes if we were modifying the transform of an actor in the scene but never confirmed the changes before selecting a different actor
+		if(ModifyingActorTransformInSceneState == EModifyActorTransformInSceneState::WaitingForConfirmation && 
+			Binding->GetActor() != ModifyingTransformInSceneCachedActor.Get())
+		{
+			DiscardChangeToActorTransformInScene();
+		}
+
 		UpdateSelection(Binding->GetRoleDef().Name);
 	}
 	else
@@ -801,13 +829,17 @@ bool FContextualAnimViewModel::ProcessInputDelta(FVector& InDrag, FRotator& InRo
 
 			return true;
 		}
-		else if (FContextualAnimSceneBinding* Binding = GetSelectedBinding())
+		else if (ModifyingActorTransformInSceneState == EModifyActorTransformInSceneState::Modifying)
 		{
-			FTransform& MeshToSpaceTransform = (const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()))->MeshToScene;
-			MeshToSpaceTransform.SetLocation(MeshToSpaceTransform.GetLocation() + InDrag);
-			MeshToSpaceTransform.SetRotation(FQuat(InRot) * MeshToSpaceTransform.GetRotation());
-
-			UpdatePreviewActorTransform(*Binding, Sequencer->GetGlobalTime().AsSeconds());
+			if (WantsToModifyMeshToSceneForSelectedActor())
+			{
+				if (AActor* SelectedActor = GetSelectedActor())
+				{
+					NewMeshToSceneTransform.SetLocation(NewMeshToSceneTransform.GetLocation() + InDrag);
+					NewMeshToSceneTransform.SetRotation(FQuat(InRot) * NewMeshToSceneTransform.GetRotation());
+					SelectedActor->SetActorLocationAndRotation(SelectedActor->GetActorLocation() + InDrag, SelectedActor->GetActorRotation() + InRot);
+				}
+			}
 
 			return true;
 		}
@@ -840,13 +872,21 @@ bool FContextualAnimViewModel::GetCustomDrawingCoordinateSystem(FMatrix& InMatri
 	return false;
 }
 
+bool FContextualAnimViewModel::WantsToModifyMeshToSceneForSelectedActor() const
+{
+	//@TODO: Communicate this to the user somehow
+	return FSlateApplication::Get().GetModifierKeys().IsShiftDown();
+}
+
 bool FContextualAnimViewModel::ShouldPreviewSceneDrawWidget() const
 {
-	// When Simulate Mode is inactive we show the widget if an editable selection criterion is selected (only Trigger Area for now) or if an actor is selected
+	// When Simulate Mode is inactive we show the widget if an editable selection criterion is selected (only Trigger Area for now) 
+	// or if an actor is selected and user wants to modify the MeshToScene transform
 	if (IsSimulateModeInactive())
 	{
 		const UContextualAnimSelectionCriterion* SelectionCriterion = GetSelectedSelectionCriterion();
-		return ((SelectionCriterion && SelectionCriterion->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>()) || GetSelectedActor());
+		return ((SelectionCriterion && SelectionCriterion->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>()) ||
+			(WantsToModifyMeshToSceneForSelectedActor() && GetSelectedActor()));
 	}
 	// When Simulate Mode is Paused we show the widget if an actor is selected, so the user can modify the position of any of the actor before triggering the interaction
 	else if (IsSimulateModePaused())
@@ -890,6 +930,79 @@ FVector FContextualAnimViewModel::GetWidgetLocationFromSelection() const
 	return FVector::ZeroVector;
 }
 
+bool FContextualAnimViewModel::StartTracking()
+{
+	if (IsSimulateModeInactive() && WantsToModifyMeshToSceneForSelectedActor())
+	{
+		if (const FContextualAnimSceneBinding* Binding = GetSelectedBinding())
+		{
+			NewMeshToSceneTransform = Binding->GetAnimTrack().MeshToScene;
+			ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Modifying;
+			ModifyingTransformInSceneCachedActor = Binding->GetActor();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FContextualAnimViewModel::EndTracking()
+{
+	if (ModifyingActorTransformInSceneState == EModifyActorTransformInSceneState::Modifying)
+	{
+		const FContextualAnimSceneBinding* Binding = GetSelectedBinding();
+		if (Binding && !Binding->GetAnimTrack().MeshToScene.Equals(NewMeshToSceneTransform))
+		{
+			ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::WaitingForConfirmation;
+		}
+		else
+		{
+			ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Inactive;
+			ModifyingTransformInSceneCachedActor.Reset();
+		}
+
+		return true;		
+	}
+
+	return false;
+}
+
+bool FContextualAnimViewModel::IsChangeToActorTransformInSceneWaitingForConfirmation() const
+{
+	const FContextualAnimSceneBinding* Binding = GetSelectedBinding();
+	return (Binding && Binding->GetActor() == ModifyingTransformInSceneCachedActor.Get() && ModifyingActorTransformInSceneState == EModifyActorTransformInSceneState::WaitingForConfirmation);
+}
+
+void FContextualAnimViewModel::ApplyChangeToActorTransformInScene()
+{
+	const FContextualAnimSceneBinding* Binding = GetSelectedBinding();
+	if(Binding && Binding->GetActor() == ModifyingTransformInSceneCachedActor.Get())
+	{
+		FScopedTransaction Transaction(LOCTEXT("ModifyMeshToSceneTransform", "Modify MeshToScene Transform"));
+		SceneAsset->Modify();
+
+		FTransform& MeshToSpaceTransform = (const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()))->MeshToScene;
+		MeshToSpaceTransform = NewMeshToSceneTransform;
+
+		UpdatePreviewActorTransform(*Binding, Sequencer->GetGlobalTime().AsSeconds());
+	}
+	
+	ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Inactive;
+	ModifyingTransformInSceneCachedActor.Reset();
+}
+
+void FContextualAnimViewModel::DiscardChangeToActorTransformInScene()
+{
+	ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Inactive;
+
+	if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByActor(ModifyingTransformInSceneCachedActor.Get()))
+	{
+		UpdatePreviewActorTransform(*Binding, Sequencer->GetGlobalTime().AsSeconds());
+	}
+
+	ModifyingTransformInSceneCachedActor.Reset();
+}
+
 void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -903,3 +1016,40 @@ void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChang
 		SetDefaultMode();
 	}
 }
+
+bool FContextualAnimViewModel::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	// Ensure that we only react to modifications to the SceneAsset
+	if (SceneAsset)
+	{
+		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjectContexts)
+		{
+			UObject* Object = TransactionObjectPair.Key;
+			while (Object != nullptr)
+			{
+				if (Object == SceneAsset)
+				{
+					return true;
+				}
+
+				Object = Object->GetOuter();
+			}
+		}
+	}
+
+	return false;
+}
+
+void FContextualAnimViewModel::PostUndo(bool bSuccess)
+{
+	// Refresh everything after a Undo operation
+	SetDefaultMode();
+}
+
+void FContextualAnimViewModel::PostRedo(bool bSuccess)
+{
+	// Refresh everything after a Redo operation
+	SetDefaultMode();
+}
+
+#undef LOCTEXT_NAMESPACE

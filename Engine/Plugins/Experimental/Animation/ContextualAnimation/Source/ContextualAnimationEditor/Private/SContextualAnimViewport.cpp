@@ -6,6 +6,12 @@
 #include "ContextualAnimAssetEditorCommands.h"
 #include "ContextualAnimEditorStyle.h"
 #include "ContextualAnimAssetEditorToolkit.h"
+#include "ContextualAnimViewModel.h"
+#include "Styling/AppStyle.h"
+#include "EditorFontGlyphs.h"
+#include "Widgets/Input/SButton.h"
+
+#define LOCTEXT_NAMESPACE "ContextualAnimViewport"
 
 void SContextualAnimViewport::Construct(const FArguments& InArgs, const FContextualAnimViewportRequiredArgs& InRequiredArgs)
 {
@@ -17,6 +23,137 @@ void SContextualAnimViewport::Construct(const FArguments& InArgs, const FContext
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		.AddMetaData<FTagMetaData>(TEXT("AnimationTools.Viewport"))
 	);
+
+	auto GetNotificationText = [this]()
+	{
+		return LOCTEXT("MeshToSceneChangeConfirmText", "Apply changes to the transform of the actor in the scene?");
+	};
+
+	auto GetNotificationVisibility = [this]()
+	{
+		return AssetEditorToolkitPtr.Pin()->GetViewModel()->IsChangeToActorTransformInSceneWaitingForConfirmation() ? EVisibility::Visible : EVisibility::Hidden;
+	};
+
+	auto ApplyChanges = [this]()
+	{
+		AssetEditorToolkitPtr.Pin()->GetViewModel()->ApplyChangeToActorTransformInScene();
+		return FReply::Handled();
+	};
+
+	auto CancelChanges = [this]()
+ 	{
+		AssetEditorToolkitPtr.Pin()->GetViewModel()->DiscardChangeToActorTransformInScene();
+		return FReply::Handled();
+	};
+
+	ViewportOverlay->AddSlot()
+	[
+		SNew(SVerticalBox)
+		.Visibility_Lambda(GetNotificationVisibility)
+		+ SVerticalBox::Slot()
+		.FillHeight(1)
+		[
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			.Padding(8)
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush("AnimViewport.Notification.Warning"))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.Padding(4.0f, 4.0f)
+					[
+						SNew(SHorizontalBox)
+						.ToolTipText_Lambda(GetNotificationText)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+						[
+							SNew(STextBlock)
+							.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
+							.Text(FEditorFontGlyphs::Exclamation_Triangle)
+						]
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.FillWidth(1.0f)
+						[
+							SNew(STextBlock)
+							.Text_Lambda(GetNotificationText)
+							.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2.0f, 0.0f)
+					[
+						SNew(SButton)
+						.ForegroundColor(FSlateColor::UseForeground())
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+						.ToolTipText_Lambda(GetNotificationText)
+						.OnClicked_Lambda(ApplyChanges)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+							[
+								SNew(STextBlock)
+								.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
+								.Text(FEditorFontGlyphs::Pencil)
+							]
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+								.Text(LOCTEXT("ApplyButtonText", "Apply"))
+							]
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2.0f, 0.0f)
+					[
+						SNew(SButton)
+						.ForegroundColor(FSlateColor::UseForeground())
+						.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+						.ToolTipText(LOCTEXT("DiscardMeshToSceneChangeToolTip", "Discard changes to the transform of the actor in the scene."))
+						.OnClicked_Lambda(CancelChanges)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+							[
+								SNew(STextBlock)
+								.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
+								.Text(FEditorFontGlyphs::Times)
+							]
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.TextStyle(FAppStyle::Get(), "AnimViewport.MessageText")
+								.Text(LOCTEXT("CancelButtonText", "Cancel"))
+							]
+						]
+					]
+				]
+			]
+		]
+	];
 }
 
 const FSlateBrush* SContextualAnimViewport::OnGetViewportBorderBrush() const
@@ -92,3 +229,5 @@ TSharedPtr<FExtender> SContextualAnimViewport::GetExtenders() const
 void SContextualAnimViewport::OnFloatingButtonClicked()
 {
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -204,11 +204,21 @@ bool FContextualAnimEdMode::GetHitResultUnderCursor(FHitResult& OutHitResult, FE
 
 bool FContextualAnimEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	if (ViewModel)
+	{
+		return ViewModel->StartTracking();
+	}
+
 	return FEdMode::StartTracking(InViewportClient, InViewport);
 }
 
 bool FContextualAnimEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	if (ViewModel)
+	{
+		return ViewModel->EndTracking();
+	}
+
 	return FEdMode::EndTracking(InViewportClient, InViewport);
 }
 
