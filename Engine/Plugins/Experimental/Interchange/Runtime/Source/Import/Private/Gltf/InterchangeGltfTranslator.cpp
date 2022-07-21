@@ -351,7 +351,9 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 	//Based on the gltf specification the basecolor and emissive textures have SRGB colors:
 	SetTextureSRGB(NodeContainer, GltfMaterial.BaseColor);
 	SetTextureSRGB(NodeContainer, GltfMaterial.Emissive);
-	//According to GLTF documentation the normal maps should have their green channel flipped:
+	//According to GLTF documentation the normal maps are right handed (following OpenGL convention),
+	//however UE expects left handed normal maps, this can be resolved by flipping the green channel of the normal textures:
+	//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
 	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.Normal);
 	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.ClearCoat.NormalMap);
 

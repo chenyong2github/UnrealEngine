@@ -1032,22 +1032,12 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		{
 			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
 			{
-				TextureFactoryNode->SetCustomSRGB(false);
-			}
-		}
-
-		if(bool bSRGB; TextureNode->GetCustomSRGB(bSRGB))
-		{
-			if(UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
-			{
-				TextureFactoryNode->SetCustomSRGB(bSRGB);
-			}
-		}
-		if (bool bFlipGreenChannel; TextureNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
-		{
-			if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
-			{
-				TextureFactoryNode->SetCustombFlipGreenChannel(bFlipGreenChannel);
+				bool bSRGB;
+				if (!TextureNode->GetCustomSRGB(bSRGB))
+				{
+					//Only set CustomSRGB if it wasn't set by the InterchangeGenericTexturePipeline before
+					TextureFactoryNode->SetCustomSRGB(false);
+				}
 			}
 		}
 	}

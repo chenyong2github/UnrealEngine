@@ -271,6 +271,15 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 		}
 	}
 
+	if (bool bSRGB; TextureNode->GetCustomSRGB(bSRGB))
+	{
+		TextureFactoryNode->SetCustomSRGB(bSRGB);
+	}
+	if (bool bFlipGreenChannel; TextureNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
+	{
+		TextureFactoryNode->SetCustombFlipGreenChannel(bFlipGreenChannel);
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (TextureFactoryNode)
 	{
