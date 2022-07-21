@@ -6852,6 +6852,11 @@ static UE::DerivedData::FCacheKey GetGlobalShaderMapKey(const FGlobalShaderMapId
 	static const UE::DerivedData::FCacheBucket Bucket("GlobalShaderMap");
 	return {Bucket, FIoHash::HashBuffer(MakeMemoryView(FTCHARToUTF8(DataKey)))};
 }
+
+static UE::DerivedData::FSharedString GetGlobalShaderMapName(const FGlobalShaderMapId& ShaderMapId, EShaderPlatform Platform, const FString& Key)
+{
+	return UE::DerivedData::FSharedString(WriteToString<256>(TEXTVIEW("GlobalShaderMap ["), LegacyShaderPlatformToShaderFormat(Platform), TEXTVIEW(", "), Key, TEXTVIEW("]")));
+}
 #endif
 
 /** Saves the platform's shader map to the DDC. It is assumed that the caller will check IsComplete() first before calling the function. */
@@ -6881,7 +6886,7 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 
 			using namespace UE::DerivedData;
 			FCachePutValueRequest Request;
-			Request.Name = TEXTVIEW("GlobalShaderMap");
+			Request.Name = GetGlobalShaderMapName(ShaderMapId, Platform, ShaderFilenameDependencies.Key);
 			Request.Key = GetGlobalShaderMapKey(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
 			Request.Value = FValue::Compress(MakeSharedBufferFromArray(MoveTemp(SaveData)));
 			FRequestOwner AsyncOwner(EPriority::Normal);
@@ -7169,7 +7174,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 				for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 				{
 					FCacheGetValueRequest& Request = Requests.AddDefaulted_GetRef();
-					Request.Name = WriteToString<128>(TEXT("GlobalShaderMap "), LegacyShaderPlatformToShaderFormat(Platform));
+					Request.Name = GetGlobalShaderMapName(ShaderMapId, Platform, ShaderFilenameDependencies.Key);
 					Request.Key = GetGlobalShaderMapKey(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
 					Request.UserData = uint64(BufferIndex);
 					++BufferIndex;
