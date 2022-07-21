@@ -1976,10 +1976,7 @@ void FGeometryCollectionPhysicsProxy::SetWorldTransform_External(const FTransfor
 
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		RBDSolver->EnqueueCommandImmediate([this, RBDSolver]()
-		{
-			RBDSolver->AddDirtyProxy(this);
-		});
+		RBDSolver->AddDirtyProxy(this);
 	}
 }
 
