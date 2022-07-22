@@ -226,7 +226,7 @@ FPCGLandscapeCache::FPCGLandscapeCache(UObject* InOwner)
 #endif
 }
 
-void FPCGLandscapeCache::SetOwner(UObject* InOwner)
+void FPCGLandscapeCache::SetOwner(UObject* InOwner, bool bUpdateCachedNames)
 {
 	check(!Owner || Owner == InOwner || InOwner == nullptr);
 	Owner = InOwner;
@@ -240,7 +240,10 @@ void FPCGLandscapeCache::SetOwner(UObject* InOwner)
 		TeardownLandscapeCallbacks();
 	}
 
-	CacheLayerNames();
+	if (bUpdateCachedNames)
+	{
+		CacheLayerNames();
+	}
 #endif
 }
 

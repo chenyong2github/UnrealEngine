@@ -64,7 +64,7 @@ public:
 	~FPCGLandscapeCache();
 	FPCGLandscapeCache(UObject* InOwner);
 
-	void SetOwner(UObject* InOwner);
+	void SetOwner(UObject* InOwner, bool bUpdateCachedLayerNames = true);
 	void PrimeCache();
 	void ClearCache();
 

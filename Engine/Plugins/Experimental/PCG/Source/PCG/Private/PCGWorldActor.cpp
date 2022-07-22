@@ -42,7 +42,7 @@ void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* Targ
 void APCGWorldActor::PostLoad()
 {
 	Super::PostLoad();
-	LandscapeCache.SetOwner(this);
+	LandscapeCache.SetOwner(this, /*bUpdateCachedNames=*/false);
 	RegisterToSubsystem();
 }
 
