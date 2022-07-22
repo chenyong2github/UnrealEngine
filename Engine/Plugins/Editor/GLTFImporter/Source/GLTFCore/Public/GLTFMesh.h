@@ -72,7 +72,7 @@ namespace GLTF
 		bool HasNormals() const;
 		void GetNormals(TArray<FVector3f>& Buffer) const;
 		bool HasTangents() const;
-		void GetTangents(TArray<FVector3f>& Buffer) const;
+		void GetTangents(TArray<FVector4f>& Buffer) const;
 		bool HasTexCoords(uint32 Index) const;
 		void GetTexCoords(uint32 Index, TArray<FVector2f>& Buffer) const;
 		void GetColors(TArray<FVector4f>& Buffer) const;

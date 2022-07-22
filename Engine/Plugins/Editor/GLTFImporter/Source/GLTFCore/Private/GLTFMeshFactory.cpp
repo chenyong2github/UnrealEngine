@@ -16,7 +16,7 @@ namespace GLTF
 	public:
 		FMeshFactoryImpl();
 
-		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, bool bSkipTangents);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
 
 		void CleanUp();
 
@@ -71,14 +71,14 @@ namespace GLTF
 		enum
 		{
 			NormalBufferIndex = 0,
-			TangentBufferIndex = 1,
-			PositionBufferIndex = 2,
-			ReindexBufferIndex = 3,
-			VectorBufferCount = 4,
+			PositionBufferIndex = 1,
+			ReindexBufferIndex = 2,
+			VectorBufferCount = 3,
 			UvReindexBufferIndex = MAX_MESH_TEXTURE_COORDS_MD,
 			ColorBufferIndex = 0,
-			Reindex4dBufferIndex = 1,
-			Vector4dBufferCount = 2,
+			TangentBufferIndex = 1,
+			Reindex4dBufferIndex = 2,
+			Vector4dBufferCount = 3,
 		};
 
 		using FIndexVertexIdMap = TMap<int32, FVertexID>;
@@ -159,8 +159,10 @@ namespace GLTF
 		CornerVertexInstanceIDs.SetNum(3);
 	}
 
-	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription, bool bSkipTangents)
+	void FMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription)
 	{
+		const bool bSkipTangents = !Mesh.HasNormals(); // Per the GLTF spec, tangents should be ignored if no normals are provided
+
 		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
 
 		FStaticMeshAttributes StaticMeshAttributes(*MeshDescription);
@@ -259,7 +261,7 @@ namespace GLTF
 	bool FMeshFactoryImpl::ImportPrimitive(const GLTF::FPrimitive&                        Primitive,  //
 		int32                                          PrimitiveIndex,
 		int32                                          NumUVs,
-		bool                                           bMeshHasTagents,
+		bool                                           bMeshHasTangents,
 		bool                                           bMeshHasColors,
 		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceNormals,
 		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
@@ -297,18 +299,18 @@ namespace GLTF
 			GenerateFlatNormals(Positions, Indices, Normals);
 		}
 
-		TArray<FVector3f>& Tangents = GetVectorBuffer(TangentBufferIndex);
+		TArray<FVector4f>& Tangents = GetVector4dBuffer(TangentBufferIndex);
 		if (Primitive.HasTangents())
 		{
-			TArray<FVector3f>& ReindexBuffer = GetVectorBuffer(ReindexBufferIndex);
+			TArray<FVector4f>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
 			Primitive.GetTangents(Tangents);
 			ReIndex(Tangents, Indices, ReindexBuffer);
 			Swap(Tangents, ReindexBuffer);
 		}
-		else if (bMeshHasTagents)
+		else if (bMeshHasTangents)
 		{
 			// If other primitives in this mesh have tangents, generate filler ones for this primitive, to avoid gaps.
-			Tangents.Init(FVector3f(0.0f, 0.0f, 1.0f), Primitive.VertexCount());
+			Tangents.Init(FVector4f(1.0f, 0.0f, 0.0f, 1.0f), Primitive.VertexCount());
 		}
 
 		TArray<FVector4f>& Colors = GetVector4dBuffer(ColorBufferIndex);
@@ -381,10 +383,7 @@ namespace GLTF
 				if (!bSkipTangents && Tangents.Num() > 0)
 				{
 					VertexInstanceTangents[VertexInstanceID] = Tangents[IndiceIndex];
-					VertexInstanceBinormalSigns[VertexInstanceID] =
-						GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceID].GetSafeNormal(),
-							(FVector)(VertexInstanceNormals[VertexInstanceID] ^ VertexInstanceTangents[VertexInstanceID]).GetSafeNormal(),
-							(FVector)VertexInstanceNormals[VertexInstanceID].GetSafeNormal());
+					VertexInstanceBinormalSigns[VertexInstanceID] = Tangents[IndiceIndex].W;
 				}
 
 				for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
@@ -444,9 +443,9 @@ namespace GLTF
 
 	FMeshFactory::~FMeshFactory() {}
 
-	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, bool bSkipTangents)
+	void FMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription)
 	{
-		Impl->FillMeshDescription(Mesh, MeshDescription, bSkipTangents);
+		Impl->FillMeshDescription(Mesh, MeshDescription);
 	}
 
 	const TArray<FLogMessage>& FMeshFactory::GetLogMessages() const

@@ -21,12 +21,11 @@ namespace GLTF
 		return {Vec.X, Vec.Z, Vec.Y};
 	}
 
-	inline FVector ConvertTangent(const FVector4& Tangent)
+	inline FVector4 ConvertTangent(const FVector4& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
 
-		FVector Result(Tangent.X, Tangent.Y, Tangent.Z);
-		Result = ConvertVec3(Result);
+		FVector4 Result(ConvertVec3(FVector(Tangent.X, Tangent.Y, Tangent.Z)), Tangent.W);
 		return Result;
 	}
 

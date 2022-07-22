@@ -36,12 +36,12 @@ namespace GLTF
 	{
 	}
 
-	void FPrimitive::GetTangents(TArray<FVector3f>& Buffer) const
+	void FPrimitive::GetTangents(TArray<FVector4f>& Buffer) const
 	{
 		Buffer.Reserve(Tangent.Count);
 		for (uint32 Index = 0; Index < Tangent.Count; ++Index)
 		{
-			Buffer.Push((FVector3f)GLTF::ConvertTangent(Tangent.GetVec4(Index)));
+			Buffer.Push((FVector4f)GLTF::ConvertTangent(Tangent.GetVec4(Index)));
 		}
 	}
 

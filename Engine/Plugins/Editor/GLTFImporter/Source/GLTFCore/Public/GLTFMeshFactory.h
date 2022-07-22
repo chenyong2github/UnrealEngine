@@ -18,7 +18,7 @@ namespace GLTF
 		FMeshFactory();
 		~FMeshFactory();
 
-		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription, bool bSkipTangents = false);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
 
 		float GetUniformScale() const;
 		void  SetUniformScale(float Scale);
