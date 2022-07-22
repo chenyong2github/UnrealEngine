@@ -147,7 +147,7 @@ protected:
 	void CopyValueToClipboard() const;
 
 protected:
-	// Type of action (poor mans RTTI for the tree, really only used to accelerate Compare checks)
+	// Type of action (a kind of RTTI for the tree, really only used to accelerate Compare checks)
 	EDebugLineType Type;
 
 	static uint16 ActiveTypeBitset;

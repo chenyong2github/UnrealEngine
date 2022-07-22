@@ -28,7 +28,7 @@ namespace UE::Virtualization
 {
 
 /** 
- * A quick and dirty, poor mans implementation of a std::counting_semaphore that we can use to 
+ * A quick and dirty implementation of a std::counting_semaphore that we can use to 
  * limit the number of threads that can create a new perforce connection when pulling or 
  * pushing payloads.
  * 

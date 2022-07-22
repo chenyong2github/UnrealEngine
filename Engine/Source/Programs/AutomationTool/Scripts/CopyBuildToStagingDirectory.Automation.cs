@@ -4210,7 +4210,7 @@ namespace AutomationScripts
 
 				if (FilesAdded == 0 && bContinueSearch)
 				{
-					// no files have been deployed at all to this guy, so remove all previously added files and exit the loop as this means we need to deploy everything
+					// no files have been deployed at all to this, so remove all previously added files and exit the loop as this means we need to deploy everything
 					DeployedFiles.Clear();
 					bContinueSearch = false;
 				}

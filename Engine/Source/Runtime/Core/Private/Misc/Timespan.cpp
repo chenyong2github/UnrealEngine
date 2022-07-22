@@ -137,7 +137,7 @@ bool FTimespan::Parse(const FString& TimespanString, FTimespan& OutTimespan)
 		Tokens.AddDefaulted();
 	}
 
-	// poor man's token verification
+	// token verification
 	for (const FString& Token : Tokens)
 	{
 		if (!Token.IsEmpty() && !Token.IsNumeric())

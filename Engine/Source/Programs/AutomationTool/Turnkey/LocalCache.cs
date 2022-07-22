@@ -220,7 +220,7 @@ namespace Turnkey
 						if (!File.Exists(Filename) || FileTime != SavedTime)
 						{
 							TurnkeyUtils.Log("Cleaning old download cache...");
-							// remove this guy from the cache (delayed after the iterator)
+							// remove this entry from the cache (delayed after the iterator)
 							EntriesToDelete.Add(Pair.Key);
 
 							break;

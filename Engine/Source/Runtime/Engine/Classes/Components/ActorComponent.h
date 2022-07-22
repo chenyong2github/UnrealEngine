@@ -694,7 +694,7 @@ public:
 	 * ReadyForReplication gets called on replicated components when their owning actor is officially ready for replication.
 	 * Called after InitializeComponent but before BeginPlay. From there it will only be set false when the component is destroyed.
 	 * This is where you want to register your replicated subobjects if you already possess some. 
-	 * A component can get replicated before HasBegunPlay() is true if inside a tick or in BeginPlay() an RPC is called on him.
+	 * A component can get replicated before HasBegunPlay() is true if inside a tick or in BeginPlay() an RPC is called on it.
 	 * Requires component to be registered, initialized and set to replicate.
 	 */
 	virtual void ReadyForReplication();

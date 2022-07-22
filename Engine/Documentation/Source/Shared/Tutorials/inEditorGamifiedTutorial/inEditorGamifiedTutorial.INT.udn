@@ -188,7 +188,7 @@ There's a gap, can't continue
 [/VAR]
 
 
-Due to the gap, he cannot continue forward, but you can help him.
+Due to the gap, the character cannot continue forward, but you can help it.
 1. Click the "Stop" button.
 
 ![](Stage1_08.png)
@@ -204,7 +204,7 @@ Finding our Walkway
 [/VAR]
 
 
-Let us help him! We need to find a Walkway to place. The Content Browser holds all of the assets in the current project.
+Let us help it! We need to find a Walkway to place. The Content Browser holds all of the assets in the current project.
 
 [/EXCERPT:Stage9]
 
@@ -307,7 +307,7 @@ You can also directly input the values needed in the "Details" panel. In the "De
 
 [EXCERPT:Stage14]
 [VAR:StageTitle]
-Now He Will Get the Coin
+Now It Will Get the Coin
 [/VAR]
 
 
@@ -330,7 +330,7 @@ First Coin Collected!
 
 
 
-Success! You have helped our little guy here collect the first coin.
+Success! You have helped our little character here collect the first coin.
 1. Press "Stop" to continue.
 
 ![](Stage1_15.png)
@@ -382,7 +382,7 @@ The Setup
 
 
 
-The "Ramp" in the room is what will be used to help our guy again. Though as you can see, it is not in line with the area your guy is standing, nor is it large enough. You will need to "translate," "rotate," and "scale" it to get it into position.
+The "Ramp" in the room is what will be used to help our character again. Though as you can see, it is not in line with the area your character is standing, nor is it large enough. You will need to "translate," "rotate," and "scale" it to get it into position.
 
 
 
@@ -524,7 +524,7 @@ The final transform of the ramp should be close to:
 Time to Get Coin 2
 [/VAR]
 
-Push play and watch your guy get the second objective!
+Push play and watch your character get the second objective!
 1. Click the "Play" button.
 
 [/EXCERPT:Stage27]

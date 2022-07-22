@@ -4050,7 +4050,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					TotalCnt++;
 				}
 			}
-			// poor mans sort
+			// sort
 			for (int32 CurrentNum = MaxNum; CurrentNum > 1; CurrentNum--)
 			{
 				for (int32 Index = 0; Index < IndexSet.Components.Num(); Index++)

@@ -816,12 +816,12 @@ void FImage::Swap(FImage & Other)
 {
 	::Swap(RawData,Other.RawData);
 	// FImageInfo can be moved with assignment
-	FImageInfo * Me = this;
-	FImageInfo * Him = &Other;
+	FImageInfo * ThisImage = this;
+	FImageInfo * OtherImage = &Other;
 	FImageInfo Temp;
-	Temp = *Me;
-	*Me = *Him;
-	*Him = Temp;
+	Temp = *ThisImage;
+	*ThisImage = *OtherImage;
+	*OtherImage = Temp;
 }
 
 void FImage::ChangeFormat(ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace)
