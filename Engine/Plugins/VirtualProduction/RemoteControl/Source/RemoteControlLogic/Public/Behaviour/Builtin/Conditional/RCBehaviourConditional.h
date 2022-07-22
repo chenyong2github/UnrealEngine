@@ -21,7 +21,8 @@ enum class ERCBehaviourConditionType : uint8
 	IsLesserThan,
 	IsGreaterThanOrEqualTo,
 	IsLesserThanOrEqualTo,
-	Else
+	Else,
+	None
 };
 
 /**
@@ -40,7 +41,7 @@ struct FRCBehaviourCondition
 
 	/** The type of condition to be used for comparison*/
 	UPROPERTY()
-	ERCBehaviourConditionType ConditionType;
+	ERCBehaviourConditionType ConditionType = ERCBehaviourConditionType::None;
 
 	/** The value with which to compare */
 	UPROPERTY()
@@ -90,4 +91,8 @@ public:
 	*  Each Action is associated with a unique condition (for the Conditional Behaviour) */
 	UPROPERTY()
 	TMap<URCAction*, FRCBehaviourCondition> Conditions;
+
+	/** Virtual property used to build the Comparand - i.e. the property with which the Controller will be compared for a given condition*/
+	UPROPERTY()
+	TObjectPtr<URCVirtualPropertySelfContainer> Comparand;
 };

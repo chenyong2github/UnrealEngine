@@ -69,6 +69,13 @@ URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const 
 	NewPropertyAction->PresetWeakPtr = PresetWeakPtr;
 	NewPropertyAction->ExposedFieldId = InRemoteControlProperty->GetId();
 	NewPropertyAction->Id = FGuid::NewGuid();
+
+	if (!InRemoteControlProperty->GetBoundObjects().Num())
+	{
+		// This is possible if an exposed property was either deleted directly by the user, or if a project exits without saving the linked actor, etc
+
+		return nullptr;
+	}
 	
 	if (FRCObjectReference ObjectRef; IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, InRemoteControlProperty->GetBoundObjects()[0], InRemoteControlProperty->FieldPathInfo.ToString(), ObjectRef))
 	{

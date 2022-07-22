@@ -57,6 +57,9 @@ public:
 		return BehaviourItemWeakPtr.Pin();
 	}
 
+	/** Adds an Action by Remote Control Field Guid*/
+	URCAction* AddAction(const FGuid& InRemoteControlFieldId);
+
 private:
 
 	/** OnGenerateRow delegate for the Actions List View*/
@@ -103,4 +106,3 @@ private:
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
 };
-

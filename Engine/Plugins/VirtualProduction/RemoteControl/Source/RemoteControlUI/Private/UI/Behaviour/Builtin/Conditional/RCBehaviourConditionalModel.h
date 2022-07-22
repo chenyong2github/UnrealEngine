@@ -24,6 +24,9 @@ class FRCBehaviourConditionalModel : public FRCBehaviourModel
 public:
 	FRCBehaviourConditionalModel(URCBehaviourConditional* IsEqualBehaviour);
 
+	/** Fetches the Conditional Behaviour UObject */
+	URCBehaviourConditional* GetConditionalBehaviour();
+
 	/** Add a Logic Action using a remote control field as input */
 	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
@@ -59,9 +62,6 @@ private:
 
 	/** Used to create a generic value widget for comparison based on the active Controller's type*/
 	TWeakPtr<IDetailTreeNode> DetailTreeNodeWeakPtr;	
-
-	/** Virtual property used to build the Comparand - i.e. the property with which the Controller will be compared for a given condition*/
-	TObjectPtr<URCVirtualPropertySelfContainer> Comparand;	
 
 	/** Behaviour Details Widget (Conditions Widget in the case of this Behaviour) */
 	TSharedPtr<SRCBehaviourConditional> BehaviourDetailsWidget;

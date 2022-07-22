@@ -34,17 +34,27 @@ void URCBehaviourConditional::Execute()
 
 	bool bConditionPass = false;
 
-	/* Consider the following sequence of conditions for a hypothetical Controller "Tricode" with value "Tri2"
-	*   =Tri1    <FALSE> (Action 1)       ...skip...
-	*   =Tri2   <TRUE>    (Action 2)   ...execute...
-	*   =Tri2   <TRUE>    (Action 3)   ...execute...
-	*   =Tri3   <FALSE>  (Action 4)       ...skip...
-	*   Else                                          ...skip...
+	/* Consider the following sequence of conditions for a hypothetical Controller "Tricode"
+	*  For Tricode with current value "Tri2"
+	* 
+	*   =Tri1    <FALSE>  (Action 1)           ...skip...
+	* 
+	*   =Tri2   <TRUE>    (Action 2a)      ...execute...
+	*   =Tri2   <TRUE>    (Action 2b)      ...execute...
+	* 
+	*   =Tri3   <FALSE>  (Action 3)          ...skip...
+	* 
+	*    Else                    (Action 4a)        ...skip...
+	*    Else                    (Action 4b)        ...skip...
+	*    Else                    (Action 4c)        ...skip...
 	* 
 	* For such multiple equality rows we want to know if at least one of them succeeded. 
 	* The flag bHasEqualitySuccess is used for determining whether Else should be executed 
 	*/
 	bool bHasEqualitySuccess = false;
+	bool bPreviousConditionPass = false;
+
+	ERCBehaviourConditionType PreviousConditionType = ERCBehaviourConditionType::None;
 
 	for (TObjectPtr<URCAction> Action : ActionContainer->Actions)
 	{
@@ -55,7 +65,15 @@ void URCBehaviourConditional::Execute()
 			continue;
 		}
 
-		const ERCBehaviourConditionType ConditionType = Condition->ConditionType;		
+		const ERCBehaviourConditionType ConditionType = Condition->ConditionType;
+
+		if (ConditionType != PreviousConditionType) // New block
+		{
+			if (ConditionType != ERCBehaviourConditionType::Else)
+			{
+				bHasEqualitySuccess = false; // Reset flag for starting a new block of equality checks
+			}
+		}
 
 		URCController* RCController = ControllerWeakPtr.Get();
 		if (RCController)
@@ -85,16 +103,18 @@ void URCBehaviourConditional::Execute()
 
 			case ERCBehaviourConditionType::Else:
 				// If the previous condition failed and no prior equality condition succeeded (among multiple =rows above) then execute Else!
-				bConditionPass = !bConditionPass && !bHasEqualitySuccess;
+				bConditionPass = !bPreviousConditionPass && !bHasEqualitySuccess;
 				break;
 
 			default:				
 				ensureAlwaysMsgf(false, TEXT("Unimplemented comparator!"));
 			}
 
-			if (ConditionType != ERCBehaviourConditionType::IsEqual)
+			PreviousConditionType = ConditionType;
+
+			if (ConditionType != ERCBehaviourConditionType::Else)
 			{
-				bHasEqualitySuccess = false; // Reset flag; either we reached an else clause (resolved above) or we moved from equality rows to a different comparison type
+				bPreviousConditionPass = bConditionPass; // Else should not contribute to the previous state flag to support multiple Else Actions (created via Add All Action, etc)
 			}
 		}
 
@@ -110,7 +130,7 @@ void URCBehaviourConditional::OnActionAdded(URCAction* Action, const ERCBehaviou
 {
 	FRCBehaviourCondition Condition(InConditionType, InComparand);
 
-	Conditions.Add(Action, MoveTemp(Condition));	
+	Conditions.Add(Action, MoveTemp(Condition));
 }
 
 URCAction* URCBehaviourConditional::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField, const ERCBehaviourConditionType InConditionType, const TObjectPtr<URCVirtualPropertySelfContainer> InComparand)

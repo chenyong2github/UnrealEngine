@@ -17,6 +17,7 @@
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelExposedField.h"
+#include "UI/SRCPanelFieldGroup.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
@@ -104,20 +105,57 @@ void SRCActionPanelList<ActionType>::Reset()
 }
 
 template <class ActionType>
+URCAction* SRCActionPanelList<ActionType>::AddAction(const FGuid& InRemoteControlFieldId)
+{
+	if (const URemoteControlPreset* Preset = GetPreset())
+	{
+		if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(InRemoteControlFieldId).Pin())
+		{
+			if (const TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
+			{
+				return ActionPanel->AddAction(RemoteControlField.ToSharedRef());
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+template <class ActionType>
 FReply SRCActionPanelList<ActionType>::OnExposedFieldDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
-	if (DragDropOperation && DragDropOperation->IsOfType<FExposedEntityDragDrop>())
+	if (DragDropOperation)
 	{
-		if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
+		if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
 		{
-			if (const URemoteControlPreset* Preset = GetPreset())
+			if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
 			{
-				FGuid ExposedEntityId = DragDropOp->GetId();
-				if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedEntityId).Pin())
+				// Fetch the Exposed Entity
+				const FGuid ExposedEntityId = DragDropOp->GetId();
+
+				// Add Action
+				AddAction(ExposedEntityId);
+			}
+		}
+		else if (DragDropOperation->IsOfType<FFieldGroupDragDropOp>())
+		{
+			if (TSharedPtr<FFieldGroupDragDropOp> DragDropOp = StaticCastSharedPtr<FFieldGroupDragDropOp>(DragDropOperation))
+			{
+				if (URemoteControlPreset* Preset = GetPreset())
 				{
-					if (const TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
+					// Fetch the Group
+					const FGuid GroupId = DragDropOp->GetGroupId();
+					const FRemoteControlPresetGroup* Group = Preset->Layout.GetGroup(GroupId);
+
+					if (ensure(Group))
 					{
-						ActionPanel->AddAction(RemoteControlField.ToSharedRef());
+						const TArray<FGuid> GroupFields = Group->GetFields();
+
+						// Add Action for all fields in the Group
+						for (const FGuid RemoteControlFieldId : GroupFields)
+						{
+							AddAction(RemoteControlFieldId);
+						}
 					}
 				}
 			}

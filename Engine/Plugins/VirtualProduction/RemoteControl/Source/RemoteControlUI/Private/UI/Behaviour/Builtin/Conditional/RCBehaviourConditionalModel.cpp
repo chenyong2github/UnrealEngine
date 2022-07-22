@@ -28,13 +28,18 @@ FRCBehaviourConditionalModel::FRCBehaviourConditionalModel(URCBehaviourCondition
 	CreateComparandInputField();
 }
 
+URCBehaviourConditional* FRCBehaviourConditionalModel::GetConditionalBehaviour()
+{
+	return Cast<URCBehaviourConditional>(GetBehaviour());
+}
+
 URCAction* FRCBehaviourConditionalModel::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
 	URCAction* NewAction = nullptr;
 
-	if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(GetBehaviour()))
+	if (URCBehaviourConditional* ConditionalBehaviour = GetConditionalBehaviour())
 	{
-		NewAction = ConditionalBehaviour->AddAction(InRemoteControlField, Condition, Comparand);
+		NewAction = ConditionalBehaviour->AddAction(InRemoteControlField, Condition, ConditionalBehaviour->Comparand);
 
 		OnActionAdded(NewAction);
 	}
@@ -44,13 +49,25 @@ URCAction* FRCBehaviourConditionalModel::AddAction(const TSharedRef<const FRemot
 
 void FRCBehaviourConditionalModel::CreateComparandInputField()
 {
-	if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(GetBehaviour()))
+	if (URCBehaviourConditional* ConditionalBehaviour = GetConditionalBehaviour())
 	{
 		if (URCController* Controller = ConditionalBehaviour->ControllerWeakPtr.Get())
 		{
+			TObjectPtr<URCVirtualPropertySelfContainer>& Comparand = ConditionalBehaviour->Comparand;
+			URCVirtualPropertySelfContainer* PreviousComparand = Comparand;
+
 			// Virtual Property for the Comparand
 			Comparand = NewObject<URCVirtualPropertySelfContainer>(ConditionalBehaviour);
-			Comparand->DuplicateProperty(FName("Comparand"), Controller->GetProperty());
+
+			if (PreviousComparand)
+			{
+				// Users typically enter multiple actions for a single condition so make it easier for them by retaining Condition value
+				Comparand->DuplicatePropertyWithCopy(PreviousComparand);
+			}
+			else
+			{
+				Comparand->DuplicateProperty(FName("Comparand"), Controller->GetProperty());
+			}
 
 			// UI widget (via Property Generator)
 			PropertyRowGenerator->SetStructure(Comparand->CreateStructOnScope());
@@ -75,9 +92,9 @@ TSharedRef<SWidget> FRCBehaviourConditionalModel::GetBehaviourDetailsWidget()
 
 void FRCBehaviourConditionalModel::OnActionAdded(URCAction* Action)
 {
-	if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(GetBehaviour()))
+	if (URCBehaviourConditional* ConditionalBehaviour = GetConditionalBehaviour())
 	{
-		ConditionalBehaviour->OnActionAdded(Action, Condition, Comparand);
+		ConditionalBehaviour->OnActionAdded(Action, Condition, ConditionalBehaviour->Comparand);
 
 		// Create a new Comparand for the user (the previous input field is already associated with the newly created action)
 		CreateComparandInputField();
