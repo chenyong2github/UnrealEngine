@@ -583,7 +583,7 @@ static void PatchSpirvForPrecompilation(FSpirv& Spirv)
 	{
 		if (SpirvInstruction.Opcode() == SpvOpLoopMerge && SpirvInstruction.Operand(3) == SpvLoopControlUnrollMask)
 		{
-			(*SpirvInstruction)[3] = SpvLoopControlDontUnrollMask;
+			(*SpirvInstruction)[3] = SpvLoopControlMaskNone;
 		}
 	}
 }
