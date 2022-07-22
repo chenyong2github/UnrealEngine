@@ -131,8 +131,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyUniformTessell
 
 UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessellation(
 	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
 	FGeometryScriptAdaptiveTessellateOptions Options,
-	FGeometryScriptIndexList IndexList,
 	int TessellationLevel,
 	EAdaptiveTessellatePatternType PatternType,
 	UGeometryScriptDebug* Debug)
@@ -148,71 +148,37 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 	}
 	if (PatternType != EAdaptiveTessellatePatternType::ConcentricRings)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_InvalidPatternType", "Only ConcentricRings pattern is currently supported"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_InvalidPatternType", "ApplyAdapativeTessellation: Only ConcentricRings pattern is currently supported"));
 		return TargetMesh;
 	} 
-	if (IndexList.IndexType != EGeometryScriptIndexType::Triangle)
+	if (Selection.IsEmpty() && Options.EmptyBehavior != EGeometryScriptEmptySelectionBehavior::FullMeshSelection )
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_InvalidSelectionType", "Only Triangle selection is currently supported"));
 		return TargetMesh;
-	} 
+	}
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{	
 		FDynamicMesh3 TessellatedMesh;
 		FAdaptiveTessellate Tessellator(&EditMesh, &TessellatedMesh);
 
-		TSharedPtr<TArray<int>> List = IndexList.List;
+		TArray<int32> Triangles;
+		Selection.ConvertToMeshIndexArray(EditMesh, Triangles, EGeometryScriptIndexType::Triangle);
+		if (Triangles.Num() == 0 && Options.EmptyBehavior != EGeometryScriptEmptySelectionBehavior::FullMeshSelection)
+		{
+			return;
+		}
+
 		TUniquePtr<FTessellationPattern> Pattern; 
-		if (List == nullptr) //if list is not provided then tessellate the whole mesh
-		{	
-			switch(PatternType) 
-			{
-				case EAdaptiveTessellatePatternType::Uniform:
-				{
-					Pattern = nullptr; //TODO: implement
-					break;
-				}
-				case EAdaptiveTessellatePatternType::InnerUniform: 
-				{
-					Pattern = nullptr; //TODO: implement
-					break;
-				}
-				case EAdaptiveTessellatePatternType::ConcentricRings:
-				{
-					Pattern = FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel);
-					break;
-				} 
-				default:
-				{
-					checkSlow(false);
-				}
-			}
+		if (PatternType == EAdaptiveTessellatePatternType::ConcentricRings)
+		{
+			Pattern = (Triangles.Num() > 0) ?
+				FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel, Triangles)
+				: FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel);
 		}
 		else
 		{
-			switch(PatternType) 
-			{
-				case EAdaptiveTessellatePatternType::Uniform:
-				{
-					Pattern = nullptr; //TODO: implement
-					break;
-				}
-				case EAdaptiveTessellatePatternType::InnerUniform: 
-				{
-					Pattern = nullptr; //TODO: implement
-					break;
-				}
-				case EAdaptiveTessellatePatternType::ConcentricRings:
-				{
-					Pattern = FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel, *List);
-					break;
-				} 
-				default:
-				{
-					checkSlow(false);
-				}
-			}
+			checkSlow(false);
+			return;
 		}
 
 		Tessellator.SetPattern(Pattern.Get());

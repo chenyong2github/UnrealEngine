@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshSubdivideFunctions.generated.h"
 
 class UDynamicMesh;
@@ -28,19 +29,23 @@ public:
 UENUM(BlueprintType)
 enum class EAdaptiveTessellatePatternType : uint8
 {
-	Uniform,
-	InnerUniform,
-	ConcentricRings
+	Uniform = 0,
+	InnerUniform = 1,
+	ConcentricRings = 2
 };
 
 
-USTRUCT(BlueprintType, meta = (DisplayName = "Additional Adaptive Tessellate Options"))
+USTRUCT(BlueprintType, meta = (DisplayName = "Adaptive Tessellate Options"))
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptAdaptiveTessellateOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bEnableMultithreading = true;
+
+	/** EmptyBehavior Defines how an empty input selection should be interpreted */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptEmptySelectionBehavior EmptyBehavior = EGeometryScriptEmptySelectionBehavior::FullMeshSelection;
 };
 
 
@@ -78,8 +83,8 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyAdaptiveTessellation(
 		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection,
 		FGeometryScriptAdaptiveTessellateOptions Options,
-		FGeometryScriptIndexList IndexList,
 		int TessellationLevel = 1,
 		EAdaptiveTessellatePatternType PatternType = EAdaptiveTessellatePatternType::ConcentricRings,
 		UGeometryScriptDebug* Debug = nullptr);
