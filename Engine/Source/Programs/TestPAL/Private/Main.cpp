@@ -345,6 +345,10 @@ int32 CrashTest(const TCHAR* CommandLine)
 	{
 		checkf(false, TEXT("  checkf!"));
 	}
+	else if (FParse::Param(CommandLine, TEXT("ensure")))
+	{
+		ensureMsgf(false, TEXT("  ensureMsgf!"));
+	}
 	else if (FParse::Param(CommandLine, TEXT("unaligned")))
 	{
 		FQuat Quat[2];
