@@ -28,17 +28,33 @@ UStateTreeComponent::UStateTreeComponent(const FObjectInitializer& ObjectInitial
 
 void UStateTreeComponent::InitializeComponent()
 {
-	if (StateTree == nullptr)
+	if (StateTreeRef.StateTree == nullptr)
 	{
 		STATETREE_LOG(Error, TEXT("%s: StateTree asset is not set, cannot initialize."), ANSI_TO_TCHAR(__FUNCTION__));
 		return;
 	}
 
-	if (!StateTreeContext.Init(*GetOwner(), *StateTree, EStateTreeStorage::Internal))
+	if (!StateTreeContext.Init(*GetOwner(), *StateTreeRef.StateTree, EStateTreeStorage::Internal))
 	{
 		STATETREE_LOG(Error, TEXT("%s: Failed to init StateTreeContext."), ANSI_TO_TCHAR(__FUNCTION__));
 	}
 }
+
+#if WITH_EDITOR
+void UStateTreeComponent::PostLoad()
+{
+	Super::PostLoad();
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (StateTree_DEPRECATED != nullptr)
+	{
+		StateTreeRef.StateTree = StateTree_DEPRECATED;
+		StateTreeRef.SyncParameters();
+		StateTree_DEPRECATED = nullptr;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif //WITH_EDITOR
 
 void UStateTreeComponent::UninitializeComponent()
 {
@@ -113,6 +129,8 @@ void UStateTreeComponent::StartLogic()
 
 	if (SetContextRequirements())
 	{
+		StateTreeContext.SetParameters(StateTreeRef.Parameters);
+
 		StateTreeContext.Start();
 		bIsRunning = true;
 	}
@@ -124,6 +142,8 @@ void UStateTreeComponent::RestartLogic()
 
 	if (SetContextRequirements())
 	{
+		StateTreeContext.SetParameters(StateTreeRef.Parameters);
+
 		StateTreeContext.Start();
 		bIsRunning = true;
 	}

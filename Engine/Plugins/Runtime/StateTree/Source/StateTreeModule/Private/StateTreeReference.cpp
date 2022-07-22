@@ -35,6 +35,13 @@ void FStateTreeReference::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading() && Ar.IsPersistent())
 	{
+		// Make sure the StateTree asset is fully loaded, so that the SyncParameters() will execute on valid data.
+		if (StateTree != nullptr)
+		{
+			FArchive* NonConstAr = const_cast<FArchive*>(&Ar);
+			NonConstAr->Preload(StateTree);
+		}
+
 		// This might modify the object but we don't want to dirty on load
 		SyncParameters();
 	}

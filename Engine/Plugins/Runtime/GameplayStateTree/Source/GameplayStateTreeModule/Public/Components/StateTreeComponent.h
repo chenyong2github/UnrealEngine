@@ -5,7 +5,9 @@
 #include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
 #include "BrainComponent.h"
+#include "StateTreeReference.h"
 #include "Tasks/AITask.h"
+#include "PropertyBag.h"
 #include "StateTreeComponent.generated.h"
 
 class UStateTree;
@@ -48,10 +50,20 @@ public:
 
 protected:
 
-	bool SetContextRequirements();
+#if WITH_EDITORONLY_DATA
+	virtual void PostLoad() override;
+#endif
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI, meta=(RequiredAssetDataTags="Schema=StateTreeComponentSchema"))
-	UStateTree* StateTree;
+	bool SetContextRequirements();
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property has been deprecated. Use StateTreeReference instead.")
+	UPROPERTY()
+	UStateTree* StateTree_DEPRECATED;
+#endif
+
+	UPROPERTY(EditAnywhere, Category = AI, meta=(RequiredAssetDataTags = "Schema=StateTreeComponentSchema"))
+	FStateTreeReference StateTreeRef;
 
 	UPROPERTY(Transient)
 	FStateTreeExecutionContext StateTreeContext;

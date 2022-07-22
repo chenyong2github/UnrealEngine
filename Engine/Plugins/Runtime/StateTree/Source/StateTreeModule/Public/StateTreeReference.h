@@ -18,10 +18,10 @@ struct STATETREEMODULE_API FStateTreeReference
 	FStateTreeReference();
 	~FStateTreeReference();
 	
-	UPROPERTY(EditDefaultsOnly, Category="")
+	UPROPERTY(EditAnywhere, Category = "")
 	TObjectPtr<UStateTree> StateTree = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category="", meta=(FixedLayout))
+	UPROPERTY(EditAnywhere, Category = "", meta = (FixedLayout))
 	FInstancedPropertyBag Parameters;
 
 #if WITH_EDITOR
