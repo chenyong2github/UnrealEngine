@@ -163,8 +163,8 @@ namespace UE::LevelSnapshots::Private::Tests
 			.ApplySnapshot()
 			.RunTest([&]()
 			{
-				TestEqual(TEXT("Component reference was not changed"), Actor->InstancedMeshComponent, OriginalMeshComp);
-				TestEqual(TEXT("Component reference is correctly restored"), Actor->PointLightComponent, OriginalLightComp);
+				TestEqual(TEXT("Component reference was not changed"), ToRawPtr(Actor->InstancedMeshComponent), OriginalMeshComp);
+				TestEqual(TEXT("Component reference is correctly restored"), ToRawPtr(Actor->PointLightComponent), OriginalLightComp);
 			});
 	
 		return true;
@@ -289,7 +289,7 @@ namespace UE::LevelSnapshots::Private::Tests
 			.RunTest([&]()
 			{
 				// Instanced component that stayed
-				TestEqual(TEXT("Instanced component static mesh was restored"), ToRawPtr(InstancedStaysOnActor->GetStaticMesh()), Actor->CubeMesh);
+				TestEqual(TEXT("Instanced component static mesh was restored"), ToRawPtr(InstancedStaysOnActor->GetStaticMesh()), ToRawPtr(Actor->CubeMesh));
 				TestEqual(TEXT("Instanced component relative location was restored"), InstancedStaysOnActor->GetRelativeLocation(), FVector(100, 200, 300));
 				TestTrue(TEXT("Instanced component attach parent was restored"), InstancedStaysOnActor->GetAttachParent() == Actor->GetMesh());
 
@@ -313,7 +313,7 @@ namespace UE::LevelSnapshots::Private::Tests
 					return;
 				}
 				UStaticMeshComponent* RecreatedComponent = Cast<UStaticMeshComponent>(*PossibleRecreatedComponent);
-				TestEqual(TEXT("Recreated component has correct mesh"), ToRawPtr(RecreatedComponent->GetStaticMesh()), Actor->CylinderMesh);
+				TestEqual(TEXT("Recreated component has correct mesh"), ToRawPtr(RecreatedComponent->GetStaticMesh()), ToRawPtr(Actor->CylinderMesh));
 				TestEqual(TEXT("Recreated component has correct relative location"), RecreatedComponent->GetRelativeLocation(), FVector(1, 2, 3));
 				TestTrue(TEXT("Recreated component attach parent was restored"), RecreatedComponent->GetAttachParent() == Actor->GetMesh());
 			});

@@ -83,7 +83,7 @@ bool SetExternalSubsystems(FMassStateTreeExecutionContext& Context)
 	{
 		if (DataDesc.Struct && DataDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 		{
-			const TSubclassOf<UWorldSubsystem> SubClass = Cast<UClass>(const_cast<UStruct*>(DataDesc.Struct));
+			const TSubclassOf<UWorldSubsystem> SubClass = Cast<UClass>(const_cast<UStruct*>(ToRawPtr(DataDesc.Struct)));
 			UWorldSubsystem* Subsystem = World->GetSubsystemBase(SubClass);
 			if (Subsystem)
 			{

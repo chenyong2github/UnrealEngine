@@ -23,6 +23,9 @@ public:
 	static void FillOutMID(UMaterialInterface* SrcMaterial, UMaterialInstanceDynamic*& TargetMID, UObject* MIDOuter = nullptr);
 
 	/** */
+	static void FillOutMID(UMaterialInterface* SrcMaterial, TObjectPtr<UMaterialInstanceDynamic>& TargetMID, UObject* MIDOuter = nullptr);
+
+	/** */
 	static void RenderMaterialToRenderTarget(UObject* WorldContextObj, UMaterialInterface* Material, UTextureRenderTarget2D* RenderTarget);
 
 	/** */

@@ -152,7 +152,10 @@ public:
 	/**
 	 * Get all the exposed types in the registry (ie. FRemoteControlActor)
 	 */
-	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
+	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UScriptStruct)& GetExposedEntityTypes() const
+	{
+		return ExposedTypes;
+	}
 
 	/** Returns true when Exposed Entities is empty. */
 	const bool IsEmpty() const;

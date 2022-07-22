@@ -23,7 +23,13 @@ public:
 	void CacheAsset( const FString& Hash, UObject* Asset, const FString& PrimPath = FString() );
 	void DiscardAsset( const FString& Hash );
 	UObject* GetCachedAsset( const FString& Hash ) const;
-	TMap< FString, UObject* > GetCachedAssets() const;
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TMap, FString, UObject) GetCachedAssets() const
+	{
+		UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TMap, FString, UObject) CachedAssets( TransientStorage );
+		CachedAssets.Append( PersistentStorage );
+
+		return CachedAssets;
+	}
 
 	void LinkAssetToPrim( const FString& PrimPath, UObject* Asset );
 	void RemoveAssetPrimLink( const FString& PrimPath );

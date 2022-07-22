@@ -1134,7 +1134,7 @@ void UMixedRealityCaptureComponent::ApplyCalibrationData_Implementation(UMrcCali
 			{
 				if (GarbageMatteCaptureComponent == nullptr)
 				{
-					USceneComponent* GarbageMatteOrigin = TrackingOriginOffset ? TrackingOriginOffset : (PairedTracker ? PairedTracker->GetAttachParent() : GetAttachParent());
+					USceneComponent* GarbageMatteOrigin = TrackingOriginOffset ? ToRawPtr(TrackingOriginOffset) : (PairedTracker ? PairedTracker->GetAttachParent() : GetAttachParent());
 					GarbageMatteCaptureComponent = MRCaptureComponent_Impl::CreateGarbageMatteComponent(this, GarbageMatteOrigin);
 				}
 				GarbageMatteCaptureComponent->ApplyCalibrationData(ConfigData);
@@ -1162,7 +1162,7 @@ bool UMixedRealityCaptureComponent::SetGarbageMatteActor(AMrcGarbageMatteActor* 
 	}
 	else if (IsActive())
 	{
-		USceneComponent* GarbageMatteOrigin = TrackingOriginOffset ? TrackingOriginOffset : (PairedTracker ? PairedTracker->GetAttachParent() : GetAttachParent());
+		USceneComponent* GarbageMatteOrigin = TrackingOriginOffset ? ToRawPtr(TrackingOriginOffset) : (PairedTracker ? PairedTracker->GetAttachParent() : GetAttachParent());
 		GarbageMatteCaptureComponent = MRCaptureComponent_Impl::CreateGarbageMatteComponent(this, GarbageMatteOrigin);
 		GarbageMatteCaptureComponent->SetGarbageMatteActor(Actor);
 

@@ -28,7 +28,7 @@ void UChaosCacheCollection::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutT
 
 UChaosCache* UChaosCacheCollection::FindCache(const FName& CacheName) const
 {
-	UChaosCache* const* ExistingCache = Algo::FindByPredicate(Caches, [&CacheName](const UChaosCache* Test)
+	UE_TRANSITIONAL_OBJECT_PTR(UChaosCache) const* ExistingCache = Algo::FindByPredicate(Caches, [&CacheName](const UChaosCache* Test)
 	{
 		if (Test)
 		{
@@ -47,7 +47,7 @@ UChaosCache* UChaosCacheCollection::FindOrAddCache(const FName& CacheName)
 
 	if(FinalName != NAME_None)
 	{
-		UChaosCache** ExistingCache = Algo::FindByPredicate(Caches, [&FinalName](const UChaosCache* Test)
+		UE_TRANSITIONAL_OBJECT_PTR(UChaosCache)* ExistingCache = Algo::FindByPredicate(Caches, [&FinalName](const UChaosCache* Test)
 		{
 			if (Test)
 			{

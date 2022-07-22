@@ -79,12 +79,12 @@ bool UStateTreeComponent::SetContextRequirements()
 		{
 			if (ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 			{
-				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(ItemDesc.Struct)));
+				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(ToRawPtr(ItemDesc.Struct))));
 				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Subsystem));
 			}
 			else if (ItemDesc.Struct->IsChildOf(UActorComponent::StaticClass()))
 			{
-				UActorComponent* Component = GetOwner()->FindComponentByClass(Cast<UClass>(const_cast<UStruct*>(ItemDesc.Struct)));
+				UActorComponent* Component = GetOwner()->FindComponentByClass(Cast<UClass>(const_cast<UStruct*>(ToRawPtr(ItemDesc.Struct))));
 				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Component));
 			}
 			else if (ItemDesc.Struct->IsChildOf(APawn::StaticClass()))

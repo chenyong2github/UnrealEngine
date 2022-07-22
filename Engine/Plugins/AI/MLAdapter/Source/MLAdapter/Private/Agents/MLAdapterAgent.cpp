@@ -19,7 +19,8 @@
 //----------------------------------------------------------------------//
 namespace FMLAdapterAgentHelpers
 {
-	bool GetAsPawnAndController(AActor* Avatar, AController*& OutController, APawn*& OutPawn)
+	template<typename ControllerPtrType, typename PawnPtrType>
+	bool GetAsPawnAndController_Internal(AActor* Avatar, ControllerPtrType& OutController, PawnPtrType& OutPawn)
 	{
 		if (Avatar == nullptr)
 		{
@@ -43,6 +44,16 @@ namespace FMLAdapterAgentHelpers
 		}
 
 		return false;
+	}
+
+	bool GetAsPawnAndController(AActor* Avatar, AController*& OutController, APawn*& OutPawn)
+	{
+		return GetAsPawnAndController_Internal(Avatar, OutController, OutPawn);
+	}
+
+	bool GetAsPawnAndController(AActor* Avatar, TObjectPtr<AController>& OutController, TObjectPtr<APawn>& OutPawn)
+	{
+		return GetAsPawnAndController_Internal(Avatar, OutController, OutPawn);
 	}
 }
 
@@ -422,7 +433,7 @@ void UMLAdapterAgent::SetAvatar(AActor* InAvatar)
 		// when the controller is the main avatar
 		if (Controller != nullptr && (Avatar == Controller))
 		{
-			Controller->GetOnNewPawnNotifier().AddUObject(this, &UMLAdapterAgent::OnPawnChanged, Controller);
+			Controller->GetOnNewPawnNotifier().AddUObject(this, &UMLAdapterAgent::OnPawnChanged, ToRawPtr(Controller));
 		}
 	}
 

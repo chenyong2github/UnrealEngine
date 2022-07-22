@@ -931,7 +931,7 @@ bool UPCGComponent::UpdateExcludedActor(AActor* InActor)
 	// Dirty data in all cases - the tag or positional changes will be picked up in the test later
 	if (CachedExcludedActors.Contains(InActor))
 	{
-		if (UPCGData** ExclusionData = CachedExclusionData.Find(InActor))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UPCGData)* ExclusionData = CachedExclusionData.Find(InActor))
 		{
 			*ExclusionData = nullptr;
 		}
@@ -1408,9 +1408,9 @@ TArray<UPCGData*> UPCGComponent::GetPCGExclusionData()
 	// TODO: replace with a boolean, unify.
 	UpdatePCGExclusionData();
 
-	TArray<UPCGData*> ExclusionData;
+	TArray<typename decltype(CachedExclusionData)::ValueType> ExclusionData;
 	CachedExclusionData.GenerateValueArray(ExclusionData);
-	return ExclusionData;
+	return ToRawPtrTArrayUnsafe(ExclusionData);
 }
 
 void UPCGComponent::UpdatePCGExclusionData()
@@ -1422,7 +1422,7 @@ void UPCGComponent::UpdatePCGExclusionData()
 	GetActorsFromTags(ExcludedTags, CachedExcludedActors, /*bCullAgainstLocalBounds=*/true);
 
 	// Build exclusion data based on the CachedExcludedActors
-	TMap<AActor*, UPCGData*> ExclusionData;
+	decltype(CachedExclusionData) ExclusionData;
 
 	for(TWeakObjectPtr<AActor> ExcludedActorWeakPtr : CachedExcludedActors)
 	{
@@ -1433,7 +1433,7 @@ void UPCGComponent::UpdatePCGExclusionData()
 
 		AActor* ExcludedActor = ExcludedActorWeakPtr.Get();
 
-		UPCGData** PreviousExclusionData = CachedExclusionData.Find(ExcludedActor);
+		UE_TRANSITIONAL_OBJECT_PTR(UPCGData)* PreviousExclusionData = CachedExclusionData.Find(ExcludedActor);
 
 		if (PreviousExclusionData && *PreviousExclusionData)
 		{

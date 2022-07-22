@@ -103,7 +103,7 @@ bool FGameplayInteractionContext::SetContextRequirements()
 		{
 			if (World != nullptr && ItemDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 			{
-				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(ItemDesc.Struct)));
+				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(ToRawPtr(ItemDesc.Struct))));
 				StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(Subsystem));
 			}
 			else if (ItemDesc.Struct->IsChildOf(AActor::StaticClass()))

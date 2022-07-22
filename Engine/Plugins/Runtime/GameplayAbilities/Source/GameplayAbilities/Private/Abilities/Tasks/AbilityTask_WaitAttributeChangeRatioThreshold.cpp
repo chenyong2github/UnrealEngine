@@ -50,7 +50,7 @@ void UAbilityTask_WaitAttributeChangeRatioThreshold::Activate()
 
 UAbilitySystemComponent* UAbilityTask_WaitAttributeChangeRatioThreshold::GetFocusedASC()
 {
-	return ExternalOwner ? ExternalOwner : AbilitySystemComponent.Get();
+	return ExternalOwner ? ToRawPtr(ExternalOwner) : AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitAttributeChangeRatioThreshold::OnAttributeChange()

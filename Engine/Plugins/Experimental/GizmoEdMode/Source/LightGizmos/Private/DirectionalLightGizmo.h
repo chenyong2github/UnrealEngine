@@ -81,7 +81,8 @@ public:
 	virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if any of the components are hit by the input ray */
-	bool HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UGizmoBaseComponent*& OutHitComponent);
+	template<typename PtrType>
+	bool HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, PtrType& OutHitComponent);
 
 private:
 

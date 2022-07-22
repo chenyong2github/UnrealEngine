@@ -184,7 +184,7 @@ void FMassRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayVie
 			else 
 			{
 				const UClass* TestClass = Proc->GetClass();
-				UMassProcessor** PrevProcessor = Processors.FindByPredicate([TestClass, ProcCopy](const UMassProcessor* Proc) {
+				UE_TRANSITIONAL_OBJECT_PTR(UMassProcessor)* PrevProcessor = Processors.FindByPredicate([TestClass, ProcCopy](const UMassProcessor* Proc) {
 					return Proc != nullptr && Proc->GetClass() == TestClass;
 				});
 

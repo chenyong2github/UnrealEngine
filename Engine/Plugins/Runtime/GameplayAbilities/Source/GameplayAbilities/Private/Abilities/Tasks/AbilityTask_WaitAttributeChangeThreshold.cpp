@@ -92,7 +92,7 @@ bool UAbilityTask_WaitAttributeChangeThreshold::DoesValuePassComparison(float Va
 
 UAbilitySystemComponent* UAbilityTask_WaitAttributeChangeThreshold::GetFocusedASC()
 {
-	return ExternalOwner ? ExternalOwner : AbilitySystemComponent.Get();
+	return ExternalOwner ? ToRawPtr(ExternalOwner) : AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitAttributeChangeThreshold::OnDestroy(bool AbilityEnded)

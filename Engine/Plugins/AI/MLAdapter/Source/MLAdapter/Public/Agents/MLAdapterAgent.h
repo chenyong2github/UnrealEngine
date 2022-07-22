@@ -61,6 +61,9 @@ namespace FMLAdapterAgentHelpers
 {
 	/** Get the Pawn and Controller from the given Avatar if possible. */
 	bool MLADAPTER_API GetAsPawnAndController(AActor* Avatar, AController*& OutController, APawn*& OutPawn);
+
+	/** Get the Pawn and Controller from the given Avatar if possible. */
+	bool MLADAPTER_API GetAsPawnAndController(AActor* Avatar, TObjectPtr<AController>& OutController, TObjectPtr<APawn>& OutPawn);
 }
 
 /**

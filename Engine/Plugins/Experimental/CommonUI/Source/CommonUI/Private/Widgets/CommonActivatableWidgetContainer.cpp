@@ -259,7 +259,7 @@ void UCommonActivatableWidgetContainerBase::HandleActiveIndexChanged(int32 Activ
 	{
 		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
-		DisplayedWidget->OnDeactivated().AddUObject(this, &UCommonActivatableWidgetContainerBase::HandleActiveWidgetDeactivated, DisplayedWidget);
+		DisplayedWidget->OnDeactivated().AddUObject(this, &UCommonActivatableWidgetContainerBase::HandleActiveWidgetDeactivated, ToRawPtr(DisplayedWidget));
 		DisplayedWidget->ActivateWidget();
 
 		if (UWorld* MyWorld = GetWorld())

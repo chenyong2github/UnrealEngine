@@ -105,7 +105,7 @@ void UAbilityTask_WaitGameplayTagQuery::OnDestroy(bool AbilityIsEnding)
 
 UAbilitySystemComponent* UAbilityTask_WaitGameplayTagQuery::GetTargetASC()
 {	
-	return bUseExternalTarget ? OptionalExternalTarget : AbilitySystemComponent.Get();
+	return bUseExternalTarget ? ToRawPtr(OptionalExternalTarget) : AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitGameplayTagQuery::SetExternalTarget(const AActor* Actor)

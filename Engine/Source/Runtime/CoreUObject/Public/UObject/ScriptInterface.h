@@ -11,6 +11,8 @@
 #include "Templates/Casts.h"
 #include "Templates/UnrealTemplate.h"
 
+#include <type_traits>
+
 /**
  * FScriptInterface
  *
@@ -147,9 +149,13 @@ public:
 	/**
 	 * Assignment from an object type that implements the InterfaceType native interface class
 	 */
-	template <typename ObjectType, typename = decltype(ImplicitConv<UObject*>((ObjectType*)nullptr))>
-	TScriptInterface(ObjectType* SourceObject)
+	template <
+		typename U,
+		decltype(ImplicitConv<UObject*>(std::declval<U>()))* = nullptr
+	>
+	FORCEINLINE TScriptInterface(U&& Source)
 	{
+		UObject* SourceObject = ImplicitConv<UObject*>(Source);
 		SetObject(SourceObject);
 
 		InterfaceType* SourceInterface = Cast<InterfaceType>(SourceObject);
@@ -174,10 +180,13 @@ public:
 	/**
 	 * Assignment from an object type that implements the InterfaceType native interface class
 	 */
-	template <typename ObjectType, typename = decltype(ImplicitConv<UObject*>((ObjectType*)nullptr))>
-	TScriptInterface& operator=(ObjectType* SourceObject)
+	template <
+		typename U,
+		decltype(ImplicitConv<UObject*>(std::declval<U>()))* = nullptr
+	>
+	TScriptInterface& operator=(U&& Source)
 	{
-		*this = TScriptInterface(SourceObject);
+		*this = TScriptInterface(Source);
 		return *this;
 	}
 

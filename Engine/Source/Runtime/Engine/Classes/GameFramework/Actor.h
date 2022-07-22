@@ -3604,6 +3604,26 @@ public:
 	}
 
 	/**
+	 * Get all components derived from class 'T' and fill in the OutComponents array with the result.
+	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
+	 * TInlineComponentArray is defined to make this easier, for example:
+	 * {
+	 * 	   TInlineComponentArray<UPrimitiveComponent*> PrimComponents(Actor);
+	 * }
+	 *
+	 * @param bIncludeFromChildActors	If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	 */
+	template<class T, class AllocatorType>
+	void GetComponents(TArray<TObjectPtr<T>, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	{
+		OutComponents.Reset();
+		ForEachComponent_Internal<T>(T::StaticClass(), bIncludeFromChildActors, [&](T* InComp)
+			{
+				OutComponents.Add(InComp);
+			});
+	}
+
+	/**
 	 * UActorComponent specialization of GetComponents() to avoid unnecessary casts.
 	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
 	 * TInlineComponentArray is defined to make this easier, for example:

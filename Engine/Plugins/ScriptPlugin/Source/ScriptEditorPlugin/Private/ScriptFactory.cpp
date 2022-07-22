@@ -141,7 +141,7 @@ EReimportResult::Type UReimportScriptFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
-	TGuardValue<UScriptBlueprint*> OriginalScriptGuardValue(OriginalScript, ScriptClass);
+	TGuardValue<decltype(OriginalScript)> OriginalScriptGuardValue(OriginalScript, ScriptClass);
 
 	const FString ResolvedSourceFilePath = ScriptClass->AssetImportData->GetFirstFilename();
 	if (!ResolvedSourceFilePath.Len())

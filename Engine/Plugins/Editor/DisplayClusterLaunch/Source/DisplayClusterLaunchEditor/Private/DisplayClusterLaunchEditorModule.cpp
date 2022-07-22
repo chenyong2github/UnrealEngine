@@ -461,7 +461,7 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 		FString ConcatenatedDPCvars;
 		FString ConcatenatedLogCommands;
 		// Fullscreen/Windowed
-		if (UDisplayClusterConfigurationClusterNode** NodePtrPtr = ConfigDataToUse->Cluster->Nodes.Find(Node))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* NodePtrPtr = ConfigDataToUse->Cluster->Nodes.Find(Node))
 		{
 			if (const UDisplayClusterConfigurationClusterNode* NodePtr = *NodePtrPtr)
 			{
@@ -857,12 +857,14 @@ void FDisplayClusterLaunchEditorModule::ApplyDisplayClusterConfigOverrides(UDisp
 	{
 		ConfigDataCopy->Cluster->PrimaryNode.Id = SelectedDisplayClusterConfigActorPrimaryNode;
 	}
-	TMap<FString, UDisplayClusterConfigurationClusterNode*> ActiveNodes;
-	TMap<FString, UDisplayClusterConfigurationClusterNode*> NodesInConfig = ConfigDataCopy->Cluster->Nodes;
+
+	using NodeMapType = decltype(UDisplayClusterConfigurationCluster::Nodes);
+	NodeMapType ActiveNodes;
+	NodeMapType NodesInConfig = ConfigDataCopy->Cluster->Nodes;
 	for (int32 NodeIndex = 0; NodeIndex < SelectedDisplayClusterConfigActorNodes.Num(); NodeIndex++)
 	{
 		FString NodeId = SelectedDisplayClusterConfigActorNodes[NodeIndex];
-		if (UDisplayClusterConfigurationClusterNode** Node = NodesInConfig.Find(NodeId))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* Node = NodesInConfig.Find(NodeId))
 		{
 			ActiveNodes.Add(NodeId, *Node);
 			(*Node)->Host = "127.0.0.1";

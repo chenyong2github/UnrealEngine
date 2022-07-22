@@ -38,6 +38,6 @@ void UMassSettings::RegisterModuleSettings(UMassModuleSettings& SettingsCDO)
 	}
 #endif // WITH_EDITOR
 
-	UMassModuleSettings*& FoundModuleEntry = ModuleSettings.FindOrAdd(EntryName, &SettingsCDO);
+	UE_TRANSITIONAL_OBJECT_PTR(UMassModuleSettings)& FoundModuleEntry = ModuleSettings.FindOrAdd(EntryName, &SettingsCDO);
 	FoundModuleEntry = &SettingsCDO;
 }

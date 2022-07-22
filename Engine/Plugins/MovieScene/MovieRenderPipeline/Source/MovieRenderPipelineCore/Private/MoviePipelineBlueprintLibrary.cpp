@@ -737,7 +737,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 		}
 
 		// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
-		if (InJob->ShotInfo != NewShots)
+		if (ToRawPtrTArrayUnsafe(InJob->ShotInfo) != NewShots)
 		{
 			InJob->ShotInfo.Reset();
 			InJob->ShotInfo = NewShots;

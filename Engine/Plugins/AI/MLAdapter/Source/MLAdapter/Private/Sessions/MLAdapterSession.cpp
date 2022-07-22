@@ -503,7 +503,7 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	// couple of times in sequence
 	AwaitingAvatar.AddUnique(&Agent);
 
-	InWorld = InWorld ? InWorld : CachedWorld;
+	InWorld = InWorld ? InWorld : ToRawPtr(CachedWorld);
 	
 	if (InWorld == nullptr)
 	{
@@ -567,7 +567,7 @@ void UMLAdapterSession::ClearAvatar(UMLAdapterAgent& Agent)
 		return;
 	}
 
-	UMLAdapterAgent* BoundAgent = nullptr;
+	decltype(AvatarToAgent)::ValueType BoundAgent = nullptr;
 	AvatarToAgent.RemoveAndCopyValue(HashAvatar(*OldAvatar), BoundAgent);
 	ensure(BoundAgent == &Agent);
 	// @todo what if it causes another RequestAvatarForAgent call

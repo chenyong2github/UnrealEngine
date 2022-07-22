@@ -416,7 +416,7 @@ void UMassAgentSubsystem::OnMassAgentAddedToReplication(FMassNetworkID NetID, FM
 	UWorld* World = GetWorld();
 	if (World && World->IsNetMode(NM_Client))
 	{
-		if (UMassAgentComponent** AgentComp = ReplicatedAgentComponents.Find(NetID))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UMassAgentComponent)* AgentComp = ReplicatedAgentComponents.Find(NetID))
 		{
 			(*AgentComp)->SetReplicatedPuppetHandle(FMassEntityHandle(Entity));
 			MakePuppet(**AgentComp);
@@ -431,7 +431,7 @@ void UMassAgentSubsystem::OnMassAgentRemovedFromReplication(FMassNetworkID NetID
 	UWorld* World = GetWorld();
 	if (World && World->IsNetMode(NM_Client))
 	{
-		if (UMassAgentComponent** AgentComp = ReplicatedAgentComponents.Find(NetID))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UMassAgentComponent)* AgentComp = ReplicatedAgentComponents.Find(NetID))
 		{
 			UnregisterAgentComponent(**AgentComp);
 			(*AgentComp)->ClearReplicatedPuppetHandle();

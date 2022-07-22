@@ -56,7 +56,7 @@ void UComposurePostProcessingPassProxy::Execute(UTexture* PrePassInput, UComposu
 	{
 		SetupMID = nullptr;
 	}
-	TGuardValue<UMaterialInterface*> SetupMatGuard(SetupMaterial, SetupMID);
+	TGuardValue<decltype(SetupMaterial)> SetupMatGuard(SetupMaterial, SetupMID);
 	
 	if (PostProcessPass && SceneCapture)
 	{
@@ -76,7 +76,7 @@ void UComposurePostProcessingPassProxy::Execute(UTexture* PrePassInput, UComposu
 				UE_CLOG(OverrideMat != nullptr, Composure, Warning, TEXT("Invalid tonemapper override supplied from: '%s'"), *PostProcessPass->GetClass()->GetName());
 			}
 		}
-		TGuardValue<UMaterialInterface*> TonemapperReplacementGuard(TonemapperReplacement, bUseTonemapperOverride ? TonemapperOverride : nullptr);
+		TGuardValue<decltype(TonemapperReplacement)> TonemapperReplacementGuard(TonemapperReplacement, bUseTonemapperOverride ? TonemapperOverride : nullptr);
 
 		// Ensure the scene cap isn't rendering any scene objects
 		SceneCapture->ClearShowOnlyComponents();

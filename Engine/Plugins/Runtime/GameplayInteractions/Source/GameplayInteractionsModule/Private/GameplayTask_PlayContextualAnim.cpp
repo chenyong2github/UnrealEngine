@@ -358,7 +358,7 @@ void UGameplayTask_PlayContextualAnim::SharedInitAndApply()
 	SceneParams.SectionIdx = SectionIdx;
 	SceneParams.AnimSetIdx = AnimSetIdx;
 	SceneParams.RoleToActorMap.Add(InteractorRole, Interactor);
-	SceneParams.RoleToActorMap.Add(InteractableObjectRole, InteractableObject);
+	SceneParams.RoleToActorMap.Add(InteractableObjectRole, ToRawPtr(InteractableObject));
 
 	// Rebuild pivots from asset and replicated transforms
 	if (Pivots.Num())

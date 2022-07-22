@@ -84,11 +84,6 @@ const UScriptStruct* URemoteControlExposeRegistry::GetExposedEntityType(const FG
 	return nullptr;
 }
 
-const TSet<UScriptStruct*>& URemoteControlExposeRegistry::GetExposedEntityTypes() const
-{
-	return ExposedTypes;
-}
-
 const bool URemoteControlExposeRegistry::IsEmpty() const
 {
     return ExposedEntities.IsEmpty();

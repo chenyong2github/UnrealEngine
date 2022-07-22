@@ -64,7 +64,7 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 		GEditor->BroadcastLevelActorListChanged();
 		GEditor->RedrawLevelEditingViewports();
 
-		ImportedObject = ImportContext.ImportedAsset ? ImportContext.ImportedAsset : Cast<UObject>( ImportContext.SceneActor );
+		ImportedObject = ImportContext.ImportedAsset ? ToRawPtr(ImportContext.ImportedAsset) : Cast<UObject>( ImportContext.SceneActor );
 	}
 	else
 	{

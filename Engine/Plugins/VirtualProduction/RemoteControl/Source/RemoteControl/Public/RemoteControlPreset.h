@@ -435,7 +435,7 @@ public:
 	const UScriptStruct* GetExposedEntityType(const FGuid& ExposedEntityId) const;
 	
 	/** Get all types of exposed entities currently exposed. (ie. FRemoteControlActor) */
-	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
+	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UScriptStruct)& GetExposedEntityTypes() const;
 
 	/** Returns true when Exposed Entities is populated. */
 	const bool HasEntities() const;

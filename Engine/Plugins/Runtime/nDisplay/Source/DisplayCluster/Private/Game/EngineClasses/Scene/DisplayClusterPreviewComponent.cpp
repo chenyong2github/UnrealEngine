@@ -298,13 +298,15 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 	}
 }
 
-void UDisplayClusterPreviewComponent::ReleaseRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget)
+template<typename T>
+void UDisplayClusterPreviewComponent::ReleaseRenderTargetImpl(T* InOutRenderTarget)
 {
 	checkSlow(InOutRenderTarget);
 	*InOutRenderTarget = nullptr;
 }
 
-void UDisplayClusterPreviewComponent::UpdateRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget)
+template<typename T>
+void UDisplayClusterPreviewComponent::UpdateRenderTargetImpl(T* InOutRenderTarget)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget"), STAT_UpdatePreviewRenderTarget, STATGROUP_NDisplay);
 	
@@ -314,7 +316,7 @@ void UDisplayClusterPreviewComponent::UpdateRenderTargetImpl(UTextureRenderTarge
 	bool         bTextureSRGB = false;
 
 	checkSlow(InOutRenderTarget);
-	UTextureRenderTarget2D*& RenderTargetPtr = *InOutRenderTarget;
+	T& RenderTargetPtr = *InOutRenderTarget;
 	
 	if (GetPreviewTextureSettings(TextureSize, TextureFormat, TextureGamma, bTextureSRGB))
 	{

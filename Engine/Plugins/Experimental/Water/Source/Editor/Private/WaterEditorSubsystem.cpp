@@ -73,7 +73,7 @@ void UWaterEditorSubsystem::RegisterWaterActorSprite(UClass* InClass, UTexture2D
 UTexture2D* UWaterEditorSubsystem::GetWaterActorSprite(UClass* InClass) const
 {
 	UClass const* Class = InClass;
-	UTexture2D* const* SpritePtr = nullptr;
+	typename decltype(WaterActorSprites)::ValueType const* SpritePtr = nullptr;
 
 	// Traverse the class hierarchy and find the first available sprite
 	while (Class != nullptr && SpritePtr == nullptr)

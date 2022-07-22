@@ -9,8 +9,8 @@
 namespace UE::Mass::ObserverManager::Private
 {
 // a helper function to reduce code duplication in FMassObserverManager::Initialize
-template<typename TBitSet>
-void SetUpObservers(UMassEntitySubsystem& EntitySubsystem, const TMap<const UScriptStruct*, FMassProcessorClassCollection>& RegisteredObserverTypes, TBitSet& ObservedBitSet, FMassObserversMap& Observers)
+template<typename TBitSet, typename TPointerType>
+void SetUpObservers(UMassEntitySubsystem& EntitySubsystem, const TMap<TPointerType, FMassProcessorClassCollection>& RegisteredObserverTypes, TBitSet& ObservedBitSet, FMassObserversMap& Observers)
 {
 	ObservedBitSet.Reset();
 

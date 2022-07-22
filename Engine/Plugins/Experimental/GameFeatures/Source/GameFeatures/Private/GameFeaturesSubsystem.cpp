@@ -1076,7 +1076,7 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginSta
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FString& PluginURL) const
 {
-	UGameFeaturePluginStateMachine* const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
+	UE_TRANSITIONAL_OBJECT_PTR(UGameFeaturePluginStateMachine) const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
 	if (ExistingStateMachine)
 	{
 		return *ExistingStateMachine;
@@ -1227,7 +1227,7 @@ void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args,
 	}
 
 	// create a copy for sorting
-	TArray<UGameFeaturePluginStateMachine*> StateMachines;
+	TArray<typename decltype(GameFeaturePluginStateMachines)::ValueType> StateMachines;
 	GameFeaturePluginStateMachines.GenerateValueArray(StateMachines);
 
 	if (bAlphaSort)

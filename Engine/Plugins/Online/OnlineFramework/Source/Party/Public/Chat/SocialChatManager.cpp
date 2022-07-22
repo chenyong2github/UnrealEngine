@@ -17,7 +17,7 @@
 
 USocialChatRoom* USocialChatManager::GetChatRoom(const FChatRoomId& ChannelId) const
 {
-	if (USocialChatRoom*const* FoundChannel = ChatRoomsById.Find(ChannelId))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)const* FoundChannel = ChatRoomsById.Find(ChannelId))
 	{
 		return *FoundChannel;
 	}
@@ -28,15 +28,15 @@ void USocialChatManager::GetJoinedChannels(TArray<USocialChatChannel*>& JoinedCh
 {
 	JoinedChannels.Reset();
 
-	TArray<USocialChatRoom*> JoinedRooms;
+	TArray<decltype(ChatRoomsById)::ValueType> JoinedRooms;
 	ChatRoomsById.GenerateValueArray(JoinedRooms);
 	JoinedChannels.Append(JoinedRooms);
 
-	TArray<USocialPrivateMessageChannel*> JoinedDirectChannels;
+	TArray<decltype(DirectChannelsByTargetUser)::ValueType> JoinedDirectChannels;
 	DirectChannelsByTargetUser.GenerateValueArray(JoinedDirectChannels);
 	JoinedChannels.Append(JoinedDirectChannels);
 
-	TArray<USocialReadOnlyChatChannel*> ReadOnlyChannels;
+	TArray<decltype(ReadOnlyChannelsByDisplayName)::ValueType> ReadOnlyChannels;
 	ReadOnlyChannelsByDisplayName.GenerateValueArray(ReadOnlyChannels);
 	JoinedChannels.Append(ReadOnlyChannels);
 }
@@ -286,7 +286,7 @@ IOnlineChatPtr USocialChatManager::GetOnlineChatInterface(ESocialSubsystem InSoc
 
 USocialChatRoom& USocialChatManager::FindOrCreateRoom(const FChatRoomId& RoomId)
 {
-	if (USocialChatRoom** Channel = ChatRoomsById.Find(RoomId))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Channel = ChatRoomsById.Find(RoomId))
 	{
 		return **Channel;
 	}
@@ -309,7 +309,7 @@ USocialChatRoom& USocialChatManager::FindOrCreateRoom(const FChatRoomId& RoomId)
 
 USocialChatChannel& USocialChatManager::FindOrCreateChannel(USocialUser& SocialUser)
 {
-	if (USocialPrivateMessageChannel** Channel = DirectChannelsByTargetUser.Find(&SocialUser))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USocialPrivateMessageChannel)* Channel = DirectChannelsByTargetUser.Find(&SocialUser))
 	{
 		return **Channel;
 	}
@@ -329,7 +329,7 @@ USocialChatChannel& USocialChatManager::FindOrCreateChannel(USocialUser& SocialU
 
 USocialChatChannel& USocialChatManager::FindOrCreateChannel(const FText& DisplayName)
 {
-	if (USocialReadOnlyChatChannel** Channel = ReadOnlyChannelsByDisplayName.Find(DisplayName.ToString()))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USocialReadOnlyChatChannel)* Channel = ReadOnlyChannelsByDisplayName.Find(DisplayName.ToString()))
 	{
 		return **Channel;
 	}
@@ -413,7 +413,7 @@ void USocialChatManager::HandleChatRoomExit(const FUniqueNetId& LocalUserId, con
 	{
 		if (bWasSuccessful)
 		{
-			USocialChatRoom** Room = ChatRoomsById.Find(RoomId);
+			UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Room = ChatRoomsById.Find(RoomId);
 			if (ensure(Room))
 			{
 				ChatRoomsById.Remove(RoomId);
@@ -435,7 +435,7 @@ void USocialChatManager::HandleChatRoomMemberJoin(const FUniqueNetId& LocalUserI
 		GetOwningToolkit().QueueUserDependentAction(MemberId.AsShared(),
 			[this, RoomId](USocialUser& User)
 		{
-			if (USocialChatRoom** Channel = ChatRoomsById.Find(RoomId))
+			if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Channel = ChatRoomsById.Find(RoomId))
 			{
 				(*Channel)->NotifyUserJoinedChannel(User);
 			}

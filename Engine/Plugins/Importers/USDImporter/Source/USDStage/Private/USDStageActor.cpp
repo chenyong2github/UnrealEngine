@@ -205,14 +205,15 @@ struct FUsdStageActorImpl
 #endif // WITH_EDITOR
 	}
 
-	static void CloseEditorsForAssets( const TMap< FString, UObject* >& AssetsCache )
+	template<typename ObjectPtr>
+	static void CloseEditorsForAssets( const TMap< FString, ObjectPtr >& AssetsCache )
 	{
 #if WITH_EDITOR
 		if ( GIsEditor && GEditor )
 		{
 			if ( UAssetEditorSubsystem* AssetEditorSubsysttem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() )
 			{
-				for ( const TPair<FString, UObject*>& Pair : AssetsCache )
+				for ( const TPair<FString, ObjectPtr>& Pair : AssetsCache )
 				{
 					if ( UObject* Asset = Pair.Value )
 					{

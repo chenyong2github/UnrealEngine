@@ -385,7 +385,7 @@ void AWaterLandscapeBrush::AddReferencedObjects(UObject* InThis, FReferenceColle
 	Super::AddReferencedObjects(This, Collector);
 
 	// TODO [jonathan.bard] : remove : probably not necessary since it's now a uproperty :
-	for (TPair<TWeakObjectPtr<AActor>, UObject*>& Pair : This->Cache)
+	for (UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, TWeakObjectPtr<AActor>, UObject)& Pair : This->Cache)
 	{
 		Collector.AddReferencedObject(Pair.Value);
 	}
@@ -421,14 +421,14 @@ void AWaterLandscapeBrush::SetActorCache(AActor* InActor, UObject* InCache)
 		return;
 	}
 
-	UObject*& Value = Cache.FindOrAdd(TWeakObjectPtr<AActor>(InActor));
+	UE_TRANSITIONAL_OBJECT_PTR(UObject)& Value = Cache.FindOrAdd(TWeakObjectPtr<AActor>(InActor));
 	Value = InCache;
 }
 
 
 UObject* AWaterLandscapeBrush::GetActorCache(AActor* InActor, TSubclassOf<UObject> CacheClass) const
 {
-	UObject* const* ValuePtr = Cache.Find(TWeakObjectPtr<AActor>(InActor));
+	UE_TRANSITIONAL_OBJECT_PTR(UObject) const* ValuePtr = Cache.Find(TWeakObjectPtr<AActor>(InActor));
 	if (ValuePtr && (*ValuePtr) && (*ValuePtr)->IsA(*CacheClass))
 	{
 		return *ValuePtr;

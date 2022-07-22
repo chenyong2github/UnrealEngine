@@ -1796,7 +1796,7 @@ void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject
 		const TSharedRef<FDataprepParameterizationBinding>& Binding = BindingPair.Key;
 		if ( UDataprepParameterizableObject* Object = Cast<UDataprepParameterizableObject>( SourceToCopy.FindRef( Binding->ObjectBinded ) ) )
 		{
-			TGuardValue<UDataprepParameterizableObject*> GuardObjectBinded( Binding->ObjectBinded, Object );
+			TGuardValue<decltype(Binding->ObjectBinded)> GuardObjectBinded( Binding->ObjectBinded, Object );
 
 			void* DestinationAddress = nullptr;
 			if ( FProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )

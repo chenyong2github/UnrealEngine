@@ -67,7 +67,7 @@ void USoundscapeColorPointHashMap::ClearHash()
 int32 USoundscapeColorPointHashMap::NumColorPointsInCell(const FVector& Location, const FGameplayTag ColorPoint)
 {
 	// Determine if the Hash Map contains the Color Point Density Table Pointer
-	if (USoundscapeColorPointHashCellDensity** ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USoundscapeColorPointHashCellDensity)* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
 	{
 		// Validate the double pointer
 		if (USoundscapeColorPointHashCellDensity* ColorPointHashCell = *ColorPointHashCellPtr)
@@ -260,7 +260,7 @@ TMap<FGameplayTag, int32> USoundscapeColorPointHashMap::GetHashMapColorPointDens
 
 USoundscapeColorPointHashCellDensity* USoundscapeColorPointHashMap::GetColorPointDensityMap(FGameplayTag ColorPoint)
 {
-	if (USoundscapeColorPointHashCellDensity** ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
+	if (UE_TRANSITIONAL_OBJECT_PTR(USoundscapeColorPointHashCellDensity)* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
 	{
 		// Get Color Point Hash Cell Pointer
 		return *ColorPointHashCellPtr;
@@ -667,7 +667,7 @@ bool USoundscapeSubsystem::UnloadPaletteCollection(FName PaletteCollectionName)
 		PaletteCollectionSetToUnload = PaletteCollectionSetToUnload.Difference(PaletteCollectionSetToKeep);
 
 		// Temp set of palettes to remove and stop
-		TSet<USoundscapePalette*> PalettesToUnloadStopAndRemove;
+		decltype(LoadedPaletteCollectionSet) PalettesToUnloadStopAndRemove;
 
 		// Go through collection, get their loaded pointers, add to temp removal set
 		for (FSoftObjectPath& ObjPath : PaletteCollectionSetToUnload)
@@ -911,7 +911,7 @@ void USoundscapeSubsystem::RemoveActiveColorPoint(const USoundscapeColorPointCom
 void USoundscapeSubsystem::UpdateState()
 {
 	// Palettes the keep
-	TMap<USoundscapePalette*, UActiveSoundscapePalette*> ActivePalettesToKeep;
+	decltype(ActivePalettes) ActivePalettesToKeep;
 
 	// Remove tags that don't match
 	for (const TPair<USoundscapePalette*, UActiveSoundscapePalette*> ActiveSoundscapePalettePair : ActivePalettes)

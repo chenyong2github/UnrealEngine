@@ -334,7 +334,8 @@ void UDirectionalLightGizmo::OnEndDrag(const FInputDeviceRay& Ray)
 	GetGizmoManager()->EndUndoTransaction();
 }
 
-bool UDirectionalLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UGizmoBaseComponent*& OutHitComponent)
+template<typename PtrType>
+bool UDirectionalLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, PtrType& OutHitComponent)
 {
 	FVector Start = Ray.Origin;
 	const float MaxRaycastDistance = 1e6f;

@@ -77,7 +77,7 @@ void UUsdAssetCache::DiscardAsset( const FString& Hash )
 {
 	FScopeLock Lock( &CriticalSection );
 
-	UObject** FoundObject = TransientStorage.Find( Hash );
+	UE_TRANSITIONAL_OBJECT_PTR(UObject)* FoundObject = TransientStorage.Find( Hash );
 
 	if ( !FoundObject )
 	{
@@ -110,7 +110,7 @@ UObject* UUsdAssetCache::GetCachedAsset( const FString& Hash ) const
 {
 	FScopeLock Lock( &CriticalSection );
 
-	UObject* const* FoundObject = TransientStorage.Find( Hash );
+	UE_TRANSITIONAL_OBJECT_PTR(UObject) const* FoundObject = TransientStorage.Find( Hash );
 
 	if ( !FoundObject )
 	{
@@ -124,14 +124,6 @@ UObject* UUsdAssetCache::GetCachedAsset( const FString& Hash ) const
 	}
 
 	return nullptr;
-}
-
-TMap< FString, UObject* > UUsdAssetCache::GetCachedAssets() const
-{
-	TMap< FString, UObject* > CachedAssets( TransientStorage );
-	CachedAssets.Append( PersistentStorage );
-
-	return CachedAssets;
 }
 
 void UUsdAssetCache::LinkAssetToPrim( const FString& PrimPath, UObject* Asset )

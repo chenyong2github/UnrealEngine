@@ -52,7 +52,8 @@ private:
 	UMaterialInstanceDynamic* CopyMID = nullptr;
 };
 
-void FCompositingElementPassUtils::FillOutMID(UMaterialInterface* SrcMaterial, UMaterialInstanceDynamic*& TargetMID, UObject* InOuter)
+template<typename T>
+static void FillOutMID_Internal(UMaterialInterface* SrcMaterial, T& TargetMID, UObject* InOuter)
 {
 	if (SrcMaterial)
 	{
@@ -73,6 +74,16 @@ void FCompositingElementPassUtils::FillOutMID(UMaterialInterface* SrcMaterial, U
 	{
 		TargetMID = nullptr;
 	}
+}
+
+void FCompositingElementPassUtils::FillOutMID(UMaterialInterface* SrcMaterial, UMaterialInstanceDynamic*& TargetMID, UObject* InOuter)
+{
+	FillOutMID_Internal(SrcMaterial, TargetMID, InOuter);
+}
+
+void FCompositingElementPassUtils::FillOutMID(UMaterialInterface* SrcMaterial, TObjectPtr<UMaterialInstanceDynamic>& TargetMID, UObject* InOuter)
+{
+	FillOutMID_Internal(SrcMaterial, TargetMID, InOuter);
 }
 
 void FCompositingElementPassUtils::RenderMaterialToRenderTarget(UObject* WorldContextObj, UMaterialInterface* Material, UTextureRenderTarget2D* RenderTarget)

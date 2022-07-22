@@ -120,7 +120,7 @@ void FStateTreeViewModel::NotifyStatesChangedExternally(const TSet<UStateTreeSta
 
 TArray<UStateTreeState*>* FStateTreeViewModel::GetSubTrees() const
 {
-	return TreeData != nullptr ? &TreeData->SubTrees : nullptr;
+	return TreeData != nullptr ? &ToRawPtrTArrayUnsafe(TreeData->SubTrees) : nullptr;
 }
 
 int32 FStateTreeViewModel::GetSubTreeCount() const

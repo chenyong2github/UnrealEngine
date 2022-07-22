@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectPtr.h"
 
 class SWidget;
 class FDragDropOperation;
@@ -79,6 +80,13 @@ public:
 	 * @param OutSortedNodes - The sorted nodes, indexed by the Host property of the cluster nodes
 	 */
 	static void SortClusterNodesByHost(const TMap<FString, UDisplayClusterConfigurationClusterNode*>& InClusterNodes, TMap<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>>& OutSortedNodes);
+
+	/**
+	 * Sorts a list of cluster nodes by their host.
+	 * @param InClusterNodes - The list of nodes to sort
+	 * @param OutSortedNodes - The sorted nodes, indexed by the Host property of the cluster nodes
+	 */
+	static void SortClusterNodesByHost(const TMap<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& InClusterNodes, TMap<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>>& OutSortedNodes);
 
 	/**
 	 * Attempts to find a preexisting display data object for the specified host, and if one can't be found, creates a new one.

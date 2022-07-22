@@ -205,7 +205,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 
 		for (auto NewNodeIt = ConfigData->Cluster->Nodes.CreateConstIterator(); NewNodeIt; ++NewNodeIt)
 		{
-			UDisplayClusterConfigurationClusterNode** CurrentNodePtr = CurrentConfigData->Cluster->Nodes.Find(NewNodeIt->Key);
+			UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* CurrentNodePtr = CurrentConfigData->Cluster->Nodes.Find(NewNodeIt->Key);
 
 			// Add the node if it doesn't exist
 			if (!CurrentNodePtr)
@@ -247,7 +247,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 				// Go over viewport and override the current ones (or add new ones that didn't exist)
 				for (auto NewViewportIt = NewNode->Viewports.CreateConstIterator(); NewViewportIt; ++NewViewportIt)
 				{
-					UDisplayClusterConfigurationViewport** CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
+					UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport)* CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
 
 					// Add the viewport if it doesn't exist
 					if (!CurrentViewportPtr)
@@ -1127,7 +1127,7 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 	// Only update the viewports of the current node. If there isn't one, which is normal in Editor, we update them all.
 
 	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
-	TArray<UDisplayClusterConfigurationClusterNode*, TInlineAllocator<1>> Nodes;
+	TArray<typename decltype(UDisplayClusterConfigurationCluster::Nodes)::ValueType, TInlineAllocator<1>> Nodes;
 
 	if (NodeId.IsEmpty())
 	{

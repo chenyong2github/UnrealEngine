@@ -200,7 +200,7 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshPa
 	const uint32 HashParameters = GetTypeHash(Parameters);
 	FCachedFontMeshes& CachedMeshes = Meshes.FindOrAdd(HashParameters);
 
-	UStaticMesh** CachedStaticMesh = CachedMeshes.Glyphs.Find(GlyphIndex);
+	UE_TRANSITIONAL_OBJECT_PTR(UStaticMesh)* CachedStaticMesh = CachedMeshes.Glyphs.Find(GlyphIndex);
 	if (CachedStaticMesh)
 	{
 		return *CachedStaticMesh;

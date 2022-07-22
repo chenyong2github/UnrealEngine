@@ -35,7 +35,7 @@ bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 			continue;
 		}
 
-		if (OutInstanceLists[Index].bOverrideMaterials && OutInstanceLists[Index].MaterialOverrides != MaterialOverrides)
+		if (OutInstanceLists[Index].bOverrideMaterials && ToRawPtrTArrayUnsafe(OutInstanceLists[Index].MaterialOverrides) != MaterialOverrides)
 		{
 			continue;
 		}

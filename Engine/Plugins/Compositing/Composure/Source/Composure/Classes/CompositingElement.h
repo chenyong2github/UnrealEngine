@@ -323,11 +323,11 @@ public:
 	UCompositingElementOutput* FindOutputPass(UPARAM(meta = (AllowAbstract = "false"))TSubclassOf<UCompositingElementOutput> OutputType, FName OptionalPassName = NAME_None);
 	
 	UFUNCTION(BlueprintGetter)
-	TArray<UCompositingElementInput*> GetInputsList() const { return GetInternalInputsList(); }
+	TArray<UCompositingElementInput*> GetInputsList() const { return ToRawPtrTArrayUnsafe(GetInternalInputsList()); }
 	UFUNCTION(BlueprintGetter)
-	TArray<UCompositingElementTransform*> GetTransformsList() const { return GetInternalTransformsList(); }
+	TArray<UCompositingElementTransform*> GetTransformsList() const { return ToRawPtrTArrayUnsafe(GetInternalTransformsList()); }
 	UFUNCTION(BlueprintGetter)
-	TArray<UCompositingElementOutput*> GetOutputsList() const { return GetInternalOutputsList(); }
+	TArray<UCompositingElementOutput*> GetOutputsList() const { return ToRawPtrTArrayUnsafe(GetInternalOutputsList()); }
 
 	/**
 	 * Delete a specific pass. This function deals with the public list where deletion is directly reflected in the editor.
@@ -423,9 +423,9 @@ private:
 	void RefreshInternalTransformsList();
 	void RefreshInternalOutputsList();
 
-	const TArray<UCompositingElementInput*>& GetInternalInputsList() const;
-	const TArray<UCompositingElementTransform*>& GetInternalTransformsList() const;
-	const TArray<UCompositingElementOutput*>& GetInternalOutputsList() const;
+	const decltype(Inputs)& GetInternalInputsList() const;
+	const decltype(TransformPasses)& GetInternalTransformsList() const;
+	const decltype(Outputs)& GetInternalOutputsList() const;
 
 	void BeginFrameForAllPasses(bool bCameraCutThisFrame);
 	void GenerateInputs();

@@ -15,18 +15,18 @@
 
 namespace CompositingElementEditorSupport_Impl
 {
-	template<class T>
-	T* FindReplacedPass(const TArray<T*>& PublicList, const TArray<T*>& InternalList, const int32 ReplacedIndex);
+	template<typename T>
+	T FindReplacedPass(const TArray<T>& PublicList, const TArray<T>& InternalList, const int32 ReplacedIndex);
 }
 
-template<class T>
-T* CompositingElementEditorSupport_Impl::FindReplacedPass(const TArray<T*>& PublicList, const TArray<T*>& InternalList, const int32 ReplacedIndex)
+template<typename T>
+T CompositingElementEditorSupport_Impl::FindReplacedPass(const TArray<T>& PublicList, const TArray<T>& InternalList, const int32 ReplacedIndex)
 {
-	T* FoundPass = nullptr;
+	T FoundPass = nullptr;
 
 	if (PublicList.IsValidIndex(ReplacedIndex))
 	{
-		if (T* AlteredPass = PublicList[ReplacedIndex])
+		if (T AlteredPass = PublicList[ReplacedIndex])
 		{
 			if (!InternalList.Contains(AlteredPass))
 			{
@@ -105,11 +105,11 @@ bool ACompositingElement::UseImplicitGammaForPreview() const
 
 UTexture* ACompositingElement::GetColorPickerDisplayImage()
 {
-	return (ColorPickerDisplayImage) ? ColorPickerDisplayImage : (ColorPickerTarget ? ColorPickerTarget : GetEditorPreviewImage());
+	return (ColorPickerDisplayImage) ? ToRawPtr(ColorPickerDisplayImage) : (ColorPickerTarget ? ToRawPtr(ColorPickerTarget) : GetEditorPreviewImage());
 }
 UTextureRenderTarget2D* ACompositingElement::GetColorPickerTarget()
 {
-	return (ColorPickerTarget) ? ColorPickerTarget : Cast<UTextureRenderTarget2D>(GetColorPickerDisplayImage());
+	return (ColorPickerTarget) ? ToRawPtr(ColorPickerTarget) : Cast<UTextureRenderTarget2D>(GetColorPickerDisplayImage());
 }
 
 FCompFreezeFrameController* ACompositingElement::GetFreezeFrameController()

@@ -98,7 +98,7 @@ bool UDataRegistrySource::IsTransientSource() const
 
 UDataRegistrySource* UDataRegistrySource::GetOriginalSource()
 {
-	return ParentSource ? ParentSource : this;
+	return ParentSource ? ToRawPtr(ParentSource) : this;
 }
 
 bool UDataRegistrySource::IsSpecificAssetRegistered(const FSoftObjectPath& AssetPath) const
@@ -243,7 +243,7 @@ void UMetaDataRegistrySource::RefreshRuntimeSources()
 
 	for (FName SourceName : RuntimeNames)
 	{
-		UDataRegistrySource** FoundSource = RuntimeChildren.Find(SourceName);
+		UE_TRANSITIONAL_OBJECT_PTR(UDataRegistrySource)* FoundSource = RuntimeChildren.Find(SourceName);
 		if (FoundSource && *FoundSource)
 		{
 			SetDataForChild(SourceName, *FoundSource);
@@ -286,7 +286,7 @@ void UMetaDataRegistrySource::AddRuntimeSources(TArray<UDataRegistrySource*>& Ou
 	{
 		for (FName SourceName : RuntimeNames)
 		{
-			UDataRegistrySource** FoundSource = RuntimeChildren.Find(SourceName);
+			UE_TRANSITIONAL_OBJECT_PTR(UDataRegistrySource)* FoundSource = RuntimeChildren.Find(SourceName);
 			if (FoundSource && *FoundSource)
 			{
 				OutRuntimeSources.Add(*FoundSource);

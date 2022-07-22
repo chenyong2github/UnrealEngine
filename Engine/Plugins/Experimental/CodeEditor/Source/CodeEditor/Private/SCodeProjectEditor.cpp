@@ -27,7 +27,7 @@ void SCodeProjectEditor::Construct(const FArguments& InArgs, UCodeProject* InCod
 			+SOverlay::Slot()
 			[
 				SAssignNew(ProjectTree, STreeView<UCodeProjectItem*>)
-				.TreeItemsSource(&CodeProject->Children)
+				.TreeItemsSource(&ToRawPtrTArrayUnsafe(CodeProject->Children))
 				.OnGenerateRow(this, &SCodeProjectEditor::OnGenerateRow)
 				.OnGetChildren(this, &SCodeProjectEditor::OnGetChildren)
 				.OnMouseButtonDoubleClick(this, &SCodeProjectEditor::HandleMouseButtonDoubleClick)
@@ -49,7 +49,7 @@ void SCodeProjectEditor::Tick( const FGeometry& AllottedGeometry, const double I
 {
 	if(FDirectoryScanner::Tick())
 	{
-		ProjectTree->SetTreeItemsSource(&CodeProject->Children);
+		ProjectTree->SetTreeItemsSource(&ToRawPtrTArrayUnsafe(CodeProject->Children));
 	}
 
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

@@ -99,8 +99,10 @@ protected:
 	void ReleasePreviewRenderTarget();
 
 private:
-	void UpdateRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget);
-	void ReleaseRenderTargetImpl(UTextureRenderTarget2D** InOutRenderTarget);
+	template<typename T>
+	void UpdateRenderTargetImpl(T* InOutRenderTarget);
+	template<typename T>
+	void ReleaseRenderTargetImpl(T* InOutRenderTarget);
 
 protected:
 	bool UpdatePreviewMesh();

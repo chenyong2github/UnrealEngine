@@ -65,8 +65,8 @@ private:
 	};
 
 	// Spawns components listed in a config
-	template <typename TComp, typename TCfgData>
-	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FCompInitInfo<TComp, TCfgData>>& OutTypedMap);
+	template <typename TComp, typename TCfgData, typename TCfgDataPtr>
+	void SpawnComponents(const TMap<FString, TCfgDataPtr>& InConfigData, TMap<FString, FCompInitInfo<TComp, TCfgData>>& OutTypedMap);
 
 	// Internal component references
 	ADisplayClusterRootActor* ProcessingActor;

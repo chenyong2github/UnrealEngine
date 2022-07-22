@@ -166,11 +166,11 @@ void FDisplayClusterRootActorInitializer::Cleanup()
 	ScreenComponents.Reset();
 }
 
-template <typename TComp, typename TCfgData>
-void FDisplayClusterRootActorInitializer::SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FCompInitInfo<TComp, TCfgData>>& OutTypedMap)
+template <typename TComp, typename TCfgData, typename TCfgDataPtr>
+void FDisplayClusterRootActorInitializer::SpawnComponents(const TMap<FString, TCfgDataPtr>& InConfigData, TMap<FString, FCompInitInfo<TComp, TCfgData>>& OutTypedMap)
 {
 	// Iterate over all the config items
-	for (const TPair<FString, TCfgData*>& Item : InConfigData)
+	for (const TPair<FString, TCfgDataPtr>& Item : InConfigData)
 	{
 		// Just in case, ignore components with duplicate names
 		if (!AllComponents.Contains(Item.Key))
@@ -188,7 +188,7 @@ void FDisplayClusterRootActorInitializer::SpawnComponents(const TMap<FString, TC
 
 				// Save for the next initialization step
 				AllComponents.Emplace(Item.Key, NewComponent);
-				OutTypedMap.Emplace(Item.Key, FCompInitInfo<TComp, TCfgData>(NewComponent, Item.Value));
+				OutTypedMap.Emplace(Item.Key, FCompInitInfo<TComp, TCfgData>(NewComponent, ToRawPtr(Item.Value)));
 			}
 		}
 	}

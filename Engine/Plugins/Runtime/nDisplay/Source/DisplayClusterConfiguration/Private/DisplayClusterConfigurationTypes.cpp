@@ -50,7 +50,7 @@ UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewp
 	UDisplayClusterConfigurationClusterNode* Node = Cluster->GetNode(NodeId);
 	if (Node)
 	{
-		UDisplayClusterConfigurationViewport** Viewport = Node->Viewports.Find(ViewportId);
+		UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport)* Viewport = Node->Viewports.Find(ViewportId);
 		if (Viewport)
 		{
 			return *Viewport;
@@ -387,7 +387,7 @@ void UDisplayClusterConfigurationClusterNode::GetViewportIds(TArray<FString>& Ou
 
 UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationClusterNode::GetViewport(const FString& ViewportId) const
 {
-	UDisplayClusterConfigurationViewport* const* Viewport = Viewports.Find(ViewportId);
+	UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport) const* Viewport = Viewports.Find(ViewportId);
 	return Viewport ? *Viewport : nullptr;
 }
 
@@ -411,7 +411,7 @@ void UDisplayClusterConfigurationCluster::GetNodeIds(TArray<FString>& OutNodeIds
 
 UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationCluster::GetNode(const FString& NodeId) const
 {
-	UDisplayClusterConfigurationClusterNode* const* Node = Nodes.Find(NodeId);
+	UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport) const* Node = Nodes.Find(NodeId);
 	return Node ? *Node : nullptr;
 }
 

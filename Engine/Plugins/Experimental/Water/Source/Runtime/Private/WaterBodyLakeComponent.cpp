@@ -202,7 +202,7 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 
 	if (UWaterSplineComponent* WaterSpline = GetWaterSpline())
 	{
-		UStaticMesh* WaterMesh = GetWaterMeshOverride() ? GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
+		UStaticMesh* WaterMesh = GetWaterMeshOverride() ? GetWaterMeshOverride() : ToRawPtr(UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh);
 
 		const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
 

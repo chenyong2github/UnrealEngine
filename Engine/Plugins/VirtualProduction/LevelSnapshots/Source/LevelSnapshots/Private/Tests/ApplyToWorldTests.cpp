@@ -133,8 +133,8 @@ namespace UE::LevelSnapshots::Private::Tests
 				TestTrue(TEXT("World > External > World"), FromWorldToExternal->HasObjectReference(FirstActor));
 				TestTrue(TEXT("External > World > External"), FromExternalToWorld->HasObjectReference(FromExternalToWorld->CubeMesh));
 
-				TestEqual(TEXT("Mesh"), MaterialAndMesh->InstancedMeshComponent->GetStaticMesh().Get(), MaterialAndMesh->CubeMesh);
-				TestEqual(TEXT("Material"), MaterialAndMesh->InstancedMeshComponent->GetMaterial(0), MaterialAndMesh->GradientLinearMaterial);
+				TestEqual(TEXT("Mesh"), MaterialAndMesh->InstancedMeshComponent->GetStaticMesh().Get(), ToRawPtr(MaterialAndMesh->CubeMesh));
+				TestEqual(TEXT("Material"), MaterialAndMesh->InstancedMeshComponent->GetMaterial(0), ToRawPtr(MaterialAndMesh->GradientLinearMaterial));
 			
 			});
 

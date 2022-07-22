@@ -56,7 +56,7 @@ void UOpenColorIOConfiguration::BeginDestroy()
 
 bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
 {
-	UOpenColorIOColorTransform** TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
+	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
 		return InTransform->SourceColorSpace == InSourceColorSpace && InTransform->DestinationColorSpace == InDestinationColorSpace;
 	});
@@ -73,7 +73,7 @@ bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type 
 
 bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
-	UOpenColorIOColorTransform** TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
+	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
 	{
 		return InTransformData->IsTransform(InSourceColorSpace, InDestinationColorSpace);
 	});

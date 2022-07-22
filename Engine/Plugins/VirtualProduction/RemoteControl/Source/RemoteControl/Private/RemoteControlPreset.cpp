@@ -1280,7 +1280,7 @@ TArray<TSharedPtr<FRemoteControlEntity>> URemoteControlPreset::GetEntities(UScri
 
 TArray<TSharedPtr<const FRemoteControlEntity>> URemoteControlPreset::GetEntities(UScriptStruct* EntityType) const
 {
-	return const_cast<const URemoteControlExposeRegistry*>(Registry)->GetExposedEntities(EntityType);
+	return const_cast<const URemoteControlExposeRegistry*>(ToRawPtr(Registry))->GetExposedEntities(EntityType);
 }
 
 const UScriptStruct* URemoteControlPreset::GetExposedEntityType(const FGuid& ExposedEntityId) const
@@ -1288,7 +1288,7 @@ const UScriptStruct* URemoteControlPreset::GetExposedEntityType(const FGuid& Exp
 	return Registry->GetExposedEntityType(ExposedEntityId);
 }
 
-const TSet<UScriptStruct*>& URemoteControlPreset::GetExposedEntityTypes() const
+const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UScriptStruct)& URemoteControlPreset::GetExposedEntityTypes() const
 {
 	return Registry->GetExposedEntityTypes();
 }

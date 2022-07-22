@@ -450,12 +450,31 @@ void FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(const TMap<
 	OutSortedNodes.KeySort(TLess<FString>());
 }
 
+void FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(const TMap<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& InClusterNodes, TMap<FString, TMap<FString, UDisplayClusterConfigurationClusterNode*>>& OutSortedNodes)
+{
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& ClusterNodePair : InClusterNodes)
+	{
+		check(ClusterNodePair.Value)
+
+			FString Host = ClusterNodePair.Value->Host;
+		if (!OutSortedNodes.Contains(Host))
+		{
+			OutSortedNodes.Add(Host, TMap<FString, UDisplayClusterConfigurationClusterNode*>());
+		}
+
+		OutSortedNodes[Host].Add(ClusterNodePair);
+	}
+
+	// Sort the hosts by the host address
+	OutSortedNodes.KeySort(TLess<FString>());
+}
+
 UDisplayClusterConfigurationHostDisplayData* FDisplayClusterConfiguratorClusterUtils::FindOrCreateHostDisplayData(UDisplayClusterConfigurationCluster* Cluster, FString HostIPAddress)
 {
 	// In some cases, existing host display data may be pending kill, such as if the user recently performed an undo to a state
 	// prior to the data's existence. In this case, simply remove existing host data that is pending kill and create a new one to use.
 	TArray<FString> PendingKillHostData;
-	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : Cluster->HostDisplayData)
+	for (UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationHostDisplayData)& HostPair : Cluster->HostDisplayData)
 	{
 		if (!IsValid(HostPair.Value))
 		{
@@ -512,7 +531,7 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveUnusedHostDisplayData(UDispl
 FString FDisplayClusterConfiguratorClusterUtils::GetUniqueNameForHost(FString InitialName, UDisplayClusterConfigurationCluster* ParentCluster, bool bAddZero)
 {
 	TArray<FString> UsedNames;
-	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : ParentCluster->HostDisplayData)
+	for (UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationHostDisplayData)& HostPair : ParentCluster->HostDisplayData)
 	{
 		UsedNames.Add(HostPair.Value->HostName.ToString());
 	}
@@ -1150,7 +1169,7 @@ TArray<UObject*> FDisplayClusterConfiguratorClusterUtils::PasteClusterItemsFromC
 
 			// Rename viewports in the new cluster node to ensure they're unique. Copy the viewport pointers into an array
 			// first since renaming would cause the dictionary to change while we're iterating it.
-			TArray<UDisplayClusterConfigurationViewport*> CopiedViewports;
+			TArray<typename decltype(ClusterNodeCopy->Viewports)::ValueType> CopiedViewports;
 			ClusterNodeCopy->Viewports.GenerateValueArray(CopiedViewports);
 			
 			for (UDisplayClusterConfigurationViewport* Viewport : CopiedViewports)

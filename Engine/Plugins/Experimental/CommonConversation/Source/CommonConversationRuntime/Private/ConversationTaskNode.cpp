@@ -35,7 +35,7 @@ EConversationRequirementResult UConversationTaskNode::CheckRequirements(const FC
 	{
 		if (const UConversationRequirementNode* RequirementNode = Cast<UConversationRequirementNode>(SubNode))
 		{
-			TGuardValue<UObject*> Swapper(RequirementNode->EvalWorldContextObj, World);
+			TGuardValue<decltype(RequirementNode->EvalWorldContextObj)> Swapper(RequirementNode->EvalWorldContextObj, World);
 
 			const EConversationRequirementResult RequirementResult = RequirementNode->IsRequirementSatisfied(Context);
 
@@ -58,7 +58,7 @@ EConversationRequirementResult UConversationTaskNode::CheckRequirements(const FC
 	{
 		// If this task has innate requirements, we should check those.
 		{
-			TGuardValue<UObject*> Swapper(EvalWorldContextObj, World);
+			TGuardValue<decltype(EvalWorldContextObj)> Swapper(EvalWorldContextObj, World);
 
 			const EConversationRequirementResult RequirementResult = IsRequirementSatisfied(Context);
 			if (RequirementResult != EConversationRequirementResult::Passed)
@@ -102,7 +102,7 @@ FConversationTaskResult UConversationTaskNode::ExecuteTaskNodeWithSideEffects(co
 {
 	ensure(InContext.GetTaskBeingConsidered() == this);
 
-	TGuardValue<UObject*> Swapper(EvalWorldContextObj, InContext.GetWorld());
+	TGuardValue<decltype(EvalWorldContextObj)> Swapper(EvalWorldContextObj, InContext.GetWorld());
 
 	FConversationTaskResult Result(ForceInit);
 
@@ -166,7 +166,7 @@ void UConversationTaskNode::GenerateChoicesForDestinations(FConversationBranchPo
 	{
 		if (UConversationTaskNode* DestinationTaskNode = Cast<UConversationTaskNode>(InContext.GetConversationRegistry().GetRuntimeNodeFromGUID(DestinationGUID)))
 		{
-			TGuardValue<UObject*> Swapper(DestinationTaskNode->EvalWorldContextObj, World);
+			TGuardValue<decltype(DestinationTaskNode->EvalWorldContextObj)> Swapper(DestinationTaskNode->EvalWorldContextObj, World);
 
 			FConversationContext DestinationContext = InContext.CreateChildContext(DestinationTaskNode);
 
@@ -211,7 +211,7 @@ void UConversationTaskNode::GatherStaticChoices(FConversationBranchPointBuilder&
 		{
 			if (UConversationChoiceNode* DestinationChoiceNode = Cast<UConversationChoiceNode>(DestinationSubNode))
 			{
-				TGuardValue<UObject*> DestinationSwapper(DestinationChoiceNode->EvalWorldContextObj, World);
+				TGuardValue<decltype(DestinationChoiceNode->EvalWorldContextObj)> DestinationSwapper(DestinationChoiceNode->EvalWorldContextObj, World);
 
 				FClientConversationOptionEntry Choice;
 				Choice.SetChoiceAvailable(RequirementResult == EConversationRequirementResult::Passed);

@@ -142,7 +142,7 @@ public:
 
 	/// Returns the sub-pins of this pin. For example for a pin representing the FVector type, 
 	/// this will return pins for the X, Y, and Z components of it (as float values).
-	TArrayView<UOptimusNodePin* const> GetSubPins() const { return SubPins; }
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TArrayView, const UOptimusNodePin) GetSubPins() const { return MakeArrayView(SubPins); }
 
 	/// Returns all sub-pins of this pin, recursively. In the returned list, the parent pins
 	/// are listed before their child pins.

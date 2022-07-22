@@ -17,7 +17,7 @@ UUsdPrimTwin& UUsdPrimTwin::AddChild( const FString& InPrimPath )
 
 	Modify();
 
-	UUsdPrimTwin*& ChildPrim = Children.Add( ChildPrimName );
+	UE_TRANSITIONAL_OBJECT_PTR(UUsdPrimTwin)& ChildPrim = Children.Add( ChildPrimName );
 
 	// Needs public because this will mostly live on the transient package (c.f. AUsdStageActor::GetRootPrimTwin())
 	ChildPrim = NewObject<UUsdPrimTwin>( this, NAME_None, RF_Transient | RF_Transactional | RF_Public );
@@ -34,7 +34,7 @@ void UUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 
 	Modify();
 
-	for ( TMap< FString, UUsdPrimTwin* >::TIterator ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
+	for (UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2_SUFFIXED(TMap, FString, UUsdPrimTwin, ::TIterator) ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
 	{
 		if ( ChildIt->Value->PrimPath == InPrimPath )
 		{

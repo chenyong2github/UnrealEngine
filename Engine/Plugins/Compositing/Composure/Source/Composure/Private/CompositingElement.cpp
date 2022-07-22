@@ -55,33 +55,33 @@ static TAutoConsoleVariable<int32> CVarDisableWhenOpacityIsZero(
 
 namespace CompositingElement_Impl
 {
-	template<class T, typename U>
-	static void RefreshInternalPassList(const TArray<T*>& PublicList, const TMap<T*, U>& ConstructedList, TArray<T*>& InternalList);
+	template<typename T, typename U>
+	static void RefreshInternalPassList(const TArray<T>& PublicList, const TMap<T, U>& ConstructedList, TArray<T>& InternalList);
 	
-	template<class T>
-	static int32 ClearBlueprintConstructedPasses(TMap<T*, ECompPassConstructionType>& ConstructedList);
+	template<typename T>
+	static int32 ClearBlueprintConstructedPasses(TMap<T, ECompPassConstructionType>& ConstructedList);
 
-	template<class T, typename U>
-	static int32 RemovePassesOfType(TArray<T*>& PublicList, TMap<T*, U>& ConstructedList, TSubclassOf<UCompositingElementPass> PassType);
+	template<typename T, typename U>
+	static int32 RemovePassesOfType(TArray<T>& PublicList, TMap<T, U>& ConstructedList, TSubclassOf<UCompositingElementPass> PassType);
 
-	template<class T>
-	static void BeginFrameForPasses(const TArray<T*>& PassList, bool bCameraCutThisFrame);
-	template<class T>
-	static void EndFrameForPasses(const TArray<T*>& PassList);
+	template<typename T>
+	static void BeginFrameForPasses(const TArray<T>& PassList, bool bCameraCutThisFrame);
+	template<typename T>
+	static void EndFrameForPasses(const TArray<T>& PassList);
 
-	template<class T>
-	static UTexture* FindLastRenderResult(const TArray<T*>& PassList, const FCompositingTextureLookupTable& ResultLookupTable);
+	template<typename T>
+	static UTexture* FindLastRenderResult(const TArray<T>& PassList, const FCompositingTextureLookupTable& ResultLookupTable);
 }
 
-template<class T, typename U>
-static void CompositingElement_Impl::RefreshInternalPassList(const TArray<T*>& PublicList, const TMap<T*, U>& ConstructedList, TArray<T*>& InternalList)
+template<typename T, typename U>
+static void CompositingElement_Impl::RefreshInternalPassList(const TArray<T>& PublicList, const TMap<T, U>& ConstructedList, TArray<T>& InternalList)
 {
-	TArray<T*> NewInternalPassList;
+	TArray<T> NewInternalPassList;
 	NewInternalPassList.Reserve(PublicList.Num() + ConstructedList.Num());
 
-	auto ParsePassList = [&NewInternalPassList, &InternalList](const TArray<T*>& PassList)
+	auto ParsePassList = [&NewInternalPassList, &InternalList](const TArray<T>& PassList)
 	{
-		for (T* CompositingPass : PassList)
+		for (const T& CompositingPass : PassList)
 		{
 			const int32 InternalIndex = InternalList.Find(CompositingPass);
 			if (InternalIndex != INDEX_NONE)
@@ -98,11 +98,11 @@ static void CompositingElement_Impl::RefreshInternalPassList(const TArray<T*>& P
 	};
 	ParsePassList(PublicList);
 
-	TArray<T*> ConstructedPasses;
+	TArray<T> ConstructedPasses;
 	ConstructedList.GenerateKeyArray(ConstructedPasses);
 	ParsePassList(ConstructedPasses);
 
-	for (T* RemovedPass : InternalList)
+	for (const T& RemovedPass : InternalList)
 	{
 		if (RemovedPass)
 		{
@@ -113,8 +113,8 @@ static void CompositingElement_Impl::RefreshInternalPassList(const TArray<T*>& P
 	InternalList = NewInternalPassList;
 }
 
-template<class T>
-static int32 CompositingElement_Impl::ClearBlueprintConstructedPasses(TMap<T*, ECompPassConstructionType>& ConstructedList)
+template<typename T>
+static int32 CompositingElement_Impl::ClearBlueprintConstructedPasses(TMap<T, ECompPassConstructionType>& ConstructedList)
 {
 	int32 RemoveCount = 0;
 	for (auto It = ConstructedList.CreateIterator(); It; ++It)
@@ -128,8 +128,8 @@ static int32 CompositingElement_Impl::ClearBlueprintConstructedPasses(TMap<T*, E
 	return RemoveCount;
 }
 
-template<class T, typename U>
-static int32 CompositingElement_Impl::RemovePassesOfType(TArray<T*>& PublicList, TMap<T*, U>& ConstructedList, TSubclassOf<UCompositingElementPass> PassType)
+template<typename T, typename U>
+static int32 CompositingElement_Impl::RemovePassesOfType(TArray<T>& PublicList, TMap<T, U>& ConstructedList, TSubclassOf<UCompositingElementPass> PassType)
 {
 	int32 RemovedCount = 0;
 
@@ -144,7 +144,7 @@ static int32 CompositingElement_Impl::RemovePassesOfType(TArray<T*>& PublicList,
 
 	for (int32 PassIndex = PublicList.Num()-1; PassIndex >= 0; --PassIndex)
 	{
-		T* Pass = PublicList[PassIndex];
+		const T& Pass = PublicList[PassIndex];
 		if (Pass && Pass->IsA(PassType))
 		{
 			PublicList.RemoveAt(PassIndex);
@@ -155,10 +155,10 @@ static int32 CompositingElement_Impl::RemovePassesOfType(TArray<T*>& PublicList,
 	return RemovedCount;
 }
 
-template<class T>
-static void CompositingElement_Impl::BeginFrameForPasses(const TArray<T*>& PassList, bool bCameraCutThisFrame)
+template<typename T>
+static void CompositingElement_Impl::BeginFrameForPasses(const TArray<T>& PassList, bool bCameraCutThisFrame)
 {
-	for (T* Pass : PassList)
+	for (const T& Pass : PassList)
 	{
 		if (Pass)
 		{
@@ -167,10 +167,10 @@ static void CompositingElement_Impl::BeginFrameForPasses(const TArray<T*>& PassL
 	}
 }
 
-template<class T>
-static void CompositingElement_Impl::EndFrameForPasses(const TArray<T*>& PassList)
+template<typename T>
+static void CompositingElement_Impl::EndFrameForPasses(const TArray<T>& PassList)
 {
-	for (T* Pass : PassList)
+	for (const T& Pass : PassList)
 	{
 		if (Pass)
 		{
@@ -179,12 +179,12 @@ static void CompositingElement_Impl::EndFrameForPasses(const TArray<T*>& PassLis
 	}
 }
 
-template<class T>
-static UTexture* CompositingElement_Impl::FindLastRenderResult(const TArray<T*>& PassList, const FCompositingTextureLookupTable& ResultLookupTable)
+template<typename T>
+static UTexture* CompositingElement_Impl::FindLastRenderResult(const TArray<T>& PassList, const FCompositingTextureLookupTable& ResultLookupTable)
 {
 	for (int32 PassIndex = PassList.Num() - 1; PassIndex >= 0; --PassIndex)
 	{
-		T* Pass = PassList[PassIndex];
+		const T& Pass = PassList[PassIndex];
 		if (Pass && Pass->IsPassEnabled())
 		{
 			UTexture* OldResult = nullptr;				
@@ -1100,7 +1100,7 @@ void ACompositingElement::RefreshInternalOutputsList()
 	}
 }
 
-const TArray<UCompositingElementInput*>& ACompositingElement::GetInternalInputsList() const
+const decltype(ACompositingElement::Inputs)& ACompositingElement::GetInternalInputsList() const
 {
 	if (CVarUseInternalPassLists.GetValueOnGameThread() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
@@ -1112,7 +1112,7 @@ const TArray<UCompositingElementInput*>& ACompositingElement::GetInternalInputsL
 	}
 }
 
-const TArray<UCompositingElementTransform*>& ACompositingElement::GetInternalTransformsList() const
+const decltype(ACompositingElement::TransformPasses)& ACompositingElement::GetInternalTransformsList() const
 {
 	if (CVarUseInternalPassLists.GetValueOnGameThread() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
@@ -1124,7 +1124,7 @@ const TArray<UCompositingElementTransform*>& ACompositingElement::GetInternalTra
 	}
 }
 
-const TArray<UCompositingElementOutput*>& ACompositingElement::GetInternalOutputsList() const
+const decltype(ACompositingElement::Outputs)& ACompositingElement::GetInternalOutputsList() const
 {
 	if (CVarUseInternalPassLists.GetValueOnGameThread() && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{

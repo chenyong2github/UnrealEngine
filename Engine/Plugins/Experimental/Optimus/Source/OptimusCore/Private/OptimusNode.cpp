@@ -251,7 +251,7 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 		return *PinPtrPtr;
 	}
 
-	TArrayView<UOptimusNodePin* const> CurrentPins = Pins;
+	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TArrayView, const UOptimusNodePin) CurrentPins = MakeArrayView(Pins);
 	UOptimusNodePin* FoundPin = nullptr;
 
 	for (FName PinName : InPinPath)
@@ -262,7 +262,7 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 			break;
 		}
 
-		UOptimusNodePin* const* FoundPinPtr = CurrentPins.FindByPredicate(
+		UE_TRANSITIONAL_OBJECT_PTR(UOptimusNodePin) const* FoundPinPtr = CurrentPins.FindByPredicate(
 		    [&PinName](const UOptimusNodePin* Pin) {
 			    return Pin->GetFName() == PinName;
 		    });
