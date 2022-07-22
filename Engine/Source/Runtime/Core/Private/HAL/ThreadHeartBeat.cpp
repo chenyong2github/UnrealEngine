@@ -792,6 +792,7 @@ void FThreadHeartBeat::SuspendHeartBeat(bool bAllThreads)
 		if (!bAllThreads)
 		{
 			FScopeLock HeartBeatLock(&CheckpointHeartBeatCritical);
+			check(CheckpointSuspendCount >= 0);
 			++CheckpointSuspendCount;
 			for (TPair<FName, FHeartBeatInfo>& HeartBeatEntry : CheckpointHeartBeat)
 			{
