@@ -564,6 +564,10 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	LivePreviewViewportClient->SetViewLocation(FVector(-200, 100, 100));
 	LivePreviewViewportClient->SetLookAtLocation(FVector(0, 0, 0));
 
+	// Adjust camera view to focus on the scene
+	UVMode->FocusLivePreviewCameraOnSelection();
+
+
 	// Hook up the viewport command list to our toolkit command list so that hotkeys not
 	// handled by our toolkit would be handled by the viewport (to allow us to use
 	// whatever hotkeys the viewport registered after clicking in the detail panel or

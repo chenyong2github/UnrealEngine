@@ -244,6 +244,8 @@ public:
 
 	void PopulateUDIMsByAsset(int32 AssetId, TArray<FUDIMSpecifier>& UDIMsOut) const;
 
+	void FocusLivePreviewCameraOnSelection();
+
 protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UUVToolAction>> RegisteredActions;
@@ -262,7 +264,6 @@ protected:
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 	void UpdatePreviewMaterialBasedOnBackground();
-	void FocusLivePreviewCameraOnSelection();
 
 	void UpdateActiveUDIMs();
 	int32 UDIMsChangedWatcherId;
