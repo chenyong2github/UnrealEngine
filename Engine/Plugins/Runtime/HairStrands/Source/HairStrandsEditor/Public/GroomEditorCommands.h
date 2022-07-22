@@ -18,6 +18,9 @@ public:
 	TSharedPtr<FUICommandInfo> PauseSimulation;
 	TSharedPtr<FUICommandInfo> PlaySimulation;
 
+	TSharedPtr<FUICommandInfo> PlayAnimation;
+	TSharedPtr<FUICommandInfo> StopAnimation;
+
 	TSharedPtr<FUICommandInfo> Simulate;
 
 	TSharedPtr<FUICommandInfo> ViewMode_Lit;

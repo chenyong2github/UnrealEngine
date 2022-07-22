@@ -21,6 +21,7 @@ class USkeletalMeshComponent;
 class UGroomAsset;
 class UGroomBindingAsset;
 class UGroomBindingAssetList;
+class UAnimationAsset;
 
 class HAIRSTRANDSEDITOR_API IGroomCustomAssetEditorToolkit : public FAssetEditorToolkit
 {
@@ -95,6 +96,14 @@ private:
 	void OnResetSimulation();
 	bool CanResetSimulation() const;
 
+	// Called when the play animation button is pressed
+	void OnPlayAnimation();
+	bool CanPlayAnimation() const;
+
+	// Called when the stop animation button is pressed
+	void OnStopAnimation();
+	bool CanStopAnimation() const;
+
 	// Add buttons to to the toolbar
 	void ExtendToolbar();
 
@@ -103,6 +112,12 @@ private:
 
 	// THis is called when the groom target object changes and needs updating
 	void OnSkeletalGroomTargetChanged(USkeletalMesh *NewTarget);
+
+	// Return true if the animation asset should be filtered out (not compatible with the preview skel. mesh)
+	bool OnShouldFilterAnimAsset(const FAssetData& AssetData);
+	void OnObjectChangedAnimAsset(const FAssetData& AssetData);
+	bool OnIsEnabledAnimAsset();
+	FString GetCurrentAnimAssetPath() const;
 
 	// create the custom components we need
 	void InitPreviewComponents();
@@ -160,5 +175,8 @@ private:
 
 	TWeakObjectPtr<UGroomComponent> PreviewGroomComponent;
 	TWeakObjectPtr<USkeletalMeshComponent> PreviewSkeletalMeshComponent;
+	TWeakObjectPtr<UAnimationAsset> PreviewSkeletalAnimationAsset;
+
+	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 };
 

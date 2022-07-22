@@ -1693,7 +1693,7 @@ void FGroomRenderingDetails::OnGenerateElementForBindingAsset(TSharedRef<IProper
 	FProperty* Property = StructProperty->GetProperty();
 	ChildrenBuilder.AddProperty(StructProperty);
 
-	const FLinearColor Color = BindingIndex == Toolkit->GetActiveBindingIndex() ? FLinearColor::Yellow : FLinearColor::White;
+	const FLinearColor Color = BindingIndex == Toolkit->GetActiveBindingIndex() ? FLinearColor::White : FLinearColor(0.1f, 0.1f, 0.1f, 1.f);
 
 	ChildrenBuilder.AddCustomRow(FText::FromString(TEXT("Preview")))
 	.ValueContent()
