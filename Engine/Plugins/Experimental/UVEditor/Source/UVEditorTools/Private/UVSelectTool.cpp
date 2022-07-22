@@ -595,4 +595,66 @@ void UUVSelectTool::OnTick(float DeltaTime)
 	}
 }
 
+bool UUVSelectTool::CanCurrentlyNestedCancel()
+{
+	return CurrentSelections.Num() > 0;
+}
+
+bool UUVSelectTool::ExecuteNestedCancelCommand()
+{
+	if (CurrentSelections.Num() > 0)
+	{
+		SelectionAPI->BeginChange();
+		SelectionAPI->ClearSelections(false, false);
+		SelectionAPI->ClearUnsetElementAppliedMeshSelections(false, false);
+		SelectionAPI->EndChangeAndEmitIfModified(true);
+
+		return true;
+	}
+
+	return false;
+}
+
+void UUVSelectTool::SelectAll()
+{
+	UUVToolSelectionAPI::EUVEditorSelectionMode CurrentSelectionMode = ViewportButtonsAPI->GetSelectionMode();
+	FUVToolSelection::EType SelectionType = FUVToolSelection::EType::Triangle;
+	if (CurrentSelectionMode == UUVToolSelectionAPI::EUVEditorSelectionMode::None)
+	{
+		return; // If we're in none selection mode, don't do anything for select all behavior
+	}
+
+	switch (CurrentSelectionMode)
+	{
+	case UUVToolSelectionAPI::EUVEditorSelectionMode::Vertex:
+		SelectionType = FUVToolSelection::EType::Vertex;
+		break;
+	case UUVToolSelectionAPI::EUVEditorSelectionMode::Edge:
+		SelectionType = FUVToolSelection::EType::Edge;
+		break;
+	case UUVToolSelectionAPI::EUVEditorSelectionMode::Triangle:
+	case UUVToolSelectionAPI::EUVEditorSelectionMode::Island:
+	case UUVToolSelectionAPI::EUVEditorSelectionMode::Mesh:
+		SelectionType = FUVToolSelection::EType::Triangle;
+		break;
+	default:
+		ensure(false);
+	}
+
+	SelectionAPI->BeginChange();
+	SelectionAPI->ClearSelections(false, false);
+	SelectionAPI->ClearUnsetElementAppliedMeshSelections(false, false);
+
+	TArray<FUVToolSelection> AllSelections;
+	AllSelections.SetNum(Targets.Num());
+	for (int32 AssetID = 0; AssetID < Targets.Num(); ++AssetID)
+	{
+		AllSelections[AssetID].Target = Targets[AssetID];
+		AllSelections[AssetID].SelectAll(*Targets[AssetID]->UnwrapCanonical, SelectionType);
+	}
+	SelectionAPI->SetSelections(AllSelections, false, false);
+
+	SelectionAPI->EndChangeAndEmitIfModified(true);
+}
+
 #undef LOCTEXT_NAMESPACE

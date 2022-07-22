@@ -10,6 +10,7 @@
 #include "InteractiveToolBuilder.h"
 #include "Selection/UVToolSelection.h"
 #include "Selection/UVToolSelectionAPI.h" // IUVToolSupportsSelection
+#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 
 #include "UVSelectTool.generated.h"
 
@@ -39,7 +40,7 @@ public:
  * transform these elements.
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVSelectTool : public UInteractiveTool, public IUVToolSupportsSelection
+class UVEDITORTOOLS_API UUVSelectTool : public UInteractiveTool, public IInteractiveToolNestedAcceptCancelAPI, public IUVToolSupportsSelection
 {
 	GENERATED_BODY()
 
@@ -52,6 +53,8 @@ public:
 	{
 		Targets = TargetsIn;
 	}
+
+	void SelectAll();
 
 	// Used by undo/redo.
 	FTransform GetGizmoTransform() const;
@@ -66,6 +69,11 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
+
+	// IInteractiveToolNestedAcceptCancelAPI
+	virtual bool SupportsNestedCancelCommand() override { return true; }
+	virtual bool CanCurrentlyNestedCancel() override;
+	virtual bool ExecuteNestedCancelCommand() override;
 
 protected:
 	virtual void OnSelectionChanged(bool bEmitChangeAllowed, uint32 SelectionChangeType);
