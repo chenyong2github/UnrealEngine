@@ -76,7 +76,30 @@ namespace AutomationTool
 	/// </summary>
 	public class ProjectUtils
 	{
-		private static Dictionary<string, ProjectProperties> PropertiesCache = new Dictionary<string, ProjectProperties>(StringComparer.InvariantCultureIgnoreCase);
+
+		/// <summary>
+		/// Struct that acts as a key for the project property cache. Based on these attributes 
+		/// DetectProjectProperties may return different answers, e.g. Some platforms require a 
+		///  codebased project for targets
+		/// </summary>
+		struct PropertyCacheKey
+		{
+			string ProjectName;
+
+			UnrealTargetPlatform[] TargetPlatforms;
+
+			UnrealTargetConfiguration[] TargetConfigurations;
+
+			public PropertyCacheKey(string InProjectName, IEnumerable<UnrealTargetPlatform> InTargetPlatforms, IEnumerable<UnrealTargetConfiguration> InTargetConfigurations)
+			{
+				ProjectName = InProjectName.ToLower();
+				TargetPlatforms = InTargetPlatforms != null ? InTargetPlatforms.ToArray() : new UnrealTargetPlatform[0];
+				TargetConfigurations = InTargetConfigurations != null ? InTargetConfigurations.ToArray() : new UnrealTargetConfiguration[0];
+			}
+		}
+
+
+		private static Dictionary<PropertyCacheKey, ProjectProperties> PropertiesCache = new Dictionary<PropertyCacheKey, ProjectProperties>();
 
 		/// <summary>
 		/// Gets a short project name (QAGame, Elemental, etc)
@@ -114,10 +137,12 @@ namespace AutomationTool
 				ProjectKey = CommandUtils.ConvertSeparators(PathSeparator.Slash, RawProjectPath.FullName);
 			}
 			ProjectProperties Properties;
-			if (PropertiesCache.TryGetValue(ProjectKey, out Properties) == false)
+			PropertyCacheKey PropertyKey = new PropertyCacheKey(ProjectKey, ClientTargetPlatforms, ClientTargetConfigurations);
+
+			if (PropertiesCache.TryGetValue(PropertyKey, out Properties) == false)
 			{
                 Properties = DetectProjectProperties(RawProjectPath, ClientTargetPlatforms, ClientTargetConfigurations, AssetNativizationRequested);
-				PropertiesCache.Add(ProjectKey, Properties);
+				PropertiesCache.Add(PropertyKey, Properties);
 			}
 			return Properties;
 		}

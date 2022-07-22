@@ -13,21 +13,19 @@ using UnrealBuildBase;
 
 namespace AutomationTool.Benchmark
 {
-
-
 	class BenchmarkCookTask : BenchmarkEditorTaskBase
 	{
-		string			CookPlatformName;
+		protected string	CookPlatformName;
 
-		string			CookArgs;
+		string				CookArgs;
 
-		bool			CookAsClient;
+		bool				CookAsClient;
 
-		public BenchmarkCookTask(FileReference InProjectFile, UnrealTargetPlatform InPlatform, bool bCookAsClient, DDCTaskOptions InOptions, string InCookArgs)
-			: base(InProjectFile, InOptions, InCookArgs)
+		public BenchmarkCookTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
+			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
-			CookArgs = InCookArgs;
-			CookAsClient = bCookAsClient;
+			CookArgs = InOptions.Args;
+			CookAsClient = InTargetInfo.BuildTargetAsClient;
 
 			var PlatformToCookPlatform = new Dictionary<UnrealTargetPlatform, string> {
 				{ UnrealTargetPlatform.Win64, "WindowsClient" },
@@ -36,75 +34,98 @@ namespace AutomationTool.Benchmark
 				{ UnrealTargetPlatform.Android, "Android_ASTCClient" }
 			};
 
-			CookPlatformName = InPlatform.ToString();
+			CookPlatformName = InTargetInfo.TargetPlatform.ToString();
 
-			if (PlatformToCookPlatform.ContainsKey(InPlatform))
+			if (PlatformToCookPlatform.ContainsKey(InTargetInfo.TargetPlatform))
 			{
-				CookPlatformName = PlatformToCookPlatform[InPlatform];
+				CookPlatformName = PlatformToCookPlatform[InTargetInfo.TargetPlatform];
 			}
 
-			TaskName = string.Format("Cook {0} {1}", ProjectName, CookPlatformName);			
+			TaskName = string.Format("{0} Cook {1}", ProjectName, CookPlatformName);			
 		}
 
-		protected override bool PerformPrequisites()
+		protected override string GetEditorTaskArgs()
 		{
-			// build editor
-			BuildTarget Command = new BuildTarget();
-			Command.ProjectName = ProjectName;
-			Command.Platforms = BuildHostPlatform.Current.Platform.ToString();
-			Command.Targets = "Editor";
-			
-			if (Command.Execute() != ExitCode.Success)
-			{
-				return false;
-			}
+			string Arguments = "";
 
-			// Do a cook to make sure the remote ddc is warm?
-			if (TaskOptions.HasFlag(DDCTaskOptions.HotDDC))
-			{
-				// will throw an exception if it fails
-				CommandUtils.RunCommandlet(ProjectFile, "UnrealEditor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} ", CookPlatformName));
-			}
-
-			base.PerformPrequisites();
-			return true;
-		}
-
-		protected override bool PerformTask()
-		{
-			List<string> ExtraArgsList = new List<string>();
-			
 			if (CookAsClient)
 			{
-				ExtraArgsList.Add("client");
-			}
-
-			if (TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
-			{
-				ExtraArgsList.Add("noshaderddc");
-			}
-
-			if (TaskOptions.HasFlag(DDCTaskOptions.NoXGE))
-			{
-				ExtraArgsList.Add("noxgeshadercompile");
-			}
-
-			string ExtraArgs = "";
-
-			if (ExtraArgsList.Any())
-			{
-				ExtraArgs = "-" + string.Join(" -", ExtraArgsList);
+				Arguments += " -client";
 			}
 
 			if (CookArgs.Length > 0)
 			{
-				ExtraArgs += " " + CookArgs;
+				Arguments += " " + CookArgs;
 			}
 
+			return Arguments;
+		}
+
+		protected override bool PerformTask()
+		{
+			string Arguments = GetBasicEditorCommandLine(false);
 			// will throw an exception if it fails
-			CommandUtils.RunCommandlet(ProjectFile, "UnrealEditor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} {1}", CookPlatformName, ExtraArgs));
+			CommandUtils.RunCommandlet(ProjectTarget.ProjectFile, "UnrealEditor-Cmd.exe", "Cook", String.Format("-TargetPlatform={0} {1}", CookPlatformName, Arguments));
+			return true;
+		}
+	}
+
+	/// <summary>
+	/// Iterative cooking test
+	/// </summary>
+	class BenchmarkIterativeCookTask : BenchmarkCookTask
+	{
+		public BenchmarkIterativeCookTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
+			: base(InTargetInfo, InOptions, InSkipBuild)
+		{
+			TaskName = string.Format("{0} Iterative Cook {1}", ProjectName, CookPlatformName);
+		}
+
+		protected override bool PerformPrequisites()
+		{
+			if (!base.PerformPrequisites())
+			{
+				return false;
+			}
+
+			DirectoryReference ContentDir = DirectoryReference.Combine(ProjectTarget.ProjectFile.Directory, "Content");
+
+			var Files = DirectoryReference.EnumerateFiles(ContentDir, "*.uasset", System.IO.SearchOption.AllDirectories);
+
+			var AssetFile = Files.FirstOrDefault();
+
+			if (AssetFile == null)
+			{
+				Log.TraceError("Could not find asset file to touch under {0}", ContentDir);
+				return false;
+			}
+
+			FileInfo Fi = AssetFile.ToFileInfo();
+
+			bool ReadOnly = Fi.IsReadOnly;
+
+			if (ReadOnly)
+			{
+				Fi.IsReadOnly = false;
+			}
+
+			Fi.LastWriteTime = DateTime.Now;
+
+			if (ReadOnly)
+			{
+				Fi.IsReadOnly = true;
+			}
 
 			return true;
+		}
+
+		protected override string GetEditorTaskArgs()
+		{
+			string Args = base.GetEditorTaskArgs();
+
+			Args += " -iterate";
+
+			return Args;
 		}
 	}
 }

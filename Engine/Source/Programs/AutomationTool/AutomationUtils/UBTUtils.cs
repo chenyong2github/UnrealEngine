@@ -40,9 +40,9 @@ namespace AutomationTool
 					break;
 				}
 
-				if (Attempt >= 50)
+				if (Attempt >= 100)
 				{
-					throw new AutomationException("Unable to find name for UBT log file after {0} attempts", Attempt);
+					throw new AutomationException("Unable to find name for UBT log file {0} after {1} attempts", BaseLogName, Attempt);
 				}
 			}
 
