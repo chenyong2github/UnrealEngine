@@ -494,7 +494,7 @@ void AccumulateLightGridLocalLighting(const FCulledLightsGridData InLightGridDat
 #endif
 
 		// bits [17:16] really
-		uint LightType = LightTypeAndPackedShadowMapChannelMask >> 16;
+		uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
 
 		half DynamicShadowing = 1.0f;
 #if USE_SHADOWMASKTEXTURE

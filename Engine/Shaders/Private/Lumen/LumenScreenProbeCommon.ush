@@ -18,6 +18,8 @@
 
 // Main control for Screen Probe tracing resolution.  8 = 8x8 traces per probe
 uint ScreenProbeTracingOctahedronResolution;
+// Analytical light samples, in each dimension
+uint ScreenProbeLightSampleResolutionXY;
 // Screen probe traces are re-sampled to this resolution before filtering / BRDF integration
 uint ScreenProbeGatherOctahedronResolution;
 uint ScreenProbeGatherOctahedronResolutionWithBorder;
@@ -68,22 +70,6 @@ uint2 GetScreenTileJitter(uint TemporalIndex)
 {
 	return Hammersley16(TemporalIndex, 8, 0) * ScreenProbeDownsampleFactor;
 	//return R2Sequence(TemporalIndex) * ScreenProbeDownsampleFactor;
-}
-
-float2 GetProbeTexelCenter(uint2 ScreenTileCoord)
-{
-#define JITTER_RAY_DIRECTION 1
-#if JITTER_RAY_DIRECTION
-	#define BLUE_NOISE_LUT 1
-	#if BLUE_NOISE_LUT
-		return BlueNoiseVec2(ScreenTileCoord, RAY_DIRECTION_TEMPORAL_INDEX);
-	#else
-		uint2 RandomSeed = Rand3DPCG16(int3(ScreenTileCoord, 0)).xy;
-		return Hammersley16(RAY_DIRECTION_TEMPORAL_INDEX % 8, 8, RandomSeed);
-	#endif
-#else
-	return float2(0.5, 0.5);
-#endif
 }
 
 // Note: Returns negative depth for invalid probe
@@ -231,19 +217,69 @@ float3 GetPrevTranslatedWorldPosition(float3 HistoryScreenPosition)
 	return PrevTranslatedWorldPosition;
 }
 
-uint2 GetTraceBufferCoord(uint2 ScreenProbeAtlasCoord, uint2 TraceTexelCoord)
+uint EncodeScreenProbeSpeed(float ProbeSpeed, bool bTwoSidedFoliage)
 {
-	#define DEINTERLEAVED_TRACE_BUFFER_STORAGE 0
-	#if DEINTERLEAVED_TRACE_BUFFER_STORAGE
-		return TraceTexelCoord * ScreenProbeAtlasViewSize + ScreenProbeAtlasCoord;
-	#else
-		return ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + TraceTexelCoord;
-	#endif
+	return f32tof16(ProbeSpeed) | (bTwoSidedFoliage ? 0x8000 : 0);
 }
 
-RWTexture2D<uint> RWTraceHit;
-RWTexture2D<float3> RWTraceRadiance;
-Texture2D<uint> TraceHit;
+bool GetScreenProbeIsTwoSidedFoliage(uint2 ScreenProbeAtlasCoord)
+{
+	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
+	return (Encoded & 0x8000) != 0;
+}
+
+float GetScreenProbeSpeed(uint2 ScreenProbeAtlasCoord)
+{
+	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
+	return f16tof32(Encoded & 0x7FFF);
+}
+
+Texture2D<float> ScreenProbeMoving;
+
+float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
+{
+	return ScreenProbeMoving[ScreenProbeAtlasCoord];
+}
+
+Texture2D OctahedralSolidAngleTexture;
+float OctahedralSolidAngleTextureResolutionSq;
+
+float OctahedralSolidAngleLUT(float2 UV, float Resolution)
+{
+	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
+}
+
+StructuredBuffer<uint> CompactedTraceTexelAllocator;
+StructuredBuffer<uint2> CompactedTraceTexelData;
+StructuredBuffer<uint2> CompactedLightSampleTraceTexelData;
+
+uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
+{
+	return uint2(
+		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
+		asuint(TraceHitDistance));
+}
+
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
+{
+	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
+	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
+	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
+	TraceHitDistance = asfloat(TraceTexelData.y);
+}
+
+Texture2D<uint> LightingChannelsTexture;
+
+bool HasDistanceFieldRepresentation(float2 ScreenUV)
+{
+	return (LightingChannelsTexture[(int2)(ScreenUV * View.BufferSizeAndInvSize.xy)] & (1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT)) != 0;
+}
+
+Texture2D ScreenProbeLightSampleDirection;
+Texture2D<uint> ScreenProbeLightSampleFlags;
+Texture2D<float3> ScreenProbeLightSampleRadiance;
+Texture2D<uint> LightSampleTraceHit;
+
 
 float GetProbeMaxHitDistance()
 {
@@ -284,138 +320,13 @@ float DecodeProbeRayDistance(uint Encoded)
 	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
 }
 
-uint EncodeScreenProbeSpeed(float ProbeSpeed, bool bTwoSidedFoliage)
+uint EncodeLightSampleFlags(bool bValid, bool bCastShadow)
 {
-	return f32tof16(ProbeSpeed) | (bTwoSidedFoliage ? 0x8000 : 0);
+	return (bValid ? 1 : 0) | (bCastShadow ? 2 : 0);
 }
 
-bool GetScreenProbeIsTwoSidedFoliage(uint2 ScreenProbeAtlasCoord)
+void DecodeLightSampleFlags(uint Encoded, out bool bValid, out bool bCastShadow)
 {
-	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
-	return (Encoded & 0x8000) != 0;
-}
-
-float GetScreenProbeSpeed(uint2 ScreenProbeAtlasCoord)
-{
-	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
-	return f16tof32(Encoded & 0x7FFF);
-}
-
-bool IsTraceMoving(float3 ProbeWorldPosition, float ProbeSceneDepth, uint2 ScreenProbeAtlasCoord, float3 HitWorldPosition, float3 HitWorldVelocity)
-{
-	//@todo - for pixels that use the velocity texture in GetHistoryScreenPosition, velocities transformed to world space are too inaccurate to use for a dis-occlusion test
-	// See DEBUG_VISUALIZE_PROBE_WORLD_SPEED
-#define VELOCITY_IS_ACCURATE 0
-#if VELOCITY_IS_ACCURATE
-	float3 ProbeWorldVelocity = ScreenProbeWorldVelocity.Load(int3(ScreenProbeAtlasCoord, 0)).xyz;
-	float VelocityDampening = lerp(1, .1f, saturate(ProbeSceneDepth / 10000.0f));
-	float3 ProbeToHit = HitWorldPosition - ProbeWorldPosition;
-	float3 PrevProbeToPrevHit = HitWorldPosition - HitWorldVelocity * VelocityDampening - (ProbeWorldPosition - ProbeWorldVelocity * VelocityDampening);
-	float3 CosAngle = dot(ProbeToHit, PrevProbeToPrevHit) / max(length(ProbeToHit) * length(PrevProbeToPrevHit), .0001f);
-	float CosProbeTraceVelocityAngleThreshold = cos(1.0f * (float)PI / 180.0f);
-	return CosAngle < CosProbeTraceVelocityAngleThreshold;
-#else
-	float ProbeWorldSpeed = GetScreenProbeSpeed(ScreenProbeAtlasCoord);
-
-	return abs(ProbeWorldSpeed - length(HitWorldVelocity)) / max(ProbeSceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving;
-#endif
-}
-
-Texture2D<float> ScreenProbeMoving;
-
-float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
-{
-	return ScreenProbeMoving[ScreenProbeAtlasCoord];
-}
-
-float EncodeProbeHitDistanceForFiltering(float HitDistance)
-{
-	// Encode one negative value to indicate invalid ray
-	return sqrt(HitDistance / GetProbeMaxHitDistance()) * 254.0f / 255.0f + 1.0f / 255.0f;
-}
-
-float DecodeProbeHitDistanceForFiltering(float Encoded)
-{
-	float Linear = Encoded * Encoded * GetProbeMaxHitDistance();
-	return (Linear - 1.0f / 255.0f) * 255.0f / 254.0f;
-}
-
-// Stores a packed ray info for each tracing shader lane storing the direction and mip level of the ray to trace
-Texture2D<uint> StructuredImportanceSampledRayInfosForTracing;
-uint MaxImportanceSamplingOctahedronResolution;
-uint ScreenProbeBRDFOctahedronResolution;
-
-#define INVALID_TRACING_COORD 0xFE
-
-uint PackRayInfo(uint2 TexelCoord, uint Level)
-{
-	// Pack in 16 bits
-	return (TexelCoord.x & 0x3F) | ((TexelCoord.y & 0x3F) << 6) | ((Level & 0xF) << 12);
-}
-
-void UnpackRayInfo(uint RayInfo, out uint2 TexelCoord, out uint Level)
-{
-	TexelCoord.x = RayInfo & 0x3F;
-	TexelCoord.y = (RayInfo >> 6) & 0x3F;
-	Level = (RayInfo >> 12) & 0xF;
-}
-
-void GetProbeTracingUV(
-	uint2 ScreenProbeAtlasCoord,
-	uint2 TracingTexelCoord,
-	float2 ProbeTexelCenter,
-	float NumSupersamples,
-	out float2 ProbeUV,
-	out float ConeHalfAngle)
-{
-#if STRUCTURED_IMPORTANCE_SAMPLING
-	uint2 GlobalTraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TracingTexelCoord);
-	uint RayInfo = StructuredImportanceSampledRayInfosForTracing[GlobalTraceCoord];
-	uint2 RayTexelCoord;
-	uint RayLevel;
-	UnpackRayInfo(RayInfo, RayTexelCoord, RayLevel);
-
-	uint MipSize = MaxImportanceSamplingOctahedronResolution >> RayLevel;
-	float InvSupersampledMipSize = 1.0f / (MipSize * NumSupersamples);
-	ProbeUV = (RayTexelCoord * NumSupersamples + ProbeTexelCenter) * InvSupersampledMipSize;
-	ConeHalfAngle = acosFast(1.0f - 1.0f * InvSupersampledMipSize * InvSupersampledMipSize);
-
-#else
-	ProbeUV = (TracingTexelCoord * NumSupersamples + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution * NumSupersamples);
-	// Evenly distributing the sphere solid angle among all cones
-	ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution * NumSupersamples * NumSupersamples));
-#endif
-}
-
-Texture2D OctahedralSolidAngleTexture;
-float OctahedralSolidAngleTextureResolutionSq;
-
-float OctahedralSolidAngleLUT(float2 UV, float Resolution)
-{
-	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
-}
-
-StructuredBuffer<uint> CompactedTraceTexelAllocator;
-StructuredBuffer<uint2> CompactedTraceTexelData;
-
-uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
-{
-	return uint2(
-		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
-		asuint(TraceHitDistance));
-}
-
-void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
-{
-	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
-	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
-	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
-	TraceHitDistance = asfloat(TraceTexelData.y);
-}
-
-Texture2D<uint> LightingChannelsTexture;
-
-bool HasDistanceFieldRepresentation(float2 ScreenUV)
-{
-	return (LightingChannelsTexture[(int2)(ScreenUV * View.BufferSizeAndInvSize.xy)] & (1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT)) != 0;
+	bValid = (Encoded & 1) != 0;
+	bCastShadow = (Encoded & 2) != 0;
 }

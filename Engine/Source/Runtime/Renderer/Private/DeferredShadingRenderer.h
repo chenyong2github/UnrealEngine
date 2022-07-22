@@ -539,6 +539,7 @@ private:
 		FSceneTextures& SceneTextures,
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
+		bool bHasLumenLights,
 		bool bIsVisualizePass);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
@@ -595,6 +596,7 @@ private:
 		FRDGTextureRef LightingChannelsTexture,
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
+		bool bHasLumenLights,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -607,6 +609,7 @@ private:
 		FRDGTextureRef LightingChannelsTexture,
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
+		bool bHasLumenLights,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,

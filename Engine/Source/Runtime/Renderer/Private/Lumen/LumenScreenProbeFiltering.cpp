@@ -215,6 +215,33 @@ class FScreenProbeFilterGatherTracesCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeFilterGatherTracesCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeFilterGatherTracesCS", SF_Compute);
 
 
+class FScreenProbeInjectLightSamplesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FScreenProbeInjectLightSamplesCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeInjectLightSamplesCS, FGlobalShader)
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadiance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+		END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeInjectLightSamplesCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeInjectLightSamplesCS", SF_Compute);
+
+
 class FScreenProbeConvertToIrradianceCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeConvertToIrradianceCS)
@@ -393,6 +420,7 @@ void FilterScreenProbes(
 	const FViewInfo& View, 
 	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
+	bool bRenderDirectLighting,
 	FScreenProbeGatherParameters& GatherParameters)
 {
 	const FIntPoint ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
@@ -556,6 +584,30 @@ void FilterScreenProbes(
 		ScreenProbeGatherWriteableState.HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition);
 		ScreenProbeGatherWriteableState.ProbeHistoryViewRect = View.ViewRect;
 		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(View.GetSceneTexturesConfig().Extent, View.ViewRect);
+	}
+
+	extern int32 GLumenScreenProbeInjectLightsToProbes;
+	if (bRenderDirectLighting && GLumenScreenProbeInjectLightsToProbes != 0)
+	{
+		FRDGTextureRef ScreenProbeRadianceWithLightsInjected = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceWithLightsInjected"));
+
+		FScreenProbeInjectLightSamplesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeInjectLightSamplesCS::FParameters>();
+		PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceWithLightsInjected));
+		PassParameters->ScreenProbeRadiance = ScreenProbeRadiance;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeInjectLightSamplesCS>(0);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("InjectLightSamples"),
+			ComputeShader,
+			PassParameters,
+			ScreenProbeParameters.ProbeIndirectArgs,
+			(uint32)EScreenProbeIndirectArgs::ThreadPerGather * sizeof(FRHIDispatchIndirectParameters));
+
+		ScreenProbeRadiance = ScreenProbeRadianceWithLightsInjected;
 	}
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToIrradianceCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);

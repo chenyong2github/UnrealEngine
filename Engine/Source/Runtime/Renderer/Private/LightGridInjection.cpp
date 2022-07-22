@@ -279,7 +279,7 @@ FVector GetLightGridZParams(float NearPlane, float FarPlane)
 	return FVector(B, O, S);
 }
 
-void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo &SortedLightSet)
+void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, ComputeLightGrid);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ComputeLightGrid);
@@ -320,6 +320,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		// Track the end markers for different types
 		int32 SimpleLightsEnd = 0;
 		int32 ClusteredSupportedEnd = 0;
+		int32 LumenSupportedStart = 0;
 
 		if (bCullLightsToGrid)
 		{
@@ -335,7 +336,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				ViewSpaceDirAndPreprocAngleData.Reserve(SimpleLightsEnd);
 #endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 
-				const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
+				const FSimpleLightArray& SimpleLights = SortedLightSet.SimpleLights;
 
 				// Pack both values into a single float to keep float4 alignment
 				const FFloat16 SimpleLightSourceLength16f = FFloat16(0);
@@ -391,8 +392,9 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			int32 SelectedForwardDirectionalLightPriority = -1;
 			const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = SortedLightSet.SortedLights;
 			ClusteredSupportedEnd = SimpleLightsEnd;
+			LumenSupportedStart = MAX_int32;
 			// Next add all the other lights, track the end index for clustered supporting lights
-			for (int SortedIndex = SimpleLightsEnd; SortedIndex < SortedLights.Num(); ++SortedIndex)
+			for (int32 SortedIndex = SimpleLightsEnd; SortedIndex < SortedLights.Num(); ++SortedIndex)
 			{
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[SortedIndex];
 				const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
@@ -436,6 +438,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 					LightTypeAndShadowMapChannelMaskPacked |= LightProxy->GetLightingChannelMask() << 8;
 					// pack light type in this uint32 as well
 					LightTypeAndShadowMapChannelMaskPacked |= SortedLightInfo.SortKey.Fields.LightType << 16;
+					const uint32 CastShadows = LightProxy->CastsDynamicShadow() ? 1 : 0;
+					LightTypeAndShadowMapChannelMaskPacked |= CastShadows << (16 + LightType_NumBits);
 
 					const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && VisibleLightInfos.IsValidIndex(LightSceneInfo->Id);
 					const int32 VirtualShadowMapId = bDynamicShadows ? VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId( &View ) : INDEX_NONE;
@@ -453,6 +457,11 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						{
 							ClusteredSupportedEnd = FMath::Max(ClusteredSupportedEnd, ForwardLocalLightData.Num());
 						}
+
+						if (SortedLightInfo.SortKey.Fields.bHandledByLumen && LumenSupportedStart == MAX_int32)
+						{
+							LumenSupportedStart = ForwardLocalLightData.Num() - 1;
+						}
 						const float LightFade = GetLightFadeFactor(View, LightProxy);
 						LightParameters.Color *= LightFade;
 
@@ -468,7 +477,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						// NOTE: This cast of VirtualShadowMapId to float is not ideal, but bitcast has issues here with INDEX_NONE -> NaN
 						// and 32-bit floats have enough mantissa to cover all reasonable numbers here for now.
 						LightData.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale = FVector4f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength, float(VirtualShadowMapId), LightParameters.SpecularScale);
-						checkSlow(int(LightData.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.Z) == VirtualShadowMapId);
+						checkSlow(int32(LightData.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.Z) == VirtualShadowMapId);
 
 						float VolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();
 
@@ -631,6 +640,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		ForwardLightData->LightGridPixelSizeShift = FMath::FloorLog2(GLightGridPixelSize);
 		ForwardLightData->SimpleLightsEndIndex = SimpleLightsEnd;
 		ForwardLightData->ClusteredDeferredSupportedEndIndex = ClusteredSupportedEnd;
+		ForwardLightData->LumenSupportedStartIndex = FMath::Min<int32>(LumenSupportedStart, NumLocalLightsFinal);
 		ForwardLightData->DirectLightingShowFlag = ViewFamily.EngineShowFlags.DirectLighting ? 1 : 0;
 
 		// Clamp far plane to something reasonable
@@ -797,13 +807,15 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 #endif
 }
 
-void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet)
+void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
 	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading()
 		&& CVarVirtualShadowOnePassProjection.GetValueOnRenderThread()
 		&& VirtualShadowMapArray.IsEnabled();
 
-	GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
+	const bool bUseLumenDirectLighting = ShouldRenderLumenDirectLighting(Scene, Views[0]);
+
+	GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered, bUseLumenDirectLighting);
 	
 	if (!bNeedLightGrid)
 	{

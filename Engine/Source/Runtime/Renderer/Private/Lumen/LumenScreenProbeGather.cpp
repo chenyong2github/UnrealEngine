@@ -83,6 +83,29 @@ FAutoConsoleVariableRef GVarLumenScreenProbeDownsampleFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+FAutoConsoleVariableRef CVarLumenScreenProbeGatherDirectLighting(
+	TEXT("r.Lumen.ScreenProbeGather.DirectLighting"),
+	GLumenGatherCvars.DirectLighting,
+	TEXT("Whether to render all local lights through Lumen's Final Gather, when enabled.  This gives very cheap but low quality direct lighting."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenScreenProbeLightSampleResolutionXY = 2;
+FAutoConsoleVariableRef CVarLumenScreenProbeLightSampleResolutionXY(
+	TEXT("r.Lumen.ScreenProbeGather.LightSampleResolutionXY"),
+	GLumenScreenProbeLightSampleResolutionXY,
+	TEXT("Number of light samples per screen probe, in one dimension.  When the number of lights overlapping a pixel is larger, noise in the direct lighting will increase."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenScreenProbeInjectLightsToProbes = 0;
+FAutoConsoleVariableRef CVarLumenScreenProbeInjectLightsToProbes(
+	TEXT("r.Lumen.ScreenProbeGather.InjectLightsToProbes"),
+	GLumenScreenProbeInjectLightsToProbes,
+	TEXT("Whether to inject local lights into probes.  Experimental - fast but causes wrap-around lighting due to lack of directionality and SH ringing."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenOctahedralSolidAngleTextureSize = 16;
 FAutoConsoleVariableRef CVarLumenScreenProbeOctahedralSolidAngleTextureSize(
 	TEXT("r.Lumen.ScreenProbeGather.OctahedralSolidAngleTextureSize"),
@@ -802,6 +825,36 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByHairStrandsCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "MarkRadianceProbesUsedByHairStrandsCS", SF_Compute);
 
+class FScreenProbeGenerateLightSamplesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FScreenProbeGenerateLightSamplesCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeGenerateLightSamplesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWScreenProbeLightSampleDirection)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWScreenProbeLightSampleFlags)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeLightSampleRadiance)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeGenerateLightSamplesCS, "/Engine/Private/Lumen/LumenScreenProbeLightSampling.usf", "ScreenProbeGenerateLightSamplesCS", SF_Compute);
+
 // Must match usf INTEGRATE_TILE_SIZE
 const int32 GScreenProbeIntegrateTileSize = 8;
 
@@ -929,7 +982,8 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
 	class FStochasticProbeInterpolation : SHADER_PERMUTATION_BOOL("STOCHASTIC_PROBE_INTERPOLATION");
 	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
-	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat, FStochasticProbeInterpolation, FOverflowTile>;
+	class FDirectLighting : SHADER_PERMUTATION_BOOL("DIRECT_LIGHTING");
+	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat, FStochasticProbeInterpolation, FOverflowTile, FDirectLighting>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1144,6 +1198,7 @@ void InterpolateAndIntegrate(
 	FScreenProbeParameters ScreenProbeParameters,
 	FScreenProbeGatherParameters GatherParameters,
 	FLumenScreenSpaceBentNormalParameters ScreenSpaceBentNormalParameters,
+	bool bRenderDirectLighting,
 	FRDGTextureRef DiffuseIndirect,
 	FRDGTextureRef RoughSpecularIndirect)
 {
@@ -1310,6 +1365,7 @@ void InterpolateAndIntegrate(
 			PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat(View.Family->EngineShowFlags));
 			PermutationVector.Set< FScreenProbeIntegrateCS::FStochasticProbeInterpolation >(GLumenScreenProbeStochasticInterpolation != 0);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FDirectLighting >(bRenderDirectLighting && !GLumenScreenProbeInjectLightsToProbes);
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -1365,6 +1421,7 @@ void InterpolateAndIntegrate(
 		FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >((uint32)EScreenProbeIntegrateTileClassification::Num);
 		PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
+		PermutationVector.Set< FScreenProbeIntegrateCS::FDirectLighting >(bRenderDirectLighting && !GLumenScreenProbeInjectLightsToProbes);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -1673,6 +1730,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
+	bool bRenderDirectLighting,
 	bool& bLumenUseDenoiserComposite,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -1702,6 +1760,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 			LightingChannelsTexture, 
 			View, 
 			PreviousViewInfos, 
+			bRenderDirectLighting,
 			bLumenUseDenoiserComposite, 
 			MeshSDFGridParameters, 
 			RadianceCacheParameters, 
@@ -1722,6 +1781,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
+	bool bRenderDirectLighting,
 	bool& bLumenUseDenoiserComposite,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -1760,6 +1820,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.ScreenProbeGatherOctahedronResolution = LumenScreenProbeGather::GetGatherOctahedronResolution(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
 	ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder = ScreenProbeParameters.ScreenProbeGatherOctahedronResolution + 2 * (1 << (GLumenScreenProbeGatherNumMips - 1));
 	ScreenProbeParameters.ScreenProbeDownsampleFactor = LumenScreenProbeGather::GetScreenDownsampleFactor(View);
+
+	ScreenProbeParameters.ScreenProbeLightSampleResolutionXY = FMath::Clamp<uint32>(GLumenScreenProbeLightSampleResolutionXY, 1, 8);
 
 	ScreenProbeParameters.ScreenProbeViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
 	ScreenProbeParameters.ScreenProbeAtlasViewSize = ScreenProbeParameters.ScreenProbeViewSize;
@@ -2038,6 +2100,43 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			ScreenProbeParameters);
 	}
 
+	if (bRenderDirectLighting)
+	{
+		const FIntPoint ScreenProbeLightSampleBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeLightSampleResolutionXY;
+		FRDGTextureDesc LightSampleDirectionDesc(FRDGTextureDesc::Create2D(ScreenProbeLightSampleBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeParameters.ScreenProbeLightSampleDirection = GraphBuilder.CreateTexture(LightSampleDirectionDesc, TEXT("Lumen.ScreenProbeGather.LightSampleDirection"));
+
+		FRDGTextureDesc LightSampleFlagsDesc(FRDGTextureDesc::Create2D(ScreenProbeLightSampleBufferSize, PF_R8_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeParameters.ScreenProbeLightSampleFlags = GraphBuilder.CreateTexture(LightSampleFlagsDesc, TEXT("Lumen.ScreenProbeGather.LightSampleFlags"));
+
+		FRDGTextureDesc LightSampleRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeLightSampleBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeParameters.ScreenProbeLightSampleRadiance = GraphBuilder.CreateTexture(LightSampleRadianceDesc, TEXT("Lumen.ScreenProbeGather.LightSampleRadiance"));
+
+		{
+			FScreenProbeGenerateLightSamplesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeGenerateLightSamplesCS::FParameters>();
+			PassParameters->RWScreenProbeLightSampleDirection = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeLightSampleDirection));
+			PassParameters->RWScreenProbeLightSampleFlags = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeLightSampleFlags));
+			PassParameters->RWScreenProbeLightSampleRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeLightSampleRadiance));
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+			PassParameters->Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeGenerateLightSamplesCS>(0);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GenerateLightSamples"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->ScreenProbeParameters.ProbeIndirectArgs,
+				(uint32)EScreenProbeIndirectArgs::ThreadPerProbe * sizeof(FRHIDispatchIndirectParameters));
+		}
+
+		FRDGTextureDesc LightSampleTraceHitDesc(FRDGTextureDesc::Create2D(ScreenProbeLightSampleBufferSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeParameters.LightSampleTraceHit = GraphBuilder.CreateTexture(LightSampleTraceHitDesc, TEXT("Lumen.ScreenProbeGather.LightSampleTraceHit"));
+		ScreenProbeParameters.RWLightSampleTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.LightSampleTraceHit));
+	}
+	
 	const FIntPoint ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeTraceBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.ScreenProbeGather.TraceRadiance"));
@@ -2053,6 +2152,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		View, 
 		FrameTemporaries,
 		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily),
+		bRenderDirectLighting,
 		SceneTextures,
 		LightingChannelsTexture,
 		TracingInputs,
@@ -2061,7 +2161,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		MeshSDFGridParameters);
 	
 	FScreenProbeGatherParameters GatherParameters;
-	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, GatherParameters);
+	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, bRenderDirectLighting, GatherParameters);
 
 	if (LumenScreenProbeGather::UseScreenSpaceBentNormal(ViewFamily.EngineShowFlags))
 	{
@@ -2082,6 +2182,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		ScreenProbeParameters,
 		GatherParameters,
 		ScreenSpaceBentNormalParameters,
+		bRenderDirectLighting,
 		DiffuseIndirect,
 		RoughSpecularIndirect);
 

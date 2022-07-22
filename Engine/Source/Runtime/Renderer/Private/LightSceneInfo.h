@@ -72,7 +72,7 @@ struct FSortedLightSceneInfo
 		struct
 		{
 			// Note: the order of these members controls the light sort order!
-			// Currently bClusteredDeferredNotSupported is the MSB and LightType is LSB
+			// Currently bHandledByLumen is the MSB and LightType is LSB
 			/** The type of light. */
 			uint32 LightType : LightType_NumBits;
 			/** Whether the light has a texture profile. */
@@ -92,6 +92,8 @@ struct FSortedLightSceneInfo
 			 * Super-set of lights supporting tiled, so the tiled lights will end up in the first part of this range.
 			 */
 			uint32 bClusteredDeferredNotSupported : 1;
+			/** Whether the light should be handled by Lumen's Final Gather, these will be sorted to the end so they can be skipped */
+			uint32 bHandledByLumen : 1;
 		} Fields;
 		/** Sort key bits packed into an integer. */
 		int32 Packed;
@@ -121,16 +123,18 @@ struct FSortedLightSceneInfo
 /** 
  * Stores info about sorted lights and ranges. 
  * The sort-key in FSortedLightSceneInfo gives rise to the following order:
- *  [SimpleLights,Clustered,UnbatchedLights]
+ *  [SimpleLights,Clustered,UnbatchedLights,LumenLights]
  * Note that some shadowed lights can be included in the clustered pass when virtual shadow maps and one pass projection are used.
  */
 struct FSortedLightSetSceneInfo
 {
-	int SimpleLightsEnd;
-	int ClusteredSupportedEnd;
+	int32 SimpleLightsEnd;
+	int32 ClusteredSupportedEnd;
 
 	/** First light with shadow map or */
-	int UnbatchedLightStart;
+	int32 UnbatchedLightStart;
+
+	int32 LumenLightStart;
 
 	FSimpleLightArray SimpleLights;
 	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> SortedLights;

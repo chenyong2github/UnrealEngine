@@ -3089,8 +3089,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 
+		const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ false);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, bHasLumenLights, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (bAllowStaticLighting)
@@ -3443,7 +3444,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bRenderDeferredLighting)
 	{
 		RenderLumenMiscVisualizations(GraphBuilder, SceneTextures, LumenFrameTemporaries);
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, false, /* bIsVisualizePass = */ true);
 	}
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)

@@ -5,6 +5,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
+#include "LumenScreenProbeTracingCommon.ush"
 #include "../SHCommon.ush"
 #include "LumenScreenProbeImportanceSamplingShared.ush"
 
@@ -477,8 +478,8 @@ void WriteRay(uint2 ScreenProbeCoord, uint2 TracingRayCoord, uint2 SourceTexelCo
 {
 	if (TracingRayCoord.x != INVALID_TRACING_COORD)
 	{
-		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeCoord, TracingRayCoord);
-		RWStructuredImportanceSampledRayInfosForTracing[TraceCoord] = PackRayInfo(SourceTexelCoord, SourceLevel);
+		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeCoord, TracingRayCoord);
+		RWStructuredImportanceSampledRayInfosForTracing[TraceBufferCoord] = PackRayInfo(SourceTexelCoord, SourceLevel);
 	}
 }
 

@@ -25,6 +25,7 @@ FLumenGatherCvarState::FLumenGatherCvarState()
 	MeshSDFTraceDistance = 180.0f;
 	SurfaceBias = 5.0f;
 	VoxelTracingMode = 0;
+	DirectLighting = 0;
 }
 
 static TAutoConsoleVariable<int> CVarLumenGlobalIllumination(
@@ -231,6 +232,13 @@ bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, boo
 		&& View.Family->EngineShowFlags.GlobalIllumination 
 		&& View.Family->EngineShowFlags.LumenGlobalIllumination
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather(*View.Family) || Lumen::IsSoftwareRayTracingSupported());
+}
+
+bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View)
+{
+	return ShouldRenderLumenDiffuseGI(Scene, View)
+		&& GLumenGatherCvars.DirectLighting
+		&& !GLumenIrradianceFieldGather;
 }
 
 void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)

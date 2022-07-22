@@ -175,6 +175,7 @@ struct FLocalLightData
 	float4 RectBarnDoorAndVirtualShadowMapIdAndSpecularScale;
 	/** Flag is true if clustered deferred is supported for this light. They are always first / together.*/
 	bool bClusteredDeferredSupported; 
+	bool bLumenLightSupported;
 	/** Flag is true if it is a simple light. They are always first / together.*/
 	bool bIsSimpleLight;
 	/** Virtual shadow map ID or INDEX_NONE if not present. */
@@ -194,6 +195,7 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		uint LocalLightIndex = ForwardLightData.CulledLightDataGrid[GridIndex];
 		uint LocalLightBaseIndex = LocalLightIndex * LOCAL_LIGHT_DATA_STRIDE;
 		Result.bClusteredDeferredSupported = LocalLightIndex < ForwardLightData.ClusteredDeferredSupportedEndIndex;
+		Result.bLumenLightSupported = LocalLightIndex >= ForwardLightData.LumenSupportedStartIndex;
 		Result.bIsSimpleLight = LocalLightIndex < ForwardLightData.SimpleLightsEndIndex;
 		Result.LightPositionAndInvRadius = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 0];
 		Result.LightColorAndFalloffExponent = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 1];
@@ -209,6 +211,7 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		uint LocalLightIndex = ForwardLightDataISR.CulledLightDataGrid[GridIndex];
 		uint LocalLightBaseIndex = LocalLightIndex * LOCAL_LIGHT_DATA_STRIDE;
 		Result.bClusteredDeferredSupported = LocalLightIndex < ForwardLightDataISR.ClusteredDeferredSupportedEndIndex;
+		Result.bLumenLightSupported = LocalLightIndex >= ForwardLightDataISR.LumenSupportedStartIndex;
 		Result.bIsSimpleLight = LocalLightIndex < ForwardLightDataISR.SimpleLightsEndIndex;
 		Result.LightPositionAndInvRadius = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 0];
 		Result.LightColorAndFalloffExponent = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 1];
@@ -229,6 +232,16 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 float4 UnpackShadowMapChannelMask(uint ShadowMapChannelMaskPacked)
 {
 	return float4((ShadowMapChannelMaskPacked & 1) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 2) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 4) ? 1.0f : 0.0f, (ShadowMapChannelMaskPacked & 8) ? 1.0f : 0.0f);
+}
+
+uint UnpackLightType(uint ShadowMapChannelMaskPacked)
+{
+	return (ShadowMapChannelMaskPacked >> 16) & 0x3;
+}
+
+bool UnpackCastShadow(uint ShadowMapChannelMaskPacked)
+{
+	return ((ShadowMapChannelMaskPacked >> 18) & 1) != 0;
 }
 
 /**
@@ -275,3 +288,4 @@ float UnpackShadowMask(uint4 InShadowMask, uint InLightIndex, float Dither)
 	}
 	return ShadowFactor;
 }
+

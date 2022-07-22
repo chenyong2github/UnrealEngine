@@ -781,6 +781,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FSceneTextures& SceneTextures,
 	const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
+	bool bHasLumenLights,
 	bool bIsVisualizePass)
 {
 	using namespace HybridIndirectLighting;
@@ -871,6 +872,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				LightingChannelsTexture,
 				View,
 				&View.PrevViewInfo,
+				bHasLumenLights,
 				bLumenUseDenoiserComposite,
 				MeshSDFGridParameters,
 				RadianceCacheParameters,

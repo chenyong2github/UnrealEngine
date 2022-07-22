@@ -47,6 +47,7 @@ enum class EScreenProbeIndirectArgs
 	ThreadPerTrace,
 	ThreadPerGather,
 	ThreadPerGatherWithBorder,
+	ThreadPerLightSample,
 	Max
 };
 
@@ -67,6 +68,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(uint32, ScreenProbeTracingOctahedronResolution)
+	SHADER_PARAMETER(uint32, ScreenProbeLightSampleResolutionXY)
 	SHADER_PARAMETER(uint32, ScreenProbeGatherOctahedronResolution)
 	SHADER_PARAMETER(uint32, ScreenProbeGatherOctahedronResolutionWithBorder)
 	SHADER_PARAMETER(uint32, ScreenProbeDownsampleFactor)
@@ -96,9 +98,18 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeWorldNormal)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeWorldSpeed)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeTranslatedWorldPosition)
-
+	
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWTraceRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWTraceHit)
+
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightSampleTraceRadiance)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightSampleTraceHit)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeLightSampleDirection)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeLightSampleFlags)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeLightSampleRadiance)
+
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWLightSampleTraceRadiance)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWLightSampleTraceHit)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeImportanceSamplingParameters, ImportanceSampling)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
@@ -119,6 +130,7 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedTraceTexelAllocator)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, CompactedTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, CompactedLightSampleTraceTexelData)
 	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -145,6 +157,7 @@ extern void TraceScreenProbes(
 	const FViewInfo& View,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	bool bTraceMeshObjects,
+	bool bRenderDirectLighting,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -168,6 +181,7 @@ extern void FilterScreenProbes(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
+	bool bRenderDirectLighting,
 	FScreenProbeGatherParameters& GatherParameters);
 
 extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(

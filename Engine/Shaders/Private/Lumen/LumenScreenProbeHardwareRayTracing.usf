@@ -9,6 +9,7 @@
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
+#include "LumenScreenProbeTracingCommon.ush"
 #include "LumenHardwareRayTracingPipelineCommon.ush"
 
 #ifndef THREADGROUP_SIZE_2D
@@ -149,7 +150,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		float2 ProbeUV;
 		float ConeHalfAngle;
-		GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
+		GetProbeTracingUV(ScreenProbeTraceCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
 		RayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;

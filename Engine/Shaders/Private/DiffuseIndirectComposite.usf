@@ -166,7 +166,9 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 float3 MixSpecularAndRoughReflections(float InRoughness, float3 SpecularReflections, float3 RoughReflections)
 {
 	const float FadeAlpha = saturate((MaxRoughnessToTrace - InRoughness) * InvRoughnessFadeLength);
-	float3 Lighting = RoughReflections * (1 - FadeAlpha);
+
+	// (1 - FadeAlpha) applied during Lumen integration to allow direct lighting specular which shouldn't be lerped out
+	float3 Lighting = RoughReflections;
 
 	// Must branch as SpecularReflections can be uninitialized where not needed and contain NaN
 	if (FadeAlpha > 0.0f)

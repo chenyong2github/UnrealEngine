@@ -20,13 +20,15 @@ public:
 	float MeshSDFTraceDistance;
 	float SurfaceBias;
 	int32 VoxelTracingMode;
+	int32 DirectLighting;
 
 	inline bool operator==(const FLumenGatherCvarState& Rhs)
 	{
 		return TraceMeshSDFs == Rhs.TraceMeshSDFs &&
 			MeshSDFTraceDistance == Rhs.MeshSDFTraceDistance &&
 			SurfaceBias == Rhs.SurfaceBias &&
-			VoxelTracingMode == Rhs.VoxelTracingMode;
+			VoxelTracingMode == Rhs.VoxelTracingMode &&
+			DirectLighting == Rhs.DirectLighting;
 	}
 };
 

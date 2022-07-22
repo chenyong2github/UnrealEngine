@@ -400,6 +400,7 @@ void SetupAdaptiveProbeIndirectArgsCS(
 	WriteArgs2D(2, AtlasSizeInProbes * ScreenProbeTracingOctahedronResolution);
 	WriteArgs2D(3, AtlasSizeInProbes * ScreenProbeGatherOctahedronResolution);
 	WriteArgs2D(4, AtlasSizeInProbes * ScreenProbeGatherOctahedronResolutionWithBorder);
+	WriteArgs2D(5, AtlasSizeInProbes * ScreenProbeLightSampleResolutionXY);
 }
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
@@ -989,6 +990,92 @@ float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal,
 	return DiffuseLighting;
 }
 
+float SimpleSpecularShading(float Roughness, float3 L, float3 V, half3 N)
+{
+	const float NoV = saturate(dot(N, V));
+
+	float3 H = normalize(V + L);
+	float NoH = saturate(dot(N, H));
+
+	// Generalized microfacet specular
+	float D = D_GGX(Pow4(Roughness), NoH);
+	float Vis = Vis_Implicit();
+
+	return D * Vis;
+}
+
+float3 SimpleSpecularShading2(float Roughness, float3 SpecularColor, float3 L, float3 V, float3 N)
+{
+	const float NoV = saturate(dot(N, V));
+	float NoL = saturate(dot(N, L));
+	float3 H = normalize(V + L);
+	float NoH = saturate(dot(N, H));
+	float VoH = saturate(dot(V, H));		
+
+	float a2 = Pow4(Roughness);
+
+	// Generalized microfacet specular
+	float D = D_GGX(a2, NoH);
+	float Vis = Vis_SmithJointApprox(a2, NoV, NoL);
+	float3 F = F_Schlick(SpecularColor, VoH);
+
+	return (D * Vis) * F;
+}
+
+void AddScreenProbeDirectLighting(
+	uint2 ScreenProbeAtlasCoord, 
+	uint2 LightSampleCoord, 
+	float Weight, 
+	float3 CameraVector, 
+	float3 WorldNormal, 
+	float3 SpecularColor,
+	float Roughness, 
+	inout float3 DiffuseLighting, 
+	inout float3 SpecularLighting)
+{
+	uint2 LightSampleBufferCoord = ScreenProbeAtlasCoord * ScreenProbeLightSampleResolutionXY + LightSampleCoord;
+
+	bool bHit;
+	DecodeProbeRayDistance(LightSampleTraceHit[LightSampleBufferCoord].x, bHit);
+
+	bool bValidLightSample;
+	bool bCastShadow;
+	DecodeLightSampleFlags(ScreenProbeLightSampleFlags[LightSampleBufferCoord], bValidLightSample, bCastShadow);
+
+	if (bValidLightSample && !bHit)
+	{
+		float3 LightDirection = ScreenProbeLightSampleDirection[LightSampleBufferCoord].xyz;
+		float3 Lighting = ScreenProbeLightSampleRadiance[LightSampleBufferCoord];
+
+		DiffuseLighting += (max(dot(LightDirection, WorldNormal), 0.0f) * Weight) * Lighting;
+		SpecularLighting += (SimpleSpecularShading2(Roughness, SpecularColor, LightDirection, -CameraVector, WorldNormal) * Weight) * Lighting;
+	}
+}
+
+void EvaluateDirectLighting(
+	FScreenProbeSample ScreenProbeSample, 
+	float3 CameraVector,
+	float3 WorldNormal, 
+	float3 SpecularColor,
+	float Roughness,
+	inout float3 DiffuseLighting, 
+	inout float3 SpecularLighting)
+{
+	for (uint LightIndexY = 0; LightIndexY < ScreenProbeLightSampleResolutionXY; LightIndexY++)
+	{
+		for (uint LightIndexX = 0; LightIndexX < ScreenProbeLightSampleResolutionXY; LightIndexX++)
+		{
+			AddScreenProbeDirectLighting(ScreenProbeSample.AtlasCoord[0], uint2(LightIndexX, LightIndexY), ScreenProbeSample.Weights.x, CameraVector, WorldNormal, SpecularColor, Roughness, DiffuseLighting, SpecularLighting);
+
+			#if !STOCHASTIC_PROBE_INTERPOLATION
+				AddScreenProbeDirectLighting(ScreenProbeSample.AtlasCoord[1], uint2(LightIndexX, LightIndexY), ScreenProbeSample.Weights.y, CameraVector, WorldNormal, SpecularColor, Roughness, DiffuseLighting, SpecularLighting);
+				AddScreenProbeDirectLighting(ScreenProbeSample.AtlasCoord[2], uint2(LightIndexX, LightIndexY), ScreenProbeSample.Weights.z, CameraVector, WorldNormal, SpecularColor, Roughness, DiffuseLighting, SpecularLighting);
+				AddScreenProbeDirectLighting(ScreenProbeSample.AtlasCoord[3], uint2(LightIndexX, LightIndexY), ScreenProbeSample.Weights.w, CameraVector, WorldNormal, SpecularColor, Roughness, DiffuseLighting, SpecularLighting);
+			#endif
+		}
+	}
+}
+
 #define TONEMAP_DURING_INTEGRATION 1
 
 float Luma(float3 Color) 
@@ -1276,6 +1363,15 @@ void ScreenProbeIntegrateCS(
 			}
 			#endif
 
+			float3 SpecularLighting = 0;
+
+			#if DIRECT_LIGHTING && !STRATA_ENABLED
+			{
+				float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+				EvaluateDirectLighting(ScreenProbeSample, CameraVector, Material.GBufferData.WorldNormal, Material.GBufferData.SpecularColor, Material.GBufferData.Roughness, DiffuseLighting, SpecularLighting);
+			}
+			#endif
+
 			float LightingIsMoving = GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[0]) * StochasticScreenProbeSample.Weights.x;
 			#if !STOCHASTIC_PROBE_INTERPOLATION
 				LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[1]) * StochasticScreenProbeSample.Weights.y;
@@ -1321,8 +1417,6 @@ void ScreenProbeIntegrateCS(
 			// FDiffuseIndirectCompositePS applies DiffuseColor
 			RWDiffuseIndirect[Coord.SvPositionFlatten] = float4(DiffuseIndirectOutput, EncodedAlpha);
 
-			float3 SpecularLighting = 0;
-
 			const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
 
 			// Rough-Specular
@@ -1337,6 +1431,9 @@ void ScreenProbeIntegrateCS(
 
 			if ((DiffuseLerp < 1.0f && Material.Roughness >= MinRoughnessForProbeImportanceSampling) || IsClearCoat(Material))
 			{
+				// Must match MixSpecularAndRoughReflections in DiffuseIndirectComposite.usf
+				const float RoughReflectionFadeAlpha = 1 - saturate((MaxRoughnessToTrace - Material.Roughness) / RoughnessFadeLength);
+
 				// Prevent low roughness values that we can't support through screen probes with acceptable quality, eg clearcoat with bottom layer roughness 0
 				Material.Roughness = max(Material.Roughness, MaxRoughnessToTrace);
 
@@ -1374,6 +1471,8 @@ void ScreenProbeIntegrateCS(
 				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(Material.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
+				float3 RoughSpecularLighting = 0.0f;
+
 				for (uint TracingRayIndex = 0; TracingRayIndex < NumSpecularSamples; TracingRayIndex++)
 				{
 					float4 E = ComputeIndirectLightingSampleE(Coord.SvPosition, TracingRayIndex, NumSpecularSamples);
@@ -1397,10 +1496,10 @@ void ScreenProbeIntegrateCS(
 						DirectionVisibility *= LVisibility;
 					#endif
 
-					SpecularLighting += TonemapLighting(InterpolatedRadiance * BxDFSample.Weight * DirectionVisibility);
+					RoughSpecularLighting += TonemapLighting(InterpolatedRadiance * BxDFSample.Weight * DirectionVisibility);
 				}
 
-				SpecularLighting = InverseTonemapLighting(SpecularLighting / (float)NumSpecularSamples);
+				SpecularLighting += InverseTonemapLighting(RoughSpecularLighting / (float)NumSpecularSamples) * RoughReflectionFadeAlpha;
 			}
 
 		#endif // Rough-Specular

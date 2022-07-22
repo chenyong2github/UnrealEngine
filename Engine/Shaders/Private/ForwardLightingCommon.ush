@@ -277,7 +277,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 
 		// TODO: currently LightType is ignored and the code always sets 'LightData.bRectLight' to false (initialization)
 		//       but the light grid adds rect lights as well so this probably leads to artifacts.
-		uint LightType = LightTypeAndPackedShadowMapChannelMask >> 16;
+		uint LightType = UnpackLightType(LightTypeAndPackedShadowMapChannelMask);
 
 		LightData.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel

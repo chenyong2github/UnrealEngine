@@ -778,14 +778,14 @@ bool FSceneRenderer::AllowSimpleLights() const
 	return bAllowSimpleLights == 1;
 }
 
-void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights, bool bShadowedLightsInClustered)
+void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights, bool bShadowedLightsInClustered, bool bUseLumenDirectLighting)
 {
 	if (AllowSimpleLights())
 	{
 		GatherSimpleLights(ViewFamily, Views, OutSortedLights.SimpleLights);
 	}
-	FSimpleLightArray &SimpleLights = OutSortedLights.SimpleLights;
-	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = OutSortedLights.SortedLights;
+	FSimpleLightArray& SimpleLights = OutSortedLights.SimpleLights;
+	TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = OutSortedLights.SortedLights;
 
 	// NOTE: we allocate space also for simple lights such that they can be referenced in the same sorted range
 	SortedLights.Empty(Scene->Lights.Num() + SimpleLights.InstanceData.Num());
@@ -793,8 +793,8 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
 
 #if ENABLE_DEBUG_DISCARD_PROP
-	int Total = Scene->Lights.Num() + SimpleLights.InstanceData.Num();
-	int NumToKeep = int(float(Total) * (1.0f - GDebugLightDiscardProp));
+	int32 Total = Scene->Lights.Num() + SimpleLights.InstanceData.Num();
+	int32 NumToKeep = int32(float(Total) * (1.0f - GDebugLightDiscardProp));
 	const float DebugDiscardStride = float(NumToKeep) / float(Total);
 	float DebugDiscardCounter = 0.0f;
 #endif // ENABLE_DEBUG_DISCARD_PROP
@@ -806,9 +806,9 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 #if ENABLE_DEBUG_DISCARD_PROP
 		{
-			int PrevCounter = int(DebugDiscardCounter);
+			int32 PrevCounter = int32(DebugDiscardCounter);
 			DebugDiscardCounter += DebugDiscardStride;
-			if (PrevCounter >= int(DebugDiscardCounter))
+			if (PrevCounter >= int32(DebugDiscardCounter))
 			{
 				continue;
 			}
@@ -833,6 +833,14 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 					SortedLightInfo->SortKey.Fields.bLightFunction = ViewFamily.EngineShowFlags.LightFunctions && CheckForLightFunction(LightSceneInfo);
 					SortedLightInfo->SortKey.Fields.bUsesLightingChannels = Views[ViewIndex].bUsesLightingChannels && LightSceneInfo->Proxy->GetLightingChannelMask() != GetDefaultLightingChannelMask();
 
+					const bool bSupportedByLumenDirectLighting = bUseLumenDirectLighting &&
+						LightSceneInfoCompact.LightType != LightType_Directional;
+						// Todo - have to match shadow setup
+						/*&&
+						!SortedLightInfo->SortKey.Fields.bTextureProfile &&
+						!SortedLightInfo->SortKey.Fields.bLightFunction &&
+						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels;*/
+
 					// These are not simple lights.
 					SortedLightInfo->SortKey.Fields.bIsNotSimpleLight = 1;
 
@@ -847,13 +855,15 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 						!SortedLightInfo->SortKey.Fields.bLightFunction &&
 						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels
 						&& LightSceneInfoCompact.LightType != LightType_Directional
-						&& LightSceneInfoCompact.LightType != LightType_Rect;
+						&& LightSceneInfoCompact.LightType != LightType_Rect
+						&& !bSupportedByLumenDirectLighting;
 
 					// One pass projection is supported for lights with only virtual shadow maps
 					// TODO: Exclude lights that also have non-virtual shadow maps
 					bool bHasVirtualShadowMap = VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&Views[ViewIndex]) != INDEX_NONE;
 					SortedLightInfo->SortKey.Fields.bDoesNotWriteIntoPackedShadowMask = !bClusteredDeferredSupported || !bHasVirtualShadowMap;
 					SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = !bClusteredDeferredSupported;
+					SortedLightInfo->SortKey.Fields.bHandledByLumen = bSupportedByLumenDirectLighting;
 					break;
 				}
 			}
@@ -864,9 +874,9 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	{
 #if ENABLE_DEBUG_DISCARD_PROP
 		{
-			int PrevCounter = int(DebugDiscardCounter);
+			int32 PrevCounter = int32(DebugDiscardCounter);
 			DebugDiscardCounter += DebugDiscardStride;
-			if (PrevCounter >= int(DebugDiscardCounter))
+			if (PrevCounter >= int32(DebugDiscardCounter))
 			{
 				continue;
 			}
@@ -885,6 +895,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 		// Simple lights are ok to use with tiled and clustered deferred lighting
 		SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = 0;
+		SortedLightInfo->SortKey.Fields.bHandledByLumen = 0;
 	}
 
 	// Sort non-shadowed, non-light function lights first to avoid render target switches.
@@ -901,6 +912,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	OutSortedLights.SimpleLightsEnd = SortedLights.Num();
 	OutSortedLights.ClusteredSupportedEnd = SortedLights.Num();
 	OutSortedLights.UnbatchedLightStart = SortedLights.Num();
+	OutSortedLights.LumenLightStart = SortedLights.Num();
 
 	// Iterate over all lights to be rendered and build ranges for tiled deferred and unshadowed lights
 	for (int32 LightIndex = 0; LightIndex < SortedLights.Num(); LightIndex++)
@@ -910,6 +922,12 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 		const bool bDrawLightFunction = SortedLightInfo.SortKey.Fields.bLightFunction;
 		const bool bTextureLightProfile = SortedLightInfo.SortKey.Fields.bTextureProfile;
 		const bool bLightingChannels = SortedLightInfo.SortKey.Fields.bUsesLightingChannels;
+
+		if (SortedLightInfo.SortKey.Fields.bHandledByLumen && OutSortedLights.LumenLightStart == SortedLights.Num())
+		{
+			// Mark the first index that needs to be rendered
+			OutSortedLights.LumenLightStart = LightIndex;
+		}
 
 		if (SortedLightInfo.SortKey.Fields.bIsNotSimpleLight && OutSortedLights.SimpleLightsEnd == SortedLights.Num())
 		{
@@ -923,18 +941,23 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 			OutSortedLights.ClusteredSupportedEnd = LightIndex;
 		}
 
-		if( (bDrawShadows || bDrawLightFunction || bLightingChannels) && SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported )
+		if ((bDrawShadows || bDrawLightFunction || bLightingChannels) 
+			&& SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported
+			&& !SortedLightInfo.SortKey.Fields.bHandledByLumen
+			&& OutSortedLights.UnbatchedLightStart == SortedLights.Num())
 		{
-			// Once we find an unbatched shadowed light, we can exit the loop
-			check(SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported);
 			OutSortedLights.UnbatchedLightStart = LightIndex;
-			break;
 		}
 	}
 
 	// Make sure no obvious things went wrong!
 	check(OutSortedLights.ClusteredSupportedEnd >= OutSortedLights.SimpleLightsEnd);
 	check(OutSortedLights.UnbatchedLightStart >= OutSortedLights.ClusteredSupportedEnd);
+
+	if (OutSortedLights.UnbatchedLightStart > OutSortedLights.LumenLightStart)
+	{
+		OutSortedLights.UnbatchedLightStart = OutSortedLights.LumenLightStart;
+	}
 }
 
 FHairStrandsTransmittanceMaskData CreateDummyHairStrandsTransmittanceMaskData(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
@@ -955,10 +978,11 @@ void FDeferredShadingSceneRenderer::RenderLights(
 	SCOPE_CYCLE_COUNTER(STAT_LightingDrawTime);
 	SCOPE_CYCLE_COUNTER(STAT_LightRendering);
 
-	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
-	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
-	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
+	const FSimpleLightArray& SimpleLights = SortedLightSet.SimpleLights;
+	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = SortedLightSet.SortedLights;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
+	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
+	const int32 LumenLightStart = SortedLightSet.LumenLightStart;
 
 	FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData;
 	if (bUseHairLighting && Views.Num() > 0)
@@ -1011,11 +1035,11 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						if (HairStrands::HasViewHairStrandsData(View))
 						{
 							HairStrandsShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
-							GraphBuilder,
-							SceneTextures,
-							View, ViewIndex,
-							VirtualShadowMapArray,
-							EVirtualShadowMapProjectionInputType::HairStrands);
+								GraphBuilder,
+								SceneTextures,
+								View, ViewIndex,
+								VirtualShadowMapArray,
+								EVirtualShadowMapProjectionInputType::HairStrands);
 						}
 					}
 				}
@@ -1153,7 +1177,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 			FRDGTextureRef SharedScreenShadowMaskSubPixelTexture = nullptr;
 
 			// Draw shadowed and light function lights
-			for (int32 LightIndex = UnbatchedLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+			for (int32 LightIndex = UnbatchedLightStart; LightIndex < LumenLightStart; LightIndex++)
 			{
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 				const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
@@ -1270,7 +1294,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							}; // QuickOffDenoisingBatch
 
 							// Ray trace shadows of light that needs, and quick off denoising batch.
-							for (int32 LightBatchIndex = LightIndex; LightBatchIndex < SortedLights.Num(); LightBatchIndex++)
+							for (int32 LightBatchIndex = LightIndex; LightBatchIndex < LumenLightStart; LightBatchIndex++)
 							{
 								const FSortedLightSceneInfo& BatchSortedLightInfo = SortedLights[LightBatchIndex];
 								const FLightSceneInfo& BatchLightSceneInfo = *BatchSortedLightInfo.LightSceneInfo;
@@ -1815,7 +1839,7 @@ static uint32 SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateI
 }
 
 // Use DBT to allow work culling on shadow lights
-static void CalculateLightNearFarDepthFromBounds(const FViewInfo& View, const FSphere &LightBounds, float &NearDepth, float &FarDepth)
+static void CalculateLightNearFarDepthFromBounds(const FViewInfo& View, const FSphere& LightBounds, float& NearDepth, float& FarDepth)
 {
 	const FMatrix ViewProjection = View.ViewMatrices.GetViewProjectionMatrix();
 	const FVector ViewDirection = View.GetViewDirection();
@@ -2370,11 +2394,11 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 void FDeferredShadingSceneRenderer::RenderLightsForHair(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	FSortedLightSetSceneInfo &SortedLightSet,
+	FSortedLightSetSceneInfo& SortedLightSet,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
 	FRDGTextureRef LightingChannelsTexture)
 {
-	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
+	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = SortedLightSet.SortedLights;
 	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
 
