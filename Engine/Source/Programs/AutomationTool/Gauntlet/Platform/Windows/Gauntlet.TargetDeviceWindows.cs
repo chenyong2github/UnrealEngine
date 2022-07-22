@@ -81,7 +81,6 @@ namespace Gauntlet
 			using (FileStream ProcessLog = File.Open(ProcessLogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
 			{
 				StreamReader LogReader = new StreamReader(ProcessLog);
-
 				// Read until the process has exited
 				do
 				{
@@ -98,6 +97,10 @@ namespace Gauntlet
 					}
 				}
 				while (!HasExited);
+
+				LogReader.Close();
+				ProcessLog.Close();
+				ProcessLog.Dispose();
 			}
 		}
 
