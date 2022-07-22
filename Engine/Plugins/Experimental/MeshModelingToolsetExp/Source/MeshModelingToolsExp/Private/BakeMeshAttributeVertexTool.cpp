@@ -56,7 +56,7 @@ public:
 	// General bake settings
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
-	FDynamicMesh3* BaseMesh;
+	const FDynamicMesh3* BaseMesh;
 	TSharedPtr<TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	TUniquePtr<FMeshVertexBaker> Baker;
 	bool bIsBakeToSelf = false;
@@ -260,24 +260,25 @@ void UBakeMeshAttributeVertexTool::Setup()
 
 	UE::ToolTarget::HideSourceObject(Targets[0]);
 
-	const FDynamicMesh3 InputMeshWithTangents = UE::ToolTarget::GetDynamicMeshCopy(Targets[0], true);
+	// TargetMesh stores the original target mesh. It is intended to remain
+	// const throughout this tool and is used to refresh the PreviewMesh back
+	// to its original state.
+	TargetMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[0], true);
+	TargetSpatial.SetMesh(&TargetMesh, true);
+	TargetMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&TargetMesh);
+	TargetMeshTangents->CopyTriVertexTangents(TargetMesh);
+
+	// PreviewMesh stores computed result mesh. On shutdown, PreviewMesh will be
+	// used to commit the dynamic mesh to the target tool target.
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, nullptr);
 	PreviewMesh->SetTransform(static_cast<FTransform>(UE::ToolTarget::GetLocalToWorldTransform(Targets[0])));
 	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
-	PreviewMesh->ReplaceMesh(InputMeshWithTangents);
+	PreviewMesh->ReplaceMesh(TargetMesh);
 	PreviewMesh->SetMaterials(UE::ToolTarget::GetMaterialSet(Targets[0]).Materials);
 	PreviewMesh->SetOverrideRenderMaterial(PreviewMaterial);
 	PreviewMesh->SetVisible(true);
-
-	PreviewMesh->ProcessMesh([this](const FDynamicMesh3& Mesh)
-	{
-		TargetMesh.Copy(Mesh);
-		TargetSpatial.SetMesh(&TargetMesh, true);
-		TargetMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&TargetMesh);
-		TargetMeshTangents->CopyTriVertexTangents(Mesh);
-	});
 
 	UToolTarget* Target = Targets[0];
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
@@ -454,7 +455,11 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshVertexBaker>> UBakeMeshAttrib
 	TUniquePtr<FMeshVertexBakerOp> Op = MakeUnique<FMeshVertexBakerOp>();
 	Op->DetailMesh = DetailMesh;
 	Op->DetailSpatial = DetailSpatial;
-	Op->BaseMesh = &TargetMesh;
+
+	// Pass the PreviewMesh here instead of the TargetMesh. The PreviewMesh
+	// contains the updated color topology. TargetMesh holds onto the original
+	// color topology and values.
+	Op->BaseMesh = PreviewMesh->GetMesh();
 	Op->BaseMeshTangents = TargetMeshTangents;
 	Op->BakeSettings = CachedBakeSettings;
 	Op->OcclusionSettings = CachedOcclusionMapSettings;
@@ -475,9 +480,9 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	IPrimitiveComponentBackedTarget* DetailComponent = Cast<IPrimitiveComponentBackedTarget>(Targets[bIsBakeToSelf ? 0 : 1]);
 	UToolTarget* DetailTargetMesh = Targets[bIsBakeToSelf ? 0 : 1];
 
+	const FDynamicMesh3 DetailMeshCopy = UE::ToolTarget::GetDynamicMeshCopy(DetailTargetMesh, true);
 	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert( UE::ToolTarget::GetMeshDescription(DetailTargetMesh), *DetailMesh);
+	DetailMesh->Copy(DetailMeshCopy);
 	if (InputMeshSettings->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
 		const FTransformSRT3d DetailToWorld(DetailComponent->GetWorldTransform());
@@ -588,15 +593,15 @@ void UBakeMeshAttributeVertexTool::UpdateColorTopology()
 	PreviewMesh->EditMesh([this](FDynamicMesh3& Mesh)
 	{
 		Mesh.EnableAttributes();
-		Mesh.Attributes()->DisablePrimaryColors();
 		Mesh.Attributes()->EnablePrimaryColors();
+		Mesh.Attributes()->PrimaryColors()->ClearElements();
 
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
 		FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
 		Mesh.Attributes()->PrimaryColors()->CreateFromPredicate(
-			[&](int ParentVID, int TriIDA, int TriIDB) -> bool
+			[&](int /*ParentVID*/, int TriIDA, int TriIDB) -> bool
 			{
-				auto OverlayCanShare = [&] (auto Overlay) -> bool
+				auto OverlayCanShare = [TriIDA, TriIDB] (auto Overlay) -> bool
 				{
 					return Overlay ? Overlay->AreTrianglesConnected(TriIDA, TriIDB) : true;
 				};
@@ -612,17 +617,24 @@ void UBakeMeshAttributeVertexTool::UpdateColorTopology()
 				}
 				return bCanShare;
 			}, 0.0f);
-	});
 
-	// Update BaseMesh color topology.
-	TargetMesh.EnableAttributes();
-	TargetMesh.Attributes()->DisablePrimaryColors();
-	TargetMesh.Attributes()->EnablePrimaryColors();
-	PreviewMesh->ProcessMesh([this](const FDynamicMesh3& Mesh)
-	{
-		TargetMesh.Attributes()->PrimaryColors()->Copy(*Mesh.Attributes()->PrimaryColors());
+		// Copy source vertex colors onto new color overlay topology.
+		const FDynamicMeshColorOverlay* TargetColorOverlay = TargetMesh.HasAttributes() ? TargetMesh.Attributes()->PrimaryColors() : nullptr;
+		FDynamicMeshColorOverlay* PreviewColorOverlay = Mesh.Attributes()->PrimaryColors(); 
+		if (TargetColorOverlay)
+		{
+			for (int VId : Mesh.VertexIndicesItr())
+			{
+				Mesh.EnumerateVertexTriangles(VId, [VId, TargetColorOverlay, PreviewColorOverlay](int32 TriID)
+				{
+					const FVector4f TargetColor = TargetColorOverlay->GetElementAtVertex(TriID, VId);
+					const int ElemId = PreviewColorOverlay->GetElementIDAtVertex(TriID, VId);
+					PreviewColorOverlay->SetElement(ElemId, TargetColor);
+				});
+			}
+		}
 	});
-	NumColorElements = TargetMesh.Attributes()->PrimaryColors()->ElementCount();
+	NumColorElements = PreviewMesh->GetMesh()->Attributes()->PrimaryColors()->ElementCount();
 
 	bColorTopologyValid = true;
 }
@@ -688,8 +700,13 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		case EBakeMapType::FaceNormal:
 		case EBakeMapType::Position:
 		case EBakeMapType::MaterialID:
+			OpState |= UpdateResult_MeshProperty(Dimensions);
+			break;
 		case EBakeMapType::VertexColor:
 			OpState |= UpdateResult_MeshProperty(Dimensions);
+			// Force copy the original vertex colors to our PreviewMesh so that
+			// the baker samples the source vertex colors for identity bakes.
+			UpdateColorTopology();
 			break;
 		case EBakeMapType::Texture:
 			OpState |= UpdateResult_Texture2DImage(Dimensions, DetailMesh.Get());
@@ -734,7 +751,6 @@ void UBakeMeshAttributeVertexTool::OnResultUpdated(const TUniquePtr<FMeshVertexB
 		return;
 	}
 
-	// TODO: Review how to handle the implicit sRGB conversion in the StaticMesh build.
 	PreviewMesh->DeferredEditMesh([this, &ImageResult](FDynamicMesh3& Mesh)
 	{
 		const int NumColors = Mesh.Attributes()->PrimaryColors()->ElementCount();

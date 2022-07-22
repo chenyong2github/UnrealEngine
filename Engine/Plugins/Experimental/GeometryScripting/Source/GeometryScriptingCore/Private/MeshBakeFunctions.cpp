@@ -621,6 +621,24 @@ namespace GeometryScriptBakeLocals
 
 		const bool bIsBakeToSelf = (TargetMesh == SourceMesh);
 
+		// Initialize the source mesh
+		// This must precede target mesh generation in case SourceMesh & TargetMesh are the same mesh
+		// since we mutate the target mesh color topology.
+		FDynamicMesh3 SourceMeshCopy = *SourceMesh->GetMeshPtr();
+		const FDynamicMesh3* SourceMeshToUse = &SourceMeshCopy;
+		if (BakeOptions.bProjectionInWorldSpace && !bIsBakeToSelf)
+		{
+			// Transform the SourceMesh into TargetMesh local space using a copy (oof)
+			// TODO: Remove this once we have support for transforming rays in the core bake loop
+			const FTransformSRT3d SourceToWorld = SourceTransform;
+			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld, true);
+			const FTransformSRT3d TargetToWorld = TargetTransform;
+			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld, true);
+		}
+
+		const FDynamicMeshAABBTree3 DetailSpatial(SourceMeshToUse);
+		FMeshBakerDynamicMeshSampler DetailSampler(SourceMeshToUse, &DetailSpatial);
+
 		// Initialize the color overlay on the TargetMesh
 		FDynamicMesh3& TargetMeshRef = TargetMesh->GetMeshRef();
 		TargetMeshRef.EnableAttributes();
@@ -648,26 +666,26 @@ namespace GeometryScriptBakeLocals
 				}
 				return bCanShare;
 			}, 0.0f);
-		
 
-		// Initialize the source mesh
-		FDynamicMesh3 SourceMeshCopy;
-		const FDynamicMesh3* SourceMeshOriginal = SourceMesh->GetMeshPtr();
-		const FDynamicMesh3* SourceMeshToUse = SourceMeshOriginal;
-		if (BakeOptions.bProjectionInWorldSpace && !bIsBakeToSelf)
+		if (bIsBakeToSelf)
 		{
-			// Transform the SourceMesh into TargetMesh local space using a copy (oof)
-			// TODO: Remove this once we have support for transforming rays in the core bake loop
-			SourceMeshCopy = *SourceMeshOriginal;
-			const FTransformSRT3d SourceToWorld = SourceTransform;
-			MeshTransforms::ApplyTransform(SourceMeshCopy, SourceToWorld, true);
-			const FTransformSRT3d TargetToWorld = TargetTransform;
-			MeshTransforms::ApplyTransformInverse(SourceMeshCopy, TargetToWorld, true);
-			SourceMeshToUse = &SourceMeshCopy;
+			// Copy source vertex colors onto new color overlay topology for identity bakes.
+			// This is necessary when sampling vertex color data.
+			const FDynamicMeshColorOverlay* SourceColorOverlay = SourceMeshToUse->HasAttributes() ? SourceMeshToUse->Attributes()->PrimaryColors() : nullptr;
+			FDynamicMeshColorOverlay* TargetColorOverlay = TargetMeshRef.Attributes()->PrimaryColors(); 
+			if (SourceColorOverlay)
+			{
+				for (int VId : TargetMeshRef.VertexIndicesItr())
+				{
+					TargetMeshRef.EnumerateVertexTriangles(VId, [VId, SourceColorOverlay, TargetColorOverlay](int32 TriID)
+					{
+						const FVector4f TargetColor = SourceColorOverlay->GetElementAtVertex(TriID, VId);
+						const int ElemId = TargetColorOverlay->GetElementIDAtVertex(TriID, VId);
+						TargetColorOverlay->SetElement(ElemId, TargetColor);
+					});
+				}
+			}
 		}
-
-		const FDynamicMeshAABBTree3 DetailSpatial(SourceMeshToUse);
-		FMeshBakerDynamicMeshSampler DetailSampler(SourceMeshToUse, &DetailSpatial);
 
 		TUniquePtr<FMeshVertexBaker> Result = MakeUnique<FMeshVertexBaker>();
 		FMeshVertexBaker& Baker = *Result;

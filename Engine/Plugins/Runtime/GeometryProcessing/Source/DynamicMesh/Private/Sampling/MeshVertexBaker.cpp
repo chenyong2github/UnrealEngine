@@ -97,21 +97,24 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	FMeshVertexBaker* Baker = static_cast<FMeshVertexBaker*>(Data);
 	
 	ECorrespondenceStrategy UseStrategy = Baker->CorrespondenceStrategy;
-	bool bIsIdentity = true;
-	int NumDetailMeshes = 0;
-	auto CheckIdentity = [Baker, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+	if (UseStrategy == ECorrespondenceStrategy::Identity)
 	{
-		// When the mesh pointers differ, loosely compare the meshes as a sanity check.
-		// TODO: Expose additional comparison metrics on the detail sampler when the mesh pointers differ.
-		bIsIdentity = bIsIdentity && (Baker->TargetMesh == DetailMesh || Baker->TargetMesh->TriangleCount() == Baker->DetailSampler->GetTriangleCount(DetailMesh));
-		++NumDetailMeshes;
-	};
-	Baker->DetailSampler->ProcessMeshes(CheckIdentity);
-	if (UseStrategy == ECorrespondenceStrategy::Identity && !ensure(bIsIdentity && NumDetailMeshes == 1))
-	{
-		// Identity strategy requires there to be only one mesh that is the same
-		// as the target mesh.
-		UseStrategy = ECorrespondenceStrategy::NearestPoint;
+		bool bIsIdentity = true;
+		int NumDetailMeshes = 0;
+		auto CheckIdentity = [Baker, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+		{
+			// When the mesh pointers differ, loosely compare the meshes as a sanity check.
+			// TODO: Expose additional comparison metrics on the detail sampler when the mesh pointers differ.
+			bIsIdentity = bIsIdentity && (Baker->TargetMesh == DetailMesh || Baker->TargetMesh->TriangleCount() == Baker->DetailSampler->GetTriangleCount(DetailMesh));
+			++NumDetailMeshes;
+		};
+		Baker->DetailSampler->ProcessMeshes(CheckIdentity);
+		if (!ensure(bIsIdentity && NumDetailMeshes == 1))
+		{
+			// Identity strategy requires there to be only one mesh that is the same
+			// as the target mesh.
+			UseStrategy = ECorrespondenceStrategy::NearestPoint;
+		}
 	}
 	
 	const FDynamicMesh3* Mesh = Baker->TargetMesh;
