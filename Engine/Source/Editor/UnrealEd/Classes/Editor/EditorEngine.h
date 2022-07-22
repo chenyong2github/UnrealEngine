@@ -1253,8 +1253,11 @@ public:
 	 * note that only Location, Rotation, Drawscale, Drawscale3D, Tag, and Group are copied from the old Actors
 	 * 
 	 * @param Factory - the Factory to use to create Actors
+	 * @param AssetData - the asset to feed the Factory
+	 * @param ActorsToReplace - Actors to replace
+	 * @param OutNewActors - Actors that were created
 	 */
-	void ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace);
+	void ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors = nullptr);
 
 	/**
 	 * Converts passed in brushes into a single static mesh actor. 

@@ -5123,7 +5123,7 @@ void UEditorEngine::ReplaceSelectedActors(UActorFactory* Factory, const FAssetDa
 	ReplaceActors(Factory, AssetData, ActorsToReplace);
 }
 
-void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace)
+void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors)
 {
 	// Cache for attachment info of all actors being converted.
 	TArray<ReattachActorsHelper::FActorAttachmentCache> AttachmentInfo;
@@ -5282,12 +5282,21 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 	// Reattaches actors based on their previous parent child relationship.
 	ReattachActorsHelper::ReattachActors(ConvertedMap, AttachmentInfo);
 
+
+	// Output new actors and
 	// Perform reference replacement on all Actors referenced by World
 	TArray<UObject*> ReferencedLevels;
-
+	if (OutNewActors)
+	{
+		OutNewActors->Reserve(ConvertedMap.Num());
+	}
 	for (const TPair<AActor*, AActor*>& ReplacedObj : ConvertedMap)
 	{
 		ReferencedLevels.AddUnique(ReplacedObj.Value->GetLevel());
+		if (OutNewActors)
+		{
+			OutNewActors->Add(ReplacedObj.Value);
+		}
 	}
 
 	for (UObject* Referencer : ReferencedLevels)
