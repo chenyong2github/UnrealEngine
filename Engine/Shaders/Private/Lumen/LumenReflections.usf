@@ -661,10 +661,10 @@ void ReflectionResolveCS(
 
 #if CLEAR_TILE_NEIGHBORHOOD && !STRATA_ENABLED // STRATA_TODO
 	// When the next step is the temporal filter, clear texels in the resolve tile's neighborhood that won't be written to by the resolve shader otherwise
-	if (GroupThreadId < REFLECTION_THREADGROUP_SIZE_2D * 4)
+	if (GroupThreadId < (REFLECTION_THREADGROUP_SIZE_2D + 1) * 4)
 	{
-		uint BorderSide = GroupThreadId / REFLECTION_THREADGROUP_SIZE_2D;
-		int BorderIndex = GroupThreadId - BorderSide * REFLECTION_THREADGROUP_SIZE_2D;
+		uint BorderSide = GroupThreadId / (REFLECTION_THREADGROUP_SIZE_2D + 1);
+		int BorderIndex = GroupThreadId - BorderSide * (REFLECTION_THREADGROUP_SIZE_2D + 1);
 		int2 Offset = int2(BorderIndex - 1, -1);
 
 		if (BorderSide == 1)
