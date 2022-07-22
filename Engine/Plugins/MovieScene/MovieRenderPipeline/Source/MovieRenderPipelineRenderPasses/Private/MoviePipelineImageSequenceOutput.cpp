@@ -248,7 +248,9 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 			}
 		}
 
-		if (!IsAlphaAllowed())
+		// A payload _requiring_ alpha output will override the Write Alpha option, because that flag is used to indicate that the output is
+		// no good without alpha, and we already did logic above to ensure it got turned into a filetype that could write alpha.
+		if (!IsAlphaAllowed() && !Payload->bRequireTransparentOutput)
 		{
 			switch (QuantizedPixelType)
 			{
