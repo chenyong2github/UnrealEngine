@@ -4,6 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"
+#include "Util/ColorConstants.h"
 
 using namespace UE::Geometry;
 
@@ -216,6 +217,70 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::GetMeshPerVertexC
 		});
 	}
 
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::ConvertMeshVertexColorsSRGBToLinear(
+	UDynamicMesh* TargetMesh,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ConvertMeshVertexColorsSRGBToLinear_InvalidInput", "ConvertMeshVertexColorsSRGBToLinear: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false || EditMesh.Attributes()->HasPrimaryColors() == false)
+		{
+			return;
+		}
+
+		FDynamicMeshColorOverlay* Colors = EditMesh.Attributes()->PrimaryColors();
+		if (Colors->ElementCount() > 0)
+		{
+			for (int32 ElementID : Colors->ElementIndicesItr())
+			{
+				FVector4f Existing = Colors->GetElement(ElementID);
+				LinearColors::SRGBToLinear(Existing);
+				Colors->SetElement(ElementID, Existing);
+			}
+		}
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::ConvertMeshVertexColorsLinearToSRGB(
+	UDynamicMesh* TargetMesh,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ConvertMeshVertexColorsLinearToSRGB_InvalidInput", "ConvertMeshVertexColorsLinearToSRGB: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false || EditMesh.Attributes()->HasPrimaryColors() == false)
+		{
+			return;
+		}
+
+		FDynamicMeshColorOverlay* Colors = EditMesh.Attributes()->PrimaryColors();
+		if (Colors->ElementCount() > 0)
+		{
+			for (int32 ElementID : Colors->ElementIndicesItr())
+			{
+				FVector4f Existing = Colors->GetElement(ElementID);
+				LinearColors::LinearToSRGB(Existing);
+				Colors->SetElement(ElementID, Existing);
+			}
+		}
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	
 	return TargetMesh;
 }
 

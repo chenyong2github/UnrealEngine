@@ -59,5 +59,25 @@ public:
 		bool& bIsValidColorSet,
 		bool& bHasVertexIDGaps,
 		bool bBlendSplitVertexValues = true);
+
+	/**
+	 * Apply a SRGB to Linear color transformation on all vertex colors
+	 * on the mesh.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	ConvertMeshVertexColorsSRGBToLinear(
+		UDynamicMesh* TargetMesh,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Apply a Linear to SRGB color transformation on all vertex colors
+	 * on the mesh.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	ConvertMeshVertexColorsLinearToSRGB(
+		UDynamicMesh* TargetMesh,
+		UGeometryScriptDebug* Debug = nullptr);
 };
 
