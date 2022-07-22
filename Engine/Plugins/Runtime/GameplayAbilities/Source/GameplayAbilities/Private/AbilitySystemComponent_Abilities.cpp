@@ -1570,16 +1570,6 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 		return false;
 	}
 
-	// make sure we do not incur a roll over if we go over the uint8 max, this will need to be updated if the var size changes
-	if (LIKELY(Spec->ActiveCount < UINT8_MAX))
-	{
-		Spec->ActiveCount++;
-	}
-	else
-	{
-		ABILITY_LOG(Warning, TEXT("TryActivateAbility %s called when the Spec->ActiveCount (%d) >= UINT8_MAX"), *Ability->GetName(), (int32)Spec->ActiveCount)
-	}
-
 	// Setup a fresh ActivationInfo for this AbilitySpec.
 	Spec->ActivationInfo = FGameplayAbilityActivationInfo(ActorInfo->OwnerActor.Get());
 	FGameplayAbilityActivationInfo &ActivationInfo = Spec->ActivationInfo;
@@ -2111,9 +2101,6 @@ void UAbilitySystemComponent::ClientActivateAbilitySucceedWithEventData_Implemen
 	else
 	{
 		// We haven't already executed this ability at all, so kick it off.
-
-		// The spec will now be active, and we need to keep track on the client as well.  Since we cannot call TryActivateAbility, which will increment ActiveCount on the server, we have to do this here.
-		++Spec->ActiveCount;
 
 		if (PredictionKey.bIsServerInitiated)
 		{

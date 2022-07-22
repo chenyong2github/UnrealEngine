@@ -786,6 +786,24 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	Comp->NotifyAbilityActivated(Handle, this);
 
 	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
+
+	// Spec's active count must be incremented after applying blockor cancel tags, otherwise the ability runs the risk of cancelling itself inadvertantly before it completely activates.
+	FGameplayAbilitySpec* Spec = Comp->FindAbilitySpecFromHandle(Handle);
+	if (!Spec)
+	{
+		ABILITY_LOG(Warning, TEXT("PreActivate called with a valid handle but no matching ability spec was found. Handle: %s ASC: %s. AvatarActor: %s"), *Handle.ToString(), *(Comp->GetPathName()), *GetNameSafe(Comp->GetAvatarActor_Direct()));
+		return;
+	}
+
+	// make sure we do not incur a roll over if we go over the uint8 max, this will need to be updated if the var size changes
+	if (LIKELY(Spec->ActiveCount < UINT8_MAX))
+	{
+		Spec->ActiveCount++;
+	}
+	else
+	{
+		ABILITY_LOG(Warning, TEXT("PreActivate %s called when the Spec->ActiveCount (%d) >= UINT8_MAX"), *GetName(), (int32)Spec->ActiveCount)
+	}
 }
 
 void UGameplayAbility::CallActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate, const FGameplayEventData* TriggerEventData)
