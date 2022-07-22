@@ -4,6 +4,7 @@
 
 #include "Algo/Reverse.h"
 #include "Bindings/MVVMBindingHelper.h"
+#include "Bindings/MVVMConversionFunctionHelper.h"
 #include "Blueprint/WidgetTree.h"
 #include "BlueprintActionDatabase.h"
 #include "BlueprintNodeSpawner.h"
@@ -142,29 +143,18 @@ namespace UE::MVVM::Private
 		return ConversionNode;
 	}
 
-	const TObjectPtr<UEdGraph>* FindExistingConversionFunctionWrapper(const UWidgetBlueprint* WidgetBlueprint, FName WrapperName)
+	UEdGraph* FindExistingConversionFunctionWrapper(UWidgetBlueprint* WidgetBlueprint, FName WrapperName)
 	{
-		const TObjectPtr<UEdGraph>* ExistingGraph = WidgetBlueprint->FunctionGraphs.FindByPredicate(
-			[&WrapperName](TObjectPtr<UEdGraph> GraphPtr) -> bool
-			{
-				if (UEdGraph* Graph = GraphPtr.Get())
-				{
-					return Graph->GetFName() == WrapperName;
-				}
-				return false;
-			});
-
-		return ExistingGraph;
+		TObjectPtr<UEdGraph>* Result = WidgetBlueprint->FunctionGraphs.FindByPredicate([WrapperName](const UEdGraph* GraphPtr) { return GraphPtr->GetFName() == WrapperName; });
+		return Result ? Result->Get() : nullptr;
 	}
 
 	void RemoveConversionFunctionWrapper(UWidgetBlueprint* WidgetBlueprint, FName WrapperName)
 	{
-		const TObjectPtr<UEdGraph>* ExistingGraph = FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName);
-		if (ExistingGraph != nullptr)
+		if (UEdGraph* Graph = FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName))
 		{
-			UEdGraph* Graph = ExistingGraph->Get();
-			Graph->Rename(nullptr, Graph->GetOuter(), REN_DoNotDirty | REN_ForceNoResetLoaders);
-			WidgetBlueprint->FunctionGraphs.Remove(Graph);
+			Graph->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty | REN_ForceNoResetLoaders);
+			WidgetBlueprint->FunctionGraphs.RemoveSingle(Graph);
 		}
 	}
 } //namespace
@@ -173,13 +163,7 @@ FName UMVVMEditorSubsystem::GetConversionFunctionWrapperName(const UWidgetBluepr
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		TStringBuilder<256> StringBuilder;
-		StringBuilder << TEXT("__");
-		Binding.GetFName(View).AppendString(StringBuilder);
-
-		StringBuilder << (bSourceToDestination ? TEXT("_SourceToDest") : TEXT("_DestToSource"));
-
-		return FName(StringBuilder.ToString());
+		return UE::MVVM::ConversionFunctionHelper::GetWrapperName(View, Binding, bSourceToDestination);
 	}
 
 	return FName();
@@ -305,10 +289,7 @@ void UMVVMEditorSubsystem::RemoveBinding(UWidgetBlueprint* WidgetBlueprint, cons
 
 UEdGraph* UMVVMEditorSubsystem::GetConversionFunctionGraph(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
 {
-	const FName WrapperName = GetConversionFunctionWrapperName(WidgetBlueprint, Binding, bSourceToDestination);
-	const TObjectPtr<UEdGraph>* EdGraphPtr = UE::MVVM::Private::FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName);
-
-	return EdGraphPtr != nullptr ? EdGraphPtr->Get() : nullptr;
+	return UE::MVVM::ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bSourceToDestination);
 }
 
 UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction, bool bSourceToDestination)

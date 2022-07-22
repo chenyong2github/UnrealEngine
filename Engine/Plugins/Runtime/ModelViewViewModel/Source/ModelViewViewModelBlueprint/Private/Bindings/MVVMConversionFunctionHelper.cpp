@@ -8,10 +8,12 @@
 #include "K2Node_PromotableOperator.h"
 #include "K2Node_VariableGet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/StringBuilder.h"
 
 #include "Components/Widget.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewModelContext.h"
+#include "MVVMWidgetBlueprintExtension_View.h"
 #include "MVVMViewModelBase.h"
 #include "View/MVVMView.h"
 #include "WidgetBlueprint.h"
@@ -92,6 +94,45 @@ TArray<FMVVMBlueprintPropertyPath> FindAllPropertyPathInGraph(const UEdGraph* Gr
 	}
 
 	return Result;
+}
+
+
+FName GetWrapperName(const UMVVMBlueprintView* View, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination)
+{
+	TStringBuilder<256> StringBuilder;
+	StringBuilder << TEXT("__");
+	StringBuilder << Binding.GetFName(View);
+	StringBuilder << (bSourceToDestination ? TEXT("_SourceToDest") : TEXT("_DestToSource"));
+
+	return FName(StringBuilder.ToString());
+}
+
+
+namespace Private
+{
+UEdGraph* FindExistingConversionFunctionWrapper(const UWidgetBlueprint* WidgetBlueprint, FName WrapperName)
+{
+	const TObjectPtr<UEdGraph>* Result = WidgetBlueprint->FunctionGraphs.FindByPredicate([WrapperName](const UEdGraph* GraphPtr) { return GraphPtr->GetFName() == WrapperName; });
+	return Result ? Result->Get() : nullptr;
+}
+} // namespace
+
+UEdGraph* GetGraph(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination)
+{
+	check(WidgetBlueprint);
+
+	const UMVVMBlueprintView* View = nullptr;
+	if (UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint))
+	{
+		View = ExtensionView->GetBlueprintView();
+	}
+
+	if (View)
+	{
+		const FName WrapperName = GetWrapperName(View, Binding, bSourceToDestination);
+		return Private::FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName);
+	}
+	return nullptr;
 }
 
 } //namespace
