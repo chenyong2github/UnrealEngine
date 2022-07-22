@@ -238,6 +238,11 @@ void ULandscapeWeightTextureBackedRenderTarget::CopyToInternalTexture()
 #if WITH_EDITOR
 	using namespace LandscapeTextureBackedRenderTargetLocals;
 
+	if (!IsCopyingBackAndForthAllowed())
+	{
+		return;
+	}
+
 	if (!ensure(IsValid(RenderTarget)))
 	{
 		return;
@@ -263,6 +268,11 @@ void ULandscapeWeightTextureBackedRenderTarget::CopyBackFromInternalTexture()
 {
 #if WITH_EDITOR
 	using namespace LandscapeTextureBackedRenderTargetLocals;
+
+	if (!IsCopyingBackAndForthAllowed())
+	{
+		return;
+	}
 
 	if (!ensure(IsValid(InternalTexture)))
 	{
@@ -336,6 +346,11 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyToInternalTexture()
 #if WITH_EDITOR
 	using namespace LandscapeTextureBackedRenderTargetLocals;
 
+	if (!IsCopyingBackAndForthAllowed())
+	{
+		return;
+	}
+
 	if (!ensure(IsValid(RenderTarget)))
 	{
 		return;
@@ -396,6 +411,11 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyBackFromInternalTexture()
 {
 #if WITH_EDITOR
 	using namespace LandscapeTextureBackedRenderTargetLocals;
+
+	if (!IsCopyingBackAndForthAllowed())
+	{
+		return;
+	}
 
 	if (!ensure(IsValid(InternalTexture)))
 	{
@@ -465,4 +485,12 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyBackFromInternalTexture()
 			});
 	}
 #endif // WITH_EDITOR
+}
+
+bool ULandscapeTextureBackedRenderTargetBase::IsCopyingBackAndForthAllowed()
+{
+	UWorld* World = GetWorld();
+	return IsValid(this) && !IsTemplate()
+		&& IsValid(World) && World->WorldType == EWorldType::Editor
+		&& FApp::CanEverRender();
 }

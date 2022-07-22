@@ -84,18 +84,14 @@ void ULandscapePatchComponent::OnComponentCreated()
 	using namespace LandscapePatchComponentLocals;
 
 	Super::OnComponentCreated();
-		
-	// Mark whether we're creating from scratch of from a copy
+
+	// Mark whether we're creating from scratch or from a copy
 	bWasCopy = bPropertiesCopiedIndicator;
 	bPropertiesCopiedIndicator = true;
 
 	UWorld* World = GetWorld();
-	AActor* OwningActor = GetOwner();
-
-	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	if (IsTemplate() || World->WorldType != EWorldType::Editor)
 	{
-		// If this is a template object from the blueprint editor or something of the sort, don't do
-		// anything else special- we don't want to add to patch manager, etc.
 		return;
 	}
 
@@ -104,61 +100,42 @@ void ULandscapePatchComponent::OnComponentCreated()
 		// If we copied over a patch manager, presumably Landscape should be
 		// copied over as well, but might as well do this to be safe.
 		Landscape = PatchManager->GetOwningLandscape();
-	}
-	else if (World)
-	{
-		if (Landscape.IsValid())
-		{
-			// If we copied over a patch with a landscape but no manager, find or create a manager in that landscape
-			if (Landscape->CanHaveLayersContent())
-			{
-				ALandscapePatchManager* ManagerToUse = FindExistingPatchManagerForLandscape(Landscape.Get());
-				if (!ManagerToUse)
-				{
-					ManagerToUse = CreateNewPatchManagerForLandscape(Landscape.Get());
-				}
 
-				SetPatchManager(ManagerToUse);
-			}
-			else
-			{
-				UE_LOG(LogLandscapePatch, Warning, TEXT("Landscape target for height patch did not have edit layers enabled. Unable to create patch manager."));
-				Landscape = nullptr;
-			}
+		if (!PatchManager->ContainsPatch(this))
+		{
+			SetPatchManager(PatchManager.Get());
+		}
+	}
+	else if (Landscape.IsValid())
+	{
+		// If we copied over a patch with a landscape but no manager.
+		SetLandscape(Landscape.Get());
+	}
+	else
+	{
+		// See if the level has a height patch manager to which we can add ourselves
+		TActorIterator<ALandscapePatchManager> ManagerIterator(World);
+		if (!!ManagerIterator)
+		{
+			SetPatchManager(*ManagerIterator);
 		}
 		else
 		{
-			// Didn't copy over an existing manager or landscape.
-
-			// See if the level has a height patch manager to which we can add ourselves
-			TActorIterator<ALandscapePatchManager> ManagerIterator(World);
-			if (!!ManagerIterator)
+			// If no existing manager, find some landscape and add a new one.
+			for (TActorIterator<ALandscape> LandscapeIterator(World); LandscapeIterator; ++LandscapeIterator)
 			{
-				SetPatchManager(*ManagerIterator);
+				if (LandscapeIterator->CanHaveLayersContent())
+				{
+					Landscape = *LandscapeIterator;
+					SetPatchManager(CreateNewPatchManagerForLandscape(Landscape.Get()));
+					break;
+				}
 			}
-			else
+			if (!PatchManager.IsValid())
 			{
-				// If no existing manager, find some landscape and add a new one.
-				for (TActorIterator<ALandscape> LandscapeIterator(World); LandscapeIterator; ++LandscapeIterator)
-				{
-					if (LandscapeIterator->CanHaveLayersContent())
-					{
-						Landscape = *LandscapeIterator;
-						SetPatchManager(CreateNewPatchManagerForLandscape(Landscape.Get()));
-						break;
-					}
-				}
-				if (!PatchManager.IsValid())
-				{
-					UE_LOG(LogLandscapePatch, Warning, TEXT("Unable to find a landscape with edit layers enabled. Unable to create patch manager."));
-				}
+				UE_LOG(LogLandscapePatch, Warning, TEXT("Unable to find a landscape with edit layers enabled. Unable to create patch manager."));
 			}
 		}
-	}
-
-	if (PatchManager.IsValid())
-	{
-		PatchManager->AddPatch(this);
 	}
 }
 
@@ -222,6 +199,13 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	// Do a bunch of checks to make sure that we don't try to do anything when the editing is happening inside the blueprint editor.
+	UWorld* World = GetWorld();
+	if (IsTemplate() || !IsValid(this) || !IsValid(World) || World->WorldType != EWorldType::Editor)
+	{
+		return;
+	}
+
 	// If we're changing the owning landscape or patch manaager, there's some work we need to do to remove/add 
 	// ourselves from/to the proper brush managers.
 	if (PropertyChangedEvent.Property 
@@ -249,8 +233,8 @@ void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
 	// to be able to use this function to reorder patches. On the other hand, it seems inconvenient
 	// to accidentally swap patch managers if there are multiple in the same landscape, and we kept
 	// landscape the same. It's hard to know the ideal behavior, but for now we'll keep it.
-	if (Landscape.Get() == NewLandscape && ((Landscape.IsNull() && !PatchManager)
-		|| (Landscape.IsValid() && PatchManager && PatchManager->GetOwningLandscape() == Landscape.Get())))
+	if (Landscape.Get() == NewLandscape && (
+		(Landscape.IsNull() && PatchManager.IsNull()) || (Landscape.IsValid() && PatchManager.IsValid() && PatchManager->GetOwningLandscape() == Landscape.Get())))
 	{
 		return;
 	}
@@ -260,6 +244,12 @@ void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
 	if (!NewLandscape)
 	{
 		SetPatchManager(nullptr);
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (IsTemplate() || !IsValid(World) || World->WorldType != EWorldType::Editor)
+	{
 		return;
 	}
 
@@ -303,7 +293,8 @@ void ULandscapePatchComponent::SetPatchManager(ALandscapePatchManager* NewPatchM
 	PatchManager = NewPatchManager;
 	if (NewPatchManager)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+		UWorld* World = GetWorld();
+		if (!IsTemplate() && IsValid(World) && World->WorldType == EWorldType::Editor)
 		{
 			PatchManager->AddPatch(this);
 		}

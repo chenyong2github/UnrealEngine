@@ -47,6 +47,8 @@ public:
 	 */
 	virtual FTransform GetHeightmapCoordsToWorld() { return HeightmapCoordsToWorld; }
 
+	bool ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch);
+
 	void AddPatch(TObjectPtr<ULandscapePatchComponent> Patch);
 
 	bool RemovePatch(TObjectPtr<ULandscapePatchComponent> Patch);

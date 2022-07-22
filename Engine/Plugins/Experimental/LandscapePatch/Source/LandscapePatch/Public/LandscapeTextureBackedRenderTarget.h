@@ -54,6 +54,10 @@ public:
 #endif // WITH_EDITOR
 
 protected:
+	// Allows us to disable copying back and forth between render target and texture when this is not possible
+	// (for instance, when rendering is turned off, so render target resources are not allocated).
+	virtual bool IsCopyingBackAndForthAllowed();
+
 	virtual ETextureSourceFormat GetInternalTextureFormat() PURE_VIRTUAL(ULandscapeTextureBackedRenderTargetBase::GetInternalTextureFormat, return ETextureSourceFormat::TSF_G8;);
 	virtual ETextureRenderTargetFormat GetRenderTargetFormat() PURE_VIRTUAL(ULandscapeTextureBackedRenderTargetBase::GetRenderTargetFormat, return ETextureRenderTargetFormat::RTF_R8;);
 

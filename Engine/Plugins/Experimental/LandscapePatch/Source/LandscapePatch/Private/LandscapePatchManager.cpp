@@ -171,6 +171,11 @@ void ALandscapePatchManager::SetTargetLandscape(ALandscape* InTargetLandscape)
 #endif
 }
 
+bool ALandscapePatchManager::ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch)
+{
+	return PatchComponents.Contains(Patch);
+}
+
 void ALandscapePatchManager::AddPatch(TObjectPtr<ULandscapePatchComponent> Patch)
 {
 	if (Patch)
@@ -189,7 +194,10 @@ bool ALandscapePatchManager::RemovePatch(TObjectPtr<ULandscapePatchComponent> Pa
 	{
 		Modify();
 		bRemoved = PatchComponents.Remove(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get())) > 0;
-		RequestLandscapeUpdate();
+		if (bRemoved)
+		{
+			RequestLandscapeUpdate();
+		}
 	}
 	
 	return bRemoved;

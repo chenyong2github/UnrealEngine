@@ -173,7 +173,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = WeightPatch, meta = (EditConditionHides, EditCondition = "false"))
 	ELandscapeTexturePatchSourceMode SourceMode = ELandscapeTexturePatchSourceMode::None;
 
-	UPROPERTY(EditAnywhere, Category = WeightPatch, meta = (DisplayName = "Source Mode"))
+	 //~ This is EditInstanceOnly because we can't create textures in the blueprint editor due to the way
+	 //~ instanced properties are currently handled there.
+	UPROPERTY(EditInstanceOnly, Category = WeightPatch, meta = (DisplayName = "Source Mode"))
 	ELandscapeTexturePatchSourceMode DetailPanelSourceMode = ELandscapeTexturePatchSourceMode::None;
 
 	//~ We could refactor things such that we always have an InternalData pointer, even when we use
@@ -455,9 +457,13 @@ protected:
 	ELandscapeTexturePatchSourceMode HeightSourceMode = ELandscapeTexturePatchSourceMode::None;
 
 	/**
-	 * How the heightmap of the patch is stored.
+	 * How the heightmap of the patch is stored. Not settable in the detail panel of the blueprint editor- use SetHeightSourceMode
+	 * in blueprint actors instead.
 	 */
-	UPROPERTY(EditAnywhere, Category = HeightPatch, meta = (DisplayName = "Source Mode"))
+	//~ This is EditInstanceOnly because changing it creates/destroys the internal texture, and that cannot currently be
+	//~ dealt with properly in the blueprint editor due to the way instanced properties are handled there. Could revisit when
+	//~ UE-158706 is resolved.
+	UPROPERTY(EditInstanceOnly, Category = HeightPatch, meta = (DisplayName = "Source Mode"))
 	ELandscapeTexturePatchSourceMode DetailPanelHeightSourceMode = ELandscapeTexturePatchSourceMode::None;
 
 	/** Not directly settable via detail panel- for display/debugging purposes only. */
@@ -502,8 +508,13 @@ protected:
 
 	// Weight properties:
 
-	/** */
-	UPROPERTY(EditAnywhere, Category = WeightPatches, Instanced)
+	/** 
+	 * Weight patches. These are not available to be manipulated through the detail panel in the blueprint editor, so blueprint actors
+	 * should set up the weight patches via AddWeightPatch instead.
+	 */
+	//~ This is EditInstanceOnly because manipulating them in blueprint editor causes saving issues due to the way that
+	//~ instanced properties are currently handled there.
+	UPROPERTY(EditInstanceOnly, Category = WeightPatches, Instanced)
 	TArray<TObjectPtr<ULandscapeWeightPatchTextureInfo>> WeightPatches;
 
 	// Used to detect changes to the number of weight patches via the detail panel, so that we can
