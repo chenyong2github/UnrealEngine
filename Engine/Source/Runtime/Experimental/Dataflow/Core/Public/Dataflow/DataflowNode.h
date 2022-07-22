@@ -39,7 +39,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	FGuid Guid;
 	FName Name;
-	FDateTime LastModifiedTimestamp;
+	uint64 LastModifiedTimestamp;
 
 	TMap< int, FDataflowInput* > Inputs;
 	TMap< int, FDataflowOutput* > Outputs;

@@ -195,7 +195,7 @@ TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 
 void FDataflowNode::Invalidate()
 {
-	LastModifiedTimestamp = FDateTime::Now(); // @todo(dataflow) Now() has ms precision; might need higher
+	LastModifiedTimestamp = FPlatformTime::Cycles64();
 	InvalidateOutputs();
 }
 
