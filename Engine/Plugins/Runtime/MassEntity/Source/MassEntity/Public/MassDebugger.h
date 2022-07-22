@@ -4,20 +4,20 @@
 
 #include "MassProcessingTypes.h"
 
-#if WITH_MASSENTITY_DEBUG
-#include "Containers/ContainersFwd.h"
-#include "MassEntityQuery.h"
-#include "MassProcessor.h"
-
-
 class FOutputDevice;
 class UMassProcessor;
 struct FMassEntityQuery;
 class UMassEntitySubsystem;
 struct FMassArchetypeHandle;
+struct FMassFragmentRequirements;
 struct FMassFragmentRequirementDescription;
 enum class EMassFragmentAccess : uint8;
 enum class EMassFragmentPresence : uint8;
+
+#if WITH_MASSENTITY_DEBUG
+#include "Containers/ContainersFwd.h"
+#include "MassEntityQuery.h"
+#include "MassProcessor.h"
 
 namespace UE::Mass::Debug
 {
@@ -63,6 +63,15 @@ struct MASSENTITY_API FMassDebugger
 	static void OutputArchetypeDescription(FOutputDevice& Ar, const FMassArchetypeHandle& Archetype);
 	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const int32 EntityIndex, const TCHAR* InPrefix = TEXT(""));
 	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle Entity, const TCHAR* InPrefix = TEXT(""));
+};
+
+#else
+
+struct MASSENTITY_API FMassDebugger
+{
+	static FString GetSingleRequirementDescription(const FMassFragmentRequirementDescription& Requirement) { return TEXT("[no debug information]"); }
+	static FString GetRequirementsDescription(const FMassFragmentRequirements& Requirements) { return TEXT("[no debug information]"); }
+	static FString GetArchetypeRequirementCompatibilityDescription(const FMassFragmentRequirements& Requirements, const FMassArchetypeHandle& ArchetypeHandle) { return TEXT("[no debug information]"); }
 };
 
 #endif // WITH_MASSENTITY_DEBUG
