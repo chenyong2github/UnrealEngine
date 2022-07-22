@@ -94,16 +94,27 @@ namespace UE::Interchange::Private
 	}
 }
 
-void UInterchangeGenericTexturePipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGenericTexturePipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
+	TArray<FString> HideCategories;
 	bool bIsObjectATexture = ReimportAsset.IsNull() ? false : ReimportAsset.IsA(UTexture::StaticClass());
-	if( (!bIsObjectATexture && ImportType == EInterchangeReimportType::AssetReimport)
-		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
-		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	if( (!bIsObjectATexture && ImportType == EInterchangePipelineContext::AssetReimport)
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODImport
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningReimport)
 	{
 		bImportTextures = false;
+		HideCategories.Add(TEXT("Textures"));
+	}
+	if (UInterchangePipelineBase* OuterMostPipeline = GetMostPipelineOuter())
+	{
+		for (const FString& HideCategoryName : HideCategories)
+		{
+			HidePropertiesOfCategory(OuterMostPipeline, this, HideCategoryName);
+		}
 	}
 }
 

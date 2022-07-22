@@ -47,24 +47,41 @@ namespace UE::Interchange::Private
 	}
 }
 
-void UInterchangeGenericAnimationPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGenericAnimationPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
-	if (ImportType == EInterchangeReimportType::AssetCustomLODImport
-		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	
+	if (ImportType == EInterchangePipelineContext::AssetCustomLODImport
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningReimport)
 	{
 		bImportAnimations = false;
 		CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations = false;
 	}
-	else if(ImportType == EInterchangeReimportType::AssetReimport)
+	
+	TArray<FString> HideCategories;
+	if (ImportType == EInterchangePipelineContext::AssetReimport)
 	{
 		if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(ReimportAsset))
 		{
 			//Set the skeleton to the current asset skeleton and re-import only the animation
 			CommonSkeletalMeshesAndAnimationsProperties->Skeleton = AnimSequence->GetSkeleton();
 			CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations = true;
+		}
+		else
+		{
+			HideCategories.Add(TEXT("Animations"));
+		}
+	}
+
+	if (UInterchangePipelineBase* OuterMostPipeline = GetMostPipelineOuter())
+	{
+		for (const FString& HideCategoryName : HideCategories)
+		{
+			HidePropertiesOfCategory(OuterMostPipeline, this, HideCategoryName);
 		}
 	}
 }

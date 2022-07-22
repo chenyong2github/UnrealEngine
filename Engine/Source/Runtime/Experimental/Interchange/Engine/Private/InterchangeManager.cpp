@@ -849,13 +849,13 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 					//Duplicate the pipeline saved in the asset import data
 					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, GetTransientPackage()));
 
-					if (ImportType == UE::Interchange::EImportType::ImportType_Scene)
+					if (bImportScene)
 					{
-						GeneratedPipeline->AdjustSettingsForReimportType(EInterchangeReimportType::SceneReimport, nullptr);
+						GeneratedPipeline->AdjustSettingsForContext(EInterchangePipelineContext::SceneReimport, nullptr);
 					}
 					else
 					{
-						GeneratedPipeline->AdjustSettingsForReimportType(EInterchangeReimportType::AssetReimport, ImportAssetParameters.ReimportAsset);
+						GeneratedPipeline->AdjustSettingsForContext(EInterchangePipelineContext::AssetReimport, ImportAssetParameters.ReimportAsset);
 					}
 					PipelineStack.Add(GeneratedPipeline);
 				}
@@ -945,7 +945,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 						{
 							if(UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(Pipelines[GraphPipelineIndex]))
 							{
-								GeneratedPipeline->bAllowLockedPropertiesEdition = false;
+								GeneratedPipeline->AdjustSettingsForContext(bImportScene ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport, nullptr);
 								//Load the settings for this pipeline
 								//The dialog is saving the settings for all default pipelines
 								GeneratedPipeline->LoadSettings(PipelineStackName);
@@ -982,7 +982,14 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		{
 			// Duplicate the override pipelines to protect the scripted users form making race conditions
 			UInterchangePipelineBase* GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(ImportAssetParameters.OverridePipelines[GraphPipelineIndex], GetTransientPackage());
-			GeneratedPipeline->bAllowLockedPropertiesEdition = false;
+			if (OriginalAssetImportData != nullptr)
+			{
+				GeneratedPipeline->AdjustSettingsForContext(bImportScene ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport, ImportAssetParameters.ReimportAsset);
+			}
+			else
+			{
+				GeneratedPipeline->AdjustSettingsForContext(bImportScene ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport, nullptr);
+			}
 			AsyncHelper->Pipelines.Add(GeneratedPipeline);
 			AsyncHelper->OriginalPipelines.Add(GeneratedPipeline);
 		}

@@ -105,7 +105,6 @@ void SInterchangePipelineStacksTreeView::Construct(const FArguments& InArgs)
 			{
 				//When we re-import we save the setting so ResetToDefault can simply just reload the settings
 				GeneratedPipeline->SaveSettings(ReimportPipelineName);
-				GeneratedPipeline->bAllowLockedPropertiesEdition = false;
 				TSharedPtr<FInterchangePipelineStacksTreeNodeItem> PipelineNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
 				PipelineNode->StackName = ReimportPipelineName;
 				//Currently the re-import never lock properties
@@ -127,7 +126,7 @@ void SInterchangePipelineStacksTreeView::Construct(const FArguments& InArgs)
 			{
 				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(InterchangePipelineStack.Pipelines[PipelineIndex]))
 				{
-					GeneratedPipeline->bAllowLockedPropertiesEdition = false;
+					GeneratedPipeline->AdjustSettingsForContext((bSceneImport ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport), nullptr);
 					//Load the settings for this pipeline
 					GeneratedPipeline->LoadSettings(NameAndPipelineStack.Key);
 					GeneratedPipeline->PreDialogCleanup(NameAndPipelineStack.Key);
@@ -676,35 +675,35 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 				for (TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
 				{
 					RecursiveIterateNode(RootNode, [this, &Pipeline, &DefaultPipelineStacks](TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& NodeItem)
+					{
+						if (NodeItem->StackName == CurrentStackName && NodeItem->Pipeline == Pipeline)
 						{
-							if (NodeItem->StackName == CurrentStackName && NodeItem->Pipeline == Pipeline)
+							//We assume the pipelines inside one stack are all different classes, we use the class to know which default asset we need to duplicate
+							const UClass* PipelineClass = NodeItem->Pipeline->GetClass();
+							for (const TPair<FName, FInterchangePipelineStack>& NameAndPipelineStack : DefaultPipelineStacks)
 							{
-								//We assume the pipelines inside one stack are all different classes, we use the class to know which default asset we need to duplicate
-								const UClass* PipelineClass = NodeItem->Pipeline->GetClass();
-								for (const TPair<FName, FInterchangePipelineStack>& NameAndPipelineStack : DefaultPipelineStacks)
+								if(CurrentStackName != NameAndPipelineStack.Key)
 								{
-									if(CurrentStackName != NameAndPipelineStack.Key)
+									continue;
+								}
+								const FInterchangePipelineStack& InterchangePipelineStack = NameAndPipelineStack.Value;
+								for (int32 PipelineIndex = 0; PipelineIndex < InterchangePipelineStack.Pipelines.Num(); ++PipelineIndex)
+								{
+									if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(InterchangePipelineStack.Pipelines[PipelineIndex]))
 									{
-										continue;
-									}
-									const FInterchangePipelineStack& InterchangePipelineStack = NameAndPipelineStack.Value;
-									for (int32 PipelineIndex = 0; PipelineIndex < InterchangePipelineStack.Pipelines.Num(); ++PipelineIndex)
-									{
-										if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(InterchangePipelineStack.Pipelines[PipelineIndex]))
+										if (GeneratedPipeline->GetClass() == PipelineClass)
 										{
-											if (GeneratedPipeline->GetClass() == PipelineClass)
-											{
-												NodeItem->Pipeline = GeneratedPipeline;
-												NodeItem->Pipeline->bAllowLockedPropertiesEdition = false;
-												PipelineConfigurationDetailsView->SetObject(NodeItem->Pipeline, true);
-												//Exit the lambda
-												return;
-											}
+											NodeItem->Pipeline = GeneratedPipeline;
+											GeneratedPipeline->AdjustSettingsForContext((bSceneImport ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport), nullptr);
+											PipelineConfigurationDetailsView->SetObject(NodeItem->Pipeline, true);
+											//Exit the lambda
+											return;
 										}
 									}
 								}
 							}
-						});
+						}
+					});
 				}
 			}
 		}

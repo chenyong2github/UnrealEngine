@@ -76,4 +76,11 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = "Generic|ImportSettings")
 	bool bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = true;
+
+	/**
+	 * This tells interchange which is the pipeline class to use when editor tools want to import or reimport tools with bake settings.
+	 * UnrealEd code depend on this class to be set and this property is only editable in the ini file directly.
+	 */
+	UPROPERTY(EditAnywhere, config, Category = "Editor Generic Pipeline Class")
+	TSoftClassPtr <UInterchangePipelineBase> GenericPipelineClass;
 };

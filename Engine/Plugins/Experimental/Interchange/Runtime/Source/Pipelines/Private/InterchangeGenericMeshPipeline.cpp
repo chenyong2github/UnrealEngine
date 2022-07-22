@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "InterchangeGenericMeshPipeline.h"
 
-#include "CoreMinimal.h"
+#include "Animation/AnimSequence.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
@@ -13,21 +15,67 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
-void UInterchangeGenericMeshPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGenericMeshPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
-	if(ImportType == EInterchangeReimportType::AssetCustomLODImport
-		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	if (ImportType == EInterchangePipelineContext::None)
+	{
+		//We do not change the setting if we are in editing context
+		return;
+	}
+
+	const bool bIsReimport = IsReimportContext();
+
+	//Avoid creating physics asset when importing a LOD or the alternate skinning
+	if (ImportType == EInterchangePipelineContext::AssetCustomLODImport
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningReimport)
 	{
 		bCreatePhysicsAsset = false;
 		PhysicsAsset = nullptr;
 	}
-	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReimportAsset))
+
+	TArray<FString> HideCategories;
+	if (ImportType == EInterchangePipelineContext::AssetReimport)
 	{
-		//Set the skeleton to the current asset skeleton
-		CommonSkeletalMeshesAndAnimationsProperties->Skeleton = SkeletalMesh->GetSkeleton();
+		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReimportAsset))
+		{
+
+			//Set the skeleton to the current asset skeleton
+			CommonSkeletalMeshesAndAnimationsProperties->Skeleton = SkeletalMesh->GetSkeleton();
+			bImportStaticMeshes = false;
+			HideCategories.Add(TEXT("Static Meshes"));
+		}
+		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReimportAsset))
+		{
+			HideCategories.Add(TEXT("Skeletal Meshes"));
+			HideCategories.Add(TEXT("Common Skeletal Meshes and Animations"));
+		}
+		else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(ReimportAsset))
+		{
+			HideCategories.Add(TEXT("Static Meshes"));
+			HideCategories.Add(TEXT("Skeletal Meshes"));
+			HideCategories.Add(TEXT("Common Meshes"));
+		}
+		else if (ReimportAsset)
+		{
+			HideCategories.Add(TEXT("Static Meshes"));
+			HideCategories.Add(TEXT("Skeletal Meshes"));
+			HideCategories.Add(TEXT("Common Meshes"));
+			HideCategories.Add(TEXT("Common Skeletal Meshes and Animations"));
+		}
+	}
+
+	if (UInterchangePipelineBase* OuterMostPipeline = GetMostPipelineOuter())
+	{
+		for (const FString& HideCategoryName : HideCategories)
+		{
+			constexpr bool bDoTransientSubPipeline = true;
+			HidePropertiesOfCategory(OuterMostPipeline, this, HideCategoryName, bDoTransientSubPipeline);
+		}
 	}
 }
 

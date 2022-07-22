@@ -62,7 +62,7 @@ TFuture<bool> UInterchangeMeshUtilities::ImportCustomLodAsync(UObject* MeshObjec
 			//We set bAllowMultipleFile to false, we should have only one result
 			if (ensure(Filenames.Num() == 1))
 			{
-				const UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filenames[0]);
+				const UInterchangeSourceData* SourceData = InterchangeManager.CreateSourceData(Filenames[0]);
 				return InternalImportCustomLodAsync(Promise, MeshObject, LodIndex, SourceData);
 			}
 		}
@@ -87,13 +87,13 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 	UInterchangeAssetImportData* InterchangeAssetImportData = nullptr;
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshObject);
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshObject);
-	EInterchangeReimportType ImportType = EInterchangeReimportType::AssetCustomLODImport;
+	EInterchangePipelineContext ImportType = EInterchangePipelineContext::AssetCustomLODImport;
 	if (SkeletalMesh)
 	{
 		InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
 		if (SkeletalMesh->GetLODNum() > LodIndex)
 		{
-			ImportType = EInterchangeReimportType::AssetCustomLODReimport;
+			ImportType = EInterchangePipelineContext::AssetCustomLODReimport;
 		}
 	}
 	else if (StaticMesh)
@@ -101,7 +101,7 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 		InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(StaticMesh->GetAssetImportData());
 		if (StaticMesh->GetNumSourceModels() > LodIndex)
 		{
-			ImportType = EInterchangeReimportType::AssetCustomLODReimport;
+			ImportType = EInterchangePipelineContext::AssetCustomLODReimport;
 		}
 	}
 	else
@@ -126,7 +126,7 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 		}
 		if (ensure(GeneratedPipeline))
 		{
-			GeneratedPipeline->AdjustSettingsForReimportType(ImportType, nullptr);
+			GeneratedPipeline->AdjustSettingsForContext(ImportType, nullptr);
 			ImportAssetParameters.OverridePipelines.Add(GeneratedPipeline);
 		}
 	}

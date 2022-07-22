@@ -130,7 +130,8 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 		return;
 	}
 
-	const bool bAllowLockedPropertiesEdition = InterchangePipeline->bAllowLockedPropertiesEdition;
+	const bool bAllowPropertyStatesEdition = InterchangePipeline->CanEditPropertiesStates();
+	const bool bIsReimportContext = InterchangePipeline->IsReimportContext();
 
 	TArray<FName> AllCategoryNames;
 	CachedDetailBuilder->GetCategoryNames(AllCategoryNames);
@@ -156,37 +157,43 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 				continue;
 			}
 			const FName PropertyName = PropertyHandle.Get().GetProperty() ? PropertyHandle.Get().GetProperty()->GetFName() : NAME_None;
-			if (PropertyName == UInterchangePipelineBase::GetLockedPropertiesPropertyName())
+			if (PropertyName == UInterchangePipelineBase::GetPropertiesStatesPropertyName())
 			{
 				CachedDetailBuilder->HideProperty(PropertyHandle);
 				continue;
 			}
-			// Skip the property if:
-			// We do not allow property edition
-			// property is not in the List of supported properties
+			// Skip the property not in the List of supported properties
 			if (!CategoryAndProperties.Value.Contains(PropertyName))
 			{
 				continue;
 			}
 			FName PropertyPath = FName(PropertyPtr->GetPathName());
 			CachedDetailBuilder->HideProperty(PropertyHandle);
-			if (!bAllowLockedPropertiesEdition)
+			if (!bAllowPropertyStatesEdition)
 			{
-				const bool bLockedProperty = InterchangePipeline->GetLockedPropertyStatus(PropertyPath);
 				const FName SubCategoryData = FName(PropertyHandle->GetMetaData(TEXT("SubCategory")));
+				bool IsLocked = false;
+				if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipeline->GetPropertyStates(PropertyPath))
+				{
+					if (!PropertyStates->IsPropertyVisible(bIsReimportContext))
+					{
+						continue;
+					}
+					IsLocked = PropertyStates->IsPropertyLocked();
+				}
 				if (SubCategoryData != NAME_None)
 				{
 					TMap<FName, TArray<FInternalPropertyData>>& SubCategoriesProperties = SubCategoriesPropertiesPerMainCategory.FindOrAdd(CategoryName);
 					TArray<FInternalPropertyData>& SubCategoryProperties = SubCategoriesProperties.FindOrAdd(SubCategoryData);
 					FInternalPropertyData& PropertyData = SubCategoryProperties.AddDefaulted_GetRef();
 					PropertyData.PropertyHandle = PropertyHandle;
-					PropertyData.bReadOnly = bLockedProperty;
+					PropertyData.bReadOnly = IsLocked;
 				}
 				else
 				{
 					IDetailPropertyRow& PropertyRow = Category.AddProperty(PropertyHandle);
 					//When we use the pipeline in interchange
-					if (bLockedProperty)
+					if (IsLocked)
 					{
 						LockPropertyHandleRow(PropertyHandle, PropertyRow);
 					}
@@ -199,12 +206,28 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 				TSharedPtr<SWidget> NameWidget;
 				TSharedPtr<SWidget> ValueWidget;
 				FDetailWidgetRow Row;
+				auto TextColorLambda = [InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
+				{
+					FSlateColor SlateColor = FStyleColors::Foreground;
+					if (InterchangePipelinePtr.IsValid())
+					{
+						if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipelinePtr->GetPropertyStates(PropertyPath))
+						{
+							if (PropertyStates->IsPropertyLocked())
+							{
+								SlateColor = FStyleColors::AccentBlue;
+							}
+						}
+					}
+					return SlateColor;
+				};
 				PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 				//When we edit the default value and the locked properties of a pipeline assets
 				PropertyRow.CustomWidget(bShowChildren)
 				.NameContent()
 				.MinDesiredWidth(Row.NameWidget.MinWidth)
 				.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+				.HAlign(HAlign_Fill)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
@@ -225,9 +248,9 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 							{
 								return;
 							}
-							FScopedTransaction ScopedTransaction(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "TransactionLockedPropertiesSet", "Toggle Property Locked"), !GIsTransacting);
+							FScopedTransaction ScopedTransaction(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "TransactionLockedPropertiesSet", "Toggle property locked at import"), !GIsTransacting);
 							InterchangePipelinePtr->Modify();
-							InterchangePipelinePtr->SetLockedPropertyStatus(PropertyPath, (CheckType == ECheckBoxState::Checked));
+							InterchangePipelinePtr->FindOrAddPropertyStates(PropertyPath).SetPropertyLocked(CheckType == ECheckBoxState::Checked);
 							InterchangePipelinePtr->PostEditChange();
 						})
 						.IsChecked_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
@@ -236,30 +259,118 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 							{
 								return ECheckBoxState::Unchecked;
 							}
-							return InterchangePipelinePtr->GetLockedPropertyStatus(PropertyPath) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipelinePtr->GetPropertyStates(PropertyPath))
+							{
+								return PropertyStates->IsPropertyLocked() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							}
+							return ECheckBoxState::Unchecked;
 						})
 					]
 					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
+					.HAlign(HAlign_Left)
 					.Padding(3.0f, 1.0f)
 					[
 						SNew(SBorder)
-						.BorderBackgroundColor(FStyleColors::Background)
-						.ForegroundColor_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
-							{
-								if (!InterchangePipelinePtr.IsValid())
-								{
-									return FStyleColors::Foreground;
-								}
-								if (InterchangePipelinePtr->GetLockedPropertyStatus(PropertyPath))
-								{
-									return FStyleColors::AccentBlue;
-								}
-								return FStyleColors::Foreground;
-							})
+						.BorderBackgroundColor(FStyleColors::Transparent)
+						.ForegroundColor_Lambda(TextColorLambda)
 						[
 							NameWidget.ToSharedRef()
 						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6.0f, 1.0f, 3.0f, 1.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Text(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "HiddenAtImportText", "Import"))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(3.0f, 1.0f)
+					[
+						SNew(SCheckBox)
+						.CheckedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.CheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.CheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.UncheckedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.UncheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.UncheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.ToolTipText(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "VisibleTooltipImport", "If true this property will be visible when displaying the interchange import dialog."))
+						.OnCheckStateChanged_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath](ECheckBoxState CheckType)
+						{
+							constexpr bool bIsReimportContextLocal = false;
+							if (!ensure(InterchangePipelinePtr.IsValid()))
+							{
+								return;
+							}
+							FScopedTransaction ScopedTransaction(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "TransactionvisibilityPropertiesToggleImport", "Toggle property visibility at import"), !GIsTransacting);
+							InterchangePipelinePtr->Modify();
+							InterchangePipelinePtr->FindOrAddPropertyStates(PropertyPath).SetPropertyVisible(bIsReimportContextLocal, (CheckType != ECheckBoxState::Checked));
+							InterchangePipelinePtr->PostEditChange();
+						})
+						.IsChecked_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
+						{
+							constexpr bool bIsReimportContextLocal = false;
+							if (!InterchangePipelinePtr.IsValid())
+							{
+								return ECheckBoxState::Unchecked;
+							}
+							if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipelinePtr->GetPropertyStates(PropertyPath))
+							{
+								return PropertyStates->IsPropertyVisible(bIsReimportContextLocal) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+							}
+							return ECheckBoxState::Unchecked;
+						})
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6.0f, 1.0f, 3.0f, 1.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Text(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "HiddenAtReimportText", "Reimport"))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(3.0f, 1.0f)
+					[
+						SNew(SCheckBox)
+						.CheckedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.CheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.CheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+						.UncheckedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.UncheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.UncheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+						.ToolTipText(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "VisibleTooltipReimport", "If true this property will be visible when displaying the interchange reimport dialog."))
+						.OnCheckStateChanged_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath](ECheckBoxState CheckType)
+						{
+							constexpr bool bIsReimportContextLocal = true;
+							if (!ensure(InterchangePipelinePtr.IsValid()))
+							{
+								return;
+							}
+							FScopedTransaction ScopedTransaction(NSLOCTEXT("InterchangePipelineBaseDetails::CustomizeDetails", "TransactionvisibilityPropertiesToggleReimport", "Toggle property visibility at reimport"), !GIsTransacting);
+							InterchangePipelinePtr->Modify();
+							InterchangePipelinePtr->FindOrAddPropertyStates(PropertyPath).SetPropertyVisible(bIsReimportContextLocal, (CheckType != ECheckBoxState::Checked));
+							InterchangePipelinePtr->PostEditChange();
+						})
+						.IsChecked_Lambda([InterchangePipelinePtr = InterchangePipeline, PropertyPath]()
+						{
+							constexpr bool bIsReimportContextLocal = true;
+							if (!InterchangePipelinePtr.IsValid())
+							{
+								return ECheckBoxState::Unchecked;
+							}
+							if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipelinePtr->GetPropertyStates(PropertyPath))
+							{
+								return PropertyStates->IsPropertyVisible(bIsReimportContextLocal) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+							}
+							return ECheckBoxState::Unchecked;
+						})
 					]
 				]
 				.ValueContent()

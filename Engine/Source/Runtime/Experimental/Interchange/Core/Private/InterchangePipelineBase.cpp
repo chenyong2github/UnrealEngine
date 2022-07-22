@@ -25,7 +25,7 @@ namespace UE
 
 void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 {
-	LoadSettingsInternal(PipelineStackName, GEditorPerProjectIni, LockedProperties);
+	LoadSettingsInternal(PipelineStackName, GEditorPerProjectIni, PropertiesStates);
 }
 
 void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
@@ -33,38 +33,49 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 	SaveSettingsInternal(PipelineStackName, GEditorPerProjectIni);
 }
 
-bool UInterchangePipelineBase::SetLockedPropertyStatus(const FName PropertyPath, bool bLocked)
+void UInterchangePipelineBase::AdjustSettingsForContext(EInterchangePipelineContext ReimportType, TObjectPtr<UObject> ReimportAsset)
 {
-	ensure(bAllowLockedPropertiesEdition);
-
-	if (!bLocked)
+	bAllowPropertyStatesEdition = (ReimportType == EInterchangePipelineContext::None);
+	bIsReimportContext = false;
+	switch (ReimportType)
 	{
-		LockedProperties.Remove(PropertyPath);
-	}
-	else
+	case EInterchangePipelineContext::AssetReimport:
+	case EInterchangePipelineContext::AssetAlternateSkinningReimport:
+	case EInterchangePipelineContext::AssetCustomLODReimport:
+	case EInterchangePipelineContext::SceneReimport:
 	{
-		bool& bLockStatus = LockedProperties.FindOrAdd(PropertyPath);
-		bLockStatus = bLocked;
+		bIsReimportContext = true;
 	}
-
-	return true;
+	break;
+	}
 }
 
-bool UInterchangePipelineBase::GetLockedPropertyStatus(const FName PropertyPath) const
+const FInterchangePipelinePropertyStates* UInterchangePipelineBase::GetPropertyStates(const FName PropertyPath) const
 {
-	if (const bool* bLockStatus = LockedProperties.Find(PropertyPath))
-	{
-		return *bLockStatus;
-	}
-	return false;
+	return PropertiesStates.Find(PropertyPath);
 }
 
-FName UInterchangePipelineBase::GetLockedPropertiesPropertyName()
+FInterchangePipelinePropertyStates* UInterchangePipelineBase::GetMutablePropertyStates(const FName PropertyPath)
 {
-	return GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties);
+	return PropertiesStates.Find(PropertyPath);
 }
 
-void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, bool>& ParentLockedProperties)
+bool UInterchangePipelineBase::DoesPropertyStatesExist(const FName PropertyPath) const
+{
+	return PropertiesStates.Contains(PropertyPath);
+}
+
+FInterchangePipelinePropertyStates& UInterchangePipelineBase::FindOrAddPropertyStates(const FName PropertyPath)
+{
+	return PropertiesStates.FindOrAdd(PropertyPath);
+}
+
+FName UInterchangePipelineBase::GetPropertiesStatesPropertyName()
+{
+	return GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, PropertiesStates);
+}
+
+void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, FInterchangePipelinePropertyStates>& ParentPropertiesStates)
 {
 	int32 PortFlags = 0;
 	UClass* Class = this->GetClass();
@@ -80,14 +91,14 @@ void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackNam
 		FString Key = Property->GetName();
 		const FName PropertyName = Property->GetFName();
 		const FName PropertyPath = FName(Property->GetPathName());
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, PropertiesStates))
 		{
 			continue;
 		}
 
-		if (const bool* LockStatus = ParentLockedProperties.Find(PropertyPath))
+		if (const FInterchangePipelinePropertyStates* PropertyStates = ParentPropertiesStates.Find(PropertyPath))
 		{
-			if (*LockStatus)
+			if (PropertyStates->IsPropertyLocked())
 			{
 				//Skip this locked property
 				continue;
@@ -155,7 +166,7 @@ void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackNam
 			// Load the settings if the referenced pipeline is a subobject of ours
 			if (SubPipeline->IsInOuter(this))
 			{
-				SubPipeline->LoadSettingsInternal(PipelineStackName, ConfigFilename, ParentLockedProperties);
+				SubPipeline->LoadSettingsInternal(PipelineStackName, ConfigFilename, ParentPropertiesStates);
 			}
 		}
 		else
@@ -198,7 +209,7 @@ void UInterchangePipelineBase::SaveSettingsInternal(const FName PipelineStackNam
 		FString SectionName = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
 		FString Key = Property->GetName();
 		const FName PropertyName = Property->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, LockedProperties))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, PropertiesStates))
 		{
 			continue;
 		}
@@ -249,4 +260,54 @@ void UInterchangePipelineBase::SaveSettingsInternal(const FName PipelineStackNam
 		}
 	}
 	GConfig->Flush(0);
+}
+
+UInterchangePipelineBase* UInterchangePipelineBase::GetMostPipelineOuter() const
+{
+	UInterchangePipelineBase* Top = (UInterchangePipelineBase*)this;
+	for (;;)
+	{
+		if (UInterchangePipelineBase* CurrentOuter = Cast<UInterchangePipelineBase>(Top->GetOuter()))
+		{
+			Top = CurrentOuter;
+			continue;
+		}
+		break;
+	}
+	return Top;
+}
+
+void UInterchangePipelineBase::HidePropertiesOfCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideCategoryName, bool bDoTransientSubPipeline /*= false*/)
+{
+#if WITH_EDITOR
+	UClass* PipelineClass = Pipeline->GetClass();
+	const FName CategoryKey("Category");
+	for (FProperty* Property = PipelineClass->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	{
+		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
+		UInterchangePipelineBase* SubPipeline = SubObject ? Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(Pipeline)) : nullptr;
+		const bool bSkipTransient = !bDoTransientSubPipeline || !SubPipeline;
+		//Do not save a transient property
+		if (bSkipTransient && Property->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+
+		const FName PropertyName = Property->GetFName();
+		const FName PropertyPath = FName(Property->GetPathName());
+		
+		if (SubPipeline)
+		{
+			HidePropertiesOfCategory(OuterMostPipeline, SubPipeline, HideCategoryName);
+		}
+		else
+		{
+			FString CategoryName = Property->GetMetaData(CategoryKey);
+			if (CategoryName.Equals(HideCategoryName))
+			{
+				OuterMostPipeline->FindOrAddPropertyStates(PropertyPath).ReimportStates.bVisible = false;
+			}
+		}
+	}
+#endif
 }

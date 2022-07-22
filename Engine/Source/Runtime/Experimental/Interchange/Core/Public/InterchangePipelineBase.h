@@ -37,14 +37,67 @@ enum class EInterchangePipelineTask : uint8
 };
 
 UENUM()
-enum class EInterchangeReimportType : uint8
+enum class EInterchangePipelineContext : uint8
 {
+	None, //Default pipeline instance we refer in the project settings pipeline stack. This context should allow editing of the properties states
+	AssetImport,
 	AssetReimport,
+	SceneImport,
 	SceneReimport,
 	AssetCustomLODImport, //The import for custom LOD is there because we use a copy of the asset import data pipeline stack.
 	AssetCustomLODReimport,
 	AssetAlternateSkinningImport, //The import for custom LOD is there because we use a copy of the asset import data pipeline stack.
 	AssetAlternateSkinningReimport,
+};
+
+USTRUCT(BlueprintType)
+struct FInterchangePipelinePropertyStatePerContext
+{
+	GENERATED_BODY()
+
+	/** If true, the property is visible. */
+	UPROPERTY(EditAnywhere, Category = "Property States")
+	bool bVisible = true;
+};
+
+USTRUCT(BlueprintType)
+struct FInterchangePipelinePropertyStates
+{
+	GENERATED_BODY()
+
+	/** Return true if the property is locked. */
+	bool IsPropertyLocked() const
+	{
+		return bLocked;
+	}
+	
+	void SetPropertyLocked(const bool bLockValue)
+	{
+		bLocked = bLockValue;
+	}
+	
+	/** Return true if the property is visible for the specified context. */
+	bool IsPropertyVisible(const bool bIsReimportContext) const
+	{
+		return bIsReimportContext ? ReimportStates.bVisible : ImportStates.bVisible;
+	}
+
+	void SetPropertyVisible(const bool bIsReimportContext, const bool bVisibleValue)
+	{
+		bIsReimportContext ? ReimportStates.bVisible = bVisibleValue : ImportStates.bVisible = bVisibleValue;
+	}
+
+	/** If true, the property is locked. */
+	UPROPERTY(EditAnywhere, Category = "Property States")
+	bool bLocked = false;
+
+	/** The property states for the import context */
+	UPROPERTY(EditAnywhere, Category = "Context Properties States")
+	FInterchangePipelinePropertyStatePerContext ImportStates;
+
+	/** The property states for the reimport context */
+	UPROPERTY(EditAnywhere, Category = "Context Properties States")
+	FInterchangePipelinePropertyStatePerContext ReimportStates;
 };
 
 UCLASS(BlueprintType, Blueprintable, editinlinenew, Experimental, Abstract)
@@ -141,7 +194,7 @@ public:
 	void SaveSettings(const FName PipelineStackName);
 
 	/**
-	 * This function is called before showing the import dialog it is not called when doing a re-import.
+	 * This function is called before showing the import dialog it is not called doing a re-import.
 	 */
 	virtual void PreDialogCleanup(const FName PipelineStackName) {}
 
@@ -155,12 +208,14 @@ public:
 	}
 
 	/**
-	 * This function is call only when we do a re-import before we show the pipeline dialog. Pipeline that override it can change the existing settings according to the re-import type.
+	 * This function is call when before we show the pipeline dialog. Pipeline that override it can change the existing settings according to the re-import type.
 	 * The function is also call when we import or re-import custom LOD and alternate skinning.
+	 * 
+	 * @Note - The function will set the context of the pipeline
 	 * @Param ReimportType - Tell pipeline what re-import type the user want to achieve.
 	 * @Param ReimportAsset - This is an optional parameter which is set when re-importing an asset.
 	 */
-	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ReimportType, TObjectPtr<UObject> ReimportAsset) {}
+	virtual void AdjustSettingsForContext(EInterchangePipelineContext ReimportType, TObjectPtr<UObject> ReimportAsset);
 
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.
@@ -184,23 +239,35 @@ public:
 		Results = InResults;
 	}
 
-	bool SetLockedPropertyStatus(const FName PropertyPath, bool bLocked);
-	bool GetLockedPropertyStatus(const FName PropertyPath) const;
+	/**
+	 * Return a const property states pointer. Return nullptr if the property do not exist
+	 */
+	const FInterchangePipelinePropertyStates* GetPropertyStates(const FName PropertyPath) const;
 
 	/**
-	 * Return the property name of the LockedProperties map
+	 * Return a mutable property states pointer. Return nullptr if the property do not exist
 	 */
-	static FName GetLockedPropertiesPropertyName();
+	FInterchangePipelinePropertyStates* GetMutablePropertyStates(const FName PropertyPath);
 
 	/**
-	 * If true, the property editor for this pipeline instance will allow locked properties edition.
-	 * If false, the property editor for this pipeline instance will set locked properties in read only.
-	 * 
-	 * Note: If you open in the content browser a pipeline asset you will be able to edit locked properties.
-	 *       If you import a file with interchange, the import dialog will show locked properties in read only mode.
+	 * Return true if the property has valid states, false if no states was set for the property
 	 */
-	bool bAllowLockedPropertiesEdition = true;
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline")
+	bool DoesPropertyStatesExist(const FName PropertyPath) const;
 
+	/**
+	 * Return a mutable property states Reference. Add the property states if it doesnt exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline")
+	FInterchangePipelinePropertyStates& FindOrAddPropertyStates(const FName PropertyPath);
+
+	/**
+	 * Return the property name of the properties states map
+	 */
+	static FName GetPropertiesStatesPropertyName();
+
+	bool CanEditPropertiesStates() { return bAllowPropertyStatesEdition; }
+	bool IsReimportContext() { return bIsReimportContext; }
 protected:
 
 	/**
@@ -241,14 +308,38 @@ protected:
 	{
 	}
 
-	void LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, bool>& ParentLockedProperties);
+	void LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, FInterchangePipelinePropertyStates>& ParentPropertiesStates);
 
 	void SaveSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename);
+
+	UInterchangePipelineBase* GetMostPipelineOuter() const;
+
+	static void HidePropertiesOfCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideCategoryName, bool bDoTransientSubPipeline = false);
+
+	/**
+	 * If true, the property editor for this pipeline instance will allow properties states edition.
+	 * If false, the property editor for this pipeline instance will apply the properties states.
+	 *
+	 * Note: If you open in the content browser a pipeline asset you will be able to edit the properties states.
+	 *       If you import a file with interchange, the import dialog will apply properties states.
+	 */
+	bool bAllowPropertyStatesEdition = true;
+
+	/**
+	 * If true, this pipeline instance is use for reimport.
+	 * If false, this pipeline instance is use for import.
+	 *
+	 * Note: This context must be set by the owner instancing this pipeline. This context will be use to hide or not some properties.
+	 */
+	bool bIsReimportContext = false;
 
 	UPROPERTY()
 	TObjectPtr<UInterchangeResultsContainer> Results;
 
-	/* Map of property path and lock status. Any properties that have a true lock status will be readonly when showing the import dialog */
-	UPROPERTY(BlueprintReadWrite, Category = "Pipeline Properties Manager")
-	TMap<FName, bool> LockedProperties;
+	/**
+	 * Map of property path and lock status. Any properties that have a true lock status will be readonly when showing the import dialog.
+	 * Use the API to Get and Set the properties states
+	*/
+	UPROPERTY()
+	TMap<FName, FInterchangePipelinePropertyStates> PropertiesStates;
 };

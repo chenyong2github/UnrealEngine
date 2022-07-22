@@ -42,16 +42,28 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-void UInterchangeGenericMaterialPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
+	TArray<FString> HideCategories;
 	bool bIsObjectAMaterial = ReimportAsset.IsNull() ? false : ReimportAsset->IsA(UMaterialInterface::StaticClass());
-	if ((!bIsObjectAMaterial && ImportType == EInterchangeReimportType::AssetReimport)
-		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
-		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
-		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	if ((!bIsObjectAMaterial && ImportType == EInterchangePipelineContext::AssetReimport)
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODImport
+		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
+		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningReimport)
 	{
 		MaterialImport = EInterchangeMaterialImportOption::DoNotImport;
+		HideCategories.Add(TEXT("Materials"));
+	}
+
+	if (UInterchangePipelineBase* OuterMostPipeline = GetMostPipelineOuter())
+	{
+		for (const FString& HideCategoryName : HideCategories)
+		{
+			HidePropertiesOfCategory(OuterMostPipeline, this, HideCategoryName);
+		}
 	}
 }
 

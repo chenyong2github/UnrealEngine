@@ -107,26 +107,28 @@ bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid(TOptional<FText>& Out
 	return Super::IsSettingsAreValid(OutInvalidReason);
 }
 
-void UInterchangeGenericAssetsPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGenericAssetsPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
+	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
 	if (TexturePipeline)
 	{
-		TexturePipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
+		TexturePipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
 	}
 
 	if (MaterialPipeline)
 	{
-		MaterialPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
+		MaterialPipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
 	}
 
 	if (MeshPipeline)
 	{
-		MeshPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
+		MeshPipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
 	}
 
 	if (AnimationPipeline)
 	{
-		AnimationPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
+		AnimationPipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
 	}
 }
 

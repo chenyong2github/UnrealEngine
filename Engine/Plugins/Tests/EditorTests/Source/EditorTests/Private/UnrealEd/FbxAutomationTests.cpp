@@ -580,7 +580,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					FScopedSkeletalMeshPostEditChange ScopedPostEditChange(ExistingSkeletalMesh);
 					const FName ProfileName(TEXT("Alternate"));
 					const int32 LodIndexZero = 0;
-					const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(ExistingSkeletalMesh, AltFile, LodIndexZero, ProfileName);
+					const bool bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(ExistingSkeletalMesh, AltFile, LodIndexZero, ProfileName, false);
 					if (!bResult)
 					{
 						ExecutionInfo.AddError(FString::Printf(TEXT("%s: Error adding alternate skinning file %s."), *CleanFilename, *AltFile));
