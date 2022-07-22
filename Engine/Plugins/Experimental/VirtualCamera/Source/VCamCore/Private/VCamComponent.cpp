@@ -322,6 +322,14 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 				}
 			}
 		}
+
+		for (const UVCamOutputProviderBase* OutputProvider : OutputProviders)
+		{
+			if (IsValid(OutputProvider))
+			{
+				OutputProvider->NotifyWidgetOfComponentChange();
+			}
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
