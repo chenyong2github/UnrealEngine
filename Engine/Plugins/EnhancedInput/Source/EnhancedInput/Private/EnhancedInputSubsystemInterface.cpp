@@ -704,7 +704,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			// Was this key pressed last frame? If so, then we need to mark it to be ignored by the PlayerInput
 			// until it is released to avoid re-processing a triggered event when it. This is only a problem if
 			// the key was in the old mapping and the new one
-			if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Key.IsDigital() && WasInOldMapping(Mapping.Key))
+			if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Action->ValueType == EInputActionValueType::Boolean && WasInOldMapping(Mapping.Key))
 			{				
 				const FKeyState* KeyState = PlayerInput->GetKeyState(Mapping.Key);
 				if(KeyState && KeyState->bDown)
