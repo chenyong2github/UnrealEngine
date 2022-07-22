@@ -74,19 +74,14 @@ namespace Chaos
 
 		virtual bool IsBehaviourType(eSimModuleTypeFlags InType) const override { return (InType & TorqueBased)||(InType & Velocity); }
 
-
-		/** Set the vehicle's speed at the wheels location in local wheel coords */
-		//void SetGroundSpeed(const FVector& VIn)
-		//{
-		//	GroundVelocityVector = VIn;
-		//}
-
 		void SetSuspensionSimTreeIndex(int IndexIn) { SuspensionSimTreeIndex = IndexIn; }
 		int GetSuspensionSimTreeIndex() const { return SuspensionSimTreeIndex; }
 
 		float GetSteerAngleDegrees() const { return SteerAngleDegrees; }
 
 		void SetForceIntoSurface(float ForceIntoSurfaceIn) { ForceIntoSurface = ForceIntoSurfaceIn; }
+
+		void SetSurfaceFriction(float FrictionIn) { SurfaceFriction = FrictionIn; }
 
 	private:
 
