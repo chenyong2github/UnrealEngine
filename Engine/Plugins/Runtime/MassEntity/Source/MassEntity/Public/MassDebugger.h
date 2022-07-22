@@ -3,6 +3,11 @@
 #pragma once
 
 #include "MassProcessingTypes.h"
+#if WITH_MASSENTITY_DEBUG
+#include "Containers/ContainersFwd.h"
+#include "MassEntityQuery.h"
+#include "MassProcessor.h"
+#endif // WITH_MASSENTITY_DEBUG
 
 class FOutputDevice;
 class UMassProcessor;
@@ -15,10 +20,6 @@ enum class EMassFragmentAccess : uint8;
 enum class EMassFragmentPresence : uint8;
 
 #if WITH_MASSENTITY_DEBUG
-#include "Containers/ContainersFwd.h"
-#include "MassEntityQuery.h"
-#include "MassProcessor.h"
-
 namespace UE::Mass::Debug
 {
 struct MASSENTITY_API FQueryRequirementsView
