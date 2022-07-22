@@ -10,6 +10,7 @@
 #include "BlueprintPlatformLibrary.generated.h"
 
 class ILocalNotificationService;
+enum class EDeviceScreenOrientation : uint8;
 
 /**
  * The list of possible device/screen orientation for mobile devices
@@ -38,7 +39,16 @@ namespace EScreenOrientation
 		FaceUp,
 
 		/** The orientation is as if place on a desk with the screen downward */
-		FaceDown
+		FaceDown,
+
+		/** The orientation is portrait, oriented upright with the sensor */
+		PortraitSensor,
+
+		/** The orientation is landscape, oriented upright with the sensor */
+		LandscapeSensor,
+
+		/** The orientation is no longer locked and adjusts according to the sensor */
+		FullSensor
 	};
 }
 
@@ -235,8 +245,33 @@ public:
 	static void GetLaunchNotification(bool& NotificationLaunchedApp, FString& ActivationEvent, int32& FireDate);
 
 	/**
-	 * @return the current device orientation
+	 * Returns the current orientation of the device: will be either Portrait, LandscapeLeft, PortraitUpsideDown or LandscapeRight.
+	 *
+	 * @return An EDeviceScreenOrientation value.
 	 */
 	UFUNCTION(BlueprintPure, Category="Platform|LocalNotification")
 	static EScreenOrientation::Type GetDeviceOrientation();
+
+	/**
+	 * Returns the allowed orientation of the device. This is NOT the same as GetDeviceOrientation, which only returns Portrait, LandscapeLeft,
+	 * PortraitUpsideDown or LandscapeRight. The allowed orientation limits what orientation your device can have. So if you set the allowed orientation
+	 * to LandscapeLeft, GetDeviceOrientation will only ever return LandscapeLeft. But if you set the allowed orientation to LandscapeSensor, you are actually
+	 * restricting the allowed orientations to LandscapeLeft OR LandscapeRight (depending on the sensor), so GetDeviceOrientation might return LandscapeLeft OR LandscapeRight.
+	 *
+	 * @return An EDeviceScreenOrientation value.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Platform|LocalNotification")
+	static EScreenOrientation::Type GetAllowedDeviceOrientation();
+
+	/**
+	 * Set the allowed orientation of the device.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Platform|LocalNotification")
+	static void SetAllowedDeviceOrientation(EScreenOrientation::Type NewAllowedDeviceOrientation);
+
+private:
+
+	static EScreenOrientation::Type ConvertToScreenOrientation(EDeviceScreenOrientation DeviceScreenOrientation);
+
+	static EDeviceScreenOrientation ConvertToDeviceScreenOrientation(EScreenOrientation::Type ScreenOrientation);
 };

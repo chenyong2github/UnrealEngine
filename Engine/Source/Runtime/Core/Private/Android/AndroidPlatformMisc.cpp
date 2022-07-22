@@ -3110,8 +3110,15 @@ const char* FAndroidMisc::GetThreadName(uint32 ThreadId)
 
 void FAndroidMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation)
 {
+	SetAllowedDeviceOrientation(NewDeviceOrentation);
+}
+
+void FAndroidMisc::SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation)
+{
+	AllowedDeviceOrientation = NewAllowedDeviceOrientation;
+
 #if USE_ANDROID_JNI
-	AndroidThunkCpp_SetOrientation(GetAndroidScreenOrientation(NewDeviceOrentation));
+	AndroidThunkCpp_SetOrientation(GetAndroidScreenOrientation(NewAllowedDeviceOrientation));
 #endif // USE_ANDROID_JNI
 }
 
@@ -3147,6 +3154,9 @@ int32 FAndroidMisc::GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenO
 		break;
 	case EDeviceScreenOrientation::LandscapeSensor:
 		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+		break;
+	case EDeviceScreenOrientation::FullSensor:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_SENSOR;
 		break;
 	}
 
