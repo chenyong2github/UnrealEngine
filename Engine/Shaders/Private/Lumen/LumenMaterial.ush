@@ -350,7 +350,7 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferDa
 	Out.bNeedsSeparateLightAccumulation = UseSubsurfaceProfile(GBufferData.ShadingModelID);
 	Out.bIsSLW = GBufferData.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 	Out.bIsHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR;
-	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE;
 	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID);
 	Out.bIsFrontLayerTranslucency = false;
 
@@ -409,7 +409,7 @@ bool IsHair(FLumenMaterialData In)
 
 bool IsFoliage(FLumenMaterialData In)
 {
-	return In.bIsFoliage || In.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+	return In.bIsFoliage || In.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE || In.ShadingID == SHADINGMODELID_SUBSURFACE;
 }
 
 bool IsClearCoat(FLumenMaterialData In)
