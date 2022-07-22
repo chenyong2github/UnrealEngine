@@ -19,19 +19,89 @@
 #include "TextureImportUtils.h"
 #include "TgaImageSupport.h"
 
+static bool GInterchangeEnablePNGImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnablePNGImport(
+	TEXT("Interchange.FeatureFlags.Import.PNG"),
+	GInterchangeEnablePNGImport,
+	TEXT("Whether PNG support is enabled."),
+	ECVF_Default);
+
+static bool GInterchangeEnableBMPImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableBMPImport(
+	TEXT("Interchange.FeatureFlags.Import.BMP"),
+	GInterchangeEnableBMPImport,
+	TEXT("Whether BMP support is enabled."),
+	ECVF_Default);
+
+static bool GInterchangeEnableEXRImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableEXRImport(
+	TEXT("Interchange.FeatureFlags.Import.EXR"),
+	GInterchangeEnableEXRImport,
+	TEXT("Whether OpenEXR support is enabled."),
+	ECVF_Default);
+
+static bool GInterchangeEnableHDRImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableHDRImport(
+	TEXT("Interchange.FeatureFlags.Import.HDR"),
+	GInterchangeEnableHDRImport,
+	TEXT("Whether HDR support is enabled."),
+	ECVF_Default);
+
+#if WITH_LIBTIFF
+static bool GInterchangeEnableTIFFImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableTIFFImport(
+	TEXT("Interchange.FeatureFlags.Import.TIFF"),
+	GInterchangeEnableTIFFImport,
+	TEXT("Whether TIFF support is enabled."),
+	ECVF_Default);
+#endif
+
+static bool GInterchangeEnableTGAImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableTGAImport(
+	TEXT("Interchange.FeatureFlags.Import.TGA"),
+	GInterchangeEnableTGAImport,
+	TEXT("Whether TGA support is enabled."),
+	ECVF_Default);
+
 TArray<FString> UInterchangeImageWrapperTranslator::GetSupportedFormats() const
 {
-	return {
-			TEXT("png;Portable Network Graphic"),
-			TEXT("bmp;Bitmap image"),
-			TEXT("exr;OpenEXR image"),
-			TEXT("hdr;High Dynamic Range image"),
+	TArray<FString> Formats;
+	Formats.Reserve(7);
+
+	if (GInterchangeEnablePNGImport)
+	{
+		Formats.Emplace(TEXT("png;Portable Network Graphic"));
+	}
+
+	if (GInterchangeEnableBMPImport)
+	{
+		Formats.Emplace(TEXT("bmp;Bitmap image"));
+	}
+
+	if (GInterchangeEnableEXRImport)
+	{
+		Formats.Emplace(TEXT("exr;OpenEXR image"));
+	}
+
+	if (GInterchangeEnableHDRImport)
+	{
+		Formats.Emplace(TEXT("hdr;High Dynamic Range image"));
+	}
+
 #if WITH_LIBTIFF
-			TEXT("tif;Tag Image File Format"),
-			TEXT("tiff;Tag Image File Format"),
-#endif //WITH_LIBTIFF
-			TEXT("tga;Targa image")
-		};
+	if (GInterchangeEnableTIFFImport)
+	{
+		Formats.Emplace(TEXT("tif;Tag Image File Format"));
+		Formats.Emplace(TEXT("tiff;Tag Image File Format"));
+	}
+#endif
+
+	if (GInterchangeEnableTGAImport)
+	{
+		Formats.Emplace(TEXT("tga;Targa image"));
+	}
+
+	return Formats;
 }
 
 bool UInterchangeImageWrapperTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

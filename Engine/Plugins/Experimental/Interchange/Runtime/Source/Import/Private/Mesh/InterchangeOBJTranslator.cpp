@@ -24,6 +24,12 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "UVMapSettings.h"
 
+static bool GInterchangeEnableOBJImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableOBJImport(
+	TEXT("Interchange.FeatureFlags.Import.OBJ"),
+	GInterchangeEnableOBJImport,
+	TEXT("Whether OBJ support is enabled."),
+	ECVF_Default);
 
 /**
  * This is a binary representation of the .obj file 
@@ -854,8 +860,15 @@ UInterchangeOBJTranslator::~UInterchangeOBJTranslator()
 
 TArray<FString> UInterchangeOBJTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("obj;OBJ File Format")};
-	return Formats;
+	if (GInterchangeEnableOBJImport)
+	{
+		TArray<FString> Formats{ TEXT("obj;OBJ File Format") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangeOBJTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const

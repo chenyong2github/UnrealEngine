@@ -27,8 +27,7 @@ UInterchangeReimportHandler::UInterchangeReimportHandler(const FObjectInitialize
 bool UInterchangeReimportHandler::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-	const bool bUseInterchange = EditorExperimentalSettings->bEnableInterchangeFramework 
-		|| (EditorExperimentalSettings->bEnableInterchangeFrameworkForTextureOnly && Cast<UTexture>(Obj) != nullptr);
+	const bool bUseInterchange = EditorExperimentalSettings->bEnableInterchangeFramework;
 
 	if (bUseInterchange)
 	{

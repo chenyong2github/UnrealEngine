@@ -1749,22 +1749,10 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"));
 
 	bool bUseInterchangeFramework = false;
-	bool bUseInterchangeFrameworkForTextureOnly = false;
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 #if WITH_EDITOR
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
-
-	if (bUseInterchangeFramework && Params.SpecifiedFactory)
-	{
-		if (Params.SpecifiedFactory->GetClass()->IsChildOf(USceneImportFactory::StaticClass()))
-		{
-			bUseInterchangeFramework = GetDefault<UInterchangeProjectSettings>()->bUseInterchangeWhenImportingIntoLevel;
-		}
-	}
-
-	bUseInterchangeFrameworkForTextureOnly = (!bUseInterchangeFramework) && EditorExperimentalSettings->bEnableInterchangeFrameworkForTextureOnly;
-	bUseInterchangeFramework |= bUseInterchangeFrameworkForTextureOnly;
 #endif
 
 	if (!bUseInterchangeFramework && ValidFiles.Num() > 1)
@@ -1918,16 +1906,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			{
 				UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
 
-				if (bUseInterchangeFrameworkForTextureOnly)
-				{
-					UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
-					if (!Translator || !InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
-					{
-						bOnlyInterchangeImport = false;
-						break;
-					}
-				}
-				else if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+				if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 				{
 					bOnlyInterchangeImport = false;
 					break;
@@ -1993,17 +1972,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		{
 			UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
 
-			bool bUseATextureTranslator = false;
-			if (bUseInterchangeFrameworkForTextureOnly)
-			{
-				UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
-				if (Translator && InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
-				{
-					bUseATextureTranslator = true;
-				}
-			}
-
-			if (bUseATextureTranslator || (!bUseInterchangeFrameworkForTextureOnly && InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData())))
+			if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 			{
 				FImportAssetParameters ImportAssetParameters;
 				ImportAssetParameters.bIsAutomated = bAutomatedImport;

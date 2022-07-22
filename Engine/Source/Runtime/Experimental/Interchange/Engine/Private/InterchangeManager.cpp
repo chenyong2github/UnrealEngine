@@ -1167,19 +1167,6 @@ UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorSupportingPayloadI
 	return nullptr;
 }
 
-void UInterchangeManager::RegisterTextureOnlyTranslatorClass(const UClass* TranslatorClass)
-{
-	if (TranslatorClass)
-	{
-		TextureOnlyTranslatorClass.Add(TranslatorClass);
-	}
-}
-
-bool UInterchangeManager::IsTranslatorClassForTextureOnly(const UClass* TranslatorClass) const
-{
-	return TextureOnlyTranslatorClass.Contains(TranslatorClass);
-}
-
 bool UInterchangeManager::IsAttended()
 {
 	if (FApp::IsGame())

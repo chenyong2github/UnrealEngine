@@ -1445,7 +1445,7 @@ void FEditorFileUtils::Import(const FString& InFilename)
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 
 	UE::Interchange::FScopedSourceData ScopedSourceData(InFilename);
-	const bool bImportThroughInterchange = (EditorExperimentalSettings->bEnableInterchangeFramework && GetDefault<UInterchangeProjectSettings>()->bUseInterchangeWhenImportingIntoLevel) && UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData());
+	const bool bImportThroughInterchange = EditorExperimentalSettings->bEnableInterchangeFramework && UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData());
 
 	USceneImportFactory* SceneFactory = nullptr;
 

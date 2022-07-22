@@ -479,19 +479,6 @@ public:
 	 */
 	UInterchangeTranslatorBase* GetTranslatorSupportingPayloadInterfaceForSourceData(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const;
 
-	/**
-	 * Register a translator as a texture translator only
-	 * This used to implement the experimental setting to use interchange for textures only.
-	 * 
-	 * @Param Translator - The UClass of the translator you want to register
-	 */
-	void RegisterTextureOnlyTranslatorClass(const UClass* TranslatorClass);
-
-	/**
-	 * Check if the translator class is registered as a texture only translator
-	 */
-	bool IsTranslatorClassForTextureOnly(const UClass* TranslatorClass) const;
-
 protected:
 
 	/** Return true if we can show some UI */
@@ -578,9 +565,6 @@ private:
 	//If the user want to use the same import pipeline stack for all the queue task
 	//This boolean is reset to false when the ImportTasks array is empty.
 	bool bImportAllWithDefault = false;
-
-	UPROPERTY()
-	TSet<TObjectPtr<const UClass>> TextureOnlyTranslatorClass;
 
 	friend class UE::Interchange::FScopedTranslator;
 };

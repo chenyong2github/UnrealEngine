@@ -11,10 +11,24 @@
 #include "Misc/Paths.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+static bool GInterchangeEnableIESImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableIESImport(
+	TEXT("Interchange.FeatureFlags.Import.IES"),
+	GInterchangeEnableIESImport,
+	TEXT("Whether IES support is enabled."),
+	ECVF_Default);
+
 TArray<FString> UInterchangeIESTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("ies;IES light profile")};
-	return Formats;
+	if (GInterchangeEnableIESImport)
+	{
+		TArray<FString> Formats{ TEXT("ies;IES light profile") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangeIESTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

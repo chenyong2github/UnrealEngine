@@ -26,6 +26,13 @@
 #include "StaticMeshAttributes.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+static bool GInterchangeEnableGLTFImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
+	TEXT("Interchange.FeatureFlags.Import.GLTF"),
+	GInterchangeEnableGLTFImport,
+	TEXT("Whether glTF support is enabled."),
+	ECVF_Default);
+
 namespace UE::Interchange::Gltf::Private
 {
 	EInterchangeTextureWrapMode ConvertWrap(GLTF::FSampler::EWrap Wrap)
@@ -807,9 +814,13 @@ bool UInterchangeGltfTranslator::DoesSupportAssetType(EInterchangeTranslatorAsse
 TArray<FString> UInterchangeGltfTranslator::GetSupportedFormats() const
 {
 	TArray<FString> GltfExtensions;
-	GltfExtensions.Reserve(2);
-	GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));
-	GltfExtensions.Add(TEXT("glb;GL Transmission Format (Binary)"));
+
+	if ( GInterchangeEnableGLTFImport )
+	{
+		GltfExtensions.Reserve(2);
+		GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));
+		GltfExtensions.Add(TEXT("glb;GL Transmission Format (Binary)"));
+	}
 
 	return GltfExtensions;
 }

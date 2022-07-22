@@ -238,20 +238,6 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 	{
 		CVarEditorHDRNITLevel->Set(HDREditorNITLevel, ECVF_SetByProjectSetting);
 	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableInterchangeFramework))
-	{
-		if (bEnableInterchangeFramework)
-		{
-			bEnableInterchangeFrameworkForTextureOnly = false;
-		}
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEnableInterchangeFrameworkForTextureOnly))
-	{
-		if (bEnableInterchangeFrameworkForTextureOnly)
-		{
-			bEnableInterchangeFramework = false;
-		}
-	}
 
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
 	{

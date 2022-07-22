@@ -55,10 +55,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "ImportContent")
 	FInterchangeImportSettings ContentImportSettings;
 
-	/** If checked, will use Interchange when importing into level.*/
-	UPROPERTY(EditAnywhere, config, Category = "ImportIntoLevel|Experimental")
-	bool bUseInterchangeWhenImportingIntoLevel = false;
-
 	/**
 	 * Settings used when importing into a level.
 	¸*/

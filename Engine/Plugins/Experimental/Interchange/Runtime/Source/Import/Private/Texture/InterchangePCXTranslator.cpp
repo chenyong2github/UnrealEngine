@@ -15,6 +15,13 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+static bool GInterchangeEnablePCXImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnablePCXImport(
+	TEXT("Interchange.FeatureFlags.Import.PCX"),
+	GInterchangeEnablePCXImport,
+	TEXT("Whether PCX support is enabled."),
+	ECVF_Default);
+
 //////////////////////////////////////////////////////////////////////////
 // PCX helper local function
 namespace UE
@@ -68,9 +75,15 @@ namespace UE
 
 TArray<FString> UInterchangePCXTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("pcx;Picture Exchange")};
-
-	return Formats;
+	if (GInterchangeEnablePCXImport)
+	{
+		TArray<FString> Formats{ TEXT("pcx;Picture Exchange") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangePCXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

@@ -270,8 +270,6 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 
 	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
-	const bool bUseInterchangeFrameworkForTextureOnly = (!bUseInterchangeFramework) && EditorExperimentalSettings->bEnableInterchangeFrameworkForTextureOnly;
-	bUseInterchangeFramework |= bUseInterchangeFrameworkForTextureOnly;
 
 	bool bSuccess = false;
 	if ( Obj )
@@ -398,17 +396,8 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[RealValidSourceFileIndex]);
 
 					CanReimportHandler->SetReimportSourceIndex(Obj, SourceFileIndex);
-					bool bUseATextureTranslator = false;
-					if (bUseInterchangeFrameworkForTextureOnly)
-					{
-						UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
-						if (Translator && InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
-						{
-							bUseATextureTranslator = true;
-						}
-					}
 
-					if (bUseATextureTranslator || (!bUseInterchangeFrameworkForTextureOnly && InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData())))
+					if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 					{
 						auto PostImportedLambda = [](UObject* ImportedObject)
 						{

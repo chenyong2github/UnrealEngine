@@ -15,6 +15,13 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+static bool GInterchangeEnablePSDImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnablePSDImport(
+	TEXT("Interchange.FeatureFlags.Import.PSD"),
+	GInterchangeEnablePSDImport,
+	TEXT("Whether PSD support is enabled."),
+	ECVF_Default);
+
 //////////////////////////////////////////////////////////////////////////
 // PSD helper local function
 namespace UE
@@ -369,9 +376,15 @@ namespace UE
 
 TArray<FString> UInterchangePSDTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("psd;Photoshop Document")};
-
-	return Formats;
+	if (GInterchangeEnablePSDImport)
+	{
+		TArray<FString> Formats{ TEXT("psd;Photoshop Document") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangePSDTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

@@ -19,6 +19,13 @@
 #include "Serialization/Archive.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+static bool GInterchangeEnableDDSImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableDDSImport(
+	TEXT("Interchange.FeatureFlags.Import.DDS"),
+	GInterchangeEnableDDSImport,
+	TEXT("Whether DDS support is enabled."),
+	ECVF_Default);
+
 namespace UE::Interchange::Private::InterchangeDDSTranslator
 { 
 	bool LoadDDSHeaderFromFile(TArray64<uint8>& OutHeader, const FString& Filename)
@@ -51,8 +58,15 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 
 TArray<FString> UInterchangeDDSTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("dds;DirectDraw Surface")};
-	return Formats;
+	if (GInterchangeEnableDDSImport)
+	{
+		TArray<FString> Formats{ TEXT("dds;DirectDraw Surface") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const

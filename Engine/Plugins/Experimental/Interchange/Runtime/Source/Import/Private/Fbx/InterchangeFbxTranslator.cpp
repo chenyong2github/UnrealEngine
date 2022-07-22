@@ -23,6 +23,12 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+static bool GInterchangeEnableFBXImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableFBXImport(
+	TEXT("Interchange.FeatureFlags.Import.FBX"),
+	GInterchangeEnableFBXImport,
+	TEXT("Whether FBX support is enabled."),
+	ECVF_Default);
 
 UInterchangeFbxTranslator::UInterchangeFbxTranslator()
 {
@@ -47,8 +53,15 @@ bool UInterchangeFbxTranslator::DoesSupportAssetType(EInterchangeTranslatorAsset
 
 TArray<FString> UInterchangeFbxTranslator::GetSupportedFormats() const
 {
-	TArray<FString> Formats {TEXT("fbx;Filmbox")};
-	return Formats;
+	if (GInterchangeEnableFBXImport)
+	{
+		TArray<FString> Formats{ TEXT("fbx;Filmbox") };
+		return Formats;
+	}
+	else
+	{
+		return TArray<FString>{};
+	}
 }
 
 bool UInterchangeFbxTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

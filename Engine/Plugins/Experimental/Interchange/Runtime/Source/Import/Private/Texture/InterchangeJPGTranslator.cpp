@@ -17,13 +17,24 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+static bool GInterchangeEnableJPGImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableJPGImport(
+	TEXT("Interchange.FeatureFlags.Import.JPG"),
+	GInterchangeEnableJPGImport,
+	TEXT("Whether JPG support is enabled."),
+	ECVF_Default);
+
 TArray<FString> UInterchangeJPGTranslator::GetSupportedFormats() const
 {
 	TArray<FString> Formats;
-	Formats.Reserve(2);
 
-	Formats.Add(TEXT("jpg;JPEG image"));
-	Formats.Add(TEXT("jpeg;JPEG image"));
+	if (GInterchangeEnableJPGImport)
+	{
+		Formats.Reserve(2);
+
+		Formats.Add(TEXT("jpg;JPEG image"));
+		Formats.Add(TEXT("jpeg;JPEG image"));
+	}
 
 	return Formats;
 }

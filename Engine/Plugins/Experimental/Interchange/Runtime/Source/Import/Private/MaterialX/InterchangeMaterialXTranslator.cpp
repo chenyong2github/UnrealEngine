@@ -16,6 +16,13 @@
 
 #define LOCTEXT_NAMESPACE "InterchangeMaterialXTranslator"
 
+static bool GInterchangeEnableMaterialXImport = true;
+static FAutoConsoleVariableRef CCvarInterchangeEnableMaterialXImport(
+	TEXT("Interchange.FeatureFlags.Import.MTLX"),
+	GInterchangeEnableMaterialXImport,
+	TEXT("Whether MaterialX support is enabled."),
+	ECVF_Default);
+
 namespace mx = MaterialX;
 
 namespace UE::Interchange::MaterialX
@@ -97,7 +104,7 @@ TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 {
 	// Call to UInterchangeMaterialXTranslator::GetSupportedFormats is not supported out of game thread
 	// A more global solution must be found for translators which require some initialization
-	if(!IsInGameThread())
+	if(!IsInGameThread() || !GInterchangeEnableMaterialXImport)
 	{
 		return TArray<FString>{};
 	}
