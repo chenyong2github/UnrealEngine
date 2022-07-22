@@ -1608,6 +1608,11 @@ void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressed
 					return;
 				}
 
+				// Mark the bulkdata as detached so that we don't try to load the payload from the newly saved package
+				// or unload the current payload as under the existing system it is not safe to load from a package
+				// that we are not attached to.
+				EnumAddFlags(this->Flags, EFlags::WasDetached);
+
 				this->PackagePath = InPackagePath;
 				check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 				this->OffsetInFile = DataStartOffset;
@@ -1665,9 +1670,11 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 				{
 					if (PayloadOffset != INDEX_NONE)
 					{
-						// A valid payload offset means that it was saved locally to disk. We can set the path at this point
-						// but will only be able to load from it if the package is reattached to the file on disk, which is
-						// not a currently supported feature.
+						// Mark the bulkdata as detached so that we don't try to load the payload from the newly saved package
+						// or unload the current payload as under the existing system it is not safe to load from a package
+						// that we are not attached to.
+						EnumAddFlags(this->Flags, EFlags::WasDetached);
+
 						this->PackagePath = InPackagePath;
 						check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 					}
