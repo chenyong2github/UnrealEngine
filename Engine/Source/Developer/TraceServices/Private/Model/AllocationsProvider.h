@@ -41,11 +41,26 @@ class FTagTracker
 private:
 	static constexpr uint32 TrackerIdShift = 24;
 	static constexpr uint32 TrackerIdMask = 0xFF000000;
-	static constexpr uint32 PtrTagMask = 0x80000000;
+	static constexpr TagIdType UntaggedTagId = 0;
+	static constexpr TagIdType InvalidTagId = ~0;
+
+	enum class ETagStackFlags : uint32
+	{
+		None = 0,
+		PtrScope = 1 << 0,
+	};
+
+	struct FTagStackEntry
+	{
+		TagIdType Tag;
+		ETagStackFlags Flags;
+
+		inline bool IsPtrScope() const { return ((uint32(Flags) & uint32(ETagStackFlags::PtrScope)) != 0); }
+	};
 
 	struct FThreadState
 	{
-		TArray<TagIdType> TagStack;
+		TArray<FTagStackEntry> TagStack;
 	};
 
 	struct FTagEntry
