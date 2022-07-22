@@ -314,12 +314,3 @@ namespace Audio
 	};
 
 }
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bAudio_FloatArrayMath_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bAudio_FloatArrayMath_ISPC_Enabled = true;
-#else
-extern bool bAudio_FloatArrayMath_ISPC_Enabled;
-#endif
