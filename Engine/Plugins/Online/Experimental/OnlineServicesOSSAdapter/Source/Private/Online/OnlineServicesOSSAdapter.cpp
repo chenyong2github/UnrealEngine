@@ -6,6 +6,7 @@
 #include "Online/AuthOSSAdapter.h"
 #include "Online/ConnectivityOSSAdapter.h"
 #include "Online/ExternalUIOSSAdapter.h"
+#include "Online/LeaderboardsOSSAdapter.h"
 #include "Online/OnlineIdOSSAdapter.h"
 #include "Online/PresenceOSSAdapter.h"
 #include "Online/PrivilegesOSSAdapter.h"
@@ -29,6 +30,12 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 {
 	Components.Register<FAuthOSSAdapter>(*this);
 	Components.Register<FConnectivityOSSAdapter>(*this);
+
+	if (Subsystem->GetLeaderboardsInterface().IsValid())
+	{
+		Components.Register<FLeaderboardsOSSAdapter>(*this);
+	}
+
 	Components.Register<FPresenceOSSAdapter>(*this);
 	Components.Register<FPrivilegesOSSAdapter>(*this);
 	Components.Register<FStatsOSSAdapter>(*this);

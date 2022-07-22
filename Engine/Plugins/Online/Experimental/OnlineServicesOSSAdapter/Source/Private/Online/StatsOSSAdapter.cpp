@@ -210,7 +210,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsOSSAdapter::BatchQueryStats(FBatchQ
 		TArray<FUniqueNetIdRef> NetIds;
 		for (const FOnlineAccountIdHandle& TargetUserId : Op.GetParams().TargetUserIds)
 		{
-			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(TargetUserId);
 			if (!UniqueNetId)
 			{
 				Op.SetError(Errors::InvalidUser());
