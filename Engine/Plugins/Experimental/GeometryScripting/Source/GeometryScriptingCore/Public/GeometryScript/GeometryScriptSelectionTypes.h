@@ -42,6 +42,15 @@ enum class EGeometryScriptCombineSelectionMode : uint8
 	Intersection
 };
 
+/**
+ * Behavior of operations when a MeshSelection is empty
+ */
+UENUM(BlueprintType)
+enum class EGeometryScriptEmptySelectionBehavior : uint8
+{
+	FullMeshSelection = 0,
+	EmptySelection = 1
+};
 
 /**
  * FGeometryScriptMeshSelection is a container for a Mesh Selection used in Geometry Script.
