@@ -15,18 +15,19 @@ FHeaderViewListItemPtr FHeaderViewClassListItem::Create(TWeakObjectPtr<UBlueprin
 	return MakeShareable(new FHeaderViewClassListItem(InBlueprint));
 }
 
-void FHeaderViewClassListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+void FHeaderViewClassListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset)
 {
 	if (!bIsValidName)
 	{
-		if (UBlueprint* Blueprint = InBlueprint.Get())
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(InAsset.Get()))
 		{
+			TWeakObjectPtr<UBlueprint> WeakBlueprint = Blueprint;
 			InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameBlueprint", "Rename Blueprint"),
 				LOCTEXT("RenameItemTooltip", "Renames this Blueprint\nThis Blueprint name is not a legal C++ identifier."),
 				FSlateIcon(),
 				FText::FromString(Blueprint->GetName()),
-				FOnVerifyTextChanged::CreateSP(this, &FHeaderViewClassListItem::OnVerifyRenameTextChanged, InBlueprint),
-				FOnTextCommitted::CreateSP(this, &FHeaderViewClassListItem::OnRenameTextComitted, InBlueprint)
+				FOnVerifyTextChanged::CreateSP(this, &FHeaderViewClassListItem::OnVerifyRenameTextChanged, WeakBlueprint),
+				FOnTextCommitted::CreateSP(this, &FHeaderViewClassListItem::OnRenameTextComitted, WeakBlueprint)
 			);
 		}
 	}

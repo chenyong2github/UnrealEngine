@@ -15,6 +15,8 @@ class UUserDefinedStruct;
 class UUserDefinedStructEditorData;
 class UStructCookedMetaData;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnStructChanged, UUserDefinedStruct*);
+
 UENUM()
 enum EUserDefinedStructureStatus
 {
@@ -95,6 +97,8 @@ public:
 	/** Creates a new guid if needed */
 	void ValidateGuid();
 
+	virtual void OnChanged();
+
 	friend UUserDefinedStructEditorData;
 #endif	// WITH_EDITOR
 
@@ -130,6 +134,10 @@ public:
 	void UpdateStructFlags();
 
 #if WITH_EDITORONLY_DATA
+	FORCEINLINE FOnStructChanged& OnStructChanged() { return ChangedEvent; }
+public:
+	FOnStructChanged ChangedEvent;
+
 protected:
 	virtual TSubclassOf<UStructCookedMetaData> GetCookedMetaDataClass() const;
 

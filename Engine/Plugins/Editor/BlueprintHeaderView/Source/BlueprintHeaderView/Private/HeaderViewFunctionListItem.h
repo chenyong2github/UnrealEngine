@@ -14,8 +14,8 @@ struct FHeaderViewFunctionListItem : public FHeaderViewListItem
 	static FHeaderViewListItemPtr Create(const UK2Node_FunctionEntry* FunctionEntry);
 
 	//~ FHeaderViewListItem Interface
-	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) override;
-	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint) override;
+	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset) override;
+	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UObject> InAsset) override;
 	//~ End FHeaderViewListItem Interface
 
 protected:

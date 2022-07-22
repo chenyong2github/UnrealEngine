@@ -225,6 +225,11 @@ void UUserDefinedStruct::ValidateGuid()
 	}
 }
 
+void UUserDefinedStruct::OnChanged()
+{
+	ChangedEvent.Broadcast(this);
+}
+
 #endif	// WITH_EDITOR
 
 FProperty* UUserDefinedStruct::CustomFindProperty(const FName Name) const

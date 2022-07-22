@@ -4,8 +4,10 @@
 #include "EdMode.h"
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
+#include "Engine/UserDefinedStruct.h"
 #include "String/LineEndings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/StructureEditorUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "FHeaderViewVariableListItem"
@@ -15,7 +17,7 @@ FHeaderViewListItemPtr FHeaderViewVariableListItem::Create(const FBPVariableDesc
 	return MakeShareable(new FHeaderViewVariableListItem(VariableDesc, VarProperty));
 }
 
-void FHeaderViewVariableListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+void FHeaderViewVariableListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset)
 {
 	if (!IllegalName.IsNone())
 	{
@@ -23,8 +25,8 @@ void FHeaderViewVariableListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder,
 			LOCTEXT("RenameItemTooltip", "Renames this variable in the Blueprint\nThis variable name is not a legal C++ identifier."),
 			FSlateIcon(),
 			FText::FromName(IllegalName),
-			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewVariableListItem::OnVerifyRenameTextChanged, InBlueprint),
-			FOnTextCommitted::CreateSP(this, &FHeaderViewVariableListItem::OnRenameTextCommitted, InBlueprint)
+			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewVariableListItem::OnVerifyRenameTextChanged, InAsset),
+			FOnTextCommitted::CreateSP(this, &FHeaderViewVariableListItem::OnRenameTextCommitted, InAsset)
 		);
 	}
 }
@@ -329,16 +331,18 @@ FString FHeaderViewVariableListItem::GetOwningClassName(const FProperty& VarProp
 	return TEXT("");
 }
 
-bool FHeaderViewVariableListItem::OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UBlueprint> WeakBlueprint)
+bool FHeaderViewVariableListItem::OnVerifyRenameTextChanged(const FText& InNewName, FText& OutErrorText, TWeakObjectPtr<UObject> WeakAsset)
 {
-	if (const UBlueprint* Blueprint = WeakBlueprint.Get())
+	if (!IsValidCPPIdentifier(InNewName.ToString()))
 	{
-		if (!IsValidCPPIdentifier(InNewName.ToString()))
-		{
-			OutErrorText = InvalidCPPIdentifierErrorText;
-			return false;
-		}
+		OutErrorText = InvalidCPPIdentifierErrorText;
+		return false;
+	}
 
+	UObject* Asset = WeakAsset.Get();
+
+	if (const UBlueprint* Blueprint = Cast<UBlueprint>(Asset))
+	{
 		FKismetNameValidator NameValidator(Blueprint, NAME_None, nullptr);
 		const EValidatorResult Result = NameValidator.IsValid(InNewName.ToString());
 		if (Result != EValidatorResult::Ok)
@@ -350,19 +354,31 @@ bool FHeaderViewVariableListItem::OnVerifyRenameTextChanged(const FText& InNewNa
 		return true;
 	}
 
+	if (const UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(Asset))
+	{
+		return FStructureEditorUtils::IsUniqueVariableFriendlyName(Struct, InNewName.ToString());
+	}
+
 	return false;
 }
 
-void FHeaderViewVariableListItem::OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UBlueprint> WeakBlueprint)
+void FHeaderViewVariableListItem::OnRenameTextCommitted(const FText& CommittedText, ETextCommit::Type TextCommitType, TWeakObjectPtr<UObject> WeakAsset)
 {
 	if (TextCommitType == ETextCommit::OnEnter)
 	{
-		if (UBlueprint* Blueprint = WeakBlueprint.Get())
+		if (UObject* Asset = WeakAsset.Get())
 		{
 			const FString& CommittedString = CommittedText.ToString();
 			if (IsValidCPPIdentifier(CommittedString))
 			{
-				FBlueprintEditorUtils::RenameMemberVariable(Blueprint, IllegalName, FName(CommittedString));
+				if (UBlueprint* Blueprint = Cast<UBlueprint>(Asset))
+				{
+					FBlueprintEditorUtils::RenameMemberVariable(Blueprint, IllegalName, FName(CommittedString));
+				}
+				else if (UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(Asset))
+				{
+					FStructureEditorUtils::RenameVariable(Struct, IllegalName.ToString(), CommittedString);
+				}
 			}
 		}
 	}

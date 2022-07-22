@@ -12,6 +12,8 @@
 
 class SComboButton;
 class UBlueprint;
+class UUserDefinedStruct;
+class UStruct;
 class ITableRow;
 class STableViewBase;
 class FUICommandList;
@@ -45,10 +47,10 @@ struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 	const FString& GetRawItemString() const { return RawItemString; }
 
 	/** Allows the item to add items to the context menu if it is the only item selected */
-	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) {}
+	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset) {}
 
 	/** Called when this List Item is double clicked */
-	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint) {};
+	virtual void OnMouseButtonDoubleClick(TWeakObjectPtr<UObject> InAsset) {};
 
 protected:
 	/** Empty base constructor hidden from public */
@@ -135,12 +137,10 @@ private:
 	/** Gathers all function graphs from the blueprint and sorts them according to the selected method from config */
 	void GatherFunctionGraphs(const UBlueprint* Blueprint, TArray<const UEdGraph*>& OutFunctionGraphs);
 
-	/** Adds items to the list view representing all variables present in the given blueprints */
-	void PopulateVariableItems(const UBlueprint* Blueprint);
+	/** Adds items to the list view representing all variables present in the given asset */
+	void PopulateVariableItems(const UStruct* Struct);
+	void AddVariableItems(TArray<const FProperty*> VarProperties);
 	
-	/** Gathers all properties from the blueprint and sorts them according to the selected method from config */
-	void GatherProperties(const UBlueprint* Blueprint, TArray<const FProperty*>& OutProperties);
-
 	/** Sorts an array of properties to optimize for minimal C++ struct padding */
 	void SortPropertiesForPadding(TArray<const FProperty*>& InOutProperties);
 
@@ -150,8 +150,9 @@ private:
 	/** Called when a List Item is double clicked */
 	void OnItemDoubleClicked(FHeaderViewListItemPtr Item);
 
-	/** Callback for when the selected blueprint is modified */
+	/** Callback for when the selected asset is modified */
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
+	void OnStructChanged(UUserDefinedStruct* InStruct);
 
 	/** UI Command Functions */
 	void OnCopy() const;
@@ -163,8 +164,9 @@ private:
 	/** List of UI Commands for this scope */
 	TSharedPtr<FUICommandList> CommandList;
 
-	/** The blueprint currently being displayed by the header view */
+	/** The asset currently being displayed by the header view */
 	TWeakObjectPtr<UBlueprint> SelectedBlueprint;
+	TWeakObjectPtr<UUserDefinedStruct> SelectedStruct;
 
 	/** Reference to the Class Picker combo button widget */
 	TSharedPtr<SComboButton> ClassPickerComboButton;

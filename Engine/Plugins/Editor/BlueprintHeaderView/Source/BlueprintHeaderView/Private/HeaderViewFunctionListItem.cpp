@@ -16,40 +16,45 @@ FHeaderViewListItemPtr FHeaderViewFunctionListItem::Create(const UK2Node_Functio
 	return MakeShareable(new FHeaderViewFunctionListItem(FunctionEntry));
 }
 
-void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint)
+void FHeaderViewFunctionListItem::ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset)
 {
-	InMenuBuilder.AddMenuEntry(LOCTEXT("JumpToDefinition", "Jump to Definition"),
-		LOCTEXT("JumpToDefinitionTooltip", "Opens this function in the Blueprint Editor"),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &FHeaderViewFunctionListItem::JumpToDefinition, InBlueprint))
-	);
-
-	if (!IllegalName.IsNone())
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(InAsset.Get()))
 	{
-		InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameItem", "Rename Function"),
-			LOCTEXT("RenameItemTooltip", "Renames this function in the Blueprint\nThis function name is not a legal C++ identifier."),
+		TWeakObjectPtr<UBlueprint> WeakBlueprint = Blueprint;
+		InMenuBuilder.AddMenuEntry(LOCTEXT("JumpToDefinition", "Jump to Definition"),
+			LOCTEXT("JumpToDefinitionTooltip", "Opens this function in the Blueprint Editor"),
 			FSlateIcon(),
-			FText::FromName(IllegalName),
-			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameFunctionTextChanged, InBlueprint),
-			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted, InBlueprint, GraphName)
+			FUIAction(FExecuteAction::CreateSP(this, &FHeaderViewFunctionListItem::JumpToDefinition, WeakBlueprint))
 		);
-	}
 
-	for (FName IllegalParam : IllegalParameters)
-	{
-		InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameParm", "Rename Parameter"),
-			LOCTEXT("RenameParmTooltip", "Renames this function parameter in the Blueprint\nThis parameter name is not a legal C++ identifier."),
-			FSlateIcon(),
-			FText::FromName(IllegalParam),
-			FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameParameterTextChanged, InBlueprint, GraphName),
-			FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameParameterTextCommitted, InBlueprint, GraphName, IllegalParam)
-		);
+		if (!IllegalName.IsNone())
+		{
+			InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameItem", "Rename Function"),
+				LOCTEXT("RenameItemTooltip", "Renames this function in the Blueprint\nThis function name is not a legal C++ identifier."),
+				FSlateIcon(),
+				FText::FromName(IllegalName),
+				FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameFunctionTextChanged, WeakBlueprint),
+				FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameFunctionTextCommitted, WeakBlueprint, GraphName)
+			);
+		}
+
+		for (FName IllegalParam : IllegalParameters)
+		{
+			InMenuBuilder.AddVerifiedEditableText(LOCTEXT("RenameParm", "Rename Parameter"),
+				LOCTEXT("RenameParmTooltip", "Renames this function parameter in the Blueprint\nThis parameter name is not a legal C++ identifier."),
+				FSlateIcon(),
+				FText::FromName(IllegalParam),
+				FOnVerifyTextChanged::CreateSP(this, &FHeaderViewFunctionListItem::OnVerifyRenameParameterTextChanged, WeakBlueprint, GraphName),
+				FOnTextCommitted::CreateSP(this, &FHeaderViewFunctionListItem::OnRenameParameterTextCommitted, WeakBlueprint, GraphName, IllegalParam)
+			);
+		}
 	}
 }
 
-void FHeaderViewFunctionListItem::OnMouseButtonDoubleClick(TWeakObjectPtr<UBlueprint> Blueprint)
+void FHeaderViewFunctionListItem::OnMouseButtonDoubleClick(TWeakObjectPtr<UObject> InAsset)
 {
-	JumpToDefinition(Blueprint);
+	TWeakObjectPtr<UBlueprint> WeakBlueprint = Cast<UBlueprint>(InAsset.Get());
+	JumpToDefinition(WeakBlueprint);
 }
 
 FString FHeaderViewFunctionListItem::GetConditionalUFunctionSpecifiers(const UFunction* SigFunction) const

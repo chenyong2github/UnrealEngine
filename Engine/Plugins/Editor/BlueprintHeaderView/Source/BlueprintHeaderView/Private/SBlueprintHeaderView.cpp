@@ -12,10 +12,12 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Engine/Blueprint.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Framework/Text/SlateTextRun.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HeaderViewClassListItem.h"
+#include "HeaderViewStructListItem.h"
 #include "HeaderViewFunctionListItem.h"
 #include "HeaderViewVariableListItem.h"
 #include "EdGraphSchema_K2.h"
@@ -357,6 +359,10 @@ SBlueprintHeaderView::~SBlueprintHeaderView()
 	{
 		Blueprint->OnChanged().RemoveAll(this);
 	}
+	else if (UUserDefinedStruct* Struct = SelectedStruct.Get())
+	{
+		Struct->OnStructChanged().RemoveAll(this);
+	}
 }
 
 FReply SBlueprintHeaderView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -385,6 +391,10 @@ FText SBlueprintHeaderView::GetClassPickerText() const
 	{
 		return FText::FromName(Blueprint->GetFName());
 	}
+	else if (const UUserDefinedStruct* Struct = SelectedStruct.Get())
+	{
+		return FText::FromName(Struct->GetFName());
+	}
 
 	return LOCTEXT("ClassPickerPickClass", "Select Blueprint Class");
 }
@@ -397,6 +407,7 @@ TSharedRef<SWidget> SBlueprintHeaderView::GetClassPickerMenuContent()
 	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SBlueprintHeaderView::OnAssetSelected);
 	AssetPickerConfig.Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UUserDefinedStruct::StaticClass()->GetClassPathName());
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.SaveSettingsName = TEXT("HeaderPreviewClassPickerSettings");
 	TSharedRef<SWidget> AssetPickerWidget = ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig);
@@ -430,11 +441,23 @@ void SBlueprintHeaderView::OnAssetSelected(const FAssetData& SelectedAsset)
 	{
 		OldBlueprint->OnChanged().RemoveAll(this);
 	}
+	else if (UUserDefinedStruct* OldStruct = SelectedStruct.Get())
+	{
+		OldStruct->OnStructChanged().RemoveAll(this);
+	}
+
+	SelectedBlueprint = nullptr;
+	SelectedStruct = nullptr;
 
 	if (UBlueprint* Blueprint = Cast<UBlueprint>(SelectedAsset.GetAsset()))
 	{
 		Blueprint->OnChanged().AddRaw(this, &SBlueprintHeaderView::OnBlueprintChanged);
 		SelectedBlueprint = Blueprint;
+	}
+	else if (UUserDefinedStruct* UDS = Cast<UUserDefinedStruct>(SelectedAsset.GetAsset()))
+	{
+		UDS->OnStructChanged().AddRaw(this, &SBlueprintHeaderView::OnStructChanged);
+		SelectedStruct = UDS;
 	}
 
 	RepopulateListView();
@@ -461,7 +484,17 @@ void SBlueprintHeaderView::RepopulateListView()
 
 		PopulateFunctionItems(Blueprint);
 
-		PopulateVariableItems(Blueprint);
+		PopulateVariableItems(Blueprint->SkeletonGeneratedClass);
+
+		// Add the closing brace of the class
+		ListItems.Add(FHeaderViewListItem::Create(TEXT("};"), TEXT("};")));
+	}
+	else if (UUserDefinedStruct* Struct = SelectedStruct.Get())
+	{
+		// Add the struct declaration
+		ListItems.Add(FHeaderViewStructListItem::Create(Struct));
+
+		PopulateVariableItems(Struct);
 
 		// Add the closing brace of the class
 		ListItems.Add(FHeaderViewListItem::Create(TEXT("};"), TEXT("};")));
@@ -551,76 +584,76 @@ void SBlueprintHeaderView::GatherFunctionGraphs(const UBlueprint* Blueprint, TAr
 	}
 }
 
-void SBlueprintHeaderView::PopulateVariableItems(const UBlueprint* Blueprint)
+void SBlueprintHeaderView::AddVariableItems(TArray<const FProperty*> VarProperties)
 {
-	if (Blueprint)
-	{
-		const int32 Private = 2;
-		const int32 Public = 1;
-
-		TArray<const FProperty*> VarProperties;
-		GatherProperties(Blueprint, VarProperties);
-
-		// We should only add an access specifier line if the previous variable was a different one
-		int32 PrevAccessSpecifier = 0;
-		for (const FProperty* VarProperty : VarProperties)
-		{
-			const int32 AccessSpecifier = VarProperty->GetBoolMetaData(FBlueprintMetadata::MD_Private) ? Private : Public;
-			if (AccessSpecifier != PrevAccessSpecifier)
-			{
-				switch (AccessSpecifier)
-				{
-				case Public:
-					ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
-					break;
-				case Private:
-					ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
-					break;
-				}
-
-				PrevAccessSpecifier = AccessSpecifier;
-			}
-			else
-			{
-				// add an empty line to space variables out
-				ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
-			}
-
-			const FBPVariableDescription* VariableDesc = Blueprint->NewVariables.FindByPredicate([&VarProperty](const FBPVariableDescription& Desc)
-				{
-					return Desc.VarName == VarProperty->GetFName();
-				});
-
-			ListItems.Add(FHeaderViewVariableListItem::Create(VariableDesc, *VarProperty));
-		}
-	}
-}
-
-void SBlueprintHeaderView::GatherProperties(const UBlueprint* Blueprint, TArray<const FProperty*>& OutProperties)
-{
-	for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
-	{
-		if (const FProperty* VarProperty = *PropertyIt)
-		{
-			if (VarProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
-			{
-				OutProperties.Add(VarProperty);
-			}
-		}
-	}
+	const int32 Private = 2;
+	const int32 Public = 1;
 
 	const UBlueprintHeaderViewSettings* BlueprintHeaderViewSettings = GetDefault<UBlueprintHeaderViewSettings>();
 	if (BlueprintHeaderViewSettings->SortMethod == EHeaderViewSortMethod::SortByAccessSpecifier)
 	{
-		OutProperties.Sort([](const FProperty& LeftProp, const FProperty& RightProp)
+		VarProperties.Sort([](const FProperty& LeftProp, const FProperty& RightProp)
 			{
 				return !LeftProp.GetBoolMetaData(FBlueprintMetadata::MD_Private) && RightProp.GetBoolMetaData(FBlueprintMetadata::MD_Private);
 			});
 	}
 	else if (BlueprintHeaderViewSettings->SortMethod == EHeaderViewSortMethod::SortForOptimalPadding)
 	{
-		SortPropertiesForPadding(OutProperties);
+		SortPropertiesForPadding(VarProperties);
 	}
+
+	// We should only add an access specifier line if the previous variable was a different one
+	int32 PrevAccessSpecifier = 0;
+	for (const FProperty* VarProperty : VarProperties)
+	{
+		const int32 AccessSpecifier = VarProperty->GetBoolMetaData(FBlueprintMetadata::MD_Private) ? Private : Public;
+		if (AccessSpecifier != PrevAccessSpecifier)
+		{
+			switch (AccessSpecifier)
+			{
+			case Public:
+				ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+				break;
+			case Private:
+				ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+				break;
+			}
+
+			PrevAccessSpecifier = AccessSpecifier;
+		}
+		else
+		{
+			// add an empty line to space variables out
+			ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
+		}
+
+		FBPVariableDescription* VariableDesc = nullptr;
+		if (UBlueprint* Blueprint = SelectedBlueprint.Get())
+		{
+			VariableDesc = Blueprint->NewVariables.FindByPredicate([&VarProperty](const FBPVariableDescription& Desc)
+				{
+					return Desc.VarName == VarProperty->GetFName();
+				});
+		}
+
+		ListItems.Add(FHeaderViewVariableListItem::Create(VariableDesc, *VarProperty));
+	}
+}
+
+void SBlueprintHeaderView::PopulateVariableItems(const UStruct* Struct)
+{
+	TArray<const FProperty*> VarProperties;
+	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	{
+		if (const FProperty* VarProperty = *PropertyIt)
+		{
+			if (VarProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
+			{
+				VarProperties.Add(VarProperty);
+			}
+		}
+	}
+	AddVariableItems(VarProperties);
 }
 
 void SBlueprintHeaderView::SortPropertiesForPadding(TArray<const FProperty*>& InOutProperties)
@@ -691,7 +724,8 @@ TSharedPtr<SWidget> SBlueprintHeaderView::OnContextMenuOpening()
 	ListView->GetSelectedItems(SelectedListItems);
 	if (SelectedListItems.Num() == 1)
 	{
-		SelectedListItems[0]->ExtendContextMenu(MenuBuilder, SelectedBlueprint);
+		TWeakObjectPtr<UObject> SelectedAsset = SelectedBlueprint.IsValid() ? (UObject*)SelectedBlueprint.Get() : (UObject*)SelectedStruct.Get();
+		SelectedListItems[0]->ExtendContextMenu(MenuBuilder, SelectedAsset);
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -699,10 +733,16 @@ TSharedPtr<SWidget> SBlueprintHeaderView::OnContextMenuOpening()
 
 void SBlueprintHeaderView::OnItemDoubleClicked(FHeaderViewListItemPtr Item)
 {
-	Item->OnMouseButtonDoubleClick(SelectedBlueprint);
+	TWeakObjectPtr<UObject> SelectedAsset = SelectedBlueprint.IsValid() ? (UObject*)SelectedBlueprint.Get() : (UObject*)SelectedStruct.Get();
+	Item->OnMouseButtonDoubleClick(SelectedAsset);
 }
 
 void SBlueprintHeaderView::OnBlueprintChanged(UBlueprint* InBlueprint)
+{
+	RepopulateListView();
+}
+
+void SBlueprintHeaderView::OnStructChanged(UUserDefinedStruct* InStruct)
 {
 	RepopulateListView();
 }
@@ -735,10 +775,18 @@ void SBlueprintHeaderView::OnSelectAll()
 
 FReply SBlueprintHeaderView::BrowseToAssetClicked() const
 {
+	TArray<FAssetData> AssetsToSync;
 	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
 	{
-		TArray<FAssetData> AssetsToSync;
 		AssetsToSync.Emplace(Blueprint);
+	}
+	else if (UUserDefinedStruct* Struct = SelectedStruct.Get())
+	{
+		AssetsToSync.Emplace(Struct);
+	}
+
+	if (!AssetsToSync.IsEmpty())
+	{
 		GEditor->SyncBrowserToObjects(AssetsToSync);
 	}
 
@@ -750,6 +798,10 @@ FReply SBlueprintHeaderView::OpenAssetEditorClicked() const
 	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+	}
+	else if (UUserDefinedStruct* Struct = SelectedStruct.Get())
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Struct);
 	}
 
 	return FReply::Handled();

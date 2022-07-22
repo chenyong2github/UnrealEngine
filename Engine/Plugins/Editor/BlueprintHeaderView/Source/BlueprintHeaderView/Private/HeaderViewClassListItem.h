@@ -15,7 +15,7 @@ public:
 	static FHeaderViewListItemPtr Create(TWeakObjectPtr<UBlueprint> InBlueprint);
 
 	//~ FHeaderViewListItem Interface
-	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UBlueprint> InBlueprint) override;
+	virtual void ExtendContextMenu(FMenuBuilder& InMenuBuilder, TWeakObjectPtr<UObject> InAsset) override;
 	//~ End FHeaderViewListItem Interface
 protected:
 	FString GetConditionalUClassSpecifiers(const UBlueprint* Blueprint) const;

@@ -366,6 +366,29 @@ bool FStructureEditorUtils::RenameVariable(UUserDefinedStruct* Struct, FGuid Var
 }
 
 
+bool FStructureEditorUtils::RenameVariable(UUserDefinedStruct* Struct, const FString& OldDisplayNameStr, const FString& NewDisplayNameStr)
+{
+	if (Struct)
+	{
+		if (TArray<FStructVariableDescription>* VarDescArray = GetVarDescPtr(Struct))
+		{
+			FStructVariableDescription* VarDesc = VarDescArray->FindByPredicate(
+				[&OldDisplayNameStr](const FStructVariableDescription& Var)
+				{
+					return Var.FriendlyName == OldDisplayNameStr;
+				}
+			);
+
+			if (VarDesc)
+			{
+				return RenameVariable(Struct, VarDesc->VarGuid, NewDisplayNameStr);
+			}
+		}
+	}
+
+	return false;
+}
+
 bool FStructureEditorUtils::ChangeVariableType(UUserDefinedStruct* Struct, FGuid VarGuid, const FEdGraphPinType& NewType)
 {
 	if (Struct)
@@ -545,6 +568,7 @@ void FStructureEditorUtils::OnStructureChanged(UUserDefinedStruct* Struct, EStru
 		Struct->Status = EUserDefinedStructureStatus::UDSS_Dirty;
 		CompileStructure(Struct);
 		Struct->MarkPackageDirty();
+		Struct->OnChanged();
 	}
 }
 

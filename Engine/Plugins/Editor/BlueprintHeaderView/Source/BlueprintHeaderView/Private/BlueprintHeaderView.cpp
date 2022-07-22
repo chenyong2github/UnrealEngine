@@ -15,6 +15,7 @@
 #include "ContentBrowserModule.h"
 #include "Framework/Commands/UIAction.h"
 #include "Engine/Blueprint.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -75,7 +76,7 @@ void FBlueprintHeaderViewModule::ShutdownModule()
 	
 bool FBlueprintHeaderViewModule::IsClassHeaderViewSupported(const UClass* InClass)
 {
-	return InClass == UBlueprint::StaticClass();
+	return InClass == UBlueprint::StaticClass() || InClass == UUserDefinedStruct::StaticClass();
 }
 
 void FBlueprintHeaderViewModule::OpenHeaderViewForAsset(FAssetData InAssetData)
