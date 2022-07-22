@@ -637,11 +637,15 @@ void UPCGComponent::BeginDestroy()
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph = nullptr;
 	}
 
-	TeardownLandscapeTracking();
-	TeardownTrackingCallbacks();
-	TeardownActorCallbacks();
+	if (!IsEngineExitRequested())
+	{
+		TeardownLandscapeTracking();
+		TeardownTrackingCallbacks();
+		TeardownActorCallbacks();
+	}
 #endif
 
 	Super::BeginDestroy();
