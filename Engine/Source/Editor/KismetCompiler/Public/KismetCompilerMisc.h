@@ -153,8 +153,7 @@ public:
 	virtual ~FNodeHandlingFunctor() 
 	{
 	}
-
-	//virtual void Validate(FKismetFunctionContext& Context, UEdGraphNode* Node) {}
+	
 	virtual void Compile(FKismetFunctionContext& Context, UEdGraphNode* Node)
 	{
 	}
