@@ -68,8 +68,9 @@ public:
 
 	/**
 	 * Purges any objects marked pending kill from the object list
+	 * @return True if any objects were purged, or false otherwise
 	 */
-	void PurgeKilledObjects();
+	bool PurgeKilledObjects();
 
 	// Called when the object list is finalized, Finalize() finishes the property window setup.
 	void Finalize();

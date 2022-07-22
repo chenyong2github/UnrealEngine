@@ -18,8 +18,13 @@ void USMInstanceElementDetailsProxyObject::Initialize(const FSMInstanceElementId
 
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("USMInstanceElementDetailsProxyObject"), 0.1f, [this](float)
 	{
-		SyncProxyStateFromInstance();
-		return true;
+		const bool bDidSyncInstance = SyncProxyStateFromInstance();
+		if (!bDidSyncInstance)
+		{
+			// The referenced instance is invalid, so mark this proxy as garbage so that the details panel stops using it
+			MarkAsGarbage();
+		}
+		return bDidSyncInstance;
 	});
 	SyncProxyStateFromInstance();
 }
@@ -35,7 +40,14 @@ void USMInstanceElementDetailsProxyObject::Shutdown()
 	ISMComponent.Reset();
 	ISMInstanceId = 0;
 
-	SyncProxyStateFromInstance();
+	Transform = FTransform::Identity;
+}
+
+void USMInstanceElementDetailsProxyObject::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	Shutdown();
 }
 
 void USMInstanceElementDetailsProxyObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -81,17 +93,17 @@ void USMInstanceElementDetailsProxyObject::PostEditChangeChainProperty(FProperty
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
 
-void USMInstanceElementDetailsProxyObject::SyncProxyStateFromInstance()
+bool USMInstanceElementDetailsProxyObject::SyncProxyStateFromInstance()
 {
 	if (FSMInstanceManager SMInstance = GetSMInstance())
 	{
 		// TODO: Need flag for local/world space, like FComponentTransformDetails
 		SMInstance.GetSMInstanceTransform(Transform, /*bWorldSpace*/false);
+		return true;
 	}
-	else
-	{
-		Transform = FTransform::Identity;
-	}
+	
+	Transform = FTransform::Identity;
+	return false;
 }
 
 FSMInstanceManager USMInstanceElementDetailsProxyObject::GetSMInstance() const

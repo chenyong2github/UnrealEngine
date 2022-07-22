@@ -91,8 +91,10 @@ void FObjectPropertyNode::ClearObjectPackageOverrides()
 }
 
 // Purges any objects marked pending kill from the object list
-void FObjectPropertyNode::PurgeKilledObjects()
+bool FObjectPropertyNode::PurgeKilledObjects()
 {
+	bool bDidPurgeObjects = false;
+
 	// Purge any objects that are marked pending kill from the object list
 	for (int32 Index = 0; Index < Objects.Num(); )
 	{
@@ -101,12 +103,15 @@ void FObjectPropertyNode::PurgeKilledObjects()
 		if ( !Object.IsValid() )
 		{
 			Objects.RemoveAt(Index, 1);
+			bDidPurgeObjects = true;
 		}
 		else
 		{
 			++Index;
 		}
 	}
+
+	return bDidPurgeObjects;
 }
 
 // Called when the object list is finalized, Finalize() finishes the property window setup.

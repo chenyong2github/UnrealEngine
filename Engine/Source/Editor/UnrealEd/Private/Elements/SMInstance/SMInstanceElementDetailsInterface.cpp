@@ -9,28 +9,37 @@ class FSMInstanceTypedElementDetailsObject : public ITypedElementDetailsObject
 {
 public:
 	explicit FSMInstanceTypedElementDetailsObject(const FSMInstanceElementId& InSMInstanceElementId)
-		: InstanceProxyObject(NewObject<USMInstanceElementDetailsProxyObject>())
 	{
-		InstanceProxyObject->Initialize(InSMInstanceElementId);
+		USMInstanceElementDetailsProxyObject* InstanceProxyObjectPtr = NewObject<USMInstanceElementDetailsProxyObject>();
+		InstanceProxyObjectPtr->Initialize(InSMInstanceElementId);
+
+		InstanceProxyObject = InstanceProxyObjectPtr;
 	}
 
 	~FSMInstanceTypedElementDetailsObject()
 	{
-		InstanceProxyObject->Shutdown();
+		if (USMInstanceElementDetailsProxyObject* InstanceProxyObjectPtr = InstanceProxyObject.Get())
+		{
+			InstanceProxyObjectPtr->Shutdown();
+		}
 	}
 
 	virtual UObject* GetObject() override
 	{
-		return InstanceProxyObject;
+		return InstanceProxyObject.Get();
 	}
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		Collector.AddReferencedObject(InstanceProxyObject);
+		if (USMInstanceElementDetailsProxyObject* InstanceProxyObjectPtr = InstanceProxyObject.Get())
+		{
+			Collector.AddReferencedObject(InstanceProxyObjectPtr);
+			InstanceProxyObject = InstanceProxyObjectPtr;
+		}
 	}
 
 private:
-	USMInstanceElementDetailsProxyObject* InstanceProxyObject = nullptr;
+	TWeakObjectPtr<USMInstanceElementDetailsProxyObject> InstanceProxyObject;
 };
 
 TUniquePtr<ITypedElementDetailsObject> USMInstanceElementDetailsInterface::GetDetailsObject(const FTypedElementHandle& InElementHandle)

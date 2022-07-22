@@ -928,14 +928,15 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
 	bool bHadDeferredActions = DeferredActions.Num() > 0;
-	auto PreProcessRootNode = [bHadDeferredActions, this](TSharedPtr<FComplexPropertyNode> RootPropertyNode) 
+	bool bDidPurgeObjects = false;
+	auto PreProcessRootNode = [bHadDeferredActions, &bDidPurgeObjects, this](TSharedPtr<FComplexPropertyNode> RootPropertyNode)
 	{
 		check(RootPropertyNode.IsValid());
 
 		// Purge any objects that are marked pending kill from the object list
 		if (FObjectPropertyNode* ObjectRoot = RootPropertyNode->AsObjectNode())
 		{
-			ObjectRoot->PurgeKilledObjects();
+			bDidPurgeObjects |= ObjectRoot->PurgeKilledObjects();
 		}
 
 		if (bHadDeferredActions)
@@ -990,7 +991,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 
 	int32 FoundIndex = RootPropertyNodes.Find(LastRootPendingKill);
 	bool bUpdateFilteredDetails = false;
-	if (FoundIndex != INDEX_NONE)
+	if (FoundIndex != INDEX_NONE || bDidPurgeObjects)
 	{ 
 		// Reacquire the root property nodes.  It may have been changed by the deferred actions if something like a blueprint editor forcefully resets a details panel during a posteditchange
 		ForceRefresh();

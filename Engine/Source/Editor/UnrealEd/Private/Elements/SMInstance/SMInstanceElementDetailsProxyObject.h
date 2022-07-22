@@ -21,13 +21,14 @@ public:
 	void Shutdown();
 
 	//~ UObject interface
+	virtual void BeginDestroy() override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	UPROPERTY(EditAnywhere, Category="Transform", meta=(ShowOnlyInnerProperties))
 	FTransform Transform;
 
 private:
-	void SyncProxyStateFromInstance();
+	bool SyncProxyStateFromInstance();
 
 	FSMInstanceManager GetSMInstance() const;
 
