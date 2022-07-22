@@ -688,15 +688,9 @@ namespace GeometryScriptBakeLocals
 
 		if (BakeTypes.OutputMode == EGeometryScriptBakeOutputMode::RGBA)
 		{
-			auto IsValidBakeType = [&BakeVertexPrefix](EGeometryScriptBakeTypes BakeType, TArray<FGeometryScriptDebugMessage>* Debug)
+			auto IsValidBakeType = [](EGeometryScriptBakeTypes, TArray<FGeometryScriptDebugMessage>*)
 			{
-				const bool bIsValid = BakeType != EGeometryScriptBakeTypes::VertexColor;
-				if (!bIsValid)
-				{
-					const FText BakeTypeName = FText::FromName(StaticEnum<EGeometryScriptBakeTypes>()->GetNameByIndex(static_cast<int32>(BakeType)));
-					UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, FText::Format(LOCTEXT("BakeVertex_InvalidColorEval", "{0}: {1} bake type is not a supported RGBA evaluator."), BakeVertexPrefix, BakeTypeName));
-				}
-				return bIsValid;
+				return true;
 			};
 			
 			Baker.BakeMode = FMeshVertexBaker::EBakeMode::RGBA;

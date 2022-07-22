@@ -213,6 +213,13 @@ public:
 				Baker->ColorEvaluator = TextureEval;
 				break;
 			}
+			case EBakeMapType::VertexColor:
+			{
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::VertexColor;
+				Baker->ColorEvaluator = PropertyEval;
+				break;
+			}
 			default:
 				break;
 			}
@@ -681,6 +688,7 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		case EBakeMapType::FaceNormal:
 		case EBakeMapType::Position:
 		case EBakeMapType::MaterialID:
+		case EBakeMapType::VertexColor:
 			OpState |= UpdateResult_MeshProperty(Dimensions);
 			break;
 		case EBakeMapType::Texture:
