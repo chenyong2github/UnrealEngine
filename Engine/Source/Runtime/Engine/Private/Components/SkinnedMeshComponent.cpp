@@ -518,7 +518,7 @@ void USkinnedMeshComponent::PostLoad()
 	Super::PostLoad();
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if(!SkinnedAsset)
+	if (SkeletalMesh)
 	{
 		SkinnedAsset = SkeletalMesh;  // Set to the SkeletalMesh pointer for backward compatibility when the SkinnedAsset is invalid
 	}
