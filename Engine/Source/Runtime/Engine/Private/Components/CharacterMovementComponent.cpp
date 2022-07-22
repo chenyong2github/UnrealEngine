@@ -4057,7 +4057,7 @@ void UCharacterMovementComponent::ApplyRootMotionToVelocity(float deltaTime)
 		else
 		{
 			// Default bounds - the amount of force gravity is applying this tick
-			LiftoffBound = FMath::Max(GetGravityZ() * deltaTime, UE_SMALL_NUMBER);
+			LiftoffBound = FMath::Max(-GetGravityZ() * deltaTime, UE_SMALL_NUMBER);
 		}
 
 		if( AppliedVelocityDelta.Z > LiftoffBound )
