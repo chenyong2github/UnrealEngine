@@ -870,7 +870,7 @@ namespace UnrealBuildTool
 			}
 
 			// Disable linking and ignore build outputs if we're using a static analyzer
-			if (Target.StaticAnalyzer == StaticAnalyzer.Default)
+			if (Target.StaticAnalyzer != StaticAnalyzer.None)
 			{
 				Target.bDisableLinking = true;
 				Target.bIgnoreBuildOutputs = true;
