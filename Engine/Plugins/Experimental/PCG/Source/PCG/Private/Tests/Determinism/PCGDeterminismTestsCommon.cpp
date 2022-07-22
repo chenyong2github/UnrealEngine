@@ -19,6 +19,11 @@
 
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 
+static TAutoConsoleVariable<int32> CVarDeterminismPermutationLimit(
+	TEXT("pcg.DeterminismPermutationLimit"),
+	10000,
+	TEXT("A limit for the maximium amount of input permutations before autofailing a basic determinism test"));
+
 namespace PCGDeterminismTests
 {
 	bool LogInvalidTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult)
@@ -59,6 +64,12 @@ namespace PCGDeterminismTests
 		FNodeAndOptions NodeAndOptions(InPCGNode, OutResult.Seed, /*bMultipleOptionsPerPin=*/true);
 		RetrieveBaseOptionsPerPin(NodeAndOptions.BaseOptionsByPin, InputPins, OutResult.DataTypesTested, Defaults::NumTestInputsPerPin);
 
+		if (GetNumPermutations(NodeAndOptions.BaseOptionsByPin) > CVarDeterminismPermutationLimit.GetValueOnGameThread())
+		{
+			UpdateTestResultForOverPermutationLimitError(OutResult);
+			return false;
+		}
+
 		return RunBasicSelfTest(NodeAndOptions) && RunBasicCopiedSelfTest(NodeAndOptions);
 	}
 
@@ -74,6 +85,12 @@ namespace PCGDeterminismTests
 		FNodeAndOptions NodeAndOptions(InPCGNode, OutResult.Seed, /*bMultipleOptionsPerPin=*/true);
 		// TODO: Multiple inputs per pin might lead to redundant tests. Filter these out
 		RetrieveBaseOptionsPerPin(NodeAndOptions.BaseOptionsByPin, InputPins, OutResult.DataTypesTested, Defaults::NumTestInputsPerPin);
+
+		if (GetNumPermutations(NodeAndOptions.BaseOptionsByPin) > CVarDeterminismPermutationLimit.GetValueOnGameThread())
+		{
+			UpdateTestResultForOverPermutationLimitError(OutResult);
+			return false;
+		}
 
 		// No inputs, so just test determinism against itself
 		if (InputPins.Num() == 0 && RunBasicCopiedSelfTest(NodeAndOptions))
@@ -885,6 +902,13 @@ namespace PCGDeterminismTests
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData)
 	{
 		return false;
+	}
+
+	void UpdateTestResultForOverPermutationLimitError(FDeterminismNodeTestResult& OutResult)
+	{
+		OutResult.DataTypesTested = EPCGDataType::None;
+		OutResult.bFlagRaised = true;
+		OutResult.AdditionalDetails.Emplace(TEXT("Test did not run (permutation limit). Adjust 'pcg.DeterminismPermutationLimit' to alter this limit."));
 	}
 
 	bool ConsistencyComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData, TArray<int32>& OutOutIndexOffsets)

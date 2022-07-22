@@ -223,6 +223,8 @@ namespace PCGDeterminismTests
 
 	/** A catch function for unimplemented comparisons */
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData);
+	/** Updates the test result output to reflect that the permutation limit has been exceeded */
+	void UpdateTestResultForOverPermutationLimitError(FDeterminismNodeTestResult& OutResult);
 
 	/** Determines if a PCG DataType is a type that should be compared */
 	bool DataTypeIsComparable(EPCGDataType DataType);

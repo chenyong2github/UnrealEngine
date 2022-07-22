@@ -73,7 +73,8 @@ TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const
 	}
 	else if (ColumnId == NAME_AdditionalDetails)
 	{
-		FString FullDetails = FString::Join(CurrentItem->AdditionalDetails, TEXT(", "));
+		// TODO: Add tooltip widget to display multiple error messages, but only display the first in the row for now
+		FString FullDetails = CurrentItem->AdditionalDetails.Num() > 0 ? CurrentItem->AdditionalDetails[0] : "";
 		CellText = FText::FromString(FullDetails);
 	}
 	// Test columns
