@@ -10,6 +10,10 @@ class UCommonStyleSheetTypeBase;
 class UCommonTextBlock;
 class UWidget;
 
+//////////////////////////////
+// PROTOTYPE: DO NOT USE!!!
+//////////////////////////////
+
 UCLASS(BlueprintType)
 class UCommonStyleSheet : public UDataAsset
 {

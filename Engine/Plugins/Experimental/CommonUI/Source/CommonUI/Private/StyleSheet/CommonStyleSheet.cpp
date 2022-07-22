@@ -7,6 +7,10 @@
 #include "CommonTextBlock.h"
 #include "Components/Widget.h"
 
+//////////////////////////////
+// PROTOTYPE: DO NOT USE!!!
+//////////////////////////////
+
 void UCommonStyleSheet::Apply(UWidget* Widget)
 {
 	// FIXME: Current usage of the SetX functions can results in Apply being called

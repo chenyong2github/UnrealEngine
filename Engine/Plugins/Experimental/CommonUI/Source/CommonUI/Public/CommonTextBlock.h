@@ -219,8 +219,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
 
-	/** References the scroll style asset to use, no reference disables scrolling*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
+	/** Prototype: Do not use! */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TObjectPtr<UCommonStyleSheet> StyleSheet;
 
 	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
