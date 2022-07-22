@@ -941,13 +941,70 @@ bool FControlRigEditMode::InputKey(FEditorViewportClient* InViewportClient, FVie
 		{
 			return true;
 		}
+		if (IsDragAnimSliderToolPressed(InViewport)) //this is needed to make sure we get all of the processed mouse events, for some reason the above may not return true
+		{
+			return true;
+		}
 	}
 
 	return FEdMode::InputKey(InViewportClient, InViewport, InKey, InEvent);
 }
 
+bool FControlRigEditMode::ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves)
+{
+	const bool bChange = IsDragAnimSliderToolPressed(InViewport);
+	if (CapturedMouseMoves.Num() > 0)
+	{
+		if (bChange)
+		{
+			for (int32 Index = 0; Index < CapturedMouseMoves.Num(); ++Index)
+			{
+				int32 X = CapturedMouseMoves[Index].X;
+				if (StartXValue.IsSet() == false)
+				{
+					bisTrackingAnimToolDrag = true;
+					GEditor->BeginTransaction(LOCTEXT("AnimSliderBlend", "AnimSlider Blend"));
+					StartXValue = X;
+				}
+				else
+				{
+					int32 Diff = X - StartXValue.GetValue();
+					if (Diff != 0)
+					{
+						FIntPoint Origin, Size;
+						InViewportClient->GetViewportDimensions(Origin, Size);
+						const double ViewPortSize = (double)Size.X * 0.25; // 1/4 screen drag should do full blend, todo perhaps expose this as a sensitivity
+						const double ViewDiff = (double)(Diff) / ViewPortSize;
+						DragAnimSliderTool(ViewDiff);
+					}
+					StartXValue = X;
+				}
+			}
+		}
+		else if (bisTrackingAnimToolDrag && bChange == false)
+		{
+			ResetAnimSlider();
+		}
+		return bisTrackingAnimToolDrag;
+	}
+	else if(bisTrackingAnimToolDrag && bChange == false)
+	{
+		ResetAnimSlider();
+	}
+	return false;
+}
+
 bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	if (bisTrackingAnimToolDrag)
+	{
+		ResetAnimSlider();
+	}
+	if (IsDragAnimSliderToolPressed(InViewport))
+	{
+		return true;
+	}
+
 	const bool bWasInteracting = bManipulatorMadeChange && InteractionType != (uint8)EControlRigInteractionType::None;
 	
 	InteractionType = (uint8)EControlRigInteractionType::None;
@@ -991,6 +1048,13 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 
 bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
+	//break right out if doing anim slider scrub
+
+	if (IsDragAnimSliderToolPressed(InViewport))
+	{
+		return true;
+	}
+
 	InteractionType = GetInteractionType(InViewportClient);
 	
 	if (InteractionScopes.Num() == 0)
@@ -1678,6 +1742,11 @@ void FControlRigEditMode::SelectNone()
 
 bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
+	if (IsDragAnimSliderToolPressed(InViewport)) //this is needed to make sure we get all of the processed mouse events, for some reason the above may not return true
+	{
+		//handled by processed mouse clicks
+		return true;
+	}
 	FVector Drag = InDrag;
 	FRotator Rot = InRot;
 	FVector Scale = InScale;
@@ -2252,6 +2321,12 @@ void FControlRigEditMode::BindCommands()
 		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ClearSelection));
 
 	CommandBindings->MapAction(
+		Commands.ChangeAnimSliderTool,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ChangeAnimSliderTool),
+		FCanExecuteAction::CreateRaw(this, &FControlRigEditMode::CanChangeAnimSliderTool)
+	);
+
+	CommandBindings->MapAction(
 		Commands.FrameSelection,
 		FExecuteAction::CreateRaw(this, &FControlRigEditMode::FrameSelection),
 		FCanExecuteAction::CreateRaw(this, &FControlRigEditMode::CanFrameSelection)
@@ -2472,6 +2547,52 @@ void FControlRigEditMode::GetAllSelectedControls(TMap<UControlRig*, TArray<FRigE
 			}
 		}
 	}
+}
+
+/** If Anim Slider is open, got to the next tool*/
+void FControlRigEditMode::ChangeAnimSliderTool()
+{
+	StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->GetToNextActiveSlider();
+}
+
+/** If Anim Slider is open, then can drag*/
+bool FControlRigEditMode::CanChangeAnimSliderTool() const
+{
+	return (StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->CanChangeAnimSliderTool());
+}
+
+/** If Anim Slider is open, drag the tool*/
+void FControlRigEditMode::DragAnimSliderTool(double IncrementVal)
+{
+	StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->DragAnimSliderTool(IncrementVal);
+}
+
+/** Reset and stop user the anim slider tool*/
+void FControlRigEditMode::ResetAnimSlider()
+{
+	GEditor->EndTransaction();
+	bisTrackingAnimToolDrag = false;
+	StartXValue.Reset();
+	StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->ResetAnimSlider();
+}
+
+/** If the Drag Anim Slider Tool is pressed*/
+bool FControlRigEditMode::IsDragAnimSliderToolPressed(FViewport* InViewport)
+{
+	if (IsInLevelEditor() && CanChangeAnimSliderTool())
+	{
+		bool bIsMovingSlider = false;
+		const FControlRigEditModeCommands& Commands = FControlRigEditModeCommands::Get();
+		// Need to iterate through primary and secondary to make sure they are all pressed.
+		for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+		{
+			EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
+			const FInputChord& Chord = *Commands.DragAnimSliderTool->GetActiveChord(ChordIndex);
+			bIsMovingSlider |= Chord.IsValidChord() && InViewport->KeyState(Chord.Key);
+		}
+		return bIsMovingSlider;
+	}
+	return false;
 }
 
 void FControlRigEditMode::OpenSpacePickerWidget()

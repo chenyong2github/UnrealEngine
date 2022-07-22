@@ -113,6 +113,7 @@ public:
 	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) override;
 	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
 	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	virtual bool ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click) override;
 	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
 	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect = true) override;
@@ -208,6 +209,21 @@ protected:
 
 	/** Toggles visibility of all  control rig shapes in the viewport */
 	void ToggleAllManipulators();
+
+	/** If Anim Slider is open, got to the next tool*/
+	void ChangeAnimSliderTool();
+
+	/** If Anim Slider is open, then can drag*/
+	bool CanChangeAnimSliderTool() const;
+
+	/** If Anim Slider is open, drag the tool*/
+	void DragAnimSliderTool(double IncrementVal);
+
+	/** Reset and stop user the anim slider tool*/
+	void ResetAnimSlider();
+
+	/** If the Drag Anim Slider Tool is pressed*/
+	bool IsDragAnimSliderToolPressed(FViewport* InViewport);
 
 public:
 	
@@ -323,6 +339,11 @@ protected:
 	
 	/** Set initial transform handlers */
 	void OpenContextMenu(FEditorViewportClient* InViewportClient);
+
+	/* params to handle mouse move for changing anim tools sliders*/
+	bool bisTrackingAnimToolDrag = false;
+	/** Starting X Value*/
+	TOptional<int32> StartXValue;
 	
 public: 
 	/** Clear all selected RigElements */

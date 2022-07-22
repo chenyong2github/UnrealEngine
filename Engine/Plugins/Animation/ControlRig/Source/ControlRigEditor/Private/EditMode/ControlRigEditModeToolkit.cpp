@@ -121,7 +121,7 @@ void FControlRigEditModeToolkit::TryInvokeToolkitUI(const FName InName)
 	}
 	else if (InName == TweenOverlayName)
 	{
-		if(TweenWidget)
+		if(TweenWidgetParent)
 		{ 
 			RemoveAndDestroyTweenOverlay();
 		}
@@ -136,7 +136,7 @@ bool FControlRigEditModeToolkit::IsToolkitUIActive(const FName InName) const
 {
 	if (InName == TweenOverlayName)
 	{
-		return TweenWidget.IsValid();
+		return TweenWidgetParent.IsValid();
 	}
 
 	TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
@@ -226,7 +226,7 @@ void FControlRigEditModeToolkit::CreateAndShowTweenOverlay()
 	}
 	UpdateTweenWidgetLocation(NewTweenWidgetLocation);
 
-	SAssignNew(TweenWidget, SHorizontalBox)
+	SAssignNew(TweenWidgetParent, SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
@@ -234,35 +234,62 @@ void FControlRigEditModeToolkit::CreateAndShowTweenOverlay()
 		.HAlign(HAlign_Left)
 		.Padding(TAttribute<FMargin>(this, &FControlRigEditModeToolkit::GetTweenWidgetPadding))
 		[
-			SNew(SControlRigTweenWidget)
+			SAssignNew(TweenWidget, SControlRigTweenWidget)
 			.InOwningToolkit(SharedThis(this))
 		];
 
 	TryShowTweenOverlay();
 }
 
+void FControlRigEditModeToolkit::GetToNextActiveSlider()
+{
+	if (TweenWidgetParent && TweenWidget)
+	{
+		TweenWidget->GetToNextActiveSlider();
+	}
+}
+bool FControlRigEditModeToolkit::CanChangeAnimSliderTool() const
+{
+	return (TweenWidgetParent && TweenWidget);
+}
+
+void FControlRigEditModeToolkit::DragAnimSliderTool(double IncrementVal)
+{
+	if (TweenWidgetParent && TweenWidget)
+	{
+		TweenWidget->DragAnimSliderTool(IncrementVal);
+	}
+}
+void FControlRigEditModeToolkit::ResetAnimSlider()
+{
+	if (TweenWidgetParent && TweenWidget)
+	{
+		TweenWidget->ResetAnimSlider();
+	}
+}
 void FControlRigEditModeToolkit::TryShowTweenOverlay()
 {
-	if (TweenWidget)
+	if (TweenWidgetParent)
 	{
-		GetToolkitHost()->AddViewportOverlayWidget(TweenWidget.ToSharedRef());
+		GetToolkitHost()->AddViewportOverlayWidget(TweenWidgetParent.ToSharedRef());
 	}
 }
 
 void FControlRigEditModeToolkit::RemoveAndDestroyTweenOverlay()
 {
 	TryRemoveTweenOverlay();
-	if (TweenWidget)
+	if (TweenWidgetParent)
 	{
+		TweenWidgetParent.Reset();
 		TweenWidget.Reset();
 	}
 }
 
 void FControlRigEditModeToolkit::TryRemoveTweenOverlay()
 {
-	if (IsHosted() && TweenWidget)
+	if (IsHosted() && TweenWidgetParent)
 	{
-		GetToolkitHost()->RemoveViewportOverlayWidget(TweenWidget.ToSharedRef());
+		GetToolkitHost()->RemoveViewportOverlayWidget(TweenWidgetParent.ToSharedRef());
 	}
 }
 

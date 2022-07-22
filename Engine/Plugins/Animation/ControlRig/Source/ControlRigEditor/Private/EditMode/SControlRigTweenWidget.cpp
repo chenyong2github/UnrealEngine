@@ -43,8 +43,8 @@ void SControlRigTweenSlider::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				[
-					SNew(SSpinBox<double>)
+				[	
+					SAssignNew(SpinBox,SSpinBox<double>)
 					.PreventThrottling(true)
 					.Value(this, &SControlRigTweenSlider::OnGetPoseBlendValue)
 					.ToolTipText(LOCTEXT("TweenTooltip", "Key at current frame between previous(-1.0) and next(1.0) poses. Use Ctrl drag for under and over shoot."))
@@ -58,13 +58,14 @@ void SControlRigTweenSlider::Construct(const FArguments& InArgs)
 					.SupportDynamicSliderMinValue(true)
 					.SupportDynamicSliderMaxValue(true)
 					.ClearKeyboardFocusOnCommit(true)
+					.SelectAllTextOnCommit(false)
 					.OnValueChanged(this, &SControlRigTweenSlider::OnPoseBlendChanged)
 					.OnValueCommitted(this, &SControlRigTweenSlider::OnPoseBlendCommited)
 					.OnBeginSliderMovement(this, &SControlRigTweenSlider::OnBeginSliderMovement)
 					.OnEndSliderMovement(this, &SControlRigTweenSlider::OnEndSliderMovement)
+					
 				]
 			]
-		
 	];	
 }
 
@@ -79,6 +80,39 @@ void SControlRigTweenSlider::OnPoseBlendChanged(double ChangedVal)
 
 }
 
+void SControlRigTweenSlider::ResetAnimSlider()
+{
+	if (SpinBox.IsValid())
+	{
+		PoseBlendValue = 0.0;
+	}
+}
+
+void SControlRigTweenSlider::DragAnimSliderTool(double IncrementVal)
+{
+	if (SpinBox.IsValid())
+	{
+		//if control is down then act like we are overriding the slider
+		const bool bCtrlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+		const double MinSliderVal = bCtrlDown ? SpinBox->GetMinValue() : SpinBox->GetMinSliderValue();
+		const double MaxSliderVal = bCtrlDown ? SpinBox->GetMaxValue() : SpinBox->GetMaxSliderValue();
+
+		double NewVal = SpinBox->GetValue() + IncrementVal;
+		if (NewVal > MaxSliderVal)
+		{
+			NewVal = MaxSliderVal;
+		}
+		else if (NewVal < MinSliderVal)
+		{
+			NewVal = MinSliderVal;
+		}
+		Setup();
+		bIsBlending = true;
+		OnPoseBlendChanged(NewVal);
+		bIsBlending = false;
+	}
+}
+
 void SControlRigTweenSlider::OnBeginSliderMovement()
 {
 	if (bSliderStartedTransaction == false)
@@ -87,7 +121,6 @@ void SControlRigTweenSlider::OnBeginSliderMovement()
 		if (bIsBlending)
 		{
 			GEditor->BeginTransaction(LOCTEXT("AnimSliderBlend", "AnimSlider Blend"));
-
 		}
 	}
 }
@@ -110,10 +143,20 @@ void SControlRigTweenSlider::OnEndSliderMovement(double NewValue)
 	{
 		GEditor->EndTransaction();
 		bSliderStartedTransaction = false;
-
+		bIsBlending = false;
+		PoseBlendValue = 0.0f;
 	}
+	// Set focus back to the parent widget for users focusing the slider
+	TSharedRef<SWidget> ThisRef = AsShared();
+	FSlateApplication::Get().ForEachUser([&ThisRef](FSlateUser& User) {
+		if (User.HasFocusedDescendants(ThisRef) && ThisRef->IsParentValid())
+		{
+			User.SetFocus(ThisRef->GetParentWidget().ToSharedRef());
+		}
+	});
 	WeakSequencer = nullptr;
 }
+
 
 FReply SControlRigTweenWidget::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
@@ -197,9 +240,9 @@ void SControlRigTweenWidget::Construct(const FArguments& InArgs)
 {
 	TSharedPtr<FBaseAnimSlider> TweenPtr = MakeShareable(new FControlsToTween());
 	AnimBlendTools.RegisterAnimSlider(TweenPtr);
-	TSharedPtr<FBaseAnimSlider> AmplifyPtr = MakeShareable(new FAmplifySlider());
-	AnimBlendTools.RegisterAnimSlider(AmplifyPtr);
-	TSharedPtr<FBaseAnimSlider> BlendNeighborPtr = MakeShareable(new FBlendToPreviousNextSlider());
+	TSharedPtr<FBaseAnimSlider> PushPullPtr = MakeShareable(new FPushPullSlider());
+	AnimBlendTools.RegisterAnimSlider(PushPullPtr);
+	TSharedPtr<FBaseAnimSlider> BlendNeighborPtr = MakeShareable(new FBlendNeighborSlider());
 	AnimBlendTools.RegisterAnimSlider(BlendNeighborPtr);
 
 	OwningToolkit = InArgs._InOwningToolkit;
@@ -286,7 +329,29 @@ void SControlRigTweenWidget::Construct(const FArguments& InArgs)
 			MainBox
 		]
 	];
-
 }
+
+void SControlRigTweenWidget::GetToNextActiveSlider()
+{
+	int32 Index = ActiveSlider < (AnimBlendTools.GetAnimSliders().Num() - 1) ? ActiveSlider + 1 : 0;
+	OnSelectSliderTool(Index);
+}
+
+void SControlRigTweenWidget::DragAnimSliderTool(double IncrementVal)
+{
+	if (SliderWidget.IsValid())
+	{
+		SliderWidget->DragAnimSliderTool(IncrementVal);
+	}
+}
+
+void SControlRigTweenWidget::ResetAnimSlider()
+{
+	if (SliderWidget.IsValid())
+	{
+		SliderWidget->ResetAnimSlider();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

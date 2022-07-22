@@ -23,8 +23,14 @@ public:
 	/** Toggles hiding all manipulators on active control rig in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleManipulators;
 
-	/** Toggles hiding all manipulators on all control rigsin the viewport */
+	/** Toggles hiding all manipulators on all control rigs in the viewport */
 	TSharedPtr< FUICommandInfo > ToggleAllManipulators;
+
+	/** Drag Anim Slider Tool*/
+	TSharedPtr< FUICommandInfo > DragAnimSliderTool;
+
+	/**  Change current Anim Slider Tool */
+	TSharedPtr< FUICommandInfo > ChangeAnimSliderTool;
 
 	/** Reset Transforms for Controls */
 	TSharedPtr< FUICommandInfo > ResetTransforms;

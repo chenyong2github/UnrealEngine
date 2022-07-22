@@ -197,7 +197,7 @@ struct FControlsToTween :public FBasicBlendSlider
 *   Slider that will amplify or reduce the differences from the slope between the next or previous
 *
 **/
-struct FAmplifySlider :public FBasicBlendSlider
+struct FPushPullSlider :public FBasicBlendSlider
 {
 	//BaseAnimSlider overrides
 	virtual FText GetText();
@@ -213,7 +213,7 @@ struct FAmplifySlider :public FBasicBlendSlider
 *   Similar to tween but will blend off of the current position when blending to the next or previous keys
 *
 **/
-struct FBlendToPreviousNextSlider : public FBasicBlendSlider
+struct FBlendNeighborSlider : public FBasicBlendSlider
 {
 	//BaseAnimSlider overrides
 	virtual FText GetText();

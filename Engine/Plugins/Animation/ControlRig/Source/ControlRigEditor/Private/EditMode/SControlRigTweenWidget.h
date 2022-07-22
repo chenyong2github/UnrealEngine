@@ -15,6 +15,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Tools/ControlRigPose.h"
 #include "Tools/ControlRigTweener.h"
+#include "Widgets/Input/SSpinBox.h"
 
 class UControlRig;
 class ISequencer;
@@ -31,7 +32,8 @@ class SControlRigTweenSlider : public SCompoundWidget
 
 	void Construct(const FArguments& InArgs);
 	void SetAnimSlider(TSharedPtr<FBaseAnimSlider>& InAnimSlider) { AnimSlider = InAnimSlider; }
-
+	void DragAnimSliderTool(double IncrementVal);
+	void ResetAnimSlider();
 private:
 
 
@@ -52,6 +54,7 @@ private:
 	
 	TWeakPtr<ISequencer> WeakSequencer;
 	TSharedPtr<FBaseAnimSlider> AnimSlider;
+	TSharedPtr<SSpinBox<double>> SpinBox;
 
 };
 
@@ -67,13 +70,15 @@ class SControlRigTweenWidget : public SCompoundWidget
 
 	void Construct(const FArguments& InArgs);
 
+	void GetToNextActiveSlider();
+	void DragAnimSliderTool(double IncrementVal);
+	void ResetAnimSlider();
+
 private:
 
 	void OnSelectSliderTool(int32 Index);
 	FText GetActiveSliderName() const;
 	FText GetActiveSliderTooltip() const;
-
-
 
 	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{

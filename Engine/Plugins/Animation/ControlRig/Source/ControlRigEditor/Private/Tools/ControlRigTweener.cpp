@@ -578,7 +578,7 @@ double FControlsToTween::DoBlend(const double PreviousTime, const double Previou
 
 FText FControlsToTween::GetText()
 {
-	return LOCTEXT("TC", "TC");
+	return LOCTEXT("TW", "TW");
 }
 
 FText FControlsToTween::GetTooltipText()
@@ -598,12 +598,12 @@ bool FControlsToTween::Setup(TWeakPtr<ISequencer>& InSequencer)
 
 /*
 *
-*  Amplify Slider
+*  PushPull Slider
 *
 */
 
 
-double FAmplifySlider::DoBlend(const double PreviousTime, const double PreviousValue, const double CurrentTime, const double CurrentValue,
+double FPushPullSlider::DoBlend(const double PreviousTime, const double PreviousValue, const double CurrentTime, const double CurrentValue,
 	const double NextTime, const double NextValue, const double BlendValue)
 {
 	const double T = (CurrentTime - PreviousTime) / (NextTime - PreviousTime);
@@ -621,14 +621,14 @@ double FAmplifySlider::DoBlend(const double PreviousTime, const double PreviousV
 	return NewValue;
 }
 
-FText FAmplifySlider::GetText()
+FText FPushPullSlider::GetText()
 {
-	return LOCTEXT("AA", "AA");
+	return LOCTEXT("PP", "PP");
 }
 
-FText FAmplifySlider::GetTooltipText()
+FText FPushPullSlider::GetTooltipText()
 {
-	return LOCTEXT("AmplifySliderTooltip", "Amplify or diminish between the next and previous keys");
+	return LOCTEXT("PushPullTooltip", "Push or pull the values to the interpolation between the previous and next keys");
 }
 
 
@@ -638,7 +638,7 @@ FText FAmplifySlider::GetTooltipText()
 *
 */
 
-double FBlendToPreviousNextSlider::DoBlend(const double PreviousTime, const double PreviousValue, const double CurrentTime, const double CurrentValue,
+double FBlendNeighborSlider::DoBlend(const double PreviousTime, const double PreviousValue, const double CurrentTime, const double CurrentValue,
 	const double NextTime, const double NextValue, const double BlendValue)
 {
 	double NewValue;
@@ -653,12 +653,12 @@ double FBlendToPreviousNextSlider::DoBlend(const double PreviousTime, const doub
 	return NewValue;
 }
 
-FText FBlendToPreviousNextSlider::GetText()
+FText FBlendNeighborSlider::GetText()
 {
-	return LOCTEXT("PN", "PN");
+	return LOCTEXT("BN", "BN");
 }
 
-FText FBlendToPreviousNextSlider::GetTooltipText()
+FText FBlendNeighborSlider::GetTooltipText()
 {
 	return LOCTEXT("BlendToNeighborsSliderTooltip", "Blend to the next or previous values for selected keys or objects");
 }
