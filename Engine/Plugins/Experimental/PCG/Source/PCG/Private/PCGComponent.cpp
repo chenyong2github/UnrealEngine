@@ -671,7 +671,11 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool 
 		SetupTrackingCallbacks();
 		RefreshTrackingData();
 		DirtyCacheForAllTrackedTags();
-		UpdateTrackedLandscape();
+
+		if (bIsStructural)
+		{
+			UpdateTrackedLandscape();
+		}
 
 		DirtyGenerated();
 		if (InGraph && bShouldRefresh)
