@@ -467,7 +467,11 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual FBoxSphereBounds CalcLocalBounds() const { return LocalBounds; }
 
-	virtual bool HasAnySockets() const override { return false; }
+	virtual bool HasAnySockets() const override;
+	virtual bool DoesSocketExist(FName InSocketName) const override;
+	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
+	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
+	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
 	//~ Begin USceneComponent Interface.
@@ -1086,6 +1090,8 @@ private:
 	void UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool UseClusterCrumbling, bool HasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut);
 	void ProcessRepData();
 
+	void UpdateAttachedChildrenTransform() const;
+	
 	void BuildInitialFilterData();
 
 	/** The clusters we need to replicate */

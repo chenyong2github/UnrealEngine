@@ -396,6 +396,11 @@ public:
 	 * Uninitialized level array should be correct size and defaulted to zeros.
 	 */
 	static int32 CalculateAndSetLevel(int32 TransformGroupIdx, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels);
+
+	void SetPostPhysicsSyncCallback(TFunction<void()> Callback)
+	{
+		PostPhysicsSyncCallback = Callback;
+	}
 	
 protected:
 	/**
@@ -504,6 +509,9 @@ private:
 	FRecordedTransformTrack RecordedTracks;
 #endif
 
+	// called after we sync the physics thread data ( called on the game thread )
+	TFunction<void()> PostPhysicsSyncCallback;
+	
 	// Per object collision fraction.
 	float CollisionParticlesPerObjectFraction;
 

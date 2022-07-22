@@ -2062,6 +2062,100 @@ void UGeometryCollectionComponent::OnUpdateTransform(EUpdateTransformFlags Updat
 	}
 }
 
+bool UGeometryCollectionComponent::HasAnySockets() const
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		return (RestCollection->GetGeometryCollection()->BoneName.Num() > 0);
+	}
+	return false;
+}
+
+bool UGeometryCollectionComponent::DoesSocketExist(FName InSocketName) const
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		return RestCollection->GetGeometryCollection()->BoneName.Contains(InSocketName.ToString());
+	}
+	return false;
+}
+
+FTransform UGeometryCollectionComponent::GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace) const
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = RestCollection->GetGeometryCollection();
+		const int32 TransformIndex = Collection->BoneName.Find(InSocketName.ToString());
+		if (TransformIndex != INDEX_NONE)
+		{
+			
+			if (GlobalMatrices.IsValidIndex(TransformIndex))
+			{
+				const FTransform BoneComponentSpaceTransform = FTransform(GlobalMatrices[TransformIndex]);
+				switch (TransformSpace)
+				{
+				case RTS_World:
+					return BoneComponentSpaceTransform * GetComponentTransform();
+
+				case RTS_Actor:
+					{
+						if (const AActor* Actor = GetOwner())
+						{
+							const FTransform SocketWorldSpaceTransform = BoneComponentSpaceTransform * GetComponentTransform();
+							return SocketWorldSpaceTransform.GetRelativeTransform(Actor->GetTransform());
+						}
+						break;
+					}
+
+				case RTS_Component:
+					return BoneComponentSpaceTransform;
+					
+				case RTS_ParentBoneSpace:
+					{
+						const int32 ParentTransformIndex = Collection->Parent[TransformIndex];
+						FTransform ParentComponentSpaceTransform{ FTransform::Identity };
+						if (GlobalMatrices.IsValidIndex(ParentTransformIndex))
+						{
+							ParentComponentSpaceTransform = FTransform(GlobalMatrices[ParentTransformIndex]);
+						}
+						return BoneComponentSpaceTransform.GetRelativeTransform(ParentComponentSpaceTransform);
+					}
+
+				default:
+					check(false);
+				}
+			}
+		}
+	}
+	return Super::GetSocketTransform(InSocketName, TransformSpace);
+}
+
+void UGeometryCollectionComponent::QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		for (const FString& BoneName: RestCollection->GetGeometryCollection()->BoneName)
+		{
+			FComponentSocketDescription& Desc = OutSockets.AddZeroed_GetRef();
+			Desc.Name = *BoneName;
+			Desc.Type = EComponentSocketType::Type::Bone;
+		}
+	}
+}
+
+void UGeometryCollectionComponent::UpdateAttachedChildrenTransform() const
+{
+	// todo(chaos) : find a way to only update that of transform have changed
+	// right now this does not work properly because the dirty flags may not be updated at the right time
+	//if (PhysicsProxy && PhysicsProxy->IsGTCollectionDirty())
+	{
+	 	for (const TObjectPtr<USceneComponent>& AttachedChild: this->GetAttachChildren())
+	 	{
+	 		AttachedChild->UpdateComponentToWorld();
+	 	}
+	}
+}
+
 void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);
@@ -2093,6 +2187,16 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			IncrementSleepTimer(DeltaTime);
 			IncrementBreakTimer(DeltaTime);
 
+			// todo(chaos) : find a way to only update that of transform have changed
+			// right now this does not work properly because the dirty flags may not be updated at the right time
+			//if (PhysicsProxy && PhysicsProxy->IsGTCollectionDirty())
+			// {
+			// 	for (const TObjectPtr<USceneComponent>& AttachedChild: this->GetAttachChildren())
+			// 	{
+			// 		AttachedChild->UpdateComponentToWorld();
+			// 	}
+			// }
+			
 			if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
@@ -2107,7 +2211,7 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 				MarkRenderTransformDirty();
 				MarkRenderDynamicDataDirty();
 				bRenderStateDirty = false;
-				
+
 				const UWorld* MyWorld = GetWorld();
 				if (MyWorld && MyWorld->IsGameWorld())
 				{
@@ -2406,6 +2510,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	}
 #endif
 	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter, CollectorGuid);
+	PhysicsProxy->SetPostPhysicsSyncCallback([this]() { UpdateAttachedChildrenTransform(); }); 
 	FPhysScene_Chaos* Scene = GetInnerChaosScene();
 	Scene->AddObject(this, PhysicsProxy);
 
