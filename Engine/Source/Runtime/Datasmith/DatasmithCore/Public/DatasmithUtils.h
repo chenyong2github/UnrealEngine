@@ -36,7 +36,7 @@ public:
 	static void SanitizeStringInplace(FString& InString);
 
 	static int32 GetEnterpriseVersionAsInt();
-	static FString GetEnterpriseVersionAsString();
+	static FString GetEnterpriseVersionAsString(bool bWithChangelist=false);
 
 	/** Returns the Datasmith data format version */
 	static float GetDatasmithFormatVersionAsFloat();

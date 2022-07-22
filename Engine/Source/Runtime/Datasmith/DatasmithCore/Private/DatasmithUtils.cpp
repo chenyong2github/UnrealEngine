@@ -173,9 +173,10 @@ int32 FDatasmithUtils::GetEnterpriseVersionAsInt()
 	return MajorVersion + MinorVersion + PatchVersion;
 }
 
-FString FDatasmithUtils::GetEnterpriseVersionAsString()
+FString FDatasmithUtils::GetEnterpriseVersionAsString(bool bWithChangelist)
 {
-	return FEngineVersion::Current().ToString( EVersionComponent::Changelist );
+	EVersionComponent Format = (bWithChangelist && FEngineVersion::Current().HasChangelist()) ? EVersionComponent::Changelist : EVersionComponent::Patch;
+	return FEngineVersion::Current().ToString(Format);
 }
 
 float FDatasmithUtils::GetDatasmithFormatVersionAsFloat()
