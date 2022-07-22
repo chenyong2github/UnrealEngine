@@ -2627,7 +2627,10 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		}
 	}
 
-	PostPhysicsSyncCallback();
+	if (PostPhysicsSyncCallback)
+	{
+		PostPhysicsSyncCallback();
+	}
 	
 	return true;
 }
