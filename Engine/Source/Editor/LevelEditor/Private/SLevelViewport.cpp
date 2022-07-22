@@ -390,7 +390,10 @@ void SLevelViewport::ConstructViewportOverlayContent()
 			[
 				SNew(SWorldPartitionViewportWidget)
 				.Clickable(true)
-				.Visibility_Lambda([this]() { return SWorldPartitionViewportWidget::GetVisibility(GetWorld());})
+				.Visibility_Lambda([this]() 
+				{ 
+					return (!ActiveViewport.IsValid() || IsPlayInEditorViewportActive()) ? EVisibility::Collapsed : SWorldPartitionViewportWidget::GetVisibility(GetWorld());
+				})
 			]
 		]
 	];
