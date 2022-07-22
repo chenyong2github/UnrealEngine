@@ -1242,11 +1242,11 @@ void UDeviceProfileManager::SetActiveDeviceProfile( UDeviceProfile* DeviceProfil
 	const int32 NumTextureLODGroups = ActiveDeviceProfile ? ActiveDeviceProfile->TextureLODGroups.Num() : 0;
 	UE_LOG(LogDeviceProfileManager, Log, TEXT("Active device profile: [%p][%p %d] %s"), ActiveDeviceProfile, TextureLODGroupsAddr, NumTextureLODGroups, ActiveDeviceProfile ? *ActiveDeviceProfile->GetName() : TEXT("None"));
 
-	ActiveDeviceProfileChangedDelegate.Broadcast();
-
 #if CSV_PROFILER
 	CSV_METADATA(TEXT("DeviceProfile"), *GetActiveDeviceProfileName());
 #endif
+
+	ActiveDeviceProfileChangedDelegate.Broadcast();
 
 	// Update the crash context 
 	FGenericCrashContext::SetEngineData(TEXT("DeviceProfile.Name"), GetActiveDeviceProfileName());
