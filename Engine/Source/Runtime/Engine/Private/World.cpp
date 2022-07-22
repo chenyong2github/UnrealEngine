@@ -534,11 +534,13 @@ void UWorld::Serialize( FArchive& Ar )
 		GetOutermost()->ThisContainsMap();
 	}
 
-	// Serialize World composition for PIE
+#if WITH_EDITOR
+	// Serialize for PIE
 	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
 	{
 		Ar << OriginLocation;
 		Ar << RequestedOriginLocation;
+		Ar << OriginalWorldName;
 	}
 	
 	// UWorlds loaded/duplicated for PIE must lose RF_Public and RF_Standalone since they should not be referenced by objects in other packages and they should be GCed normally
@@ -546,6 +548,7 @@ void UWorld::Serialize( FArchive& Ar )
 	{
 		ClearFlags(RF_Public|RF_Standalone);
 	}
+#endif
 }
 
 void UWorld::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)

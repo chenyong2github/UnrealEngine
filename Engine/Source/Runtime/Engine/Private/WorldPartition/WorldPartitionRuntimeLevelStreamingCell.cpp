@@ -118,7 +118,15 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		UWorld* LevelStreamingOuterWorld = IsRunningCommandlet() ? OuterWorld : OwningWorld;
 		UWorldPartitionLevelStreamingDynamic* NewLevelStreaming = NewObject<UWorldPartitionLevelStreamingDynamic>(LevelStreamingOuterWorld, UWorldPartitionLevelStreamingDynamic::StaticClass(), LevelStreamingName, RF_NoFlags, NULL);
 		FString PackageName = !InPackageName.IsEmpty() ? InPackageName : UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), OuterWorld);
-		TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *PackageName, *OuterWorld->GetName())));
+				
+		FName WorldName = OuterWorld->GetFName();
+		// In PIE make sure that we are using the proper original world name so that actors resolve their outer property
+		if (OwningWorld->IsPlayInEditor() && !OuterWorld->OriginalWorldName.IsNone())
+		{
+			WorldName = OuterWorld->OriginalWorldName;
+		}
+
+		TSoftObjectPtr<UWorld> WorldAsset(FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *PackageName, *WorldName.ToString())));
 		NewLevelStreaming->SetWorldAsset(WorldAsset);
 		// Transfer WorldPartition's transform to Level
 		NewLevelStreaming->LevelTransform = WorldPartition->GetInstanceTransform();
