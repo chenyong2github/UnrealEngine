@@ -645,6 +645,7 @@ void UPCGMetadata::MergeAttributes(PCGMetadataEntryKey InKeyA, const UPCGMetadat
 
 void UPCGMetadata::MergeAttributesSubset(PCGMetadataEntryKey InKeyA, const UPCGMetadata* InMetadataA, const UPCGMetadata* InMetadataSubsetA, PCGMetadataEntryKey InKeyB, const UPCGMetadata* InMetadataB, const UPCGMetadata* InMetadataSubsetB, PCGMetadataEntryKey& OutKey, EPCGMetadataOp Op)
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGMetadata::MergeAttributesSubset);
 	// Early out: nothing to do if both input metadata are null / points have no assigned metadata
 	if (!InMetadataA && !InMetadataB)
 	{
@@ -744,6 +745,52 @@ void UPCGMetadata::AccumulateWeightedAttributes(PCGMetadataEntryKey InKey, const
 			{
 				Attribute->SetValue(OutKey, OtherAttribute, InKey);
 			}
+		}
+	}
+	AttributeLock.ReadUnlock();
+}
+
+void UPCGMetadata::ComputePointWeightedAttribute(FPCGPoint& OutPoint, const TArrayView<TPair<const FPCGPoint*, float>>& InWeightedPoints, const UPCGMetadata* InMetadata)
+{
+	TArray<TPair<PCGMetadataEntryKey, float>, TInlineAllocator<4>> InWeightedKeys;
+	InWeightedKeys.Reserve(InWeightedPoints.Num());
+
+	for (const TPair<const FPCGPoint*, float>& WeightedPoint : InWeightedPoints)
+	{
+		InWeightedKeys.Emplace(WeightedPoint.Key->MetadataEntry, WeightedPoint.Value);
+	}
+
+	ComputeWeightedAttribute(OutPoint.MetadataEntry, MakeArrayView(InWeightedKeys), InMetadata);
+}
+
+void UPCGMetadata::ComputeWeightedAttribute(PCGMetadataEntryKey& OutKey, const TArrayView<TPair<PCGMetadataEntryKey, float>>& InWeightedKeys, const UPCGMetadata* InMetadata)
+{
+	if (!InMetadata || InWeightedKeys.IsEmpty())
+	{
+		return;
+	}
+
+	// Could ensure that InitializeOnSet returns false...
+	AttributeLock.ReadLock();
+	for (const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
+	{
+		const FName& AttributeName = AttributePair.Key;
+		FPCGMetadataAttributeBase* Attribute = AttributePair.Value;
+
+		if (!Attribute->AllowsInterpolation())
+		{
+			continue;
+		}
+
+		if (const FPCGMetadataAttributeBase* OtherAttribute = InMetadata->GetConstAttribute(AttributeName))
+		{
+			if (OtherAttribute->GetTypeId() != Attribute->GetTypeId())
+			{
+				UE_LOG(LogPCG, Error, TEXT("Metadata type mismatch with attribute %s"), *AttributeName.ToString());
+				continue;
+			}
+
+			Attribute->SetWeightedValue(OutKey, OtherAttribute, InWeightedKeys);
 		}
 	}
 	AttributeLock.ReadUnlock();

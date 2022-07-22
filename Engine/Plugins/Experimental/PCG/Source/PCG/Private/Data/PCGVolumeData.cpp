@@ -57,6 +57,7 @@ const UPCGPointData* UPCGVolumeData::CreatePointData(FPCGContext* Context) const
 
 bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGVolumeData::SamplePoint);
 	// TODO: add metadata
 	// TODO: consider bounds
 	const FVector InPosition = InTransform.GetLocation();

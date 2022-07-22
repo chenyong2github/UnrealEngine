@@ -219,8 +219,15 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 
 			if (OutMetadata)
 			{
-				//TODO review op
-				OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, EPCGMetadataOp::Max);
+				if (SplinePoint.MetadataEntry != PCGInvalidEntryKey && SurfacePoint.MetadataEntry)
+				{
+					//TODO review op
+					OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, EPCGMetadataOp::Max);
+				}
+				else if (SurfacePoint.MetadataEntry != PCGInvalidEntryKey)
+				{
+					OutPoint.MetadataEntry = SurfacePoint.MetadataEntry;
+				}
 			}
 
 			return true;

@@ -224,7 +224,7 @@ void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetad
 		// If we're not given the parent metadata, we'll assume it is the current metadata's parent
 		if (!ParentMetadata || ParentMetadata->HasParent(ParentMetadata))
 		{
-			Metadata->AddEntry(ParentPoint.MetadataEntry);
+			Point.MetadataEntry = Metadata->AddEntry(ParentPoint.MetadataEntry);
 		}
 		else
 		{

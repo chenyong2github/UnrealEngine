@@ -65,6 +65,7 @@ FBox UPCGIntersectionData::GetStrictBounds() const
 
 bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGIntersectionData::SamplePoint);
 	check(A && B);
 	const UPCGSpatialData* X = (A->HasNonTrivialTransform() || !B->HasNonTrivialTransform()) ? A : B;
 	const UPCGSpatialData* Y = (X == A) ? B : A;
@@ -88,7 +89,18 @@ bool UPCGIntersectionData::SamplePoint(const FTransform& InTransform, const FBox
 
 	if (OutMetadata)
 	{
-		OutMetadata->MergePointAttributesSubset(PointFromX, OutMetadata, X->Metadata, PointFromY, OutMetadata, Y->Metadata, OutPoint, EPCGMetadataOp::Min);
+		if (PointFromX.MetadataEntry != PCGInvalidEntryKey && PointFromY.MetadataEntry != PCGInvalidEntryKey)
+		{
+			OutMetadata->MergePointAttributesSubset(PointFromX, OutMetadata, X->Metadata, PointFromY, OutMetadata, Y->Metadata, OutPoint, EPCGMetadataOp::Min);
+		}
+		else if (PointFromX.MetadataEntry != PCGInvalidEntryKey)
+		{
+			OutPoint.MetadataEntry = PointFromX.MetadataEntry;
+		}
+		else
+		{
+			OutPoint.MetadataEntry = PointFromY.MetadataEntry;
+		}
 	}
 
 	return true;
@@ -136,30 +148,45 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 	Data->InitializeFromData(this, SourcePointData->Metadata);
 	Data->Metadata->AddAttributes(Y->Metadata);
 
+	UPCGMetadata* TempYMetadata = nullptr;
+	if (Y->Metadata)
+	{
+		TempYMetadata = Y->Metadata ? NewObject<UPCGMetadata>() : nullptr;
+		TempYMetadata->Initialize(Y->Metadata);
+	}
+
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, &SourcePoints, Y](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, &SourcePoints, Y, TempYMetadata](int32 Index, FPCGPoint& OutPoint)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGIntersectionData::CreateAndFilterPointData::Iteration);
 		const FPCGPoint& Point = SourcePoints[Index];
 
 		FPCGPoint PointFromY;
 #if WITH_EDITORONLY_DATA
-		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, Data->Metadata) && !bKeepZeroDensityPoints)
+		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, TempYMetadata) && !bKeepZeroDensityPoints)
 #else
-		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, Data->Metadata))
+		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, TempYMetadata))
 #endif
 		{
 			return false;
 		}
 
 		OutPoint = Point;
-		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+		//UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
 		OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, PointFromY.Density, DensityFunction);
 		OutPoint.Color = Point.Color * PointFromY.Color;
 
 		if (Data->Metadata)
 		{
-			Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromY, Data->Metadata, Y->Metadata, OutPoint, EPCGMetadataOp::Min);
+			if (Point.MetadataEntry != PCGInvalidEntryKey && PointFromY.MetadataEntry != PCGInvalidEntryKey)
+			{
+				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromY, TempYMetadata, TempYMetadata, OutPoint, EPCGMetadataOp::Min);
+			}
+			else if (PointFromY.MetadataEntry != PCGInvalidEntryKey)
+			{
+				OutPoint.MetadataEntry = PointFromY.MetadataEntry;
+			}
 		}
 
 		return true;

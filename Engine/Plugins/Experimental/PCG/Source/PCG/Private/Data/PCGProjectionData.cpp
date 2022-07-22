@@ -73,6 +73,7 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 
 bool UPCGProjectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGProjectionData::SamplePoint);
 	FPCGPoint PointFromSource;
 	if (!Source->SamplePoint(InTransform, InBounds, PointFromSource, OutMetadata))
 	{
@@ -91,7 +92,7 @@ bool UPCGProjectionData::SamplePoint(const FTransform& InTransform, const FBox& 
 	OutPoint.Density *= PointFromTarget.Density;
 	OutPoint.Color *= PointFromTarget.Color;
 	
-	if (OutMetadata)
+	if (OutMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
 	{
 		//METADATA TODO Review op
 		OutMetadata->MergePointAttributesSubset(PointFromSource, OutMetadata, Source->Metadata, PointFromTarget, OutMetadata, Target->Metadata, OutPoint, EPCGMetadataOp::Max);
@@ -118,17 +119,24 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	check(PointData->Metadata);
 	PointData->Metadata->AddAttributes(Target->Metadata);
 
+	UPCGMetadata* TempTargetMetadata = nullptr;
+	if (Target->Metadata)
+	{
+		TempTargetMetadata = NewObject<UPCGMetadata>();
+		TempTargetMetadata->Initialize(Target->Metadata);
+	}
+
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, SourcePointData, PointData, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, SourcePointData, PointData, TempTargetMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& SourcePoint = SourcePoints[Index];
 
 		FPCGPoint PointFromTarget;
 #if WITH_EDITORONLY_DATA
-		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, PointData->Metadata) && !bKeepZeroDensityPoints)
+		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, TempTargetMetadata) && !bKeepZeroDensityPoints)
 #else
-		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, PointData->Metadata))
+		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, TempTargetMetadata))
 #endif
 		{
 			return false;
@@ -141,10 +149,10 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		OutPoint.Density *= PointFromTarget.Density;
 		OutPoint.Color *= PointFromTarget.Color;
 
-		if (PointData->Metadata)
+		if (PointData->Metadata && TempTargetMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
 		{
 			//METADATA TODO review op
-			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, PointData->Metadata, Target->Metadata, OutPoint, EPCGMetadataOp::Max);
+			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, TempTargetMetadata, TempTargetMetadata, OutPoint, EPCGMetadataOp::Max);
 		}
 
 		return true;

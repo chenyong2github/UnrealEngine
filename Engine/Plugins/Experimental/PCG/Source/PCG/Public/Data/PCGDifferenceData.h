@@ -39,6 +39,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void SetDensityFunction(EPCGDifferenceDensityFunction InDensityFunction);
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
+	bool bDiffMetadata = true;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

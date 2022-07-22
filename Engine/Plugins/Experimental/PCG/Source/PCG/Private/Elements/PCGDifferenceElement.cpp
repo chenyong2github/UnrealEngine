@@ -101,6 +101,7 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 				{
 					DifferenceData = (UnionData ? UnionData : FirstSpatialData)->Subtract(SpatialData);
 					DifferenceData->SetDensityFunction(Settings->DensityFunction);
+					DifferenceData->bDiffMetadata = Settings->bDiffMetadata;
 #if WITH_EDITORONLY_DATA
 					DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #endif

@@ -48,8 +48,6 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 	// TODO: embarassingly parallel loop
 	for (const FPCGTaggedData& Input : Inputs)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDensityFilterElement::Execute::InputLoop);
-
 		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)

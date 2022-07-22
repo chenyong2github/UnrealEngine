@@ -93,6 +93,12 @@ public:
 		Accumulate(ItemKey, InAttribute, InEntryKey, Weight);
 	}
 
+	virtual void SetWeightedValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, const TArrayView<TPair<PCGMetadataEntryKey, float>> InWeightedKeys) override
+	{
+		check(ItemKey != PCGInvalidEntryKey);
+		Accumulate(ItemKey, InAttribute, InWeightedKeys);
+	}
+
 	virtual void SetValue(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttributeA, PCGMetadataEntryKey InEntryKeyA, const FPCGMetadataAttributeBase* InAttributeB, PCGMetadataEntryKey InEntryKeyB, EPCGMetadataOp Op) override
 	{
 		check(ItemKey != PCGInvalidEntryKey);
@@ -386,6 +392,27 @@ protected:
 
 	template<typename IT = T, typename TEnableIf<!PCG::Private::MetadataTraits<IT>::CanInterpolate>::Type* = nullptr>
 	void Accumulate(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, PCGMetadataEntryKey InEntryKey, float Weight)
+	{
+		// Empty on purpose
+	}
+
+	template<typename IT = T, typename TEnableIf<PCG::Private::MetadataTraits<IT>::CanInterpolate>::Type* = nullptr>
+	void Accumulate(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, const TArrayView<TPair<PCGMetadataEntryKey, float>>& InWeightedKeys)
+	{
+		IT Value = PCG::Private::MetadataTraits<IT>::ZeroValue();
+		for (const TPair<PCGMetadataEntryKey, float>& WeightedEntry : InWeightedKeys)
+		{
+			PCG::Private::MetadataTraits<IT>::WeightedSum(
+				Value,
+				static_cast<const FPCGMetadataAttribute<T>*>(InAttribute)->GetValueFromItemKey(WeightedEntry.Key),
+				WeightedEntry.Value);
+		}
+
+		SetValue(ItemKey, Value);
+	}
+
+	template<typename IT = T, typename TEnableIf<!PCG::Private::MetadataTraits<IT>::CanInterpolate>::Type* = nullptr>
+	void Accumulate(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttribute, const TArrayView<TPair<PCGMetadataEntryKey, float>>& InWeightedKeys)
 	{
 		// Empty on purpose
 	}

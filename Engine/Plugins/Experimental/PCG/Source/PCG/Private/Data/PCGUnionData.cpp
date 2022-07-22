@@ -83,6 +83,7 @@ FBox UPCGUnionData::GetStrictBounds() const
 
 bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::SamplePoint);
 	FTransform PointTransform = InTransform;
 	bool bHasSetPoint = false;
 
@@ -131,7 +132,14 @@ bool UPCGUnionData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 				// Merge properties into OutPoint
 				if (OutMetadata)
 				{
-					OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, Data[DataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+					if (OutPoint.MetadataEntry != PCGInvalidEntryKey && PointInData.MetadataEntry != PCGInvalidEntryKey)
+					{
+						OutMetadata->MergePointAttributesSubset(OutPoint, OutMetadata, OutMetadata, PointInData, OutMetadata, Data[DataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+					}
+					else if (PointInData.MetadataEntry != PCGInvalidEntryKey)
+					{
+						OutPoint.MetadataEntry = PointInData.MetadataEntry;
+					}
 				}
 			}
 			
@@ -297,7 +305,14 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 
 					if (PointData->Metadata)
 					{
-						PointData->Metadata->MergePointAttributesSubset(OutPoint, PointData->Metadata, PointData->Metadata, PointInData, PointData->Metadata, Data[FollowingDataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+						if (OutPoint.MetadataEntry != PCGInvalidEntryKey && PointInData.MetadataEntry != PCGInvalidEntryKey)
+						{
+							PointData->Metadata->MergePointAttributesSubset(OutPoint, PointData->Metadata, PointData->Metadata, PointInData, PointData->Metadata, Data[FollowingDataIndex]->Metadata, OutPoint, EPCGMetadataOp::Max);
+						}
+						else if (PointInData.MetadataEntry != PCGInvalidEntryKey)
+						{
+							OutPoint.MetadataEntry = PointInData.MetadataEntry;
+						}
 					}
 					else if (OutPoint.Density >= 1.0f)
 					{

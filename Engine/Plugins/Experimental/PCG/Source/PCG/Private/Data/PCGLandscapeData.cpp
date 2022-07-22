@@ -66,9 +66,8 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 		return false;
 	}
 
-	const FTransform LocalTransform = InTransform * Transform.Inverse();
-	const FVector LocalPoint = LocalTransform.GetLocation();
-
+	// TODO: compute full transform when we want to support bounds
+	const FVector LocalPoint = Transform.InverseTransformPosition(InTransform.GetLocation());
 	const FIntPoint ComponentMapKey(FMath::FloorToInt(LocalPoint.X / LandscapeInfo->ComponentSizeQuads), FMath::FloorToInt(LocalPoint.Y / LandscapeInfo->ComponentSizeQuads));
 
 	if (ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey))

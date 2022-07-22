@@ -105,6 +105,7 @@ FBox UPCGDifferenceData::GetStrictBounds() const
 
 bool UPCGDifferenceData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGDifferenceData::SamplePoint);
 	check(Source);
 
 	FPCGPoint PointFromSource;
@@ -117,14 +118,14 @@ bool UPCGDifferenceData::SamplePoint(const FTransform& InTransform, const FBox& 
 
 	FPCGPoint PointFromDiff;
 	// Important note: here we will not use the point we got from the source, otherwise we are introducing severe bias
-	if (Difference && Difference->SamplePoint(InTransform, InBounds, PointFromDiff, OutMetadata))
+	if (Difference && Difference->SamplePoint(InTransform, InBounds, PointFromDiff, (bDiffMetadata ? OutMetadata : nullptr)))
 	{
 		const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
 		
 		// Apply difference
 		OutPoint.Density = bBinaryDensity ? 0 : FMath::Max(0, PointFromSource.Density - PointFromDiff.Density);
 		// Color?
-		if (OutMetadata && OutPoint.Density > 0)
+		if (bDiffMetadata && OutMetadata && OutPoint.Density > 0 && PointFromDiff.MetadataEntry != PCGInvalidEntryKey)
 		{
 			OutMetadata->MergePointAttributesSubset(PointFromSource, OutMetadata, Source->Metadata, PointFromDiff, OutMetadata, Difference->Metadata, OutPoint, EPCGMetadataOp::Sub);
 		}
@@ -168,22 +169,29 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
+	UPCGMetadata* TempDiffMetadata = nullptr;
+	if (bDiffMetadata && Data->Metadata && Difference->Metadata)
+	{
+		TempDiffMetadata = NewObject<UPCGMetadata>();
+		TempDiffMetadata->Initialize(Difference->Metadata);
+	}
+
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, Data, SourcePointData, TempDiffMetadata, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& Point = SourcePoints[Index];
 
 		FPCGPoint PointFromDiff;
-		if (Difference && Difference->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromDiff, Data->Metadata))
+		if (Difference && Difference->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromDiff, TempDiffMetadata))
 		{
 			const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
 
 			OutPoint = Point;
-			UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+			//UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
 			OutPoint.Density = bBinaryDensity ? 0 : FMath::Max(0, Point.Density - PointFromDiff.Density);
 
-			if (Data->Metadata && OutPoint.Density > 0)
+			if (TempDiffMetadata && OutPoint.Density > 0 && PointFromDiff.MetadataEntry != PCGInvalidEntryKey)
 			{
-				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromDiff, Data->Metadata, Difference->Metadata, OutPoint, EPCGMetadataOp::Sub);
+				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromDiff, TempDiffMetadata, TempDiffMetadata, OutPoint, EPCGMetadataOp::Sub);
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -195,7 +203,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 		else
 		{
 			OutPoint = Point;
-			UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
+			//UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, Data->Metadata, Point);
 			return true;
 		}
 	});

@@ -108,9 +108,12 @@ namespace PCGPointHelpers
 		if (OutMetadata && SourceMetadata && SourceMetadata->GetAttributeCount() > 0)
 		{
 			UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, ((Ratio <= 0.5f) ? A : B), SourceMetadata);
-			OutMetadata->ResetPointWeightedAttributes(OutPoint);
-			OutMetadata->AccumulatePointWeightedAttributes(A, SourceMetadata, Ratio, (Ratio <= 0.5f), OutPoint);
-			OutMetadata->AccumulatePointWeightedAttributes(B, SourceMetadata, 1.0f-Ratio, (Ratio > 0.5f), OutPoint);
+
+			TArray<TPair<const FPCGPoint*, float>, TInlineAllocator<2>> WeightedPoints;
+			WeightedPoints.Emplace(&A, Ratio);
+			WeightedPoints.Emplace(&B, 1.0f - Ratio);
+
+			OutMetadata->ComputePointWeightedAttribute(OutPoint, MakeArrayView(WeightedPoints), SourceMetadata);
 		}
 	}
 
@@ -299,12 +302,13 @@ FPCGPoint UPCGPointData::GetPoint(int32 Index) const
 
 bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::SamplePoint);
 	if (bOctreeIsDirty)
 	{
 		RebuildOctree();
 	}
 
-	TArray<TPair<const FPCGPoint*, float>> Contributions;
+	TArray<TPair<const FPCGPoint*, float>, TInlineAllocator<4>> Contributions;
 	const bool bSampleInVolume = (InBounds.GetExtent() != FVector::ZeroVector);
 
 	if (!bSampleInVolume)
@@ -341,6 +345,8 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 	{
 		return false;
 	}
+
+	TArray<TPair<const FPCGPoint*, float>, TInlineAllocator<4>> ContributionsForMetadata;
 
 	const FVector::FReal TransformedBoundsVolume = InBounds.TransformBy(InTransform).GetVolume();
 	auto ComputeDensityContribution = [TransformedBoundsVolume](float VolumeIntersection)
@@ -380,6 +386,8 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 		WeightedBoundsMax += SourcePoint.BoundsMax * Weight;
 		WeightedColor += SourcePoint.Color * Weight;
 		WeightedSteepness += SourcePoint.Steepness * Weight;
+
+		ContributionsForMetadata.Emplace(Contribution.Key, Weight);
 	}
 
 	// Finally, apply changes to point
@@ -396,16 +404,12 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 
 	if (OutMetadata)
 	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::SamplePoint::SetupMetadata);
 		UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, *MaxContributor, Metadata);
-		OutMetadata->ResetPointWeightedAttributes(OutPoint);
 
-		for (const TPair<const FPCGPoint*, float> Contribution : Contributions)
+		if (ContributionsForMetadata.Num() > 1)
 		{
-			const FPCGPoint& SourcePoint = *Contribution.Key;
-			const float Weight = Contribution.Value / SumContributions;
-			const bool bIsMaxContributor = (Contribution.Key == MaxContributor);
-
-			OutMetadata->AccumulatePointWeightedAttributes(SourcePoint, Metadata, Weight, bIsMaxContributor, OutPoint);
+			OutMetadata->ComputePointWeightedAttribute(OutPoint, MakeArrayView(ContributionsForMetadata), Metadata);
 		}
 	}
 
