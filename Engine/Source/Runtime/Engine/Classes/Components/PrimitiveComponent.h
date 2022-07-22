@@ -166,6 +166,16 @@ struct FRendererStencilMaskEvaluation
 	}
 };
 
+// TODO: Add sleep and wake state change types to this enum, so that the
+// OnComponentWake and OnComponentSleep delegates may be deprecated.
+// Doing so would save a couple bytes per primitive component.
+UENUM(BlueprintType)
+enum class EComponentPhysicsStateChange : uint8
+{
+	Created,
+	Destroyed
+};
+
 /**
  * Delegate for notification of blocking collision against a specific component.  
  * NormalImpulse will be filled in for physics-simulating bodies, but will be zero for swept-component blocking collisions. 
@@ -181,6 +191,8 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FComponentWakeSignature, UPr
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FComponentSleepSignature, UPrimitiveComponent, OnComponentSleep, UPrimitiveComponent*, SleepingComponent, FName, BoneName);
 /** Delegate for notification when collision settings change. */
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FComponentCollisionSettingsChangedSignature, UPrimitiveComponent, OnComponentCollisionSettingsChangedEvent, UPrimitiveComponent*, ChangedComponent);
+/** Delegate for physics state created */
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FComponentPhysicsStateChanged, UPrimitiveComponent, OnComponentPhysicsStateChanged, UPrimitiveComponent*, ChangedComponent, EComponentPhysicsStateChange, StateChange);
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam( FComponentBeginCursorOverSignature, UPrimitiveComponent, OnBeginCursorOver, UPrimitiveComponent*, TouchedComponent );
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam( FComponentEndCursorOverSignature, UPrimitiveComponent, OnEndCursorOver, UPrimitiveComponent*, TouchedComponent );
@@ -1199,6 +1211,12 @@ public:
 	 *	Event called when collision settings change for this component.
 	 */
 	FComponentCollisionSettingsChangedSignature OnComponentCollisionSettingsChangedEvent;
+
+	/**
+	 *	Event called when physics state is created or destroyed for this component
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Physics")
+	FComponentPhysicsStateChanged OnComponentPhysicsStateChanged;
 
 	/** Event called when the mouse cursor is moved over this component and mouse over events are enabled in the player controller */
 	UPROPERTY(BlueprintAssignable, Category="Input|Mouse Input")

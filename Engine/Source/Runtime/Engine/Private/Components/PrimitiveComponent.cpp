@@ -857,6 +857,8 @@ void UPrimitiveComponent::OnCreatePhysicsState()
 #endif // WITH_EDITOR
 		}
 	}
+
+	OnComponentPhysicsStateChanged.Broadcast(this, EComponentPhysicsStateChange::Created);
 }	
 
 void UPrimitiveComponent::EnsurePhysicsStateCreated()
@@ -940,6 +942,8 @@ void UPrimitiveComponent::OnDestroyPhysicsState()
 #endif
 
 	Super::OnDestroyPhysicsState();
+
+	OnComponentPhysicsStateChanged.Broadcast(this, EComponentPhysicsStateChange::Destroyed);
 }
 
 #if UE_ENABLE_DEBUG_DRAWING
