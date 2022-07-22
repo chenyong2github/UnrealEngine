@@ -160,6 +160,11 @@ public:
 		const bool bInRefreshBindings = false
 		);
 
+	void SetupFromDeformerAndRefreshBindings(UOptimusDeformer* InDeformer)
+	{
+		SetupFromDeformer(InDeformer, true);
+	}
+
 	/** Set the value of a boolean variable. */
 	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (bool)"))
 	bool SetBoolVariable(FName InVariableName, bool InValue);
