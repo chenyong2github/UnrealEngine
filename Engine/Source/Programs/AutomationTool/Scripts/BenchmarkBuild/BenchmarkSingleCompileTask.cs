@@ -9,47 +9,21 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
-using UnrealBuildBase;
 
 namespace AutomationTool.Benchmark
 {
 	class BenchmarkSingleCompileTask : BenchmarkBuildTask
 	{
-		FileReference SourceFile = null;
+		BenchmarkBuildTask PreTask;
 
-		public BenchmarkSingleCompileTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, XGETaskOptions InXgeOption)
-			: base(InProjectFile, InTarget, InPlatform, InXgeOption, "", 0)
+		FileReference SourceFile;
+
+		public BenchmarkSingleCompileTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, FileReference InSourceFile, BuildOptions InOptions)
+			: base(InProjectFile, InTarget, InPlatform, InOptions)
 		{
-			string ModuleName = InProjectFile == null ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
-
-			TaskName = string.Format("{0} Incremental {1} {2}", ModuleName, InTarget, InPlatform);
-
-			string ProjectName = null;
-
-			// Try to find a source file in the project
-			if (InProjectFile != null)
-			{
-				ProjectName = InProjectFile.GetFileNameWithoutAnyExtensions();
-				DirectoryReference SourceDir = DirectoryReference.Combine(InProjectFile.Directory, "Source", ProjectName);
-
-				if (DirectoryReference.Exists(SourceDir))
-				{
-					var Files = DirectoryReference.EnumerateFiles(SourceDir, "*.cpp", System.IO.SearchOption.AllDirectories);
-					SourceFile = Files.FirstOrDefault();
-				}
-			}
-
-			// if we didn't, use an engine one
-			if (SourceFile == null)
-			{
-				if (InProjectFile == null)
-				{
-					ProjectName = "UnrealEngine";
-				}
-				SourceFile = FileReference.Combine(Unreal.EngineDirectory, "Source/Runtime/Engine/Private/UnrealEngine.cpp");
-			}
-
-			Log.TraceVerbose("Will compile {0} for single-file compilation test for {1}", SourceFile, ProjectName);
+			PreTask = new BenchmarkBuildTask(InProjectFile, InTarget, InPlatform, InOptions);
+			SourceFile = InSourceFile;
+			TaskModifiers.Add("singlecompile");
 		}
 
 		protected override bool PerformPrequisites()
@@ -58,6 +32,8 @@ namespace AutomationTool.Benchmark
 			{
 				return false;
 			}
+
+			PreTask.Run();
 
 			FileInfo Fi = SourceFile.ToFileInfo();
 
@@ -75,8 +51,7 @@ namespace AutomationTool.Benchmark
 				Fi.IsReadOnly = true;
 			}
 
-			return true;
+			return !PreTask.Failed;
 		}
 	}
 }
-

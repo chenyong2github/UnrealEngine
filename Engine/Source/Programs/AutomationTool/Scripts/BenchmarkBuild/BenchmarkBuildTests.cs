@@ -12,16 +12,20 @@ using UnrealBuildBase;
 
 namespace AutomationTool.Benchmark
 {
-	
+	[Flags]
+	public enum BuildOptions
+	{
+		None = 0,
+		Clean = 1 << 0,
+		NoAcceleration = 1 << 1,
+	}
+
 	/// <summary>
 	/// Task that builds a target
 	/// </summary>
 	class BenchmarkBuildTask : BenchmarkTaskBase
 	{
-		private BuildTarget				Command;
-		private UBTBuildOptions			BuildOptions;
-		private FileReference			ProjectFile;
-		private UnrealTargetPlatform	TargetPlatform;
+		private BuildTarget Command;
 
 		public static bool SupportsAcceleration
 		{
@@ -51,33 +55,44 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
-		public BenchmarkBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, XGETaskOptions InXgeOption, string InUBTArgs="", int CoreCount=0, UBTBuildOptions InOptions = UBTBuildOptions.None)
+		public BenchmarkBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, string InUBTArgs="", int CoreCount=0)
 		{
-			bool IsVanillaUnreal = InProjectFile == null;
+			bool IsVanillaUE = InProjectFile == null;
 
-			string ModuleName = IsVanillaUnreal ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
+			string ModuleName = IsVanillaUE ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
 
-			TaskName = string.Format("{0} Build {1} {2}", ModuleName, InTarget, InPlatform);
+			/*if (InTarget.Equals("Client", StringComparison.OrdinalIgnoreCase))
+			{
+				// If they asked for client check this project defines that, if not use Game. This is useful when building
+				// a lot of samples that may not all be set up for clients
+				ProjectProperties Props = ProjectUtils.GetProjectProperties(InProjectFile, new List<UnrealTargetPlatform> { InPlatform }, new List<UnrealTargetConfiguration> { UnrealTargetConfiguration.Development });
 
-			BuildOptions = InOptions;
-			ProjectFile = InProjectFile;
-			TargetPlatform = InPlatform;
+				if (Props != null && !Props.Targets.Any(T => T.Rules.Type.ToString().Equals("Client", StringComparison.OrdinalIgnoreCase)))
+				{
+					InTarget = "Game";
+					Log.TraceInformation("{0} has no Client target. Will build Game", ModuleName);
+				}
+			}*/
+
+			TaskName = string.Format("{0} {1} {2}", ModuleName, InTarget, InPlatform);
 
 			Command = new BuildTarget();
-			Command.ProjectName = IsVanillaUnreal ? null : ModuleName;
-			Command.Platforms = TargetPlatform.ToString();
+			Command.ProjectName = IsVanillaUE ? null : ModuleName;
+			Command.Platforms = InPlatform.ToString();
 			Command.Targets = InTarget;
-			Command.NoTools = true;	
+			Command.NoTools = true;
+			Command.Clean = InOptions.HasFlag(BuildOptions.Clean);
+
 			Command.UBTArgs = InUBTArgs;
 
-			bool WithAccel = InXgeOption == XGETaskOptions.WithXGE;
+			bool WithAccel = !InOptions.HasFlag(BuildOptions.NoAcceleration);
 
 			if (!WithAccel || !SupportsAcceleration)
 			{
 				string Arg = string.Format("No{0}", AccelerationName);
 
 				Command.UBTArgs += " -" + Arg;
-				//TaskModifiers.Add(Arg);
+				TaskModifiers.Add(Arg);
 				Command.Params = new[] { Arg }; // need to also pass it to this
 
 				if (CoreCount > 0)
@@ -98,55 +113,11 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
-		protected bool CleanBuildTarget()
-		{
-			var BuildCommand = new UnrealBuild(null);
-			var BuildTarget = Command.ProjectTargetFromTargetName(
-				Command.Targets,
-				ProjectFile,
-				new [] { TargetPlatform },
-				new [] { UnrealTargetConfiguration.Development }
-				);
-			BuildCommand.CleanWithUBT(BuildTarget.TargetName, TargetPlatform, UnrealTargetConfiguration.Development, ProjectFile);
-			return true;
-		}
-
-		protected override bool PerformPrequisites()
-		{
-			if (!base.PerformPrequisites())
-			{
-				return false;
-			}
-
-			if (BuildOptions.HasFlag(UBTBuildOptions.PreClean))
-			{
-				return CleanBuildTarget();
-			}
-
-			return true;
-		}
-
 		protected override bool PerformTask()
-		{	
-			ExitCode Result = Command.Execute();
+		{
+			 ExitCode Result = Command.Execute();
 
 			return Result == ExitCode.Success;
 		}
 	}
-
-	class BenchmarkCleanBuildTask : BenchmarkBuildTask
-	{
-		public BenchmarkCleanBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform)
-			: base(InProjectFile, InTarget, InPlatform, XGETaskOptions.None, "", 0, UBTBuildOptions.None)
-		{
-			string ModuleName = InProjectFile == null ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
-			TaskName = string.Format("{0} Clean {1} {2}", ModuleName, InTarget, InPlatform);
-		}
-
-		protected override bool PerformTask()
-		{
-			return CleanBuildTarget();
-		}
-	}
 }
-

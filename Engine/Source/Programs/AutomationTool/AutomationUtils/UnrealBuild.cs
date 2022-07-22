@@ -181,7 +181,7 @@ namespace AutomationTool
 			}
 		}
 
-		public void CleanWithUBT(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Config, FileReference UprojectPath, string InAddArgs = "")
+		void CleanWithUBT(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Config, FileReference UprojectPath, string InAddArgs = "")
 		{
 			string AddArgs = "";
 			if (UprojectPath != null)
