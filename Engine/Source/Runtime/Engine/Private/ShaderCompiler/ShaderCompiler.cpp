@@ -6018,6 +6018,12 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Supported"));
+		const bool bLumenSupported = CVar->GetInt() != 0;
+		Input.Environment.SetDefine(TEXT("PROJECT_SUPPORTS_LUMEN"), bLumenSupported ? 1 : 0);
+	}
+
+	{
 		const bool bSupportOIT = FDataDrivenShaderPlatformInfo::GetSupportsOIT(EShaderPlatform(Target.Platform));
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OIT.SortedPixels"));
 		const bool bOIT = CVar && CVar->GetInt() != 0;

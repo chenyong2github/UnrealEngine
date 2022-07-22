@@ -335,7 +335,7 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
 
-#if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+#if (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE) && PROJECT_SUPPORTS_LUMEN && !FORWARD_SHADING
 	if (IsLumenTranslucencyGIEnabled())
 	{
 		// Lumen Dynamic GI + shadowed Skylight
