@@ -24,9 +24,6 @@ class FMediaPlateCustomization
 {
 public:
 
-	FMediaPlateCustomization();
-	~FMediaPlateCustomization();
-
 	//~ IDetailCustomization interface
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
@@ -43,9 +40,6 @@ public:
 
 private:
 
-	/** Property change delegate used for static mesh material changes. */	
-	FDelegateHandle PropertyChangeDelegate;
-
 	/** List of the media plates we are editing. */
 	TArray<TWeakObjectPtr<UMediaPlateComponent>> MediaPlatesList;
 	/** Stores the current value of the MediaPath property. */
@@ -56,11 +50,6 @@ private:
 
 	/** Handles mesh stuff. */
 	FMediaPlateCustomizationMesh MeshCustomization;
-
-	/**
-	 * Object property change callback used for static mesh material changes.
-	 */
-	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 
 	/**
 	 * Adds widgets for editing the mesh.
