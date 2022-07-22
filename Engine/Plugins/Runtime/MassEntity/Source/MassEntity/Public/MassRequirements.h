@@ -111,7 +111,7 @@ public:
 		return *this;
 	}
 
-	FMassSubsystemRequirements& AddSubsystemRequirement(const TSubclassOf<USubsystem> SubsystemClass, const EMassFragmentAccess AccessMode, const bool bGameThreadOnly = true)
+	FMassSubsystemRequirements& AddSubsystemRequirement(const TSubclassOf<UWorldSubsystem> SubsystemClass, const EMassFragmentAccess AccessMode, const bool bGameThreadOnly = true)
 	{
 		check(AccessMode != EMassFragmentAccess::None && AccessMode != EMassFragmentAccess::MAX);
 

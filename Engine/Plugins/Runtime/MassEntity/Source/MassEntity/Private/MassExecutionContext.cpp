@@ -35,22 +35,14 @@ bool FMassExecutionContext::CacheSubsystem(const UWorld* World, const uint32 Sys
 	}
 
 	const UClass* SubsystemClass = FMassExternalSubsystemBitSet::GetTypeAtIndex(SystemIndex);
-	if (SubsystemClass)
-	{
-		const TSubclassOf<UWorldSubsystem> WorldSubsystemClass(const_cast<UClass*>(SubsystemClass));
-		if (*WorldSubsystemClass)
-		{
-			USubsystem* SystemInstance = FMassExternalSubsystemTraits::GetInstance<UWorldSubsystem>(World, WorldSubsystemClass);
-			Subsystems[SystemIndex] = SystemInstance;
-			return SystemInstance != nullptr;
-		}
-		else
-		{
-			// not a UWorldSubsystem. There's no way to generically fetch an instance of one so we assume it's there
-			return true;
-		}
-	}
-	return false;
+	checkSlow(SubsystemClass);
+	
+	const TSubclassOf<UWorldSubsystem> WorldSubsystemClass(const_cast<UClass*>(SubsystemClass));
+	checkSlow(*WorldSubsystemClass);
+		
+	UWorldSubsystem* SystemInstance = FMassExternalSubsystemTraits::GetInstance<UWorldSubsystem>(World, WorldSubsystemClass);
+	Subsystems[SystemIndex] = SystemInstance;
+	return SystemInstance != nullptr;
 }
 
 bool FMassExecutionContext::CacheSubsystemRequirements(const UWorld* World, const FMassSubsystemRequirements& SubsystemRequirements)

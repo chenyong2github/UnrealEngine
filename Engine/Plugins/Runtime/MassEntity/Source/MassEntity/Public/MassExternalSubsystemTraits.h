@@ -27,7 +27,7 @@ struct TMassExternalSubsystemTraits final
 	{
 		// Note that we're not supplying a default value for this property to be able to statically catch code that tries
 		// to access given subsystem without including the appropriate headers. See the comment above if you want to use
-		// a USubsystem that has not had its traits defined before. 
+		// a UWorldSubsystem that has not had its traits defined before. 
 		// GameThreadOnly = true,
 		ThreadSafeRead = false,
 		ThreadSafeWrite = false,

@@ -36,7 +36,7 @@ private:
 
 	FMassExternalSubsystemBitSet ConstSubsystemsBitSet;
 	FMassExternalSubsystemBitSet MutableSubsystemsBitSet;
-	TArray<USubsystem*> Subsystems;
+	TArray<UWorldSubsystem*> Subsystems;
 	
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
