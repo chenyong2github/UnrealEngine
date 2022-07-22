@@ -92,7 +92,7 @@ public:
 	FPCGGraphCache& GetCache() { return GraphCache; }
 
 private:
-	void QueueReadyTasks(FPCGTaskId FinishedTaskHint = InvalidPCGTaskId);
+	void QueueNextTasks(FPCGTaskId FinishedTask);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
 	void StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput);
 	void ClearResults();
@@ -116,9 +116,10 @@ private:
 	FCriticalSection ScheduleLock;
 	TArray<FPCGGraphScheduleTask> ScheduledTasks;
 
-	TArray<FPCGGraphTask> Tasks;
+	TMap<FPCGTaskId, FPCGGraphTask> Tasks;
 	TArray<FPCGGraphTask> ReadyTasks;
 	TArray<FPCGGraphActiveTask> ActiveTasks;
+	TMap<FPCGTaskId, TSet<FPCGTaskId>> TaskSuccessors;
 	FPCGRootSet ResultsRootSet;
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
@@ -133,6 +134,8 @@ private:
 	FCriticalSection ActorsListLock;
 	TSet<AActor*> ActorsToSave;
 	TSet<FWorldPartitionReference> ActorsToRelease;
+
+	int32 CountUntilGC = 30;
 #endif
 };
 
