@@ -171,7 +171,7 @@ void UUIFSlotLayer::LocalAddWidget(UUIFWidget* InUIWidget, FName InSlotName)
 			UUIFWidget* StrongUIWidget = WeakUIWidget.Get();
 			if (StrongSelf && StrongUIWidget && StrongUIWidget->GetWidget() && StrongSelf->GetLayerWidget())
 			{
-				if (UUIFWidget** FoundWidget = StrongSelf->LocalSlotContents.Find(InSlotName))
+				if (UE_TRANSITIONAL_OBJECT_PTR(UUIFWidget)* FoundWidget = StrongSelf->LocalSlotContents.Find(InSlotName))
 				{
 					if (*FoundWidget == StrongUIWidget) // was it changed by another call
 					{
@@ -187,7 +187,7 @@ void UUIFSlotLayer::LocalRemoveWidget(UUIFWidget* InUIWidget, FName InSlotName)
 {
 	checkf(!InSlotName.IsNone(), TEXT("The SlotName is invalid."));
 
-	if (UUIFWidget** FoundWidget = LocalSlotContents.Find(InSlotName))
+	if (UE_TRANSITIONAL_OBJECT_PTR(UUIFWidget)* FoundWidget = LocalSlotContents.Find(InSlotName))
 	{
 		if (*FoundWidget == InUIWidget) // was it changed by another async call
 		{

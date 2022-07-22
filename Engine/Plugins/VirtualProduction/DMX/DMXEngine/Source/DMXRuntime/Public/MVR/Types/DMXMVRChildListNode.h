@@ -49,7 +49,7 @@ public:
 	bool RemoveParametricObject(UDMXMVRParametricObjectNodeBase* ParametricObjectNodeToRemove);
 
 	/** Returns the Parametric Object Node Children of this Child List Node */
-	FORCEINLINE const TArray<UDMXMVRParametricObjectNodeBase*>& GetParametricObjectNodes() const { return ParametricObjectNodes; };
+	FORCEINLINE const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TArray, UDMXMVRParametricObjectNodeBase)& GetParametricObjectNodes() const { return ParametricObjectNodes; };
 
 private:
 	/** A list of geometrical representation objects that are part of the object. */

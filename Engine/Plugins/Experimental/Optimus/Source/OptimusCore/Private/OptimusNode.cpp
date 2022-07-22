@@ -741,7 +741,7 @@ bool UOptimusNode::MovePinDirect(
 	const UOptimusNodePin* InPinBefore
 	)
 {
-	TArray<UOptimusNodePin*> *MovablePins;
+	decltype(Pins)* MovablePins;
 	if (UOptimusNodePin* ParentPin = InPinToMove->GetParentPin())
 	{
 		MovablePins = &ParentPin->SubPins;
