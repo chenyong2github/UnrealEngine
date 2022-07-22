@@ -349,6 +349,12 @@ private:
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
 
+	/** Proxy types that are currently refreshing over 1-2 frames */
+	TSet<EDisplayClusterLightCardEditorProxyType> ProxyTypesRefreshing;
+
+	/** Handle to world timer when refreshing */
+	FTimerHandle RefreshTimerHandle;
+	
 	/** The radius of the bounding sphere that entirely encapsulates the root actor */
 	float RootActorBoundingRadius = 0.0f;
 

@@ -417,6 +417,14 @@ FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorVie
 	{
 		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
 	}
+
+	if (RefreshTimerHandle.IsValid())
+	{
+		if (const UWorld* PreviewWorld = PreviewScene->GetWorld())
+		{
+			PreviewWorld->GetTimerManager().ClearTimer(RefreshTimerHandle);
+		}
+	}
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -1488,17 +1496,23 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce,
                                                                       EDisplayClusterLightCardEditorProxyType ProxyType)
 {
-	if (!bForce && RootActor == RootActorLevelInstance.Get())
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor"), STAT_UpdatePreviewActor, STATGROUP_NDisplayLightCardEditor);
+	
+	if ((!bForce && RootActor == RootActorLevelInstance.Get()) ||
+		(ProxyTypesRefreshing.Contains(ProxyType) || ProxyTypesRefreshing.Contains(EDisplayClusterLightCardEditorProxyType::All)))
 	{
 		return;
 	}
 
-	auto Finalize = [this]()
+	ProxyTypesRefreshing.Add(ProxyType);
+
+	auto Finalize = [this, ProxyType]()
 	{
 		Viewport->InvalidateHitProxy();
 		bShouldCheckHitProxy = true;
 		InvalidateNormalMap();
 
+		ProxyTypesRefreshing.Remove(ProxyType);
 		OnNextSceneRefreshDelegate.Broadcast();
 		OnNextSceneRefreshDelegate.Clear();
 	};
@@ -1513,16 +1527,17 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		UWorld* PreviewWorld = PreviewScene->GetWorld();
 		check(PreviewWorld);
 
-		TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
+		const TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
 		
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
-		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
+		RefreshTimerHandle = PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
 		{			
 			DestroyProxies(ProxyType);
 
 			if (!RootActorPtr.IsValid())
 			{
+				Finalize();
 				return;
 			}
 			
