@@ -30,6 +30,18 @@ enum class ENetObjectAttachmentType : uint32
 	InternalCount
 };
 
+enum class EAttachmentWriteStatus : unsigned
+{
+	/** At least one attachment could be sent. */
+	Success,
+	/** There were no attachments to write. */
+	NoAttachments,
+	/** Due to the reliable window size being full no reliable attachments could be sent. */
+	ReliableWindowFull,
+	/** Writing caused bitstream overflow. */
+	BitstreamOverflow,
+};
+
 class FNetObjectAttachmentSendQueue
 {
 public:
@@ -71,7 +83,7 @@ private:
 		FInternalRecord() { CombinedRecord = InvalidReplicationRecord; };
 	};
 
-	void Serialize(FNetSerializationContext& Context, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnprocessedAttachments);
+	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnprocessedAttachments);
 	uint32 SerializeReliable(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord);
 	uint32 SerializeUnreliable(FNetSerializationContext& Context, FNetHandle NetHandle, uint32& OutRecord);
 
@@ -102,7 +114,7 @@ public:
 	void DropAllAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex);
 	void DropUnreliableAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex, bool& bOutHasUnsentAttachments);
 
-	void Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments);
+	EAttachmentWriteStatus Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetHandle NetHandle, ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments);
 
 	void CommitReplicationRecord(ENetObjectAttachmentType Type, uint32 ObjectIndex, ReplicationRecord Record);
 

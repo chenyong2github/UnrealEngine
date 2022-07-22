@@ -5,7 +5,6 @@
 #include "Iris/IrisConfigInternal.h"
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisProfiler.h"
-#include "Iris/DataStream/DataStream.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Iris/PacketControl/PacketNotification.h"
 #include "Iris/ReplicationSystem/ReplicationSystemTypes.h"
@@ -21,11 +20,12 @@
 #include "Iris/Serialization/NetReferenceCollector.h"
 #include "Iris/ReplicationSystem/NetTokenStoreState.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
-#include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
 #include "Iris/Serialization/NetSerializer.h"
 #include "Iris/Serialization/NetExportContext.h"
+#include "Iris/Stats/NetStats.h"
 #include "HAL/IConsoleManager.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include <algorithm>
 
 #if UE_NET_ENABLE_REPLICATIONWRITER_LOG
@@ -50,6 +50,24 @@ static FAutoConsoleVariableRef CVarWarnAboutDroppedAttachmentsToObjectsNotInScop
 	));
 
 static const FName NetError_ObjectStateTooLarge("Object state is too large to be split.");
+
+/** Helper class for timing various operations. */
+class FIrisStatsTimer
+{
+public:
+	FIrisStatsTimer()
+	: StartCycle(FPlatformTime::Cycles64()) 
+	{
+	}
+
+	double GetSeconds() const
+	{
+		return FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartCycle);
+	}
+
+private:
+	uint64 StartCycle;
+};
 
 const TCHAR* FReplicationWriter::LexToString(const EReplicatedObjectState State)
 {
@@ -151,6 +169,9 @@ FReplicationWriter::FHugeObjectContext::FHugeObjectContext()
 : SendStatus(EHugeObjectSendStatus::Idle)
 , InternalIndex(0)
 , DebugName(CreatePersistentNetDebugName(TEXT("HugeObjectState"), UE_ARRAY_COUNT(TEXT("HugeObjectState"))))
+, StartSendingTime(0)
+, EndSendingTime(0)
+, StartStallTime(0)
 {
 #if UE_NET_TRACE_ENABLED
 	DebugName->DebugNameId = FNetTrace::TraceName(DebugName->Name);
@@ -1746,7 +1767,19 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 					AttachmentWriter.WriteBool(BatchEntry.AttachmentType == ENetObjectAttachmentType::HugeObject);
 				}
 
-				Attachments.Serialize(AttachmentContext, BatchEntry.AttachmentType, InternalIndex, NetHandle, BatchEntry.AttachmentRecord, BatchEntry.bHasUnsentAttachments);
+				const EAttachmentWriteStatus AttachmentWriteStatus = Attachments.Serialize(AttachmentContext, BatchEntry.AttachmentType, InternalIndex, NetHandle, BatchEntry.AttachmentRecord, BatchEntry.bHasUnsentAttachments);
+				if (BatchEntry.AttachmentType == ENetObjectAttachmentType::HugeObject)
+				{
+					if (AttachmentWriteStatus == EAttachmentWriteStatus::ReliableWindowFull)
+					{
+						HugeObjectContext.StartStallTime = FPlatformTime::Cycles64();
+					}
+					else
+					{
+						// Clear stall time now that we were theoretically able to send something.
+						HugeObjectContext.StartStallTime = 0;
+					}
+				}
 
 				// If we didn't manage to fit any attachments then clear the HasAttachments bool in the packet
 				if (AttachmentWriter.GetPosBits() == 0 || AttachmentWriter.IsOverflown())
@@ -1935,6 +1968,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 
 	HugeObjectContext.InternalIndex = InternalIndex;
 	HugeObjectContext.SendStatus = EHugeObjectSendStatus::Sending;
+	HugeObjectContext.StartSendingTime = FPlatformTime::Cycles64();
 	// Store batch record for later processing once the whole state is acked.
 	HugeObjectHeader.ObjectCount = HandleObjectBatchSuccess(BatchInfo, HugeObjectContext.BatchRecord);
 
@@ -1998,7 +2032,12 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 		CommitBatchRecord(BatchRecord);
 
 		// If all chunks did not make it into the packet (expected) mark the context so that we can try to send the huge object in the next packet if we are allowed
-		WriteContext.bHasHugeObjectToSend = Attachments.HasUnsentAttachments(ENetObjectAttachmentType::HugeObject, ObjectIndexForOOBAttachment);
+		const bool bHasHugeObjectToSend = Attachments.HasUnsentAttachments(ENetObjectAttachmentType::HugeObject, ObjectIndexForOOBAttachment);
+		WriteContext.bHasHugeObjectToSend = bHasHugeObjectToSend;
+		if (!bHasHugeObjectToSend)
+		{
+			HugeObjectContext.EndSendingTime = FPlatformTime::Cycles64();
+		}
 
 		return 1;
 	}
@@ -2152,7 +2191,13 @@ uint32 FReplicationWriter::WriteOOBAttachments(FNetSerializationContext& Context
 			return WrittenObjectCount;
 		}
 
-		WriteContext.bHasHugeObjectToSend = Attachments.HasUnsentAttachments(ENetObjectAttachmentType::HugeObject, ObjectIndexForOOBAttachment);
+		const bool bHasHugeObjectToSend = Attachments.HasUnsentAttachments(ENetObjectAttachmentType::HugeObject, ObjectIndexForOOBAttachment);
+		WriteContext.bHasHugeObjectToSend = bHasHugeObjectToSend;
+		if (!bHasHugeObjectToSend)
+		{
+			HugeObjectContext.EndSendingTime = FPlatformTime::Cycles64();
+		}
+
 		WrittenObjectCount += Result;
 	}
 
@@ -2188,7 +2233,16 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 	{
 		if (!this->WriteContext.ObjectsWrittenThisTick.GetBit(InternalIndex) && this->CanSendObject(InternalIndex))
 		{
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+			FIrisStatsTimer Timer;
+#endif
 			const int32 Result = this->WriteObjectBatch(Context, InternalIndex, WriteObjectFlag_State | WriteObjectFlag_Attachments);
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+			if (Result <= 0)
+			{
+				this->WriteContext.Stats.AddReplicationWasteTime(Timer.GetSeconds());
+			}
+#endif
 			if (Result >= 0)
 			{
 				WrittenObjectCount += Result;
@@ -2343,6 +2397,13 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 			// Mark this object as written this tick to avoid sending it multiple times
 			WriteContext.ObjectsWrittenThisTick.SetBit(BatchObjectInfo.InternalIndex);
 		}
+
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+		if (BatchObjectInfo.bSentState & (Info.LastAckedBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex))
+		{
+			++WriteContext.DeltaCompressedObjectCount;
+		}
+#endif
 	}
 
 	return WrittenObjectCount;
@@ -2422,9 +2483,11 @@ UDataStream::EWriteResult FReplicationWriter::BeginWrite()
 	WriteContext.bHasDestroyedObjectsToSend = bHasDestroyedObjectsToSend;
 	WriteContext.bHasHugeObjectToSend = bHasUnsentHugeObject;
 	WriteContext.bHasOOBAttachmentsToSend = bHasUnsentOOBAttachments;
-	WriteContext.CurrentIndex = 0u;
+	WriteContext.CurrentIndex = 0U;
+	WriteContext.DeltaCompressedObjectCount = 0U;
 	WriteContext.FailedToWriteSmallObjectCount = 0U;
-	WriteContext.SortedObjectCount = 0u;
+	WriteContext.DeltaCompressedObjectCount = 0U;
+	WriteContext.SortedObjectCount = 0U;
 
 	// Reset dependent object array
 	WriteContext.DependentObjectsPendingSend.Reset();
@@ -2439,6 +2502,14 @@ UDataStream::EWriteResult FReplicationWriter::BeginWrite()
 	WriteContext.ScheduledObjectInfos = reinterpret_cast<FScheduleObjectInfo*>(FMemory::Malloc(sizeof(FScheduleObjectInfo) * Parameters.MaxActiveReplicatedObjectCount));
 	WriteContext.ScheduledObjectCount = ScheduleObjects(WriteContext.ScheduledObjectInfos);
 
+	// Init CSV stats
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+	{
+		FNetSendStats& Stats = WriteContext.Stats;
+		Stats.Reset();
+	}
+#endif
+
 	WriteContext.bIsValid = true;
 
 	return UDataStream::EWriteResult::HasMoreData;
@@ -2450,6 +2521,33 @@ void FReplicationWriter::EndWrite()
 
 	if (WriteContext.bIsValid)
 	{
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+		// Update stats
+		{
+			FNetSendStats& Stats = WriteContext.Stats;
+
+			Stats.SetNumberOfObjectsScheduledForReplication(WriteContext.ScheduledObjectCount);
+			Stats.SetNumberOfReplicatedObjects(WriteContext.CurrentIndex - WriteContext.FailedToWriteSmallObjectCount);
+			Stats.SetNumberOfDeltaCompressedReplicatedObjects(WriteContext.DeltaCompressedObjectCount);
+			if (HugeObjectContext.SendStatus == EHugeObjectSendStatus::Sending)
+			{
+				Stats.SetNumberOfActiveHugeObjects(1U);
+
+				if (HugeObjectContext.EndSendingTime != 0)
+				{
+					Stats.AddHugeObjectWaitingTime(FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - HugeObjectContext.EndSendingTime));
+				}
+				if (HugeObjectContext.StartStallTime != 0)
+				{
+					Stats.AddHugeObjectStallTime(FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - HugeObjectContext.StartStallTime));
+				}
+			}
+
+			FNetSendStats& TotalStats = Parameters.ReplicationSystem->GetReplicationSystemInternal()->GetSendStats();
+			TotalStats.Accumulate(Stats);
+		}
+#endif
+
  #if UE_NET_ENABLE_REPLICATIONWRITER_LOG
 		// See if we failed to write any objects
 		if (const int32 NumPendingDependentObjects = WriteContext.DependentObjectsPendingSend.Num())
@@ -2674,6 +2772,9 @@ void FReplicationWriter::ClearHugeObjectContext(FHugeObjectContext& Context) con
 	Context.SendStatus = EHugeObjectSendStatus::Idle;
 	Context.BatchRecord = FBatchRecord();
 	Context.BatchExports.Reset();
+	Context.StartSendingTime = 0;
+	Context.EndSendingTime = 0;
+	Context.StartStallTime = 0;
 }
 
 bool FReplicationWriter::CollectAndWriteExports(FNetSerializationContext& Context, uint8* RESTRICT InternalBuffer, const FReplicationProtocol* Protocol) const

@@ -13,6 +13,7 @@
 #include "Iris/ReplicationSystem/NetHandle.h"
 #include "Iris/ReplicationSystem/NetExports.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCache.h"
+#include "Iris/Stats/NetStats.h"
 #include "Containers/Array.h"
 
 // Forward declaration
@@ -199,12 +200,19 @@ private:
 		FNetBitArray ObjectsWrittenThisTick;
 		// DependentObjets that we should try to write this packet batch, aka. allow overcommit if we have pending DependentObjects when the packet is full
 		TArray<uint32, TInlineAllocator<32>> DependentObjectsPendingSend;
-		FScheduleObjectInfo* ScheduledObjectInfos;				// Scheduled objects
+		// Scheduled objects
+		FScheduleObjectInfo* ScheduledObjectInfos;
 		uint32 ScheduledObjectCount;
 
-		uint32 SortedObjectCount;								// We do partial sorting so we need to track how many object we have sorted
-		uint32 CurrentIndex;									// If we allow multiple packets to be written during the same update this is where we should continue writing
+		// For performance sake we do partial sorting so we need to track how many object we have sorted.
+		uint32 SortedObjectCount;
+		// The index into the scheduled objects array to attempt to replicate next.
+		uint32 CurrentIndex;
 
+		// The number of replicated objects that were serialized with delta compression.
+		uint32 DeltaCompressedObjectCount;
+
+		// How many objects that were attempted to be replicated but which ultimately didn't fit in the packet.
 		uint32 FailedToWriteSmallObjectCount;
 
 		uint32 bHasDestroyedObjectsToSend : 1;
@@ -212,6 +220,8 @@ private:
 		uint32 bHasHugeObjectToSend : 1;
 		uint32 bHasOOBAttachmentsToSend : 1;
 		uint32 bIsValid : 1;
+
+		FNetSendStats Stats;
 	};
 
 	struct FBatchObjectInfo
@@ -269,6 +279,12 @@ private:
 		FBatchRecord BatchRecord;
 		FNetExportContext::FBatchExports BatchExports;
 		const FNetDebugName* DebugName;
+		// Cycle counter for when the huge object context went from idle to sending.
+		uint64 StartSendingTime;
+		// Cycle counter for when the last part of huge object was sent.
+		uint64 EndSendingTime;
+		// Cycle counter for when it was detected that no more parts of the huge object could be sent until some of the first parts have been acked.
+		uint64 StartStallTime;
 	};
 
 	enum EWriteObjectFlag : unsigned

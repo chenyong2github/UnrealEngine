@@ -815,15 +815,20 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	{
 		// Update all clients.
 #if WITH_SERVER_CODE
-		int32 Updated = ServerReplicateActors( DeltaSeconds );
+		int32 Updated = 0;
 
 #if UE_WITH_IRIS
 		if (ReplicationSystem)
 		{
 			UpdateReplicationViews();
+			SendClientMoveAdjustments();
 			ReplicationSystem->PreSendUpdate(DeltaSeconds);
 		}
+		else
 #endif // UE_WITH_IRIS
+		{
+			Updated = ServerReplicateActors(DeltaSeconds);
+		}
 
 		static int32 LastUpdateCount = 0;
 		// Only log the zero replicated actors once after replicating an actor
@@ -6067,6 +6072,35 @@ void UNetDriver::UpdateReplicationViews() const
 		}
 
 		ReplicationSystem->SetReplicationView(Conn->GetConnectionId(), ReplicationView);
+	}
+}
+
+void UNetDriver::SendClientMoveAdjustments()
+{
+	for (UNetConnection* Connection : ClientConnections)
+	{
+		if (Connection == nullptr || Connection->ViewTarget == nullptr)
+		{
+			continue;
+		}
+
+		if (APlayerController* PC = Connection->PlayerController)
+		{
+			PC->SendClientAdjustment();
+		}
+
+		for (UNetConnection* ChildConnection : Connection->Children)
+		{
+			if (ChildConnection == nullptr)
+			{
+				continue;
+			}
+
+			if (APlayerController* PC = ChildConnection->PlayerController)
+			{
+				PC->SendClientAdjustment();
+			}
+		}
 	}
 }
 #endif // UE_WITH_IRIS

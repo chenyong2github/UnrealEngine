@@ -22,6 +22,7 @@
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetSerializer.h"
 #include "HAL/IConsoleManager.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace ReplicationSystemCVars
@@ -494,6 +495,14 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	// $IRIS TODO. There may be some throttling of connections to tick that we should take into account.
 	const UE::Net::FNetBitArrayView& ReplicatingConnections = MakeNetBitArrayView(Impl->ReplicationSystemInternal.GetConnections().GetValidConnections());
 
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+	{
+		UE::Net::FNetSendStats& SendStats = InternalSys.GetSendStats();
+		SendStats.Reset();
+		SendStats.SetNumberOfReplicatingConnections(ReplicatingConnections.CountSetBits());
+	}
+#endif
+
 	if (bAllowObjectReplication)
 	{
 		UE_NET_TRACE_FRAME_STATSCOUNTER(GetId(), ReplicationSystem.ReplicatedObjectCount, InternalSys.GetNetHandleManager().GetActiveObjectCount(), ENetTraceVerbosity::Verbose);
@@ -578,6 +587,13 @@ void UReplicationSystem::PostSendUpdate()
 		FDeltaCompressionBaselineManagerPostSendUpdateParams UpdateParams;
 		InternalSys.GetDeltaCompressionBaselineManager().PostSendUpdate(UpdateParams);
 	}
+
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+	{
+		UE::Net::FNetSendStats& SendStats = InternalSys.GetSendStats();
+		SendStats.ReportCsvStats();
+	}
+#endif
 }
 
 void UReplicationSystem::PostGarbageCollection()

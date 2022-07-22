@@ -1941,6 +1941,7 @@ private:
 	void InitIrisSettings(FName NewDriverName);
 	void SetReplicationSystem(UReplicationSystem* ReplicationSystem);
 	void UpdateReplicationViews() const;
+	void SendClientMoveAdjustments();
 #endif
 
 	UPROPERTY(transient)

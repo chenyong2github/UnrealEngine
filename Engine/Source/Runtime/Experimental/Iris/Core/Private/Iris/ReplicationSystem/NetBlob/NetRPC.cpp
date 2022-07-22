@@ -19,6 +19,7 @@
 #include "Iris/Serialization/NetBitStreamUtil.h"
 #include "Iris/Core/IrisLog.h"
 #include "Containers/ArrayView.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIrisRpc, Log, All);
 
@@ -412,6 +413,10 @@ FNetRPC* FNetRPC::Create(UReplicationSystem* ReplicationSystem, const FNetBlobCr
 
 void FNetRPC::CallFunction(FNetSerializationContext& Context)
 {
+#if UE_NET_IRIS_CSV_STATS
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(HandleRPC);
+#endif
+
 	// Check whether we are ok with calling the function
 	UObject* Object = ObjectPtr.Get();
 

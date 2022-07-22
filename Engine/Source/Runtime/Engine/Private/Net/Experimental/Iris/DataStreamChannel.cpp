@@ -16,6 +16,7 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisMemoryTracker.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #endif // UE_WITH_IRIS
 
 namespace UE::Net::Private
@@ -161,6 +162,10 @@ void UDataStreamChannel::Tick()
 		SendOpenBunch();
 		return;
 	}
+
+#if UE_NET_IRIS_CSV_STATS
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UDataStreamChannel_Tick);
+#endif
 
 	IRIS_PROFILER_SCOPE(UDataStreamChannel_Tick);
 	LLM_SCOPE_BYTAG(Iris);

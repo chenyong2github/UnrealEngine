@@ -23,6 +23,7 @@
 #include "Iris/ReplicationSystem/StringTokenStore.h"
 #include "Iris/ReplicationSystem/WorldLocations.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptorRegistry.h"
+#include "Iris/Stats/NetStats.h"
 
 namespace UE::Net::Private
 {
@@ -87,6 +88,11 @@ public:
 	FDeltaCompressionBaselineManager& GetDeltaCompressionBaselineManager() { return DeltaCompressionBaselineManager; }
 	FDeltaCompressionBaselineInvalidationTracker& GetDeltaCompressionBaselineInvalidationTracker() { return DeltaCompressionBaselineInvalidationTracker; }
 
+	FNetSendStats& GetSendStats()
+	{ 
+		return SendStats;
+	}
+
 private:
 	FReplicationProtocolManager ReplicationProtocolManager;
 	FNetHandleManager NetHandleManager;
@@ -107,6 +113,7 @@ private:
 	FWorldLocations WorldLocations;
 	FDeltaCompressionBaselineManager DeltaCompressionBaselineManager;
 	FDeltaCompressionBaselineInvalidationTracker DeltaCompressionBaselineInvalidationTracker;
+	FNetSendStats SendStats;
 	uint32 Id;
 };
 

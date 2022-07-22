@@ -51,6 +51,11 @@ public:
 		return PreQueue.Num() > 0 || ReliableQueue.HasUnsentBlobs();
 	}
 
+	bool CanSendBlobs() const
+	{
+		return ReliableQueue.HasUnsentBlobs();
+	}
+
 	bool IsSafeToDestroy() const
 	{
 		return ReliableQueue.IsSafeToDestroy();
@@ -204,7 +209,7 @@ bool FNetObjectAttachmentSendQueue::Enqueue(TArrayView<const TRefCountPtr<FNetBl
 	return true;
 }
 
-void FNetObjectAttachmentSendQueue::DropUnreliable(bool &bOutHasUnsent)
+void FNetObjectAttachmentSendQueue::DropUnreliable(bool& bOutHasUnsent)
 {
 	UnreliableQueue.Empty();
 	bOutHasUnsent = (ReliableQueue != nullptr && ReliableQueue->HasUnsentBlobs());
@@ -241,26 +246,36 @@ void FNetObjectAttachmentSendQueue::SetUnreliableQueueCapacity(uint32 QueueCapac
 	UnreliableQueue.PopNoCheck(DropCount);
 }
 
-void FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context, FNetHandle NetHandle, FNetObjectAttachmentSendQueue::ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments)
+EAttachmentWriteStatus FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context, FNetHandle NetHandle, FNetObjectAttachmentSendQueue::ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments)
 {
 	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 
 	FInternalRecord ReplicationRecord;
+	// This count is the total number of unsent reliable blobs. If the reliable window is full no blobs can be sentuntil some have been acked.
 	const uint32 UnsentReliableCount = (ReliableQueue != nullptr ? ReliableQueue->GetUnsentBlobCount() : 0U);
-	const bool bHasReliableAttachments = UnsentReliableCount > 0;
+	const bool bCanSendReliableAttachments = UnsentReliableCount > 0 && ReliableQueue->CanSendBlobs();
 	const bool bHasUnreliableAttachments = !UnreliableQueue.IsEmpty();
-	if (!(bHasReliableAttachments || bHasUnreliableAttachments))
+	if (!(bCanSendReliableAttachments || bHasUnreliableAttachments))
 	{
 		// Ideally we shouldn't get here, but we can handle it. Important to overflow to report a soft error.
 		Writer.DoOverflow();
 		OutRecord = ReplicationRecord.CombinedRecord;
 		bOutHasUnsentAttachments = false;
-		return;
+
+		if (UnsentReliableCount > 0)
+		{
+			// We want to send reliable blobs but the window is full.
+			return EAttachmentWriteStatus::ReliableWindowFull;
+		}
+		else
+		{
+			return EAttachmentWriteStatus::NoAttachments;
+		}
 	}
 
 	UE_NET_TRACE_SCOPE(RPCs, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
-	Writer.WriteBool(bHasReliableAttachments);
+	Writer.WriteBool(bCanSendReliableAttachments);
 	const uint32 HasUnreliableAttachmentsWritePos = Writer.GetPosBits();
 	Writer.WriteBool(bHasUnreliableAttachments);
 
@@ -268,11 +283,11 @@ void FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context,
 	{
 		OutRecord = ReplicationRecord.CombinedRecord;
 		bOutHasUnsentAttachments = true;
-		return;
+		return EAttachmentWriteStatus::BitstreamOverflow;
 	}
 
 	uint32 SerializedReliableCount = 0;
-	if (bHasReliableAttachments)
+	if (bCanSendReliableAttachments)
 	{
 		UE_NET_TRACE_SCOPE(Reliable, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 		SerializedReliableCount = SerializeReliable(Context, NetHandle, ReplicationRecord.ReliableRecord);
@@ -282,9 +297,12 @@ void FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context,
 			Writer.DoOverflow();
 			OutRecord = ReplicationRecord.CombinedRecord;
 			bOutHasUnsentAttachments = true;
-			return;
+			return EAttachmentWriteStatus::BitstreamOverflow;
 		}
 	}
+
+	// Assume success and change when necessary.
+	EAttachmentWriteStatus WriteStatus = EAttachmentWriteStatus::Success;
 
 	uint32 SerializedUnreliableCount = 0;
 	if (bHasUnreliableAttachments)
@@ -297,8 +315,10 @@ void FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context,
 			if (SerializedReliableCount == 0)
 			{
 				Writer.DoOverflow();
+				// Even if we couldn't send reliable attachments due to the window being full we still probably wouldn't have fit any, so return the overflow status.
+				WriteStatus = EAttachmentWriteStatus::BitstreamOverflow;
 			}
-			// Patch up information saying there were unreliable attachments because we couldn't fit any in the bitstream
+			// Patch up information previously saying there were unreliable attachments because we couldn't fit any in the bitstream
 			else
 			{
 				FNetBitStreamWriteScope WriteScope(Writer, HasUnreliableAttachmentsWritePos);
@@ -307,8 +327,18 @@ void FNetObjectAttachmentSendQueue::Serialize(FNetSerializationContext& Context,
 		}
 	}
 
+	if (WriteStatus == EAttachmentWriteStatus::Success)
+	{
+		// Override WriteStatus with ReliableWindowFull in case we fit one or more unreliable attachments but weren't able to write any reliable ones.
+		if (UnsentReliableCount > 0 && !bCanSendReliableAttachments)
+		{
+			WriteStatus = EAttachmentWriteStatus::ReliableWindowFull;
+		}
+	}
+
 	OutRecord = ReplicationRecord.CombinedRecord;
 	bOutHasUnsentAttachments = (SerializedReliableCount < UnsentReliableCount) || (SerializedUnreliableCount < UnreliableQueue.Count());
+	return WriteStatus;
 }
 
 uint32 FNetObjectAttachmentSendQueue::SerializeReliable(FNetSerializationContext& Context, FNetHandle NetHandle, FReliableNetBlobQueue::ReplicationRecord& OutRecord)
@@ -477,7 +507,7 @@ void FNetObjectAttachmentsWriter::DropUnreliableAttachments(ENetObjectAttachment
 	}
 }
 
-void FNetObjectAttachmentsWriter::Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, const FNetHandle NetHandle,  FNetObjectAttachmentsWriter::ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments)
+EAttachmentWriteStatus FNetObjectAttachmentsWriter::Serialize(FNetSerializationContext& Context, ENetObjectAttachmentType Type, uint32 ObjectIndex, const FNetHandle NetHandle,  FNetObjectAttachmentsWriter::ReplicationRecord& OutRecord, bool& bOutHasUnsentAttachments)
 {
 	FNetObjectAttachmentSendQueue* Queue = GetQueue(Type, ObjectIndex);
 	// If this ensure fires we have bad logic for keeping track of whether there are attachments or not
@@ -485,10 +515,10 @@ void FNetObjectAttachmentsWriter::Serialize(FNetSerializationContext& Context, E
 	{
 		OutRecord = 0;
 		bOutHasUnsentAttachments = false;
-		return;
+		return EAttachmentWriteStatus::NoAttachments;
 	}
 
-	Queue->Serialize(Context, NetHandle, OutRecord, bOutHasUnsentAttachments);
+	return Queue->Serialize(Context, NetHandle, OutRecord, bOutHasUnsentAttachments);
 }
 
 void FNetObjectAttachmentsWriter::CommitReplicationRecord(ENetObjectAttachmentType Type, uint32 ObjectIndex, FNetObjectAttachmentsWriter::ReplicationRecord Record)

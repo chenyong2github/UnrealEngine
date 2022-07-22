@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 
 namespace UE::Net
 {
@@ -30,4 +30,21 @@ IRISCORE_API void SetUseIrisReplication(bool EnableIrisReplication);
 #endif
 #endif
 
+/** CSV stats. Please check if CSV_PROFILER is enabled too if executing non-trivial code for stats. */
+#ifndef UE_NET_IRIS_CSV_STATS
+#	define UE_NET_IRIS_CSV_STATS 1
+#endif
+
+/** Verbose CSV stats is not recommended in shipping builds due to the expected CPU overhead. */
+#if UE_NET_IRIS_CSV_STATS
+#	ifndef UE_NET_IRIS_VERBOSE_CSV_STATS
+#		define UE_NET_IRIS_VERBOSE_CSV_STATS !UE_BUILD_SHIPPING
+#	endif
+#else
+// Force disable UE_NET_IRIS_VERBOSE_CSV_STATS if UE_NET_IRIS_CSV_STATS isn't enabled.
+#	ifdef UE_NET_IRIS_VERBOSE_CSV_STATS
+#		undef UE_NET_IRIS_VERBOSE_CSV_STATS
+#	endif
+#	define UE_NET_IRIS_VERBOSE_CSV_STATS 0
+#endif
 
