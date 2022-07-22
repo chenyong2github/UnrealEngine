@@ -17,6 +17,7 @@ class FAllocationsAnalyzer : public UE::Trace::IAnalyzer
 private:
 	enum : uint16
 	{
+		RouteId_NewEvent,
 		RouteId_Init,
 		RouteId_Alloc,
 		RouteId_AllocSystem,
@@ -30,10 +31,10 @@ private:
 		RouteId_ReallocFreeSystem,
 		RouteId_Marker,
 		RouteId_TagSpec,
-		RouteId_MemScope,
 		RouteId_HeapSpec,
 		RouteId_HeapMarkAlloc,
 		RouteId_HeapUnmarkAlloc,
+		RouteId_MemScope,
 	};
 
 public:
@@ -41,6 +42,7 @@ public:
 	~FAllocationsAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override;
+	virtual bool OnNewEvent(uint16 RouteId, const FEventTypeInfo& TypeInfo) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	double GetCurrentTime() const;
 
@@ -54,6 +56,8 @@ private:
 	uint32 MarkerPeriod = 0;
 	uint16 TagIdMetadataType = ~0;
 	uint8 SizeShift = 0;
+	uint32 MemoryScopeEventId = 0;
+	uint32 MemoryScopePtrEventId = 0;
 };
 
 } // namespace TraceServices
