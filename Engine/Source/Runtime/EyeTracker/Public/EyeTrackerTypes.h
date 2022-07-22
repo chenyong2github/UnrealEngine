@@ -31,6 +31,10 @@ public:
 		, GazeDirection(ForceInitToZero)
 		, FixationPoint(ForceInitToZero)
 		, ConfidenceValue(0.f)
+		, bIsLeftEyeBlink(false)
+		, bIsRightEyeBlink(false)
+		, LeftPupilDiameter(0.0f)
+		, RightPupilDiameter(0.0f)
 	{}
 
 	/** Origin of the unified gaze ray. */
@@ -48,6 +52,22 @@ public:
 	/** Value [0..1] that represents confidence in the gaze ray data above. Stable, reliably tracked eyes will be at or near 1. Fast-moving or unreliably tracked eyes will be at or near 0. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gaze Data")
 	float ConfidenceValue;
+
+	/** Left eye blink data. True if the eye is close. False if the eye is open.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gaze Data")
+	bool bIsLeftEyeBlink;
+
+	/** Right eye blink data. True if the eye is close. False if the eye is open. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gaze Data")
+	bool bIsRightEyeBlink;
+
+	/** Diameter of the left pupil. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gaze Data")
+	float LeftPupilDiameter;
+
+	/** Diameter of the right pupil */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gaze Data")
+	float RightPupilDiameter;
 };
 
 

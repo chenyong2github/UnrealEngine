@@ -18,7 +18,7 @@ typedef enum XrStructureTypeEPIC {
 
 //  Extensions
 
-#define XR_EPIC_space_acceleration_1
+#define XR_EPIC_space_acceleration 1
 #define XR_EPIC_space_acceleration_SPEC_VERSION 1
 #define XR_EPIC_SPACE_ACCELERATION_NAME "XR_EPIC_space_acceleration"
 
