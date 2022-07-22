@@ -9,6 +9,7 @@
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
 #include "SkeletalMeshAttributes.h"
+#include "Util/ColorConstants.h"
 #include "Async/Async.h"
 
 using namespace UE::Geometry;
@@ -761,7 +762,9 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					FIndex3i TriVector;
 					for (int j = 0; j < 3; ++j)
 					{
-						const FVector4f InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
+						FVector4f InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
+						ApplyVertexColorTransform(InstanceColor4);
+						
 						const FVector4f OverlayColor(InstanceColor4.X, InstanceColor4.Y, InstanceColor4.Z, InstanceColor4.W);
 						TriVector[j] = ColorWelder.FindOrAddUnique(OverlayColor, Tri[j]);
 
@@ -929,4 +932,24 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	if (!ensureMsgf(bCalculateMaps, TEXT("Cannot CopyTangents unless Maps were calculated"))) return;
 	if (!ensureMsgf(TriIDMap.Num() == TargetMesh->TriangleCount(), TEXT("Tried to CopyTangents to mesh with different triangle count"))) return;
 	CopyTangents_Internal<double>(SourceMesh, TargetMesh, TangentsOut, TriIDMap);
+}
+
+void FMeshDescriptionToDynamicMesh::ApplyVertexColorTransform(FVector4f& Color) const
+{
+	if (bTransformVertexColorsLinearToSRGB)
+	{
+		// The corollary to bTransformVertexColorsSRGBToLinear in DynamicMeshToMeshDescription.
+		// See DynamicMeshToMeshDescription::ApplyVertexColorTransform(..).
+		//
+		// StaticMeshes store vertex colors as FColor. The StaticMesh build always encodes
+		// FColors as SRGB to ensure a good distribution of float values across the 8-bit range.
+		//
+		// Since there is no currently defined gamma space convention for vertex colors in
+		// engine, an option is provided to pre-transform vertex colors (SRGB To Linear) when
+		// writing out a MeshDescription.
+		//
+		// We similarly provide the inverse of that optional pre-transformation to maintain
+		// color space consistency in our usage.
+		LinearColors::LinearToSRGB(Color);
+	}
 }

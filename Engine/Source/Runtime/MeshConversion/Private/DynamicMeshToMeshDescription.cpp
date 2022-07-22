@@ -339,24 +339,9 @@ void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* Mesh
 		FVector4f TriColors[3];
 		ColorOverlay->GetTriElements(t, TriColors[0], TriColors[1], TriColors[2]);
 
-		// There is inconsistency in how vertex colors are intended to be consumed in
-		// our shaders. Some shaders consume it as linear (ex. MeshPaint), others as SRGB which
-		// manually convert to linear in the shader.
-		//
-		// All StaticMeshes store vertex colors as an 8-bit FColor. In order to ensure a good
-		// distribution of float values across the 8-bit range, the StaticMesh build always
-		// encodes FColors as SRGB.
-		//
-		// Until there is some defined gamma space convention for vertex colors in our shaders,
-		// we provide this option to pre-transform our linear float colors with an SRGBToLinear
-		// conversion to counteract the StaticMesh build LinearToSRGB conversion. This is how
-		// MeshPaint ensures linear vertex colors in the shaders.
-		if (ConversionOptions.bTransformVtxColorsSRGBToLinear)
-		{
-			LinearColors::SRGBToLinear(TriColors[0]);
-			LinearColors::SRGBToLinear(TriColors[1]);
-			LinearColors::SRGBToLinear(TriColors[2]);
-		}
+		ApplyVertexColorTransform(TriColors[0]);
+		ApplyVertexColorTransform(TriColors[1]);
+		ApplyVertexColorTransform(TriColors[2]);
 		
 		TArrayView<const FVertexInstanceID> InstanceIDs = MeshOut.GetTriangleVertexInstances(FTriangleID(t));
 		for (int32 i = 0; i < 3; ++i)
@@ -818,7 +803,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	TFunction<void(int TriID, FVertexInstanceID TriVertInstances[3])> ColorInstanceSetter;
 	if (bCopyInstanceColors)
 	{
-		ColorInstanceSetter = [ColorOverlay, &Builder](int TriID, FVertexInstanceID TriVertInstances[3])
+		ColorInstanceSetter = [this, ColorOverlay, &Builder](int TriID, FVertexInstanceID TriVertInstances[3])
 		{
 			FIndex3i ColorTri = ColorOverlay->GetTriangle(TriID);
 			for (int32 j = 0; j < 3; ++j)
@@ -828,6 +813,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 				if (ColorOverlay->IsElement(ColorTri[j]))
 				{
 					FVector4f TriVertColor4 = ColorOverlay->GetElement(ColorTri[j]);
+					ApplyVertexColorTransform(TriVertColor4);
 					DstColor = FVector4f(TriVertColor4.X, TriVertColor4.Y, TriVertColor4.Z, TriVertColor4.W);
 				}
 				Builder.SetInstanceColor(CornerInstanceID, DstColor);
@@ -1072,3 +1058,24 @@ void FDynamicMeshToMeshDescription::ConvertWeightLayers(const FDynamicMesh3* Mes
 		}
 	}
 }
+
+void FDynamicMeshToMeshDescription::ApplyVertexColorTransform(FVector4f& Color) const
+{
+	// There is inconsistency in how vertex colors are intended to be consumed in
+	// our shaders. Some shaders consume it as linear (ex. MeshPaint), others as SRGB which
+	// manually convert to linear in the shader.
+	//
+	// All StaticMeshes store vertex colors as an 8-bit FColor. In order to ensure a good
+	// distribution of float values across the 8-bit range, the StaticMesh build always
+	// encodes FColors as SRGB.
+	//
+	// Until there is some defined gamma space convention for vertex colors in our shaders,
+	// we provide this option to pre-transform our linear float colors with an SRGBToLinear
+	// conversion to counteract the StaticMesh build LinearToSRGB conversion. This is how
+	// MeshPaint ensures linear vertex colors in the shaders.
+	if (ConversionOptions.bTransformVtxColorsSRGBToLinear)
+	{
+		LinearColors::SRGBToLinear(Color);
+	}
+}
+

@@ -28,7 +28,7 @@ public:
 	bool bUpdateVtxColors = false;
 
 	/** Should Vertex Colors of MeshDescription be transformed from SRGB to Linear */
-	bool bTransformVtxColorsSRGBToLinear = false;
+	bool bTransformVtxColorsSRGBToLinear = true;
 
 	//
 	// utility functions for common configuration cases

@@ -172,4 +172,14 @@ protected:
 	*/
 	void ConvertWeightLayers(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TArray<FVertexID>& IndexToVertexIDMap);
 
+	/**
+	 * Applies an optional sRGB-to-Linear color transform on the input. The color transform
+	 * is controlled by ConversionOptions.bTransformVtxColorsSRGBToLinear.
+	 *
+	 * The counterpart to this method is MeshDescriptionToDynamicMesh::ApplyVertexColorTransform
+	 * which will undo this color transformation when the MeshDescription is read back.
+	 *
+	 * @param Color color to transform
+	 */
+	void ApplyVertexColorTransform(FVector4f& Color) const;
 };
