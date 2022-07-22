@@ -11,7 +11,7 @@
 #include "BlueprintNodeBinder.h"
 #include "BlueprintGraphModule.h"
 
-#define ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 1)
+#define ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 0)
 
 class UBlueprint;
 class UBlueprintNodeSpawner;

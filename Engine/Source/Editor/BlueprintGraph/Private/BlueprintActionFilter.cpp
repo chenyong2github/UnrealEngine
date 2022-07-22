@@ -2209,7 +2209,10 @@ void FBlueprintActionFilter::AddRejectionTest(FRejectionTestDelegate RejectionTe
 //------------------------------------------------------------------------------
 bool FBlueprintActionFilter::IsFiltered(FBlueprintActionInfo& BlueprintAction)
 {
+	
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionFilter::IsFiltered);
+#endif
 
 	bool bIsFiltered = IsFilteredByThis(BlueprintAction);
 	if (!bIsFiltered)
