@@ -20,8 +20,8 @@
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
 #include "RayTracingSphereLight.ush"
-#include "RayTracingSpotLight.ush"
 #include "RayTracingPointLight.ush"
+#include "RayTracingCapsuleLight.ush"
 
 /** Light types */
 #define LIGHT_TYPE_DIRECTIONAL 0
@@ -100,24 +100,22 @@ bool GenerateOcclusionRay(
 			/* out */ RayTMin,
 			/* out */ RayTMax);
 	}
-	#elif LIGHT_TYPE == LIGHT_TYPE_POINT
+	#elif LIGHT_TYPE == LIGHT_TYPE_POINT || LIGHT_TYPE == LIGHT_TYPE_SPOT
 	{
-		if (LightParameters.SourceRadius == 0)
+		#if LIGHT_TYPE == LIGHT_TYPE_SPOT
+			// before generating a shadow ray, make sure we are inside the cone of the light
+			float3 LightDirection = normalize(LightParameters.TranslatedWorldPosition - TranslatedWorldPosition);
+			float CosAngle = LightParameters.SpotAngles.x;
+			if (!(dot(LightDirection, LightParameters.Direction) >= CosAngle))
+			{
+				// outside the cone of the light, skip all work
+				return false;
+			}
+		#endif
+		float RayPdf;
+		if (LightParameters.SourceLength > 0.0)
 		{
-			return GeneratePointLightOcclusionRay(
-				LightParameters,
-				TranslatedWorldPosition, WorldNormal,
-				RandSample,
-				/* out */ RayOrigin,
-				/* out */ RayDirection,
-				/* out */ RayTMin,
-				/* out */ RayTMax);
-		}
-		else
-		{
-			float RayPdf;
-			//return GenerateSphereLightOcclusionRayWithAreaSampling(
-			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
+			return GenerateCapsuleLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				TranslatedWorldPosition, WorldNormal,
 				RandSample,
@@ -127,17 +125,15 @@ bool GenerateOcclusionRay(
 				/* out */ RayTMax,
 				/* out */ RayPdf);
 		}
-	}
-	#elif LIGHT_TYPE == LIGHT_TYPE_SPOT
-	{
-		return GenerateSpotLightOcclusionRay(
+		return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 			LightParameters,
 			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
 			/* out */ RayTMin,
-			/* out */ RayTMax);
+			/* out */ RayTMax,
+			/* out */ RayPdf);
 	}
 	#elif LIGHT_TYPE == LIGHT_TYPE_RECT
 	{
