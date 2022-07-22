@@ -129,6 +129,7 @@ public:
 	}
 
 	virtual void OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+	virtual bool IsAlphaAllowed() const override { return true; }
 
 public:
 	/**
