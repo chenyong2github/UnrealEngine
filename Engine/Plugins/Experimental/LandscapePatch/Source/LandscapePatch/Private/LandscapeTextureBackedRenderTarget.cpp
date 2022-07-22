@@ -243,7 +243,7 @@ void ULandscapeWeightTextureBackedRenderTarget::CopyToInternalTexture()
 		return;
 	}
 
-	if (!ensure(IsValid(InternalTexture) && InternalTexture->GetResource()))
+	if (!(ensure(IsValid(InternalTexture)) && InternalTexture->GetResource()))
 	{
 		Modify();
 		InternalTexture = CreateTexture(this);
@@ -271,7 +271,7 @@ void ULandscapeWeightTextureBackedRenderTarget::CopyBackFromInternalTexture()
 	InternalTexture->UpdateResource();
 	FTextureCompilingManager::Get().FinishCompilation({ InternalTexture });
 
-	if (!ensure(InternalTexture->GetResource()))
+	if (!InternalTexture->GetResource())
 	{
 		return;
 	}
@@ -341,7 +341,7 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyToInternalTexture()
 		return;
 	}
 
-	if (!ensure(IsValid(InternalTexture) && InternalTexture->GetResource()))
+	if (!(ensure(IsValid(InternalTexture)) && InternalTexture->GetResource()))
 	{
 		Modify();
 		InternalTexture = CreateTexture(this);
@@ -405,7 +405,7 @@ void ULandscapeHeightTextureBackedRenderTarget::CopyBackFromInternalTexture()
 	InternalTexture->UpdateResource();
 	FTextureCompilingManager::Get().FinishCompilation({ InternalTexture });
 
-	if (!ensure(InternalTexture->GetResource()))
+	if (!InternalTexture->GetResource())
 	{
 		return;
 	}
