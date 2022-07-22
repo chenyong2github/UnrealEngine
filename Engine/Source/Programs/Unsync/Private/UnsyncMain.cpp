@@ -54,6 +54,7 @@ InnerMain(int Argc, char** Argv)
 	std::string				 InputFilename2Utf8;
 	std::string				 SourceManifestFilenameUtf8;
 	std::vector<std::string> ExcludeFilterArrayUtf8;
+	std::vector<std::string> CleanupExcludeFilterArrayUtf8;
 	std::vector<std::string> OverlayArrayUtf8;
 	std::string				 RemoteAddressUtf8;
 	std::string				 PreferredDfsUtf8;
@@ -171,6 +172,7 @@ InnerMain(int Argc, char** Argv)
 						HttpHeaderFilenameUtf8,
 						"Text file that contains any extra HTTP headers to pass to the remote server (auth tokens, etc.)");
 	SubSync->add_flag("--no-cleanup", bNoCleanupAfterSync, "Do not delete local files that aren't in the manifest after a successful sync");
+	SubSync->add_option("--cleanup-exclude", CleanupExcludeFilterArrayUtf8, "Exclude filenames that contain specified words from cleanup process (comma separated)");
 
 	// Deprecated --quick flag
 	SubSync
@@ -442,20 +444,23 @@ InnerMain(int Argc, char** Argv)
 	Algorithm.StrongHashAlgorithmId = DefaultStrongHasher;
 	Algorithm.WeakHashAlgorithmId	= DefaultWeakHasher;
 
-	// Merge multiple exclude filter strings into one
-	std::string ExcludeFilterUtf8;
+	FSyncFilter SyncFilter;
+
 	for (const std::string& Str : ExcludeFilterArrayUtf8)
 	{
-		ExcludeFilterUtf8 += Str + ",";
+		SyncFilter.ExcludeFromSync(ConvertUtf8ToWide(Str));
 	}
 
-	// Remove any trailing commas
-	while (!ExcludeFilterUtf8.empty() && ExcludeFilterUtf8.back() == ',')
+	if (const char* EnvCleanupExclude = getenv("UNSYNC_CLEANUP_EXCLUDE"))
 	{
-		ExcludeFilterUtf8.pop_back();
+		UNSYNC_VERBOSE(L"Using UNSYNC_CLEANUP_EXCLUDE environment: '%hs'", EnvCleanupExclude);
+		CleanupExcludeFilterArrayUtf8.push_back(EnvCleanupExclude);
 	}
 
-	FSyncFilter SyncFilter(ConvertUtf8ToWide(ExcludeFilterUtf8));
+	for (const std::string& Str : CleanupExcludeFilterArrayUtf8)
+	{
+		SyncFilter.ExcludeFromCleanup(ConvertUtf8ToWide(Str));
+	}
 
 	if (PreferredDfsUtf8.empty())
 	{

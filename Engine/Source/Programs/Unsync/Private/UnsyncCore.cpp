@@ -25,7 +25,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.44"
+#define UNSYNC_VERSION_STR "1.0.45"
 
 namespace unsync {
 
@@ -2842,14 +2842,33 @@ MergeManifests(FDirectoryManifest& Existing, const FDirectoryManifest& Other, bo
 static void
 DeleteUnnecessaryFiles(const FPath&				 TargetDirectory,
 					   const FDirectoryManifest& TargetDirectoryManifest,
-					   const FDirectoryManifest& ReferenceManifest)
+					   const FDirectoryManifest& ReferenceManifest,
+					   const FSyncFilter*		 SyncFilter)
 {
+	auto ShouldCleanup = [SyncFilter](const FPath& Filename) -> bool {
+		if (SyncFilter)
+		{
+			return SyncFilter->ShouldCleanup(Filename);
+		}
+		else
+		{
+			return true;
+		}
+	};
+
 	for (const auto& TargetManifestEntry : TargetDirectoryManifest.Files)
 	{
 		const std::wstring& TargetFileName = TargetManifestEntry.first;
 		if (ReferenceManifest.Files.find(TargetFileName) == ReferenceManifest.Files.end())
 		{
 			FPath FilePath = TargetDirectory / TargetFileName;
+
+			if (!ShouldCleanup(FilePath))
+			{
+				UNSYNC_VERBOSE2(L"Skipped deleting '%ls' (excluded by filter)", FilePath.wstring().c_str());
+				continue;
+			}
+
 			if (GDryRun)
 			{
 				UNSYNC_VERBOSE(L"Deleting '%ls' (skipped due to dry run mode)", FilePath.wstring().c_str());
@@ -3641,7 +3660,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	{
 		UNSYNC_VERBOSE(L"Deleting unnecessary files");
 		UNSYNC_LOG_INDENT;
-		DeleteUnnecessaryFiles(TargetPath, TargetDirectoryManifest, SourceDirectoryManifest);
+		DeleteUnnecessaryFiles(TargetPath, TargetDirectoryManifest, SourceDirectoryManifest, SyncFilter);
 	}
 
 	// Save the source directory manifest on success.
@@ -4042,23 +4061,36 @@ ComputeNeedListSize(const FNeedList& NeedList)
 	return Result;
 }
 
-FSyncFilter::FSyncFilter(const std::wstring& InExcludedWords)
+static void
+AddCommaSeparatedWordsToList(const std::wstring& CommaSeparatedWords, std::vector<std::wstring>& Output)
 {
 	size_t Offset = 0;
-	size_t Len	  = InExcludedWords.length();
+	size_t Len	  = CommaSeparatedWords.length();
 	while (Offset < Len)
 	{
-		size_t MatchOffset = InExcludedWords.find(L',', Offset);
+		size_t MatchOffset = CommaSeparatedWords.find(L',', Offset);
 		if (MatchOffset == std::wstring::npos)
 		{
 			MatchOffset = Len;
 		}
 
-		std::wstring Word = InExcludedWords.substr(Offset, MatchOffset - Offset);
-		ExcludedWords.push_back(Word);
+		std::wstring Word = CommaSeparatedWords.substr(Offset, MatchOffset - Offset);
+		Output.push_back(Word);
 
 		Offset = MatchOffset + 1;
 	}
+}
+
+void
+FSyncFilter::ExcludeFromSync(const std::wstring& CommaSeparatedWords)
+{
+	AddCommaSeparatedWordsToList(CommaSeparatedWords, SyncExcludedWords);
+}
+
+void
+FSyncFilter::ExcludeFromCleanup(const std::wstring& CommaSeparatedWords)
+{
+	AddCommaSeparatedWordsToList(CommaSeparatedWords, CleanupExcludedWords);
 }
 
 bool
@@ -4074,7 +4106,31 @@ FSyncFilter::ShouldSync(const FPath& Filename) const
 bool
 FSyncFilter::ShouldSync(const std::wstring& Filename) const
 {
-	for (const std::wstring& Word : ExcludedWords)
+	for (const std::wstring& Word : SyncExcludedWords)
+	{
+		if (Filename.find(Word) != std::wstring::npos)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool
+FSyncFilter::ShouldCleanup(const FPath& Filename) const
+{
+#if UNSYNC_PLATFORM_WINDOWS
+	return ShouldCleanup(Filename.native());
+#else
+	return ShouldCleanup(Filename.wstring());
+#endif
+}
+
+bool
+FSyncFilter::ShouldCleanup(const std::wstring& Filename) const
+{
+	for (const std::wstring& Word : CleanupExcludedWords)
 	{
 		if (Filename.find(Word) != std::wstring::npos)
 		{
