@@ -197,7 +197,7 @@ private:
 };
 #endif //ENABLE_FILTERING_HACK
 
-void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
+void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
 
@@ -533,15 +533,6 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 				continue;
 			}
 		}
-	}
-
-	// If we had no new errors add the validation tag to indicate that the packages are safe for submission. 
-	// TODO: Currently this is a simple tag to make it easier for us to track which assets were submitted via the
-	// virtualization process in a test project. This should be expanded when we add proper p4 server triggers.
-	if (NumErrors == OutErrors.Num())
-	{
-		FText Tag = FText::FromString(TEXT("#virtualized"));
-		OutDescriptionTags.Add(Tag);
 	}
 
 	const double TimeInSeconds = FPlatformTime::Seconds() - StartTime;

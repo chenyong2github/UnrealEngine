@@ -226,6 +226,9 @@ private:
 	/** The name of the backend graph to load from the config ini file that will describe the backend hierarchy */
 	FString BackendGraphName;
 
+	/** The tag that will be returned when the virtualization process has run, commonly used to post fix changelist descriptions */
+	FString VirtualizationProcessTag;
+
 	/** The default filtering mode to apply if a payload is not matched with an option in UVirtualizationFilterSettings */
 	EPackageFilterMode FilteringMode;
 

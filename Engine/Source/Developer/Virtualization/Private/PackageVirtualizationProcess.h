@@ -9,7 +9,6 @@
 namespace UE::Virtualization
 {
 
-/** @See IVirtualizationSystem::TryVirtualizePackages */
-void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors);
+void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutErrors);
 
 } // namespace UE::Virtualization

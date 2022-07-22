@@ -264,6 +264,7 @@ FVirtualizationManager::FVirtualizationManager()
 	, bEnableCacheAfterPull(true)
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
+	, VirtualizationProcessTag(TEXT("#virtualized"))
 	, FilteringMode(EPackageFilterMode::OptOut)
 	, bFilterEngineContent(true)
 	, bFilterEnginePluginContent(true)
@@ -641,7 +642,16 @@ EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(const TArray
 	OutDescriptionTags.Reset();
 	OutErrors.Reset();
 
-	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutDescriptionTags, OutErrors);
+	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutErrors);
+
+	// If we had no new errors add the validation tag to indicate that the packages are safe for submission. 
+	// TODO: Currently this is a simple tag to make it easier for us to track which assets were submitted via the
+	// virtualization process in a test project. This should be expanded when we add proper p4 server triggers.
+	if (OutErrors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
+	{
+		FText Tag = FText::FromString(VirtualizationProcessTag);
+		OutDescriptionTags.Add(Tag);
+	}
 
 	return OutErrors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
 }
@@ -779,6 +789,17 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	else
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].BackendGraph from config file!"));
+	}
+
+	FString VirtualizationProcessTagFromIni;
+	if (ConfigFile.GetString(TEXT("Core.VirtualizationModule"), TEXT("VirtualizationProcessTag"), VirtualizationProcessTagFromIni))
+	{
+		VirtualizationProcessTag = VirtualizationProcessTagFromIni;
+		UE_LOG(LogVirtualization, Display, TEXT("\tVirtualizationProcessTag : %s"), *VirtualizationProcessTag);
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].VirtualizationProcessTag from config file!"));
 	}
 
 	FString FilterModeFromIni;
