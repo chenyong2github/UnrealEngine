@@ -2075,17 +2075,17 @@ void CopyScriptVariableDataForRename(const UNiagaraScriptVariable& OldScriptVari
 
 bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin)
 {
+	auto TrySubscribeScriptVarToDefinitionByName = [this](UNiagaraScriptVariable* TargetScriptVar) {
+		UNiagaraScript* OuterScript = GetTypedOuter<UNiagaraScript>();
+		bool bForDataProcessingOnly = true;
+		TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel = MakeShared<FNiagaraScriptViewModel>(FText(), ENiagaraParameterEditMode::EditAll, bForDataProcessingOnly);
+		ScriptViewModel->SetScript(OuterScript);
+		FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(TargetScriptVar, ScriptViewModel.Get());
+	};
+
 	if (Parameter.GetName() == NewName)
 	{
 		return true;
-	}
-
-	UNiagaraScript* OuterScript = GetTypedOuter<UNiagaraScript>();
-	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel = TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::GetExistingViewModelForObject(OuterScript);
-	if (ScriptViewModel.IsValid() == false)
-	{
-		ensureMsgf(false, TEXT("Failed to get script viewmodel when renaming parameter via pin in graph!"));
-		return false;
 	}
 
 	Modify();
@@ -2101,7 +2101,7 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 			{
 				if (TObjectPtr<UNiagaraScriptVariable> const* RenamedScriptVarPtr = VariableToScriptVariable.Find(FNiagaraVariable(Parameter.GetType(), NewName)))
 				{
-					FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(*RenamedScriptVarPtr, ScriptViewModel.Get());
+					TrySubscribeScriptVarToDefinitionByName(*RenamedScriptVarPtr);
 				}
 
 				// Rename all the bindings that point to the old parameter 
@@ -2153,7 +2153,7 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 		NewScriptVariable->Metadata.CreateNewGuid();
 		NewScriptVariable->SetIsSubscribedToParameterDefinitions(false);
 		VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
-		FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByName(NewScriptVariable, ScriptViewModel.Get());
+		TrySubscribeScriptVarToDefinitionByName(NewScriptVariable);
 
 		const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = GetParameterReferenceMap().Find(Parameter);
 		if (ReferenceCollection && ReferenceCollection->ParameterReferences.Num() < 1)

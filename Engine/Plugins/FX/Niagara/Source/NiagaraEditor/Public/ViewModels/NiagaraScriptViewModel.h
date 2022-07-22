@@ -35,7 +35,7 @@ public:
 
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
 protected:
-	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override { checkf(false, TEXT("Tried to modify parameter libraries for script viewmodel; this is only a valid operation for standalone script viewmodel and scratchpad scriptviewmodel!")); return nullptr; };
+	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override;
 	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
 
 public:

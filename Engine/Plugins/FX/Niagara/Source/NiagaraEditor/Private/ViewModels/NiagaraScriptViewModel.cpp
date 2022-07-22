@@ -124,6 +124,13 @@ FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 
 }
 
+INiagaraParameterDefinitionsSubscriber* FNiagaraScriptViewModel::GetParameterDefinitionsSubscriber()
+{
+	checkf(bIsForDataProcessingOnly, TEXT("Tried to get parameter definitions subscriber for scriptviewmodel not being used strictly for data processing! When not for data processing, this must be a standalone or scratch scriptviewmodel!"));
+	checkf(Scripts.Num() == 1, TEXT("Tried to get parameter definitions subscriber for scriptviewmodel but there was more than one script!"));
+	return &Scripts[0];
+}
+
 FText FNiagaraScriptViewModel::GetDisplayName() const
 {
 	return GraphViewModel->GetDisplayName();
