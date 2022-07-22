@@ -139,6 +139,8 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	OutputColor.a = lerp(OutputColor.a, 0, AlphaBlendWeight);
 }
 
+float4x4 NormalCorrectionMatrix;
+
 void NormalPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputColor : SV_Target0)
 {
 	ResolvedView = ResolveView();
@@ -151,8 +153,8 @@ void NormalPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 Outpu
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, Input.Position, bIsFrontFace);
 
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
-
-	float3 Normal = TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
+	
+	float3 Normal = mul(TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1)), (float3x3) NormalCorrectionMatrix);
 	
 	OutputColor = float4(Normal * 0.5 + 0.5, 1.0f);
 }

@@ -76,6 +76,11 @@ public:
 		return PreviewMesh;
 	}
 
+	UTexture* GetOverrideTexture() const
+	{
+		return OverrideTexture;
+	}
+
 	/** Create and retrieve a render texture 2d from the render target. */
 	UTexture* GetViewportPreviewTexture2D();
 

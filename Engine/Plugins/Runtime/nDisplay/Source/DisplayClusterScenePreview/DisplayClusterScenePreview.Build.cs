@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class DisplayClusterScenePreview : ModuleRules
 {
@@ -10,6 +9,7 @@ public class DisplayClusterScenePreview : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"DisplayClusterLightCardEditorShaders",
+				"RHI"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -20,7 +20,13 @@ public class DisplayClusterScenePreview : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"ProceduralMeshComponent",
 				"RenderCore"
 			});
+
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 	}
 }

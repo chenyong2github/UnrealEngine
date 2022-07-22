@@ -11,6 +11,7 @@
 #include "DisplayClusterMeshProjectionRenderer.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterLightCardEditorWidget.h"
+#include "DisplayClusterLightCardEditorHelper.h"
 
 class ADisplayClusterRootActor;
 class SDisplayClusterLightCardEditor;
@@ -40,89 +41,6 @@ public:
 
 private:
 	DECLARE_MULTICAST_DELEGATE(FOnNextSceneRefresh);
-
-	struct FSphericalCoordinates
-	{
-	public:
-
-		/** Constructors */
-		FSphericalCoordinates(const FVector& CartesianPosition);
-		FSphericalCoordinates();
-
-		/** Return equivalent cartesian coordinates */
-		FVector AsCartesian() const;
-
-		/** Addition operator */
-		FSphericalCoordinates operator+(FSphericalCoordinates const& Other) const;
-
-		/** Subtraction operator */
-		FSphericalCoordinates operator-(FSphericalCoordinates const& Other) const;
-
-		/** Conform parameters to their normal ranges */
-		void Conform();
-		
-		/** Returns a conformed version of this struct without changing the current one */
-		FSphericalCoordinates GetConformed() const;
-
-		/** Returns true if the inclination is pointing at north or south poles, within the given margin (in radians) */
-		bool IsPointingAtPole(double Margin = 1e-6) const;
-
-		double Radius = 0;      // unitless   0+      (when conforming)
-		double Inclination = 0; // radians    0 to PI (when conforming)
-		double Azimuth = 0;     // radians  -PI to PI (when conforming)
-	};
-
-	/** Custom render target that stores the normal data for the stage */
-	class FNormalMap : public FRenderTarget
-	{
-	public:
-		/** The size of the normal map */
-		static const int32 NormalMapSize;
-
-		/** The field of view to render the normal map with. Using the azimuthal projection,
-		 * this is set so that the entire 360 degree scene is rendered */
-		static const float NormalMapFOV;
-
-		/** Initializes the normal map render target using the specified scene view options */
-		void Init(const FSceneViewInitOptions& InSceneViewInitOptions);
-
-		/** Releases the normal map render target's resources */
-		void Release();
-
-		/** Gets the size of the render target */
-		virtual FIntPoint GetSizeXY() const override { return FIntPoint(SizeX, SizeY); }
-
-		/** Gets a reference to the normal map data array, which stores the normal vector in the RGB components (color = 0.5 * Normal + 0.5) and the depth in the A component */
-		TArray<FFloat16Color>& GetCachedNormalData() { return CachedNormalData; }
-
-		/** Gets the normal vector and distance at the specified world location. The normal and distance are bilinearly interpolated from the nearest pixels in the normal map */
-		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const;
-
-		/** Morphs the vertices of the specified prodedural mesh to match the normal map */
-		void MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent) const;
-
-		/** Generates a texture object that can be used to visualize the normal map */
-		UTexture2D* GenerateNormalMapTexture(const FString& TextureName);
-
-		/** Gets the normal map visualization texture, or null if it hasn't been generated */
-		UTexture2D* GetNormalMapTexture() const { return NormalMapTexture.IsValid() ? NormalMapTexture.Get() : nullptr; }
-
-	private:
-		/** The view matrices used when the normal map was last rendered */
-		FViewMatrices ViewMatrices;
-
-		/** The cached normal map data from the last normal map render */
-		TArray<FFloat16Color> CachedNormalData;
-
-		/** A texture that contains the normal map, for visualization purposes */
-		TWeakObjectPtr<UTexture2D> NormalMapTexture;
-
-		/** The width of the normal map. */
-		uint32 SizeX = 0;
-
-		/** The height of the normal map. */
-		uint32 SizeY = 0;
-	};
 
 public:
 	FDisplayClusterLightCardEditorViewportClient(FPreviewScene& InPreviewScene,
@@ -201,7 +119,7 @@ public:
 	 * @param SphericalCoords specifies desired location of light card in spherical coordinates with respect to view origin.
 	 * 
 	*/
-	void MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const;
+	void MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const;
 
 	/** Places the given light card in the middle of the current viewport */
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
@@ -257,15 +175,6 @@ private:
 
 	/** Moves all given light cards to the specified pixel position */
 	void MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards);
-	
-	/** Ensures that the light card root component is at the same location as the projection/view origin */
-	void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor* LightCard) const;
-
-	/** Determines the appropriate delta rotation needed to move the specified light card to the mouse's location */
-	FRotator GetLightCardRotationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
-
-	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the mouse's location */
-	FSphericalCoordinates GetLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
 
 	/** Moves the currently selected UV light cards */
 	void MoveSelectedUVLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
@@ -285,41 +194,17 @@ private:
 	/** Determines the appropriate spin delta needed to rotate the light card */
 	double GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard);
 
-	/** Gets the spherical coordinates of the specified light card */
-	FSphericalCoordinates GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const;
-
-	/** Sets the light card position to the given spherical coordinates */
-	void SetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard, const FSphericalCoordinates& SphericalCoords) const;
-
-	/** Performs a ray trace against the stage's geometry, and returns the hit point */
-	bool TraceStage(const FVector& RayStart, const FVector& RayEnd, FVector& OutHitLocation) const;
-
-	/** Traces the world geometry to find the best direction vector from the view origin to a valid point in space using a screen ray */
-	FVector TraceScreenRay(const FVector& RayOrigin, const FVector& RayDirection, const FVector& ViewOrigin);
-
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	ADisplayClusterLightCardActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
 
 	/** Projects the specified world position to the viewport's current projection space */
 	FVector ProjectWorldPosition(const FVector& UnprojectedWorldPosition, const FViewMatrices& ViewMatrices) const;
 
-	/** Converts a pixel coordinate into a point and direction vector in world space */
-	void PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection);
-
-	/** Converts a world coordinate into a point in screen space, and returns true if the world position is on the screen */
-	bool WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const;
-
 	/** Converts a direction vector from world space to screen screen space, and returns true of the direction vector is on the screen */
 	bool WorldToScreenDirection(const FSceneView& View, const FVector& WorldPos, const FVector& WorldDirection, FVector2D& OutScreenDir);
 
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
 	bool CalcEditorWidgetTransform(FTransform& WidgetTransform);
-	
-	/** Renders the viewport's normal map and stores the texture data to be used later */
-	void RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection);
-
-	/** Invalidates the viewport's normal map, forcing it to be rerendered on the next draw call */
-	void InvalidateNormalMap();
 
 	/** Checks if the location is approaching the edge of the view space */
 	bool IsLocationCloseToEdge(const FVector& InPosition, const FViewport* InViewport = nullptr, const FSceneView* InView = nullptr, FVector2D* OutPercentageToEdge = nullptr);
@@ -332,9 +217,6 @@ private:
 
 	/** Calculates the final distance from the origin of a light card, given its flush distance and a desired offset */
 	double CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
-
-	/** Calculates the relative normal vector and world position in the specified direction from the given view origin */
-	void CalculateNormalAndPositionInDirection(const FVector& InViewOrigin, const FVector& InDirection, FVector& OutWorldLocation, FVector& OutRelativeNormal, double InDesiredDistanceFromFlush = 0.) const;
 
 	/** Callback passed into the mesh projection renderer to filter which primitives are drawn */
 	bool ShouldRenderPrimitive(const UPrimitiveComponent* PrimitiveComponent);
@@ -382,6 +264,9 @@ private:
 	
 	/** The index of the scene preview renderer returned from IDisplayClusterScenePreview */
 	int32 PreviewRendererId = -1;
+
+	/** Helper used to convert between screen and world coordinates for lightcard positions. */
+	TSharedPtr<FDisplayClusterLightCardEditorHelper> ProjectionHelper;
 	
 	/** The LC editor widget used to manipulate light cards */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
@@ -421,18 +306,6 @@ private:
 
 	/** The increment to change the FOV by when using the scroll wheel */
 	float FOVScrollIncrement = 5.0f;
-
-	/** The render target used to render a map of the screens' normals for the northern hemisphere of the view */
-	FNormalMap NorthNormalMap;
-
-	/** The render target used to render a map of the screens' normals for the southern hemisphere of the view */
-	FNormalMap SouthNormalMap;
-
-	/** A morphed ico-sphere mesh component that approximates the normal and depth map */
-	TWeakObjectPtr<UProceduralMeshComponent> NormalMapMeshComponent;
-
-	/** Indicates if the cached normal map is invalid and needs to be redrawn */
-	bool bNormalMapInvalid = false;
 
 	/** Indicates if the normal map should be displayed to the screen */
 	bool bDisplayNormalMapVisualization = false;

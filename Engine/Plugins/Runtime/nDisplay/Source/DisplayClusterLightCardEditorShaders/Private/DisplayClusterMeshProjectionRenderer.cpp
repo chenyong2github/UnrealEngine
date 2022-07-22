@@ -32,6 +32,7 @@ class FMeshProjectionShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
 	FDisplayClusterMeshProjectionTypeSettings ProjectionTypeSettings;
+	FMatrix44f NormalCorrectionMatrix;
 };
 
 /** Base class for all mesh pass processors used by the projection renderer.
@@ -50,6 +51,7 @@ public:
 		const FDisplayClusterMeshProjectionRenderSettings& InRenderSettings)
 		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
 		, ProjectionTypeSettings(InRenderSettings.ProjectionTypeSettings)
+		, NormalCorrectionMatrix(InRenderSettings.NormalCorrectionMatrix)
 		, StencilValue(0)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<>::GetRHI());
@@ -139,6 +141,7 @@ protected:
 		ShaderElementDataType ShaderElementData;
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 		ShaderElementData.ProjectionTypeSettings = ProjectionTypeSettings;
+		ShaderElementData.NormalCorrectionMatrix = NormalCorrectionMatrix;
 
 		return ShaderElementData;
 	}
@@ -155,6 +158,7 @@ protected:
 protected:
 	FMeshPassProcessorRenderState DrawRenderState;
 	FDisplayClusterMeshProjectionTypeSettings ProjectionTypeSettings;
+	FMatrix44f NormalCorrectionMatrix;
 	uint32 StencilValue;
 };
 
@@ -227,6 +231,7 @@ public:
 		: FMeshMaterialShader(Initializer)
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
+		NormalCorrectionMatrix.Bind(Initializer.ParameterMap, TEXT("NormalCorrectionMatrix"), SPF_Optional);
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -235,6 +240,24 @@ public:
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& Parameters.VertexFactoryType == FindVertexFactoryType(TEXT("FLocalVertexFactory"));
 	}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FMeshProjectionShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+
+		ShaderBindings.Add(NormalCorrectionMatrix, ShaderElementData.NormalCorrectionMatrix);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderParameter, NormalCorrectionMatrix);
 };
 
 using FMeshProjectionColorPS = FMeshProjectionPS<EDisplayClusterMeshProjectionOutput::Color>;
@@ -480,6 +503,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWColor)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWStencil)
+		SHADER_PARAMETER(FMatrix44f, NormalCorrectionMatrix)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -939,6 +963,7 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("ViewRenderTarget")));
 			FRenderTargetBinding OutputRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+			FMeshProjectionElementCollector ElementCollector(HitProxyConsumer);
 
 			switch (RenderSettings.RenderType)
 			{
@@ -951,18 +976,17 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 				{
 					RenderColorOutput(GraphBuilder, View, RenderSettings, OutputRenderTargetBinding);
 				}
+
+				if (RenderSimpleElementsDelegate.IsBound())
+				{
+					RenderSimpleElementsDelegate.Execute(View, &ElementCollector);
+					AddSimpleElementPass(GraphBuilder, View, OutputRenderTargetBinding, ElementCollector);
+				}
 				break;
 
 			case EDisplayClusterMeshProjectionOutput::Normals:
 				RenderNormalsOutput(GraphBuilder, View, RenderSettings, OutputRenderTargetBinding);
 				break;
-			}
-
-			FMeshProjectionElementCollector ElementCollector(HitProxyConsumer);
-			if (RenderSimpleElementsDelegate.IsBound())
-			{
-				RenderSimpleElementsDelegate.Execute(View, &ElementCollector);
-				AddSimpleElementPass(GraphBuilder, View, OutputRenderTargetBinding, ElementCollector);
 			}
 
 			GraphBuilder.Execute();
@@ -1103,7 +1127,7 @@ void FDisplayClusterMeshProjectionRenderer::RenderNormalsOutput(FRDGBuilder& Gra
 	FDepthStencilBinding NormalsDepthStencilBinding(NormalsDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 	AddNormalsRenderPass(GraphBuilder, View, RenderSettings, NormalsRenderTargetBinding, NormalsDepthStencilBinding);
-	AddNormalsFilterPass(GraphBuilder, View, OutputRenderTargetBinding, NormalsTexture, NormalsDepthTexture);
+	AddNormalsFilterPass(GraphBuilder, View, OutputRenderTargetBinding, NormalsTexture, NormalsDepthTexture, RenderSettings.NormalCorrectionMatrix);
 }
 
 // Helper macros that generate appropriate switch cases for each projection type the mesh projection renderer supports, allowing new projection types to be easily added
@@ -1300,7 +1324,8 @@ void FDisplayClusterMeshProjectionRenderer::AddNormalsFilterPass(FRDGBuilder& Gr
 	const FViewInfo* View,
 	FRenderTargetBinding& OutputRenderTargetBinding,
 	FRDGTexture* SceneColor,
-	FRDGTexture* SceneDepth)
+	FRDGTexture* SceneDepth,
+	const FMatrix44f& NormalCorrectionMatrix)
 {
 	// The normal map filter pass is made up of several separate passes:
 	// * First, the scene color, depth, and stencil textures must be copied into UAV read-write textures for the compute shaders to operate on. This pass also
@@ -1334,6 +1359,7 @@ void FDisplayClusterMeshProjectionRenderer::AddNormalsFilterPass(FRDGBuilder& Gr
 		PassParameters->RWColor = RWColorUAV;
 		PassParameters->RWDepth = RWDepthUAV;
 		PassParameters->RWStencil = RWStencilUAV;
+		PassParameters->NormalCorrectionMatrix = NormalCorrectionMatrix;
 
 		TShaderMapRef<FMeshProjectionNormalsCreateRWTexturesCS> ComputeShader(View->ShaderMap);
 

@@ -14,7 +14,7 @@ public class EpicStageApp : ModuleRules
 			}
 		);
 
-        PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DeveloperSettings",
 				"DisplayCluster",
@@ -25,9 +25,19 @@ public class EpicStageApp : ModuleRules
 				"Networking",
 				"RemoteControl",
 				"RemoteControlCommon",
+				"RHI",
 				"Sockets",
 				"WebRemoteControl"
 			}
-        );
+		);
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"UnrealEd",
+				}
+			);
+		}
 	}
 }

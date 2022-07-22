@@ -92,6 +92,9 @@ struct DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRen
 	/** The output type to use for the renderer. */
 	EDisplayClusterMeshProjectionOutput RenderType = EDisplayClusterMeshProjectionOutput::Color;
 
+	/** A matrix used to rotate the normals in order to account for the root actor's rotation. */
+	FMatrix44f NormalCorrectionMatrix = FMatrix44f::Identity;
+
 	/**
 	 * Optional filter to prevent specific primitives from being rendered.
 	 * This only applies when RenderType is ERenderType::Normals.
@@ -204,7 +207,8 @@ private:
 		const FViewInfo* View,
 		FRenderTargetBinding& OutputRenderTargetBinding,
 		FRDGTexture* SceneColor,
-		FRDGTexture* SceneDepth);
+		FRDGTexture* SceneDepth,
+		const FMatrix44f& NormalCorrectionMatrix);
 
 #if WITH_EDITOR
 	/** Adds a pass to perform the depth render for any selected primitives for the mesh projection */

@@ -13,6 +13,8 @@ RWTexture2D<float4> RWColor;
 RWTexture2D<float> RWDepth;
 RWTexture2D<uint> RWStencil;
 
+float4x4 NormalCorrectionMatrix;
+
 #define FILTER_KERNEL_SIZE 25
 
 DECLARE_SCALAR_ARRAY(float, SpatialKernel, FILTER_KERNEL_SIZE);
@@ -73,7 +75,7 @@ void CreateRWTexturesCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float3 ViewPos = float3(sin(PolarCoords.x) * cos(PolarCoords.y), sin(PolarCoords.x) * sin(PolarCoords.y), cos(PolarCoords.x)) * Rho;
 	float3 WorldPos = mul(float4(ViewPos, 0), View.ViewToTranslatedWorld).xyz;
 	
-	float3 RadialVector = normalize(WorldPos);
+	float3 RadialVector = normalize(mul(WorldPos, (float3x3) NormalCorrectionMatrix));
 	
 	float4 Color = SceneColor.Load(uint3(PixelPos, 0));
 	float Depth = SceneDepth.Load(uint3(PixelPos, 0)).r;

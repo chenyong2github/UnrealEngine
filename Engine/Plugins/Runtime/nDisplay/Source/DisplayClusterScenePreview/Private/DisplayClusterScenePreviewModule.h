@@ -29,14 +29,17 @@ public:
 	virtual bool SetRendererRootActorPath(int32 RendererId, const FString& ActorPath, bool bAutoUpdateLightcards = false) override;
 	virtual bool SetRendererRootActor(int32 RendererId, ADisplayClusterRootActor* Actor, bool bAutoUpdateLightcards = false) override;
 	virtual ADisplayClusterRootActor* GetRendererRootActor(int32 RendererId) override;
+	virtual bool GetActorsInRendererScene(int32 RendererId, bool bIncludeRoot, TArray<AActor*>& OutActors) override;
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor) override;
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor, const TFunctionRef<bool(const UPrimitiveComponent*)>& PrimitiveFilter) override;
 	virtual bool RemoveActorFromRenderer(int32 RendererId, AActor* Actor) override;
 	virtual bool ClearRendererScene(int32 RendererId) override;
 	virtual bool SetRendererActorSelectedDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSelection ActorSelectedDelegate) override;
 	virtual bool SetRendererRenderSimpleElementsDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSimpleElementPass RenderSimpleElementsDelegate) override;
+	virtual bool SetRendererUsePostProcessTexture(int32 RendererId, bool bUsePostProcessTexture) override;
 	virtual bool Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas) override;
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) override;
+	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate) override;
 	//~ End IDisplayClusterScenePreview Interface
 
 private:
@@ -52,6 +55,9 @@ private:
 		/** The path of the root actor that this renderer is previewing. If this is not empty and the root actor becomes invalid, we will attempt to find it again using this path. */
 		FString RootActorPath;
 
+		/** All actors that have been added to the renderer (except for the root actor). */
+		TArray<TWeakObjectPtr<AActor>> AddedActors;
+
 		/** Lightcards that have been automatically added to the scene. */
 		TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> AutoLightcards;
 
@@ -60,6 +66,9 @@ private:
 
 		/** If true, the scene needs to be updated before the next render. This is only relevant if bAutoUpdateLightcards is true. */
 		bool bIsSceneDirty = true;
+
+		/** If true, apply post-processing to the nDisplay preview texture and override the preview component with it before rendering. */
+		bool bUsePostProcessTexture = false;
 
 		/** The render target to use for queued renders. */
 		TStrongObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
@@ -71,8 +80,8 @@ private:
 		FPreviewRenderJob() {}
 
 		FPreviewRenderJob(int32 RendererId, const FDisplayClusterMeshProjectionRenderSettings& Settings, const FIntPoint& Size,
-			FRenderResultDelegate ResultDelegate)
-			: RendererId(RendererId), Settings(Settings), Size(Size), ResultDelegate(ResultDelegate)
+			TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate)
+			: RendererId(RendererId), Settings(Settings), Size(Size), Canvas(Canvas), bWasCanvasProvided(Canvas.IsValid()), ResultDelegate(ResultDelegate)
 		{
 		}
 
@@ -85,6 +94,12 @@ private:
 		/** The size of the image to render. */
 		FIntPoint Size;
 
+		/** The canvas to render to, if provided. */
+		TWeakPtr<FCanvas> Canvas;
+
+		/** Whether a canvas was provided for this job. */
+		bool bWasCanvasProvided;
+
 		/** The delegate to call when the render is completed. */
 		FRenderResultDelegate ResultDelegate;
 	};
@@ -95,6 +110,10 @@ private:
 	/** Set the root actor for a config, update its scene, and register events accordingly. */
 	void InternalSetRendererRootActor(FRendererConfig& RendererConfig, ADisplayClusterRootActor* Actor, bool bAutoUpdateLightcards);
 
+	/** Queue a preview to be rendered. */
+	bool InternalRenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, TWeakPtr<FCanvas> Canvas,
+		const FIntPoint& Size, FRenderResultDelegate ResultDelegate);
+
 	/** Immediately render with the given renderer config and settings to the given canvas. */
 	bool InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas);
 
@@ -102,7 +121,7 @@ private:
 	void RegisterOrUnregisterGlobalActorEvents();
 
 	/** Register/unregister to events affecting a cluster root actor. */
-	void RegisterRootActorEvents(AActor* Actor, bool bShouldRegister);
+	void RegisterRootActorEvents(ADisplayClusterRootActor* Actor, bool bShouldRegister);
 
 	/** Clear and re-populate a renderer's scene with the root actor and lightcards if applicable. */
 	void AutoPopulateScene(FRendererConfig& RendererConfig);
@@ -115,6 +134,9 @@ private:
 
 	/** Called when the user deletes an actor from the level. */
 	void OnLevelActorDeleted(AActor* Actor);
+
+	/** Called when the user adds an actor to the level. */
+	void OnLevelActorAdded(AActor* Actor);
 
 	/** Called when a blueprint for an actor we care about is compiled. */
 	void OnBlueprintCompiled(UBlueprint* Blueprint);

@@ -86,6 +86,16 @@ public:
 	virtual ADisplayClusterRootActor* GetRendererRootActor(int32 RendererId) = 0;
 
 	/**
+	 * Get a list of all actors that have been added to a renderer's scene.
+	 * This includes any actors that the renderer automatically added to itself.
+	 *
+	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
+	 * @param bIncludeRoot If true, include the renderer's root actor.
+	 * @param OutActors The array to fill with actors.
+	 */
+	virtual bool GetActorsInRendererScene(int32 RendererId, bool bIncludeRoot, TArray<AActor*>& OutActors) = 0;
+
+	/**
 	 * Add an actor to the preview scene for a renderer.
 	 * 
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
@@ -136,6 +146,14 @@ public:
 	virtual bool SetRendererRenderSimpleElementsDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSimpleElementPass RenderSimpleElementsDelegate) = 0;
 
 	/**
+	 * Set whether the renderer should use post-processed nDisplay preview textures.
+	 *
+	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
+	 * @param bUsePostProcessTexture Whether to use post-processed nDisplay preview texture for future renders.
+	 */
+	virtual bool SetRendererUsePostProcessTexture(int32 RendererId, bool bUsePostProcessTexture) = 0;
+
+	/**
 	 * Immediately render a preview.
 	 * 
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
@@ -145,7 +163,7 @@ public:
 	virtual bool Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas) = 0;
 
 	/**
-	 * Queue a preview to be rendered in the future.
+	 * Queue a preview to be rendered in the future, automatically creating a canvas and render target.
 	 *
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
 	 * @param RenderSettings Settings controlling how the scene will be rendered.
@@ -153,4 +171,14 @@ public:
 	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
 	 */
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) = 0;
+
+	/**
+	 * Queue a preview to be rendered in the future using an existing canvas. The canvas must have a valid render target assigned.
+	 *
+	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
+	 * @param RenderSettings Settings controlling how the scene will be rendered.
+	 * @param Canvas The canvas to draw to. If this is invalid when the render is ready to start, the render will be skipped.
+	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
+	 */
+	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate) = 0;
 };

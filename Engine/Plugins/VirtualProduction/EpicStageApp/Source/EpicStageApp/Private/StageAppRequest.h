@@ -20,7 +20,57 @@ UENUM()
 enum class ERCWebSocketNDisplayPreviewRenderProjectionType : uint8
 {
 	Perspective,
-	Azimuthal
+	Azimuthal,
+	Orthographic
+};
+
+/** Preview renderer settings exposed to WebSocket clients. */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewRendererSettings
+{
+	GENERATED_BODY()
+
+	/**
+	 * The type of render to perform.
+	 */
+	UPROPERTY()
+	ERCWebSocketNDisplayPreviewRenderType RenderType = ERCWebSocketNDisplayPreviewRenderType::Color;
+
+	/**
+	 * The type of projection to use.
+	 */
+	UPROPERTY()
+	ERCWebSocketNDisplayPreviewRenderProjectionType ProjectionType = ERCWebSocketNDisplayPreviewRenderProjectionType::Azimuthal;
+
+	/**
+	 * The resolution of the image to render.
+	 */
+	UPROPERTY()
+	FIntPoint Resolution = FIntPoint(1024, 1024);
+
+	/**
+	 * The preview camera's field of view (both horizontal and vertical) in degrees.
+	 */
+	UPROPERTY()
+	float FOV = 130.0f;
+
+	/**
+	 * The preview camera's Euler rotation relative to the camera's actual rotation in the scene.
+	 */
+	UPROPERTY()
+	FRotator Rotation = FRotator(90, 0, 0);
+
+	/**
+	 * The quality of the JPEG to send back to the requesting client, in range 50-100.
+	 */
+	UPROPERTY()
+	int32 JpegQuality = 50;
+
+	/**
+	 * If true, include a list of projected positions within the preview render for each rendered actor when responding to a render request.
+	 */
+	UPROPERTY()
+	bool IncludeActorPositions = false;
 };
 
 /**
@@ -46,6 +96,12 @@ struct FRCWebSocketNDisplayPreviewRendererCreateBody : public FRCRequest
 	 */
 	UPROPERTY()
 	FString RootActorPath = "";
+
+	/**
+	 * Initial settings for the renderer.
+	 */
+	UPROPERTY()
+	FRCWebSocketNDisplayPreviewRendererSettings Settings;
 };
 
 /**
@@ -105,6 +161,27 @@ struct FRCWebSocketNDisplayPreviewRendererDestroyBody : public FRCRequest
 };
 
 /**
+ * Change a preview renderer's settings for future renders.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewRendererConfigureBody : public FRCRequest
+{
+	GENERATED_BODY()
+		
+	/**
+	 * The ID of the renderer returned when it was created.
+	 */
+	UPROPERTY()
+	int32 RendererId = -1;
+
+	/**
+	 * Settings to use for future renders.
+	 */
+	UPROPERTY()
+	FRCWebSocketNDisplayPreviewRendererSettings Settings;
+};
+
+/**
  * Holds a request made via websocket to render a preview of a display cluster.
  */
 USTRUCT()
@@ -127,40 +204,125 @@ struct FRCWebSocketNDisplayPreviewRenderBody : public FRCRequest
 	 */
 	UPROPERTY()
 	int32 RendererId = -1;
+};
+
+/**
+ * Holds a request made via websocket to start dragging one or more light cards.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewLightCardDragBeginBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketNDisplayPreviewLightCardDragBeginBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
 
 	/**
-	 * The type of render to perform.
+	 * Get the label for the property value struct.
 	 */
-	UPROPERTY()
-	ERCWebSocketNDisplayPreviewRenderType RenderType = ERCWebSocketNDisplayPreviewRenderType::Color;
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
 
 	/**
-	 * The type of projection to use.
+	 * The ID of the preview renderer returned when it was created.
 	 */
 	UPROPERTY()
-	ERCWebSocketNDisplayPreviewRenderProjectionType ProjectionType = ERCWebSocketNDisplayPreviewRenderProjectionType::Azimuthal;
+	int32 RendererId = -1;
 
 	/**
-	 * The resolution of the image to render.
+	 * Paths of the light cards that will be included in this drag action.
 	 */
 	UPROPERTY()
-	FIntPoint Resolution = FIntPoint(1024, 1024);
+	TArray<FString> LightCards;
 
 	/**
-	 * The preview camera's field of view (both horizontal and vertical) in degrees.
+	 * The light card to use as the origin point for the drag.
 	 */
 	UPROPERTY()
-	float FOV = 130.0f;
+	FString PrimaryLightCard;
 
 	/**
-	 * The preview camera's Euler rotation relative to the camera's actual rotation in the scene.
+	 * The sequence number of this change. The highest sequence number received from this client will be
+	 * sent back to the client in future position updates.
 	 */
 	UPROPERTY()
-	FRotator Rotation = FRotator(90, 0, 0);
+	int64 SequenceNumber = -1;
+};
+
+
+/**
+ * Holds a request made via websocket to move the light cards that are currently being dragged for a preview renderer.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewLightCardDragMoveBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketNDisplayPreviewLightCardDragMoveBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
 
 	/**
-	 * The quality of the JPEG to send back to the requesting client, in range 50-100.
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The ID of the preview renderer returned when it was created.
 	 */
 	UPROPERTY()
-	int32 JpegQuality = 50;
+	int32 RendererId = -1;
+
+	/**
+	 * The position of the drag cursor in coordinates normalized to the size of the preview image.
+	 */
+	UPROPERTY()
+	FVector2D DragPosition;
+
+	/**
+	 * The sequence number of this change. The highest sequence number received from this client will be
+	 * sent back to the client in future position updates.
+	 */
+	UPROPERTY()
+	int64 SequenceNumber = -1;
+};
+
+/**
+ * Holds a request made via websocket to stop dragging light cards for a preview renderer.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewLightCardDragEndBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketNDisplayPreviewLightCardDragEndBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The ID of the preview renderer returned when it was created.
+	 */
+	UPROPERTY()
+	int32 RendererId = -1;
+
+	/**
+	 * The final position of the drag cursor in coordinates normalized to the size of the preview image.
+	 */
+	UPROPERTY()
+	FVector2D DragPosition;
+
+	/**
+	 * The sequence number of this change. The highest sequence number received from this client will be
+	 * sent back to the client in future position updates.
+	 */
+	UPROPERTY()
+	int64 SequenceNumber = -1;
 };
