@@ -221,7 +221,7 @@ bool FEditorDomain::TryFindOrAddPackageSource(FScopeLock& ScopeLock, bool& bOutR
 		}
 		return false;
 	default:
-		UE_LOG(LogEditorDomain, Warning,
+		UE_LOG(LogEditorDomain, Display,
 			TEXT("Could not load package %s from EditorDomain; it will be loaded from the WorkspaceDomain: %s"),
 			*WriteToString<256>(PackageName), *PackageDigest.GetStatusString());
 		PackageSource = new FPackageSource();
