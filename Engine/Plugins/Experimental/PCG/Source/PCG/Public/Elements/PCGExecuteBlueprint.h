@@ -137,6 +137,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Settings|Advanced")
+	int32 DependencyParsingDepth = 1;
 #endif
 
 protected:

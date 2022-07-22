@@ -38,7 +38,7 @@ namespace PCGHelpers
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld);
 
 #if WITH_EDITOR
-	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies);
-	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies);
+	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth = -1);
+	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth);
 #endif
 };

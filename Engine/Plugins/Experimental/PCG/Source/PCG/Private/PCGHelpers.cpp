@@ -167,7 +167,7 @@ namespace PCGHelpers
 		return true;
 	}
 
-	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies)
+	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth)
 	{
 		UClass* ObjectClass = Object ? Object->GetClass() : nullptr;
 
@@ -179,18 +179,21 @@ namespace PCGHelpers
 
 		for (FProperty* Property = ObjectClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext)
 		{
-			GatherDependencies(Property, Object, OutDependencies);
+			GatherDependencies(Property, Object, OutDependencies, MaxDepth);
 		}
 	}
 
 	// Inspired by IteratePropertiesRecursive in ObjectPropertyTrace.cpp
-	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies)
+	void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth)
 	{
-		auto AddToDependenciesAndGatherRecursively = [&OutDependencies](UObject* Object) {
+		auto AddToDependenciesAndGatherRecursively = [&OutDependencies, MaxDepth](UObject* Object) {
 			if (Object && !OutDependencies.Contains(Object))
 			{
 				OutDependencies.Add(Object);
-				GatherDependencies(Object, OutDependencies);
+				if (MaxDepth != 0)
+				{
+					GatherDependencies(Object, OutDependencies, MaxDepth - 1);
+				}
 			}
 		};
 
@@ -219,7 +222,7 @@ namespace PCGHelpers
 			const void* StructContainer = StructProperty->ContainerPtrToValuePtr<const void>(InContainer);
 			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				GatherDependencies(*It, StructContainer, OutDependencies);
+				GatherDependencies(*It, StructContainer, OutDependencies, MaxDepth);
 			}
 		}
 		else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -228,7 +231,7 @@ namespace PCGHelpers
 			for (int32 DynamicIndex = 0; DynamicIndex < Helper.Num(); ++DynamicIndex)
 			{
 				const void* ValuePtr = Helper.GetRawPtr(DynamicIndex);
-				GatherDependencies(ArrayProperty->Inner, ValuePtr, OutDependencies);
+				GatherDependencies(ArrayProperty->Inner, ValuePtr, OutDependencies, MaxDepth);
 			}
 		}
 		else if (FMapProperty* MapProperty = CastField<FMapProperty>(Property))
@@ -240,10 +243,10 @@ namespace PCGHelpers
 				if (Helper.IsValidIndex(DynamicIndex))
 				{
 					const void* KeyPtr = Helper.GetKeyPtr(DynamicIndex);
-					GatherDependencies(MapProperty->KeyProp, KeyPtr, OutDependencies);
+					GatherDependencies(MapProperty->KeyProp, KeyPtr, OutDependencies, MaxDepth);
 
 					const void* ValuePtr = Helper.GetValuePtr(DynamicIndex);
-					GatherDependencies(MapProperty->ValueProp, ValuePtr, OutDependencies);
+					GatherDependencies(MapProperty->ValueProp, ValuePtr, OutDependencies, MaxDepth);
 
 					--Num;
 				}
@@ -258,7 +261,7 @@ namespace PCGHelpers
 				if (Helper.IsValidIndex(DynamicIndex))
 				{
 					const void* ValuePtr = Helper.GetElementPtr(DynamicIndex);
-					GatherDependencies(SetProperty->ElementProp, ValuePtr, OutDependencies);
+					GatherDependencies(SetProperty->ElementProp, ValuePtr, OutDependencies, MaxDepth);
 
 					--Num;
 				}

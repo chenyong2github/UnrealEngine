@@ -13,13 +13,13 @@
 #if WITH_EDITOR
 namespace PCGBlueprintHelper
 {
-	TSet<TObjectPtr<UObject>> GetDataDependencies(UPCGBlueprintElement* InElement)
+	TSet<TObjectPtr<UObject>> GetDataDependencies(UPCGBlueprintElement* InElement, int32 MaxDepth)
 	{
 		check(InElement && InElement->GetClass());
 		UClass* BPClass = InElement->GetClass();
 
 		TSet<TObjectPtr<UObject>> Dependencies;
-		PCGHelpers::GatherDependencies(InElement, Dependencies);
+		PCGHelpers::GatherDependencies(InElement, Dependencies, MaxDepth);
 		return Dependencies;
 	}
 }
@@ -78,7 +78,7 @@ void UPCGBlueprintElement::Initialize()
 {
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UPCGBlueprintElement::OnDependencyChanged);
-	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this);
+	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this, DependencyParsingDepth);
 #endif
 }
 
@@ -88,7 +88,7 @@ void UPCGBlueprintElement::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// Since we don't really know what changed, let's just rebuild our data dependencies
-	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this);
+	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this, DependencyParsingDepth);
 
 	OnBlueprintChangedDelegate.Broadcast(this);
 }
