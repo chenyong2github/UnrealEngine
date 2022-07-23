@@ -64,12 +64,13 @@ namespace PerfSummaries
 
 	class SummaryTableInfo
 	{
-		public SummaryTableInfo(XElement tableElement)
+		public SummaryTableInfo(XElement tableElement, Dictionary<string,string> substitutionsDict)
 		{
 			XAttribute rowSortAt = tableElement.Attribute("rowSort");
 			if (rowSortAt != null)
 			{
 				rowSortList.AddRange(rowSortAt.Value.Split(','));
+				ApplySubstitutionsToList(rowSortList, substitutionsDict);
 			}
 			XAttribute weightByColumnAt = tableElement.Attribute("weightByColumn");
 			if (weightByColumnAt != null)
@@ -81,6 +82,7 @@ namespace PerfSummaries
 			if (filterEl != null)
 			{
 				columnFilterList.AddRange(filterEl.Value.Split(','));
+				ApplySubstitutionsToList(columnFilterList, substitutionsDict);
 			}
 
 			bReverseSortRows = tableElement.GetSafeAttibute<bool>("reverseSortRows", false);
@@ -93,8 +95,10 @@ namespace PerfSummaries
 			{
 				if (sectionBoundaryEl != null)
 				{
+					string statName = ApplySubstitution(sectionBoundaryEl.GetSafeAttibute<string>("statName"), substitutionsDict);
+
 					SummarySectionBoundaryInfo sectionBoundary = new SummarySectionBoundaryInfo(
-						sectionBoundaryEl.GetSafeAttibute<string>("statName"),
+						statName,
 						sectionBoundaryEl.GetSafeAttibute<string>("startToken"),
 						sectionBoundaryEl.GetSafeAttibute<string>("endToken"),
 						sectionBoundaryEl.GetSafeAttibute<int>("level", 0),
@@ -105,6 +109,32 @@ namespace PerfSummaries
 				}
 			}
 		}
+
+		private void ApplySubstitutionsToList(List<string> list, Dictionary<string, string> substitutionsDict)
+		{
+			if (substitutionsDict == null)
+			{
+				return;
+			}
+			for (int i = 0; i < list.Count; i++)
+			{
+				list[i] = ApplySubstitution(list[i], substitutionsDict);
+			}
+		}
+
+		private string ApplySubstitution(string str, Dictionary<string, string> substitutionsDict)
+		{
+			if (substitutionsDict == null)
+			{
+				return str;
+			}
+			if (substitutionsDict.TryGetValue(str, out string replaceStr))
+			{
+				return replaceStr;
+			}
+			return str;
+		}
+
 
 		public SummaryTableInfo(string filterListStr, string rowSortStr)
 		{
