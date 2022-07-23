@@ -3116,7 +3116,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 	for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; TransformGroupIndex++)
 	{
-		CollectionSimulatableParticles[TransformGroupIndex] = (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None);
+		if (SimulationType[TransformGroupIndex] == FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			CollectionSimulatableParticles[TransformGroupIndex] = false;
+		}
 	}
 	
 	// compute mass properties in parallel

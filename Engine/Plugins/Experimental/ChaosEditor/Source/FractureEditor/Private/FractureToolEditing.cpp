@@ -129,11 +129,14 @@ void UFractureToolHide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
+		FScopedTransaction Transaction(LOCTEXT("FractureHideTransaction", "Hide"));
+		
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
 		for (FFractureToolContext& Context : Contexts)
 		{
-			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollection* GeometryCollection = Edit.GetRestCollection()->GetGeometryCollection().Get();
 			UGeometryCollection* FracturedGeometryCollection = Context.GetFracturedGeometryCollection();
 
 			Context.ConvertSelectionToRigidNodes();
@@ -196,11 +199,14 @@ void UFractureToolUnhide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
+		FScopedTransaction Transaction(LOCTEXT("FractureUnhideTransaction", "Unhide"));
+		
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
 		for (FFractureToolContext& Context : Contexts)
 		{
-			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollection* GeometryCollection = Edit.GetRestCollection()->GetGeometryCollection().Get();
 			UGeometryCollection* FracturedGeometryCollection = Context.GetFracturedGeometryCollection();
 
 			Context.ConvertSelectionToRigidNodes();
