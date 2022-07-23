@@ -111,15 +111,16 @@ TSharedPtr<UE::RenderPages::Private::SRenderPagesPropsBase> UE::RenderPages::Pri
 TSharedRef<UE::RenderPages::IRenderPageCollectionEditor> UE::RenderPages::Private::FRenderPagesEditorModule::CreateRenderPageCollectionEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, URenderPagesBlueprint* InBlueprint)
 {
 	TSharedRef<FRenderPageCollectionEditor> NewRenderPagesEditor = MakeShared<FRenderPageCollectionEditor>();
-
 	NewRenderPagesEditor->InitRenderPagesEditor(Mode, InitToolkitHost, InBlueprint);
-
 	return NewRenderPagesEditor;
 }
 
 void UE::RenderPages::Private::FRenderPagesEditorModule::HandleNewBlueprintCreated(UBlueprint* InBlueprint)
 {
-	URenderPagesBlueprintFactory::CreateRenderPagesGraphIfRequired(Cast<URenderPagesBlueprint>(InBlueprint));
+	if (URenderPagesBlueprint* RenderPagesBlueprint = Cast<URenderPagesBlueprint>(InBlueprint))
+	{
+		RenderPagesBlueprint->PostLoad();
+	}
 }
 
 

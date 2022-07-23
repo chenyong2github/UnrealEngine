@@ -12,8 +12,6 @@ void UE::RenderPages::Private::FRenderPagesEditorCommands::RegisterCommands()
 	UI_COMMAND(DeletePage, "Delete", "Deletes an existing page instance from the list.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(BatchRenderList, "Render", "Renders the available page instance(s) in batch.", EUserInterfaceActionType::Button, FInputChord());
-
-	UI_COMMAND(AutoCompileGraph, "Auto Compile", "Auto-compile the render pages graph if turned on.", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 
 

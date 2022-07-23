@@ -28,12 +28,6 @@ public:
 	virtual bool ShouldShowInNewMenu() const override;
 	virtual uint32 GetMenuCategories() const override;
 
-	/**
-	 * Creates the render page graph if necessary.
-	 * @param InBlueprint The blueprint to setup up
-	 */
-	static void CreateRenderPagesGraphIfRequired(URenderPagesBlueprint* InBlueprint);
-
 	/** The parent class of the created blueprint. */
 	UPROPERTY(EditAnywhere, Category="Render Pages|Render Pages Factory", Meta = (AllowAbstract = ""))
 	TSubclassOf<URenderPageCollection> ParentClass;

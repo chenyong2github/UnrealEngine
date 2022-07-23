@@ -13,12 +13,16 @@
 
 void UE::RenderPages::Private::SRenderPagesCollection::Tick(const FGeometry&, const double, const float)
 {
-	if(DetailsView.IsValid())
+	if (DetailsView.IsValid())
 	{
 		if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 		{
-			if (URenderPageCollection* Collection = BlueprintEditor->GetInstance(); IsValid(Collection))
+			if (URenderPageCollection* Collection = BlueprintEditor->GetInstance())
 			{
+				if (!IsValid(Collection) || BlueprintEditor->IsBatchRendering())
+				{
+					Collection = nullptr;
+				}
 				if (DetailsViewRenderPageCollectionWeakPtr != Collection)
 				{
 					DetailsViewRenderPageCollectionWeakPtr = Collection;

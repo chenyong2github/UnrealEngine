@@ -73,9 +73,6 @@ TSharedRef<FSlateStyleSet> UE::RenderPages::Private::FRenderPagesEditorStyle::Cr
 		Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
 	}
 
-	Style->Set("RenderPages.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
-	Style->Set("RenderPages.AutoCompileGraph.Small", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
-
 	Style->Set("Invisible",
 		FButtonStyle()
 		.SetNormal(FSlateNoResource())

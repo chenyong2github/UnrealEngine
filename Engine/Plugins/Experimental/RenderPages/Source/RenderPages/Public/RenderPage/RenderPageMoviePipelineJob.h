@@ -94,6 +94,10 @@ public:
 	/** Retrieves the "Engine Warm Up Count" value from the AntiAliasingSettings from the render preset that this render page uses. */
 	int32 GetEngineWarmUpCount() const;
 
+public:
+	/** Returns true if this render job was canceled (which for example can be caused by calling Cancel(), or by closing the render popup). */
+	bool IsCanceled() const { return bCanceled; }
+
 private:
 	void ComputePlaybackContext(bool& bOutAllowBinding);
 	void ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess);
@@ -124,6 +128,10 @@ protected:
 	/** Whether the entry can execute, or whether it should just skip execution. */
 	UPROPERTY(Transient)
 	bool bCanExecute;
+
+	/** Whether the entry was canceled (like by calling Cancel(), or by closing the render popup). */
+	UPROPERTY(Transient)
+	bool bCanceled;
 };
 
 
@@ -144,6 +152,9 @@ public:
 
 	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will stop the current page from rendering or not. Will always prevent new pages from rendering. */
 	void Cancel();
+
+	/** Returns true if this render job has been canceled. */
+	bool IsCanceled() const { return bCanceled; }
 
 	/** Retrieves the rendering status of the given render page. */
 	FString GetPageStatus(URenderPage* Page) const;
@@ -171,6 +182,10 @@ protected:
 	/** The engine framerate settings values that have been overwritten by the currently applied engine framerate settings values. */
 	UPROPERTY(Transient)
 	FRenderPagePreviousEngineFpsSettings PreviousFrameLimitSettings;
+
+	/** True if the queue has previously executed the pre-render event of a page. */
+	UPROPERTY(Transient)
+	bool bRanPreRender;
 
 public:
 	/** A delegate for when the render job is about to start. */

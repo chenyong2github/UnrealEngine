@@ -20,7 +20,6 @@
 #include "EditorModeManager.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Graph/RenderPagesGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
@@ -28,7 +27,6 @@
 #include "SGraphPanel.h"
 #include "SKismetInspector.h"
 #include "SMyBlueprint.h"
-#include "SNodePanel.h"
 #include "Stats/StatsHierarchical.h"
 #include "Styling/AppStyle.h"
 
@@ -38,95 +36,8 @@
 namespace UE::RenderPages::Private
 {
 	const FName RenderPagesEditorAppName(TEXT("RenderPagesEditorApp"));
-
-	struct FRenderPagesZoomLevelsContainer : FZoomLevelsContainer
-	{
-		struct FRenderPagesZoomLevelEntry
-		{
-		public:
-			FRenderPagesZoomLevelEntry(const float InZoomAmount, const FText& InDisplayText, const EGraphRenderingLOD::Type InLOD)
-				: DisplayText(FText::Format(NSLOCTEXT("GraphEditor", "Zoom", "Zoom {0}"), InDisplayText))
-				, ZoomAmount(InZoomAmount)
-				, LOD(InLOD)
-			{}
-
-		public:
-			FText DisplayText;
-			float ZoomAmount;
-			EGraphRenderingLOD::Type LOD;
-		};
-
-		FRenderPagesZoomLevelsContainer()
-		{
-			ZoomLevels.Reserve(22);
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.025f, FText::FromString(TEXT("-14")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.070f, FText::FromString(TEXT("-13")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.100f, FText::FromString(TEXT("-12")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.125f, FText::FromString(TEXT("-11")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.150f, FText::FromString(TEXT("-10")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.175f, FText::FromString(TEXT("-9")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.200f, FText::FromString(TEXT("-8")), EGraphRenderingLOD::LowestDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.225f, FText::FromString(TEXT("-7")), EGraphRenderingLOD::LowDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.250f, FText::FromString(TEXT("-6")), EGraphRenderingLOD::LowDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.375f, FText::FromString(TEXT("-5")), EGraphRenderingLOD::MediumDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.500f, FText::FromString(TEXT("-4")), EGraphRenderingLOD::MediumDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.675f, FText::FromString(TEXT("-3")), EGraphRenderingLOD::MediumDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.750f, FText::FromString(TEXT("-2")), EGraphRenderingLOD::DefaultDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(0.875f, FText::FromString(TEXT("-1")), EGraphRenderingLOD::DefaultDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.000f, FText::FromString(TEXT("1:1")), EGraphRenderingLOD::DefaultDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.250f, FText::FromString(TEXT("+1")), EGraphRenderingLOD::DefaultDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.375f, FText::FromString(TEXT("+2")), EGraphRenderingLOD::DefaultDetail));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.500f, FText::FromString(TEXT("+3")), EGraphRenderingLOD::FullyZoomedIn));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.675f, FText::FromString(TEXT("+4")), EGraphRenderingLOD::FullyZoomedIn));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.750f, FText::FromString(TEXT("+5")), EGraphRenderingLOD::FullyZoomedIn));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(1.875f, FText::FromString(TEXT("+6")), EGraphRenderingLOD::FullyZoomedIn));
-			ZoomLevels.Add(FRenderPagesZoomLevelEntry(2.000f, FText::FromString(TEXT("+7")), EGraphRenderingLOD::FullyZoomedIn));
-		}
-
-		virtual float GetZoomAmount(int32 InZoomLevel) const override
-		{
-			checkSlow(ZoomLevels.IsValidIndex(InZoomLevel));
-			return ZoomLevels[InZoomLevel].ZoomAmount;
-		}
-
-		virtual int32 GetNearestZoomLevel(float InZoomAmount) const override
-		{
-			for (int32 ZoomLevelIndex = 0; ZoomLevelIndex < GetNumZoomLevels(); ++ZoomLevelIndex)
-			{
-				if (InZoomAmount <= GetZoomAmount(ZoomLevelIndex))
-				{
-					return ZoomLevelIndex;
-				}
-			}
-
-			return GetDefaultZoomLevel();
-		}
-
-		virtual FText GetZoomText(int32 InZoomLevel) const override
-		{
-			checkSlow(ZoomLevels.IsValidIndex(InZoomLevel));
-			return ZoomLevels[InZoomLevel].DisplayText;
-		}
-
-		virtual int32 GetNumZoomLevels() const override
-		{
-			return ZoomLevels.Num();
-		}
-
-		virtual int32 GetDefaultZoomLevel() const override
-		{
-			return 14;
-		}
-
-		virtual EGraphRenderingLOD::Type GetLOD(int32 InZoomLevel) const override
-		{
-			checkSlow(ZoomLevels.IsValidIndex(InZoomLevel));
-			return ZoomLevels[InZoomLevel].LOD;
-		}
-
-		TArray<FRenderPagesZoomLevelEntry> ZoomLevels;
-	};
 }
+
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::InitRenderPagesEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, URenderPagesBlueprint* InRenderPagesBlueprint)
 {
@@ -159,19 +70,6 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::InitRenderPagesEdito
 
 	CommonInitialization(RenderPagesBlueprints, false);
 
-	{
-		TArray<UEdGraph*> EdGraphs;
-		InRenderPagesBlueprint->GetAllGraphs(EdGraphs);
-
-		for (UEdGraph* Graph : EdGraphs)
-		{
-			if (URenderPagesGraph* RenderPagesGraph = Cast<URenderPagesGraph>(Graph))
-			{
-				RenderPagesGraph->Initialize(InRenderPagesBlueprint);
-			}
-		}
-	}
-
 	BindCommands();
 
 	ExtendMenu();
@@ -202,7 +100,6 @@ UE::RenderPages::Private::FRenderPageCollectionEditor::~FRenderPageCollectionEdi
 
 	if (RenderPagesBlueprint)
 	{
-		// clear editor related data from the debugged control rig instance 
 		RenderPagesBlueprint->SetObjectBeingDebugged(nullptr);
 		RenderPagesBlueprint = nullptr;
 	}
@@ -220,15 +117,6 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::CreateDefaultCommand
 		ToolkitCommands->MapAction(FGenericCommands::Get().Undo, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::UndoAction));
 		ToolkitCommands->MapAction(FGenericCommands::Get().Redo, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::RedoAction));
 	}
-}
-
-TSharedRef<SGraphEditor> UE::RenderPages::Private::FRenderPageCollectionEditor::CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
-{
-	TSharedRef<SGraphEditor> GraphEditor = FBlueprintEditor::CreateGraphEditorWidget(InTabInfo, InGraph);
-
-	GraphEditor->GetGraphPanel()->SetZoomLevelsContainer<FRenderPagesZoomLevelsContainer>();
-
-	return GraphEditor;
 }
 
 UBlueprint* UE::RenderPages::Private::FRenderPageCollectionEditor::GetBlueprintObj() const
@@ -250,50 +138,11 @@ UBlueprint* UE::RenderPages::Private::FRenderPageCollectionEditor::GetBlueprintO
 FGraphAppearanceInfo UE::RenderPages::Private::FRenderPageCollectionEditor::GetGraphAppearance(UEdGraph* InGraph) const
 {
 	FGraphAppearanceInfo AppearanceInfo = FBlueprintEditor::GetGraphAppearance(InGraph);
-
 	if (GetBlueprintObj()->IsA(URenderPagesBlueprint::StaticClass()))
 	{
 		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_RenderPages", "RENDER PAGES");
 	}
-
 	return AppearanceInfo;
-}
-
-bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsEditable(UEdGraph* InGraph) const
-{
-	return IsGraphInCurrentBlueprint(InGraph);
-}
-
-bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsCompilingEnabled() const
-{
-	return true;
-}
-
-bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
-{
-	switch (InSectionID)
-	{
-		case NodeSectionID::GRAPH:
-		case NodeSectionID::VARIABLE:
-		case NodeSectionID::FUNCTION:
-		{
-			return true;
-		}
-		case NodeSectionID::LOCAL_VARIABLE:
-		{
-			return IsValid(Cast<URenderPagesGraph>(GetFocusedGraph()));
-		}
-		default:
-		{
-			break;
-		}
-	}
-	return false;
-}
-
-FText UE::RenderPages::Private::FRenderPageCollectionEditor::GetGraphDecorationString(UEdGraph* InGraph) const
-{
-	return FText::GetEmpty();
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
@@ -340,20 +189,9 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::RegisterApplicationM
 	}
 }
 
-void UE::RenderPages::Private::FRenderPageCollectionEditor::FocusInspectorOnGraphSelection(const TSet<UObject*>& NewSelection, bool bForceRefresh)
-{
-	// nothing to do here for render pages
-}
-
-bool UE::RenderPages::Private::FRenderPageCollectionEditor::CanAddNewLocalVariable() const
-{
-	return (Cast<URenderPagesGraph>(GetFocusedGraph()) != nullptr);
-}
-
 void UE::RenderPages::Private::FRenderPageCollectionEditor::Compile()
 {
 	DestroyInstance();
-
 	FBlueprintEditor::Compile();
 }
 
@@ -369,12 +207,12 @@ URenderPageCollection* UE::RenderPages::Private::FRenderPageCollectionEditor::Ge
 
 bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsBatchRendering() const
 {
-	return BatchRenderJob && IsValid(BatchRenderJob);
+	return IsValid(BatchRenderJob);
 }
 
 bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsPreviewRendering() const
 {
-	return PreviewRenderJob && IsValid(PreviewRenderJob);
+	return IsValid(PreviewRenderJob);
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::MarkAsModified()
@@ -543,7 +381,6 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::BindCommands()
 	ToolkitCommands->MapAction(Commands.CopyPage, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::CopyPageAction));
 	ToolkitCommands->MapAction(Commands.DeletePage, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::DeletePageAction));
 	ToolkitCommands->MapAction(Commands.BatchRenderList, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::BatchRenderListAction));
-	ToolkitCommands->MapAction(Commands.AutoCompileGraph, FExecuteAction::CreateSP(this, &FRenderPageCollectionEditor::AutoCompileGraphAction));
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::AddPageAction()
@@ -643,8 +480,6 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::OnBatchRenderListAct
 	OnRenderPagesBatchRenderingFinished().Broadcast(FinishedRenderJob);
 }
 
-void UE::RenderPages::Private::FRenderPageCollectionEditor::AutoCompileGraphAction() {}
-
 void UE::RenderPages::Private::FRenderPageCollectionEditor::UndoAction()
 {
 	GEditor->UndoTransaction();
@@ -736,8 +571,8 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::UpdateInstance(UBlue
 			}
 		}
 
-		// Make sure the object being debugged is the preview instance
-		GetBlueprintObj()->SetObjectBeingDebugged(RenderPageCollection);
+		// Make sure the object being debugged is cleared out
+		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 
 		// Store a reference to the preview actor.
 		RenderPageCollectionWeakPtr = RenderPageCollection;

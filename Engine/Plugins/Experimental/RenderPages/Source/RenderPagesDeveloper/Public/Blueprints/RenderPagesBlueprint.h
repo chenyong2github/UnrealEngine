@@ -4,13 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
-#include "RenderPage/RenderPagePropsSource.h"
-#include "Kismet2/CompilerResultsLog.h"
 #include "RenderPagesBlueprint.generated.h"
-
-
-class URenderPagesBlueprint;
-class URenderPageCollection;
 
 
 /**
@@ -24,24 +18,18 @@ class RENDERPAGESDEVELOPER_API URenderPagesBlueprint : public UBlueprint
 	GENERATED_BODY()
 
 public:
-	URenderPagesBlueprint();
-
-public:
 	//~ Begin UBlueprint Interface
 	virtual UClass* GetBlueprintClass() const override;
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
 	virtual bool SupportsGlobalVariables() const override { return true; }
-	virtual bool SupportsLocalVariables() const override { return false; }
+	virtual bool SupportsLocalVariables() const override { return true; }
 	virtual bool SupportsFunctions() const override { return true; }
-	virtual bool SupportsMacros() const override { return false; }
+	virtual bool SupportsMacros() const override { return true; }
 	virtual bool SupportsDelegates() const override { return true; }
-	virtual bool SupportsEventGraphs() const override { return false; }
+	virtual bool SupportsEventGraphs() const override { return true; }
 	virtual bool SupportsAnimLayers() const override { return false; }
 
 	virtual void PostLoad() override;
 	//~ End UBlueprint Interface
-
-private:
-	FCompilerResultsLog CompileLog;
 };

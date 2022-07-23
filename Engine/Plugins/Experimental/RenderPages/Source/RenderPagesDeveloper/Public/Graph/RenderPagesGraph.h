@@ -8,8 +8,6 @@
 
 
 class URenderPagesBlueprint;
-class URenderPagesGraphSchema;
-class URenderPageCollection;
 
 
 /**
@@ -17,8 +15,8 @@ class URenderPageCollection;
  *
  * Required in order for a RenderPageCollection to be able to have a blueprint graph.
  */
-UCLASS()
-class RENDERPAGESDEVELOPER_API URenderPagesGraph : public UEdGraph
+UCLASS(Deprecated)
+class RENDERPAGESDEVELOPER_API UDEPRECATED_RenderPagesGraph : public UEdGraph
 {
 	GENERATED_BODY()
 

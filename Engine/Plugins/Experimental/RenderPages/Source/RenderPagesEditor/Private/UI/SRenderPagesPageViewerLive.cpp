@@ -11,7 +11,6 @@
 #include "RenderPage/RenderPageCollection.h"
 #include "SlateOptMacros.h"
 #include "UI/Components/SRenderPagesPageViewerFrameSlider.h"
-#include "Utils/RenderPageLevelSequencePlayer.h"
 #include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderPagesPageViewerLive"
@@ -139,7 +138,7 @@ ULevelSequencePlayer* UE::RenderPages::Private::SRenderPagesEditorViewport::GetS
 		FLevelSequenceCameraSettings CameraSettings;
 
 		ALevelSequenceActor* PlayerActor = nullptr;
-		if (ULevelSequencePlayer* Player = URenderPageLevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, PlaybackSettings, PlayerActor); IsValid(Player))
+		if (ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, PlaybackSettings, PlayerActor); IsValid(Player))
 		{
 			if (IsValid(PlayerActor))
 			{

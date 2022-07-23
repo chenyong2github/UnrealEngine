@@ -36,8 +36,5 @@ namespace UE::RenderPages::Private
 
 		/** Renders the available page(s) in batch. */
 		TSharedPtr<FUICommandInfo> BatchRenderList;
-
-		/** Toggles Auto Compilation in the blueprint graph. */
-		TSharedPtr<FUICommandInfo> AutoCompileGraph;
 	};
 }

@@ -97,13 +97,6 @@ void UE::RenderPages::Private::FRenderPagesBlueprintEditorToolbar::AddLogicModeT
 	FToolMenuSection& Section = InMenu->AddSection("Tools");
 
 	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
-
-	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
-		FRenderPagesEditorCommands::Get().AutoCompileGraph,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FRenderPagesEditorStyle::Get().GetStyleSetName(), "RenderPages.AutoCompileGraph")
-	));
 }
 
 void UE::RenderPages::Private::FRenderPagesBlueprintEditorToolbar::FillRenderPagesBlueprintEditorModesToolbar(FToolBarBuilder& ToolbarBuilder)

@@ -20,6 +20,10 @@ namespace UE::RenderPages::Private
 		static FRenderPageQueueDelay Seconds(const double Seconds) { return FRenderPageQueueDelay(Seconds); }
 		static FRenderPageQueueDelay FramesOrSeconds(const int64 Frames, const double Seconds) { return FRenderPageQueueDelay(Frames, Seconds); }
 
+	public:
+		FRenderPageQueueDelay(TYPE_OF_NULLPTR)
+		{}
+
 	private:
 		FRenderPageQueueDelay()
 		{}

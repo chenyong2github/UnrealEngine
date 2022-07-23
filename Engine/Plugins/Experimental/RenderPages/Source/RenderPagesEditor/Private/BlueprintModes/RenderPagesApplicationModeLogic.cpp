@@ -2,15 +2,10 @@
 
 #include "BlueprintModes/RenderPagesApplicationModeLogic.h"
 #include "BlueprintModes/RenderPagesApplicationModes.h"
-
-#include "BlueprintEditorSharedTabFactories.h"
-#include "BlueprintEditorTabs.h"
-
-#include "IRenderPagesEditorModule.h"
 #include "IRenderPageCollectionEditor.h"
 
+#include "BlueprintEditorTabs.h"
 #include "SBlueprintEditorToolbar.h"
-
 #include "Toolkit/RenderPageCollectionEditorToolbar.h"
 
 #define LOCTEXT_NAMESPACE "RenderPagesLogicMode"
@@ -76,7 +71,7 @@ UE::RenderPages::Private::FRenderPagesApplicationModeLogic::FRenderPagesApplicat
 
 		InRenderPagesEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
 		InRenderPagesEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
-		InRenderPagesEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+		// disabled: InRenderPagesEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
 	}
 }
 
@@ -92,7 +87,7 @@ void UE::RenderPages::Private::FRenderPagesApplicationModeLogic::RegisterTabFact
 
 void UE::RenderPages::Private::FRenderPagesApplicationModeLogic::PreDeactivateMode()
 {
-	// prevented from running: FRenderPagesBlueprintApplicationMode::PreDeactivateMode();
+	// prevents: FRenderPagesApplicationModeBase::PreDeactivateMode();
 }
 
 void UE::RenderPages::Private::FRenderPagesApplicationModeLogic::PostActivateMode()

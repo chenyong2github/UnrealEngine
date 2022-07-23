@@ -24,8 +24,10 @@ void UE::RenderPages::Private::SRenderPagesPage::Construct(const FArguments& InA
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(nullptr);
 
-	HandlePagesSelectionChanged();
-	InBlueprintEditor->OnRenderPagesSelectionChanged().AddSP(this, &SRenderPagesPage::HandlePagesSelectionChanged);
+	Refresh();
+	InBlueprintEditor->OnRenderPagesSelectionChanged().AddSP(this, &SRenderPagesPage::Refresh);
+	InBlueprintEditor->OnRenderPagesBatchRenderingStarted().AddSP(this, &SRenderPagesPage::OnBatchRenderingStarted);
+	InBlueprintEditor->OnRenderPagesBatchRenderingFinished().AddSP(this, &SRenderPagesPage::OnBatchRenderingFinished);
 
 	ChildSlot
 	[
@@ -46,16 +48,19 @@ void UE::RenderPages::Private::SRenderPagesPage::NotifyPostChange(const FPropert
 	}
 }
 
-void UE::RenderPages::Private::SRenderPagesPage::HandlePagesSelectionChanged()
+void UE::RenderPages::Private::SRenderPagesPage::Refresh()
 {
 	if (DetailsView.IsValid())
 	{
 		if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 		{
 			TArray<TWeakObjectPtr<UObject>> WeakSelectedPages;
-			if (const TArray<URenderPage*> SelectedPages = BlueprintEditor->GetSelectedRenderPages(); (SelectedPages.Num() == 1))
+			if (!BlueprintEditor->IsBatchRendering())
 			{
-				WeakSelectedPages.Add(SelectedPages[0]);
+				if (const TArray<URenderPage*> SelectedPages = BlueprintEditor->GetSelectedRenderPages(); (SelectedPages.Num() == 1))
+				{
+					WeakSelectedPages.Add(SelectedPages[0]);
+				}
 			}
 			DetailsView->SetObjects(WeakSelectedPages);
 		}

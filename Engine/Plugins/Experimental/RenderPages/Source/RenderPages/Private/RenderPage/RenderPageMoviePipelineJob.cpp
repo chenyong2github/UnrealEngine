@@ -41,6 +41,7 @@ URenderPagesMoviePipelineRenderJobEntry* URenderPagesMoviePipelineRenderJobEntry
 	RenderJobEntry->ExecutorJob = nullptr;
 	RenderJobEntry->Status = TEXT("Skipped");
 	RenderJobEntry->bCanExecute = false;
+	RenderJobEntry->bCanceled = false;
 	RenderJobEntry->Promise = MakeShared<TPromise<void>>();
 	RenderJobEntry->Promise->SetValue();
 	RenderJobEntry->PromiseFuture = RenderJobEntry->Promise->GetFuture().Share();
@@ -219,6 +220,13 @@ TSharedFuture<void> URenderPagesMoviePipelineRenderJobEntry::Execute()
 		Promise.Reset();
 		return PromiseFuture;
 	}
+	if (bCanceled)
+	{
+		Status = TEXT("Canceled");
+		Promise->SetValue();
+		Promise.Reset();
+		return PromiseFuture;
+	}
 
 	AddToRoot();
 	if (ILevelSequenceEditorModule* LevelSequenceEditorModule = FModuleManager::GetModulePtr<ILevelSequenceEditorModule>("LevelSequenceEditor"); LevelSequenceEditorModule)
@@ -233,7 +241,7 @@ TSharedFuture<void> URenderPagesMoviePipelineRenderJobEntry::Execute()
 
 void URenderPagesMoviePipelineRenderJobEntry::Cancel()
 {
-	bCanExecute = false;
+	bCanceled = true;
 	if (Executor->IsRendering())
 	{
 		Executor->CancelAllJobs();
@@ -275,7 +283,8 @@ void URenderPagesMoviePipelineRenderJobEntry::ExecuteFinished(UMoviePipelineExec
 	{
 		LevelSequenceEditorModule->OnComputePlaybackContext().RemoveAll(this);
 	}
-	Status = (bSuccess ? TEXT("Done") : TEXT("Failed"));
+	bCanceled = (bCanceled || !bSuccess);
+	Status = (bCanceled ? TEXT("Canceled") : TEXT("Done"));
 	if (Promise.IsValid())
 	{
 		Promise->SetValue();
@@ -302,7 +311,14 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 	RenderJob->Queue = MakeShareable(new UE::RenderPages::Private::FRenderPageQueue);
 	RenderJob->PageCollection = Args.PageCollection;
 	RenderJob->bCanceled = false;
+	RenderJob->bRanPreRender = false;
 
+
+	RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
+	{
+		RenderJob->PreviousFrameLimitSettings = UE::RenderPages::Private::FRenderPagesUtils::DisableFpsLimit();
+	}));
+	RenderJob->Queue->DelayFrames(1);
 
 	for (const TObjectPtr<URenderPage> Page : Args.Pages)
 	{
@@ -310,34 +326,70 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 		{
 			RenderJob->Entries.Add(Page, Entry);
 
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob, Page]()
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
 			{
-				RenderJob->PreviousFrameLimitSettings = UE::RenderPages::Private::FRenderPagesUtils::DisableFpsLimit();
-				RenderJob->PreviousPageProps = UE::RenderPages::IRenderPagesModule::Get().GetManager().ApplyPagePropValues(RenderJob->PageCollection, Page.Get());
+				if (!RenderJob->IsCanceled())
+				{
+					RenderJob->bRanPreRender = true;
+					RenderJob->PageCollection->PreRender(Page);
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
+				}
+				return nullptr;
 			}));
-			
-			RenderJob->Queue->DelayFrames(1 + Page->GetWaitFramesBeforeRendering());
 
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
 			{
-				UE::RenderPages::Private::FRenderPagesUtils::RestoreFpsLimit(RenderJob->PreviousFrameLimitSettings);
-				RenderJob->PreviousFrameLimitSettings = FRenderPagePreviousEngineFpsSettings();
+				if (!RenderJob->IsCanceled())
+				{
+					RenderJob->PreviousPageProps = UE::RenderPages::IRenderPagesModule::Get().GetManager().ApplyPagePropValues(RenderJob->PageCollection, Page.Get());
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1 + Page->GetWaitFramesBeforeRendering());
+				}
+				return nullptr;
 			}));
-			
-			RenderJob->Queue->DelayFrames(1);
 
 			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelayFuture::CreateLambda([Entry]()-> TSharedFuture<void>
 			{
 				return Entry->Execute();
 			}));
 
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob]() -> UE::RenderPages::Private::FRenderPageQueueDelay
 			{
-				UE::RenderPages::IRenderPagesModule::Get().GetManager().RestorePagePropValues(RenderJob->PreviousPageProps);
-				RenderJob->PreviousPageProps = FRenderPageManagerPreviousPagePropValues();
+				if (!RenderJob->PreviousPageProps.IsEmpty())
+				{
+					UE::RenderPages::IRenderPagesModule::Get().GetManager().RestorePagePropValues(RenderJob->PreviousPageProps);
+					RenderJob->PreviousPageProps = FRenderPageManagerPreviousPagePropValues();
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
+				}
+				return nullptr;
+			}));
+
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
+			{
+				if (RenderJob->bRanPreRender)
+				{
+					RenderJob->bRanPreRender = false;
+					RenderJob->PageCollection->PostRender(Page);
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
+				}
+				return nullptr;
+			}));
+
+			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob, Entry]()
+			{
+				if (!RenderJob->IsCanceled() && Entry->IsCanceled())
+				{
+					RenderJob->Cancel();
+				}
 			}));
 		}
 	}
+
+	RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
+	{
+		UE::RenderPages::Private::FRenderPagesUtils::RestoreFpsLimit(RenderJob->PreviousFrameLimitSettings);
+		RenderJob->PreviousFrameLimitSettings = FRenderPagePreviousEngineFpsSettings();
+	}));
+
 
 	if (RenderJob->Entries.Num() <= 0)
 	{

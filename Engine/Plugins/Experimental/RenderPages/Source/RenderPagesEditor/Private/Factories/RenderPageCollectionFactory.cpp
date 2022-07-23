@@ -2,8 +2,6 @@
 
 #include "Factories/RenderPageCollectionFactory.h"
 #include "Blueprints/RenderPagesBlueprint.h"
-#include "Graph/RenderPagesGraph.h"
-#include "Graph/RenderPagesGraphSchema.h"
 #include "IContentBrowserSingleton.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -35,9 +33,12 @@ UObject* URenderPagesBlueprintFactory::FactoryCreateNew(UClass* InClass, UObject
 		return nullptr;
 	}
 
-	URenderPagesBlueprint* RenderPagesBlueprint = CastChecked<URenderPagesBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, InName, BPTYPE_Normal, URenderPagesBlueprint::StaticClass(), URenderPagesBlueprintGeneratedClass::StaticClass(), CallingContext));
-	CreateRenderPagesGraphIfRequired(RenderPagesBlueprint);
-	return RenderPagesBlueprint;
+	if (URenderPagesBlueprint* RenderPagesBlueprint = CastChecked<URenderPagesBlueprint>(FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, InName, BPTYPE_Normal, URenderPagesBlueprint::StaticClass(), URenderPagesBlueprintGeneratedClass::StaticClass(), CallingContext)))
+	{
+		RenderPagesBlueprint->PostLoad();
+		return RenderPagesBlueprint;
+	}
+	return nullptr;
 }
 
 UObject* URenderPagesBlueprintFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
@@ -55,32 +56,8 @@ uint32 URenderPagesBlueprintFactory::GetMenuCategories() const
 	//  if wanting to show it in its own category:
 	// IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	// return AssetTools.RegisterAdvancedAssetCategory("Render Pages", LOCTEXT("AssetCategoryName", "Render Pages"));
-	
+
 	return EAssetTypeCategories::Misc;
-}
-
-void URenderPagesBlueprintFactory::CreateRenderPagesGraphIfRequired(URenderPagesBlueprint* InBlueprint)
-{
-	if (InBlueprint == nullptr)
-	{
-		return;
-	}
-
-	for (UEdGraph* EdGraph : InBlueprint->UbergraphPages)
-	{
-		if (EdGraph->IsA<URenderPagesGraph>())
-		{
-			return;
-		}
-	}
-
-	// add an initial graph for us to work in
-	const URenderPagesGraphSchema* RenderPagesGraphSchema = GetDefault<URenderPagesGraphSchema>();
-	UEdGraph* RenderPagesGraph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, RenderPagesGraphSchema->GraphName_RenderPages, URenderPagesGraph::StaticClass(), URenderPagesGraphSchema::StaticClass());
-	RenderPagesGraph->bAllowDeletion = false;
-	FBlueprintEditorUtils::AddUbergraphPage(InBlueprint, RenderPagesGraph);
-	InBlueprint->LastEditedDocuments.AddUnique(RenderPagesGraph);
-	InBlueprint->PostLoad();
 }
 
 

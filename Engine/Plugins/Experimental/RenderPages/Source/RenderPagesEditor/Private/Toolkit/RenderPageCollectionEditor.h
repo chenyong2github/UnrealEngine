@@ -39,23 +39,12 @@ namespace UE::RenderPages::Private
 
 		//~ Begin FBlueprintEditor Interface
 		virtual void CreateDefaultCommands() override;
-		virtual TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph) override;
 		virtual UBlueprint* GetBlueprintObj() const override;
-		virtual TSharedPtr<FRenderPagesBlueprintEditorToolbar> GetRenderPagesToolbarBuilder() override { return RenderPagesToolbar; };
 		virtual FGraphAppearanceInfo GetGraphAppearance(UEdGraph* InGraph) const override;
-		virtual bool IsEditable(UEdGraph* InGraph) const override;
-		virtual bool IsCompilingEnabled() const override;
 		virtual bool IsInAScriptingMode() const override { return true; }
-		virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
-		virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
 		virtual void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated) override;
 		virtual void SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents) override;
 		virtual void RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false) override;
-		virtual void FocusInspectorOnGraphSelection(const TSet<UObject*>& NewSelection, bool bForceRefresh = false) override;
-
-		virtual bool ShouldLoadBPLibrariesFromAssetRegistry() override { return false; }// Render Pages BP does not use regular BP function libraries, no need to load them.
-
-		virtual bool CanAddNewLocalVariable() const override;
 
 		virtual void Compile() override;
 		//~ End FBlueprintEditor Interface
@@ -63,6 +52,7 @@ namespace UE::RenderPages::Private
 		//~ Begin IRenderPageCollectionEditor Interface
 		virtual URenderPagesBlueprint* GetRenderPagesBlueprint() const override;
 		virtual URenderPageCollection* GetInstance() const override;
+		virtual TSharedPtr<FRenderPagesBlueprintEditorToolbar> GetRenderPagesToolbarBuilder() override { return RenderPagesToolbar; }
 		virtual bool IsBatchRendering() const override;
 		virtual URenderPagesMoviePipelineRenderJob* GetBatchRenderJob() const override { return BatchRenderJob; }
 		virtual bool IsPreviewRendering() const override;
@@ -127,9 +117,6 @@ namespace UE::RenderPages::Private
 
 		/** The callback for when the batch render list action finishes. */
 		void OnBatchRenderListActionFinished(URenderPagesMoviePipelineRenderJob* RenderJob, bool bSuccess);
-
-		/** Toggles auto compiling of the blueprint graph. */
-		void AutoCompileGraphAction();
 
 		/** Undo the last action. */
 		void UndoAction();

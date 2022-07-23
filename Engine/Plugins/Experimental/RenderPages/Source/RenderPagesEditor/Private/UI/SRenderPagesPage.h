@@ -8,6 +8,8 @@
 
 
 class IDetailsView;
+class URenderPage;
+class URenderPagesMoviePipelineRenderJob;
 
 namespace UE::RenderPages
 {
@@ -35,8 +37,12 @@ namespace UE::RenderPages::Private
 		// End of FNotifyHook interface
 
 	private:
-		/** Callback for updating the details view. */
-		void HandlePagesSelectionChanged();
+		/** Updates the details view. */
+		void Refresh();
+
+	private:
+		void OnBatchRenderingStarted(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
+		void OnBatchRenderingFinished(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
 
 	private:
 		/** A reference to the BP Editor that owns this collection. */

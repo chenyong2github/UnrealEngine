@@ -7,7 +7,9 @@
 
 
 class SBorder;
+class URenderPage;
 class URenderPagePropsSourceBase;
+class URenderPagesMoviePipelineRenderJob;
 
 namespace UE::RenderPages
 {
@@ -32,6 +34,10 @@ namespace UE::RenderPages::Private
 
 		/** Refreshes the content of this widget. */
 		void Refresh();
+
+	private:
+		void OnBatchRenderingStarted(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
+		void OnBatchRenderingFinished(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
 
 	private:
 		/** A reference to the BP Editor that owns this collection. */

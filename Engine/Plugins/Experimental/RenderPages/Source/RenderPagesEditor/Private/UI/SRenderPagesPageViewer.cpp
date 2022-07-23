@@ -24,6 +24,8 @@ void UE::RenderPages::Private::SRenderPagesPageViewer::Construct(const FArgument
 		.BorderImage(new FSlateNoResource());
 
 	Refresh();
+	InBlueprintEditor->OnRenderPagesBatchRenderingStarted().AddSP(this, &SRenderPagesPageViewer::OnBatchRenderingStarted);
+	InBlueprintEditor->OnRenderPagesBatchRenderingFinished().AddSP(this, &SRenderPagesPageViewer::OnBatchRenderingFinished);
 
 	ChildSlot
 	[
@@ -95,25 +97,30 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void UE::RenderPages::Private::SRenderPagesPageViewer::Refresh()
 {
-	if (!WidgetContainer.IsValid() || (ViewerMode == CachedViewerMode))
+	if (!WidgetContainer.IsValid())
 	{
 		return;
 	}
-
-	CachedViewerMode = ViewerMode;
-	WidgetContainer->ClearContent();
-
 	if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (ViewerMode == ERenderPagesPageViewerMode::Live)
+		ERenderPagesPageViewerMode CurrentViewerMode = (BlueprintEditor->IsBatchRendering() ? ERenderPagesPageViewerMode::None : ViewerMode);
+		if (CurrentViewerMode == CachedViewerMode)
+		{
+			return;
+		}
+
+		CachedViewerMode = CurrentViewerMode;
+		WidgetContainer->ClearContent();
+
+		if (CurrentViewerMode == ERenderPagesPageViewerMode::Live)
 		{
 			WidgetContainer->SetContent(SNew(SRenderPagesPageViewerLive, BlueprintEditor));
 		}
-		else if (ViewerMode == ERenderPagesPageViewerMode::Preview)
+		else if (CurrentViewerMode == ERenderPagesPageViewerMode::Preview)
 		{
 			WidgetContainer->SetContent(SNew(SRenderPagesPageViewerPreview, BlueprintEditor));
 		}
-		else if (ViewerMode == ERenderPagesPageViewerMode::Rendered)
+		else if (CurrentViewerMode == ERenderPagesPageViewerMode::Rendered)
 		{
 			WidgetContainer->SetContent(SNew(SRenderPagesPageViewerRendered, BlueprintEditor));
 		}

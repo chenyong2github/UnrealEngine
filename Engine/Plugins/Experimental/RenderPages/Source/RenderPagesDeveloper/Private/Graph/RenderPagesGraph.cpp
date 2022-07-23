@@ -8,17 +8,17 @@
 #define LOCTEXT_NAMESPACE "RenderPagesGraph"
 
 
-void URenderPagesGraph::Initialize(URenderPagesBlueprint* InBlueprint) {}
+void UDEPRECATED_RenderPagesGraph::Initialize(URenderPagesBlueprint* InBlueprint) {}
 
-void URenderPagesGraph::PostLoad()
+void UDEPRECATED_RenderPagesGraph::PostLoad()
 {
 	Super::PostLoad();
-	Schema = URenderPagesGraphSchema::StaticClass();
+	Schema = UDEPRECATED_RenderPagesGraphSchema::StaticClass();
 }
 
-URenderPagesBlueprint* URenderPagesGraph::GetBlueprint() const
+URenderPagesBlueprint* UDEPRECATED_RenderPagesGraph::GetBlueprint() const
 {
-	if (URenderPagesGraph* OuterGraph = Cast<URenderPagesGraph>(GetOuter()))
+	if (UDEPRECATED_RenderPagesGraph* OuterGraph = Cast<UDEPRECATED_RenderPagesGraph>(GetOuter()))
 	{
 		return OuterGraph->GetBlueprint();
 	}

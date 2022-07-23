@@ -125,7 +125,6 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlField::RefreshValue()
 		}
 
 		Generator->SetObjects({Objects[0]});
-
 		if (TSharedPtr<IDetailTreeNode> Node = RenderPagesWidgetUtils::FindNode(Generator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), RenderPagesWidgetUtils::ERenderPagesFindNodeMethod::Path))
 		{
 			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
@@ -140,11 +139,10 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlField::RefreshValue()
 			//TODO:  still causes the value widgets (like the color wheel) to disconnect when this function is called,  have to somehow prevent this disconnection from happening,
 			//       skipping this line all-together causes the value widgets to not respond anymore to user input,  same happens when trying to cache and reuse the output of Node->CreateNodeWidgets()
 			ChildSlot.AttachWidget(MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(Node->CreateNodeWidgets())));
+			return;
 		}
-		else
-		{
-			ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
-		}
+
+		ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
 	}
 }
 
@@ -210,7 +208,7 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlFieldChildNode::Construc
 	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
 	FRenderPagesMakeNodeWidgetArgs Args;
 	Args.NameWidget = Widgets.NameWidget;
-	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode->CreateNodeWidgets());
+	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(Widgets);
 
 	ChildSlot
 	[

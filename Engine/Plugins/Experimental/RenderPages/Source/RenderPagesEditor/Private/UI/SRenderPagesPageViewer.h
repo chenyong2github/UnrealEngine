@@ -7,6 +7,8 @@
 
 
 class SBorder;
+class URenderPage;
+class URenderPagesMoviePipelineRenderJob;
 
 namespace UE::RenderPages
 {
@@ -38,12 +40,17 @@ namespace UE::RenderPages::Private
 
 		void Construct(const FArguments& InArgs, TSharedPtr<IRenderPageCollectionEditor> InBlueprintEditor);
 
+	private:
+		/** Creates a tab button for a viewer mode. */
+		TSharedRef<SWidget> CreateViewerModeButton(const FText& ButtonText, const ERenderPagesPageViewerMode ButtonViewerMode);
+
+	public:
 		/** Refreshes the content of this widget. */
 		void Refresh();
 
 	private:
-		/** Creates a tab button for a viewer mode. */
-		TSharedRef<SWidget> CreateViewerModeButton(const FText& ButtonText, const ERenderPagesPageViewerMode ButtonViewerMode);
+		void OnBatchRenderingStarted(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
+		void OnBatchRenderingFinished(URenderPagesMoviePipelineRenderJob* RenderJob) { Refresh(); }
 
 	private:
 		/** A reference to the BP Editor that owns this collection. */

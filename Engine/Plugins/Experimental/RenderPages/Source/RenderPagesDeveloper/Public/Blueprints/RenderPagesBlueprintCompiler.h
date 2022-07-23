@@ -21,4 +21,13 @@ namespace UE::RenderPages
 		virtual void Compile(UBlueprint* Blueprint, const FKismetCompilerOptions& CompileOptions, FCompilerResultsLog& Results) override;
 		//~ End IBlueprintCompiler Interface
 	};
+
+
+	class RENDERPAGESDEVELOPER_API FRenderPagesBlueprintCompilerContext : public FKismetCompilerContext
+	{
+	public:
+		FRenderPagesBlueprintCompilerContext(UBlueprint* SourceSketch, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompilerOptions)
+			: FKismetCompilerContext(SourceSketch, InMessageLog, InCompilerOptions)
+		{}
+	};
 }

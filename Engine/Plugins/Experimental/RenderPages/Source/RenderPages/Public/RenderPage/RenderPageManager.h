@@ -29,6 +29,9 @@ public:
 	{}
 
 public:
+	bool IsEmpty() const { return RemoteControlData.IsEmpty(); }
+
+public:
 	/** The previous values of the remote control properties. */
 	UPROPERTY()
 	TMap<TObjectPtr<URenderPagePropRemoteControl>, FRenderPageRemoteControlPropertyData> RemoteControlData;

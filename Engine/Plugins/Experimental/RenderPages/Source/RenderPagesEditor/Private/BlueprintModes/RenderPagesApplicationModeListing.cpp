@@ -101,12 +101,12 @@ void UE::RenderPages::Private::FRenderPagesApplicationModeListing::RegisterTabFa
 
 void UE::RenderPages::Private::FRenderPagesApplicationModeListing::PreDeactivateMode()
 {
-	// prevented from running: FRenderPagesBlueprintApplicationMode::PreDeactivateMode();
+	// prevents: FRenderPagesApplicationModeBase::PreDeactivateMode();
 }
 
 void UE::RenderPages::Private::FRenderPagesApplicationModeListing::PostActivateMode()
 {
-	// prevented from running: FRenderPagesBlueprintApplicationMode::PostActivateMode();
+	// prevents: FRenderPagesApplicationModeBase::PostActivateMode();
 }
 
 

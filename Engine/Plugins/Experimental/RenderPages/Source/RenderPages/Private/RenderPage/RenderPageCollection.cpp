@@ -504,6 +504,16 @@ void URenderPageCollection::PostLoad()
 	LoadValuesFromCDO();
 }
 
+void URenderPageCollection::PreRender(URenderPage* Page)
+{
+	ReceivePreRender(Page);
+}
+
+void URenderPageCollection::PostRender(URenderPage* Page)
+{
+	ReceivePostRender(Page);
+}
+
 void URenderPageCollection::CopyValuesToOrFromCDO(const bool bToCDO)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))

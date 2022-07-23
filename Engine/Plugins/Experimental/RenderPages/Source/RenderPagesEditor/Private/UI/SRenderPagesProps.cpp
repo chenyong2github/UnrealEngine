@@ -37,6 +37,8 @@ void UE::RenderPages::Private::SRenderPagesProps::Construct(const FArguments& In
 
 	Refresh();
 	InBlueprintEditor->OnRenderPagesChanged().AddSP(this, &SRenderPagesProps::Refresh);
+	InBlueprintEditor->OnRenderPagesBatchRenderingStarted().AddSP(this, &SRenderPagesProps::OnBatchRenderingStarted);
+	InBlueprintEditor->OnRenderPagesBatchRenderingFinished().AddSP(this, &SRenderPagesProps::OnBatchRenderingFinished);
 
 	ChildSlot
 	[
@@ -56,14 +58,17 @@ void UE::RenderPages::Private::SRenderPagesProps::Refresh()
 
 	if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (URenderPageCollection* Collection = BlueprintEditor->GetInstance(); IsValid(Collection))
+		if (!BlueprintEditor->IsBatchRendering())
 		{
-			WidgetPropsSourceWeakPtr = Collection->GetPropsSource();
-			if (URenderPagePropsSourceBase* WidgetPropsSource = WidgetPropsSourceWeakPtr.Get(); IsValid(WidgetPropsSource))
+			if (URenderPageCollection* Collection = BlueprintEditor->GetInstance(); IsValid(Collection))
 			{
-				if (const TSharedPtr<SRenderPagesPropsBase> Widget = IRenderPagesEditorModule::Get().CreatePropsSourceWidget(WidgetPropsSource, BlueprintEditor))
+				WidgetPropsSourceWeakPtr = Collection->GetPropsSource();
+				if (URenderPagePropsSourceBase* WidgetPropsSource = WidgetPropsSourceWeakPtr.Get(); IsValid(WidgetPropsSource))
 				{
-					WidgetContainer->SetContent(Widget.ToSharedRef());
+					if (const TSharedPtr<SRenderPagesPropsBase> Widget = IRenderPagesEditorModule::Get().CreatePropsSourceWidget(WidgetPropsSource, BlueprintEditor))
+					{
+						WidgetContainer->SetContent(Widget.ToSharedRef());
+					}
 				}
 			}
 		}

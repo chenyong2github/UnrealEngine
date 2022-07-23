@@ -13,6 +13,7 @@ public class RenderPagesDeveloper : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"KismetCompiler",
 			}
 		);
 

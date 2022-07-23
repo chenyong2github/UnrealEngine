@@ -79,7 +79,7 @@ namespace UE::RenderPages
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderPagesBatchRenderingFinished, URenderPagesMoviePipelineRenderJob*);
 		virtual FOnRenderPagesBatchRenderingFinished& OnRenderPagesBatchRenderingFinished() { return OnRenderPagesBatchRenderingFinishedDelegate; }
 
-	protected:
+	private:
 		/** The delegate for when render pages in the collection changed. */
 		FOnRenderPagesChanged OnRenderPagesChangedDelegate;
 
