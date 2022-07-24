@@ -42,6 +42,7 @@ namespace ChaosInterface
 	struct FDummyPhysType;
 	struct FDummyPhysActor;
 	template<typename T> struct FDummyCallback;
+	struct FScopedSceneReadLock;
 }
 using FPhysTypeDummy = ChaosInterface::FDummyPhysType;
 using FPhysActorDummy = ChaosInterface::FDummyPhysActor;

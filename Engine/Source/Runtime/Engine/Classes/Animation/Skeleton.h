@@ -16,6 +16,7 @@
 #include "Animation/PreviewAssetAttachComponent.h"
 #include "Animation/SmartName.h"
 #include "Engine/AssetUserData.h"
+#include "Engine/SkeletalMesh.h"
 #include "HAL/CriticalSection.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
@@ -25,7 +26,6 @@
 class UAnimSequence;
 class UBlendProfile;
 class URig;
-class USkeletalMesh;
 class USkeletalMeshSocket;
 class FPackageReloadedEvent;
 struct FAssetData;

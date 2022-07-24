@@ -165,7 +165,7 @@ protected:
 #endif
 
 	// Allow other code to obtain read-locks when needed
-	friend struct FScopedSceneReadLock;
+	friend struct ChaosInterface::FScopedSceneReadLock;
 	friend struct FScopedSceneLock_Chaos;
 
 	//Engine interface BEGIN
