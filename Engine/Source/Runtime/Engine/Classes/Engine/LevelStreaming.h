@@ -10,7 +10,6 @@
 #include "Engine/LatentActionManager.h"
 #include "LatentActions.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
-#include "Engine/Level.h"
 
 #if WITH_EDITOR
 #include "Folder.h"
@@ -461,7 +460,7 @@ public:
 
 	/** Returns whether streaming level is visible */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	bool IsLevelVisible() const { return LoadedLevel && LoadedLevel->bIsVisible; }
+	bool IsLevelVisible() const;
 
 	/** Returns whether streaming level is loaded */
 	UFUNCTION(BlueprintCallable, Category="Game")

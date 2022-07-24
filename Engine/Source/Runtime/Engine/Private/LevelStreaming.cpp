@@ -394,6 +394,11 @@ UWorld* ULevelStreaming::GetWorld() const
 	}
 }
 
+bool ULevelStreaming::IsLevelVisible() const
+{
+	return LoadedLevel && LoadedLevel->bIsVisible;
+}
+
 void ULevelStreaming::Serialize( FArchive& Ar )
 {
 	Super::Serialize(Ar);
