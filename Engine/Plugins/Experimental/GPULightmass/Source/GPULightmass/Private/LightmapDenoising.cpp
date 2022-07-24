@@ -62,43 +62,6 @@ FLinearColor InverseTonemapLightingForDenoising(FLinearColor Lighting)
 	return Lighting;
 }
 
-template<typename LightSampleType>
-struct LightSampleDataProvider {};
-
-template<>
-struct LightSampleDataProvider<FLinearColor>
-{
-	FIntPoint Size;
-	TArray<FLinearColor>& IncidentLighting;
-	TArray<FLinearColor>& LuminanceSH;
-
-	LightSampleDataProvider<FLinearColor>(
-		FIntPoint Size,
-		TArray<FLinearColor>& IncidentLighting,
-		TArray<FLinearColor>& LuminanceSH)
-		: Size(Size)
-		, IncidentLighting(IncidentLighting)
-		, LuminanceSH(LuminanceSH)
-	{
-	}
-
-	bool IsMapped(FIntPoint Location)
-	{
-		return IncidentLighting[Location.Y * Size.X + Location.X].A >= 0;
-	}
-	
-	float GetL(FIntPoint Location)
-	{
-		return IncidentLighting[Location.Y * Size.X + Location.X].GetLuminance();
-	}
-
-	void OverwriteTexel(FIntPoint Dst, FIntPoint Src)
-	{
-		IncidentLighting[Dst.Y * Size.X + Dst.X] = IncidentLighting[Src.Y * Size.X + Src.X];
-		LuminanceSH[Dst.Y * Size.X + Dst.X] = LuminanceSH[Src.Y * Size.X + Src.X];
-	}
-};
-
 const int32 WindowSize = 2;
 
 int32 EncodeOffset(FIntPoint D)
@@ -120,12 +83,9 @@ bool IsColorValid(FLinearColor Color)
 	&& Color.R >= 0 && Color.G >= 0 && Color.B >= 0 && Color.A >= 0;
 }
 
-void SimpleFireflyFilter(
-	FIntPoint Size,
-	TArray<FLinearColor>& IncidentLighting,
-	TArray<FLinearColor>& LuminanceSH)
+void SimpleFireflyFilter(FLightSampleDataProvider& SampleData)
 {
-	LightSampleDataProvider<FLinearColor> SampleData(Size, IncidentLighting, LuminanceSH);
+	const FIntPoint Size = SampleData.GetSize();
 	
 	TArray<int32> Buffer;
 	Buffer.AddDefaulted(Size.X * Size.Y);
@@ -206,8 +166,14 @@ void NormalizeDirectionalLuminancePair(
 				DirLuma[2] = LuminanceSH[Y * Size.X + X].G;	// Keep the rest as we need to diffuse conv them anyway
 				DirLuma[3] = LuminanceSH[Y * Size.X + X].B;	// Keep the rest as we need to diffuse conv them anyway
 
-				float DirScale = 1.0f / FMath::Max(0.0001f, DirLuma[0]);
+				float DirScale = 1.0f / DirLuma[0];
 				float ColorScale = DirLuma[0];
+
+				if (DirLuma[0] < 0.00001f)
+				{
+					DirScale = 0.0f;
+					ColorScale = 0.0f;
+				}
 
 				{
 					IncidentLighting[Y * Size.X + X].R = ColorScale * IncidentLighting[Y * Size.X + X].R * IncidentLighting[Y * Size.X + X].R;
@@ -372,6 +338,88 @@ void DenoiseDirectionalLuminancePair(
 				LuminanceSH[Y * Size.X + X].G = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
 				LuminanceSH[Y * Size.X + X].B = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
 			}
+		}
+	}
+}
+
+void DenoiseSkyBentNormal(
+	FIntPoint Size,
+	TArray<FLinearColor>& ValidityMask,
+	TArray<FVector3f>& BentNormal,
+	FDenoiserContext& DenoiserContext)
+{
+	TArray<int32> DilationMask;
+	DilationMask.AddZeroed(Size.X * Size.Y);
+
+	for (int32 Y = 0; Y < Size.Y; Y++)
+	{
+		for (int32 X = 0; X < Size.X; X++)
+		{
+			DilationMask[Y * Size.X + X] = ValidityMask[Y * Size.X + X].A >= 0.0f ? 1 : 0;
+		}
+	}
+	
+	const int32 TotalIteration = 2;
+
+	for (int32 IterationIndex = 0; IterationIndex < TotalIteration; IterationIndex++)
+	{
+		for (int32 Y = 0; Y < Size.Y; Y++)
+		{
+			for (int32 X = 0; X < Size.X; X++)
+			{
+				if (DilationMask[Y * Size.X + X] == 0)
+				{
+					for (int32 dx = -1; dx <= 1; dx++)
+					{
+						for (int32 dy = -1; dy <= 1; dy++)
+						{
+							if (Y + dy >= 0 && Y + dy < Size.Y && X + dx >= 0 && X + dx < Size.X)
+							{
+								if (DilationMask[(Y + dy) * Size.X + (X + dx)] == 1)
+								{
+									BentNormal[Y * Size.X + X] = BentNormal[(Y + dy) * Size.X + (X + dx)];
+									DilationMask[Y * Size.X + X] = 2;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (int32 Y = 0; Y < Size.Y; Y++)
+		{
+			for (int32 X = 0; X < Size.X; X++)
+			{
+				if (DilationMask[Y * Size.X + X] == 2)
+				{
+					DilationMask[Y * Size.X + X] = 1;
+				}
+			}
+		}
+	}
+	
+	int32 Padding = 8;
+	
+	// Resizing the filter is a super expensive operation
+	// Round things into size bins to reduce number of resizes
+	FDenoiserFilterSet& FilterSet = DenoiserContext.GetFilterForSize(FIntPoint(FMath::DivideAndRoundUp(Size.X + Padding * 2, 64) * 64, FMath::DivideAndRoundUp(Size.Y + Padding * 2, 64) * 64), true);
+	
+	for (int32 Y = 0; Y < Size.Y; Y++)
+	{
+		for (int32 X = 0; X < Size.X; X++)
+		{
+			FilterSet.InputBuffer[(Y + Padding) * FilterSet.Size.X + (X + Padding)] = BentNormal[Y * Size.X + X];
+		}
+	}
+
+	FilterSet.Execute();
+
+	for (int32 Y = 0; Y < Size.Y; Y++)
+	{
+		for (int32 X = 0; X < Size.X; X++)
+		{
+			BentNormal[Y * Size.X + X] = FilterSet.OutputBuffer[(Y + Padding) * FilterSet.Size.X + (X + Padding)];
 		}
 	}
 }

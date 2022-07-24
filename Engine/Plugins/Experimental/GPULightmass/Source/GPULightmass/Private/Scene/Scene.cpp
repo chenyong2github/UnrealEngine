@@ -2033,6 +2033,8 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 						TArray<FLinearColor> IncidentLighting;
 						TArray<FLinearColor> LuminanceSH;
+						TArray<FVector3f> SkyBentNormal;
+						
 						IncidentLighting.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
 						LuminanceSH.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
 						
@@ -2051,38 +2053,70 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 							});
 
-							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
-							{
-								if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
-								{
-									SimpleFireflyFilter(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
-								}
-								else
-								{
-									DenoiseRawData(Lightmap.GetSize(), IncidentLighting, LuminanceSH, DenoiserContext);
-								}
-							}
-							
-							for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
-							{
-								for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
-								{
-									int32 LinearIndex = Y * Lightmap.GetSize().X + X;
-									LightSampleData[LinearIndex] = ConvertToLightSample(IncidentLighting[LinearIndex], LuminanceSH[LinearIndex]);
-								}
-							}
-
 							if (bHasSkyShadowing)
 							{
+								SkyBentNormal.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+
 								CopyRectTiled(
 									FIntPoint(0, 0),
 									FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
 									SrcRowPitchInPixels,
 									DstRowPitchInPixels,
-									[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+									[&Lightmap, &SkyBentNormal](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+									{
+										FLinearColor SkyOcclusion = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex];
+										
+										// Revert sqrt in LightmapEncoding.ush which was done for preview
+										float Length = SkyOcclusion.A * SkyOcclusion.A;
+										FVector3f UnpackedBentNormalVector = FVector3f(SkyOcclusion) * 2.0f - 1.0f;
+										SkyBentNormal[DstLinearIndex] = UnpackedBentNormalVector * Length;
+									});
+							}
+						}
+
+						if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
+						{
+							if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
+							{
+								TLightSampleDataProvider<FLinearColor> GISampleData(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
+								SimpleFireflyFilter(GISampleData);
+
+								if (bHasSkyShadowing)
 								{
-									AddSkyOcclusionToLightSample(LightSampleData[DstLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex]);
-								});
+									TLightSampleDataProvider<FVector3f> SkyBentNormalSampleData(Lightmap.GetSize(), IncidentLighting, SkyBentNormal);
+									SimpleFireflyFilter(SkyBentNormalSampleData);
+								}
+							}
+							else
+							{
+								if (bHasSkyShadowing)
+								{
+									DenoiseSkyBentNormal(Lightmap.GetSize(), IncidentLighting, SkyBentNormal, DenoiserContext);
+								}
+								DenoiseRawData(Lightmap.GetSize(), IncidentLighting, LuminanceSH, DenoiserContext);
+							}
+						}
+							
+						for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
+						{
+							for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
+							{
+								int32 LinearIndex = Y * Lightmap.GetSize().X + X;
+								LightSampleData[LinearIndex] = ConvertToLightSample(IncidentLighting[LinearIndex], LuminanceSH[LinearIndex]);
+							}
+						}
+								
+						if (bHasSkyShadowing)
+						{
+							for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
+							{
+								for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
+								{
+									int32 LinearIndex = Y * Lightmap.GetSize().X + X;
+									LightSampleData[LinearIndex].SkyOcclusion[0] = SkyBentNormal[LinearIndex].X;
+									LightSampleData[LinearIndex].SkyOcclusion[1] = SkyBentNormal[LinearIndex].Y;
+									LightSampleData[LinearIndex].SkyOcclusion[2] = SkyBentNormal[LinearIndex].Z;
+								}
 							}
 						}
 
@@ -2337,6 +2371,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						{
 							TArray<FLinearColor> IncidentLighting;
 							TArray<FLinearColor> LuminanceSH;
+							TArray<FVector3f> SkyBentNormal;
 							IncidentLighting.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
 							LuminanceSH.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
 							
@@ -2364,15 +2399,46 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									IncidentLighting[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex];
 									LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 								});
+
+								if (bHasSkyShadowing)
+								{
+									SkyBentNormal.AddZeroed(BaseLightMapWidth * BaseLightMapHeight);
+									
+									CopyRectTiled(
+										InstanceTileMin,
+										FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
+										SrcRowPitchInPixels,
+										DstRowPitchInPixels,
+										[&Lightmap, &SkyBentNormal](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+										{
+											FLinearColor SkyOcclusion = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex];
+
+											// Revert sqrt in LightmapEncoding.ush which was done for preview
+											float Length = SkyOcclusion.A * SkyOcclusion.A;
+											FVector3f UnpackedBentNormalVector = FVector3f(SkyOcclusion) * 2.0f - 1.0f;
+											SkyBentNormal[DstLinearIndex] = UnpackedBentNormalVector * Length;
+										});
+								}
 								
 								if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 								{
 									if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
 									{
-										SimpleFireflyFilter(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, LuminanceSH);
+										TLightSampleDataProvider<FLinearColor> SampleData(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, LuminanceSH);
+										SimpleFireflyFilter(SampleData);
+										
+										if (bHasSkyShadowing)
+										{
+											TLightSampleDataProvider<FVector3f> SkyBentNormalSampleData(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, SkyBentNormal);
+											SimpleFireflyFilter(SkyBentNormalSampleData);
+										}
 									}
 									else
 									{
+										if (bHasSkyShadowing)
+										{
+											DenoiseSkyBentNormal(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, SkyBentNormal, DenoiserContext);
+										}
 										DenoiseRawData(FIntPoint{BaseLightMapWidth, BaseLightMapHeight}, IncidentLighting, LuminanceSH, DenoiserContext);
 									}
 								}
@@ -2388,15 +2454,16 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 								if (bHasSkyShadowing)
 								{
-									CopyRectTiled(
-										InstanceTileMin,
-										FIntRect(FIntPoint(0, 0), FIntPoint(BaseLightMapWidth, BaseLightMapHeight)),
-										SrcRowPitchInPixels,
-										DstRowPitchInPixels,
-										[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+									for (int32 Y = 0; Y < BaseLightMapHeight; Y++)
 									{
-										AddSkyOcclusionToLightSample(LightSampleData[DstLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex]);
-									});
+										for (int32 X = 0; X < BaseLightMapWidth; X++)
+										{
+											int32 LinearIndex = Y * BaseLightMapWidth + X;
+											LightSampleData[LinearIndex].SkyOcclusion[0] = SkyBentNormal[LinearIndex].X;
+											LightSampleData[LinearIndex].SkyOcclusion[1] = SkyBentNormal[LinearIndex].Y;
+											LightSampleData[LinearIndex].SkyOcclusion[2] = SkyBentNormal[LinearIndex].Z;
+										}
+									}
 								}
 							}
 
@@ -2632,6 +2699,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 						TArray<FLinearColor> IncidentLighting;
 						TArray<FLinearColor> LuminanceSH;
+						TArray<FVector3f> SkyBentNormal;
 						IncidentLighting.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
 						LuminanceSH.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
 						
@@ -2649,15 +2717,46 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								IncidentLighting[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[0]->Data[SrcLinearIndex];
 								LuminanceSH[DstLinearIndex] = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[1]->Data[SrcLinearIndex];
 							});
+							
+							if (bHasSkyShadowing)
+							{
+								SkyBentNormal.AddZeroed(Lightmap.GetSize().X * Lightmap.GetSize().Y);
+
+								CopyRectTiled(
+									FIntPoint(0, 0),
+									FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
+									SrcRowPitchInPixels,
+									DstRowPitchInPixels,
+									[&Lightmap, &SkyBentNormal](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+									{
+										FLinearColor SkyOcclusion = Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex];
+										
+										// Revert sqrt in LightmapEncoding.ush which was done for preview
+										float Length = SkyOcclusion.A * SkyOcclusion.A;
+										FVector3f UnpackedBentNormalVector = FVector3f(SkyOcclusion) * 2.0f - 1.0f;
+										SkyBentNormal[DstLinearIndex] = UnpackedBentNormalVector * Length;
+									});
+							}
 
 							if (Settings->DenoisingOptions == EGPULightmassDenoisingOptions::OnCompletion)
 							{
 								if (Settings->Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
 								{
-									SimpleFireflyFilter(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
+									TLightSampleDataProvider<FLinearColor> GISampleData(Lightmap.GetSize(), IncidentLighting, LuminanceSH);
+									SimpleFireflyFilter(GISampleData);
+
+									if (bHasSkyShadowing)
+									{
+										TLightSampleDataProvider<FVector3f> SkyBentNormalSampleData(Lightmap.GetSize(), IncidentLighting, SkyBentNormal);
+										SimpleFireflyFilter(SkyBentNormalSampleData);
+									}
 								}
 								else
 								{
+									if (bHasSkyShadowing)
+									{
+										DenoiseSkyBentNormal(Lightmap.GetSize(), IncidentLighting, SkyBentNormal, DenoiserContext);
+									}
 									DenoiseRawData(Lightmap.GetSize(), IncidentLighting, LuminanceSH, DenoiserContext);
 								}
 							}
@@ -2673,15 +2772,16 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 							if (bHasSkyShadowing)
 							{
-								CopyRectTiled(
-									FIntPoint(0, 0),
-									FIntRect(FIntPoint(0, 0), Lightmap.GetSize()),
-									SrcRowPitchInPixels,
-									DstRowPitchInPixels,
-									[&Lightmap, &LightSampleData](int32 DstLinearIndex, FIntPoint SrcTilePosition, int32 SrcLinearIndex) mutable
+								for (int32 Y = 0 ; Y < Lightmap.GetSize().Y; Y++)
 								{
-									AddSkyOcclusionToLightSample(LightSampleData[DstLinearIndex], Lightmap.TileStorage[FTileVirtualCoordinates(SrcTilePosition, 0)].CPUTextureData[3]->Data[SrcLinearIndex]);
-								});
+									for (int32 X = 0 ; X < Lightmap.GetSize().X; X++)
+									{
+										int32 LinearIndex = Y * Lightmap.GetSize().X + X;
+										LightSampleData[LinearIndex].SkyOcclusion[0] = SkyBentNormal[LinearIndex].X;
+										LightSampleData[LinearIndex].SkyOcclusion[1] = SkyBentNormal[LinearIndex].Y;
+										LightSampleData[LinearIndex].SkyOcclusion[2] = SkyBentNormal[LinearIndex].Z;
+									}
+								}
 							}
 						}
 

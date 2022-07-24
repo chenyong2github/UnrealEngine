@@ -86,7 +86,7 @@ struct FLightmapTileDenoiseGroup
 
 	struct FTextureData
 	{
-		TArray<FLinearColor> Texture[2];
+		TArray<FLinearColor> Texture[4];
 
 		volatile int32 bDenoisingFinished = 0;
 	};

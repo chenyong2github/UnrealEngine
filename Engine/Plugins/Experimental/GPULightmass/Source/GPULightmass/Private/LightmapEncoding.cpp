@@ -347,16 +347,6 @@ FLightSampleData ConvertToLightSample(FLinearColor IncidentLighting, FLinearColo
 	return Sample;
 }
 
-void AddSkyOcclusionToLightSample(FLightSampleData& Sample, FLinearColor SkyOcclusion)
-{
-	// Revert sqrt in LightmapEncoding.ush for preview
-	float Length = SkyOcclusion.A * SkyOcclusion.A;
-	FVector3f UnpackedBentNormalVector = FVector3f(SkyOcclusion) * 2.0f - 1.0f;
-	Sample.SkyOcclusion[0] = UnpackedBentNormalVector.X * Length;
-	Sample.SkyOcclusion[1] = UnpackedBentNormalVector.Y * Length;
-	Sample.SkyOcclusion[2] = UnpackedBentNormalVector.Z * Length;
-}
-
 FQuantizedSignedDistanceFieldShadowSample ConvertToShadowSample(FLinearColor ShadowMask, int32 ChannelIndex)
 {
 	FQuantizedSignedDistanceFieldShadowSample Sample;

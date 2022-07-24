@@ -51,7 +51,6 @@ struct FLightSampleData
 };
 
 FLightSampleData ConvertToLightSample(FLinearColor IncidentLighting, FLinearColor LuminanceSH);
-void AddSkyOcclusionToLightSample(FLightSampleData& Sample, FLinearColor SkyOcclusion);
 
 void QuantizeLightSamples(
 	TArray<FLightSampleData> InLightSamples,

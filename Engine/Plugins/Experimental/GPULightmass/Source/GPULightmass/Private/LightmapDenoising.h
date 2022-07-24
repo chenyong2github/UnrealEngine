@@ -88,6 +88,12 @@ struct FDenoiserContext
 	}
 };
 
+void DenoiseSkyBentNormal(
+	FIntPoint Size,
+	TArray<FLinearColor>& ValidityMask,
+	TArray<FVector3f>& BentNormal,
+	FDenoiserContext& DenoiserContext);
+
 void DenoiseRawData(
 	FIntPoint Size,
 	TArray<FLinearColor>& IncidentLighting,
@@ -95,7 +101,93 @@ void DenoiseRawData(
 	FDenoiserContext& DenoiserContext,
 	bool bPrepadTexels = true);
 
-void SimpleFireflyFilter(
-	FIntPoint Size,
-	TArray<FLinearColor>& IncidentLighting,
-	TArray<FLinearColor>& LuminanceSH);
+struct FLightSampleDataProvider
+{
+	virtual ~FLightSampleDataProvider() {}
+	virtual FIntPoint GetSize() const = 0; 
+	virtual bool IsMapped(FIntPoint Location) const = 0;	
+	virtual float GetL(FIntPoint Location) const = 0;
+	virtual void OverwriteTexel(FIntPoint Dst, FIntPoint Src) = 0;
+};
+
+template<typename LightSampleType>
+struct TLightSampleDataProvider {};
+
+template<>
+struct TLightSampleDataProvider<FLinearColor> : public FLightSampleDataProvider
+{
+	FIntPoint Size;
+	TArray<FLinearColor>& IncidentLighting;
+	TArray<FLinearColor>& LuminanceSH;
+
+	TLightSampleDataProvider<FLinearColor>(
+		FIntPoint Size,
+		TArray<FLinearColor>& IncidentLighting,
+		TArray<FLinearColor>& LuminanceSH)
+		: Size(Size)
+		, IncidentLighting(IncidentLighting)
+		, LuminanceSH(LuminanceSH)
+	{
+	}
+	
+	virtual FIntPoint GetSize() const override
+	{
+		return Size;
+	}
+
+	virtual bool IsMapped(FIntPoint Location) const override
+	{
+		return IncidentLighting[Location.Y * Size.X + Location.X].A >= 0;
+	}
+	
+	virtual float GetL(FIntPoint Location) const override
+	{
+		return IncidentLighting[Location.Y * Size.X + Location.X].GetLuminance();
+	}
+
+	virtual void OverwriteTexel(FIntPoint Dst, FIntPoint Src) override
+	{
+		IncidentLighting[Dst.Y * Size.X + Dst.X] = IncidentLighting[Src.Y * Size.X + Src.X];
+		LuminanceSH[Dst.Y * Size.X + Dst.X] = LuminanceSH[Src.Y * Size.X + Src.X];
+	}
+};
+
+template<>
+struct TLightSampleDataProvider<FVector3f> : public FLightSampleDataProvider
+{
+	FIntPoint Size;
+	TArray<FLinearColor>& IncidentLightingAsValidityMask;
+	TArray<FVector3f>& SkyBentNormal;
+
+	TLightSampleDataProvider<FVector3f>(
+		FIntPoint Size,
+		TArray<FLinearColor>& IncidentLightingAsValidityMask,
+		TArray<FVector3f>& SkyBentNormal)
+		: Size(Size)
+		, IncidentLightingAsValidityMask(IncidentLightingAsValidityMask)
+		, SkyBentNormal(SkyBentNormal)
+	{
+	}
+	
+	virtual FIntPoint GetSize() const override
+	{
+		return Size;
+	}
+
+	virtual bool IsMapped(FIntPoint Location) const override
+	{
+		return IncidentLightingAsValidityMask[Location.Y * Size.X + Location.X].A >= 0;
+	}
+	
+	virtual float GetL(FIntPoint Location) const override
+	{
+		return SkyBentNormal[Location.Y * Size.X + Location.X].Length();
+	}
+
+	virtual void OverwriteTexel(FIntPoint Dst, FIntPoint Src) override
+	{
+		SkyBentNormal[Dst.Y * Size.X + Dst.X] = SkyBentNormal[Src.Y * Size.X + Src.X];
+	}
+};
+
+void SimpleFireflyFilter(FLightSampleDataProvider& SampleData);

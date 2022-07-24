@@ -3044,9 +3044,31 @@ const int32 DenoiseTileProximity = 3;
 
 void FLightmapTileDenoiseAsyncTask::DoThreadedWork()
 {
+	TArray<FVector3f> SkyBentNormal;
+	SkyBentNormal.AddZeroed(Size.X * Size.Y);
+		
+	for (int32 Y = 0 ; Y < Size.Y; Y++)
+	{
+		for (int32 X = 0 ; X < Size.X; X++)
+		{
+			int32 LinearIndex = Y * Size.X + X;
+										
+			FLinearColor SkyOcclusion = TextureData->Texture[3][LinearIndex];
+										
+			// Revert sqrt in LightmapEncoding.ush for preview
+			float Length = SkyOcclusion.A * SkyOcclusion.A;
+			FVector3f UnpackedBentNormalVector = FVector3f(SkyOcclusion) * 2.0f - 1.0f;
+			SkyBentNormal[LinearIndex] = UnpackedBentNormalVector * Length;
+		}
+	}
+	
 	if (Denoiser == EGPULightmassDenoiser::SimpleFireflyRemover)
 	{
-		SimpleFireflyFilter(Size, TextureData->Texture[0], TextureData->Texture[1]);
+		TLightSampleDataProvider<FLinearColor> GISampleData(Size, TextureData->Texture[0], TextureData->Texture[1]);
+		SimpleFireflyFilter(GISampleData);
+
+		TLightSampleDataProvider<FVector3f> SkyBentNormalSampleData(Size, TextureData->Texture[0], SkyBentNormal);
+		SimpleFireflyFilter(SkyBentNormalSampleData);
 	}
 	else
 	{
@@ -3057,6 +3079,24 @@ void FLightmapTileDenoiseAsyncTask::DoThreadedWork()
 			TextureData->Texture[0],
 			TextureData->Texture[1],
 			DenoiserContext);
+
+		DenoiseSkyBentNormal(Size, TextureData->Texture[0], SkyBentNormal, DenoiserContext);
+	}
+		
+	for (int32 Y = 0 ; Y < Size.Y; Y++)
+	{
+		for (int32 X = 0 ; X < Size.X; X++)
+		{
+			int32 LinearIndex = Y * Size.X + X;
+				
+			float Length = SkyBentNormal[LinearIndex].Length();
+			FVector3f PackedVector = SkyBentNormal[LinearIndex].GetSafeNormal() * 0.5f + 0.5f;
+				
+			TextureData->Texture[3][LinearIndex].R = PackedVector.X;
+			TextureData->Texture[3][LinearIndex].G = PackedVector.Y;
+			TextureData->Texture[3][LinearIndex].B = PackedVector.Z;
+			TextureData->Texture[3][LinearIndex].A = FMath::Sqrt(Length);
+		}
 	}
 
 	FPlatformAtomics::AtomicStore(&TextureData->bDenoisingFinished, 1);
@@ -3107,6 +3147,8 @@ void FLightmapRenderer::BackgroundTick()
 				// While the data will be overwritten immediately, we still need to decompress to inform the LRU cache management
 				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[0]->Decompress();
 				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[1]->Decompress();
+				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[2]->Decompress();
+				Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[3]->Decompress();
 
 				for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
 				{
@@ -3120,6 +3162,8 @@ void FLightmapRenderer::BackgroundTick()
 
 						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[0]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[0][SrcLinearIndex];
 						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[1]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[1][SrcLinearIndex];
+						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[2]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[2][SrcLinearIndex];
+						Tile.RenderState->TileStorage[Tile.VirtualCoordinates].CPUTextureData[3]->Data[DstLinearIndex] = DenoiseGroup.TextureData->Texture[3][SrcLinearIndex];
 					}
 				}
 
@@ -3211,6 +3255,8 @@ void FLightmapRenderer::BackgroundTick()
 				{
 					TileStorage.CPUTextureRawData[0]->Decompress();
 					TileStorage.CPUTextureRawData[1]->Decompress();
+					TileStorage.CPUTextureRawData[2]->Decompress();
+					TileStorage.CPUTextureRawData[3]->Decompress();
 				}
 
 				TileStorage.CPUTextureData[0]->Decompress();
@@ -3232,6 +3278,8 @@ void FLightmapRenderer::BackgroundTick()
 						{
 							TileStorage.CPUTextureRawData[0]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[0][SrcLinearIndex];
 							TileStorage.CPUTextureRawData[1]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[1][SrcLinearIndex];
+							TileStorage.CPUTextureRawData[2]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[2][SrcLinearIndex];
+							TileStorage.CPUTextureRawData[3]->Data[DstLinearIndex] = ReadbackGroup.TextureData->Texture[3][SrcLinearIndex];
 						}
 
 						// Always write into display data so we have something to show before denoising completes
@@ -3365,6 +3413,8 @@ void FLightmapRenderer::BackgroundTick()
 
 			DenoiseGroup.TextureData->Texture[0].AddZeroed(DenoiseTileProximity * DenoiseTileProximity * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
 			DenoiseGroup.TextureData->Texture[1].AddZeroed(DenoiseTileProximity * DenoiseTileProximity * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+			DenoiseGroup.TextureData->Texture[2].AddZeroed(DenoiseTileProximity * DenoiseTileProximity * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+			DenoiseGroup.TextureData->Texture[3].AddZeroed(DenoiseTileProximity * DenoiseTileProximity * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
 
 			for (int Dx = -(DenoiseTileProximity / 2); Dx <= (DenoiseTileProximity / 2); Dx++)
 			{
@@ -3389,6 +3439,8 @@ void FLightmapRenderer::BackgroundTick()
 					{
 						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[0]->Decompress();
 						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[1]->Decompress();
+						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[2]->Decompress();
+						Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[3]->Decompress();
 					}
 
 					for (int32 Y = 0; Y < GPreviewLightmapVirtualTileSize; Y++)
@@ -3403,6 +3455,8 @@ void FLightmapRenderer::BackgroundTick()
 
 							DenoiseGroup.TextureData->Texture[0][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[0]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
 							DenoiseGroup.TextureData->Texture[1][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[1]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							DenoiseGroup.TextureData->Texture[2][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[2]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
+							DenoiseGroup.TextureData->Texture[3][DstLinearIndex] = !bShouldWriteZero ? Tile.RenderState->TileStorage[FTileVirtualCoordinates(SrcTilePosition, Tile.VirtualCoordinates.MipLevel)].CPUTextureRawData[3]->Data[SrcLinearIndex] : FLinearColor(0, 0, 0, 0);
 						}
 					}
 				}
