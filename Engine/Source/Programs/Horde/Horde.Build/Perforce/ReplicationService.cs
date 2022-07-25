@@ -690,6 +690,7 @@ namespace Horde.Build.Perforce
 					Stopwatch processTimer = new Stopwatch();
 					Stopwatch trimTimer = new Stopwatch();
 					Stopwatch gcTimer = new Stopwatch();
+					Task trimTask = Task.CompletedTask;
 
 					Dictionary<int, FileEntry> handles = new Dictionary<int, FileEntry>();
 					await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { syncPath }, null, typeof(SyncRecord), true, default))
@@ -734,12 +735,20 @@ namespace Horde.Build.Perforce
 							if (dataSize > trimDataSize)
 							{
 								_logger.LogInformation("Trimming working set after receiving {Size:n1}mb...", dataSize / (1024 * 1024));
-								trimTimer.Start();
-								await _treeStore.WriteTreeAsync(refName, syncNode, false, cancellationToken);
-								trimTimer.Stop();
-								gcTimer.Start();
-								GC.Collect();
-								gcTimer.Stop();
+								if (!trimTask.IsCompleted)
+								{
+									_logger.LogInformation("Waiting for previous trim to complete...");
+								}
+								await trimTask;
+								trimTask = Task.Run(async () =>
+								{
+									trimTimer.Start();
+									await _treeStore.WriteTreeAsync(refName, syncNode, false, cancellationToken);
+									trimTimer.Stop();
+									gcTimer.Start();
+									GC.Collect();
+									gcTimer.Stop();
+								}, cancellationToken);
 								trimDataSize = dataSize + TrimInterval;
 								_logger.LogInformation("Trimming complete. Next trim at {Size:n1}mb.", trimDataSize / (1024 * 1024));
 							}
@@ -747,6 +756,7 @@ namespace Horde.Build.Perforce
 
 						processTimer.Stop();
 					}
+					await trimTask;
 					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing, {TrimTimeSeconds:n1}s trimming, {GcTimeSeconds:n1}s gc)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds, trimTimer.Elapsed.TotalSeconds, gcTimer.Elapsed.TotalSeconds);
 
 					// Update the root sync node
