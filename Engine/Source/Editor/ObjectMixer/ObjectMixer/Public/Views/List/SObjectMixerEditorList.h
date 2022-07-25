@@ -87,16 +87,16 @@ public:
 		FlushMemory(false);
 	}
 
-	/*
-	 * Regenerate the list items and refresh the list. Call when adding or removing items.
-	 */
-	void RebuildList(const FString& InItemToScrollTo = "");
-
 	/**
 	 * Refresh filters and sorting.
 	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	void RefreshList();
+
+	/*
+	 * Regenerate the list items and refresh the list. Call when adding or removing items.
+	 */
+	void RequestRebuildList(const FString& InItemToScrollTo = "");
 
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
@@ -166,10 +166,24 @@ public:
 
 private:
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	void OnActorSpawnedOrDestroyed(AActor* Object)
+	{
+		RequestRebuildList();
+	}
+
 	TWeakPtr<FObjectMixerEditorList> ListModelPtr;
 	
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedRef<SWidget> GenerateHeaderRowContextMenu() const;
+
+	bool bShouldRebuild = false;
+
+	/*
+	 * Regenerate the list items and refresh the list. Call when adding or removing items.
+	 */
+	void RebuildList();
 
 	/*
 	 * Only adds properties that pass a series of tests, including having only one unique entry in the column list array.
@@ -234,4 +248,7 @@ private:
 		{
 			return A->GetSortOrder() < B->GetSortOrder();
 		};
+
+	FDelegateHandle OnActorSpawnedHandle;
+	FDelegateHandle OnActorDestroyedHandle;
 };

@@ -3,7 +3,8 @@
 #pragma once
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
-#include "ObjectMixerEditorProjectSettings.h"
+
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
 struct FObjectMixerEditorListRow;
@@ -15,10 +16,11 @@ class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObj
 {
 public:
 
-	FObjectMixerEditorList();
+	FObjectMixerEditorList() = default;
 
 	virtual ~FObjectMixerEditorList();
 
+	void FlushWidget();
 	TSharedRef<SWidget> GetOrCreateWidget();
 
 	UObjectMixerObjectFilter* GetObjectFilter();
@@ -63,7 +65,7 @@ public:
 	/*
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
 	 */
-	void RebuildList(const FString& InItemToScrollTo = "") const;
+	void RequestRebuildList() const;
 
 	/**
 	 * Refresh filters and sorting.
@@ -80,7 +82,7 @@ public:
 	{
 		ObjectFilterClass = InObjectFilterClass;
 		CacheObjectFilterObject();
-		RebuildList();
+		RequestRebuildList();
 	}
 
 private:
@@ -92,15 +94,15 @@ private:
 
 	TSharedPtr<SObjectMixerEditorList> ListWidget;
 
-	TWeakObjectPtr<UObjectMixerObjectFilter> ObjectFilterPtr;
+	TStrongObjectPtr<UObjectMixerObjectFilter> ObjectFilterPtr;
 
 	TWeakPtr<FObjectMixerEditorListRow> SoloRow = nullptr;
 
 	// Delegates
 	TFunction<void()> RebuildDelegate = [this]()
 	{
-		RebuildList();
+		RequestRebuildList();
 	};
 	
-	TSet<FDelegateHandle> EditorDelegateHandles;
+	TSet<FDelegateHandle> DelegateHandles;
 };

@@ -548,7 +548,7 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	{
 		return SNew(SBox)
 				.Visibility(EVisibility::SelfHitTestInvisible)
-				.HAlign(HAlign_Center)
+				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
 				[
 					Widget.ToSharedRef()

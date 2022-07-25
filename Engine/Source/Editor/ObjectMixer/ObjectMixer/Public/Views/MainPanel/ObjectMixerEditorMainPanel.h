@@ -18,10 +18,9 @@ public:
 	TSharedRef<SWidget> GetOrCreateWidget();
 
 	/*
-	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
-	 * @param bShouldCacheValues If true, the current list's current values will be cached and then restored when the list is rebuilt. Otherwise preset values will be used.
+	 * Regenerate the list items and refresh the list. Call when adding or removing items.
 	 */
-	void RebuildList(const FString InItemToScrollTo = "", bool bShouldCacheValues = true) const;
+	void RequestRebuildList() const;
 
 	/**
 	 * Refresh filters and sorting.

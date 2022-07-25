@@ -52,7 +52,7 @@ public:
 
 	virtual bool ShouldIncludeUnsupportedProperties() const override
 	{
-		return true;
+		return false;
 	}
 
 	virtual EObjectMixerPropertyInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const override

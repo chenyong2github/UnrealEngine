@@ -72,8 +72,8 @@
 #include "EditorViewportLayout.h"
 #include "LevelViewportTabContent.h"
 #include "SLevelViewport.h"
-#include "ObjectMixerEditorModule.h"
 #include "LightMixerModule.h"
+#include "ObjectMixerEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -1485,8 +1485,18 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 
 		{
 			// These modules will take care of their own tab spawners once loaded.
-			FModuleManager::Get().LoadModuleChecked<FObjectMixerEditorModule>( "ObjectMixerEditor" );
-			FModuleManager::Get().LoadModuleChecked<FLightMixerModule>("LightMixer");
+			FObjectMixerEditorModule ObjectMixer = FObjectMixerEditorModule::Get();
+			{
+				FDelegateHandle ObjectMixerComponentEditedHandle =
+				   LevelEditorModule.OnComponentsEdited().AddRaw(&ObjectMixer, &FObjectMixerEditorModule::RequestRebuildList);
+				ObjectMixer.AddOnComponentEditedDelegate(ObjectMixerComponentEditedHandle);
+			}
+			FLightMixerModule LightMixer = FLightMixerModule::Get();
+			{
+				FDelegateHandle LightMixerComponentEditedHandle =
+				   LevelEditorModule.OnComponentsEdited().AddRaw(&LightMixer, &FLightMixerModule::RequestRebuildList);
+				LightMixer.AddOnComponentEditedDelegate(LightMixerComponentEditedHandle);
+			}
 		}
 
 		FTabSpawnerEntry& BuildAndSubmitEntry = LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorBuildAndSubmit, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorBuildAndSubmit, FString()));

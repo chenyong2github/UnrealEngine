@@ -6,13 +6,9 @@
 #include "LightMixerProjectSettings.h"
 #include "LightMixerStyle.h"
 
-#include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
-#include "ToolMenus.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "FLightMixerEditorModule"
 
@@ -22,40 +18,41 @@ void FLightMixerModule::StartupModule()
 {
 	FLightMixerStyle::Initialize();
 
-	RegisterTabSpawner();
-	RegisterProjectSettings();
-	
-	TabLabel = LOCTEXT("LightMixerTabLabel", "Light Mixer");
-	
-	DefaultFilterClass = ULightMixerObjectFilter::StaticClass();
+	Initialize();
 }
 
 void FLightMixerModule::ShutdownModule()
 {
-	UToolMenus::UnregisterOwner(this);
-
-	UnregisterTabSpawner();
-	UnregisterProjectSettings();
-
 	FLightMixerStyle::Shutdown();
+
+	Teardown();
 }
 
-void FLightMixerModule::RegisterTabSpawner()
+FLightMixerModule& FLightMixerModule::Get()
 {
-	FTabSpawnerEntry& BrowserSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-		"LightMixerToolkit",
-		FOnSpawnTab::CreateRaw(this, & FLightMixerModule::SpawnMainPanelTab))
-			.SetIcon(FSlateIcon(FLightMixerStyle::Get().GetStyleSetName(), "LightMixer.ToolbarButton", "LightMixer.ToolbarButton.Small"))
-			.SetDisplayName(LOCTEXT("OpenLightMixerEditorMenuItem", "Light Mixer"))
-			.SetTooltipText(LOCTEXT("OpenLightMixerEditorTooltip", "Open Light Mixer"))
-			.SetMenuType(ETabSpawnerMenuType::Enabled);
-
-	BrowserSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
+	return FModuleManager::LoadModuleChecked< FLightMixerModule >("LightMixer");
 }
 
-void FLightMixerModule::UnregisterTabSpawner()
+void FLightMixerModule::Initialize()
 {
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FObjectMixerEditorModule::ObjectMixerToolkitPanelTabId);
+	FObjectMixerEditorModule::Initialize();
+	
+	DefaultFilterClass = ULightMixerObjectFilter::StaticClass();	
+}
+
+void FLightMixerModule::SetupMenuItemVariables()
+{
+	TabLabel = LOCTEXT("LightMixerTabLabel", "Light Mixer");
+
+	MenuItemName = LOCTEXT("OpenLightMixerEditorMenuItem", "Light Mixer");
+	MenuItemIcon =
+		FSlateIcon(FLightMixerStyle::Get().GetStyleSetName(), "LightMixer.ToolbarButton", "LightMixer.ToolbarButton.Small");
+	MenuItemTooltip = LOCTEXT("OpenLightMixerEditorTooltip", "Open Light Mixer");
+}
+
+FName FLightMixerModule::GetTabSpawnerId()
+{
+	return "LightMixerToolkit";
 }
 
 void FLightMixerModule::RegisterProjectSettings() const

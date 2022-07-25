@@ -165,7 +165,20 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 }
 
 SObjectMixerEditorList::~SObjectMixerEditorList()
-{	
+{
+	// Unbind Delegates
+	if (GEditor)
+	{
+		if (const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+		{
+			EditorWorld->RemoveOnActorSpawnedHandler(OnActorSpawnedHandle);
+			EditorWorld->RemoveOnActorDestroyededHandler(OnActorDestroyedHandle);
+		}
+	}
+
+	OnActorSpawnedHandle.Reset();
+	OnActorDestroyedHandle.Reset();
+	
 	HeaderRow.Reset();
 	
 	ListSearchBoxPtr.Reset();
@@ -178,29 +191,11 @@ SObjectMixerEditorList::~SObjectMixerEditorList()
 	TreeViewPtr.Reset();
 }
 
-void SObjectMixerEditorList::RebuildList(const FString& InItemToScrollTo)
+void SObjectMixerEditorList::RebuildList()
 {
+	bShouldRebuild = false;
+	
 	GenerateTreeView();
-
-	if (!InItemToScrollTo.IsEmpty())
-	{
-		FObjectMixerEditorListRowPtr ScrollToItem = nullptr;
-
-		for (const FObjectMixerEditorListRowPtr& TreeItem : TreeViewRootObjects)
-		{
-			if (false)
-			{
-				ScrollToItem = TreeItem;
-				break;
-			}
-		}
-
-		if (ScrollToItem.IsValid())
-		{
-			ScrollToItem->SetShouldFlashOnScrollIntoView(true);
-			TreeViewPtr->RequestScrollIntoView(ScrollToItem);
-		}
-	}
 }
 
 void SObjectMixerEditorList::RefreshList()
@@ -219,6 +214,11 @@ void SObjectMixerEditorList::RefreshList()
 	}
 
 	FindVisibleObjectsAndRequestTreeRefresh();
+}
+
+void SObjectMixerEditorList::RequestRebuildList(const FString& InItemToScrollTo)
+{
+	bShouldRebuild = true;
 }
 
 TArray<FObjectMixerEditorListRowPtr> SObjectMixerEditorList::GetSelectedTreeViewItems() const
@@ -427,6 +427,17 @@ FListViewColumnInfo* SObjectMixerEditorList::GetColumnInfoByPropertyName(const F
 		{
 			return ColumnInfo.PropertyName.IsEqual(InPropertyName);
 		});
+}
+
+void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
+	const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (bShouldRebuild)
+	{
+		RebuildList();
+	}
 }
 
 TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
@@ -754,7 +765,7 @@ TSharedRef<SWidget> SObjectMixerEditorList::BuildShowOptionsMenu()
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([]()
 		{
-			FGlobalTabmanager::Get()->TryInvokeTab(FObjectMixerEditorModule::ObjectMixerToolkitPanelTabId);
+			FGlobalTabmanager::Get()->TryInvokeTab(FObjectMixerEditorModule::Get().GetTabSpawnerId());
 		})));
 
 	ShowOptionsMenuBuilder.AddMenuEntry(FText::FromString("Refresh List"), FText::FromString("Refresh"), FSlateIcon(),
@@ -849,28 +860,41 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	check(GEditor);
 	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	
+
+	// Bind delegates to keep view up to date
+	OnActorSpawnedHandle = EditorWorld->AddOnActorSpawnedHandler(
+			FOnActorSpawned::FDelegate::CreateRaw(
+			this, &SObjectMixerEditorList::OnActorSpawnedOrDestroyed));
+	OnActorDestroyedHandle = EditorWorld->AddOnActorDestroyedHandler(
+		FOnActorDestroyed::FDelegate::CreateRaw(
+		this, &SObjectMixerEditorList::OnActorSpawnedOrDestroyed));
+
+	// Find valid matching objects
 	for (TObjectIterator<UObject> ObjectIterator; ObjectIterator; ++ObjectIterator)
 	{
-		if (UObject* Object = *ObjectIterator; Object->GetWorld() == EditorWorld)
+		if (UObject* Object = *ObjectIterator; IsValid(Object))
 		{
-			bool bIsAcceptableClass = false;
-
-			for (UClass* Class : AcceptableClasses)
+			if (Object->GetWorld() == EditorWorld)
 			{
-				if (Object->IsA(Class))
+				//Object->GetWorld()->GetLevel(0).
+				bool bIsAcceptableClass = false;
+
+				for (UClass* Class : AcceptableClasses)
 				{
-					bIsAcceptableClass = true;
-					break;
+					if (Object->IsA(Class))
+					{
+						bIsAcceptableClass = true;
+						break;
+					}
 				}
-			}
 
-			if (bIsAcceptableClass)
-			{
-				TreeViewRootObjects.Add(
-					MakeShared<FObjectMixerEditorListRow>(
-						Object, FObjectMixerEditorListRow::SingleItem, SharedThis(this), nullptr)
-				);
+				if (bIsAcceptableClass)
+				{
+					TreeViewRootObjects.Add(
+						MakeShared<FObjectMixerEditorListRow>(
+							Object, FObjectMixerEditorListRow::SingleItem, SharedThis(this), nullptr)
+					);
+				}
 			}
 		}
 	}

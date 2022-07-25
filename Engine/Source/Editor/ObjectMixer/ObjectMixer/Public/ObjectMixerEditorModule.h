@@ -15,7 +15,12 @@ public:
 	//~ Begin IModuleInterface Interface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-	//~ End IModuleInterface 
+	//~ End IModuleInterface
+
+	virtual void Initialize();
+	virtual void Teardown();
+
+	void AddOnComponentEditedDelegate(const FDelegateHandle& InOnComponentEditedHandle);
 
 	static FObjectMixerEditorModule& Get();
 	
@@ -23,9 +28,8 @@ public:
 
 	/*
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
-	 * @param bShouldCacheValues If true, the current list's current values will be cached and then restored when the list is rebuilt. Otherwise preset values will be used.
 	 */
-	virtual void RebuildList(const FString InItemToScrollTo = "", bool bShouldCacheValues = true) const;
+	virtual void RequestRebuildList() const;
 	
 	/**
 	 * Refresh filters and sorting.
@@ -33,7 +37,12 @@ public:
 	 */
 	virtual void RefreshList() const;
 
-	void RegisterMenuGroupAndTabSpawner();
+	void RegisterMenuGroup();
+	void UnregisterMenuGroup();
+	virtual void SetupMenuItemVariables();
+	virtual void RegisterTabSpawner();
+	virtual FName GetTabSpawnerId();
+	
 	/**
 	 * Add a tab spawner to the Object Mixer menu group.
 	 * @return If adding the item to the menu was successful
@@ -44,13 +53,13 @@ public:
 	virtual void RegisterProjectSettings() const;
 	virtual void UnregisterProjectSettings() const;
 
-	virtual TSharedRef<SDockTab> SpawnMainPanelTab(const FSpawnTabArgs& Args);
-	
-	static const FName ObjectMixerToolkitPanelTabId;
+	virtual TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
 	TSharedPtr<FWorkspaceItem> GetWorkspaceGroup();
 
 protected:
+
+	virtual TSharedRef<SDockTab> SpawnMainPanelTab();
 	
 	/** Lives for as long as the module is loaded. */
 	TSharedPtr<FObjectMixerEditorMainPanel> MainPanel;
@@ -58,8 +67,16 @@ protected:
 	/** The text that appears on the spawned nomad tab */
 	FText TabLabel;
 
+	/** Menu Item variables */
+	FText MenuItemName;
+	FSlateIcon MenuItemIcon;
+	FText MenuItemTooltip;
+	ETabSpawnerMenuType::Type TabSpawnerType = ETabSpawnerMenuType::Enabled;
+
 	// If set, this is the filter class used to initialize the MainPanel
 	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
+	
+	TSet<FDelegateHandle> DelegateHandles;
 
 private:
 

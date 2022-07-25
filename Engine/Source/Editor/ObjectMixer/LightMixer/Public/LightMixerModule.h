@@ -13,10 +13,12 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	void RegisterTabSpawner();
-
+	static FLightMixerModule& Get();
+	
 	//~ Begin FObjectMixerEditorModule overrides
-	virtual void UnregisterTabSpawner() override;
+	virtual void Initialize() override;
+	virtual void SetupMenuItemVariables() override;
+	virtual FName GetTabSpawnerId() override;
 	virtual void RegisterProjectSettings() const override;
 	virtual void UnregisterProjectSettings() const override;
 	//~ End FObjectMixerEditorModule overrides

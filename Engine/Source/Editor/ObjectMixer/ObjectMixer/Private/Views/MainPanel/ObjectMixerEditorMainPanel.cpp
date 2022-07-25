@@ -22,11 +22,11 @@ TSharedRef<SWidget> FObjectMixerEditorMainPanel::GetOrCreateWidget()
 	return MainPanelWidget.ToSharedRef();
 }
 
-void FObjectMixerEditorMainPanel::RebuildList(const FString InItemToScrollTo, bool bShouldCacheValues) const
+void FObjectMixerEditorMainPanel::RequestRebuildList() const
 {
 	if (EditorList.IsValid())
 	{
-		EditorList->RebuildList(InItemToScrollTo);
+		EditorList->RequestRebuildList();
 	}
 }
 

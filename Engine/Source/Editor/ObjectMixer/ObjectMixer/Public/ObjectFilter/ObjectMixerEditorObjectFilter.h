@@ -29,7 +29,10 @@ UCLASS(Abstract, Blueprintable)
 class OBJECTMIXEREDITOR_API UObjectMixerObjectFilter : public UObject
 {
 	GENERATED_BODY()
+	
 public:
+
+	UObjectMixerObjectFilter() = default;
 	
 	/*
 	 * Return the basic object types you want to filter for in your level.
