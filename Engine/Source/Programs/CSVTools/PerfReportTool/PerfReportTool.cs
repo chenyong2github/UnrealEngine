@@ -25,7 +25,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.88";
+        private static string VersionString = "4.89";
 
         public static string Get() { return VersionString; }
     };
@@ -160,7 +160,10 @@ namespace PerfReportTool
 			"       -minFrameCount <n> : ignore CSVs without at least this number of valid frames\n" +
 			"       -maxFileAgeDays <n> : max file age in days. CSV or PRC files older than this will be ignored\n" +
 			"       -summaryTableStatThreshold <n> : stat/metric columns in the summarytable will be filtered out if all values < threshold\n" +
-			"       -summaryTableXmlSubst <find1>=<replace1>,<find2>=<replace2>... replace summarytable XML row and filter entries\n" +
+			"       -summaryTableXmlSubst <find1>=<replace1>,<find2>=<replace2>... : replace summarytable XML row and filter entries\n" +
+			"       -transposeTable : write the summary tables transposed\n"+
+			"       -transposeCollatedTable : write the collated summary table transposed (disables min/max columns)\n" +
+            "       -addDiffRows : adds diff rows after the first two rows\n" + 
 			"\n" +
 			"Json serialization:\n" +
 			"       -summaryTableToJson <filename> : json filename to write summary table row data to\n" +
@@ -714,6 +717,9 @@ namespace PerfReportTool
 				weightByColumnName = null;
 			}
 
+			bool bTransposeFullSummaryTable = GetBoolArg("transposeTable");
+			bool bTransposeCollatedSummaryTable = bTransposeFullSummaryTable | GetBoolArg("transposeCollatedTable");
+
 			// Check params and any commandline overrides
 			bool bReverseTable = tableInfo.bReverseSortRows;
 			bool? bReverseTableOption = GetOptionalBoolArg("reverseTable");
@@ -736,7 +742,7 @@ namespace PerfReportTool
 				bAutoColorizeTable = (bool)bAutoColorizeTableOption;
 			}
 
-			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
+			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax") && !bTransposeCollatedSummaryTable;
 
 			if (!string.IsNullOrEmpty(outputDir))
 			{
@@ -758,6 +764,12 @@ namespace PerfReportTool
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
 				string summaryTitle = GetArg("summaryTitle", null);
+
+				if (GetBoolArg("addDiffRows"))
+				{
+					filteredTable.AddDiffRows();
+				}
+
 				filteredTable.WriteToHTML(
 					filenameWithoutExtension + ".html", 
 					VersionString, 
@@ -770,7 +782,9 @@ namespace PerfReportTool
 					GetIntArg("maxSummaryTableStringLength", Int32.MaxValue), 
 					reportXML.columnFormatInfoList, 
 					weightByColumnName, 
-					summaryTitle );
+					summaryTitle,
+					bCollated ? bTransposeCollatedSummaryTable : bTransposeFullSummaryTable
+				);
 			}
 		}
 
