@@ -25,7 +25,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.90";
+        private static string VersionString = "4.91";
 
         public static string Get() { return VersionString; }
     };
@@ -147,7 +147,7 @@ namespace PerfReportTool
 			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
 			"       -reverseTable [0|1]: Reverses the order of summary tables (set 0 to force off)\n" +
 			"       -scrollableTable [0|1]: makes the summary table scrollable, with frozen first rows and columns (set 0 to force off)\n" +
-			"       -autoColorizeTable [0|1]: enables summary table autocolorization. (set 0 to force off) \n" +
+			"       -colorizeTable [off|default|auto]: selects the table colorization mode\n" +
 			"       -maxSummaryTableStringLength <n>: strings longer than this will get truncated\n" +
 			"       -allowDuplicateCSVs : doesn't remove duplicate CSVs (Note: can cause summary table cache file locking issues)\n" +
 			"       -requireMetadata : ignores CSVs without metadata\n" +
@@ -735,11 +735,22 @@ namespace PerfReportTool
 				bScrollableTable = (bool)bScrollableTableOption;
 			}
 
-			bool bAutoColorizeTable = tableInfo.bAutoColorize;
-			bool? bAutoColorizeTableOption = GetOptionalBoolArg("autoColorizeTable");
-			if (bAutoColorizeTableOption != null)
+			TableColorizeMode colorizeMode = tableInfo.tableColorizeMode;
+			string colorizeArg = GetArg("colorizeTable","").ToLower();
+			if ( GetBoolArg("autoColorizeTable")) // Legacy support for the -autoColorizeTable arg
 			{
-				bAutoColorizeTable = (bool)bAutoColorizeTableOption;
+				colorizeMode = TableColorizeMode.Auto;
+			}
+			if ( colorizeArg != "" )
+			{
+				if (colorizeArg == "auto")
+				{
+					colorizeMode = TableColorizeMode.Auto;
+				}
+				else if (colorizeArg == "off")
+				{
+					colorizeMode = TableColorizeMode.Off;
+				}
 			}
 
 			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax") && !bTransposeCollatedSummaryTable;
@@ -775,8 +786,8 @@ namespace PerfReportTool
 					VersionString, 
 					bSpreadsheetFriendlyStrings, 
 					tableInfo.sectionBoundaries, 
-					bScrollableTable, 
-					bAutoColorizeTable, 
+					bScrollableTable,
+					colorizeMode, 
 					addMinMaxColumns, 
 					tableInfo.hideStatPrefix,
 					GetIntArg("maxSummaryTableStringLength", Int32.MaxValue), 
