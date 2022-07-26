@@ -54,17 +54,16 @@ bool FDMXPort::IsValidPortSlow() const
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	TSharedPtr<FInternetAddr> IPInternetAddr = SocketSubsystem->CreateInternetAddr();
 
-	int32 FinalUniverseStart = LocalUniverseStart + ExternUniverseStart;
-	if (FinalUniverseStart < Protocol->GetMinUniverseID())
+	if (ExternUniverseStart < Protocol->GetMinUniverseID())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Resulting First Universe %i is smaller than Protocol Min %i."), FinalUniverseStart, Protocol->GetMinUniverseID());
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Resulting First Universe %i is smaller than Protocol Min %i."), ExternUniverseStart, Protocol->GetMinUniverseID());
 		return false;
 	}
 
-	int32 FinalUniverseEnd = FinalUniverseStart + NumUniverses - 1;
-	if (FinalUniverseEnd > Protocol->GetMaxUniverseID())
+	const int32 ExternUniverseEnd = ExternUniverseStart + NumUniverses - 1;
+	if (ExternUniverseEnd > Protocol->GetMaxUniverseID())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Resulting Last Universe %i is bigger than Protocol Max %i."), FinalUniverseStart, Protocol->GetMinUniverseID());
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Resulting Last Universe %i is bigger than Protocol Max %i."), ExternUniverseEnd, Protocol->GetMinUniverseID());
 		return false;
 	}
 

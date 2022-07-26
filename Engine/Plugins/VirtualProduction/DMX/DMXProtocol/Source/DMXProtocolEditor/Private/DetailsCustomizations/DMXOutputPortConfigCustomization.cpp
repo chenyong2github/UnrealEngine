@@ -361,46 +361,20 @@ void FDMXOutputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox()
 		FString AutoCompleteDeviceAddress;
 		if (AutoCompleteDeviceAddressHandle->GetValue(AutoCompleteDeviceAddress) == FPropertyAccess::Success)
 		{
-			TArray<FString> SearchStrings;
-			constexpr bool bCullEmpty = true;
-			AutoCompleteDeviceAddress.ParseIntoArray(SearchStrings, TEXT("."), bCullEmpty);
-
-			const TArray<TSharedPtr<FString>> LocalNetworkInterfaceCardIPs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
-
-			FString NewIPAddress;
-			for (const TSharedPtr<FString>& NetworkInterfaceCardIP : LocalNetworkInterfaceCardIPs)
+			FString NetworkInterfaceCardIPAddress;
+			if (FDMXProtocolUtils::FindLocalNetworkInterfaceCardIPAddress(AutoCompleteDeviceAddress, NetworkInterfaceCardIPAddress))
 			{
-				TArray<FString> NetworkInterfaceCardIPSubstrings;
-				(*NetworkInterfaceCardIP).ParseIntoArray(NetworkInterfaceCardIPSubstrings, TEXT("."));
-
-				// Try to match each search string
-				bool bMatchesSearchStrings = true;
-				for (int32 SubstringIndex = 0; SubstringIndex < NetworkInterfaceCardIPSubstrings.Num(); SubstringIndex++)
-				{
-					if (SearchStrings.IsValidIndex(SubstringIndex))
-					{
-						if (!NetworkInterfaceCardIPSubstrings[SubstringIndex].MatchesWildcard(SearchStrings[SubstringIndex]))
-						{
-							bMatchesSearchStrings = false;
-							break;
-						}
-					}
-				}
-
-				if (bMatchesSearchStrings)
-				{
-					// Set the text and return if a match was found
-					const FText IPAddressText = FText::FromString(*NetworkInterfaceCardIP);
-					AutoCompletedDeviceAddressTextBlock->SetText(FText::Format(LOCTEXT("AutoCompletedIPAddressText", "{0} (auto-completed)"), IPAddressText));
-					return;
-				}
+				const FText IPAddressText = FText::FromString(*NetworkInterfaceCardIPAddress);
+				AutoCompletedDeviceAddressTextBlock->SetText(FText::Format(LOCTEXT("AutoCompletedIPAddressText", "{0} (auto-completed)"), IPAddressText));
 			}
-
-			// Fall back to the manually set one
-			FString DeviceAddress;
-			DeviceAddressHandle->GetValue(DeviceAddress);
-			const FText NoMatchForIPAddressText = FText::Format(LOCTEXT("NoRegexMatchForDeviceAddress", "No match. Using '{0}'"), FText::FromString(DeviceAddress));
-			AutoCompletedDeviceAddressTextBlock->SetText(NoMatchForIPAddressText);
+			else
+			{
+				// Fall back to the manually set one
+				FString DeviceAddress;
+				DeviceAddressHandle->GetValue(DeviceAddress);
+				const FText NoMatchForIPAddressText = FText::Format(LOCTEXT("NoRegexMatchForDeviceAddress", "No match. Using '{0}'"), FText::FromString(DeviceAddress));
+				AutoCompletedDeviceAddressTextBlock->SetText(NoMatchForIPAddressText);
+			}
 		}
 	}
 }

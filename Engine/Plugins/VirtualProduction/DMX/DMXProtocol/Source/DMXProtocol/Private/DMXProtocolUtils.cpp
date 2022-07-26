@@ -53,6 +53,44 @@ TSharedPtr<FInternetAddr> FDMXProtocolUtils::CreateInternetAddr(const FString& I
 	return InternetAddr;
 }
 
+bool FDMXProtocolUtils::FindLocalNetworkInterfaceCardIPAddress(const FString& InIPAddressWithWildcards, FString& OutLocalNetworkInterfaceCardIPAddress)
+{
+	TArray<FString> SearchStrings;
+	constexpr bool bCullEmpty = true;
+	InIPAddressWithWildcards.ParseIntoArray(SearchStrings, TEXT("."), bCullEmpty);
+
+	const TArray<TSharedPtr<FString>> LocalNetworkInterfaceCardIPs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
+
+	FString NewIPAddress;
+	for (const TSharedPtr<FString>& NetworkInterfaceCardIP : LocalNetworkInterfaceCardIPs)
+	{
+		TArray<FString> NetworkInterfaceCardIPSubstrings;
+		NetworkInterfaceCardIP->ParseIntoArray(NetworkInterfaceCardIPSubstrings, TEXT("."));
+
+		// Try to match each search string
+		bool bMatchesSearchStrings = true;
+		for (int32 SubstringIndex = 0; SubstringIndex < NetworkInterfaceCardIPSubstrings.Num(); SubstringIndex++)
+		{
+			if (SearchStrings.IsValidIndex(SubstringIndex))
+			{
+				if (!NetworkInterfaceCardIPSubstrings[SubstringIndex].MatchesWildcard(SearchStrings[SubstringIndex]))
+				{
+					bMatchesSearchStrings = false;
+					break;
+				}
+			}
+		}
+
+		if (bMatchesSearchStrings)
+		{
+			OutLocalNetworkInterfaceCardIPAddress = *NetworkInterfaceCardIP;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FString FDMXProtocolUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
 	if (!InBaseName.IsEmpty() && !InExistingNames.Contains(InBaseName))

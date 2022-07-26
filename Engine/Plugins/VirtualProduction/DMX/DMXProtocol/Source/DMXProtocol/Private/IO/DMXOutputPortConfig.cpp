@@ -155,16 +155,13 @@ FString FDMXOutputPortConfig::GetDeviceAddress() const
 		return OverrideIP;
 	}
 
-	// Return the Auto Complete Device Address if that is enabled
+	// Return the Auto Complete Device Address if that's enabled
 	if (bAutoCompleteDeviceAddressEnabled)
 	{
-		const TArray<TSharedPtr<FString>> AvailableNetworkInterfaceCardIPs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
-		for (const TSharedPtr<FString>& NetworkInterfaceCardIP : AvailableNetworkInterfaceCardIPs)
+		FString NetworkInterfaceCardIPAddress;
+		if (FDMXProtocolUtils::FindLocalNetworkInterfaceCardIPAddress(AutoCompleteDeviceAddress, NetworkInterfaceCardIPAddress))
 		{
-			if ((*NetworkInterfaceCardIP).MatchesWildcard(AutoCompleteDeviceAddress))
-			{
-				return *NetworkInterfaceCardIP;
-			}
+			return NetworkInterfaceCardIPAddress;
 		}
 	}
 
