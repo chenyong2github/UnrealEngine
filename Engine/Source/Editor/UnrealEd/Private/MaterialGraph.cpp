@@ -518,20 +518,24 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 					{
 						// This is an unseen composite reroute expression, find the actual expression output to connect to.
 						UMaterialExpressionComposite* OwningComposite = CastChecked<UMaterialExpressionComposite>(CompositeReroute->SubgraphExpression);
-
-						UMaterialGraphNode* OutputGraphNode;
-						int32 OutputPinIndex = OwningComposite->InputExpressions->ReroutePins.FindLastByPredicate(ExpressionMatchesPredicate(CompositeReroute));
-						if (OutputPinIndex != INDEX_NONE)
+						
+						// If the input- and output expressions are valid, look for the output pin in the reroute lists and make a link to the current Pin.
+						if (OwningComposite->InputExpressions && OwningComposite->OutputExpressions)
 						{
-							OutputGraphNode = CastChecked<UMaterialGraphNode>(OwningComposite->InputExpressions->GraphNode);
+							UMaterialGraphNode* OutputGraphNode;
+							int32 OutputPinIndex = OwningComposite->InputExpressions->ReroutePins.FindLastByPredicate(ExpressionMatchesPredicate(CompositeReroute));
+							if (OutputPinIndex != INDEX_NONE)
+							{
+								OutputGraphNode = CastChecked<UMaterialGraphNode>(OwningComposite->InputExpressions->GraphNode);
+							}
+							else
+							{
+								// Output pin base in the subgraph cannot have outputs, if this reroute isn't in the inputs connect to composite's outputs
+								OutputPinIndex = OwningComposite->OutputExpressions->ReroutePins.FindLastByPredicate(ExpressionMatchesPredicate(CompositeReroute));
+								OutputGraphNode = CastChecked<UMaterialGraphNode>(OwningComposite->GraphNode);
+							}
+							Pin->MakeLinkTo(OutputGraphNode->GetOutputPin(OutputPinIndex));
 						}
-						else
-						{
-							// Output pin base in the subgraph cannot have outputs, if this reroute isn't in the inputs connect to composite's outputs
-							OutputPinIndex = OwningComposite->OutputExpressions->ReroutePins.FindLastByPredicate(ExpressionMatchesPredicate(CompositeReroute));
-							OutputGraphNode = CastChecked<UMaterialGraphNode>(OwningComposite->GraphNode);
-						}
-						Pin->MakeLinkTo(OutputGraphNode->GetOutputPin(OutputPinIndex));
 					}
 				}
 			}

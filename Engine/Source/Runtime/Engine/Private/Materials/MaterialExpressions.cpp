@@ -11580,13 +11580,19 @@ UMaterialExpressionComposite::UMaterialExpressionComposite(const FObjectInitiali
 TArray<UMaterialExpressionReroute*> UMaterialExpressionComposite::GetCurrentReroutes() const
 {
 	TArray<UMaterialExpressionReroute*> RerouteExpressions;
-	for (const FCompositeReroute& InputReroute : InputExpressions->ReroutePins)
+	if (InputExpressions)
 	{
-		RerouteExpressions.Add(InputReroute.Expression);
+		for (const FCompositeReroute& InputReroute : InputExpressions->ReroutePins)
+		{
+			RerouteExpressions.Add(InputReroute.Expression);
+		}
 	}
-	for (const FCompositeReroute& OutputReroute : OutputExpressions->ReroutePins)
+	if (OutputExpressions)
 	{
-		RerouteExpressions.Add(OutputReroute.Expression);
+		for (const FCompositeReroute& OutputReroute : OutputExpressions->ReroutePins)
+		{
+			RerouteExpressions.Add(OutputReroute.Expression);
+		}
 	}
 	return RerouteExpressions;
 }
