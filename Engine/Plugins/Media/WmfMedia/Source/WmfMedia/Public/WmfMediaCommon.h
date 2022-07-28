@@ -11,6 +11,7 @@
 
 	#include "Windows/WindowsHWrapper.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include "Windows/PreWindowsApi.h"
 
 	THIRD_PARTY_INCLUDES_START
 
@@ -44,6 +45,8 @@
 	#endif
 
 	#include "Microsoft/COMPointer.h"
+	
+	#include "Windows/PostWindowsApi.h"
 	#include "Windows/HideWindowsPlatformTypes.h"
 
 #elif PLATFORM_WINDOWS && !UE_SERVER
