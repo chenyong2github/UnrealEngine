@@ -27,7 +27,6 @@ THIRD_PARTY_INCLUDES_END
 #undef CopyFile
 #undef CreateDesktop
 #undef CreateDirectory
-#undef CreateFile
 #undef CreateFont
 #undef DeleteFile
 #undef DrawText
