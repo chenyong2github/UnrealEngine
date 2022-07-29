@@ -734,9 +734,12 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	void Normalize (TArrayView<float> PoseVector) const;
 	void InverseNormalize (TArrayView<float> PoseVector) const;
+
+	// individual cost addends calculation methods
+	float ComputeMirrorMismatchAddend(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext) const;
+	float ComputeNotifyAddend(int32 PoseIdx) const;
+	float ComputeContinuingPoseCostAddend(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags) const;
 };
-
-
 
 //////////////////////////////////////////////////////////////////////////
 // Database
@@ -1031,9 +1034,15 @@ struct FSearchResult
 {
 	FPoseSearchCost PoseCost;
 	int32 PoseIdx = INDEX_NONE;
+
+	int32 PrevPoseIdx = INDEX_NONE;
+	int32 NextPoseIdx = INDEX_NONE;
+
+	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
+	float LerpValue = 0.f;
+
 	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
 	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
-	TWeakObjectPtr<const UAnimSequenceBase> Sequence = nullptr;
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
 	// cost of the current pose with the query from database in the result, if possible
@@ -1145,8 +1154,9 @@ public:
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
 
-	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
+	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	bool GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset* SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const;
 
 	const FPoseSearchDatabaseAnimationAssetBase& GetAnimationSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
@@ -1232,7 +1242,6 @@ public:
 
 	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
 	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
-	void ComputePoseCostAddends(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, UE::PoseSearch::FSearchContext& SearchContext, float& OutNotifyAddend, float& OutMirrorMismatchAddend) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1288,18 +1297,26 @@ class POSESEARCH_API FFeatureVectorHelper
 public:
 	enum { EncodeQuatCardinality = 6 };
 	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
+	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue);
 	static FQuat DecodeQuat(TArrayView<const float> Values, int32& DataOffset);
 
 	enum { EncodeVectorCardinality = 3 };
 	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
+	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue, bool bNormalize = false);
 	static FVector DecodeVector(TArrayView<const float> Values, int32& DataOffset);
 
 	enum { EncodeVector2DCardinality = 2 };
 	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
+	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue);
 	static FVector2D DecodeVector2D(TArrayView<const float> Values, int32& DataOffset);
 
 	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calcualted from a cenetered matrix
 	static void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
+
+private:
+	static FQuat DecodeQuatInternal(TArrayView<const float> Values, int32 DataOffset);
+	static FVector DecodeVectorInternal(TArrayView<const float> Values, int32 DataOffset);
+	static FVector2D DecodeVector2DInternal(TArrayView<const float> Values, int32 DataOffset);
 };
 
 /**
@@ -1366,8 +1383,13 @@ struct POSESEARCH_API FSearchContext
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
 	bool GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+	void CacheCurrentResultFeatureVectors();
 
 	static constexpr int8 SchemaRootBoneIdx = -1;
+
+	FPoseSearchFeatureVectorBuilder CurrentResultPoseVector;
+	FPoseSearchFeatureVectorBuilder CurrentResultPrevPoseVector;
+	FPoseSearchFeatureVectorBuilder CurrentResultNextPoseVector;
 
 private:
 	struct FCachedEntry

@@ -70,7 +70,6 @@ static void ComputeDatabaseBlendSpaceFilter(
 void FMotionMatchingState::Reset()
 {
 	CurrentSearchResult.Reset();
-	AssetPlayerTime = 0.0f;
 	// Set the elapsed time to INFINITY to trigger a search right away
 	ElapsedPoseJumpTime = INFINITY;
 }
@@ -78,7 +77,6 @@ void FMotionMatchingState::Reset()
 void FMotionMatchingState::AdjustAssetTime(float AssetTime)
 {
 	CurrentSearchResult.Update(AssetTime);
-	AssetPlayerTime = CurrentSearchResult.AssetTime;
 }
 
 bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollowUpAsset, UE::PoseSearch::FSearchResult& OutFollowUpAsset) const
@@ -99,7 +97,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 			CurrentSearchResult.Database->GetSequenceSourceAsset(SearchIndexAsset);
 		const float AssetLength = DbSequence.Sequence->GetPlayLength();
 
-		float SteppedTime = AssetPlayerTime;
+		float SteppedTime = CurrentSearchResult.AssetTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
 			DbSequence.Sequence->bLoop,
 			DeltaTime,
@@ -140,7 +138,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 				// this is essentially what the matching time in the corresponding main sequence is.
 				// Here we are assuming that the tick will advance the asset player timer into the 
 				// valid region
-				const float FollowUpAssetTime = AssetPlayerTime - AssetLength;
+				const float FollowUpAssetTime = CurrentSearchResult.AssetTime - AssetLength;
 
 				// There is no correspoding pose index when we switch due to what is mentioned above
 				// so for now we just take whatever pose index is associated with the first frame.
@@ -164,7 +162,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 
 		// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
 		// to a real time before we advance it
-		float RealTime = AssetPlayerTime * PlayLength;
+		float RealTime = CurrentSearchResult.AssetTime * PlayLength;
 		float SteppedTime = RealTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
 			DbBlendSpace.BlendSpace->bLoop,
@@ -205,7 +203,6 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	CurrentSearchResult = Result;
 
 	ElapsedPoseJumpTime = 0.0f;
-	AssetPlayerTime = Result.AssetTime;
 
 	const float JumpBlendTime = ComputeJumpBlendTime(Result, Settings);
 	RequestInertialBlend(Context, JumpBlendTime);
@@ -403,7 +400,7 @@ void UpdateMotionMatchingState(
 		TraceState.SetDatabase(InOutMotionMatchingState.CurrentSearchResult.Database.Get());
 		TraceState.ContinuingPoseIdx = LastResult.PoseIdx;
 
-		TraceState.AssetPlayerTime = InOutMotionMatchingState.AssetPlayerTime;
+		TraceState.AssetPlayerTime = InOutMotionMatchingState.CurrentSearchResult.AssetTime;
 		TraceState.DeltaTime = DeltaTime;
 		TraceState.SimLinearVelocity = SimLinearVelocity;
 		TraceState.SimAngularVelocity = SimAngularVelocity;

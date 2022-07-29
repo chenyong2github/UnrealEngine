@@ -79,10 +79,6 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(Transient)
 	float ElapsedPoseJumpTime = 0.f;
 
-	// Current time within the asset player node
-	UPROPERTY(Transient)
-	float AssetPlayerTime = 0.f;
-
 	// Evaluation flags relevant to the state of motion matching
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
 	EMotionMatchingFlags Flags = EMotionMatchingFlags::None;

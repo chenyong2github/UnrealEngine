@@ -364,15 +364,17 @@ bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchConte
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-	if (bSkip)
+	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid();
+	const bool bSkip = bUseFeaturesFromContinuingPose && bIsCurrentResultValid && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	if (bSkip || !SearchContext.History)
 	{
-		return true;
-	}
-
-	if (!SearchContext.History)
-	{
-		return false;
+		if (bIsCurrentResultValid)
+		{
+			SearchContext.CacheCurrentResultFeatureVectors();
+			int32 DataOffset = ChannelDataOffset;
+			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue);
+		}
+		return bSkip;
 	}
 
 	bool AnyError = false;
@@ -497,15 +499,17 @@ bool UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContex
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-	if (bSkip)
+	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid();
+	const bool bSkip = bUseFeaturesFromContinuingPose && bIsCurrentResultValid && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	if (bSkip || !SearchContext.History)
 	{
-		return true;
-	}
-
-	if (!SearchContext.History)
-	{
-		return false;
+		if (bIsCurrentResultValid)
+		{
+			SearchContext.CacheCurrentResultFeatureVectors();
+			int32 DataOffset = ChannelDataOffset;
+			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue, true);
+		}
+		return bSkip;
 	}
 
 	bool AnyError = false;
@@ -888,15 +892,52 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& 
 {
 	using namespace UE::PoseSearch;
 
-	const bool bSkip = bUseFeaturesFromContinuingPose && SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
-	if (bSkip)
+	const bool bIsCurrentResultValid = SearchContext.CurrentResult.IsValid();
+	const bool bSkip = bUseFeaturesFromContinuingPose && bIsCurrentResultValid && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+	if (bSkip || !SearchContext.History)
 	{
-		return true;
-	}
+		if (bIsCurrentResultValid)
+		{
+			SearchContext.CacheCurrentResultFeatureVectors();
 
-	if (!SearchContext.History)
-	{
-		return false;
+			int32 DataOffset = ChannelDataOffset;
+			for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
+			{
+				const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
+				if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Position))
+				{
+					for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+					{
+						FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue);
+					}
+				}
+
+				if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Rotation))
+				{
+					for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+					{
+						FFeatureVectorHelper::EncodeQuat(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue);
+					}
+				}
+
+				if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Velocity))
+				{
+					for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+					{
+						FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue);
+					}
+				}
+
+				if (EnumHasAnyFlags(SampledBone.Flags, EPoseSearchBoneFlags::Phase))
+				{
+					for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+					{
+						FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, SearchContext.CurrentResultPrevPoseVector.GetValues(), SearchContext.CurrentResultPoseVector.GetValues(), SearchContext.CurrentResultNextPoseVector.GetValues(), SearchContext.CurrentResult.LerpValue);
+					}
+				}
+			}
+		}
+		return bSkip;
 	}
 
 	struct CachedTransforms
@@ -906,7 +947,7 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& 
 		bool Valid = false;
 	};
 	TArray<CachedTransforms> CachedTransforms;
-	CachedTransforms.AddUninitialized(SampleTimes.Num()* SampledBones.Num());
+	CachedTransforms.AddUninitialized(SampleTimes.Num() * SampledBones.Num());
 
 	bool AnyError = false;
 	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
@@ -1368,6 +1409,7 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 
 	if (!SearchContext.Trajectory)
 	{
+		// @todo: do we want to reuse the SearchContext.CurrentResult data if valid?
 		return false;
 	}
 
