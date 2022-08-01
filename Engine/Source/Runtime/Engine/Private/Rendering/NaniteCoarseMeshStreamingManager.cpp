@@ -198,9 +198,15 @@ namespace Nanite
 		// (this can happen because of different order of destruction during garbage collection)
 		if (RegisteredComponents)
 		{
+			// If already marked for release then don't touch the component anymore (could have already been destroyed and bool was already set to false)
+			TSet<const UPrimitiveComponent*>* ComponentsToRelease = RequestReleaseComponentsMap.Find(RenderAsset);
 			for (const UPrimitiveComponent* Component : *RegisteredComponents)
 			{
-				Component->bAttachedToCoarseMeshStreamingManager = false;
+				bool bRequestReleased = ComponentsToRelease && ComponentsToRelease->Contains(Component);
+				if (!bRequestReleased)
+				{
+					Component->bAttachedToCoarseMeshStreamingManager = false;
+				}
 			}
 		}
 		RegisteredComponentsMap.Remove(RenderAsset);
