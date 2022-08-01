@@ -39,8 +39,12 @@ class NativeWebSocketProvider : NSObject, WebSocketProvider, URLSessionWebSocket
     }
     
     func send(data: Data) {
-        socket.send(.data(data)) { error in
-            self.handleError(error)
+        let stringifiedMsg = String(data: data, encoding: .utf8)
+        if let msg = stringifiedMsg {
+            self.send(msg: msg)
+        }
+        else {
+            debugPrint("Could not convert data message to UTF8 string.")
         }
     }
     

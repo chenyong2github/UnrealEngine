@@ -24,7 +24,17 @@ class StarscreamWebSocket: WebSocketProvider {
     }
     
     func send(data: Data) {
-        self.socket.write(data: data)
+        let stringifiedMsg = String(data: data, encoding: .utf8)
+        if let msg = stringifiedMsg {
+            self.send(msg: msg)
+        }
+        else {
+            debugPrint("Could not convert data message to UTF8 string.")
+        }
+    }
+
+    func send(msg: String) {
+        self.socket.write(string: msg)
     }
     
     func close() {

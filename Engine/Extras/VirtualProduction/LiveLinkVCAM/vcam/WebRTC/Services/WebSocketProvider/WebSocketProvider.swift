@@ -13,6 +13,7 @@ protocol WebSocketProvider: AnyObject {
     func connect()
     func close()
     func send(data: Data)
+    func send(msg: String)
 }
 
 protocol WebSocketProviderDelegate: AnyObject {

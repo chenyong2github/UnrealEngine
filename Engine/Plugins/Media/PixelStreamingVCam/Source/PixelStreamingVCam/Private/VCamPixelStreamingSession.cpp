@@ -111,65 +111,69 @@ void UVCamPixelStreamingSession::Activate()
 
 	if(MediaOutput->GetStreamer())
 	{
-		MediaOutput->GetStreamer()->OnInputReceived.AddLambda([this](FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data)
-		{
-			if(Type != static_cast<uint8>(UE::PixelStreaming::Protocol::EToStreamerMsg::ARKitTransform) || !EnableARKitTracking)
-			{
-				return;
-			}
-
-			// 1 byte for type, 16 floats for transform, 1 double for timestamp
-			static constexpr int ExpectedDataSize = 1 + (16 * 4) + 8;
-			if (Data.Num() != ExpectedDataSize)
-			{
-				UE_LOG(LogPixelStreamingVCam, Warning, TEXT("ARKitTransform data received but with invalid size. Expects %d bytes but received %d"),
-					ExpectedDataSize,
-					Data.Num());
-
-				return;
-			}
-			
-			FMemoryReader Buffer(Data);
-			
-			uint8 MessageType;
-			Buffer << MessageType;
-
-			// The buffer contains the transform matrix stored as 16 floats
-			FMatrix ARKitMatrix;
-			for (int32 Row = 0; Row < 4; ++Row)
-			{
-				float Col0, Col1, Col2, Col3;
-				Buffer << Col0 << Col1 << Col2 << Col3;
-				ARKitMatrix.M[Row][0] = Col0;
-				ARKitMatrix.M[Row][1] = Col1;
-				ARKitMatrix.M[Row][2] = Col2;
-				ARKitMatrix.M[Row][3] = Col3;
-			}
-			ARKitMatrix.DiagnosticCheckNaN();
-
-			// 
-			double Timestamp;
-			Buffer << Timestamp;
-
-			if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource)
-			{
-				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
-			}
-
-			/**
-			 * Code to control the level editor viewport
-			 */
-			// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-			// {
-			// 	if (LevelVC && LevelVC->IsPerspective())
-			// 	{
-			// 		LevelVC->SetViewLocation(Translation);
-			// 		LevelVC->SetViewRotation(ModifiedRotation);
-			// 	}
-			// }
-		});
+		MediaOutput->GetStreamer()->OnInputReceived.AddUObject(this, &UVCamPixelStreamingSession::OnARKitTransformReceived);
 	}
+
 	Super::Activate();
+}
+
+void UVCamPixelStreamingSession::OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data)
+{
+	if(Type != static_cast<uint8>(UE::PixelStreaming::Protocol::EToStreamerMsg::ARKitTransform) || !EnableARKitTracking)
+	{
+		return;
+	}
+
+	// 1 byte for type, 16 floats for transform, 1 double for timestamp
+	static constexpr int ExpectedDataSize = 1 + (16 * 4) + 8;
+	if (Data.Num() != ExpectedDataSize)
+	{
+		UE_LOG(LogPixelStreamingVCam, Warning, TEXT("ARKitTransform data received but with invalid size. Expects %d bytes but received %d"),
+			ExpectedDataSize,
+			Data.Num());
+
+		return;
+	}
+	
+	FMemoryReader Buffer(Data);
+	
+	// Extract message type
+	uint8 MessageType;
+	Buffer << MessageType;
+
+	// Extract transform, the buffer contains the transform matrix stored as 16 floats
+	FMatrix ARKitMatrix;
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		float Col0, Col1, Col2, Col3;
+		Buffer << Col0 << Col1 << Col2 << Col3;
+		ARKitMatrix.M[Row][0] = Col0;
+		ARKitMatrix.M[Row][1] = Col1;
+		ARKitMatrix.M[Row][2] = Col2;
+		ARKitMatrix.M[Row][3] = Col3;
+	}
+	ARKitMatrix.DiagnosticCheckNaN();
+
+	// Extract timestamp
+	double Timestamp;
+	Buffer << Timestamp;
+
+	if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource)
+	{
+		LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
+	}
+
+	/**
+	 * Code to control the level editor viewport
+	 */
+	// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	// {
+	// 	if (LevelVC && LevelVC->IsPerspective())
+	// 	{
+	// 		LevelVC->SetViewLocation(Translation);
+	// 		LevelVC->SetViewRotation(ModifiedRotation);
+	// 	}
+	// }
 }
 
 void UVCamPixelStreamingSession::StopSignallingServer()
@@ -232,8 +236,13 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 		static FName NAME_IP = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, IP);
 		static FName NAME_PortNumber = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, PortNumber);
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
+		static FName NAME_StartSignallingServer = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, StartSignallingServer);
 		
-		if ((Property->GetFName() == NAME_IP) || (Property->GetFName() == NAME_PortNumber) || (Property->GetFName() == NAME_FromComposureOutputProviderIndex))
+		// If any of these properties change then deactivate streaming so user is forced to restart streaming
+		if ((Property->GetFName() == NAME_IP) || 
+			(Property->GetFName() == NAME_PortNumber) || 
+			(Property->GetFName() == NAME_FromComposureOutputProviderIndex) || 
+			(Property->GetFName() == NAME_StartSignallingServer))
 		{
 			SetActive(false);
 		}

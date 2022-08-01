@@ -62,10 +62,10 @@ protected:
 
 private:
 	void StopSignallingServer();
+	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
 
 private:
 	FHitResult LastViewportTouchResult;
 	bool bUsingDummyUMG = false;
 	bool bOldThrottleCPUWhenNotForeground;
-	TSharedPtr<UE::PixelStreamingServers::IServer> CirrusProcess;
 };
