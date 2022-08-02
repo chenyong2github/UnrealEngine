@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SnapshotCompressionSettings.h"
 #include "HashSettings.h"
 #include "Settings/SkippedClassList.h"
 #include "LevelSnapshotsSettings.generated.h"
@@ -53,4 +54,16 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Level Snapshots|Performance", meta = (ClampMin = "1"))
 	FHashSettings HashSettings;
+
+	/**
+	 * Specifies the compression settings to use when a snapshot is saved.
+	 *
+	 * These settings affect the time:
+	 * - taken to save a snapshot
+	 * - taken to load a snapshot
+	 *
+	 * You can safely change these settings even if you're already saved snapshots with different settings.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Level Snapshots|Compression", meta = (ClampMin = "1"))
+	FSnapshotCompressionSettings CompressionSettings;
 };

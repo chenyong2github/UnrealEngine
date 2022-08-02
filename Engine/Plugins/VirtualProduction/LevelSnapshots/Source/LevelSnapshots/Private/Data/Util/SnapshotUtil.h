@@ -10,6 +10,9 @@ struct FActorSnapshotData;
 
 namespace UE::LevelSnapshots::Private
 {
+	/** Given e.g. "/Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.SomeComponent" returns everything before the colon, i.e. "/Game/MapName.MapName"*/
+	FSoftObjectPath ExtractPathWithoutSubobjects(const FSoftObjectPath& ObjectPath);
+	
 	/** Finds the last subobject name in the path */
 	FString ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath);
 

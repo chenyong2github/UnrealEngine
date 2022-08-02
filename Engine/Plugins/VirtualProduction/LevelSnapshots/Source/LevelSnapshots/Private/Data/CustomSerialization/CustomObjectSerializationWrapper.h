@@ -49,7 +49,7 @@ namespace UE::LevelSnapshots::Private
 		}
 	};
 
-	void TakeSnapshotForActor(
+	void TakeSnapshotOfActorCustomSubobjects(
 			AActor* EditorActor,
 			FCustomSerializationData& ActorSerializationData,
 			FWorldSnapshotData& WorldData

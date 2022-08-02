@@ -62,8 +62,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 		bIsSinglePropertyInCollection || RowType == FLevelSnapshotsEditorResultsRow::StructInSetOrArray || RowType == FLevelSnapshotsEditorResultsRow::StructInMap || bIsParentRowCheckboxHidden ||
 		(bIsSingleProperty && !bHasAtLeastOneValidNode && !bHasAtLeastOneCustomWidget));
 
-	FText Tooltip = bHasValidHandle ? ItemHandle->GetToolTipText() : PinnedItem->GetDisplayName();
-	
+	FText Tooltip = bHasValidHandle ? ItemHandle->GetToolTipText() : PinnedItem->GetTooltip();
 	if (bIsSinglePropertyInCollection)
 	{
 		Tooltip = FText::Format(LOCTEXT("CollectionDisclaimer", "({0}) Individual members of collections cannot be selected. The whole collection will be restored."), Tooltip);
@@ -75,10 +74,6 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 	else if (RowType == FLevelSnapshotsEditorResultsRow::ModifiedComponentGroup)
 	{
 		Tooltip = FText::Format(LOCTEXT("ComponentOrderDisclaimer", "Component ({0}): Please note that component order reflects the order in the world, not the snapshot. LevelSnapshots does not alter component order."), Tooltip);
-	}
-	else
-	{
-		Tooltip = bHasValidHandle ? ItemHandle->GetToolTipText() : PinnedItem->GetDisplayName();
 	}
 
 	int32 IndentationDepth = 0;

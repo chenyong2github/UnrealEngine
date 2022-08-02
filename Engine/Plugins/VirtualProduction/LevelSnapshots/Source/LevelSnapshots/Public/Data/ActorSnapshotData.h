@@ -7,6 +7,7 @@
 #include "ComponentSnapshotData.h"
 #include "CustomSerializationData.h"
 #include "ObjectSnapshotData.h"
+#include "SnapshotUtilTypes.h"
 #include "ActorSnapshotData.generated.h"
 
 /** Holds saved actor data. See ActorUtil for operations. */
@@ -14,7 +15,7 @@ USTRUCT()
 struct LEVELSNAPSHOTS_API FActorSnapshotData
 {
 	GENERATED_BODY()
-	
+
 #if WITH_EDITORONLY_DATA
 	/** The label of the actor when it was saved. */
 	UPROPERTY()
@@ -24,7 +25,11 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 
 	/** The class the actor had when it was saved. */
 	UPROPERTY()
-	FSoftClassPath ActorClass;
+	FSoftClassPath ActorClass_DEPRECATED;
+
+	/** Valid index to FWorldSnapshotData::ClassData. Use to lookup class and archetype data. */
+	UPROPERTY()
+	int32 ClassIndex = INDEX_NONE;
 
 	/** The actor's serialized data */
 	UPROPERTY()
@@ -51,4 +56,7 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	/** Used to detect changes without loading actor into memory. */
 	UPROPERTY()
 	FActorSnapshotHash Hash;
+
+	// "Type safety" for better self-documenting code
+	UE::LevelSnapshots::FClassDataIndex GetClassDataIndex() const { return ClassIndex; }
 };

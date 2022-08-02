@@ -1,21 +1,20 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ApplySnapshotToEditorArchive.h"
-#include "Data/Util/Restoration/ActorUtil.h"
 
-#include "Data/ActorSnapshotData.h"
-#include "Data/WorldSnapshotData.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "Data/ActorSnapshotData.h"
+#include "Data/RestorationEvents/ApplySnapshotToActorScope.h"
+#include "Data/Util/EquivalenceUtil.h"
+#include "Data/Util/Component/SnapshotComponentUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
+#include "Data/WorldSnapshotData.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsModule.h"
 #include "Selection/PropertySelectionMap.h"
-#include "Util/EquivalenceUtil.h"
-#include "Util/Component/SnapshotComponentUtil.h"
 
 #include "Components/ActorComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Actor.h"
-#include "RestorationEvents/ApplySnapshotToActorScope.h"
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
 
@@ -98,9 +97,13 @@ namespace UE::LevelSnapshots::Private::Internal::Restore
 		}
 
 		// Update component state, e.g. render state if intensity for lights was changed. Also avoids us having to call PostEditChangeProperty on every property.
-		// ReregisterAllComponents must be called before RerunConstructionScripts because it processes calls we made to SetupAttachment
+		// ReregisterAllComponents must be called before the UserConstructionScript because it processes calls we made to SetupAttachment
 		OriginalActor->ReregisterAllComponents();
-		OriginalActor->RerunConstructionScripts();
+		{
+			// GAllowActorScriptExecutionInEditor must be temporarily true so call to UserConstructionScript isn't skipped
+			FEditorScriptExecutionGuard AllowConstructionScript;
+			OriginalActor->UserConstructionScript();
+		}
 
 #if WITH_EDITOR
 		// Update World Outliner. Usually called by USceneComponent::AttachToComponent.
@@ -155,7 +158,7 @@ void UE::LevelSnapshots::Private::RestoreIntoExistingWorldActor(AActor* Original
 		const FRestoreObjectScope FinishRestore = PreActorRestore_EditorWorld(OriginalActor, ActorData.CustomActorSerializationData, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
 		if (SelectedProperties.GetObjectSelection(OriginalActor).GetPropertySelection() != nullptr)
 		{
-			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, DeserializedActor, SelectedProperties);
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, DeserializedActor, SelectedProperties, ActorData.ClassIndex);
 		}
 	};
 	auto DeserializeComponent = [&WorldData, &Cache, &SelectedProperties, InLocalisationSnapshotPackage](FSubobjectSnapshotData& SerializedCompData, UActorComponent* Original, UActorComponent* Deserialized)
@@ -165,7 +168,7 @@ void UE::LevelSnapshots::Private::RestoreIntoExistingWorldActor(AActor* Original
 		if (ComponentSelectedProperties)
 		{
 			Internal::Restore::PreventAttachParentInfiniteRecursion(Original, *ComponentSelectedProperties);
-			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Cache, Original, Deserialized, SelectedProperties);
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Cache, Original, Deserialized, SelectedProperties, SerializedCompData.ClassIndex);
 			Internal::Restore::UpdateAttachParentAttachChildren(Original);
 		};
 	};
@@ -178,24 +181,34 @@ void UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(AActor* O
 	const bool bWasRecreated = true;
 	const FApplySnapshotToActorScope NotifyExternalListeners({ OriginalActor, SelectedProperties, bWasRecreated });
 	
-	UE::LevelSnapshots::Private::AllocateMissingComponentsForRecreatedActor(OriginalActor, WorldData, Cache);
+	AllocateMissingComponentsForRecreatedActor(OriginalActor, WorldData, Cache);
 
 	auto DeserializeActor = [&ActorData, &WorldData, &Cache, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
 		const FRestoreObjectScope FinishRestore = PreActorRestore_EditorWorld(OriginalActor, ActorData.CustomActorSerializationData, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
-		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, SelectedProperties);
+		FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, SelectedProperties);
 	};
 	auto DeserializeComponent = [&WorldData, &Cache, &SelectedProperties, InLocalisationSnapshotPackage](FSubobjectSnapshotData& SerializedCompData, UActorComponent* Original, UActorComponent* Deserialized)
 	{
 		const FRestoreObjectScope FinishRestore = PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
-		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Cache, Original, SelectedProperties); 
+		// Components are not recreated with any archetype -> they must go through the full serialization process 
+		FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithoutArchetype(SerializedCompData, WorldData, Cache, Original, Deserialized, SelectedProperties, SerializedCompData.ClassIndex);
 		Internal::Restore::UpdateAttachParentAttachChildren(Original);
 	};
 	Internal::Restore::DeserializeIntoEditorWorldActor(OriginalActor, ActorData, WorldData, Cache, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
 
 #if WITH_EDITOR
 	// Otherwise actor will show up with internal object name, e.g. actor previously called Cube will be StaticMeshActor1
-	OriginalActor->SetActorLabel(ActorData.ActorLabel);
+	if (ActorData.ActorLabel.IsEmpty()) 
+	{
+		// This might be an old snapshot in which this data was not yet saved
+		OriginalActor->SetActorLabel(OriginalActor->GetName());
+	}
+	else
+	{
+		OriginalActor->SetActorLabel(ActorData.ActorLabel);
+	}
+	
 	// Recreated actors have invalid lightning cache... e.g. recreated point lights will show error image (S_LightError)
 	OriginalActor->InvalidateLightingCacheDetailed(false);
 #endif

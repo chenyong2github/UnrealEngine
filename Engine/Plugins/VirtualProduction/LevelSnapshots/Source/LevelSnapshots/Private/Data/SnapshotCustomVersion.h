@@ -20,6 +20,12 @@ namespace UE::LevelSnapshots::Private
 			/** FSnapshotActorData now stores actor hash data to facilitate checking whether an actor has changed without loading the actor */
 			ActorHash = 2,
 
+			/** FWorldSnapshotData::ClassDefaults was replaced by FWorldSnapshotData::ClassData. */
+			ClassArchetypeRefactor = 3,
+
+			/** FWorldSnapshotData now compresses data using oodle before it is saved to disk */
+			OoddleCompression = 4,
+
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1

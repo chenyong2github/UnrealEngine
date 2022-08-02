@@ -61,10 +61,10 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 
     /*************** Queries ***************/
 
-    /** Will become DEPRECATED: Use GetObjectSelection(WorldObjectPath).GetObjectSelection()->GetPropertySelection() instead. */
-    const FPropertySelection* GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const;
     UE::LevelSnapshots::FRestorableObjectSelection GetObjectSelection(const FSoftObjectPath& EditorWorldObject) const;
     TArray<FSoftObjectPath> GetKeys() const;
+	void ForEachModifiedObject(TFunctionRef<void(const FSoftObjectPath&)> Callback) const;
+	bool HasAnyModifiedActors() const;
 
     bool HasChanges(AActor* EditorWorldActor) const;
     bool HasChanges(UActorComponent* EditorWorldComponent) const;

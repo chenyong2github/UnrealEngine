@@ -6,6 +6,7 @@
 #include "Templates/Function.h"
 #include "UObject/ObjectMacros.h"
 
+class FFieldClass;
 class FProperty;
 struct FArchiveSerializedPropertyChain;
 
@@ -16,8 +17,17 @@ namespace UE::LevelSnapshots::Private
 		Continue,
 		Break
 	};
-	using FHandleValuePtr = TFunctionRef<EBreakBehaviour(void* ValuePtr)>;
-	using FValuePtrPredicate = TFunctionRef<bool(void* ValuePtr)>;
+	enum class EPropertyType
+	{
+		/** Any other non-map property */
+		NormalProperty,
+		/** This is the key of a map property */
+		KeyInMap,
+		/** This is the value of a map property */
+		ValueInMap
+	};
+	using FHandleValuePtr = TFunctionRef<EBreakBehaviour(void* ValuePtr, EPropertyType PropertyType)>;
+	using FValuePtrPredicate = TFunctionRef<bool(void* ValuePtr, EPropertyType PropertyType)>;
 	
 	/**
 	 * Follow a property chain to its leaf property and call a function with the value pointers.

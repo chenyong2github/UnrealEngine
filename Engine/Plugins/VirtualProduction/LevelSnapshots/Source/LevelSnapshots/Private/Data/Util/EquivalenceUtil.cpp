@@ -5,7 +5,7 @@
 #include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Data/CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "Data/SnapshotCustomVersion.h"
-#include "Data/Util/Restoration/ActorUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
 #include "Data/WorldSnapshotData.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
@@ -321,21 +321,6 @@ bool UE::LevelSnapshots::Private::AreObjectPropertiesEquivalent(ULevelSnapshot* 
 
 namespace UE::LevelSnapshots::Private::Internal
 {
-	/** Checks whether the two actors object properties should be considered equivalent */
-	static bool AreActorsEquivalent(UObject* SnapshotPropertyValue, AActor* OriginalActorReference, const TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSnapshotDataCache& Cache)
-	{
-		// Compare actors
-		const FActorSnapshotData* SavedData = ActorData.Find(OriginalActorReference);
-		if (SavedData == nullptr)
-		{
-			return false;
-		}
-
-		// The snapshot actor was already allocated, if some other snapshot actor is referencing it
-		const TOptional<TNonNullPtr<AActor>> PreallocatedSnapshotVersion = UE::LevelSnapshots::Private::GetPreallocatedIfCached(OriginalActorReference, Cache);
-		return PreallocatedSnapshotVersion.Get(nullptr) == SnapshotPropertyValue;
-	}
-	
 	/** Checks whether the two subobject object properties should be considered equivalent */
 	static bool HaveSameNames(UObject* SnapshotPropertyValue, UObject* OriginalPropertyValue, const FSnapshotDataCache& Cache)
 	{
@@ -376,7 +361,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		AActor* OwningWorldActor = OriginalPropertyValue->GetTypedOuter<AActor>();
 		if (ensure(OwningSnapshotActor && OwningWorldActor))
 		{
-			return AreActorsEquivalent(OwningSnapshotActor, OwningWorldActor, Snapshot->GetSerializedData().ActorData, Snapshot->GetCache()) && !HaveDifferentPropertyValues(Snapshot, SnapshotPropertyValue, OriginalPropertyValue, SnapshotActor, OriginalActor);
+			return AreActorsEquivalent(OwningSnapshotActor, OwningWorldActor, Snapshot->GetSerializedData(), Snapshot->GetCache()) && !HaveDifferentPropertyValues(Snapshot, SnapshotPropertyValue, OriginalPropertyValue, SnapshotActor, OriginalActor);
 		}
 		return false;
 	}
@@ -400,7 +385,7 @@ bool UE::LevelSnapshots::Private::AreReferencesEquivalent(ULevelSnapshot* Snapsh
 
 	if (AActor* OriginalActorReference = Cast<AActor>(OriginalPropertyValue))
 	{
-		return Internal::AreActorsEquivalent(SnapshotPropertyValue, OriginalActorReference, Snapshot->GetSerializedData().ActorData, Snapshot->GetCache());
+		return AreActorsEquivalent(SnapshotPropertyValue, OriginalActorReference, Snapshot->GetSerializedData(), Snapshot->GetCache());
 	}
 	
 	const bool bIsWorldObject = SnapshotPropertyValue->IsInA(UWorld::StaticClass()) && OriginalPropertyValue->IsInA(UWorld::StaticClass());
@@ -414,4 +399,18 @@ bool UE::LevelSnapshots::Private::AreReferencesEquivalent(ULevelSnapshot* Snapsh
 	}
 	
 	return SnapshotPropertyValue == OriginalPropertyValue;
+}
+
+bool UE::LevelSnapshots::Private::AreActorsEquivalent(UObject* SnapshotPropertyValue, AActor* OriginalActorReference, const FWorldSnapshotData& WorldData, const FSnapshotDataCache& Cache)
+{
+	// Compare actors
+	const FActorSnapshotData* SavedData = WorldData.ActorData.Find(OriginalActorReference);
+	if (SavedData == nullptr)
+	{
+		return false;
+	}
+
+	// The snapshot actor was already allocated, if some other snapshot actor is referencing it
+	const TOptional<TNonNullPtr<AActor>> PreallocatedSnapshotVersion = UE::LevelSnapshots::Private::GetPreallocatedIfCached(OriginalActorReference, Cache);
+	return PreallocatedSnapshotVersion.Get(nullptr) == SnapshotPropertyValue;
 }

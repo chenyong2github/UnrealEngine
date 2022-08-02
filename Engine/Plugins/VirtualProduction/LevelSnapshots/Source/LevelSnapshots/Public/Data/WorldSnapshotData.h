@@ -6,6 +6,7 @@
 #include "ActorSnapshotData.h"
 #include "ComponentSnapshotData.h"
 #include "ClassDefaultObjectSnapshotData.h"
+#include "ClassSnapshotData.h"
 #include "CustomSerializationData.h"
 #include "SnapshotVersion.h"
 #include "SubobjectSnapshotData.h"
@@ -32,9 +33,12 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	void PostSerialize(const FArchive& Ar);
 	//~ End TStructOpsTypeTraits Interface
 	
-	/* The world we will be adding temporary actors to */
+	/* The root world we will be adding deserialized snapshots actors to */
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UWorld> SnapshotWorld;
+	/** Sublevels of SnapshotWorld; excludes SnapshotWorld->PersistentLevel */
+	UPROPERTY(Transient)
+	TArray<UWorld*> SnapshotSublevels;
 
 	/**
 	 * Stores versioning information we inject into archives.
@@ -50,7 +54,19 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	 * Because of this, we need to save class defaults in the snapshot.
 	 */
 	UPROPERTY()
-	TMap<FSoftClassPath, FClassDefaultObjectSnapshotData> ClassDefaults;
+	TMap<FSoftClassPath, FClassDefaultObjectSnapshotData> ClassDefaults_DEPRECATED;
+
+	/**
+	 * Saves class info, such as archetype data, for every object's class.
+	 * 
+	 * Actor classes have exactly one entry FClassSnapshotData::FClassSnapshotData.
+	 * For other classes, e.g. components, there may be multiple entries for the same class. This is because
+	 * subobjects can have their own archtetypes (you can see this by looking a the reset to default button in the details panel).
+	 */
+	UPROPERTY()
+	TArray<FClassSnapshotData> ClassData;
+
+
 	
 	/**
 	 * Holds serialized actor data.
@@ -95,6 +111,7 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	UPROPERTY()
 	TMap<int32, FCustomSerializationData> CustomSubobjectSerializationData;
 
+	
 
 	/** Binds every entry in SerializedNames to its index. Speeds up adding unique names. */
 	UPROPERTY(Transient)
@@ -103,6 +120,10 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	/** Binds every entry in SerializedObjectReferences to its index. Speeds up adding unique references. */
     UPROPERTY(Transient)
     TMap<FSoftObjectPath, int32> ReferenceToIndex;
+
+	/** Binds every archetype object for which we saved the class data in ClassData to its index. Speeds up adding unique classes. */
+	UPROPERTY(Transient)
+	TMap<TObjectPtr<UObject>, uint32> ArchetypeToClassDataIndex;
 };
 
 template<>

@@ -15,6 +15,7 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "ComponentInstanceDataCache.h"
+#include "Util/WorldData/ClassDataUtil.h"
 
 class AActor;
 class UActorComponent;
@@ -103,7 +104,8 @@ namespace UE::LevelSnapshots::Private
 
 		UActorComponent* AllocateComponent(const FSoftObjectPath& ComponentPath, FSubobjectSnapshotData& SubobjectData, const FComponentSnapshotData& ComponentData, UObject* ComponentOuter) const
 		{
-			UClass* ComponentClass = SubobjectData.Class.TryLoadClass<UActorComponent>();
+			const FSoftClassPath ClassPath = GetClass(SubobjectData, WorldData);
+			UClass* ComponentClass = ClassPath.TryLoadClass<UActorComponent>();
 			const FName ComponentName = *UE::LevelSnapshots::Private::ExtractLastSubobjectName(ComponentPath);
 			const EObjectFlags ObjectFlags = SubobjectData.GetObjectFlags();
 			if constexpr (TDerived::IsRestoringIntoSnapshotWorld())

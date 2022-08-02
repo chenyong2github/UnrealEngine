@@ -17,6 +17,7 @@ public:
 	//~ Begin ULevelSnapshotFilter Interface
 	virtual EFilterResult::Type IsActorValid(const FIsActorValidParams& Params) const override;
 	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
+	virtual EFilterResult::Type IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const override;
 	//~ End ULevelSnapshotFilter Interface
 
 private:

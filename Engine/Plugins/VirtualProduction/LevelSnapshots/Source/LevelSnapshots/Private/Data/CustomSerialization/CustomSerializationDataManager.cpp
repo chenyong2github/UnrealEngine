@@ -9,7 +9,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
-#include "Util/SnapshotObjectUtil.h"
+#include "Util/WorldData/SnapshotObjectUtil.h"
 
 namespace UE::LevelSnapshots::Private::Internal
 {

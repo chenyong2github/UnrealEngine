@@ -22,6 +22,7 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 
 	FLevelSnapshotPropertyChain() = default;
 	FLevelSnapshotPropertyChain(const FProperty* RootProperty);
+	FLevelSnapshotPropertyChain(const FArchiveSerializedPropertyChain* ChainToLeaf, const FProperty* LeafProperty);
 	
 	FLevelSnapshotPropertyChain MakeAppended(const FProperty* Property) const;
 	void AppendInline(const FProperty* Property);

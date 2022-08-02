@@ -282,13 +282,11 @@ TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetDat
 	constexpr uint32 MaxDescriptionHeight = ThumbnailSize / 3 * 2;
 	
 	const TSharedRef<FAssetThumbnail> AssetThumbnail =
-		MakeShareable(
-			new FAssetThumbnail(
-				AssetData.GetAsset(),
-				ThumbnailSize,
-				ThumbnailSize,
-				UThumbnailManager::Get().GetSharedThumbnailPool()
-			)
+		MakeShared<FAssetThumbnail>(
+			AssetData,
+			ThumbnailSize,
+			ThumbnailSize,
+			UThumbnailManager::Get().GetSharedThumbnailPool()
 		);
 	
 	FAssetThumbnailConfig AssetThumbnailConfig;

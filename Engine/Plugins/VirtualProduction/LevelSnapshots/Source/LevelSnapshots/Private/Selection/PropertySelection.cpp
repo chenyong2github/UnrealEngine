@@ -28,6 +28,18 @@ FLevelSnapshotPropertyChain::FLevelSnapshotPropertyChain(const FProperty* RootPr
 	AppendInline(RootProperty);
 }
 
+FLevelSnapshotPropertyChain::FLevelSnapshotPropertyChain(const FArchiveSerializedPropertyChain* ChainToLeaf, const FProperty* LeafProperty)
+{
+	if (ChainToLeaf)
+	{
+		for (int32 i = 0; i < ChainToLeaf->GetNumProperties(); ++i)
+		{
+			AppendInline(ChainToLeaf->GetPropertyFromRoot(i));
+		}
+	}
+	AppendInline(LeafProperty);
+}
+
 FLevelSnapshotPropertyChain FLevelSnapshotPropertyChain::MakeAppended(const FProperty* Property) const
 {
 	FLevelSnapshotPropertyChain Result = *this;

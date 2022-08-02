@@ -92,7 +92,7 @@ bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor*
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsActorDesirableForCapture);
 
-	if (!IsValid(Actor))
+	if (!IsValid(Actor) || !Private::Internal::DoesActorHaveSupportedClass(Actor))
 	{
 		return false;
 	}
@@ -113,10 +113,8 @@ bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor*
 	{
 		return true;
 	}
-
 	
-	return Private::Internal::DoesActorHaveSupportedClass(Actor)
-            && !Actor->IsTemplate()								// Should never happen, but we never want CDOs
+	return !Actor->IsTemplate()								// Should never happen, but we never want CDOs
 			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds	
 #if WITH_EDITOR
             && Actor->IsEditable()

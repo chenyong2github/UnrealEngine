@@ -32,5 +32,7 @@ namespace UE::LevelSnapshots::Private
 	private:
 	
 		FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
+
+		UObject* Archetype;
 	};
 }

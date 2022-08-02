@@ -9,17 +9,17 @@
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "Params/PropertyComparisonParams.h"
+#include "Restorability/SnapshotRestorability.h"
 #include "Selection/PropertySelection.h"
 #include "SnapshotConsoleVariables.h"
 #include "SnapshotCustomVersion.h"
-#include "Restorability/SnapshotRestorability.h"
+#include "Util/EquivalenceUtil.h"
+#include "Util/WorldData/SnapshotObjectUtil.h"
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
 #include "Stats/StatsMisc.h"
-#include "Util/EquivalenceUtil.h"
-#include "Util/SnapshotObjectUtil.h"
 
 namespace UE::LevelSnapshots::Private::Internal
 {

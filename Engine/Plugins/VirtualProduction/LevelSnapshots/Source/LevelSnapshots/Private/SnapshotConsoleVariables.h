@@ -21,8 +21,14 @@ namespace UE::LevelSnapshots::ConsoleVariables
 	/** Enable logging of how long matched actors take to diff*/
 	extern TAutoConsoleVariable<bool> CVarLogTimeDiffingMatchedActors;
 
-	/** Enable logging of how long actors take to get snapshots taken off.*/
+	/** Enable logging of how long actors take to get snapshots taken of.*/
 	extern TAutoConsoleVariable<bool> CVarLogTimeTakingSnapshots;
+	
+	/** Enable logging of how it takes to recreate each actor ("Actors to Add").*/
+	extern TAutoConsoleVariable<bool> CVarLogTimeRecreatingActors;
+	
+	/** Enable logging of how it takes to serialize into matched actors ("Modified").*/
+	extern TAutoConsoleVariable<bool> CVarLogTimeRestoringMatchedActors;
 
 	/** Logs all filtered properties whenever a filter is applied */
 	extern TAutoConsoleVariable<bool> CVarLogSelectionMap;

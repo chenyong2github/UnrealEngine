@@ -6,7 +6,7 @@
 #include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Data/ActorSnapshotData.h"
 #include "Data/Util/EquivalenceUtil.h"
-#include "Data/Util/Restoration/ActorUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
 #include "Data/WorldSnapshotData.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "Data/Util/SnapshotUtil.h"
@@ -149,7 +149,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		for (const FDeferredComponentSerializationTask& Task : DeferredSerializationsTasks)
 		{
 			const FRestoreObjectScope FinishRestore = PreSubobjectRestore_EditorWorld(Task.Snapshot, Task.Original, GetWorldData(), Cache, SelectionMap, LocalisationSnapshotPackage);
-			FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(*Task.SubobjectData, GetWorldData(), Cache, Task.Original, SelectionMap); 
+			FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(*Task.SubobjectData, GetWorldData(), Cache, Task.Original, SelectionMap); 
 		}
 		for (UActorComponent* Fail : CompsWithMissingSnapshotCounterpart)
 		{

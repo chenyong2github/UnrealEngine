@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/SoftObjectPath.h"
+#include "WorldSnapshotData.h"
 #include "SnapshotDataCache.generated.h"
 
 USTRUCT()
@@ -50,7 +51,7 @@ struct FClassDefaultSnapshotCache
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UObject* CachedLoadedClassDefault = nullptr;
+	TObjectPtr<UObject> CachedLoadedClassDefault = nullptr;
 };
 
 /** Caches data for re-use. */
@@ -65,13 +66,36 @@ struct FSnapshotDataCache
 	UPROPERTY()
 	TMap<FSoftObjectPath, FSubobjectSnapshotCache> SubobjectCache;
 
+	/**
+	 * Caches each archetype object for faster lookup.
+	 * 
+	 * Equal length as FWorldSnapshotData::ClassData and the indices correspond to another.
+	 * Elements can be null in which case there is no cache, yet.
+	 */
 	UPROPERTY()
-	TMap<FSoftClassPath, FClassDefaultSnapshotCache> ClassDefaultCache;
+	TArray<TObjectPtr<UObject>> ArchetypeObjects;
+
+	/**
+	 * Fallback for ClassData. Equal length as ClassData and the indices correspond to another.
+	 * When we fail to archetype data in ClassData, we look for the most appropriate archetype and cache it here.
+	 * 
+	 * Archetype data may be missing because this snapshot is old (was not saved) or because it was explicitly skipped
+	 * by user config.
+	 */
+	TArray<TOptional<FClassSnapshotData>> FallbackArchetypeData;
+
+	void InitFor(const FWorldSnapshotData& SnapshotData)
+	{
+		const int32 Size = SnapshotData.ClassData.Num();
+		ArchetypeObjects.SetNum(Size);
+		FallbackArchetypeData.SetNum(Size);
+	}
 
 	void Reset()
 	{
 		ActorCache.Reset();
 		SubobjectCache.Reset();
-		ClassDefaultCache.Reset();
+		ArchetypeObjects.Reset();
+		FallbackArchetypeData.Reset();
 	}
 };

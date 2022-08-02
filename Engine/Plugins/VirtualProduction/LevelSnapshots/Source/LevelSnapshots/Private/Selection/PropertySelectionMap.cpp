@@ -3,6 +3,7 @@
 #include "Selection/PropertySelectionMap.h"
 
 #include "LevelSnapshotsLog.h"
+#include "Algo/ForEach.h"
 #include "Selection/RestorableObjectSelection.h"
 
 #include "GameFramework/Actor.h"
@@ -102,11 +103,6 @@ void FPropertySelectionMap::RemoveCustomEditorSubobjectToRecreate(UObject* Edito
 	}
 }
 
-const FPropertySelection* FPropertySelectionMap::GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const
-{
-	return EditorWorldObjectToSelectedProperties.Find(WorldObjectPath); 
-}
-
 UE::LevelSnapshots::FRestorableObjectSelection FPropertySelectionMap::GetObjectSelection(const FSoftObjectPath& EditorWorldObject) const
 {
 	return UE::LevelSnapshots::FRestorableObjectSelection(EditorWorldObject, *this);
@@ -125,6 +121,26 @@ TArray<FSoftObjectPath> FPropertySelectionMap::GetKeys() const
 	}
 
 	return Result;
+}
+
+void FPropertySelectionMap::ForEachModifiedObject(TFunctionRef<void(const FSoftObjectPath&)> Callback) const
+{
+	Algo::ForEach(EditorWorldObjectToSelectedProperties, [Callback](const TPair<FSoftObjectPath, FPropertySelection>& Pair)
+	{
+		Callback(Pair.Key);
+	});
+	Algo::ForEach(EditorActorToComponentSelection, [this, Callback](const TPair<FSoftObjectPath, UE::LevelSnapshots::FAddedAndRemovedComponentInfo>& Pair)
+	{
+		if (!EditorWorldObjectToSelectedProperties.Contains(Pair.Key))
+		{
+			Callback(Pair.Key);
+		}
+	});
+}
+
+bool FPropertySelectionMap::HasAnyModifiedActors() const
+{
+	return EditorWorldObjectToSelectedProperties.Num() > 0 || EditorActorToComponentSelection.Num() > 0;
 }
 
 bool FPropertySelectionMap::HasChanges(AActor* EditorWorldActor) const

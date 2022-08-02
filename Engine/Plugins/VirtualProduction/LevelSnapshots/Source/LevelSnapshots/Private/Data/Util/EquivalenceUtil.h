@@ -55,4 +55,7 @@ namespace UE::LevelSnapshots::Private
 	
 	/** Checks whether two pointers point to "equivalent" objects. */
 	bool AreReferencesEquivalent(ULevelSnapshot* Snapshot, UObject* SnapshotPropertyValue, UObject* OriginalPropertyValue, AActor* SnapshotActor, AActor* OriginalActor);
+
+	/** Checks whether the two actors are equivalent */
+	bool AreActorsEquivalent(UObject* SnapshotPropertyValue, AActor* OriginalActorReference, const FWorldSnapshotData& WorldData, const FSnapshotDataCache& Cache);
 }

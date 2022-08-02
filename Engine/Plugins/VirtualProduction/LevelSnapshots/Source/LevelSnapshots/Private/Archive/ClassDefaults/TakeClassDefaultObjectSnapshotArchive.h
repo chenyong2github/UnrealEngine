@@ -6,6 +6,7 @@
 #include "Archive/ClassDefaults/BaseClassDefaultArchive.h"
 
 class UObject;
+struct FClassSnapshotData;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
@@ -17,7 +18,7 @@ namespace UE::LevelSnapshots::Private
 		using Super = FBaseClassDefaultArchive;
 	public:
 
-		static void SaveClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* SerializedObject);
+		static void SaveClassDefaultObject(FClassSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* SerializedObject);
 
 	private:
 	

@@ -53,9 +53,13 @@ TArray<TFieldPath<FProperty>> FLevelSnapshotsEditorResultsHelpers::LoopOverPrope
 	return PropertyRowsGenerated;
 }
 
-void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowHierarchy(ELevelSnapshotsObjectType InputType, const TWeakPtr<FPropertyHandleHierarchy>& InputHierarchy,
-	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow, FPropertySelectionMap& PropertySelectionMap, const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
-	TArray<TFieldPath<FProperty>>& PropertyRowsGenerated, const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView, 
+void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowHierarchy(ELevelSnapshotsObjectType InputType,
+	const TWeakPtr<FPropertyHandleHierarchy>& InputHierarchy,
+	const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow,
+	FPropertySelectionMap& PropertySelectionMap,
+	const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter,
+	TArray<TFieldPath<FProperty>>& PropertyRowsGenerated,
+	const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView, 
 	const TWeakPtr<FPropertyHandleHierarchy>& InHierarchyToSearchForCounterparts)
 {
 	if (!ensureAlwaysMsgf(InputType != ObjectType_None, 
@@ -214,7 +218,7 @@ void FLevelSnapshotsEditorResultsHelpers::LoopOverHandleHierarchiesAndCreateRowH
 				BuildModifiedObjectRow(
 					WorldSubobject, SnapshotSubobject, PropertyEditorModule,
 					PropertySelectionMap,
-					PropertySelectionMap.GetSelectedProperties(WorldSubobject)->GetSelectedLeafProperties(),
+					PropertySelectionMap.GetObjectSelection(WorldSubobject).GetPropertySelection()->GetSelectedLeafProperties(),
 					InDirectParentRow, InResultsView,
 					FText::Format(INVTEXT("{PropertyName} ({ObjectName})"), DisplayName, ObjectName));
 
@@ -580,7 +584,7 @@ void FLevelSnapshotsEditorResultsHelpers::BuildNestedSceneComponentRowsRecursive
 		{
 			USceneComponent* CurrentComponent = InHierarchy.Pin()->Component.Get();
 			
-			const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(CurrentComponent);
+			const FPropertySelection* PropertySelection = PropertySelectionMap.GetObjectSelection(CurrentComponent).GetPropertySelection();
 
 			bHasVisibleComponents = PropertySelection ? true : false;
 
@@ -615,7 +619,7 @@ void FLevelSnapshotsEditorResultsHelpers::BuildNestedSceneComponentRowsRecursive
 		if (ensureAlwaysMsgf(CurrentComponent,
 			TEXT("%hs: CurrentComponent was nullptr. Please check the InHierarchy for valid component."), __FUNCTION__))
 		{
-			const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(CurrentComponent);
+			const FPropertySelection* PropertySelection = PropertySelectionMap.GetObjectSelection(CurrentComponent).GetPropertySelection();
 
 			const TArray<TFieldPath<FProperty>>& PropertiesThatPassFilter =
 				PropertySelection ? PropertySelection->GetSelectedLeafProperties() : TArray<TFieldPath<FProperty>>();

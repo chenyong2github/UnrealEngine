@@ -6,31 +6,18 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
-namespace ActorInMapFilter
+namespace UE::LevelSnapshotsFilters::Private
 {
-	static bool IsActorInMap(const AActor* Actor, const FString& MapNameToCheck)
+	static bool IsActorInMap(const FSoftObjectPath& Actor, const FSoftObjectPath& MapNameToCheck)
 	{
-		const ULevel* Level = Actor->GetLevel();
-
-		if (!ensure(Level))
-		{
-			return false;
-		}
-
-		const UWorld* World = Level->GetTypedOuter<UWorld>();
-		if (!ensure(World))
-		{
-			return false;
-		}
-
-		return World->GetName() == MapNameToCheck;
+		return Actor.GetAssetPathName() == MapNameToCheck.GetAssetPathName();
 	}
 
-	static EFilterResult::Type IsActorAllowed(const AActor* Actor, const TArray<TSoftObjectPtr<UWorld>>& AllowedLevels)
+	static EFilterResult::Type IsActorAllowed(const FSoftObjectPath& Actor, const TArray<TSoftObjectPtr<UWorld>>& AllowedLevels)
 	{
 		for (const TSoftObjectPtr<UWorld>& AllowedLevel : AllowedLevels)
 		{
-			if (IsActorInMap(Actor, AllowedLevel.GetAssetName()))
+			if (IsActorInMap(Actor, AllowedLevel.ToSoftObjectPath()))
 			{
 				return EFilterResult::Include;
 			}
@@ -42,12 +29,17 @@ namespace ActorInMapFilter
 
 EFilterResult::Type UActorInMapFilter::IsActorValid(const FIsActorValidParams& Params) const
 {
-	return ActorInMapFilter::IsActorAllowed(Params.LevelActor, AllowedLevels);
+	return UE::LevelSnapshotsFilters::Private::IsActorAllowed(Params.LevelActor, AllowedLevels);
 }
 
 EFilterResult::Type UActorInMapFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
-	return ActorInMapFilter::IsActorAllowed(Params.NewActor, AllowedLevels);
+	return UE::LevelSnapshotsFilters::Private::IsActorAllowed(Params.NewActor, AllowedLevels);
+}
+
+EFilterResult::Type UActorInMapFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
+{
+	return UE::LevelSnapshotsFilters::Private::IsActorAllowed(Params.SavedActorPath, AllowedLevels);
 }
 
 

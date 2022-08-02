@@ -1,15 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Util/SnapshotObjectUtil.h"
+#include "Util/WorldData/SnapshotObjectUtil.h"
 
 #include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Archive/LoadSnapshotObjectArchive.h"
 #include "Archive/TakeWorldObjectSnapshotArchive.h"
-#include "Data/Util/Restoration/ActorUtil.h"
-#include "Data/Util/Restoration/WorldDataUtil.h"
+#include "ClassDataUtil.h"
+#include "Data/Util/SnapshotUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "SnapshotRestorability.h"
-#include "SnapshotUtil.h"
 #include "SubobjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
@@ -32,7 +32,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 		
 		// We're supposed to be dealing with an external (asset) reference, e.g. a UMaterial.
-		ensureAlwaysMsgf(ExternalReference == nullptr || (!ExternalReference->IsA<AActor>() && !ExternalReference->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
+		ensureMsgf(ExternalReference == nullptr || (!ExternalReference->IsA<AActor>() && !ExternalReference->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
 		return ExternalReference;
 	}
 	
@@ -48,14 +48,6 @@ namespace UE::LevelSnapshots::Private::Internal
 			return SubobjectCache->SnapshotObject.Get();
 		}
 		
-	
-		UClass* Class = SubobjectData->Class.TryLoadClass<UObject>();
-		if (!Class)
-		{
-			UE_LOG(LogLevelSnapshots, Warning, TEXT("Class '%s' not found. Maybe it was removed?"), *SubobjectData->Class.ToString());
-			return nullptr;
-		}
-		
 		const int32 OuterIndex = SubobjectData->OuterIndex;
 		check(OuterIndex != ObjectPathIndex);
 		UObject* SubobjectOuter = ResolveObjectDependencyForSnapshotWorld(WorldData, Cache, OuterIndex, ProcessObjectDependency, LocalisationNamespace);
@@ -64,7 +56,6 @@ namespace UE::LevelSnapshots::Private::Internal
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to create '%s' because its outer could not be created."), *SnapshotPathToSubobject.ToString());
 			return nullptr;
 		}
-		
 	
 		const FName SubobjectName = *ExtractLastSubobjectName(SnapshotPathToSubobject);
 		const bool bSubobjectNameIsTaken = [SubobjectOuter, SubobjectName]()
@@ -85,16 +76,21 @@ namespace UE::LevelSnapshots::Private::Internal
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to create '%s' because subobject name was already taken."), *SnapshotPathToSubobject.ToString());
 			return nullptr;
 		}
-
-	
 		
-		UObject* Subobject = NewObject<UObject>(SubobjectOuter, Class, SubobjectName);
+		const FSubobjectArchetypeFallbackInfo Fallback{ SubobjectOuter, SubobjectName, SubobjectData->GetObjectFlags() };
+		TOptional<TNonNullPtr<UObject>> Archetype = GetSubobjectArchetype(WorldData, SubobjectData->ClassIndex, Cache, Fallback);
+		if (!Archetype)
+		{
+			const FSoftClassPath ClassPath = GetClass(*SubobjectData, WorldData);
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to create '%s' because class was '%s' not found. Maybe it was removed?"), *SnapshotPathToSubobject.ToString(), *ClassPath.ToString());
+			return nullptr;
+		}
+		
+		const UClass* Class = Archetype->GetClass();
+		UObject* Subobject = NewObject<UObject>(SubobjectOuter, Class, SubobjectName, SubobjectData->GetObjectFlags(), Archetype.GetValue());
 		FSubobjectSnapshotCache& SubobjectCache = Cache.SubobjectCache.FindOrAdd(WorldData.SerializedObjectReferences[ObjectPathIndex]);
 		SubobjectCache.SnapshotObject = Subobject;
-			
-		SerializeClassDefaultsInto(WorldData, Subobject);
 		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, Cache, Subobject, ProcessObjectDependency, LocalisationNamespace)	;
-
 		return Subobject;
 	}
 	
@@ -116,11 +112,12 @@ namespace UE::LevelSnapshots::Private::Internal
 		{
 			return SubobjectCache->EditorObject.Get();
 		}
-		
-		UClass* ExpectedClass = SubobjectData.Class.ResolveClass();
+
+		const FSoftClassPath ClassPath = GetClass(SubobjectData, WorldData);
+		const UClass* ExpectedClass = ClassPath.ResolveClass();
 		if (!ExpectedClass)
 		{
-			UE_LOG(LogLevelSnapshots, Warning, TEXT("Class '%s' could not be resolved."), *SubobjectData.Class.ToString());
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Class '%s' could not be resolved."), *ClassPath.ToString());
 			return nullptr;
 		}
 		// Suppose ActorA and ActorB. ActorA is being serialized before ActorB. ActorA has a reference to a component in ActorB.
@@ -161,29 +158,38 @@ namespace UE::LevelSnapshots::Private::Internal
 			}
 			else if (SelectionMap.GetObjectSelection(OriginalObjectPath).GetPropertySelection() != nullptr)
 			{
-				FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SnapshotVersion, SelectionMap);
+				FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SnapshotVersion, SelectionMap, SubobjectData.ClassIndex);
 			}
 			else
 			{
 				// Reuse existing instance but treat it like it was just freshly allocated
-				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
+				FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
 			}
 		}
 		else 
 		{
-			UObject* Outer = UE::LevelSnapshots::Private::ResolveObjectDependencyForEditorWorld(WorldData, Cache, SubobjectData.OuterIndex, LocalisationNamespace, SelectionMap);
+			UObject* Outer = ResolveObjectDependencyForEditorWorld(WorldData, Cache, SubobjectData.OuterIndex, LocalisationNamespace, SelectionMap);
 			if (!Outer)
 			{
-				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve object '%s' because its outer '%s' could not be resolved"), *OriginalObjectPath.ToString(), *WorldData.SerializedObjectReferences[SubobjectData.OuterIndex].ToString());
+				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to create object '%s' because its outer '%s' could not be resolved"), *OriginalObjectPath.ToString(), *WorldData.SerializedObjectReferences[SubobjectData.OuterIndex].ToString());
 				return nullptr;
 			}
-
+			
+			const FName ObjectName = *ExtractLastSubobjectName(OriginalObjectPath);
+			const FSubobjectArchetypeFallbackInfo Fallback{ Outer, ObjectName, SubobjectData.GetObjectFlags() };
+			const TOptional<TNonNullPtr<UObject>> Archetype = GetSubobjectArchetype(WorldData, SubobjectData.ClassIndex, Cache, Fallback);
+			if (!Archetype)
+			{
+				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to create object '%s' because its archetype could not be resolved"), *OriginalObjectPath.ToString());
+				return nullptr;	
+			}
+			
 			// Must set RF_Transactional so object creation is transacted
-			ResolvedObject = NewObject<UObject>(Outer, ExpectedClass, *UE::LevelSnapshots::Private::ExtractLastSubobjectName(OriginalObjectPath), SubobjectData.GetObjectFlags() | RF_Transactional);
+			ResolvedObject = NewObject<UObject>(Outer, ExpectedClass, *ExtractLastSubobjectName(OriginalObjectPath), SubobjectData.GetObjectFlags() | RF_Transactional, Archetype.GetValue());
 			if (ensureMsgf(ResolvedObject, TEXT("Failed to allocate '%s'"), *OriginalObjectPath.ToString()))
 			{
 				ResolvedObject->SetFlags(SubobjectData.GetObjectFlags());
-				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
+				FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
 			}
 		}
 		
@@ -216,14 +222,12 @@ namespace UE::LevelSnapshots::Private::Internal
 			
 			// Important: first allocate SubobjectData on stack... 
 			FSubobjectSnapshotData SubobjectData; 
-			UClass* Class = ReferenceFromOriginalObject->GetClass();
-			SubobjectData.Class = Class;
-			SubobjectData.OuterIndex = UE::LevelSnapshots::Private::AddObjectDependency(WorldData, ReferenceFromOriginalObject->GetOuter());
+			SubobjectData.ClassIndex = AddClassArchetype(WorldData, ReferenceFromOriginalObject);
+			SubobjectData.OuterIndex = AddObjectDependency(WorldData, ReferenceFromOriginalObject->GetOuter());
 			// ... because serialisation recursively calls this function. FWorldSnapshotData::Subobjects is possibly reallocated
 			FTakeWorldObjectSnapshotArchive::TakeSnapshot(SubobjectData, WorldData, ReferenceFromOriginalObject);
 			
 			WorldData.Subobjects[ObjectIndex] = MoveTemp(SubobjectData); // MoveTemp not profiled
-			AddClassDefault(WorldData, Class);
 		}
 	}
 	
@@ -235,7 +239,8 @@ namespace UE::LevelSnapshots::Private::Internal
 			return;
 		}
 
-		if (SubobjectData->Class.ResolveClass() != ExistingObject->GetClass())
+		const FSoftClassPath ClassPath = GetClass(*SubobjectData, WorldData);
+		if (ClassPath.ResolveClass() != ExistingObject->GetClass())
 		{
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping serialisation of subobject because classes are different. Snapshot object '%s' will not contain values saved in snapshot."), *ExistingObject->GetName());
 			return;
@@ -279,7 +284,7 @@ UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForSnapshotWorld(FW
 		return Internal::ResolveExternalReference(OriginalObjectPath);
 	}
 
-	const TOptional<TNonNullPtr<AActor>> Result = UE::LevelSnapshots::Private::GetPreallocated(*PathToActor, WorldData, Cache, WorldData.SnapshotWorld->GetWorld());
+	const TOptional<TNonNullPtr<AActor>> Result = GetPreallocated(*PathToActor, WorldData, Cache);
 	if (!Result.IsSet())
 	{
 		return nullptr;

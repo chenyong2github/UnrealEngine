@@ -5,9 +5,9 @@
 #include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Archive/LoadSnapshotObjectArchive.h"
 #include "CustomSerialization/CustomSerializationDataManager.h"
-#include "Data/Util/SnapshotObjectUtil.h"
 #include "Data/Util/SnapshotUtil.h"
-#include "Data/Util/Restoration/ActorUtil.h"
+#include "Data/Util/WorldData/SnapshotObjectUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
 #include "Data/WorldSnapshotData.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
 #include "LevelSnapshotsLog.h"
@@ -129,7 +129,7 @@ namespace UE::LevelSnapshots::Private::Internal
 						[&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return UE::LevelSnapshots::Private::FindCustomSubobjectData(WorldData, OriginalPath);} );
 
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
-					FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializationData->Subobjects[i], WorldData, Cache, EditorSubobject, SelectionMap);
+					FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(SerializationData->Subobjects[i], WorldData, Cache, EditorSubobject, SelectionMap);
 					CustomSerializer->OnPostSerializeEditorSubobject(EditorSubobject, *MetaData, SerializationDataReader);
 					continue;
 				}
@@ -142,7 +142,7 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 }
 
-void UE::LevelSnapshots::Private::TakeSnapshotForActor(
+void UE::LevelSnapshots::Private::TakeSnapshotOfActorCustomSubobjects(
 	AActor* EditorActor,
 	FCustomSerializationData& ActorSerializationData,
 	FWorldSnapshotData& WorldData)

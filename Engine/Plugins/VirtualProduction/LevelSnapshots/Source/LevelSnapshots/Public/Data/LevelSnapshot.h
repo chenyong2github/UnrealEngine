@@ -13,7 +13,7 @@ UENUM()
 enum class ECachedDiffResult : uint8
 {
 	/** The actor was not yet analysed */
-	NotInitialised,
+	NotInitialized,
 	/** Actor was analysed and had changes */
 	HadChanges,
 	/** Actor was analysed and had no changes */
@@ -70,7 +70,9 @@ public:
 	 *	@param HandleRemovedActor Actor exists in snapshot but not in world. Receives the original actor path.
 	 *	@param HandleAddedActor Actor exists in world but not in snapshot. Receives reference to world actor.
 	 */
+	UE_DEPRECATED(5.1, "Use DiffWorld that accepts FActorConsumer for HandleMatchedActor instead.")
 	void DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const;
+	void DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const;
 
 	
 	
@@ -92,6 +94,20 @@ public:
 	const FWorldSnapshotData& GetSerializedData() const { return SerializedData; }
 	const FSnapshotDataCache& GetCache() const { return Cache; }
 
+#if !WITH_EDITOR
+	/**
+	 * Indicates that user code is aware that ClearCachedDiffFlag must be called manually.
+	 *
+	 * In editor builds, the transaction system calls
+	 * ClearCachedDiffFlag but in non-editor builds the transaction system does not exist.
+	 * 
+	 * Enables the use of CachedDiffedActors. 
+	 */
+	void EnableDiffCacheSupport() { bIsDiffCacheEnabled = true; }
+#endif
+	/** Clears the diff state of the actor. Designed to be called by the transaction system (or manually in non-editor builds if EnableDiffCacheSupport has been called). */
+	void ResetDiffCacheToUninitialized(TArrayView<AActor*> ModifiedActors);
+	void ResetDiffCacheToUninitialized(UObject* ModifiedObject); 
 	
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
@@ -105,12 +121,6 @@ private:
 	void EnsureWorldInitialised();
 	void DestroyWorld();
 	void ClearCache();
-
-#if WITH_EDITOR
-	/** Clears FActorSnapshotData::bHasBeenDiffed */
-	void ClearCachedDiffFlag(UObject* ModifiedObject);
-#endif
-
 	
 	/** Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
 	FDelegateHandle Handle;
@@ -118,9 +128,12 @@ private:
 	FDelegateHandle OnObjectModifiedHandle;
 
 	
-	/** The world we will be adding temporary actors to */
+	/** The root world, equivalent to the persistent world, we will be adding temporary actors to */
 	UPROPERTY(Transient)
-	UWorld* SnapshotContainerWorld;
+	UWorld* RootSnapshotWorld;
+	/** Sublevels of RootSnapshotWorld */
+	UPROPERTY(Transient)
+	TArray<UWorld*> SnapshotSublevels;
 	
 	
 	/** The saved snapshot data */
@@ -131,12 +144,21 @@ private:
 	UPROPERTY(Transient)
 	FSnapshotDataCache Cache;
 	
-#if WITH_EDITORONLY_DATA
+	/**
+	 * Only used in non-editor builds (should be wrapped in !WITH_EDITORONLY_DATA but UHT does not allow it).
+	 * Indicates that user code is aware that ClearCachedDiffFlag must be called manually.
+	 *
+	 * In editor builds, the transaction system calls
+	 * ClearCachedDiffFlag but in non-editor builds the transaction system does not exist.
+	 * 
+	 * Enables the use of CachedDiffedActors. 
+	 */
+	UPROPERTY(Transient)
+	bool bIsDiffCacheEnabled = false;
 
 	/** Caches whether an actor was diffed already */	
 	UPROPERTY(Transient)
 	TMap<TWeakObjectPtr<AActor>, ECachedDiffResult> CachedDiffedActors;
-#endif
 
 	
 	/** Path of the map that the snapshot was taken in */

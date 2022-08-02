@@ -1,18 +1,18 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Data/Util/Restoration/WorldDataUtil.h"
+#include "Data/Util/WorldData/WorldDataUtil.h"
 
-#include "Data/Util/Restoration/ActorUtil.h"
 #include "Archive/TakeWorldObjectSnapshotArchive.h"
-#include "ClassDefaults/ApplyClassDefaulDataArchive.h"
-#include "ClassDefaults/TakeClassDefaultObjectSnapshotArchive.h"
-#include "Data/WorldSnapshotData.h"
+#include "ClassDataUtil.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "Data/WorldSnapshotData.h"
 #include "Data/Util/ActorHashUtil.h"
-#include "Data/Util/SnapshotObjectUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
+#include "Data/Util/WorldData/SnapshotObjectUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "Selection/PropertySelectionMap.h"
+#include "SnapshotDataCache.h"
 #include "SnapshotConsoleVariables.h"
 #include "SnapshotRestorability.h"
 #include "Util/SortedScopedLog.h"
@@ -22,7 +22,6 @@
 #include "Async/ParallelFor.h"
 #include "Components/ActorComponent.h"
 #include "EngineUtils.h"
-#include "SnapshotDataCache.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/NonNullPointer.h"
@@ -62,13 +61,10 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 	
 		FActorSnapshotData Result;
-		UClass* ActorClass = OriginalActor->GetClass();
-		Result.ActorClass = ActorClass;
-	
+		Result.ClassIndex = AddClassArchetype(WorldData, OriginalActor);
 		FTakeWorldObjectSnapshotArchive::TakeSnapshot(Result.SerializedActorData, WorldData, OriginalActor);
-		AddClassDefault(WorldData, OriginalActor->GetClass());
 		// If external modules registered for custom serialisation, trigger their callbacks
-		TakeSnapshotForActor(OriginalActor, Result.CustomActorSerializationData, WorldData);
+		TakeSnapshotOfActorCustomSubobjects(OriginalActor, Result.CustomActorSerializationData, WorldData);
 	
 		TInlineComponentArray<UActorComponent*> Components;
 		OriginalActor->GetComponents(Components);
@@ -180,14 +176,20 @@ namespace UE::LevelSnapshots::Private::Internal
 {
 	static void PreloadClassesForRestore(FWorldSnapshotData& WorldData, const FPropertySelectionMap& SelectionMap)
 	{
+		FScopedSlowTask PreloadClasses(WorldData.ActorData.Num(), LOCTEXT("ApplyToWorld.PreloadClasses", "Preloading classes..."));
+		PreloadClasses.MakeDialogDelayed(1.f, false);
+		
 		// Class required for respawning
 		for (const FSoftObjectPath& OriginalRemovedActorPath : SelectionMap.GetDeletedActorsToRespawn())
 		{
+			PreloadClasses.EnterProgressFrame();
+			
 			FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalRemovedActorPath);
 			if (ensure(ActorSnapshot))
 			{
-				UClass* ActorClass = ActorSnapshot->ActorClass.TryLoadClass<AActor>();
-				UE_CLOG(ActorClass == nullptr, LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->ActorClass.ToString());
+				const FSoftClassPath ClassPath = GetClass(*ActorSnapshot, WorldData);
+				UClass* ActorClass = ClassPath.TryLoadClass<AActor>();
+				UE_CLOG(ActorClass == nullptr, LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ClassPath.ToString());
 			}
 		}
 
@@ -244,18 +246,23 @@ namespace UE::LevelSnapshots::Private::Internal
 #endif
 	}
 
-	static void HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath)
+	static bool HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath)
 	{
 		UObject* FoundObject = FindObject<UObject>(nullptr, *OriginalRemovedActorPath.ToString());
 		if (!FoundObject)
 		{
-			return;
+			return true;
 		}
 
-		// If it's not an actor then it's possibly an UObjectRedirector
-		AActor* AsActor = Cast<AActor>(FoundObject);
-		if (IsValid(AsActor))
+		// If it's not an actor nor component then it's possibly an UObjectRedirector
+		UActorComponent* AsComponent = Cast<UActorComponent>(FoundObject); // Unlikely
+		AActor* AsActor = AsComponent ? AsComponent->GetOwner() : Cast<AActor>(FoundObject);
+		const bool bShouldRename= AsActor != nullptr;
+		const bool bCanDestroy = IsValid(AsActor);
+		if (bCanDestroy)
 		{
+			UE_LOG(LogLevelSnapshots, Verbose, TEXT("Handeling name clash for %s"), *OriginalRemovedActorPath.ToString());
+			
 #if WITH_EDITOR
 			GEditor->SelectActor(AsActor, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
 			const bool bVerifyDeletionCanHappen = true;
@@ -265,104 +272,129 @@ namespace UE::LevelSnapshots::Private::Internal
 			AsActor->Destroy(true, true);
 #endif
 		}
-		
-		const FName NewName = MakeUniqueObjectName(FoundObject->GetOuter(), FoundObject->GetClass());
-		FoundObject->Rename(*NewName.ToString(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+
+		if (bShouldRename)
+		{
+			const FName NewName = MakeUniqueObjectName(FoundObject->GetOuter(), FoundObject->GetClass());
+			return FoundObject->Rename(*NewName.ToString(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		}
+
+		return false;
+	}
+
+	static FString ExtractActorName(const FSoftObjectPath& OriginalRemovedActorPath)
+	{
+		const FString& SubObjectPath = OriginalRemovedActorPath.GetSubPathString();
+		const int32 LastDotIndex = SubObjectPath.Find(TEXT("."));
+		// Full string: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42 SubPath: PersistentLevel.StaticMeshActor_42 
+		checkf(LastDotIndex != INDEX_NONE, TEXT("There should always be at least one dot after PersistentLevel"));
+		const int32 NameLength = SubObjectPath.Len() - LastDotIndex - 1;
+		const FString ActorName = SubObjectPath.Right(NameLength);
+		return ActorName;
 	}
 	
 	static void ApplyToWorld_HandleRecreatingActors(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_RecreateActors);
 
-#if WITH_EDITOR
-		FScopedSlowTask RecreateActors(PropertiesToSerialize.GetDeletedActorsToRespawn().Num(), LOCTEXT("ApplyToWorld.RecreateActorsKey", "Re-creating actors"));
+		FScopedSlowTask RecreateActors(PropertiesToSerialize.GetDeletedActorsToRespawn().Num() * 2, LOCTEXT("ApplyToWorld.RecreateActorsKey", "Re-creating actors"));
 		RecreateActors.MakeDialogDelayed(1.f, false);
-#endif
 		
+		const bool bShouldLog = ConsoleVariables::CVarLogTimeRecreatingActors.GetValueOnAnyThread();
 		FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
 		TMap<FSoftObjectPath, AActor*> RecreatedActors;
+		
 		// 1st pass: allocate the actors. Serialisation is done in separate step so object references to other deleted actors resolve correctly.
-		for (const FSoftObjectPath& OriginalRemovedActorPath : PropertiesToSerialize.GetDeletedActorsToRespawn())
 		{
-			FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalRemovedActorPath);
-			if (!ensure(ActorSnapshot))
+			FConditionalSortedScopedLog AllocationLog(bShouldLog, TEXT("Recreation - allocation"));
+			for (const FSoftObjectPath& OriginalRemovedActorPath : PropertiesToSerialize.GetDeletedActorsToRespawn())
 			{
-				continue;	
-			}
-
-			UClass* ActorClass = ActorSnapshot->ActorClass.TryLoadClass<AActor>();
-			if (!ActorClass)
-			{
-				UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->ActorClass.ToString());
-				continue;
-			}
-
-			HandleNameClash(OriginalRemovedActorPath);
-			
-			// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
-			const FSoftObjectPath PathToOwningWorldAsset = OriginalRemovedActorPath.GetAssetPathString();
-			UObject* UncastWorld = PathToOwningWorldAsset.ResolveObject();
-			if (!UncastWorld)
-			{
-				// Do not TryLoad. If the respective level is loaded, the world must already exist.
-				// User has most likely removed the level from the world. We don't want to load that level and modify it by accident. 
-				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve world '%s'"), *PathToOwningWorldAsset.ToString());
-				continue;
-			}
-
-			// Each Level in UWorld::Levels has a corresponding UWorld associated with it in which we re-create the actor.
-			if (UWorld* OwningLevelWorld = ExactCast<UWorld>(UncastWorld))
-			{
-				const FString& SubObjectPath = OriginalRemovedActorPath.GetSubPathString();
-				const int32 LastDotIndex = SubObjectPath.Find(TEXT("."));
-				// Full string: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42 SubPath: PersistentLevel.StaticMeshActor_42 
-				checkf(LastDotIndex != INDEX_NONE, TEXT("There should always be at least one dot after PersistentLevel"));
+				const FString ActorName = ExtractActorName(OriginalRemovedActorPath);
+				FScopedLogItem TimedLog = AllocationLog.AddScopedLogItem(ActorName, bShouldLog);
+				RecreateActors.EnterProgressFrame(1, FText::FromString(FString::Printf(TEXT("Allocating %s for recreation"), *ActorName)));
 				
-				const int32 NameLength = SubObjectPath.Len() - LastDotIndex - 1;
-				const FString ActorName = SubObjectPath.Right(NameLength);
-				ULevel* OverrideLevel = OwningLevelWorld->PersistentLevel;
-
-				const FName ActorFName = *ActorName;
-				FActorSpawnParameters SpawnParameters;
-				SpawnParameters.Name = ActorFName;
-				SpawnParameters.OverrideLevel = OverrideLevel;
-				SpawnParameters.bNoFail = true;
-				SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				SpawnParameters.Template = Cast<AActor>(UE::LevelSnapshots::Private::GetClassDefault(WorldData, Cache, ActorClass));
-				SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags();
-				
-				Module.OnPreCreateActor(OwningLevelWorld, ActorClass, SpawnParameters);
-				checkf(SpawnParameters.Name == ActorFName, TEXT("You cannot override the actor's name"));
-				checkf(SpawnParameters.OverrideLevel == OverrideLevel, TEXT("You cannot override the actor's level"))
-				
-				SpawnParameters.Name = ActorFName;
-				SpawnParameters.OverrideLevel = OwningLevelWorld->PersistentLevel;
-				SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-				if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
+				FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalRemovedActorPath);
+				if (!ensure(ActorSnapshot))
 				{
-					Module.OnPostRecreateActor(RecreatedActor);
-					RecreatedActors.Add(OriginalRemovedActorPath, RecreatedActor);
+					continue;	
 				}
-			}
+
+				const TOptional<TNonNullPtr<AActor>> ActorCDO = GetActorClassDefault(WorldData, ActorSnapshot->ClassIndex, Cache);
+				if (!ActorCDO)
+				{
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping recreation of %s due to missing class"), *OriginalRemovedActorPath.ToString());
+					continue;
+				}
+
+				if (!HandleNameClash(OriginalRemovedActorPath))
+				{
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping recreation of %s due to name clash"), *OriginalRemovedActorPath.ToString());
+					continue;
+				}
+				
+				// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
+				const FSoftObjectPath PathToOwningWorldAsset = OriginalRemovedActorPath.GetAssetPathString();
+				UObject* UncastWorld = PathToOwningWorldAsset.ResolveObject();
+				if (!UncastWorld)
+				{
+					// Do not TryLoad. If the respective level is loaded, the world must already exist.
+					// User has most likely removed the level from the world. We don't want to load that level and modify it by accident. 
+					UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve world '%s'"), *PathToOwningWorldAsset.ToString());
+					continue;
+				}
+
+				// Each Level in UWorld::Levels has a corresponding UWorld associated with it in which we re-create the actor.
+				if (UWorld* OwningLevelWorld = ExactCast<UWorld>(UncastWorld))
+				{
+					ULevel* OverrideLevel = OwningLevelWorld->PersistentLevel;
+
+					const FName ActorFName = *ActorName;
+					UClass* ActorClass = ActorCDO->GetClass();
+					FActorSpawnParameters SpawnParameters;
+					SpawnParameters.Name = ActorFName;
+					SpawnParameters.OverrideLevel = OverrideLevel;
+					SpawnParameters.bNoFail = true;
+					SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+					SpawnParameters.Template = ActorCDO.GetValue();
+					SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags();
+					
+					Module.OnPreCreateActor(OwningLevelWorld, ActorClass, SpawnParameters);
+					checkf(SpawnParameters.Name == ActorFName, TEXT("You cannot override the actor's name"));
+					checkf(SpawnParameters.OverrideLevel == OverrideLevel, TEXT("You cannot override the actor's level"))
+					
+					SpawnParameters.Name = ActorFName;
+					SpawnParameters.OverrideLevel = OwningLevelWorld->PersistentLevel;
+					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+					if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
+					{
+						Module.OnPostRecreateActor(RecreatedActor);
+						RecreatedActors.Add(OriginalRemovedActorPath, RecreatedActor);
+					}
+				}
+			}	
 		}
 		
-		// 2nd pass: serialize. 
-		for (const FSoftObjectPath& OriginalRemovedActorPath : PropertiesToSerialize.GetDeletedActorsToRespawn())
+		// 2nd pass: serialize.
 		{
-#if WITH_EDITOR
-			RecreateActors.EnterProgressFrame();
-#endif
-			if (FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalRemovedActorPath))
+			FConditionalSortedScopedLog SerializationLog(bShouldLog, TEXT("Recreation - serialization"));
+			for (const FSoftObjectPath& OriginalRemovedActorPath : PropertiesToSerialize.GetDeletedActorsToRespawn())
 			{
-				if (AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath))
+				const FString ActorName = ExtractActorName(OriginalRemovedActorPath);
+				FScopedLogItem TimedLog = SerializationLog.AddScopedLogItem(ActorName, bShouldLog);
+				RecreateActors.EnterProgressFrame(1, FText::FromString(FString::Printf(TEXT("Serializing recreated %s"), *ActorName)));
+			
+				if (FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalRemovedActorPath))
 				{
-					// Mark it, otherwise we'll serialize it again when we look for world actors matching the snapshot
-					EvaluatedActors.Add(*RecreatedActor);
-					UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(*RecreatedActor, *ActorSnapshot, WorldData, Cache, LocalisationSnapshotPackage, PropertiesToSerialize);
-				}
-				else
-				{
-					UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to recreate actor %s"), *OriginalRemovedActorPath.ToString());
+					if (AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath))
+					{
+						// Mark it, otherwise we'll serialize it again when we look for world actors matching the snapshot
+						EvaluatedActors.Add(*RecreatedActor);
+						UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(*RecreatedActor, *ActorSnapshot, WorldData, Cache, LocalisationSnapshotPackage, PropertiesToSerialize);
+					}
+					else
+					{
+						UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to recreate actor %s"), *OriginalRemovedActorPath.ToString());
+					}
 				}
 			}
 		}
@@ -372,19 +404,17 @@ namespace UE::LevelSnapshots::Private::Internal
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_SerializeMatchedActors);
 	
-#if WITH_EDITOR
 		FScopedSlowTask ExitingActorTask(SelectedPaths.Num(), LOCTEXT("ApplyToWorld.MatchingPropertiesKey", "Writing existing actors"));
 		ExitingActorTask.MakeDialogDelayed(1.f, true);
-#endif
+		
+		const bool bShouldLog = ConsoleVariables::CVarLogTimeRestoringMatchedActors.GetValueOnAnyThread();
+		FConditionalSortedScopedLog SerializationLog(bShouldLog, TEXT("Modified"));
 		for (const FSoftObjectPath& SelectedObject : SelectedPaths)
 		{
-#if WITH_EDITOR
-			ExitingActorTask.EnterProgressFrame();
 			if (ExitingActorTask.ShouldCancel())
 			{
 				return;
 			}
-#endif
 		
 			if (SelectedObject.IsValid())
 			{
@@ -394,22 +424,33 @@ namespace UE::LevelSnapshots::Private::Internal
 				{
 					OriginalWorldActor = AsActor;
 				}
-				else if (ensure(ResolvedObject))
+				else if (ResolvedObject)
 				{
 					OriginalWorldActor = ResolvedObject->GetTypedOuter<AActor>();
 				}
 
-				if (ensure(OriginalWorldActor)
-					&& Restorability::IsActorRestorable(OriginalWorldActor) && !EvaluatedActors.Contains(OriginalWorldActor))
+				if (!OriginalWorldActor)
 				{
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("Selection map requested restoration for %s but the object could not be resolved"), *SelectedObject.ToString());	
+				}
+				else if (Restorability::IsActorRestorable(OriginalWorldActor) && !EvaluatedActors.Contains(OriginalWorldActor))
+				{
+					const FString ActorName = ExtractActorName(OriginalWorldActor);
+					FScopedLogItem TimedLog = SerializationLog.AddScopedLogItem(ActorName, bShouldLog);
+					ExitingActorTask.EnterProgressFrame(1, FText::FromString(FString::Printf(TEXT("Serializing matched %s"), *ActorName)));
+					
 					EvaluatedActors.Add(OriginalWorldActor);
 					FActorSnapshotData* ActorSnapshot = WorldData.ActorData.Find(OriginalWorldActor);
 					if (ensure(ActorSnapshot))
 					{
 						RestoreIntoExistingWorldActor(OriginalWorldActor, *ActorSnapshot, WorldData, Cache, LocalisationSnapshotPackage, PropertiesToSerialize);
 					}
+
+					continue;
 				}
 			}
+
+			ExitingActorTask.EnterProgressFrame(1);
 		}
 	}
 
@@ -437,7 +478,13 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 	using namespace UE::LevelSnapshots::Private::Internal;
 	check(WorldToApplyTo);
 	
-	// Certain custom compilers, such as nDisplay, may reset the transaction context. That would cause a crash.
+	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize.GetKeys();
+	const int32 NumActorsToRecreate = PropertiesToSerialize.GetDeletedActorsToRespawn().Num();
+	const int32 NumMatchingActors = SelectedPaths.Num();
+	FScopedSlowTask ApplyToWorldTask(NumActorsToRecreate + NumMatchingActors, LOCTEXT("ApplyToWorldKey", "Apply to world"));
+	ApplyToWorldTask.MakeDialogDelayed(1.f, true);
+	
+	// Certain custom Blueprint compilers, such as nDisplay, may reset the transaction context. That would cause a crash.
 	PreloadClassesForRestore(WorldData, PropertiesToSerialize);
 	
 #if WITH_EDITOR
@@ -452,12 +499,6 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 		SubobjectIt->Value.EditorObject.Reset();
 	}
 	
-	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize.GetKeys();
-	const int32 NumActorsToRecreate = PropertiesToSerialize.GetDeletedActorsToRespawn().Num();
-	const int32 NumMatchingActors = SelectedPaths.Num();
-	FScopedSlowTask ApplyToWorldTask(NumActorsToRecreate + NumMatchingActors, LOCTEXT("ApplyToWorldKey", "Apply to world"));
-	ApplyToWorldTask.MakeDialogDelayed(1.f, true);
-
 	ApplyToWorld_HandleRemovingActors(WorldToApplyTo, PropertiesToSerialize);
 	
 	TSet<AActor*> EvaluatedActors;
@@ -466,7 +507,6 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 
 	ApplyToWorldTask.EnterProgressFrame(NumMatchingActors);
 	ApplyToWorld_HandleSerializingMatchingActors(WorldData, Cache, EvaluatedActors, SelectedPaths, LocalisationSnapshotPackage, PropertiesToSerialize);
-
 	
 	// If we're in the editor then update the gizmos locations as they can get out of sync if any of the serialized actors were selected
 #if WITH_EDITOR
@@ -475,82 +515,6 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 		GUnrealEd->UpdatePivotLocationForSelection();
 	}
 #endif
-}
-
-TOptional<TNonNullPtr<FObjectSnapshotData>> UE::LevelSnapshots::Private::GetSerializedClassDefaults(FWorldSnapshotData& WorldData, UClass* Class)
-{
-	FObjectSnapshotData* ClassDefaultData = WorldData.ClassDefaults.Find(Class);
-	return ClassDefaultData ? TOptional<TNonNullPtr<FObjectSnapshotData>>(ClassDefaultData) : TOptional<TNonNullPtr<FObjectSnapshotData>>();
-}
-
-void UE::LevelSnapshots::Private::AddClassDefault(FWorldSnapshotData& WorldData, UClass* Class)
-{
-	if (!ensure(Class) || WorldData.ClassDefaults.Contains(Class))
-	{
-		return;
-	}
-
-	UObject* ClassDefault = Class->GetDefaultObject();
-	if (!ensure(ClassDefault))
-	{
-		return;
-	}
-	
-	FClassDefaultObjectSnapshotData ClassData;
-	ClassData.bSerializationSkippedCDO = FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipClassDefaultSerialization(Class); 
-	if (!ClassData.bSerializationSkippedCDO)	
-	{
-		FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, WorldData, ClassDefault);
-	}
-	
-	// Copy in case AddClassDefault was called recursively, which may reallocate ClassDefaults.
-	WorldData.ClassDefaults.Emplace(Class, MoveTemp(ClassData));
-}
-
-UObject* UE::LevelSnapshots::Private::GetClassDefault(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UClass* Class)
-{
-	FClassDefaultObjectSnapshotData* ClassDefaultData = WorldData.ClassDefaults.Find(Class);
-	if (!ClassDefaultData)
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("No saved CDO data available for class %s. Returning global CDO..."), *Class->GetName());
-		return Class->GetDefaultObject();
-	}
-	
-	if (ClassDefaultData->bSerializationSkippedCDO)
-	{
-		return Class->GetDefaultObject();
-	}
-
-	FClassDefaultSnapshotCache& ClassDefaultCache = Cache.ClassDefaultCache.FindOrAdd(Class);
-	if (IsValid(ClassDefaultCache.CachedLoadedClassDefault))
-	{
-		return ClassDefaultCache.CachedLoadedClassDefault;
-	}
-	
-	UObject* CDO = NewObject<UObject>(
-		GetTransientPackage(),
-		Class,
-		*FString("SnapshotCDO_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
-		);
-	FApplyClassDefaulDataArchive::SerializeClassDefaultObject(*ClassDefaultData, WorldData, CDO);
-
-	ClassDefaultCache.CachedLoadedClassDefault = CDO;
-	return CDO;
-}
-
-void UE::LevelSnapshots::Private::SerializeClassDefaultsInto(FWorldSnapshotData& WorldData, UObject* Object)
-{
-	FClassDefaultObjectSnapshotData* ClassDefaultData = WorldData.ClassDefaults.Find(Object->GetClass());
-	if (ClassDefaultData && !ClassDefaultData->bSerializationSkippedCDO && !FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipClassDefaultSerialization(Object->GetClass()))
-	{
-		FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(*ClassDefaultData, WorldData, Object);
-	}
-
-	UE_CLOG(ClassDefaultData == nullptr,
-			LogLevelSnapshots, Warning,
-			TEXT("No CDO saved for class '%s'. If you changed some class default values for this class, then the affected objects will have the latest values instead of the class defaults at the time the snapshot was taken. Should be nothing major to worry about."),
-			*Object->GetClass()->GetName()
-			);
 }
 
 #undef LOCTEXT_NAMESPACE

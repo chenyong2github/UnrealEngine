@@ -4,6 +4,7 @@
 
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
+#include "LevelSnapshotsFilteringLibrary.h"
 #include "LevelSnapshotsFunctionLibrary.h"
 #include "LevelSnapshotsLog.h"
 
@@ -21,128 +22,37 @@ void FFilterListData::UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnap
 	FScopedSlowTask DiffDeserializedActors(ExpectedAmountOfWork, LOCTEXT("DiffingActorsKey", "Diffing actors"));
 	DiffDeserializedActors.MakeDialogDelayed(1.f);
 
-    RelatedSnapshot = FromSnapshot;
-
-	// We expect the number of filtered actors & components to stay roughly the same: retain existing memory
-	ModifiedEditorObjectsSelectedProperties_AllowedByFilter.Empty(false);
-	ModifiedWorldActors_AllowedByFilter.Empty(ModifiedWorldActors_AllowedByFilter.Num());
-	RemovedOriginalActorPaths_AllowedByFilter.Empty(RemovedOriginalActorPaths_AllowedByFilter.Num());
-	AddedWorldActors_AllowedByFilter.Empty(AddedWorldActors_AllowedByFilter.Num());
-	
-	FromSnapshot->DiffWorld(
-		World,
-		ULevelSnapshot::FActorPathConsumer::CreateRaw(this, &FFilterListData::HandleActorExistsInWorldAndSnapshot, FilterToApply, &DiffDeserializedActors),
-		ULevelSnapshot::FActorPathConsumer::CreateRaw(this, &FFilterListData::HandleActorWasRemovedFromWorld, FilterToApply),
-		ULevelSnapshot::FActorConsumer::CreateRaw(this, &FFilterListData::HandleActorWasAddedToWorld, FilterToApply)
-		);
+	RelatedSnapshot = FromSnapshot;
+	SelectionMap = ULevelSnapshotsFilteringLibrary::DiffAndFilterSnapshot(World, FromSnapshot, FilterToApply);
 }
 
-void FFilterListData::ApplyFilterToFindSelectedProperties(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply)
+TWeakObjectPtr<AActor> FFilterListData::GetSnapshotCounterpartFor(const AActor* WorldActor) const
 {
-	const FPropertySelection* AllowedSelectedProperties = ModifiedEditorObjectsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
-	const FPropertySelection* DisallowedSelectedProperties = ModifiedEditorObjectsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
-	
-	if (!ensure(WorldActor && FilterToApply) || AllowedSelectedProperties || DisallowedSelectedProperties)
-	{
-		return;
-	}
-	
-	const bool bIsAllowedByFilters = ModifiedWorldActors_AllowedByFilter.Contains(WorldActor);
-	const bool bIsDisallowedByFilters = ModifiedWorldActors_DisallowedByFilter.Contains(WorldActor);
-	if (!ensureMsgf(bIsAllowedByFilters || bIsDisallowedByFilters, TEXT("You have to call UpdateFilteredList first")))
-	{
-		return; 
-	}
-
-	const TWeakObjectPtr<AActor> DeserializedActor = GetSnapshotCounterpartFor(WorldActor);
-	if (!ensureMsgf(DeserializedActor.IsValid(), TEXT("For some reason this actor has no snapshot counterpart... Investigate.")))
-	{
-		return;
-	}
-	
-	if (bIsAllowedByFilters)
-	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot.Get(), ModifiedEditorObjectsSelectedProperties_AllowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
-	}
-	else
-	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot.Get(), ModifiedEditorObjectsSelectedProperties_DisallowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
-	}
-}
-
-TWeakObjectPtr<AActor> FFilterListData::GetSnapshotCounterpartFor(TWeakObjectPtr<AActor> WorldActor) const
-{
-	const TOptional<TNonNullPtr<AActor>> DeserializedActor = RelatedSnapshot->GetDeserializedActor(WorldActor.Get());
+	const TOptional<TNonNullPtr<AActor>> DeserializedActor = RelatedSnapshot->GetDeserializedActor(WorldActor);
 	return ensureAlwaysMsgf(DeserializedActor, TEXT("Deserialized actor does no exist. Either the snapshots's container world was deleted or the snapshot has no counterpart for this actor"))
 		? DeserializedActor.GetValue() : nullptr;
 }
 
-void FFilterListData::HandleActorExistsInWorldAndSnapshot(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply, FScopedSlowTask* Progress)
+void FFilterListData::ForEachModifiedActor(TFunctionRef<void(AActor*)> Callback) const
 {
-	Progress->EnterProgressFrame();
-	
-	UObject* ResolvedWorldActor = OriginalActorPath.ResolveObject();
-	if (!ResolvedWorldActor)
+	TSet<AActor*> AlreadyVisited;
+	SelectionMap.ForEachModifiedObject([&AlreadyVisited, Callback](const FSoftObjectPath& ModifiedObject)
 	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to resolve actor %s. Was it deleted from the world?"), *OriginalActorPath.ToString());
-		return;
-	}
+		UObject* Resolved = ModifiedObject.ResolveObject();
+		AActor* Actor = Cast<AActor>(Resolved);
+		Actor = Actor ? Actor : Resolved->GetTypedOuter<AActor>();
 
-	AActor* WorldActor = Cast<AActor>(ResolvedWorldActor);
-	if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong."))
-		&& RelatedSnapshot->HasChangedSinceSnapshotWasTaken(WorldActor))
-	{
-		const TOptional<TNonNullPtr<AActor>> DeserializedSnapshotActor = RelatedSnapshot->GetDeserializedActor(OriginalActorPath);
-		if (!ensureAlwaysMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
+		if (Actor && !AlreadyVisited.Contains(Actor))
 		{
-			return;
+			AlreadyVisited.Add(Actor);
+			Callback(Actor);
 		}
-			
-		const EFilterResult::Type ActorInclusionResult = FilterToApply->IsActorValid(FIsActorValidParams(DeserializedSnapshotActor.GetValue(), WorldActor));
-		if (EFilterResult::CanInclude(ActorInclusionResult))
-		{
-			ModifiedWorldActors_AllowedByFilter.Add(WorldActor);
-		}
-		else
-		{
-			ModifiedWorldActors_DisallowedByFilter.Add(WorldActor);
-		}
-	}
+	});
 }
 
-void FFilterListData::HandleActorWasRemovedFromWorld(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply)
-{	
-	const EFilterResult::Type FilterResult = FilterToApply->IsDeletedActorValid(
-		FIsDeletedActorValidParams(
-			OriginalActorPath,
-			[this](const FSoftObjectPath& ObjectPath)
-			{
-				return RelatedSnapshot->GetDeserializedActor(ObjectPath).Get(nullptr);
-			}
-		)
-	);
-	
-	if (EFilterResult::CanInclude(FilterResult))
-	{
-		RemovedOriginalActorPaths_AllowedByFilter.Add(OriginalActorPath);
-	}
-	else
-	{
-		RemovedOriginalActorPaths_DisallowedByFilter.Add(OriginalActorPath);
-	}
-}
-
-void FFilterListData::HandleActorWasAddedToWorld(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply)
+bool FFilterListData::HasAnyModifiedActors() const
 {
-	const EFilterResult::Type FilterResult = FilterToApply->IsAddedActorValid(FIsAddedActorValidParams(WorldActor)); 
-	if (EFilterResult::CanInclude(FilterResult))
-	{
-		AddedWorldActors_AllowedByFilter.Add(WorldActor);
-	}
-	else
-	{
-		AddedWorldActors_DisallowedByFilter.Add(WorldActor);
-	}
+	return SelectionMap.HasAnyModifiedActors();
 }
 
 #undef LOCTEXT_NAMESPACE

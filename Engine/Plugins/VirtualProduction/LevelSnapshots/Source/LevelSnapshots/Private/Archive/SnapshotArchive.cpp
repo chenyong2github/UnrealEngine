@@ -6,12 +6,14 @@
 #include "ObjectSnapshotData.h"
 #include "SnapshotRestorability.h"
 #include "SnapshotVersion.h"
+#include "Util/WorldData/SnapshotObjectUtil.h"
 #include "WorldSnapshotData.h"
-#include "Util/SnapshotObjectUtil.h"
 #if UE_BUILD_DEBUG
 #include "SnapshotConsoleVariables.h"
 #endif
 
+#include "LevelSnapshotsLog.h"
+#include "Engine/Level.h"
 #include "UObject/ObjectMacros.h"
 
 FString UE::LevelSnapshots::Private::FSnapshotArchive::GetArchiveName() const
@@ -104,6 +106,19 @@ FArchive& UE::LevelSnapshots::Private::FSnapshotArchive::operator<<(UObject*& Va
 		}
 
 		Value = ResolveObjectDependency(ReferencedIndex);
+		if (Value)
+		{
+			const ULevel* ResolvedOwningLevel = Value->GetTypedOuter<ULevel>();
+			const ULevel* SerializedObjectOwningLevel = SerializedObject->GetTypedOuter<ULevel>();
+			if (ResolvedOwningLevel && ResolvedOwningLevel != SerializedObjectOwningLevel)
+			{
+				// Example how this could happen:
+				// 1. Make actor a reference actor b
+				// 2. Move actor b from level Foo to level Bar (select actor > right-click Bar in Level tab > Move selected actors to level).
+				UE_LOG(LogLevelSnapshots, Warning, TEXT("Resolved world object %s for %s. Referencing objects from other world / levels is not permitted: Nulling reference."), *Value->GetPathName(), *SerializedObject->GetPathName());
+				Value = nullptr;
+			}
+		}
 	}
 	else
 	{

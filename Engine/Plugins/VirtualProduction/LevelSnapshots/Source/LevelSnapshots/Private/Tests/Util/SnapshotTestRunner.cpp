@@ -2,6 +2,7 @@
 
 #include "SnapshotTestRunner.h"
 
+#include "LevelSnapshotsFilteringLibrary.h"
 #include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsFunctionLibrary.h"
 
@@ -128,7 +129,7 @@ UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Pri
 		if (ensure(SnapshotCounterpart))
 		{
 			FPropertySelectionMap SelectedProperties;
-			ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectedProperties, OriginalActor, SnapshotCounterpart.GetValue(), Filter);
+			ULevelSnapshotsFilteringLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectedProperties, OriginalActor, SnapshotCounterpart.GetValue(), Filter);
 			Callback(SelectedProperties);
 		}
 	}, SnapshotId);

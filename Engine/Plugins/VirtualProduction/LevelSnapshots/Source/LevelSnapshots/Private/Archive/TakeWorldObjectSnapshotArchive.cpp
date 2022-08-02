@@ -18,8 +18,8 @@ void UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::TakeSnapshot(
 }
 
 UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
-	:
-	Super(InObjectData, InSharedData, false, InOriginalObject)
+	: Super(InObjectData, InSharedData, false, InOriginalObject)
+	, Archetype(InOriginalObject->GetArchetype())
 {}
 
 bool UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
@@ -48,7 +48,7 @@ bool UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::ShouldSkipPro
 		}
 		
 		UObject* OriginalContainer = GetSerializedObject();
-		UObject* ClassDefaultContainer = OriginalContainer->GetClass()->GetDefaultObject(); 
+		UObject* ClassDefaultContainer = Archetype;
 		for (int32 ArrayDim = 0; ArrayDim < InProperty->ArrayDim; ++ArrayDim)
 		{
 			if (!InProperty->Identical_InContainer(OriginalContainer, ClassDefaultContainer, ArrayDim))

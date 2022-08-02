@@ -1,12 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Data/Util/Restoration/ActorUtil.h"
+#include "Data/Util/WorldData/ActorUtil.h"
 
+#include "ClassDataUtil.h"
 #include "Data/ActorSnapshotData.h"
 #include "Data/WorldSnapshotData.h"
 #include "Data/SnapshotCustomVersion.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
-#include "Data/Util/SnapshotObjectUtil.h"
+#include "Data/Util/WorldData/SnapshotObjectUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "LoadSnapshotObjectArchive.h"
@@ -14,7 +15,6 @@
 #include "Selection/PropertySelectionMap.h"
 #include "Util/EquivalenceUtil.h"
 #include "Util/Component/SnapshotComponentUtil.h"
-#include "WorldDataUtil.h"
 
 #include "Components/ActorComponent.h"
 #include "Engine/World.h"
@@ -22,6 +22,7 @@
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
 #include "UObject/Script.h"
+#include "Util/SnapshotUtil.h"
 
 #if USE_STABLE_LOCALIZATION_KEYS
 #include "Internationalization/TextPackageNamespaceUtil.h"
@@ -67,9 +68,16 @@ namespace UE::LevelSnapshots::Private::Internal
 				{
 					return;
 				}
-				const TOptional<TNonNullPtr<AActor>> SnapshotAttachParent = GetDeserializedActor(WorldAttachParent->GetOwner(), WorldData, Cache, InLocalisationSnapshotPackage);
+
+				// We're covering the case of when the attach parent was not saved... if the current attach parent was not saved... we'll create our own warning
+				constexpr bool bWarnIfNotFound = false;
+				const TOptional<TNonNullPtr<AActor>> SnapshotAttachParent = GetDeserializedActor(WorldAttachParent->GetOwner(), WorldData, Cache, InLocalisationSnapshotPackage, bWarnIfNotFound);
 				if (!SnapshotAttachParent)
 				{
+					UE_LOG(LogLevelSnapshots, Warning,
+						TEXT("Actor %s had no attach parent saved. Its current attach parent %s was added after the snapshot was added so we when this actor is restored, we'll fallback to unparenting it."),
+						*OriginalActor->GetPathName(),
+						*WorldAttachParent->GetOwner()->GetPathName());
 					return;
 				}
 
@@ -158,7 +166,7 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 
 	static void DeserializeIntoTransient(
-		FObjectSnapshotData& SerializedComponentData,
+		FSubobjectSnapshotData& SerializedComponentData,
 		UActorComponent* ComponentToDeserializeInto,
 		FWorldSnapshotData& WorldData,
 		const FProcessObjectDependency& ProcessObjectDependency,
@@ -182,17 +190,18 @@ namespace UE::LevelSnapshots::Private::Internal
 			// 2nd case: We change some default value, then take a snapshot
 			//   - The value was saved into the component's serialized data because it was different from the CDO's default value at the time of taking the snapshot
 			//   - We apply the CDO and afterwards we override it with the serialized data. Good.
-		SerializeClassDefaultsInto(WorldData, ComponentToDeserializeInto);
+		const FSubobjectArchetypeFallbackInfo Fallback{ ComponentToDeserializeInto->GetOuter(), ComponentToDeserializeInto->GetFName(), SerializedComponentData.GetObjectFlags() };
+		SerializeClassDefaultsIntoSubobject(ComponentToDeserializeInto, WorldData, SerializedComponentData.ClassIndex, Cache, Fallback);
 		
 		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(SerializedComponentData, WorldData, Cache, ComponentToDeserializeInto, ProcessObjectDependency, InLocalisationSnapshotPackage);
 	}
 
-	static TOptional<TNonNullPtr<AActor>> GetDeserialized(const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* SnapshotWorld, UPackage* InLocalisationSnapshotPackage)
+	static TOptional<TNonNullPtr<AActor>> GetDeserialized(const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* InLocalisationSnapshotPackage, bool bWarnIfNotFound)
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(GetDeserialized);
 		UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Get Deserialized %s =========="), *OriginalActorPath.ToString());
 		
-		const TOptional<TNonNullPtr<AActor>> Preallocated = GetPreallocated(OriginalActorPath, WorldData, Cache, SnapshotWorld);
+		const TOptional<TNonNullPtr<AActor>> Preallocated = GetPreallocated(OriginalActorPath, WorldData, Cache, bWarnIfNotFound);
 		if (!Preallocated)
 		{
 			return {};
@@ -202,8 +211,10 @@ namespace UE::LevelSnapshots::Private::Internal
 		ActorCache.bReceivedSerialisation = true;
 		
 		FActorSnapshotData& ActorData = WorldData.ActorData[OriginalActorPath];
-		const auto ProcessObjectDependency = [&Cache, &OriginalActorPath](int32 OriginalObjectDependency)
+		const auto ProcessObjectDependency = [&Cache, &WorldData, &OriginalActorPath](int32 OriginalObjectDependency)
 		{
+			check(WorldData.SerializedObjectReferences.IsValidIndex(OriginalObjectDependency));
+			
 			// This look-up must be done every time because FSnapshotDataCache::ActorCache may have been reallocated 
 			FActorSnapshotCache& ActorCache = Cache.ActorCache.FindOrAdd(OriginalActorPath);
 			ActorCache.ObjectDependencies.Add(OriginalObjectDependency);
@@ -265,21 +276,41 @@ namespace UE::LevelSnapshots::Private::Internal
 		
 		if (bHadActorDependencies && ensure(RequiredActor))
 		{
-			RequiredActor->RerunConstructionScripts();
+			// GAllowActorScriptExecutionInEditor must be temporarily true so call to UserConstructionScript isn't skipped
+			FEditorScriptExecutionGuard AllowConstructionScript;
+			RequiredActor->UserConstructionScript();
 		}
+	}
+
+	static ULevel* DetermineMostSuitableLevel(const FSoftObjectPath& ActorPath, const FWorldSnapshotData& WorldData)
+	{
+		const FName LevelName = *ExtractPathWithoutSubobjects(ActorPath).GetAssetName();
+		for (const UWorld* SublevelWorld : WorldData.SnapshotSublevels)
+		{
+			if (SublevelWorld->GetFName() == LevelName)
+			{
+				return SublevelWorld->PersistentLevel;
+			}
+		}
+		return WorldData.SnapshotWorld->PersistentLevel;
 	}
 }
 
-TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* LocalisationSnapshotPackage)
+TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* LocalisationSnapshotPackage, bool bWarnIfNotFound)
 {
-	const FActorSnapshotCache& ActorCache = Cache.ActorCache.FindOrAdd(OriginalObjectPath);
-	if (ActorCache.bReceivedSerialisation && ActorCache.CachedSnapshotActor.IsValid())
 	{
-		return { ActorCache.CachedSnapshotActor.Get() };
+		// Note: CacheBeforeDeserialize may become invalid after the GetDeserialized call
+		const FActorSnapshotCache& CacheBeforeDeserialize = Cache.ActorCache.FindOrAdd(OriginalObjectPath);
+		if (CacheBeforeDeserialize.bReceivedSerialisation && CacheBeforeDeserialize.CachedSnapshotActor.IsValid())
+		{
+			return { CacheBeforeDeserialize.CachedSnapshotActor.Get() };
+		}
 	}
 	
-	const TOptional<TNonNullPtr<AActor>> Result = Internal::GetDeserialized(OriginalObjectPath, WorldData, Cache, WorldData.SnapshotWorld->GetWorld(), LocalisationSnapshotPackage);
-	Internal::ConditionallyRerunConstructionScript(Result.Get(nullptr), ActorCache.ObjectDependencies, WorldData, Cache, LocalisationSnapshotPackage);
+	const TOptional<TNonNullPtr<AActor>> Result = Internal::GetDeserialized(OriginalObjectPath, WorldData, Cache, LocalisationSnapshotPackage, bWarnIfNotFound);
+	// Look up cache again because GetDeserialized might have reallocated Cache.ActorCache hence CacheBeforeDeserialize is no longer valid
+	const FActorSnapshotCache& CacheAfterDeserialize = Cache.ActorCache.FindOrAdd(OriginalObjectPath);
+	Internal::ConditionallyRerunConstructionScript(Result.Get(nullptr), CacheAfterDeserialize.ObjectDependencies, WorldData, Cache, LocalisationSnapshotPackage);
 	return Result;
 }
 
@@ -292,42 +323,42 @@ TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetPreallocatedIfCac
 	return {};
 }
 
-TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetPreallocated(const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* SnapshotWorld)
+TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetPreallocated(const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, bool bWarnIfNotFound)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(GetPreallocated);
-	FActorSnapshotData* ActorData = WorldData.ActorData.Find(OriginalActorPath);
-	if (!ensure(ActorData))
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("No save data found for actor %s"), *OriginalActorPath.ToString());
-		return {};
-	}
-
 	FActorSnapshotCache& ActorCache = Cache.ActorCache.FindOrAdd(OriginalActorPath);
 	if (!ActorCache.CachedSnapshotActor.IsValid())
 	{
-		const FSoftClassPath SoftClassPath(ActorData->ActorClass);
-		UClass* TargetClass = SoftClassPath.TryLoadClass<AActor>();
-		if (!TargetClass)
+		UWorld* SnapshotWorld = WorldData.SnapshotWorld->GetWorld();
+		const FActorSnapshotData* ActorData = WorldData.ActorData.Find(OriginalActorPath);
+		if (!ActorData)
 		{
-			UE_LOG(LogLevelSnapshots, Error, TEXT("Unknown class %s. The snapshot is mostly likely referencing a class that was deleted."), *SoftClassPath.ToString());
+			UE_CLOG(bWarnIfNotFound, LogLevelSnapshots, Warning, TEXT("Failed to allocate %s due to missing data"), *OriginalActorPath.ToString());
 			return {};
 		}
 		
+		const TOptional<TNonNullPtr<AActor>> Template = GetActorClassDefault(WorldData, ActorData->ClassIndex, Cache);
+		if (!Template)
+		{
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to allocate %s due to missing class."), *OriginalActorPath.ToString());
+			return {};
+		}
+
+		UClass* TargetClass = Template->GetClass();
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.Template = Cast<AActor>(GetClassDefault(WorldData, Cache, TargetClass));
+		SpawnParams.Template = Template.GetValue();
 		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-		if (ensureMsgf(SpawnParams.Template, TEXT("Failed to get class default. This should not happen. Investigate.")))
-		{
-			UClass* ClassToUse = SpawnParams.Template->GetClass();
-			SpawnParams.Name = *FString("SnapshotObjectInstance_").Append(*MakeUniqueObjectName(SnapshotWorld, ClassToUse).ToString());
-			ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(ClassToUse, SpawnParams);
-		}
-		else
-		{
-			ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass, SpawnParams);
-		}
-		
-		if (ensureMsgf(ActorCache.CachedSnapshotActor.IsValid(), TEXT("Failed to spawn actor of class '%s'"), *ActorData->ActorClass.ToString()))
+		SpawnParams.OverrideLevel = Internal::DetermineMostSuitableLevel(OriginalActorPath, WorldData);
+		const FName ActorName = *ExtractLastSubobjectName(OriginalActorPath);
+		// Must still generate a unique name because the asset registry might have messed with our data during a rename and added a duplicate actor name...
+		SpawnParams.Name = FindObjectFast<UObject>(SpawnParams.OverrideLevel, ActorName)
+			? MakeUniqueObjectName(SpawnParams.OverrideLevel, TargetClass, ActorName)
+			: ActorName;
+		ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass, SpawnParams);
+
+		const bool bSpawnWasSuccess = ActorCache.CachedSnapshotActor.IsValid();
+		UE_CLOG(!bSpawnWasSuccess, LogLevelSnapshots, Error, TEXT("Failed to allocate %s due to missing class."), *OriginalActorPath.ToString());
+		if (ensure(bSpawnWasSuccess))
 		{
 #if WITH_EDITOR
 			// Hide this actor so external systems can see that this components should not render, i.e. make USceneComponent::ShouldRender return false
