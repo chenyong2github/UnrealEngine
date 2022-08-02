@@ -536,15 +536,6 @@ public:
 	bool EnumerateLiveTransactionEventIdsForPackage(const FName InPackageName, TFunctionRef<bool(int64)> InCallback) const;
 
 	/**
-	 * Get the names of of any packages that have live transaction events.
-	 *
-	 * @param OutPackageNames			The array of names to populate with the result.
-	 *
-	 * @return True if the package names were resolved, false otherwise.
-	 */
-	bool GetPackageNamesWithLiveTransactions(TArray<FName>& OutPackageNames) const;
-
-	/**
 	 * Enumerate the names of of any packages that have live transaction events.
 	 *
 	 * @param InCallback				Callback invoked for each package name; return true to continue enumeration, or false to stop.
@@ -584,16 +575,6 @@ public:
 	 * @return True if the package event was found, false otherwise.
 	 */
 	bool GetPackageEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncPackageEventData&)>& PackageEventFn) const;
-
-	/**
-	 * Get package names for packages with a head revision (at least one package event)
-	 *
-	 * @param OutPackageNames			The array of names to populate with the result.
-	 * @param IgnorePersisted			Will ignore packages which head revision have been persisted.
-	 *
-	 * @return True if the package names were resolved, false otherwise.
-	 */
-	bool GetPackageNamesWithHeadRevision(TArray<FName>& OutPackageNames, bool IgnorePersisted) const;
 
 	/**
 	 * Enumerate package names for packages with a head revision (at least one package event)
