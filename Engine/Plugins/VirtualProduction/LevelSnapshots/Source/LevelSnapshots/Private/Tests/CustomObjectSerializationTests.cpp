@@ -231,11 +231,12 @@ namespace UE::LevelSnapshots::Private::Tests
 			virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
-				const int32 Index = DataStorage.AddSubobjectSnapshot(Actor->NonReflectedSubobject);
+				const int32 Index = DataStorage.AddSubobjectSnapshot(Actor->NonReflectedSubobject.Get());
 				DataStorage.WriteObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
 				{
+					UObject* Object = Actor->NonReflectedObjectProperty.Get(); 
 					Archive << Actor->NonReflectedName;
-					Archive << Actor->NonReflectedObjectProperty;
+					Archive << Object;
 					Archive << Actor->NonReflectedSoftPtr;
 				}));
 				DataStorage.GetSubobjectMetaData(Index)->WriteObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
@@ -250,20 +251,20 @@ namespace UE::LevelSnapshots::Private::Tests
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(SnapshotObject);
 				Actor->AllocateNonReflectedSubobject();
-				return Actor->NonReflectedSubobject;
+				return Actor->NonReflectedSubobject.Get();
 			}
 		
 			virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
 				Actor->AllocateNonReflectedSubobject();
-				return Actor->NonReflectedSubobject;
+				return Actor->NonReflectedSubobject.Get();
 			}
 		
 			virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
-				return Actor->NonReflectedSubobject;
+				return Actor->NonReflectedSubobject.Get();
 			}
 
 			virtual void PostApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
@@ -271,9 +272,11 @@ namespace UE::LevelSnapshots::Private::Tests
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(OriginalObject);
 				DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
 				{
+					UObject* Object = nullptr; 
 					Archive << Actor->NonReflectedName;
-					Archive << Actor->NonReflectedObjectProperty;
+					Archive << Object;
 					Archive << Actor->NonReflectedSoftPtr;
+					Actor->NonReflectedObjectProperty.Reset(Object);
 				}));
 
 				DataStorage.GetSubobjectMetaData(0)->ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
@@ -312,7 +315,7 @@ namespace UE::LevelSnapshots::Private::Tests
 			
 				TestActor->IntProperty = 1;
 				TestActor->NonReflectedName = FName("TestNonReflectedName_OnActor");
-				TestActor->NonReflectedObjectProperty = FirstReferencedActor;
+				TestActor->NonReflectedObjectProperty.Reset(FirstReferencedActor);
 				TestActor->NonReflectedSoftPtr = FirstReferencedActor;
 			
 				TestActor->NonReflectedSubobject->NonReflectedName = FName("TestNonReflectedName_OnSubobject");
@@ -339,7 +342,7 @@ namespace UE::LevelSnapshots::Private::Tests
 			.RunTest([&]()
 			{
 				TestEqual(TEXT("TestActor->NonReflectedName"), TestActor->NonReflectedName, FName("TestNonReflectedName_OnActor"));
-				TestTrue(TEXT("TestActor->NonReflectedObjectProperty"), TestActor->NonReflectedObjectProperty == FirstReferencedActor);
+				TestTrue(TEXT("TestActor->NonReflectedObjectProperty"), TestActor->NonReflectedObjectProperty.Get() == FirstReferencedActor);
 				TestTrue(TEXT("TestActor->NonReflectedSoftPtr"), TestActor->NonReflectedSoftPtr == FirstReferencedActor);
 			
 				TestEqual(TEXT("TestActor->NonReflectedSubobject->NonReflectedName"), TestActor->NonReflectedSubobject->NonReflectedName, FName("TestNonReflectedName_OnSubobject"));
@@ -726,7 +729,7 @@ namespace UE::LevelSnapshots::Private::Tests
 			{
 				if (TestActor->NonReflectedSubobject)
 				{
-					DataStorage.AddSubobjectSnapshot(TestActor->NonReflectedSubobject);
+					DataStorage.AddSubobjectSnapshot(TestActor->NonReflectedSubobject.Get());
 				}
 			}
 
@@ -735,7 +738,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				if (ASnapshotTestActor* SnapshotActor = Cast<ASnapshotTestActor>(SnapshotObject))
 				{
 					SnapshotActor->AllocateNonReflectedSubobject();
-					return SnapshotActor->NonReflectedSubobject;
+					return SnapshotActor->NonReflectedSubobject.Get();
 				}
 
 				checkNoEntry();
@@ -747,7 +750,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				if (ASnapshotTestActor* EditorActor = Cast<ASnapshotTestActor>(EditorObject))
 				{
 					EditorActor->AllocateNonReflectedSubobject();
-					return EditorActor->NonReflectedSubobject;
+					return EditorActor->NonReflectedSubobject.Get();
 				}
 
 				checkNoEntry();
@@ -758,7 +761,7 @@ namespace UE::LevelSnapshots::Private::Tests
 			{
 				if (ASnapshotTestActor* EditorActor = Cast<ASnapshotTestActor>(EditorObject))
 				{
-					return EditorActor->NonReflectedSubobject;
+					return EditorActor->NonReflectedSubobject.Get();
 				}
 
 				checkNoEntry();
@@ -808,7 +811,7 @@ namespace UE::LevelSnapshots::Private::Tests
 
 			.RunTest([&]()
 			{
-				if (IsValid(Stub->TestActor->NonReflectedSubobject))
+				if (IsValid(Stub->TestActor->NonReflectedSubobject.Get()))
 				{
 					TestEqual(TEXT("Custom float restored"), Stub->TestActor->NonReflectedSubobject->FloatProperty, 42.f);
 					TestEqual(TEXT("Custom float restored"), Stub->TestActor->NonReflectedSubobject->IntProperty, 21);

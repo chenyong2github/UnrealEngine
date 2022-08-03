@@ -244,9 +244,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	TMap<FName, USubobject*> EditOnlySubobjectMap_OptionalSubobject;
 	
-	USubobject* NonReflectedSubobject;
+	TStrongObjectPtr<USubobject> NonReflectedSubobject;
 
 	FName NonReflectedName;
-	UObject* NonReflectedObjectProperty;
+	TStrongObjectPtr<UObject> NonReflectedObjectProperty;
 	TSoftObjectPtr<UObject> NonReflectedSoftPtr;
 };

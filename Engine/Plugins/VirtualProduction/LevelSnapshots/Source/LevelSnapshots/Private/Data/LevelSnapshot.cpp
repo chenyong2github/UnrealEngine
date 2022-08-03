@@ -19,6 +19,7 @@
 #include "Algo/Accumulate.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
+#include "Algo/IndexOf.h"
 #include "HAL/IConsoleManager.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeExit.h"
@@ -82,9 +83,9 @@ bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 	MapPath = TargetWorld;
 	CaptureTime = FDateTime::UtcNow();
+	SerializedData = UE::LevelSnapshots::Private::SnapshotWorld(TargetWorld);
 	// Existing snapshot world actors are now invalid - clear previous cached data
 	RecreateSnapshotWorld();
-	SerializedData = UE::LevelSnapshots::Private::SnapshotWorld(TargetWorld);
 	ClearCache();
 	Cache.InitFor(SerializedData);
 	// Should we delete preexisting actors from the snapshot world?
@@ -326,21 +327,11 @@ FString ULevelSnapshot::GenerateDebugLogInfo() const
 	return FString::Printf(TEXT("CaptureTime: %s. SnapshotVersionInfo: %s. Current engine version: %s."), *CaptureTime.ToString(), *GetSerializedData().SnapshotVersionInfo.ToString(), *Current.ToString());
 }
 
-void ULevelSnapshot::RecreateSnapshotWorld()
-{
-	if (RootSnapshotWorld)
-	{
-		DestroyWorld();
-	}
-	EnsureWorldInitialised();
-}
-
 namespace UE::LevelSnapshots::Private
 {
 	static UWorld* CreateWorld(UObject* Outer, FName WorldName);
 	static TSet<FName> ExtractLevelNames(const FWorldSnapshotData& WorldData);
 }
-
 
 void ULevelSnapshot::EnsureWorldInitialised()
 {
@@ -386,13 +377,8 @@ void ULevelSnapshot::EnsureWorldInitialised()
 
 namespace UE::LevelSnapshots::Private
 {
-	static UWorld* CreateWorld(UObject* Outer, FName WorldName)
+	static void InitializeWorld(UWorld* World)
 	{
-		UWorld* World = NewObject<UWorld>(Outer, WorldName);
-		World->WorldType = EWorldType::EditorPreview;
-
-		// Note: Do NOT create a FWorldContext for this world.
-		// If you do, the render thread will send render commands every tick (and crash cuz we do not init the scene below).
 		World->InitializeNewWorld(UWorld::InitializationValues()
 			.InitializeScenes(false)		// This is memory only world: no rendering
 			.AllowAudioPlayback(false)
@@ -405,7 +391,16 @@ namespace UE::LevelSnapshots::Private
 			.SetTransactional(false)
 			.CreateFXSystem(false)
 			);
+	}
+	
+	static UWorld* CreateWorld(UObject* Outer, FName WorldName)
+	{
+		UWorld* World = NewObject<UWorld>(Outer, WorldName);
+		World->WorldType = EWorldType::EditorPreview;
 
+		// Note: Do NOT create a FWorldContext for this world.
+		// If you do, the render thread will send render commands every tick (and crash cuz we do not init the scene below).
+		InitializeWorld(World);
 		return World;
 	}
 
@@ -430,21 +425,30 @@ void ULevelSnapshot::DestroyWorld()
 			GEngine->OnWorldDestroyed().Remove(Handle);
 			Handle.Reset();
 		}
-				
-		SerializedData.SnapshotWorld.Reset();
-		SerializedData.SnapshotSublevels.Reset();
-		ClearCache();
-	
-		RootSnapshotWorld->CleanupWorld();
-		for (UWorld* Sublevel : SnapshotSublevels)
-		{
-			Sublevel->CleanupWorld();
-		}
-		// Cleanup world clears RF_Standalone flag...
-		SetFlags(RF_Standalone);
 		
+		CleanUpWorld();
 		RootSnapshotWorld = nullptr;
 		SnapshotSublevels.Reset();
+	}
+}
+
+void ULevelSnapshot::CleanUpWorld()
+{
+	SerializedData.SnapshotWorld.Reset();
+	SerializedData.SnapshotSublevels.Reset();
+	ClearCache();
+
+	// Cleanup world clears RF_Standalone flag...
+	const bool bWasStandalone = HasAnyFlags(RF_Standalone);
+	RootSnapshotWorld->CleanupWorld();
+	for (UWorld* Sublevel : SnapshotSublevels)
+	{
+		Sublevel->CleanupWorld();
+	}
+	
+	if (bWasStandalone)
+	{
+		SetFlags(RF_Standalone);
 	}
 }
 
@@ -452,6 +456,67 @@ void ULevelSnapshot::ClearCache()
 {
 	Cache.Reset();
 	CachedDiffedActors.Reset(); 
+}
+
+void ULevelSnapshot::RecreateSnapshotWorld()
+{
+	if (RootSnapshotWorld)
+	{
+		DestroyWorld();
+
+		if (HasAnyFlags(RF_Standalone))
+		{
+			CollectGarbage(RF_Standalone);
+		}
+		else
+		{
+			SetFlags(RF_Standalone);
+			CollectGarbage(RF_Standalone);
+			ClearFlags(RF_Standalone);
+		}
+	}
+	else
+	{
+		EnsureWorldInitialised();
+	}
+}
+
+namespace UE::LevelSnapshots::Private
+{
+	UWorld* FindOrCreateWorld(const TArray<UWorld*>& AllWorlds, UObject* Outer, FName Name);
+}
+
+void ULevelSnapshot::ReinitializeWorld()
+{
+	using namespace UE::LevelSnapshots::Private;
+	
+	TArray<UWorld*> AllWorlds = MoveTemp(SnapshotSublevels);
+	AllWorlds.Add(RootSnapshotWorld);
+
+	const FName RootWorldName = *ExtractPathWithoutSubobjects(MapPath).GetAssetName();
+	RootSnapshotWorld = FindOrCreateWorld(AllWorlds, this, RootWorldName);
+		
+	TSet<FName> Sublevels = ExtractLevelNames(SerializedData);
+	Sublevels.Remove(RootWorldName);
+	SnapshotSublevels.Reserve(Sublevels.Num());
+	for (const FName& SublevelName : Sublevels)
+	{
+		SnapshotSublevels.Add(FindOrCreateWorld(AllWorlds, this, SublevelName));
+	}
+}
+
+namespace UE::LevelSnapshots::Private
+{
+	UWorld* FindOrCreateWorld(const TArray<UWorld*>& AllWorlds, UObject* Outer, FName Name)
+	{
+		const int32 Index = Algo::IndexOfByPredicate(AllWorlds, [Name](UWorld* World){ return World->GetFName() == Name; });
+		if (AllWorlds.IsValidIndex(Index))
+		{
+			InitializeWorld(AllWorlds[Index]);
+			return AllWorlds[Index];
+		}
+		return CreateWorld(Outer, Name);
+	}
 }
 
 #if WITH_EDITOR

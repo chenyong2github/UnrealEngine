@@ -171,17 +171,13 @@ void ASnapshotTestActor::AllocateNonReflectedSubobject()
 {
 	if (!NonReflectedSubobject)
 	{
-		NonReflectedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NonReflectedSubobject"));
+		NonReflectedSubobject.Reset(NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NonReflectedSubobject")));
 	}
 }
 
 void ASnapshotTestActor::DestroyNonReflectedSubobject()
 {
-	if (NonReflectedSubobject)
-	{
-		NonReflectedSubobject->MarkAsGarbage();
-		NonReflectedSubobject = nullptr;
-	}
+	NonReflectedSubobject.Reset();
 }
 
 void ASnapshotTestActor::PostInitProperties()
