@@ -79,7 +79,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorabilityOv
 	Overrides.AddUnique(Overrider);
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorabilityOverrider(const TSharedRef<ISnapshotRestorabilityOverrider>& Overrider)
 {
 	Overrides.RemoveSwap(Overrider);
 }
@@ -114,7 +114,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterPropertyCompare
 	PropertyComparers.FindOrAdd(Class).AddUnique(Comparer);
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, const TSharedRef<IPropertyComparer>& Comparer)
 {
 	TArray<TSharedRef<IPropertyComparer>>* Comparers = PropertyComparers.Find(Class);
 	if (!Comparers)
@@ -156,12 +156,22 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterCustomObjectS
 	CustomSerializers.Remove(Class);
 }
 
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterGlobalActorFilter(TSharedRef<IActorSnapshotFilter> Filter)
+{
+	GlobalFilters.AddUnique(MoveTemp(Filter));
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterGlobalActorFilter(const TSharedRef<IActorSnapshotFilter>& Filter)
+{
+	GlobalFilters.RemoveSingle(Filter);
+}
+
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
 {
 	SnapshotLoaders.AddUnique(Loader);
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotLoader(const TSharedRef<ISnapshotLoader>& Loader)
 {
 	SnapshotLoaders.RemoveSingle(Loader);
 }
@@ -171,7 +181,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorationList
 	RestorationListeners.AddUnique(Listener);
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener)
 {
 	RestorationListeners.RemoveSingle(Listener);
 }
@@ -307,6 +317,42 @@ TSharedPtr<UE::LevelSnapshots::ICustomObjectSnapshotSerializer> UE::LevelSnapsho
 	return nullptr;
 }
 
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanRecreateActor(const FCanRecreateActorParams& Params) const
+{
+	for (const TSharedRef<IActorSnapshotFilter>& Filter : GlobalFilters)
+	{
+		const IActorSnapshotFilter::EFilterResult Result = Filter->CanRecreateActor(Params);
+		switch (Result)
+		{
+		case IActorSnapshotFilter::EFilterResult::Allow: return true;
+		case IActorSnapshotFilter::EFilterResult::DoNotCare: continue;
+		case IActorSnapshotFilter::EFilterResult::Disallow: return false;
+		default:
+			checkNoEntry();
+		}
+	};
+
+	return true;
+}
+
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanDeleteActor(const AActor* EditorActor) const
+{
+	for (const TSharedRef<IActorSnapshotFilter>& Filter : GlobalFilters)
+	{
+		const IActorSnapshotFilter::EFilterResult Result = Filter->CanDeleteActor(EditorActor);
+		switch (Result)
+		{
+		case IActorSnapshotFilter::EFilterResult::Allow: return true;
+		case IActorSnapshotFilter::EFilterResult::DoNotCare: continue;
+		case IActorSnapshotFilter::EFilterResult::Disallow: return false;
+		default:
+			checkNoEntry();
+		}
+	};
+
+	return true;
+}
+
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
 {
 	CanTakeSnapshotDelegates.FindOrAdd(DelegateName) = Delegate;
@@ -337,6 +383,26 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostLoadSnapshotObjec
 	for (const TSharedRef<ISnapshotLoader>& Loader : SnapshotLoaders)
 	{
 		Loader->PostLoadSnapshotObject(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshot(const FApplySnapshotParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreApplySnapshot(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostApplySnapshot(const FApplySnapshotParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostApplySnapshot(Params);
 	}
 }
 
@@ -400,13 +466,26 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRecreateActor(AAc
 	}
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreRemoveActor(AActor* Actor)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreRemoveActor(const FPreRemoveActorParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
 	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
 	{
-		Listener->PreRemoveActor(Actor);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Listener->PreRemoveActor(Params.ActorToRemove);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		Listener->PreRemoveActor(Params);
+	}
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRemoveActors(const FPostRemoveActorsParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostRemoveActors(Params);
 	}
 }
 

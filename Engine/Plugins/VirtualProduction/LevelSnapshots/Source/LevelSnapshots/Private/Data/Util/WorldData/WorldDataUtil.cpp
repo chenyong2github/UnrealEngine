@@ -16,7 +16,6 @@
 #include "SnapshotConsoleVariables.h"
 #include "SnapshotRestorability.h"
 #include "Util/SortedScopedLog.h"
-#include "Util/Property/PropertyIterator.h"
 
 #include "Algo/ForEach.h"
 #include "Async/ParallelFor.h"
@@ -40,16 +39,79 @@
 
 namespace UE::LevelSnapshots::Private::Internal
 {
-	static TOptional<FComponentSnapshotData> SnapshotComponent(UActorComponent* OriginalComponent)
+	static TArray<AActor*> GetAllActorsIn(UWorld* World);
+
+	static void CaptureSnapshotData(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData);
+	static void ComputeActorHashes(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData);
+}
+
+FWorldSnapshotData UE::LevelSnapshots::Private::SnapshotWorld(UWorld* World)
+{
+	FScopedSlowTask TakeSnapshotTask(2.f, LOCTEXT("TakeSnapshotKey", "Take snapshot"));
+	TakeSnapshotTask.MakeDialogDelayed(1.f);
+
+	const TArray<AActor*> ActorsInWorld = Internal::GetAllActorsIn(World);
+	FWorldSnapshotData SnapshotData;
+	SnapshotData.SnapshotVersionInfo.Initialize();
+	
+	TakeSnapshotTask.EnterProgressFrame(1.f);
+	Internal::CaptureSnapshotData(ActorsInWorld, SnapshotData);
+	
+	TakeSnapshotTask.EnterProgressFrame(1.f);
+	Internal::ComputeActorHashes(ActorsInWorld, SnapshotData);
+
+	return MoveTemp(SnapshotData);
+}
+
+namespace UE::LevelSnapshots::Private::Internal
+{
+	static TArray<AActor*> GetAllActorsIn(UWorld* World)
 	{
-		if (OriginalComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
+		TArray<AActor*> ObjectArray;
+		
+		int32 NumActors = 0;
+		for (ULevel* Level : World->GetLevels())
 		{
-			UE_LOG(LogLevelSnapshots, Warning, TEXT("Components created dynamically in the construction script are not supported (%s). Skipping..."), *OriginalComponent->GetPathName());
-			return {};
+			if (Level)
+			{
+				NumActors += Level->Actors.Num();
+			}
 		}
-		FComponentSnapshotData Result;
-		Result.CreationMethod = OriginalComponent->CreationMethod;
-		return Result;
+
+		ObjectArray.Reserve(NumActors);
+
+		for (ULevel* Level : World->GetLevels())
+		{
+			if (Level)
+			{
+				ObjectArray.Append(Level->Actors);
+			}
+		}
+
+		// Move temp to force optimization on debug / development builds
+		return MoveTemp(ObjectArray);
+	}
+	
+	static FActorSnapshotData SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData);
+	static TOptional<FComponentSnapshotData> SnapshotComponent(UActorComponent* OriginalComponent);
+
+	static void CaptureSnapshotData(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData)
+	{
+		FScopedSlowTask CaptureData(ActorsInWorld.Num(), LOCTEXT("CapturingWorldData", "Capturing data"));
+		CaptureData.MakeDialogDelayed(1.f);
+		
+		const bool bShouldLog = ConsoleVariables::CVarLogTimeTakingSnapshots.GetValueOnAnyThread();
+		FConditionalSortedScopedLog SortedLog(bShouldLog);
+		Algo::ForEach(ActorsInWorld, [&SnapshotData, &CaptureData, &SortedLog](AActor* Actor)
+		{
+			CaptureData.EnterProgressFrame();
+			
+			if (Restorability::IsActorDesirableForCapture(Actor))
+			{
+				FScopedLogItem LogTakeSnapshot = SortedLog.AddScopedLogItem(Actor->GetName());
+				SnapshotData.ActorData.Add(Actor, Internal::SnapshotActor(Actor, SnapshotData));
+			}
+		});
 	}
 	
 	static FActorSnapshotData SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData)
@@ -91,50 +153,16 @@ namespace UE::LevelSnapshots::Private::Internal
 		return Result;
 	}
 
-	static TArray<AActor*> GetAllActorsIn(UWorld* World)
+	static TOptional<FComponentSnapshotData> SnapshotComponent(UActorComponent* OriginalComponent)
 	{
-		TArray<AActor*> ObjectArray;
-		
-		int32 NumActors = 0;
-		for (ULevel* Level : World->GetLevels())
+		if (OriginalComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 		{
-			if (Level)
-			{
-				NumActors += Level->Actors.Num();
-			}
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Components created dynamically in the construction script are not supported (%s). Skipping..."), *OriginalComponent->GetPathName());
+			return {};
 		}
-
-		ObjectArray.Reserve(NumActors);
-
-		for (ULevel* Level : World->GetLevels())
-		{
-			if (Level)
-			{
-				ObjectArray.Append(Level->Actors);
-			}
-		}
-
-		// Move temp to force optimization on debug / development builds
-		return MoveTemp(ObjectArray);
-	}
-
-	static void CaptureSnapshotData(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData)
-	{
-		FScopedSlowTask CaptureData(ActorsInWorld.Num(), LOCTEXT("CapturingWorldData", "Capturing data"));
-		CaptureData.MakeDialogDelayed(1.f);
-		
-		const bool bShouldLog = ConsoleVariables::CVarLogTimeTakingSnapshots.GetValueOnAnyThread();
-		FConditionalSortedScopedLog SortedLog(bShouldLog);
-		Algo::ForEach(ActorsInWorld, [&SnapshotData, &CaptureData, &SortedLog](AActor* Actor)
-		{
-			CaptureData.EnterProgressFrame();
-			
-			if (Restorability::IsActorDesirableForCapture(Actor))
-			{
-				FScopedLogItem LogTakeSnapshot = SortedLog.AddScopedLogItem(Actor->GetName());
-				SnapshotData.ActorData.Add(Actor, Internal::SnapshotActor(Actor, SnapshotData));
-			}
-		});
+		FComponentSnapshotData Result;
+		Result.CreationMethod = OriginalComponent->CreationMethod;
+		return Result;
 	}
 
 	static void ComputeActorHashes(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData)
@@ -154,22 +182,80 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 }
 
-FWorldSnapshotData UE::LevelSnapshots::Private::SnapshotWorld(UWorld* World)
+namespace UE::LevelSnapshots::Private::Internal
 {
-	FScopedSlowTask TakeSnapshotTask(2.f, LOCTEXT("TakeSnapshotKey", "Take snapshot"));
-	TakeSnapshotTask.MakeDialogDelayed(1.f);
+	static void PreloadClassesForRestore(FWorldSnapshotData& WorldData, const FPropertySelectionMap& SelectionMap);
+	static void ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize);
+	static void ApplyToWorld_HandleRecreatingActors(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
+	static void ApplyToWorld_HandleSerializingMatchingActors(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
 
-	const TArray<AActor*> ActorsInWorld = Internal::GetAllActorsIn(World);
-	FWorldSnapshotData SnapshotData;
-	SnapshotData.SnapshotVersionInfo.Initialize();
-	
-	TakeSnapshotTask.EnterProgressFrame(1.f);
-	Internal::CaptureSnapshotData(ActorsInWorld, SnapshotData);
-	
-	TakeSnapshotTask.EnterProgressFrame(1.f);
-	Internal::ComputeActorHashes(ActorsInWorld, SnapshotData);
+#if WITH_EDITOR
+	class FScopedEditorSelectionClearer
+	{
+		FSelectionStateOfLevel SelectionStateOfLevel;
+	public:
+		FScopedEditorSelectionClearer()
+		{
+			GEditor->GetSelectionStateOfLevel(SelectionStateOfLevel);
+			GEditor->SelectNone(true, true, false);
+		}
+		
+		~FScopedEditorSelectionClearer()
+		{
+			GEditor->SetSelectionStateOfLevel(SelectionStateOfLevel);
+		}
+	};
+#endif
+}
 
-	return MoveTemp(SnapshotData);
+void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
+{
+	check(WorldToApplyTo);
+	
+	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize.GetKeys();
+	const int32 NumActorsToRecreate = PropertiesToSerialize.GetDeletedActorsToRespawn().Num();
+	const int32 NumMatchingActors = SelectedPaths.Num();
+	FScopedSlowTask ApplyToWorldTask(NumActorsToRecreate + NumMatchingActors, LOCTEXT("ApplyToWorldKey", "Apply to world"));
+	ApplyToWorldTask.MakeDialogDelayed(1.f, true);
+	
+	// Certain custom Blueprint compilers, such as nDisplay, may reset the transaction context. That would cause a crash.
+	Internal::PreloadClassesForRestore(WorldData, PropertiesToSerialize);
+	
+#if WITH_EDITOR
+	// Deleting components while they are selected can cause a crash
+	Internal::FScopedEditorSelectionClearer RestoreSelection;
+	FScopedTransaction Transaction(LOCTEXT("ApplyToWorldKey", "Apply to world"));
+#endif
+
+	// It's important to call these events after the transaction has been started
+	FLevelSnapshotsModule::GetInternalModuleInstance().OnPreApplySnapshot({ PropertiesToSerialize });
+	ON_SCOPE_EXIT
+	{
+		FLevelSnapshotsModule::GetInternalModuleInstance().OnPostApplySnapshot({ PropertiesToSerialize });
+	};
+
+	// Clear editor world subobject cache from previous ApplyToWorld
+	for (auto SubobjectIt = Cache.SubobjectCache.CreateIterator(); SubobjectIt; ++SubobjectIt)
+	{
+		SubobjectIt->Value.EditorObject.Reset();
+	}
+	
+	Internal::ApplyToWorld_HandleRemovingActors(WorldToApplyTo, PropertiesToSerialize);
+	
+	TSet<AActor*> EvaluatedActors;
+	ApplyToWorldTask.EnterProgressFrame(NumActorsToRecreate);
+	Internal::ApplyToWorld_HandleRecreatingActors(WorldData, Cache, EvaluatedActors, LocalisationSnapshotPackage, PropertiesToSerialize);	
+
+	ApplyToWorldTask.EnterProgressFrame(NumMatchingActors);
+	Internal::ApplyToWorld_HandleSerializingMatchingActors(WorldData, Cache, EvaluatedActors, SelectedPaths, LocalisationSnapshotPackage, PropertiesToSerialize);
+	
+	// If we're in the editor then update the gizmos locations as they can get out of sync if any of the serialized actors were selected
+#if WITH_EDITOR
+	if (GUnrealEd)
+	{
+		GUnrealEd->UpdatePivotLocationForSelection();
+	}
+#endif
 }
 
 namespace UE::LevelSnapshots::Private::Internal
@@ -203,34 +289,29 @@ namespace UE::LevelSnapshots::Private::Internal
 #if WITH_EDITOR
 		const TSet<TWeakObjectPtr<AActor>>& ActorsToDespawn = PropertiesToSerialize.GetNewActorsToDespawn();
 		const bool bShouldDespawnActors = ActorsToDespawn.Num() > 0;
-		if (!bShouldDespawnActors || !ensure(GEditor))
+		if (!bShouldDespawnActors || !ensure(GUnrealEd))
 		{
 			return;
 		}
 	
 		// Not sure whether needed. "DELETE" command does in UUnrealEdEngine::Exec_Actor ...
 		FEditorDelegates::OnDeleteActorsBegin.Broadcast();
-
-		// Avoid accidentally deleting other user selected actors
-		GEditor->SelectNone(false, false, false);
 	
 		FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
-		USelection* EdSelectionManager = GEditor->GetSelectedActors();
-		EdSelectionManager->BeginBatchSelectOperation();
-		for (const TWeakObjectPtr<AActor>& ActorToDespawn: ActorsToDespawn)
+		TArray<AActor*> ActorsToDelete;
+		ActorsToDelete.Reserve(ActorsToDespawn.Num());
+		for (const TWeakObjectPtr<AActor>& ActorToDespawn : ActorsToDespawn)
 		{
-			if (ensureMsgf(ActorToDespawn.IsValid(), TEXT("Actor became invalid since selection set was created")))
+			if (ActorToDespawn.IsValid())
 			{
-				EdSelectionManager->Modify();
-				Module.OnPreRemoveActor(ActorToDespawn.Get());
-				GEditor->SelectActor(ActorToDespawn.Get(), /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+				Module.OnPreRemoveActor({ PropertiesToSerialize, ActorToDespawn.Get() });
+				ActorsToDelete.Add(ActorToDespawn.Get());
 			}
 		}
-		EdSelectionManager->EndBatchSelectOperation();
 
-		const bool bVerifyDeletionCanHappen = true;
-		const bool bWarnAboutReferences = false;
-		GEditor->edactDeleteSelected(WorldToApplyTo, bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+		constexpr bool bVerifyDeletionCanHappen = true;
+		constexpr bool bWarnAboutReferences = false;
+		GUnrealEd->DeleteActors(ActorsToDelete, WorldToApplyTo, GUnrealEd->GetSelectedActors()->GetElementSelectionSet(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
 
 		// ... and call the end event like in UUnrealEdEngine
 		FEditorDelegates::OnDeleteActorsEnd.Broadcast();
@@ -244,54 +325,12 @@ namespace UE::LevelSnapshots::Private::Internal
 			}
 		}
 #endif
+		
+		Module.OnPostRemoveActors({ PropertiesToSerialize });
 	}
-
-	static bool HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath)
-	{
-		UObject* FoundObject = FindObject<UObject>(nullptr, *OriginalRemovedActorPath.ToString());
-		if (!FoundObject)
-		{
-			return true;
-		}
-
-		// If it's not an actor nor component then it's possibly an UObjectRedirector
-		UActorComponent* AsComponent = Cast<UActorComponent>(FoundObject); // Unlikely
-		AActor* AsActor = AsComponent ? AsComponent->GetOwner() : Cast<AActor>(FoundObject);
-		const bool bShouldRename= AsActor != nullptr;
-		const bool bCanDestroy = IsValid(AsActor);
-		if (bCanDestroy)
-		{
-			UE_LOG(LogLevelSnapshots, Verbose, TEXT("Handeling name clash for %s"), *OriginalRemovedActorPath.ToString());
-			
-#if WITH_EDITOR
-			GEditor->SelectActor(AsActor, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
-			const bool bVerifyDeletionCanHappen = true;
-			const bool bWarnAboutReferences = false;
-			GEditor->edactDeleteSelected(AsActor->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
-#else
-			AsActor->Destroy(true, true);
-#endif
-		}
-
-		if (bShouldRename)
-		{
-			const FName NewName = MakeUniqueObjectName(FoundObject->GetOuter(), FoundObject->GetClass());
-			return FoundObject->Rename(*NewName.ToString(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-		}
-
-		return false;
-	}
-
-	static FString ExtractActorName(const FSoftObjectPath& OriginalRemovedActorPath)
-	{
-		const FString& SubObjectPath = OriginalRemovedActorPath.GetSubPathString();
-		const int32 LastDotIndex = SubObjectPath.Find(TEXT("."));
-		// Full string: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42 SubPath: PersistentLevel.StaticMeshActor_42 
-		checkf(LastDotIndex != INDEX_NONE, TEXT("There should always be at least one dot after PersistentLevel"));
-		const int32 NameLength = SubObjectPath.Len() - LastDotIndex - 1;
-		const FString ActorName = SubObjectPath.Right(NameLength);
-		return ActorName;
-	}
+	
+	static bool HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath);
+	static FString ExtractActorName(const FSoftObjectPath& OriginalRemovedActorPath);
 	
 	static void ApplyToWorld_HandleRecreatingActors(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 	{
@@ -399,6 +438,53 @@ namespace UE::LevelSnapshots::Private::Internal
 			}
 		}
 	}
+
+	static bool HandleNameClash(const FSoftObjectPath& OriginalRemovedActorPath)
+	{
+		UObject* FoundObject = FindObject<UObject>(nullptr, *OriginalRemovedActorPath.ToString());
+		if (!FoundObject)
+		{
+			return true;
+		}
+
+		// If it's not an actor nor component then it's possibly an UObjectRedirector
+		UActorComponent* AsComponent = Cast<UActorComponent>(FoundObject); // Unlikely
+		AActor* AsActor = AsComponent ? AsComponent->GetOwner() : Cast<AActor>(FoundObject);
+		const bool bShouldRename= AsActor != nullptr;
+		const bool bCanDestroy = IsValid(AsActor);
+		if (bCanDestroy)
+		{
+			UE_LOG(LogLevelSnapshots, Verbose, TEXT("Handeling name clash for %s"), *OriginalRemovedActorPath.ToString());
+			
+#if WITH_EDITOR
+			GEditor->SelectActor(AsActor, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+			const bool bVerifyDeletionCanHappen = true;
+			const bool bWarnAboutReferences = false;
+			GEditor->edactDeleteSelected(AsActor->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+#else
+			AsActor->Destroy(true, true);
+#endif
+		}
+
+		if (bShouldRename)
+		{
+			const FName NewName = MakeUniqueObjectName(FoundObject->GetOuter(), FoundObject->GetClass());
+			return FoundObject->Rename(*NewName.ToString(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		}
+
+		return false;
+	}
+
+	static FString ExtractActorName(const FSoftObjectPath& OriginalRemovedActorPath)
+	{
+		const FString& SubObjectPath = OriginalRemovedActorPath.GetSubPathString();
+		const int32 LastDotIndex = SubObjectPath.Find(TEXT("."));
+		// Full string: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42 SubPath: PersistentLevel.StaticMeshActor_42 
+		checkf(LastDotIndex != INDEX_NONE, TEXT("There should always be at least one dot after PersistentLevel"));
+		const int32 NameLength = SubObjectPath.Len() - LastDotIndex - 1;
+		const FString ActorName = SubObjectPath.Right(NameLength);
+		return ActorName;
+	}
 	
 	static void ApplyToWorld_HandleSerializingMatchingActors(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 	{
@@ -453,68 +539,6 @@ namespace UE::LevelSnapshots::Private::Internal
 			ExitingActorTask.EnterProgressFrame(1);
 		}
 	}
-
-#if WITH_EDITOR
-	class FScopedEditorSelectionClearer
-	{
-		FSelectionStateOfLevel SelectionStateOfLevel;
-	public:
-		FScopedEditorSelectionClearer()
-		{
-			GEditor->GetSelectionStateOfLevel(SelectionStateOfLevel);
-			GEditor->SelectNone(true, true, false);
-		}
-		
-		~FScopedEditorSelectionClearer()
-		{
-			GEditor->SetSelectionStateOfLevel(SelectionStateOfLevel);
-		}
-	};
-#endif
-}
-
-void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
-{
-	using namespace UE::LevelSnapshots::Private::Internal;
-	check(WorldToApplyTo);
-	
-	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize.GetKeys();
-	const int32 NumActorsToRecreate = PropertiesToSerialize.GetDeletedActorsToRespawn().Num();
-	const int32 NumMatchingActors = SelectedPaths.Num();
-	FScopedSlowTask ApplyToWorldTask(NumActorsToRecreate + NumMatchingActors, LOCTEXT("ApplyToWorldKey", "Apply to world"));
-	ApplyToWorldTask.MakeDialogDelayed(1.f, true);
-	
-	// Certain custom Blueprint compilers, such as nDisplay, may reset the transaction context. That would cause a crash.
-	PreloadClassesForRestore(WorldData, PropertiesToSerialize);
-	
-#if WITH_EDITOR
-	// Deleting components while they are selected can cause a crash
-	FScopedEditorSelectionClearer RestoreSelection;
-	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
-#endif
-
-	// Clear editor world subobject cache from previous ApplyToWorld
-	for (auto SubobjectIt = Cache.SubobjectCache.CreateIterator(); SubobjectIt; ++SubobjectIt)
-	{
-		SubobjectIt->Value.EditorObject.Reset();
-	}
-	
-	ApplyToWorld_HandleRemovingActors(WorldToApplyTo, PropertiesToSerialize);
-	
-	TSet<AActor*> EvaluatedActors;
-	ApplyToWorldTask.EnterProgressFrame(NumActorsToRecreate);
-	ApplyToWorld_HandleRecreatingActors(WorldData, Cache, EvaluatedActors, LocalisationSnapshotPackage, PropertiesToSerialize);	
-
-	ApplyToWorldTask.EnterProgressFrame(NumMatchingActors);
-	ApplyToWorld_HandleSerializingMatchingActors(WorldData, Cache, EvaluatedActors, SelectedPaths, LocalisationSnapshotPackage, PropertiesToSerialize);
-	
-	// If we're in the editor then update the gizmos locations as they can get out of sync if any of the serialized actors were selected
-#if WITH_EDITOR
-	if (GUnrealEd)
-	{
-		GUnrealEd->UpdatePivotLocationForSelection();
-	}
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE

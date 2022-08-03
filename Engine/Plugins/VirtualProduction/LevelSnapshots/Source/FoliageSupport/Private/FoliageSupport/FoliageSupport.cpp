@@ -212,9 +212,9 @@ void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PostRecreateActor(AA
 	}
 }
 
-void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PreRemoveActor(AActor* ActorToRemove)
+void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PreRemoveActor(const FPreRemoveActorParams& Params)
 {
-	if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(ActorToRemove))
+	if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Params.ActorToRemove))
 	{
 		FoliageActor->GetLevel()->InstancedFoliageActor.Reset();
 	}

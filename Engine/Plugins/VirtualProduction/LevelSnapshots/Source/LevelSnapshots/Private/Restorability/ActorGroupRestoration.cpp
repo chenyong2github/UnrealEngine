@@ -3,7 +3,9 @@
 #include "ActorGroupRestoration.h"
 
 #include "LevelSnapshot.h"
+#include "Algo/AllOf.h"
 #include "Editor/GroupActor.h"
+#include "GameFramework/WorldSettings.h"
 #include "Params/PropertyComparisonParams.h"
 #include "Selection/PropertySelectionMap.h"
 #include "Util/EquivalenceUtil.h"
@@ -22,10 +24,12 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 		}
 	}
 	
-	class FActorGroupRestoration : public IRestorationListener, public IPropertyComparer
+	class FActorGroupRestoration : public IRestorationListener, public IPropertyComparer, public IActorSnapshotFilter
 	{
 		const FProperty* GroupActorsProperty = AGroupActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(AGroupActor, GroupActors));
 		const FProperty* SubGroupsProperty = AGroupActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(AGroupActor, SubGroups));
+
+		TSet<TWeakObjectPtr<AGroupActor>> ActorsWithDummyChild;
 		
 		template<typename TActor>
 		void RegisterActorsWithGroup(AGroupActor& GroupActor, TArray<TObjectPtr<TActor>>& Actors)
@@ -108,6 +112,12 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 			return false;
 		}
 
+		AActor* GetHiddenDummyActorInWorld(UWorld& World)
+		{
+			// Should not be nullptr
+			return World.GetWorldSettings();
+		}
+
 	public:
 
 		FActorGroupRestoration()
@@ -138,16 +148,43 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 
 			return EPropertyComparison::CheckNormally;
 		}
-
-		virtual void PreRemoveActor(AActor* ActorToRemove) override
+		
+		virtual void PreRemoveActor(const FPreRemoveActorParams& Params) override
 		{
-			if (AGroupActor* GroupActor = Cast<AGroupActor>(ActorToRemove))
+			if (AGroupActor* GroupActor = Cast<AGroupActor>(Params.ActorToRemove))
 			{
 				// This prevents the actors part of this group from also being deleted.
 				// This still allows users to include them in the deleted set of actors (that's good).
 				GroupActor->GroupActors.Reset();
 				GroupActor->SubGroups.Reset();
 			}
+			else if (AGroupActor* OwningActor = Cast<AGroupActor>(Params.ActorToRemove->GroupActor))
+			{
+				AActor* DummyActor = GetHiddenDummyActorInWorld(*OwningActor->GetWorld());
+				// Workflow: 1. Remove all actors in a group (e.g. they're all new) 2. Serialize new children into GroupActor
+				// The removal process would accidentally delete remove the group actor because it would no longer have any children
+				if (const FPropertySelection* Selection = Params.SelectedProperties.GetObjectSelection(OwningActor).GetPropertySelection()
+					; Selection && Selection->IsPropertySelected(nullptr, GroupActorsProperty) && DummyActor)
+				{
+					// This is pretty hacky but it will prevent AGroupActor::PostRemove from deleting the actor
+					OwningActor->GroupActors.Add(DummyActor);
+					ActorsWithDummyChild.Add(OwningActor);
+				}
+			}
+		}
+
+		virtual void PostRemoveActors(const FPostRemoveActorsParams& Params) override
+		{
+			// "Fix" the hack we did in PreRemoveActor
+			for (TWeakObjectPtr<AGroupActor> GroupActor : ActorsWithDummyChild)
+			{
+				if (GroupActor.IsValid())
+				{
+					AActor* DummyActor = GetHiddenDummyActorInWorld(*GroupActor->GetWorld());
+					GroupActor->GroupActors.Remove(DummyActor);
+				}
+			}
+			ActorsWithDummyChild.Reset();
 		}
 
 		virtual void PreApplySnapshotToActor(const FApplySnapshotToActorParams& Params) override
@@ -159,7 +196,7 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 				// Clear every actor's AActor::GroupActor property if we're about to modify the GroupActor.
 				// The new actors will get reregistered in PostApplySnapshotToActor
 				// This is done so actors that will no longer be part of the group after the restore know they're no longer part of the group;
-				// otherwise you can click the actor in the World Outliner and it will highlight the old group
+				// otherwise you can click an actor that was removed in the World Outliner and it will highlight the old group
 				if (Selection.GetPropertySelection() && Selection.GetPropertySelection()->IsPropertySelected(nullptr, GroupActorsProperty))
 				{
 					UnregisterActorsFromGroup(*GroupActor, GroupActor->GroupActors);
@@ -180,7 +217,27 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 				
 				RegisterActorsWithGroup(*GroupActor, GroupActor->GroupActors);
 				RegisterActorsWithGroup(*GroupActor, GroupActor->SubGroups);
+
+				// Hacky way of forcing GroupActor to reconsider whether it should exist...
+				// References can fail to restore ... possibly there are no children
+				GroupActor->Remove(*GroupActor);
 			}
+		}
+
+		virtual EFilterResult CanRecreateActor(const FCanRecreateActorParams& Params) override
+		{
+			if (Params.Class == AGroupActor::StaticClass())
+			{
+				if (const TOptional<TNonNullPtr<AActor>> SnapshotActor = Params.DeserializeFromSnapshotFunc())
+				{
+					const AGroupActor* AsGroupActor = Cast<AGroupActor>(SnapshotActor.GetValue());
+					check(AsGroupActor);
+					return Algo::AllOf(AsGroupActor->GroupActors, [](AActor* Actor){ return Actor != nullptr; })
+						? EFilterResult::DoNotCare : EFilterResult::Disallow;
+				}
+			}
+
+			return EFilterResult::DoNotCare;
 		}
 	};
 #endif
@@ -191,6 +248,7 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 		AddActorGroupSupport(Module);
 		const TSharedRef<FActorGroupRestoration> ActorGroupSupport = MakeShared<FActorGroupRestoration>();
 		Module.RegisterRestorationListener(ActorGroupSupport);
+		Module.RegisterGlobalActorFilter(ActorGroupSupport);
 		Module.RegisterPropertyComparer(AGroupActor::StaticClass(), ActorGroupSupport);
 #endif
 	}

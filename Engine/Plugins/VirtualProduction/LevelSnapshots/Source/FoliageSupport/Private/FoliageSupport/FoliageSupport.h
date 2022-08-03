@@ -53,7 +53,7 @@ namespace UE::LevelSnapshots::Foliage::Private
 		virtual void PostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params) override;
 		virtual void PreRecreateActor(UWorld* World, TSubclassOf<AActor> ActorClass, FActorSpawnParameters& InOutSpawnParameters) override;
 		virtual void PostRecreateActor(AActor* RecreatedActor) override;
-		virtual void PreRemoveActor(AActor* ActorToRemove) override;
+		virtual void PreRemoveActor(const FPreRemoveActorParams& Params) override;
 		virtual void PreRemoveComponent(UActorComponent* ComponentToRemove) override;
 		//~ End IRestorationListener Interface
 	};

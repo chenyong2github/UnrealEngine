@@ -2,13 +2,14 @@
 
 #include "Restorability/SnapshotRestorability.h"
 
+#include "Interfaces/IActorSnapshotFilter.h"
 #include "Landscape.h"
 #include "LandscapeGizmoActor.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
+
 #include "AI/NavigationSystemConfig.h"
 #include "Algo/AllOf.h"
-
 #include "Components/ActorComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/BrushBuilder.h"
@@ -24,7 +25,7 @@
 
 namespace UE::LevelSnapshots::Restorability::Private::Internal
 {
-	static bool DoesActorHaveSupportedClass(const AActor* Actor)
+	static bool DoesActorHaveSupportedClass(const UClass* ActorClass)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -36,7 +37,7 @@ namespace UE::LevelSnapshots::Restorability::Private::Internal
 			ALandscapeGizmoActor::StaticClass()
         };
 
-		return Algo::AllOf(UnsupportedClasses, [Actor](UClass *Class) { return !Actor->IsA(Class); });
+		return Algo::AllOf(UnsupportedClasses, [ActorClass](UClass* Class) { return !ActorClass->IsChildOf(Class); });
 	}
 
 	static bool DoesActorHaveSupportedClassForRemoving(const AActor* Actor)
@@ -92,7 +93,7 @@ bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor*
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsActorDesirableForCapture);
 
-	if (!IsValid(Actor) || !Private::Internal::DoesActorHaveSupportedClass(Actor))
+	if (!IsValid(Actor) || !Private::Internal::DoesActorHaveSupportedClass(Actor->GetClass()))
 	{
 		return false;
 	}
@@ -214,9 +215,16 @@ bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlySupportedForCapture(
 	return UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
 }
 
+bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params)
+{
+	return LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params);
+}
+
 bool UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
 {
-	return Private::Internal::DoesActorHaveSupportedClassForRemoving(Actor) && IsActorDesirableForCapture(Actor);
+	return Private::Internal::DoesActorHaveSupportedClassForRemoving(Actor)
+		&& IsActorDesirableForCapture(Actor)
+		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanDeleteActor(Actor);
 }
 
 bool UE::LevelSnapshots::Restorability::IsRestorableProperty(const FProperty* LeafProperty)

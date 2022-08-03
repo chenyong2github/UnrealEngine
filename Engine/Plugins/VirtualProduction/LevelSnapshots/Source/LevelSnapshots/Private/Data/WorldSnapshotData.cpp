@@ -7,6 +7,7 @@
 #include "Util/Property/PropertyIterator.h"
 
 #include "Serialization/BufferArchive.h"
+#include "Util/SnapshotUtil.h"
 #include "Util/WorldData/ClassDataUtil.h"
 #include "Util/WorldData/CompressionUtil.h"
 
@@ -60,11 +61,24 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 	}
 	
-	static void CollectReferencesAndNames(FWorldSnapshotData& WorldData, FArchive& Ar)
+	static void CollectReferencesAndNames(bool bSkipActorReferences, FWorldSnapshotData& WorldData, FArchive& Ar)
 	{
 		// References
-		Ar << WorldData.SerializedObjectReferences;
-		CollectActorReferences(WorldData, Ar);
+		if (bSkipActorReferences)
+		{
+			for (FSoftObjectPath& Path : WorldData.SerializedObjectReferences)
+			{
+				if (!IsPathToWorldObject(Path))
+				{
+					Ar << Path;
+				}
+			}
+		}
+		else
+		{
+			Ar << WorldData.SerializedObjectReferences;
+			CollectActorReferences(WorldData, Ar);
+		}
 		CollectClassDefaultReferences(WorldData, Ar);
 
 		// Names
@@ -179,11 +193,15 @@ bool FWorldSnapshotData::Serialize(FArchive& Ar)
 {
 	using namespace UE::LevelSnapshots::Private;
 	Ar.UsingCustomVersion(FSnapshotCustomVersion::GUID);
-	
+
 	// When this struct is saved, the save algorithm collects references. It's faster if we just give it the info directly.
 	if (Ar.IsObjectReferenceCollector())
 	{
-		UE::LevelSnapshots::Private::Internal::CollectReferencesAndNames(*this, Ar);
+		// Actor references must not be renamed because a snapshot is supposed to keep track of what was in the level at a given time.
+		// If an actor is renamed or moved to another level, the snapshot should ignore those changes.
+		const bool bIsRenameArchive = !Ar.IsPersistent() && Ar.IsSaving() && Ar.IsModifyingWeakAndStrongReferences();
+		const bool bSkipActorReferences = bIsRenameArchive;
+		UE::LevelSnapshots::Private::Internal::CollectReferencesAndNames(bSkipActorReferences, *this, Ar);
 		return true;
 	}
 

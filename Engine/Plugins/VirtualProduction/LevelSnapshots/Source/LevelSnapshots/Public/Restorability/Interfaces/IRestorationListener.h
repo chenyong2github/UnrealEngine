@@ -15,6 +15,29 @@ struct FPropertySelectionMap;
 
 namespace UE::LevelSnapshots
 {
+	struct FApplySnapshotParams
+	{
+		/** All of the user's selected properties */
+		const FPropertySelectionMap& SelectedProperties;
+
+		FApplySnapshotParams(const FPropertySelectionMap& SelectedProperties)
+			: SelectedProperties(SelectedProperties)
+		{}
+	};
+
+	struct FPreRemoveActorParams : FApplySnapshotParams
+	{
+		AActor* ActorToRemove;
+
+		FPreRemoveActorParams(const FPropertySelectionMap& SelectedProperties, AActor* ActorToRemove)
+			: FApplySnapshotParams(SelectedProperties),
+			  ActorToRemove(ActorToRemove)
+		{}
+	};
+
+	struct FPostRemoveActorsParams : FApplySnapshotParams
+	{};
+	
 	struct FApplySnapshotPropertiesParams
 	{
 		/** The object that receives serialized data. */
@@ -107,6 +130,14 @@ namespace UE::LevelSnapshots
 	class LEVELSNAPSHOTS_API IRestorationListener
 	{
 	public:
+
+		/** Called before the snapshot is applied. Except for the changes made by this event, the world has not been changed, yet. */
+		virtual void PreApplySnapshot(const FApplySnapshotParams& Params) {}
+		
+		/** Called after all snapshot data was applied. The world is nearly completely changed (the only thing remaining is executing this event). */
+		virtual void PostApplySnapshot(const FApplySnapshotParams& Params) {}
+
+
 		
 		/**
 		 * Called before applying snapshot data to an object.
@@ -141,6 +172,7 @@ namespace UE::LevelSnapshots
 		 */
 		virtual void PostApplySnapshotToActor(const FApplySnapshotToActorParams& Params) {}
 
+		
 
 		/**
 		 * Called before an actor is recreated to the world and gives the opportunity to override settings.
@@ -150,13 +182,18 @@ namespace UE::LevelSnapshots
 		
 		/** Called after an actor is recreated to the world (but before any data is applied to it) */
 		virtual void PostRecreateActor(AActor* RecreatedActor) {}
+		
 
-
+		UE_DEPRECATED(5.1, "Use PreRemoveActor(const FPreRemoveActorParams& Params) instead")
+		virtual void PreRemoveActor(AActor* ActorToRemove) {}
 		
 		/** Called before an actor is removed from the world. */
-		virtual void PreRemoveActor(AActor* ActorToRemove) {}
-
+		virtual void PreRemoveActor(const FPreRemoveActorParams& Params) {}
 		
+		/** Called after all actors have been removed from the world */
+		virtual void PostRemoveActors(const FPostRemoveActorsParams& Params) {}
+		
+
 		
 		/**
 		 * Called before a component is recreated on an actor.

@@ -4,9 +4,18 @@
 
 #include "CoreMinimal.h"
 
+
 class AActor;
 class FProperty;
 class UActorComponent;
+
+namespace UE
+{
+	namespace LevelSnapshots
+	{
+		struct FCanRecreateActorParams;
+	}
+}
 
 namespace UE::LevelSnapshots::Restorability
 {
@@ -30,6 +39,8 @@ namespace UE::LevelSnapshots::Restorability
 	/* Is this property always captured by the snapshot system? */
 	LEVELSNAPSHOTS_API bool IsPropertyExplicitlySupportedForCapture(const FProperty* Property);
 
+	/** The actor actors was removed from the snapshot. Should we show it in the list of removed actors? */
+	LEVELSNAPSHOTS_API bool ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params);
 	/* The actor did not exist in the snapshot. Should we show it in the list of added actors? */
 	LEVELSNAPSHOTS_API bool ShouldConsiderNewActorForRemoval(const AActor* Actor);
 	

@@ -8,6 +8,7 @@
 #include "Interfaces/IPropertyComparer.h"
 #include "Interfaces/ISnapshotRestorabilityOverrider.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "Interfaces/IActorSnapshotFilter.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -54,26 +55,22 @@ namespace UE::LevelSnapshots
 
 		/** Queries the attached snapshot delegate and determines if we can take a snapshot.*/
 		virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const = 0;
-
 		
 
 		/** Snapshots will no longer capture nor restore subobjects of this class. Subclasses are implicitly skipped as well. */
 		virtual void AddSkippedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
 		virtual void RemoveSkippedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
 		
-
 		
 		/* Registers callbacks that override which actors, components, and properties are restored by default. */
 		virtual void RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
 		/* Unregisters an overrider previously registered. */
-		virtual void UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
-
+		virtual void UnregisterRestorabilityOverrider(const TSharedRef<ISnapshotRestorabilityOverrider>& Overrider) = 0;
 		
 		
 		/* Registers a callback for deciding whether a property should be considered changed. Applies to all sub-classes. */
 		virtual void RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
-		virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) = 0;
-
+		virtual void UnregisterPropertyComparer(UClass* Class, const TSharedRef<IPropertyComparer>& Comparer) = 0;
 		
 		
 		/**
@@ -86,16 +83,21 @@ namespace UE::LevelSnapshots
 		 */
 		virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true) = 0;
 		virtual void UnregisterCustomObjectSerializer(UClass* Class) = 0;
+		
+		
+		/** Registers callbacks for external systems to decide whether a given actor can be modified, recreated, or removed from the world. */
+		virtual void RegisterGlobalActorFilter(TSharedRef<IActorSnapshotFilter> Filter) = 0;
+		virtual void UnregisterGlobalActorFilter(const TSharedRef<IActorSnapshotFilter>& Filter) = 0;
 
 
 		/** Register an object that will receive callbacks when a snapshot is loaded */
 		virtual void RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) = 0;
-		virtual void UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader) = 0;
+		virtual void UnregisterSnapshotLoader(const TSharedRef<ISnapshotLoader>& Loader) = 0;
 		
 		
 		/** Registers an object that will receive callbacks when a snapshot is applied. */
 		virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
-		virtual void UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
+		virtual void UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener) = 0;
 		
 		
 		/**

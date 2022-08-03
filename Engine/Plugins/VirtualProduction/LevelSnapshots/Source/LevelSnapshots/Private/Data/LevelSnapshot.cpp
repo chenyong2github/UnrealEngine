@@ -45,6 +45,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	};
 	
 	EnsureWorldInitialised();
+	
 	UE::LevelSnapshots::Private::ApplyToWorld(SerializedData, Cache, TargetWorld, GetPackage(), SelectionSet);
 }
 
@@ -181,12 +182,12 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 }
 
-void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
+void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor)
 {
 	DiffWorld(World, FActorConsumer::CreateLambda([&HandleMatchedActor](AActor* Actor){ HandleMatchedActor.Execute(Actor); }), HandleRemovedActor, HandleAddedActor);
 }
 
-void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
+void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld);
 	
@@ -244,7 +245,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 		const bool bShouldLogDiffWorldTimes = UE::LevelSnapshots::ConsoleVariables::CVarLogTimeDiffingMatchedActors.GetValueOnAnyThread();
 		FConditionalSortedScopedLog SortedItems(bShouldLogDiffWorldTimes);
 		
-		SerializedData.ForEachOriginalActor([this, &HandleMatchedActor, &HandleRemovedActor, &HandleAddedActor, &AllActors, &LoadedLevels, Settings, &DebugActorName, &SortedItems](const FSoftObjectPath& OriginalActorPath, const FActorSnapshotData& SavedData)
+		SerializedData.ForEachOriginalActor([this, World, &HandleMatchedActor, &HandleRemovedActor, &HandleAddedActor, &AllActors, &LoadedLevels, Settings, &DebugActorName, &SortedItems](const FSoftObjectPath& OriginalActorPath, const FActorSnapshotData& SavedData)
 		{
 			const FSoftObjectPath LevelPath = OriginalActorPath.GetAssetPathString();
 			if (!LoadedLevels.Contains(LevelPath))
@@ -253,21 +254,24 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 				return;
 			}
 			
-			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
-			// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
-			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
-			// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
-			if (bWasRemovedFromWorld)
-			{
-				HandleRemovedActor.Execute(OriginalActorPath);
-				return;
-			}
-
 			const FSoftClassPath ClassPath = UE::LevelSnapshots::Private::GetClass(SavedData, SerializedData);
-			const UClass* ActorClass = ClassPath.TryLoadClass<AActor>();
+			UClass* const ActorClass = ClassPath.TryLoadClass<AActor>();
 			if (!ActorClass)
 			{
 				UE_LOG(LogLevel, Warning, TEXT("Cannot find class %s. Saved actor %s will not be restored."), *ClassPath.ToString(), *OriginalActorPath.ToString());
+				return;
+			}
+			
+			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
+			// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
+			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
+			if (bWasRemovedFromWorld)
+			{
+				const UE::LevelSnapshots::FCanRecreateActorParams Params { World, ActorClass, OriginalActorPath, [this, &OriginalActorPath](){ return GetDeserializedActor(OriginalActorPath); } };
+				if (UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(Params))
+				{
+					HandleRemovedActor.Execute(OriginalActorPath);
+				}
 				return;
 			}
 			if (Settings->SkippedClasses.SkippedClasses.Contains(ActorClass))
@@ -436,6 +440,8 @@ void ULevelSnapshot::DestroyWorld()
 		{
 			Sublevel->CleanupWorld();
 		}
+		// Cleanup world clears RF_Standalone flag...
+		SetFlags(RF_Standalone);
 		
 		RootSnapshotWorld = nullptr;
 		SnapshotSublevels.Reset();
