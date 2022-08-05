@@ -241,26 +241,6 @@ void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 	}
 }
 
-void UDMXEntityFixtureType::PostLoad()
-{
-	Super::PostLoad();
-
-#if WITH_EDITOR
-	// Upgrade the GDTF type from the base DMXImport to the actual DMXImportGDTF type which was always used.
-	// Name the new variable 'GDTF' to make the purpose of the variable more clear, namely holding a GDTF asset.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if(DMXImport_DEPRECATED)
-	{
-		if (UDMXImportGDTF* OldGDTF = Cast<UDMXImportGDTF>(DMXImport_DEPRECATED))
-		{
-			GDTF = OldGDTF;
-			DMXImport_DEPRECATED = nullptr;
-		}
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
 #if WITH_EDITOR
 bool UDMXEntityFixtureType::Modify(bool bAlwaysMarkDirty)
 {
@@ -320,18 +300,19 @@ void UDMXEntityFixtureType::PostEditUndo()
 }
 #endif // WITH_EDITOR
 
-void UDMXEntityFixtureType::SetGDTF(UDMXImportGDTF* GDTFAsset)
+#if WITH_EDITOR
+void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 {
-	if (!IsValid(GDTFAsset))
+	if (!IsValid(DMXImportAsset))
 	{
 		return;
 	}
 
-	GDTF = GDTFAsset;
-	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(GDTF->DMXModes))
+	DMXImport = DMXImportAsset;
+	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(DMXImport->DMXModes))
 	{
 		// Clear existing modes
-		Modes.Empty(GDTF->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
+		Modes.Empty(DMXImport->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
 
 		// Used to map Functions to Attributes
 		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
@@ -450,17 +431,7 @@ void UDMXEntityFixtureType::SetGDTF(UDMXImportGDTF* GDTFAsset)
 
 	OnFixtureTypeChangedDelegate.Broadcast(this);
 }
-
-void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
-{
-	UDMXImportGDTF* GDTFAsset = Cast<UDMXImportGDTF>(DMXImportAsset);
-	if (!ensureAlwaysMsgf(GDTFAsset, TEXT("DMXImportAsset %s is not a DMXImportGDTF type, this was never supported. Cannot SetModesFromDMXImport"), *DMXImportAsset->GetName()))
-	{
-		return;
-	}
-
-	SetGDTF(GDTFAsset);
-}
+#endif // WITH_EDITOR
 
 FDMXOnFixtureTypeChangedDelegate& UDMXEntityFixtureType::GetOnFixtureTypeChanged()
 {
@@ -566,21 +537,7 @@ void UDMXEntityFixtureType::SetFixtureMatrixEnabled(int32 ModeIndex, bool bEnabl
 		{
 			Mode.bFixtureMatrixEnabled = bEnableMatrix;
 
-			// Align functions and matrix
-			int32 NextFreeChannel = 1;
-			bool bHandledMatrix = !bEnableMatrix;
-			for (FDMXFixtureFunction& Function : Mode.Functions)
-			{
-				if (!bHandledMatrix && Mode.FixtureMatrixConfig.FirstCellChannel <= NextFreeChannel)
-				{
-					Mode.FixtureMatrixConfig.FirstCellChannel = NextFreeChannel;
-					NextFreeChannel = NextFreeChannel + Mode.FixtureMatrixConfig.GetNumChannels();
-					bHandledMatrix = true;
-				}
-
-				Function.Channel = NextFreeChannel;
-				NextFreeChannel = Function.GetLastChannel() + 1;
-			}
+			AlignFunctionChannels(ModeIndex);
 		}
 	}
 }
@@ -612,6 +569,31 @@ void UDMXEntityFixtureType::UpdateChannelSpan(int32 ModeIndex)
 			HighestChannel = LastChannelOfMatrix > HighestChannel ? LastChannelOfMatrix : HighestChannel;
 
 			Mode.ChannelSpan = FMath::Max(HighestChannel - LowestChannel + 1, 0);
+		}
+	}
+}
+
+void UDMXEntityFixtureType::AlignFunctionChannels(int32 ModeIndex)
+{
+	if (ensureMsgf(Modes.IsValidIndex(ModeIndex), TEXT("Invalid Mode Index when aligning the Channels of all Functions in a Mode.")))
+	{
+		FDMXFixtureMode& Mode = Modes[ModeIndex];
+
+		// Align functions and matrix
+		int32 NextFreeChannel = 1;
+		bool bHandledMatrix = !Mode.bFixtureMatrixEnabled;
+		for (FDMXFixtureFunction& Function : Mode.Functions)
+		{
+			if (!bHandledMatrix && 
+				(Mode.FixtureMatrixConfig.FirstCellChannel <= NextFreeChannel || Mode.FixtureMatrixConfig.FirstCellChannel <= Function.Channel))
+			{
+				Mode.FixtureMatrixConfig.FirstCellChannel = NextFreeChannel;
+				NextFreeChannel = NextFreeChannel + Mode.FixtureMatrixConfig.GetNumChannels();
+				bHandledMatrix = true;
+			}
+
+			Function.Channel = NextFreeChannel;
+			NextFreeChannel = Function.GetLastChannel() + 1;
 		}
 	}
 }

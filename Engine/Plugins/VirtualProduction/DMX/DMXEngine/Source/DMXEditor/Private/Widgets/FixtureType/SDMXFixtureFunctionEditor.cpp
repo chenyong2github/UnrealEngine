@@ -89,8 +89,12 @@ void SDMXFixtureFunctionEditor::NotifyPostChange(const FPropertyChangedEvent& Pr
 				int32 ResultingStartingChannel;
 				FixtureType->SetFunctionStartingChannel(ModeIndex, FunctionIndex, FunctionBeingEditedPtr->Channel, ResultingStartingChannel);
 			}
-			else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType) ||
-				PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue))
+			else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
+			{
+				FixtureType->AlignFunctionChannels(ModeIndex);
+				FixtureType->ClampFunctionDefautValueByDataType(ModeIndex, FunctionIndex);
+			}
+			else if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue))
 			{
 				FixtureType->ClampFunctionDefautValueByDataType(ModeIndex, FunctionIndex);
 			}

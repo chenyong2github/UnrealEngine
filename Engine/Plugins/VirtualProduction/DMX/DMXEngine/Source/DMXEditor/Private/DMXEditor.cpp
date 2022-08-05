@@ -163,8 +163,9 @@ void FDMXEditor::ExportDMXLibrary() const
 			return;
 		}
 
-		const bool bExportSuccess = FDMXMVRExporter::Export(DMXLibrary, SaveFilenames[0]);
-		if (bExportSuccess)
+		FText ErrorReason;
+		FDMXMVRExporter::Export(DMXLibrary, SaveFilenames[0], ErrorReason);
+		if (ErrorReason.IsEmpty())
 		{
 			const FString SavePath = FPaths::GetPath(SaveFilenames[0]);
 			DMXEditorSettings->LastMVRExportPath = SavePath;
@@ -176,7 +177,7 @@ void FDMXEditor::ExportDMXLibrary() const
 		}
 		else
 		{
-			FNotificationInfo NotificationInfo(LOCTEXT("ExportDMXLibraryAsMVRFailureNotification", "Failed to export MVR"));
+			FNotificationInfo NotificationInfo(ErrorReason);
 			NotificationInfo.ExpireDuration = 10.f;
 			NotificationInfo.Image = FAppStyle::GetBrush("Icons.Warning");
 

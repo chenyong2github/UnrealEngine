@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 
 class FDMXZipper;
+class UDMXEntityFixtureType;
+class UDMXGDTFAssetImportData;
 class UDMXLibrary;
 class UDMXMVRAssetImportData;
 class UDMXMVRGeneralSceneDescription;
@@ -17,21 +19,27 @@ class FDMXMVRExporter
 {
 public:
 	/** Exports the DMX Library as MVR File */
-	static bool Export(UDMXLibrary* DMXLibrary, const FString& FilePathAndName);
+	static void Export(UDMXLibrary* DMXLibrary, const FString& FilePathAndName, FText& OutErrorReason);
 
 private:
-	/** Exports the DMX Library as MVR File */
-	UE_NODISCARD bool ExportInternal(UDMXLibrary* DMXLibrary, const FString& FilePathAndName);
+	/** Exports the DMX Library as MVR File. If OutErrorReason is not empty there were issues with the export. */
+	void ExportInternal(UDMXLibrary* DMXLibrary, const FString& FilePathAndName, FText& OutErrorReason);
 
 	/** Zips the GeneralSceneDescription.xml */
 	UE_NODISCARD bool ZipGeneralSceneDescription(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription);
 
 	/** Zips the GDTFs from the Library */
-	void ZipGDTFs(const TSharedRef<FDMXZipper>& Zip, UDMXLibrary* DMXLibrary);
+	UE_NODISCARD bool ZipGDTFs(const TSharedRef<FDMXZipper>& Zip, UDMXLibrary* DMXLibrary);
 
 	/** Zips 3rd Party Data from the MVR Asset Import Data */
 	void ZipThirdPartyData(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription);
 
 	/** Creates an General Scene Description Xml File from the MVR Source, as it was imported */
 	const TSharedPtr<FXmlFile> CreateSourceGeneralSceneDescriptionXmlFile(const UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const;
+
+	/** 
+	 * Gets raw source data or creates (possibly empty) source data where the source data is not present. 
+	 * Prior 5.1 there was no source data stored. Offers a dialog to load missing data 
+	 */
+	const TArray64<uint8>& RefreshSourceDataAndFixtureType(UDMXEntityFixtureType& FixtureType, UDMXGDTFAssetImportData& InOutGDTFAssetImportData) const;
 };

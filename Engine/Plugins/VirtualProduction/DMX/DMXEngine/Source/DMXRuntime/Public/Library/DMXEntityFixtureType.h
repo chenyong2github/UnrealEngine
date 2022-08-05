@@ -303,7 +303,6 @@ public:
 
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -312,29 +311,18 @@ public:
 #endif
 	//~ End UObject interface
 
-
 public:
-	/** Sets the GDTF for this Fixture Type. Note, this clears the fixture type so that the Fixture Type reflects the GDTF. Merging is not supported. */
+#if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Fixture Settings")
-	void SetGDTF(UDMXImportGDTF* DMXImportAsset);
-
-	UE_DEPRECATED(5.1, "Deprecated in favor of more clearly named member function SetGDTFAsset. Only supports the functional UDMXImportGDTF now.")
-	UFUNCTION(BlueprintCallable, Category = "Fixture Settings", Meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 5.1. Please use the more clearly named SetGDTFAsset instead."))
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
+#endif // WITH_EDITOR
 
 	/** Returns a delegate that is and should be broadcast whenever a Fixture Type changed */
 	static FDMXOnFixtureTypeChangedDelegate& GetOnFixtureTypeChanged();
 
-#if WITH_EDITORONLY_DATA
-	/** DEPRECATED 5.0 */
-	UE_DEPRECATED(5.1, "Deprecated in favor of the GDTF property, which is of the GDTF type instead of just a base class.")
-	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of the GDTF property, which is of the GDTF type instead of just a base class."))
-	UDMXImport* DMXImport_DEPRECATED;
-#endif 
-
 	/** The GDTF file from which the Fixture Type was setup */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
-	UDMXImportGDTF* GDTF;
+	UDMXImport* DMXImport;
 
 	/** The Category of the Fixture, useful for Filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "DMX Category"))
@@ -402,6 +390,8 @@ public:
 	 */
 	void UpdateChannelSpan(int32 ModeIndex);
 
+	/** Aligns alls channels of the functions in the Mode to be consecutive */
+	void AlignFunctionChannels(int32 InModeIndex);
 
 	// Fixture Function related
 public:

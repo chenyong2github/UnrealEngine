@@ -3,6 +3,8 @@
 #include "Exporters/DMXMVRExporter.h"
 
 #include "DMXEditorLog.h"
+#include "DMXEditorSettings.h"
+#include "DMXInitializeFixtureTypeFromGDTFHelper.h"
 #include "DMXMVRXmlMergeUtility.h"
 #include "DMXZipper.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -13,41 +15,62 @@
 #include "MVR/DMXMVRAssetImportData.h"
 #include "MVR/DMXMVRGeneralSceneDescription.h"
 
+#include "DesktopPlatformModule.h"
+#include "IDesktopPlatform.h"
 #include "XmlFile.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Misc/FileHelper.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
-bool FDMXMVRExporter::Export(UDMXLibrary* DMXLibrary, const FString& FilePathAndName)
+#define LOCTEXT_NAMESPACE "DMXMVRExporter"
+
+void FDMXMVRExporter::Export(UDMXLibrary* DMXLibrary, const FString& FilePathAndName, FText& OutErrorReason)
 {
+
 	FDMXMVRExporter Instance;
-	return Instance.ExportInternal(DMXLibrary, FilePathAndName);
+	Instance.ExportInternal(DMXLibrary, FilePathAndName, OutErrorReason);
 }
 
-bool FDMXMVRExporter::ExportInternal(UDMXLibrary* DMXLibrary, const FString& FilePathAndName)
+void FDMXMVRExporter::ExportInternal(UDMXLibrary* DMXLibrary, const FString& FilePathAndName, FText& OutErrorReason)
 {
+	OutErrorReason = FText::GetEmpty();
+
 	if (!ensureAlwaysMsgf(DMXLibrary, TEXT("Trying to export DMX Library '%s' as MVR file, but the DMX Library is invalid."), *DMXLibrary->GetName()))
 	{
-		return false;
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportDMXLibraryInvalidReason", "DMX Library is invalid. Cannot export {0}."), FText::FromString(FilePathAndName));
+		return;
 	}
 
 	DMXLibrary->UpdateGeneralSceneDescription();
 	const UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
 	if (!ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to export DMX Library '%s' as MVR file, but its General Scene Description is invalid."), *DMXLibrary->GetName()))
 	{
-		return false;
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportGeneralSceneDescriptionInvalidReason", "DMX Library is invalid. Cannot export {0}."), FText::FromString(FilePathAndName));
+		return;
 	}
 
 	const TSharedRef<FDMXZipper> Zip = MakeShared<FDMXZipper>();
 	if (!ZipGeneralSceneDescription(Zip, GeneralSceneDescription))
 	{
-		return false;
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportCreateZipFailedReason", "Failed to write General Scene Description. Cannot export {0}."), FText::FromString(FilePathAndName));
+		return;
 	}
 
-	ZipGDTFs(Zip, DMXLibrary);
-	ZipThirdPartyData(Zip, GeneralSceneDescription);
+	if (!ZipGDTFs(Zip, DMXLibrary))
+	{
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportZipGDTFsFailedReason", "Some GDTFs are missing import data and were not considered. Exported MVR to {0}."), FText::FromString(FilePathAndName));
+		// Allow continuation of export
+	}
 
-	return Zip->SaveToFile(FilePathAndName);
+	ZipThirdPartyData(Zip, GeneralSceneDescription);
+	if (!Zip->SaveToFile(FilePathAndName))
+	{
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportCreateZipFailedReason", "File is not writable or locked by another process. Cannot export {0}."), FText::FromString(FilePathAndName));
+		return;
+	}
 }
 
 bool FDMXMVRExporter::ZipGeneralSceneDescription(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription)
@@ -86,46 +109,62 @@ bool FDMXMVRExporter::ZipGeneralSceneDescription(const TSharedRef<FDMXZipper>& Z
 	return true;
 }
 
-void FDMXMVRExporter::ZipGDTFs(const TSharedRef<FDMXZipper>& Zip, UDMXLibrary* DMXLibrary)
+bool FDMXMVRExporter::ZipGDTFs(const TSharedRef<FDMXZipper>& Zip, UDMXLibrary* DMXLibrary)
 {
 	check(DMXLibrary);
 
 	// Gather GDTFs
-	TArray<const UDMXGDTFAssetImportData*> GDTFAssetImportDataToExport;
-	const TArray<const UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<const UDMXEntityFixturePatch>();
-	for (const UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	TArray<UDMXEntityFixtureType*> FixtureTypesToExport;
+	const TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
 	{
-		const UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType();
-		if (!FixtureType)
+		UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType();
+		if (!FixtureType || FixtureType->Modes.IsEmpty())
 		{
-			continue;
-		}
-		else if (!FixtureType->GDTF)
-		{
-			UE_LOG(LogDMXEditor, Warning, TEXT("Cannot export Fixture Patch '%s' to MVR. Its Fixture Type '%s' has no GDTF set."), *FixturePatch->Name, *FixtureType->Name);
 			continue;
 		}
 
-		const UDMXGDTFAssetImportData* GDTFAssetImportData = FixtureType->GDTF->GetGDTFAssetImportData();
-		if (!GDTFAssetImportData || GDTFAssetImportData->GetRawSourceData().IsEmpty())
-		{
-			UE_LOG(LogDMXEditor, Warning, TEXT("Cannot export Fixture Patch '%s' to MVR. Its Fixture Type '%' is from a version prior to 5.1, and does not hold required GDTF data."), *FixturePatch->Name, *FixtureType->Name);
-			continue;
-		}
-
-		GDTFAssetImportDataToExport.AddUnique(GDTFAssetImportData);
+		FixtureTypesToExport.AddUnique(FixtureType);
 	}
 
 	// Zip GDTFs
-	TArray<FString> TempGDTFFilePathAndNames;
-	for (const UDMXGDTFAssetImportData* GDTFAssetImportData : GDTFAssetImportDataToExport)
+	bool bAllZippedSuccessfully = true;
+	for (UDMXEntityFixtureType* FixtureType : FixtureTypesToExport)
 	{
-		if (GDTFAssetImportData->GetRawSourceData().Num() > 0)
+		if (!FixtureType->DMXImport)
+		{
+			UE_LOG(LogDMXEditor, Warning, TEXT("Cannot export Fixture Type '%s' to MVR, but the Fixture Type has no GDTF set."), *FixtureType->Name);
+			continue;
+		}
+
+		UDMXImportGDTF* DMXImportGDTF = Cast<UDMXImportGDTF>(FixtureType->DMXImport);
+		if (!DMXImportGDTF)
+		{
+			UE_LOG(LogDMXEditor, Warning, TEXT("Cannot export Fixture Type '%s' to MVR, but the Fixture Type has a DMX Import Type which is not GDTF."), *FixtureType->Name);
+			continue;
+		}
+
+		UDMXGDTFAssetImportData* GDTFAssetImportData = DMXImportGDTF->GetGDTFAssetImportData();
+		if (!ensureAlwaysMsgf(GDTFAssetImportData, TEXT("Missing default GDTF Asset Import Data subobject in GDTF.")))
+		{
+			continue;
+		}
+
+		const TArray64<uint8>& RawSourceData = RefreshSourceDataAndFixtureType(*FixtureType, *GDTFAssetImportData);
+		if (RawSourceData.Num() > 0)
 		{
 			const FString GDTFFilename = FPaths::GetCleanFilename(GDTFAssetImportData->GetSourceFilePathAndName());
 			Zip->AddFile(GDTFFilename, GDTFAssetImportData->GetRawSourceData());
 		}
+		else
+		{
+			bAllZippedSuccessfully = false;
+			const UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(GDTFAssetImportData->GetOuter());
+			UE_LOG(LogDMXEditor, Error, TEXT("Cannot export '%s' to MVR File. The asset is missing source data."), GDTF ? *GDTF->GetName() : TEXT("Invalid GDTF Asset"));
+		}
 	}
+
+	return bAllZippedSuccessfully;
 }
 
 void FDMXMVRExporter::ZipThirdPartyData(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription)
@@ -196,3 +235,84 @@ const TSharedPtr<FXmlFile> FDMXMVRExporter::CreateSourceGeneralSceneDescriptionX
 
 	return XmlFile;
 }
+
+
+const TArray64<uint8>& FDMXMVRExporter::RefreshSourceDataAndFixtureType(UDMXEntityFixtureType& FixtureType, UDMXGDTFAssetImportData& InOutGDTFAssetImportData) const
+{
+	const UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(InOutGDTFAssetImportData.GetOuter());
+	if (!InOutGDTFAssetImportData.GetRawSourceData().IsEmpty() || !GDTF)
+	{
+		return InOutGDTFAssetImportData.GetRawSourceData();
+	}
+
+	static bool bAskForReloadAgain = true;
+	static EAppReturnType::Type MessageDialogResult = EAppReturnType::Yes;
+
+	if (bAskForReloadAgain)
+	{
+		static const FText MessageTitle = LOCTEXT("NoGDTFSourceAvailableTitle", "Trying to use old GDTF asset.");
+		static const FText Message = FText::Format(LOCTEXT("NoGDTFSourceAvailableMessage", "Insufficient data to export '{0}' to MVR file. The GDTF asset was created prior to UE5.1. Do you want to reload the source GDTF?"), FText::FromString(GDTF->GetName()));
+		MessageDialogResult = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message, &MessageTitle);
+
+		if (MessageDialogResult == EAppReturnType::YesAll || MessageDialogResult == EAppReturnType::NoAll)
+		{
+			bAskForReloadAgain = false;
+		}
+	}
+
+	if (MessageDialogResult == EAppReturnType::YesAll || MessageDialogResult == EAppReturnType::Yes)
+	{
+		IDesktopPlatform* const DesktopPlatform = FDesktopPlatformModule::Get();
+
+		if (DesktopPlatform)
+		{
+			UDMXEditorSettings* EditorSettings = GetMutableDefault<UDMXEditorSettings>();
+			if (!ensureAlwaysMsgf(EditorSettings, TEXT("Unexpected cannot access DMX Editor Settings CDO.")))
+			{
+				return InOutGDTFAssetImportData.GetRawSourceData();
+			}
+
+			TArray<FString> Filenames;
+			if (!InOutGDTFAssetImportData.GetSourceData().SourceFiles.IsEmpty() &&
+				FPaths::FileExists(InOutGDTFAssetImportData.GetSourceFilePathAndName()))
+			{
+				Filenames.Add(InOutGDTFAssetImportData.GetSourceFilePathAndName());
+			}
+			else
+			{
+				DesktopPlatform->OpenFileDialog(
+					nullptr,
+					FText::Format(LOCTEXT("OpenGDTFTitle", "Choose a GDTF file for '%s'."), FText::FromString(GDTF->GetName())).ToString(),
+					EditorSettings->LastGDTFImportPath,
+					TEXT(""),
+					TEXT("General Scene Description (*.gdtf)|*.gdtf"),
+					EFileDialogFlags::None,
+					Filenames
+				);
+			}
+
+			if (Filenames.Num() > 0)
+			{
+				EditorSettings->LastGDTFImportPath = FPaths::GetPath(Filenames[0]);
+
+				InOutGDTFAssetImportData.PreEditChange(nullptr);
+				InOutGDTFAssetImportData.SetSourceFile(Filenames[0]);
+				InOutGDTFAssetImportData.PostEditChange();
+
+				FDMXInitializeFixtureTypeFromGDTFHelper::GenerateModesFromGDTF(FixtureType, *GDTF);
+
+				if (InOutGDTFAssetImportData.GetRawSourceData().Num() == 0)
+				{
+					FNotificationInfo NotificationInfo(FText::Format(LOCTEXT("ReloadGDTFFailure", "Failed to update GDTF '{0}' from '{1}."), FText::FromString(GDTF->GetName()), FText::FromString(Filenames[0])));
+					NotificationInfo.ExpireDuration = 10.f;
+
+					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				}
+			}
+		}
+	}
+
+	return InOutGDTFAssetImportData.GetRawSourceData();
+}
+
+#undef LOCTEXT_NAMESPACE

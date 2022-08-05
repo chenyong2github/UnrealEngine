@@ -158,10 +158,15 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 	MVRFixtureNode->SetUniverseID(FixturePatch.GetUniverseID());
 	MVRFixtureNode->SetStartingChannel(FixturePatch.GetStartingChannel());
 
+	UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType();
+	const int32 ModeIndex = FixturePatch.GetActiveModeIndex();
 	bool bSetGDTFSpec = false;
-	if (UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType())
+	if (FixtureType &&
+		FixtureType->Modes.IsValidIndex(ModeIndex))
 	{
-		if (UDMXImportGDTF* GDTF = FixtureType->GDTF)
+		MVRFixtureNode->GDTFMode = FixtureType->Modes[ModeIndex].ModeName;
+
+		if (UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(FixtureType->DMXImport))
 		{
 			const FString SourceFilename = [GDTF]()
 			{
@@ -172,13 +177,8 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 				return FString();
 			}();
 			MVRFixtureNode->GDTFSpec = FPaths::GetCleanFilename(SourceFilename);
-			bSetGDTFSpec = true;
-		}
 
-		const int32 ModeIndex = FixturePatch.GetActiveModeIndex();
-		if (ensureAlwaysMsgf(FixtureType->Modes.IsValidIndex(ModeIndex), TEXT("Trying to write Active Mode of to General Scene Description, but the Mode Index is invalid")))
-		{
-			MVRFixtureNode->GDTFMode = FixtureType->Modes[ModeIndex].ModeName;
+			bSetGDTFSpec = true;
 		}
 	}
 

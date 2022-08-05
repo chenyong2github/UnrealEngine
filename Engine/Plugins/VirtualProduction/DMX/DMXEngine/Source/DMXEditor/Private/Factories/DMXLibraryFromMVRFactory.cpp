@@ -254,7 +254,7 @@ void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TA
 		FixtureTypeConstructionParams.ParentDMXLibrary = DMXLibrary;
 
 		UDMXEntityFixtureType* FixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams, FPaths::GetBaseFilename(GDTFFilename));
-		FixtureType->SetGDTF(GDTF);
+		FixtureType->SetModesFromDMXImport(GDTF);
 
 		GDTFSpecToFixtureTypeMap.Add(GDTFFilename, FixtureType);
 	}

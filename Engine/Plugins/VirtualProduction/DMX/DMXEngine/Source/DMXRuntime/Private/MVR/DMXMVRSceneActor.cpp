@@ -162,11 +162,11 @@ void ADMXMVRSceneActor::SetDMXLibrary(UDMXLibrary* NewDMXLibrary)
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
 	{
 		UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType();
-		if (FixtureType && FixtureType->GDTF)
+		if (FixtureType && FixtureType->DMXImport)
 		{
 			const bool bGDTFToDefaultActorClassPairAlreadyCreated = GDTFToDefaultActorClasses.ContainsByPredicate([FixtureType](const FDMXMVRSceneGDTFToActorClassPair& GDTFToActorClassPair)
 				{
-					return GDTFToActorClassPair.GDTF == FixtureType->GDTF;
+					return GDTFToActorClassPair.GDTF == FixtureType->DMXImport;
 				});
 			if (bGDTFToDefaultActorClassPairAlreadyCreated)
 			{
@@ -175,7 +175,7 @@ void ADMXMVRSceneActor::SetDMXLibrary(UDMXLibrary* NewDMXLibrary)
 
 			UClass* ActorClass = MVRFixtureActorLibrary->FindMostAppropriateActorClassForPatch(FixturePatch);
 			FDMXMVRSceneGDTFToActorClassPair GDTFToActorClassPair;
-			GDTFToActorClassPair.GDTF = FixtureType->GDTF;
+			GDTFToActorClassPair.GDTF = FixtureType->DMXImport;
 			GDTFToActorClassPair.ActorClass = ActorClass;
 			GDTFToDefaultActorClasses.Add(GDTFToActorClassPair);
 		}
@@ -301,7 +301,7 @@ void ADMXMVRSceneActor::HandleDefaultActorClassForGDTFChanged()
 		UDMXEntityFixturePatch* FixturePatch = GetFixturePatch(Actor);
 		if (FixturePatch && 
 			FixturePatch->GetFixtureType() && 
-			FixturePatch->GetFixtureType()->GDTF == GDTFToDefaultActorClasses[IndexOfChangedElement].GDTF)
+			FixturePatch->GetFixtureType()->DMXImport == GDTFToDefaultActorClasses[IndexOfChangedElement].GDTF)
 		{
 			ReplaceMVRActor(Actor, Class);
 		}

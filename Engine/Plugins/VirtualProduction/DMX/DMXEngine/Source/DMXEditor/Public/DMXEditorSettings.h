@@ -125,6 +125,11 @@ class UDMXEditorSettings : public UObject
 {
 	GENERATED_BODY()
 
+	// GDTF
+public:
+	UPROPERTY(Config)
+	FString LastGDTFImportPath;
+
 
 	// MVR
 public:
