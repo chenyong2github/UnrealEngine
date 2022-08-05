@@ -147,20 +147,20 @@ void SDMXFixtureTypeMatrixFunctionsEditor::RefreshList()
 				MatrixFunctionItem->ChannelNumberText = FText::AsNumber(ChannelNumber);
 				CellAttributesListSource.Add(MatrixFunctionItem);
 
-				const FDMXAttributeName& Attribute = CellAttribute.Attribute.GetName();
+				const FDMXAttributeName& Attribute = CellAttribute.Attribute.Name;
 				AttributeToConflictingItemsMap.FindOrAdd(Attribute).Add(MatrixFunctionItem);
 
-				ChannelOffset = CellAttribute.GetNumChannels() - 1;
+				ChannelOffset += CellAttribute.GetNumChannels() - 1;
 			}
 
 			// Create item status
 			for (const TTuple<FDMXAttributeName, TSet<TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem>>>& AttributeToConflictingItemsPair : AttributeToConflictingItemsMap)
 			{
-				if (AttributeToConflictingItemsPair.Value.Num() > 1 && FDMXAttributeName::IsValid(AttributeToConflictingItemsPair.Key.GetName()))
+				if (AttributeToConflictingItemsPair.Value.Num() > 1 && AttributeToConflictingItemsPair.Key.Name != NAME_None)
 				{
 					for (const TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem>& ConflictingItem : AttributeToConflictingItemsPair.Value)
 					{
-						ConflictingItem->WarningStatus = FText::Format(LOCTEXT("AmbiguousCellAttribute", "Attribute {0} used more than once."), FText::FromName(AttributeToConflictingItemsPair.Key.GetName()));
+						ConflictingItem->WarningStatus = FText::Format(LOCTEXT("AmbiguousCellAttribute", "Attribute {0} used more than once."), FText::FromName(AttributeToConflictingItemsPair.Key.Name));
 					}
 				}
 			}

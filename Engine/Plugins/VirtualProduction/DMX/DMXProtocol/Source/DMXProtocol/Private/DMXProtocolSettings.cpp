@@ -196,7 +196,7 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 			Attribute.CleanupKeywords();
 		}
 
-		FDMXAttributeName::OnValuesChanged.Broadcast();
+		OnDefaultAttributesChanged.Broadcast();
 	}
 	else if (
 		PropertyName == FDMXOutputPortConfig::GetDestinationAddressesPropertyNameChecked() ||

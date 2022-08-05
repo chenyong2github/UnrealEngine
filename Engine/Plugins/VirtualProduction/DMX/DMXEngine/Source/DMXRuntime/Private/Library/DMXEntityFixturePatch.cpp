@@ -580,7 +580,7 @@ TArray<FDMXAttributeName> UDMXEntityFixturePatch::GetAllAttributesInActiveMode()
 	{
 		if (Function.GetLastChannel() <= Cache.GetChannelSpan())
 		{
-			AttributeNames.Add(Function.Attribute.GetName());
+			AttributeNames.Add(Function.Attribute.Name);
 		}
 	}
 
@@ -596,7 +596,7 @@ TMap<FDMXAttributeName, FDMXFixtureFunction> UDMXEntityFixturePatch::GetAttribut
 	{
 		if (Function.GetLastChannel() <= Cache.GetChannelSpan())
 		{
-			FunctionMap.Add(Function.Attribute.GetName(), Function);
+			FunctionMap.Add(Function.Attribute.Name, Function);
 		}
 	}
 
@@ -732,7 +732,7 @@ bool UDMXEntityFixturePatch::IsMapValid(const TMap<FDMXAttributeName, int32>& Fu
 	for (const TPair<FDMXAttributeName, int32>& Elem : FunctionMap)
 	{
 		const bool bContainsAttributeName = Cache.GetFunctions().ContainsByPredicate([Elem](const FDMXFixtureFunction& Function) {
-			return Function.Attribute.GetName() == Elem.Key;
+			return Function.Attribute.Name == Elem.Key;
 		});
 
 		if (!bContainsAttributeName)
@@ -747,7 +747,7 @@ bool UDMXEntityFixturePatch::IsMapValid(const TMap<FDMXAttributeName, int32>& Fu
 bool UDMXEntityFixturePatch::ContainsAttribute(FDMXAttributeName FunctionAttribute) const
 {
 	const bool bContainsAttributeName = Cache.GetFunctions().ContainsByPredicate([&FunctionAttribute](const FDMXFixtureFunction& Function) {
-		return Function.Attribute.GetName() == FunctionAttribute;
+		return Function.Attribute.Name == FunctionAttribute;
 	});
 
 	return bContainsAttributeName;
@@ -785,7 +785,7 @@ TArray<UDMXEntityController*> UDMXEntityFixturePatch::GetRelevantControllers() c
 const FDMXFixtureFunction* UDMXEntityFixturePatch::GetAttributeFunction(const FDMXAttributeName& Attribute) const
 {
 	const FDMXFixtureFunction* FixtureFunctionPtr = Cache.GetFunctions().FindByPredicate([Attribute](const FDMXFixtureFunction& Function) {
-		return Function.Attribute.GetName() == Attribute;
+		return Function.Attribute.Name == Attribute;
 	});
 
 	if (FixtureFunctionPtr && 
@@ -1045,7 +1045,7 @@ bool UDMXEntityFixturePatch::GetMatrixCellChannelsRelative(const FIntPoint& Cell
 		int32 AttributeOffset = 0;
 		for (const FDMXFixtureCellAttribute& CellAttribute : Cache.GetCellAttributes())
 		{
-			AttributeChannelMap.Add(CellAttribute.Attribute.GetName(), RelativeMatrixStartingChannel + AttributeOffset);
+			AttributeChannelMap.Add(CellAttribute.Attribute.Name, RelativeMatrixStartingChannel + AttributeOffset);
 			AttributeOffset += CellAttribute.GetNumChannels();
 		}
 	}
@@ -1064,7 +1064,7 @@ bool UDMXEntityFixturePatch::GetMatrixCellChannelsAbsolute(const FIntPoint& Cell
 		int32 AttributeOffset = 0;
 		for (const FDMXFixtureCellAttribute& CellAttribute : Cache.GetCellAttributes())
 		{
-			AttributeChannelMap.Add(CellAttribute.Attribute.GetName(), AbsoluteMatrixStartingChannel + AttributeOffset);
+			AttributeChannelMap.Add(CellAttribute.Attribute.Name, AbsoluteMatrixStartingChannel + AttributeOffset);
 			AttributeOffset += CellAttribute.GetNumChannels();
 		}
 		

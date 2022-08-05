@@ -10,12 +10,12 @@
 
 class ITableRow;
 class SComboButton;
-template <typename OptionType>
-class SListView;
-template <typename OptionType>
-class SListViewSelectorDropdownMenu;
+class SEditableTextBox;
+template <typename OptionType> class SListView;
+template <typename OptionType> class SListViewSelectorDropdownMenu;
 class SSearchBox;
 class STableViewBase;
+
 
 /**  A widget which allows the user to pick a name of a specified list of names. */
 class DMXEDITOR_API SNameListPicker
@@ -29,7 +29,6 @@ public:
 	SLATE_BEGIN_ARGS(SNameListPicker)
 		: _ComboButtonStyle(&FCoreStyle::Get().GetWidgetStyle< FComboButtonStyle >("ComboButton"))
 		, _ButtonStyle(nullptr)
-		, _UpdateOptionsDelegate(nullptr)
 		, _bDisplayWarningIcon(false)
 		, _bCanBeNone(false)
 		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
@@ -45,13 +44,8 @@ public:
 		/** The visual style of the button (overrides ComboButtonStyle) */
 		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
 
-		SLATE_ARGUMENT(FSimpleMulticastDelegate*, UpdateOptionsDelegate)
-
 		/** List of possible names */
 		SLATE_ATTRIBUTE(TArray<FName>, OptionsSource)
-
-		/** Checks if the selected value is no longer available */
-		SLATE_ATTRIBUTE(bool, IsValid)
 
 		/** Display warning icon for a selected invalid value? */
 		SLATE_ARGUMENT(bool, bDisplayWarningIcon)
@@ -85,11 +79,7 @@ public:
 	/**  Slate widget construction method */
 	void Construct(const FArguments& InArgs);
 
-	virtual ~SNameListPicker();
-
 private:
-	EVisibility GetWarningVisibility() const;
-
 	EVisibility GetSearchBoxVisibility() const;
 	void OnSearchBoxTextChanged(const FText& InSearchText);
 	void OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
@@ -116,22 +106,22 @@ private:
 	 */
 	void OnMenuOpened();
 
+	/** Called when text was commited */
+	void OnTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+
 private:
 	TSharedPtr< SComboButton > PickerComboButton;
 	TSharedPtr< SListView< TSharedPtr<FName> > > OptionsListView;
 	TSharedPtr<SSearchBox> SearchBox;
 	int32 MaxVisibleItems;
 	TSharedPtr< SListViewSelectorDropdownMenu< TSharedPtr<FName> > > NamesListDropdown;
+	TSharedPtr<SEditableTextBox> EdititableTextBox;
 
 	TAttribute<TArray<FName>> OptionsSourceAttr;
 	TArray<TSharedPtr<FName>> OptionsSource;
 	TArray<TSharedPtr<FName>> FilteredOptions;
 
-	FSimpleMulticastDelegate* UpdateOptionsDelegate;
-	FDelegateHandle UpdateOptionsHandle;
-
 	TAttribute<FName> ValueAttribute;
-	TAttribute<bool> IsValidAttr;
 	FOnValueChanged OnValueChangedDelegate;
 	TAttribute<bool> HasMultipleValuesAttribute;
 	bool bCanBeNone;

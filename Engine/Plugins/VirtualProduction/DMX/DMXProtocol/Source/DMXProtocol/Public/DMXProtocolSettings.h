@@ -111,6 +111,12 @@ public:
 		return OnSetReceiveDMXEnabledDelegate;
 	}
 
+	/** Gets a Delegate Broadcast when default attributes were changed */
+	FSimpleMulticastDelegate& GetOnDefaultAttributesChanged()
+	{
+		return OnDefaultAttributesChanged;
+	}
+
 #if WITH_EDITOR
 	/** Returns true if Fixture Patches should receive DMX in Editor */
 	bool ShouldAllFixturePatchesReceiveDMXInEditor() const { return bAllFixturePatchesReceiveDMXInEditor; }
@@ -161,6 +167,9 @@ private:
 
 	/** Broadcast when receive DMX is enabled or disabled */
 	FDMXOnReceiveDMXEnabled OnSetReceiveDMXEnabledDelegate;
+
+	/** Broadcast when default attributets changed */
+	FSimpleMulticastDelegate OnDefaultAttributesChanged;
 
 #if WITH_EDITORONLY_DATA
 	/** If true, all fixture patches receive DMX in Editor. This overrides the fixture patches 'Receive DMX In Editor' property. */

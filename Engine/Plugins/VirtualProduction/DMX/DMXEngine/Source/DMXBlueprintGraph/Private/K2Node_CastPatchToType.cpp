@@ -564,7 +564,7 @@ void UDEPRECATED_K2Node_CastPatchToType::ExposeAttributes()
 				}
 
 				FString EnumString = StaticEnum<EDMXFixtureSignalFormat>()->GetDisplayNameTextByIndex((int64)Function.DataType).ToString();
-				FString PinFunctionName = *FString::Printf(TEXT("%s_%s"), *Function.Attribute.GetName().ToString(), *EnumString);
+				FString PinFunctionName = *FString::Printf(TEXT("%s_%s"), *Function.Attribute.Name.ToString(), *EnumString);
 
 				{
 					FEdGraphPinType PinType;

@@ -6,37 +6,22 @@
 
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXAttributeName)
 
-IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXAttributeName)
+TArray<FName> FDMXAttributeName::GetPossibleValues()
 {
-	TArray<FName> PossibleValues;
+	TArray<FName> DefaultValues;
 
 	if (const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>())
 	{
-		PossibleValues.Reserve(DMXSettings->Attributes.Num());
+		DefaultValues.Reserve(DMXSettings->Attributes.Num());
 
 		for (const FDMXAttribute& Attribute : DMXSettings->Attributes)
 		{
-			PossibleValues.Emplace(Attribute.Name);
+			DefaultValues.Emplace(Attribute.Name);
 		}
 	}
 
-	return PossibleValues;
-}
-
-IMPLEMENT_DMX_NAMELISTITEM_IsValid(FDMXAttributeName)
-{
-	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
-	for (const FDMXAttribute& SettingsAttribute : DMXSettings->Attributes)
-	{
-		if (InName == SettingsAttribute.Name)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return DefaultValues;
 }
 
 FDMXAttributeName::FDMXAttributeName()
@@ -64,17 +49,7 @@ FDMXAttributeName::FDMXAttributeName(const FDMXAttribute& InAttribute)
 
 FDMXAttributeName::FDMXAttributeName(const FName& NameAttribute)
 {
-	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
-	for (const FDMXAttribute& SettingsAttribute : DMXSettings->Attributes)
-	{
-		if (SettingsAttribute.Name.IsEqual(NameAttribute))
-		{
-			Name = SettingsAttribute.Name;
-			return;
-		}
-	}
-
-	Name = FDMXNameListItem::None;	
+	Name = NameAttribute;
 }
 
 void FDMXAttributeName::SetFromName(const FName& InName)
@@ -105,12 +80,12 @@ const FDMXAttribute& FDMXAttributeName::GetAttribute() const
 
 FString UDMXAttributeNameConversions::Conv_DMXAttributeToString(const FDMXAttributeName& InAttribute)
 {
-	return InAttribute.GetName().ToString();
+	return InAttribute.Name.ToString();
 }
 
 FName UDMXAttributeNameConversions::Conv_DMXAttributeToName(const FDMXAttributeName& InAttribute)
 {
-	return InAttribute.GetName();
+	return InAttribute.Name;
 }
 
 TArray<FString> FDMXAttribute::GetKeywords() const

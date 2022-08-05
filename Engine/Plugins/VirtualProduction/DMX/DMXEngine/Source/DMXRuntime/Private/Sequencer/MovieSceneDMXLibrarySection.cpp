@@ -73,7 +73,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		// Add channels for functions that are in mode range and have an Attribute set
 
 		if (Function.GetLastChannel() <= Patch->GetChannelSpan() &&
-			FDMXAttributeName::IsValid(Function.Attribute.GetName()))
+			!Function.Attribute.Name.IsNone())
 		{
 			bool bNewChannel = false;
 			if (!FunctionChannels.IsValidIndex(IdxFunctionChannel))
@@ -82,7 +82,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 				bNewChannel = true;
 			}					
 
-			FunctionChannels[IdxFunctionChannel].AttributeName = Function.Attribute.GetName();
+			FunctionChannels[IdxFunctionChannel].AttributeName = Function.Attribute.Name;
 
 			if (bResetDefaultValues || bNewChannel)
 			{
@@ -116,7 +116,7 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 						bNewChannel = true;
 					}
 
-					FunctionChannels[IdxFunctionChannel].AttributeName = CellAttribute.Attribute.GetName();
+					FunctionChannels[IdxFunctionChannel].AttributeName = CellAttribute.Attribute.Name;
 					FunctionChannels[IdxFunctionChannel].CellCoordinate = CellCoordinates;
 
 					if (bResetDefaultValues || bNewChannel)
@@ -210,7 +210,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 
 		const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 
-		AttributeName = CellAttribute.Attribute.GetName();
+		AttributeName = CellAttribute.Attribute.Name;
 		StartingChannel = AttributeNameChannelMap[FunctionChannel.AttributeName];
 		SignalFormat = CellAttribute.DataType;
 		bLSBMode = CellAttribute.bUseLSBMode;
@@ -232,7 +232,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 
 		const FDMXFixtureFunction& Function = *FunctionPtr;
 
-		AttributeName = Function.Attribute.GetName();
+		AttributeName = Function.Attribute.Name;
 
 		const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
 		StartingChannel = Function.Channel + PatchChannelOffset;
@@ -293,7 +293,7 @@ void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXE
 
 		for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
 		{
-			const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.GetName();
+			const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.Name;
 			const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
 
 			check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);

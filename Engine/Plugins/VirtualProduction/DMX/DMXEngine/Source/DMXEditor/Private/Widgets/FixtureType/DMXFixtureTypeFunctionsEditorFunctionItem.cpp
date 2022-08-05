@@ -107,7 +107,7 @@ FDMXAttributeName FDMXFixtureTypeFunctionsEditorFunctionItem::GetAttributeName()
 		return Function.Attribute;
 	}
 
-	return FDMXAttributeName::None;
+	return FDMXAttributeName(NAME_None);
 }
 
 void FDMXFixtureTypeFunctionsEditorFunctionItem::SetAttributeName(const FDMXAttributeName& AttributeName) const

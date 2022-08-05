@@ -48,14 +48,14 @@ FORCEINLINE uint32 GetTypeHash(const FDMXAttribute& Attribute)
 
 USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXAttributeName
-	: public FDMXNameListItem
 {
 	GENERATED_BODY()
 
-	DECLARE_DMX_NAMELISTITEM_STATICS(true)
-
 public:
 	//~ Constructors
+
+	/** */
+	static TArray<FName> GetPossibleValues();
 
 	/**
 	 * Default constructor. Assigns Attribute to the first available
@@ -70,7 +70,11 @@ public:
 	FDMXAttributeName(const FName& NameAttribute);
 
 	//~ FDMXNameListItem interface
-	virtual void SetFromName(const FName& InName) override;
+	void SetFromName(const FName& InName);
+
+	/** The Attribute Name */
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	FName Name;
 
 	const FDMXAttribute& GetAttribute() const;
 	operator const FDMXAttribute& () const { return GetAttribute(); }

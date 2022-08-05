@@ -40,7 +40,7 @@ namespace
 				}
 
 				const FDMXFixtureCellAttribute* CellAttributePtr = MatrixProperties.CellAttributes.FindByPredicate([&MutableChannelData](const FDMXFixtureCellAttribute& CellAttribute) {
-					return CellAttribute.Attribute.GetName() == MutableChannelData.GetAttributeName();
+					return CellAttribute.Attribute.Name == MutableChannelData.GetAttributeName();
 					});
 
 				if (CellAttributePtr)
@@ -76,7 +76,7 @@ namespace
 					int32 AbsoluteStartingChannel = FixturePatch->GetStartingChannel();
 
 					const FDMXFixtureFunction* FixtureFunctionPtr = ModePtr->Functions.FindByPredicate([&MutableChannelData](const FDMXFixtureFunction& Function) {
-						return Function.Attribute.GetName() == MutableChannelData.GetAttributeName();
+						return Function.Attribute.Name == MutableChannelData.GetAttributeName();
 						});
 
 					if (FixtureFunctionPtr)

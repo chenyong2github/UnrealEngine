@@ -78,8 +78,8 @@ private:
 	/** Gets the Attribute Name of the Function */
 	FName GetAttributeName() const;
 
-	/** Sets the Attribute Name for the Function */
-	void SetAttributeName(FName NewValue);
+	/** Called when the Attribute Name changed */
+	void OnUserChangedAttributeName(FName NewValue);
 
 	/** True while this is being dragged in a drag drop op */
 	bool bIsBeingDragged = false;

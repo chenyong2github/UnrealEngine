@@ -174,10 +174,10 @@ bool FDMXEntityFixturePatchCache::InputDMXSignal(const FDMXSignalSharedPtr& DMXS
 					if (CachedDMXValues.IsValidIndex(FirstAttributeDataIndex) && CachedDMXValues.IsValidIndex(LastAttributeDataIndex))
 					{
 						const uint32 IntValue = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, CachedDMXValues.GetData() + FirstAttributeDataIndex);
-						CellAttributeToRawValueMap.Add(CellAttribute.Attribute.GetName(), IntValue);
+						CellAttributeToRawValueMap.Add(CellAttribute.Attribute.Name, IntValue);
 
 						const float NormalizedValue = (float)IntValue / (float)FDMXConversions::GetSignalFormatMaxValue(CellAttribute.DataType);
-						CellAttributeTNormalizedValueMap.Map.Add(CellAttribute.Attribute.GetName(), NormalizedValue);
+						CellAttributeTNormalizedValueMap.Map.Add(CellAttribute.Attribute.Name, NormalizedValue);
 
 						// Increment attribute offset for the next attribute
 						CurrentAttributeOffset += AttributeDataSize;
@@ -366,7 +366,7 @@ TArray<FDMXAttributeName> FDMXEntityFixturePatchCache::GetAttributeNames() const
 	{
 		for (const FDMXFixtureFunction& Function : Mode.Functions)
 		{
-			AttributeNames.Add(Function.Attribute.GetName());
+			AttributeNames.Add(Function.Attribute.Name);
 		}
 	}
 
@@ -382,7 +382,7 @@ TArray<FDMXAttributeName> FDMXEntityFixturePatchCache::GetCellAttributeNames() c
 
 		for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
 		{
-			MatrixAttributeNames.Add(CellAttribute.Attribute.GetName());
+			MatrixAttributeNames.Add(CellAttribute.Attribute.Name);
 		}
 	}
 

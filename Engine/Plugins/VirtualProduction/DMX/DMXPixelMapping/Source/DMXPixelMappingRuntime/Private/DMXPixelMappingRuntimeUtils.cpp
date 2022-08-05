@@ -25,7 +25,7 @@ void FDMXPixelMappingRuntimeUtils::ConvertNormalizedAttributeValueToChannelValue
 			TMap<int32, uint8> ChannelToValueMap;
 
 			const FDMXFixtureFunction* FunctionPtr = ModePtr->Functions.FindByPredicate([InAttributeName](const FDMXFixtureFunction& Function) {
-				return Function.Attribute.GetName() == InAttributeName;
+				return Function.Attribute.Name == InAttributeName;
 				});
 
 			if (FunctionPtr)

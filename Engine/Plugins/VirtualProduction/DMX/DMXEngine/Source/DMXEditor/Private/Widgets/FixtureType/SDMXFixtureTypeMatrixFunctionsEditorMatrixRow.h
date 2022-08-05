@@ -38,9 +38,6 @@ private:
 	/** Called when the delete Cell Attribute Button was clicked */
 	FReply OnDeleteCellAttributeClicked();
 
-	/** Returns true if the Attribute Name exists and is not None */
-	bool HasInvalidCellAttributeName() const;
-
 	/** Returns the Name of the Cell Attribute */
 	FName GetCellAttributeName() const;
 

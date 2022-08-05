@@ -52,11 +52,8 @@ public:
 				SNew(SNameListPicker)
 				.Font(CustomizationUtils.GetRegularFont())
 				.HasMultipleValues(this, &TNameListType::HasMultipleValues)
-				.OptionsSource(MakeAttributeLambda(&TStructType::GetPossibleValues))
-				.UpdateOptionsDelegate(&TStructType::OnValuesChanged)
-				.IsValid(this, &TNameListType::HideWarningIcon)
+				.OptionsSource(FDMXAttributeName::GetPossibleValues())
 				.Value(this, &TNameListType::GetValue)
-				.bCanBeNone(TStructType::bCanBeNone)
 				.bDisplayWarningIcon(true)
 				.OnValueChanged(this, &TNameListType::SetValue)
 			]
@@ -77,7 +74,7 @@ private:
 			if (RawPtr != nullptr)
 			{
 				// The types we use with this customization must have a cast constructor to FName
-				return reinterpret_cast<const TStructType*>(RawPtr)->GetName();
+				return reinterpret_cast<const TStructType*>(RawPtr)->Name;
 			}
 		}
 
@@ -137,22 +134,6 @@ private:
 		}
 
 		return false;
-	}
-
-	bool HideWarningIcon() const
-	{
-		if (HasMultipleValues())
-		{
-			return true;
-		}
-
-		const FName CurrentValue = GetValue();
-		if (CurrentValue.IsEqual(FDMXNameListItem::None))
-		{
-			return true;
-		}
-
-		return TStructType::IsValid(GetValue());
 	}
 
 private:

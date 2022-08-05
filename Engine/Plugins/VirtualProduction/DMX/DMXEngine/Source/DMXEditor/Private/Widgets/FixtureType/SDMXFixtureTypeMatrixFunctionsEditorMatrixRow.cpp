@@ -84,10 +84,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 		return
 			SNew(SNameListPicker)
 			.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPossibleValues))
-			.UpdateOptionsDelegate(&FDMXAttributeName::OnValuesChanged)
-			.IsValid(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::HasInvalidCellAttributeName)
 			.Value(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GetCellAttributeName)
-			.bCanBeNone(FDMXAttributeName::bCanBeNone)
 			.bDisplayWarningIcon(true)
 			.OnValueChanged(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::SetCellAttributeName);
 	}
@@ -120,20 +117,9 @@ FReply SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClick
 	return FReply::Handled();
 }
 
-bool SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::HasInvalidCellAttributeName() const
-{
-	const FName CurrentValue = GetCellAttributeName();
-	if (CurrentValue.IsEqual(FDMXNameListItem::None))
-	{
-		return true;
-	}
-
-	return FDMXAttributeName::IsValid(CurrentValue);
-}
-
 FName SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GetCellAttributeName() const
 {
-	return CellAttributeItem->GetCellAttributeName().GetName();
+	return CellAttributeItem->GetCellAttributeName().Name;
 }
 
 void SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::SetCellAttributeName(FName NewValue)

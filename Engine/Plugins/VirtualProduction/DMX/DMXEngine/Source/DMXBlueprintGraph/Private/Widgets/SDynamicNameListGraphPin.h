@@ -30,11 +30,7 @@ public:
 		return SNew(SNameListPicker)
 			.HasMultipleValues(false)
 			.Value(this, &SDynamicNameListGraphPin::GetValue)
-			.OnValueChanged(this, &SDynamicNameListGraphPin::SetValue)
-			.UpdateOptionsDelegate(&TStructType::OnValuesChanged)
 			.OptionsSource(MakeAttributeLambda(&TStructType::GetPossibleValues))
-			.IsValid(this, &SDynamicNameListGraphPin::IsValueValid)
-			.bCanBeNone(TStructType::bCanBeNone)
 			.bDisplayWarningIcon(true)
 			.Visibility(this, &SGraphPin::GetDefaultValueVisibility);
 	}
@@ -50,7 +46,7 @@ private:
 			TStructType::StaticStruct()->ImportText(*GraphPinObj->GetDefaultAsString(), &NameItem, nullptr, EPropertyPortFlags::PPF_None, GLog, TStructType::StaticStruct()->GetName());
 		}
 
-		return NameItem.GetName();
+		return NameItem.Name;
 	}
 
 	void SetValue(FName NewValue)
@@ -59,10 +55,5 @@ private:
 		TStructType NewNameItem(NewValue);
 		TStructType::StaticStruct()->ExportText(ValueString, &NewNameItem, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, ValueString);
-	}
-
-	bool IsValueValid() const
-	{
-		return TStructType::IsValid(GetValue());
 	}
 };
