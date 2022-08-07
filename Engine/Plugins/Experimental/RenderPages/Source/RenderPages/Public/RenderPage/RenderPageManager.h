@@ -87,27 +87,11 @@ namespace UE::RenderPages
 		/** The number of characters for a generated ID. For example, a value of 4 results in IDs: "0001", "0002", etc. */
 		static constexpr int32 GeneratedIdCharacterLength = 4;
 
+
 	public:
-		/** Creates a new page and adds it to the given collection. **/
-		URenderPage* AddNewPage(URenderPageCollection* PageCollection);
-
-		/** Copy the given pages in the given collection. **/
-		URenderPage* CopyPage(URenderPageCollection* PageCollection, URenderPage* Page);
-
-		/** Delete the given page in the given collection. **/
-		void DeletePage(URenderPageCollection* PageCollection, URenderPage* Page);
-
-		/** Relocates the given page in the given collection to the position of the given dropped-on page. **/
-		bool DragDropPage(URenderPageCollection* PageCollection, URenderPage* Page, URenderPage* DroppedOnPage, const bool bAfter = true);
-
-		/** Generates a unique page ID by finding the highest page ID and increasing it by one. **/
-		FString CreateUniquePageId(URenderPageCollection* PageCollection);
-
-		/** Finds whether given page ID already exists in the collection. **/
-		bool DoesPageIdExist(URenderPageCollection* PageCollection, const FString& PageId);
-
 		/** Batch render the current pages of the given collection. **/
 		URenderPagesMoviePipelineRenderJob* CreateBatchRenderJob(URenderPageCollection* PageCollection);
+
 
 		/** Batch render the current pages of the given collection. **/
 		URenderPagesMoviePipelineRenderJob* RenderPreviewFrame(const FRenderPageManagerRenderPreviewFrameArgs& Args);
@@ -124,6 +108,7 @@ namespace UE::RenderPages
 		/** Gets the rendered preview frame the given frame number (of a rendering in which the frame number was not specified). */
 		UTexture2D* GetRenderedPreviewFrame(URenderPage* Page, const int32 Frame);
 
+
 		/** Makes sure that all the data from the current props source is stored in all of the pages of this page collection. */
 		void UpdatePagesPropValues(URenderPageCollection* PageCollection);
 
@@ -132,6 +117,7 @@ namespace UE::RenderPages
 
 		/** Restores the props that were previously applied, to the values they were before. */
 		void RestorePagePropValues(const FRenderPageManagerPreviousPagePropValues& PreviousPropValues);
+
 
 	private:
 		/** The map that stores the start frame (of a render) of each rendered page. */

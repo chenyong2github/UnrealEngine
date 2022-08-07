@@ -355,11 +355,14 @@ FReply UE::RenderPages::Private::SRenderPagesPageListTableRow::OnAcceptDrop(cons
 	{
 		if (const TSharedPtr<FRenderPagesPageListTableRowDragDropOp> DragDropOp = Event.GetOperationAs<FRenderPagesPageListTableRowDragDropOp>())
 		{
-			if (IRenderPagesModule::Get().GetManager().DragDropPage(BlueprintEditor->GetInstance(), DragDropOp->GetPage(), Page, (InItemDropZone != EItemDropZone::AboveItem)))
+			if (URenderPageCollection* Instance = BlueprintEditor->GetInstance(); IsValid(Instance))
 			{
-				BlueprintEditor->MarkAsModified();
-				BlueprintEditor->OnRenderPagesChanged().Broadcast();
-				return FReply::Handled();
+				if (Instance->ReorderRenderPage(DragDropOp->GetPage(), Page, (InItemDropZone != EItemDropZone::AboveItem)))
+				{
+					BlueprintEditor->MarkAsModified();
+					BlueprintEditor->OnRenderPagesChanged().Broadcast();
+					return FReply::Handled();
+				}
 			}
 		}
 	}
@@ -427,7 +430,7 @@ TSharedRef<SWidget> UE::RenderPages::Private::SRenderPagesPageListTableRow::Gene
 				{
 					if (URenderPageCollection* PageCollection = BlueprintEditor->GetInstance(); IsValid(PageCollection))
 					{
-						if (IRenderPagesModule::Get().GetManager().DoesPageIdExist(PageCollection, NewPageId))
+						if (PageCollection->DoesPageIdExist(NewPageId))
 						{
 							const FText TitleText = LOCTEXT("PageIdNotUniqueTitle", "Duplicate Page IDs");
 							FMessageDialog::Open(

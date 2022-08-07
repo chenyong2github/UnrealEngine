@@ -143,39 +143,47 @@ void UE::RenderPages::Private::SRenderPagesPropsRemoteControl::OnRemoteControlEx
 			return;
 		}
 
-		bool bModified = false;
-		for (const FGuid& Id : ModifiedProperties)
+		if (URenderPageCollection* Collection = BlueprintEditor->GetInstance(); IsValid(Collection))
 		{
-			if (const TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(Id).Pin())
+			if (Collection->IsCurrentlyExecutingUserCode())
 			{
-				TArray<uint8> BinaryArray;
-				if (!URenderPagePropRemoteControl::GetValueOfEntity(Entity, BinaryArray))
-				{
-					continue;
-				}
-				TArray<uint8> StoredBinaryArray;
-				if (!GetSelectedPageFieldValue(Entity, StoredBinaryArray))
-				{
-					continue;
-				}
-				if (BinaryArray == StoredBinaryArray)
-				{
-					continue;
-				}
-
-				if (!SetSelectedPageFieldValue(Entity, BinaryArray))
-				{
-					continue;
-				}
-				bModified = true;
+				return;
 			}
-		}
 
-		if (bModified)
-		{
-			BlueprintEditor->MarkAsModified();
-			BlueprintEditor->OnRenderPagesChanged().Broadcast();
-			Refresh();
+			bool bModified = false;
+			for (const FGuid& Id : ModifiedProperties)
+			{
+				if (const TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(Id).Pin())
+				{
+					TArray<uint8> BinaryArray;
+					if (!URenderPagePropRemoteControl::GetValueOfEntity(Entity, BinaryArray))
+					{
+						continue;
+					}
+					TArray<uint8> StoredBinaryArray;
+					if (!GetSelectedPageFieldValue(Entity, StoredBinaryArray))
+					{
+						continue;
+					}
+					if (BinaryArray == StoredBinaryArray)
+					{
+						continue;
+					}
+
+					if (!SetSelectedPageFieldValue(Entity, BinaryArray))
+					{
+						continue;
+					}
+					bModified = true;
+				}
+			}
+
+			if (bModified)
+			{
+				BlueprintEditor->MarkAsModified();
+				BlueprintEditor->OnRenderPagesChanged().Broadcast();
+				Refresh();
+			}
 		}
 	}
 }

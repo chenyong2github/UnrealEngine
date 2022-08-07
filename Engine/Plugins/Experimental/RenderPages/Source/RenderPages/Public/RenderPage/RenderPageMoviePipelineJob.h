@@ -13,6 +13,7 @@ struct FMoviePipelineOutputData;
 class URenderPageCollection;
 class URenderPage;
 class UMoviePipelineExecutorBase;
+class UMoviePipelinePIEExecutor;
 class UMoviePipelineQueue;
 class UMoviePipelineExecutorJob;
 class URenderPagesMoviePipelineRenderJob;
@@ -44,7 +45,7 @@ namespace UE::RenderPages
 		TArray<TObjectPtr<URenderPage>> Pages;
 
 		/** If not null, it will override the MRQ pipeline executor class with this class. */
-		TSubclassOf<UMoviePipelineExecutorBase> PipelineExecutorClass = nullptr;
+		TSubclassOf<UMoviePipelinePIEExecutor> PipelineExecutorClass = nullptr;
 
 		/** The MRQ settings classes to disable (things like Anti-Aliasing, High-Res, etc). */
 		TArray<TSubclassOf<UMoviePipelineSetting>> DisableSettingsClasses;
@@ -100,9 +101,19 @@ public:
 
 private:
 	void ComputePlaybackContext(bool& bOutAllowBinding);
+	void ExecutePageStarted(UMoviePipelineExecutorJob* JobToStart);
+	void ExecutePageFinished(FMoviePipelineOutputData PipelineOutputData);
 	void ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess);
 
 protected:
+	/** The render page that will be rendered. */
+	UPROPERTY(Transient)
+	TObjectPtr<URenderPage> Page;
+
+	/** The render page collection that the render page (that will be rendered) belongs to. */
+	UPROPERTY(Transient)
+	TObjectPtr<URenderPageCollection> PageCollection;
+
 	/** The MRQ queue. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMoviePipelineQueue> RenderQueue;
@@ -182,10 +193,6 @@ protected:
 	/** The engine framerate settings values that have been overwritten by the currently applied engine framerate settings values. */
 	UPROPERTY(Transient)
 	FRenderPagePreviousEngineFpsSettings PreviousFrameLimitSettings;
-
-	/** True if the queue has previously executed the pre-render event of a page. */
-	UPROPERTY(Transient)
-	bool bRanPreRender;
 
 public:
 	/** A delegate for when the render job is about to start. */

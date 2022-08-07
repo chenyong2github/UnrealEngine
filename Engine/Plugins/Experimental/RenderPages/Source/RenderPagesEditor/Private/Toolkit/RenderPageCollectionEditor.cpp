@@ -352,8 +352,10 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::AddReferencedObjects
 {
 	FBlueprintEditor::AddReferencedObjects(Collector);
 
-	URenderPageCollection* RenderPageCollection = GetInstance();
-	Collector.AddReferencedObject(RenderPageCollection);
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
+	{
+		Collector.AddReferencedObject(Instance);
+	}
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
@@ -385,15 +387,15 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::BindCommands()
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::AddPageAction()
 {
-	URenderPage* Page = IRenderPagesModule::Get().GetManager().AddNewPage(GetInstance());
-	if (!IsValid(Page))
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
 	{
-		return;
+		if (URenderPage* Page = Instance->CreateAndAddNewRenderPage(); IsValid(Page))
+		{
+			OnRenderPageCreated().Broadcast(Page);
+			MarkAsModified();
+			OnRenderPagesChanged().Broadcast();
+		}
 	}
-
-	OnRenderPageCreated().Broadcast(Page);
-	MarkAsModified();
-	OnRenderPagesChanged().Broadcast();
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::CopyPageAction()
@@ -404,14 +406,15 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::CopyPageAction()
 		return;
 	}
 
-	URenderPageCollection* RenderPageCollection = GetInstance();
-	for (URenderPage* SelectedRenderPage : SelectedRenderPages)
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
 	{
-		IRenderPagesModule::Get().GetManager().CopyPage(RenderPageCollection, SelectedRenderPage);
+		for (URenderPage* SelectedRenderPage : SelectedRenderPages)
+		{
+			Instance->DuplicateAndAddRenderPage(SelectedRenderPage);
+		}
+		MarkAsModified();
+		OnRenderPagesChanged().Broadcast();
 	}
-
-	MarkAsModified();
-	OnRenderPagesChanged().Broadcast();
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::DeletePageAction()
@@ -433,14 +436,16 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::DeletePageAction()
 		return;
 	}
 
-	URenderPageCollection* RenderPageCollection = GetInstance();
-	for (URenderPage* SelectedRenderPage : SelectedRenderPages)
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
 	{
-		IRenderPagesModule::Get().GetManager().DeletePage(RenderPageCollection, SelectedRenderPage);
-	}
+		for (URenderPage* SelectedRenderPage : SelectedRenderPages)
+		{
+			Instance->RemoveRenderPage(SelectedRenderPage);
+		}
 
-	MarkAsModified();
-	OnRenderPagesChanged().Broadcast();
+		MarkAsModified();
+		OnRenderPagesChanged().Broadcast();
+	}
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::BatchRenderListAction()
@@ -451,26 +456,26 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::BatchRenderListActio
 		return;
 	}
 
-	URenderPageCollection* PageCollection = GetInstance();
-	if (PageCollection->GetRenderPages().Num() <= 0)
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
 	{
-		const FText TitleText = LOCTEXT("NoPagesToRenderTitle", "No Pages To Render");
-		FMessageDialog::Open(
-			EAppMsgType::Ok,
-			LOCTEXT("NoPagesToRenderText", "There are no render pages in this collection, and so nothing can be rendered. Please make a page and try again."),
-			&TitleText);
-		return;
-	}
+		if (Instance->GetRenderPages().Num() <= 0)
+		{
+			const FText TitleText = LOCTEXT("NoPagesToRenderTitle", "No Pages To Render");
+			FMessageDialog::Open(
+				EAppMsgType::Ok,
+				LOCTEXT("NoPagesToRenderText", "There are no render pages in this collection, and so nothing can be rendered. Please make a page and try again."),
+				&TitleText);
+			return;
+		}
 
-	URenderPagesMoviePipelineRenderJob* RenderJob = IRenderPagesModule::Get().GetManager().CreateBatchRenderJob(PageCollection);
-	if (!RenderJob)
-	{
-		return;
+		if (URenderPagesMoviePipelineRenderJob* RenderJob = IRenderPagesModule::Get().GetManager().CreateBatchRenderJob(Instance); IsValid(RenderJob))
+		{
+			RenderJob->OnExecuteFinished().AddRaw(this, &FRenderPageCollectionEditor::OnBatchRenderListActionFinished);
+			BatchRenderJob = RenderJob;
+			OnRenderPagesBatchRenderingStarted().Broadcast(RenderJob);
+			RenderJob->Execute();
+		}
 	}
-	RenderJob->OnExecuteFinished().AddRaw(this, &FRenderPageCollectionEditor::OnBatchRenderListActionFinished);
-	BatchRenderJob = RenderJob;
-	OnRenderPagesBatchRenderingStarted().Broadcast(RenderJob);
-	RenderJob->Execute();
 }
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::OnBatchRenderListActionFinished(URenderPagesMoviePipelineRenderJob* RenderJob, bool bSuccess)
@@ -542,11 +547,11 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::FillToolbar(FToolBar
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::DestroyInstance()
 {
-	if (URenderPageCollection* RenderPageCollection = GetInstance())
+	if (URenderPageCollection* Instance = GetInstance(); IsValid(Instance))
 	{
-		RenderPageCollection->OnClose();
+		Instance->OnClose();
 		RenderPageCollectionWeakPtr.Reset();
-		RenderPageCollection->MarkAsGarbage();
+		Instance->MarkAsGarbage();
 	}
 }
 

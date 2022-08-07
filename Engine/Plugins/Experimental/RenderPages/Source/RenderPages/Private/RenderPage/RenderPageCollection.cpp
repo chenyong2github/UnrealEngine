@@ -8,6 +8,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieScene.h"
+#include "RenderPagesModule.h"
 #include "UObject/ObjectSaveContext.h"
 
 
@@ -80,7 +81,7 @@ TOptional<int32> URenderPage::GetSequenceEndFrame() const
 bool URenderPage::SetSequenceStartFrame(const int32 NewCustomStartFrame)
 {
 	int32 StartFrame = GetStartFrame().Get(0);
-	SetIsCustomStartFrame(true);
+	SetIsUsingCustomStartFrame(true);
 	SetCustomStartFrame(StartFrame);
 
 	TOptional<int32> SequenceStartFrame = GetSequenceStartFrame();
@@ -110,7 +111,7 @@ bool URenderPage::SetSequenceStartFrame(const int32 NewCustomStartFrame)
 bool URenderPage::SetSequenceEndFrame(const int32 NewCustomStartFrame)
 {
 	int32 EndFrame = GetEndFrame().Get(0);
-	SetIsCustomEndFrame(true);
+	SetIsUsingCustomEndFrame(true);
 	SetCustomEndFrame(EndFrame);
 
 	TOptional<int32> SequenceEndFrame = GetSequenceEndFrame();
@@ -339,7 +340,7 @@ FString URenderPage::PurgePageIdOrGenerateUniqueId(URenderPageCollection* PageCo
 	FString Result = PurgePageIdOrReturnEmptyString(NewPageId);
 	if (Result.IsEmpty())
 	{
-		return UE::RenderPages::IRenderPagesModule::Get().GetManager().CreateUniquePageId(PageCollection);
+		return PageCollection->GenerateNextPageId();
 	}
 	return Result;
 }
@@ -449,6 +450,8 @@ URenderPageCollection::URenderPageCollection()
 	: Id(FGuid::NewGuid())
 	, PropsSourceType(ERenderPagePropsSourceType::Local)
 	, PropsSourceOrigin_RemoteControl(nullptr)
+	, bExecutingPreRender(false)
+	, bExecutingPostRender(false)
 	, CachedPropsSource(nullptr)
 	, CachedPropsSourceType(ERenderPagePropsSourceType::Local)
 {
@@ -461,24 +464,34 @@ URenderPageCollection::URenderPageCollection()
 
 UWorld* URenderPageCollection::GetWorld() const
 {
-	if (UWorld* CachedWorld = CachedWorldWeakPtr.Get(); IsValid(CachedWorld))
-	{
-		return CachedWorld;
-	}
-
 	if (HasAllFlags(RF_ClassDefaultObject))
 	{
 		// If we are a CDO, we must return nullptr instead of calling Outer->GetWorld() to fool UObject::ImplementsGetWorld.
 		return nullptr;
 	}
 
-	// Could be a GameInstance, could be World, could also be a WidgetTree, so we're just going to follow
-	// the outer chain to find the world we're in.
-	UObject* Outer = GetOuter();
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+	{
+		if (Context.WorldType == EWorldType::PIE)
+		{
+			return Context.World();
+		}
+	}
+
+	if (IsValid(GWorld))
+	{
+		return GWorld;
+	}
+
+	if (UWorld* CachedWorld = CachedWorldWeakPtr.Get(); IsValid(CachedWorld))
+	{
+		return CachedWorld;
+	}
+	UObject* Outer = GetOuter();// Could be a GameInstance, could be World, could also be a WidgetTree, so we're just going to follow the outer chain to find the world we're in.
 	while (Outer)
 	{
 		UWorld* World = Outer->GetWorld();
-		if (World)
+		if (IsValid(World))
 		{
 			CachedWorldWeakPtr = World;
 			return World;
@@ -506,12 +519,17 @@ void URenderPageCollection::PostLoad()
 
 void URenderPageCollection::PreRender(URenderPage* Page)
 {
+	bExecutingPreRender = true;
 	ReceivePreRender(Page);
+	bExecutingPreRender = false;
 }
 
 void URenderPageCollection::PostRender(URenderPage* Page)
 {
+	bExecutingPostRender = true;
 	ReceivePostRender(Page);
+	UE::RenderPages::Private::FRenderPagesModule::Get().GetManager().ApplyPagePropValues(this, Page);
+	bExecutingPostRender = false;
 }
 
 void URenderPageCollection::CopyValuesToOrFromCDO(const bool bToCDO)
@@ -529,7 +547,7 @@ void URenderPageCollection::CopyValuesToOrFromCDO(const bool bToCDO)
 
 	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
-		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient))
+		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient))// if not [Transient]
 		{
 			void* Data = Property->ContainerPtrToValuePtr<void>(this);
 			void* DataCDO = Property->ContainerPtrToValuePtr<void>(CDO);
@@ -705,4 +723,103 @@ void URenderPageCollection::InsertRenderPageAfter(URenderPage* RenderPage, URend
 			RenderPages.Insert(RenderPage, Index + 1);
 		}
 	}
+}
+
+FString URenderPageCollection::GenerateNextPageId()
+{
+	int32 Max = 0;
+	for (URenderPage* Page : RenderPages)
+	{
+		if (!IsValid(Page))
+		{
+			continue;
+		}
+		int32 Value = FCString::Atoi(*Page->GetPageId());
+		if (Value > Max)
+		{
+			Max = Value;
+		}
+	}
+	FString Result = FString::FromInt(Max + 1);
+	while (Result.Len() < UE::RenderPages::FRenderPageManager::GeneratedIdCharacterLength)
+	{
+		Result = TEXT("0") + Result;
+	}
+	return Result;
+}
+
+bool URenderPageCollection::DoesPageIdExist(const FString& PageId)
+{
+	const FString PageIdToLower = PageId.ToLower();
+	for (URenderPage* Page : RenderPages)
+	{
+		if (!IsValid(Page))
+		{
+			continue;
+		}
+		if (PageIdToLower == Page->GetPageId().ToLower())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+URenderPage* URenderPageCollection::CreateAndAddNewRenderPage()
+{
+	URenderPage* Page = NewObject<URenderPage>(this);
+	Page->SetPageId(GenerateNextPageId());
+	Page->SetPageName(TEXT("New"));
+	Page->SetOutputDirectory(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/"));
+
+	if (URenderPagePropsSourceRemoteControl* PropsSource = GetPropsSource<URenderPagePropsSourceRemoteControl>())
+	{
+		TArray<uint8> BinaryArray;
+		for (URenderPagePropRemoteControl* Field : PropsSource->GetProps()->GetAllCasted())
+		{
+			if (Field->GetValue(BinaryArray))
+			{
+				Page->SetRemoteControlValue(Field->GetRemoteControlEntity(), BinaryArray);
+			}
+		}
+	}
+
+	AddRenderPage(Page);
+	return Page;
+}
+
+URenderPage* URenderPageCollection::DuplicateAndAddRenderPage(URenderPage* Page)
+{
+	if (!IsValid(Page))
+	{
+		return nullptr;
+	}
+
+	if (URenderPage* DuplicateRenderPage = DuplicateObject(Page, this); IsValid(DuplicateRenderPage))
+	{
+		DuplicateRenderPage->GenerateNewId();
+		DuplicateRenderPage->SetPageId(GenerateNextPageId());
+		InsertRenderPageAfter(DuplicateRenderPage, Page);
+		return DuplicateRenderPage;
+	}
+	return nullptr;
+}
+
+bool URenderPageCollection::ReorderRenderPage(URenderPage* Page, URenderPage* DroppedOnPage, const bool bAfter)
+{
+	if (!IsValid(Page) || !IsValid(DroppedOnPage) || !HasRenderPage(Page) || !HasRenderPage(DroppedOnPage))
+	{
+		return false;
+	}
+
+	RemoveRenderPage(Page);
+	if (bAfter)
+	{
+		InsertRenderPageAfter(Page, DroppedOnPage);
+	}
+	else
+	{
+		InsertRenderPageBefore(Page, DroppedOnPage);
+	}
+	return true;
 }

@@ -36,6 +36,8 @@ URenderPagesMoviePipelineRenderJobEntry* URenderPagesMoviePipelineRenderJobEntry
 	}
 
 	URenderPagesMoviePipelineRenderJobEntry* RenderJobEntry = NewObject<URenderPagesMoviePipelineRenderJobEntry>(Job);
+	RenderJobEntry->Page = Page;
+	RenderJobEntry->PageCollection = Args.PageCollection;
 	RenderJobEntry->RenderQueue = NewObject<UMoviePipelineQueue>(RenderJobEntry);
 	RenderJobEntry->Executor = NewObject<UMoviePipelineExecutorBase>(RenderJobEntry, PipelineExecutor);
 	RenderJobEntry->ExecutorJob = nullptr;
@@ -162,7 +164,7 @@ URenderPagesMoviePipelineRenderJobEntry* URenderPagesMoviePipelineRenderJobEntry
 			Setting->bUseCustomFrameRate = false;
 		}
 
-		if (Page->GetIsCustomResolution())
+		if (Page->GetIsUsingCustomResolution())
 		{
 			Setting->OutputResolution = Page->GetCustomResolution();
 		}
@@ -233,6 +235,11 @@ TSharedFuture<void> URenderPagesMoviePipelineRenderJobEntry::Execute()
 	{
 		LevelSequenceEditorModule->OnComputePlaybackContext().AddUObject(this, &URenderPagesMoviePipelineRenderJobEntry::ComputePlaybackContext);
 	}
+	if (UMoviePipelinePIEExecutor* ActiveExecutorPIE = Cast<UMoviePipelinePIEExecutor>(Executor))
+	{
+		ActiveExecutorPIE->OnIndividualJobStarted().AddUObject(this, &URenderPagesMoviePipelineRenderJobEntry::ExecutePageStarted);
+		ActiveExecutorPIE->OnIndividualJobWorkFinished().AddUObject(this, &URenderPagesMoviePipelineRenderJobEntry::ExecutePageFinished);
+	}
 	Status = TEXT("Rendering...");
 	Executor->OnExecutorFinished().AddUObject(this, &URenderPagesMoviePipelineRenderJobEntry::ExecuteFinished);
 	Executor->Execute(RenderQueue);
@@ -277,11 +284,26 @@ void URenderPagesMoviePipelineRenderJobEntry::ComputePlaybackContext(bool& bOutA
 	bOutAllowBinding = false;
 }
 
+void URenderPagesMoviePipelineRenderJobEntry::ExecutePageStarted(UMoviePipelineExecutorJob* JobToStart)
+{
+	PageCollection->PreRender(Page);
+}
+
+void URenderPagesMoviePipelineRenderJobEntry::ExecutePageFinished(FMoviePipelineOutputData PipelineOutputData)
+{
+	PageCollection->PostRender(Page);
+}
+
 void URenderPagesMoviePipelineRenderJobEntry::ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess)
 {
 	if (ILevelSequenceEditorModule* LevelSequenceEditorModule = FModuleManager::GetModulePtr<ILevelSequenceEditorModule>("LevelSequenceEditorModule"))
 	{
 		LevelSequenceEditorModule->OnComputePlaybackContext().RemoveAll(this);
+	}
+	if (UMoviePipelinePIEExecutor* PipelineExecutorPIE = Cast<UMoviePipelinePIEExecutor>(PipelineExecutor))
+	{
+		PipelineExecutorPIE->OnIndividualJobStarted().RemoveAll(this);
+		PipelineExecutorPIE->OnIndividualJobWorkFinished().RemoveAll(this);
 	}
 	bCanceled = (bCanceled || !bSuccess);
 	Status = (bCanceled ? TEXT("Canceled") : TEXT("Done"));
@@ -311,7 +333,6 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 	RenderJob->Queue = MakeShareable(new UE::RenderPages::Private::FRenderPageQueue);
 	RenderJob->PageCollection = Args.PageCollection;
 	RenderJob->bCanceled = false;
-	RenderJob->bRanPreRender = false;
 
 
 	RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueAction::CreateLambda([RenderJob]()
@@ -330,19 +351,8 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 			{
 				if (!RenderJob->IsCanceled())
 				{
-					RenderJob->bRanPreRender = true;
-					RenderJob->PageCollection->PreRender(Page);
-					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
-				}
-				return nullptr;
-			}));
-
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
-			{
-				if (!RenderJob->IsCanceled())
-				{
 					RenderJob->PreviousPageProps = UE::RenderPages::IRenderPagesModule::Get().GetManager().ApplyPagePropValues(RenderJob->PageCollection, Page.Get());
-					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1 + Page->GetWaitFramesBeforeRendering());
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(2 + Page->GetWaitFramesBeforeRendering());
 				}
 				return nullptr;
 			}));
@@ -358,18 +368,7 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 				{
 					UE::RenderPages::IRenderPagesModule::Get().GetManager().RestorePagePropValues(RenderJob->PreviousPageProps);
 					RenderJob->PreviousPageProps = FRenderPageManagerPreviousPagePropValues();
-					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
-				}
-				return nullptr;
-			}));
-
-			RenderJob->Queue->Add(UE::RenderPages::Private::FRenderPageQueueActionReturningDelay::CreateLambda([RenderJob, Page]() -> UE::RenderPages::Private::FRenderPageQueueDelay
-			{
-				if (RenderJob->bRanPreRender)
-				{
-					RenderJob->bRanPreRender = false;
-					RenderJob->PageCollection->PostRender(Page);
-					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(1);
+					return UE::RenderPages::Private::FRenderPageQueueDelay::Frames(2);
 				}
 				return nullptr;
 			}));

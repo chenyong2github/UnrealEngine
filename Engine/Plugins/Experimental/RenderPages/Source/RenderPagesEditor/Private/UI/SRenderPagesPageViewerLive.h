@@ -12,6 +12,7 @@
 class ALevelSequenceActor;
 class SSlider;
 class URenderPage;
+class URenderPageCollection;
 
 namespace UE::RenderPages
 {
@@ -54,7 +55,7 @@ namespace UE::RenderPages::Private
 		void Construct(const FArguments& InArgs);
 		virtual ~SRenderPagesEditorViewport() override;
 
-		bool ShowSequenceFrame(ULevelSequence* InSequence, const float InTime);
+		bool ShowSequenceFrame(URenderPage* InPage, URenderPageCollection* InPageCollection, ULevelSequence* InSequence, const float InTime);
 
 	protected:
 		//~ Begin SEditorViewport Interface
@@ -88,6 +89,14 @@ namespace UE::RenderPages::Private
 
 		/** The time of the currently playing sequence. */
 		float LevelSequenceTime;
+
+		/** The page that's currently being shown. */
+		UPROPERTY()
+		TObjectPtr<URenderPage> Page;
+
+		/** The collection of the page that's currently being shown. */
+		UPROPERTY()
+		TObjectPtr<URenderPageCollection> PageCollection;
 	};
 
 

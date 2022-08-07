@@ -19,7 +19,6 @@ class RENDERPAGESDEVELOPER_API URenderPagesBlueprint : public UBlueprint
 
 public:
 	//~ Begin UBlueprint Interface
-	virtual UClass* GetBlueprintClass() const override;
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
 	virtual bool SupportsGlobalVariables() const override { return true; }
@@ -30,6 +29,24 @@ public:
 	virtual bool SupportsEventGraphs() const override { return true; }
 	virtual bool SupportsAnimLayers() const override { return false; }
 
+	virtual UClass* GetBlueprintClass() const override;
 	virtual void PostLoad() override;
 	//~ End UBlueprint Interface
+
+private:
+	virtual void OnPreVariablesChange(UObject* InObject);
+	virtual void OnPostVariablesChange(UBlueprint* InBlueprint);
+
+protected:
+	virtual void OnVariableAdded(FBPVariableDescription& InVar);
+	virtual void OnVariableRemoved(FBPVariableDescription& InVar) {}
+	virtual void OnVariableRenamed(FBPVariableDescription& InVar, const FName& InOldVarName, const FName& InNewVarName) {}
+	virtual void OnVariableTypeChanged(FBPVariableDescription& InVar, const FEdGraphPinType& InOldVarType, const FEdGraphPinType& InNewVarType) {}
+	virtual void OnVariablePropertyFlagsChanged(FBPVariableDescription& InVar, const uint64 InOldVarPropertyFlags, const uint64 InNewVarPropertyFlags);
+
+protected:
+	virtual void MakeVariableTransientUnlessInstanceEditable(FBPVariableDescription& InVar);
+
+private:
+	TArray<FBPVariableDescription> LastNewVariables;
 };

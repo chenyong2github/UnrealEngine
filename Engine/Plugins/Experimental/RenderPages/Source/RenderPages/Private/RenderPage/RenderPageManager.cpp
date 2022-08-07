@@ -7,129 +7,6 @@
 #include "MoviePipelinePIEExecutor.h"
 
 
-URenderPage* UE::RenderPages::FRenderPageManager::AddNewPage(URenderPageCollection* PageCollection)
-{
-	if (!IsValid(PageCollection))
-	{
-		return nullptr;
-	}
-
-	URenderPage* Page = NewObject<URenderPage>(PageCollection);
-	Page->SetPageId(CreateUniquePageId(PageCollection));
-	Page->SetPageName(TEXT("New"));
-	Page->SetOutputDirectory(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/"));
-
-	if (URenderPagePropsSourceRemoteControl* PropsSource = PageCollection->GetPropsSource<URenderPagePropsSourceRemoteControl>())
-	{
-		TArray<uint8> BinaryArray;
-		for (URenderPagePropRemoteControl* Field : PropsSource->GetProps()->GetAllCasted())
-		{
-			if (Field->GetValue(BinaryArray))
-			{
-				Page->SetRemoteControlValue(Field->GetRemoteControlEntity(), BinaryArray);
-			}
-		}
-	}
-
-	PageCollection->Modify();
-	PageCollection->AddRenderPage(Page);
-	return Page;
-}
-
-URenderPage* UE::RenderPages::FRenderPageManager::CopyPage(URenderPageCollection* PageCollection, URenderPage* Page)
-{
-	if (!IsValid(PageCollection) || !IsValid(Page))
-	{
-		return nullptr;
-	}
-
-	if (URenderPage* DuplicateRenderPage = DuplicateObject(Page, PageCollection); IsValid(DuplicateRenderPage))
-	{
-		DuplicateRenderPage->GenerateNewId();
-		DuplicateRenderPage->SetPageId(CreateUniquePageId(PageCollection));
-		DuplicateRenderPage->Modify();
-		PageCollection->Modify();
-		PageCollection->InsertRenderPageAfter(DuplicateRenderPage, Page);
-		return DuplicateRenderPage;
-	}
-	return nullptr;
-}
-
-bool UE::RenderPages::FRenderPageManager::DoesPageIdExist(URenderPageCollection* PageCollection, const FString& PageId)
-{
-	const FString PageIdToLower = PageId.ToLower();
-	for (URenderPage* Page : PageCollection->GetRenderPagesRef())
-	{
-		if (!IsValid(Page))
-		{
-			continue;
-		}
-		if (PageIdToLower == Page->GetPageId().ToLower())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-void UE::RenderPages::FRenderPageManager::DeletePage(URenderPageCollection* PageCollection, URenderPage* Page)
-{
-	if (!IsValid(PageCollection) || !IsValid(Page))
-	{
-		return;
-	}
-
-	PageCollection->Modify();
-	PageCollection->RemoveRenderPage(Page);
-}
-
-bool UE::RenderPages::FRenderPageManager::DragDropPage(URenderPageCollection* PageCollection, URenderPage* Page, URenderPage* DroppedOnPage, const bool bAfter)
-{
-	if (!IsValid(PageCollection) || !IsValid(Page) || !IsValid(DroppedOnPage))
-	{
-		return false;
-	}
-	if (!PageCollection->HasRenderPage(Page) || !PageCollection->HasRenderPage(DroppedOnPage))
-	{
-		return false;
-	}
-
-	PageCollection->RemoveRenderPage(Page);
-	if (bAfter)
-	{
-		PageCollection->InsertRenderPageAfter(Page, DroppedOnPage);
-	}
-	else
-	{
-		PageCollection->InsertRenderPageBefore(Page, DroppedOnPage);
-	}
-	return true;
-}
-
-FString UE::RenderPages::FRenderPageManager::CreateUniquePageId(URenderPageCollection* PageCollection)
-{
-	int32 Max = 0;
-	for (URenderPage* Page : PageCollection->GetRenderPagesRef())
-	{
-		if (!IsValid(Page))
-		{
-			continue;
-		}
-		int32 Value = FCString::Atoi(*Page->GetPageId());
-		if (Value > Max)
-		{
-			Max = Value;
-		}
-	}
-	FString Result = FString::FromInt(Max + 1);
-	while (Result.Len() < GeneratedIdCharacterLength)
-	{
-		Result = TEXT("0") + Result;
-	}
-	return Result;
-}
-
-
 URenderPagesMoviePipelineRenderJob* UE::RenderPages::FRenderPageManager::CreateBatchRenderJob(URenderPageCollection* PageCollection)
 {
 	FRenderPagesMoviePipelineRenderJobCreateArgs JobArgs;
@@ -167,10 +44,10 @@ URenderPagesMoviePipelineRenderJob* UE::RenderPages::FRenderPageManager::RenderP
 	{
 		constexpr int32 RenderFramesCount = 1;// can be more than 1 to prevent rendering issues, will always take the last frame that's rendered
 
-		PageCopy->SetIsCustomStartFrame(true);
+		PageCopy->SetIsUsingCustomStartFrame(true);
 		PageCopy->SetCustomStartFrame(Args.Frame.Get(0));
 
-		PageCopy->SetIsCustomEndFrame(true);
+		PageCopy->SetIsUsingCustomEndFrame(true);
 		PageCopy->SetCustomEndFrame(Args.Frame.Get(0));
 
 		if (!PageCopy->SetSequenceEndFrame(PageCopy->GetSequenceStartFrame().Get(0) + 1) ||
@@ -181,7 +58,7 @@ URenderPagesMoviePipelineRenderJob* UE::RenderPages::FRenderPageManager::RenderP
 		}
 	}
 
-	PageCopy->SetIsCustomResolution(true);
+	PageCopy->SetIsUsingCustomResolution(true);
 	PageCopy->SetCustomResolution(Args.Resolution);
 
 	PageCopy->SetOutputDirectory(TmpRenderedFramesPath / (Args.Frame.IsSet() ? TEXT("PreviewFrame") : TEXT("PreviewFrames")));
@@ -206,7 +83,7 @@ URenderPagesMoviePipelineRenderJob* UE::RenderPages::FRenderPageManager::RenderP
 
 	const FGuid PageId = PageCopy->GetId();
 	const TOptional<int32> StartFrameOfRender = (Args.Frame.IsSet() ? TOptional<int32>() : PageCopy->GetStartFrame());
-	NewRenderJob->OnExecuteFinished().AddLambda([this,Callback,PageId,StartFrameOfRender](URenderPagesMoviePipelineRenderJob* RenderJob, const bool bSuccess)
+	NewRenderJob->OnExecuteFinished().AddLambda([this, Callback, PageId, StartFrameOfRender](URenderPagesMoviePipelineRenderJob* RenderJob, const bool bSuccess)
 	{
 		if (StartFrameOfRender.IsSet())
 		{

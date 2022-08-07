@@ -79,124 +79,124 @@ public:
 	TOptional<double> GetDurationInSeconds() const;
 
 	/** Gets the aspect ratio that this page will be rendered in. */
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	double GetOutputAspectRatio() const;
 
 	/** Checks whether the page contains data that matches the search terms. */
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	bool MatchesSearchTerm(const FString& SearchTerm) const;
 
 public:
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FGuid GetId() const { return Id; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void GenerateNewId() { Id = FGuid::NewGuid(); }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	int32 GetWaitFramesBeforeRendering() const { return WaitFramesBeforeRendering; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetWaitFramesBeforeRendering(const int32 NewWaitFramesBeforeRendering) { WaitFramesBeforeRendering = FMath::Max<int32>(0, NewWaitFramesBeforeRendering); }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	ULevelSequence* GetSequence() const { return Sequence; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetSequence(ULevelSequence* NewSequence) { Sequence = NewSequence; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
-	bool GetIsCustomStartFrame() const { return bOverrideStartFrame; }
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
+	bool GetIsUsingCustomStartFrame() const { return bOverrideStartFrame; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
-	void SetIsCustomStartFrame(const bool bNewOverrideStartFrame) { bOverrideStartFrame = bNewOverrideStartFrame; }
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
+	void SetIsUsingCustomStartFrame(const bool bNewOverrideStartFrame) { bOverrideStartFrame = bNewOverrideStartFrame; }
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	int32 GetCustomStartFrame() const { return CustomStartFrame; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetCustomStartFrame(const int32 NewCustomStartFrame) { CustomStartFrame = NewCustomStartFrame; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
-	bool GetIsCustomEndFrame() const { return bOverrideEndFrame; }
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
+	bool GetIsUsingCustomEndFrame() const { return bOverrideEndFrame; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
-	void SetIsCustomEndFrame(const bool bNewOverrideEndFrame) { bOverrideEndFrame = bNewOverrideEndFrame; }
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
+	void SetIsUsingCustomEndFrame(const bool bNewOverrideEndFrame) { bOverrideEndFrame = bNewOverrideEndFrame; }
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	int32 GetCustomEndFrame() const { return CustomEndFrame; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetCustomEndFrame(const int32 NewCustomEndFrame) { CustomEndFrame = NewCustomEndFrame; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
-	bool GetIsCustomResolution() const { return bOverrideResolution; }
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
+	bool GetIsUsingCustomResolution() const { return bOverrideResolution; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
-	void SetIsCustomResolution(const bool bNewOverrideResolution) { bOverrideResolution = bNewOverrideResolution; }
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
+	void SetIsUsingCustomResolution(const bool bNewOverrideResolution) { bOverrideResolution = bNewOverrideResolution; }
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FIntPoint GetCustomResolution() const { return CustomResolution; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetCustomResolution(const FIntPoint NewCustomResolution) { CustomResolution = NewCustomResolution; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FString GetPageId() const { return PageId; }
 
 	static FString PurgePageIdOrReturnEmptyString(const FString& NewPageId);
 	static FString PurgePageId(const FString& NewPageId);
 	static FString PurgePageIdOrGenerateUniqueId(URenderPageCollection* PageCollection, const FString& NewPageId);
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetPageId(const FString& NewPageId) { PageId = PurgePageId(NewPageId); }
 	void SetPageIdRaw(const FString& NewPageId) { PageId = NewPageId; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FString GetPageName() const { return PageName; }
 
 	static FString PurgePageName(const FString& NewPageName);
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetPageName(const FString& NewPageName) { PageName = NewPageName; }
 	void SetPageNameRaw(const FString& NewPageName) { PageName = NewPageName; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	bool GetIsEnabled() const { return bIsEnabled; }
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetIsEnabled(const bool bEnabled) { bIsEnabled = bEnabled; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FString GetOutputDirectory() const;
 	FString GetOutputDirectoryRaw() const { return OutputDirectory; }
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	FString GetOutputDirectoryForDisplay() const { return OutputDirectory; }
 
 	static FString PurgeOutputDirectory(const FString& NewOutputDirectory);
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetOutputDirectory(const FString& NewOutputDirectory) { OutputDirectory = PurgeOutputDirectory(NewOutputDirectory); }
 	void SetOutputDirectoryRaw(const FString& NewOutputDirectory) { OutputDirectory = NewOutputDirectory; }
 
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	UMoviePipelineMasterConfig* GetRenderPreset() const { return RenderPreset; }
 
-	UFUNCTION(BlueprintPure, Category="Render Pages | Page")
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page")
 	UMoviePipelineOutputSetting* GetRenderPresetOutputSettings() const;
 
-	UFUNCTION(BlueprintCallable, Category="Render Pages | Page")
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page")
 	void SetRenderPreset(UMoviePipelineMasterConfig* NewRenderPreset) { RenderPreset = NewRenderPreset; }
 
 
@@ -329,10 +329,16 @@ private:
 	void CopyValuesToOrFromCDO(const bool bToCDO);
 
 public:
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	FGuid GetId() const { return Id; }
+
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void GenerateNewId() { Id = FGuid::NewGuid(); }
 
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void SetPropsSource(ERenderPagePropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin = nullptr);
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	URenderPagePropsSourceBase* GetPropsSource() const;
 
 	template<typename Type>
@@ -342,21 +348,69 @@ public:
 		return Cast<Type>(GetPropsSource());
 	}
 
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	ERenderPagePropsSourceType GetPropsSourceType() const { return PropsSourceType; }
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	UObject* GetPropsSourceOrigin() const;
 
 public:
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void AddRenderPage(URenderPage* RenderPage);
+
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void RemoveRenderPage(URenderPage* RenderPage);
+
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void InsertRenderPage(URenderPage* RenderPage, int32 Index);
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	bool HasRenderPage(URenderPage* RenderPage) const;
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	int32 GetIndexOfRenderPage(URenderPage* RenderPage) const;
+
 	TArray<TObjectPtr<URenderPage>>& GetRenderPagesRef() { return RenderPages; }
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	TArray<URenderPage*> GetRenderPages() const;
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	TArray<URenderPage*> GetEnabledRenderPages() const;
+
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
 	TArray<URenderPage*> GetDisabledRenderPages() const;
+
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void InsertRenderPageBefore(URenderPage* RenderPage, URenderPage* BeforeRenderPage);
+
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
 	void InsertRenderPageAfter(URenderPage* RenderPage, URenderPage* AfterRenderPage);
+
+public:
+	/** Generates a unique page ID by finding the highest page ID and increasing it by one. **/
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
+	FString GenerateNextPageId();
+
+	/** Finds whether given page ID already exists in this collection. **/
+	UFUNCTION(BlueprintPure, Category="Render Pages|Page Collection")
+	bool DoesPageIdExist(const FString& PageId);
+
+	/** Creates a new render page and adds it to this collection. **/
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
+	URenderPage* CreateAndAddNewRenderPage();
+
+	/** Copy the given page in this collection. **/
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
+	URenderPage* DuplicateAndAddRenderPage(URenderPage* Page);
+
+	/** Relocates the given page in this collection to the position of the given dropped-on page. **/
+	UFUNCTION(BlueprintCallable, Category="Render Pages|Page Collection")
+	bool ReorderRenderPage(URenderPage* Page, URenderPage* DroppedOnPage, const bool bAfter = true);
+
+public:
+	/** Returns true when it's currently executing a blueprint implementable event, returns false otherwise. */
+	bool IsCurrentlyExecutingUserCode() const { return bExecutingPreRender || bExecutingPostRender; }
 
 private:
 	DECLARE_MULTICAST_DELEGATE(FOnRenderPageCollectionPreSave);
@@ -384,6 +438,15 @@ private:
 	/** The render pages of this collection. */
 	UPROPERTY(Instanced)
 	TArray<TObjectPtr<URenderPage>> RenderPages;
+
+
+	/** True when it's currently executing the PreRender event, false otherwise. */
+	UPROPERTY(Transient)
+	bool bExecutingPreRender;
+
+	/** True when it's currently executing the PostRender event, false otherwise. */
+	UPROPERTY(Transient)
+	bool bExecutingPostRender;
 
 
 	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the result (the PropsSource) that has been last outputted by that function. */
