@@ -72,16 +72,19 @@ namespace
 
 	static const void* GetUpperBoundIn4GBRange(const void* moduleBase)
 	{
+		const uint64_t HighestPossibleAddress = 0x00007FFFFFFF0000ull;
+		const uint64_t HighestPossibleAddressThreshold = HighestPossibleAddress - 2ull * 1024ull * 1024ull * 1024ull;
+
 		const uint64_t base = pointer::AsInteger<uint64_t>(moduleBase);
 
 		// make sure we don't overflow
-		if (base <= 0xFFFFFFFF7FFFFFFFull)
+		if (base <= HighestPossibleAddressThreshold)
 		{
-			return pointer::FromInteger<const void*>(base + 0x80000000ull);
+			return pointer::FromInteger<const void*>(base + 2ull * 1024ull * 1024ull * 1024ull);
 		}
 
 		// operation would overflow
-		return pointer::FromInteger<const void*>(0xFFFFFFFFFFFFFFFFull);
+		return pointer::FromInteger<const void*>(HighestPossibleAddress);
 	}
 #endif
 
@@ -2889,6 +2892,19 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 						coff::RemoveSymbol(rawCoff, i, removalStrategy);
 						coff::RemoveRelocations(rawCoff, i);
 						strippedSymbols.insert(symbolName);
+					}
+				}
+
+				// Clang workaround: in certain cases, we don't find the _GLOBAL__sub_I_ dynamic initializer symbol, which can lead to
+				// a crash in user code, unfortunately.
+				// as a workaround, we patch the code of the function itself to return immediately, so that even when it is called, it doesn't do anything.
+				if (usesClang)
+				{
+					const ImmutableString& symbolName = coff::GetSymbolName(rawCoff, i);
+					const bool isClangDynamicInitializer = (string::StartsWith(symbolName.c_str(), "_GLOBAL__sub_I_"));
+					if (isClangDynamicInitializer)
+					{
+						coff::PatchFunctionSymbol(rawCoff, i, symbolSectionIndex);
 					}
 				}
 			}

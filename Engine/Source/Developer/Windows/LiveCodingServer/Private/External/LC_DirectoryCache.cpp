@@ -59,7 +59,6 @@ void DirectoryCache::RestartNotifications(void)
 	for (auto it : m_directories)
 	{
 		Directory* dir = it.second;
-		dir->changeNotification.Check(0u);
 		dir->hadChange = false;
 	}
 }

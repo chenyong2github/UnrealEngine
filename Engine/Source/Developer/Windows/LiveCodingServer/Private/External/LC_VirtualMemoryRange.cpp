@@ -48,6 +48,12 @@ void VirtualMemoryRange::ReservePages(const void* addressStart, const void* addr
 		// align address to be scanned
 		address = pointer::AlignTop<const void*>(address, alignment);
 
+		if (address < addressStart)
+		{
+			// overflow happened because we scanned too far
+			break;
+		}
+
 		::MEMORY_BASIC_INFORMATION memoryInfo = {};
 		const size_t bytesReturned = ::VirtualQueryEx(+m_processHandle, address, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
 		// BEGIN EPIC MOD

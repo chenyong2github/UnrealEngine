@@ -13,6 +13,7 @@
 #include "LC_MemoryStream.h"
 #include "LC_UniqueId.h"
 #include "LC_MemoryMappedFile.h"
+#include "LC_Assembler.h"
 // BEGIN EPIC MOD
 #include "LC_Allocators.h"
 #include "LC_Assert.h"
@@ -959,6 +960,30 @@ namespace coff
 				// we assume that there's only one directive section in a COFF file
 				return;
 			}
+		}
+	}
+
+
+	template <typename RawCoffType>
+	static void PatchFunctionSymbol(RawCoffType* rawCoff, size_t symbolIndex, uint32_t sectionIndex)
+	{
+		LC_LOG_DEV("Patching function symbol %d (%s)", symbolIndex, rawCoff->stringTable[symbolIndex].c_str());
+
+		coff::RawSection& section = rawCoff->sections[sectionIndex];
+		uint8_t* code = static_cast<uint8_t*>(section.data);
+		code[0] = Assembler::Opcode::RET[0];
+	}
+
+
+	void PatchFunctionSymbol(RawCoff* rawCoff, size_t symbolIndex, uint32_t sectionIndex)
+	{
+		if (rawCoff->type == RawCoffRegular::TYPE)
+		{
+			PatchFunctionSymbol(static_cast<RawCoffRegular*>(rawCoff), symbolIndex, sectionIndex);
+		}
+		else if (rawCoff->type == RawCoffBigObj::TYPE)
+		{
+			PatchFunctionSymbol(static_cast<RawCoffBigObj*>(rawCoff), symbolIndex, sectionIndex);
 		}
 	}
 

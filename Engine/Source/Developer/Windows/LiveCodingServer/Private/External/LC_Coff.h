@@ -392,6 +392,9 @@ namespace coff
 	void ReplaceLinkerDirectives(RawCoff* rawCoff, const types::vector<std::string>& directives);
 
 
+	// patches a function symbol to return immediately
+	void PatchFunctionSymbol(RawCoff* rawCoff, size_t symbolIndex, uint32_t sectionIndex);
+
 	// removes a symbol
 	void RemoveSymbol(RawCoff* rawCoff, size_t symbolIndex, SymbolRemovalStrategy::Enum removalStrategy);
 

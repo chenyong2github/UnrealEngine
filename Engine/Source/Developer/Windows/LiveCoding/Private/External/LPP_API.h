@@ -105,7 +105,7 @@
 /******************************************************************************/
 
 // version string
-#define LPP_VERSION "1.6.4"
+#define LPP_VERSION "1.6.10"
 
 // macros to temporarily enable/disable optimizations
 #ifdef __clang__

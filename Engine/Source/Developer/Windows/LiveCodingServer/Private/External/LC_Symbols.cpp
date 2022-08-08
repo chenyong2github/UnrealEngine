@@ -1755,9 +1755,9 @@ namespace symbols
 			auto it = existingDb->dependencies.find(filePath);
 			if (it != existingDb->dependencies.end())
 			{
-				// merge and update dependent .obj paths and modification time
+				// merge and update dependent .obj paths.
+				// do not update modification time, because the file might have been changed while we were still compiling it.
 				symbols::Dependency* existingDependency = it->second;
-				existingDependency->lastModification = newDependency->lastModification;
 
 				types::StringSet paths;
 				paths.insert(existingDependency->objPaths.begin(), existingDependency->objPaths.end());
@@ -2272,7 +2272,7 @@ namespace symbols
 
 	bool IsStringLiteral(const ImmutableString& symbolName)
 	{
-		return ContainsPatterns(symbolName.c_str(), symbolPatterns::STRING_LITERAL_PATTERNS);
+		return StartsWithPatterns(symbolName.c_str(), symbolPatterns::STRING_LITERAL_PATTERNS);
 	}
 
 
