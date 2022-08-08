@@ -17,7 +17,7 @@ class PCG_API UPCGLandscapeData : public UPCGSurfaceData
 	GENERATED_BODY()
 
 public:
-	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly);
+	void Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata);
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape | Super::GetDataType(); }
@@ -40,12 +40,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TSoftObjectPtr<ALandscapeProxy> Landscape;
 
+	bool IsUsingMetadata() const { return bUseMetadata; }
+
 protected:
 	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);
 
 	UPROPERTY()
 	bool bHeightOnly = false;
+
+	UPROPERTY()
+	bool bUseMetadata = true;
 
 private:
 	// Transient data

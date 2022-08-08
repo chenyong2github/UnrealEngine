@@ -199,6 +199,7 @@ private:
 	UPCGData* CreateActorPCGData(AActor* Actor);
 	UPCGData* CreateLandscapePCGData(bool bHeightOnly);
 	void UpdatePCGExclusionData();
+	bool IsLandscapeCachedDataDirty(const UPCGData* Data) const;
 
 	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
 	void GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger);

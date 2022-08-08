@@ -13,13 +13,14 @@
 #include "Landscape.h"
 #include "LandscapeEdit.h"
 
-void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly)
+void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata)
 {
 	check(InLandscape);
 	Landscape = InLandscape;
 	TargetActor = InLandscape;
 	Bounds = InBounds;
 	bHeightOnly = bInHeightOnly;
+	bUseMetadata = bInUseMetadata;
 
 	Transform = Landscape->GetActorTransform();
 
@@ -30,7 +31,7 @@ void UPCGLandscapeData::Initialize(ALandscapeProxy* InLandscape, const FBox& InB
 	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
 	if (LandscapeCache)
 	{
-		if (!bHeightOnly)
+		if (!bHeightOnly && bUseMetadata)
 		{
 			const TArray<FName> Layers = LandscapeCache->GetLayerNames(Landscape.Get());
 
@@ -87,7 +88,7 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 		}
 		else
 		{
-			LandscapeCacheEntry->GetInterpolatedPoint(ComponentLocalPoint, OutPoint, OutMetadata);
+			LandscapeCacheEntry->GetInterpolatedPoint(ComponentLocalPoint, OutPoint, bUseMetadata ? OutMetadata : nullptr);
 		}
 
 		return true;
@@ -189,7 +190,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 						}
 						else
 						{
-							LandscapeCacheEntry->GetPoint(PointIndex, Point, Data->Metadata);
+							LandscapeCacheEntry->GetPoint(PointIndex, Point, bUseMetadata ? Data->Metadata : nullptr);
 						}
 					}
 				}

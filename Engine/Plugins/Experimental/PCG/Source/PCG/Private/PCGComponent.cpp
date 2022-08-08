@@ -1362,7 +1362,8 @@ UPCGData* UPCGComponent::GetInputPCGData()
 
 UPCGData* UPCGComponent::GetActorPCGData()
 {
-	if (!CachedActorData)
+	// Actor PCG Data can be a Landscape data too
+	if (!CachedActorData || IsLandscapeCachedDataDirty(CachedActorData))
 	{
 		CachedActorData = CreateActorPCGData();
 	}
@@ -1372,7 +1373,7 @@ UPCGData* UPCGComponent::GetActorPCGData()
 
 UPCGData* UPCGComponent::GetLandscapePCGData()
 {
-	if (!CachedLandscapeData)
+	if (!CachedLandscapeData || IsLandscapeCachedDataDirty(CachedLandscapeData))
 	{
 		CachedLandscapeData = CreateLandscapePCGData(/*bHeightOnly=*/false);
 	}
@@ -1382,7 +1383,8 @@ UPCGData* UPCGComponent::GetLandscapePCGData()
 
 UPCGData* UPCGComponent::GetLandscapeHeightPCGData()
 {
-	if (!CachedLandscapeHeightData)
+
+	if (!CachedLandscapeHeightData || IsLandscapeCachedDataDirty(CachedLandscapeHeightData))
 	{
 		CachedLandscapeHeightData = CreateLandscapePCGData(/*bHeightOnly=*/true);
 	}
@@ -1510,7 +1512,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 	else if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
 	{
 		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>(this);
-		Data->Initialize(Landscape, GetGridBounds(Actor), /*bHeightOnly=*/false);
+		Data->Initialize(Landscape, GetGridBounds(Actor), /*bHeightOnly=*/false, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 
 		return Data;
 	}
@@ -1694,7 +1696,7 @@ UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 
 	// TODO: we're creating separate landscape data instances here so we can do some tweaks on it (such as storing the right target actor) but this probably should change
 	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>(this);
-	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape), bHeightOnly);
+	LandscapeData->Initialize(Landscape, GetGridBounds(Landscape), bHeightOnly, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
 	// Need to override target actor for this one, not the landscape
 	LandscapeData->TargetActor = Actor;
 
@@ -1755,6 +1757,18 @@ UPCGData* UPCGComponent::CreateInputPCGData()
 		// Most likely to be stored in the PCG data grid.
 		return nullptr;
 	}
+}
+
+bool UPCGComponent::IsLandscapeCachedDataDirty(const UPCGData* Data) const
+{
+	bool IsCacheDirty = false;
+
+	if (const UPCGLandscapeData* CachedData = Cast<UPCGLandscapeData>(Data))
+	{
+		IsCacheDirty = Graph && (CachedData->IsUsingMetadata() != Graph->bLandscapeUsesMetadata);
+	}
+
+	return IsCacheDirty;
 }
 
 FBox UPCGComponent::GetGridBounds() const
