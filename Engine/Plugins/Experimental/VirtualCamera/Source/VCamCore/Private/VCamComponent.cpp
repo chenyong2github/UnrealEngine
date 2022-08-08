@@ -14,6 +14,8 @@
 #include "Engine/InputDelegateBinding.h"
 #include "InputMappingContext.h"
 
+#include "GameFramework/InputSettings.h"
+
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
@@ -28,10 +30,10 @@
 #include "IMultiUserClientModule.h"
 
 #include "EnhancedInputEditorSubsystem.h"
-#include "GameFramework/InputSettings.h"
 
 #include "VPSettings.h"
 #endif
+
 
 DEFINE_LOG_CATEGORY(LogVCamComponent);
 
