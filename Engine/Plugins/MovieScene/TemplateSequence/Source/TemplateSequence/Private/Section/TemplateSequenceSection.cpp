@@ -107,7 +107,7 @@ void UTemplateSequenceSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 	using namespace UE::MovieScene;
 
 	UTemplateSequence* TemplateSubSequence = Cast<UTemplateSequence>(GetSequence());
-	if (!ensure(TemplateSubSequence))
+	if (!TemplateSubSequence)
 	{
 		return;
 	}
