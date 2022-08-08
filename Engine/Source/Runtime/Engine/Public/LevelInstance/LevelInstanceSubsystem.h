@@ -44,7 +44,7 @@ public:
 	virtual void UpdateStreamingState() override;
 	//~ End UWorldSubsystem Interface.
 
-	ILevelInstanceInterface* GetLevelInstance(FLevelInstanceID LevelInstanceID) const;
+	ILevelInstanceInterface* GetLevelInstance(const FLevelInstanceID& LevelInstanceID) const;
 	ILevelInstanceInterface* GetOwningLevelInstance(const ULevel* Level) const;
 	FLevelInstanceID RegisterLevelInstance(ILevelInstanceInterface* LevelInstance);
 	void UnregisterLevelInstance(ILevelInstanceInterface* LevelInstance);
@@ -135,8 +135,8 @@ private:
 #if WITH_EDITOR
 	void RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming);
 
-	void OnEditChild(FLevelInstanceID LevelInstanceID);
-	void OnCommitChild(FLevelInstanceID LevelInstanceID, bool bChildChanged);
+	void OnEditChild(const FLevelInstanceID& LevelInstanceID);
+	void OnCommitChild(const FLevelInstanceID& LevelInstanceID, bool bChildChanged);
 
 	bool ForEachLevelInstanceChildImpl(const ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(const ILevelInstanceInterface*)> Operation) const;
 	bool ForEachLevelInstanceChildImpl(ILevelInstanceInterface* LevelInstance, bool bRecursive, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const;

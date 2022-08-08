@@ -100,7 +100,7 @@ bool ULevelInstanceSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) c
 	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::EditorPreview || WorldType == EWorldType::Inactive;
 }
 
-ILevelInstanceInterface* ULevelInstanceSubsystem::GetLevelInstance(FLevelInstanceID LevelInstanceID) const
+ILevelInstanceInterface* ULevelInstanceSubsystem::GetLevelInstance(const FLevelInstanceID& LevelInstanceID) const
 {
 	if (ILevelInstanceInterface*const* LevelInstance = RegisteredLevelInstances.Find(LevelInstanceID))
 	{
@@ -248,7 +248,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 		for (const TPair<ILevelInstanceInterface*, bool>& Pair : LevelInstancesToLoadOrUpdateCopy)
 		{
 #if WITH_EDITOR
-			SlowTask.EnterProgressFrame(1.f, LOCTEXT("LoadingLevelInstance", "Loading Level Instance"));
+			SlowTask.EnterProgressFrame(1.f, FText::Format(LOCTEXT("LoadingLevelInstance", "Loading Level Instance {0}"), FText::FromString(Pair.Key->GetWorldAsset().ToString())));
 #endif
 			LoadLevelInstance(Pair.Key);
 		}
@@ -380,16 +380,16 @@ void ULevelInstanceSubsystem::UnloadLevelInstance(const FLevelInstanceID& LevelI
 			if (ULevel* LoadedLevel = LevelInstance.LevelStreaming->GetLoadedLevel())
 			{
 				ForEachActorInLevel(LoadedLevel, [this](AActor* LevelActor)
+				{
+					if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(LevelActor))
 					{
-						if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(LevelActor))
-						{
-							// Make sure to remove from pending loads if we are unloading child can't be loaded
-							LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
+						// Make sure to remove from pending loads if we are unloading child can't be loaded
+						LevelInstancesToLoadOrUpdate.Remove(LevelInstance);
 
-							UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
-						}
-						return true;
-					});
+						UnloadLevelInstance(LevelInstance->GetLevelInstanceID());
+					}
+					return true;
+				});
 			}
 
 			ULevelStreamingLevelInstance::UnloadInstance(LevelInstance.LevelStreaming);
@@ -2194,7 +2194,7 @@ bool ULevelInstanceSubsystem::HasChildEdit(const ILevelInstanceInterface* LevelI
 	return ChildEditCountPtr && *ChildEditCountPtr;
 }
 
-void ULevelInstanceSubsystem::OnCommitChild(FLevelInstanceID LevelInstanceID, bool bChildChanged)
+void ULevelInstanceSubsystem::OnCommitChild(const FLevelInstanceID& LevelInstanceID, bool bChildChanged)
 {
 	int32& ChildEditCount = ChildEdits.FindChecked(LevelInstanceID);
 	check(ChildEditCount > 0);
@@ -2206,7 +2206,7 @@ void ULevelInstanceSubsystem::OnCommitChild(FLevelInstanceID LevelInstanceID, bo
 	}
 }
 
-void ULevelInstanceSubsystem::OnEditChild(FLevelInstanceID LevelInstanceID)
+void ULevelInstanceSubsystem::OnEditChild(const FLevelInstanceID& LevelInstanceID)
 {
 	int32& ChildEditCount = ChildEdits.FindOrAdd(LevelInstanceID, 0);
 	// Child edit count can reach 2 maximum in the Context of creating a LevelInstance inside an already editing child level instance
