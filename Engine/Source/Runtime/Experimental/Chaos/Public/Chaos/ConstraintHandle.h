@@ -111,8 +111,7 @@ namespace Chaos
 
 		virtual bool IsValid() const
 		{
-			// @todo(chaos): why does IsValid() also check IsEnabled()?
-			return (ConstraintContainer != nullptr) && IsEnabled();
+			return (ConstraintContainer != nullptr);
 		}
 
 		FPBDConstraintContainer* GetContainer()
