@@ -106,7 +106,9 @@ private:
 	void SetLinearPositionDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
 	void SetLinearVelocityDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
 	void SetDriveParams(float InStiffness, float InDamping, float InForceLimit);
+	void SetDriveParams(const FVector& InStiffness, const FVector& InDamping, const FVector& InForceLimit);
 	void GetDriveParams(float& OutStiffness, float& OutDamping, float& OutForceLimit) const;
+	void GetDriveParams(FVector& OutStiffness, FVector& OutDamping, FVector& OutForceLimit) const;
 };
 
 
@@ -178,7 +180,13 @@ private:
 	void SetOrientationDriveSLERP(bool InEnableSLERP);
 	void SetAngularVelocityDriveTwistAndSwing(bool InEnableTwistDrive, bool InEnableSwingDrive);
 	void SetAngularVelocityDriveSLERP(bool InEnableSLERP);
+	// Sets the three drive parameters (swing, twist and slerp) to the same value 
 	void SetDriveParams(float InStiffness, float InDamping, float InForceLimit);
+	// Sets drive parameters in the order swing, twist, slerp
+	void SetDriveParams(const FVector& InStiffness, const FVector& InDamping, const FVector& InForceLimit);
+	// Gets just the swing drive parameters - assuming the single-float set function has previously been used
 	void GetDriveParams(float& OutStiffness, float& OutDamping, float& OutForceLimit) const;
+	// Gets drive parameters in the order swing, twist, slerp
+	void GetDriveParams(FVector& OutStiffness, FVector& OutDamping, FVector& OutForceLimit) const;
 	void SetAngularDriveMode(EAngularDriveMode::Type DriveMode);
 };

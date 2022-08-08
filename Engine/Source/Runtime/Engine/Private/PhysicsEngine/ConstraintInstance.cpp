@@ -872,12 +872,28 @@ void FConstraintInstance::SetLinearDriveParams(float InSpring, float InDamping, 
 	});
 }
 
+/** Function for setting linear motor parameters. */
+void FConstraintInstance::SetLinearDriveParams(const FVector& InSpring, const FVector& InDamping, const FVector& InForceLimit)
+{
+	ProfileInstance.LinearDrive.SetDriveParams(InSpring, InDamping, InForceLimit);
+
+	FPhysicsInterface::ExecuteOnUnbrokenConstraintReadWrite(ConstraintHandle, [this](const FPhysicsConstraintHandle& InUnbrokenConstraint)
+		{
+			FPhysicsInterface::UpdateLinearDrive_AssumesLocked(InUnbrokenConstraint, ProfileInstance.LinearDrive);
+		});
+}
+
 /** Get the linear drive's strength parameters */
 void FConstraintInstance::GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit)
 {
 	ProfileInstance.LinearDrive.GetDriveParams(OutPositionStrength, OutVelocityStrength, OutForceLimit);
 }
 
+/** Get the linear drive's strength parameters */
+void FConstraintInstance::GetLinearDriveParams(FVector& OutPositionStrength, FVector& OutVelocityStrength, FVector& OutForceLimit)
+{
+	ProfileInstance.LinearDrive.GetDriveParams(OutPositionStrength, OutVelocityStrength, OutForceLimit);
+}
 
 /** Function for setting target angular position. */
 void FConstraintInstance::SetAngularOrientationTarget(const FQuat& InOrientationTarget)

@@ -79,6 +79,13 @@ void FLinearDriveConstraint::SetDriveParams(float InStiffness, float InDamping, 
 	ZDrive.SetDriveParams(InStiffness, InDamping, InForceLimit);
 }
 
+void FLinearDriveConstraint::SetDriveParams(const FVector& InStiffness, const FVector& InDamping, const FVector& InForceLimit)
+{
+	XDrive.SetDriveParams(InStiffness.X, InDamping.X, InForceLimit.X);
+	YDrive.SetDriveParams(InStiffness.Y, InDamping.Y, InForceLimit.Y);
+	ZDrive.SetDriveParams(InStiffness.Z, InDamping.Z, InForceLimit.Z);
+}
+
 void FLinearDriveConstraint::GetDriveParams(float& OutStiffness, float& OutDamping, float& OutForceLimit) const
 {
 	// we set the same value on all drives, just return XDrive ones
@@ -87,6 +94,12 @@ void FLinearDriveConstraint::GetDriveParams(float& OutStiffness, float& OutDampi
 	OutForceLimit = XDrive.MaxForce;
 }
 
+void FLinearDriveConstraint::GetDriveParams(FVector& OutStiffness, FVector& OutDamping, FVector& OutForceLimit) const
+{
+	OutStiffness.Set(XDrive.Stiffness, YDrive.Stiffness, ZDrive.Stiffness);
+	OutDamping.Set(XDrive.Damping, YDrive.Damping, ZDrive.Damping);
+	OutForceLimit.Set(XDrive.MaxForce, YDrive.MaxForce, ZDrive.MaxForce);
+}
 
 void FAngularDriveConstraint::SetAngularDriveMode(EAngularDriveMode::Type DriveMode)
 {
@@ -100,10 +113,25 @@ void FAngularDriveConstraint::SetDriveParams(float InStiffness, float InDamping,
 	SlerpDrive.SetDriveParams(InStiffness, InDamping, InForceLimit);
 }
 
+void FAngularDriveConstraint::SetDriveParams(const FVector& InStiffness, const FVector& InDamping, const FVector& InForceLimit)
+{
+	SwingDrive.SetDriveParams(InStiffness.X, InDamping.X, InForceLimit.X);
+	TwistDrive.SetDriveParams(InStiffness.Y, InDamping.Y, InForceLimit.Y);
+	SlerpDrive.SetDriveParams(InStiffness.Z, InDamping.Z, InForceLimit.Z);
+}
+
 void FAngularDriveConstraint::GetDriveParams(float& OutStiffness, float& OutDamping, float& OutForceLimit) const
 {
 	// we set the same value on all drives, just return SwingDrive ones
 	OutStiffness = SwingDrive.Stiffness;
 	OutDamping = SwingDrive.Damping;
 	OutForceLimit = SwingDrive.MaxForce;
+}
+
+void FAngularDriveConstraint::GetDriveParams(FVector& OutStiffness, FVector& OutDamping, FVector& OutForceLimit) const
+{
+	OutStiffness.Set(SwingDrive.Stiffness, TwistDrive.Stiffness, TwistDrive.MaxForce);
+	OutDamping.Set(SwingDrive.Damping, TwistDrive.Damping, TwistDrive.MaxForce);
+	OutForceLimit.Set(SwingDrive.MaxForce, TwistDrive.Damping, TwistDrive.MaxForce);
+
 }
