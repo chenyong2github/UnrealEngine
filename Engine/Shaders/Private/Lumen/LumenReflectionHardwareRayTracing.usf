@@ -26,7 +26,7 @@
 #define LIGHTING_MODE_SURFACE_CACHE 0
 #define LIGHTING_MODE_HIT_LIGHTING 1
 
-Buffer<int> RayAllocator;
+Buffer<uint> RayAllocator;
 Buffer<uint2> TraceTexelDataPacked;
 uint2 OutputThreadGroupSize;
 RWStructuredBuffer<FTraceDataPacked> RWTraceDataPacked;
