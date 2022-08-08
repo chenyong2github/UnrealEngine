@@ -270,11 +270,26 @@ namespace Chaos
 			// Range of the chosen type (unsigned so Min is always 0)
 			static constexpr int32 StorageRange = TNumericLimits<StorageType>::Max();
 
+			static constexpr int32 LowResInc = 5;
+
 			// Heights in the chosen format. final placement of the vertex will be at
 			// MinValue + Heights[Index] * HeightPerUnit
 			// With HeightPerUnit being the range of the min/max FReal values of
 			// the heightfield divided by the range of StorageType
 			TArray<StorageType> Heights;
+
+			struct MinMaxHeights
+			{
+				StorageType Min;
+				StorageType Max;
+
+				void Serialize(FChaosArchive& Ar)
+				{
+					Ar << Min;
+					Ar << Max;
+				}
+			};
+			TArray<MinMaxHeights> LowResolutionHeights;
 			TArray<uint8> MaterialIndices;
 			FVec3 Scale;
 			VectorRegister4Float ScaleSimd;
@@ -284,6 +299,7 @@ namespace Chaos
 			uint16 NumCols;
 			FReal Range;
 			FReal HeightPerUnit;
+			uint16 NumColsLowRes;
 
 			constexpr FReal GetCellWidth() const
 			{
@@ -415,7 +431,7 @@ namespace Chaos
 				{
 					for (int IndexX = FirstIndexX; IndexX <= LastIndexX; IndexX++)
 					{
-						const int32 Index = IndexY * (NumCols - 1) + IndexX + IndexY;
+						const int32 Index = IndexY * NumCols + IndexX;
 						check(Index < Heights.Num());
 						const FRealSingle CurrHeight = Heights[Index];
 						MinHeight = FMath::Min<FRealSingle>(CurrHeight, MinHeight);
@@ -431,6 +447,29 @@ namespace Chaos
 
 				OutBounds = FAABBVectorized(MakeVectorRegisterFloat(static_cast<FRealSingle>(FirstIndexX), static_cast<FRealSingle>(FirstIndexY), MinHeight, 0.0f),
 											MakeVectorRegisterFloat(static_cast<FRealSingle>(LastIndexX), static_cast<FRealSingle>(LastIndexY), MaxHeight, 0.0f));
+			}
+
+			FORCEINLINE void GetLowResBounds(TVec2<int32> CellIdx, FAABBVectorized& OutBounds) const
+			{
+				int32 FirstIndexX = CellIdx[0];
+				int32 FirstIndexY = CellIdx[1];
+
+				const int32 FirstIndexLowResX = FirstIndexX / LowResInc;
+				const int32 FirstIndexLowResY = FirstIndexY / LowResInc;
+
+				const int32 Index = FirstIndexLowResY * (NumColsLowRes - 1) + FirstIndexLowResX + FirstIndexLowResY;
+				check(Index < LowResolutionHeights.Num());
+
+				FRealSingle MinHeight = LowResolutionHeights[Index].Min;
+				FRealSingle MaxHeight = LowResolutionHeights[Index].Max;
+
+				const FRealSingle MinValueSingle = static_cast<FRealSingle>(MinValue);
+				const FRealSingle HeightPerUnitSingle = static_cast<FRealSingle>(HeightPerUnit);
+				MinHeight = MinValueSingle + MinHeight * HeightPerUnitSingle;
+				MaxHeight = MinValueSingle + MaxHeight * HeightPerUnitSingle;
+
+				OutBounds = FAABBVectorized(MakeVectorRegisterFloat(static_cast<FRealSingle>(FirstIndexLowResX*LowResInc), static_cast<FRealSingle>(FirstIndexLowResY*LowResInc), MinHeight, 0.0f),
+					MakeVectorRegisterFloat(static_cast<FRealSingle>((FirstIndexLowResX+1) * LowResInc), static_cast<FRealSingle>((FirstIndexLowResY + 1) * LowResInc), MaxHeight, 0.0f));
 			}
 
 			FORCEINLINE void GetPointsScaled(int32 Index, FVec3 OutPts[4]) const
@@ -475,6 +514,18 @@ namespace Chaos
 			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
 			{
 				GetBounds(CellIdx, Area, OutBounds);
+
+				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
+				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
+				VectorRegister4Float Min = VectorMin(P0, P1);
+				VectorRegister4Float Max = VectorMax(P0, P1);
+
+				OutBounds = FAABBVectorized(Min, Max);
+			}
+
+			FORCEINLINE void GetLowResBoundsScaled(TVec2<int32> CellIdx, FAABBVectorized& OutBounds) const
+			{
+				GetLowResBounds(CellIdx, OutBounds);
 
 				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
 				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
@@ -547,6 +598,47 @@ namespace Chaos
 				if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
 				{
 					Ar << MaterialIndices;
+				}
+
+				Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+				if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddLowResolutionHeightField)
+				{
+					Ar << LowResolutionHeights;
+					Ar << NumColsLowRes;
+				}
+				else
+				{
+					BuildLowResolutionData();
+				}
+			}
+
+			// A height bounds for grids of cells of size "LowResInc" square, for faster culling
+			void BuildLowResolutionData()
+			{
+				const int32 NumRowsLowRes = FMath::CeilToInt(FRealSingle(NumRows) / LowResInc);
+				NumColsLowRes = uint16(FMath::CeilToInt(FRealSingle(NumCols) / LowResInc));
+				const int32 NumLowResHeights = NumRowsLowRes * NumColsLowRes;
+				LowResolutionHeights.SetNum(NumLowResHeights);
+
+				for (int32 RowIdxLowRes = 0; RowIdxLowRes < NumRowsLowRes; ++RowIdxLowRes)
+				{
+					for (int32 ColIdxLowRes = 0; ColIdxLowRes < NumColsLowRes; ++ColIdxLowRes)
+					{
+						FDataType::StorageType MinHeight = std::numeric_limits<FDataType::StorageType>::max();
+						FDataType::StorageType MaxHeight = std::numeric_limits<FDataType::StorageType>::min();
+						for (int32 RowIdx = RowIdxLowRes * int32(LowResInc); RowIdx < NumRows && RowIdx <= (RowIdxLowRes + 1) * int32(LowResInc); ++RowIdx)
+						{
+							for (int32 ColIdx = ColIdxLowRes * int32(LowResInc); ColIdx < NumCols && ColIdx <= (ColIdxLowRes + 1) * int32(LowResInc); ++ColIdx)
+							{
+								const int32 HeightIndex = RowIdx * NumCols + ColIdx;
+								MaxHeight = FMath::Max<FDataType::StorageType>(Heights[HeightIndex], MaxHeight);
+								MinHeight = FMath::Min<FDataType::StorageType>(Heights[HeightIndex], MinHeight);
+							}
+						}
+						const int32 HeightLowResIndex = RowIdxLowRes * NumColsLowRes + ColIdxLowRes;
+						LowResolutionHeights[HeightLowResIndex].Max = MaxHeight;
+						LowResolutionHeights[HeightLowResIndex].Min = MinHeight;
+					}
 				}
 			}
 		};
@@ -824,4 +916,9 @@ namespace Chaos
 		bool GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi, int32& ContactFaceIndex) const;
 	};
 
+	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, FHeightField::FDataType::MinMaxHeights& Value)
+	{
+		Value.Serialize(Ar);
+		return Ar;
+	}
 }

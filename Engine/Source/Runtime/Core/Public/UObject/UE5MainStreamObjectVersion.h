@@ -262,6 +262,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Updated image media source path resolution logic
 		ImgMediaPathResolutionWithEngineOrProjectTokens,
 
+		// Add low resolution data in Height Field
+		AddLowResolutionHeightField,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

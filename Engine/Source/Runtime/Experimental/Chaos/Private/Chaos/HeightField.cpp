@@ -659,6 +659,9 @@ namespace Chaos
 		}
 		OutBounds.Thicken(UE_KINDA_SMALL_NUMBER);
 
+		
+		OutData.BuildLowResolutionData();
+
 		if(bHaveMaterials)
 		{
 			if(bOnlyDefaultMaterial)
@@ -758,6 +761,8 @@ namespace Chaos
 				}
 			}
 		}
+
+		OutData.BuildLowResolutionData();
 	}
 
 	FHeightField::FHeightField(TArray<FReal>&& Height, TArray<uint8>&& InMaterialIndices, int32 NumRows, int32 NumCols, const FVec3& InScale)
@@ -1085,19 +1090,9 @@ namespace Chaos
 			const bool bCanWalk = SumPlaneAxis > UE_SMALL_NUMBER;
 			if (bCanWalk)
 			{
-				const FVec3 NextStartOri = NextStart;
 				const VectorRegister4Float CurrentLengthSimd = VectorSet1(static_cast<FRealSingle>(CurrentLength));
-				const FReal BoundsMinZ = CachedBounds.Min().Z;
-				const FReal BoundsMaxZ = CachedBounds.Max().Z;
-				const FReal Length2D = FMath::Sqrt(DirScaled[0] * DirScaled[0] + DirScaled[1] * DirScaled[1]);
-				const FReal FastInc2D = 5.0;  // Length in cell dimension
-				const FReal FastIncScaled = FastInc2D / Length2D;
+				const int32 LowResInc = Visitor.GeomData->LowResInc;
 
-				const FVec3 InspectionStepVector = DirScaled * FastIncScaled * ScaledDx;
-				FReal NextStartZ = FMath::Clamp(NextStart.Z, BoundsMinZ, BoundsMaxZ); // Numerical errors can violate this condition, so force it here.
-				const FReal FastIncScaled3D = InspectionStepVector.Length();
-				const FReal CellsToInspectZ = FastIncScaled3D * Dir.Z;
-				FReal DistanceProcessed = 0.0;		
 				while (true)
 				{
 					if (!FlatGrid.IsValid(CellIdx))
@@ -1105,30 +1100,64 @@ namespace Chaos
 						return false;
 					}
 
-					FVec3 NewNextStart = (InspectionStepVector + NextStart);
-					TVec2<int32> NewNextStartInt = TVec2<int32>(static_cast<int32>(NewNextStart[0] / Scale2D[0]), static_cast<int32>(NewNextStart[1] / Scale2D[1]));
-					TVec2<int32> NextStartInt = TVec2<int32>(static_cast<int32>(NextStart[0] / Scale2D[0]), static_cast<int32>(NextStart[1] / Scale2D[1]));
-
-					TVec2<int32> DiffInt = NewNextStartInt - NextStartInt;
-					TVec2<int32> AddedCellIdx = TVec2<int32>(static_cast<int32>(DiffInt[0]), static_cast<int32>(DiffInt[1]));
-
 					FAABBVectorized Bounds;
-					Visitor.GeomData->GetBoundsScaled(CellIdx, AddedCellIdx, Bounds);
+					Visitor.GeomData->GetLowResBoundsScaled(CellIdx, Bounds);
 					Bounds.Thicken(Visitor.ThicknessSimd);
 					if (Bounds.RaycastFast(Visitor.StartPointSimd, Visitor.InvDirSimd, Visitor.Parallel, CurrentLengthSimd))
 					{
-						NextStart = NextStartOri + Dir * DistanceProcessed;
+						TVec2<int32> NextStartInt = TVec2<int32>(static_cast<int32>(NextStart[0] / Scale2D[0]), static_cast<int32>(NextStart[1] / Scale2D[1]));
+						CellIdx = FlatGrid.Cell(NextStartInt);
 						break;
 					}
 
-					NextStart = NewNextStart;
-					CellIdx = FlatGrid.Cell(NewNextStartInt);
-					if (DistanceProcessed > CurrentLength || NextStartZ < BoundsMinZ || NextStartZ > BoundsMaxZ)
+					const FVec2 ScaledCellCenter2D = ScaledMin + FVec2(static_cast<FReal>(CellIdx[0] / LowResInc) + 0.5f, static_cast<FReal>(CellIdx[1] / LowResInc) + 0.5f) * (ScaledDx2D*(FReal)LowResInc);
+					const FVec3 ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
+
+					FReal Times[3];
+					FReal BestTime = CurrentLength;
+					bool bTerminate = true;
+					for (int Axis = 0; Axis < 3; ++Axis)
+					{
+						if (!bParallel[Axis])
+						{
+							const FReal CrossPoint = (Dir[Axis] * ScaleSign[Axis]) > 0 ? ScaledCellCenter[Axis] + ScaledDx[Axis] * (FReal)LowResInc / 2 : ScaledCellCenter[Axis] - ScaledDx[Axis] * (FReal)LowResInc / 2;
+							const FReal Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+							const FReal Time = Distance * InvDir[Axis];
+							Times[Axis] = Time;
+							if (Time < BestTime)
+							{
+								bTerminate = false;	//found at least one plane to pass through
+								BestTime = Time;
+							}
+						}
+						else
+						{
+							Times[Axis] = TNumericLimits<FReal>::Max();
+						}
+					}
+
+					if (bTerminate)
 					{
 						return false;
 					}
-					DistanceProcessed += FastIncScaled3D;
-					NextStartZ += CellsToInspectZ;					
+
+					const TVec2<int32> PrevIdx = CellIdx;
+
+					for (int Axis = 0; Axis < 2; ++Axis)
+					{
+						CellIdx[Axis] += (Times[Axis] <= BestTime) ? ((Dir[Axis] * ScaleSign[Axis]) > 0 ? LowResInc : -LowResInc) : 0;
+						if (CellIdx[Axis] < 0 || CellIdx[Axis] >= FlatGrid.Counts()[Axis])
+						{
+							return false;
+						}
+					}
+
+					if (PrevIdx == CellIdx)
+					{
+						//crossed on z plane which means no longer in heightfield bounds
+						return false;
+					}
+					NextStart = NextStart + Dir * BestTime;
 				}
 			}
 
