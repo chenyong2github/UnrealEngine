@@ -477,7 +477,7 @@ namespace UE::MediaCaptureData
 			else
 			{
 				//At some point we should support color conversion (ocio) but for now we push incoming texture as is
-				constexpr bool bDoLinearToSRGB = false;
+				const bool bDoLinearToSRGB = Args.MediaCapture->DesiredCaptureOptions.bApplyLinearToSRGBConversion;
 
 				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 				TShaderMapRef<FScreenPassVS> VertexShader(GlobalShaderMap);
@@ -605,7 +605,7 @@ namespace UE::MediaCaptureData
 					else
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FormatConversion);
-						AddConversionPass(Args, { GraphBuilder, SourceRGBTexture, bRequiresFormatConversion, CopyInfo, SizeU, SizeV }, OutputResource);
+						AddConversionPass(Args, { GraphBuilder, SourceRGBTexture, bRequiresFormatConversion,  CopyInfo, SizeU, SizeV }, OutputResource);
 					}
 				}
 

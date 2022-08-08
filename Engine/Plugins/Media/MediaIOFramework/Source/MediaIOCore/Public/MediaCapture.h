@@ -142,6 +142,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
 	bool bForceAlphaToOneOnConversion;
 
+	/**
+	 * Whether to apply a linear to sRGB conversion to the texture before outputting. 
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	bool bApplyLinearToSRGBConversion = false;;
+
 	/** Automatically stop capturing after a predetermined number of images. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
 	bool bAutostopOnCapture;
