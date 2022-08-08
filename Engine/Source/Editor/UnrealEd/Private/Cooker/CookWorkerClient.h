@@ -8,6 +8,7 @@
 #include "CookTypes.h"
 #include "IPAddress.h"
 
+namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
 namespace UE::Cook { struct FInitialConfigMessage; }
@@ -50,6 +51,11 @@ public:
 	/** Queue a message to the server that the Package was saved. Will be sent during Tick. */
 	void ReportPromoteToSaveComplete(FPackageData& PackageData);
 
+	/** Register a Collector for periodic ticking that sends messages to the Director. */
+	void Register(IMPCollector* Collector);
+	/** Unegister a Collector that was registered. */
+	void Unregister(IMPCollector* Collector);
+
 private:
 	enum class EConnectStatus
 	{
@@ -91,6 +97,8 @@ private:
 	void LogInvalidMessage(const TCHAR* MessageTypeName);
 	/** Send packages assigned from the server into the request state. */
 	void AssignPackages(FAssignPackagesMessage& Message);
+	/** Tick the registered collectors. */
+	void TickCollectors(FTickStackData& StackData, bool bFlush);
 
 
 private:
@@ -98,12 +106,14 @@ private:
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
 	TArray<FPackageRemoteResult> PendingResults;
+	TArray<TRefCountPtr<IMPCollector>> CollectorsToTick;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
 	FString DirectorURI;
 	UCookOnTheFlyServer& COTFS;
 	FSocket* ServerSocket = nullptr;
 	double ConnectStartTimeSeconds = 0.;
+	double NextTickCollectorsTimeSeconds = 0.;
 	EConnectStatus ConnectStatus = EConnectStatus::Uninitialized;
 	ECookMode::Type DirectorCookMode = ECookMode::CookByTheBook;
 };

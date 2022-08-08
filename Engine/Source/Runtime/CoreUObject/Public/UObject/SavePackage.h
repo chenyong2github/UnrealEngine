@@ -30,6 +30,8 @@ class UObject;
 
 class FArchive;
 class FArchiveDiffMap;
+class FCbFieldView;
+class FCbWriter;
 class FIoBuffer;
 class FOutputDevice;
 class FPackagePath;
@@ -211,6 +213,9 @@ namespace UE::SavePackageUtilities
 	COREUOBJECT_API void StartSavingEDLCookInfoForVerification();
 	COREUOBJECT_API void VerifyEDLCookInfo(bool bFullReferencesExpected = true);
 	COREUOBJECT_API void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName);
+	COREUOBJECT_API void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData);
+	COREUOBJECT_API bool EDLCookInfoAppendFromCompactBinary(FCbFieldView Field);
+
 
 #if WITH_EDITOR
 	/** void FAddResaveOnDemandPackage(FName SystemName, FName PackageName); */

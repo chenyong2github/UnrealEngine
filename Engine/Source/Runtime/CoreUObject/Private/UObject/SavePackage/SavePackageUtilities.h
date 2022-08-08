@@ -17,6 +17,8 @@
 
 // This file contains private utilities shared by UPackage::Save and UPackage::Save2 
 
+class FCbFieldView;
+class FCbWriter;
 class FPackagePath;
 class FSaveContext;
 class FSavePackageContext;
@@ -167,10 +169,12 @@ private:
 	TMap<UObject*, FString>			ObjectToFullNameMap;
 };
 
+struct FEDLCookCheckerThreadState;
+
 /**
  * Helper struct used during cooking to validate EDL dependencies
  */
-struct FEDLCookChecker : public TThreadSingleton<FEDLCookChecker>
+struct FEDLCookChecker
 {
 	void SetActiveIfNeeded();
 
@@ -183,8 +187,14 @@ struct FEDLCookChecker : public TThreadSingleton<FEDLCookChecker>
 
 	static void StartSavingEDLCookInfoForVerification();
 	static void Verify(bool bFullReferencesExpected);
+	static void MoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData);
+	static bool AppendFromCompactBinary(FCbFieldView Field);
 
 private:
+	static FEDLCookChecker AccumulateAndClear();
+	void WriteToCompactBinary(FCbWriter& Writer);
+	bool ReadFromCompactBinary(FCbFieldView Field);
+
 	typedef uint32 FEDLNodeID;
 	static const FEDLNodeID NodeIDInvalid = static_cast<FEDLNodeID>(-1);
 
@@ -193,7 +203,8 @@ public: // FEDLNodeHash is public only so that GetTypeHash can be defined
 	enum class EObjectEvent : uint8
 	{
 		Create,
-		Serialize
+		Serialize,
+		Max = Serialize,
 	};
 
 	/**
@@ -262,6 +273,7 @@ private:
 		/** True if the UObject represented by this node has been exported by a SavePackage call; used to verify that the imports requested by packages are present somewhere in the cook. */
 		bool bIsExport;
 
+		FEDLNodeData() { /* Fields are uninitialized */ }
 		FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, EObjectEvent InObjectEvent);
 		FEDLNodeData(FEDLNodeID InID, FEDLNodeID InParentID, FName InName, FEDLNodeData&& Other);
 		FEDLNodeHash GetNodeHash(const FEDLCookChecker& Owner) const;
@@ -272,14 +284,6 @@ private:
 		void Merge(FEDLNodeData&& Other);
 	};
 
-	enum class EInternalConstruct
-	{
-		Type
-	};
-
-	FEDLCookChecker();
-	FEDLCookChecker(EInternalConstruct);
-
 	FEDLNodeID FindOrAddNode(const FEDLNodeHash& NodeLookup);
 	FEDLNodeID FindOrAddNode(FEDLNodeData&& NodeData, const FEDLCookChecker& OldOwnerOfNode, FEDLNodeID ParentIDInThis, bool& bNew);
 	FEDLNodeID FindNode(const FEDLNodeHash& NodeHash);
@@ -289,7 +293,7 @@ private:
 
 	/**
 	 * All the FEDLNodeDatas that have been created for this checker. These are allocated as elements of an array rather than pointers to reduce cputime and
-	 * memory due to many small allocations, and to provide index-based identifiers. Nodes are not deleted during the lifetime of the checker.
+	 * memory due to many small allocations, and to provide index-based identifiers. Nodes are not deleted until the checker is reset.
 	 */
 	TArray<FEDLNodeData> Nodes;
 	/** A map to lookup the node for a UObject or for the corresponding node in another thread's FEDLCookChecker. */
@@ -302,13 +306,41 @@ private:
 	 */
 	TSet<FName> PackagesWithUnknownExports;
 	/** True if the EDLCookChecker should be active; it is turned off if the runtime will not be using EDL. */
-	bool bIsActive;
+	bool bIsActive = false;
 
 	/** When cooking with concurrent saving, each thread has its own FEDLCookChecker, and these are merged after the cook is complete. */
 	static FCriticalSection CookCheckerInstanceCritical;
 	static TArray<FEDLCookChecker*> CookCheckerInstances;
 
-	friend TThreadSingleton<FEDLCookChecker>;
+	friend FEDLCookCheckerThreadState;
+};
+
+/** Per-thread accessor for writing EDL dependencies to global FEDLCookChecker storage. */
+struct FEDLCookCheckerThreadState : public TThreadSingleton<FEDLCookCheckerThreadState>
+{
+	FEDLCookCheckerThreadState();
+
+	void AddImport(UObject* Import, UPackage* ImportingPackage)
+	{
+		Checker.AddImport(Import, ImportingPackage);
+	}
+	void AddExport(UObject* Export)
+	{
+		Checker.AddExport(Export);
+	}
+	void AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* Export, bool bExportIsSerialize)
+	{
+		Checker.AddArc(DepObject, bDepIsSerialize, Export, bExportIsSerialize);
+	}
+	void AddPackageWithUnknownExports(FName LongPackageName)
+	{
+		Checker.AddPackageWithUnknownExports(LongPackageName);
+	}
+
+private:
+	FEDLCookChecker Checker;
+	friend TThreadSingleton<FEDLCookCheckerThreadState>;
+	friend FEDLCookChecker;
 };
 
 #if WITH_EDITORONLY_DATA

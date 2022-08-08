@@ -628,12 +628,12 @@ public:
 		SerializeContext = InContext;
 	}
 
-	FEDLCookChecker* GetEDLCookChecker() const
+	FEDLCookCheckerThreadState* GetEDLCookChecker() const
 	{
 		return EDLCookChecker;
 	}
 
-	void SetEDLCookChecker(FEDLCookChecker* InCookChecker)
+	void SetEDLCookChecker(FEDLCookCheckerThreadState* InCookChecker)
 	{
 		EDLCookChecker = InCookChecker;
 	}
@@ -1018,7 +1018,7 @@ private:
 	FCanSkipEditorReferencedPackagesWhenCooking SkipEditorRefCookingSetting;
 
 	// Pointer to the EDLCookChecker associated with this context
-	FEDLCookChecker* EDLCookChecker = nullptr;
+	FEDLCookCheckerThreadState* EDLCookChecker = nullptr;
 
 	// Matching any mark in ExcludedObjectMarks indicates that an object should be excluded from being either an import or an export for this save
 	const EObjectMark ExcludedObjectMarks;

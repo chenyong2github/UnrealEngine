@@ -13,10 +13,13 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PathViews.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopedSlowTask.h"
 #include "SaveContext.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/EditorBulkData.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
 #include "Tasks/Task.h"
@@ -1126,19 +1129,12 @@ void FEDLCookChecker::FEDLNodeData::Merge(FEDLCookChecker::FEDLNodeData&& Other)
 	ImportingPackagesSorted.SetNum(Algo::Unique(ImportingPackagesSorted), true /* bAllowShrinking */);
 }
 
-FEDLCookChecker::FEDLCookChecker(EInternalConstruct)
-	: bIsActive(false)
+FEDLCookCheckerThreadState::FEDLCookCheckerThreadState()
 {
+	Checker.SetActiveIfNeeded();
 
-}
-
-FEDLCookChecker::FEDLCookChecker()
-	:FEDLCookChecker(EInternalConstruct::Type)
-{
-	SetActiveIfNeeded();
-
-	FScopeLock CookCheckerInstanceLock(&CookCheckerInstanceCritical);
-	CookCheckerInstances.Add(this);
+	FScopeLock CookCheckerInstanceLock(&FEDLCookChecker::CookCheckerInstanceCritical);
+	FEDLCookChecker::CookCheckerInstances.Add(&Checker);
 }
 
 void FEDLCookChecker::SetActiveIfNeeded()
@@ -1368,24 +1364,28 @@ void FEDLCookChecker::Merge(FEDLCookChecker&& Other)
 	}
 }
 
+FEDLCookChecker FEDLCookChecker::AccumulateAndClear()
+{
+	FEDLCookChecker Accumulator;
+
+	FScopeLock CookCheckerInstanceLock(&CookCheckerInstanceCritical);
+	for (FEDLCookChecker* Checker : CookCheckerInstances)
+	{
+		if (Checker->bIsActive)
+		{
+			Accumulator.bIsActive = true;
+			Accumulator.Merge(MoveTemp(*Checker));
+			Checker->Reset();
+			Checker->bIsActive = true;
+		}
+	}
+	return Accumulator;
+}
+
 void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 {
 	check(!GIsSavingPackage);
-
-	FEDLCookChecker Accumulator(EInternalConstruct::Type);
-
-	{
-		FScopeLock CookCheckerInstanceLock(&CookCheckerInstanceCritical);
-		for (FEDLCookChecker* Checker : CookCheckerInstances)
-		{
-			if (Checker->bIsActive)
-			{
-				Accumulator.bIsActive = true;
-				Accumulator.Merge(MoveTemp(*Checker));
-			}
-			Checker->Reset();
-		}			
-	}
+	FEDLCookChecker Accumulator = AccumulateAndClear();
 
 	if (Accumulator.bIsActive)
 	{
@@ -1442,6 +1442,151 @@ void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 	}
 }
 
+void FEDLCookChecker::MoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
+{
+	bOutHasData = false;
+	FEDLCookChecker Accumulator = AccumulateAndClear();
+	if (!Accumulator.bIsActive)
+	{
+		return;
+	}
+	if (Accumulator.Nodes.IsEmpty() && Accumulator.NodePrereqs.IsEmpty() && Accumulator.PackagesWithUnknownExports.IsEmpty())
+	{
+		return;
+	}
+	bOutHasData = true;
+
+	Accumulator.WriteToCompactBinary(Writer);
+}
+
+bool FEDLCookChecker::AppendFromCompactBinary(FCbFieldView Field)
+{
+	FEDLCookChecker Instance;
+	if (!Instance.ReadFromCompactBinary(Field))
+	{
+		return false;
+	}
+	FEDLCookChecker& CurrentChecker = FEDLCookCheckerThreadState::Get().Checker;
+	CurrentChecker.Merge(MoveTemp(Instance));
+	return true;
+}
+
+void FEDLCookChecker::WriteToCompactBinary(FCbWriter& Writer)
+{
+	Writer.BeginObject();
+	{
+		Writer.BeginArray("Nodes");
+		for (const FEDLNodeData& Node : Nodes)
+		{
+			Writer << Node.Name;
+			Writer << Node.ImportingPackagesSorted;
+			Writer << Node.ParentID;
+			Writer << static_cast<uint8>(Node.ObjectEvent);
+			Writer << Node.bIsExport;
+		}
+		Writer.EndArray();
+		Writer.BeginArray("NodePrereqs");
+		for (const TPair<FEDLNodeID, FEDLNodeID>& Pair : NodePrereqs)
+		{
+			Writer << static_cast<uint32>(Pair.Key);
+			Writer << static_cast<uint32>(Pair.Value);
+		}
+		Writer.EndArray();
+		Writer.BeginArray("PackagesWithUnknownExports");
+		for (FName PackageName : PackagesWithUnknownExports)
+		{
+			Writer << PackageName;
+		}
+		Writer.EndArray();
+	}
+	Writer.EndObject();
+}
+
+
+bool FEDLCookChecker::ReadFromCompactBinary(FCbFieldView Field)
+{
+	Reset();
+
+	bool bSuccess = false;
+	ON_SCOPE_EXIT
+	{
+		if (!bSuccess)
+		{
+			Reset();
+		}
+	};
+
+	FCbFieldView NodesField = Field["Nodes"];
+	Nodes.Reserve(NodesField.AsArrayView().Num() / 5);
+	if (NodesField.HasError())
+	{
+		return false;
+	}
+	FCbFieldViewIterator NodeIter = NodesField.CreateViewIterator();
+	while (NodeIter)
+	{
+		FEDLNodeID NodeID = Nodes.Num();
+		FEDLNodeData& Node = Nodes.Emplace_GetRef();
+		Node.ID = NodeID;
+		if (!LoadFromCompactBinary(NodeIter, Node.Name)) { return false; }
+		++NodeIter;
+		if (!LoadFromCompactBinary(NodeIter, Node.ImportingPackagesSorted)) { return false; }
+		++NodeIter;
+		if (!LoadFromCompactBinary(NodeIter, Node.ParentID)) { return false; }
+		++NodeIter;
+		uint8 LocalObjectEvent;
+		if (!LoadFromCompactBinary(NodeIter, LocalObjectEvent)) { return false; }
+		if (LocalObjectEvent > static_cast<uint8>(EObjectEvent::Max)) { return false; }
+		Node.ObjectEvent = static_cast<EObjectEvent>(LocalObjectEvent);
+		++NodeIter;
+		if (!LoadFromCompactBinary(NodeIter, Node.bIsExport)) { return false; }
+		++NodeIter;
+	}
+
+	FCbFieldView PrereqsField = Field["NodePrereqs"];
+	NodePrereqs.Reserve(PrereqsField.AsArrayView().Num() / 2);
+	if (PrereqsField.HasError())
+	{
+		return false;
+	}
+	FCbFieldViewIterator PrereqsIter = PrereqsField.CreateViewIterator();
+	while (PrereqsIter)
+	{
+		uint32 Key;
+		uint32 Value;
+		if (!LoadFromCompactBinary(PrereqsIter, Key)) { return false; }
+		++PrereqsIter;
+		if (!LoadFromCompactBinary(PrereqsIter, Value)) { return false; }
+		++PrereqsIter;
+		NodePrereqs.Add(static_cast<FEDLNodeID>(Key), static_cast<FEDLNodeID>(Value));
+	}
+
+	FCbFieldView PackagesWithUnknownExportsField = Field["PackagesWithUnknownExports"];
+	PackagesWithUnknownExports.Reserve(PackagesWithUnknownExportsField.AsArrayView().Num());
+	if (PackagesWithUnknownExportsField.HasError())
+	{
+		return false;
+	}
+	for (FCbFieldView PackageNameField : PackagesWithUnknownExportsField)
+	{
+		FName PackageName;
+		if (!LoadFromCompactBinary(PackageNameField, PackageName))
+		{
+			return false;
+		}
+		PackagesWithUnknownExports.Add(PackageName);
+	}
+
+	for (const FEDLNodeData& Node : Nodes)
+	{
+		NodeHashToNodeID.Add(Node.GetNodeHash(*this), Node.ID);
+	}
+	bIsActive = !Nodes.IsEmpty() || !NodePrereqs.IsEmpty() || !PackagesWithUnknownExports.IsEmpty();
+
+	bSuccess = true;
+	return true;
+}
+
 FCriticalSection FEDLCookChecker::CookCheckerInstanceCritical;
 TArray<FEDLCookChecker*> FEDLCookChecker::CookCheckerInstances;
 
@@ -1460,7 +1605,17 @@ void VerifyEDLCookInfo(bool bFullReferencesExpected)
 
 void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName)
 {
-	FEDLCookChecker::Get().AddPackageWithUnknownExports(LongPackageName);
+	FEDLCookCheckerThreadState::Get().AddPackageWithUnknownExports(LongPackageName);
+}
+
+void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
+{
+	FEDLCookChecker::MoveToCompactBinaryAndClear(Writer, bOutHasData);
+}
+
+bool EDLCookInfoAppendFromCompactBinary(FCbFieldView Field)
+{
+	return FEDLCookChecker::AppendFromCompactBinary(Field);
 }
 
 }

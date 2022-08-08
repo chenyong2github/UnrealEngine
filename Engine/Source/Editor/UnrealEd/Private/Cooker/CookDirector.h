@@ -17,6 +17,7 @@ class FCbObject;
 class FCbWriter;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FCookWorkerServer; }
+namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FWorkerId; }
 
@@ -52,6 +53,11 @@ public:
 		SeparateWindows, // Implies SeparateLogs as well
 	};
 	EShowWorker GetShowWorkerOption() const { return ShowWorkerOption; }
+
+	/** Register a Collector to receive messages of its MessageType from CookWorkers. */
+	void Register(IMPCollector* Collector);
+	/** Unegister a Collector that was registered. */
+	void Unregister(IMPCollector* Collector);
 
 private:
 	/** CookWorker connections that have not yet identified which CookWorker they are. */
@@ -98,6 +104,7 @@ private:
 private:
 	TMap<int32, TUniquePtr<FCookWorkerServer>> RemoteWorkers;
 	TMap<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>> ShuttingDownWorkers;
+	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;
 	TArray<FPendingConnection> PendingConnections;
 	FString WorkerConnectAuthority;
 	UCookOnTheFlyServer& COTFS;

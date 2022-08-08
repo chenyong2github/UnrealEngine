@@ -21,6 +21,7 @@
 #include "Cooker/AsyncIODelete.h"
 #include "Cooker/CookDirector.h"
 #include "Cooker/CookedSavePackageValidator.h"
+#include "Cooker/CookMPCollector.h"
 #include "Cooker/CookOnTheFlyServerInterface.h"
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
@@ -37,6 +38,7 @@
 #include "Cooker/WorkerRequestsLocal.h"
 #include "Cooker/WorkerRequestsRemote.h"
 #include "CookerSettings.h"
+#include "CookOnTheFlyNetServer.h"
 #include "CookPackageSplitter.h"
 #include "DerivedDataCacheInterface.h"
 #include "DistanceFieldAtlas.h"
@@ -108,6 +110,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/CustomVersion.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/ProjectPackagingSettings.h"
@@ -132,7 +135,6 @@
 #include "UObject/UObjectArray.h"
 #include "UObject/UObjectIterator.h"
 #include "ZenStoreWriter.h"
-#include "CookOnTheFlyNetServer.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
 
@@ -9651,6 +9653,41 @@ void UCookOnTheFlyServer::BeginCookEditorSystems()
 	ModifiedAssetFilenames.Empty();
 }
 
+namespace UE::Cook
+{
+
+/** MultiprocessCook collector for FEDLCookChecker data. */
+class FEDLMPCollector : public IMPCollector
+{
+public:
+	virtual FGuid GetMessageType() override { return MessageType; }
+	virtual const TCHAR* GetDebugName() override { return TEXT("FEDLMPCollector"); }
+
+	virtual void ClientTick(FClientContext& Context) override;
+	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+
+	static FGuid MessageType;
+};
+FGuid FEDLMPCollector::MessageType(TEXT("0164FD08F6884F6A82D2D00F8F70B182"));
+
+void FEDLMPCollector::ClientTick(FClientContext& Context)
+{
+	FCbWriter Writer;
+	bool bHasData;
+	UE::SavePackageUtilities::EDLCookInfoMoveToCompactBinaryAndClear(Writer, bHasData);
+	if (bHasData)
+	{
+		Context.AddMessage(Writer.Save().AsObject());
+	}
+}
+
+void FEDLMPCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Message)
+{
+	UE::SavePackageUtilities::EDLCookInfoAppendFromCompactBinary(Message.AsFieldView());
+}
+
+}
+
 void UCookOnTheFlyServer::BeginCookEDLCookInfo(FBeginCookContext& BeginContext)
 {
 	if (IsCookingInEditor())
@@ -9665,6 +9702,14 @@ void UCookOnTheFlyServer::BeginCookEDLCookInfo(FBeginCookContext& BeginContext)
 		return;
 	}
 	UE::SavePackageUtilities::StartSavingEDLCookInfoForVerification();
+	if (CookDirector)
+	{
+		CookDirector->Register(new UE::Cook::FEDLMPCollector());
+	}
+	else if (CookWorkerClient)
+	{
+		CookWorkerClient->Register(new UE::Cook::FEDLMPCollector());
+	}
 }
 
 void UCookOnTheFlyServer::RegisterCookByTheBookDelegates()

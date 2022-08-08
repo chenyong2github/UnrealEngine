@@ -582,7 +582,7 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 	if (SaveContext.IsCooking())
 	{
 		// Add the exports for the cook checker
-		if (FEDLCookChecker* EDLCookChecker = SaveContext.GetEDLCookChecker())
+		if (FEDLCookCheckerThreadState* EDLCookChecker = SaveContext.GetEDLCookChecker())
 		{
 			// the package isn't actually in the export map, but that is ok, we add it as export anyway for error checking
 			EDLCookChecker->AddExport(SaveContext.GetPackage());
@@ -834,7 +834,7 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 	if (SaveContext.IsCooking() && SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional)
 	{
 		// Now that imports are validated add them to the cook checker if available
-		if (FEDLCookChecker* EDLCookChecker = SaveContext.GetEDLCookChecker())
+		if (FEDLCookCheckerThreadState* EDLCookChecker = SaveContext.GetEDLCookChecker())
 		{
 			for (UObject* Import : SaveContext.GetImports())
 			{
@@ -1472,7 +1472,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 				IncludeIndexAsDependency(CreateBeforeCreateDependencies, Export.SuperIndex);
 			}
 			// Currently do not validate the optional context with the edl checker
-			FEDLCookChecker* EDLCookChecker = SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional ? SaveContext.GetEDLCookChecker() : nullptr;
+			FEDLCookCheckerThreadState* EDLCookChecker = SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional ? SaveContext.GetEDLCookChecker() : nullptr;
 			auto AddArcForDepChecking = [&Linker, &Export, EDLCookChecker](bool bExportIsSerialize, FPackageIndex Dep, bool bDepIsSerialize)
 			{
 				check(Export.Object);
@@ -2459,7 +2459,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 {
 	TRefCountPtr<FUObjectSerializeContext> SerializeContext(FUObjectThreadContext::Get().GetSerializeContext());
 	SaveContext.SetSerializeContext(SerializeContext);
-	SaveContext.SetEDLCookChecker(&FEDLCookChecker::Get());
+	SaveContext.SetEDLCookChecker(&FEDLCookCheckerThreadState::Get());
 
 	// Create slow task dialog if needed
 	const int32 TotalSaveSteps = 4;

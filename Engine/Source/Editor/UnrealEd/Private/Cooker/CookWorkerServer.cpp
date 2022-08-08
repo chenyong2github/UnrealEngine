@@ -5,6 +5,7 @@
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "CompactBinaryTCP.h"
 #include "CookDirector.h"
+#include "CookMPCollector.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
 #include "HAL/PlatformProcess.h"
@@ -427,6 +428,22 @@ void FCookWorkerServer::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 				RecordResults(ResultsMessage);
 			}
 		}
+		else
+		{
+			TRefCountPtr<IMPCollector>* Collector = Director.MessageHandlers.Find(Message.MessageType);
+			if (Collector)
+			{
+				check(*Collector);
+				IMPCollector::FServerContext Context;
+				Context.Platforms = OrderedSessionPlatforms;
+				(*Collector)->ReceiveMessage(Context, Message.Object);
+			}
+			else
+			{
+				UE_LOG(LogCook, Error, TEXT("CookWorkerServer received message of unknown type %s from CookWorker. Ignoring it."),
+					*Message.MessageType.ToString());
+			}
+		}
 	}
 }
 
@@ -509,7 +526,7 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 
 void FCookWorkerServer::LogInvalidMessage(const TCHAR* MessageTypeName)
 {
-	UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received invalidly formatted message for type %s from CookDirector. Ignoring it."),
+	UE_LOG(LogCook, Error, TEXT("CookWorkerServer received invalidly formatted message for type %s from CookWorker. Ignoring it."),
 		MessageTypeName);
 }
 

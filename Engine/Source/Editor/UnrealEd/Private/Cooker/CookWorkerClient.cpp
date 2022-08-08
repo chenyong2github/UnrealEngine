@@ -4,6 +4,7 @@
 
 #include "CompactBinaryTCP.h"
 #include "CookDirector.h"
+#include "CookMPCollector.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
 #include "CookTypes.h"
@@ -63,6 +64,7 @@ void FCookWorkerClient::TickFromSchedulerThread(FTickStackData& StackData)
 		{
 			SendPendingResults();
 			PumpSendMessages();
+			TickCollectors(StackData, false /* bFlush */);
 		}
 	}
 	else
@@ -439,6 +441,7 @@ void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
 		{
 		case EConnectStatus::WaitForDisconnect:
 		{
+			TickCollectors(StackData, true /* bFlush */);
 			// Add code here for any waiting we need to do for the local CookOnTheFlyServer to gracefully shutdown
 			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
 			SendToState(EConnectStatus::WaitForDisconnectSocketFlush);
@@ -496,7 +499,7 @@ void FCookWorkerClient::SendToState(EConnectStatus TargetStatus)
 
 void FCookWorkerClient::LogInvalidMessage(const TCHAR* MessageTypeName)
 {
-	UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received invalidly formatted message for type %s from CookDirector. Ignoring it."),
+	UE_LOG(LogCook, Error, TEXT("CookWorkerClient received invalidly formatted message for type %s from CookDirector. Ignoring it."),
 		MessageTypeName);
 }
 
@@ -524,6 +527,54 @@ void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 			FInstigator(EInstigator::CookDirector));
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
+}
+
+void FCookWorkerClient::Register(IMPCollector* Collector)
+{
+	CollectorsToTick.AddUnique(Collector);
+}
+
+void FCookWorkerClient::Unregister(IMPCollector* Collector)
+{
+	CollectorsToTick.RemoveSwap(Collector);
+}
+
+void FCookWorkerClient::TickCollectors(FTickStackData& StackData, bool bFlush)
+{
+	if (StackData.LoopStartTime < NextTickCollectorsTimeSeconds && !bFlush)
+	{
+		return;
+	}
+
+	if (!CollectorsToTick.IsEmpty())
+	{
+		IMPCollector::FClientContext Context;
+		Context.Platforms = OrderedSessionPlatforms;
+		Context.bFlush = bFlush;
+		TArray<UE::CompactBinaryTCP::FMarshalledMessage> MarshalledMessages;
+
+		for (IMPCollector* Collector : CollectorsToTick)
+		{
+			Collector->ClientTick(Context);
+			if (!Context.Messages.IsEmpty())
+			{
+				FGuid MessageType = Collector->GetMessageType();
+				for (FCbObject& Object : Context.Messages)
+				{
+					MarshalledMessages.Add({ MessageType, MoveTemp(Object) });
+				}
+				Context.Messages.Reset();
+			}
+		}
+
+		if (!MarshalledMessages.IsEmpty())
+		{
+			UE::CompactBinaryTCP::TryWritePacket(ServerSocket, SendBuffer, MoveTemp(MarshalledMessages));
+		}
+	}
+
+	constexpr float TickCollectorsPeriodSeconds = 10.f;
+	NextTickCollectorsTimeSeconds = FPlatformTime::Seconds() + TickCollectorsPeriodSeconds;
 }
 
 }

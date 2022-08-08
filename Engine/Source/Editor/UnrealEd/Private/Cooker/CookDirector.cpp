@@ -3,6 +3,7 @@
 #include "CookDirector.h"
 
 #include "CompactBinaryTCP.h"
+#include "CookMPCollector.h"
 #include "CookPackageData.h"
 #include "CookWorkerServer.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
@@ -225,6 +226,30 @@ void FCookDirector::ShutdownCookSession()
 
 	// Restore the FCookDirector to its original state so that it is ready for a new session
 	ParseDesiredNumRemoteWorkers();
+}
+
+void FCookDirector::Register(IMPCollector* Collector)
+{
+	TRefCountPtr<IMPCollector>& Existing = MessageHandlers.FindOrAdd(Collector->GetMessageType());
+	if (Existing)
+	{
+		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollectors registered. Guid: %s, Existing: %s, Registering: %s. Keeping the Existing."),
+			*Collector->GetMessageType().ToString(), Existing->GetDebugName(), Collector->GetDebugName());
+		return;
+	}
+	Existing = Collector;
+}
+
+void FCookDirector::Unregister(IMPCollector* Collector)
+{
+	TRefCountPtr<IMPCollector> Existing;
+	MessageHandlers.RemoveAndCopyValue(Collector->GetMessageType(), Existing);
+	if (Existing && Existing.GetReference() != Collector)
+	{
+		UE_LOG(LogCook, Error, TEXT("Duplicate IMPCollector during Unregister. Guid: %s, Existing: %s, Unregistering: %s. Ignoring the Unregister."),
+			*Collector->GetMessageType().ToString(), Existing->GetDebugName(), Collector->GetDebugName());
+		MessageHandlers.Add(Collector->GetMessageType(), MoveTemp(Existing));
+	}
 }
 
 void FCookDirector::SetWorkersStalled(bool bInWorkersStalled)
