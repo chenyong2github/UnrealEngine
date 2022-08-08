@@ -374,6 +374,18 @@ public:
 	**/
 	virtual	int32 GetNumWorkerThreads() = 0;
 
+	/**
+		Return the number of foreground worker threads.
+		If the old backend is used, return the number of high-pri workers (0 if high-pri workers are disabled).
+	**/
+	virtual	int32 GetNumForegroundThreads() = 0;
+
+	/**
+		Return the number of background worker threads.
+		If the old backend is used, return the number of background workers (0 if background workers are disabled).
+	**/
+	virtual	int32 GetNumBackgroundThreads() = 0;
+
 	/** Return true if the given named thread is processing tasks. This is only a "guess" if you ask for a thread other than yourself because that can change before the function returns. **/
 	virtual bool IsThreadProcessingTasks(ENamedThreads::Type ThreadToCheck) = 0;
 

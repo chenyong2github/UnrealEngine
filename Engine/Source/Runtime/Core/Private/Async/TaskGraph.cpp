@@ -1541,12 +1541,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-
-	virtual	int32 GetNumWorkerThreads() final override
+	virtual int32 GetNumWorkerThreads() final override
 	{
 		int32 Result = (NumThreads - NumNamedThreads) / NumTaskThreadSets - GNumWorkerThreadsToIgnore;
 		check(Result > 0); // can't tune it to zero task threads
 		return Result;
+	}
+
+	virtual int32 GetNumForegroundThreads() final override
+	{
+		return bCreatedHiPriorityThreads ? NumTaskThreadsPerSet : 0;
+	}
+
+	virtual int32 GetNumBackgroundThreads() final override
+	{
+		return bCreatedBackgroundPriorityThreads ? NumTaskThreadsPerSet : 0;
 	}
 
 	virtual bool IsCurrentThreadKnown() final override
@@ -1883,6 +1892,10 @@ class FTaskGraphCompatibilityImplementation final : public FTaskGraphInterface
 	int32				NumNamedThreads;
 	int32				NumWorkerThreads;
 
+	/** Individual foreground and background workers. **/
+	int32				NumBackgroundWorkers;
+	int32				NumForegroundWorkers;
+
 	TArray<FWorkerThread> NamedThreads;
 
 	FThreadSafeCounter	ReentrancyCheck;
@@ -1903,8 +1916,8 @@ public:
 				GNumForegroundWorkers = 1;
 			}
 
-			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
-			int32 NumForegroundWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
+			NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
+			NumForegroundWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
 			LowLevelTasks::FScheduler::Get().StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance() ? FThread::Forkable : FThread::NonForkable, FPlatformAffinity::GetTaskThreadPriority(), FPlatformAffinity::GetTaskBPThreadPriority());
 
@@ -1994,16 +2007,16 @@ public:
 	{
 		if (FTaskGraphInterface::IsMultithread())
 		{
-			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
-			int32 NumWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
+			NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
+			NumForegroundWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
 			LowLevelTasks::FScheduler::Get().StopWorkers();
-			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance() ? FThread::Forkable : FThread::NonForkable, Pri, FPlatformAffinity::GetTaskBPThreadPriority());
+			LowLevelTasks::FScheduler::Get().StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance() ? FThread::Forkable : FThread::NonForkable, Pri, FPlatformAffinity::GetTaskBPThreadPriority());
 
 			if (bReserveWorkersEnabled)
 			{
 				LowLevelTasks::FReserveScheduler::Get().StopWorkers();
-				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumWorkers + NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance() ? FThread::Forkable : FThread::NonForkable, FPlatformAffinity::GetTaskBPThreadPriority());
+				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumForegroundWorkers + NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance() ? FThread::Forkable : FThread::NonForkable, FPlatformAffinity::GetTaskBPThreadPriority());
 			}
 		}
 	}
@@ -2073,6 +2086,16 @@ private:
 	int32 GetNumWorkerThreads() final override
 	{
 		return LowLevelTasks::FScheduler::Get().GetNumWorkers();
+	}
+
+	virtual	int32 GetNumForegroundThreads() final override
+	{
+		return NumForegroundWorkers;
+	}
+
+	virtual	int32 GetNumBackgroundThreads() final override
+	{
+		return NumBackgroundWorkers;
 	}
 
 	bool IsCurrentThreadKnown() final override
@@ -2372,8 +2395,8 @@ private:
 			return; // once enabled, reserve workers can't be disabled
 		}
 
-		int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
-		int32 NumForegroundWorkers = FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
+		NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
+		NumForegroundWorkers = FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
 		check(GConfig);
 		
