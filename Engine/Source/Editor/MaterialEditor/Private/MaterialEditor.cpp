@@ -171,6 +171,12 @@ static TAutoConsoleVariable<int32> CVarMaterialEdUseDevShaders(
 	TEXT("Toggles whether the material editor will use shaders that include extra overhead incurred by the editor. Material editor must be re-opened if changed at runtime."),
 	ECVF_RenderThreadSafe);
 
+static bool Editor_IsStrataEnabled()
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	return CVar && CVar->GetValueOnAnyThread() > 0;
+}
+
 ///////////////////////////
 // FMatExpressionPreview //
 ///////////////////////////
@@ -269,6 +275,12 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	// needs to be called in this function!!
 	Compiler->SetMaterialProperty(Property, OverrideShaderFrequency, bUsePreviousFrameTime);
 
+	if(Editor_IsStrataEnabled())
+	{
+		// Set the Strata export mode to material preview
+		Compiler->SetStrataMaterialExportType(SME_MaterialPreview, EStrataMaterialExportContext::SMEC_Opaque, 0);
+	}
+
 	int32 Ret = INDEX_NONE;
 
 	if( Property == MP_EmissiveColor && Expression.IsValid())
@@ -276,15 +288,7 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 		// Hardcoding output 0 as we don't have the UI to specify any other output
 		const int32 OutputIndex = 0;
 		int32 PreviewCodeChunk = INDEX_NONE;
-		if (!Expression->Outputs.IsEmpty() && Expression->GetOutputType(OutputIndex) != MCT_Strata)
-		{
-			PreviewCodeChunk = Expression->CompilePreview(Compiler, OutputIndex);
-		}
-		else
-		{
-			// This is used for instance to prevent any Strata typed output to be used as preview, for instance for material functions.
-			PreviewCodeChunk = Compiler->Constant(0.0f);
-		}
+		PreviewCodeChunk = Expression->CompilePreview(Compiler, OutputIndex);
 
 		// Get back into gamma corrected space, as DrawTile does not do this adjustment.
 		Ret = Compiler->Power(Compiler->Max(PreviewCodeChunk, Compiler->Constant(0)), Compiler->Constant(1.f / 2.2f));
@@ -306,7 +310,11 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	}
 	else if (Property == MP_FrontMaterial)
 	{
-		Ret = Compiler->StrataCreateAndRegisterNullMaterial();
+		// Try to fetch the material interface to compile the front material.
+		UMaterial* ExprMat = Expression.IsValid() ? Expression->Material : nullptr;
+		FMaterialRenderProxy* MatProxy = ExprMat ? ExprMat->GetRenderProxy() : nullptr;
+		UMaterialInterface* MatInterface = MatProxy ? MatProxy->GetMaterialInterface() : nullptr;
+		return MatInterface ? MatInterface->CompileProperty(Compiler, MP_FrontMaterial) : Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 	else
 	{
@@ -315,6 +323,20 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 
 	// output should always be the right type for this property
 	return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
+}
+
+UMaterialInterface* FMatExpressionPreview::GetMaterialInterface() const
+{
+	UMaterial* ExprMat = Expression->Material;
+	if (ExprMat)
+	{
+		FMaterialRenderProxy* MatProxy = ExprMat->GetRenderProxy();
+		if (MatProxy)
+		{
+			return MatProxy->GetMaterialInterface();
+		}
+	}
+	return nullptr;
 }
 
 void FMatExpressionPreview::NotifyCompilationFinished()

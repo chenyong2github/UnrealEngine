@@ -1208,6 +1208,10 @@ struct FStrataData
 
 	int  OperatorIndex;		// Used as entry point ot the material graph with multiple BSDF and operators.
 
+#if USE_DEVELOPMENT_SHADERS
+	float3 PreviewColor;	// Used as preview in the material graph within the editor.
+#endif
+
 #if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
 	float PreMultipliedAlphaOverrideCoverage;
 #endif
@@ -1388,6 +1392,17 @@ FStrataData GetStrataSlabBSDF(
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
 
+#if USE_DEVELOPMENT_SHADERS
+	if (UseMetalness > 0.0f)
+	{
+		StrataData.PreviewColor = BaseColor;
+	}
+	else
+	{
+		StrataData.PreviewColor = lerp(DiffuseAlbedo, F0, F0RGBToMetallic(F0));
+	}
+#endif
+
 	return StrataData;
 }
 
@@ -1405,6 +1420,10 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
 
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor			= Albedo;
+#endif
+
 	return StrataData;
 }
 
@@ -1418,6 +1437,10 @@ FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
+#endif
+
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor			= Emissive;
 #endif
 
 	return StrataData;
@@ -1450,6 +1473,10 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
 
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor			= BaseColor;
+#endif
+
 	return StrataData;
 }
 
@@ -1473,6 +1500,10 @@ FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMa
 	BSDF_SETSSSTYPE(StrataData.InlinedBSDF, bHasSSS ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_INVALID);
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
+#endif
+
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor			= DiffuseAlbedo;
 #endif
 
 	return StrataData;
@@ -1502,6 +1533,10 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
+#endif
+
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor			= lerp(WaterAlbedo, BaseColor, TopMaterialOpacity);
 #endif
 
 	return StrataData;
@@ -1871,10 +1906,12 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 FStrataData StrataAdd(FStrataData A, FStrataData B, inout FStrataTree StrataTree, int OperatorIndex, uint MaxDistanceFromLeaves)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.OperatorIndex = OperatorIndex;
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor = A.PreviewColor + B.PreviewColor;
+#endif
 
 	StrataTree.OperatorCount++;
-	StrataData.OperatorIndex = OperatorIndex;
-
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_ADD;
@@ -1892,10 +1929,12 @@ FStrataData StrataWeight(FStrataData A, float Weight, inout FStrataTree StrataTr
 	const float SafeWeight = saturate(Weight);
 
 	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.OperatorIndex = OperatorIndex;
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor = A.PreviewColor * Weight;
+#endif
 
 	StrataTree.OperatorCount++;
-	StrataData.OperatorIndex = OperatorIndex;
-
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_WEIGHT;
@@ -1913,10 +1952,12 @@ FStrataData StrataThinFilm(FStrataData A, float Thickness, float IOR, inout FStr
 	const float SafeIOR = clamp(IOR, 1.01f, 3.0f);
 
 	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.OperatorIndex = OperatorIndex;
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor = A.PreviewColor;
+#endif
 
 	StrataTree.OperatorCount++;
-	StrataData.OperatorIndex = OperatorIndex;
-
 	StrataTree.Operators[OperatorIndex] = GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves = MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type = STRATA_OPERATOR_THINFILM;
@@ -1935,10 +1976,12 @@ FStrataData StrataHorizontalMixing(FStrataData Background, FStrataData Foregroun
 	const float BackgroundMixFactor = 1.0 - ForegroundMixFactor;
 
 	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.OperatorIndex = OperatorIndex;
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor = lerp(Background.PreviewColor, Foreground.PreviewColor, Mix);
+#endif
 
 	StrataTree.OperatorCount++;
-	StrataData.OperatorIndex = OperatorIndex;
-	
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_HORIZONTAL;
@@ -1955,10 +1998,12 @@ FStrataData StrataHorizontalMixing(FStrataData Background, FStrataData Foregroun
 FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base, inout FStrataTree StrataTree, int OperatorIndex, uint MaxDistanceFromLeaves)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
+	StrataData.OperatorIndex = OperatorIndex;
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor = lerp(Top.PreviewColor, Base.PreviewColor, 0.5);
+#endif
 
 	StrataTree.OperatorCount++;
-	StrataData.OperatorIndex = OperatorIndex;
-	
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_VERTICAL;
@@ -2099,6 +2144,10 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	ResultBSDF.Coverage =				lerp(BackgroundBSDF.Coverage,					ForegroundBSDF.Coverage,					HorizontalMixValue);
 #endif
 
+#if USE_DEVELOPMENT_SHADERS
+	Result.PreviewColor = lerp(Background.PreviewColor, Foreground.PreviewColor, HorizontalMixValue);
+#endif
+
 #undef ResultBSDF
 #undef ForegroundBSDF
 #undef BackgroundBSDF
@@ -2181,6 +2230,10 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	// When it comes to adding the visual contribution, we chose to add the coverage without clamping as currently done in the StrataAdd function.
 	// Operations using Coverage are currently making sure they are in a safe range.
 	ResultBSDF.Coverage =				saturate(BBSDF.Coverage + ABSDF.Coverage);
+#endif
+
+#if USE_DEVELOPMENT_SHADERS
+	Result.PreviewColor = lerp(A.PreviewColor, B.PreviewColor, 0.5);
 #endif
 
 #undef ResultBSDF
@@ -2306,6 +2359,9 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 {
 	FStrataData Result = GetInitialisedStrataData();
 	Result.InlinedBSDF = StrataVerticalLayeringParameterBlending(Top.InlinedBSDF, Base.InlinedBSDF, NewNormalIndex, NoV);
+#if USE_DEVELOPMENT_SHADERS
+	Result.PreviewColor = lerp(Top.PreviewColor, Base.PreviewColor, 0.5);
+#endif
 	return Result;
 }
 

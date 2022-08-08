@@ -23,6 +23,7 @@ extern int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF nodes
 
+// UMaterialExpressionStrataBSDF can only be used for Strata nodes ouputing StrataData that would need a preview,
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, Abstract, DisplayName = "Strata Expression")
 class UMaterialExpressionStrataBSDF : public UMaterialExpression
 {
@@ -175,7 +176,6 @@ class UMaterialExpressionStrataLegacyConversion : public UMaterialExpressionStra
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
@@ -979,7 +979,7 @@ class UMaterialExpressionStrataThinFilm : public UMaterialExpressionStrataBSDF
 // Utilities
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Transmittance-To-MeanFreePath")
-class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpressionStrataBSDF
+class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1009,7 +1009,7 @@ class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpressionSt
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Metalness-To-DiffuseColorF0")
-class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpressionStrataBSDF
+class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1044,7 +1044,7 @@ class UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0 : public UMaterialExpr
 };
 
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Haziness-To-Secondary-Roughness")
-class UMaterialExpressionStrataHazinessToSecondaryRoughness : public UMaterialExpressionStrataBSDF
+class UMaterialExpressionStrataHazinessToSecondaryRoughness : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 

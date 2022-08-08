@@ -1553,6 +1553,8 @@ void FPixelShaderInOut_MainPS(
 			StrataMaterialExport = float4(EmissiveLuminance, 1.0);
 		#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
 			StrataMaterialExport = float4(PixelMaterialInputs.OpacityMask.xxx, 1.0f); // when not masked, OpacityMask default to 1.
+		#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+			StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 		#endif
 	#elif STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
 		#if STRATA_USES_CONVERSION_FROM_LEGACY
@@ -1568,6 +1570,8 @@ void FPixelShaderInOut_MainPS(
 				#else
 					StrataMaterialExport = float4(BaseColorPostCoverage + saturate(1.0f - Coverage), 1.0f);
 				#endif
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+				StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 			#endif
 		#else
 			#if	  STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
@@ -1578,6 +1582,8 @@ void FPixelShaderInOut_MainPS(
 				StrataMaterialExport = float4(EmissiveLuminance, 1.0);
 			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
 				StrataMaterialExport = float4(TransmittancePreCoverage * Coverage + (1.0f - Coverage), 1.0f);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+				StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 			#endif
 		#endif
 	#else
@@ -1755,6 +1761,8 @@ void FPixelShaderInOut_MainPS(
 	StrataMaterialExport = float4(Color, 1.0);
 #elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
 	StrataMaterialExport = float4(PixelMaterialInputs.OpacityMask.xxx, 1.0f); // when not masked, OpacityMask default to 1.
+#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+	StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 #endif
 
 #else // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
@@ -1777,6 +1785,8 @@ void FPixelShaderInOut_MainPS(
 		#else
 		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage + saturate(1.0 - DualBlendSurfaceCoverage.xxx), 1.0f);
 		#endif
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+		StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 	#endif
 #else // STRATA_USES_CONVERSION_FROM_LEGACY
 	// The legacy unlit to lightmass conversion is weird and very specialized.
@@ -1788,6 +1798,8 @@ void FPixelShaderInOut_MainPS(
 		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage, 1.0);
 	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
 		StrataMaterialExport = float4(DualBlendSurfaceTransmittancePreCoverage * DualBlendSurfaceCoverage + (1.0 - DualBlendSurfaceCoverage), 1.0f);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_MATERIAL_PREVIEW
+		StrataMaterialExport = float4(PixelMaterialInputs.EmissiveColor, 1.0f);
 	#endif
 #endif // STRATA_USES_CONVERSION_FROM_LEGACY
 

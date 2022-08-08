@@ -139,6 +139,9 @@ public:
 		return Expression.Get();
 	}
 
+	// This material interface is solely needed for the translator to be able to parse the graph for the Strata tree.
+	virtual UMaterialInterface* GetMaterialInterface() const override;
+
 	virtual void NotifyCompilationFinished() override;
 
 	virtual const FMaterialCachedHLSLTree* GetCachedHLSLTree() const override;

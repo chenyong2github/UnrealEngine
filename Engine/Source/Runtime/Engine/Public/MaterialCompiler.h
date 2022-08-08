@@ -67,6 +67,7 @@ enum EStrataMaterialExport : uint8
 	SME_Normal			= 2,
 	SME_Emissive		= 3,
 	SME_Transmittance	= 4,
+	SME_MaterialPreview	= 5
 };
 /** Exported materials are all opaque unlit. This is used to give some context to the export logic.*/
 enum EStrataMaterialExportContext : uint8
@@ -607,6 +608,7 @@ public:
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 	virtual int32 StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor, int32 Specular, int32 Metallic, int32 OutputIndex) = 0;
 	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) = 0;
+	virtual int32 StrataCompilePreview(int32 StrataDataCodeChunk) = 0;
 	
 	/**
 	 * Register an operator of the tree representation the Strata material and its topology.
@@ -1258,6 +1260,11 @@ public:
 	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) override
 	{
 		return Compiler->StrataHazinessToSecondaryRoughness(BaseRoughness, Haziness, OutputIndex);
+	}
+
+	virtual int32 StrataCompilePreview(int32 StrataDataCodeChunk) override
+	{
+		return Compiler->StrataCompilePreview(StrataDataCodeChunk);
 	}
 
 	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override

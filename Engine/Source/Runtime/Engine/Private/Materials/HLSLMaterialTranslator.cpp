@@ -10880,6 +10880,19 @@ int32 FHLSLMaterialTranslator::StrataHazinessToSecondaryRoughness(int32 BaseRoug
 	return INDEX_NONE;
 }
 
+int32 FHLSLMaterialTranslator::StrataCompilePreview(int32 StrataDataCodeChunk)
+{
+	if (StrataDataCodeChunk == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	// Instead of using a preview color, we might go with a sphere+lighting preview. 
+	// The only problem we would have to solve is to process the strata tree before for the sub tree. 
+	// Or have dedicated lighting preview functions for StrataData that have not be filled in by the Strata tree processing.
+	int32 PreviewCodeChunk = AddCodeChunk(MCT_Float3, TEXT("%s.PreviewColor"), *GetParameterCode(StrataDataCodeChunk));
+	return PreviewCodeChunk;
+}
+
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
 {
 	if (UV == INDEX_NONE)

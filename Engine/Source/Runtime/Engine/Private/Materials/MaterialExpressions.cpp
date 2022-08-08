@@ -21676,15 +21676,6 @@ static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExp
 
 #endif // WITH_EDITOR
 
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataLegacyConversion::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	// Strata nodes cannot be previewed due to the complex Strata type.
-	// So we override the default implementation calling Compile and we simply return a default black preview color.
-	return Compiler->Constant(0.0f);
-}
-#endif
-
 UMaterialExpressionStrataLegacyConversion::UMaterialExpressionStrataLegacyConversion(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -22073,9 +22064,11 @@ UMaterialExpressionStrataBSDF::UMaterialExpressionStrataBSDF(const FObjectInitia
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataBSDF::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	// Strata nodes cannot be previewed due to the complex Strata type.
-	// So we override the default implementation calling Compile and we simply return a default black preview color.
-	return Compiler->Constant(0.0f);
+	// Compile the StrataData output.
+	int32 StrataDataCodeChunk = Compile(Compiler, OutputIndex);
+	// Convert the StrataData to a preview color.
+	int32 PreviewCodeChunk = Compiler->StrataCompilePreview(StrataDataCodeChunk);
+	return PreviewCodeChunk;
 }
 #endif
 
