@@ -162,6 +162,18 @@ namespace UE::MLDeformer
 		int32 GetCurrentTrainingFrame() const { return CurrentTrainingFrame; }
 		void CheckTrainingDataFrameChanged();
 
+		/**
+		 * Debug draw specific morph targets using lines and points.
+		 * This can show the user what deltas are included in which morph target.
+		 * @param PDI A pointer to the draw interface.
+		 * @param MorphDeltas A buffer of deltas for ALL morph targets. The size of the buffer must be a multiple of Model->GetBaseNumVerts().
+		 *        So the layout of this buffer is [Morph0_Deltas][Morph1_Deltas][Morph2_Deltas] etc.
+		 * @param DeltaThreshold Deltas with a length  larger or equal to the given threshold value will be colored differently than the ones smaller than this threshold.
+		 * @param MorphTargetIndex The morph target number to visualize.
+		 * @param DrawOffset An offset to perform the debug draw at.
+		 */
+		void DrawMorphTarget(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& MorphDeltas, float DeltaThreshold, int32 MorphTargetIndex, const FVector& DrawOffset);
+
 	protected:
 		void DeleteEditorActors();
 		bool IsEditorReadyForTrainingBasicChecks();

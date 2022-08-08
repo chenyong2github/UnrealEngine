@@ -364,45 +364,12 @@ namespace UE::NeuralMorphModel
 	{
 		FMLDeformerEditorModel::Render(View, Viewport, PDI);
 
+		// Debug draw the selected morph target.
 		UNeuralMorphModelVizSettings* VizSettings = GetNeuralMorphModelVizSettings();
 		if (VizSettings->bDrawMorphTargets)
 		{
-			// Check if the vertex count matches.
-			UNeuralMorphModel* NeuralModel = GetNeuralMorphModel();
-			if (!NeuralModel->MorphTargetDeltas.IsEmpty())
-			{
-				const int32 NumVerts = NeuralModel->GetNumBaseMeshVerts();
-				check(NeuralModel->MorphTargetDeltas.Num() % NumVerts == 0);		
-
-				const TArray<FVector3f>& SkinnedPositions = Sampler->GetSkinnedVertexPositions();
-				check(NumVerts == SkinnedPositions.Num());
-
-				const int32 NumMorphTargets = NeuralModel->MorphTargetDeltas.Num() / NumVerts;
-
-				// Draw all deltas.
-				const FVector MeshOffset = -VizSettings->GetMeshSpacingOffsetVector();
-				const int32 BlendShapeIndex = FMath::Clamp<int32>(VizSettings->MorphTargetNumber, 0, NumMorphTargets - 1);
-				const int32 BlendShapeDeltaStartOffset = NeuralModel->GetMorphTargetDeltaStartIndex(BlendShapeIndex);
-				const FLinearColor IncludedColor(1.0f, 0.0f, 1.0f);
-				const FLinearColor ExcludedColor(0.2f, 0.2f, 0.2f);
-				const float DeltaThreshold = VizSettings->MorphTargetDeltaThreshold;
-				for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
-				{
-					const FVector StartPoint = FVector(SkinnedPositions[VertexIndex].X, SkinnedPositions[VertexIndex].Y, SkinnedPositions[VertexIndex].Z) + MeshOffset;
-					const int32 DeltaArrayOffset = BlendShapeDeltaStartOffset + VertexIndex;
-					const FVector Delta = FVector(NeuralModel->MorphTargetDeltas[DeltaArrayOffset]);
-
-					if (Delta.Length() > DeltaThreshold)
-					{
-						PDI->DrawLine(StartPoint, StartPoint + Delta, IncludedColor, 10);
-						PDI->DrawPoint(StartPoint + Delta, IncludedColor, 1.0f, 10);
-					}
-					else
-					{
-						PDI->DrawPoint(StartPoint + Delta, ExcludedColor, 0.5f, 10);
-					}
-				}
-			}
+			const FVector DrawOffset = -VizSettings->GetMeshSpacingOffsetVector();
+			DrawMorphTarget(PDI, GetNeuralMorphModel()->MorphTargetDeltas, VizSettings->MorphTargetDeltaThreshold, VizSettings->MorphTargetNumber, DrawOffset);
 		}
 	}
 }	// namespace UE::NeuralMorphModel

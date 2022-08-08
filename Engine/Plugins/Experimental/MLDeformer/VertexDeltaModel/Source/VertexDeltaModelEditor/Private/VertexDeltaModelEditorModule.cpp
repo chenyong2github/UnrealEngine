@@ -28,7 +28,7 @@ namespace UE::VertexDeltaModel
 		// Register our custom ML deformer model to the model registry in the ML Deformer Framework.
 		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
-		ModelRegistry.RegisterEditorModel(UVertexDeltaModel::StaticClass(), FOnGetEditorModelInstance::CreateStatic(&FVertexDeltaEditorModel::MakeInstance));
+		ModelRegistry.RegisterEditorModel(UVertexDeltaModel::StaticClass(), FOnGetEditorModelInstance::CreateStatic(&FVertexDeltaEditorModel::MakeInstance), /*ModelPriority*/50);
 	}
 
 	void FVertexDeltaModelEditorModule::ShutdownModule()

@@ -55,6 +55,9 @@ namespace UE::MLDeformer
 		BoneMatrices.Reset();
 		BoneRotations.Reset();
 		CurveValues.Reset();
+
+		const int32 LODIndex = 0;
+		ExtractUnskinnedPositions(LODIndex, UnskinnedVertexPositions);
 	}
 
 	void FMLDeformerSampler::UpdateSkeletalMeshComponent()
@@ -144,6 +147,40 @@ namespace UE::MLDeformer
 
 		// Return the inverse skinning transform matrix.
 		return InvSkinningTransform.Inverse();
+	}
+
+	void FMLDeformerSampler::ExtractUnskinnedPositions(int32 LODIndex, TArray<FVector3f>& OutPositions) const
+	{
+		OutPositions.Reset();
+
+		if (SkeletalMeshComponent == nullptr)
+		{
+			return;
+		}
+
+		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
+		if (Mesh == nullptr)
+		{
+			return;
+		}
+
+		FSkeletalMeshLODRenderData& SkelMeshLODData = Mesh->GetResourceForRendering()->LODRenderData[LODIndex];
+		const FPositionVertexBuffer& RenderPositions = SkelMeshLODData.StaticVertexBuffers.PositionVertexBuffer;
+		const int32 NumRenderVerts = RenderPositions.GetNumVertices();
+		const FSkeletalMeshModel* SkeletalMeshModel = Mesh->GetImportedModel();
+		const TArray<int32>& ImportedVertexNumbers = SkeletalMeshModel->LODModels[LODIndex].MeshToImportVertexMap;
+
+		// Get the originally imported vertex numbers from the DCC.
+		if (ImportedVertexNumbers.Num() > 0)
+		{
+			// Store the vertex positions for the original imported vertices (8 vertices for a cube).
+			OutPositions.AddZeroed(NumImportedVertices);
+			for (int32 Index = 0; Index < NumRenderVerts; ++Index)
+			{
+				const int32 ImportedVertex = ImportedVertexNumbers[Index];
+				OutPositions[ImportedVertex] = RenderPositions.VertexPosition(Index);
+			}
+		}
 	}
 
 	void FMLDeformerSampler::ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const

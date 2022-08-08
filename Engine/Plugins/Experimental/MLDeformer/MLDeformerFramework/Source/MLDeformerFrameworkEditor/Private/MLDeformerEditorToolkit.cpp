@@ -52,8 +52,9 @@ namespace UE::MLDeformer
 		if (DeformerModel == nullptr)
 		{
 			if (ModelRegistry.GetNumRegisteredModels() > 0)
-			{	
-				OnModelChanged(0);
+			{
+				const int32 HighestPriorityIndex = ModelRegistry.GetHighestPriorityModelIndex();
+				OnModelChanged(HighestPriorityIndex);
 				DeformerModel = DeformerAsset->GetModel();
 			}
 		}
@@ -188,18 +189,41 @@ namespace UE::MLDeformer
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
 		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
-		const FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();	
+		const FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
 
-		// Iterate over all registered models and add them to the list.
 		TArray<UClass*> ModelTypes;
 		ModelRegistry.GetRegisteredModels().GenerateKeyArray(ModelTypes);
-		for (int ModelIndex = 0; ModelIndex < ModelTypes.Num(); ++ModelIndex)
+
+		// Generate a list of model names and sort them.
+		TArray<FString> ModelNames;
+		ModelNames.Reserve(ModelTypes.Num());
+		for (int32 ModelIndex = 0; ModelIndex < ModelTypes.Num(); ++ModelIndex)
 		{
 			const UClass* Model = ModelTypes[ModelIndex];
 			const UMLDeformerModel* DefaultModel = Cast<UMLDeformerModel>(Model->GetDefaultObject());
 			check(DefaultModel);
-			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnModelChanged, ModelIndex));
-			MenuBuilder.AddMenuEntry(FText::FromString(DefaultModel->GetDisplayName()), TAttribute<FText>(), FSlateIcon(), ItemAction);
+			ModelNames.Add(DefaultModel->GetDisplayName());
+		}
+		ModelNames.Sort();
+
+		// Iterate over all registered models and add them to the list.
+		for (int32 ModelIndex = 0; ModelIndex < ModelNames.Num(); ++ModelIndex)
+		{
+			// Find the model index as in the registry, so before sorting.
+			int32 UnsortedModelIndex = -1;
+			for (int32 Index = 0; Index < ModelTypes.Num(); ++Index)
+			{
+				const UClass* Model = ModelTypes[ModelIndex];
+				const UMLDeformerModel* DefaultModel = Cast<UMLDeformerModel>(Model->GetDefaultObject());
+				if (DefaultModel->GetDisplayName() == ModelNames[Index])
+				{
+					UnsortedModelIndex = Index;
+					break;
+				}
+			}
+
+			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnModelChanged, UnsortedModelIndex));
+			MenuBuilder.AddMenuEntry(FText::FromString(ModelNames[ModelIndex]), TAttribute<FText>(), FSlateIcon(), ItemAction);
 		}
 
 		return MenuBuilder.MakeWidget();

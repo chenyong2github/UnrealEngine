@@ -351,7 +351,7 @@ namespace UE::MLDeformer
 
 				LabelComponent->SetRelativeLocation(ActorLocation + FVector(0.0f, 0.0f, VizSettings->GetLabelHeight()) - AlignmentOffset);
 				LabelComponent->SetRelativeRotation(FQuat(FVector(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(90.0f)));
-				LabelComponent->SetRelativeScale3D(FVector(VizSettings->GetLabelScale() * 0.5f));
+				LabelComponent->SetRelativeScale3D(FVector(VizSettings->GetLabelScale() * 0.3f));
 
 				// Update visibility.
 				const bool bLabelIsVisible = (bDrawTrainingActors && EditorActor->IsTrainingActor()) || (bDrawTestActors && EditorActor->IsTestActor());
@@ -1610,6 +1610,41 @@ namespace UE::MLDeformer
 			LOD,
 			MorphErrorTolerance
 		);
+	}
+
+	void FMLDeformerEditorModel::DrawMorphTarget(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& MorphDeltas, float DeltaThreshold, int32 MorphTargetIndex, const FVector& DrawOffset)
+	{
+		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		if (!MorphDeltas.IsEmpty())
+		{
+			const int32 NumVerts = Model->GetNumBaseMeshVerts();
+			check(MorphDeltas.Num() % NumVerts == 0);
+
+			const TArray<FVector3f>& SkinnedPositions = Sampler->GetUnskinnedVertexPositions();
+			check(NumVerts == SkinnedPositions.Num());
+
+			// Draw all deltas.			
+			const int32 NumMorphTargets = MorphDeltas.Num() / NumVerts;
+			const int32 FinalMorphTargetIndex = FMath::Clamp<int32>(MorphTargetIndex, 0, NumMorphTargets - 1);
+			const FLinearColor IncludedColor(1.0f, 0.0f, 1.0f);
+			const FLinearColor ExcludedColor(0.1f, 0.1f, 0.1f);
+			for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
+			{
+				const FVector StartPoint = FVector(SkinnedPositions[VertexIndex].X, SkinnedPositions[VertexIndex].Y, SkinnedPositions[VertexIndex].Z) + DrawOffset;
+				const int32 DeltaArrayOffset = NumVerts * FinalMorphTargetIndex + VertexIndex;
+				const FVector Delta(MorphDeltas[DeltaArrayOffset]);
+
+				if (Delta.Length() >= DeltaThreshold)
+				{
+					PDI->DrawPoint(StartPoint, IncludedColor, 1.0f, 0);
+					PDI->DrawLine(StartPoint, StartPoint + Delta, IncludedColor, 0);
+				}
+				else
+				{
+					PDI->DrawPoint(StartPoint + Delta, ExcludedColor, 0.75f, 0);
+				}
+			}
+		}
 	}
 
 	FString FMLDeformerEditorModel::GetHeatMapMaterialPath() const

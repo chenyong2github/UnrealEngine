@@ -43,6 +43,7 @@ namespace UE::MLDeformer
 		virtual float GetTimeAtFrame(int32 InAnimFrameIndex) const { return 0.0f; }
 
 		const TArray<FVector3f>& GetSkinnedVertexPositions() const { return SkinnedVertexPositions; }
+		const TArray<FVector3f>& GetUnskinnedVertexPositions() const { return UnskinnedVertexPositions; }
 		const TArray<float>& GetVertexDeltas() const { return VertexDeltas; }
 		const TArray<float>& GetBoneRotations() const { return BoneRotations; }
 		const TArray<float>& GetCurveValues() const { return CurveValues; }
@@ -57,6 +58,7 @@ namespace UE::MLDeformer
 		virtual void CreateActors();
 		virtual void RegisterTargetComponents() {}
 		void ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
+		void ExtractUnskinnedPositions(int32 LODIndex, TArray<FVector3f>& OutPositions) const;
 		FMatrix44f CalcInverseSkinningTransform(int32 VertexIndex, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const;
 		AActor* CreateNewActor(UWorld* InWorld, const FName& Name) const;
 
@@ -83,6 +85,9 @@ namespace UE::MLDeformer
 
 		/** The skinned vertex positions. */
 		TArray<FVector3f> SkinnedVertexPositions;
+
+		/** The unskinned vertex positions. */
+		TArray<FVector3f> UnskinnedVertexPositions;
 
 		/** A temp array to store vertex positions in. */
 		TArray<FVector3f> TempVertexPositions;
