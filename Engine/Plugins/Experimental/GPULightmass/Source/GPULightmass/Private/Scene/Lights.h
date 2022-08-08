@@ -97,6 +97,7 @@ struct FLocalLightRenderState
 	TSharedPtr<FLightComponentMapBuildData, ESPMode::ThreadSafe> LightComponentMapBuildData;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const = 0;
+	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, class FSceneRenderState& RenderState) {}
 };
 
 class FLightArrayBase;
@@ -221,6 +222,7 @@ struct FDirectionalLightRenderState : public FLocalLightRenderState
 	float LightSourceSoftAngle;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
+	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
 };
 
 using FDirectionalLightRenderStateRef = TEntityArray<FDirectionalLightRenderState>::EntityRefType;
@@ -242,6 +244,7 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	FTexture* IESTexture;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
+	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
 };
 
 using FPointLightRenderStateRef = TEntityArray<FPointLightRenderState>::EntityRefType;
@@ -263,8 +266,8 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	bool IsInverseSquared;
 	FTexture* IESTexture;
 
-
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
+	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
 };
 
 using FSpotLightRenderStateRef = TEntityArray<FSpotLightRenderState>::EntityRefType;
@@ -292,6 +295,7 @@ struct FRectLightRenderState : public FLocalLightRenderState
 	float RectLightAtlasMaxLevel;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
+	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
 };
 
 using FRectLightRenderStateRef = TEntityArray<FRectLightRenderState>::EntityRefType;

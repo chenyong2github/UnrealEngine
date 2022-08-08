@@ -190,13 +190,10 @@ void FScene::GatherImportanceVolumes()
 		CombinedImportanceVolume = ReasonableSceneBounds;
 		ImportanceVolumes.Add(ReasonableSceneBounds);
 	}
-
-	float TargetDetailCellSize = Settings->VolumetricLightmapDetailCellSize;
-
-	ENQUEUE_RENDER_COMMAND(UpdateVLMRendererVolume)([&RenderState = RenderState, CombinedImportanceVolume, ImportanceVolumes, TargetDetailCellSize](FRHICommandList&) mutable {
-		RenderState.VolumetricLightmapRenderer->CombinedImportanceVolume = CombinedImportanceVolume;
-		RenderState.VolumetricLightmapRenderer->ImportanceVolumes = ImportanceVolumes;
-		RenderState.VolumetricLightmapRenderer->TargetDetailCellSize = TargetDetailCellSize;
+	
+	ENQUEUE_RENDER_COMMAND(UpdateLIVs)([&RenderState = RenderState, CombinedImportanceVolume, ImportanceVolumes](FRHICommandList&) mutable {
+		RenderState.CombinedImportanceVolume = CombinedImportanceVolume;
+		RenderState.ImportanceVolumes = ImportanceVolumes;
 	});
 }
 
@@ -398,9 +395,9 @@ void FScene::AddLight(LightComponentType* LightComponent)
 	{
 		FGeometry& Geometry = GeomIt.GetGeometry();
 
-		if (Light.AffectsBounds(Geometry.WorldBounds))
+		if (LightRef->AffectsBounds(Geometry.WorldBounds))
 		{
-			if (Light.CastsStationaryShadow())
+			if (LightRef->CastsStationaryShadow())
 			{
 				RelevantGeometriesToUpdateOnRenderThread.Add({ GeomIt.Index, GeomIt.Array.GetRenderStateArray() });
 			}
@@ -409,7 +406,7 @@ void FScene::AddLight(LightComponentType* LightComponent)
 			{
 				if (Lightmap.IsValid())
 				{
-					AddLightToLightmap(Lightmap.GetReference_Unsafe(), Light);
+					AddLightToLightmap(Lightmap.GetReference_Unsafe(), LightRef.GetReference_Unsafe());
 				}
 			}
 
@@ -418,6 +415,11 @@ void FScene::AddLight(LightComponentType* LightComponent)
 				SceneProxiesToUpdateOnRenderThread.Add(Geometry.GetComponentUObject()->SceneProxy);
 			}
 		}
+	}
+
+	if (LightRef->CastsStationaryShadow())
+	{
+		GatherImportanceVolumes();
 	}
 
 	ENQUEUE_RENDER_COMMAND(UpdateStaticLightingBufferCmd)(
@@ -437,12 +439,22 @@ void FScene::AddLight(LightComponentType* LightComponent)
 		[
 			&RenderState = RenderState,
 			LightRenderState = MoveTemp(LightRenderState),
-			RelevantGeometriesToUpdateOnRenderThread
+			RelevantGeometriesToUpdateOnRenderThread,
+			bShouldRenderStaticShadowDepthMap = LightRef->CastsStationaryShadow(),
+			&StaticShadowDepthMap = LightComponent->StaticShadowDepthMap,
+			DepthMapPtr = &LightRef->LightComponentMapBuildData->DepthMap
 		](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		typename LightTypeInfo<LightComponentType>::RenderStateRefType LightRenderStateRef = LightTypeInfo<LightComponentType>::GetLightRenderStateArray(RenderState.LightSceneRenderState).Emplace(MoveTemp(LightRenderState));
 
 		LightRenderStateRef->RenderThreadInit();
+
+		if (bShouldRenderStaticShadowDepthMap)
+		{
+			LightRenderStateRef->RenderStaticShadowDepthMap(RHICmdList, RenderState);
+			StaticShadowDepthMap.Data = DepthMapPtr;
+			StaticShadowDepthMap.InitRHI();
+		}
 
 		for (FGeometryRenderStateToken Token : RelevantGeometriesToUpdateOnRenderThread)
 		{
@@ -1524,7 +1536,10 @@ void FScene::BackgroundTick()
 			{
 				GatherImportanceVolumes();
 
-				ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = RenderState](FRHICommandListImmediate&) mutable {
+				float TargetDetailCellSize = Settings->VolumetricLightmapDetailCellSize;
+				
+				ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = RenderState, TargetDetailCellSize](FRHICommandListImmediate&) mutable {
+					RenderState.VolumetricLightmapRenderer->TargetDetailCellSize = TargetDetailCellSize;
 					RenderState.VolumetricLightmapRenderer->VoxelizeScene();
 					RenderState.VolumetricLightmapRenderer->FrameNumber = 0;
 					RenderState.VolumetricLightmapRenderer->SamplesTaken = 0;
@@ -1773,6 +1788,8 @@ void FLocalLightBuildInfo::AllocateMapBuildData(ULevel* StorageLevel)
 	UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 	FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(GetComponentUObject()->LightGuid, true);
 	LightBuildData.ShadowMapChannel = CastsStationaryShadow() ? GetComponentUObject()->PreviewShadowMapChannel : INDEX_NONE;
+	// Copy to storage
+	LightBuildData.DepthMap = LightComponentMapBuildData->DepthMap;
 }
 
 void FScene::AddRelevantStaticLightGUIDs(FQuantizedLightmapData* QuantizedLightmapData, const FBoxSphereBounds& WorldBounds)

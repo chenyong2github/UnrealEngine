@@ -223,4 +223,37 @@ class FFirstBounceRayGuidingCDFBuildCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
+class FStaticShadowDepthMapTracingRGS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FStaticShadowDepthMapTracingRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FStaticShadowDepthMapTracingRGS, FGlobalShader)
+
+	class FLightType : SHADER_PERMUTATION_INT("LIGHT_TYPE", 3);
+
+	using FPermutationDomain = TShaderPermutationDomain<FLightType>;
+	
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
+		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, StaticShadowDepthMapSuperSampleFactor)
+		SHADER_PARAMETER(FIntPoint, ShadowMapSize)
+		SHADER_PARAMETER(FMatrix44f, LightToWorld)
+		SHADER_PARAMETER(FMatrix44f, WorldToLight)
+		SHADER_PARAMETER(FVector3f, LightSpaceImportanceBoundsMin)
+		SHADER_PARAMETER(FVector3f, LightSpaceImportanceBoundsMax)
+		SHADER_PARAMETER(float, MaxPossibleDistance)
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<half>, DepthMapTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
 #endif

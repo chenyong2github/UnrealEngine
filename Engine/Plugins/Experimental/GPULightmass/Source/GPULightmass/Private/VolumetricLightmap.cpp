@@ -122,12 +122,12 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
-	VolumeMin = CombinedImportanceVolume.Min;
+	VolumeMin = Scene->CombinedImportanceVolume.Min;
 
 	FIntVector FullGridSize(
-		FMath::TruncToInt(2 * CombinedImportanceVolume.GetExtent().X / TargetDetailCellSize) + 1,
-		FMath::TruncToInt(2 * CombinedImportanceVolume.GetExtent().Y / TargetDetailCellSize) + 1,
-		FMath::TruncToInt(2 * CombinedImportanceVolume.GetExtent().Z / TargetDetailCellSize) + 1);
+		FMath::TruncToInt(2 * Scene->CombinedImportanceVolume.GetExtent().X / TargetDetailCellSize) + 1,
+		FMath::TruncToInt(2 * Scene->CombinedImportanceVolume.GetExtent().Y / TargetDetailCellSize) + 1,
+		FMath::TruncToInt(2 * Scene->CombinedImportanceVolume.GetExtent().Z / TargetDetailCellSize) + 1);
 
 	const int32 BrickSizeLog2 = FMath::FloorLog2(BrickSize);
 	const int32 DetailCellsPerTopLevelBrick = 1 << (MaxRefinementLevels * BrickSizeLog2);
@@ -223,7 +223,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 				FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[MipLevel]->GetDesc().GetSize(), FIntVector(4)));
 		}
 
-		for (FBox ImportanceVolume : ImportanceVolumes)
+		for (FBox ImportanceVolume : Scene->ImportanceVolumes)
 		{
 			TShaderMapRef<FVoxelizeImportanceVolumeCS> ComputeShader(GlobalShaderMap);
 
@@ -266,7 +266,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 			DrawDynamicMeshPass(
 				*Scene->ReferenceView,
 				RHICmdList,
-				[&Scene = Scene, View = Scene->ReferenceView.Get(), ImportanceVolumes = ImportanceVolumes](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				[&Scene = Scene, View = Scene->ReferenceView.Get(), ImportanceVolumes = Scene->ImportanceVolumes](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FVLMVoxelizationMeshProcessor MeshProcessor(nullptr, View, DynamicMeshPassContext);
 

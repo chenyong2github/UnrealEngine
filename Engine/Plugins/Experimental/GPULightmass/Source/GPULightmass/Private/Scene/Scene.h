@@ -117,6 +117,9 @@ public:
 	TUniquePtr<FVolumetricLightmapRenderer> VolumetricLightmapRenderer;
 	TUniquePtr<FIrradianceCache> IrradianceCache;
 
+	FBox CombinedImportanceVolume;
+	TArray<FBox> ImportanceVolumes;
+	
 	ERHIFeatureLevel::Type FeatureLevel;
 
 	int32 GetPrimitiveIdForGPUScene(const FGeometryInstanceRenderStateRef& GeometryInstanceRef) const;

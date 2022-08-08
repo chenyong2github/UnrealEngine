@@ -1223,6 +1223,14 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			}
 			{
 				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FStationaryLightShadowTracingRGS>().GetRayTracingShader());
+
+				FStaticShadowDepthMapTracingRGS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FStaticShadowDepthMapTracingRGS::FLightType>(0);
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FStaticShadowDepthMapTracingRGS>(PermutationVector).GetRayTracingShader());
+				PermutationVector.Set<FStaticShadowDepthMapTracingRGS::FLightType>(1);
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FStaticShadowDepthMapTracingRGS>(PermutationVector).GetRayTracingShader());
+				PermutationVector.Set<FStaticShadowDepthMapTracingRGS::FLightType>(2);
+				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FStaticShadowDepthMapTracingRGS>(PermutationVector).GetRayTracingShader());
 			}
 			{
 				FVolumetricLightmapPathTracingRGS::FPermutationDomain PermutationVector;
