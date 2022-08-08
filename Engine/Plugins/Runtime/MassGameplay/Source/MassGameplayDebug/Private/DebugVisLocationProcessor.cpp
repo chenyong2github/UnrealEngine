@@ -105,7 +105,6 @@ void UMassProcessor_UpdateDebugVis::Execute(UMassEntitySubsystem& EntitySubsyste
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
 				Debugger.AddShape(DebugVisList[i].Shape, LocationList[i].GetTransform().GetLocation(), RadiiList[i].Radius);
-				Debugger.AddEntityLocation(Context.GetEntity(i), LocationList[i].GetTransform().GetLocation());
 			}
 		});
 }

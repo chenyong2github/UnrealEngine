@@ -32,12 +32,6 @@ void UMassDebuggerSubsystem::PreTickProcessors()
 	SelectedEntityDetails.Empty();
 }
 
-void UMassDebuggerSubsystem::AddEntityLocation(FMassEntityHandle Entity, const FVector& Location)
-{
-	Entities.Add(Entity);
-	Locations.Add(Location);
-}
-
 void UMassDebuggerSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds)
 {
 	PreTickProcessors();

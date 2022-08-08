@@ -30,10 +30,6 @@ public:
 	void AddShape(EMassEntityDebugShape Shape, FVector Location, float Size) { Shapes[uint8(Shape)].Add(FShapeDesc(Location, Size)); }
 	const TArray<FShapeDesc>* GetShapes() const { return Shapes; }
 
-	void AddEntityLocation(FMassEntityHandle Entity, const FVector& Location);
-	TConstArrayView<FMassEntityHandle> GetEntities() const { return Entities; }
-	TConstArrayView<FVector> GetLocations() const { return Locations; }
-
 	FMassEntityHandle GetSelectedEntity() const { return SelectedEntity; }
 	void SetSelectedEntity(const FMassEntityHandle InSelectedEntity);
 

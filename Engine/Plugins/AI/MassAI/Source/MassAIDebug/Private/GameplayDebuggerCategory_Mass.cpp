@@ -123,21 +123,40 @@ void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC
 	FVector ViewDirection = FVector::ForwardVector;
 	ensureMsgf(GetViewPoint(&OwnerPC, ViewLocation, ViewDirection), TEXT("GetViewPoint is expected to always succeed when passing a valid controller."));
 
+	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	if (EntitySystem == nullptr)
+	{
+		return;
+	}
+
 	FMassEntityHandle BestEntity;
 	// entities indicated by UE::Mass::Debug take precedence 
     if (UE::Mass::Debug::HasDebugEntities())
     {
-	    if (const UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World))
-	    {
-	    	TArray<FMassEntityHandle> Entities;
-	    	TArray<FVector> Locations;
-	    	UE::Mass::Debug::GetDebugEntitiesAndLocations(*EntitySystem, Entities, Locations);
-	    	BestEntity = UE::Mass::Debug::GetBestEntity(ViewLocation, ViewDirection, Entities, Locations, bLimitAngle);
-	    }
+		TArray<FMassEntityHandle> Entities;
+	    TArray<FVector> Locations;
+	    UE::Mass::Debug::GetDebugEntitiesAndLocations(*EntitySystem, Entities, Locations);
+	    BestEntity = UE::Mass::Debug::GetBestEntity(ViewLocation, ViewDirection, Entities, Locations, bLimitAngle);
     }
 	else
 	{
-		BestEntity = UE::Mass::Debug::GetBestEntity(ViewLocation, ViewDirection, Debugger.GetEntities(), Debugger.GetLocations(), bLimitAngle);
+		TArray<FMassEntityHandle> Entities;
+		TArray<FVector> Locations;
+		FMassExecutionContext ExecutionContext;
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+		Query.ForEachEntityChunk(*EntitySystem, ExecutionContext, [&Entities, &Locations](FMassExecutionContext& Context)
+		{
+			Entities.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
+			TConstArrayView<FTransformFragment> InLocations = Context.GetFragmentView<FTransformFragment>();
+			Locations.Reserve(Locations.Num() + InLocations.Num());
+			for (const FTransformFragment& TransformFragment : InLocations)
+			{
+				Locations.Add(TransformFragment.GetTransform().GetLocation());
+			}
+		});
+
+		BestEntity = UE::Mass::Debug::GetBestEntity(ViewLocation, ViewDirection, Entities, Locations, bLimitAngle);
 	}
 
 	AActor* BestActor = nullptr;
