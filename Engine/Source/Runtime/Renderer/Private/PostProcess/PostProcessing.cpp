@@ -355,8 +355,8 @@ void AddPostProcessingPasses(
 #else
 	PassSequence.SetEnabled(EPass::VisualizePostProcessStack, false);
 #endif
-	PassSequence.SetEnabled(EPass::VisualizeStrata, Strata::ShouldRenderStrataDebugPasses(View));
 	PassSequence.SetEnabled(EPass::VisualizeLumenScene, LumenVisualizeMode >= 0 && LumenVisualizeMode != VISUALIZE_MODE_OVERVIEW && bPostProcessingEnabled);
+	PassSequence.SetEnabled(EPass::VisualizeStrata, Strata::ShouldRenderStrataDebugPasses(View));
 	PassSequence.SetEnabled(EPass::VisualizeLightGrid, ShouldVisualizeLightGrid());
 
 #if WITH_EDITOR
@@ -1133,13 +1133,6 @@ void AddPostProcessingPasses(
 	}
 #endif
 
-	if (PassSequence.IsEnabled(EPass::VisualizeLightGrid))
-	{
-		FScreenPassRenderTarget OverrideOutput;
-		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLightGrid, OverrideOutput);
-		SceneColor = AddVisualizeLightGridPass(GraphBuilder, View, SceneColor, SceneDepth.Texture);
-	}
-
 	if (PassSequence.IsEnabled(EPass::VisualizeStrata))
 	{
 		FScreenPassRenderTarget OverrideOutput;
@@ -1147,13 +1140,19 @@ void AddPostProcessingPasses(
 		SceneColor = Strata::AddStrataDebugPasses(GraphBuilder, View, SceneColor);
 	}
 
+	if (PassSequence.IsEnabled(EPass::VisualizeLightGrid))
+	{
+		FScreenPassRenderTarget OverrideOutput;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLightGrid, OverrideOutput);
+		SceneColor = AddVisualizeLightGridPass(GraphBuilder, View, SceneColor, SceneDepth.Texture);
+	}
+
 #if WITH_EDITOR
 	if (PassSequence.IsEnabled(EPass::VisualizeSkyAtmosphere))
 	{
 		FScreenPassRenderTarget OverrideOutput;
 		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeSkyAtmosphere, OverrideOutput);
-		OverrideOutput = OverrideOutput.IsValid() ? OverrideOutput : FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeSkyAtmosphere"));
-		SceneColor = AddSkyAtmosphereDebugPasses(GraphBuilder, Scene, *View.Family, View, OverrideOutput);
+		SceneColor = AddSkyAtmosphereDebugPasses(GraphBuilder, Scene, *View.Family, View, SceneColor);
 	}
 
 	if (PassSequence.IsEnabled(EPass::VisualizeLevelInstance))
