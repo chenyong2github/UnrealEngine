@@ -2,6 +2,7 @@
 
 #include "MetasoundNodeRegistrationMacro.h"
 #include "CoreMinimal.h"
+#include "DSP/FloatArrayMath.h"
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
