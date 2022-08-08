@@ -35,6 +35,12 @@ public:
 		PositiveZ = 3
 	};
 
+	enum class EPowerMode : int8
+	{
+		PowerOfTwo,
+		FiveAndTen
+	};
+
 	/**
 	 * Convert face direction to the index of the nonzero normal dimension, or equivalently,
 	 * the dimension in which that face is flat.
@@ -112,7 +118,7 @@ public:
 		const FVector3d& NormalOrTowardCameraRay,
 		FCubeGrid::FCubeFace& FaceOut, bool bPierceToBack, double PlaneTolerance) const;
 
-	int8 GetGridPower() const { return CurrentGridPower; }
+	uint8 GetGridPower() const { return CurrentGridPower; }
 
 	void SetGridPower(uint8 PowerIn)
 	{
@@ -120,10 +126,16 @@ public:
 		CurrentGridPower = PowerIn;
 		UpdateCellSize();
 	}
-	int8 GetMaxGridPower() const
+	uint8 GetMaxGridPower() const
 	{
 		return sizeof(uint32) * 8 - 1;
 	}
+	void SetGridPowerMode(EPowerMode PowerModeIn)
+	{
+		GridPowerMode = PowerModeIn;
+		UpdateCellSize();
+	}
+	EPowerMode GetGridPowerMode() const { return GridPowerMode; }
 
 	double GetBaseGridCellSize() const { return BaseGridCellSize; }
 	void SetBaseGridCellSize(double SizeIn)
@@ -137,19 +149,16 @@ public:
 	}
 
 	double GetCurrentGridCellSize() const { return CurrentCellSize; }
+	void SetCurrentGridCellSize(double SizeIn);
 
-	double GetCellSize(int8 GridPower) const { 
-		// This is split up into two statements to avoid a static analysis warning about
-		// shifting a 32 bit value and casting to a 64 bit value.
-		uint32 Multiplier = (uint32)1 << GridPower; 
-		return BaseGridCellSize * Multiplier; }
+	double GetCellSize(uint8 GridPower) const;
 
 	FVector3d ToWorldPoint(FVector3d GridPoint) const
 	{
 		return GridFrame.FromFramePoint(GridPoint * CurrentCellSize);
 	}
 
-	FVector3d ToWorldPoint(FVector3d GridPoint, int8 GridPower) const
+	FVector3d ToWorldPoint(FVector3d GridPoint, uint8 GridPower) const
 	{
 		return GridFrame.FromFramePoint(GridPoint * GetCellSize(GridPower));
 	}
@@ -174,7 +183,8 @@ protected:
 
 	FFrame3d GridFrame;
 	double BaseGridCellSize;
-	int8 CurrentGridPower;
+	uint8 CurrentGridPower;
+	EPowerMode GridPowerMode = EPowerMode::PowerOfTwo;
 	// This should always be BaseGridCellSize * 2^CurrentGridPower
 	double CurrentCellSize;
 };

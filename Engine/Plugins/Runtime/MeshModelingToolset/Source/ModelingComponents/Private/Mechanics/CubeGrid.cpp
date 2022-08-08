@@ -16,6 +16,24 @@ namespace CubeGridLocals {
 			FMath::Floor(VectorIn.Y),
 			FMath::Floor(VectorIn.Z));
 	}
+
+	double GetMultiplierForGridPower(bool bPowerOfTwo, uint8 GridPower)
+	{
+		if (bPowerOfTwo)
+		{
+			// This is split up into two statements to avoid a static analysis warning about
+			// shifting a 32 bit value and casting to a 64 bit value.
+			uint32 ShiftedResult = static_cast<uint32>(1) << GridPower;
+			return ShiftedResult;
+		}
+		else
+		{
+			// For FiveAndTen, we multiply  by 2 half the time and by 5 the second half, rounding up for 2's.
+			uint8 FloorHalfGridPower = GridPower / 2;
+			uint32 TwoMultiplier = static_cast<uint32>(1) << (GridPower - FloorHalfGridPower);
+			return TwoMultiplier * FMath::Pow(5.0, static_cast<double>(FloorHalfGridPower));
+		}
+	}
 }
 
 FCubeGrid::FCubeFace::FCubeFace(const FVector3d& PointOnFace, EFaceDirection DirectionIn, uint8 SourceCubeGridPower)
@@ -41,6 +59,21 @@ FVector3d FCubeGrid::FCubeFace::GetMaxCorner() const
 		FMath::CeilToDouble(Center.Z));
 }
 
+void FCubeGrid::SetCurrentGridCellSize(double SizeIn)
+{
+	using namespace CubeGridLocals;
+
+	double Multiplier = GetMultiplierForGridPower(GridPowerMode == EPowerMode::PowerOfTwo, CurrentGridPower);
+	double BaseGridSize = SizeIn / Multiplier;
+	SetBaseGridCellSize(BaseGridSize);
+}
+
+double FCubeGrid::GetCellSize(uint8 GridPower) const
+{
+	using namespace CubeGridLocals;
+
+	return BaseGridCellSize * GetMultiplierForGridPower(GridPowerMode == EPowerMode::PowerOfTwo, GridPower);
+}
 
 bool FCubeGrid::GetHitGridFaceBasedOnRay(const FVector3d& WorldHitPoint, const FVector3d& NormalOrTowardCameraRay,
 	FCubeGrid::FCubeFace& FaceOut, bool bPierceToBack, double PlaneTolerance) const

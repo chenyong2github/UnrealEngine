@@ -91,23 +91,46 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (TransientToolProperty))
 	bool bShowGizmo = false;
 
-	/** How many blocks each push/pull invocation will do at a time.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (
-		UIMin = "0", ClampMin = "0"))
-	int32 BlocksPerStep = 1;
+	// These are here so that we can reset the appropriate settings to their defaults in code.
+	const uint8 DEFAULT_GRID_POWER = 5;
+	const double DEFAULT_CURRENT_BLOCK_SIZE = 100;
 
 	/** Determines cube grid scale. Can also be adjusted with Ctrl + E/Q. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "bAllowedToEditGrid", HideEditConditionToggle,
 		UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "31"))
-	uint8 PowerOfTwo = 5;
+	uint8 GridPower = DEFAULT_GRID_POWER;
 
-	// Must match ClampMax in PowerOfTwo, used to make hotkeys not exceed it.
-	const uint8 MaxPowerOfTwo = 31;
+	/** 
+	 * Sets the size of a block at the current grid power. This is done by changing the 
+	 * base block size (i.e. the size at grid power 0) such that the target size is achieved at 
+	 * the the current value of Grid Power.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (
+		EditCondition = "bAllowedToEditGrid", HideEditConditionToggle,
+		UIMin = "1", UIMax = "1000", ClampMin = "0.001"))
+	double CurrentBlockSize = DEFAULT_CURRENT_BLOCK_SIZE;
+
+	/** How many blocks each push/pull invocation will do at a time.*/
+	UPROPERTY(EditAnywhere, Category = Options, meta = (
+		UIMin = "0", ClampMin = "0"))
+	int32 BlocksPerStep = 1;
+
+	/** 
+	 * When true, block sizes change by powers of two as grid power is changed. When false, block
+	 * sizes change by twos and fives, much like the default editor grid snapping options (for
+	 * instance, sizes might increase from 10 to 50 to 100 to 500).
+	 * Note that toggling this option will reset BlocksPerStep and CurrentBlockSize to default values.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bPowerOfTwoBlockSizes = true;
+
+	// Must match ClampMax in GridPower, used to make hotkeys not exceed it.
+	const uint8 MaxGridPower = 31;
 
 	/** Smallest block size to use in the grid. For instance, 3.125 results in
 	 blocks that are 100 sized at 5 power of two since 3.125 * 2^5 = 100. */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (
 		EditCondition = "bAllowedToEditGrid", HideEditConditionToggle,
 		UIMin = "0.1", UIMax = "10", ClampMin = "0.001", ClampMax = "1000"))
 	double BlockBaseSize = 3.125;
@@ -127,8 +150,10 @@ public:
 
 	/** When performing selection, the tolerance to use when determining
 	 whether things lie in the same plane as a cube face. */
-	UPROPERTY(EditAnywhere, Category = BlockSelection, AdvancedDisplay, meta = (
-		UIMin = "0", UIMax = "0.5", ClampMin = "0", ClampMax = "10"))
+	//~ This turned out to not be a useful setting, so it is no longer EditAnywhere. The only cases where it
+	//~ seems to have a noticeable effect were ones where it was set so high that it broke the selection
+	//~ behavior slightly.
+	UPROPERTY()
 	double PlaneTolerance = 0.01;
 
 	/** When raycasting to find a selected grid face, this determines whether geometry
@@ -189,10 +214,11 @@ enum class ECubeGridToolAction
 	Flip,
 	SlideForward,
 	SlideBack,
-	DecreasePowerOfTwo,
-	IncreasePowerOfTwo,
+	DecreaseGridPower,
+	IncreaseGridPower,
 	CornerMode,
 	// FitGrid,
+	ResetFromActor,
 	Done,
 	Cancel,
 };
@@ -234,6 +260,20 @@ public:
 	/** Can also be invoked with T. */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayPriority = 6))
 	void Flip() { PostAction(ECubeGridToolAction::Flip); }
+
+	/** Actor whose transform to use when doing Reset Grid From Actor. */
+	//~ For some reason we can't seem to use TWeakObjectPtr here- it becomes unsettable in the tool.
+	UPROPERTY(EditAnywhere, Category = GridReinitialization, meta = (TransientToolProperty))
+	TObjectPtr<AActor> GridSourceActor = nullptr;
+
+	/** 
+	 * Resets the grid position and orientation based on the actor in Grid Source Actor. This allows 
+	 * grid positions/orientations to be saved by pasting them into the transform of some actor that
+	 * is later used, or by relying on the fact that the tool initializes transforms of newly created
+	 * meshes based on the grid used.
+	 */
+	UFUNCTION(CallInEditor, Category = GridReinitialization)
+	void ResetGridFromActor () { PostAction(ECubeGridToolAction::ResetFromActor); }
 };
 
 UCLASS()
@@ -313,6 +353,10 @@ public:
 			return !(*this == Other);
 		}
 	};
+
+	virtual bool HasAccept() const override { return true; };
+	virtual bool CanAccept() const override { return true; };
+	virtual bool HasCancel() const override { return true; };
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -454,9 +498,8 @@ protected:
 	void ApplySlide(int32 NumBlocks);
 	void ApplyPushPull(int32 NumBlocks);
 
-	// Parameter is signed on purpose so we can give negatives
-	void SetPowerOfTwoClamped(int32 PowerOfTwo);
-	uint8 PowerOfTwoPrevious;
+	// Parameter is signed on purpose so we can give negatives for clamping.
+	void SetGridPowerClamped(int32 GridPower);
 
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
@@ -504,10 +547,15 @@ protected:
 	ECubeGridToolAction PendingAction = ECubeGridToolAction::NoAction;
 	void ApplyAction(ECubeGridToolAction ActionType);
 
+	int32 GridPowerWatcherIdx;
+	int32 BlockBaseSizeWatcherIdx;
+	int32 CurrentBlockSizeWatcherIdx;
+
 	int32 GridFrameOriginWatcherIdx;
 	int32 GridFrameOrientationWatcherIdx;
 	void GridGizmoMoved(UTransformProxy* Proxy, FTransform Transform);
 	void UpdateGizmoVisibility(bool bVisible);
+	void UpdateGridTransform(FTransform NewTransform, bool bUpdateGizmo, bool bUpdateDetailPanel);
 	bool bInGizmoDrag = false;
 
 	FVector3d MiddleClickDragStart;
