@@ -95,15 +95,18 @@ namespace UE::MLDeformer
 	{
 		Provider = InProvider;
 
-		UMLDeformerModel* Model = DeformerAsset->GetModel();	
-		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
+		if (DeformerAsset)
+		{
+			UMLDeformerModel* Model = DeformerAsset->GetModel();	
+			UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+			const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 
-		SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
-		VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
-		HeatMapMode = (int32)VizSettings->GetHeatMapMode();
-		HeatMapMax = 1.0f / FMath::Max(VizSettings->GetHeatMapMax(), 0.00001f);
-		GroundTruthLerp = VizSettings->GetGroundTruthLerp();
+			SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
+			VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
+			HeatMapMode = (int32)VizSettings->GetHeatMapMode();
+			HeatMapMax = 1.0f / FMath::Max(VizSettings->GetHeatMapMax(), 0.00001f);
+			GroundTruthLerp = VizSettings->GetGroundTruthLerp();
+		}
 	}
 
 	void FMLDeformerGraphDebugDataProviderProxy::HandleZeroGroundTruthPositions()

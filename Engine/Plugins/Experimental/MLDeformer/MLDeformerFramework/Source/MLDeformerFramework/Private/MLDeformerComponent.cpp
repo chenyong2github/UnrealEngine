@@ -84,9 +84,9 @@ void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
 
 void UMLDeformerComponent::RemoveNeuralNetworkModifyDelegate()
 {
-	if (DeformerAsset != nullptr && 
+	if (DeformerAsset && 
 		NeuralNetworkModifyDelegateHandle != FDelegateHandle() && 
-		DeformerAsset->GetModel() != nullptr)
+		DeformerAsset->GetModel())
 	{
 		DeformerAsset->GetModel()->NeuralNetworkModifyDelegate.Remove(NeuralNetworkModifyDelegateHandle);
 	}

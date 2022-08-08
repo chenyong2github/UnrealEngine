@@ -73,11 +73,16 @@ class USkeletalMeshComponent;
 	{ \
 		MLDEFORMER_EDITORDATA_ONLY( \
 			DataProviderProxyClassName* Proxy = new DataProviderProxyClassName(DeformerComponent, DeformerAsset, this); \
-			const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition(); \
-			UMLDeformerModel* Model = DeformerAsset->GetModel(); \
-			Model->SampleGroundTruthPositions(SampleTime, Proxy->GetGroundTruthPositions()); \
-			Proxy->HandleZeroGroundTruthPositions(); \
-			return Proxy;, \
+			if (DeformerAsset) \
+			{ \
+				const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition(); \
+				UMLDeformerModel* Model = DeformerAsset->GetModel(); \
+				Model->SampleGroundTruthPositions(SampleTime, Proxy->GetGroundTruthPositions()); \
+				Proxy->HandleZeroGroundTruthPositions(); \
+				return Proxy; \
+			} \
+			return nullptr; \
+			, \
 			return nullptr; \
 		) \
 	}

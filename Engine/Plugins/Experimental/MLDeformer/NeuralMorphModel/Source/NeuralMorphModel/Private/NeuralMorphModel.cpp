@@ -7,8 +7,10 @@
 #include "MLDeformerComponent.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GeometryCache.h"
+#include "Rendering/MorphTargetVertexInfoBuffers.h"
 
 #define LOCTEXT_NAMESPACE "NeuralMorphModel"
 
@@ -22,13 +24,14 @@ UNeuralMorphModel::UNeuralMorphModel(const FObjectInitializer& ObjectInitializer
 	VizSettings = ObjectInitializer.CreateEditorOnlyDefaultSubobject<UNeuralMorphModelVizSettings>(this, TEXT("VizSettings"));
 #endif
 
-	MorphTargetSet = MakeShared<FExternalMorphTargetSet>();
+	MorphTargetSet = MakeShared<FExternalMorphSet>();
 	MorphTargetSet->Name = FName(TEXT("NeuralBlendShapes"));
 }
 
 void UNeuralMorphModel::Serialize(FArchive& Archive)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModel::Serialize)
+
 	Super::Serialize(Archive);
 
 	// Check if we have initialized our compressed morph buffers.
@@ -46,11 +49,6 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 		if (Archive.IsLoading())
 		{
 			Archive << MorphTargetSet->MorphBuffers;
-
-			// When we're in editor mode, keep the CPU data around, so we can re-initialize when needed.
-			#if WITH_EDITOR
-				MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(false);
-			#endif
 		}
 		else
 		{
@@ -103,43 +101,53 @@ UMLDeformerModelInstance* UNeuralMorphModel::CreateModelInstance(UMLDeformerComp
 
 void UNeuralMorphModel::PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance)
 {
+	if (ModelInstance->HasPostInitialized())
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModel::PostMLDeformerComponentInit)
 
 	Super::PostMLDeformerComponentInit(ModelInstance);
 
 	// Register the external morph targets buffer to the render data of the skeletal mesh.
 	USkeletalMeshComponent* SkelMeshComponent = ModelInstance->GetSkeletalMeshComponent();
-	if (SkelMeshComponent)
+	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMesh())
 	{
-		FSkeletalMeshRenderData* RenderData = SkelMeshComponent->GetSkeletalMeshRenderData();
+		// Register the morph set. This overwrites the existing one for this model, if it already exists.
+		// Only add to LOD 0 for now.
+		const int32 LOD = 0;
+		SkelMeshComponent->AddExternalMorphSet(LOD, UNeuralMorphModel::NeuralMorphsExternalMorphSetID, MorphTargetSet);
+
+		// When we're in editor mode, keep the CPU data around, so we can re-initialize when needed.
+		#if WITH_EDITOR
+			MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(false);
+		#else
+			MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(true);
+		#endif
+
+		// Release the render resources, but only in an editor build.
+		// The non-editor build shouldn't do this, as then it can't initialize again. The non-editor build assumes
+		// that the data doesn't change and we don't need to re-init.
+		// In the editor build we have to re-initialize the render resources as the morph targets can change after (re)training, so
+		// that is why we release them here, and intialize them again after.
 		FMorphTargetVertexInfoBuffers& MorphBuffers = MorphTargetSet->MorphBuffers;
-		if (RenderData)
+		#if WITH_EDITOR
+			BeginReleaseResource(&MorphBuffers);
+		#endif
+
+		// Reinitialize the GPU compressed buffers.
+		if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0)
 		{
-			// Register the morph set. This overwrites the existing one for this model, if it already exists.
-			// Only add to LOD 0 for now.
-			const int32 LOD = 0;
-			RenderData->LODRenderData[LOD].AddExternalMorphSet(UNeuralMorphModel::NeuralMorphsExternalMorphSetID, MorphTargetSet);
-
-			// Release the render resources, but only in an editor build.
-			// The non-editor build shouldn't do this, as then it can't initialize again. The non-editor build assumes
-			// that the data doesn't change and we don't need to re-init.
-			// In the editor build we have to re-initialize the render resources as the morph targets can change after (re)training, so
-			// that is why we release them here, and intialize them again after.
-			#if WITH_EDITOR
-				BeginReleaseResource(&MorphBuffers);
-			#endif
-
-			// Reinitialize the GPU compressed buffers.
-			if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0)
-			{
-				// In a non-editor build this will clear the CPU data.
-				// That also means it can't re-init the resources later on again.
-				BeginInitResource(&MorphBuffers);
-			}
+			// In a non-editor build this will clear the CPU data.
+			// That also means it can't re-init the resources later on again.
+			BeginInitResource(&MorphBuffers);
 		}
 
 		// Update the weight information in the Skeletal Mesh.
 		SkelMeshComponent->RefreshExternalMorphTargetWeights();
+
+		ModelInstance->SetHasPostInitialized(true);
 	}
 }
 
@@ -163,6 +171,7 @@ void UNeuralMorphModel::BeginDestroy()
 	if (MorphTargetSet.IsValid())
 	{
 		BeginReleaseResource(&MorphTargetSet->MorphBuffers);
+		MorphTargetSet.Reset();
 	}
 	Super::BeginDestroy();
 }

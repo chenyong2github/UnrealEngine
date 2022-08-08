@@ -17,8 +17,9 @@ void UMLDeformerModelInstance::BeginDestroy()
 
 void UMLDeformerModelInstance::Release()
 {
+	// Destroy the neural network instance.
 	UNeuralNetwork* NeuralNetwork = Model.Get() ? Model->GetNeuralNetwork() : nullptr;
-	if (NeuralNetwork != nullptr && NeuralNetworkInferenceHandle != -1)
+	if (NeuralNetwork && NeuralNetworkInferenceHandle != -1)
 	{
 		NeuralNetwork->DestroyInferenceContext(NeuralNetworkInferenceHandle);
 		NeuralNetworkInferenceHandle = -1;
@@ -84,8 +85,9 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 		}
 	}
 
+	// Verify the number of inputs versus the expected number of inputs.
 	UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
-	if (NeuralNetwork != nullptr && NeuralNetwork->IsLoaded() && Model->GetDeformerAsset())
+	if (NeuralNetwork && NeuralNetwork->IsLoaded() && Model->GetDeformerAsset())
 	{
 		const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
 		const int64 NumDeformerAssetInputs = static_cast<int64>(Model->GetInputInfo()->CalcNumNeuralNetInputs());
@@ -131,6 +133,7 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 
 void UMLDeformerModelInstance::UpdateBoneTransforms()
 {
+	// If we use a leader component, we have to get the transforms from that component.
 	const USkinnedMeshComponent* LeaderPoseComponent = SkeletalMeshComponent->LeaderPoseComponent.Get();
 	if (LeaderPoseComponent)
 	{
@@ -155,6 +158,8 @@ void UMLDeformerModelInstance::UpdateBoneTransforms()
 	}
 	else
 	{
+		// Grab the transforms from our own skeletal mesh component.
+		// These are local space transforms, relative to the parent bone.
 		BoneTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
 		const int32 NumTrainingBones = AssetBonesToSkelMeshMappings.Num();
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
@@ -266,14 +271,14 @@ void UMLDeformerModelInstance::RunNeuralNetwork(float ModelWeight)
 		// NOTE: Inputs still come from the CPU.
 		check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU && NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU && NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
 		ENQUEUE_RENDER_COMMAND(RunNeuralNetwork)
-			(
-				[NeuralNetwork, Handle = NeuralNetworkInferenceHandle](FRHICommandListImmediate& RHICmdList)
-				{
-					// Output deltas will be available on GPU for DeformerGraph via UMLDeformerDataProvider.
-					FRDGBuilder GraphBuilder(RHICmdList);
-					NeuralNetwork->Run(GraphBuilder, Handle);
-					GraphBuilder.Execute();
-				}
+		(
+			[NeuralNetwork, Handle = NeuralNetworkInferenceHandle](FRHICommandListImmediate& RHICmdList)
+			{
+				// Output deltas will be available on GPU for DeformerGraph via UMLDeformerDataProvider.
+				FRDGBuilder GraphBuilder(RHICmdList);
+				NeuralNetwork->Run(GraphBuilder, Handle);
+				GraphBuilder.Execute();
+			}
 		);
 	}
 	else
@@ -330,13 +335,21 @@ bool UMLDeformerModelInstance::SetupNeuralNetworkForFrame()
 	return true;
 }
 
-
 void UMLDeformerModelInstance::Tick(float DeltaTime, float ModelWeight)
 {
+	// Post init hasn't yet succeeded, try again.
+	// This could for example happen when you add an ML Deformer component, but your SkeletalMesh isn't setup yet, but later becomes valid.
+	if (Model && !HasPostInitialized())
+	{
+		Model->PostMLDeformerComponentInit(this);
+	}
+
+	// Setup the neural network, by feeding it's inputs and doing some compatibility checks.
 	if (!SetupNeuralNetworkForFrame())
 	{
 		return;
 	}
 
+	// Perform the inference, calculate the network outputs and possibly use them, depending on how the model works.
 	RunNeuralNetwork(ModelWeight);
 }

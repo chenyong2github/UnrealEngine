@@ -580,27 +580,75 @@ void USkinnedMeshComponent::OnUnregister()
 	MeshDeformerInstance = nullptr;
 }
 
+void USkinnedMeshComponent::AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet)
+{
+	const int32 NumLODs = GetNumLODs();
+	if (NumLODs != ExternalMorphSets.Num())
+	{
+		ResizeExternalMorphTargetSets();
+	}
+	ExternalMorphSets[LOD].Add(ID, MorphSet);
+}
+
+void USkinnedMeshComponent::RemoveExternalMorphSet(int32 LOD, int32 ID)
+{
+	const int32 NumLODs = GetNumLODs();
+	if (NumLODs != ExternalMorphSets.Num())
+	{
+		ResizeExternalMorphTargetSets();
+	}
+	ExternalMorphSets[LOD].Remove(ID);
+}
+
+bool USkinnedMeshComponent::HasExternalMorphSet(int32 LOD, int32 ID) const
+{
+	check(LOD < ExternalMorphSets.Num());
+	return (ExternalMorphSets[LOD].Find(ID) != nullptr);
+}
+
+void USkinnedMeshComponent::ClearExternalMorphSets(int32 LOD)
+{
+	const int32 NumLODs = GetNumLODs();
+	if (NumLODs != ExternalMorphSets.Num())
+	{
+		ResizeExternalMorphTargetSets();
+	}
+	ExternalMorphSets[LOD].Empty();
+}
+
+void USkinnedMeshComponent::ResizeExternalMorphTargetSets()
+{
+	ExternalMorphSets.Reset();
+	ExternalMorphSets.AddDefaulted(GetNumLODs());
+}
+
 void USkinnedMeshComponent::RefreshExternalMorphTargetWeights()
 {
 	// Clear the external weights if there is no skeletal mesh.
-	if (GetSkinnedAsset() == nullptr || GetSkinnedAsset()->GetResourceForRendering() == nullptr)
+	if (GetSkinnedAsset() == nullptr)
 	{
 		ExternalMorphWeightData.Empty();
 		ExternalMorphWeightData.AddDefaulted(GetNumLODs());
 		return;
 	}
 
-	// Init based on the highest LOD.
 	const int32 NumLODs = GetNumLODs();
+	if (NumLODs != ExternalMorphSets.Num())
+	{
+		ResizeExternalMorphTargetSets();
+	}
+	check(ExternalMorphSets.Num() == NumLODs);
+
 	ExternalMorphWeightData.Reset();
 	ExternalMorphWeightData.AddDefaulted(NumLODs);
-	check(GetSkinnedAsset()->GetResourceForRendering()->LODRenderData.Num() == NumLODs);
 
+	// Make sure that for every LOD's list of morph target sets, we have the correct number of morph target weights.
+	// This resets all weights to 0 as well.
 	for (int32 LOD = 0; LOD < NumLODs; ++LOD)
 	{
 		FExternalMorphWeightData& ExternalWeights = GetExternalMorphWeights(LOD);
 
-		auto& MorphSets = GetSkinnedAsset()->GetResourceForRendering()->LODRenderData[LOD].ExternalMorphSets;
+		auto& MorphSets = ExternalMorphSets[LOD];
 		for (const auto& Item : MorphSets)
 		{
 			check(Item.Value.IsValid());

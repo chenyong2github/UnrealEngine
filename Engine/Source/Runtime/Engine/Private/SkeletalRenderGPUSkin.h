@@ -101,6 +101,9 @@ public:
 	 */
 	FExternalMorphWeightData ExternalMorphWeightData;
 
+	/** The external morph target sets for this specific LOD. */
+	FExternalMorphSets ExternalMorphSets;
+
 	/** data for updating cloth section */
 	TMap<int32, FClothSimulData> ClothingSimData;
 
@@ -415,10 +418,10 @@ public:
 	 * Calculate how many GPU compressed morph target sets are active.
 	 * This includes regular morph targets as well as external morph targets.
 	 */
-	int32 CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FSkeletalMeshLODRenderData& LODData) const;
+	int32 CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FExternalMorphSets& ExternalMorphSets) const;
 
 	/** Check if a given morph set is active or not. If so, we will process it. */
-	bool IsExternalMorphSetActive(int32 MorphSetID, FExternalMorphTargetSet& MorphSet) const;
+	bool IsExternalMorphSetActive(int32 MorphSetID, const FExternalMorphSet& MorphSet) const;
 
 	FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer(int32 LODIndex) const;
 

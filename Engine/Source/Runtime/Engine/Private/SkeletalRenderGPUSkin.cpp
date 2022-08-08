@@ -918,7 +918,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 #endif // RHI_RAYTRACING
 
 
-int32 FSkeletalMeshObjectGPUSkin::CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FSkeletalMeshLODRenderData& LODData) const
+int32 FSkeletalMeshObjectGPUSkin::CalcNumActiveGPUMorphSets(FMorphVertexBuffer& MorphVertexBuffer, const FExternalMorphSets& ExternalMorphSets) const
 {
 	if (!UseGPUMorphTargets(FeatureLevel) || !IsValidRef(MorphVertexBuffer.VertexBufferRHI))
 	{
@@ -927,7 +927,7 @@ int32 FSkeletalMeshObjectGPUSkin::CalcNumActiveGPUMorphSets(FMorphVertexBuffer& 
 
 	// Count all active external morph sets.
 	int32 NumMorphSets = 1; // Start at one, as we have our standard morph targets as well.
-	for (const auto& MorphSet : LODData.ExternalMorphSets)
+	for (const auto& MorphSet : ExternalMorphSets)
 	{
 		if (IsExternalMorphSetActive(MorphSet.Key, *MorphSet.Value))
 		{
@@ -937,7 +937,7 @@ int32 FSkeletalMeshObjectGPUSkin::CalcNumActiveGPUMorphSets(FMorphVertexBuffer& 
 	return NumMorphSets;
 }
 
-bool FSkeletalMeshObjectGPUSkin::IsExternalMorphSetActive(int32 MorphSetID, FExternalMorphTargetSet& MorphSet) const
+bool FSkeletalMeshObjectGPUSkin::IsExternalMorphSetActive(int32 MorphSetID, const FExternalMorphSet& MorphSet) const
 {
 	const FMorphTargetVertexInfoBuffers& CompressedBuffers = MorphSet.MorphBuffers;
 	FExternalMorphSetWeights* WeightData = DynamicData->ExternalMorphWeightData.MorphSets.Find(MorphSetID);
@@ -978,7 +978,7 @@ static void CalculateMorphDeltaBoundsAccum(
 static void CalculateMorphDeltaBoundsIncludingExternalMorphs(
 	const TArray<float>& MorphTargetWeights,
 	const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers,
-	const TMap<int32, TSharedPtr<FExternalMorphTargetSet>>& ExternalMorphSets,
+	const FExternalMorphSets& ExternalMorphSets,
 	const TMap<int32, FExternalMorphSetWeights>& ExternalWeights,
 	FVector4& MorphScale,
 	FVector4& InvMorphScale)
@@ -1030,7 +1030,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_UpdateMorphBuffer);
 	if (UseGPUMorphTargets(FeatureLevel))
 	{
-		const int32 NumMorphSets = CalcNumActiveGPUMorphSets(MorphVertexBuffer, LODData);
+		const int32 NumMorphSets = CalcNumActiveGPUMorphSets(MorphVertexBuffer, DynamicData->ExternalMorphSets);
 		int32 MorphSetIndex = 0;
 
 		// Calculate the delta bounds.
@@ -1041,7 +1041,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 			CalculateMorphDeltaBoundsIncludingExternalMorphs(
 				DynamicData->MorphTargetWeights,
 				LODData.MorphTargetVertexInfoBuffers,
-				LODData.ExternalMorphSets,
+				DynamicData->ExternalMorphSets,
 				DynamicData->ExternalMorphWeightData.MorphSets,
 				MorphScale,
 				InvMorphScale);
@@ -1065,7 +1065,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 		MorphSetIndex++;
 
 		// Process all external morph targets.
-		for (const auto& MorphSet : LODData.ExternalMorphSets)
+		for (const auto& MorphSet : DynamicData->ExternalMorphSets)
 		{
 			const int32 MorphSetID = MorphSet.Key;
 			const FMorphTargetVertexInfoBuffers& CompressedBuffers = MorphSet.Value->MorphBuffers;
@@ -2212,6 +2212,7 @@ void FDynamicSkelMeshObjectDataGPUSkin::Clear()
 	ActiveMorphTargets.Reset();
 	MorphTargetWeights.Reset();
 	ExternalMorphWeightData.Reset();
+	ExternalMorphSets.Reset();
 	NumWeightedActiveMorphTargets = 0;
 	ClothingSimData.Reset();
 	ClothBlendWeight = 0.0f;
@@ -2323,8 +2324,10 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	ActiveMorphTargets.Append(InActiveMorphTargets);
 	MorphTargetWeights.Append(InMorphTargetWeights);
 	NumWeightedActiveMorphTargets = 0;
-	ExternalMorphWeightData = InExternalMorphWeightData;	// TODO: Make this more efficient?
+
+	ExternalMorphWeightData = InExternalMorphWeightData;
 	ExternalMorphWeightData.UpdateNumActiveMorphTargets();
+	ExternalMorphSets = InMeshComponent->GetExternalMorphSets(InLODIndex);
 
 	// Gather any bones referenced by shadow shapes
 	FSkeletalMeshSceneProxy* SkeletalMeshProxy = InMeshComponent ? (FSkeletalMeshSceneProxy*)InMeshComponent->SceneProxy : nullptr;

@@ -131,6 +131,11 @@ public:
 	 */
 	int32 GetNeuralNetworkInferenceHandle() const { return NeuralNetworkInferenceHandle; }
 
+	/** Set whether we had a successful call to UMLDeformerModel::PostMLDeformerComponentInit. */
+	void SetHasPostInitialized(bool bHasInitialized) { bHasPostInitialized = bHasInitialized; }
+
+	bool HasPostInitialized() const { return bHasPostInitialized; }
+
 protected:
 	/**
 	 * Set the bone transformations inside a given output buffer, starting from a given StartIndex.
@@ -181,4 +186,7 @@ protected:
 
 	/** Are the deformer asset and the used skeletal mesh component compatible? */
 	bool bIsCompatible = false;
+
+	/** Has this instance had a successful UMLDeformerModel::PostMLDeformerComponentInit call? */
+	bool bHasPostInitialized = false;
 };

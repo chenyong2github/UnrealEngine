@@ -961,23 +961,3 @@ void FSkeletalMeshLODRenderData::GetSectionFromVertexIndex(int32 InVertIndex, in
 	// InVertIndex should always be in some chunk!
 	//check(false);
 }
-
-void FSkeletalMeshLODRenderData::AddExternalMorphSet(int32 ID, TSharedPtr<FExternalMorphTargetSet> MorphSet)
-{
-	ExternalMorphSets.Add(ID, MorphSet);
-}
-
-void FSkeletalMeshLODRenderData::RemoveExternalMorphSet(int32 ID)
-{
-	ExternalMorphSets.Remove(ID);
-}
-
-bool FSkeletalMeshLODRenderData::HasExternalMorphSet(int32 ID) const
-{
-	return (ExternalMorphSets.Find(ID) != nullptr);
-}
-
-void FSkeletalMeshLODRenderData::ClearExternalMorphSets()
-{
-	ExternalMorphSets.Empty();
-}

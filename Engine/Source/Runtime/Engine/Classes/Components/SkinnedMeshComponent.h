@@ -15,6 +15,7 @@
 #include "Containers/SortedMap.h"
 #include "LODSyncInterface.h"
 #include "BoneContainer.h"
+#include "Rendering/MorphTargetVertexInfoBuffers.h"
 #include "SkinnedMeshComponent.generated.h"
 
 enum class ESkinCacheUsage : uint8;
@@ -139,6 +140,18 @@ struct FActiveMorphTarget
 		return MorphTarget == Other.MorphTarget;
 	}
 };
+
+/** An external morph target set. External morph targets are managed by systems outside of the skinned meshes. */
+struct ENGINE_API FExternalMorphSet
+{
+	/** A name for this set, useful for debugging. */
+	FName Name = FName(TEXT("Unknown"));
+
+	/** The GPU compressed morph buffers. */
+	FMorphTargetVertexInfoBuffers MorphBuffers;
+};
+
+using FExternalMorphSets = TMap<int32, TSharedPtr<FExternalMorphSet>>;
 
 /** The weight data for a specific external morph set. */
 struct ENGINE_API FExternalMorphSetWeights
@@ -420,8 +433,36 @@ public:
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use the GetLeaderBoneMap.")
 	const TArray<int32>& GetMasterBoneMap() const { return GetLeaderBoneMap(); }
 
+	/** Get the weights in read-only mode for a given external morph target set at a specific LOD. */
 	const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const { return ExternalMorphWeightData[LOD]; }
+
+	/** Get the weights for a given external morph target set at a specific LOD. */
 	FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) { return ExternalMorphWeightData[LOD]; }
+
+	/**
+	 * Register an external set of GPU compressed morph targets.
+	 * These compressed morph targets are GPU only morph targets that will not appear inside the UI and are owned by external systems.
+	 * Every set of these morph targets has some unique ID.
+	 * @param LOD The LOD index.
+	 * @param ID The unique ID for this set of morph targets.
+	 * @param MorphSet A shared pointer to a morph set, which basically contains a GPU friendly morph buffer. This buffer should be owned by an external system that calls this method.
+	 */
+	void AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet);
+
+	/** Remove a given set of external GPU based morph targets. */
+	void RemoveExternalMorphSet(int32 LOD, int32 ID);
+
+	/** Clear all externally registered morph target buffers. */
+	void ClearExternalMorphSets(int32 LOD);
+
+	/** Do we have a given set of external morph targets? */
+	bool HasExternalMorphSet(int32 LOD, int32 ID) const;
+
+	/** Get the external morph sets for a given LOD. */
+	const FExternalMorphSets& GetExternalMorphSets(int32 LOD) const { return ExternalMorphSets[LOD]; }
+
+	/** Get the array of external morph target sets. It is an array, one entry for each LOD. */
+	const TArray<FExternalMorphSets>& GetExternalMorphSetsArray() const { return ExternalMorphSets; }
 
 	/** 
 	 * Get CPU skinned vertices for the specified LOD level. Includes morph targets if they are enabled.
@@ -455,6 +496,14 @@ public:
 
 	/** The external morph target set weight data, for each LOD. This data is (re)initialized by RefreshExternalMorphTargetWeights(). */
 	TArray<FExternalMorphWeightData> ExternalMorphWeightData;
+
+	/**
+	 * External GPU based morph target buffers, for each LOD.
+	 * This contains an additional set of GPU only morphs that come from external other systems that generate morph targets.
+	 * These morph targets can only be updated on the GPU, will not be serialized as part of the Skeletal Mesh, and will not show up in the editors morph target list.
+	 * Every set of external morph targets has some given ID. Each LOD level has a map indexed by LOD number.
+	 */
+	TArray<FExternalMorphSets> ExternalMorphSets;
 
 #if WITH_EDITORONLY_DATA
 private:
@@ -1016,6 +1065,9 @@ public:
 
 	/** Get the pre-skinning local space bounds for this component. */
 	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
+
+	/** Resize the morph target sets array to the number of LODs. */
+	void ResizeExternalMorphTargetSets();
 
 	/** Refresh the external morph target weight buffers. This makes sure the amount of morph sets and number of weights are valid. */
 	void RefreshExternalMorphTargetWeights();

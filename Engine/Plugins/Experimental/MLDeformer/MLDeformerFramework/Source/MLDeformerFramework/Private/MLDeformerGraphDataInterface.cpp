@@ -70,15 +70,18 @@ namespace UE::MLDeformer
 		using namespace UE::MLDeformer;
 
 		const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
-		const UMLDeformerModel* Model = DeformerAsset->GetModel();
-		const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
+		if (DeformerAsset)
+		{
+			const UMLDeformerModel* Model = DeformerAsset->GetModel();
+			const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 		
-		SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
-		NeuralNetwork = Model->GetNeuralNetwork();
-		NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
-		bCanRunNeuralNet = ModelInstance->IsCompatible();
-		Weight = DeformerComponent->GetWeight();
-		VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
+			SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
+			NeuralNetwork = Model->GetNeuralNetwork();
+			NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
+			bCanRunNeuralNet = ModelInstance->IsCompatible();
+			Weight = DeformerComponent->GetWeight();
+			VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
+		}
 	}
 
 	void FMLDeformerGraphDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)

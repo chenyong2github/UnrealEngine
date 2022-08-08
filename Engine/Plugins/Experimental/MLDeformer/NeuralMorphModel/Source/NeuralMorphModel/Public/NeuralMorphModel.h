@@ -17,7 +17,7 @@ class UMLDeformerAsset;
 class UMLDeformerModelInstance;
 class USkeleton;
 class IPropertyHandle;
-struct FExternalMorphTargetSet;
+struct FExternalMorphSet;
 
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphModel 
@@ -69,7 +69,7 @@ public:
 
 public:
 	/** The compressed morph target data, ready for the GPU. */
-	TSharedPtr<FExternalMorphTargetSet> MorphTargetSet;
+	TSharedPtr<FExternalMorphSet> MorphTargetSet;
 
 	/** The morph target set ID that is passed to FSkeletalMeshLODRenderData::AddExternalMorphBuffer(...). */
 	static int32 NeuralMorphsExternalMorphSetID;
