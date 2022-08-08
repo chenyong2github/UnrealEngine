@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
 			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
 
-			if (bCompilingForArm)
+			if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
 			{
 				Target.DisablePlugins.AddRange(new string[]
 				{

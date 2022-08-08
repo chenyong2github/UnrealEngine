@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
 						IEnumerable<ProjectFile> SupportedProjects =
 								CurFolder.ChildProjects.Where(P => P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile) || P.GetType() == typeof(XcodeProjectLegacy.XcodeProjectFile))
-									.Where(P => XcodeProjectXcconfig.XcodeProjectFile.ShouldIncludeProjectInWorkspace(P, Logger))
+									.Where(P => XcodeProjectXcconfig.UnrealData.ShouldIncludeProjectInWorkspace(P, Logger))
 									.OrderBy(P => P.ProjectFilePath.GetFileName());
 
 						foreach (ProjectFile XcodeProject in SupportedProjects)
