@@ -583,7 +583,7 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 	{
 		GRHIVendorId = 0x10DE;
 	}
-	else if (VendorName.Contains(TEXT("ImgTec")))
+	else if (VendorName.Contains(TEXT("ImgTec")) || VendorName.Contains(TEXT("Imagination")))
 	{
 		GRHIVendorId = 0x1010;
 	}

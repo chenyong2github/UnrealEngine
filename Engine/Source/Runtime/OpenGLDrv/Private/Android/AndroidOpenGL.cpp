@@ -365,7 +365,7 @@ bool PlatformInitOpenGL()
 
 		// Needs to initialize GPU vendor id before AndroidEGL::AcquireCurrentRenderingContext
 		FString& VendorName = FAndroidGPUInfo::Get().VendorName;
-		if (VendorName.Contains(TEXT("ImgTec")))
+		if (VendorName.Contains(TEXT("ImgTec")) || VendorName.Contains(TEXT("Imagination")))
 		{
 			GRHIVendorId = 0x1010;
 		}
