@@ -185,7 +185,10 @@ namespace UE
 	{
 		if (InOuter == nullptr)
 		{
-			return GIsSavingPackage;
+			// That global is only meant to be set and read from the game-thread...
+			// otherwise it could interfere with normal operations coming from
+			// other threads like async loading, etc...
+			return GIsSavingPackage && IsInGameThread();
 		}
 		return InOuter->GetPackage()->HasAnyPackageFlags(PKG_IsSaving);
 	}

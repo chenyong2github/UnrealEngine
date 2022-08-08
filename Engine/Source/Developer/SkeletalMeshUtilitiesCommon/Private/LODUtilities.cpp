@@ -3221,6 +3221,9 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 			{
 				if (LODIndex == 0)
 				{
+					// Required both for NewObject and to avoid a fatal error in StaticFindObject.
+					FGCScopeGuard GCScopeGuard;
+
 					if (!IsInGameThread())
 					{
 						//TODO remove this code when overriding a UObject will be allow outside of the game thread
@@ -3236,7 +3239,7 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 						}
 						bNeedToClearAsyncFlag = true;
 					}
-					FGCScopeGuard GCScopeGuard;
+
 					MorphTarget = NewObject<UMorphTarget>(BaseSkelMesh, ObjectName);
 				}
 				else
