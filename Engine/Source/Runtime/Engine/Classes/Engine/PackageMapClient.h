@@ -490,7 +490,7 @@ protected:
 	void ExportNetGUIDHeader();
 
 	void			InternalWriteObject( FArchive& Ar, FNetworkGUID NetGUID, UObject* Object, FString ObjectPathName, UObject* ObjectOuter );	
-	FNetworkGUID	InternalLoadObject( FArchive & Ar, UObject *& Object, int InternalLoadObjectRecursionCount );
+	FNetworkGUID	InternalLoadObject( FArchive & Ar, UObject *& Object, const int32 InternalLoadObjectRecursionCount );
 
 	virtual UObject* ResolvePathAndAssignNetGUID( const FNetworkGUID& NetGUID, const FString& PathName ) override;
 
@@ -500,7 +500,7 @@ protected:
 
 	class UNetConnection* Connection;
 
-	bool ObjectLevelHasFinishedLoading(UObject* Obj);
+	bool ObjectLevelHasFinishedLoading(UObject* Obj) const;
 
 	TArray<TArray<uint8>>				ExportGUIDArchives;
 	TSet< FNetworkGUID >				CurrentExportNetGUIDs;				// Current list of NetGUIDs being written to the Export Bunch.
