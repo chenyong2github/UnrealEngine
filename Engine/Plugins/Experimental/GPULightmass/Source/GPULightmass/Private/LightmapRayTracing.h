@@ -41,11 +41,19 @@ class FLightmapPathTracingRGS : public FGlobalShader
 
 	class FUseIrradianceCaching : SHADER_PERMUTATION_BOOL("USE_IRRADIANCE_CACHING");
 	class FUseFirstBounceRayGuiding : SHADER_PERMUTATION_BOOL("USE_FIRST_BOUNCE_RAY_GUIDING");
+	class FUseICBackfaceDetection : SHADER_PERMUTATION_BOOL("IC_BACKFACE_DETECTION");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FUseFirstBounceRayGuiding>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FUseFirstBounceRayGuiding, FUseICBackfaceDetection>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		// Disallow invalid permutations
+		if (!PermutationVector.Get<FUseIrradianceCaching>())
+		{
+			if (PermutationVector.Get<FUseICBackfaceDetection>()) return false;
+			if (PermutationVector.Get<FUseFirstBounceRayGuiding>()) return false;
+		}
 		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 

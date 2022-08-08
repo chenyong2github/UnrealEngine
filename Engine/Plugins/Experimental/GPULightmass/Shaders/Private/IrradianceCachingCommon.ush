@@ -1,5 +1,12 @@
 #include "/Engine/Private/HashTable.ush"
 
+#ifndef IC_BACKFACE_DETECTION
+#define IC_BACKFACE_DETECTION 0
+#endif
+
+#define BackfaceThresholdRejection (1.0f / 64)
+#define BackfaceThresholdInsideGeometry (2.0f)
+
 struct FFinalGatherHitPoint
 {
 	float3 WorldPosition;
@@ -240,6 +247,7 @@ void EmitGeometryHitPoint(FFinalGatherHitPoint HitPoint, uint Size)
 		}
 		IrradianceCachingParameters.RWIndexToHash[RecordIndex] = Index;
 		IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex] = uint4(0, 0, 0, 0);
+		IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits[RecordIndex] = uint4(0, 0, 0, 0);
 	}
 }
 

@@ -445,6 +445,7 @@ void PathTracingKernel(
 				uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
 
 				uint4 RecordIrradianceAndSampleCount = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
+				uint BackfaceHitsCount = IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits[RecordIndex].a;
 
 				// Compute an overestimated upper bound for the number of samples we need for this texel by assuming
 				// all the rays from all IC building passes are sent from this single texel
@@ -464,6 +465,21 @@ void PathTracingKernel(
 			#else
 				// Volumetric lightmaps
 				bShouldAcceptCacheEntry = RenderPassIndex >= GetIrradianceCachingQuality();
+			#endif
+				
+			#if IC_BACKFACE_DETECTION
+				// Reject the entry if it can see back faces
+				if (RenderPassIndex >= GetIrradianceCachingQuality() && BackfaceHitsCount > RecordIrradianceAndSampleCount.w * BackfaceThresholdRejection)
+				{
+					bShouldAcceptCacheEntry = false;
+				}
+
+				// Terminate the path if the entry contains too many back face hits which means it is very likely to be fully inside geometry
+				if (RenderPassIndex >= GetIrradianceCachingQuality() && BackfaceHitsCount > RecordIrradianceAndSampleCount.w * BackfaceThresholdInsideGeometry)
+				{
+					bIsValidSample = false;
+					break;
+				}
 			#endif
 			
 				if (bShouldAcceptCacheEntry)
@@ -835,6 +851,15 @@ void PathTracingKernel(
 			ATOMIC_ADD_FLOAT(IrradianceCachingParameters.IrradianceCacheRecords[NearestCacheEntryID].b, IrradianceToAccumulate.b);
 			InterlockedAdd(IrradianceCachingParameters.IrradianceCacheRecords[NearestCacheEntryID].a, 1);
 		}
+	}
+	else
+	{
+	#if IC_BACKFACE_DETECTION
+		if(NearestCacheEntryID != -1)
+		{
+			InterlockedAdd(IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits[NearestCacheEntryID].a, 1);
+		}
+	#endif
 	}
 #endif
 	

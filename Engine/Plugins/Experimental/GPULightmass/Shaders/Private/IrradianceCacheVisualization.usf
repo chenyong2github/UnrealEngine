@@ -31,11 +31,22 @@ void VisualizeIrradianceCachePS(
 	{
 		uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
 		uint4 RecordIrradianceAndSampleCount = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
+		uint BackfaceHitsCount = IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits[RecordIndex].a;
 		if (RecordIrradianceAndSampleCount.w > 0)
 		{
 			bIrradianceQuerySuccessful = true;
 			
 			RecordIrradiance = asfloat(RecordIrradianceAndSampleCount.xyz) / RecordIrradianceAndSampleCount.w;
+
+			if (BackfaceHitsCount > RecordIrradianceAndSampleCount.w * BackfaceThresholdRejection)
+			{
+				RecordIrradiance = float3(1, 1, 0) / View.PreExposure;
+			}
+
+			if (BackfaceHitsCount > RecordIrradianceAndSampleCount.w * BackfaceThresholdInsideGeometry)
+			{
+				RecordIrradiance = float3(1, 0, 0) / View.PreExposure;
+			}
 		}
 		
 		bGeometryQuerySuccessful = true;

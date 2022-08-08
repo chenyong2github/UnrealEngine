@@ -21,10 +21,14 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 		FRHIResourceCreateInfo CreateInfo(TEXT("FIrradianceCache"));
 		IrradianceCacheRecords = RHICreateStructuredBuffer(sizeof(FVector4f), sizeof(FVector4f) * IrradianceCacheMaxSize, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
 		IrradianceCacheRecordsUAV = RHICreateUnorderedAccessView(IrradianceCacheRecords, false, false);
+		IrradianceCacheRecordBackfaceHits = RHICreateStructuredBuffer(sizeof(FVector4f), sizeof(FVector4f) * IrradianceCacheMaxSize, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+		IrradianceCacheRecordBackfaceHitsUAV = RHICreateUnorderedAccessView(IrradianceCacheRecordBackfaceHits, false, false);
 		
+		IrradianceCacheTotalBytes += sizeof(FVector4f) * IrradianceCacheMaxSize;
 		IrradianceCacheTotalBytes += sizeof(FVector4f) * IrradianceCacheMaxSize;
 
 		RHICmdList.ClearUAVUint(IrradianceCacheRecordsUAV, FUintVector4(0, 0, 0, 0));
+		RHICmdList.ClearUAVUint(IrradianceCacheRecordBackfaceHitsUAV, FUintVector4(0, 0, 0, 0));
 	}
 
 	int32 HashTableSize = IrradianceCacheMaxSize * 4;
@@ -58,6 +62,7 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 
 	FIrradianceCachingParameters IrradianceCachingParameters;
 	IrradianceCachingParameters.IrradianceCacheRecords = IrradianceCacheRecordsUAV;
+	IrradianceCachingParameters.IrradianceCacheRecordBackfaceHits = IrradianceCacheRecordBackfaceHitsUAV;
 	IrradianceCachingParameters.Quality = Quality;
 	IrradianceCachingParameters.Spacing = Spacing;
 	IrradianceCachingParameters.CornerRejection = CornerRejection;
