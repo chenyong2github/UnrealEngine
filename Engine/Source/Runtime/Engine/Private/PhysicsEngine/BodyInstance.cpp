@@ -430,11 +430,16 @@ bool FBodyInstance::IsShapeBoundToBody(const FPhysicsShapeHandle& Shape) const
 const TMap<FPhysicsShapeHandle, FBodyInstance::FWeldInfo>* FBodyInstance::GetCurrentWeldInfo() const
 {
 	return ShapeToBodiesMap.Get();
-	}
+}
 
 int32 FBodyInstance::GetAllShapes_AssumesLocked(TArray<FPhysicsShapeHandle>& OutShapes) const
+{
+	if(ActorHandle)
 	{
-	return FPhysicsInterface::GetAllShapes_AssumedLocked(ActorHandle, OutShapes);
+		return FPhysicsInterface::GetAllShapes_AssumedLocked(ActorHandle, OutShapes);
+	}
+
+	return 0;
 }
 
 void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)

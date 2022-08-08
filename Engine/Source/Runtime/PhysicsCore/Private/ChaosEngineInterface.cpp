@@ -1678,14 +1678,20 @@ void FChaosEngineInterface::SetLocalTransform(const FPhysicsShapeHandle& InShape
 template<typename AllocatorType>
 int32 GetAllShapesInternalImp_AssumedLocked(const FPhysicsActorHandle& InActorHandle,TArray<FPhysicsShapeReference_Chaos,AllocatorType>& OutShapes)
 {
-	const Chaos::FShapesArray& ShapesArray = InActorHandle->GetGameThreadAPI().ShapesArray();
-	OutShapes.Reset(ShapesArray.Num());
-	//todo: can we avoid this construction?
-	for(const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
+	if(InActorHandle)
 	{
-		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(),InActorHandle));
+		const Chaos::FShapesArray& ShapesArray = InActorHandle->GetGameThreadAPI().ShapesArray();
+		OutShapes.Reset(ShapesArray.Num());
+		//todo: can we avoid this construction?
+		for(const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
+		{
+			OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(),InActorHandle));
+		}
+
+		return OutShapes.Num();
 	}
-	return OutShapes.Num();
+
+	return 0;
 }
 
 int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorHandle,TArray<FPhysicsShapeReference_Chaos,FDefaultAllocator>& OutShapes)

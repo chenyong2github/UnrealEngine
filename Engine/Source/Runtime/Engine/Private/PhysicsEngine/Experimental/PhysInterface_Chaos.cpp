@@ -1249,11 +1249,10 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 
 	FPhysicsCommand::ExecuteRead(UseBI->ActorHandle, [&](const FPhysicsActorHandle& Actor)
 	{
-
 		bEarlyOut = false;
 
 		TArray<FPhysicsShapeReference_Chaos> Shapes;
-		InInstance->GetAllShapes_AssumesLocked(Shapes);
+		UseBI->GetAllShapes_AssumesLocked(Shapes);
 		for (const FPhysicsShapeReference_Chaos& Shape : Shapes)
 		{
 			if (!Shape.IsValid())
@@ -1261,7 +1260,7 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 				continue;
 			}
 
-			if (UseBI->IsShapeBoundToBody(Shape) == false)	//skip welded shapes that do not belong to us
+			if (InInstance->IsShapeBoundToBody(Shape) == false)	//skip welded shapes that do not belong to us
 			{
 				continue;
 			}
