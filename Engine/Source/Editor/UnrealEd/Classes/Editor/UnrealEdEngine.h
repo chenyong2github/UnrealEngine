@@ -140,6 +140,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<class UCookOnTheFlyServer> CookServer;
 
+	/** When deleting actors, these types should not generate warnings when references will be broken (this should only be types that don't affect gameplay) */
+	UPROPERTY()
+	TArray<TObjectPtr<UClass>> ClassesToIgnoreDeleteReferenceWarning;
+
 	/** A list of packages dirtied this tick */
 	TArray<TWeakObjectPtr<UPackage>> PackagesDirtiedThisTick;
 
