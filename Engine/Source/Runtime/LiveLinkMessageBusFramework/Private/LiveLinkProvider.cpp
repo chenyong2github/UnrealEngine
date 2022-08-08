@@ -486,10 +486,7 @@ void FLiveLinkProvider::CreateMessageEndpoint(FMessageEndpointBuilder& EndpointB
 		.Handling<FLiveLinkConnectMessage>(this, &FLiveLinkProvider::HandleConnectMessage)
 		.Handling<FLiveLinkHeartbeatMessage>(this, &FLiveLinkProvider::HandleHeartbeat);
 
-	if (MessageEndpoint.IsValid())
-	{
-		MessageEndpoint->Subscribe<FLiveLinkPingMessage>();
-	}
+	Subscribe<FLiveLinkPingMessage>();
 }
 
 void FLiveLinkProvider::GetConnectedAddresses(TArray<FMessageAddress>& Addresses)

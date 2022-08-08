@@ -104,6 +104,36 @@ protected:
 		}
 	}
 
+	template<typename MessageType>
+	void SendMessage(MessageType* Message, const FMessageAddress& Address)
+	{
+		if (!Message || !Address.IsValid())
+		{
+			return;
+		}
+
+		MessageEndpoint->Send(Message, Address);
+	}
+
+	template<typename MessageType>
+	void Subscribe()
+	{
+		if (MessageEndpoint.IsValid())
+		{
+			MessageEndpoint->Subscribe<MessageType>();
+		}
+	}
+
+	const FString& GetProviderName() const
+	{
+		return ProviderName;
+	}
+	
+	const FString& GetMachineName() const
+	{
+		return MachineName;
+	}
+
 public:
 	FLiveLinkProvider(const FString& InProviderName);
 
