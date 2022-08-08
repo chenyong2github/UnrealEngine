@@ -76,3 +76,5 @@ FReply SScheduledSyncWindow::OnCancelClicked()
 
 	return FReply::Handled();
 }
+
+#undef LOCTEXT_NAMESPACE
