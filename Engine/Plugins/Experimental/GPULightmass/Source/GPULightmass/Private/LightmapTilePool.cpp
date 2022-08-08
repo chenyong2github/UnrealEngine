@@ -116,6 +116,8 @@ FLightmapTilePoolGPU::FLightmapTilePoolGPU(int32 NumLayers, FIntPoint InSizeInTi
 
 	int64 MemorySize = 0;
 
+	PooledRenderTargetDebugNames.AddDefaulted(NumLayers);
+
 	for (int32 RenderTargetIndex = 0; RenderTargetIndex < NumLayers; RenderTargetIndex++)
 	{
 		LayerFormatAndTileSize.Add( { RenderTargetFormat, TileSize } );
@@ -130,7 +132,8 @@ FLightmapTilePoolGPU::FLightmapTilePoolGPU(int32 NumLayers, FIntPoint InSizeInTi
 
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTargets[RenderTargetIndex], *FString::Printf(TEXT("LightmapTilePoolGPU%d"), RenderTargetIndex));
+		PooledRenderTargetDebugNames[RenderTargetIndex] = FString::Printf(TEXT("LightmapTilePoolGPU%d"), RenderTargetIndex);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTargets[RenderTargetIndex], *PooledRenderTargetDebugNames[RenderTargetIndex]);
 
 		MemorySize += PooledRenderTargets[RenderTargetIndex]->ComputeMemorySize();
 
@@ -148,6 +151,8 @@ void FLightmapTilePoolGPU::Initialize(TArray<FLayerFormatAndTileSize> Layers)
 
 	int64 MemorySize = 0;
 
+	PooledRenderTargetDebugNames.AddDefaulted(Layers.Num());
+	
 	for (int32 RenderTargetIndex = 0; RenderTargetIndex < Layers.Num(); RenderTargetIndex++)
 	{
 		LayerFormatAndTileSize.Add(Layers[RenderTargetIndex]);
@@ -164,7 +169,8 @@ void FLightmapTilePoolGPU::Initialize(TArray<FLayerFormatAndTileSize> Layers)
 
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTargets[RenderTargetIndex], *FString::Printf(TEXT("LightmapTilePoolGPU%d"), RenderTargetIndex));
+		PooledRenderTargetDebugNames[RenderTargetIndex] = FString::Printf(TEXT("LightmapTilePoolGPU%d"), RenderTargetIndex);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTargets[RenderTargetIndex], *PooledRenderTargetDebugNames[RenderTargetIndex]);
 
 		MemorySize += PooledRenderTargets[RenderTargetIndex]->ComputeMemorySize();
 

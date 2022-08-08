@@ -64,6 +64,7 @@ public:
 
 	TArray<FLayerFormatAndTileSize> LayerFormatAndTileSize;
 	TArray<TRefCountPtr<IPooledRenderTarget>> PooledRenderTargets;
+	TArray<FString> PooledRenderTargetDebugNames;
 
 	FIntPoint GetPositionFromLinearAddress(uint32 Address);
 
