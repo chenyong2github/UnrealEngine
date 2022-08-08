@@ -43,11 +43,19 @@ FArchive& operator<<(FArchive& Ar,FShaderParameter& P)
 	return Ar << P.BaseIndex << P.NumBytes << PBufferIndex;
 }
 
-void FShaderResourceParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags)
+void FShaderResourceParameter::Bind(const FShaderParameterMap& ParameterMap, const TCHAR* ParameterName, EShaderParameterFlags Flags)
 {
-	uint16 UnusedBufferIndex = 0;
-
-	if(!ParameterMap.FindParameterAllocation(ParameterName,UnusedBufferIndex,BaseIndex,NumResources) && Flags == SPF_Mandatory)
+	if (TOptional<FParameterAllocation> Allocation = ParameterMap.FindParameterAllocation(ParameterName))
+	{
+		if (Allocation->Type == EShaderParameterType::BindlessResourceIndex || Allocation->Type == EShaderParameterType::BindlessSamplerIndex)
+		{
+			checkf(Allocation->BufferIndex == 0, TEXT("Unexpected buffer index (%d) for bindless index. Global bindless parameters are expected to be in the global constant buffer (buffer index 0)."), Allocation->BufferIndex);
+		}
+		BaseIndex = Allocation->BaseIndex;
+		NumResources = Allocation->Size;
+		Type = Allocation->Type;
+	}
+	else if (Flags == SPF_Mandatory)
 	{
 		if (!UE_LOG_ACTIVE(LogShaders, Log))
 		{
@@ -277,21 +285,21 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 
 			if (Member.GetBaseType() == UBMT_SAMPLER)
 			{
-				Decl.ResourceMembers += FString::Printf(TEXT("DEFINE_SAMPLER_VARIABLE(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.ResourceMembers += FString::Printf(TEXT("UB_RESOURCE_MEMBER_SAMPLER(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\t%s %s;\r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT("GET_SAMPLER(%s),"), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT("%s,"), *ParameterName);
 			}
 			else if (Member.GetBaseType() == UBMT_SRV)
 			{
-				Decl.ResourceMembers += FString::Printf(TEXT("PLATFORM_SUPPORTS_SRV_UB_MACRO( DEFINE_RESOURCE_VARIABLE(%s, %s); ) \r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.ResourceMembers += FString::Printf(TEXT("PLATFORM_SUPPORTS_SRV_UB_MACRO( UB_RESOURCE_MEMBER_RESOURCE(%s, %s); ) \r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\tPLATFORM_SUPPORTS_SRV_UB_MACRO( %s %s; ) \r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( GET_RESOURCE(%s), ) "), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( %s, ) "), *ParameterName);
 			}
 			else
 			{
-				Decl.ResourceMembers += FString::Printf(TEXT("DEFINE_RESOURCE_VARIABLE(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.ResourceMembers += FString::Printf(TEXT("UB_RESOURCE_MEMBER_RESOURCE(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\t%s %s;\r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT("GET_RESOURCE(%s),"), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT("%s,"), *ParameterName);
 			}
 		}
 	}

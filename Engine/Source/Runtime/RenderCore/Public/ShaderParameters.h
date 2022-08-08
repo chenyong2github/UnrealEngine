@@ -26,6 +26,9 @@ struct FRWBuffer;
 struct FRWBufferStructured;
 struct FShaderCompilerEnvironment;
 
+enum class EShaderParameterType : uint8;
+DECLARE_INTRINSIC_TYPE_LAYOUT(EShaderParameterType);
+
 RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*, struct FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform);
 
 
@@ -73,26 +76,22 @@ class FShaderResourceParameter
 {
 	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderResourceParameter, RENDERCORE_API, NonVirtual);
 public:
-	FShaderResourceParameter()
-	:	BaseIndex(0)
-	,	NumResources(0) 
-	{}
+	FShaderResourceParameter() = default;
 
 	RENDERCORE_API void Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags = SPF_Optional);
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar,FShaderResourceParameter& P);
-	bool IsBound() const { return NumResources > 0; }
 
-	inline bool IsInitialized() const 
-	{ 
-		return true;
-	}
+	inline bool IsBound() const { return NumResources > 0; }
+	inline bool IsInitialized() const { return true; }
 
-	uint32 GetBaseIndex() const { return BaseIndex; }
-	uint32 GetNumResources() const { return NumResources; }
+	inline uint32 GetBaseIndex() const { return BaseIndex; }
+	inline uint32 GetNumResources() const { return NumResources; }
+	inline EShaderParameterType GetType() const { return Type; }
 
 private:
-	LAYOUT_FIELD(uint16, BaseIndex);
-	LAYOUT_FIELD(uint16, NumResources);
+	LAYOUT_FIELD_INITIALIZED(uint16, BaseIndex, 0);
+	LAYOUT_FIELD_INITIALIZED(uint8, NumResources, 0);
+	LAYOUT_FIELD_INITIALIZED(EShaderParameterType, Type, {});
 };
 
 /** A class that binds either a UAV or SRV of a resource. */

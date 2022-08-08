@@ -726,6 +726,7 @@ inline void SetShaderParametersInternal(
 		RHICmdList.SetShaderParameter(ShaderRHI, Parameter.BufferIndex, Parameter.BaseIndex, Parameter.ByteSize, DataPtr);
 	}
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	for (const FShaderParameterBindings::FBindlessResourceParameter& BindlessResource : Bindings.BindlessResourceParameters)
 	{
 		const FRHIDescriptorHandle Handle = GetBindlessParameterHandle(Reader, BindlessResource);
@@ -735,6 +736,7 @@ inline void SetShaderParametersInternal(
 			RHICmdList.SetShaderParameter(ShaderRHI, 0, BindlessResource.GlobalConstantOffset, 4, &BindlessIndex);
 		}
 	}
+#endif
 
 	TArray<FShaderParameterBindings::FResourceParameter, TInlineAllocator<16>> GraphSRVs;
 
