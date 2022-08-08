@@ -5145,7 +5145,6 @@ void UMaterial::CompileODSCMaterialsForRemoteRecompile(TArray<FODSCRequestPayloa
 		FMaterialResource* MaterialResource = MaterialInterface->GetMaterialResource(Shaders.FeatureLevel, Shaders.QualityLevel);
 		check(MaterialResource);
 		check(MaterialResource->GetFeatureLevel() == Shaders.FeatureLevel);
-		check(MaterialResource->GetQualityLevel() == Shaders.QualityLevel);
 		ResourceArray.Add(MaterialResource);
 	}
 
