@@ -8,7 +8,6 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieScene.h"
-#include "RenderPagesModule.h"
 #include "UObject/ObjectSaveContext.h"
 
 
@@ -528,7 +527,6 @@ void URenderPageCollection::PostRender(URenderPage* Page)
 {
 	bExecutingPostRender = true;
 	ReceivePostRender(Page);
-	UE::RenderPages::Private::FRenderPagesModule::Get().GetManager().ApplyPagePropValues(this, Page);
 	bExecutingPostRender = false;
 }
 

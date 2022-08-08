@@ -5,6 +5,7 @@
 #include "UI/SRenderPagesProps.h"
 #include "IRenderPageCollectionEditor.h"
 #include "SlateOptMacros.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderPagesPagePropertiesTab"
 
@@ -15,20 +16,26 @@ void UE::RenderPages::Private::SRenderPagesPagePropertiesTab::Construct(const FA
 {
 	ChildSlot
 	[
-		SNew(SVerticalBox)
+		SNew(SScrollBox)
+		.Style(FAppStyle::Get(), "ScrollBox")
 
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f)
+		+ SScrollBox::Slot()
 		[
-			SNew(SRenderPagesPage, InBlueprintEditor)
-		]
+			SNew(SVerticalBox)
 
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.0f)
-		[
-			SNew(SRenderPagesProps, InBlueprintEditor)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f)
+			[
+				SNew(SRenderPagesPage, InBlueprintEditor)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f)
+			[
+				SNew(SRenderPagesProps, InBlueprintEditor)
+			]
 		]
 	];
 }

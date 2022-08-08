@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SRenderPagesCollection.h"
-#include "Blueprints/RenderPagesBlueprint.h"
 #include "IRenderPageCollectionEditor.h"
 #include "RenderPage/RenderPageCollection.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SlateOptMacros.h"
-#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderPagesCollection"
 
