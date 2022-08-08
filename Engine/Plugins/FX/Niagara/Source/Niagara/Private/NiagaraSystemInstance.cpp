@@ -2501,7 +2501,7 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 			}
 		}
 
-		LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+		LocalBounds = FBox(ForceInit);
 		if (NewDynamicBounds.IsValid)
 		{
 			FVector Center = NewDynamicBounds.GetCenter();
@@ -2520,6 +2520,12 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 			const FVector Center = NewFixedBounds.GetCenter();
 			const FVector Extent = NewFixedBounds.GetExtent() * GNiagaraEmitterBoundsFixedExpandMultiplier;
 			LocalBounds += FBox(Center - Extent, Center + Extent);
+		}
+
+		// In the case that we have no bounds initialize to a sensible default value to avoid NaNs later on
+		if (LocalBounds.IsValid == false)
+		{
+			LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 		}
 	}
 
