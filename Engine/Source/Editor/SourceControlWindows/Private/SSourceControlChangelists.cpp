@@ -839,7 +839,7 @@ void SSourceControlChangelistsWidget::OnDeleteShelvedFiles()
 	SourceControlProvider.Execute(DeleteShelvedOperation, GetChangelistFromSelection(), GetSelectedShelvedFiles());
 }
 
-static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangelist, FString& OutValidationText)
+static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangelist, FString& OutValidationTitleText, FString& OutValidationWarningsText, FString& OutValidationErrorsText)
 {
 	FSourceControlPreSubmitDataValidationDelegate ValidationDelegate = ISourceControlModule::Get().GetRegisteredPreSubmitDataValidation();
 
@@ -855,45 +855,45 @@ static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 
 		if (ValidationResult == EDataValidationResult::Invalid || ValidationErrors.Num() > 0)
 		{
-			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationError", "Changelist validation failed!").ToString();
+			OutValidationTitleText = LOCTEXT("SourceControl.Submit.ChangelistValidationError", "Changelist validation failed!").ToString();
 			bValidationResult = false;
 			MessageSeverity = EMessageSeverity::Error;
 		}
 		else if (ValidationResult == EDataValidationResult::NotValidated || ValidationWarnings.Num() > 0)
 		{
-			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationWarning", "Changelist validation has warnings!").ToString();
+			OutValidationTitleText = LOCTEXT("SourceControl.Submit.ChangelistValidationWarning", "Changelist validation has warnings!").ToString();
 			MessageSeverity = EMessageSeverity::Warning;
 		}
 		else
 		{
-			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationSuccess", "Changelist validation successful!").ToString();
+			OutValidationTitleText = LOCTEXT("SourceControl.Submit.ChangelistValidationSuccess", "Changelist validation successful!").ToString();
 		}
 
-		int32 NumLinesDisplayed = 0;
 		FMessageLog SourceControlLog("SourceControl");
 		
-		SourceControlLog.Message(MessageSeverity, FText::FromString(*OutValidationText));
+		SourceControlLog.Message(MessageSeverity, FText::FromString(*OutValidationTitleText));
 
-		auto AppendInfo = [&OutValidationText, &NumLinesDisplayed](const TArray<FText>& Info, const FString& InfoType)
+		auto AppendInfo = [](const TArray<FText>& Info, const FString& InfoType, FString& OutText)
 		{
 			const int32 MaxNumLinesDisplayed = 5;
+			int32 NumLinesDisplayed = 0;
 
 			if (Info.Num() > 0)
 			{
-				OutValidationText += LINE_TERMINATOR;
-				OutValidationText += FString::Printf(TEXT("Encountered %d %s:"), Info.Num(), *InfoType);
+				OutText += LINE_TERMINATOR;
+				OutText += FString::Printf(TEXT("Encountered %d %s:"), Info.Num(), *InfoType);
 
 				for (const FText& Line : Info)
 				{
 					if (NumLinesDisplayed >= MaxNumLinesDisplayed)
 					{
-						OutValidationText += LINE_TERMINATOR;
-						OutValidationText += FString::Printf(TEXT("See log for complete list of %s"), *InfoType);
+						OutText += LINE_TERMINATOR;
+						OutText += FString::Printf(TEXT("See log for complete list of %s"), *InfoType);
 						break;
 					}
 
-					OutValidationText += LINE_TERMINATOR;
-					OutValidationText += Line.ToString();
+					OutText += LINE_TERMINATOR;
+					OutText += Line.ToString();
 
 					++NumLinesDisplayed;
 				}
@@ -913,8 +913,8 @@ static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 			}
 		};
 
-		AppendInfo(ValidationErrors, TEXT("errors"));
-		AppendInfo(ValidationWarnings, TEXT("warnings"));
+		AppendInfo(ValidationErrors, TEXT("errors"), OutValidationErrorsText);
+		AppendInfo(ValidationWarnings, TEXT("warnings"), OutValidationWarningsText);
 
 		LogInfo(ValidationErrors, TEXT("errors"), EMessageSeverity::Error);
 		LogInfo(ValidationWarnings, TEXT("warnings"), EMessageSeverity::Warning);
@@ -962,14 +962,15 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		return;
 	}
 
-	FString ChangelistValidationText;
-	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText);
+	FString ChangelistValidationTitle;
+	FString ChangelistValidationWarningsText;
+	FString ChangelistValidationErrorsText;
+	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationTitle, ChangelistValidationWarningsText, ChangelistValidationErrorsText);
 
 	// Build list of states for the dialog
 	const FText OriginalChangelistDescription = ChangelistState->GetDescriptionText();
 	const bool bAskForChangelistDescription = (OriginalChangelistDescription.IsEmptyOrWhitespace());
 	FText ChangelistDescriptionToSubmit = UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, OriginalChangelistDescription);
-	FName ChangelistValidationIconName = bValidationResult ? TEXT("Icons.SuccessWithColor.Large") : TEXT("Icons.ErrorWithColor.Large");
 
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
 		.Title(NSLOCTEXT("SourceControl.ConfirmSubmit", "Title", "Confirm changelist submit"))
@@ -983,8 +984,9 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		.ParentWindow(NewWindow)
 		.Items(ChangelistState->GetFilesStates())
 		.Description(ChangelistDescriptionToSubmit)
-		.ChangeValidationDescription(ChangelistValidationText)
-		.ChangeValidationIcon(ChangelistValidationIconName)
+		.ChangeValidationResult(ChangelistValidationTitle)
+		.ChangeValidationWarnings(ChangelistValidationWarningsText)
+		.ChangeValidationErrors(ChangelistValidationErrorsText)
 		.AllowDescriptionChange(bAskForChangelistDescription)
 		.AllowUncheckFiles(false)
 		.AllowKeepCheckedOut(false)
@@ -1070,8 +1072,10 @@ void SSourceControlChangelistsWidget::OnValidateChangelist()
 		return;
 	}
 
-	FString ChangelistValidationText;
-	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText);
+	FString ChangelistValidationTitle;
+	FString ChangelistValidationWarningsText;
+	FString ChangelistValidationErrorsText;
+	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationTitle, ChangelistValidationWarningsText, ChangelistValidationErrorsText);
 
 	// Setup the notification for operation feedback
 	FNotificationInfo Info(LOCTEXT("SCC_Validation_Success", "Changelist validated"));

@@ -142,7 +142,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	const bool bDescriptionIsReadOnly = !InArgs._AllowDescriptionChange.Get();
 	const bool bAllowUncheckFiles = InArgs._AllowUncheckFiles.Get();
 	const bool bAllowKeepCheckedOut = InArgs._AllowKeepCheckedOut.Get();
-	const bool bShowChangelistValidation = !InArgs._ChangeValidationDescription.Get().IsEmpty();
+	const bool bShowChangelistValidation = !InArgs._ChangeValidationResult.Get().IsEmpty();
 
 	for (const auto& Item : InArgs._Items.Get())
 	{
@@ -259,29 +259,89 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 
 	if (bShowChangelistValidation)
 	{
-		FString ChangelistResultText = InArgs._ChangeValidationDescription.Get();
-		FName ChangelistIconName = InArgs._ChangeValidationIcon.Get();
+		const FString ChangelistResultText = InArgs._ChangeValidationResult.Get();
+		const FString ChangelistResultWarningsText = InArgs._ChangeValidationWarnings.Get();
+		const FString ChangelistResultErrorsText = InArgs._ChangeValidationErrors.Get();
 
-		Contents->AddSlot()
-		.AutoHeight()
-		.Padding(FMargin(5))
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
+		const FName ChangelistSuccessIconName = TEXT("Icons.SuccessWithColor.Large");
+		const FName ChangelistWarningsIconName = TEXT("Icons.WarningWithColor.Large");
+		const FName ChangelistErrorsIconName = TEXT("Icons.ErrorWithColor.Large");
+
+		const bool bIsSuccess = ChangelistResultWarningsText.IsEmpty() && ChangelistResultErrorsText.IsEmpty();
+
+		if (bIsSuccess)
+		{
+			Contents->AddSlot()
+			.AutoHeight()
+			.Padding(FMargin(5))
 			[
-				SNew(SImage)
-				.Image(FAppStyle::GetBrush(ChangelistIconName))
-			]
-			+SHorizontalBox::Slot()
-			[
-				SNew(SMultiLineEditableTextBox)
-				.Text(FText::FromString(ChangelistResultText))
-				.AutoWrapText(true)
-				.IsReadOnly(true)
-			]
-		];
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush(ChangelistSuccessIconName))
+				]
+				+SHorizontalBox::Slot()
+				[
+					SNew(SMultiLineEditableTextBox)
+					.Text(FText::FromString(ChangelistResultText))
+					.AutoWrapText(true)
+					.IsReadOnly(true)
+				]
+			];
+		}
+		else
+		{
+			if (!ChangelistResultErrorsText.IsEmpty())
+			{
+				Contents->AddSlot()
+				.AutoHeight()
+				.Padding(FMargin(5))
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush(ChangelistErrorsIconName))
+					]
+					+SHorizontalBox::Slot()
+					[
+						SNew(SMultiLineEditableTextBox)
+						.Text(FText::FromString(ChangelistResultErrorsText))
+						.AutoWrapText(true)
+						.IsReadOnly(true)
+					]
+				];
+			}
+
+			if (!ChangelistResultWarningsText.IsEmpty())
+			{
+				Contents->AddSlot()
+				.AutoHeight()
+				.Padding(FMargin(5))
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush(ChangelistWarningsIconName))
+					]
+					+SHorizontalBox::Slot()
+					[
+						SNew(SMultiLineEditableTextBox)
+						.Text(FText::FromString(ChangelistResultWarningsText))
+						.AutoWrapText(true)
+						.IsReadOnly(true)
+					]
+				];
+			}
+		}
 	}
 
 	if (bAllowKeepCheckedOut)
