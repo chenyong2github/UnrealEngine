@@ -186,6 +186,7 @@ const FText UCommonLazyWidget::GetPaletteCategory()
 
 void UCommonLazyWidget::HandleLoadGuardStateChanged(bool bIsLoading)
 {
+	OnLoadingStateChangedEvent.Broadcast(bIsLoading);
 	BP_OnLoadingStateChanged.Broadcast(bIsLoading);
 }
 

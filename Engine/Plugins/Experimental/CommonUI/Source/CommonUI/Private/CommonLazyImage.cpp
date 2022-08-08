@@ -200,6 +200,7 @@ void UCommonLazyImage::SetIsLoading(bool bIsLoading)
 
 void UCommonLazyImage::HandleLoadGuardStateChanged(bool bIsLoading)
 {
+	OnLoadingStateChangedEvent.Broadcast(bIsLoading);
 	BP_OnLoadingStateChanged.Broadcast(bIsLoading);
 }
 
